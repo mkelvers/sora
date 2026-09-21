@@ -1,0 +1,38 @@
+{
+    "name": "sora-sdk-backend",
+    "version": "0.0.1",
+    "private": true,
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev": "turbo run dev --",
+        "build": "turbo run build",
+        "check": "turbo run check",
+        "lint": "oxlint",
+        "format": "oxfmt",
+        "format:check": "oxfmt --check",
+        "db:check": "bun --cwd packages/shared db:check"
+    },
+    "devDependencies": {
+        "@oxlint/plugins": "1.79.0",
+        "oxfmt": "^0.64.0",
+        "oxlint": "1.79.0",
+        "turbo": "^2.10.12"
+    },
+    "overrides": {
+        "@esbuild-kit/core-utils>esbuild": "^0.25.12",
+        "js-yaml": "^4.3.2"
+    },
+    "packageManager": "bun@1.4.0",
+    "catalog": {
+        "@types/bun": "^1.4.0",
+        "@types/node": "^26.2.0",
+        "dotenv": "^17.4.2",
+        "drizzle-kit": "^0.31.10",
+        "drizzle-orm": "^0.45.2",
+        "postgres": "^3.4.9",
+        "typescript": "~6.0.3"
+    }
+}

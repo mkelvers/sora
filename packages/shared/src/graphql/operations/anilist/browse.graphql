@@ -1,0 +1,68 @@
+query BrowseAnimePage(
+    $search: String
+    $genre: String
+    $tag: String
+    $format: MediaFormat
+    $status: MediaStatus
+    $source: MediaSource
+    $season: MediaSeason
+    $seasonYear: Int
+    $countryOfOrigin: CountryCode
+    $isAdult: Boolean
+    $sort: [MediaSort]
+    $discoveryFormats: [MediaFormat!]
+    $minimumPopularity: Int
+    $page: Int!
+    $perPage: Int!
+    $ids: [Int!]
+) {
+    Page(page: $page, perPage: $perPage) {
+        pageInfo {
+            hasNextPage
+        }
+        media(
+            search: $search
+            type: ANIME
+            genre: $genre
+            tag: $tag
+            format: $format
+            status: $status
+            source: $source
+            season: $season
+            seasonYear: $seasonYear
+            countryOfOrigin: $countryOfOrigin
+            isAdult: $isAdult
+            sort: $sort
+            format_in: $discoveryFormats
+            popularity_greater: $minimumPopularity
+            id_in: $ids
+        ) {
+            id
+            title {
+                english
+                romaji
+                native
+            }
+            synonyms
+            coverImage {
+                extraLarge
+                large
+            }
+            description(asHtml: false)
+            genres
+            tags {
+                name
+            }
+            format
+            status
+            source
+            season
+            seasonYear
+            countryOfOrigin
+            isAdult
+            averageScore
+            popularity
+            duration
+        }
+    }
+}

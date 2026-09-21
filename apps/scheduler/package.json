@@ -1,0 +1,20 @@
+{
+    "name": "@soraorg/scheduler",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "bun build src/index.ts --outdir dist --target bun",
+        "check": "tsc --noEmit",
+        "dev": "bun --env-file=.env --watch src/index.ts",
+        "start": "bun run build && bun dist/index.js"
+    },
+    "dependencies": {
+        "@soraorg/core": "workspace:*",
+        "@soraorg/shared": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.4.0",
+        "typescript": "~6.0.3"
+    }
+}
