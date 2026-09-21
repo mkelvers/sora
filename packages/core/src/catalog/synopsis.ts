@@ -13,7 +13,6 @@ import {
     informativeHeroSynopsis,
     isSeasonReleaseTitle,
     isSeasonPlaceholderSynopsis,
-    minimumInformativeHeroSynopsisLength,
 } from './synopsis/selection';
 
 function usefulSynopsis(value: string | null | undefined) {
@@ -165,10 +164,10 @@ export async function resolveAnimeSynopsis(
 
 export async function resolveHeroSynopsis(anime: AniListAnime) {
     const original = plainText(anime.description);
+    const minimumHeroSynopsisLength = 160;
     const needsEarlierRelease =
         isSeasonPlaceholderSynopsis(original) ||
-        (original.length < minimumInformativeHeroSynopsisLength &&
-            isSeasonReleaseTitle(mediaTitle(anime)));
+        (original.length < minimumHeroSynopsisLength && isSeasonReleaseTitle(mediaTitle(anime)));
     const source = needsEarlierRelease ? await firstRelease(anime, true) : anime;
     const replacement = await resolvedTmdbSynopsis(anime, source);
     return informativeHeroSynopsis(replacement ?? '', plainText(source.description) || original);
