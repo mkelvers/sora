@@ -4,8 +4,6 @@ import { animeDate, dateTimestamp } from '../date';
 import { normalizeTitle, releaseSequence } from './title';
 import type { Candidate } from './types';
 
-const day = 24 * 60 * 60 * 1_000;
-
 export interface SpecialEpisodeEvidence {
     airDate: string;
     name: string;
@@ -48,6 +46,7 @@ function releaseQualifiers(anime: AniListAnime) {
 }
 
 function seasonEvidenceScore(anime: AniListAnime, episodes: SpecialEpisodeEvidence[]) {
+    const day = 24 * 60 * 60 * 1_000;
     const expected = anime.episodes ?? 0;
     const start = dateTimestamp(animeDate(anime.startDate));
     const end = dateTimestamp(animeDate(anime.endDate)) ?? start;
