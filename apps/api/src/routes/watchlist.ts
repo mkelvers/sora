@@ -17,7 +17,6 @@ import { middleware, validate, type ApiEnvironment } from '../http';
 
 const animeIdParamSchema = z.object({ anilistId: AnimeIdSchema });
 
-const maximumWatchlistFileSize = 2 * 1_024 * 1_024;
 const ExportFormatSchema = z.object({
     format: z.enum(['json', 'csv']).default('json'),
 });
@@ -48,8 +47,9 @@ watchlist.get('/states', async (context) =>
 );
 
 watchlist.post('/import', async (context) => {
+    const maximumFileSize = 2 * 1_024 * 1_024;
     const contentLength = Number(context.req.header('content-length'));
-    if (Number.isFinite(contentLength) && contentLength > maximumWatchlistFileSize + 16_384) {
+    if (Number.isFinite(contentLength) && contentLength > maximumFileSize + 16_384) {
         return context.json(errorResponse('The watchlist file must be smaller than 2 MB.'), 413);
     }
 
@@ -63,7 +63,7 @@ watchlist.post('/import', async (context) => {
     if (!(file instanceof File) || !file.size) {
         return context.json(errorResponse('Choose a JSON or CSV watchlist file.'), 400);
     }
-    if (file.size > maximumWatchlistFileSize) {
+    if (file.size > maximumFileSize) {
         return context.json(errorResponse('The watchlist file must be smaller than 2 MB.'), 413);
     }
 
