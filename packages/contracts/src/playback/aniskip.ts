@@ -3,8 +3,6 @@ import { z } from 'zod';
 
 import type { JsonValue } from '../user/utils';
 
-const apiBaseUrl = 'https://api.aniskip.com/v2/skip-times';
-const maximumEpisodeSeconds = 7 * 24 * 60 * 60;
 const aniskipIntervalSchema = z.object({
     startTime: z.number(),
     endTime: z.number(),
@@ -23,6 +21,7 @@ export const SkipIntervalInputSchema = z.object({
 });
 
 function interval(start: number, end: number): SkipInterval | null {
+    const maximumEpisodeSeconds = 7 * 24 * 60 * 60;
     if (start < 0 || end <= start || end > maximumEpisodeSeconds) {
         return null;
     }
@@ -84,6 +83,7 @@ export async function fetchAniSkip(
     malId: number,
     episodeNumber: number
 ): Promise<EpisodeSkipTimes> {
+    const apiBaseUrl = 'https://api.aniskip.com/v2/skip-times';
     const query = new URLSearchParams({ episodeLength: '0' });
     for (const type of ['op', 'ed', 'mixed-op', 'mixed-ed']) {
         query.append('types', type);
