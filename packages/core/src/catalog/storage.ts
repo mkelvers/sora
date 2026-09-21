@@ -13,8 +13,6 @@ import type { AnimeCard } from '../types';
 import { AniListAnimeSchema } from './anilist-types';
 import { plainText } from './anilist-text';
 
-const defaultBrowseFormats = ['TV', 'MOVIE', 'ONA'];
-
 export function catalogSnapshotKey(filters: Omit<BrowseFilters, 'audio'>, page: number) {
     return JSON.stringify({
         discoveryCatalogRevision: 2,
@@ -146,10 +144,7 @@ export async function catalogTaxonomy() {
         .limit(1);
 
     if (stored) {
-        return {
-            ...stored,
-            formats: [...new Set([...defaultBrowseFormats, ...stored.formats])].sort(),
-        };
+        return stored;
     }
 
     const rows = await db
@@ -166,12 +161,9 @@ export async function catalogTaxonomy() {
         genres: [...new Set(rows.flatMap(({ genres }) => genres))].sort(),
         tags: [...new Set(rows.flatMap(({ tags }) => tags))].sort(),
         formats: [
-            ...new Set([
-                ...defaultBrowseFormats,
-                ...rows
-                    .map(({ format }) => format)
-                    .filter((value): value is string => value !== null),
-            ]),
+            ...new Set(
+                rows.map(({ format }) => format).filter((value): value is string => value !== null)
+            ),
         ].sort(),
         statuses: [
             ...new Set(

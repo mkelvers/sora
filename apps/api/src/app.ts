@@ -1,10 +1,6 @@
 import { Hono } from 'hono';
 
-import {
-    BrowseFilterError,
-    isAniKotoTransientError,
-    TargetEpisodeUnavailableError,
-} from '@soraorg/core/server';
+import { isAniKotoTransientError, TargetEpisodeUnavailableError } from '@soraorg/core/server';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
 import { logger } from '@soraorg/core/server';
 import { auth } from './auth';
@@ -17,6 +13,7 @@ import { maintenance } from './routes/maintenance';
 import { notifications } from './routes/notifications';
 import { watchlist } from './routes/watchlist';
 import { isReady } from './readiness';
+
 const app = new Hono();
 
 app.get('/health', (context) => context.json({ status: 'ok' }));
@@ -55,18 +52,6 @@ app.notFound((context) =>
     )
 );
 app.onError((cause, context) => {
-    if (cause instanceof BrowseFilterError) {
-        return context.json(
-            {
-                error: {
-                    code: 'INVALID_REQUEST',
-                    message: cause.message,
-                },
-            },
-            400
-        );
-    }
-
     if (cause instanceof TargetEpisodeUnavailableError) {
         logger.debug(cause.message);
         return context.json(

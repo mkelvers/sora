@@ -9,7 +9,6 @@ import {
     completeEpisodeDetails,
     episodeDetailsNeeded,
     hasRequestedEpisodeLocalization,
-    isLanguageNeutralStill,
     translatedMetadata,
 } from './episode-details';
 import {
@@ -622,9 +621,6 @@ export async function getEpisodeMetadata(
                           {
                               params: {
                                   path,
-                                  query: {
-                                      include_image_language: 'null',
-                                  },
                               },
                           }
                       )
@@ -665,7 +661,7 @@ export async function getEpisodeMetadata(
                       stills,
                       async (still) => ({
                           filePath: still.file_path,
-                          hasEmbeddedTextOverlay: !isLanguageNeutralStill(still.iso_639_1),
+                          hasEmbeddedTextOverlay: still.iso_639_1 != null,
                           voteAverage: still.vote_average,
                           voteCount: still.vote_count,
                           width: still.width,

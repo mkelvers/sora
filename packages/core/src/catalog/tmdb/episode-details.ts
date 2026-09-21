@@ -32,10 +32,6 @@ function text(value: string | null | undefined) {
     return value?.trim() ?? '';
 }
 
-export function isLanguageNeutralStill(language: string | null | undefined) {
-    return language === null;
-}
-
 export function hasRequestedEpisodeLocalization(
     sourceTitle: string,
     candidateTitle: string,

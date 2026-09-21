@@ -3,6 +3,7 @@ import { toAnimeDetails } from '../catalog/details';
 import { withMovieBackdrop } from '../catalog/movie-backdrop';
 import {
     getEpisodeRevision,
+    getRelatedReleaseTitles,
     getStoredAiringSchedule,
     needsEpisodeMetadataRefresh,
 } from '../catalog/episodes';
@@ -69,22 +70,6 @@ async function storedAnimePage(
         return null;
     }
 
-    const storedEpisodes = getEpisodes(anime);
-    void storedEpisodes
-        .then(async (episodes) => {
-            const storedMapping = await findMapping(id);
-            const shouldDiscover =
-                episodes.length === 0 ||
-                (storedMapping &&
-                    (await needsEpisodeMetadataRefresh(id, storedMapping.externalIdId)));
-            if (shouldDiscover) {
-                await discoverEpisodeInventory(anime);
-            }
-        })
-        .catch((cause) => {
-            logger.debug(`Immediate episode inventory discovery failed for AniList ${id}`, cause);
-        });
-
     const [
         episodes,
         artwork,
@@ -96,18 +81,8 @@ async function storedAnimePage(
         episodeProgress,
         franchise,
     ] = await Promise.all([
-        storedEpisodes,
-        getStoredMedia(id)
-            .then((media) => {
-                if (media?.artwork.selectedBackdrop) {
-                    return media.artwork;
-                }
-
-                return getArtwork(anime, { fetchMissing: true }).then(
-                    (fetchedArtwork) => fetchedArtwork ?? media?.artwork ?? null
-                );
-            })
-            .catch(() => null),
+        getEpisodes(anime),
+        getStoredMedia(id).catch(() => null),
         resolveAnimeSynopsis(anime),
         getStoredAiringSchedule(id),
         getEpisodeRevision(id),
@@ -139,7 +114,11 @@ async function storedAnimePage(
         anime: details,
         episodeRevision,
         watchlistState,
-        episodes: withMovieBackdrop(anime, episodesWithProgress, artwork?.selectedBackdrop?.url),
+        episodes: withMovieBackdrop(
+            anime,
+            episodesWithProgress,
+            artwork?.artwork.selectedBackdrop?.url
+        ),
         watchAction: {
             href: target?.href ?? '#anime-episode-list',
             kind: allEpisodesCompleted
@@ -156,7 +135,7 @@ async function storedAnimePage(
         audioLabel: episodeAudioAvailabilityLabel(episodesWithProgress),
         episodeInventory,
         franchise,
-        artwork,
+        artwork: artwork?.artwork ?? null,
     };
 }
 
@@ -164,11 +143,6 @@ export async function animePage(userId: string, id: number) {
     const stored = await storedAnimeRelease(id);
     if (!stored) {
         return storedAnimePage(userId, id, await getAnimeRelease(id));
-    }
-
-    const storedMapping = await findMapping(id);
-    if (storedMapping && (await needsEpisodeMetadataRefresh(id, storedMapping.externalIdId))) {
-        await ensureEpisodeInventoryBackfill(id);
     }
 
     return storedAnimePage(userId, id, stored);
@@ -518,8 +492,32 @@ export async function watchPlayback(id: number, episodeId: string) {
 
     const { anime, episodes, currentIndex } = context;
     const currentEpisode = episodes[currentIndex];
+    const release = episodes.map(({ number, title }) => ({ number, title }));
+    const specials = episodes.filter(({ number }) => number <= 0 || !Number.isInteger(number));
+    const specialIndex = specials.findIndex(({ id: candidate }) => candidate === currentEpisode.id);
+    const releaseRelations = new Set(['PARENT', 'PREQUEL', 'SEQUEL']);
+    const relatedReleases = await getRelatedReleaseTitles(
+        (anime.relations?.edges ?? []).flatMap((edge) =>
+            edge?.relationType &&
+            releaseRelations.has(edge.relationType) &&
+            edge.node?.type === 'ANIME' &&
+            edge.node.id !== id
+                ? [edge.node.id]
+                : []
+        )
+    );
+    const playbackEpisode =
+        specialIndex < 0
+            ? { ...currentEpisode, release, relatedReleases }
+            : {
+                  ...currentEpisode,
+                  release,
+                  relatedReleases,
+                  specialIndex: specialIndex + 1,
+                  specialCount: specials.length,
+              };
 
-    return episodePlayback(anime, currentEpisode, [
+    return episodePlayback(anime, playbackEpisode, [
         'sub',
         'dub',
         ...(currentEpisode.audio.includes('raw') ? (['raw'] as const) : []),

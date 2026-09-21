@@ -1,1 +1,27 @@
-export * from '@soraorg/contracts/catalog/browse-types';
+import type {
+    MediaFormat,
+    MediaSeason,
+    MediaSource,
+    MediaStatus,
+} from '@soraorg/shared/graphql/generated/graphql';
+
+export interface BrowseCatalogEntry {
+    metadataSource?: string;
+    anilistId: number;
+    title: string;
+    searchText: string;
+    imageUrl: string;
+    synopsis: string;
+    genres: string[];
+    tags: string[];
+    format: MediaFormat | null;
+    status: MediaStatus | null;
+    source: MediaSource | null;
+    season: MediaSeason | null;
+    seasonYear: number | null;
+    countryOfOrigin: string | null;
+    isAdult: boolean;
+    popularity: number | null;
+    duration: number | null;
+    averageScore: number | null;
+}

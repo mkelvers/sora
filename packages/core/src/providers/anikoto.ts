@@ -34,7 +34,6 @@ export const aniKotoMediaHostSuffixes = [
     'lostproject.club',
     'megaplay.buzz',
     'mikora.top',
-    'nexabloom.top',
     'norami.top',
     'shiora.site',
     'shiora.top',
@@ -103,12 +102,6 @@ const seriesResponseSchema = z.object({
                     number: z.union([z.number(), z.string()]),
                     title: z.string(),
                     episode_embed_id: z.string(),
-                    embed_url: z
-                        .object({
-                            sub: z.string().url().optional(),
-                            dub: z.string().url().optional(),
-                        })
-                        .optional(),
                 })
             ),
         })
@@ -169,11 +162,6 @@ interface AniKotoSeries {
     format: string | null;
     status: string | null;
     audio: AudioMode[];
-    episodes: Array<{
-        number: number;
-        title: string;
-        embedUrl: Partial<Record<Exclude<AudioMode, 'raw'>, string>>;
-    }>;
 }
 
 interface SearchCandidate {
@@ -377,10 +365,7 @@ export function normalizeAniKotoMediaUrl(url: URL) {
 
 export function aniKotoMediaCandidates(url: URL) {
     const candidates = [url];
-    if (
-        (url.hostname.endsWith('.imgnex.top') || url.hostname.endsWith('.nexabloom.top')) &&
-        url.pathname.startsWith('/anime/')
-    ) {
+    if (url.hostname.endsWith('.imgnex.top') && url.pathname.startsWith('/anime/')) {
         for (const suffix of megaPlayMediaMirrorSuffixes) {
             const alternate = new URL(url);
             alternate.hostname = `megap.${suffix}`;
@@ -498,20 +483,6 @@ export function parseSeries(value: JsonValue): AniKotoSeries | null {
         ...(Number(anime.is_sub) > 0 ? (['sub'] as const) : []),
         ...(Number(anime.is_dub) > 0 ? (['dub'] as const) : []),
     ];
-    const episodes = parsed.data.data.episodes.map((episode) => {
-        const embedUrl: Partial<Record<Exclude<AudioMode, 'raw'>, string>> = {};
-        if (episode.embed_url?.sub) {
-            embedUrl.sub = episode.embed_url.sub;
-        }
-        if (episode.embed_url?.dub) {
-            embedUrl.dub = episode.embed_url.dub;
-        }
-        return {
-            number: Number(episode.number),
-            title: episode.title.trim(),
-            embedUrl,
-        };
-    });
 
     return {
         id,
@@ -534,7 +505,6 @@ export function parseSeries(value: JsonValue): AniKotoSeries | null {
                 'not yet aired': 'NOT_YET_RELEASED',
             }[anime.status?.trim().toLowerCase() ?? ''] ?? null,
         audio: modes,
-        episodes,
     };
 }
 
@@ -621,10 +591,6 @@ export function matchesAniKotoEpisodeCount(
         providerEpisodeCount === undefined
     ) {
         return true;
-    }
-
-    if (anime.format === 'MOVIE') {
-        return exactIdentity ? providerEpisodeCount > 0 : providerEpisodeCount >= anime.episodes;
     }
 
     return (
@@ -1548,59 +1514,6 @@ async function resolveServer(
     };
 }
 
-async function resolveServerStreams(
-    episode: ProviderEpisode,
-    modes: AudioMode[],
-    episodeId: string,
-    signal: AbortSignal
-): Promise<ProviderPlayback> {
-    const servers = parseServerList(
-        await requestJson(
-            new URL(`/ajax/server/list?servers=${encodeURIComponent(episode.id)}`, anikotoUrl),
-            `${anikotoUrl}/`,
-            signal
-        )
-    );
-    const playableModes = playableAudioModes(episode.audio, modes);
-    const tasks = playableModes.flatMap((mode) =>
-        servers[mode].map((candidate) => ({ mode, candidate }))
-    );
-    const { results, errors } = await resolveCandidates(
-        tasks,
-        ({ candidate }, candidateSignal) => resolveServer(candidate, candidateSignal),
-        {
-            concurrency: 4,
-            signal,
-        }
-    );
-    const result: ProviderStreams = {};
-    const resolved = results.flatMap((value, index) =>
-        tasks[index] && value ? [{ ...value, mode: tasks[index].mode }] : []
-    );
-    for (const mode of playableModes) {
-        result[mode] = uniqueDirectStreams(
-            resolved.flatMap(({ mode: resultMode, stream }) =>
-                resultMode === mode ? [stream] : []
-            )
-        );
-    }
-
-    if (result.dub?.length) {
-        result.dub = removeSharedDubCaptions(result.sub ?? [], result.dub);
-    }
-
-    if (!Object.values(result).some((streams) => streams?.length)) {
-        throw new AggregateError(
-            errors,
-            `AniKoto returned no playable ${playableModes.join('/')} stream for episode ${episodeId}`
-        );
-    }
-    return {
-        streams: result,
-        skipTimes: resolved.find(({ skipTimes }) => skipTimes)?.skipTimes ?? null,
-    };
-}
-
 async function getEpisodes(anime: AniListAnime) {
     const series = await findSeries(anime);
     const parsed = await episodesForAnime(series);
@@ -1634,67 +1547,6 @@ async function getStreams(
         }
     }
     const episodeSeries = route ? null : await findSeries(anime);
-    const apiSeries = route ? await loadSeries(route.seriesId).catch(() => null) : null;
-    const apiEpisode = apiSeries?.episodes.find((candidate) => candidate.number === episode.number);
-    if (apiEpisode && Object.keys(apiEpisode.embedUrl).length) {
-        const playableModes = [...new Set(modes)].filter(
-            (mode): mode is Exclude<AudioMode, 'raw'> =>
-                mode !== 'raw' && apiEpisode.embedUrl[mode] !== undefined
-        );
-        const deadline = AbortSignal.timeout(30_000);
-
-        if (route) {
-            try {
-                const episodes = parseEpisodeList(
-                    await requestJson(
-                        new URL(`/ajax/episode/list/${route.seriesId}`, anikotoUrl),
-                        `${anikotoUrl}/`,
-                        deadline
-                    )
-                );
-                const current =
-                    episodes.find((candidate) => candidate.id === route.episodeId) ??
-                    episodes.find((candidate) => candidate.number === episode.number);
-                if (current) {
-                    return await resolveServerStreams(current, modes, episode.id, deadline);
-                }
-            } catch {
-                // Keep the catalog embed as a fallback when server discovery is unavailable.
-            }
-        }
-
-        const resolved = await Promise.all(
-            playableModes.map(async (mode) => {
-                const embed = validEmbed(apiEpisode.embedUrl[mode], mode);
-                if (!embed) {
-                    return null;
-                }
-                try {
-                    const source = await resolveMegaPlay(embed, deadline);
-                    return {
-                        mode,
-                        stream: {
-                            ...source,
-                            provider: providerName,
-                            server: 'MegaPlay',
-                        } satisfies ProviderStream,
-                    };
-                } catch {
-                    return null;
-                }
-            })
-        );
-        const streams: ProviderStreams = {};
-        for (const mode of playableModes) {
-            const stream = resolved.find((value) => value?.mode === mode)?.stream;
-            if (stream) {
-                streams[mode] = [stream];
-            }
-        }
-        if (Object.values(streams).some((sources) => sources?.length)) {
-            return { streams, skipTimes: null };
-        }
-    }
     const episodes = parseEpisodeList(
         await requestJson(
             new URL(`/ajax/episode/list/${route?.seriesId ?? episodeSeries?.id}`, anikotoUrl)
@@ -1706,8 +1558,51 @@ async function getStreams(
     if (!current) {
         throw new Error(`AniKoto has no episode ${episode.number} for AniList ${anime.id}`);
     }
+
+    const servers = parseServerList(
+        await requestJson(
+            new URL(`/ajax/server/list?servers=${encodeURIComponent(current.id)}`, anikotoUrl)
+        )
+    );
+    const playableModes = playableAudioModes(current.audio, modes);
+    const tasks = playableModes.flatMap((mode) =>
+        servers[mode].map((candidate) => ({ mode, candidate }))
+    );
     const deadline = AbortSignal.timeout(30_000);
-    return resolveServerStreams(current, modes, episode.id, deadline);
+    const { results, errors } = await resolveCandidates(
+        tasks,
+        ({ candidate }, signal) => resolveServer(candidate, signal),
+        {
+            concurrency: 4,
+            signal: deadline,
+        }
+    );
+    const result: ProviderStreams = {};
+    const resolved = results.flatMap((value, index) =>
+        tasks[index] && value ? [{ ...value, mode: tasks[index].mode }] : []
+    );
+    for (const mode of playableModes) {
+        result[mode] = uniqueDirectStreams(
+            resolved.flatMap(({ mode: resultMode, stream }) =>
+                resultMode === mode ? [stream] : []
+            )
+        );
+    }
+
+    if (result.dub?.length) {
+        result.dub = removeSharedDubCaptions(result.sub ?? [], result.dub);
+    }
+
+    if (!Object.values(result).some((streams) => streams?.length)) {
+        throw new AggregateError(
+            errors,
+            `AniKoto returned no playable ${playableModes.join('/')} stream for episode ${episode.id}`
+        );
+    }
+    return {
+        streams: result,
+        skipTimes: resolved.find(({ skipTimes }) => skipTimes)?.skipTimes ?? null,
+    };
 }
 
 export const anikotoProvider: PlaybackProvider = {

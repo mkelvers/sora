@@ -36,7 +36,8 @@ const server = Bun.serve({
 if (isProduction) {
     void runMigrationsWithRetry(() =>
         migrate(db, {
-            migrationsFolder: 'packages/shared/drizzle',
+            migrationsFolder:
+                process.env.MIGRATIONS_FOLDER ?? 'node_modules/@soraorg/shared/drizzle',
         })
     )
         .then(markMigrationsReady)

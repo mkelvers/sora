@@ -6,8 +6,8 @@ import {
     PageQuerySchema,
     ReleaseCalendarSchema,
     SearchQuerySchema,
-    parseBrowseFilters,
-} from '@soraorg/contracts';
+} from '@soraorg/core/server';
+import { parseBrowseFilters } from '@soraorg/core/server';
 import { clearPlaybackProgress } from '@soraorg/core/server';
 import { middleware, validate, type ApiEnvironment } from '../http';
 import { catalogApplication } from '../catalog';

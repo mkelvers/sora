@@ -1,11 +1,11 @@
-# Sora SDK backend
+# Sora backend
 
-This private repository owns Sora's server-side behavior. It contains the database and provider integrations, the HTTP backend, the scheduler, the browser-safe contracts, and the client SDK.
+This private repository owns Sora's server-side behavior. It contains the database, provider integrations, HTTP backend, authentication, and scheduler. The public client boundary lives in the separate [Sora API repository](https://github.com/soraorg/api).
 
 ```text
-clients -> @soraorg/sdk -> backend HTTP process -> core -> database/providers
-                                                   ^
-                                             scheduler process
+clients -> public API contracts and SDK -> backend HTTP process -> core -> database/providers
+                                                                          ^
+                                                                    scheduler process
 ```
 
 ## Development
@@ -17,7 +17,6 @@ bun install
 bun run format:check
 bun run lint
 bun run check
-bun --cwd packages/sdk test
 ```
 
 Run the database and both backend processes in separate terminals:
@@ -35,22 +34,9 @@ The existing `.env.example` files document the required variables. The API is th
 ## Packages
 
 - `@soraorg/core` contains server-only catalog, user, playback, provider, and maintenance behavior.
-- `@soraorg/contracts` contains client-safe schemas and types shared by the backend and SDK.
-- `@soraorg/sdk` contains the typed HTTP client used by web, mobile, and TV applications.
+- `@soraorg/shared` contains the database connection, Drizzle schema, migrations, and generated provider client.
+- `@soraorg/contracts` contains the backend's client-safe request and response schemas.
 - `apps/api` hosts HTTP requests and authentication.
 - `apps/scheduler` runs background maintenance separately from request handling. Keep it separate from the API process so provider stalls or long maintenance jobs do not block client requests.
 
-Publish `@soraorg/contracts` first and then `@soraorg/sdk` to GitHub Packages. Both packages are private to the `soraorg` organization. Client repositories should authenticate to `npm.pkg.github.com` and install `@soraorg/sdk` as a normal package; no `bun link` or repository coupling is required.
-
-Create a GitHub token with package read access for client development and configure the client repository's `.npmrc`:
-
-```ini
-@soraorg:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
-```
-
-Then install the SDK normally:
-
-```bash
-bun add @soraorg/sdk
-```
+The repository intentionally has no GitHub Actions workflow. Deployment and database operations are performed explicitly from a trusted environment.

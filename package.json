@@ -1,5 +1,5 @@
 {
-    "name": "sora-sdk-backend",
+    "name": "sora-backend",
     "version": "0.0.1",
     "private": true,
     "workspaces": [

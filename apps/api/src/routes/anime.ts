@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { AnimeArtworkSchema, AnimeIdSchema } from '@soraorg/contracts';
 import {
     animePageDeferred,
     animePage,
@@ -13,6 +12,8 @@ import {
     watchPage,
     watchPlayback,
     watchSegments,
+    AnimeArtworkSchema,
+    AnimeIdSchema,
     getEpisodeRevision,
 } from '@soraorg/core/server';
 import { middleware, validate, type ApiEnvironment } from '../http';
