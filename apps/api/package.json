@@ -10,7 +10,6 @@
     },
     "dependencies": {
         "@hono/zod-validator": "^0.9.0",
-        "@soraorg/contracts": "workspace:*",
         "@soraorg/core": "workspace:*",
         "@soraorg/shared": "workspace:*",
         "better-auth": "1.6.22",
