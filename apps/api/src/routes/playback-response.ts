@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 
-import { EpisodeSkipTimesSchema, WatchPlaybackSchema } from '@soraorg/contracts';
+import { EpisodeSkipTimesSchema, WatchPlaybackSchema } from '@soraorg/core/server';
 
 const playbackInputSchema = z.strictObject({
     error: z.boolean(),

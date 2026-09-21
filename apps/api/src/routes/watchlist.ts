@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { AnimeIdSchema, WatchlistSelectionSchema, WatchlistUpdateSchema } from '@soraorg/contracts';
+import { AnimeIdSchema } from '@soraorg/core/server';
+import { WatchlistSelectionSchema, WatchlistUpdateSchema } from '@soraorg/core/server';
 import {
     exportWatchlist,
     getWatchlistPage,

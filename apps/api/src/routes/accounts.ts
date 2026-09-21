@@ -1,7 +1,7 @@
 import { isAPIError } from 'better-auth/api';
 import { Hono } from 'hono';
 
-import { AccountRegistrationSchema } from '@soraorg/contracts';
+import { AccountRegistrationSchema } from '@soraorg/core/server';
 import {
     InvalidInvitationError,
     InvitationCompletionError,

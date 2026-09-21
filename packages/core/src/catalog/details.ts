@@ -1,1 +1,167 @@
-export * from '@soraorg/contracts/catalog/details';
+import type { AniListAnimeDetailsMedia } from './anilist-types';
+
+const count = new Intl.NumberFormat('en', {
+    maximumFractionDigits: 1,
+    notation: 'compact',
+});
+
+const staffRoles = new Map([
+    ['Original Creator', 'Original creator'],
+    ['Director', 'Director'],
+    ['Series Composition', 'Series composition'],
+    ['Character Design', 'Character design'],
+    ['Music', 'Music'],
+]);
+
+function enumLabel(value: string | null | undefined, fallback = 'Unknown') {
+    if (!value) {
+        return fallback;
+    }
+
+    if (value === 'TV' || value === 'OVA' || value === 'ONA') {
+        return value;
+    }
+
+    return value
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatDescription(value: string | null) {
+    if (!value) {
+        return '';
+    }
+
+    const description = value
+        .replace(/<br\s*\/?\s*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .split(/^\s*Notes:\s*$/im, 1)[0];
+    const paragraphs = description
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter((paragraph) => paragraph && !/^\(Source:/i.test(paragraph));
+    const summary = (paragraphs.length >= 5 ? paragraphs.slice(-3, -1) : paragraphs).join(' ');
+
+    if (summary.length <= 520) {
+        return summary;
+    }
+
+    const fragment = summary.slice(0, 520);
+    const ending = [...fragment.matchAll(/[.!?]["']?(?=\s|$)/g)].at(-1);
+    const cutoff = ending ? (ending.index ?? 0) + ending[0].length : 0;
+
+    return cutoff >= 340 ? fragment.slice(0, cutoff) : `${fragment.trimEnd()}…`;
+}
+
+function providerLabel(provider: string | undefined) {
+    if (!provider) return 'AniList';
+    if (provider === 'anilist') return 'AniList';
+    return provider.replace(
+        /(^|[-_])([a-z])/g,
+        (_, prefix: string, letter: string) => `${prefix ? ' ' : ''}${letter.toUpperCase()}`
+    );
+}
+
+function formatDate(
+    value: { year: number | null; month: number | null; day: number | null } | null | undefined
+) {
+    if (!value?.year) {
+        return null;
+    }
+
+    return [value.year, value.month, value.day]
+        .filter((part): part is number => part !== null)
+        .map((part, index) => (index === 0 ? String(part) : String(part).padStart(2, '0')))
+        .join('-');
+}
+
+function formatStaff(media: AniListAnimeDetailsMedia) {
+    const credits = new Map<string, string[]>();
+
+    for (const edge of media.staff?.edges?.filter(
+        (edge): edge is NonNullable<typeof edge> => edge !== null
+    ) ?? []) {
+        const name = edge.node?.name?.full?.trim();
+        const role = edge.role ? staffRoles.get(edge.role) : undefined;
+
+        if (name && role) {
+            credits.set(name, [...(credits.get(name) ?? []), role]);
+        }
+    }
+
+    return [...credits].map(([name, roles]) => `${name} (${roles.join(', ')})`).join(', ');
+}
+
+function formatRankings(media: AniListAnimeDetailsMedia) {
+    const rankings =
+        media.rankings
+            ?.filter((ranking): ranking is NonNullable<typeof ranking> => ranking !== null)
+            .filter(({ type }) => type === 'POPULAR' || type === 'RATED') ?? [];
+    const popularityRankings = rankings.filter(({ type }) => type === 'POPULAR');
+    const seasonal = popularityRankings.find(
+        ({ season, year }) => season === media.season && year === media.seasonYear
+    );
+    const yearly = popularityRankings.find(
+        ({ season, allTime, year }) => !season && !allTime && year === media.seasonYear
+    );
+    const allTime = popularityRankings.find((ranking) => ranking.allTime);
+    const rated = rankings.find(({ type, allTime }) => type === 'RATED' && allTime);
+
+    return [
+        seasonal &&
+            `#${seasonal.rank} most popular of ${enumLabel(seasonal.season)} ${seasonal.year}`,
+        yearly && `#${yearly.rank} most popular of ${yearly.year}`,
+        allTime && `#${allTime.rank} most popular all time`,
+        rated && `#${rated.rank} highest rated all time`,
+    ].filter((ranking): ranking is string => Boolean(ranking));
+}
+
+export function toAnimeDetails(
+    media: AniListAnimeDetailsMedia,
+    description = media.description,
+    storedAiringEpisode?: { episode: number; airingAt: number } | null
+) {
+    const nextAiringEpisode =
+        storedAiringEpisode !== undefined
+            ? storedAiringEpisode
+            : media.nextAiringEpisode && media.nextAiringEpisode.airingAt * 1_000 > Date.now()
+              ? media.nextAiringEpisode
+              : null;
+    const themes = (media.tags?.filter((tag): tag is NonNullable<typeof tag> => tag !== null) ?? [])
+        .filter((tag) => !tag.isGeneralSpoiler && !tag.isMediaSpoiler)
+        .sort((left, right) => (right.rank ?? 0) - (left.rank ?? 0))
+        .slice(0, 5)
+        .map((tag) => tag.name);
+    const sourceGenres = media.genres?.filter((genre): genre is string => genre !== null) ?? [];
+
+    return {
+        id: media.id,
+        title:
+            media.title?.english ??
+            media.title?.romaji ??
+            media.title?.native ??
+            `Anime ${media.id}`,
+        bannerImage: media.bannerImage ?? null,
+        description: formatDescription(description),
+        genres: media.metadataSource === 'kitsu' && !sourceGenres.length ? themes : sourceGenres,
+        format: enumLabel(media.format),
+        status: media.status,
+        nextAiringEpisode,
+        score: media.averageScore,
+        scoreSource: providerLabel(
+            media.metadataFieldSources?.averageScore ?? media.metadataSource
+        ),
+        members: count.format(media.popularity ?? 0),
+        favourites: count.format(media.favourites ?? 0),
+        themes: media.metadataSource === 'kitsu' && !sourceGenres.length ? [] : themes,
+        studios:
+            media.studios?.nodes
+                ?.filter((studio): studio is NonNullable<typeof studio> => studio !== null)
+                .map((studio) => studio.name) ?? [],
+        staff: formatStaff(media),
+        rankings: formatRankings(media),
+        startDate: formatDate(media.startDate),
+        endDate: formatDate(media.endDate),
+    };
+}

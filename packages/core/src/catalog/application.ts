@@ -192,8 +192,6 @@ export function createCatalogApplication(source: CatalogSource) {
     }
 
     async function refreshCatalogSnapshots(now = new Date()) {
-        await refreshCatalogTaxonomy(await source.browseTaxonomy(true), now);
-
         const { season, year } = currentAnimeSeason(now);
         const homepageFilters: CatalogBrowseFilters = {
             query: '',
@@ -225,6 +223,7 @@ export function createCatalogApplication(source: CatalogSource) {
             now
         );
         await simulcast.refreshCurrentSimulcast(now);
+        await refreshCatalogTaxonomy(await source.browseTaxonomy(true));
     }
 
     return {

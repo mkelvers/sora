@@ -23,10 +23,9 @@ export function episodeInventoryStatus(
 }
 
 export function providerEpisodeCount(anime: Pick<AniListAnime, 'format' | 'episodes'>) {
-    // AniList counts individual short segments for TV_SHORT releases and can
-    // count segments inside a movie; playback providers expose their packaged
-    // playable releases instead.
-    return anime.format === 'TV_SHORT' || anime.format === 'MOVIE' ? null : anime.episodes;
+    // AniList counts the individual short segments for TV_SHORT releases;
+    // playback providers generally expose their packaged broadcast episodes.
+    return anime.format === 'TV_SHORT' ? null : anime.episodes;
 }
 
 export function episodeInventoryCoversTarget(

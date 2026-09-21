@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 
-import { PlaybackProgressSchema, SegmentRequestSchema } from '@soraorg/contracts';
 import {
     parsePlaybackProgress,
+    PlaybackProgressSchema,
     saveEpisodeSegment,
     savePlaybackProgress,
+    SegmentRequestSchema,
     validSkipInterval,
 } from '@soraorg/core/server';
 import { middleware, streamMiddleware, validate, type ApiEnvironment } from '../http';
