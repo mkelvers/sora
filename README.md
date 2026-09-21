@@ -35,7 +35,7 @@ The existing `.env.example` files document the required variables. The API is th
 
 - `@soraorg/core` contains server-only catalog, user, playback, provider, and maintenance behavior.
 - `@soraorg/shared` contains the database connection, Drizzle schema, migrations, and generated provider client.
-- `@soraorg/contracts` contains the backend's client-safe request and response schemas.
+- `@soraorg/core` also owns the server-side request and response validation used by the HTTP routes.
 - `apps/api` hosts HTTP requests and authentication.
 - `apps/scheduler` runs background maintenance separately from request handling. Keep it separate from the API process so provider stalls or long maintenance jobs do not block client requests.
 
