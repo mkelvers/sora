@@ -93,9 +93,11 @@ async function calendarRefreshDue() {
 }
 
 export async function runAnimeScheduler() {
+    const policy = schedulerPolicy();
+    const runLease = schedulerRunLease();
     const runId = randomUUID();
     const startedAt = new Date();
-    const leaseUntil = new Date(startedAt.getTime() + schedulerRunLease.durationMs);
+    const leaseUntil = new Date(startedAt.getTime() + runLease.durationMs);
     const [claimed] = await db
         .insert(schedulerHeartbeat)
         .values({ name: heartbeatName, activeRunId: runId, leaseUntil, startedAt })
@@ -120,28 +122,28 @@ export async function runAnimeScheduler() {
     const leaseRenewal = setInterval(() => {
         void db
             .update(schedulerHeartbeat)
-            .set({ leaseUntil: new Date(Date.now() + schedulerRunLease.durationMs) })
+            .set({ leaseUntil: new Date(Date.now() + runLease.durationMs) })
             .where(
                 and(
                     eq(schedulerHeartbeat.name, heartbeatName),
                     eq(schedulerHeartbeat.activeRunId, runId)
                 )
             );
-    }, schedulerRunLease.renewalMs);
+    }, runLease.renewalMs);
 
     try {
         const interests = await reconcileAnimeInterests();
         const inventoryBackfills = await enqueueUnresolvedAnimeInterests();
         const maintenance = await drainMaintenanceTasks(runId, {
-            limit: schedulerPolicy.concurrency,
-            leaseDurationMs: schedulerPolicy.leaseDurationMs,
-            leaseRenewalMs: schedulerPolicy.leaseRenewalMs,
+            limit: policy.concurrency,
+            leaseDurationMs: policy.leaseDurationMs,
+            leaseRenewalMs: policy.leaseRenewalMs,
         });
         let fullReconciliation:
             | { discovered: number; releaseRequests: number; targets: number }
             | { error: string; retryAt: string }
             | null = null;
-        if (await fullReconciliationDue(schedulerPolicy.fullReconciliationIntervalMs)) {
+        if (await fullReconciliationDue(policy.fullReconciliationIntervalMs)) {
             try {
                 const result = await reconcileAllAiringReleases();
                 fullReconciliation = {
@@ -219,7 +221,7 @@ export async function runAnimeScheduler() {
                     .set({
                         lastCalendarRefreshAt: refreshedAt,
                         nextCalendarRefreshAt: new Date(
-                            refreshedAt.getTime() + schedulerPolicy.calendarRefreshIntervalMs
+                            refreshedAt.getTime() + policy.calendarRefreshIntervalMs
                         ),
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -242,8 +244,8 @@ export async function runAnimeScheduler() {
             }
         }
 
-        const releases = await refreshDueReleases(schedulerPolicy.concurrency);
-        const episodes = await drainEpisodeTargets(runId, schedulerPolicy);
+        const releases = await refreshDueReleases(policy.concurrency);
+        const episodes = await drainEpisodeTargets(runId, policy);
         const completedAt = new Date();
         const stats = {
             releases,
@@ -270,7 +272,7 @@ export async function runAnimeScheduler() {
         if (fullReconciliation && !reconciliationError) {
             heartbeatUpdate.lastFullReconciliationAt = completedAt;
             heartbeatUpdate.nextFullReconciliationAt = new Date(
-                completedAt.getTime() + schedulerPolicy.fullReconciliationIntervalMs
+                completedAt.getTime() + policy.fullReconciliationIntervalMs
             );
         }
         await db
@@ -323,10 +325,11 @@ export async function runAnimeScheduler() {
 }
 
 export async function runAnimeMaintenance(runId: string) {
+    const policy = schedulerPolicy();
     return drainMaintenanceTasks(runId, {
-        limit: schedulerPolicy.concurrency,
-        leaseDurationMs: schedulerPolicy.leaseDurationMs,
-        leaseRenewalMs: schedulerPolicy.leaseRenewalMs,
+        limit: policy.concurrency,
+        leaseDurationMs: policy.leaseDurationMs,
+        leaseRenewalMs: policy.leaseRenewalMs,
     });
 }
 
