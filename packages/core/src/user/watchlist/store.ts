@@ -18,8 +18,6 @@ import {
 import { watchlistStateAfterPlayback } from './completion';
 import { batches } from '../utils';
 
-const databaseBatchSize = 1_000;
-
 export type WatchlistImportMode = 'add' | 'replace';
 
 export interface WatchlistEntryInput {
@@ -123,6 +121,8 @@ export async function applyWatchlistEntries(
     entries: WatchlistEntryInput[],
     mode: WatchlistImportMode
 ) {
+    const databaseBatchSize = 1_000;
+
     return db.transaction(async (tx) => {
         const anilistIds = [...new Set(entries.map(({ anilistId }) => anilistId))];
 

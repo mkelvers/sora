@@ -42,8 +42,6 @@ export class WatchlistImportError extends Error {}
 const dateNumberSchema = z.number().finite();
 const dateTextSchema = z.string().trim().min(1);
 const unixTimestampSchema = dateTextSchema.regex(/^\d{9,13}$/).transform(Number);
-const maximumTitleLookups = 50;
-
 function dateFromTimestamp(value: number) {
     const date = new Date(value < 1_000_000_000_000 ? value * 1_000 : value);
     return Number.isNaN(date.getTime()) ? undefined : date;
@@ -356,6 +354,7 @@ async function resolveImport(entries: ImportEntry[]) {
             return title ? [[title.toLocaleLowerCase('en'), title] as const] : [];
         })
     );
+    const maximumTitleLookups = 50;
     if (titleQueries.size > maximumTitleLookups) {
         throw new WatchlistImportError(
             `More than ${maximumTitleLookups} entries need title matching. Add AniList or MAL IDs and try again.`
