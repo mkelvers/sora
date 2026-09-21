@@ -16,44 +16,5 @@ export const WatchlistUpdateSchema = z.object({
     title: z.string().trim().min(1).max(512).optional(),
 });
 
-export const WatchlistStateResponseSchema = z.object({
-    animeId: z.number().int().positive(),
-    state: WatchlistStateSchema.nullable(),
-});
-
-export const WatchlistStatesResponseSchema = z.object({
-    entries: z.array(
-        z.object({
-            animeId: z.number().int().positive(),
-            state: WatchlistStateSchema,
-        })
-    ),
-});
-
-export const WatchlistCardSchema = z.object({
-    id: z.number().int().positive(),
-    href: z.string(),
-    link: z.string(),
-    title: z.string(),
-    image: z.string(),
-    audioLabel: z.string(),
-    format: z.string().nullable().optional(),
-    status: z.string().nullable().optional(),
-    score: z.number(),
-    genres: z.array(z.string()),
-    synopsis: z.string(),
-    state: WatchlistStateSchema,
-    pendingMetadata: z.literal(true).optional(),
-});
-
-export const WatchlistPageResponseSchema = z.object({
-    entries: z.array(WatchlistCardSchema),
-    totalEntries: z.number().int().nonnegative(),
-});
-
-export const WatchlistImportResponseSchema = z.object({
-    message: z.string(),
-});
-
 export type WatchlistState = z.infer<typeof WatchlistStateSchema>;
 export type WatchlistSelection = z.infer<typeof WatchlistSelectionSchema>;
