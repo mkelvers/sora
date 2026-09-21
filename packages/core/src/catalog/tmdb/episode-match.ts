@@ -10,11 +10,8 @@ import {
 import { isSpecialRelease } from './title';
 import type { EpisodeCandidate } from './types';
 
-const day = 24 * 60 * 60 * 1_000;
-const maximumBroadcastDelay = 14 * day;
-
 function daysBetween(left: number, right: number) {
-    return Math.abs(left - right) / day;
+    return Math.abs(left - right) / (24 * 60 * 60 * 1_000);
 }
 
 function dateScore(
@@ -210,6 +207,9 @@ function releaseScheduleMetadata(
     candidates: EpisodeCandidate[],
     matches: Map<number, number>
 ) {
+    const day = 24 * 60 * 60 * 1_000;
+    const maximumBroadcastDelay = 14 * day;
+
     // TMDB may date terrestrial broadcasts while AniList and provider inventory follow an
     // earlier exclusive stream. Require a second matching schedule anchor before changing
     // the user-facing date, and retain rawAirDate as TMDB provenance.
