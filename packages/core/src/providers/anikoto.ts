@@ -49,13 +49,7 @@ const megaPlayMediaMirrorSuffixes = [
     'shiora.site',
     'shiora.top',
 ] as const;
-export const aniKotoRequestTimeoutMs = 10_000;
 export const aniKotoMediaReferer = 'https://megaplay.buzz/';
-export const aniKotoStreamLimits = {
-    playlist: 2 * 1024 * 1024,
-    subtitle: 512 * 1024,
-    segment: 64 * 1024 * 1024,
-} as const;
 // Coalesce series lookups and retain results briefly; each entry removes itself on expiry.
 const seriesRequests = new Map<number, { expiresAt: number; request: Promise<AniKotoSeries> }>();
 // Throttling and upstream cooldowns are shared by requests in this process.
@@ -936,6 +930,7 @@ async function requestText(
         throttle?: boolean;
     } = {}
 ): Promise<string> {
+    const requestTimeoutMs = 10_000;
     const headers = new Headers({
         Accept: options.accept ?? 'text/html',
         Referer: options.referer ?? `${anikotoUrl}/`,
@@ -968,11 +963,8 @@ async function requestText(
             const response = await fetch(url, {
                 headers,
                 signal: options.signal
-                    ? AbortSignal.any([
-                          options.signal,
-                          AbortSignal.timeout(aniKotoRequestTimeoutMs),
-                      ])
-                    : AbortSignal.timeout(aniKotoRequestTimeoutMs),
+                    ? AbortSignal.any([options.signal, AbortSignal.timeout(requestTimeoutMs)])
+                    : AbortSignal.timeout(requestTimeoutMs),
             });
             if (!response.ok) {
                 const retryAfter = retryAfterMs(response.headers.get('retry-after'));
