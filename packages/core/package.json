@@ -7,14 +7,12 @@
         ".": "./src/index.ts",
         "./server": "./src/server.ts",
         "./tmdb": "./src/catalog/tmdb/index.ts",
-        "./tmdb/pure": "./src/catalog/tmdb/pure.ts",
-        "./client": "./src/client.ts"
+        "./tmdb/pure": "./src/catalog/tmdb/pure.ts"
     },
     "scripts": {
         "check": "tsc --noEmit"
     },
     "dependencies": {
-        "@soraorg/contracts": "workspace:*",
         "@soraorg/shared": "workspace:*",
         "cheerio": "^1.2.0",
         "drizzle-orm": "catalog:",
