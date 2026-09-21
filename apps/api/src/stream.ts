@@ -1,9 +1,7 @@
 import { Buffer } from 'node:buffer';
 
 import {
-    aniKotoRequestTimeoutMs,
     aniKotoMediaReferer,
-    aniKotoStreamLimits,
     aniKotoMediaCandidates,
     isAniKotoDisguisedSegmentHost,
     normalizeAniKotoMediaUrl,
@@ -52,6 +50,7 @@ function streamTarget(value: string | null) {
 }
 
 async function upstreamResponse(target: URL, range: string | null, fetchStream: StreamFetch) {
+    const requestTimeoutMs = 10_000;
     const headers = new Headers({
         Accept: '*/*',
         Referer: aniKotoMediaReferer,
@@ -66,7 +65,7 @@ async function upstreamResponse(target: URL, range: string | null, fetchStream: 
         return await fetchStream(target, {
             headers,
             redirect: 'manual',
-            signal: AbortSignal.timeout(aniKotoRequestTimeoutMs),
+            signal: AbortSignal.timeout(requestTimeoutMs),
         });
     } catch {
         throw new StreamProxyError({ kind: 'upstream', status: null });
@@ -133,6 +132,7 @@ async function fetchProviderResource(
 }
 
 async function boundedBytes(response: Response, maximumBytes: number, body: StreamBody) {
+    const requestTimeoutMs = 10_000;
     const contentLength = Number(response.headers.get('content-length'));
     if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
         throw new StreamProxyError({ kind: 'body-too-large', body });
@@ -150,7 +150,7 @@ async function boundedBytes(response: Response, maximumBytes: number, body: Stre
             const timeout = new Promise<never>((_, reject) => {
                 timer = setTimeout(
                     () => reject(new StreamProxyError({ kind: 'body-timeout', body })),
-                    aniKotoRequestTimeoutMs
+                    requestTimeoutMs
                 );
             });
             let result: Awaited<ReturnType<typeof reader.read>>;
@@ -242,13 +242,18 @@ function responseHeaders(response: Response) {
 }
 
 async function proxiedResponse(target: URL, response: Response) {
+    const streamLimits = {
+        playlist: 2 * 1024 * 1024,
+        subtitle: 512 * 1024,
+        segment: 64 * 1024 * 1024,
+    };
     const headers = responseHeaders(response);
     const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
     const isPlaylist = target.pathname.endsWith('.m3u8') || contentType.includes('mpegurl');
     if (isPlaylist) {
         headers.set('Cache-Control', 'no-store');
         headers.set('Content-Type', 'application/vnd.apple.mpegurl');
-        const body = await boundedText(response, aniKotoStreamLimits.playlist, 'playlist');
+        const body = await boundedText(response, streamLimits.playlist, 'playlist');
         if (!/^\s*#EXTM3U(?:\s|$)/.test(body)) {
             throw new StreamProxyError({ kind: 'invalid-playlist' });
         }
@@ -261,7 +266,7 @@ async function proxiedResponse(target: URL, response: Response) {
     if (target.pathname.endsWith('.vtt')) {
         headers.set('Cache-Control', 'no-store');
         headers.set('Content-Type', 'text/vtt; charset=utf-8');
-        const body = await boundedText(response, aniKotoStreamLimits.subtitle, 'subtitle');
+        const body = await boundedText(response, streamLimits.subtitle, 'subtitle');
         return new Response(body, { status: response.status, headers });
     }
 
@@ -270,7 +275,7 @@ async function proxiedResponse(target: URL, response: Response) {
         /\.(?:png|jpe?g)$/i.test(target.pathname) ||
         contentType.startsWith('image/');
     if (isDisguisedSegment) {
-        const body = await boundedBytes(response, aniKotoStreamLimits.segment, 'segment');
+        const body = await boundedBytes(response, streamLimits.segment, 'segment');
         const unwrapped = unwrapAniKotoDisguisedSegment(body);
         if (unwrapped[0] !== 0x47) {
             throw new StreamProxyError({ kind: 'invalid-segment' });
@@ -289,7 +294,7 @@ async function proxiedResponse(target: URL, response: Response) {
     }
 
     const contentLength = Number(response.headers.get('content-length'));
-    if (Number.isFinite(contentLength) && contentLength > aniKotoStreamLimits.segment) {
+    if (Number.isFinite(contentLength) && contentLength > streamLimits.segment) {
         throw new StreamProxyError({ kind: 'body-too-large', body: 'segment' });
     }
     headers.set('Content-Type', response.headers.get('content-type') ?? 'application/octet-stream');
