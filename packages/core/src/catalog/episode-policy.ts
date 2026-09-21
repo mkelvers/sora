@@ -71,31 +71,28 @@ export function episodeMetadataRevisionAfterSync(
     return episodeMetadataNeedsRefresh(episodes, true) ? null : episodeMetadataRevision;
 }
 
-const episodeRefreshRetryDelays = [
-    2 * 60 * 1_000,
-    5 * 60 * 1_000,
-    15 * 60 * 1_000,
-    60 * 60 * 1_000,
-    6 * 60 * 60 * 1_000,
-    12 * 60 * 60 * 1_000,
-    24 * 60 * 60 * 1_000,
-];
-const episodeRefreshLifetimeMs = 14 * 24 * 60 * 60 * 1_000;
-const maximumEpisodeRefreshAttempts = 12;
-
 export function episodeRefreshRetryDelay(
     attempts: number,
     firstScheduledAt = Date.now(),
     now = Date.now()
 ) {
-    if (
-        attempts + 1 >= maximumEpisodeRefreshAttempts ||
-        now - firstScheduledAt >= episodeRefreshLifetimeMs
-    ) {
+    const retryDelays = [
+        2 * 60 * 1_000,
+        5 * 60 * 1_000,
+        15 * 60 * 1_000,
+        60 * 60 * 1_000,
+        6 * 60 * 60 * 1_000,
+        12 * 60 * 60 * 1_000,
+        24 * 60 * 60 * 1_000,
+    ];
+    const lifetimeMs = 14 * 24 * 60 * 60 * 1_000;
+    const maximumAttempts = 12;
+
+    if (attempts + 1 >= maximumAttempts || now - firstScheduledAt >= lifetimeMs) {
         return null;
     }
 
-    return episodeRefreshRetryDelays[Math.min(attempts, episodeRefreshRetryDelays.length - 1)];
+    return retryDelays[Math.min(attempts, retryDelays.length - 1)];
 }
 
 export function nextRefreshAt(anime: AniListAnime, stableSince: Date) {
