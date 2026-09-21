@@ -89,7 +89,6 @@ const storedAnimeDetailsSchema = z.looseObject({
 });
 
 // Persisted JSON is intentionally unknown until this owning boundary validates it.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters
 export function parseStoredAnimeDetails(value: unknown) {
     const parsed = storedAnimeDetailsSchema.safeParse(value);
     return parsed.success ? (parsed.data as AniListAnime) : null;
