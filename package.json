@@ -16,7 +16,6 @@
         "db:check": "bun --cwd packages/shared db:check"
     },
     "devDependencies": {
-        "@oxlint/plugins": "1.79.0",
         "oxfmt": "^0.64.0",
         "oxlint": "1.79.0",
         "turbo": "^2.10.12"
