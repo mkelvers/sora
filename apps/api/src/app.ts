@@ -1,9 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-import { isAniKotoTransientError, TargetEpisodeUnavailableError } from '@soraorg/core/server';
-import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
-import { logger } from '@soraorg/core/server';
+import {
+    GraphQLRequestError,
+    isAniKotoTransientError,
+    logger,
+    TargetEpisodeUnavailableError,
+} from '@soraorg/core/server';
 import { auth } from './auth';
 import { origin } from './http';
 import { accounts } from './routes/accounts';

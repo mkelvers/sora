@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 
 let migrationsReady = false;
 

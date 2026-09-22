@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { logger, runAnimeMaintenance, runAnimeScheduler } from '@soraorg/core/server';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 
 export async function startScheduler() {
     let stopping = false;
