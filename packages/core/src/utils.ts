@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+/** Copies byte chunks, in order, into a new byte array of the supplied total size. */
+export function concatByteChunks(chunks: Uint8Array[], size: number) {
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
+/** Narrows nullable collection values so downstream code can use their concrete fields. */
+export function isNotNullish<T>(value: T): value is Exclude<T, null | undefined> {
+    return value !== null && value !== undefined;
+}
+
 /** Recursive value shape permitted by JSON, excluding undefined and non-JSON objects. */
 export type JsonValue =
     | string

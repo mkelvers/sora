@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { JsonValue } from '../../json';
+import type { JsonValue } from '../../utils';
 
 const playbackProgressSchema = z.object({
     animeId: z.number().int().positive(),

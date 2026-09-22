@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isNotNullish } from '../collections';
+import { isNotNullish } from '../utils';
 import { AniListAnimeSchema } from './anilist/anilist-types';
 
 const identifierSchema = z.object({

@@ -1,7 +1,7 @@
 import type { EpisodeSkipTimes, SkipInterval } from '../player/skip-times';
 import { z } from 'zod';
 
-import type { JsonValue } from '../json';
+import type { JsonValue } from '../utils';
 
 const aniskipIntervalSchema = z.object({
     startTime: z.number(),

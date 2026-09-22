@@ -1,5 +1,5 @@
 import type { AniListAnimeDetailsMedia } from './anilist/anilist-types';
-import { isNotNullish } from '../collections';
+import { isNotNullish } from '../utils';
 
 const count = new Intl.NumberFormat('en', {
     maximumFractionDigits: 1,

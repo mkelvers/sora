@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 
-import { concatByteChunks } from '@soraorg/core/binary';
+import { concatByteChunks } from '@soraorg/core/utils';
 import {
     aniKotoMediaCandidates,
     aniKotoMediaReferer,
