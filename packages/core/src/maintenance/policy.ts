@@ -1,3 +1,5 @@
+// Invalid or too-small environment values fall back as a whole; a malformed
+// setting must not silently disable claims, leases, or scheduler concurrency.
 function schedulerSetting(name: string, fallback: number, minimum: number) {
     const value = Number(process.env[name]);
     return Number.isInteger(value) && value >= minimum ? value : fallback;
@@ -7,6 +9,10 @@ function schedulerSecondsSetting(name: string, fallback: number, minimum: number
     return schedulerSetting(name, fallback / 1_000, minimum / 1_000) * 1_000;
 }
 
+/**
+ * Reads scheduler limits from the environment. Durations are returned in
+ * milliseconds even though their environment variables are named in seconds.
+ */
 export function schedulerPolicy() {
     return {
         concurrency: schedulerSetting('ARC_SCHEDULER_CONCURRENCY', 1, 1),
@@ -39,6 +45,7 @@ export function schedulerPolicy() {
     } as const;
 }
 
+/** Lease timings for one scheduler process run, separate from target leases. */
 export function schedulerRunLease() {
     return {
         durationMs: 2 * 60_000,
@@ -47,10 +54,13 @@ export function schedulerRunLease() {
 }
 
 export function firstEpisodeAttemptAt(airingAt: Date) {
+    // Start looking before the announced time because upstream episode listings
+    // can appear early; later retries handle feeds that publish late.
     return new Date(airingAt.getTime() - 30 * 60_000);
 }
 
 export function nextEpisodeAttemptAt(airingAt: Date, now: Date) {
+    // Stop retrying two weeks after the scheduled airing to avoid retaining stale work.
     const deadline = airingAt.getTime() + 14 * 24 * 60 * 60_000;
     const nextAttemptAt = now.getTime() + 60_000;
     if (nextAttemptAt > deadline) {
