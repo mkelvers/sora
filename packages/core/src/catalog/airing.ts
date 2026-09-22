@@ -3,15 +3,12 @@ import { isNotNullish } from '../collections';
 
 const airingMediaSchema = z.object({
     id: z.number().int().positive(),
-
     nextAiringEpisode: z
         .object({
             airingAt: z.number().int().positive(),
-
             episode: z.number().int().positive(),
         })
         .nullable(),
-
     airingSchedule: z
         .object({
             pageInfo: z
@@ -19,13 +16,11 @@ const airingMediaSchema = z.object({
                     lastPage: z.number().int().positive().nullable(),
                 })
                 .nullable(),
-
             nodes: z
                 .array(
                     z
                         .object({
                             airingAt: z.number().int().positive(),
-
                             episode: z.number().int().positive(),
                         })
                         .nullable()
@@ -37,15 +32,12 @@ const airingMediaSchema = z.object({
 
 interface AiringMediaInput {
     id?: number;
-
     nextAiringEpisode?: {
         airingAt?: number;
         episode?: number;
     } | null;
-
     airingSchedule?: {
         pageInfo?: { lastPage?: number | null } | null;
-
         nodes?:
             | ({
                   airingAt?: number;
@@ -57,13 +49,9 @@ interface AiringMediaInput {
 
 export interface AiringAnime {
     id: number;
-
     nextAiringAt: number | null;
-
     nextAiringEpisode: number | null;
-
     latestAiredAt: number | null;
-
     latestAiredEpisode: number | null;
 }
 
@@ -86,15 +74,10 @@ export function parseAiringMedia(value: AiringMediaInput, now: Date): AiringPage
 
     return {
         id: parsed.data.id,
-
         nextAiringAt: parsed.data.nextAiringEpisode?.airingAt ?? null,
-
         nextAiringEpisode: parsed.data.nextAiringEpisode?.episode ?? null,
-
         latestAiredAt: latest?.airingAt ?? null,
-
         latestAiredEpisode: latest?.episode ?? null,
-
         scheduleLastPage: parsed.data.airingSchedule?.pageInfo?.lastPage ?? 1,
     };
 }

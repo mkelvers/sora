@@ -1,4 +1,5 @@
 import type { AudioMode } from '../audio';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { toAnimeDetails } from '../catalog/details';
 import {
     getEpisodeRevision,
@@ -27,6 +28,7 @@ import {
     isAniKotoTransientError,
     anikotoProvider,
 } from '../providers/anikoto';
+import type { ProviderEpisodeReference } from '../providers/types';
 import {
     getEpisodeSkipTimes,
     getSegmentTemplates,
@@ -62,11 +64,7 @@ export async function animePageOverview(userId: string | undefined, id: number) 
     };
 }
 
-async function storedAnimePage(
-    userId: string | undefined,
-    id: number,
-    anime: Awaited<ReturnType<typeof storedAnimeRelease>>
-) {
+async function storedAnimePage(userId: string | undefined, id: number, anime: AniListAnime | null) {
     if (!anime) {
         return null;
     }
@@ -106,7 +104,10 @@ async function storedAnimePage(
         episodeRevision,
         watchlistState,
         episodes: backdrop
-            ? episodesWithProgress.map((episode) => ({ ...episode, image: backdrop }))
+            ? episodesWithProgress.map((episode) => ({
+                  ...episode,
+                  image: backdrop,
+              }))
             : episodesWithProgress,
         audio: [...new Set(episodesWithProgress.flatMap(({ audio }) => audio))],
         episodeInventory,
@@ -254,7 +255,10 @@ export async function animePageArtwork(id: number) {
     const stored = await storedAnimeRelease(id);
     const anime = stored ?? (await getAnimeRelease(id));
     const storedMapping = await findMapping(id);
-    return getArtwork(anime, { refresh: !storedMapping, fetchMissing: true }).catch(() => null);
+    return getArtwork(anime, {
+        refresh: !storedMapping,
+        fetchMissing: true,
+    }).catch(() => null);
 }
 
 /**
@@ -280,8 +284,15 @@ export async function mediaPage(id: number) {
 
 type MediaUpdate =
     | { intent: 'refresh' }
-    | { intent: 'logoSize'; logoSize: number }
-    | { intent: 'select'; type: 'backdrop' | 'logo'; filePath: string | null };
+    | {
+          intent: 'logoSize';
+          logoSize: number;
+      }
+    | {
+          intent: 'select';
+          type: 'backdrop' | 'logo';
+          filePath: string | null;
+      };
 
 /**
  * Apply a media-page mutation: refresh artwork, change the logo display size, or
@@ -309,8 +320,8 @@ function legacySlug(title: string, episodeId: string) {
 }
 
 async function episodePlayback(
-    anime: Parameters<typeof anikotoProvider.getStreams>[0],
-    episode: Parameters<typeof anikotoProvider.getStreams>[1],
+    anime: AniListAnime,
+    episode: ProviderEpisodeReference,
     modes: AudioMode[]
 ) {
     try {
@@ -373,7 +384,11 @@ async function watchEpisode(id: number, episodeId: string) {
         return null;
     }
 
-    return { anime, episodes, currentIndex };
+    return {
+        anime,
+        episodes,
+        currentIndex,
+    };
 }
 
 /**
@@ -439,13 +454,19 @@ export async function watchSegments(id: number, episodeId: string) {
         }).catch(() => ({
             opening: null,
             ending: null,
-            sources: { opening: null, ending: null },
+            sources: {
+                opening: null,
+                ending: null,
+            },
         })),
         getSegmentTemplates(id, context.episodes[context.currentIndex].number).catch(() => ({
             opening: null,
             ending: null,
         })),
-    ]).then(([times, templates]) => ({ times, templates }));
+    ]).then(([times, templates]) => ({
+        times,
+        templates,
+    }));
 }
 
 /**
@@ -461,7 +482,10 @@ export async function watchPlayback(id: number, episodeId: string) {
 
     const { anime, episodes, currentIndex } = context;
     const currentEpisode = episodes[currentIndex];
-    const release = episodes.map(({ number, title }) => ({ number, title }));
+    const release = episodes.map(({ number, title }) => ({
+        number,
+        title,
+    }));
     const specials = episodes.filter(({ number }) => number <= 0 || !Number.isInteger(number));
     const specialIndex = specials.findIndex(({ id: candidate }) => candidate === currentEpisode.id);
     const releaseRelations = new Set(['PARENT', 'PREQUEL', 'SEQUEL']);
@@ -477,7 +501,11 @@ export async function watchPlayback(id: number, episodeId: string) {
     );
     const playbackEpisode =
         specialIndex < 0
-            ? { ...currentEpisode, release, relatedReleases }
+            ? {
+                  ...currentEpisode,
+                  release,
+                  relatedReleases,
+              }
             : {
                   ...currentEpisode,
                   release,

@@ -143,7 +143,10 @@ export function createCatalogApplication(source: CatalogSource) {
         const latest = latestNewAnimeTargets(confirmed);
         const episodeRows = latest.length
             ? await db
-                  .select({ anilistId: animeEpisode.anilistId, audio: animeEpisode.audio })
+                  .select({
+                      anilistId: animeEpisode.anilistId,
+                      audio: animeEpisode.audio,
+                  })
                   .from(animeEpisode)
                   .where(
                       inArray(
@@ -240,5 +243,3 @@ export function createCatalogApplication(source: CatalogSource) {
 }
 
 export class BrowseFilterError extends Error {}
-
-export type CatalogApplication = ReturnType<typeof createCatalogApplication>;

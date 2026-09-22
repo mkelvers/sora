@@ -22,7 +22,6 @@ type FranchiseMedia = NonNullable<NonNullable<FranchiseMediaQuery['Page']>['medi
 
 type StoredFranchiseIdentity = {
     anilistId: number;
-
     hasProviderMapping: boolean;
 };
 
@@ -57,9 +56,7 @@ async function storedIdentities(tx: DatabaseTransaction, entries: ChiakiEntry[])
     const rows = await tx
         .select({
             malId: animeRelease.malId,
-
             anilistId: animeRelease.anilistId,
-
             provider: animeProviderMapping.provider,
         })
         .from(animeRelease)
@@ -97,11 +94,8 @@ async function currentPlayback(entries: FranchiseOrder['entries']) {
     const episodes = await db
         .select({
             anilistId: animeEpisode.anilistId,
-
             episodeId: animeEpisode.episodeId,
-
             number: animeEpisode.number,
-
             audio: animeEpisode.audio,
         })
         .from(animeEpisode)
@@ -118,7 +112,6 @@ async function currentPlayback(entries: FranchiseOrder['entries']) {
 
     return entries.map((entry) => ({
         ...entry,
-
         audio: [...(audioByAnime.get(entry.anilistId) ?? [])],
     }));
 }
@@ -136,11 +129,8 @@ async function saveOrder(tx: DatabaseTransaction, malId: number, data: Franchise
     const fetchedAt = new Date();
     const storedRecord = {
         order: data,
-
         membershipSource: 'chiaki' as const,
-
         identitySource: 'arc' as const,
-
         anilistVerifiedAt: fetchedAt.toISOString(),
     };
 
@@ -154,18 +144,14 @@ async function saveOrder(tx: DatabaseTransaction, malId: number, data: Franchise
                     .sort((left, right) => left - right)
                     .map((entryMalId) => ({
                         malId: entryMalId,
-
                         data: storedRecord,
-
                         fetchedAt,
                     }))
             )
             .onConflictDoUpdate({
                 target: animeFranchise.malId,
-
                 set: {
                     data: storedRecord,
-
                     fetchedAt,
                 },
             });
@@ -189,32 +175,23 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
             return [
                 {
                     malId: entry.malId,
-
                     title:
                         media.title?.english ||
                         entry.alternativeTitle ||
                         media.title?.romaji ||
                         media.title?.native ||
                         entry.title,
-
                     format: media.format,
-
                     status: media.status,
-
                     episodes: media.episodes,
-
                     duration: media.duration,
-
                     popularity: media.popularity,
-
                     secondary: entry.secondary,
-
                     relations: (media.relations?.edges ?? []).flatMap((relation) =>
                         relation?.relationType && relation.node?.idMal
                             ? [
                                   {
                                       type: relation.relationType,
-
                                       malId: relation.node.idMal,
                                   },
                               ]
@@ -226,7 +203,6 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
     );
     const data: FranchiseOrder = {
         types,
-
         entries: entries.flatMap((entry) => {
             const media = metadata.get(entry.malId);
             const candidates = identities.get(entry.malId) ?? [];
@@ -249,54 +225,36 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
             return [
                 {
                     malId: entry.malId,
-
                     anilistId,
-
                     id: anilistId,
-
                     type,
-
                     title:
                         media?.title?.english ||
                         entry.alternativeTitle ||
                         media?.title?.romaji ||
                         media?.title?.native ||
                         entry.title,
-
                     image: media?.coverImage?.extraLarge ?? media?.coverImage?.large ?? entry.image,
-
                     audio: [],
-
                     score: media?.averageScore ?? 0,
-
                     format: media?.format ?? null,
-
                     status: media?.status ?? null,
-
                     episodes: media?.episodes ?? null,
-
                     duration: media?.duration ?? null,
-
                     popularity: media?.popularity ?? null,
-
                     relations: (media?.relations?.edges ?? []).flatMap((relation) =>
                         relation?.relationType && relation.node?.idMal
                             ? [
                                   {
                                       type: relation.relationType,
-
                                       malId: relation.node.idMal,
                                   },
                               ]
                             : []
                     ),
-
                     genres: (media?.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
-
                     synopsis: plainText(media?.description),
-
                     secondary: entry.secondary,
-
                     primary: primaryIds.has(entry.malId) || (!media && !entry.secondary),
                 },
             ];
@@ -333,7 +291,6 @@ export async function getStoredFranchiseOrder(malId: number): Promise<FranchiseO
 
     return {
         ...order,
-
         entries: await currentPlayback(currentPrimaryFlags(order.entries)),
     };
 }
@@ -370,7 +327,6 @@ export async function getFranchiseOrder(malId: number): Promise<FranchiseOrder |
 
     return {
         ...order,
-
         entries: await enrichAnimeCards(entries),
     };
 }

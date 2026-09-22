@@ -125,7 +125,13 @@ export async function getRelatedReleaseTitles(anilistIds: number[]) {
         .from(animeEpisode)
         .where(inArray(animeEpisode.anilistId, ids))
         .orderBy(asc(animeEpisode.anilistId), asc(animeEpisode.number));
-    const releases = new Map<number, { number: number; title: string }[]>();
+    const releases = new Map<
+        number,
+        {
+            number: number;
+            title: string;
+        }[]
+    >();
 
     for (const row of rows) {
         if (!row.titleSource || !row.title?.trim()) {
@@ -133,7 +139,10 @@ export async function getRelatedReleaseTitles(anilistIds: number[]) {
         }
 
         const release = releases.get(row.anilistId) ?? [];
-        release.push({ number: row.number, title: row.title });
+        release.push({
+            number: row.number,
+            title: row.title,
+        });
         releases.set(row.anilistId, release);
     }
 

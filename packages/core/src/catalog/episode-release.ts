@@ -13,7 +13,10 @@ export function providerConfirmsEpisode(episodes: readonly EpisodeSource[], targ
 export function confirmedEpisodeAirDate(
     episodeNumber: number,
     fallback: string | null,
-    confirmation: { targetEpisode: number; airingAt: Date }
+    confirmation: {
+        targetEpisode: number;
+        airingAt: Date;
+    }
 ) {
     if (episodeNumber !== confirmation.targetEpisode) {
         return fallback;
@@ -35,7 +38,14 @@ export function preferredEpisodeAirDate(
         : metadataAirDate;
 }
 
-function metadataDate(metadata: { airDate: string; rawAirDate?: string | null } | undefined) {
+function metadataDate(
+    metadata:
+        | {
+              airDate: string;
+              rawAirDate?: string | null;
+          }
+        | undefined
+) {
     if (!metadata) {
         return null;
     }
@@ -98,7 +108,13 @@ function declaredReleaseWindow<T extends EpisodeSource>(episodes: T[], expected:
 export function episodesForRelease<T extends EpisodeSource>(
     anime: AniListAnime,
     episodes: T[],
-    metadata: Map<string, { airDate: string; rawAirDate?: string | null }> | null
+    metadata: Map<
+        string,
+        {
+            airDate: string;
+            rawAirDate?: string | null;
+        }
+    > | null
 ) {
     const expected = anime.episodes;
     if (!expected || expected <= 0) {

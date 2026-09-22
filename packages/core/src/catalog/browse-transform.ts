@@ -11,15 +11,10 @@ import type { BrowseCatalogEntry } from './browse-types';
 
 export interface BrowseSourceTaxonomy {
     genres: string[];
-
     tags: string[];
-
     formats: string[];
-
     statuses: string[];
-
     sources: string[];
-
     seasons: string[];
 }
 
@@ -53,40 +48,23 @@ export function transformBrowseEntries(
                 metadataSource: z
                     .object({ metadataSource: z.string().min(1).optional() })
                     .parse(media).metadataSource,
-
                 anilistId: media.id,
-
                 title,
-
                 searchText,
-
                 imageUrl,
-
                 synopsis: plainText(media.description),
-
                 genres: media.genres?.filter((genre): genre is string => genre !== null) ?? [],
-
                 tags: media.tags?.filter(isNotNullish).map(({ name }) => name) ?? [],
-
                 format: media.format,
-
                 status: media.status,
-
                 source: media.source,
-
                 season: media.season,
-
                 seasonYear: media.seasonYear,
-
                 countryOfOrigin:
                     countryOfOriginSchema.safeParse(media.countryOfOrigin).data ?? null,
-
                 isAdult: media.isAdult !== false,
-
                 popularity: media.popularity,
-
                 duration: media.duration,
-
                 averageScore: media.averageScore,
             } satisfies BrowseCatalogEntry,
         ];
@@ -100,7 +78,6 @@ export function transformBrowseTaxonomy(response: BrowseAnimeTaxonomyQuery): Bro
                 response.GenreCollection?.filter((genre): genre is string => genre !== null) ?? []
             ),
         ].sort((left, right) => left.localeCompare(right, 'en')),
-
         tags: [
             ...new Set(
                 (response.tags?.filter(isNotNullish) ?? [])
@@ -108,13 +85,9 @@ export function transformBrowseTaxonomy(response: BrowseAnimeTaxonomyQuery): Bro
                     .map(({ name }) => name)
             ),
         ].sort((left, right) => left.localeCompare(right, 'en')),
-
         formats: response.formats?.enumValues?.filter(isNotNullish).map(({ name }) => name) ?? [],
-
         statuses: response.statuses?.enumValues?.filter(isNotNullish).map(({ name }) => name) ?? [],
-
         sources: response.sources?.enumValues?.filter(isNotNullish).map(({ name }) => name) ?? [],
-
         seasons: response.seasons?.enumValues?.filter(isNotNullish).map(({ name }) => name) ?? [],
     };
 }

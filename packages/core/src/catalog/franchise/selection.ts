@@ -9,10 +9,10 @@ export type FranchiseSelectionEntry = {
     duration: number | null;
     popularity: number | null;
     secondary: boolean;
-    relations: Array<{
+    relations: {
         type: MediaRelation;
         malId: number;
-    }>;
+    }[];
 };
 
 export function isFranchiseEntryEligible(

@@ -8,7 +8,6 @@ const identifierSchema = z.object({
 });
 const resourceSchema = identifierSchema.extend({
     attributes: z.record(z.string(), z.unknown()),
-
     relationships: z
         .record(
             z.string(),
@@ -20,81 +19,57 @@ const resourceSchema = identifierSchema.extend({
 });
 const pageSchema = z.object({
     data: z.array(resourceSchema),
-
     included: z.array(resourceSchema).default([]),
-
     links: z.object({ next: z.string().nullish() }).optional(),
 });
 interface ResourceIdentifier {
     type: string;
-
     id: string;
 }
 
 interface Resource extends ResourceIdentifier {
     attributes: Record<string, unknown>;
-
     relationships: Record<string, { data?: ResourceIdentifier | ResourceIdentifier[] | null }>;
 }
 const animeAttributesSchema = z.object({
     canonicalTitle: z.string().min(1),
-
     titles: z.object({
         en: z.string().nullish(),
-
         en_jp: z.string().nullish(),
-
         ja_jp: z.string().nullish(),
     }),
-
     abbreviatedTitles: z.array(z.string()).nullish(),
-
     description: z.string().nullish(),
-
     synopsis: z.string().nullish(),
-
     subtype: z.enum(['TV', 'movie', 'OVA', 'ONA', 'special', 'music']),
-
     status: z.enum(['current', 'finished', 'tba', 'unreleased', 'upcoming']),
-
     startDate: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .nullish(),
-
     endDate: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .nullish(),
-
     episodeCount: z.number().int().nonnegative().nullish(),
-
     episodeLength: z.number().int().nonnegative().nullish(),
-
     averageRating: z
         .string()
         .regex(/^\d+(\.\d+)?$/)
         .transform(Number)
         .pipe(z.number().min(0).max(100))
         .nullish(),
-
     popularityRank: z.number().int().positive().nullish(),
-
     ratingRank: z.number().int().positive().nullish(),
-
     userCount: z.number().int().nonnegative().nullish(),
-
     favoritesCount: z.number().int().nonnegative().nullish(),
-
     posterImage: z
         .object({
             original: z.url().nullish(),
             large: z.url().nullish(),
         })
         .nullish(),
-
     coverImage: z.object({ original: z.url().nullish() }).nullish(),
-
     nsfw: z.boolean(),
 });
 
@@ -180,25 +155,17 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
                         ['spinoff', 'SPIN_OFF'],
                         ['full_story', 'OTHER'],
                     ]).get(role) ?? role.toUpperCase(),
-
                 node: {
                     id: destinationId,
-
                     idMal: externalId(destination, 'myanimelist/anime', resources),
-
                     type: 'ANIME',
-
                     format: destinationAttributes.subtype.toUpperCase(),
-
                     episodes: destinationAttributes.episodeCount || null,
-
                     title: {
                         english: destinationAttributes.titles.en ?? null,
-
                         romaji:
                             destinationAttributes.titles.en_jp ??
                             destinationAttributes.canonicalTitle,
-
                         native: destinationAttributes.titles.ja_jp ?? null,
                     },
                 },
@@ -208,114 +175,74 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
     return {
         ...AniListAnimeSchema.parse({
             id,
-
             idMal: externalId(resource, 'myanimelist/anime', resources),
-
             metadataSource: 'kitsu',
-
             metadataSourceId: Number(resource.id),
-
             title: {
                 english: attributes.titles.en ?? null,
-
                 romaji: attributes.titles.en_jp ?? attributes.canonicalTitle,
-
                 native: attributes.titles.ja_jp ?? null,
             },
-
             synonyms: attributes.abbreviatedTitles ?? [],
-
             coverImage: {
                 extraLarge: attributes.posterImage?.original ?? null,
-
                 large: attributes.posterImage?.large ?? null,
             },
-
             bannerImage: attributes.coverImage?.original ?? null,
-
             description: attributes.description ?? attributes.synopsis ?? null,
-
             genres,
-
             format: attributes.subtype.toUpperCase(),
-
             status:
                 attributes.status === 'current'
                     ? 'RELEASING'
                     : attributes.status === 'finished'
                       ? 'FINISHED'
                       : 'NOT_YET_RELEASED',
-
             season: startDate?.month
                 ? ['WINTER', 'SPRING', 'SUMMER', 'FALL'][Math.floor((startDate.month - 1) / 3)]
                 : null,
-
             seasonYear: startDate?.year ?? null,
-
             startDate,
-
             endDate: fuzzyDate(attributes.endDate),
-
             episodes: attributes.episodeCount || null,
-
             duration: attributes.episodeLength || null,
             // Kitsu nextRelease does not identify an episode. It cannot supply an airing event.
-
             nextAiringEpisode: null,
-
             relations: { edges: relations },
-
             averageScore: attributes.averageRating ?? null,
-
             popularity: attributes.userCount ?? null,
-
             favourites: attributes.favoritesCount ?? null,
-
             rankings: [
                 attributes.popularityRank
                     ? {
                           rank: attributes.popularityRank,
-
                           type: 'POPULAR',
-
                           year: null,
-
                           season: null,
-
                           allTime: true,
                       }
                     : null,
                 attributes.ratingRank
                     ? {
                           rank: attributes.ratingRank,
-
                           type: 'RATED',
-
                           year: null,
-
                           season: null,
-
                           allTime: true,
                       }
                     : null,
             ].filter(isNotNullish),
-
             tags: categories.map((name) => ({
                 name,
-
                 rank: null,
-
                 isGeneralSpoiler: false,
-
                 isMediaSpoiler: false,
             })),
-
             studios: {
                 nodes: related(resource, 'productions', resources)
                     .flatMap((production) => related(production, 'company', resources))
                     .map((company) => ({ name: z.string().parse(company.attributes.name) })),
             },
-
             staff: {
                 edges: related(resource, 'staff', resources).flatMap((staff) =>
                     z
@@ -324,7 +251,6 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
                         .split(',')
                         .map((role) => ({
                             role: role.trim(),
-
                             node: {
                                 name: {
                                     full: z
@@ -338,50 +264,30 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
                 ),
             },
         }),
-
         isAdult: attributes.nsfw,
-
         source: null,
-
         countryOfOrigin: null,
     };
 }
 
 const variablesSchema = z.object({
     id: z.number().int().positive().optional(),
-
     ids: z.array(z.number().int().positive()).max(50).optional(),
-
     malIds: z.array(z.number().int().positive()).max(50).nullish(),
-
     page: z.number().int().positive().default(1),
-
     perPage: z.number().int().min(1).max(50).default(50),
-
     search: z.string().optional(),
-
     genre: z.string().optional(),
-
     tag: z.string().optional(),
-
     format: z.string().optional(),
-
     discoveryFormats: z.array(z.string()).optional(),
-
     status: z.string().optional(),
-
     source: z.string().optional(),
-
     countryOfOrigin: z.string().optional(),
-
     season: z.string().optional(),
-
     seasonYear: z.number().int().optional(),
-
     isAdult: z.boolean().optional(),
-
     sort: z.array(z.string()).optional(),
-
     minimumPopularity: z.number().optional(),
 });
 
@@ -439,7 +345,6 @@ export async function requestKitsu<Variables>(
                 Accept: 'application/vnd.api+json',
                 'User-Agent': 'Arc/0.1',
             },
-
             signal,
         });
         if (response.status === 429) {
@@ -471,9 +376,7 @@ export async function requestKitsu<Variables>(
         for (let index = 0; index < ids.length; index += 20) {
             const result = await page('anime', {
                 'filter[id]': ids.slice(index, index + 20).join(','),
-
                 'page[limit]': '20',
-
                 include: details
                     ? 'mappings,genres,categories,mediaRelationships.destination,staff.person,productions.company'
                     : 'mappings',
@@ -494,13 +397,9 @@ export async function requestKitsu<Variables>(
         for (let offset = 0; ; offset += 20) {
             const result = await page('mappings', {
                 'filter[externalSite]': site,
-
                 'filter[externalId]': ids.join(','),
-
                 include: 'item',
-
                 'page[limit]': '20',
-
                 'page[offset]': String(offset),
             });
             mappings.push(...result.data);
@@ -595,7 +494,6 @@ export async function requestKitsu<Variables>(
         return {
             [operation === 'WatchlistTransferAnime' ? 'mal' : 'Page']: {
                 media: completed,
-
                 pageInfo: { hasNextPage: false },
             },
         };
@@ -613,13 +511,10 @@ export async function requestKitsu<Variables>(
             const limit = Math.min(20, perPage - anime.length);
             const result = await page('anime', {
                 ...parameters,
-
                 include: withRelations
                     ? 'mappings,genres,mediaRelationships.destination'
                     : 'mappings,genres',
-
                 'page[limit]': String(limit),
-
                 'page[offset]': String(offset),
             });
             anime.push(...result.data);
@@ -636,7 +531,6 @@ export async function requestKitsu<Variables>(
         for (const entry of media) counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1);
         return {
             media: media.filter((entry) => counts.get(entry.id) === 1),
-
             pageInfo: { hasNextPage },
         };
     }
@@ -651,7 +545,6 @@ export async function requestKitsu<Variables>(
         if (input.seasonYear) seasonParameters.set('filter[seasonYear]', String(input.seasonYear));
         return {
             season: await catalog(Object.fromEntries(seasonParameters), 1, 30, true, false),
-
             popular: await catalog(
                 {
                     'filter[subtype]': 'TV',

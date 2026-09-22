@@ -3,11 +3,8 @@ import type { AudioMode } from '../../audio';
 
 export interface FranchisePlaybackEpisode {
     anilistId: number;
-
     episodeId: string;
-
     number: number;
-
     audio: AudioMode[];
 }
 
@@ -25,7 +22,6 @@ export function withFranchisePlayback(
         const available = grouped.get(entry.anilistId) ?? [];
         return {
             ...entry,
-
             audio: [...new Set(available.flatMap(({ audio }) => audio))],
         };
     });
