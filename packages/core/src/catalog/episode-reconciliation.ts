@@ -35,12 +35,19 @@ export function reconcileEpisodeMetadata(
     episodes: readonly EpisodeMetadataRow[],
     metadata: ReadonlyMap<string, EpisodeMetadata> | null,
     options: {
+        /** Previously selected metadata provider mapping. */
         previousSourceId: number | null;
+        /** Current mapping, or null when lookup has no usable provider. */
         currentSourceId: number | null;
+        /** Revision attached to the previously stored metadata. */
         previousRevision: string | null;
+        /** Confirmed schedule dates override weaker episode metadata dates. */
         confirmedAirDates?: ReadonlyMap<number, Date>;
     }
 ) {
+    // Preserve old metadata only when it belongs to the same source and schema
+    // revision. A failed fetch can pass null and retain valid prior values; a
+    // successful response replaces only fields it actually supplies.
     const preserve =
         canPreserveEpisodeMetadata(options.previousSourceId, options.currentSourceId) &&
         (metadata === null || options.previousRevision === episodeMetadataRevision);
