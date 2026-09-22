@@ -841,7 +841,9 @@ export async function resolveCandidates<T, R>(
     candidates: readonly T[],
     resolve: (candidate: T, signal: AbortSignal) => Promise<R | null>,
     options: {
+        /** Maximum number of provider candidates resolved at once. Defaults to four. */
         concurrency?: number;
+        /** Cancels queued candidates and is passed into active resolvers. */
         signal?: AbortSignal;
     } = {}
 ) {
@@ -918,10 +920,15 @@ async function readBounded(response: Response, limit: number, signal?: AbortSign
 async function requestText(
     url: URL,
     options: {
+        /** Accept header used for the provider request. */
         accept?: string;
+        /** Referer required by some provider endpoints. */
         referer?: string;
+        /** Maximum response body size; oversized pages are rejected while streaming. */
         maxBytes?: number;
+        /** Cancels the request and response-body read. */
         signal?: AbortSignal;
+        /** Applies the provider-specific request throttle. */
         throttle?: boolean;
     } = {}
 ): Promise<string> {
