@@ -1,13 +1,13 @@
 import { isAPIError } from 'better-auth/api';
 import { Hono } from 'hono';
 
-import { AccountRegistrationSchema } from '@soraorg/core/server';
+import { AccountRegistrationSchema } from '@soraorg/core/contracts/account';
 import {
     InvalidInvitationError,
     InvitationCompletionError,
     registerInvitedAccount,
-    logger,
-} from '@soraorg/core/server';
+} from '@soraorg/core/user/invitations';
+
 import { auth } from '../auth';
 import { validate } from '../http';
 
@@ -82,7 +82,6 @@ export const accounts = new Hono().post(
                 );
             }
 
-            logger.debug('Account registration failed', cause);
             const completionFailed = cause instanceof InvitationCompletionError;
             return context.json(
                 {

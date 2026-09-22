@@ -5,7 +5,7 @@ import {
     getNotifications,
     getUnreadNotificationCount,
     markNotificationRead,
-} from '@soraorg/core/server';
+} from '@soraorg/core/user/notifications';
 import { middleware, type ApiEnvironment } from '../http';
 
 const idSchema = z.object({ id: z.uuid() });

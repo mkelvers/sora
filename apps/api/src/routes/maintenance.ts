@@ -8,10 +8,9 @@ import {
     MaintenanceHealthSchema,
     MaintenanceRequestSchema,
     MaintenanceTaskSchema,
-    enqueueMaintenance,
-    getMaintenanceTask,
-    animeSchedulerHealth,
-} from '@soraorg/core/server';
+} from '@soraorg/core/contracts/maintenance';
+import { enqueueMaintenance, getMaintenanceTask } from '@soraorg/core/maintenance/maintenance';
+import { animeSchedulerHealth } from '@soraorg/core/maintenance/run';
 import { validate } from '../http';
 
 const TaskParamSchema = z.object({ taskId: z.uuid() });
