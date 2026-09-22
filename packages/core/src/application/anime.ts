@@ -44,7 +44,7 @@ import { continuationEpisode, resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
 import { logger } from './logger';
 
-export async function animePageOverview(userId: string, id: number) {
+export async function animePageOverview(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     const anime = stored ?? (await getAnimeOverview(id));
 
@@ -62,7 +62,7 @@ export async function animePageOverview(userId: string, id: number) {
 }
 
 async function storedAnimePage(
-    userId: string,
+    userId: string | undefined,
     id: number,
     anime: Awaited<ReturnType<typeof storedAnimeRelease>>
 ) {
@@ -139,7 +139,7 @@ async function storedAnimePage(
     };
 }
 
-export async function animePage(userId: string, id: number) {
+export async function animePage(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     if (!stored) {
         return storedAnimePage(userId, id, await getAnimeRelease(id));
@@ -149,7 +149,7 @@ export async function animePage(userId: string, id: number) {
 }
 
 export async function animePageEpisodeUpdates(
-    userId: string,
+    userId: string | undefined,
     id: number,
     revision: string | null,
     knownEpisodeIds: string[]
@@ -220,7 +220,7 @@ export async function retryAnimePageEpisodeInventory(id: number) {
     return getEpisodeInventoryState(anime, (await getEpisodes(anime)).length);
 }
 
-export async function animePageDeferred(userId: string, id: number) {
+export async function animePageDeferred(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     const imported = !stored;
     const anime =
@@ -418,7 +418,7 @@ async function watchEpisode(id: number, episodeId: string) {
     return { anime, episodes, currentIndex, canonicalHref };
 }
 
-export async function watchPage(userId: string, id: number, episodeId: string) {
+export async function watchPage(userId: string | undefined, id: number, episodeId: string) {
     const context = await watchEpisode(id, episodeId);
     if (!context) {
         return null;
