@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export type SkipKind = 'opening' | 'ending';
 const SkipTimesSourceSchema = z.enum(['anikoto', 'aniskip', 'manual']);
-type SkipTimesSource = z.infer<typeof SkipTimesSourceSchema>;
+type SkipTimesSource = 'anikoto' | 'aniskip' | 'manual';
 
 export const SkipIntervalSchema = z
     .object({
@@ -11,7 +11,10 @@ export const SkipIntervalSchema = z
     })
     .refine(({ start, end }) => end > start);
 
-export type SkipInterval = z.infer<typeof SkipIntervalSchema>;
+export type SkipInterval = {
+    start: number;
+    end: number;
+};
 
 export const EpisodeSkipTimesSchema = z.object({
     opening: SkipIntervalSchema.nullable(),
@@ -36,7 +39,10 @@ const SegmentTemplateSchema = z.object({
     duration: z.number().positive(),
 });
 
-type SegmentTemplate = z.infer<typeof SegmentTemplateSchema>;
+type SegmentTemplate = {
+    fromEpisode: number;
+    duration: number;
+};
 
 export type SegmentTemplates = Record<SkipKind, SegmentTemplate | null>;
 

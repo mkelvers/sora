@@ -1,6 +1,8 @@
 import { animeTitles } from '../catalog/anilist/anilist-text';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
-import type { ProviderEpisodeReference } from './types';
+import type { ProviderEpisode, ProviderEpisodeReference } from './types';
+
+type NumberedProviderEpisode = Pick<ProviderEpisode, 'number' | 'title'>;
 
 export function isSpecialEpisodeReference(episode: ProviderEpisodeReference) {
     return episode.number <= 0 || !Number.isInteger(episode.number);
@@ -138,7 +140,7 @@ function meaningfulEpisodeTitle(title: string | undefined) {
     return key && !/^\d+$/.test(key) ? key : null;
 }
 
-export function releaseInventoryEvidence<T extends { number: number; title: string }>(
+export function releaseInventoryEvidence<T extends NumberedProviderEpisode>(
     episodes: T[],
     release: ProviderEpisodeReference['release'],
     relatedReleases: ProviderEpisodeReference['relatedReleases'] = []
@@ -348,7 +350,7 @@ export function specialReleaseQueries(anime: AniListAnime, episode: ProviderEpis
     ];
 }
 
-export function matchProviderEpisode<T extends { number: number; title: string }>(
+export function matchProviderEpisode<T extends NumberedProviderEpisode>(
     episodes: T[],
     reference: ProviderEpisodeReference
 ) {
@@ -385,7 +387,7 @@ export function matchProviderEpisode<T extends { number: number; title: string }
     return numbered;
 }
 
-export function matchProviderStreamEpisode<T extends { number: number; title: string }>(
+export function matchProviderStreamEpisode<T extends NumberedProviderEpisode>(
     episodes: T[],
     reference: ProviderEpisodeReference,
     expectedEpisodes: number | null | undefined
