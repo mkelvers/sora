@@ -9,6 +9,7 @@ import {
 import { animeTitles } from '../catalog/anilist-text';
 import { enqueueEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { storedAnimeRelease } from '../catalog/anilist-release';
+import { findInternalAnimeId } from '../catalog/identity';
 import {
     create as createTmdbClient,
     findMapping,
@@ -194,19 +195,8 @@ export async function setMetadataMappingOverride(
 }
 
 async function removeStoredTmdbMapping(anilistId: number) {
-    const [owner] = await db
-        .select({ animeId: animeExternalIdLink.animeId })
-        .from(animeExternalId)
-        .innerJoin(animeExternalIdLink, eq(animeExternalIdLink.externalIdId, animeExternalId.id))
-        .where(
-            and(
-                eq(animeExternalId.provider, 'anilist'),
-                eq(animeExternalId.mediaType, 'anime'),
-                eq(animeExternalId.externalId, anilistId)
-            )
-        )
-        .limit(1);
-    if (!owner) {
+    const animeId = await findInternalAnimeId(anilistId);
+    if (!animeId) {
         return;
     }
     const ids = await db
@@ -215,7 +205,7 @@ async function removeStoredTmdbMapping(anilistId: number) {
         .innerJoin(animeExternalIdLink, eq(animeExternalIdLink.externalIdId, animeExternalId.id))
         .where(
             and(
-                eq(animeExternalIdLink.animeId, owner.animeId),
+                eq(animeExternalIdLink.animeId, animeId),
                 eq(animeExternalId.provider, 'tmdb')
             )
         );
