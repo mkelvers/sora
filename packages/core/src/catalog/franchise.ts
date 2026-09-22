@@ -1,6 +1,5 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 
-import type { FranchiseOrder } from '../types';
 import {
     FranchiseMediaDocument,
     type FranchiseMediaQuery,
@@ -16,13 +15,8 @@ import { request } from './anilist/anilist-client';
 import { plainText } from './anilist/anilist-text';
 import { enrichAnimeCards } from './card-enrichment';
 import { fetchOrder, type ChiakiEntry } from './franchise/chiaki';
-import { FranchiseRecordSchema, verifiedFranchiseRecord } from './franchise/record';
-import { withFranchisePlayback } from './franchise/playback';
-import {
-    isFranchiseEntryEligible,
-    primaryFranchiseIds,
-    type FranchiseSelectionEntry,
-} from './franchise/selection';
+import { FranchiseRecordSchema, type FranchiseOrder } from './franchise/schema';
+import { primaryFranchiseIds } from './franchise/selection';
 
 type FranchiseMedia = NonNullable<NonNullable<FranchiseMediaQuery['Page']>['media']>[number];
 
@@ -103,30 +97,35 @@ async function currentPlayback(entries: FranchiseOrder['entries']) {
         .from(animeEpisode)
         .where(inArray(animeEpisode.anilistId, anilistIds));
 
-    return withFranchisePlayback(entries, episodes);
+    const audioByAnime = new Map<number, Set<FranchiseOrder['entries'][number]['audio'][number]>>();
+    for (const episode of episodes) {
+        const audio = audioByAnime.get(episode.anilistId) ?? new Set();
+        for (const mode of episode.audio) {
+            audio.add(mode);
+        }
+        audioByAnime.set(episode.anilistId, audio);
+    }
+
+    return entries.map((entry) => ({
+        ...entry,
+        audio: [...(audioByAnime.get(entry.anilistId) ?? [])],
+    }));
 }
 
 function currentPrimaryFlags(entries: FranchiseOrder['entries']) {
-    const primaryIds = primaryFranchiseIds(
-        entries.map((entry) => ({
-            malId: entry.malId,
-            title: entry.title,
-            format: entry.format,
-            status: entry.status,
-            episodes: entry.episodes,
-            duration: entry.duration,
-            popularity: entry.popularity,
-            secondary: entry.secondary,
-            relations: entry.relations,
-        }))
-    );
+    const primaryIds = primaryFranchiseIds(entries);
 
     return entries.map((entry) => ({ ...entry, primary: primaryIds.has(entry.malId) }));
 }
 
 async function saveOrder(tx: DatabaseTransaction, malId: number, data: FranchiseOrder) {
     const fetchedAt = new Date();
-    const storedRecord = verifiedFranchiseRecord(data, fetchedAt);
+    const storedRecord = {
+        order: data,
+        membershipSource: 'chiaki' as const,
+        identitySource: 'arc' as const,
+        anilistVerifiedAt: fetchedAt.toISOString(),
+    };
 
     try {
         // Concurrent refreshes of the same franchise upsert this identical row set; insert in a
@@ -162,7 +161,11 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
     const primaryIds = primaryFranchiseIds(
         entries.flatMap((entry): FranchiseSelectionEntry[] => {
             const media = metadata.get(entry.malId);
-            if (!media || !isFranchiseEntryEligible(media)) {
+            if (
+                !media ||
+                media.status === 'NOT_YET_RELEASED' ||
+                media.format === 'MUSIC'
+            ) {
                 return [];
             }
 
@@ -207,7 +210,12 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
             const anilistId = storedIdentity?.anilistId ?? media?.id;
             const type = typeLabels.get(entry.typeId);
 
-            if (!anilistId || !type || (media && !isFranchiseEntryEligible(media))) {
+            if (
+                !anilistId ||
+                !type ||
+                media?.status === 'NOT_YET_RELEASED' ||
+                media?.format === 'MUSIC'
+            ) {
                 return [];
             }
 
