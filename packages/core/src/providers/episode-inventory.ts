@@ -4,23 +4,10 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@soraorg/shared/db';
 import { animeEpisode, animeProviderMapping } from '@soraorg/shared/db/schema';
 import type { AniListAnime } from '../catalog/anilist-types';
+import { formatDuration } from '../catalog/duration';
 import { episodesAvailableToWatch } from './inventory';
 import type { AudioMode } from '../audio';
 import type { AnimeEpisode } from '../types';
-
-function formatDuration(minutes: number | null | undefined) {
-    if (!minutes || minutes <= 0) {
-        return '';
-    }
-
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
-    if (!hours) {
-        return `${remainder}m`;
-    }
-
-    return remainder ? `${hours}h, ${remainder}m` : `${hours}h`;
-}
 
 function episodeModel(
     episode: typeof animeEpisode.$inferSelect,
