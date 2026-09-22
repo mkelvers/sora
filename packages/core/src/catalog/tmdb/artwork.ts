@@ -173,6 +173,9 @@ async function fetchArtworkSource(match: StoredMapping) {
                   },
               });
 
+    // The default images response can omit null-language files. Requesting all
+    // supported language buckets supplements it, while keeping the first response
+    // available if this optional expansion fails.
     const allLanguagesQuery = {
         // TMDB uses xx for images without a language, including freshly added images.
         include_image_language: 'en-US,en,null,xx',

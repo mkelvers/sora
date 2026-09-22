@@ -15,6 +15,7 @@ const romanReleaseNumbers = new Map([
     ['x', 10],
 ]);
 
+/** Normalizes titles for matching while preserving letters and digits across scripts. */
 export function normalizeTitle(title: string) {
     return title
         .normalize('NFKD')
@@ -24,6 +25,7 @@ export function normalizeTitle(title: string) {
         .toLocaleLowerCase('en');
 }
 
+/** Removes release labels iteratively because suffixes can be stacked in either order. */
 export function seriesTitle(title: string) {
     let value = normalizeTitle(title);
     let previous = '';
@@ -155,6 +157,9 @@ export function candidateScore(candidate: Candidate, anime: AniListAnime) {
               : partial
                 ? 55
                 : 0;
+    // A season-level AniList entry may map to a TMDB series whose first season
+    // predates that entry. Treat the earlier date as supporting evidence only
+    // when the title identifies the same series.
     const aggregate =
         candidate.mediaType === 'tv' &&
         (exactSeries || partial) &&

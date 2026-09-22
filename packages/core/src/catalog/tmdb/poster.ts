@@ -80,6 +80,8 @@ async function storedPosterRow(match: StoredMapping) {
 }
 
 function isFresh(row: typeof animeReleasePoster.$inferSelect) {
+    // Positive selections can be reused for a month; a miss is retried sooner
+    // because new artwork may appear without the mapping changing.
     const lifetime = row.filePath ? 30 * 24 * 60 * 60 * 1_000 : 6 * 60 * 60 * 1_000;
     return Date.now() - row.fetchedAt.getTime() < lifetime;
 }
@@ -359,6 +361,8 @@ export async function readPoster(match: StoredMapping) {
 export async function getPoster(anime: AniListAnime, match: StoredMapping) {
     return (async () => {
         const stored = await storedPosterRow(match);
+        // Finished releases have stable poster choices, while airing releases
+        // refresh periodically so a newly published season poster can replace a miss.
         if (stored && (anime.status === 'FINISHED' || isFresh(stored))) {
             return storedPoster(stored);
         }
