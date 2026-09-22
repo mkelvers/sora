@@ -11,6 +11,10 @@ export function anilistIdentityCondition(anilistId: number) {
     );
 }
 
+export function validAniListIds(anilistIds: number[]) {
+    return [...new Set(anilistIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+}
+
 export async function findInternalAnimeId(anilistId: number) {
     const [stored] = await db
         .select({ animeId: animeExternalIdLink.animeId })
