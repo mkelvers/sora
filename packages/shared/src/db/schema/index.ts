@@ -66,7 +66,10 @@ export const watchlistState = pgEnum('watchlist_state', [
     'dropped',
 ]);
 
-function timestamps() {
+function timestamps(): {
+    createdAt: ReturnType<typeof timestamp>;
+    updatedAt: ReturnType<typeof timestamp>;
+} {
     return {
         ...timestamps(),
     };
