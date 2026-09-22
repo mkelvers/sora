@@ -2,6 +2,10 @@
     "name": "@soraorg/contracts",
     "version": "0.0.3",
     "private": false,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/soraorg/sora-sdk.git"
+    },
     "files": [
         "dist"
     ],
