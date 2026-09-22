@@ -76,7 +76,10 @@ export function selectReleaseSeason(
         return null;
     }
 
-    return { aggregate, season: best.season };
+    return {
+        aggregate,
+        season: best.season,
+    };
 }
 
 function languageRank(language: string | null) {

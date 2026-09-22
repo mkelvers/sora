@@ -2,9 +2,7 @@ import { z } from 'zod';
 
 const changeItemSchema = z.object({
     iso_639_1: z.string().optional(),
-
     iso_3166_1: z.string().optional(),
-
     value: z.union([
         z.string(),
         z.number(),
@@ -19,19 +17,15 @@ const changeItemSchema = z.object({
 });
 const changeSchema = z.object({
     key: z.string().optional(),
-
     items: z.array(changeItemSchema).optional(),
 });
 const changesResponseSchema = z.object({ changes: z.array(changeSchema).optional() });
 interface ChangesResponse {
     changes?: {
         key?: string;
-
         items?: {
             iso_639_1?: string;
-
             iso_3166_1?: string;
-
             value:
                 | string
                 | number
@@ -85,11 +79,8 @@ function changedEpisodeDetails(payload: ChangesResponse) {
 
     return {
         name: englishText('name'),
-
         overview: englishText('overview'),
-
         runtime: runtime ?? null,
-
         stillPath: stillPath ?? null,
     };
 }
@@ -114,7 +105,6 @@ export async function getEpisodeChanges(
     const start = requestedStart <= now && requestedStart > earliest ? requestedStart : earliest;
     const query = new URLSearchParams({
         start_date: start.toISOString().slice(0, 10),
-
         end_date: queryEnd.toISOString().slice(0, 10),
     });
     const response = await request(
@@ -122,10 +112,8 @@ export async function getEpisodeChanges(
         {
             headers: {
                 accept: 'application/json',
-
                 Authorization: `Bearer ${token}`,
             },
-
             signal: AbortSignal.timeout(8_000),
         }
     );

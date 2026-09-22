@@ -11,7 +11,10 @@ export interface TmdbClient {
                 query?: Record<string, boolean | number | string>;
             };
         }
-    ): Promise<{ data?: TmdbResponse; error?: unknown }>;
+    ): Promise<{
+        data?: TmdbResponse;
+        error?: unknown;
+    }>;
 }
 
 export interface TmdbResponse {
@@ -119,11 +122,11 @@ interface TmdbEpisodeGroup {
 
 interface TmdbChange {
     key?: string;
-    items?: Array<{
+    items?: {
         iso_639_1?: string;
         iso_3166_1?: string;
         value: unknown;
-    }>;
+    }[];
 }
 
 /**
