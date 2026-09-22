@@ -1044,7 +1044,7 @@ async function requestJson(
     }
 }
 
-async function providerMediaId(anilistId: number) {
+async function playbackOverride(anilistId: number) {
     const [{ db }, schema] = await Promise.all([
         import('@soraorg/shared/db'),
         import('@soraorg/shared/db/schema'),
@@ -1065,8 +1065,13 @@ async function providerMediaId(anilistId: number) {
             )
         )
         .limit(1);
-    if (override) {
-        return { id: override.id, inventoryStatus: 'override' };
+    return { db, schema, id: override?.id };
+}
+
+async function providerMediaId(anilistId: number) {
+    const { db, schema, id: overrideId } = await playbackOverride(anilistId);
+    if (overrideId) {
+        return { id: overrideId, inventoryStatus: 'override' };
     }
 
     const [[stored], episodes] = await Promise.all([
@@ -1096,27 +1101,8 @@ async function providerMediaId(anilistId: number) {
 }
 
 async function saveProviderMediaId(anilistId: number, id: string) {
-    const [{ db }, schema] = await Promise.all([
-        import('@soraorg/shared/db'),
-        import('@soraorg/shared/db/schema'),
-    ]);
-    const [override] = await db
-        .select({ id: schema.animeMappingOverride.externalId })
-        .from(schema.animeMappingOverride)
-        .where(
-            and(
-                eq(schema.animeMappingOverride.anilistId, anilistId),
-                eq(schema.animeMappingOverride.kind, 'playback'),
-                eq(schema.animeMappingOverride.provider, providerName),
-                isNull(schema.animeMappingOverride.clearedAt),
-                or(
-                    eq(schema.animeMappingOverride.validationStatus, 'pending'),
-                    eq(schema.animeMappingOverride.validationStatus, 'valid')
-                )
-            )
-        )
-        .limit(1);
-    if (override && override.id !== id) {
+    const { db, schema, id: overrideId } = await playbackOverride(anilistId);
+    if (overrideId && overrideId !== id) {
         return;
     }
 
