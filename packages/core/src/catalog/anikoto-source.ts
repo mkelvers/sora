@@ -3,8 +3,7 @@ import type { AnimeCard, AnimeCardPage } from '../types';
 import type { AnimeSearchResult } from '../search';
 import type { BrowseSourceTaxonomy } from './browse-transform';
 import type { CatalogSource, HomeHero } from './source';
-import { animeCard } from './card';
-import { animeTitles, mediaTitle } from './anilist/anilist-text';
+import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';
 import {
     getBrowsePage,
@@ -68,14 +67,21 @@ async function search(query: string): Promise<AnimeSearchResult[]> {
     );
 
     return (response.Page?.media?.filter((value) => value !== null) ?? []).flatMap((entry) => {
-        const card = animeCard(entry);
-        if (!card) {
+        const image = entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? null;
+        if (!image) {
             return [];
         }
 
         return [
             {
-                ...card,
+                id: entry.id,
+                title: mediaTitle(entry),
+                image,
+                audio: [],
+                status: null,
+                score: entry.averageScore ?? 0,
+                genres: entry.genres?.filter((genre): genre is string => genre !== null) ?? [],
+                synopsis: plainText(entry.description),
                 titles: animeTitles(entry),
                 format: entry.format ?? null,
                 popularity: entry.popularity ?? 0,
