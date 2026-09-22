@@ -22,7 +22,10 @@ const AnimeParamSchema = z.object({ anilistId: AnimeIdSchema });
 const EpisodeParamSchema = AnimeParamSchema.extend({ episodeId: z.string().min(1).max(512) });
 const MediaRequestSchema = z.discriminatedUnion('intent', [
     z.object({ intent: z.literal('refresh') }),
-    z.object({ intent: z.literal('logoSize'), logoSize: z.number() }),
+    z.object({
+        intent: z.literal('logoSize'),
+        logoSize: z.number(),
+    }),
     z.object({
         intent: z.literal('select'),
         type: z.enum(['backdrop', 'logo']),

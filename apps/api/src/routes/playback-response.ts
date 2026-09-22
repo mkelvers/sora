@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 
 import { WatchPlaybackSchema } from '@soraorg/core/contracts/anime';
-import { EpisodeSkipTimesSchema } from '@soraorg/core/player/skip-times';
+import { EpisodeSkipTimesSchema, type EpisodeSkipTimes } from '@soraorg/core/player/skip-times';
 
 const playbackInputSchema = z.strictObject({
     error: z.boolean(),
@@ -10,7 +10,9 @@ const playbackInputSchema = z.strictObject({
     streams: z.record(z.string(), z.array(z.unknown())),
 });
 
-type PlaybackResponseInput = Omit<z.input<typeof playbackInputSchema>, 'streams'> & {
+type PlaybackResponseInput = {
+    error: boolean;
+    skipTimes?: EpisodeSkipTimes | null;
     streams: object;
 };
 
