@@ -4,8 +4,6 @@
     "private": true,
     "type": "module",
     "exports": {
-        "./tmdb": "./src/catalog/tmdb/index.ts",
-        "./tmdb/pure": "./src/catalog/tmdb/pure.ts",
         "./*": "./src/*.ts"
     },
     "scripts": {
