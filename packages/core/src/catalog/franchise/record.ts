@@ -12,11 +12,9 @@ const franchiseOrderSchema = z
         entries: z.array(
             z.object({
                 id: z.number(),
-                href: z.string(),
-                link: z.string(),
                 title: z.string(),
                 image: z.string(),
-                audioLabel: z.string(),
+                audio: z.array(z.enum(['sub', 'dub', 'raw'])),
                 format: z.string().nullable(),
                 status: z.string().nullable(),
                 score: z.number(),
