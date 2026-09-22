@@ -2,7 +2,7 @@ import app from './app';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 
 import { logger } from '@soraorg/core/server';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import { areMigrationsReady, markMigrationsReady } from './readiness';
 import { runMigrationsWithRetry } from './startup';
 
@@ -36,8 +36,7 @@ const server = Bun.serve({
 if (isProduction) {
     void runMigrationsWithRetry(() =>
         migrate(db, {
-            migrationsFolder:
-                process.env.MIGRATIONS_FOLDER ?? 'node_modules/@soraorg/shared/drizzle',
+            migrationsFolder: process.env.MIGRATIONS_FOLDER ?? 'packages/database/drizzle',
         })
     )
         .then(markMigrationsReady)

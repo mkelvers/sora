@@ -15,7 +15,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build --chown=bun:bun /app/apps/api/dist ./dist
-COPY --from=build --chown=bun:bun /app/packages/shared/drizzle /app/packages/shared/drizzle
+COPY --from=build --chown=bun:bun /app/packages/database/drizzle /app/packages/database/drizzle
 
 USER bun
 EXPOSE 3000
