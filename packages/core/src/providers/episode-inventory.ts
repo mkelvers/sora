@@ -9,8 +9,23 @@ import { episodesAvailableToWatch } from './inventory';
 import type { AudioMode } from '../audio';
 import type { AnimeEpisode } from '../types';
 
+interface StoredEpisode {
+    episodeId: string;
+    number: number;
+    metadataTitleSource: string | null;
+    metadataTitle: string | null;
+    providerTitle: string | null;
+    audio: AudioMode[];
+    imageUrl: string | null;
+    runtimeMinutes: number | null;
+    airDate: string | null;
+    overviewSource: string | null;
+    overview: string | null;
+    anilistId: number;
+}
+
 function episodeModel(
-    episode: typeof animeEpisode.$inferSelect,
+    episode: StoredEpisode,
     fallbackDuration: number | null | undefined
 ): AnimeEpisode {
     const metadataTitle =
@@ -61,7 +76,7 @@ export async function storedEpisodes(anime: AniListAnime) {
               episodeId.startsWith(`anikoto:${mapping.providerMediaId}:`)
           )
         : rows;
-    const uniqueEpisodes = new Map<number, (typeof rows)[number]>();
+    const uniqueEpisodes = new Map<number, StoredEpisode>();
 
     for (const episode of eligibleRows.filter(({ episodeId }) => episodeId.includes(':'))) {
         if (!uniqueEpisodes.has(episode.number)) {
@@ -77,12 +92,12 @@ export async function getEpisodes(anime: AniListAnime) {
 }
 
 export function sourceRevision(
-    episodes: ReadonlyArray<{
+    episodes: readonly {
         id: string;
         number: number;
         title: string;
         audio: AudioMode[];
-    }>
+    }[]
 ) {
     return createHash('sha256')
         .update(
@@ -105,7 +120,10 @@ export async function storedAudioModes(anilistIds: number[]) {
     }
 
     const rows = await db
-        .select({ anilistId: animeEpisode.anilistId, audio: animeEpisode.audio })
+        .select({
+            anilistId: animeEpisode.anilistId,
+            audio: animeEpisode.audio,
+        })
         .from(animeEpisode)
         .where(inArray(animeEpisode.anilistId, ids));
     const audioByAnime = new Map<number, Set<AudioMode>>();
