@@ -3,7 +3,7 @@ import type {
     MediaSeason,
     MediaSource,
     MediaStatus,
-} from '@soraorg/shared/graphql/generated/graphql';
+} from './anilist/graphql/generated/graphql';
 
 export interface BrowseCatalogEntry {
     metadataSource?: string;

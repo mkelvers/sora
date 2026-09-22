@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { asc, and, eq, inArray } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import { validAniListIds } from './identity';
-import { animeEpisode, animeEpisodeSync } from '@soraorg/shared/db/schema';
+import { animeEpisode, animeEpisodeSync } from '@soraorg/database/schema';
 import { episodeMetadataRefreshRequired } from './episode-policy';
 
 export async function needsEpisodeMetadataRefresh(anilistId: number, metadataExternalIdId: number) {

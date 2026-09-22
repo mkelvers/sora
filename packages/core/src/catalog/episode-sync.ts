@@ -1,15 +1,15 @@
 import { and, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeEpisode,
     animeEpisodeSync,
     animeEpisodeTarget,
     maintenanceTask,
     playbackProgress,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { logger } from '../application/logger';
-import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
+import { GraphQLRequestError } from './anilist/graphql/error';
 import type { AniListAnime } from './anilist/anilist-types';
 import { refreshAnimeRelease } from './anilist/anilist-release';
 import { animeTitles } from './anilist/anilist-text';

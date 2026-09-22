@@ -1,8 +1,4 @@
-import type {
-    MediaFormat,
-    MediaRelation,
-    MediaStatus,
-} from '@soraorg/shared/graphql/generated/graphql';
+import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql/generated/graphql';
 
 export type FranchiseSelectionEntry = {
     malId: number;

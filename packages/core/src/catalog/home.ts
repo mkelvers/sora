@@ -3,13 +3,13 @@ import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { AnimeCard } from '../types';
 import { audioModesByAnime } from '../audio';
 import { currentAnimeSeason } from '../season';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeCatalog,
     animeEpisode,
     homeHeroCandidate,
     homeHeroSelection,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import {
     homeHeroRotationStart,
     rotatedHomeHeroCandidates,

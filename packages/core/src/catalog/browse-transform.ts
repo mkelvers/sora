@@ -2,7 +2,7 @@ import type {
     BrowseAnimePageQuery,
     BrowseAnimeTaxonomyQuery,
     MediaFormat,
-} from '@soraorg/shared/graphql/generated/graphql';
+} from './anilist/graphql/generated/graphql';
 import { z } from 'zod';
 import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';

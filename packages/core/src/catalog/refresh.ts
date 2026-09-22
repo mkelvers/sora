@@ -1,15 +1,13 @@
 import type { BrowseFilters } from './browse-filters';
 import type { BrowseCatalogEntry } from './browse-types';
+import type { CatalogBrowsePageRequest } from './source';
 import { popularCatalogPages } from './browse-pagination';
 import { catalogSnapshotKey, refreshCatalogPage } from './storage';
 
 export async function refreshPopularCatalog<Filters extends Omit<BrowseFilters, 'audio'>>(
     filters: Filters,
     fetchPage: (
-        filters: Filters,
-        page: number,
-        perPage: number,
-        forceRefresh: boolean
+        request: Omit<CatalogBrowsePageRequest, 'filters'> & { filters: Filters }
     ) => Promise<{
         anime: BrowseCatalogEntry[];
         hasNextPage: boolean;
@@ -18,7 +16,7 @@ export async function refreshPopularCatalog<Filters extends Omit<BrowseFilters, 
 ) {
     const entries: BrowseCatalogEntry[] = [];
     for (let page = 1; ; page += 1) {
-        const result = await fetchPage(filters, page, 42, true);
+        const result = await fetchPage({ filters, page, perPage: 42, forceRefresh: true });
         entries.push(...result.anime);
         if (!result.hasNextPage) {
             break;

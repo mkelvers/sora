@@ -1,4 +1,4 @@
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 
 import type { AnimeSearchResult } from '../search';
 import { rankAnimeSearch } from '../search';

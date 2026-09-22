@@ -9,8 +9,8 @@ import {
     type AnimeSeasonSelection,
     type AnimeSeasonStartYears,
 } from '../season';
-import { db } from '@soraorg/shared/db';
-import { animeCatalog, animeSimulcastPage } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeCatalog, animeSimulcastPage } from '@soraorg/database/schema';
 import type { CatalogSource } from './source';
 
 function nextAnimeSeason(selection: AnimeSeasonSelection): AnimeSeasonSelection {

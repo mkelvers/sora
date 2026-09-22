@@ -7,8 +7,8 @@ import {
     searchRelevance,
     type AnimeSearchResult,
 } from '../search';
-import type * as schema from '@soraorg/shared/db/schema';
-import { animeSearchIndex as animeSearchIndexTable } from '@soraorg/shared/db/schema';
+import type * as schema from '@soraorg/database/schema';
+import { animeSearchIndex as animeSearchIndexTable } from '@soraorg/database/schema';
 
 type SearchDatabase = Pick<PostgresJsDatabase<typeof schema>, 'insert' | 'select'>;
 

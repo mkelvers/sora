@@ -1,4 +1,4 @@
-import type { MediaFormat } from '@soraorg/shared/graphql/generated/graphql';
+import type { MediaFormat } from './anilist/graphql/generated/graphql';
 
 import { isDiscoverableAnime } from './discovery';
 

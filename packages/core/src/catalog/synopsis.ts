@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 
 import type { AnimeCard } from '../types';
-import { db } from '@soraorg/shared/db';
-import { animeSynopsis } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeSynopsis } from '@soraorg/database/schema';
 import { logger } from '../application/logger';
 import { getAnimeRelease, storedAnimeRelease } from './anilist/anilist-release';
 import { mediaTitle, plainText } from './anilist/anilist-text';

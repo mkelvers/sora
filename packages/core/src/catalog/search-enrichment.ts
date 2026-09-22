@@ -2,8 +2,8 @@ import { inArray } from 'drizzle-orm';
 
 import type { AudioMode } from '../audio';
 import type { AnimeSearchResult } from '../search';
-import { db } from '@soraorg/shared/db';
-import { animeEpisode } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeEpisode } from '@soraorg/database/schema';
 import { getStoredBackdropCandidates, imageUrl, uniqueBackdropCandidates } from './tmdb';
 
 async function storedArtwork(anilistIds: number[]) {
