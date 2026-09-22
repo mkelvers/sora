@@ -1,5 +1,5 @@
 import type { AudioMode } from '../audio';
-import type { AniListAnime } from '../catalog/anilist-types';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import type { EpisodeSkipTimes } from '../player/skip-times';
 
 export interface ProviderEpisode {

@@ -1,5 +1,5 @@
-import { animeTitles } from '../catalog/anilist-text';
-import type { AniListAnime } from '../catalog/anilist-types';
+import { animeTitles } from '../catalog/anilist/anilist-text';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import type { ProviderEpisodeReference } from './types';
 
 export function isSpecialEpisodeReference(episode: ProviderEpisodeReference) {
