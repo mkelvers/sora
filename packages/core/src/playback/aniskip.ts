@@ -28,7 +28,10 @@ function interval(start: number, end: number): SkipInterval | null {
         return null;
     }
 
-    return { start, end };
+    return {
+        start,
+        end,
+    };
 }
 
 export function parseAniSkipResponse(value: JsonValue): EpisodeSkipTimes | null {
@@ -40,7 +43,10 @@ export function parseAniSkipResponse(value: JsonValue): EpisodeSkipTimes | null 
         return {
             opening: null,
             ending: null,
-            sources: { opening: 'aniskip', ending: 'aniskip' },
+            sources: {
+                opening: 'aniskip',
+                ending: 'aniskip',
+            },
         };
     }
     if (!parsedResponse.data.results) {
@@ -50,7 +56,10 @@ export function parseAniSkipResponse(value: JsonValue): EpisodeSkipTimes | null 
     const times: EpisodeSkipTimes = {
         opening: null,
         ending: null,
-        sources: { opening: 'aniskip', ending: 'aniskip' },
+        sources: {
+            opening: 'aniskip',
+            ending: 'aniskip',
+        },
     };
 
     for (const rawResult of parsedResponse.data.results) {
@@ -100,7 +109,10 @@ export async function fetchAniSkip(
         return {
             opening: null,
             ending: null,
-            sources: { opening: 'aniskip', ending: 'aniskip' },
+            sources: {
+                opening: 'aniskip',
+                ending: 'aniskip',
+            },
         };
     }
     if (!response.ok) {
