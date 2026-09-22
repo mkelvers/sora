@@ -11,11 +11,11 @@ import {
     playbackProgress,
 } from '@soraorg/shared/db/schema';
 import { toAnimeDetails } from '../../catalog/details';
+import { formatDuration } from '../../catalog/duration';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identity';
 import { getStoredMedia } from '../../catalog/tmdb';
 import { updateWatchlistAfterPlayback } from '../watchlist/store';
-import { formatDuration } from '../utils';
 import type { PlaybackProgressInput } from './input';
 import { selectPlaybackProgress } from './continue';
 
