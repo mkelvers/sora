@@ -8,8 +8,6 @@ import {
     maintenanceTask,
     playbackProgress,
 } from '@soraorg/database/schema';
-import { logger } from '../application/logger';
-import { GraphQLRequestError } from './anilist/graphql/error';
 import type { AniListAnime } from './anilist/anilist-types';
 import { refreshAnimeRelease } from './anilist/anilist-release';
 import { animeTitles } from './anilist/anilist-text';
@@ -17,7 +15,6 @@ import { ensureInternalAnimeId } from './identity';
 import {
     anikotoProvider,
     AniKotoNoMatchError,
-    isAniKotoTransientError,
     recordAniKotoInventoryVerification,
 } from '../providers/anikoto';
 import { scheduleReleaseTargets } from '../maintenance/targets';
@@ -282,7 +279,6 @@ async function fetchAndStore(
         if (cause instanceof NoConfidentTmdbMappingError) {
             return null;
         }
-        logger.debug(`TMDB episode enrichment failed for AniList ${anime.id}`, cause);
         return null;
     });
     const metadata = resolvedMetadataSource
@@ -296,8 +292,7 @@ async function fetchAndStore(
               ) && previousSync?.metadataRevision === episodeMetadataRevision
                   ? storedText
                   : new Map()
-          ).catch((cause) => {
-              logger.debug(`TMDB episode enrichment failed for AniList ${anime.id}`, cause);
+          ).catch(() => {
               return null;
           })
         : null;
@@ -664,27 +659,9 @@ export function discoverEpisodeInventory(anime: AniListAnime) {
         })
         .catch(async (cause) => {
             if (cause instanceof TargetEpisodeUnavailableError) {
-                await scheduleReleaseTargets([anime.id]).catch((failure) =>
-                    logger.debug(
-                        `Could not schedule episode target for AniList ${anime.id}`,
-                        failure
-                    )
-                );
+                await scheduleReleaseTargets([anime.id]).catch(() => {});
             }
-            await ensureEpisodeInventoryBackfill(anime.id).catch((failure) =>
-                logger.debug(`Could not enqueue episode backfill for AniList ${anime.id}`, failure)
-            );
-            if (
-                !isAniKotoTransientError(cause) &&
-                !(cause instanceof AniKotoNoMatchError) &&
-                !(cause instanceof EpisodeInventoryUnresolvedError) &&
-                !(
-                    cause instanceof GraphQLRequestError &&
-                    (cause.status === undefined || cause.status === 429 || cause.status >= 500)
-                )
-            ) {
-                logger.debug(`Episode inventory repair failed for AniList ${anime.id}`, cause);
-            }
+            await ensureEpisodeInventoryBackfill(anime.id).catch(() => {});
             throw cause;
         });
     inventoryRequests.set(anime.id, request);

@@ -13,7 +13,6 @@ import {
 } from './graphql/client';
 import { coordinatedAniListRequest } from './anilist-lease';
 import { requestKitsu } from '../kitsu';
-import { logger } from '../../application/logger';
 import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types';
 
 /** Controls AniList snapshot freshness and the underlying GraphQL request. */
@@ -117,15 +116,9 @@ async function refresh<TResult, TVariables>(
         }
         try {
             const fallback = await requestKitsu(operation, variables, options.timeoutMs);
-            logger.debug('catalog fallback: operation=%s source=kitsu', operation);
             // Fallback data must not overwrite a durable AniList query snapshot.
             return fallback as TResult;
         } catch (fallbackCause) {
-            logger.debug(
-                'catalog fallback failed: operation=%s error=%s',
-                operation,
-                fallbackCause
-            );
             // Keep the primary error and its Retry-After information for existing callers.
             throw cause;
         }

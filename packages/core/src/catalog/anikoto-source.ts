@@ -21,7 +21,6 @@ import { withAnimeSearchMetadata } from './search-enrichment';
 import { getArtwork } from './tmdb';
 import { resolveHeroSynopsis } from './synopsis';
 import { getContinueWatchingCards } from '../user/progress/store';
-import { logger } from '../application/logger';
 
 async function loadHomeHero(id: number): Promise<HomeHero | null> {
     try {
@@ -52,8 +51,7 @@ async function loadHomeHero(id: number): Promise<HomeHero | null> {
             genres: details.genres?.filter((genre) => genre !== null) ?? [],
             description: await resolveHeroSynopsis(details),
         };
-    } catch (cause) {
-        logger.debug(`Homepage hero candidate ${id} failed`, cause);
+    } catch {
         return null;
     }
 }
