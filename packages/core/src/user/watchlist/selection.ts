@@ -1,5 +1,5 @@
 import type { WatchlistState } from '@soraorg/shared/db/schema';
-import { audioAvailabilityLabel, type AudioMode } from '../../audio';
+import type { AudioMode } from '../../audio';
 import type { AnimeCard } from '../../types';
 
 export type WatchlistSelection = {
@@ -53,11 +53,9 @@ export function selectWatchlistEntries(
             const pendingMetadata = !storedCard;
             const card: AnimeCard & { pendingMetadata?: true } = storedCard ?? {
                 id: entry.anilistId,
-                href: `/anime/${entry.anilistId}`,
-                link: `/anime/${entry.anilistId}`,
                 title: entry.title?.trim() || `Anime ${entry.anilistId}`,
                 image: '',
-                audioLabel: '',
+                audio: [],
                 format: null,
                 status: null,
                 score: 0,
@@ -76,7 +74,7 @@ export function selectWatchlistEntries(
                 ? [
                       {
                           ...card,
-                          audioLabel: audioAvailabilityLabel([...audio]),
+                          audio: [...audio],
                           state: entry.state,
                           addedAt: entry.addedAt?.getTime() ?? null,
                           updatedAt: entry.updatedAt?.getTime() ?? null,
