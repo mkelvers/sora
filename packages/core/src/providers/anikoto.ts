@@ -4,6 +4,7 @@ import { createDecipheriv } from 'node:crypto';
 import { z } from 'zod';
 
 import type { AudioMode } from '../audio';
+import { concatByteChunks } from '../binary';
 import type { AnimeSeasonSelection } from '../season';
 import type { AnimeCard } from '../types';
 import { animeTitles, plainText } from '../catalog/anilist-text';
@@ -911,13 +912,7 @@ async function readBounded(response: Response, limit: number, signal?: AbortSign
         reader.releaseLock();
     }
 
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-    }
-    return bytes;
+    return concatByteChunks(chunks, size);
 }
 
 async function requestText(
