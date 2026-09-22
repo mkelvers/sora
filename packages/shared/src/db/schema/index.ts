@@ -198,17 +198,7 @@ export const invitations = pgTable(
 export const anime = pgTable('anime', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     title: text('title'),
-    createdAt: timestamp('created_at', {
-        withTimezone: true,
-    })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp('updated_at', {
-        withTimezone: true,
-    })
-        .notNull()
-        .defaultNow()
-        .$onUpdate(() => new Date()),
+    ...timestamps(),
 });
 
 export const animeRelation = pgTable(
@@ -260,17 +250,7 @@ export const animeRelease = pgTable(
         })
             .notNull()
             .defaultNow(),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     },
     (table) => [
         index('anime_release_status_airing_idx').on(table.status, table.nextAiringAt),
@@ -708,17 +688,7 @@ export const animeCatalog = pgTable(
         })
             .notNull()
             .defaultNow(),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     },
     (table) => [
         index('anime_catalog_safe_popularity_idx').on(table.isAdult, table.popularity),
@@ -959,17 +929,7 @@ export const watchlist = pgTable(
                 onDelete: 'cascade',
             }),
         state: watchlistState('state').notNull(),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     },
     (table) => [
         unique('watchlist_user_anime_unique').on(table.userId, table.animeId),
