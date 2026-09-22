@@ -1,7 +1,7 @@
 import { inArray } from 'drizzle-orm';
 
 import type { AudioMode } from '../audio';
-import type { AnimeSearchResult, SearchArtwork } from '../search';
+import type { AnimeSearchResult } from '../search';
 import { db } from '@soraorg/shared/db';
 import { animeEpisode } from '@soraorg/shared/db/schema';
 import { getStoredBackdropCandidates, imageUrl, uniqueBackdropCandidates } from './tmdb';
