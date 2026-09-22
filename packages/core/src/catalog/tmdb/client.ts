@@ -126,6 +126,11 @@ interface TmdbChange {
     }>;
 }
 
+/**
+ * Creates the small TMDB client used by catalog code. Responses intentionally stay
+ * loosely parsed here because each caller validates only the fields its operation
+ * consumes; the bearer token and timeout policy are shared across those operations.
+ */
 export function create(): TmdbClient {
     const token = process.env.TMDB_READ_ACCESS_TOKEN?.trim();
     if (!token) {

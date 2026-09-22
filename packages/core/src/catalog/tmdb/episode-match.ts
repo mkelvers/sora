@@ -95,6 +95,8 @@ function pairScore(
         Number.isInteger(source.number) &&
         source.number > 0;
 
+    // An explicit release order from TMDB's episode group is stronger than a
+    // season-local episode number, so a conflict makes this pairing impossible.
     if (verifiedReleaseNumber && source.number !== candidate.releaseEpisodeNumber) {
         return -Infinity;
     }
@@ -108,6 +110,8 @@ function pairScore(
         }
     }
 
+    // A distinctive title mismatch is only disqualifying when date and numbering
+    // evidence cannot independently identify the episode.
     if (
         titled &&
         !duplicateTitle &&
@@ -494,6 +498,11 @@ export function matchEpisodeMetadata(
     return matchedMetadata(anime, source, candidates, matches);
 }
 
+/**
+ * Chooses the TMDB candidate set that best explains the provider's episode order.
+ * The scoring considers titles, numbering, dates, runtime, and release structure;
+ * ambiguous or low-confidence matches are discarded instead of guessed.
+ */
 export function matchBestEpisodeMetadata(
     anime: AniListAnime,
     source: ProviderEpisode[],

@@ -60,6 +60,9 @@ export function selectReleaseSeason(
         })
         .toSorted((left, right) => right.score - left.score);
     const [best, alternate] = ranked;
+    // A season is selected only when independent release facts agree. The
+    // single-season aggregate fallback is reserved for series with no competing
+    // season, where choosing another season would be less defensible.
     const supported = Boolean(
         best &&
         (best.exactDate ||
