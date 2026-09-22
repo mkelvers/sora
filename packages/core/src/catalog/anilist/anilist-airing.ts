@@ -15,7 +15,7 @@ async function getAiringPages(
         return anime;
     }
 
-    const idBatches: Array<number[] | undefined> = ids
+    const idBatches: (number[] | undefined)[] = ids
         ? Array.from({ length: Math.ceil(ids.length / 250) }, (_, index) =>
               ids.slice(index * 250, index * 250 + 250)
           )
@@ -24,8 +24,16 @@ async function getAiringPages(
         for (let page = 1; ; page += 1) {
             const response = await request(
                 AiringAnimePageDocument,
-                { page, perPage: 50, ids: batch, schedulePage },
-                { refreshAfterMs: 60 * 60 * 1_000, forceRefresh }
+                {
+                    page,
+                    perPage: 50,
+                    ids: batch,
+                    schedulePage,
+                },
+                {
+                    refreshAfterMs: 60 * 60 * 1_000,
+                    forceRefresh,
+                }
             );
 
             for (const media of response.Page?.media ?? []) {

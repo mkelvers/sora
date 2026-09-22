@@ -79,13 +79,24 @@ export type AniListAnimeDetailsMedia = Pick<
 const nullableString = z.string().nullable();
 const nullableInteger = z.number().int().nullable();
 const titleSchema = z
-    .object({ english: nullableString, romaji: nullableString, native: nullableString })
+    .object({
+        english: nullableString,
+        romaji: nullableString,
+        native: nullableString,
+    })
     .nullable();
 const dateSchema = z
-    .object({ year: nullableInteger, month: nullableInteger, day: nullableInteger })
+    .object({
+        year: nullableInteger,
+        month: nullableInteger,
+        day: nullableInteger,
+    })
     .nullable();
 const nextAiringSchema = z
-    .object({ airingAt: z.number().int().positive(), episode: z.number().int().positive() })
+    .object({
+        airingAt: z.number().int().positive(),
+        episode: z.number().int().positive(),
+    })
     .nullable();
 
 export const AniListAnimeSchema = z

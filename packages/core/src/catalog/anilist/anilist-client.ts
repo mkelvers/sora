@@ -21,7 +21,6 @@ export interface AniListRequestOptions extends GraphQLOptions {
 
     refreshAfterMs?: number;
     /** Bypass fresh snapshots and require a successful upstream refresh. */
-
     forceRefresh?: boolean;
 }
 
@@ -141,12 +140,9 @@ async function refresh<TResult, TVariables>(
             })
             .onConflictDoUpdate({
                 target: anilistQuerySnapshot.key,
-
                 set: {
                     data,
-
                     refreshAfter,
-
                     fetchedAt,
                 },
             });
@@ -170,9 +166,7 @@ async function refreshWithLock<TResult, TVariables>(
         const [stored] = await tx
             .select({
                 data: anilistQuerySnapshot.data,
-
                 fetchedAt: anilistQuerySnapshot.fetchedAt,
-
                 refreshAfter: anilistQuerySnapshot.refreshAfter,
             })
             .from(anilistQuerySnapshot)
@@ -226,9 +220,7 @@ export async function request<TResult, TVariables>(
         const [stored] = await db
             .select({
                 data: anilistQuerySnapshot.data,
-
                 fetchedAt: anilistQuerySnapshot.fetchedAt,
-
                 refreshAfter: anilistQuerySnapshot.refreshAfter,
             })
             .from(anilistQuerySnapshot)
