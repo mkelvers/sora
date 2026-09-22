@@ -3,7 +3,7 @@ import type { AniListAnime } from '../anilist/anilist-types';
 import { z } from 'zod';
 import { animeDate } from '../date';
 import type { ProviderEpisode } from '../../providers/types';
-import { create, imageUrl } from './client';
+import { create, imageUrl, type TmdbClient } from './client';
 import { getEpisodeChanges } from './episode-changes';
 import {
     completeEpisodeDetails,
@@ -23,32 +23,61 @@ import { releaseSequence } from './title';
 import type { EpisodeCandidate, EpisodeMetadata, StoredEpisodeText, StoredMapping } from './types';
 
 const tmdbObjectSchema = z.looseObject({});
-type TmdbObject = z.infer<typeof tmdbObjectSchema>;
+type TmdbObject = Record<string, unknown>;
 
 interface MetadataEntry {
     id: string;
+
     metadata: EpisodeMetadata;
 }
 
 const featuredEpisodeSchema = z.object({
     season_number: z.number().int(),
+
     episode_number: z.number().int(),
+
     name: z.string().nullish(),
+
     overview: z.string().nullish(),
+
     runtime: z.number().nullish(),
+
     still_path: z.string().nullish(),
 });
 const episodeSchema = z.object({
     air_date: z.string().nullish(),
+
     episode_number: z.number(),
+
     id: z.number().nullish(),
+
     name: z.string().nullish(),
+
     overview: z.string().nullish(),
+
     runtime: z.number().nullish(),
+
     season_number: z.number(),
+
     still_path: z.string().nullish(),
 });
-type TmdbEpisode = z.infer<typeof episodeSchema>;
+interface TmdbEpisode {
+    air_date?: string | null;
+
+    episode_number: number;
+
+    id?: number | null;
+
+    name?: string | null;
+
+    overview?: string | null;
+
+    runtime?: number | null;
+
+    season_number: number;
+
+    still_path?: string | null;
+}
 
 /**
  * Inflate an RGBA PNG and reverse its per-row PNG filters.
@@ -117,7 +146,11 @@ function pngRows(bytes: Uint8Array) {
         previous = row;
     }
 
-    return { height, rows, width };
+    return {
+        height,
+        rows,
+        width,
+    };
 }
 
 function hasBlackBand(row: Uint8Array, width: number) {
@@ -222,11 +255,16 @@ function featuredEpisode(value: TmdbObject) {
 
     return {
         seasonNumber: parsed.data.season_number,
+
         episodeNumber: parsed.data.episode_number,
+
         details: {
             name: parsed.data.name ?? undefined,
+
             overview: parsed.data.overview ?? undefined,
+
             runtime: parsed.data.runtime ?? undefined,
+
             stillPath: parsed.data.still_path ?? undefined,
         },
     };
@@ -235,13 +273,21 @@ function featuredEpisode(value: TmdbObject) {
 function episodeCandidate(episode: TmdbEpisode): EpisodeCandidate {
     return {
         tmdbEpisodeId: episode.id ?? undefined,
+
         episodeNumber: episode.episode_number,
+
         seasonNumber: episode.season_number,
+
         title: episode.name?.trim() ?? '',
+
         overview: episode.overview?.trim() ?? '',
+
         imageUrl: episode.still_path ? imageUrl(episode.still_path, 'w500') : null,
+
         runtime: episode.runtime && episode.runtime > 0 ? episode.runtime : null,
+
         rawAirDate: episode.air_date ?? '',
+
         airDate: displayAirDate(episode.air_date),
     };
 }
@@ -253,16 +299,31 @@ function parseEpisodeCandidate(value: TmdbObject) {
 
 function bestImagePath(
     images:
-        | Array<{
+        | {
               file_path?: string;
+
               vote_average: number;
+
               vote_count: number;
+
               width: number;
-          }>
+          }[]
         | undefined
 ) {
     return images
-        ?.filter((image): image is typeof image & { file_path: string } => Boolean(image.file_path))
+        ?.filter(
+            (
+                image
+            ): image is {
+                file_path: string;
+
+                vote_average: number;
+
+                vote_count: number;
+
+                width: number;
+            } => Boolean(image.file_path)
+        )
         .toSorted(
             (left, right) =>
                 right.vote_average - left.vote_average ||
@@ -272,7 +333,7 @@ function bestImagePath(
 }
 
 async function episodeGroupCandidates(
-    client: ReturnType<typeof create>,
+    client: TmdbClient,
     seriesId: number,
     anime: AniListAnime,
     source: ProviderEpisode[]
@@ -310,6 +371,7 @@ async function episodeGroupCandidates(
                     ? [
                           {
                               ...candidate,
+
                               order: Number.isSafeInteger(episode.order)
                                   ? (episode.order ?? index)
                                   : index,
@@ -317,7 +379,9 @@ async function episodeGroupCandidates(
                       ]
                     : [];
             }),
+
             name: block.name,
+
             order: block.order,
         }))
     );
@@ -328,7 +392,9 @@ async function episodeGroupCandidates(
 function seasonScore(
     season: {
         air_date?: string;
+
         episode_count: number;
+
         season_number: number;
     },
     expectedCount: number,
@@ -382,6 +448,7 @@ export async function getEpisodeMetadata(
                 path: {
                     movie_id: match.id,
                 },
+
                 query: {
                     language: 'en-US',
                 },
@@ -422,8 +489,11 @@ export async function getEpisodeMetadata(
         ]);
         const localized = translations?.map((translation) => ({
             country: translation.iso_3166_1,
+
             language: translation.iso_639_1,
+
             name: translation.data?.title,
+
             overview: translation.data?.overview,
         }));
         const translated = translatedMetadata(localized);
@@ -443,14 +513,23 @@ export async function getEpisodeMetadata(
             [
                 ...movieEpisodeMetadata(source, {
                     title,
+
                     titleSource: title ? 'tmdb' : null,
+
                     overview,
+
                     overviewSource: overview ? 'tmdb' : null,
+
                     imageUrl: image ? imageUrl(image, 'w500') : null,
+
                     runtime: movie.runtime || null,
+
                     airDate: displayAirDate(movie.release_date),
                 }),
-            ].map(([id, metadata]) => ({ id, metadata })),
+            ].map(([id, metadata]) => ({
+                id,
+                metadata,
+            })),
             storedText
         );
     }
@@ -460,6 +539,7 @@ export async function getEpisodeMetadata(
             path: {
                 series_id: match.id,
             },
+
             query: {
                 language: 'en-US',
             },
@@ -485,6 +565,7 @@ export async function getEpisodeMetadata(
     const ranked = regularSeasons
         .map((season) => ({
             season,
+
             score: seasonScore(
                 season,
                 expectedCount,
@@ -502,6 +583,7 @@ export async function getEpisodeMetadata(
                 ...selectedRegular,
                 ...specialSeasons.map((season) => ({
                     season,
+
                     score: 0,
                 })),
             ].map((rankedSeason) => [rankedSeason.season.season_number, rankedSeason])
@@ -513,8 +595,10 @@ export async function getEpisodeMetadata(
                 params: {
                     path: {
                         series_id: match.id,
+
                         season_number: season.season_number,
                     },
+
                     query: {
                         language: 'en-US',
                     },
@@ -560,9 +644,13 @@ export async function getEpisodeMetadata(
 
         return {
             sourceId,
+
             candidate,
+
             localizedText,
+
             needed,
+
             fetchFallback,
         };
     });
@@ -572,8 +660,10 @@ export async function getEpisodeMetadata(
             if (!fetchFallback && !needed.images) {
                 return {
                     id: sourceId,
+
                     metadata: completeEpisodeDetails(candidate, {
                         localizedText,
+
                         image: (path) => imageUrl(path, 'w500'),
                     }),
                 };
@@ -581,7 +671,9 @@ export async function getEpisodeMetadata(
 
             const path = {
                 series_id: match.id,
+
                 season_number: candidate.seasonNumber,
+
                 episode_number: candidate.episodeNumber,
             };
             const detailsRequest =
@@ -592,6 +684,7 @@ export async function getEpisodeMetadata(
                               {
                                   params: {
                                       path,
+
                                       query: {
                                           language: 'en-US',
                                       },
@@ -653,8 +746,11 @@ export async function getEpisodeMetadata(
 
             const localized = (translations ?? []).map((translation) => ({
                 country: translation.iso_3166_1,
+
                 language: translation.iso_639_1,
+
                 name: translation.data?.name,
+
                 overview: translation.data?.overview,
             }));
             const analyzedStills = stills
@@ -662,10 +758,15 @@ export async function getEpisodeMetadata(
                       stills,
                       async (still) => ({
                           filePath: still.file_path,
+
                           hasEmbeddedTextOverlay: still.iso_639_1 != null,
+
                           voteAverage: still.vote_average,
+
                           voteCount: still.vote_count,
+
                           width: still.width,
+
                           hasEmbeddedLetterboxing: still.file_path
                               ? await hasEmbeddedLetterboxing(still.file_path)
                               : true,
@@ -676,20 +777,30 @@ export async function getEpisodeMetadata(
 
             return {
                 id: sourceId,
+
                 metadata: completeEpisodeDetails(candidate, {
                     details: details
                         ? {
                               name: details.name,
+
                               overview: details.overview,
+
                               runtime: details.runtime,
+
                               stillPath: details.still_path,
                           }
                         : undefined,
+
                     translations: localized,
+
                     stills: analyzedStills,
+
                     featured: featured?.details,
+
                     changes: changes ?? undefined,
+
                     localizedText,
+
                     image: (path) => imageUrl(path, 'w500'),
                 }),
             };

@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 const changeItemSchema = z.object({
     iso_639_1: z.string().optional(),
+
     iso_3166_1: z.string().optional(),
+
     value: z.union([
         z.string(),
         z.number(),
@@ -17,10 +19,28 @@ const changeItemSchema = z.object({
 });
 const changeSchema = z.object({
     key: z.string().optional(),
+
     items: z.array(changeItemSchema).optional(),
 });
 const changesResponseSchema = z.object({ changes: z.array(changeSchema).optional() });
-type ChangesResponse = z.infer<typeof changesResponseSchema>;
+interface ChangesResponse {
+    changes?: {
+        key?: string;
+
+        items?: {
+            iso_639_1?: string;
+
+            iso_3166_1?: string;
+
+            value:
+                | string
+                | number
+                | {
+                      backdrop?: { file_path?: string | null | undefined } | undefined;
+                  };
+        }[];
+    }[];
+}
 const textValueSchema = z.string().trim().min(1);
 const runtimeValueSchema = z.number().positive();
 const imageValueSchema = z.object({
@@ -41,7 +61,14 @@ function changedEpisodeDetails(payload: ChangesResponse) {
     const englishText = (key: string) => {
         const localized = items(key).flatMap((item) => {
             const value = textValueSchema.safeParse(item.value);
-            return item.iso_639_1 === 'en' && value.success ? [{ ...item, value: value.data }] : [];
+            return item.iso_639_1 === 'en' && value.success
+                ? [
+                      {
+                          ...item,
+                          value: value.data,
+                      },
+                  ]
+                : [];
         });
         return (
             localized.find((item) => item.iso_3166_1 === 'US')?.value ?? localized[0]?.value ?? null
@@ -58,8 +85,11 @@ function changedEpisodeDetails(payload: ChangesResponse) {
 
     return {
         name: englishText('name'),
+
         overview: englishText('overview'),
+
         runtime: runtime ?? null,
+
         stillPath: stillPath ?? null,
     };
 }
@@ -84,6 +114,7 @@ export async function getEpisodeChanges(
     const start = requestedStart <= now && requestedStart > earliest ? requestedStart : earliest;
     const query = new URLSearchParams({
         start_date: start.toISOString().slice(0, 10),
+
         end_date: queryEnd.toISOString().slice(0, 10),
     });
     const response = await request(
@@ -91,8 +122,10 @@ export async function getEpisodeChanges(
         {
             headers: {
                 accept: 'application/json',
+
                 Authorization: `Bearer ${token}`,
             },
+
             signal: AbortSignal.timeout(8_000),
         }
     );

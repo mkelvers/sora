@@ -16,6 +16,16 @@ import { imageUrl } from './client';
 import { findArtworkMappings, findMapping } from './mapping-store';
 import { readPoster } from './poster';
 
+interface BackdropMappingCandidate {
+    anilistId: number;
+
+    externalIdId: number;
+
+    targetId: number;
+
+    mediaType: 'anime' | 'movie' | 'tv';
+}
+
 export function uniqueBackdropCandidates<T extends { anilistId: number }>(
     rows: T[],
     group: (row: T) => string
@@ -53,10 +63,13 @@ export async function getStoredMedia(anilistId: number) {
     return {
         anime: {
             id: anilistId,
+
             title: match.title,
         },
+
         artwork: {
             ...artwork,
+
             selectedPoster,
         },
     };
@@ -71,6 +84,7 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const artworkSources = await db
         .select({
             anilistId: animeArtworkSource.anilistId,
+
             sourceAnilistId: animeArtworkSource.sourceAnilistId,
         })
         .from(animeArtworkSource)
@@ -80,7 +94,13 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
                 inArray(animeArtworkSource.sourceAnilistId, ids)
             )
         );
-    const sourceByAnilistId = new Map<number, { anilistId: number; sourceAnilistId: number }>();
+    const sourceByAnilistId = new Map<
+        number,
+        {
+            anilistId: number;
+            sourceAnilistId: number;
+        }
+    >();
     for (const source of artworkSources) {
         sourceByAnilistId.set(source.anilistId, source);
         sourceByAnilistId.set(source.sourceAnilistId, source);
@@ -102,8 +122,11 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const rows = await db
         .select({
             anilistId: source.externalId,
+
             externalIdId: target.id,
+
             targetId: target.externalId,
+
             mediaType: target.mediaType,
         })
         .from(source)
@@ -125,7 +148,7 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
             )
         );
 
-    const rowsByAnilistId = new Map<number, typeof rows>();
+    const rowsByAnilistId = new Map<number, BackdropMappingCandidate[]>();
     for (const row of rows) {
         rowsByAnilistId.set(row.anilistId, [...(rowsByAnilistId.get(row.anilistId) ?? []), row]);
     }
@@ -151,6 +174,7 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const preferences = await db
         .select({
             externalIdId: animeArtworkPreference.externalIdId,
+
             filePath: animeArtworkPreference.backdropFilePath,
         })
         .from(animeArtworkPreference)
@@ -168,6 +192,7 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const selectedImages = await db
         .select({
             externalIdId: animeArtwork.externalIdId,
+
             filePath: animeArtwork.filePath,
         })
         .from(animeArtwork)
@@ -209,8 +234,11 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
             ? [
                   {
                       anilistId,
+
                       targetId: ownerMapping.targetId,
+
                       mediaType: ownerMapping.mediaType,
+
                       filePath,
                   },
               ]
@@ -280,12 +308,15 @@ export async function selectArtwork(
                 .insert(animeArtworkPreference)
                 .values({
                     externalIdId: mapping.preferenceExternalIdId,
+
                     backdropFilePath: filePath,
                 })
                 .onConflictDoUpdate({
                     target: animeArtworkPreference.externalIdId,
+
                     set: {
                         backdropFilePath: filePath,
+
                         updatedAt,
                     },
                 });
@@ -304,14 +335,19 @@ export async function selectArtwork(
         .insert(animeArtworkPreference)
         .values({
             externalIdId: mapping.preferenceExternalIdId,
+
             logoFilePath: filePath,
+
             logoHidden: filePath === null,
         })
         .onConflictDoUpdate({
             target: animeArtworkPreference.externalIdId,
+
             set: {
                 logoFilePath: filePath,
+
                 logoHidden: filePath === null,
+
                 updatedAt,
             },
         });
@@ -329,11 +365,16 @@ export async function setLogoSize(anilistId: number, logoSize: number) {
 
     await db
         .insert(animeArtworkPreference)
-        .values({ externalIdId: mapping.preferenceExternalIdId, logoSize })
+        .values({
+            externalIdId: mapping.preferenceExternalIdId,
+            logoSize,
+        })
         .onConflictDoUpdate({
             target: animeArtworkPreference.externalIdId,
+
             set: {
                 logoSize,
+
                 updatedAt: new Date(),
             },
         });

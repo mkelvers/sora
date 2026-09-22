@@ -23,13 +23,29 @@ import type { StoredMapping } from './types';
 
 const posterImageSchema = z.object({
     ...tmdbImageFields,
+
     vote_count: z.number().optional(),
 });
 const posterConflictSchema = z.object({
     code: z.literal('23505'),
+
     constraint: z.literal('anime_release_poster_external_file_unique'),
 });
-type PosterImage = z.infer<typeof posterImageSchema>;
+interface PosterImage {
+    aspect_ratio?: number;
+
+    file_path?: string;
+
+    height?: number;
+
+    iso_639_1?: string | null;
+
+    vote_average?: number;
+
+    vote_count?: number;
+
+    width?: number;
+}
 
 function posterCandidate(image: PosterImage): PosterCandidate | null {
     if (!image.file_path) {
@@ -38,16 +54,36 @@ function posterCandidate(image: PosterImage): PosterCandidate | null {
 
     return {
         aspectRatio: image.aspect_ratio ?? 0,
+
         filePath: image.file_path,
+
         height: image.height ?? 0,
+
         language: image.iso_639_1 ?? null,
+
         voteAverage: image.vote_average ?? 0,
+
         voteCount: image.vote_count ?? 0,
+
         width: image.width ?? 0,
     };
 }
 
-function storedPoster(row: typeof animeReleasePoster.$inferSelect) {
+interface StoredPosterRow {
+    aspectRatio: number | null;
+
+    filePath: string | null;
+
+    height: number | null;
+
+    language: string | null;
+
+    voteAverage: number | null;
+
+    width: number | null;
+}
+
+function storedPoster(row: StoredPosterRow) {
     return row.filePath &&
         row.aspectRatio != null &&
         row.height != null &&
@@ -55,11 +91,17 @@ function storedPoster(row: typeof animeReleasePoster.$inferSelect) {
         row.width != null
         ? {
               aspectRatio: row.aspectRatio,
+
               filePath: row.filePath,
+
               height: row.height,
+
               language: row.language,
+
               url: imageUrl(row.filePath),
+
               voteAverage: row.voteAverage,
+
               width: row.width,
           }
         : null;
@@ -79,7 +121,7 @@ async function storedPosterRow(match: StoredMapping) {
         .then((rows) => rows[0] ?? null);
 }
 
-function isFresh(row: typeof animeReleasePoster.$inferSelect) {
+function isFresh(row: Pick<StoredPosterRow, 'filePath'> & { fetchedAt: Date }) {
     // Positive selections can be reused for a month; a miss is retried sooner
     // because new artwork may appear without the mapping changing.
     const lifetime = row.filePath ? 30 * 24 * 60 * 60 * 1_000 : 6 * 60 * 60 * 1_000;
@@ -93,30 +135,46 @@ async function savePoster(
 ) {
     const values = {
         animeId: match.animeId,
+
         externalIdId: match.externalIdId,
+
         filePath: poster?.filePath ?? null,
+
         seasonNumber,
+
         aspectRatio: poster?.aspectRatio ?? null,
+
         height: poster?.height ?? null,
+
         language: poster?.language ?? null,
+
         voteAverage: poster?.voteAverage ?? null,
+
         width: poster?.width ?? null,
+
         fetchedAt: new Date(),
     };
 
     await db.insert(animeReleasePoster).values(values).onConflictDoUpdate({
         target: animeReleasePoster.animeId,
+
         set: values,
     });
 
     return poster
         ? {
               aspectRatio: poster.aspectRatio,
+
               filePath: poster.filePath,
+
               height: poster.height,
+
               language: poster.language,
+
               url: imageUrl(poster.filePath),
+
               voteAverage: poster.voteAverage,
+
               width: poster.width,
           }
         : null;
@@ -139,6 +197,7 @@ async function usedPosterPaths(match: StoredMapping) {
         ? await db
               .select({
                   anilistId: animeArtworkSource.anilistId,
+
                   sourceAnilistId: animeArtworkSource.sourceAnilistId,
               })
               .from(animeArtworkSource)
@@ -267,7 +326,10 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
             throw new Error('TMDB movie poster request failed', { cause: error });
         }
 
-        return { candidates: posterCandidates(data.posters), seasonNumber: null };
+        return {
+            candidates: posterCandidates(data.posters),
+            seasonNumber: null,
+        };
     }
 
     const { data: series, error } = await client.GET('/3/tv/{series_id}', {
@@ -275,6 +337,7 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
             path: {
                 series_id: match.id,
             },
+
             query: {
                 language: 'en-US',
             },
@@ -286,7 +349,10 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
 
     const selection = selectReleaseSeason(anime, series.seasons ?? []);
     if (!selection) {
-        return { candidates: [], seasonNumber: null };
+        return {
+            candidates: [],
+            seasonNumber: null,
+        };
     }
 
     if (selection.aggregate) {
@@ -301,7 +367,10 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
             throw new Error('TMDB series images request failed', { cause: imagesError });
         }
 
-        return { candidates: posterCandidates(data.posters), seasonNumber: null };
+        return {
+            candidates: posterCandidates(data.posters),
+            seasonNumber: null,
+        };
     }
 
     const { data, error: imagesError } = await client.GET(
@@ -310,6 +379,7 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
             params: {
                 path: {
                     series_id: match.id,
+
                     season_number: selection.season.season_number,
                 },
             },
@@ -321,6 +391,7 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
 
     return {
         candidates: posterCandidates(data.posters),
+
         seasonNumber: selection.season.season_number,
     };
 }
@@ -388,6 +459,7 @@ export async function getPosterOptions(anime: AniListAnime) {
 
     return (await posterOptions(anime, match)).map((poster) => ({
         ...poster,
+
         url: imageUrl(poster.filePath),
     }));
 }
@@ -428,6 +500,7 @@ export async function getStoredPosters(anilistIds: number[]) {
     const rows = await db
         .select({
             anilistId: source.externalId,
+
             poster: animeReleasePoster,
         })
         .from(source)

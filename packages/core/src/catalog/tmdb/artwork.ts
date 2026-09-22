@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { isNotNullish } from '../../collections';
 
 import { db } from '@soraorg/database';
 import { animeArtwork, animeArtworkPreference, animeArtworkSync } from '@soraorg/database/schema';
@@ -12,7 +13,19 @@ import { getPoster, readPoster } from './poster';
 import type { Artwork, ArtworkImage, StoredMapping } from './types';
 
 const artworkImageSchema = z.object(tmdbImageFields);
-type ArtworkImagePayload = z.infer<typeof artworkImageSchema>;
+interface ArtworkImagePayload {
+    aspect_ratio?: number;
+
+    file_path?: string;
+
+    height?: number;
+
+    iso_639_1?: string | null;
+
+    vote_average?: number;
+
+    width?: number;
+}
 function artworkImage(image: ArtworkImagePayload): ArtworkImage | null {
     if (!image.file_path) {
         return null;
@@ -20,23 +33,49 @@ function artworkImage(image: ArtworkImagePayload): ArtworkImage | null {
 
     return {
         aspectRatio: image.aspect_ratio ?? 0,
+
         filePath: image.file_path,
+
         height: image.height ?? 0,
+
         language: image.iso_639_1 ?? null,
+
         url: imageUrl(image.file_path),
+
         voteAverage: image.vote_average ?? 0,
+
         width: image.width ?? 0,
     };
 }
 
-function storedImage(image: typeof animeArtwork.$inferSelect): ArtworkImage {
+interface StoredArtworkImage {
+    aspectRatio: number;
+
+    filePath: string;
+
+    height: number;
+
+    language: string | null;
+
+    voteAverage: number;
+
+    width: number;
+}
+
+function storedImage(image: StoredArtworkImage): ArtworkImage {
     return {
         aspectRatio: image.aspectRatio,
+
         filePath: image.filePath,
+
         height: image.height,
+
         language: image.language,
+
         url: imageUrl(image.filePath),
+
         voteAverage: image.voteAverage,
+
         width: image.width,
     };
 }
@@ -67,8 +106,11 @@ async function withSelections(
     const [preference] = await db
         .select({
             backdropFilePath: animeArtworkPreference.backdropFilePath,
+
             logoFilePath: animeArtworkPreference.logoFilePath,
+
             logoHidden: animeArtworkPreference.logoHidden,
+
             logoSize: animeArtworkPreference.logoSize,
         })
         .from(animeArtworkPreference)
@@ -85,17 +127,24 @@ async function withSelections(
 
     return {
         id: match.id,
+
         mediaType: match.mediaType,
+
         ...artwork,
+
         selectedBackdrop:
             artwork.backdrops.find(({ filePath }) => filePath === preference?.backdropFilePath) ??
             selectDefault(artwork.backdrops),
+
         selectedLogo: logoHidden
             ? null
             : (artwork.logos.find(({ filePath }) => filePath === preference?.logoFilePath) ??
               selectDefault(artwork.logos)),
+
         selectedPoster: null,
+
         logoHidden,
+
         logoSize: preference?.logoSize ?? 100,
     };
 }
@@ -110,7 +159,10 @@ function mergeArtwork(
             ).values(),
         ].sort((left, right) => right.voteAverage - left.voteAverage);
 
-    return { backdrops: merge('backdrops'), logos: merge('logos') };
+    return {
+        backdrops: merge('backdrops'),
+        logos: merge('logos'),
+    };
 }
 
 export async function readArtwork(mapping: ArtworkMappings): Promise<Artwork | null> {
@@ -142,7 +194,10 @@ export async function readArtwork(mapping: ArtworkMappings): Promise<Artwork | n
                 .map(storedImage);
         const backdrops = forType('backdrop');
         const logos = forType('logo');
-        return { backdrops, logos };
+        return {
+            backdrops,
+            logos,
+        };
     });
 
     const mergedArtwork = mergeArtwork(artwork);
@@ -187,6 +242,7 @@ async function fetchArtworkSource(match: StoredMapping) {
                       path: {
                           movie_id: match.id,
                       },
+
                       query: allLanguagesQuery,
                   },
               })
@@ -195,6 +251,7 @@ async function fetchArtworkSource(match: StoredMapping) {
                       path: {
                           series_id: match.id,
                       },
+
                       query: allLanguagesQuery,
                   },
               })
@@ -208,9 +265,7 @@ async function fetchArtworkSource(match: StoredMapping) {
         });
     }
 
-    const images = [unfilteredResponse.data, languageResponse?.data].filter(
-        (data): data is NonNullable<typeof unfilteredResponse.data> => Boolean(data)
-    );
+    const images = [unfilteredResponse.data, languageResponse?.data].filter(isNotNullish);
     const backdrops = parseArtworkImages(images.flatMap((data) => data.backdrops ?? []));
     const logos = parseArtworkImages(images.flatMap((data) => data.logos ?? []));
 
@@ -218,22 +273,36 @@ async function fetchArtworkSource(match: StoredMapping) {
         const rows = [
             ...backdrops.map((image) => ({
                 externalIdId: match.externalIdId,
+
                 type: 'backdrop' as const,
+
                 filePath: image.filePath,
+
                 aspectRatio: image.aspectRatio,
+
                 height: image.height,
+
                 language: image.language,
+
                 voteAverage: image.voteAverage,
+
                 width: image.width,
             })),
             ...logos.map((image) => ({
                 externalIdId: match.externalIdId,
+
                 type: 'logo' as const,
+
                 filePath: image.filePath,
+
                 aspectRatio: image.aspectRatio,
+
                 height: image.height,
+
                 language: image.language,
+
                 voteAverage: image.voteAverage,
+
                 width: image.width,
             })),
         ];
@@ -246,11 +315,16 @@ async function fetchArtworkSource(match: StoredMapping) {
                 .values(rows)
                 .onConflictDoUpdate({
                     target: [animeArtwork.externalIdId, animeArtwork.type, animeArtwork.filePath],
+
                     set: {
                         aspectRatio: sql.raw(`excluded."${animeArtwork.aspectRatio.name}"`),
+
                         height: sql.raw(`excluded."${animeArtwork.height.name}"`),
+
                         language: sql.raw(`excluded."${animeArtwork.language.name}"`),
+
                         voteAverage: sql.raw(`excluded."${animeArtwork.voteAverage.name}"`),
+
                         width: sql.raw(`excluded."${animeArtwork.width.name}"`),
                     },
                 });
@@ -260,18 +334,24 @@ async function fetchArtworkSource(match: StoredMapping) {
             .insert(animeArtworkSync)
             .values({
                 externalIdId: match.externalIdId,
+
                 allLanguages: true,
             })
             .onConflictDoUpdate({
                 target: animeArtworkSync.externalIdId,
+
                 set: {
                     fetchedAt: new Date(),
+
                     allLanguages: true,
                 },
             });
     });
 
-    return { backdrops, logos };
+    return {
+        backdrops,
+        logos,
+    };
 }
 
 export async function fetchArtwork(mapping: ArtworkMappings) {
@@ -281,7 +361,10 @@ export async function fetchArtwork(mapping: ArtworkMappings) {
 
 export async function getArtwork(
     anime: AniListAnime,
-    options: { refresh?: boolean; fetchMissing?: boolean } = {}
+    options: {
+        refresh?: boolean;
+        fetchMissing?: boolean;
+    } = {}
 ) {
     let match: StoredMapping;
     try {
@@ -295,6 +378,7 @@ export async function getArtwork(
 
     const artworkMappings = (await findArtworkMappings(anime.id, match)) ?? {
         matches: [match],
+
         preferenceExternalIdId: match.externalIdId,
     };
 
@@ -313,5 +397,8 @@ export async function getArtwork(
           })
         : await readPoster(match);
 
-    return { ...artwork, selectedPoster };
+    return {
+        ...artwork,
+        selectedPoster,
+    };
 }

@@ -25,6 +25,7 @@ import { type Candidate, type Mapping, type StoredMapping } from './types';
 
 interface RankedCandidate {
     candidate: Candidate;
+
     searchRank: number;
 }
 
@@ -80,6 +81,7 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
                     path: {
                         movie_id: mapping.id,
                     },
+
                     query: {
                         language: 'en-US',
                     },
@@ -90,10 +92,15 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
                 ? specialEpisodeEvidenceScore(anime, [
                       {
                           airDate: movie.release_date ?? '',
+
                           name: movie.title?.trim() || movie.original_title?.trim() || '',
+
                           overview: movie.overview?.trim() ?? '',
+
                           runtime: movie.runtime || null,
+
                           seasonNumber: 0,
+
                           stillPath: movie.backdrop_path ?? movie.poster_path ?? null,
                       },
                   ])
@@ -105,6 +112,7 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
                 path: {
                     series_id: mapping.id,
                 },
+
                 query: {
                     language: 'en-US',
                 },
@@ -118,6 +126,7 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
         const selected = (series.seasons ?? [])
             .map((season) => ({
                 score: seasonEvidenceScore(anime, season),
+
                 season,
             }))
             .sort((left, right) => right.score - left.score)
@@ -128,8 +137,10 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
                     params: {
                         path: {
                             series_id: mapping.id,
+
                             season_number: season.season_number,
                         },
+
                         query: {
                             language: 'en-US',
                         },
@@ -138,10 +149,15 @@ async function specialMappingEvidence(anime: AniListAnime, mapping: Mapping) {
 
                 return (data?.episodes ?? []).map((episode): SpecialEpisodeEvidence => ({
                     airDate: episode.air_date ?? '',
+
                     name: episode.name?.trim() ?? '',
+
                     overview: episode.overview?.trim() ?? '',
+
                     runtime: episode.runtime || null,
+
                     seasonNumber: episode.season_number,
+
                     stillPath: episode.still_path ?? null,
                 }));
             })
@@ -168,6 +184,7 @@ async function preferredSpecialMapping(
 
     const relatedMapping = {
         id: related[0].id,
+
         mediaType: related[0].mediaType,
     };
     const [directScore, relatedScore] = await Promise.all([
@@ -184,7 +201,10 @@ async function preferredTvMapping(
     candidates: RankedCandidate[]
 ) {
     if (direct.mediaType !== 'tv' || !anime.episodes) {
-        return { candidate: direct, aggregate: false };
+        return {
+            candidate: direct,
+            aggregate: false,
+        };
     }
 
     const client = create();
@@ -194,6 +214,7 @@ async function preferredTvMapping(
                 path: {
                     series_id: direct.id,
                 },
+
                 query: {
                     language: 'en-US',
                 },
@@ -202,7 +223,10 @@ async function preferredTvMapping(
         .then(({ data }) => data)
         .catch(() => undefined);
     if (!directSeries) {
-        return { candidate: direct, aggregate: false };
+        return {
+            candidate: direct,
+            aggregate: false,
+        };
     }
 
     const alternatives = candidates
@@ -219,7 +243,7 @@ async function preferredTvMapping(
     const expectedSequence = releaseSequence(anime);
     const candidateEvidence = async (
         candidate: Candidate,
-        series: typeof directSeries | undefined = undefined
+        series: TmdbResponse | undefined = undefined
     ) => {
         try {
             const data =
@@ -230,6 +254,7 @@ async function preferredTvMapping(
                             path: {
                                 series_id: candidate.id,
                             },
+
                             query: {
                                 language: 'en-US',
                             },
@@ -244,6 +269,7 @@ async function preferredTvMapping(
                 .filter(({ season_number }) => season_number > 0)
                 .map((season) => ({
                     season,
+
                     score:
                         seasonEvidenceScore(anime, season) +
                         Number(expectedSequence === season.season_number) * 60,
@@ -256,8 +282,10 @@ async function preferredTvMapping(
                         params: {
                             path: {
                                 series_id: candidate.id,
+
                                 season_number: seasonNumber,
                             },
+
                             query: {
                                 language: 'en-US',
                             },
@@ -265,7 +293,7 @@ async function preferredTvMapping(
                     })
                     .then(({ data }) => data)
                     .catch(() => undefined);
-            const details: Awaited<ReturnType<typeof fetchSeason>>[] = [];
+            const details: (TmdbResponse | undefined)[] = [];
             for (let index = 0; index < seasons.length; index += 4) {
                 details.push(
                     ...(await Promise.all(
@@ -283,6 +311,7 @@ async function preferredTvMapping(
 
             return {
                 candidate,
+
                 seasons: (data.seasons ?? []).map((season): TvSeasonEvidence => {
                     const episodes = detailBySeason.get(season.season_number)?.episodes ?? [];
                     const release =
@@ -295,14 +324,20 @@ async function preferredTvMapping(
 
                     return {
                         airDate: season.air_date ?? null,
+
                         episodeCount: season.episode_count,
+
                         metadataCount: release.filter(
                             ({ name, overview }) =>
                                 Boolean(episodeTitleKey(name ?? '')) && Boolean(overview?.trim())
                         ).length,
+
                         name: season.name?.trim() ?? '',
+
                         releaseAirDate: release[0]?.air_date ?? null,
+
                         releaseEpisodeCount: release.length,
+
                         seasonNumber: season.season_number,
                     };
                 }),
@@ -329,6 +364,7 @@ async function preferredTvMapping(
 
     return {
         candidate,
+
         aggregate: tvReleaseMatchesWindow(anime, selectedEvidence?.seasons ?? []),
     };
 }
@@ -338,6 +374,7 @@ async function searchTv(query: string): Promise<Candidate[]> {
         params: {
             query: {
                 query,
+
                 include_adult: true,
             },
         },
@@ -352,10 +389,15 @@ async function searchTv(query: string): Promise<Candidate[]> {
             ? [
                   {
                       id: result.id,
+
                       mediaType: 'tv' as const,
+
                       name: result.name ?? '',
+
                       originalName: result.original_name ?? '',
+
                       date: result.first_air_date ?? null,
+
                       popularity: result.popularity ?? 0,
                   },
               ]
@@ -368,6 +410,7 @@ async function searchMovies(query: string): Promise<Candidate[]> {
         params: {
             query: {
                 query,
+
                 include_adult: true,
             },
         },
@@ -382,10 +425,15 @@ async function searchMovies(query: string): Promise<Candidate[]> {
             ? [
                   {
                       id: result.id,
+
                       mediaType: 'movie' as const,
+
                       name: result.title ?? '',
+
                       originalName: result.original_title ?? '',
+
                       date: result.release_date ?? null,
+
                       popularity: result.popularity ?? 0,
                   },
               ]
@@ -420,7 +468,7 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
     const queries = [...new Set(titles.flatMap((title) => [title, seriesTitle(title)]))];
     const preferredSearch = anime.format === 'MOVIE' ? searchMovies : searchTv;
     const alternateSearch = anime.format === 'MOVIE' ? searchTv : searchMovies;
-    const findCandidate = async (search: typeof searchTv | typeof searchMovies) => {
+    const findCandidate = async (search: (query: string) => Promise<Candidate[]>) => {
         const results = await Promise.all(queries.map((title) => search(title)));
         const unique = new Map<string, RankedCandidate>();
         results.forEach((candidates) => {
@@ -428,7 +476,10 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
                 const key = `${candidate.mediaType}:${candidate.id}`;
                 const existing = unique.get(key);
                 if (!existing || searchRank < existing.searchRank) {
-                    unique.set(key, { candidate, searchRank });
+                    unique.set(key, {
+                        candidate,
+                        searchRank,
+                    });
                 }
             });
         });
@@ -437,7 +488,10 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
             .map(({ candidate }) => candidate)
             .sort((left, right) => candidateScore(right, anime) - candidateScore(left, anime))[0];
 
-        return { candidates, match };
+        return {
+            candidates,
+            match,
+        };
     };
     let search = await findCandidate(preferredSearch);
     const preferred = search.match;
@@ -469,6 +523,7 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
                         path: {
                             series_id: mapping.id,
                         },
+
                         query: {
                             language: 'en-US',
                         },
@@ -478,10 +533,15 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
                 return data
                     ? {
                           id: mapping.id,
+
                           mediaType: 'tv' as const,
+
                           date: data.first_air_date ?? null,
+
                           name: data.name ?? '',
+
                           originalName: data.original_name ?? '',
+
                           popularity: data.popularity ?? 0,
                       }
                     : null;
@@ -490,7 +550,14 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
     const candidates = [
         ...search.candidates,
         ...relatedCandidates.flatMap((candidate) =>
-            candidate ? [{ candidate, searchRank: -1 }] : []
+            candidate
+                ? [
+                      {
+                          candidate,
+                          searchRank: -1,
+                      },
+                  ]
+                : []
         ),
     ].filter(
         ({ candidate }, index, values) =>
@@ -515,6 +582,7 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
             anime,
             {
                 id: releaseMatch.id,
+
                 mediaType: releaseMatch.mediaType,
             },
             related
@@ -522,6 +590,7 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
 
         return saveVerifiedMapping(anime, {
             id: mapping.id,
+
             mediaType: mapping.mediaType,
         });
     }
@@ -532,6 +601,7 @@ async function discoverMapping(anime: AniListAnime): Promise<StoredMapping> {
     if (compatibleRelated.length === 1) {
         return saveVerifiedMapping(anime, {
             id: compatibleRelated[0].id,
+
             mediaType: compatibleRelated[0].mediaType,
         });
     }
