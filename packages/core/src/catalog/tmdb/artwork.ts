@@ -47,6 +47,20 @@ function storedImage(image: typeof animeArtwork.$inferSelect): ArtworkImage {
     };
 }
 
+function parseArtworkImages(images: unknown[]) {
+    return images
+        .flatMap((image) => {
+            const parsed = artworkImageSchema.safeParse(image);
+            return parsed.success ? [artworkImage(parsed.data)] : [];
+        })
+        .filter((image): image is ArtworkImage => image !== null)
+        .filter(
+            (image, index, all) =>
+                all.findIndex(({ filePath }) => filePath === image.filePath) === index
+        )
+        .sort((left, right) => right.voteAverage - left.voteAverage);
+}
+
 async function withSelections(
     mapping: ArtworkMappings,
     artwork: Pick<Artwork, 'backdrops' | 'logos'>
@@ -200,30 +214,8 @@ async function fetchArtworkSource(match: StoredMapping) {
     const images = [unfilteredResponse.data, languageResponse?.data].filter(
         (data): data is NonNullable<typeof unfilteredResponse.data> => Boolean(data)
     );
-    const backdrops = images
-        .flatMap((data) => data.backdrops ?? [])
-        .flatMap((image) => {
-            const parsed = artworkImageSchema.safeParse(image);
-            return parsed.success ? [artworkImage(parsed.data)] : [];
-        })
-        .filter((image): image is ArtworkImage => image !== null)
-        .filter(
-            (image, index, all) =>
-                all.findIndex(({ filePath }) => filePath === image.filePath) === index
-        )
-        .sort((left, right) => right.voteAverage - left.voteAverage);
-    const logos = images
-        .flatMap((data) => data.logos ?? [])
-        .flatMap((image) => {
-            const parsed = artworkImageSchema.safeParse(image);
-            return parsed.success ? [artworkImage(parsed.data)] : [];
-        })
-        .filter((image): image is ArtworkImage => image !== null)
-        .filter(
-            (image, index, all) =>
-                all.findIndex(({ filePath }) => filePath === image.filePath) === index
-        )
-        .sort((left, right) => right.voteAverage - left.voteAverage);
+    const backdrops = parseArtworkImages(images.flatMap((data) => data.backdrops ?? []));
+    const logos = parseArtworkImages(images.flatMap((data) => data.logos ?? []));
 
     await db.transaction(async (tx) => {
         const rows = [
