@@ -12,6 +12,7 @@ import {
 } from '@soraorg/shared/db/schema';
 import type { AniListAnime } from '../anilist-types';
 import { create, imageUrl } from './client';
+import { tmdbImageFields } from './image';
 import { findMapping } from './mapping-store';
 import {
     selectPoster as choosePoster,
@@ -21,13 +22,8 @@ import {
 import type { StoredMapping } from './types';
 
 const posterImageSchema = z.object({
-    aspect_ratio: z.number().optional(),
-    file_path: z.string().optional(),
-    height: z.number().optional(),
-    iso_639_1: z.string().nullable().optional(),
-    vote_average: z.number().optional(),
+    ...tmdbImageFields,
     vote_count: z.number().optional(),
-    width: z.number().optional(),
 });
 const posterConflictSchema = z.object({
     code: z.literal('23505'),
