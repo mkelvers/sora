@@ -28,10 +28,10 @@ export interface ProviderStream {
     server: string;
     url: string;
     quality: string | null;
-    subtitles: Array<{
+    subtitles: {
         kind: 'full' | 'sdh' | 'forced';
         url: string;
-    }>;
+    }[];
 }
 
 export type ProviderStreams = Partial<Record<AudioMode, ProviderStream[]>>;

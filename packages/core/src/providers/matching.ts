@@ -3,6 +3,7 @@ import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import type { ProviderEpisode, ProviderEpisodeReference } from './types';
 
 type NumberedProviderEpisode = Pick<ProviderEpisode, 'number' | 'title'>;
+type HtmlEntityName = 'amp' | 'apos' | 'gt' | 'lt' | 'nbsp' | 'quot';
 
 export function isSpecialEpisodeReference(episode: ProviderEpisodeReference) {
     return episode.number <= 0 || !Number.isInteger(episode.number);
@@ -21,7 +22,7 @@ function decodeHtmlEntities(value: string) {
     return value.replace(/&(?:#(\d+)|#x([\da-f]+)|([a-z]+));/gi, (entity, decimal, hex, name) => {
         if (name) {
             const key = name.toLowerCase();
-            return entities[key as keyof typeof entities] ?? entity;
+            return entities[key as HtmlEntityName] ?? entity;
         }
 
         const codePoint = Number.parseInt(decimal ?? hex, decimal ? 10 : 16);
@@ -170,7 +171,10 @@ export function releaseInventoryEvidence<T extends NumberedProviderEpisode>(
             )
         ).length;
 
-        return { matches, required };
+        return {
+            matches,
+            required,
+        };
     });
     const matchesRelatedRelease = relatedEvidence.some(
         ({ matches, required }) => matches >= required && matches >= releaseMatches + required
@@ -248,7 +252,10 @@ function releaseSequence(title: string) {
         null;
     const part = normalized.match(/\b(?:cour|part)\s+0*(\d+)\b/)?.[1] ?? null;
 
-    return { season, part };
+    return {
+        season,
+        part,
+    };
 }
 
 export function relatedCollectionTitle(left: string, right: string) {

@@ -29,7 +29,10 @@ export function providerEpisodeCount(anime: Pick<AniListAnime, 'format' | 'episo
 }
 
 export function episodeInventoryCoversTarget(
-    storedEpisodes: readonly { number: number; id?: string }[],
+    storedEpisodes: readonly {
+        number: number;
+        id?: string;
+    }[],
     targetEpisode: number
 ) {
     return coversExpectedEpisodes(
@@ -40,7 +43,10 @@ export function episodeInventoryCoversTarget(
 
 export function episodeInventoryNeedsDiscovery(
     anime: Pick<AniListAnime, 'status' | 'format' | 'episodes' | 'nextAiringEpisode'>,
-    storedEpisodes: readonly { number: number; id?: string }[],
+    storedEpisodes: readonly {
+        number: number;
+        id?: string;
+    }[],
     nextRefreshAt?: Date | null,
     now = Date.now()
 ) {

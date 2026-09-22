@@ -10,6 +10,7 @@ import type { AnimeCard } from '../types';
 import { animeTitles, plainText } from '../catalog/anilist/anilist-text';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { validSkipInterval } from '../playback/aniskip';
+import type { EpisodeSkipTimes } from '../player/skip-times';
 import type { JsonValue } from '../json';
 import type {
     PlaybackProvider,
@@ -43,6 +44,7 @@ export const aniKotoMediaHostSuffixes = [
     'watching.onl',
 ] as const;
 const aniKotoEmbedHostnames = ['megaplay.buzz', 'vidtube.site'] as const;
+type AniKotoEmbedHostname = 'megaplay.buzz' | 'vidtube.site';
 const megaPlayMediaMirrorSuffixes = [
     'akirax.buzz',
     'mikora.top',
@@ -52,9 +54,19 @@ const megaPlayMediaMirrorSuffixes = [
 ] as const;
 export const aniKotoMediaReferer = 'https://megaplay.buzz/';
 // Coalesce series lookups and retain results briefly; each entry removes itself on expiry.
-const seriesRequests = new Map<number, { expiresAt: number; request: Promise<AniKotoSeries> }>();
+const seriesRequests = new Map<
+    number,
+    {
+        expiresAt: number;
+        request: Promise<AniKotoSeries>;
+    }
+>();
 // Throttling and upstream cooldowns are shared by requests in this process.
-const providerCooldownUntil = { catalog: 0, ajax: 0, site: 0 };
+const providerCooldownUntil = {
+    catalog: 0,
+    ajax: 0,
+    site: 0,
+};
 let providerRequestTail = Promise.resolve();
 let lastProviderRequestAt = 0;
 const transientProviderTransportCodes = new Set([
@@ -68,7 +80,10 @@ const transientProviderTransportCodes = new Set([
     'ETIMEDOUT',
 ]);
 
-const ajaxResponseSchema = z.object({ status: z.number().int(), result: z.string() });
+const ajaxResponseSchema = z.object({
+    status: z.number().int(),
+    result: z.string(),
+});
 const seriesResponseSchema = z.object({
     ok: z.boolean(),
     data: z
@@ -276,7 +291,7 @@ async function abortable<T>(operation: Promise<T>, signal?: AbortSignal): Promis
 }
 
 async function abortableDelay(delay: number, signal?: AbortSignal) {
-    let timer!: ReturnType<typeof setTimeout>;
+    let timer!: NodeJS.Timeout;
     try {
         await abortable(
             new Promise<void>((resolve) => {
@@ -678,7 +693,10 @@ export function parseServerList(value: JsonValue) {
         sub: [] as AniKotoServerCandidate[],
         dub: [] as AniKotoServerCandidate[],
     };
-    const seenByMode = { sub: new Set<string>(), dub: new Set<string>() };
+    const seenByMode = {
+        sub: new Set<string>(),
+        dub: new Set<string>(),
+    };
     if (!parsed.success || parsed.data.status !== 200) {
         return servers;
     }
@@ -720,7 +738,10 @@ export function parseAniKotoSkipData(value: JsonValue | undefined) {
     const parseInterval = (candidate: JsonValue | undefined) => {
         const interval = aniKotoSkipIntervalSchema.safeParse(candidate);
         return interval.success
-            ? validSkipInterval({ start: interval.data[0], end: interval.data[1] })
+            ? validSkipInterval({
+                  start: interval.data[0],
+                  end: interval.data[1],
+              })
             : null;
     };
     const opening = parseInterval(parsed.data.intro);
@@ -797,7 +818,11 @@ export function parseMegaPlaySource(value: JsonValue) {
                 : /sdh|cc|hearing impaired/.test(label)
                   ? 'sdh'
                   : 'full';
-            captions.push({ url: url.toString(), kind, preferred: track.default === true });
+            captions.push({
+                url: url.toString(),
+                kind,
+                preferred: track.default === true,
+            });
         }
     }
 
@@ -807,7 +832,10 @@ export function parseMegaPlaySource(value: JsonValue) {
             ['full', 'sdh', 'forced'].indexOf(left.kind) -
                 ['full', 'sdh', 'forced'].indexOf(right.kind)
     );
-    return { mediaUrl, captions };
+    return {
+        mediaUrl,
+        captions,
+    };
 }
 
 export function uniqueDirectStreams(streams: readonly ProviderStream[]) {
@@ -842,13 +870,14 @@ export async function resolveCandidates<T, R>(
     resolve: (candidate: T, signal: AbortSignal) => Promise<R | null>,
     options: {
         /** Maximum number of provider candidates resolved at once. Defaults to four. */
+
         concurrency?: number;
         /** Cancels queued candidates and is passed into active resolvers. */
         signal?: AbortSignal;
     } = {}
 ) {
     const signal = options.signal ?? new AbortController().signal;
-    const results: Array<R | null> = Array.from({ length: candidates.length }, () => null);
+    const results: (R | null)[] = Array.from({ length: candidates.length }, () => null);
     const errors: unknown[] = [];
     let next = 0;
     const concurrency = Math.max(1, Math.min(options.concurrency ?? 4, candidates.length));
@@ -872,7 +901,10 @@ export async function resolveCandidates<T, R>(
     };
 
     await Promise.all(Array.from({ length: concurrency }, run));
-    return { results, errors };
+    return {
+        results,
+        errors,
+    };
 }
 
 async function readBounded(response: Response, limit: number, signal?: AbortSignal) {
@@ -921,6 +953,7 @@ async function requestText(
     url: URL,
     options: {
         /** Accept header used for the provider request. */
+
         accept?: string;
         /** Referer required by some provider endpoints. */
         referer?: string;
@@ -1067,13 +1100,20 @@ async function playbackOverride(anilistId: number) {
             )
         )
         .limit(1);
-    return { db, schema, id: override?.id };
+    return {
+        db,
+        schema,
+        id: override?.id,
+    };
 }
 
 async function providerMediaId(anilistId: number) {
     const { db, schema, id: overrideId } = await playbackOverride(anilistId);
     if (overrideId) {
-        return { id: overrideId, inventoryStatus: 'override' };
+        return {
+            id: overrideId,
+            inventoryStatus: 'override',
+        };
     }
 
     const [[stored], episodes] = await Promise.all([
@@ -1198,7 +1238,10 @@ async function loadSeries(id: number) {
         }
         return series;
     });
-    const entry = { expiresAt: now + 5 * 60_000, request };
+    const entry = {
+        expiresAt: now + 5 * 60_000,
+        request,
+    };
     seriesRequests.set(id, entry);
     let expiry = setTimeout(
         () => {
@@ -1254,7 +1297,13 @@ export async function getAniKotoSimulcastPage(selection: AnimeSeasonSelection, p
         if (!entry?.anilistId || !entry.title || !entry.image) {
             return [];
         }
-        return [{ ...entry, anilistId: entry.anilistId, image: entry.image }];
+        return [
+            {
+                ...entry,
+                anilistId: entry.anilistId,
+                image: entry.image,
+            },
+        ];
     });
     if (catalog.providerIds.length && !series.length) {
         throw new AggregateError(resolved.errors, 'AniKoto catalog identities could not be loaded');
@@ -1403,10 +1452,7 @@ async function findSeries(anime: AniListAnime) {
 
 export function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
     const url = validHttpsUrl(value);
-    if (
-        !url ||
-        !aniKotoEmbedHostnames.includes(url.hostname as (typeof aniKotoEmbedHostnames)[number])
-    ) {
+    if (!url || !aniKotoEmbedHostnames.includes(url.hostname as AniKotoEmbedHostname)) {
         return null;
     }
 
@@ -1426,7 +1472,10 @@ export function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
 
 export async function resolveMegaPlay(embed: URL, signal: AbortSignal) {
     const sourceId = parseMegaPlaySourceId(
-        await requestText(embed, { referer: `${anikotoUrl}/`, signal })
+        await requestText(embed, {
+            referer: `${anikotoUrl}/`,
+            signal,
+        })
     );
     if (!sourceId) {
         throw new Error('MegaPlay embed returned no source ID');
@@ -1463,7 +1512,7 @@ async function resolveServer(
     signal: AbortSignal
 ): Promise<{
     stream: ProviderStream;
-    skipTimes: ReturnType<typeof parseAniKotoSkipData>;
+    skipTimes: EpisodeSkipTimes | null;
 } | null> {
     const response = serverResponseSchema.parse(
         await requestJson(
@@ -1510,14 +1559,20 @@ async function getStreams(
     modes: AudioMode[]
 ): Promise<ProviderPlayback> {
     const routeMatch = episode.id.match(/^anikoto:(\d+):(.+)$/);
-    let route: { seriesId: number; episodeId: string } | null = null;
+    let route: {
+        seriesId: number;
+        episodeId: string;
+    } | null = null;
     if (routeMatch) {
         const seriesId = positiveId(routeMatch[1]);
         if (seriesId) {
             try {
                 const episodeId = decodeURIComponent(routeMatch[2]);
                 if (validOpaqueId(episodeId)) {
-                    route = { seriesId, episodeId };
+                    route = {
+                        seriesId,
+                        episodeId,
+                    };
                 }
             } catch {
                 // Keep legacy provider IDs usable when a persisted route is malformed.
@@ -1544,7 +1599,10 @@ async function getStreams(
     );
     const playableModes = playableAudioModes(current.audio, modes);
     const tasks = playableModes.flatMap((mode) =>
-        servers[mode].map((candidate) => ({ mode, candidate }))
+        servers[mode].map((candidate) => ({
+            mode,
+            candidate,
+        }))
     );
     const deadline = AbortSignal.timeout(30_000);
     const { results, errors } = await resolveCandidates(
@@ -1557,7 +1615,14 @@ async function getStreams(
     );
     const result: ProviderStreams = {};
     const resolved = results.flatMap((value, index) =>
-        tasks[index] && value ? [{ ...value, mode: tasks[index].mode }] : []
+        tasks[index] && value
+            ? [
+                  {
+                      ...value,
+                      mode: tasks[index].mode,
+                  },
+              ]
+            : []
     );
     for (const mode of playableModes) {
         result[mode] = uniqueDirectStreams(
