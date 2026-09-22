@@ -54,7 +54,7 @@ const payloadSchema = z.preprocess(
 export async function graphql<TResult, TVariables>(
     endpoint: string,
     document: GraphQLDocument<TResult, TVariables>,
-    variables: TVariables,
+    variables: NoInfer<TVariables>,
     options: GraphQLOptions = {}
 ) {
     for (let attempt = 0; ; attempt += 1) {
