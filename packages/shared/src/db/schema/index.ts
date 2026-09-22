@@ -86,6 +86,19 @@ function timestamps(): TimestampFields {
     return createTimestamps();
 }
 
+const userAnimeFields = () => ({
+    userId: uuid('user_id')
+        .notNull()
+        .references(() => users.id, {
+            onDelete: 'cascade',
+        }),
+    animeId: integer('anime_id')
+        .notNull()
+        .references(() => anime.id, {
+            onDelete: 'cascade',
+        }),
+});
+
 export const users = pgTable(
     'users',
     {
@@ -922,16 +935,7 @@ export const watchlist = pgTable(
     'watchlist',
     {
         id: uuid('id').primaryKey().defaultRandom(),
-        userId: uuid('user_id')
-            .notNull()
-            .references(() => users.id, {
-                onDelete: 'cascade',
-            }),
-        animeId: integer('anime_id')
-            .notNull()
-            .references(() => anime.id, {
-                onDelete: 'cascade',
-            }),
+        ...userAnimeFields(),
         state: watchlistState('state').notNull(),
         ...timestamps(),
     },
@@ -945,16 +949,7 @@ export const playbackProgress = pgTable(
     'playback_progress',
     {
         id: uuid('id').primaryKey().defaultRandom(),
-        userId: uuid('user_id')
-            .notNull()
-            .references(() => users.id, {
-                onDelete: 'cascade',
-            }),
-        animeId: integer('anime_id')
-            .notNull()
-            .references(() => anime.id, {
-                onDelete: 'cascade',
-            }),
+        ...userAnimeFields(),
         episodeId: text('episode_id').notNull(),
         episodeNumber: doublePrecision('episode_number').notNull(),
         positionSeconds: doublePrecision('position_seconds').notNull(),
