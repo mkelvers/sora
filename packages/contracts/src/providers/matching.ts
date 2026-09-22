@@ -1,6 +1,6 @@
-import { animeTitles } from '../catalog/anilist-text';
-import type { AniListAnime } from '../catalog/anilist-types';
-import type { ProviderEpisodeReference } from './types';
+import { animeTitles } from '../catalog/anilist-text.js';
+import type { AniListAnime } from '../catalog/anilist-types.js';
+import type { ProviderEpisodeReference } from './types.js';
 
 export function isSpecialEpisodeReference(episode: ProviderEpisodeReference) {
     return episode.number <= 0 || !Number.isInteger(episode.number);
