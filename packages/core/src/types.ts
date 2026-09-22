@@ -9,11 +9,9 @@ import type {
 
 export const AnimeCardSchema = z.object({
     id: z.number().int().positive(),
-    href: z.string(),
-    link: z.string(),
     title: z.string(),
     image: z.string(),
-    audioLabel: z.string(),
+    audio: z.array(z.enum(['sub', 'dub', 'raw'])),
     format: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
     score: z.number(),
@@ -36,9 +34,7 @@ export type AnimeCardPage = z.infer<typeof AnimeCardPageSchema>;
 export type AnimeEpisode = {
     id: string;
     number: number;
-    label: string;
     title: string;
-    href: string;
     audio: AudioMode[];
     image: string | null;
     duration: string;
@@ -60,11 +56,9 @@ export const EpisodeRevisionSchema = z.object({
 export type ContinueWatchingCard = {
     animeId: number;
     title: string;
-    link: string;
     backdrop: string;
     episodeImage: string;
-    episodeLabel: string;
-    audioLabel: string;
+    audio: AudioMode[];
     duration: string;
     resumeAtSeconds: number;
     progress: {
