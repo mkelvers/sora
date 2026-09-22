@@ -2,17 +2,6 @@ import { z } from 'zod';
 
 import type { JsonValue } from '../../json';
 
-export interface PlaybackProgressInput {
-    animeId: number;
-    episodeId: string;
-    episodeNumber: number;
-    positionSeconds: number;
-    durationSeconds: number;
-    completed: boolean;
-    eventAt: Date;
-    sessionStartedAt: Date;
-}
-
 const playbackProgressSchema = z.object({
     animeId: z.number().int().positive(),
     episodeId: z.string().trim().min(1).max(512),
@@ -26,6 +15,14 @@ const playbackProgressSchema = z.object({
     eventAt: z.number().int().nonnegative(),
     sessionStartedAt: z.number().int().nonnegative(),
 });
+
+export type PlaybackProgressInput = Omit<
+    z.output<typeof playbackProgressSchema>,
+    'eventAt' | 'sessionStartedAt'
+> & {
+    eventAt: Date;
+    sessionStartedAt: Date;
+};
 
 export function parsePlaybackProgress(value: JsonValue): PlaybackProgressInput | null {
     const parsed = playbackProgressSchema.safeParse(value);

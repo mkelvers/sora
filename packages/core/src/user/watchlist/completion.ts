@@ -1,15 +1,8 @@
-import type { WatchlistState } from '@soraorg/database/schema';
+import type { animeEpisode, animeEpisodeSync, WatchlistState } from '@soraorg/database/schema';
 import { coversExpectedEpisodes } from '../../providers/matching';
 
-interface Episode {
-    episodeId: string;
-    number: number;
-}
-
-interface Release {
-    mediaStatus: string | null;
-    expectedEpisodes: number | null;
-}
+type Episode = Pick<typeof animeEpisode.$inferSelect, 'episodeId' | 'number'>;
+type Release = Pick<typeof animeEpisodeSync.$inferSelect, 'mediaStatus' | 'expectedEpisodes'>;
 
 export function watchlistStateAfterPlayback(
     current: WatchlistState | null,
