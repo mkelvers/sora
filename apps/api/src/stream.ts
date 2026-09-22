@@ -1,13 +1,13 @@
 import { Buffer } from 'node:buffer';
 
+import { concatByteChunks } from '@soraorg/core/binary';
 import {
-    aniKotoMediaReferer,
     aniKotoMediaCandidates,
+    aniKotoMediaReferer,
     isAniKotoDisguisedSegmentHost,
     normalizeAniKotoMediaUrl,
     unwrapAniKotoDisguisedSegment,
-    concatByteChunks,
-} from '@soraorg/core/server';
+} from '@soraorg/core/providers/anikoto';
 
 type StreamFetch = (target: URL, init: RequestInit) => Promise<Response>;
 type StreamBody = 'playlist' | 'segment' | 'subtitle';
