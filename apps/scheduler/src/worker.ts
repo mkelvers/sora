@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { logger, runAnimeMaintenance, runAnimeScheduler } from '@soraorg/core/server';
+import { runAnimeMaintenance, runAnimeScheduler } from '@soraorg/core/maintenance/run';
 import { db } from '@soraorg/database';
 
 export async function startScheduler() {
@@ -17,9 +17,7 @@ export async function startScheduler() {
                 while (!stopping) {
                     try {
                         await runAnimeScheduler();
-                    } catch (cause) {
-                        logger.debug('Arc anime scheduler failed', cause);
-                    }
+                    } catch {}
 
                     if (!stopping) {
                         await Bun.sleep(60 * 1_000);
@@ -30,9 +28,7 @@ export async function startScheduler() {
                 while (!stopping) {
                     try {
                         await runAnimeMaintenance(`maintenance-worker:${randomUUID()}`);
-                    } catch (cause) {
-                        logger.debug('Arc maintenance worker failed', cause);
-                    }
+                    } catch {}
 
                     if (!stopping) {
                         await Bun.sleep(10 * 1_000);

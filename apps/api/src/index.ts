@@ -1,7 +1,6 @@
 import app from './app';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 
-import { logger } from '@soraorg/core/server';
 import { db } from '@soraorg/database';
 import { areMigrationsReady, markMigrationsReady } from './readiness';
 import { runMigrationsWithRetry } from './startup';
@@ -40,11 +39,7 @@ if (isProduction) {
         })
     )
         .then(markMigrationsReady)
-        .catch((cause) => {
-            logger.error(
-                'Database migrations failed after all startup retries',
-                cause instanceof Error ? cause.message : String(cause)
-            );
+        .catch(() => {
             server.stop(true);
             process.exit(1);
         });
