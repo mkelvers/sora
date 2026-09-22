@@ -4,9 +4,9 @@
     "private": true,
     "type": "module",
     "exports": {
-        "./server": "./src/server.ts",
         "./tmdb": "./src/catalog/tmdb/index.ts",
-        "./tmdb/pure": "./src/catalog/tmdb/pure.ts"
+        "./tmdb/pure": "./src/catalog/tmdb/pure.ts",
+        "./*": "./src/*.ts"
     },
     "scripts": {
         "check": "tsc --noEmit",
