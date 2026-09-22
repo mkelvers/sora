@@ -1,12 +1,12 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeEpisode,
     animeEpisodeSync,
     animeEpisodeTarget,
     animeRelease,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { episodeInventoryCoversTarget } from '../providers/inventory';
 import { firstEpisodeAttemptAt } from './policy';
 import { enqueueScheduleDiscovery } from './schedule-repair';

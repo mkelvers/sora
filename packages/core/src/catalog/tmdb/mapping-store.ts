@@ -1,14 +1,14 @@
 import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     anime as animeTable,
     animeArtworkSource,
     animeExternalId,
     animeExternalIdLink,
     animeMappingOverride,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { animeTitles } from '../anilist/anilist-text';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { anilistIdentityCondition } from '../identity';

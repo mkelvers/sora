@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
-import { db } from '@soraorg/shared/db';
-import { animeEpisodeTarget, maintenanceTask, schedulerHeartbeat } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeEpisodeTarget, maintenanceTask, schedulerHeartbeat } from '@soraorg/database/schema';
 import {
     refreshAnimeRelease,
     refreshAnimeSchedule,

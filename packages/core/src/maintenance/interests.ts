@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     anime,
     animeEpisodeSync,
@@ -10,7 +10,7 @@ import {
     animeRelease,
     animeReleaseInterest,
     watchlist,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { ensureEpisodeInventoryBackfill } from '../catalog/episode-sync';
 
 export async function reconcileAnimeInterests() {
