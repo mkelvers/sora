@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { GraphQLRequestError } from './error';
 
+/** A generated operation with result and variable types plus its serialized query. */
 export interface GraphQLDocument<TResult, TVariables> extends DocumentTypeDecoration<
     TResult,
     TVariables
@@ -10,8 +11,11 @@ export interface GraphQLDocument<TResult, TVariables> extends DocumentTypeDecora
     toString(): string;
 }
 
+/** Controls request timeout and transient retry behavior for one GraphQL operation. */
 export interface GraphQLOptions {
+    /** Maximum time in milliseconds to wait for each HTTP attempt. Defaults to 8 seconds. */
     timeoutMs?: number;
+    /** Number of retries for network, rate-limit, and server failures. Defaults to zero. */
     retries?: number;
 }
 
@@ -51,6 +55,7 @@ const payloadSchema = z.preprocess(
     })
 );
 
+/** Executes a typed GraphQL document and throws `GraphQLRequestError` for transport or response failures. */
 export async function graphql<TResult, TVariables>(
     endpoint: string,
     document: GraphQLDocument<TResult, TVariables>,
