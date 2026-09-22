@@ -14,6 +14,10 @@ export interface PlaybackProgressCandidate extends Progress {
     id: string;
 }
 
+/**
+ * Chooses the checkpoint with the strongest playback signal: incomplete over
+ * completed, then furthest progress, followed by recency and a stable id tie-break.
+ */
 export function selectPlaybackProgress<T extends PlaybackProgressCandidate>(progress: T[]) {
     return progress.reduce<T | null>((selected, candidate) => {
         if (!selected) return candidate;
@@ -47,6 +51,7 @@ export function selectPlaybackProgress<T extends PlaybackProgressCandidate>(prog
     }, null);
 }
 
+/** Returns the current or next episode to resume, respecting an unfinished release. */
 export function continuationEpisode(
     progress: Progress | null,
     episodes: AnimeEpisode[],
@@ -68,6 +73,7 @@ export function continuationEpisode(
     return episodes[currentIndex + 1] ?? (releaseFinished ? null : episodes[currentIndex]);
 }
 
+/** Completed checkpoints and checkpoints for another episode always resume at zero. */
 export function resumePosition(progress: Progress | null, episodeId: string) {
     if (!progress || progress.completed || progress.episodeId !== episodeId) {
         return 0;

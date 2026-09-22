@@ -10,12 +10,15 @@ export interface ProviderEpisode {
     supplemental?: boolean;
 }
 
-export interface ProviderEpisodeReference {
-    id: string;
+export interface ProviderEpisodeTitleReference {
     number: number;
     title?: string;
-    release?: Pick<ProviderEpisodeReference, 'number' | 'title'>[];
-    relatedReleases?: Pick<ProviderEpisodeReference, 'number' | 'title'>[][];
+}
+
+export interface ProviderEpisodeReference extends ProviderEpisodeTitleReference {
+    id: string;
+    release?: ProviderEpisodeTitleReference[];
+    relatedReleases?: ProviderEpisodeTitleReference[][];
     specialIndex?: number;
     specialCount?: number;
 }

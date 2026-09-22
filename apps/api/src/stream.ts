@@ -156,6 +156,7 @@ async function boundedBytes(response: Response, maximumBytes: number, body: Stre
             });
             let result: Awaited<ReturnType<typeof reader.read>>;
             try {
+                // Time out stalled reads individually so a steadily streaming body may take longer overall.
                 result = await Promise.race([reader.read(), timeout]);
             } catch (cause) {
                 await reader.cancel().catch(() => undefined);
@@ -300,6 +301,14 @@ async function proxiedResponse(target: URL, response: Response) {
     return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * Proxies an AniKoto media URL from the request's base64url `src` parameter.
+ * Playlist references are rewritten through this endpoint; buffered playlists,
+ * subtitles, and segments are size-limited before they are returned.
+ *
+ * @throws {StreamProxyError} When the source, redirect, upstream response, or
+ *   media body violates the proxy's supported contract.
+ */
 export async function proxyStreamRequest(request: Request, fetchStream: StreamFetch) {
     const url = new URL(request.url);
     const encoded = url.searchParams.get('src');

@@ -136,6 +136,10 @@ async function scheduleTarget(release: SchedulableRelease, discoverNextSchedule:
     return true;
 }
 
+/**
+ * Schedules each unique anime and episode pair. Existing confirmed targets are
+ * rechecked against the current inventory before they are retained.
+ */
 export async function scheduleAiringTargets(
     schedules: AiringTargetSchedule[],
     options: { discoverNextSchedule?: boolean } = {}

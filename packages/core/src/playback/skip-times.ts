@@ -69,6 +69,9 @@ function automaticSegmentWriteCondition(kind: SkipKind) {
         kind === 'opening' ? animeEpisode.openingStartSeconds : animeEpisode.endingStartSeconds;
     const end = kind === 'opening' ? animeEpisode.openingEndSeconds : animeEpisode.endingEndSeconds;
 
+    // Provider refreshes may replace old automatic data, but must not overwrite
+    // a manual segment. Legacy rows only have a shared source, so protect those
+    // values when the segment has no newer per-segment source.
     return or(
         ne(source, 'manual'),
         and(
