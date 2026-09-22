@@ -1,4 +1,4 @@
-import type { AnimeEpisode } from '../types';
+import type { AnimeEpisode } from '../types.js';
 
 export function withMovieBackdrop(
     anime: {
