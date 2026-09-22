@@ -1,5 +1,5 @@
-import type { AnimeCard } from '../types';
-import { mediaTitle, plainText } from './anilist-text';
+import type { AnimeCard } from '../types.js';
+import { mediaTitle, plainText } from './anilist-text.js';
 
 interface CardMedia {
     id: number;
