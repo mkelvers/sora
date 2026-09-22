@@ -183,10 +183,18 @@ export type AiringAnimePageQuery = {
             | ({
                   id: number;
                   status: MediaStatus | null;
-                  nextAiringEpisode: { airingAt: number; episode: number } | null;
+                  nextAiringEpisode: {
+                      airingAt: number;
+                      episode: number;
+                  } | null;
                   airingSchedule: {
                       pageInfo: { lastPage: number | null } | null;
-                      nodes: ({ airingAt: number; episode: number } | null)[] | null;
+                      nodes:
+                          | ({
+                                airingAt: number;
+                                episode: number;
+                            } | null)[]
+                          | null;
                   } | null;
               } | null)[]
             | null;
@@ -210,8 +218,15 @@ export type AnimeOverviewQuery = {
         averageScore: number | null;
         popularity: number | null;
         favourites: number | null;
-        title: { english: string | null; romaji: string | null; native: string | null } | null;
-        nextAiringEpisode: { airingAt: number; episode: number } | null;
+        title: {
+            english: string | null;
+            romaji: string | null;
+            native: string | null;
+        } | null;
+        nextAiringEpisode: {
+            airingAt: number;
+            episode: number;
+        } | null;
     } | null;
 };
 
@@ -224,7 +239,10 @@ export type AnimeScheduleQuery = {
         id: number;
         status: MediaStatus | null;
         episodes: number | null;
-        nextAiringEpisode: { airingAt: number; episode: number } | null;
+        nextAiringEpisode: {
+            airingAt: number;
+            episode: number;
+        } | null;
     } | null;
 };
 
@@ -249,11 +267,29 @@ export type AnimeQuery = {
         averageScore: number | null;
         popularity: number | null;
         favourites: number | null;
-        title: { english: string | null; romaji: string | null; native: string | null } | null;
-        coverImage: { extraLarge: string | null; large: string | null } | null;
-        startDate: { year: number | null; month: number | null; day: number | null } | null;
-        endDate: { year: number | null; month: number | null; day: number | null } | null;
-        nextAiringEpisode: { airingAt: number; episode: number } | null;
+        title: {
+            english: string | null;
+            romaji: string | null;
+            native: string | null;
+        } | null;
+        coverImage: {
+            extraLarge: string | null;
+            large: string | null;
+        } | null;
+        startDate: {
+            year: number | null;
+            month: number | null;
+            day: number | null;
+        } | null;
+        endDate: {
+            year: number | null;
+            month: number | null;
+            day: number | null;
+        } | null;
+        nextAiringEpisode: {
+            airingAt: number;
+            episode: number;
+        } | null;
         relations: {
             edges:
                 | ({
@@ -306,7 +342,12 @@ export type BrowseAnimeTaxonomyQueryVariables = Exact<{ [key: string]: never }>;
 
 export type BrowseAnimeTaxonomyQuery = {
     GenreCollection: (string | null)[] | null;
-    tags: ({ name: string; isAdult: boolean | null } | null)[] | null;
+    tags:
+        | ({
+              name: string;
+              isAdult: boolean | null;
+          } | null)[]
+        | null;
     formats: { enumValues: { name: string }[] | null } | null;
     statuses: { enumValues: { name: string }[] | null } | null;
     sources: { enumValues: { name: string }[] | null } | null;
@@ -356,7 +397,10 @@ export type BrowseAnimePageQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
                   tags: ({ name: string } | null)[] | null;
               } | null)[]
             | null;
@@ -403,7 +447,10 @@ export type FranchiseMediaQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
                   relations: {
                       edges:
                           | ({
@@ -440,7 +487,10 @@ export type HomeAnimeQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
               } | null)[]
             | null;
     } | null;
@@ -459,7 +509,10 @@ export type HomeAnimeQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
                   relations: {
                       edges:
                           | ({
@@ -525,7 +578,10 @@ export type RecentAiringPageQuery = {
                           romaji: string | null;
                           native: string | null;
                       } | null;
-                      coverImage: { extraLarge: string | null; large: string | null } | null;
+                      coverImage: {
+                          extraLarge: string | null;
+                          large: string | null;
+                      } | null;
                   } | null;
               } | null)[]
             | null;
@@ -556,7 +612,10 @@ export type ReleaseCalendarPageQuery = {
                           romaji: string | null;
                           native: string | null;
                       } | null;
-                      coverImage: { extraLarge: string | null; large: string | null } | null;
+                      coverImage: {
+                          extraLarge: string | null;
+                          large: string | null;
+                      } | null;
                   } | null;
               } | null)[]
             | null;
@@ -586,7 +645,10 @@ export type SearchAnimePageQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
                   relations: {
                       edges:
                           | ({
@@ -648,14 +710,24 @@ export type WatchlistAnimeQuery = {
                       romaji: string | null;
                       native: string | null;
                   } | null;
-                  coverImage: { extraLarge: string | null; large: string | null } | null;
+                  coverImage: {
+                      extraLarge: string | null;
+                      large: string | null;
+                  } | null;
                   startDate: {
                       year: number | null;
                       month: number | null;
                       day: number | null;
                   } | null;
-                  endDate: { year: number | null; month: number | null; day: number | null } | null;
-                  nextAiringEpisode: { airingAt: number; episode: number } | null;
+                  endDate: {
+                      year: number | null;
+                      month: number | null;
+                      day: number | null;
+                  } | null;
+                  nextAiringEpisode: {
+                      airingAt: number;
+                      episode: number;
+                  } | null;
                   relations: {
                       edges:
                           | ({

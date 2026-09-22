@@ -80,8 +80,6 @@ const createTimestamps = () => ({
         .$onUpdate(() => new Date()),
 });
 
-type TimestampFields = ReturnType<typeof createTimestamps>;
-
 const userAnimeFields = () => ({
     userId: uuid('user_id')
         .notNull()
@@ -1219,7 +1217,4 @@ export const animeMappingOverride = pgTable(
     (table) => [primaryKey({ columns: [table.anilistId, table.kind, table.provider] })]
 );
 
-export type Anime = typeof anime.$inferSelect;
-export type AnimeExternalId = typeof animeExternalId.$inferSelect;
-export type AnimeArtwork = typeof animeArtwork.$inferSelect;
-export type WatchlistState = (typeof watchlistState.enumValues)[number];
+export type WatchlistState = 'watching' | 'plan_to_watch' | 'completed' | 'dropped';
