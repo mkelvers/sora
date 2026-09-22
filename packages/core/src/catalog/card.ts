@@ -28,11 +28,9 @@ export function animeCard(media: CardMedia): AnimeCard | null {
 
     return {
         id: media.id,
-        href: `/anime/${media.id}`,
-        link: `/anime/${media.id}`,
         title: mediaTitle(media),
         image,
-        audioLabel: '',
+        audio: [],
         format: media.format ?? null,
         status: media.status ?? null,
         score: media.averageScore ?? 0,

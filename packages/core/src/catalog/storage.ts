@@ -98,20 +98,16 @@ export async function refreshCatalogPage(
                     )
                     .map((entry) => ({
                         id: entry.anilistId,
-                        href: `/anime/${entry.anilistId}`,
-                        link: `/anime/${entry.anilistId}`,
                         title: entry.title,
                         titles: entry.searchText.split('\n'),
                         image: entry.imageUrl,
-                        audioLabel: '',
+                        audio: [],
                         score: entry.averageScore ?? 0,
                         genres: entry.genres,
                         synopsis: entry.synopsis,
                         format: entry.format,
                         popularity: entry.popularity ?? 0,
                         backdrop: null,
-                        artworkGroup: null,
-                        relatedIds: [],
                     }))
             );
         }
@@ -235,11 +231,9 @@ export async function storedReleaseCards(ids: number[]): Promise<AnimeCard[]> {
 
             const card: AnimeCard = {
                 id: row.id,
-                href: `/anime/${row.id}`,
-                link: `/anime/${row.id}`,
                 title: row.title,
                 image,
-                audioLabel: '',
+                audio: [],
                 format: row.format,
                 status: row.status,
                 score: media?.averageScore ?? 0,

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 
 import type { AnimeCard } from '../types';
-import { audioAvailabilityLabel, type AudioMode } from '../audio';
+import type { AudioMode } from '../audio';
 import { currentAnimeSeason } from '../season';
 import { db } from '@soraorg/shared/db';
 import {
@@ -163,11 +163,9 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
     const audioByAnime = audioModes(episodeRows);
     const toCard = (row: (typeof seasonRows)[number]): AnimeCard => ({
         id: row.anilistId,
-        href: `/anime/${row.anilistId}`,
-        link: `/anime/${row.anilistId}`,
         title: row.title,
         image: row.imageUrl,
-        audioLabel: audioAvailabilityLabel([...(audioByAnime.get(row.anilistId) ?? [])]),
+        audio: [...(audioByAnime.get(row.anilistId) ?? [])],
         format: row.format,
         status: row.status,
         score: row.averageScore ?? 0,
