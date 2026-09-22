@@ -1,4 +1,4 @@
-import type { MaintenanceRequest } from '../contracts/maintenance';
+import type { MaintenanceRequest } from '../contracts/maintenance.js';
 
 export function maintenancePriority(request: MaintenanceRequest) {
     if (request.kind === 'mapping_override' || request.kind === 'mapping_rediscover') {
