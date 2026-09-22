@@ -7,8 +7,8 @@ import type { AudioMode } from '../audio';
 import { concatByteChunks } from '../binary';
 import type { AnimeSeasonSelection } from '../season';
 import type { AnimeCard } from '../types';
-import { animeTitles, plainText } from '../catalog/anilist-text';
-import type { AniListAnime } from '../catalog/anilist-types';
+import { animeTitles, plainText } from '../catalog/anilist/anilist-text';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { validSkipInterval } from '../playback/aniskip';
 import type { JsonValue } from '../user/utils';
 import type {

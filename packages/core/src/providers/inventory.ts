@@ -1,4 +1,4 @@
-import type { AniListAnime } from '../catalog/anilist-types';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { coversExpectedEpisodes } from './matching';
 
 export type EpisodeInventoryStatus = 'ready' | 'pending' | 'failed';
