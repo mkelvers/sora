@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 
 import type { FranchiseOrder } from '../../types';
-import { positiveInteger } from '../../json';
+import { positiveInteger } from '../../utils';
 
 export interface ChiakiEntry {
     malId: number;

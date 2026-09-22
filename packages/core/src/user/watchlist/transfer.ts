@@ -6,7 +6,7 @@ import {
     type WatchlistTransferAnimeQuery,
 } from '../../catalog/anilist/graphql/graphql.generated';
 import type { WatchlistState } from '@soraorg/database/schema';
-import { positiveInteger, record, text, type JsonValue } from '../../json';
+import { positiveInteger, record, text, type JsonValue } from '../../utils';
 import { batches } from './batches';
 import { animeTitles } from '../../catalog/anilist/anilist-text';
 import { request } from '../../catalog/anilist/anilist-client';

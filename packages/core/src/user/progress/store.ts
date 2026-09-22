@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import type { ContinueWatchingCard } from '../../types';
 import type { AudioMode } from '../../audio';
-import { isNotNullish } from '../../collections';
+import { isNotNullish } from '../../utils';
 import { db } from '@soraorg/database';
 import {
     anime as animeTable,

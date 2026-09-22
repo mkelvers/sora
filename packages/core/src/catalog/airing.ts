@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isNotNullish } from '../collections';
+import { isNotNullish } from '../utils';
 
 const airingMediaSchema = z.object({
     id: z.number().int().positive(),

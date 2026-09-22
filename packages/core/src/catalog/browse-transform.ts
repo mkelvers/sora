@@ -3,7 +3,7 @@ import type {
     BrowseAnimeTaxonomyQuery,
     MediaFormat,
 } from './anilist/graphql/graphql.generated';
-import { isNotNullish } from '../collections';
+import { isNotNullish } from '../utils';
 import { z } from 'zod';
 import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';
