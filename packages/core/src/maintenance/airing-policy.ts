@@ -2,7 +2,11 @@ import type { AiringAnime } from '../catalog/airing';
 
 export function airingTargetSchedules(snapshot: AiringAnime[]) {
     return snapshot.flatMap((release) => {
-        const schedules: { anilistId: number; episode: number; airingAt: Date }[] = [];
+        const schedules: {
+            anilistId: number;
+            episode: number;
+            airingAt: Date;
+        }[] = [];
         if (release.latestAiredEpisode && release.latestAiredAt) {
             schedules.push({
                 anilistId: release.id,

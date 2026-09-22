@@ -174,7 +174,10 @@ export async function scheduleAiringTargets(
             continue;
         }
         const changed = await scheduleTarget(
-            { ...schedule, expectedEpisodes: release.expectedEpisodes },
+            {
+                ...schedule,
+                expectedEpisodes: release.expectedEpisodes,
+            },
             options.discoverNextSchedule ?? false
         );
         scheduled += Number(changed);

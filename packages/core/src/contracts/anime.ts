@@ -104,7 +104,10 @@ const SegmentFields = {
  * latest earlier template; `set` stores an explicit interval and may create one.
  */
 export const SegmentRequestSchema = z.discriminatedUnion('operation', [
-    z.object({ ...SegmentFields, operation: z.literal('clear') }),
+    z.object({
+        ...SegmentFields,
+        operation: z.literal('clear'),
+    }),
     z.object({
         ...SegmentFields,
         operation: z.literal('apply-template'),

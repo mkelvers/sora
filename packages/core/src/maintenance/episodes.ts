@@ -10,27 +10,18 @@ import { enqueueScheduleDiscovery } from './schedule-repair';
 
 interface SchedulerLimits {
     concurrency: number;
-
     maxClaimedTargets: number;
-
     claimingWindowMs: number;
-
     leaseDurationMs: number;
-
     leaseRenewalMs: number;
 }
 
 interface ClaimedTarget {
     anilistId: number;
-
     targetEpisode: number;
-
     airingAt: Date;
-
     attemptCount: number;
-
     failureCount: number;
-
     leaseOwner: string;
 }
 
@@ -39,13 +30,9 @@ async function claimTargets(runId: string, limit: number, leaseDurationMs: numbe
     const candidates = await db
         .select({
             anilistId: animeEpisodeTarget.anilistId,
-
             targetEpisode: animeEpisodeTarget.targetEpisode,
-
             airingAt: animeEpisodeTarget.airingAt,
-
             attemptCount: animeEpisodeTarget.attemptCount,
-
             failureCount: animeEpisodeTarget.failureCount,
         })
         .from(animeEpisodeTarget)
@@ -66,9 +53,7 @@ async function claimTargets(runId: string, limit: number, leaseDurationMs: numbe
             .update(animeEpisodeTarget)
             .set({
                 leaseOwner,
-
                 leaseUntil: new Date(Date.now() + leaseDurationMs),
-
                 updatedAt: new Date(),
             })
             .where(
@@ -106,19 +91,12 @@ async function retryTarget(target: ClaimedTarget, cause: unknown) {
         .update(animeEpisodeTarget)
         .set({
             state: nextAttemptAt ? 'pending' : 'failed',
-
             attemptCount: target.attemptCount + 1,
-
             failureCount: target.failureCount + 1,
-
             nextAttemptAt: nextAttemptAt ?? now,
-
             lastError: message,
-
             leaseOwner: null,
-
             leaseUntil: null,
-
             updatedAt: now,
         })
         .where(
@@ -131,7 +109,6 @@ async function retryTarget(target: ClaimedTarget, cause: unknown) {
         );
     return {
         outcome: nextAttemptAt ? ('retried' as const) : ('failed' as const),
-
         retryAt: nextAttemptAt,
     };
 }
@@ -144,7 +121,6 @@ async function processTarget(target: ClaimedTarget, limits: SchedulerLimits) {
                 .update(animeEpisodeTarget)
                 .set({
                     leaseUntil: new Date(Date.now() + limits.leaseDurationMs),
-
                     updatedAt: new Date(),
                 })
                 .where(
