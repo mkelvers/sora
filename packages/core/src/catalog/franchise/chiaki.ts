@@ -17,7 +17,7 @@ function imageFromStyle(style: string | undefined) {
     return path ? new URL(path, 'https://chiaki.site').href : '';
 }
 
-export function parseOrder(html: string) {
+function parseOrder(html: string) {
     const $ = cheerio.load(html);
     const types = $('#wo_type_filter label')
         .map((_, label) => {
