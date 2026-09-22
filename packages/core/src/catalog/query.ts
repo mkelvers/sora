@@ -81,7 +81,10 @@ function audioModes(row: { hasSub: boolean; hasDub: boolean; hasRaw: boolean }) 
 
 export async function catalogPage(filters: BrowseFilters, page: number, animeIds: number[] | null) {
     if (animeIds?.length === 0) {
-        return { anime: [], hasNextPage: false };
+        return {
+            anime: [],
+            hasNextPage: false,
+        };
     }
 
     const rows = await db

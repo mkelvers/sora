@@ -13,7 +13,7 @@ interface CardMedia {
         large?: string | null;
     } | null;
     description?: string | null;
-    genres?: ReadonlyArray<string | null> | null;
+    genres?: readonly (string | null)[] | null;
     averageScore?: number | null;
     format?: string | null;
     status?: string | null;

@@ -3,7 +3,6 @@ import { isNotNullish } from '../collections';
 
 const count = new Intl.NumberFormat('en', {
     maximumFractionDigits: 1,
-
     notation: 'compact',
 });
 
@@ -147,45 +146,28 @@ export function toAnimeDetails(
 
     return {
         id: media.id,
-
         title:
             media.title?.english ??
             media.title?.romaji ??
             media.title?.native ??
             `Anime ${media.id}`,
-
         bannerImage: media.bannerImage ?? null,
-
         description: formatDescription(description),
-
         genres: media.metadataSource === 'kitsu' && !sourceGenres.length ? themes : sourceGenres,
-
         format: enumLabel(media.format),
-
         status: media.status,
-
         nextAiringEpisode,
-
         score: media.averageScore,
-
         scoreSource: providerLabel(
             media.metadataFieldSources?.averageScore ?? media.metadataSource
         ),
-
         members: count.format(media.popularity ?? 0),
-
         favourites: count.format(media.favourites ?? 0),
-
         themes: media.metadataSource === 'kitsu' && !sourceGenres.length ? [] : themes,
-
         studios: media.studios?.nodes?.filter(isNotNullish).map((studio) => studio.name) ?? [],
-
         staff: formatStaff(media),
-
         rankings: formatRankings(media),
-
         startDate: formatDate(media.startDate),
-
         endDate: formatDate(media.endDate),
     };
 }

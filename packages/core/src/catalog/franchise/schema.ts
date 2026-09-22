@@ -5,22 +5,26 @@ import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql
 
 /** Franchise order stored with provider and verification metadata. */
 export type FranchiseOrder = {
-    types: Array<{ id: string; label: string }>;
-    entries: Array<
-        AnimeCard & {
+    types: {
+        id: string;
+        label: string;
+    }[];
+    entries: (AnimeCard & {
+        malId: number;
+        anilistId: number;
+        type: string;
+        format: MediaFormat | null;
+        status: MediaStatus | null;
+        episodes: number | null;
+        duration: number | null;
+        popularity: number | null;
+        relations: {
+            type: MediaRelation;
             malId: number;
-            anilistId: number;
-            type: string;
-            format: MediaFormat | null;
-            status: MediaStatus | null;
-            episodes: number | null;
-            duration: number | null;
-            popularity: number | null;
-            relations: Array<{ type: MediaRelation; malId: number }>;
-            secondary: boolean;
-            primary: boolean;
-        }
-    >;
+        }[];
+        secondary: boolean;
+        primary: boolean;
+    })[];
 };
 
 const franchiseOrderSchema = z

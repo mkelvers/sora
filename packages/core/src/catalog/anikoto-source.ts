@@ -59,7 +59,11 @@ async function loadHomeHero(id: number): Promise<HomeHero | null> {
 async function search(query: string): Promise<AnimeSearchResult[]> {
     const response = await request(
         SearchAnimePageDocument,
-        { search: query, page: 1, perPage: 50 },
+        {
+            search: query,
+            page: 1,
+            perPage: 50,
+        },
         { refreshAfterMs: 24 * 60 * 60 * 1_000 }
     );
 

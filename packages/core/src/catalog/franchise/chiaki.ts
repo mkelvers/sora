@@ -25,7 +25,12 @@ function parseOrder(html: string) {
             const id = input.attr('value')?.trim();
             const text = $(label).text().replace(/\s+/g, ' ').trim();
 
-            return id && text ? { id, label: text } : null;
+            return id && text
+                ? {
+                      id,
+                      label: text,
+                  }
+                : null;
         })
         .get()
         .filter((type): type is FranchiseOrder['types'][number] => Boolean(type));
@@ -50,7 +55,10 @@ function parseOrder(html: string) {
         throw new Error('Chiaki watch-order markup was not found');
     }
 
-    return { types, entries };
+    return {
+        types,
+        entries,
+    };
 }
 
 export async function fetchOrder(malId: number) {

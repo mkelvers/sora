@@ -16,7 +16,12 @@ export async function refreshPopularCatalog<Filters extends Omit<BrowseFilters, 
 ) {
     const entries: BrowseCatalogEntry[] = [];
     for (let page = 1; ; page += 1) {
-        const result = await fetchPage({ filters, page, perPage: 42, forceRefresh: true });
+        const result = await fetchPage({
+            filters,
+            page,
+            perPage: 42,
+            forceRefresh: true,
+        });
         entries.push(...result.anime);
         if (!result.hasNextPage) {
             break;

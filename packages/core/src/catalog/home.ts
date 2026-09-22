@@ -41,7 +41,6 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
         );
         return {
             previous: selections[0] ?? [],
-
             recent: selections.flat(),
         };
     }
@@ -50,9 +49,7 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
         return selectHomeHero(
             ids.map((anilistId, index) => ({
                 anilistId,
-
                 averageScore: 0,
-
                 trendingRank: index + 1,
             })),
             loadHomeHero
@@ -64,9 +61,7 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
             db
                 .select({
                     anilistId: homeHeroCandidate.anilistId,
-
                     averageScore: homeHeroCandidate.averageScore,
-
                     trendingRank: homeHeroCandidate.trendingRank,
                 })
                 .from(homeHeroCandidate)
@@ -89,9 +84,7 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
             .values(
                 selected.map(({ id }, position) => ({
                     rotationStart,
-
                     position,
-
                     anilistId: id,
                 }))
             )
@@ -163,37 +156,22 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
     const audioByAnime = audioModesByAnime(episodeRows);
     const toCard = (row: {
         anilistId: number;
-
         title: string;
-
         imageUrl: string;
-
         format: AnimeCard['format'];
-
         status: AnimeCard['status'];
-
         averageScore: number | null;
-
         genres: string[];
-
         synopsis: string;
     }): AnimeCard => ({
         id: row.anilistId,
-
         title: row.title,
-
         image: row.imageUrl,
-
         audio: [...(audioByAnime.get(row.anilistId) ?? [])],
-
         format: row.format,
-
         status: row.status,
-
         score: row.averageScore ?? 0,
-
         genres: row.genres,
-
         synopsis: row.synopsis,
     });
     const seasonCards = seasonRows.map(toCard);
@@ -201,11 +179,8 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
 
     return {
         highlights,
-
         season: cards.slice(0, seasonCards.length),
-
         popular: cards.slice(seasonCards.length),
-
         continueWatching,
     };
 }
