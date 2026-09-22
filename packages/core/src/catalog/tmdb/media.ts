@@ -16,6 +16,23 @@ import { imageUrl } from './client';
 import { findArtworkMappings, findMapping } from './mapping-store';
 import { readPoster } from './poster';
 
+export function uniqueBackdropCandidates<T extends { anilistId: number }>(
+    rows: T[],
+    group: (row: T) => string
+) {
+    const candidates = new Map<number, T[]>();
+    for (const row of rows) {
+        candidates.set(row.anilistId, [...(candidates.get(row.anilistId) ?? []), row]);
+    }
+
+    return new Map(
+        [...candidates].flatMap(([anilistId, values]) => {
+            const groups = new Set(values.map(group));
+            return groups.size === 1 ? [[anilistId, values[0]] as const] : [];
+        })
+    );
+}
+
 export async function getStoredMedia(anilistId: number) {
     const match = await findMapping(anilistId);
     const artworkMappings = await findArtworkMappings(anilistId, match);
@@ -204,27 +221,11 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
 export async function getStoredBackdrops(anilistIds: number[]) {
     const rows = await getStoredBackdropCandidates(anilistIds);
 
-    const candidates = new Map<number, { group: string; filePath: string }[]>();
-    for (const row of rows) {
-        if (!row.filePath) {
-            continue;
-        }
-
-        const values = candidates.get(row.anilistId) ?? [];
-        values.push({
-            group: `tmdb:${row.mediaType}:${row.filePath}`,
-            filePath: row.filePath,
-        });
-        candidates.set(row.anilistId, values);
-    }
-
     return new Map(
-        [...candidates].flatMap(([anilistId, values]) => {
-            const groups = new Set(values.map(({ group }) => group));
-            return groups.size === 1
-                ? [[anilistId, imageUrl(values[0].filePath, 'w780')] as const]
-                : [];
-        })
+        [...uniqueBackdropCandidates(rows, (row) => `tmdb:${row.mediaType}:${row.filePath}`)].flatMap(
+            ([anilistId, row]) =>
+                row.filePath ? [[anilistId, imageUrl(row.filePath, 'w780')] as const] : []
+        )
     );
 }
 
