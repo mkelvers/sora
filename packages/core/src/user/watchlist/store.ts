@@ -38,6 +38,10 @@ export async function getWatchlistState(userId: string | undefined, anilistId: n
         return null;
     }
 
+    return getInternalWatchlistState(userId, animeId);
+}
+
+async function getInternalWatchlistState(userId: string, animeId: number) {
     const [entry] = await db
         .select({ state: watchlist.state })
         .from(watchlist)
@@ -248,13 +252,9 @@ export async function applyWatchlistEntries(
 }
 
 async function setInternalWatchlistState(userId: string, animeId: number, state: WatchlistState) {
-    const [current] = await db
-        .select({ state: watchlist.state })
-        .from(watchlist)
-        .where(and(eq(watchlist.userId, userId), eq(watchlist.animeId, animeId)))
-        .limit(1);
+    const current = await getInternalWatchlistState(userId, animeId);
 
-    if (current?.state === state) {
+    if (current === state) {
         return state;
     }
 
@@ -290,13 +290,9 @@ export async function setWatchlistState(
 ) {
     const animeId = await ensureInternalAnimeId(anilistId, title);
 
-    const [current] = await db
-        .select({ state: watchlist.state })
-        .from(watchlist)
-        .where(and(eq(watchlist.userId, userId), eq(watchlist.animeId, animeId)))
-        .limit(1);
+    const current = await getInternalWatchlistState(userId, animeId);
 
-    if (current?.state !== state) {
+    if (current !== state) {
         await db
             .insert(watchlist)
             .values({ userId, animeId, state })
@@ -342,13 +338,9 @@ export async function updateWatchlistAfterPlayback(
     animeId: number,
     input: PlaybackProgressInput
 ) {
-    const [current] = await db
-        .select({ state: watchlist.state })
-        .from(watchlist)
-        .where(and(eq(watchlist.userId, userId), eq(watchlist.animeId, animeId)))
-        .limit(1);
+    const current = await getInternalWatchlistState(userId, animeId);
 
-    if (current?.state === 'completed') {
+    if (current === 'completed') {
         // Rewatching still persists playback progress. A completed watchlist entry
         // only stays completed instead of moving back to watching.
         return;
@@ -375,13 +367,13 @@ export async function updateWatchlistAfterPlayback(
             .from(animeEpisode)
             .where(eq(animeEpisode.anilistId, input.animeId)),
     ]);
-    const next = watchlistStateAfterPlayback(current?.state ?? null, release ?? null, episodes, {
+    const next = watchlistStateAfterPlayback(current, release ?? null, episodes, {
         episodeId: input.episodeId,
         number: input.episodeNumber,
         completed: input.completed,
     });
 
-    if (next === null || next === current?.state) {
+    if (next === null || next === current) {
         return;
     }
 

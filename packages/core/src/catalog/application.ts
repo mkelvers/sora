@@ -7,7 +7,7 @@ import {
     animeEpisodeTarget,
     animeRelease,
 } from '@soraorg/shared/db/schema';
-import type { AudioMode } from '../audio';
+import { audioModesByAnime } from '../audio';
 import type { AnimeCard } from '../types';
 import type { BrowseFilters } from './browse-filters';
 import { catalogPage } from './query';
@@ -58,16 +58,6 @@ function assertPage(page: number, message: string) {
     if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647) {
         throw new BrowseFilterError(message);
     }
-}
-
-function audioModes(rows: Array<{ anilistId: number; audio: AudioMode[] }>) {
-    const modes = new Map<number, Set<AudioMode>>();
-    for (const row of rows) {
-        const animeModes = modes.get(row.anilistId) ?? new Set<AudioMode>();
-        row.audio.forEach((mode) => animeModes.add(mode));
-        modes.set(row.anilistId, animeModes);
-    }
-    return modes;
 }
 
 type NewAnimeTarget = {
@@ -157,7 +147,7 @@ export function createCatalogApplication(source: CatalogSource) {
                       )
                   )
             : [];
-        const audioByAnime = audioModes(episodeRows);
+        const audioByAnime = audioModesByAnime(episodeRows);
         const eligible = latest.filter((entry) => {
             const audio = [...(audioByAnime.get(entry.anilistId) ?? [])];
             return !filters.audio || audio.includes(filters.audio);

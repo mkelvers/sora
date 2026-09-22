@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 
 import type { AnimeCard } from '../types';
-import type { AudioMode } from '../audio';
+import { audioModesByAnime } from '../audio';
 import { currentAnimeSeason } from '../season';
 import { db } from '@soraorg/shared/db';
 import {
@@ -17,16 +17,6 @@ import {
     type HomeHeroCandidate,
 } from './home-selection';
 import type { CatalogSource } from './source';
-
-function audioModes(rows: Array<{ anilistId: number; audio: AudioMode[] }>) {
-    const modes = new Map<number, Set<AudioMode>>();
-    for (const row of rows) {
-        const animeModes = modes.get(row.anilistId) ?? new Set<AudioMode>();
-        row.audio.forEach((mode) => animeModes.add(mode));
-        modes.set(row.anilistId, animeModes);
-    }
-    return modes;
-}
 
 async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource['loadHomeHero']) {
     async function selectionForRotation(rotation: string) {
@@ -160,7 +150,7 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
         heroSelection(homeHeroRotationStart(now), source.loadHomeHero).catch(() => []),
         userId ? source.continueWatching(userId).catch(() => []) : Promise.resolve([]),
     ]);
-    const audioByAnime = audioModes(episodeRows);
+    const audioByAnime = audioModesByAnime(episodeRows);
     const toCard = (row: (typeof seasonRows)[number]): AnimeCard => ({
         id: row.anilistId,
         title: row.title,
