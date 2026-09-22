@@ -10,7 +10,7 @@ import type { AnimeCard } from '../types';
 import { animeTitles, plainText } from '../catalog/anilist/anilist-text';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { validSkipInterval } from '../playback/aniskip';
-import type { JsonValue } from '../user/utils';
+import type { JsonValue } from '../json';
 import type {
     PlaybackProvider,
     ProviderPlayback,
