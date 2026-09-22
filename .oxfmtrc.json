@@ -16,7 +16,8 @@
         "drizzle/**",
         "node_modules/**",
         "**/generated/**",
-        "**/generated.ts"
+        "**/generated.ts",
+        "**/*.generated.ts"
     ],
     "objectWrap": "preserve",
     "singleAttributePerLine": false,
