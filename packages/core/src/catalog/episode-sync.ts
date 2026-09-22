@@ -580,15 +580,7 @@ async function fetchAndStore(
             if (confirmedNumbers.length) {
                 await tx
                     .update(animeEpisodeTarget)
-                    .set({
-                        state: 'confirmed',
-                        inventoryRevision: revision,
-                        confirmedAt: now,
-                        leaseOwner: null,
-                        leaseUntil: null,
-                        lastError: null,
-                        updatedAt: now,
-                    })
+                    .set(confirmedTargetValues(revision, now))
                     .where(
                         and(
                             eq(animeEpisodeTarget.anilistId, anime.id),
@@ -603,15 +595,7 @@ async function fetchAndStore(
 
         const [confirmed] = await tx
             .update(animeEpisodeTarget)
-            .set({
-                state: 'confirmed',
-                inventoryRevision: revision,
-                confirmedAt: now,
-                leaseOwner: null,
-                leaseUntil: null,
-                lastError: null,
-                updatedAt: now,
-            })
+            .set(confirmedTargetValues(revision, now))
             .where(
                 and(
                     eq(animeEpisodeTarget.anilistId, anime.id),
