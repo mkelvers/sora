@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@soraorg/core": "workspace:*",
-        "@soraorg/shared": "workspace:*"
+        "@soraorg/database": "workspace:*"
     },
     "devDependencies": {
         "@types/bun": "catalog:",
