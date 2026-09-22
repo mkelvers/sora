@@ -24,50 +24,34 @@ import { homePage } from './home';
 import { refreshReleaseCalendar, releaseCalendar } from './release-calendar';
 import { createSearchOperation } from './search';
 import { createSimulcastOperations } from './simulcast';
-import type { BrowseSourceTaxonomy } from './browse-transform';
 import type { CatalogBrowseFilters, CatalogSource } from './source';
-
-function validatedFilters(filters: BrowseFilters, taxonomy: BrowseSourceTaxonomy) {
-    if (filters.genre && filters.tag) {
-        throw new BrowseFilterError('Choose either a genre or a tag');
-    }
-    if (filters.genre && !taxonomy.genres.includes(filters.genre)) {
-        throw new BrowseFilterError('Unknown anime genre');
-    }
-    if (filters.tag && !taxonomy.tags.includes(filters.tag)) {
-        throw new BrowseFilterError('Unknown anime tag');
-    }
-    if (filters.format && !taxonomy.formats.includes(filters.format)) {
-        throw new BrowseFilterError('Unknown anime format');
-    }
-    if (filters.status && !taxonomy.statuses.includes(filters.status)) {
-        throw new BrowseFilterError('Unknown anime status');
-    }
-    if (filters.source && !taxonomy.sources.includes(filters.source)) {
-        throw new BrowseFilterError('Unknown source material');
-    }
-    if (filters.season && !taxonomy.seasons.includes(filters.season)) {
-        throw new BrowseFilterError('Unknown anime season');
-    }
-
-    const { audio: _audio, ...sourceFilters } = filters;
-    return sourceFilters;
-}
-
-function assertPage(page: number, message: string) {
-    if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647) {
-        throw new BrowseFilterError(message);
-    }
-}
 
 export function createCatalogApplication(source: CatalogSource) {
     const search = createSearchOperation(source);
     const simulcast = createSimulcastOperations(source);
 
     async function popularAnimePage(page: number, filters: BrowseFilters) {
-        assertPage(page, 'Invalid browse page');
+        if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647) {
+            throw new BrowseFilterError('Invalid browse page');
+        }
         const taxonomy = await catalogTaxonomy();
-        const sourceFilters = validatedFilters(filters, taxonomy);
+        if (filters.genre && filters.tag) {
+            throw new BrowseFilterError('Choose either a genre or a tag');
+        }
+        for (const [filter, values, message] of [
+            ['genre', taxonomy.genres, 'Unknown anime genre'],
+            ['tag', taxonomy.tags, 'Unknown anime tag'],
+            ['format', taxonomy.formats, 'Unknown anime format'],
+            ['status', taxonomy.statuses, 'Unknown anime status'],
+            ['source', taxonomy.sources, 'Unknown source material'],
+            ['season', taxonomy.seasons, 'Unknown anime season'],
+        ] as const) {
+            const value = filters[filter];
+            if (value && !values.includes(value)) {
+                throw new BrowseFilterError(message);
+            }
+        }
+        const { audio: _audio, ...sourceFilters } = filters;
         const queryKey = catalogSnapshotKey(sourceFilters, page);
         const [stored] = await db
             .select({
@@ -98,7 +82,9 @@ export function createCatalogApplication(source: CatalogSource) {
     }
 
     async function newAnimePage(page: number, filters: BrowseFilters) {
-        assertPage(page, 'Invalid catalog page');
+        if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647) {
+            throw new BrowseFilterError('Invalid catalog page');
+        }
         const now = new Date();
         const confirmed = await db
             .select({
