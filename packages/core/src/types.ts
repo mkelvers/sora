@@ -23,7 +23,19 @@ export const AnimeCardSchema = z.object({
 });
 
 /** Anime card shape accepted from a catalog source after runtime validation. */
-export type AnimeCard = z.infer<typeof AnimeCardSchema>;
+export interface AnimeCard {
+    id: number;
+    title: string;
+    image: string;
+    audio: AudioMode[];
+    format?: string | null;
+    status?: string | null;
+    score: number;
+    genres: string[];
+    synopsis: string;
+    releasedAt?: string;
+    episode?: number;
+}
 
 /** A paginated simulcast result, including whether another page can be fetched. */
 export const AnimeCardPageSchema = z.object({
@@ -33,7 +45,11 @@ export const AnimeCardPageSchema = z.object({
 });
 
 /** Validated page of catalog cards; `page` is the source's current page number. */
-export type AnimeCardPage = z.infer<typeof AnimeCardPageSchema>;
+export interface AnimeCardPage {
+    anime: AnimeCard[];
+    hasNextPage: boolean;
+    page: number;
+}
 
 /** Provider episode data normalized for playback and progress tracking. */
 export type AnimeEpisode = {
@@ -83,23 +99,24 @@ export type ContinueWatchingCard = {
  * source relation metadata is retained so callers can present the order's basis.
  */
 export type FranchiseOrder = {
-    types: Array<{
+    types: {
         id: string;
         label: string;
-    }>;
-    entries: Array<
-        AnimeCard & {
+    }[];
+    entries: (AnimeCard & {
+        malId: number;
+        anilistId: number;
+        type: string;
+        format: MediaFormat | null;
+        status: MediaStatus | null;
+        episodes: number | null;
+        duration: number | null;
+        popularity: number | null;
+        relations: {
+            type: MediaRelation;
             malId: number;
-            anilistId: number;
-            type: string;
-            format: MediaFormat | null;
-            status: MediaStatus | null;
-            episodes: number | null;
-            duration: number | null;
-            popularity: number | null;
-            relations: Array<{ type: MediaRelation; malId: number }>;
-            secondary: boolean;
-            primary: boolean;
-        }
-    >;
+        }[];
+        secondary: boolean;
+        primary: boolean;
+    })[];
 };

@@ -43,7 +43,10 @@ export async function importWatchlist(
     await reconcileAnimeInterests();
     await enqueueUnresolvedAnimeInterests();
 
-    return { ...result, unmatched: imported.unmatched };
+    return {
+        ...result,
+        unmatched: imported.unmatched,
+    };
 }
 
 export async function exportWatchlist(userId: string) {
@@ -58,7 +61,10 @@ export async function exportWatchlist(userId: string) {
 export async function getWatchlistPage(userId: string, selection: WatchlistSelection) {
     const stored = await getWatchlistEntries(userId);
     if (!stored.length) {
-        return { entries: [], totalEntries: 0 };
+        return {
+            entries: [],
+            totalEntries: 0,
+        };
     }
 
     const selectedIds =
@@ -77,11 +83,19 @@ export async function getWatchlistPage(userId: string, selection: WatchlistSelec
             entry.catalogTitle?.trim() ||
             (details ? animeTitles(details)[0] : undefined) ||
             null;
-        return { ...entry, title };
+        return {
+            ...entry,
+            title,
+        };
     });
     const titleBackfills = titledStored.flatMap((entry, index) =>
         entry.title && entry.internalAnimeId != null && !stored[index]?.title
-            ? [{ internalAnimeId: entry.internalAnimeId, title: entry.title }]
+            ? [
+                  {
+                      internalAnimeId: entry.internalAnimeId,
+                      title: entry.title,
+                  },
+              ]
             : []
     );
     const [audioByAnime, enrichedCards] = await Promise.all([
@@ -91,5 +105,8 @@ export async function getWatchlistPage(userId: string, selection: WatchlistSelec
     ]);
     const entries = selectWatchlistEntries(enrichedCards, titledStored, audioByAnime, selection);
 
-    return { entries, totalEntries: stored.length };
+    return {
+        entries,
+        totalEntries: stored.length,
+    };
 }

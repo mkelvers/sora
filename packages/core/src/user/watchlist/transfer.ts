@@ -135,7 +135,16 @@ function parsedEntry(entry: Record<string, JsonValue>, index: number, label: str
                 entry.my_last_updated
         ) ?? addedAt;
 
-    return { index, anilistId, malId, genericId, state, addedAt, activityAt, titles };
+    return {
+        index,
+        anilistId,
+        malId,
+        genericId,
+        state,
+        addedAt,
+        activityAt,
+        titles,
+    };
 }
 
 export function parseJsonWatchlist(source: string): ImportEntry[] {
@@ -295,7 +304,13 @@ async function mediaByMalId(malIds: number[]) {
     return [...new Map(media.map((entry) => [entry.id, entry])).values()];
 }
 
-async function searchTitle(title: string) {
+interface AnimeTitleMatch {
+    id: number;
+    title: string | null;
+    titles: string[];
+}
+
+async function searchTitle(title: string): Promise<AnimeTitleMatch[]> {
     const response = await request(SearchAnimePageDocument, {
         search: title,
         page: 1,
@@ -317,7 +332,13 @@ async function resolveImport(entries: ImportEntry[]) {
     const byMalId = new Map(
         media.flatMap((entry) => (entry.idMal ? ([[entry.idMal, entry]] as const) : []))
     );
-    const resolved = new Map<number, { id: number; title: string | null }>();
+    const resolved = new Map<
+        number,
+        {
+            id: number;
+            title: string | null;
+        }
+    >();
 
     for (const entry of entries) {
         const directId = entry.anilistId ?? entry.genericId;
@@ -357,7 +378,7 @@ async function resolveImport(entries: ImportEntry[]) {
         );
     }
 
-    const searchResults = new Map<string, Awaited<ReturnType<typeof searchTitle>>>();
+    const searchResults = new Map<string, AnimeTitleMatch[]>();
     for (const batch of batches([...titleQueries], 4)) {
         const results = await Promise.all(batch.map(([, title]) => searchTitle(title)));
         batch.forEach(([key], index) => searchResults.set(key, results[index]));
@@ -367,7 +388,7 @@ async function resolveImport(entries: ImportEntry[]) {
         if (resolved.has(entry.index)) {
             continue;
         }
-        const matches = new Map<number, Awaited<ReturnType<typeof searchTitle>>[number]>();
+        const matches = new Map<number, AnimeTitleMatch>();
         for (const title of Object.values(entry.titles).filter((value): value is string =>
             Boolean(value)
         )) {
@@ -379,7 +400,10 @@ async function resolveImport(entries: ImportEntry[]) {
         }
         if (matches.size === 1) {
             const [match] = matches.values();
-            resolved.set(entry.index, { id: match.id, title: match.title });
+            resolved.set(entry.index, {
+                id: match.id,
+                title: match.title,
+            });
         }
     }
     return resolved;
@@ -411,5 +435,8 @@ export async function importedWatchlistEntries(source: string, filename: string)
         }
         seen.add(anilistId);
     }
-    return { entries, unmatched: imported.length - entries.length };
+    return {
+        entries,
+        unmatched: imported.length - entries.length,
+    };
 }

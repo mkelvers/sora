@@ -1,7 +1,6 @@
-const seasonOrder = ['WINTER', 'SPRING', 'SUMMER', 'FALL'] as const;
+export type AnimeSeason = 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
 
-/** The four calendar seasons recognized by the catalog. */
-export type AnimeSeason = (typeof seasonOrder)[number];
+const seasonOrder: AnimeSeason[] = ['WINTER', 'SPRING', 'SUMMER', 'FALL'];
 
 /** A season and calendar year pair used to select a simulcast period. */
 export interface AnimeSeasonSelection {
@@ -56,7 +55,10 @@ export function availableAnimeSeasons(starts: AnimeSeasonStartYears, latest: Ani
     for (let year = firstYear; year <= latest.year; year++) {
         for (const season of seasonOrder) {
             const firstSeasonYear = starts[season];
-            const option = { season, year };
+            const option = {
+                season,
+                year,
+            };
             if (
                 firstSeasonYear &&
                 year >= firstSeasonYear &&

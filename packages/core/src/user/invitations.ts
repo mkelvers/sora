@@ -19,7 +19,11 @@ export class InvitationCompletionError extends Error {
     }
 }
 
-type CreatedAccount = Pick<typeof users.$inferSelect, 'id' | 'name' | 'username'>;
+interface CreatedAccount {
+    id: string;
+    name: string;
+    username: string;
+}
 
 export async function registerInvitedAccount(
     invitationCode: string,
@@ -54,7 +58,11 @@ export async function claimInvitation(code: string, claim: string) {
     const now = new Date();
     const [invitation] = await db
         .update(invitations)
-        .set({ reservationId: claim, reservedAt: now, usedAt: now })
+        .set({
+            reservationId: claim,
+            reservedAt: now,
+            usedAt: now,
+        })
         .where(
             and(
                 eq(invitations.codeHash, createHash('sha256').update(code.trim()).digest('hex')),
@@ -85,7 +93,11 @@ export async function hasInvitationClaim(claim: string) {
 export async function completeInvitation(claim: string, userId: string) {
     const [invitation] = await db
         .update(invitations)
-        .set({ reservationId: null, reservedAt: null, usedByUserId: userId })
+        .set({
+            reservationId: null,
+            reservedAt: null,
+            usedByUserId: userId,
+        })
         .where(
             and(
                 eq(invitations.reservationId, claim),
@@ -100,6 +112,10 @@ export async function completeInvitation(claim: string, userId: string) {
 export async function restoreInvitation(claim: string) {
     await db
         .update(invitations)
-        .set({ reservationId: null, reservedAt: null, usedAt: null })
+        .set({
+            reservationId: null,
+            reservedAt: null,
+            usedAt: null,
+        })
         .where(and(eq(invitations.reservationId, claim), isNull(invitations.usedByUserId)));
 }

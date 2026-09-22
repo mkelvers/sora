@@ -102,7 +102,10 @@ export async function getWatchlistEntries(userId: string) {
 }
 
 export async function storeMissingWatchlistTitles(
-    entries: ReadonlyArray<{ internalAnimeId: number; title: string }>
+    entries: readonly {
+        internalAnimeId: number;
+        title: string;
+    }[]
 ) {
     if (!entries.length) {
         return;
@@ -143,11 +146,17 @@ export async function applyWatchlistEntries(
                 .onConflictDoNothing();
         }
 
-        const externalIds: Array<{ id: number; externalId: number }> = [];
+        const externalIds: {
+            id: number;
+            externalId: number;
+        }[] = [];
         for (const batch of batches(anilistIds, databaseBatchSize)) {
             externalIds.push(
                 ...(await tx
-                    .select({ id: animeExternalId.id, externalId: animeExternalId.externalId })
+                    .select({
+                        id: animeExternalId.id,
+                        externalId: animeExternalId.externalId,
+                    })
                     .from(animeExternalId)
                     .where(
                         and(
@@ -159,7 +168,10 @@ export async function applyWatchlistEntries(
             );
         }
 
-        const links: Array<{ animeId: number; externalIdId: number }> = [];
+        const links: {
+            animeId: number;
+            externalIdId: number;
+        }[] = [];
         for (const batch of batches(
             externalIds.map(({ id }) => id),
             databaseBatchSize
@@ -227,7 +239,12 @@ export async function applyWatchlistEntries(
         ];
         await tx
             .insert(animeInterestDirty)
-            .values(dirtyAnimeIds.map((animeId) => ({ userId, animeId })))
+            .values(
+                dirtyAnimeIds.map((animeId) => ({
+                    userId,
+                    animeId,
+                }))
+            )
             .onConflictDoUpdate({
                 target: [animeInterestDirty.userId, animeInterestDirty.animeId],
                 set: {
@@ -240,14 +257,20 @@ export async function applyWatchlistEntries(
             for (const batch of batches(rows, databaseBatchSize)) {
                 await tx.insert(watchlist).values(batch);
             }
-            return { added: rows.length, skipped: 0 };
+            return {
+                added: rows.length,
+                skipped: 0,
+            };
         }
 
         const added = rows.filter(({ animeId }) => !currentAnimeIds.has(animeId));
         for (const batch of batches(added, databaseBatchSize)) {
             await tx.insert(watchlist).values(batch).onConflictDoNothing();
         }
-        return { added: added.length, skipped: rows.length - added.length };
+        return {
+            added: added.length,
+            skipped: rows.length - added.length,
+        };
     });
 }
 
@@ -261,7 +284,10 @@ async function setInternalWatchlistState(userId: string, animeId: number, state:
     if (current) {
         await db
             .update(watchlist)
-            .set({ state, updatedAt: new Date() })
+            .set({
+                state,
+                updatedAt: new Date(),
+            })
             .where(and(eq(watchlist.userId, userId), eq(watchlist.animeId, animeId)));
         await markAnimeInterestDirty(userId, animeId);
 
@@ -270,7 +296,11 @@ async function setInternalWatchlistState(userId: string, animeId: number, state:
 
     const [created] = await db
         .insert(watchlist)
-        .values({ userId, animeId, state })
+        .values({
+            userId,
+            animeId,
+            state,
+        })
         .onConflictDoNothing()
         .returning({ state: watchlist.state });
 
@@ -295,7 +325,11 @@ export async function setWatchlistState(
     if (current !== state) {
         await db
             .insert(watchlist)
-            .values({ userId, animeId, state })
+            .values({
+                userId,
+                animeId,
+                state,
+            })
             .onConflictDoUpdate({
                 target: [watchlist.userId, watchlist.animeId],
                 set: {
@@ -312,7 +346,10 @@ export async function setWatchlistState(
 async function markAnimeInterestDirty(userId: string, animeId: number) {
     await db
         .insert(animeInterestDirty)
-        .values({ userId, animeId })
+        .values({
+            userId,
+            animeId,
+        })
         .onConflictDoUpdate({
             target: [animeInterestDirty.userId, animeInterestDirty.animeId],
             set: {

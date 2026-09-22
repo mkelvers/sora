@@ -12,7 +12,10 @@ export type WatchlistSelection = {
 };
 
 function matchesFilters(
-    card: { format?: string | null; status?: string | null },
+    card: {
+        format?: string | null;
+        status?: string | null;
+    },
     audio: ReadonlySet<'sub' | 'dub' | 'raw'>,
     selection: Pick<WatchlistSelection, 'language' | 'media' | 'type'>
 ) {
