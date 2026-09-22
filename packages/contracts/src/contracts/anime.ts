@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import { AnimeSearchResultSchema } from '../search';
-import { AnimeCardPageSchema, AnimeCardSchema, EpisodeRevisionSchema } from '../types';
-import { EpisodeSkipTimesSchema, SegmentSaveResultSchema } from '../player/skip-times';
+import { AnimeSearchResultSchema } from '../search.js';
+import { AnimeCardPageSchema, AnimeCardSchema, EpisodeRevisionSchema } from '../types.js';
+import { EpisodeSkipTimesSchema, SegmentSaveResultSchema } from '../player/skip-times.js';
 
 export const AnimeIdSchema = z.coerce.number().int().positive();
 
