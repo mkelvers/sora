@@ -1,11 +1,8 @@
-import { animeDate, dateTimestamp } from './date';
+import { animeDate, dateTimestamp, formatAirDate } from './date';
 import type { AniListAnime } from './anilist/anilist-types';
+import type { ProviderEpisode } from '../providers/types';
 
-export interface EpisodeSource {
-    id: string;
-    number: number;
-    supplemental?: boolean;
-}
+export type EpisodeSource = Pick<ProviderEpisode, 'id' | 'number' | 'supplemental'>;
 
 export function providerConfirmsEpisode(episodes: readonly EpisodeSource[], targetEpisode: number) {
     return episodes.some(
@@ -22,8 +19,7 @@ export function confirmedEpisodeAirDate(
         return fallback;
     }
 
-    const date = confirmation.airingAt;
-    return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
+    return formatAirDate(confirmation.airingAt);
 }
 
 export function preferredEpisodeAirDate(

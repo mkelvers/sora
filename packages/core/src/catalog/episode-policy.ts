@@ -1,5 +1,7 @@
 import type { AniListAnime } from './anilist/anilist-types';
+import type { AnimeEpisode } from '../types';
 type EpisodeRefreshReason = 'metadata-source' | 'missing' | 'scheduled';
+type EpisodeMetadataCompleteness = Pick<AnimeEpisode, 'image' | 'title' | 'overview'>;
 
 export const episodeMetadataRevision = 'tmdb-episode-v7';
 
@@ -32,7 +34,7 @@ export function canPreserveEpisodeMetadata(
 }
 
 export function episodeMetadataNeedsRefresh(
-    episodes: readonly { image: string | null; title: string; overview: string }[],
+    episodes: readonly EpisodeMetadataCompleteness[],
     hasMetadataSource: boolean,
     metadataRevision: string | null | undefined = episodeMetadataRevision
 ) {
@@ -49,7 +51,7 @@ export function episodeMetadataNeedsRefresh(
 }
 
 export function episodeMetadataRefreshRequired(
-    episodes: readonly { image: string | null; title: string; overview: string }[],
+    episodes: readonly EpisodeMetadataCompleteness[],
     sync: {
         metadataExternalIdId: number | null;
         metadataRevision: string | null;
@@ -64,7 +66,7 @@ export function episodeMetadataRefreshRequired(
 }
 
 export function episodeMetadataRevisionAfterSync(
-    episodes: readonly { image: string | null; title: string; overview: string }[],
+    episodes: readonly EpisodeMetadataCompleteness[],
     metadataAvailable: boolean,
     hasMetadataSource: boolean
 ) {

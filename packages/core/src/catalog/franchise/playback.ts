@@ -1,12 +1,10 @@
-import type { AudioMode } from '../../audio';
 import type { FranchiseOrder } from '../../types';
+import type { animeEpisode } from '@soraorg/database/schema';
 
-export type FranchisePlaybackEpisode = {
-    anilistId: number;
-    episodeId: string;
-    number: number;
-    audio: AudioMode[];
-};
+export type FranchisePlaybackEpisode = Pick<
+    typeof animeEpisode.$inferSelect,
+    'anilistId' | 'episodeId' | 'number' | 'audio'
+>;
 
 export function withFranchisePlayback(
     entries: FranchiseOrder['entries'],

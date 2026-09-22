@@ -19,17 +19,18 @@ export interface EpisodeMetadata {
     overviewSource: 'tmdb' | 'machine' | null;
 }
 
-export interface EpisodeMetadataRow {
-    episodeId: string;
-    number: number;
-    metadataTitle: string | null;
-    metadataTitleSource: 'tmdb' | 'machine' | null;
-    imageUrl: string | null;
-    runtimeMinutes: number | null;
-    airDate: string | null;
-    overview: string | null;
-    overviewSource: 'tmdb' | 'machine' | null;
-}
+export type EpisodeMetadataRow = Pick<
+    typeof animeEpisode.$inferSelect,
+    | 'episodeId'
+    | 'number'
+    | 'metadataTitle'
+    | 'metadataTitleSource'
+    | 'imageUrl'
+    | 'runtimeMinutes'
+    | 'airDate'
+    | 'overview'
+    | 'overviewSource'
+>;
 
 export function reconcileEpisodeMetadata(
     episodes: readonly EpisodeMetadataRow[],

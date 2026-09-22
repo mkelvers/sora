@@ -1,10 +1,7 @@
 import type { MediaFormat } from './anilist/graphql/graphql.generated';
+import type { BrowseCatalogEntry } from './browse-types';
 
-interface DiscoveryMedia {
-    format: MediaFormat | null;
-    popularity: number | null;
-    duration: number | null;
-}
+type DiscoveryMedia = Pick<BrowseCatalogEntry, 'format' | 'popularity' | 'duration'>;
 
 export function isDiscoverableAnime(
     media: DiscoveryMedia,
