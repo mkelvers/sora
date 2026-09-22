@@ -1,5 +1,5 @@
 import { AiringAnimePageDocument } from './graphql/graphql.generated';
-import { parseAiringMedia, type AiringAnime, type AiringPageEntry } from '../airing';
+import { parseAiringMedia, type AiringPageEntry } from '../airing';
 import { request } from './anilist-client';
 
 async function getAiringPages(
@@ -73,16 +73,12 @@ async function getAiringPages(
     return anime;
 }
 
-function releaseSchedules(entries: AiringPageEntry[]): AiringAnime[] {
-    return entries.map((entry) => ({
+export async function discoverAiringAnime(now = new Date()) {
+    return (await getAiringPages(undefined, now, true, 1, true)).map((entry) => ({
         id: entry.id,
         nextAiringAt: entry.nextAiringAt,
         nextAiringEpisode: entry.nextAiringEpisode,
         latestAiredAt: entry.latestAiredAt,
         latestAiredEpisode: entry.latestAiredEpisode,
     }));
-}
-
-export async function discoverAiringAnime(now = new Date()) {
-    return releaseSchedules(await getAiringPages(undefined, now, true, 1, true));
 }

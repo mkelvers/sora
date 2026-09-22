@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { db, type DatabaseTransaction } from '@soraorg/database';
 import { anilistQuerySnapshot } from '@soraorg/database/schema';
+import { record, type JsonValue } from '../../utils';
 import {
     graphql,
     GraphQLRequestError,
@@ -24,36 +25,20 @@ export interface AniListRequestOptions extends GraphQLOptions {
     forceRefresh?: boolean;
 }
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-
-function jsonRecord(value: JsonValue | undefined) {
-    const parsed = z.record(z.string(), z.json()).safeParse(value);
-    return parsed.success ? parsed.data : null;
-}
-
-function canonical(value: JsonValue): JsonValue {
-    if (Array.isArray(value)) {
-        return value.map(canonical);
-    }
-
-    const object = jsonRecord(value);
-    if (!object) {
-        return value;
-    }
-
-    return Object.fromEntries(
-        Object.entries(object)
-            .sort(([left], [right]) => left.localeCompare(right))
-            .map(([key, entry]) => [key, canonical(entry)])
-    );
-}
-
 function querySnapshotKey<TVariables>(
     document: GraphQLDocument<unknown, TVariables>,
     variables: NoInfer<TVariables>
 ) {
-    const parsedVariables = z.json().parse(JSON.parse(JSON.stringify(variables)));
-    const serializedVariables = JSON.stringify(canonical(parsedVariables)) ?? 'null';
+    const parsedVariables: JsonValue = z.json().parse(JSON.parse(JSON.stringify(variables)));
+    const serializedVariables =
+        JSON.stringify(parsedVariables, (_key, value: JsonValue) => {
+            const object = record(value);
+            return object
+                ? Object.fromEntries(
+                      Object.entries(object).sort(([left], [right]) => left.localeCompare(right))
+                  )
+                : value;
+        }) ?? 'null';
 
     return createHash('sha256')
         .update(document.toString())
@@ -176,7 +161,7 @@ async function refreshWithLock<TResult, TVariables>(
 
         if (stored) {
             const parsedStored = z.json().safeParse(stored.data);
-            storedObject = parsedStored.success ? jsonRecord(parsedStored.data) : null;
+            storedObject = parsedStored.success ? record(parsedStored.data) : null;
             if (!storedObject) {
                 await tx.delete(anilistQuerySnapshot).where(eq(anilistQuerySnapshot.key, key));
             } else if (
@@ -229,7 +214,7 @@ export async function request<TResult, TVariables>(
 
         if (stored) {
             const parsedStored = z.json().safeParse(stored.data);
-            const object = parsedStored.success ? jsonRecord(parsedStored.data) : null;
+            const object = parsedStored.success ? record(parsedStored.data) : null;
             if (!object) {
                 await db.delete(anilistQuerySnapshot).where(eq(anilistQuerySnapshot.key, key));
             } else if (

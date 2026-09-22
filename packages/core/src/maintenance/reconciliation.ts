@@ -3,7 +3,6 @@ import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { db } from '@soraorg/database';
 import { animeEpisodeSync, animeRelease, animeReleaseRequest } from '@soraorg/database/schema';
 import { discoverAiringAnime } from '../catalog/anilist/anilist-airing';
-import { airingTargetSchedules } from './airing-policy';
 import { scheduleAiringTargets, scheduleReleaseTargets } from './targets';
 
 async function enqueueReleaseRequests(anilistIds: number[]) {
@@ -96,7 +95,30 @@ export async function reconcileAllAiringReleases(now = new Date()) {
         ...noLongerAiring.map(({ anilistId }) => anilistId),
     ]);
 
-    const latestTargets = await scheduleAiringTargets(airingTargetSchedules(snapshot));
+    const latestTargets = await scheduleAiringTargets(
+        snapshot.flatMap((release) => {
+            const schedules: {
+                anilistId: number;
+                episode: number;
+                airingAt: Date;
+            }[] = [];
+            if (release.latestAiredEpisode && release.latestAiredAt) {
+                schedules.push({
+                    anilistId: release.id,
+                    episode: release.latestAiredEpisode,
+                    airingAt: new Date(release.latestAiredAt * 1_000),
+                });
+            }
+            if (release.nextAiringEpisode && release.nextAiringAt) {
+                schedules.push({
+                    anilistId: release.id,
+                    episode: release.nextAiringEpisode,
+                    airingAt: new Date(release.nextAiringAt * 1_000),
+                });
+            }
+            return schedules;
+        })
+    );
     return {
         discovered: snapshot.length,
         releaseRequests,

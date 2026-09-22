@@ -1,7 +1,3 @@
-function firstNonBlank(values: readonly (string | null | undefined)[]) {
-    return values.find((value) => Boolean(value?.trim())) ?? null;
-}
-
 export function mediaTitle(media: {
     id: number;
     title?: {
@@ -11,8 +7,9 @@ export function mediaTitle(media: {
     } | null;
 }) {
     return (
-        firstNonBlank([media.title?.english, media.title?.romaji, media.title?.native]) ??
-        `Anime ${media.id}`
+        [media.title?.english, media.title?.romaji, media.title?.native].find((title) =>
+            Boolean(title?.trim())
+        ) ?? `Anime ${media.id}`
     );
 }
 

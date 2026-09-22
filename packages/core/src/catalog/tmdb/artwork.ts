@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { isNotNullish } from '../../collections';
+import { isNotNullish } from '../../utils';
 
 import { db } from '@soraorg/database';
 import { animeArtwork, animeArtworkPreference, animeArtworkSync } from '@soraorg/database/schema';
