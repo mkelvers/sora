@@ -35,7 +35,13 @@ async function storedPlayback(anilistIds: number[]) {
         .from(animeEpisode)
         .where(inArray(animeEpisode.anilistId, anilistIds));
 
-    const playback = new Map<number, { audio: Set<AudioMode>; number: number }>();
+    const playback = new Map<
+        number,
+        {
+            audio: Set<AudioMode>;
+            number: number;
+        }
+    >();
     for (const row of rows) {
         const stored = playback.get(row.anilistId);
         if (!stored) {

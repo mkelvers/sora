@@ -114,10 +114,17 @@ export async function refreshCatalogPage(
 
         await tx
             .insert(animeCatalogRefresh)
-            .values({ queryKey, ...pageSnapshot, fetchedAt })
+            .values({
+                queryKey,
+                ...pageSnapshot,
+                fetchedAt,
+            })
             .onConflictDoUpdate({
                 target: animeCatalogRefresh.queryKey,
-                set: { ...pageSnapshot, fetchedAt },
+                set: {
+                    ...pageSnapshot,
+                    fetchedAt,
+                },
             });
     });
 
@@ -193,13 +200,23 @@ export async function refreshCatalogTaxonomy(
 ) {
     await db
         .insert(animeCatalogTaxonomy)
-        .values({ provider: 'anilist', ...taxonomy, fetchedAt })
+        .values({
+            provider: 'anilist',
+            ...taxonomy,
+            fetchedAt,
+        })
         .onConflictDoUpdate({
             target: animeCatalogTaxonomy.provider,
-            set: { ...taxonomy, fetchedAt },
+            set: {
+                ...taxonomy,
+                fetchedAt,
+            },
         });
 
-    return { ...taxonomy, fetchedAt };
+    return {
+        ...taxonomy,
+        fetchedAt,
+    };
 }
 
 export async function storedReleaseCards(ids: number[]): Promise<AnimeCard[]> {

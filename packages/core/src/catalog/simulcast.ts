@@ -16,13 +16,25 @@ import type { CatalogSource } from './source';
 function nextAnimeSeason(selection: AnimeSeasonSelection): AnimeSeasonSelection {
     switch (selection.season) {
         case 'WINTER':
-            return { season: 'SPRING', year: selection.year };
+            return {
+                season: 'SPRING',
+                year: selection.year,
+            };
         case 'SPRING':
-            return { season: 'SUMMER', year: selection.year };
+            return {
+                season: 'SUMMER',
+                year: selection.year,
+            };
         case 'SUMMER':
-            return { season: 'FALL', year: selection.year };
+            return {
+                season: 'FALL',
+                year: selection.year,
+            };
         case 'FALL':
-            return { season: 'WINTER', year: selection.year + 1 };
+            return {
+                season: 'WINTER',
+                year: selection.year + 1,
+            };
     }
 }
 
@@ -47,7 +59,10 @@ export function createSimulcastOperations(source: CatalogSource) {
                     animeSimulcastPage.year,
                     animeSimulcastPage.page,
                 ],
-                set: { data, fetchedAt },
+                set: {
+                    data,
+                    fetchedAt,
+                },
             });
         return data;
     }
@@ -84,7 +99,10 @@ export function createSimulcastOperations(source: CatalogSource) {
                       const season = parseAnimeSeason(seasonValue);
                       const year = Number(yearValue);
                       return season && Number.isSafeInteger(year) && year > 0
-                          ? { season, year }
+                          ? {
+                                season,
+                                year,
+                            }
                           : null;
                   })();
         if (!selected || compareAnimeSeasons(selected, latest) > 0) {
@@ -92,7 +110,10 @@ export function createSimulcastOperations(source: CatalogSource) {
         }
         const [starts, result] = await Promise.all([
             db
-                .select({ season: animeCatalog.season, year: animeCatalog.seasonYear })
+                .select({
+                    season: animeCatalog.season,
+                    year: animeCatalog.seasonYear,
+                })
                 .from(animeCatalog)
                 .where(eq(animeCatalog.isAdult, false))
                 .orderBy(asc(animeCatalog.seasonYear))
@@ -141,5 +162,8 @@ export function createSimulcastOperations(source: CatalogSource) {
         }
     }
 
-    return { refreshCurrentSimulcast, simulcast };
+    return {
+        refreshCurrentSimulcast,
+        simulcast,
+    };
 }

@@ -25,6 +25,7 @@ export interface HomeHero {
 /** Inputs needed to fetch one page from a catalog provider. */
 export interface CatalogBrowsePageRequest {
     /** Validated catalog filters for this request. */
+
     filters: CatalogBrowseFilters;
     /** One-based page number. */
     page: number;

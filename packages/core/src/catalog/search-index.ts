@@ -26,7 +26,6 @@ export function createAnimeSearchIndex(database: SearchDatabase) {
             const rows = await database
                 .select({
                     data: animeSearchIndexTable.data,
-
                     similarity,
                 })
                 .from(animeSearchIndexTable)
@@ -45,7 +44,6 @@ export function createAnimeSearchIndex(database: SearchDatabase) {
 
             return rankAnimeSearch(query, candidates).slice(0, 50);
         },
-
         async store(results: AnimeSearchResult[]) {
             if (!results.length) {
                 return;
@@ -56,20 +54,15 @@ export function createAnimeSearchIndex(database: SearchDatabase) {
                 .values(
                     results.map((result) => ({
                         anilistId: result.id,
-
                         searchText: animeSearchText(result.titles),
-
                         data: result,
                     }))
                 )
                 .onConflictDoUpdate({
                     target: animeSearchIndexTable.anilistId,
-
                     set: {
                         searchText: sql.raw(`excluded."${animeSearchIndexTable.searchText.name}"`),
-
                         data: sql.raw(`excluded."${animeSearchIndexTable.data.name}"`),
-
                         updatedAt: new Date(),
                     },
                 });
