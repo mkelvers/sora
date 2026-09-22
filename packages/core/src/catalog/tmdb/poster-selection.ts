@@ -1,13 +1,12 @@
 import type { AniListAnime } from '../anilist/anilist-types';
 import { animeDate } from '../date';
+import type { TmdbResponse } from './client';
 import { isSpecialRelease, releaseSequence } from './title';
 
-interface Season {
-    air_date?: string;
-    episode_count: number;
-    poster_path?: string | null;
-    season_number: number;
-}
+type Season = Pick<
+    NonNullable<TmdbResponse['seasons']>[number],
+    'air_date' | 'episode_count' | 'poster_path' | 'season_number'
+>;
 
 interface ReleaseSeasonSelection {
     aggregate: boolean;

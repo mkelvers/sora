@@ -7,15 +7,12 @@ import {
     animeEpisodeTarget,
     animeRelease,
 } from '@soraorg/database/schema';
+import type { ReleaseCalendarEntry } from '../catalog/release-calendar-parser';
 import { episodeInventoryCoversTarget } from '../providers/inventory';
 import { firstEpisodeAttemptAt } from './policy';
 import { enqueueScheduleDiscovery } from './schedule-repair';
 
-interface AiringTargetSchedule {
-    anilistId: number;
-    episode: number;
-    airingAt: Date;
-}
+type AiringTargetSchedule = Pick<ReleaseCalendarEntry, 'anilistId' | 'episode' | 'airingAt'>;
 
 interface SchedulableRelease extends AiringTargetSchedule {
     expectedEpisodes: number | null;
