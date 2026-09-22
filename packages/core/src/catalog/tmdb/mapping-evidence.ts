@@ -46,6 +46,9 @@ function releaseQualifiers(anime: AniListAnime) {
 }
 
 function seasonEvidenceScore(anime: AniListAnime, episodes: SpecialEpisodeEvidence[]) {
+    // Season zero specials are compared using the same release window as the
+    // AniList title. Episode count, date, runtime, title, and metadata completeness
+    // contribute independent evidence so a single noisy field cannot decide a map.
     const day = 24 * 60 * 60 * 1_000;
     const expected = anime.episodes ?? 0;
     const start = dateTimestamp(animeDate(anime.startDate));
@@ -133,6 +136,8 @@ export function relatedSpecialMappingIsBetter(
     directScore: number | null,
     relatedScore: number | null
 ) {
+    // Related specials only replace a direct match with strong evidence and a
+    // clear score margin, reducing accidental cross-release artwork/episode maps.
     return (
         relatedScore !== null &&
         relatedScore >= 160 &&
@@ -189,6 +194,8 @@ function tvReleaseEvidence(anime: AniListAnime, seasons: TvSeasonEvidence[]) {
 }
 
 export function tvReleaseMatchesWindow(anime: AniListAnime, seasons: TvSeasonEvidence[]) {
+    // A release window is a stronger identity signal than a single season's
+    // episode count, especially when a broadcast is split across cour seasons.
     const expectedEpisodes = anime.episodes;
     if (!expectedEpisodes || expectedEpisodes <= 0) {
         return false;
@@ -217,6 +224,8 @@ export function preferredTvReleaseCandidate(
     direct: Candidate,
     candidates: { candidate: Candidate; seasons: TvSeasonEvidence[] }[]
 ) {
+    // Keep the direct candidate unless another TV record has a complete episode
+    // match and stronger combined title, date, sequence, and metadata evidence.
     const directEvidence = candidates.find(
         ({ candidate }) => candidate.id === direct.id && candidate.mediaType === direct.mediaType
     );
