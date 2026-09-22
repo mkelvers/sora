@@ -228,7 +228,7 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
                         media?.title?.native ||
                         entry.title,
                     image: media?.coverImage?.extraLarge ?? media?.coverImage?.large ?? entry.image,
-                    audioLabel: '',
+                    audio: [],
                     score: media?.averageScore ?? 0,
                     format: media?.format ?? null,
                     status: media?.status ?? null,
@@ -249,8 +249,6 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
                     synopsis: plainText(media?.description),
                     secondary: entry.secondary,
                     primary: primaryIds.has(entry.malId) || (!media && !entry.secondary),
-                    href: `/anime/${anilistId}`,
-                    link: `/anime/${anilistId}`,
                 },
             ];
         }),

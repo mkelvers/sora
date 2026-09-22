@@ -1,6 +1,6 @@
 import { and, arrayContains, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { BrowseFilters } from './browse-filters';
-import { audioAvailabilityLabel, type AudioMode } from '../audio';
+import type { AudioMode } from '../audio';
 import type { AnimeCard } from '../types';
 import { db } from '@soraorg/shared/db';
 import { animeCatalog, animeEpisode } from '@soraorg/shared/db/schema';
@@ -116,11 +116,9 @@ export async function catalogPage(filters: BrowseFilters, page: number, animeIds
 
     const anime: AnimeCard[] = orderedRows.slice(0, 42).map((row) => ({
         id: row.id,
-        href: `/anime/${row.id}`,
-        link: `/anime/${row.id}`,
         title: row.title,
         image: row.image,
-        audioLabel: audioAvailabilityLabel(audioModes(row)),
+        audio: audioModes(row),
         score: row.score ?? 0,
         genres: row.genres,
         synopsis: row.synopsis,
