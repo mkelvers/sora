@@ -60,23 +60,6 @@ function assertPage(page: number, message: string) {
     }
 }
 
-type NewAnimeTarget = {
-    anilistId: number;
-    episode: number;
-    confirmedAt: Date | null;
-    airingAt: Date;
-};
-
-export function latestNewAnimeTargets(entries: NewAnimeTarget[]) {
-    const latest = new Map<number, NewAnimeTarget>();
-    for (const entry of entries) {
-        if (!latest.has(entry.anilistId)) {
-            latest.set(entry.anilistId, entry);
-        }
-    }
-    return [...latest.values()];
-}
-
 export function createCatalogApplication(source: CatalogSource) {
     const search = createSearchOperation(source);
     const simulcast = createSimulcastOperations(source);
@@ -140,7 +123,13 @@ export function createCatalogApplication(source: CatalogSource) {
             )
             .orderBy(desc(animeEpisodeTarget.confirmedAt), desc(animeEpisodeTarget.targetEpisode))
             .limit(5_000);
-        const latest = latestNewAnimeTargets(confirmed);
+        const latestByAnime = new Map<number, (typeof confirmed)[number]>();
+        for (const entry of confirmed) {
+            if (!latestByAnime.has(entry.anilistId)) {
+                latestByAnime.set(entry.anilistId, entry);
+            }
+        }
+        const latest = [...latestByAnime.values()];
         const episodeRows = latest.length
             ? await db
                   .select({
