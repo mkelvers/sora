@@ -4,10 +4,16 @@ import { db } from '@soraorg/shared/db';
 import { anilistRequestState } from '@soraorg/shared/db/schema';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
 
+/**
+ * Runs one AniList request under the shared database rate-limit lease. `operation`
+ * is stored for diagnostics; `load` performs the actual upstream request.
+ */
 export async function coordinatedAniListRequest<Value>(
     operation: string,
     load: () => Promise<Value>
 ) {
+    // The database lease coordinates API and scheduler processes, so AniList's
+    // global rate limit is shared across replicas rather than per process.
     const owner = randomUUID();
     await db
         .insert(anilistRequestState)
@@ -96,6 +102,8 @@ export async function coordinatedAniListRequest<Value>(
             );
         return value;
     } catch (cause) {
+        // Only rate limits and upstream availability failures block all callers.
+        // Request-specific failures release the lease without poisoning the queue.
         const now = new Date();
         const delay =
             cause instanceof GraphQLRequestError
