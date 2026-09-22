@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { z } from 'zod';
 
 import {
@@ -16,6 +17,22 @@ const SimulcastQuerySchema = PageQuerySchema.extend({
     season: z.string().optional(),
     year: z.string().optional(),
 });
+
+function parseCatalogFilters(context: Context<ApiEnvironment>) {
+    const filters = parseBrowseFilters(new URLSearchParams(context.req.query()));
+    if (!filters) {
+        return context.json(
+            {
+                error: {
+                    code: 'INVALID_REQUEST',
+                    message: 'Invalid catalog filters',
+                },
+            },
+            400
+        );
+    }
+    return filters;
+}
 
 export const catalog = new Hono<ApiEnvironment>();
 
@@ -47,36 +64,16 @@ catalog.delete(
 );
 
 catalog.get('/new', validate('query', PageQuerySchema), async (context) => {
-    const filters = parseBrowseFilters(new URLSearchParams(context.req.query()));
-    if (!filters) {
-        return context.json(
-            {
-                error: {
-                    code: 'INVALID_REQUEST',
-                    message: 'Invalid catalog filters',
-                },
-            },
-            400
-        );
-    }
+    const filters = parseCatalogFilters(context);
+    if (filters instanceof Response) return filters;
     return context.json(
         await catalogApplication.newAnimePage(context.req.valid('query').page, filters)
     );
 });
 
 catalog.get('/popular', validate('query', PageQuerySchema), async (context) => {
-    const filters = parseBrowseFilters(new URLSearchParams(context.req.query()));
-    if (!filters) {
-        return context.json(
-            {
-                error: {
-                    code: 'INVALID_REQUEST',
-                    message: 'Invalid catalog filters',
-                },
-            },
-            400
-        );
-    }
+    const filters = parseCatalogFilters(context);
+    if (filters instanceof Response) return filters;
     return context.json(
         await catalogApplication.popularAnimePage(context.req.valid('query').page, filters)
     );
