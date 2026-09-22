@@ -35,14 +35,9 @@ import {
     saveAniKotoSkipTimes,
 } from '../playback/skip-times';
 import { resolveAnimeSynopsis } from '../catalog/synopsis';
-import {
-    findMapping,
-    getArtwork,
-    getStoredMedia,
-    refreshArtwork,
-    selectArtwork,
-    setLogoSize,
-} from '../catalog/tmdb';
+import { getArtwork } from '../catalog/tmdb/artwork';
+import { findMapping } from '../catalog/tmdb/mapping-store';
+import { getStoredMedia, refreshArtwork, selectArtwork, setLogoSize } from '../catalog/tmdb/media';
 import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progress/store';
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';

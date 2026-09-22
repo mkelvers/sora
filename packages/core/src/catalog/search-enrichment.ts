@@ -4,7 +4,8 @@ import type { AudioMode } from '../audio';
 import type { AnimeSearchResult } from '../search';
 import { db } from '@soraorg/database';
 import { animeEpisode } from '@soraorg/database/schema';
-import { getStoredBackdropCandidates, imageUrl, uniqueBackdropCandidates } from './tmdb';
+import { imageUrl } from './tmdb/client';
+import { getStoredBackdropCandidates, uniqueBackdropCandidates } from './tmdb/media';
 
 async function storedArtwork(anilistIds: number[]) {
     const rows = await getStoredBackdropCandidates(anilistIds);

@@ -1,6 +1,6 @@
 import type { AnimeCard } from '../types';
 import { withAnimeCardSynopses } from './synopsis';
-import { getStoredPosters } from './tmdb';
+import { getStoredPosters } from './tmdb/poster';
 
 export async function enrichAnimeCards<T extends AnimeCard>(cards: T[]): Promise<T[]> {
     const anilistIds = [...new Set(cards.map(({ id }) => id))];

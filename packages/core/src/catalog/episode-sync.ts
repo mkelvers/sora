@@ -19,7 +19,8 @@ import {
 } from '../providers/anikoto';
 import { scheduleReleaseTargets } from '../maintenance/targets';
 import { createInventoryNotifications } from '../user/notifications';
-import { getEpisodeMetadata, NoConfidentTmdbMappingError, resolveStored } from './tmdb';
+import { getEpisodeMetadata } from './tmdb/episodes';
+import { NoConfidentTmdbMappingError, resolveStored } from './tmdb/mapping';
 import { sourceRevision, storedEpisodes } from '../providers/episode-inventory';
 import {
     reconcileEpisodeMetadata,

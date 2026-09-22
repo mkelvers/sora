@@ -6,7 +6,8 @@ import { animeSynopsis } from '@soraorg/database/schema';
 import { getAnimeRelease, storedAnimeRelease } from './anilist/anilist-release';
 import { mediaTitle, plainText } from './anilist/anilist-text';
 import type { AniListAnime } from './anilist/anilist-types';
-import { NoConfidentTmdbMappingError, getTmdbSynopsis } from './tmdb';
+import { NoConfidentTmdbMappingError } from './tmdb/mapping';
+import { getTmdbSynopsis } from './tmdb/synopsis';
 import {
     earliestRelease,
     informativeHeroSynopsis,
