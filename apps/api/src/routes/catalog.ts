@@ -2,14 +2,15 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { z } from 'zod';
 
+import { parseBrowseFilters } from '@soraorg/core/catalog/browse-filters';
 import {
     AnimeIdSchema,
     PageQuerySchema,
     ReleaseCalendarSchema,
     SearchQuerySchema,
-} from '@soraorg/core/server';
-import { parseBrowseFilters } from '@soraorg/core/server';
-import { clearPlaybackProgress } from '@soraorg/core/server';
+} from '@soraorg/core/contracts/anime';
+import { clearPlaybackProgress } from '@soraorg/core/user/progress/store';
+
 import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
 import { catalogApplication } from '../catalog';
 

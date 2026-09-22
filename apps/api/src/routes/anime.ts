@@ -2,20 +2,19 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import {
-    animePageDeferred,
     animePage,
-    animePageEpisodeUpdates,
-    retryAnimePageEpisodeInventory,
     animePageArtwork,
+    animePageDeferred,
+    animePageEpisodeUpdates,
     mediaPage,
+    retryAnimePageEpisodeInventory,
     updateMedia,
     watchPage,
     watchPlayback,
     watchSegments,
-    AnimeArtworkSchema,
-    AnimeIdSchema,
-    getEpisodeRevision,
-} from '@soraorg/core/server';
+} from '@soraorg/core/application/anime';
+import { getEpisodeRevision } from '@soraorg/core/catalog/episodes';
+import { AnimeArtworkSchema, AnimeIdSchema } from '@soraorg/core/contracts/anime';
 import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
 import { playbackResponse } from './playback-response';
 

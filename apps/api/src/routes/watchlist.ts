@@ -1,18 +1,21 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { AnimeIdSchema } from '@soraorg/core/server';
-import { WatchlistSelectionSchema, WatchlistUpdateSchema } from '@soraorg/core/server';
+import { AnimeIdSchema } from '@soraorg/core/contracts/anime';
+import { WatchlistSelectionSchema, WatchlistUpdateSchema } from '@soraorg/core/contracts/watchlist';
 import {
     exportWatchlist,
     getWatchlistPage,
+    importWatchlist,
+    WatchlistImportError,
+} from '@soraorg/core/user/watchlist/application';
+import {
     getWatchlistState,
     getWatchlistStates,
-    importWatchlist,
     removeFromWatchlist,
     setWatchlistState,
-    WatchlistImportError,
-} from '@soraorg/core/server';
+} from '@soraorg/core/user/watchlist/store';
+
 import { middleware, validate, type ApiEnvironment } from '../http';
 
 const animeIdParamSchema = z.object({ anilistId: AnimeIdSchema });
