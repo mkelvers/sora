@@ -16,7 +16,7 @@ import {
     AnimeIdSchema,
     getEpisodeRevision,
 } from '@soraorg/core/server';
-import { middleware, validate, type ApiEnvironment } from '../http';
+import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
 import { playbackResponse } from './playback-response';
 
 const AnimeParamSchema = z.object({ anilistId: AnimeIdSchema });
@@ -37,18 +37,18 @@ const EpisodeUpdatesQuerySchema = z.object({
 
 export const anime = new Hono<ApiEnvironment>();
 
-anime.use('*', middleware);
+anime.use('*', optionalMiddleware);
 
 anime.get('/:anilistId', validate('param', AnimeParamSchema), async (context) => {
     return context.json(
-        await animePage(context.get('session').user.id, context.req.valid('param').anilistId)
+        await animePage(context.get('session')?.user.id, context.req.valid('param').anilistId)
     );
 });
 
 anime.get('/:anilistId/deferred', validate('param', AnimeParamSchema), async (context) => {
     return context.json(
         await animePageDeferred(
-            context.get('session').user.id,
+            context.get('session')?.user.id,
             context.req.valid('param').anilistId
         )
     );
@@ -72,7 +72,7 @@ anime.get(
         const { anilistId } = context.req.valid('param');
         const { known, revision } = context.req.valid('query');
         const updates = await animePageEpisodeUpdates(
-            context.get('session').user.id,
+            context.get('session')?.user.id,
             anilistId,
             revision || null,
             known ? known.split(',').filter(Boolean) : []
@@ -91,7 +91,7 @@ anime.get(
     }
 );
 
-anime.post('/:anilistId/episodes/retry', validate('param', AnimeParamSchema), async (context) => {
+anime.post('/:anilistId/episodes/retry', middleware, validate('param', AnimeParamSchema), async (context) => {
     const state = await retryAnimePageEpisodeInventory(context.req.valid('param').anilistId);
     return state
         ? context.json(state)
@@ -111,7 +111,7 @@ anime.get(
     validate('param', EpisodeParamSchema),
     async (context) => {
         const { anilistId, episodeId } = context.req.valid('param');
-        const page = await watchPage(context.get('session').user.id, anilistId, episodeId);
+        const page = await watchPage(context.get('session')?.user.id, anilistId, episodeId);
         if (!page) {
             return context.json(
                 {
@@ -176,6 +176,7 @@ anime.get('/:anilistId/media', validate('param', AnimeParamSchema), async (conte
 
 anime.put(
     '/:anilistId/media',
+    middleware,
     validate('param', AnimeParamSchema),
     validate('json', MediaRequestSchema),
     async (context) => {
