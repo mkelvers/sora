@@ -1,5 +1,5 @@
-import { animeTitles } from '../anilist-text';
-import type { AniListAnime } from '../anilist-types';
+import { animeTitles } from '../anilist/anilist-text';
+import type { AniListAnime } from '../anilist/anilist-types';
 import type { Candidate } from './types';
 
 const romanReleaseSuffix = /\s+(ii|iii|iv|v|vi|vii|viii|ix|x)$/;

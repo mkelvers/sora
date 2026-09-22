@@ -1,5 +1,5 @@
-import { animeTitles } from '../anilist-text';
-import type { AniListAnime } from '../anilist-types';
+import { animeTitles } from '../anilist/anilist-text';
+import type { AniListAnime } from '../anilist/anilist-types';
 import { animeDate } from '../date';
 import { episodeTitleKey } from '../../providers/matching';
 import { create } from './client';
