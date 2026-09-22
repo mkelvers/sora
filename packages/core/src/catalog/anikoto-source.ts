@@ -18,7 +18,7 @@ import { storedAnimeRelease } from './anilist/anilist-release';
 import { getAniKotoSimulcastPage } from '../providers/anikoto';
 import { enrichAnimeCards } from './card-enrichment';
 import { withAnimeSearchMetadata } from './search-enrichment';
-import { getArtwork } from './tmdb';
+import { getArtwork } from './tmdb/artwork';
 import { resolveHeroSynopsis } from './synopsis';
 import { getContinueWatchingCards } from '../user/progress/store';
 
