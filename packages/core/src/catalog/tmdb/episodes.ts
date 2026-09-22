@@ -1,5 +1,5 @@
 import { inflateSync } from 'node:zlib';
-import type { AniListAnime } from '../anilist-types';
+import type { AniListAnime } from '../anilist/anilist-types';
 import { z } from 'zod';
 import { animeDate } from '../date';
 import type { ProviderEpisode } from '../../providers/types';

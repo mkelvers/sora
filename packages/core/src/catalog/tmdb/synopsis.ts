@@ -1,4 +1,4 @@
-import type { AniListAnime } from '../anilist-types';
+import type { AniListAnime } from '../anilist/anilist-types';
 import { create } from './client';
 import { resolveStored } from './mapping';
 

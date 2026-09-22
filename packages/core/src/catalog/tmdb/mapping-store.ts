@@ -9,8 +9,8 @@ import {
     animeExternalIdLink,
     animeMappingOverride,
 } from '@soraorg/shared/db/schema';
-import { animeTitles } from '../anilist-text';
-import type { AniListAnime } from '../anilist-types';
+import { animeTitles } from '../anilist/anilist-text';
+import type { AniListAnime } from '../anilist/anilist-types';
 import { anilistIdentityCondition } from '../identity';
 import { type Mapping, type StoredMapping } from './types';
 
