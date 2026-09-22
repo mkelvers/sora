@@ -11,18 +11,36 @@ import {
 
 type StreamFetch = (target: URL, init: RequestInit) => Promise<Response>;
 type StreamBody = 'playlist' | 'segment' | 'subtitle';
+type StreamReadResult =
+    | {
+          done: true;
+          value?: undefined;
+      }
+    | {
+          done: false;
+          value: Uint8Array<ArrayBuffer>;
+      };
 
 type StreamProxyFailure =
     | { kind: 'missing-source' }
     | { kind: 'invalid-source' }
     | { kind: 'unsupported-host' }
-    | { kind: 'upstream'; status: number | null }
+    | {
+          kind: 'upstream';
+          status: number | null;
+      }
     | { kind: 'redirect-limit' }
     | { kind: 'unsupported-redirect' }
     | { kind: 'invalid-playlist' }
     | { kind: 'invalid-segment' }
-    | { kind: 'body-too-large'; body: StreamBody }
-    | { kind: 'body-timeout'; body: StreamBody };
+    | {
+          kind: 'body-too-large';
+          body: StreamBody;
+      }
+    | {
+          kind: 'body-timeout';
+          body: StreamBody;
+      };
 
 export class StreamProxyError extends Error {
     constructor(readonly reason: StreamProxyFailure) {
@@ -69,7 +87,10 @@ async function upstreamResponse(target: URL, range: string | null, fetchStream: 
             signal: AbortSignal.timeout(requestTimeoutMs),
         });
     } catch {
-        throw new StreamProxyError({ kind: 'upstream', status: null });
+        throw new StreamProxyError({
+            kind: 'upstream',
+            status: null,
+        });
     }
 }
 
@@ -83,9 +104,15 @@ async function fetchProviderResourceOnce(
         const response = await upstreamResponse(target, range, fetchStream);
         if (response.status < 300 || response.status >= 400) {
             if (!response.ok && response.status !== 206) {
-                throw new StreamProxyError({ kind: 'upstream', status: response.status });
+                throw new StreamProxyError({
+                    kind: 'upstream',
+                    status: response.status,
+                });
             }
-            return { response, target };
+            return {
+                response,
+                target,
+            };
         }
 
         const location = response.headers.get('location');
@@ -129,14 +156,23 @@ async function fetchProviderResource(
         }
     }
 
-    throw lastFailure ?? new StreamProxyError({ kind: 'upstream', status: null });
+    throw (
+        lastFailure ??
+        new StreamProxyError({
+            kind: 'upstream',
+            status: null,
+        })
+    );
 }
 
 async function boundedBytes(response: Response, maximumBytes: number, body: StreamBody) {
     const requestTimeoutMs = 10_000;
     const contentLength = Number(response.headers.get('content-length'));
     if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
-        throw new StreamProxyError({ kind: 'body-too-large', body });
+        throw new StreamProxyError({
+            kind: 'body-too-large',
+            body,
+        });
     }
     if (!response.body) {
         return new Uint8Array();
@@ -147,14 +183,20 @@ async function boundedBytes(response: Response, maximumBytes: number, body: Stre
     let size = 0;
     try {
         while (true) {
-            let timer: ReturnType<typeof setTimeout> | undefined;
+            let timer: NodeJS.Timeout | undefined;
             const timeout = new Promise<never>((_, reject) => {
                 timer = setTimeout(
-                    () => reject(new StreamProxyError({ kind: 'body-timeout', body })),
+                    () =>
+                        reject(
+                            new StreamProxyError({
+                                kind: 'body-timeout',
+                                body,
+                            })
+                        ),
                     requestTimeoutMs
                 );
             });
-            let result: Awaited<ReturnType<typeof reader.read>>;
+            let result: StreamReadResult;
             try {
                 // Time out stalled reads individually so a steadily streaming body may take longer overall.
                 result = await Promise.race([reader.read(), timeout]);
@@ -171,7 +213,10 @@ async function boundedBytes(response: Response, maximumBytes: number, body: Stre
             size += result.value.byteLength;
             if (size > maximumBytes) {
                 await reader.cancel();
-                throw new StreamProxyError({ kind: 'body-too-large', body });
+                throw new StreamProxyError({
+                    kind: 'body-too-large',
+                    body,
+                });
             }
             chunks.push(result.value);
         }
@@ -263,7 +308,10 @@ async function proxiedResponse(target: URL, response: Response) {
         headers.set('Cache-Control', 'no-store');
         headers.set('Content-Type', 'text/vtt; charset=utf-8');
         const body = await boundedText(response, streamLimits.subtitle, 'subtitle');
-        return new Response(body, { status: response.status, headers });
+        return new Response(body, {
+            status: response.status,
+            headers,
+        });
     }
 
     const isDisguisedSegment =
@@ -285,20 +333,29 @@ async function proxiedResponse(target: URL, response: Response) {
                     controller.close();
                 },
             }),
-            { status: response.status, headers }
+            {
+                status: response.status,
+                headers,
+            }
         );
     }
 
     const contentLength = Number(response.headers.get('content-length'));
     if (Number.isFinite(contentLength) && contentLength > streamLimits.segment) {
-        throw new StreamProxyError({ kind: 'body-too-large', body: 'segment' });
+        throw new StreamProxyError({
+            kind: 'body-too-large',
+            body: 'segment',
+        });
     }
     headers.set('Content-Type', response.headers.get('content-type') ?? 'application/octet-stream');
     const length = response.headers.get('content-length');
     if (length) {
         headers.set('Content-Length', length);
     }
-    return new Response(response.body, { status: response.status, headers });
+    return new Response(response.body, {
+        status: response.status,
+        headers,
+    });
 }
 
 /**

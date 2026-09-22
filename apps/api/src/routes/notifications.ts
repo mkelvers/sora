@@ -25,7 +25,12 @@ notifications.post('/:id/read', async (context) => {
     const parsed = idSchema.safeParse(context.req.param());
     if (!parsed.success) {
         return context.json(
-            { error: { code: 'INVALID_REQUEST', message: 'Invalid notification' } },
+            {
+                error: {
+                    code: 'INVALID_REQUEST',
+                    message: 'Invalid notification',
+                },
+            },
             400
         );
     }
