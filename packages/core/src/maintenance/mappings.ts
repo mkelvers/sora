@@ -203,12 +203,7 @@ async function removeStoredTmdbMapping(anilistId: number) {
         .select({ id: animeExternalId.id })
         .from(animeExternalId)
         .innerJoin(animeExternalIdLink, eq(animeExternalIdLink.externalIdId, animeExternalId.id))
-        .where(
-            and(
-                eq(animeExternalIdLink.animeId, animeId),
-                eq(animeExternalId.provider, 'tmdb')
-            )
-        );
+        .where(and(eq(animeExternalIdLink.animeId, animeId), eq(animeExternalId.provider, 'tmdb')));
     if (ids.length) {
         await db.delete(animeExternalIdLink).where(
             and(
