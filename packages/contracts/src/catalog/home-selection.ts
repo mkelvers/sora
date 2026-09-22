@@ -1,6 +1,6 @@
 import type { MediaFormat } from '@soraorg/contracts/graphql/anilist';
 
-import { isDiscoverableAnime } from './discovery';
+import { isDiscoverableAnime } from './discovery.js';
 
 export interface HomeHeroCandidate {
     anilistId: number;

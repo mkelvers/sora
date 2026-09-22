@@ -1,6 +1,6 @@
-import { episodeAudioAvailabilityLabel, type AudioMode } from '../../audio';
-import type { FranchiseOrder } from '../../types';
-import { watchEpisodeHref } from '../episode-route';
+import { episodeAudioAvailabilityLabel, type AudioMode } from '../../audio.js';
+import type { FranchiseOrder } from '../../types.js';
+import { watchEpisodeHref } from '../episode-route.js';
 
 export type FranchisePlaybackEpisode = {
     anilistId: number;

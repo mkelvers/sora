@@ -1,4 +1,4 @@
-import type { FranchiseOrder } from '../../types';
+import type { FranchiseOrder } from '../../types.js';
 import { z } from 'zod';
 
 const franchiseOrderSchema = z

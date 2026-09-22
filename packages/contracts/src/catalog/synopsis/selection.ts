@@ -1,4 +1,4 @@
-import type { AniListAnime } from '../anilist-types';
+import type { AniListAnime } from '../anilist-types.js';
 
 export const minimumInformativeHeroSynopsisLength = 160;
 

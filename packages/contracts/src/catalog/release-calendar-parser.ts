@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ReleaseCalendarPageQuery } from '@soraorg/contracts/graphql/anilist';
-import { mediaTitle, plainText } from './anilist-text';
+import { mediaTitle, plainText } from './anilist-text.js';
 
 const releaseCalendarPageSchema = z.object({
     Page: z.object({
