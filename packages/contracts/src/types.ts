@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { AudioMode } from './audio';
+import type { AudioMode } from './audio.js';
 import type { MediaFormat, MediaRelation, MediaStatus } from '@soraorg/contracts/graphql/anilist';
 
 export const AnimeCardSchema = z.object({
