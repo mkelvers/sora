@@ -46,7 +46,6 @@ export * from './catalog/stored-anime-details';
 export * from './catalog/source';
 export * from './contracts';
 export * from './application/anime';
-export * from './application/logger';
 export * from './maintenance/maintenance';
 export * from './maintenance/run';
 export * from './maintenance/airing-policy';
