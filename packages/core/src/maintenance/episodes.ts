@@ -4,17 +4,14 @@ import { db } from '@soraorg/database';
 import { animeEpisodeTarget } from '@soraorg/database/schema';
 import { refreshAnimeSchedule, storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { confirmScheduledEpisode } from '../catalog/episode-sync';
-import { nextEpisodeAttemptAt } from './policy';
+import { nextEpisodeAttemptAt, schedulerPolicy } from './policy';
 import { scheduleReleaseTargets } from './targets';
 import { enqueueScheduleDiscovery } from './schedule-repair';
 
-interface SchedulerLimits {
-    concurrency: number;
-    maxClaimedTargets: number;
-    claimingWindowMs: number;
-    leaseDurationMs: number;
-    leaseRenewalMs: number;
-}
+type SchedulerLimits = Pick<
+    ReturnType<typeof schedulerPolicy>,
+    'concurrency' | 'maxClaimedTargets' | 'claimingWindowMs' | 'leaseDurationMs' | 'leaseRenewalMs'
+>;
 
 type ClaimedTarget = Pick<
     typeof animeEpisodeTarget.$inferSelect,

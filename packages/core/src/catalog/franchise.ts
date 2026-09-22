@@ -16,7 +16,7 @@ import { plainText } from './anilist/anilist-text';
 import { enrichAnimeCards } from './card-enrichment';
 import { fetchOrder, type ChiakiEntry } from './franchise/chiaki';
 import { FranchiseRecordSchema, type FranchiseOrder } from './franchise/schema';
-import { primaryFranchiseIds } from './franchise/selection';
+import { primaryFranchiseIds, type FranchiseSelectionEntry } from './franchise/selection';
 
 type FranchiseMedia = NonNullable<NonNullable<FranchiseMediaQuery['Page']>['media']>[number];
 
@@ -161,11 +161,7 @@ async function refresh(tx: DatabaseTransaction, malId: number) {
     const primaryIds = primaryFranchiseIds(
         entries.flatMap((entry): FranchiseSelectionEntry[] => {
             const media = metadata.get(entry.malId);
-            if (
-                !media ||
-                media.status === 'NOT_YET_RELEASED' ||
-                media.format === 'MUSIC'
-            ) {
+            if (!media || media.status === 'NOT_YET_RELEASED' || media.format === 'MUSIC') {
                 return [];
             }
 
