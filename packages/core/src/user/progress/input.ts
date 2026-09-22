@@ -31,6 +31,8 @@ export function parsePlaybackProgress(value: JsonValue): PlaybackProgressInput |
     const parsed = playbackProgressSchema.safeParse(value);
     if (
         !parsed.success ||
+        // Allow small client clock skew, but reject future checkpoints that
+        // could otherwise win conflict resolution over real playback progress.
         parsed.data.eventAt > Date.now() + 5 * 60 * 1_000 ||
         parsed.data.sessionStartedAt > Date.now() + 5 * 60 * 1_000 ||
         parsed.data.sessionStartedAt > parsed.data.eventAt
@@ -42,6 +44,8 @@ export function parsePlaybackProgress(value: JsonValue): PlaybackProgressInput |
         animeId: parsed.data.animeId,
         episodeId: parsed.data.episodeId,
         episodeNumber: parsed.data.episodeNumber,
+        // Clamp browser-reported position so malformed clients cannot persist a
+        // checkpoint beyond the episode's own reported duration.
         positionSeconds: Math.min(parsed.data.positionSeconds, parsed.data.durationSeconds),
         durationSeconds: parsed.data.durationSeconds,
         completed: parsed.data.completed,
