@@ -988,12 +988,7 @@ export const notification = pgTable(
     'notification',
     {
         id: uuid('id').primaryKey().defaultRandom(),
-        userId: uuid('user_id')
-            .notNull()
-            .references(() => users.id, { onDelete: 'cascade' }),
-        animeId: integer('anime_id')
-            .notNull()
-            .references(() => anime.id, { onDelete: 'cascade' }),
+        ...userAnimeFields(),
         type: notificationType('type').notNull(),
         episodeId: text('episode_id').notNull(),
         episodeNumber: doublePrecision('episode_number').notNull(),
@@ -1017,16 +1012,7 @@ export const notification = pgTable(
 export const animeInterestDirty = pgTable(
     'anime_interest_dirty',
     {
-        userId: uuid('user_id')
-            .notNull()
-            .references(() => users.id, {
-                onDelete: 'cascade',
-            }),
-        animeId: integer('anime_id')
-            .notNull()
-            .references(() => anime.id, {
-                onDelete: 'cascade',
-            }),
+        ...userAnimeFields(),
         dirtyAt: timestamp('dirty_at', {
             withTimezone: true,
         })
