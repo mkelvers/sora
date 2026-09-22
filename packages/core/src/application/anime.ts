@@ -1,6 +1,5 @@
 import type { AudioMode } from '../audio';
 import { toAnimeDetails } from '../catalog/details';
-import type { AnimeEpisode } from '../types';
 import {
     getEpisodeRevision,
     getRelatedReleaseTitles,
@@ -40,18 +39,6 @@ import { getStoredMedia, refreshArtwork, selectArtwork, setLogoSize } from '../c
 import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progress/store';
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
-
-function withMovieBackdrop(
-    anime: { format: string | null },
-    episodes: AnimeEpisode[],
-    backdrop: string | null | undefined
-) {
-    if (anime.format !== 'MOVIE' || !backdrop) {
-        return episodes;
-    }
-
-    return episodes.map((episode) => ({ ...episode, image: backdrop }));
-}
 
 export async function animePageOverview(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
@@ -106,16 +93,17 @@ async function storedAnimePage(
         ...episode,
         progress: episodeProgress.get(episode.id) ?? null,
     }));
+    // Movies have no episode-specific still, so use the selected movie backdrop for their rows.
+    const backdrop =
+        anime.format === 'MOVIE' ? artwork?.artwork.selectedBackdrop?.url : undefined;
     const details = toAnimeDetails(anime, synopsis, storedAiringSchedule);
     return {
         anime: details,
         episodeRevision,
         watchlistState,
-        episodes: withMovieBackdrop(
-            anime,
-            episodesWithProgress,
-            artwork?.artwork.selectedBackdrop?.url
-        ),
+        episodes: backdrop
+            ? episodesWithProgress.map((episode) => ({ ...episode, image: backdrop }))
+            : episodesWithProgress,
         audio: [...new Set(episodesWithProgress.flatMap(({ audio }) => audio))],
         episodeInventory,
         franchise,
@@ -227,7 +215,7 @@ export async function animePageDeferred(userId: string | undefined, id: number) 
 
     return {
         anime: details,
-        episodes: withMovieBackdrop(anime, episodes, null),
+        episodes,
         audio: [...new Set(episodes.flatMap(({ audio }) => audio))],
         episodeInventory,
         franchise,
@@ -355,12 +343,11 @@ export async function watchPage(userId: string | undefined, id: number, episodeI
         getPlaybackProgress(userId, id),
         getEpisodePlaybackProgress(userId, id),
     ]);
-    const episodes = withMovieBackdrop(
-        anime,
-        context.episodes,
-        storedMedia?.artwork.selectedBackdrop?.url
-    ).map((episode) => ({
+    const backdrop =
+        anime.format === 'MOVIE' ? storedMedia?.artwork.selectedBackdrop?.url : undefined;
+    const episodes = context.episodes.map((episode) => ({
         ...episode,
+        ...(backdrop ? { image: backdrop } : {}),
         progress: episodeProgress.get(episode.id) ?? null,
     }));
     const currentEpisode = episodes[currentIndex];
