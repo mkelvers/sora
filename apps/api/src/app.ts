@@ -1,12 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-import {
-    GraphQLRequestError,
-    isAniKotoTransientError,
-    logger,
-    TargetEpisodeUnavailableError,
-} from '@soraorg/core/server';
+import { GraphQLRequestError } from '@soraorg/core/catalog/anilist/graphql/error';
+import { TargetEpisodeUnavailableError } from '@soraorg/core/catalog/episode-sync';
+import { isAniKotoTransientError } from '@soraorg/core/providers/anikoto';
 import { auth } from './auth';
 import { origin } from './http';
 import { accounts } from './routes/accounts';
@@ -71,7 +68,6 @@ app.notFound((context) =>
 );
 app.onError((cause, context) => {
     if (cause instanceof TargetEpisodeUnavailableError) {
-        logger.debug(cause.message);
         return context.json(
             {
                 error: {
@@ -84,10 +80,6 @@ app.onError((cause, context) => {
     }
 
     if (isAniKotoTransientError(cause)) {
-        logger.error(
-            `${context.req.method} ${context.req.path} failed: AniKoto is temporarily unavailable`,
-            cause instanceof Error ? cause.message : String(cause)
-        );
         return context.json(
             {
                 error: {
@@ -103,10 +95,6 @@ app.onError((cause, context) => {
         cause instanceof GraphQLRequestError &&
         (cause.status === 429 || cause.status === undefined || cause.status >= 500)
     ) {
-        logger.error(
-            `${context.req.method} ${context.req.path} failed: AniList is temporarily unavailable`,
-            cause.message
-        );
         return context.json(
             {
                 error: {
@@ -118,10 +106,6 @@ app.onError((cause, context) => {
         );
     }
 
-    logger.error(
-        `${context.req.method} ${context.req.path} failed: unhandled API request failure`,
-        cause instanceof Error ? cause.message : String(cause)
-    );
     return context.json(
         {
             error: {
