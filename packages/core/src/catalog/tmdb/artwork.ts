@@ -1,8 +1,8 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { db } from '@soraorg/shared/db';
-import { animeArtwork, animeArtworkPreference, animeArtworkSync } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeArtwork, animeArtworkPreference, animeArtworkSync } from '@soraorg/database/schema';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { create, imageUrl } from './client';
 import { tmdbImageFields } from './image';

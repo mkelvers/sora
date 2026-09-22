@@ -2,16 +2,16 @@ import { randomUUID } from 'node:crypto';
 
 import { and, count, eq, gt, isNotNull, isNull, lte, or } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeEpisodeTarget,
     animeReleaseRequest,
     anilistRequestState,
     maintenanceTask,
     schedulerHeartbeat,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { refreshAnimeRelease } from '../catalog/anilist/anilist-release';
-import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
+import { GraphQLRequestError } from '../catalog/anilist/graphql/error';
 import { drainEpisodeTargets } from './episodes';
 import { refreshCatalogSnapshots } from './catalog';
 import { drainMaintenanceTasks } from './maintenance';

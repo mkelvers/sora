@@ -1,7 +1,7 @@
 import { createCatalogApplication } from '../catalog/application';
 import { eq, isNotNull } from 'drizzle-orm';
-import { db } from '@soraorg/shared/db';
-import { animeFranchise, animeRelease } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeFranchise, animeRelease } from '@soraorg/database/schema';
 import { getAnimeRelease } from '../catalog/anilist/anilist-release';
 import { refreshHomeHeroCandidates } from '../catalog/anilist/anilist-hero';
 import { refreshFranchiseOrder } from '../catalog/franchise';

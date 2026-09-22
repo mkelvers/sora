@@ -1,5 +1,5 @@
-import { db } from '@soraorg/shared/db';
-import { maintenanceTask } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { maintenanceTask } from '@soraorg/database/schema';
 import { ne } from 'drizzle-orm';
 import type { MaintenanceRequest } from '../contracts/maintenance';
 

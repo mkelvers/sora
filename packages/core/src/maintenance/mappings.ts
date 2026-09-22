@@ -1,11 +1,11 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeExternalId,
     animeExternalIdLink,
     animeMappingOverride,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { animeTitles } from '../catalog/anilist/anilist-text';
 import { enqueueEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { storedAnimeRelease } from '../catalog/anilist/anilist-release';

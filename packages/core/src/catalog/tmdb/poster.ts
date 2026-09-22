@@ -3,13 +3,13 @@ import { alias } from 'drizzle-orm/pg-core';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeArtworkSource,
     animeExternalId,
     animeExternalIdLink,
     animeReleasePoster,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { create, imageUrl } from './client';
 import { tmdbImageFields } from './image';
