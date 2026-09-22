@@ -10,9 +10,7 @@ const playbackInputSchema = z.strictObject({
     streams: z.record(z.string(), z.array(z.unknown())),
 });
 
-type PlaybackResponseInput = {
-    error: boolean;
-    skipTimes?: z.infer<typeof EpisodeSkipTimesSchema> | null;
+type PlaybackResponseInput = Omit<z.input<typeof playbackInputSchema>, 'streams'> & {
     streams: object;
 };
 
