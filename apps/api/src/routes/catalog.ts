@@ -3,6 +3,8 @@ import type { Context } from 'hono';
 import { z } from 'zod';
 
 import { parseBrowseFilters } from '@soraorg/core/catalog/browse-filters';
+import { createCatalogApplication } from '@soraorg/core/catalog/application';
+import { createCatalogSource } from '@soraorg/core/catalog/source';
 import {
     AnimeIdSchema,
     PageQuerySchema,
@@ -12,7 +14,8 @@ import {
 import { clearPlaybackProgress } from '@soraorg/core/user/progress/store';
 
 import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
-import { catalogApplication } from '../catalog';
+
+const catalogApplication = createCatalogApplication(createCatalogSource());
 
 const SimulcastQuerySchema = PageQuerySchema.extend({
     season: z.string().optional(),

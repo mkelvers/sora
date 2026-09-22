@@ -22,9 +22,6 @@ import { resolveStored } from './mapping';
 import { releaseSequence } from './title';
 import type { EpisodeCandidate, EpisodeMetadata, StoredEpisodeText, StoredMapping } from './types';
 
-const tmdbObjectSchema = z.looseObject({});
-type TmdbObject = Record<string, unknown>;
-
 interface MetadataEntry {
     id: string;
     metadata: EpisodeMetadata;
@@ -48,16 +45,7 @@ const episodeSchema = z.object({
     season_number: z.number(),
     still_path: z.string().nullish(),
 });
-interface TmdbEpisode {
-    air_date?: string | null;
-    episode_number: number;
-    id?: number | null;
-    name?: string | null;
-    overview?: string | null;
-    runtime?: number | null;
-    season_number: number;
-    still_path?: string | null;
-}
+type TmdbEpisode = z.infer<typeof episodeSchema>;
 
 /**
  * Inflate an RGBA PNG and reverse its per-row PNG filters.
@@ -227,7 +215,7 @@ function displayAirDate(value: string | null | undefined) {
     return year && month && day ? `${month}/${day}/${year}` : '';
 }
 
-function featuredEpisode(value: TmdbObject) {
+function featuredEpisode(value: unknown) {
     const parsed = featuredEpisodeSchema.safeParse(value);
     if (!parsed.success) {
         return null;
@@ -259,7 +247,7 @@ function episodeCandidate(episode: TmdbEpisode): EpisodeCandidate {
     };
 }
 
-function parseEpisodeCandidate(value: TmdbObject) {
+function parseEpisodeCandidate(value: unknown) {
     const parsed = episodeSchema.safeParse(value);
     return parsed.success ? episodeCandidate(parsed.data) : null;
 }
@@ -326,8 +314,7 @@ async function episodeGroupCandidates(
     const blocks: EpisodeGroupBlock[] = groups.flatMap((group) =>
         (group?.groups ?? []).map((block) => ({
             episodes: (block.episodes ?? []).flatMap((episode, index) => {
-                const parsed = tmdbObjectSchema.safeParse(episode);
-                const candidate = parsed.success ? parseEpisodeCandidate(parsed.data) : null;
+                const candidate = parseEpisodeCandidate(episode);
                 return candidate
                     ? [
                           {
@@ -551,8 +538,7 @@ export async function getEpisodeMetadata(
             }
 
             return (response.data.episodes ?? []).flatMap((episode) => {
-                const parsed = tmdbObjectSchema.safeParse(episode);
-                const candidate = parsed.success ? parseEpisodeCandidate(parsed.data) : null;
+                const candidate = parseEpisodeCandidate(episode);
                 return candidate ? [candidate] : [];
             });
         }),
@@ -667,8 +653,7 @@ export async function getEpisodeMetadata(
             ]);
             const featured = [series.last_episode_to_air, series.next_episode_to_air]
                 .map((value) => {
-                    const parsed = tmdbObjectSchema.safeParse(value);
-                    return parsed.success ? featuredEpisode(parsed.data) : null;
+                    return featuredEpisode(value);
                 })
                 .find(
                     (episode) =>

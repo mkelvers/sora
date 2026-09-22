@@ -41,41 +41,6 @@ export function episodeInventoryCoversTarget(
     );
 }
 
-export function episodeInventoryNeedsDiscovery(
-    anime: Pick<AniListAnime, 'status' | 'format' | 'episodes' | 'nextAiringEpisode'>,
-    storedEpisodes: readonly {
-        number: number;
-        id?: string;
-    }[],
-    nextRefreshAt?: Date | null,
-    now = Date.now()
-) {
-    if (anime.status === 'NOT_YET_RELEASED') {
-        return false;
-    }
-    if (anime.status === 'RELEASING') {
-        const available = availableEpisodeCount(anime);
-        return (
-            (available !== null && !episodeInventoryCoversTarget(storedEpisodes, available)) ||
-            (nextRefreshAt !== undefined &&
-                (nextRefreshAt === null || nextRefreshAt.getTime() <= now))
-        );
-    }
-    if (storedEpisodes.length === 0) {
-        return true;
-    }
-
-    const expected = providerEpisodeCount(anime);
-    return (
-        anime.status === 'FINISHED' &&
-        expected !== null &&
-        (storedEpisodes.length !== expected ||
-            !episodeInventoryCoversTarget(storedEpisodes, expected) ||
-            (nextRefreshAt !== undefined &&
-                (nextRefreshAt === null || nextRefreshAt.getTime() <= now)))
-    );
-}
-
 export function availableEpisodeCount(anime: Pick<AniListAnime, 'status' | 'nextAiringEpisode'>) {
     if (anime.status !== 'RELEASING' || !anime.nextAiringEpisode?.episode) {
         return null;
