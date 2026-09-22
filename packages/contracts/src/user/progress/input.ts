@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { JsonValue } from '../utils';
+import type { JsonValue } from '../utils.js';
 
 export interface PlaybackProgressInput {
     animeId: number;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AnimeCardSchema } from './types';
+import { AnimeCardSchema } from './types.js';
 
 export interface SearchArtwork {
     group: string;
