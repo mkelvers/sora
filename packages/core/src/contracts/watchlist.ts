@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const WatchlistStateSchema = z.enum(['watching', 'plan_to_watch', 'completed', 'dropped']);
 
+/** Query filters for a watchlist; `all` selects entries across every state. */
 export const WatchlistSelectionSchema = z.object({
     state: WatchlistStateSchema.or(z.literal('all')),
     sort: z.enum(['updated', 'added', 'alphabetical']),

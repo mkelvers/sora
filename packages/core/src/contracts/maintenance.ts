@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const animeId = z.number().int().positive();
+/** Discriminated payloads accepted when enqueueing administrative maintenance work. */
 export const MaintenanceRequestSchema = z.discriminatedUnion('kind', [
     z.object({
         kind: z.literal('release_refresh'),
