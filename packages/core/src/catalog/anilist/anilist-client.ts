@@ -118,7 +118,7 @@ async function refresh<TResult, TVariables>(
             const fallback = await requestKitsu(operation, variables, options.timeoutMs);
             // Fallback data must not overwrite a durable AniList query snapshot.
             return fallback as TResult;
-        } catch (fallbackCause) {
+        } catch {
             // Keep the primary error and its Retry-After information for existing callers.
             throw cause;
         }
