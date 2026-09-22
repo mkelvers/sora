@@ -4,7 +4,7 @@ import type {
     MediaFormat,
 } from '@soraorg/shared/graphql/generated/graphql';
 import { z } from 'zod';
-import { animeTitles, mediaTitle, plainText } from './anilist-text';
+import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';
 import type { BrowseCatalogEntry } from './browse-types';
 

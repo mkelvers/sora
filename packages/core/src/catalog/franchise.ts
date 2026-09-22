@@ -12,8 +12,8 @@ import {
     animeProviderMapping,
     animeRelease,
 } from '@soraorg/shared/db/schema';
-import { request } from './anilist-client';
-import { plainText } from './anilist-text';
+import { request } from './anilist/anilist-client';
+import { plainText } from './anilist/anilist-text';
 import { enrichAnimeCards } from './card-enrichment';
 import { fetchOrder, type ChiakiEntry } from './franchise/chiaki';
 import { FranchiseRecordSchema, verifiedFranchiseRecord } from './franchise/record';

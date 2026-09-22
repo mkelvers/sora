@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AniListAnimeSchema } from './anilist-types';
+import { AniListAnimeSchema } from './anilist/anilist-types';
 
 const identifierSchema = z.object({ type: z.string(), id: z.string().regex(/^[1-9]\d*$/) });
 const resourceSchema = identifierSchema.extend({

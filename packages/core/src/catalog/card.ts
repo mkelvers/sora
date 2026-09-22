@@ -1,5 +1,5 @@
 import type { AnimeCard } from '../types';
-import { mediaTitle, plainText } from './anilist-text';
+import { mediaTitle, plainText } from './anilist/anilist-text';
 
 interface CardMedia {
     id: number;

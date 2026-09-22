@@ -1,4 +1,4 @@
-import type { AniListAnime, AnimeMetadataField } from './anilist-types';
+import type { AniListAnime, AnimeMetadataField } from './anilist/anilist-types';
 
 export interface AnimeReleaseSnapshot {
     provider: string;

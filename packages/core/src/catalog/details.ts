@@ -1,4 +1,4 @@
-import type { AniListAnimeDetailsMedia } from './anilist-types';
+import type { AniListAnimeDetailsMedia } from './anilist/anilist-types';
 
 const count = new Intl.NumberFormat('en', {
     maximumFractionDigits: 1,
