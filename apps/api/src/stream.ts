@@ -6,6 +6,7 @@ import {
     isAniKotoDisguisedSegmentHost,
     normalizeAniKotoMediaUrl,
     unwrapAniKotoDisguisedSegment,
+    concatByteChunks,
 } from '@soraorg/core/server';
 
 type StreamFetch = (target: URL, init: RequestInit) => Promise<Response>;
@@ -177,13 +178,7 @@ async function boundedBytes(response: Response, maximumBytes: number, body: Stre
         reader.releaseLock();
     }
 
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-    }
-    return bytes;
+    return concatByteChunks(chunks, size);
 }
 
 async function boundedText(response: Response, maximumBytes: number, body: StreamBody) {
