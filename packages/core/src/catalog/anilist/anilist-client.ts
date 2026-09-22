@@ -18,12 +18,14 @@ import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types'
 /** Controls AniList snapshot freshness and the underlying GraphQL request. */
 export interface AniListRequestOptions extends GraphQLOptions {
     /** Snapshot lifetime in milliseconds. Must be a positive safe integer; defaults to one day. */
+
     refreshAfterMs?: number;
     /** Bypass fresh snapshots and require a successful upstream refresh. */
+
     forceRefresh?: boolean;
 }
 
-type JsonValue = z.infer<ReturnType<typeof z.json>>;
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 function jsonRecord(value: JsonValue | undefined) {
     const parsed = z.record(z.string(), z.json()).safeParse(value);
@@ -131,12 +133,20 @@ async function refresh<TResult, TVariables>(
     try {
         await tx
             .insert(anilistQuerySnapshot)
-            .values({ key, data, refreshAfter, fetchedAt })
+            .values({
+                key,
+                data,
+                refreshAfter,
+                fetchedAt,
+            })
             .onConflictDoUpdate({
                 target: anilistQuerySnapshot.key,
+
                 set: {
                     data,
+
                     refreshAfter,
+
                     fetchedAt,
                 },
             });
@@ -160,7 +170,9 @@ async function refreshWithLock<TResult, TVariables>(
         const [stored] = await tx
             .select({
                 data: anilistQuerySnapshot.data,
+
                 fetchedAt: anilistQuerySnapshot.fetchedAt,
+
                 refreshAfter: anilistQuerySnapshot.refreshAfter,
             })
             .from(anilistQuerySnapshot)
@@ -214,7 +226,9 @@ export async function request<TResult, TVariables>(
         const [stored] = await db
             .select({
                 data: anilistQuerySnapshot.data,
+
                 fetchedAt: anilistQuerySnapshot.fetchedAt,
+
                 refreshAfter: anilistQuerySnapshot.refreshAfter,
             })
             .from(anilistQuerySnapshot)

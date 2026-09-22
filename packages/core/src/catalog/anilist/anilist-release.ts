@@ -35,20 +35,32 @@ const animeMetadataDomain = 'anime_metadata';
 function releaseValues(media: AniListAnime, sourceFetchedAt = new Date()) {
     return {
         data: media,
+
         title: animeTitles(media)[0] ?? `Anime ${media.id}`,
+
         imageUrl:
             media.coverImage?.extraLarge ?? media.coverImage?.large ?? media.bannerImage ?? null,
+
         status: media.status,
+
         format: media.format,
+
         malId: media.idMal,
+
         episodeCount: media.episodes,
+
         durationMinutes: media.duration,
+
         nextAiringAt: media.nextAiringEpisode
             ? new Date(media.nextAiringEpisode.airingAt * 1_000)
             : null,
+
         nextAiringEpisode: media.nextAiringEpisode?.episode ?? null,
+
         schemaRevision: 1,
+
         sourceFetchedAt,
+
         updatedAt: sourceFetchedAt,
     };
 }
@@ -94,16 +106,25 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                     .insert(providerSnapshot)
                     .values({
                         provider: storedProvider,
+
                         domain: animeMetadataDomain,
+
                         subjectType: 'anime',
+
                         subjectId: String(storedMedia.data.metadataSourceId ?? storedMedia.data.id),
+
                         canonicalAnimeId: sourceAnimeId,
+
                         payload: storedMedia.data,
+
                         payloadHash: createHash('sha256')
                             .update(JSON.stringify(storedMedia.data))
                             .digest('hex'),
+
                         firstSeenAt: new Date(),
+
                         sourceFetchedAt,
+
                         updatedAt: sourceFetchedAt,
                     })
                     .onConflictDoNothing();
@@ -113,14 +134,23 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                 .insert(providerSnapshot)
                 .values({
                     provider: source,
+
                     domain: animeMetadataDomain,
+
                     subjectType: 'anime',
+
                     subjectId: sourceMediaId,
+
                     canonicalAnimeId: sourceAnimeId,
+
                     payload: media,
+
                     payloadHash,
+
                     firstSeenAt: sourceFetchedAt,
+
                     sourceFetchedAt,
+
                     updatedAt: sourceFetchedAt,
                 })
                 .onConflictDoUpdate({
@@ -131,11 +161,16 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                         providerSnapshot.subjectId,
                         providerSnapshot.variant,
                     ],
+
                     set: {
                         canonicalAnimeId: sourceAnimeId,
+
                         payload: media,
+
                         payloadHash,
+
                         sourceFetchedAt,
+
                         updatedAt: sourceFetchedAt,
                     },
                 });
@@ -143,7 +178,9 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
             const sources = await tx
                 .select({
                     provider: providerSnapshot.provider,
+
                     payload: providerSnapshot.payload,
+
                     sourceFetchedAt: providerSnapshot.sourceFetchedAt,
                 })
                 .from(providerSnapshot)
@@ -156,7 +193,14 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                 );
             const releaseSnapshots = sources.flatMap((snapshot) => {
                 const parsed = AniListAnimeSchema.safeParse(snapshot.payload);
-                return parsed.success ? [{ ...snapshot, data: parsed.data }] : [];
+                return parsed.success
+                    ? [
+                          {
+                              ...snapshot,
+                              data: parsed.data,
+                          },
+                      ]
+                    : [];
             });
             const merged = mergeAnimeReleaseSnapshots(releaseSnapshots);
             if (!merged || merged.id !== media.id) {
@@ -165,8 +209,11 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
             if (source === 'kitsu' && stored?.data && !storedMedia?.success) {
                 return {
                     effective: media,
+
                     effectiveFetchedAt: sourceFetchedAt,
+
                     relationProvider: null,
+
                     updateRelations: false,
                 };
             }
@@ -178,10 +225,15 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
 
             await tx
                 .insert(animeRelease)
-                .values({ anilistId: media.id, ...releaseValues(merged, effectiveFetchedAt) })
+                .values({
+                    anilistId: media.id,
+                    ...releaseValues(merged, effectiveFetchedAt),
+                })
                 .onConflictDoUpdate({
                     target: animeRelease.anilistId,
+
                     set: releaseValues(merged, effectiveFetchedAt),
+
                     setWhere:
                         merged.metadataSource === 'kitsu'
                             ? or(
@@ -203,24 +255,44 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
 
             return {
                 effective: merged,
+
                 effectiveFetchedAt,
+
                 relationProvider: relationSnapshotProvider(releaseSnapshots),
+
                 updateRelations: true,
             };
         });
 
     if (!updateRelations) return effective;
-    const relations: Array<typeof animeRelation.$inferInsert> = [];
+    const relations: {
+        sourceAnimeId: number;
+
+        targetAnimeId: number;
+
+        relationType: string;
+
+        source: string;
+
+        verifiedAt: Date;
+
+        updatedAt: Date;
+    }[] = [];
     for (const edge of effective.relations?.edges ?? []) {
         if (!edge?.relationType || edge.node?.type !== 'ANIME') continue;
 
         const targetAnimeId = await ensureInternalAnimeId(edge.node.id, animeTitles(edge.node)[0]);
         relations.push({
             sourceAnimeId,
+
             targetAnimeId,
+
             relationType: edge.relationType,
+
             source: relationProvider ?? 'anilist',
+
             verifiedAt: effectiveFetchedAt,
+
             updatedAt: effectiveFetchedAt,
         });
     }
@@ -302,7 +374,10 @@ export async function refreshAnimeRelease(id: number, options: { force?: boolean
     const now = new Date();
     await db
         .insert(animeReleaseRequest)
-        .values({ anilistId: id, nextAttemptAt: now })
+        .values({
+            anilistId: id,
+            nextAttemptAt: now,
+        })
         .onConflictDoNothing();
 
     if (options.force) {
@@ -328,7 +403,9 @@ export async function refreshAnimeRelease(id: number, options: { force?: boolean
             .update(animeReleaseRequest)
             .set({
                 leaseOwner: owner,
+
                 leaseUntil: new Date(claimNow.getTime() + 30_000),
+
                 lastError: null,
             })
             .where(
@@ -352,7 +429,9 @@ export async function refreshAnimeRelease(id: number, options: { force?: boolean
             db
                 .select({
                     leaseUntil: animeReleaseRequest.leaseUntil,
+
                     nextAttemptAt: animeReleaseRequest.nextAttemptAt,
+
                     lastError: animeReleaseRequest.lastError,
                 })
                 .from(animeReleaseRequest)
@@ -393,8 +472,11 @@ export async function refreshAnimeRelease(id: number, options: { force?: boolean
                     Date.now() +
                         (media.metadataSource === 'kitsu' ? 5 * 60 * 1_000 : 24 * 60 * 60 * 1_000)
                 ),
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: null,
             })
             .where(
@@ -410,12 +492,16 @@ export async function refreshAnimeRelease(id: number, options: { force?: boolean
             .update(animeReleaseRequest)
             .set({
                 attempts: claimed.attempts + 1,
+
                 nextAttemptAt: new Date(
                     Date.now() +
                         Math.min(6 * 60 * 60 * 1_000, 60_000 * 2 ** Math.min(claimed.attempts, 8))
                 ),
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: message,
             })
             .where(
@@ -447,7 +533,10 @@ export async function storedAnimeRelease(id: number) {
         db.update(animeRelease).set({ data: null }).where(eq(animeRelease.anilistId, id)),
         db
             .insert(animeReleaseRequest)
-            .values({ anilistId: id, nextAttemptAt: new Date() })
+            .values({
+                anilistId: id,
+                nextAttemptAt: new Date(),
+            })
             .onConflictDoNothing(),
     ]);
     return null;
@@ -460,6 +549,7 @@ async function storedAnimeReleaseSource(id: number, provider: string) {
     const [row] = await db
         .select({
             payload: providerSnapshot.payload,
+
             sourceFetchedAt: providerSnapshot.sourceFetchedAt,
         })
         .from(providerSnapshot)
@@ -499,8 +589,11 @@ export async function refreshAnimeSchedule(id: number) {
     const authoritative = (await storedAnimeReleaseSource(id, 'anilist')) ?? stored;
     const updated = AniListAnimeSchema.parse({
         ...authoritative,
+
         status: schedule.data.status,
+
         episodes: schedule.data.episodes,
+
         nextAiringEpisode: schedule.data.nextAiringEpisode,
     });
     await storeAnimeRelease(updated);
@@ -508,21 +601,29 @@ export async function refreshAnimeSchedule(id: number) {
         .insert(animeEpisodeSync)
         .values({
             anilistId: id,
+
             mediaStatus: updated.status,
+
             expectedEpisodes: updated.episodes,
+
             nextAiringAt: updated.nextAiringEpisode
                 ? new Date(updated.nextAiringEpisode.airingAt * 1_000)
                 : null,
+
             nextAiringEpisode: updated.nextAiringEpisode?.episode ?? null,
         })
         .onConflictDoUpdate({
             target: animeEpisodeSync.anilistId,
+
             set: {
                 mediaStatus: updated.status,
+
                 expectedEpisodes: updated.episodes,
+
                 nextAiringAt: updated.nextAiringEpisode
                     ? new Date(updated.nextAiringEpisode.airingAt * 1_000)
                     : null,
+
                 nextAiringEpisode: updated.nextAiringEpisode?.episode ?? null,
             },
         });

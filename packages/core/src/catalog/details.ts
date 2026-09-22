@@ -1,7 +1,9 @@
 import type { AniListAnimeDetailsMedia } from './anilist/anilist-types';
+import { isNotNullish } from '../collections';
 
 const count = new Intl.NumberFormat('en', {
     maximumFractionDigits: 1,
+
     notation: 'compact',
 });
 
@@ -64,7 +66,14 @@ function providerLabel(provider: string | undefined) {
 }
 
 function formatDate(
-    value: { year: number | null; month: number | null; day: number | null } | null | undefined
+    value:
+        | {
+              year: number | null;
+              month: number | null;
+              day: number | null;
+          }
+        | null
+        | undefined
 ) {
     if (!value?.year) {
         return null;
@@ -79,9 +88,7 @@ function formatDate(
 function formatStaff(media: AniListAnimeDetailsMedia) {
     const credits = new Map<string, string[]>();
 
-    for (const edge of media.staff?.edges?.filter(
-        (edge): edge is NonNullable<typeof edge> => edge !== null
-    ) ?? []) {
+    for (const edge of media.staff?.edges?.filter(isNotNullish) ?? []) {
         const name = edge.node?.name?.full?.trim();
         const role = edge.role ? staffRoles.get(edge.role) : undefined;
 
@@ -96,7 +103,7 @@ function formatStaff(media: AniListAnimeDetailsMedia) {
 function formatRankings(media: AniListAnimeDetailsMedia) {
     const rankings =
         media.rankings
-            ?.filter((ranking): ranking is NonNullable<typeof ranking> => ranking !== null)
+            ?.filter(isNotNullish)
             .filter(({ type }) => type === 'POPULAR' || type === 'RATED') ?? [];
     const popularityRankings = rankings.filter(({ type }) => type === 'POPULAR');
     const seasonal = popularityRankings.find(
@@ -120,7 +127,10 @@ function formatRankings(media: AniListAnimeDetailsMedia) {
 export function toAnimeDetails(
     media: AniListAnimeDetailsMedia,
     description = media.description,
-    storedAiringEpisode?: { episode: number; airingAt: number } | null
+    storedAiringEpisode?: {
+        episode: number;
+        airingAt: number;
+    } | null
 ) {
     const nextAiringEpisode =
         storedAiringEpisode !== undefined
@@ -128,7 +138,7 @@ export function toAnimeDetails(
             : media.nextAiringEpisode && media.nextAiringEpisode.airingAt * 1_000 > Date.now()
               ? media.nextAiringEpisode
               : null;
-    const themes = (media.tags?.filter((tag): tag is NonNullable<typeof tag> => tag !== null) ?? [])
+    const themes = (media.tags?.filter(isNotNullish) ?? [])
         .filter((tag) => !tag.isGeneralSpoiler && !tag.isMediaSpoiler)
         .sort((left, right) => (right.rank ?? 0) - (left.rank ?? 0))
         .slice(0, 5)
@@ -137,31 +147,45 @@ export function toAnimeDetails(
 
     return {
         id: media.id,
+
         title:
             media.title?.english ??
             media.title?.romaji ??
             media.title?.native ??
             `Anime ${media.id}`,
+
         bannerImage: media.bannerImage ?? null,
+
         description: formatDescription(description),
+
         genres: media.metadataSource === 'kitsu' && !sourceGenres.length ? themes : sourceGenres,
+
         format: enumLabel(media.format),
+
         status: media.status,
+
         nextAiringEpisode,
+
         score: media.averageScore,
+
         scoreSource: providerLabel(
             media.metadataFieldSources?.averageScore ?? media.metadataSource
         ),
+
         members: count.format(media.popularity ?? 0),
+
         favourites: count.format(media.favourites ?? 0),
+
         themes: media.metadataSource === 'kitsu' && !sourceGenres.length ? [] : themes,
-        studios:
-            media.studios?.nodes
-                ?.filter((studio): studio is NonNullable<typeof studio> => studio !== null)
-                .map((studio) => studio.name) ?? [],
+
+        studios: media.studios?.nodes?.filter(isNotNullish).map((studio) => studio.name) ?? [],
+
         staff: formatStaff(media),
+
         rankings: formatRankings(media),
+
         startDate: formatDate(media.startDate),
+
         endDate: formatDate(media.endDate),
     };
 }
