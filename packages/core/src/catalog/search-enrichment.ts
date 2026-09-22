@@ -4,27 +4,23 @@ import type { AudioMode } from '../audio';
 import type { AnimeSearchResult, SearchArtwork } from '../search';
 import { db } from '@soraorg/shared/db';
 import { animeEpisode } from '@soraorg/shared/db/schema';
-import { getStoredBackdropCandidates, imageUrl } from './tmdb';
+import { getStoredBackdropCandidates, imageUrl, uniqueBackdropCandidates } from './tmdb';
 
 async function storedArtwork(anilistIds: number[]) {
     const rows = await getStoredBackdropCandidates(anilistIds);
 
-    const candidates = new Map<number, SearchArtwork[]>();
-    for (const row of rows) {
-        candidates.set(row.anilistId, [
-            ...(candidates.get(row.anilistId) ?? []),
-            {
-                group: `tmdb:${row.mediaType}:${row.targetId}`,
-                backdrop: row.filePath ? imageUrl(row.filePath, 'w780') : null,
-            },
-        ]);
-    }
-
     return new Map(
-        [...candidates].flatMap(([anilistId, values]) => {
-            const groups = new Set(values.map(({ group }) => group));
-            return groups.size === 1 ? [[anilistId, values[0]] as const] : [];
-        })
+        [
+            ...uniqueBackdropCandidates(rows, (row) => `tmdb:${row.mediaType}:${row.targetId}`),
+        ].flatMap(([anilistId, row]) => [
+            [
+                anilistId,
+                {
+                    group: `tmdb:${row.mediaType}:${row.targetId}`,
+                    backdrop: row.filePath ? imageUrl(row.filePath, 'w780') : null,
+                },
+            ] as const,
+        ])
     );
 }
 
