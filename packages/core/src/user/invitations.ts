@@ -19,11 +19,7 @@ export class InvitationCompletionError extends Error {
     }
 }
 
-type CreatedAccount = {
-    id: string;
-    name: string;
-    username: string;
-};
+type CreatedAccount = Pick<typeof users.$inferSelect, 'id' | 'name' | 'username'>;
 
 export async function registerInvitedAccount(
     invitationCode: string,

@@ -80,8 +80,6 @@ const createTimestamps = () => ({
         .$onUpdate(() => new Date()),
 });
 
-type TimestampFields = ReturnType<typeof createTimestamps>;
-
 const userAnimeFields = () => ({
     userId: uuid('user_id')
         .notNull()

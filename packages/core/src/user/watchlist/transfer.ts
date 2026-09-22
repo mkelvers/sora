@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
     SearchAnimePageDocument,
     WatchlistTransferAnimeDocument,
+    type WatchlistTransferAnimeQuery,
 } from '../../catalog/anilist/graphql/graphql.generated';
 import type { WatchlistState } from '@soraorg/database/schema';
 import { positiveInteger, record, text, type JsonValue } from '../../json';
@@ -28,15 +29,9 @@ interface ImportEntry {
     titles: TransferTitles;
 }
 
-interface TransferAnime {
-    id: number;
-    idMal: number | null;
-    title: {
-        english: string | null;
-        romaji: string | null;
-        native: string | null;
-    } | null;
-}
+type TransferAnime = NonNullable<
+    NonNullable<NonNullable<WatchlistTransferAnimeQuery['mal']>['media']>[number]
+>;
 
 export class WatchlistImportError extends Error {}
 
