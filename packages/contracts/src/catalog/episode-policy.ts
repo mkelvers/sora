@@ -1,4 +1,4 @@
-import type { AniListAnime } from './anilist-types';
+import type { AniListAnime } from './anilist-types.js';
 type EpisodeRefreshReason = 'metadata-source' | 'missing' | 'scheduled';
 
 export const episodeMetadataRevision = 'tmdb-episode-v8';

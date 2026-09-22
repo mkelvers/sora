@@ -1,5 +1,5 @@
-import { animeDate, dateTimestamp } from './date';
-import type { AniListAnime } from './anilist-types';
+import { animeDate, dateTimestamp } from './date.js';
+import type { AniListAnime } from './anilist-types.js';
 
 export interface EpisodeSource {
     id: string;

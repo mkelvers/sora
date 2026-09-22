@@ -1,5 +1,5 @@
-import type { AniListAnimeDetailsMedia } from './anilist-types';
-import { decodeHtmlEntities } from './anilist-text';
+import type { AniListAnimeDetailsMedia } from './anilist-types.js';
+import { decodeHtmlEntities } from './anilist-text.js';
 
 const count = new Intl.NumberFormat('en', {
     maximumFractionDigits: 1,
