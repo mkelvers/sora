@@ -1,13 +1,13 @@
 import { asc, and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeAiringSchedule,
     animeEpisodeTarget,
     animeRelease,
     schedulerHeartbeat,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { plainText } from './anilist/anilist-text';
 import type { ReleaseCalendarEntry } from './release-calendar-parser';
 import { releaseCalendarWindow } from './release-calendar-window';

@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
-import { anime, animeExternalId, animeExternalIdLink } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { anime, animeExternalId, animeExternalIdLink } from '@soraorg/database/schema';
 
 export function anilistIdentityCondition(anilistId: number) {
     return and(

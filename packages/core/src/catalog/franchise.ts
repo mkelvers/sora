@@ -4,14 +4,14 @@ import type { FranchiseOrder } from '../types';
 import {
     FranchiseMediaDocument,
     type FranchiseMediaQuery,
-} from '@soraorg/shared/graphql/generated/graphql';
-import { db, type DatabaseTransaction } from '@soraorg/shared/db';
+} from './anilist/graphql/generated/graphql';
+import { db, type DatabaseTransaction } from '@soraorg/database';
 import {
     animeEpisode,
     animeFranchise,
     animeProviderMapping,
     animeRelease,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { request } from './anilist/anilist-client';
 import { plainText } from './anilist/anilist-text';
 import { enrichAnimeCards } from './card-enrichment';

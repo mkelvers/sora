@@ -1,13 +1,13 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import type { BrowseFilters } from './browse-filters';
 import type { BrowseCatalogEntry } from './browse-types';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeCatalog,
     animeCatalogRefresh,
     animeCatalogTaxonomy,
     animeRelease,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { createAnimeSearchIndex } from './search-index';
 import type { AnimeCard } from '../types';
 import { AniListAnimeSchema } from './anilist/anilist-types';

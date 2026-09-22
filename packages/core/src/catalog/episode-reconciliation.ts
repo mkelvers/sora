@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
-import { animeEpisode, animeEpisodeSync } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeEpisode, animeEpisodeSync } from '@soraorg/database/schema';
 import {
     canPreserveEpisodeMetadata,
     episodeMetadataRevision,
