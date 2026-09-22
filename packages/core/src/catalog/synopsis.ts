@@ -61,7 +61,11 @@ async function refreshSynopsis(anime: AniListAnime, source: AniListAnime) {
         replacement.synopsis = usefulSynopsis(replacement.synopsis);
         await db
             .insert(animeSynopsis)
-            .values({ anilistId: anime.id, ...replacement, fetchedAt: new Date() })
+            .values({
+                anilistId: anime.id,
+                ...replacement,
+                fetchedAt: new Date(),
+            })
             .onConflictDoUpdate({
                 target: animeSynopsis.anilistId,
                 set: {
@@ -103,7 +107,11 @@ async function resolvedTmdbSynopsis(
     options: { refresh?: boolean } = {}
 ) {
     let stored:
-        | { synopsis: string | null; sourceAnilistId: number | null; fetchedAt: Date }
+        | {
+              synopsis: string | null;
+              sourceAnilistId: number | null;
+              fetchedAt: Date;
+          }
         | undefined;
     try {
         [stored] = await db
@@ -178,7 +186,10 @@ export async function withAnimeCardSynopses<T extends AnimeCard>(cards: T[]) {
 
                     try {
                         const anime = await getAnimeRelease(card.id);
-                        return { ...card, synopsis: await resolveAnimeSynopsis(anime) };
+                        return {
+                            ...card,
+                            synopsis: await resolveAnimeSynopsis(anime),
+                        };
                     } catch {
                         return card;
                     }

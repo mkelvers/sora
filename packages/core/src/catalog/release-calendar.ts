@@ -22,7 +22,6 @@ function releaseCalendarWindow(now: Date) {
     // Keep both refresh and read queries aligned to the same UTC-centered window.
     return {
         from: new Date(utcWeekStart - 8 * (24 * 60 * 60 * 1_000)),
-
         to: new Date(utcWeekStart + 8 * (24 * 60 * 60 * 1_000)),
     };
 }
@@ -59,13 +58,9 @@ export function mergeReleaseCalendarEntries(
         const existing = entries.get(key);
         entries.set(key, {
             ...existing,
-
             ...target,
-
             synopsis: target.synopsis ?? existing?.synopsis ?? null,
-
             imageUrl: target.imageUrl ?? existing?.imageUrl ?? null,
-
             airingId: existing?.airingId ?? `target:${target.anilistId}:${target.episode}`,
         });
     }
@@ -90,38 +85,24 @@ export async function refreshReleaseCalendar(
                 .values(
                     entries.map((entry) => ({
                         airingId: entry.airingId,
-
                         anilistId: entry.anilistId,
-
                         episode: entry.episode,
-
                         airingAt: entry.airingAt,
-
                         title: entry.title,
-
                         synopsis: entry.synopsis,
-
                         imageUrl: entry.imageUrl,
-
                         sourceFetchedAt,
                     }))
                 )
                 .onConflictDoUpdate({
                     target: animeAiringSchedule.airingId,
-
                     set: {
                         anilistId: sql.raw(`excluded."${animeAiringSchedule.anilistId.name}"`),
-
                         episode: sql.raw(`excluded."${animeAiringSchedule.episode.name}"`),
-
                         airingAt: sql.raw(`excluded."${animeAiringSchedule.airingAt.name}"`),
-
                         title: sql.raw(`excluded."${animeAiringSchedule.title.name}"`),
-
                         synopsis: sql.raw(`excluded."${animeAiringSchedule.synopsis.name}"`),
-
                         imageUrl: sql.raw(`excluded."${animeAiringSchedule.imageUrl.name}"`),
-
                         sourceFetchedAt: sql.raw(
                             `excluded."${animeAiringSchedule.sourceFetchedAt.name}"`
                         ),
@@ -142,17 +123,11 @@ export async function releaseCalendar(now = new Date()) {
         db
             .select({
                 airingId: animeAiringSchedule.airingId,
-
                 anilistId: animeAiringSchedule.anilistId,
-
                 episode: animeAiringSchedule.episode,
-
                 airingAt: animeAiringSchedule.airingAt,
-
                 title: animeAiringSchedule.title,
-
                 synopsis: animeAiringSchedule.synopsis,
-
                 imageUrl: animeAiringSchedule.imageUrl,
             })
             .from(animeAiringSchedule)
@@ -163,15 +138,10 @@ export async function releaseCalendar(now = new Date()) {
         db
             .select({
                 anilistId: animeEpisodeTarget.anilistId,
-
                 episode: animeEpisodeTarget.targetEpisode,
-
                 airingAt: animeEpisodeTarget.airingAt,
-
                 title: animeRelease.title,
-
                 data: animeRelease.data,
-
                 imageUrl: animeRelease.imageUrl,
             })
             .from(animeEpisodeTarget)
@@ -193,24 +163,17 @@ export async function releaseCalendar(now = new Date()) {
     const events = mergeReleaseCalendarEntries(
         rows.map((row) => ({
             airingId: row.airingId,
-
             anilistId: row.anilistId,
-
             episode: row.episode,
-
             airingAt: row.airingAt,
-
             title: row.title,
-
             synopsis: row.synopsis,
-
             imageUrl: row.imageUrl,
         })),
         targets.map(({ data, ...target }) => {
             const parsed = releaseSynopsisDataSchema.safeParse(data);
             return {
                 ...target,
-
                 synopsis: persistedReleaseSynopsis(parsed.success ? parsed.data : null),
             };
         })
@@ -219,20 +182,13 @@ export async function releaseCalendar(now = new Date()) {
     return {
         events: events.map((row) => ({
             airingId: row.airingId,
-
             anilistId: row.anilistId,
-
             episode: row.episode,
-
             airingAt: row.airingAt.toISOString(),
-
             title: row.title,
-
             synopsis: row.synopsis,
-
             image: row.imageUrl,
         })),
-
         refreshedAt: heartbeat?.refreshedAt?.toISOString() ?? null,
     };
 }
