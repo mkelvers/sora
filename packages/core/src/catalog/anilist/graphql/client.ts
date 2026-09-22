@@ -9,6 +9,7 @@ export type GraphQLDocument<TResult, TVariables> = TypedDocumentString<TResult, 
 /** Controls request timeout and transient retry behavior for one GraphQL operation. */
 export interface GraphQLOptions {
     /** Maximum time in milliseconds to wait for each HTTP attempt. Defaults to 8 seconds. */
+
     timeoutMs?: number;
     /** Number of retries for network, rate-limit, and server failures. Defaults to zero. */
     retries?: number;

@@ -21,7 +21,10 @@ export async function discoverReleaseCalendar(from: Date, to: Date) {
                 airingAtGreater,
                 airingAtLesser,
             },
-            { forceRefresh: true, refreshAfterMs: 15 * 60 * 1_000 }
+            {
+                forceRefresh: true,
+                refreshAfterMs: 15 * 60 * 1_000,
+            }
         );
         const parsed = parseReleaseCalendarPage(response);
         for (const entry of parsed.entries) {

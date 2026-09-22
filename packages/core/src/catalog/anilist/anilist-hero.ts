@@ -10,7 +10,10 @@ export async function refreshHomeHeroCandidates(now = new Date()) {
     const response = await request(
         HomeHeroCandidatesDocument,
         { seasonYear: now.getUTCFullYear() },
-        { refreshAfterMs: 6 * 60 * 60 * 1_000, forceRefresh: true }
+        {
+            refreshAfterMs: 6 * 60 * 60 * 1_000,
+            forceRefresh: true,
+        }
     );
     const candidates = (response.Page?.media ?? []).flatMap((media, index) => {
         if (

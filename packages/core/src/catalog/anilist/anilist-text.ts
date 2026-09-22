@@ -1,4 +1,4 @@
-function firstNonBlank(values: ReadonlyArray<string | null | undefined>) {
+function firstNonBlank(values: readonly (string | null | undefined)[]) {
     return values.find((value) => Boolean(value?.trim())) ?? null;
 }
 
@@ -22,7 +22,7 @@ export function animeTitles(anime: {
         romaji?: string | null;
         native?: string | null;
     } | null;
-    synonyms?: ReadonlyArray<string | null> | null;
+    synonyms?: readonly (string | null)[] | null;
 }) {
     return [
         anime.title?.english,
