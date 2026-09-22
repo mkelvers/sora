@@ -11,6 +11,7 @@ import {
 } from '@soraorg/shared/db/schema';
 import { animeTitles } from '../anilist-text';
 import type { AniListAnime } from '../anilist-types';
+import { anilistIdentityCondition } from '../identity';
 import { type Mapping, type StoredMapping } from './types';
 
 export async function findMapping(anilistId: number): Promise<StoredMapping | null> {
@@ -156,13 +157,7 @@ export async function saveVerifiedMapping(
         const [anilistId] = await tx
             .select({ id: animeExternalId.id })
             .from(animeExternalId)
-            .where(
-                and(
-                    eq(animeExternalId.provider, 'anilist'),
-                    eq(animeExternalId.mediaType, 'anime'),
-                    eq(animeExternalId.externalId, anime.id)
-                )
-            )
+            .where(anilistIdentityCondition(anime.id))
             .limit(1);
 
         if (!anilistId) {
