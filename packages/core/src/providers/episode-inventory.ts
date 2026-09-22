@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
-import { animeEpisode, animeProviderMapping } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeEpisode, animeProviderMapping } from '@soraorg/database/schema';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { formatDuration } from '../catalog/duration';
 import { episodesAvailableToWatch } from './inventory';

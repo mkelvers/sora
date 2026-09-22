@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { and, eq, gt, isNotNull, isNull, or } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
-import { invitations, users } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { invitations, users } from '@soraorg/database/schema';
 
 export class InvalidInvitationError extends Error {
     constructor() {

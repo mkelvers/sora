@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import type { ContinueWatchingCard } from '../../types';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     anime as animeTable,
     animeEpisode,
@@ -9,7 +9,7 @@ import {
     animeExternalIdLink,
     animeRelease,
     playbackProgress,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { toAnimeDetails } from '../../catalog/details';
 import { formatDuration } from '../../catalog/duration';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';

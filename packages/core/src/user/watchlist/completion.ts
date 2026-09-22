@@ -1,4 +1,4 @@
-import type { WatchlistState } from '@soraorg/shared/db/schema';
+import type { WatchlistState } from '@soraorg/database/schema';
 import { coversExpectedEpisodes } from '../../providers/matching';
 
 interface Episode {

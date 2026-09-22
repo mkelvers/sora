@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import type { PlaybackProgressInput } from '../progress/input';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identity';
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     anime,
     animeCatalog,
@@ -14,7 +14,7 @@ import {
     animeRelease,
     watchlist,
     type WatchlistState,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { watchlistStateAfterPlayback } from './completion';
 import { batches } from '../utils';
 
