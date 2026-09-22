@@ -26,6 +26,8 @@ export function canPreserveEpisodeMetadata(
     previousExternalIdId: number | null,
     currentExternalIdId: number | null
 ) {
+    // A source change invalidates fields from the previous provider. A missing
+    // current source is different: transient lookup failure should not erase data.
     return currentExternalIdId === null || previousExternalIdId === currentExternalIdId;
 }
 
@@ -34,6 +36,8 @@ export function episodeMetadataNeedsRefresh(
     hasMetadataSource: boolean,
     metadataRevision: string | null | undefined = episodeMetadataRevision
 ) {
+    // Bump the revision when the required episode fields or their reconciliation
+    // rules change; stored rows at an older revision then refresh once.
     return (
         hasMetadataSource &&
         (metadataRevision !== episodeMetadataRevision ||
@@ -76,6 +80,8 @@ export function episodeRefreshRetryDelay(
     firstScheduledAt = Date.now(),
     now = Date.now()
 ) {
+    // Backoff tops out at one day and the separate lifetime/attempt caps bound
+    // how long an unavailable provider can keep an episode queued.
     const retryDelays = [
         2 * 60 * 1_000,
         5 * 60 * 1_000,
@@ -96,6 +102,8 @@ export function episodeRefreshRetryDelay(
 }
 
 export function nextRefreshAt(anime: AniListAnime, stableSince: Date) {
+    // Airing titles follow the next episode, while stable terminal states are
+    // checked less often to keep catalog freshness without constant polling.
     const now = Date.now();
     const after = (milliseconds: number) => new Date(now + milliseconds);
     const nextAiringAt = anime.nextAiringEpisode?.airingAt
