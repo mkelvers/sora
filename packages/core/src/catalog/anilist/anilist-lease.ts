@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
-import { db } from '@soraorg/shared/db';
-import { anilistRequestState } from '@soraorg/shared/db/schema';
-import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
+import { db } from '@soraorg/database';
+import { anilistRequestState } from '@soraorg/database/schema';
+import { GraphQLRequestError } from './graphql/error';
 
 /**
  * Runs one AniList request under the shared database rate-limit lease. `operation`

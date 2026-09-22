@@ -1,8 +1,8 @@
-import { SearchAnimePageDocument } from '@soraorg/shared/graphql/generated/graphql';
+import { SearchAnimePageDocument } from './anilist/graphql/generated/graphql';
 import type { AnimeCard, AnimeCardPage } from '../types';
 import type { AnimeSearchResult } from '../search';
 import type { BrowseSourceTaxonomy } from './browse-transform';
-import type { CatalogBrowseFilters, CatalogSource, HomeHero } from './source';
+import type { CatalogSource, HomeHero } from './source';
 import { animeCard } from './card';
 import { animeTitles, mediaTitle } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';
@@ -85,8 +85,13 @@ async function search(query: string): Promise<AnimeSearchResult[]> {
 
 export function createCatalogSource(): CatalogSource {
     return {
-        browsePage: (filters: CatalogBrowseFilters, page, perPage, forceRefresh) =>
-            getBrowsePage(filters as AniListBrowseFilters, page, perPage, forceRefresh),
+        browsePage: ({ filters, page, perPage, forceRefresh }) =>
+            getBrowsePage({
+                filters: filters as AniListBrowseFilters,
+                page,
+                perPage,
+                forceRefresh,
+            }),
         browseTaxonomy: (forceRefresh): Promise<BrowseSourceTaxonomy> =>
             getBrowseTaxonomy(forceRefresh),
         search,

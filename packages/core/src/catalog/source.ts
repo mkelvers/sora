@@ -22,13 +22,20 @@ export interface HomeHero {
     description: string;
 }
 
+/** Inputs needed to fetch one page from a catalog provider. */
+export interface CatalogBrowsePageRequest {
+    /** Validated catalog filters for this request. */
+    filters: CatalogBrowseFilters;
+    /** One-based page number. */
+    page: number;
+    /** Maximum number of entries requested for this page. */
+    perPage: number;
+    /** Bypass the provider's fresh snapshot when true. */
+    forceRefresh?: boolean;
+}
+
 export interface CatalogSource {
-    browsePage: (
-        filters: CatalogBrowseFilters,
-        page: number,
-        perPage: number,
-        forceRefresh: boolean
-    ) => Promise<{
+    browsePage: (request: CatalogBrowsePageRequest) => Promise<{
         anime: BrowseCatalogEntry[];
         hasNextPage: boolean;
     }>;

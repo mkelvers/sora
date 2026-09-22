@@ -1,4 +1,5 @@
 import type { BrowseFilters } from '../browse-filters';
+import type { CatalogBrowsePageRequest } from '../source';
 import {
     BrowseAnimePageDocument,
     BrowseAnimeTaxonomyDocument,
@@ -7,8 +8,8 @@ import {
     type MediaSort,
     type MediaSource,
     type MediaStatus,
-} from '@soraorg/shared/graphql/generated/graphql';
-import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
+} from './graphql/generated/graphql';
+import { GraphQLRequestError } from './graphql/error';
 import { transformBrowseEntries, transformBrowseTaxonomy } from '../browse-transform';
 import { request } from './anilist-client';
 
@@ -22,12 +23,16 @@ export interface AniListBrowseFilters extends Omit<
     season: MediaSeason | null;
 }
 
-export async function getBrowsePage(
-    filters: AniListBrowseFilters,
-    page: number,
-    perPage: number,
-    forceRefresh = false
-) {
+export interface AniListBrowsePageRequest extends Omit<CatalogBrowsePageRequest, 'filters'> {
+    filters: AniListBrowseFilters;
+}
+
+export async function getBrowsePage({
+    filters,
+    page,
+    perPage,
+    forceRefresh = false,
+}: AniListBrowsePageRequest) {
     const sort: MediaSort = filters.sort === 'score' ? 'SCORE' : 'POPULARITY';
     const formats: readonly MediaFormat[] = filters.format === 'MOVIE' ? ['MOVIE'] : ['TV', 'ONA'];
     const response = await request(

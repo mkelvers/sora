@@ -3,21 +3,24 @@ import { createHash } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { db, type DatabaseTransaction } from '@soraorg/shared/db';
-import { anilistQuerySnapshot } from '@soraorg/shared/db/schema';
+import { db, type DatabaseTransaction } from '@soraorg/database';
+import { anilistQuerySnapshot } from '@soraorg/database/schema';
 import {
     graphql,
     GraphQLRequestError,
     type GraphQLDocument,
     type GraphQLOptions,
-} from '@soraorg/shared/graphql';
+} from './graphql/client';
 import { coordinatedAniListRequest } from './anilist-lease';
 import { requestKitsu } from '../kitsu';
 import { logger } from '../../application/logger';
 import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types';
 
+/** Controls AniList snapshot freshness and the underlying GraphQL request. */
 export interface AniListRequestOptions extends GraphQLOptions {
+    /** Snapshot lifetime in milliseconds. Must be a positive safe integer; defaults to one day. */
     refreshAfterMs?: number;
+    /** Bypass fresh snapshots and require a successful upstream refresh. */
     forceRefresh?: boolean;
 }
 
@@ -198,6 +201,10 @@ async function refreshWithLock<TResult, TVariables>(
     });
 }
 
+/**
+ * Reads a fresh stored result or fetches and stores the AniList operation.
+ * Stale data is returned if refresh fails unless `forceRefresh` is enabled.
+ */
 export async function request<TResult, TVariables>(
     document: GraphQLDocument<TResult, TVariables>,
     variables: TVariables,

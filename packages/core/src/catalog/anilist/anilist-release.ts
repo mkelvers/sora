@@ -7,8 +7,8 @@ import {
     AnimeOverviewDocument,
     AnimeScheduleDocument,
     WatchlistAnimeDocument,
-} from '@soraorg/shared/graphql/generated/graphql';
-import { db } from '@soraorg/shared/db';
+} from './graphql/generated/graphql';
+import { db } from '@soraorg/database';
 import { validAniListIds } from '../identity';
 import {
     anime,
@@ -17,7 +17,7 @@ import {
     animeRelease,
     animeReleaseRequest,
     providerSnapshot,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../identity';
 import { animeTitles } from './anilist-text';
 import {
