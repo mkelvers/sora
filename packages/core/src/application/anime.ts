@@ -40,6 +40,11 @@ import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progres
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
 
+/**
+ * Load the inexpensive, initially rendered portion of an anime page.
+ * Stored metadata is preferred, with the provider overview used when no release is
+ * stored. Episode details are intentionally left to the page's later request.
+ */
 export async function animePageOverview(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     const anime = stored ?? (await getAnimeOverview(id));
@@ -94,8 +99,7 @@ async function storedAnimePage(
         progress: episodeProgress.get(episode.id) ?? null,
     }));
     // Movies have no episode-specific still, so use the selected movie backdrop for their rows.
-    const backdrop =
-        anime.format === 'MOVIE' ? artwork?.artwork.selectedBackdrop?.url : undefined;
+    const backdrop = anime.format === 'MOVIE' ? artwork?.artwork.selectedBackdrop?.url : undefined;
     const details = toAnimeDetails(anime, synopsis, storedAiringSchedule);
     return {
         anime: details,
@@ -111,6 +115,10 @@ async function storedAnimePage(
     };
 }
 
+/**
+ * Load an anime page from stored release data, importing a provider release when
+ * necessary. Returns `null` when neither source can resolve the requested release.
+ */
 export async function animePage(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     if (!stored) {
@@ -120,6 +128,11 @@ export async function animePage(userId: string | undefined, id: number) {
     return storedAnimePage(userId, id, stored);
 }
 
+/**
+ * Return episode changes since the client's known revision and IDs.
+ * `replace` signals that the client must replace its list; a missing stored release
+ * returns `null`, while an unchanged revision can produce an empty additions list.
+ */
 export async function animePageEpisodeUpdates(
     userId: string | undefined,
     id: number,
@@ -145,6 +158,8 @@ export async function animePageEpisodeUpdates(
     const storedEpisodeIds = new Set(episodesWithProgress.map(({ id }) => id));
     const additions = episodesWithProgress.filter((episode) => !known.has(episode.id));
     const stale = [...known].some((knownEpisodeId) => !storedEpisodeIds.has(knownEpisodeId));
+    // A revision change with no additions can still mean episodes were removed or reordered.
+    // In that case send the full list so the client can reconcile its view.
     const replace = currentRevision !== revision && (stale || additions.length === 0);
 
     return {
@@ -156,6 +171,10 @@ export async function animePageEpisodeUpdates(
     };
 }
 
+/**
+ * Retry a queued episode-inventory backfill and return the resulting inventory state.
+ * Returns `null` when the anime has no stored release to retry against.
+ */
 export async function retryAnimePageEpisodeInventory(id: number) {
     const anime = await storedAnimeRelease(id);
     if (!anime) {
@@ -166,6 +185,11 @@ export async function retryAnimePageEpisodeInventory(id: number) {
     return getEpisodeInventoryState(anime, (await getEpisodes(anime)).length);
 }
 
+/**
+ * Load the deferred anime-page data, including episode discovery when inventory is
+ * absent or stale. Discovery failures known to be transient or unresolved fall back
+ * to stored episodes; unexpected failures propagate to the caller.
+ */
 export async function animePageDeferred(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
     const imported = !stored;
@@ -222,6 +246,10 @@ export async function animePageDeferred(userId: string | undefined, id: number) 
     };
 }
 
+/**
+ * Load artwork for the anime page, refreshing when no stored provider mapping exists.
+ * Artwork lookup failures are represented as `null` so the page can render without it.
+ */
 export async function animePageArtwork(id: number) {
     const stored = await storedAnimeRelease(id);
     const anime = stored ?? (await getAnimeRelease(id));
@@ -229,6 +257,10 @@ export async function animePageArtwork(id: number) {
     return getArtwork(anime, { refresh: !storedMapping, fetchMissing: true }).catch(() => null);
 }
 
+/**
+ * Load persisted media artwork when available, otherwise build a media-page result
+ * from the anime release and fetch its artwork. Missing artwork does not fail the page.
+ */
 export async function mediaPage(id: number) {
     const stored = await getStoredMedia(id).catch(() => null);
     if (stored) {
@@ -251,6 +283,10 @@ type MediaUpdate =
     | { intent: 'logoSize'; logoSize: number }
     | { intent: 'select'; type: 'backdrop' | 'logo'; filePath: string | null };
 
+/**
+ * Apply a media-page mutation: refresh artwork, change the logo display size, or
+ * select/clear a backdrop or logo. The operation persists through the media store.
+ */
 export async function updateMedia(id: number, update: MediaUpdate) {
     if (update.intent === 'refresh') {
         await refreshArtwork(id);
@@ -301,6 +337,13 @@ async function episodePlayback(
     }
 }
 
+/**
+ * Resolve a watch URL's episode identifier against the current release inventory.
+ *
+ * Identifiers may be stored episode IDs, unique numeric episode numbers, or legacy
+ * title slugs. Numeric matches must be unique because specials and split releases
+ * can reuse a displayed number; unresolved or ambiguous identifiers return `null`.
+ */
 async function watchEpisode(id: number, episodeId: string) {
     const anime = await getAnimeRelease(id);
     const episodes = await getEpisodes(anime);
@@ -313,6 +356,8 @@ async function watchEpisode(id: number, episodeId: string) {
             const matching = episodes.flatMap((episode, index) =>
                 episode.number === number ? [index] : []
             );
+            // Episode numbers are not guaranteed unique; refusing ambiguous matches avoids
+            // silently opening a different release entry when the URL contains only a number.
             if (matching.length !== 1) {
                 return null;
             }
@@ -331,6 +376,10 @@ async function watchEpisode(id: number, episodeId: string) {
     return { anime, episodes, currentIndex };
 }
 
+/**
+ * Assemble watch-page data, including adjacent episodes and the saved resume point.
+ * Returns `null` when the episode identifier cannot be resolved in the release.
+ */
 export async function watchPage(userId: string | undefined, id: number, episodeId: string) {
     const context = await watchEpisode(id, episodeId);
     if (!context) {
@@ -347,7 +396,7 @@ export async function watchPage(userId: string | undefined, id: number, episodeI
         anime.format === 'MOVIE' ? storedMedia?.artwork.selectedBackdrop?.url : undefined;
     const episodes = context.episodes.map((episode) => ({
         ...episode,
-        ...(backdrop ? { image: backdrop } : {}),
+        image: backdrop ?? episode.image,
         progress: episodeProgress.get(episode.id) ?? null,
     }));
     const currentEpisode = episodes[currentIndex];
@@ -371,6 +420,10 @@ export async function watchPage(userId: string | undefined, id: number, episodeI
     };
 }
 
+/**
+ * Load skip-time and segment-template data for a resolved episode. Missing segment
+ * sources degrade to empty values; an unresolvable episode returns `null`.
+ */
 export async function watchSegments(id: number, episodeId: string) {
     const context = await watchEpisode(id, episodeId);
     if (!context) {
@@ -395,6 +448,11 @@ export async function watchSegments(id: number, episodeId: string) {
     ]).then(([times, templates]) => ({ times, templates }));
 }
 
+/**
+ * Resolve playable streams for an episode, including release and special-order
+ * context required by the provider. Returns `null` for an unknown episode; provider
+ * failures are converted into an empty stream result with its error flag set.
+ */
 export async function watchPlayback(id: number, episodeId: string) {
     const context = await watchEpisode(id, episodeId);
     if (!context) {
