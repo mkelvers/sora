@@ -4,13 +4,17 @@ import type { AnimeSearchResult } from '../search';
 import type { BrowseSourceTaxonomy } from './browse-transform';
 import type { CatalogBrowseFilters, CatalogSource, HomeHero } from './source';
 import { animeCard } from './card';
-import { animeTitles, mediaTitle } from './anilist-text';
+import { animeTitles, mediaTitle } from './anilist/anilist-text';
 import { isDiscoverableAnime } from './discovery';
-import { getBrowsePage, getBrowseTaxonomy, type AniListBrowseFilters } from './anilist-browse';
-import { discoverReleaseCalendar } from './anilist-calendar';
+import {
+    getBrowsePage,
+    getBrowseTaxonomy,
+    type AniListBrowseFilters,
+} from './anilist/anilist-browse';
+import { discoverReleaseCalendar } from './anilist/anilist-calendar';
 import { getEpisodes } from '../providers/episode-inventory';
-import { request } from './anilist-client';
-import { storedAnimeRelease } from './anilist-release';
+import { request } from './anilist/anilist-client';
+import { storedAnimeRelease } from './anilist/anilist-release';
 import { getAniKotoSimulcastPage } from '../providers/anikoto';
 import { enrichAnimeCards } from './card-enrichment';
 import { withAnimeSearchMetadata } from './search-enrichment';

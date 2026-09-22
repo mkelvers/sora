@@ -10,9 +10,9 @@ import {
 } from '@soraorg/shared/db/schema';
 import { logger } from '../application/logger';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
-import type { AniListAnime } from './anilist-types';
-import { refreshAnimeRelease } from './anilist-release';
-import { animeTitles } from './anilist-text';
+import type { AniListAnime } from './anilist/anilist-types';
+import { refreshAnimeRelease } from './anilist/anilist-release';
+import { animeTitles } from './anilist/anilist-text';
 import { ensureInternalAnimeId } from './identity';
 import {
     anikotoProvider,
