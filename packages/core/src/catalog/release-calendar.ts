@@ -10,7 +10,21 @@ import {
 } from '@soraorg/database/schema';
 import { plainText } from './anilist/anilist-text';
 import type { ReleaseCalendarEntry } from './release-calendar-parser';
-import { releaseCalendarWindow } from './release-calendar-window';
+
+function releaseCalendarWindow(now: Date) {
+    const daysSinceMonday = (now.getUTCDay() + 6) % 7;
+    const utcWeekStart = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - daysSinceMonday
+    );
+
+    // Keep both refresh and read queries aligned to the same UTC-centered window.
+    return {
+        from: new Date(utcWeekStart - 8 * (24 * 60 * 60 * 1_000)),
+        to: new Date(utcWeekStart + 8 * (24 * 60 * 60 * 1_000)),
+    };
+}
 
 type StoredReleaseCalendarEntry = Omit<ReleaseCalendarEntry, 'airingId'> & {
     airingId: number | string;

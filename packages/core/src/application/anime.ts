@@ -1,6 +1,6 @@
 import type { AudioMode } from '../audio';
 import { toAnimeDetails } from '../catalog/details';
-import { withMovieBackdrop } from '../catalog/movie-backdrop';
+import type { AnimeEpisode } from '../types';
 import {
     getEpisodeRevision,
     getRelatedReleaseTitles,
@@ -13,7 +13,6 @@ import {
     getAnimeRelease,
     storedAnimeRelease,
 } from '../catalog/anilist/anilist-release';
-import { watchEpisodeNumber } from '../catalog/episode-route';
 import { episodesAvailableToWatch } from '../providers/inventory';
 import {
     discoverEpisodeInventory,
@@ -41,6 +40,18 @@ import { getStoredMedia, refreshArtwork, selectArtwork, setLogoSize } from '../c
 import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progress/store';
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
+
+function withMovieBackdrop(
+    anime: { format: string | null },
+    episodes: AnimeEpisode[],
+    backdrop: string | null | undefined
+) {
+    if (anime.format !== 'MOVIE' || !backdrop) {
+        return episodes;
+    }
+
+    return episodes.map((episode) => ({ ...episode, image: backdrop }));
+}
 
 export async function animePageOverview(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
@@ -308,8 +319,9 @@ async function watchEpisode(id: number, episodeId: string) {
     let currentIndex = episodes.findIndex(({ id: candidate }) => candidate === episodeId);
 
     if (currentIndex < 0) {
-        const number = watchEpisodeNumber(episodeId);
-        if (number !== null) {
+        const normalized = episodeId.trim();
+        const number = /^\d+(?:\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+        if (Number.isFinite(number)) {
             const matching = episodes.flatMap((episode, index) =>
                 episode.number === number ? [index] : []
             );

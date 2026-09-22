@@ -8,63 +8,12 @@ export interface AnimeReleaseSnapshot {
 
 type MetadataFieldSources = Partial<Record<AnimeMetadataField, string>>;
 
-function valueOr<T>(primary: T | null | undefined, fallback: T | null | undefined) {
-    return primary ?? fallback ?? null;
-}
-
 function nonBlankOr(primary: string | null | undefined, fallback: string | null | undefined) {
     return primary?.trim() ? primary : fallback?.trim() ? fallback : null;
 }
 
 function listOr<T>(primary: T[] | null | undefined, fallback: T[] | null | undefined) {
     return primary?.length ? primary : (fallback ?? null);
-}
-
-function titleOr(
-    primary: AniListAnime['title'],
-    fallback: AniListAnime['title']
-): AniListAnime['title'] {
-    if (!primary && !fallback) return null;
-    return {
-        english: nonBlankOr(primary?.english, fallback?.english),
-        romaji: nonBlankOr(primary?.romaji, fallback?.romaji),
-        native: nonBlankOr(primary?.native, fallback?.native),
-    };
-}
-
-function coverImageOr(
-    primary: AniListAnime['coverImage'],
-    fallback: AniListAnime['coverImage']
-): AniListAnime['coverImage'] {
-    if (!primary && !fallback) return null;
-    return {
-        extraLarge: valueOr(primary?.extraLarge, fallback?.extraLarge),
-        large: valueOr(primary?.large, fallback?.large),
-    };
-}
-
-function relationsOr(
-    primary: AniListAnime['relations'],
-    fallback: AniListAnime['relations']
-): AniListAnime['relations'] {
-    const edges = listOr(primary?.edges, fallback?.edges);
-    return primary || fallback ? { edges } : null;
-}
-
-function studiosOr(
-    primary: AniListAnime['studios'],
-    fallback: AniListAnime['studios']
-): AniListAnime['studios'] {
-    const nodes = listOr(primary?.nodes, fallback?.nodes);
-    return primary || fallback ? { nodes } : null;
-}
-
-function staffOr(
-    primary: AniListAnime['staff'],
-    fallback: AniListAnime['staff']
-): AniListAnime['staff'] {
-    const edges = listOr(primary?.edges, fallback?.edges);
-    return primary || fallback ? { edges } : null;
 }
 
 function providerOrder(left: AnimeReleaseSnapshot, right: AnimeReleaseSnapshot) {
@@ -81,34 +30,57 @@ function mergePair(
 ) {
     const merged: AniListAnime = {
         ...primary,
-        idMal: valueOr(primary.idMal, fallback.idMal),
-        title: titleOr(primary.title, fallback.title),
+        idMal: primary.idMal ?? fallback.idMal ?? null,
+        title:
+            primary.title || fallback.title
+                ? {
+                      english: nonBlankOr(primary.title?.english, fallback.title?.english),
+                      romaji: nonBlankOr(primary.title?.romaji, fallback.title?.romaji),
+                      native: nonBlankOr(primary.title?.native, fallback.title?.native),
+                  }
+                : null,
         synonyms: listOr(primary.synonyms, fallback.synonyms),
-        coverImage: coverImageOr(primary.coverImage, fallback.coverImage),
-        bannerImage: valueOr(primary.bannerImage, fallback.bannerImage),
-        description: valueOr(primary.description, fallback.description),
+        coverImage:
+            primary.coverImage || fallback.coverImage
+                ? {
+                      extraLarge:
+                          primary.coverImage?.extraLarge ?? fallback.coverImage?.extraLarge ?? null,
+                      large: primary.coverImage?.large ?? fallback.coverImage?.large ?? null,
+                  }
+                : null,
+        bannerImage: primary.bannerImage ?? fallback.bannerImage ?? null,
+        description: primary.description ?? fallback.description ?? null,
         genres: listOr(primary.genres, fallback.genres),
-        format: valueOr(primary.format, fallback.format),
-        status: valueOr(primary.status, fallback.status),
-        season: valueOr(primary.season, fallback.season),
-        seasonYear: valueOr(primary.seasonYear, fallback.seasonYear),
-        startDate: valueOr(primary.startDate, fallback.startDate),
-        endDate: valueOr(primary.endDate, fallback.endDate),
-        episodes: valueOr(primary.episodes, fallback.episodes),
-        duration: valueOr(primary.duration, fallback.duration),
+        format: primary.format ?? fallback.format ?? null,
+        status: primary.status ?? fallback.status ?? null,
+        season: primary.season ?? fallback.season ?? null,
+        seasonYear: primary.seasonYear ?? fallback.seasonYear ?? null,
+        startDate: primary.startDate ?? fallback.startDate ?? null,
+        endDate: primary.endDate ?? fallback.endDate ?? null,
+        episodes: primary.episodes ?? fallback.episodes ?? null,
+        duration: primary.duration ?? fallback.duration ?? null,
         // Airing timestamps are AniList-authoritative and are never invented by a fallback.
         nextAiringEpisode: primary.nextAiringEpisode,
-        relations: relationsOr(primary.relations, fallback.relations),
-        averageScore: valueOr(primary.averageScore, fallback.averageScore),
-        popularity: valueOr(primary.popularity, fallback.popularity),
-        favourites: valueOr(primary.favourites, fallback.favourites),
+        relations:
+            primary.relations || fallback.relations
+                ? { edges: listOr(primary.relations?.edges, fallback.relations?.edges) }
+                : null,
+        averageScore: primary.averageScore ?? fallback.averageScore ?? null,
+        popularity: primary.popularity ?? fallback.popularity ?? null,
+        favourites: primary.favourites ?? fallback.favourites ?? null,
         rankings: listOr(primary.rankings, fallback.rankings),
         tags: listOr(primary.tags, fallback.tags),
-        studios: studiosOr(primary.studios, fallback.studios),
-        staff: staffOr(primary.staff, fallback.staff),
+        studios:
+            primary.studios || fallback.studios
+                ? { nodes: listOr(primary.studios?.nodes, fallback.studios?.nodes) }
+                : null,
+        staff:
+            primary.staff || fallback.staff
+                ? { edges: listOr(primary.staff?.edges, fallback.staff?.edges) }
+                : null,
         isAdult: primary.isAdult ?? fallback.isAdult,
-        source: valueOr(primary.source, fallback.source),
-        countryOfOrigin: valueOr(primary.countryOfOrigin, fallback.countryOfOrigin),
+        source: primary.source ?? fallback.source ?? null,
+        countryOfOrigin: primary.countryOfOrigin ?? fallback.countryOfOrigin ?? null,
     };
 
     if (primary.idMal == null && fallback.idMal != null) fieldSources.idMal ??= fallbackProvider;
@@ -155,6 +127,10 @@ function mergePair(
     return merged;
 }
 
+/**
+ * Combines provider snapshots, keeping AniList authoritative when present and
+ * recording which fallback supplied each missing metadata field.
+ */
 export function mergeAnimeReleaseSnapshots(snapshots: AnimeReleaseSnapshot[]) {
     const ordered = [...snapshots].sort(providerOrder);
     const [authoritative, ...fallbacks] = ordered;
