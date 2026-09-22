@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { asc, and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@soraorg/shared/db';
+import { validAniListIds } from './identity';
 import { animeEpisode, animeEpisodeSync } from '@soraorg/shared/db/schema';
 import { episodeMetadataRefreshRequired } from './episode-policy';
 
@@ -109,7 +110,7 @@ export function episodeRevision(state: {
 }
 
 export async function getRelatedReleaseTitles(anilistIds: number[]) {
-    const ids = [...new Set(anilistIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+    const ids = validAniListIds(anilistIds);
     if (!ids.length) {
         return [];
     }

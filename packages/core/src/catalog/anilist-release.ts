@@ -9,6 +9,7 @@ import {
     WatchlistAnimeDocument,
 } from '@soraorg/shared/graphql/generated/graphql';
 import { db } from '@soraorg/shared/db';
+import { validAniListIds } from './identity';
 import {
     anime,
     animeEpisodeSync,
@@ -235,7 +236,7 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
 }
 
 export async function hydrateAnimeReleases(anilistIds: number[]) {
-    const ids = [...new Set(anilistIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+    const ids = validAniListIds(anilistIds);
     const stored: number[] = [];
 
     for (let index = 0; index < ids.length; index += 50) {
@@ -257,7 +258,7 @@ export async function hydrateAnimeReleases(anilistIds: number[]) {
 }
 
 export async function hydrateMissingAnimeReleases(anilistIds: number[]) {
-    const ids = [...new Set(anilistIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+    const ids = validAniListIds(anilistIds);
     if (!ids.length) {
         return [];
     }
