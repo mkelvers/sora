@@ -4,9 +4,9 @@ import type {
     MediaFormat,
 } from '@soraorg/contracts/graphql/anilist';
 import { z } from 'zod';
-import { animeTitles, mediaTitle, plainText } from './anilist-text';
-import { isDiscoverableAnime } from './discovery';
-import type { BrowseCatalogEntry } from './browse-types';
+import { animeTitles, mediaTitle, plainText } from './anilist-text.js';
+import { isDiscoverableAnime } from './discovery.js';
+import type { BrowseCatalogEntry } from './browse-types.js';
 
 export interface BrowseSourceTaxonomy {
     genres: string[];
