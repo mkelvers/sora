@@ -35,6 +35,10 @@ type CompactedNotificationEntry = NotificationEntry & {
     relatedIds: string[];
 };
 
+/**
+ * Combines notifications created for the same anime at the same instant while
+ * retaining their episode numbers and read state for the grouped response.
+ */
 export function compactNotificationEntries(
     entries: readonly NotificationEntry[]
 ): CompactedNotificationEntry[] {

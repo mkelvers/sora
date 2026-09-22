@@ -54,6 +54,11 @@ export function episodeTitleKey(title: string) {
         .trim();
 }
 
+/**
+ * Scores title evidence for provider matching: exact normalized titles score 100,
+ * strong partial or word overlap scores 60–75, and weak evidence scores below 15.
+ * Callers use these bands to avoid replacing a numbered match with an ambiguous title match.
+ */
 export function episodeTitleScore(left: string, right: string) {
     const a = episodeTitleKey(left);
     const b = episodeTitleKey(right);
@@ -117,6 +122,8 @@ export function coversExpectedEpisodes(
     const specials = episodes.filter(({ number }) => number <= 0 || !Number.isInteger(number));
     const regularCount = regular.size;
     const completeRegularRelease = regularCount === expected;
+    // Some catalogs count a single special in the total while numbering all
+    // episodes sequentially, so the special may occupy a missing regular number.
     const completeSpecialInclusiveRelease =
         regularCount + specials.length === expected &&
         [...regular].every((number) => number <= regularCount);
