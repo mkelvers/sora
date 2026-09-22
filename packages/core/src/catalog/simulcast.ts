@@ -6,7 +6,6 @@ import {
     compareAnimeSeasons,
     currentAnimeSeason,
     parseAnimeSeason,
-    type AnimeSeason,
     type AnimeSeasonSelection,
     type AnimeSeasonStartYears,
 } from '../season';
@@ -25,10 +24,6 @@ function nextAnimeSeason(selection: AnimeSeasonSelection): AnimeSeasonSelection 
         case 'FALL':
             return { season: 'WINTER', year: selection.year + 1 };
     }
-}
-
-function seasonLabel(season: AnimeSeason, year: number) {
-    return `${season[0]}${season.slice(1).toLowerCase()} ${year}`;
 }
 
 export function createSimulcastOperations(source: CatalogSource) {
@@ -124,16 +119,10 @@ export function createSimulcastOperations(source: CatalogSource) {
         return {
             season: selected.season,
             year: selected.year,
-            label: seasonLabel(selected.season, selected.year),
             options: seasons
                 .map((option) => ({
                     ...option,
-                    label: seasonLabel(option.season, option.year),
                     current: option.season === selected.season && option.year === selected.year,
-                    href:
-                        compareAnimeSeasons(option, current) === 0
-                            ? '/simulcast'
-                            : `/simulcast?season=${option.season.toLowerCase()}&year=${option.year}`,
                 }))
                 .toReversed(),
             page: result,
