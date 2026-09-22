@@ -68,17 +68,7 @@ export const watchlistState = pgEnum('watchlist_state', [
 
 function timestamps() {
     return {
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     };
 }
 
