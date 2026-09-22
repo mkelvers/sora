@@ -91,20 +91,25 @@ anime.get(
     }
 );
 
-anime.post('/:anilistId/episodes/retry', middleware, validate('param', AnimeParamSchema), async (context) => {
-    const state = await retryAnimePageEpisodeInventory(context.req.valid('param').anilistId);
-    return state
-        ? context.json(state)
-        : context.json(
-              {
-                  error: {
-                      code: 'NOT_FOUND',
-                      message: 'Anime not found',
+anime.post(
+    '/:anilistId/episodes/retry',
+    middleware,
+    validate('param', AnimeParamSchema),
+    async (context) => {
+        const state = await retryAnimePageEpisodeInventory(context.req.valid('param').anilistId);
+        return state
+            ? context.json(state)
+            : context.json(
+                  {
+                      error: {
+                          code: 'NOT_FOUND',
+                          message: 'Anime not found',
+                      },
                   },
-              },
-              404
-          );
-});
+                  404
+              );
+    }
+);
 
 anime.get(
     '/:anilistId/episodes/:episodeId',
