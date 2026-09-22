@@ -1,6 +1,6 @@
 import { ReleaseCalendarPageDocument } from '@soraorg/shared/graphql/generated/graphql';
-import type { ReleaseCalendarEntry } from './release-calendar-parser';
-import { parseReleaseCalendarPage } from './release-calendar-parser';
+import type { ReleaseCalendarEntry } from '../release-calendar-parser';
+import { parseReleaseCalendarPage } from '../release-calendar-parser';
 import { request } from './anilist-client';
 
 export async function discoverReleaseCalendar(from: Date, to: Date) {

@@ -3,7 +3,7 @@ import { asc, notInArray, sql } from 'drizzle-orm';
 import { HomeHeroCandidatesDocument } from '@soraorg/shared/graphql/generated/graphql';
 import { db } from '@soraorg/shared/db';
 import { homeHeroCandidate } from '@soraorg/shared/db/schema';
-import { eligibleHomeHeroCandidates } from './home-selection';
+import { eligibleHomeHeroCandidates } from '../home-selection';
 import { request } from './anilist-client';
 
 export async function refreshHomeHeroCandidates(now = new Date()) {

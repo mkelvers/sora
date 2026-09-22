@@ -12,8 +12,8 @@ import {
     type GraphQLOptions,
 } from '@soraorg/shared/graphql';
 import { coordinatedAniListRequest } from './anilist-lease';
-import { requestKitsu } from './kitsu';
-import { logger } from '../application/logger';
+import { requestKitsu } from '../kitsu';
+import { logger } from '../../application/logger';
 import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types';
 
 export interface AniListRequestOptions extends GraphQLOptions {

@@ -1,5 +1,5 @@
 import { AiringAnimePageDocument } from '@soraorg/shared/graphql/generated/graphql';
-import { parseAiringMedia, type AiringAnime, type AiringPageEntry } from './airing';
+import { parseAiringMedia, type AiringAnime, type AiringPageEntry } from '../airing';
 import { request } from './anilist-client';
 
 async function getAiringPages(

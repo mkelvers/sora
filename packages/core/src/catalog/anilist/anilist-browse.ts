@@ -1,4 +1,4 @@
-import type { BrowseFilters } from './browse-filters';
+import type { BrowseFilters } from '../browse-filters';
 import {
     BrowseAnimePageDocument,
     BrowseAnimeTaxonomyDocument,
@@ -9,7 +9,7 @@ import {
     type MediaStatus,
 } from '@soraorg/shared/graphql/generated/graphql';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
-import { transformBrowseEntries, transformBrowseTaxonomy } from './browse-transform';
+import { transformBrowseEntries, transformBrowseTaxonomy } from '../browse-transform';
 import { request } from './anilist-client';
 
 export interface AniListBrowseFilters extends Omit<

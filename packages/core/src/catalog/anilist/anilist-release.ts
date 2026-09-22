@@ -9,7 +9,7 @@ import {
     WatchlistAnimeDocument,
 } from '@soraorg/shared/graphql/generated/graphql';
 import { db } from '@soraorg/shared/db';
-import { validAniListIds } from './identity';
+import { validAniListIds } from '../identity';
 import {
     anime,
     animeEpisodeSync,
@@ -18,7 +18,7 @@ import {
     animeReleaseRequest,
     providerSnapshot,
 } from '@soraorg/shared/db/schema';
-import { ensureInternalAnimeId, findInternalAnimeId } from './identity';
+import { ensureInternalAnimeId, findInternalAnimeId } from '../identity';
 import { animeTitles } from './anilist-text';
 import {
     AniListAnimeOverviewSchema,
@@ -28,7 +28,7 @@ import {
     type AniListAnimeOverview,
 } from './anilist-types';
 import { request } from './anilist-client';
-import { mergeAnimeReleaseSnapshots, relationSnapshotProvider } from './anime-release-merge';
+import { mergeAnimeReleaseSnapshots, relationSnapshotProvider } from '../anime-release-merge';
 
 const animeMetadataDomain = 'anime_metadata';
 
