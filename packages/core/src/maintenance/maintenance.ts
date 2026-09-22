@@ -19,6 +19,29 @@ import { rediscoverMapping, setMetadataMappingOverride } from './mappings';
 import { MaintenanceRequestSchema, type MaintenanceRequest } from '../contracts/maintenance';
 import { reconcileAllAiringReleases } from './reconciliation';
 
+/** Persisted task fields returned to the administrative API before date serialization. */
+export interface MaintenanceTask {
+    id: string;
+
+    kind: string;
+
+    state: 'pending' | 'running' | 'completed' | 'failed';
+
+    attempts: number;
+
+    nextAttemptAt: Date;
+
+    lastError: string | null;
+
+    result: unknown | null;
+
+    createdAt: Date;
+
+    updatedAt: Date;
+
+    completedAt: Date | null;
+}
+
 function maintenancePriority(request: MaintenanceRequest) {
     // Prioritize identity corrections when the shared queue is under load.
     if (request.kind === 'mapping_override' || request.kind === 'mapping_rediscover') {
@@ -58,24 +81,39 @@ export async function enqueueMaintenance(request: MaintenanceRequest) {
         .insert(maintenanceTask)
         .values({
             kind: request.kind,
+
             dedupeKey: key,
+
             payload: request,
+
             priority: maintenancePriority(request),
         })
         .onConflictDoUpdate({
             target: maintenanceTask.dedupeKey,
+
             setWhere: ne(maintenanceTask.state, 'running'),
+
             set: {
                 payload: request,
+
                 priority: maintenancePriority(request),
+
                 state: 'pending',
+
                 attempts: 0,
+
                 nextAttemptAt: new Date(),
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: null,
+
                 result: null,
+
                 completedAt: null,
+
                 updatedAt: new Date(),
             },
         })
@@ -97,18 +135,27 @@ export async function enqueueMaintenance(request: MaintenanceRequest) {
     return running.id;
 }
 
-export async function getMaintenanceTask(id: string) {
+export async function getMaintenanceTask(id: string): Promise<MaintenanceTask | null> {
     return db
         .select({
             id: maintenanceTask.id,
+
             kind: maintenanceTask.kind,
+
             state: maintenanceTask.state,
+
             attempts: maintenanceTask.attempts,
+
             nextAttemptAt: maintenanceTask.nextAttemptAt,
+
             lastError: maintenanceTask.lastError,
+
             result: maintenanceTask.result,
+
             createdAt: maintenanceTask.createdAt,
+
             updatedAt: maintenanceTask.updatedAt,
+
             completedAt: maintenanceTask.completedAt,
         })
         .from(maintenanceTask)
@@ -123,18 +170,27 @@ async function executeMaintenance(request: MaintenanceRequest) {
             request.mode === 'schedule'
                 ? await refreshAnimeSchedule(request.anilistId)
                 : await refreshAnimeRelease(request.anilistId, { force: true });
-        return { anilistId: release.id, status: release.status };
+        return {
+            anilistId: release.id,
+            status: release.status,
+        };
     }
     if (request.kind === 'target_reactivate') {
         const [target] = await db
             .update(animeEpisodeTarget)
             .set({
                 state: 'pending',
+
                 nextAttemptAt: new Date(),
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: null,
+
                 retiredAt: null,
+
                 updatedAt: new Date(),
             })
             .where(
@@ -160,7 +216,10 @@ async function executeMaintenance(request: MaintenanceRequest) {
                 )
                 .limit(1);
             if (active?.state === 'pending') {
-                return { reactivated: false, alreadyActive: true };
+                return {
+                    reactivated: false,
+                    alreadyActive: true,
+                };
             }
             throw new Error('The requested failed or retired episode target does not exist');
         }
@@ -171,7 +230,10 @@ async function executeMaintenance(request: MaintenanceRequest) {
             (await storedAnimeRelease(request.anilistId)) ??
             (await refreshAnimeRelease(request.anilistId));
         const episodes = await discoverEpisodeInventory(release);
-        return { anilistId: request.anilistId, episodes: episodes.length };
+        return {
+            anilistId: request.anilistId,
+            episodes: episodes.length,
+        };
     }
     if (request.kind === 'airing_reconcile' || request.kind === 'interest_reconcile') {
         const { snapshot: _, ...result } = await reconcileAllAiringReleases();
@@ -198,10 +260,16 @@ function maintenanceRetryDelay(attempts: number) {
 }
 
 async function finishMaintenanceTask(
-    candidate: { id: string; payload: unknown },
+    candidate: {
+        id: string;
+        payload: unknown;
+    },
     claimed: { attempts: number },
     leaseOwner: string,
-    options: { leaseDurationMs: number; leaseRenewalMs: number }
+    options: {
+        leaseDurationMs: number;
+        leaseRenewalMs: number;
+    }
 ) {
     const parsed = MaintenanceRequestSchema.safeParse(candidate.payload);
     const timer = setInterval(() => {
@@ -209,6 +277,7 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 leaseUntil: new Date(Date.now() + options.leaseDurationMs),
+
                 updatedAt: new Date(),
             })
             .where(
@@ -231,11 +300,17 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 state: 'completed',
+
                 result,
+
                 completedAt: new Date(),
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: null,
+
                 updatedAt: new Date(),
             })
             .where(
@@ -252,10 +327,15 @@ async function finishMaintenanceTask(
                 .update(maintenanceTask)
                 .set({
                     state: 'pending',
+
                     nextAttemptAt: retryAt,
+
                     leaseOwner: null,
+
                     leaseUntil: null,
+
                     lastError: null,
+
                     updatedAt: new Date(),
                 })
                 .where(
@@ -276,11 +356,17 @@ async function finishMaintenanceTask(
                 .update(maintenanceTask)
                 .set({
                     state: 'failed',
+
                     attempts: 12,
+
                     nextAttemptAt: retryAt,
+
                     leaseOwner: null,
+
                     leaseUntil: null,
+
                     lastError: cause.message,
+
                     updatedAt: new Date(),
                 })
                 .where(
@@ -303,11 +389,17 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 state: failed ? 'failed' : 'pending',
+
                 attempts,
+
                 nextAttemptAt: retryAt,
+
                 leaseOwner: null,
+
                 leaseUntil: null,
+
                 lastError: cause instanceof Error ? cause.message : 'Maintenance task failed',
+
                 updatedAt: new Date(),
             })
             .where(
@@ -485,13 +577,20 @@ async function seedEpisodeInventoryBackfills() {
 
 export async function drainMaintenanceTasks(
     runId: string,
-    options: { limit: number; leaseDurationMs: number; leaseRenewalMs: number }
+    options: {
+        limit: number;
+        leaseDurationMs: number;
+        leaseRenewalMs: number;
+    }
 ) {
     await seedEpisodeInventoryBackfills();
     const now = new Date();
     const claimedCandidates = await db.transaction(async (tx) => {
         const candidates = await tx
-            .select({ id: maintenanceTask.id, payload: maintenanceTask.payload })
+            .select({
+                id: maintenanceTask.id,
+                payload: maintenanceTask.payload,
+            })
             .from(maintenanceTask)
             .where(
                 and(
@@ -515,8 +614,11 @@ export async function drainMaintenanceTasks(
                     .update(maintenanceTask)
                     .set({
                         state: 'running',
+
                         leaseOwner,
+
                         leaseUntil: new Date(Date.now() + options.leaseDurationMs),
+
                         updatedAt: new Date(),
                     })
                     .where(eq(maintenanceTask.id, candidate.id))
@@ -524,15 +626,25 @@ export async function drainMaintenanceTasks(
                 if (!claimed) {
                     throw new Error('The maintenance task lease could not be persisted');
                 }
-                return { candidate, claimed, leaseOwner };
+                return {
+                    candidate,
+                    claimed,
+                    leaseOwner,
+                };
             })
         );
     });
 
-    const totals = { claimed: claimedCandidates.length, completed: 0, retried: 0, failed: 0 };
+    const totals = {
+        claimed: claimedCandidates.length,
+        completed: 0,
+        retried: 0,
+        failed: 0,
+    };
     const executions = claimedCandidates.map(({ candidate, claimed, leaseOwner }) =>
         finishMaintenanceTask(candidate, claimed, leaseOwner, {
             leaseDurationMs: options.leaseDurationMs,
+
             leaseRenewalMs: options.leaseRenewalMs,
         })
     );

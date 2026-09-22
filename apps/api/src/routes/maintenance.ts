@@ -9,39 +9,58 @@ import {
     MaintenanceRequestSchema,
     MaintenanceTaskSchema,
 } from '@soraorg/core/contracts/maintenance';
-import { enqueueMaintenance, getMaintenanceTask } from '@soraorg/core/maintenance/maintenance';
-import { animeSchedulerHealth } from '@soraorg/core/maintenance/run';
+import {
+    enqueueMaintenance,
+    getMaintenanceTask,
+    type MaintenanceTask,
+} from '@soraorg/core/maintenance/maintenance';
+import { animeSchedulerHealth, type AnimeSchedulerHealth } from '@soraorg/core/maintenance/run';
 import { validate } from '../http';
 
 const TaskParamSchema = z.object({ taskId: z.uuid() });
 
-function healthResponse(health: Awaited<ReturnType<typeof animeSchedulerHealth>>) {
+function healthResponse(health: AnimeSchedulerHealth) {
     return MaintenanceHealthSchema.parse({
         ...health,
+
         startedAt: health.startedAt?.toISOString() ?? null,
+
         completedAt: health.completedAt?.toISOString() ?? null,
+
         lastSuccessAt: health.lastSuccessAt?.toISOString() ?? null,
+
         lastFailureAt: health.lastFailureAt?.toISOString() ?? null,
+
         lastFullReconciliationAt: health.lastFullReconciliationAt?.toISOString() ?? null,
+
         nextFullReconciliationAt: health.nextFullReconciliationAt?.toISOString() ?? null,
+
         lastCatalogRefreshAt: health.lastCatalogRefreshAt?.toISOString() ?? null,
+
         nextCatalogRefreshAt: health.nextCatalogRefreshAt?.toISOString() ?? null,
+
         anilist: health.anilist
             ? {
                   ...health.anilist,
+
                   blockedUntil: health.anilist.blockedUntil?.toISOString() ?? null,
+
                   lastRequestAt: health.anilist.lastRequestAt?.toISOString() ?? null,
               }
             : null,
     });
 }
 
-function taskResponse(task: NonNullable<Awaited<ReturnType<typeof getMaintenanceTask>>>) {
+function taskResponse(task: MaintenanceTask) {
     return MaintenanceTaskSchema.parse({
         ...task,
+
         nextAttemptAt: task.nextAttemptAt.toISOString(),
+
         createdAt: task.createdAt.toISOString(),
+
         updatedAt: task.updatedAt.toISOString(),
+
         completedAt: task.completedAt?.toISOString() ?? null,
     });
 }
@@ -54,6 +73,7 @@ const maintenanceToken = createMiddleware(async (context, next) => {
             {
                 error: {
                     code: 'AUTHENTICATION_REQUIRED',
+
                     message: 'Authentication required',
                 },
             },
@@ -68,6 +88,7 @@ const maintenanceToken = createMiddleware(async (context, next) => {
             {
                 error: {
                     code: 'AUTHENTICATION_REQUIRED',
+
                     message: 'Authentication required',
                 },
             },
@@ -90,29 +111,51 @@ maintenance.get('/health', async (context) => {
         return context.json(
             MaintenanceHealthSchema.parse({
                 healthy: false,
+
                 reason: 'Scheduler state could not be read from PostgreSQL',
+
                 active: false,
+
                 startedAt: null,
+
                 completedAt: null,
+
                 lastSuccessAt: null,
+
                 lastFailureAt: null,
+
                 lastFullReconciliationAt: null,
+
                 nextFullReconciliationAt: null,
+
                 lastCatalogRefreshAt: null,
+
                 nextCatalogRefreshAt: null,
+
                 durationMs: null,
+
                 stats: null,
+
                 targets: {
                     pending: 0,
+
                     due: 0,
+
                     leased: 0,
+
                     confirmed: 0,
+
                     failed: 0,
+
                     retired: 0,
                 },
+
                 maintenanceTasks: {},
+
                 maintenanceOldestDueAgeMs: null,
+
                 anilist: null,
+
                 oldestDueAgeMs: null,
             }),
             503
@@ -122,7 +165,13 @@ maintenance.get('/health', async (context) => {
 
 maintenance.post('/tasks', validate('json', MaintenanceRequestSchema), async (context) => {
     const id = await enqueueMaintenance(context.req.valid('json'));
-    return context.json({ id, state: 'pending' as const }, 202);
+    return context.json(
+        {
+            id,
+            state: 'pending' as const,
+        },
+        202
+    );
 });
 
 maintenance.get('/tasks/:taskId', validate('param', TaskParamSchema), async (context) => {
@@ -133,6 +182,7 @@ maintenance.get('/tasks/:taskId', validate('param', TaskParamSchema), async (con
               {
                   error: {
                       code: 'NOT_FOUND',
+
                       message: 'Maintenance task not found',
                   },
               },

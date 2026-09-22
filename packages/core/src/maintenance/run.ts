@@ -43,7 +43,10 @@ async function refreshDueReleases(limit: number) {
                 await refreshAnimeRelease(anilistId, { force: true });
                 return { ok: true as const };
             } catch (cause) {
-                return { ok: false as const, cause };
+                return {
+                    ok: false as const,
+                    cause,
+                };
             }
         })
     );
@@ -51,7 +54,9 @@ async function refreshDueReleases(limit: number) {
     await scheduleReleaseTargets(refreshedIds);
     return {
         attempted: rows.length,
+
         completed: results.filter(({ ok }) => ok).length,
+
         failed: results.filter(({ ok }) => !ok).length,
     };
 }
@@ -60,6 +65,7 @@ async function fullReconciliationDue(intervalMs: number) {
     const [heartbeat] = await db
         .select({
             completedAt: schedulerHeartbeat.lastFullReconciliationAt,
+
             nextAttemptAt: schedulerHeartbeat.nextFullReconciliationAt,
         })
         .from(schedulerHeartbeat)
@@ -84,6 +90,7 @@ async function calendarRefreshDue() {
     const [heartbeat] = await db
         .select({
             completedAt: schedulerHeartbeat.lastCalendarRefreshAt,
+
             nextAttemptAt: schedulerHeartbeat.nextCalendarRefreshAt,
         })
         .from(schedulerHeartbeat)
@@ -95,7 +102,10 @@ async function calendarRefreshDue() {
 async function releaseSchedulerLease(runId: string) {
     await db
         .update(schedulerHeartbeat)
-        .set({ activeRunId: null, leaseUntil: null })
+        .set({
+            activeRunId: null,
+            leaseUntil: null,
+        })
         .where(
             and(
                 eq(schedulerHeartbeat.name, heartbeatName),
@@ -112,14 +122,23 @@ export async function runAnimeScheduler() {
     const leaseUntil = new Date(startedAt.getTime() + runLease.durationMs);
     const [claimed] = await db
         .insert(schedulerHeartbeat)
-        .values({ name: heartbeatName, activeRunId: runId, leaseUntil, startedAt })
+        .values({
+            name: heartbeatName,
+            activeRunId: runId,
+            leaseUntil,
+            startedAt,
+        })
         .onConflictDoUpdate({
             target: schedulerHeartbeat.name,
+
             set: {
                 activeRunId: runId,
+
                 leaseUntil,
+
                 startedAt,
             },
+
             setWhere: or(
                 isNull(schedulerHeartbeat.activeRunId),
                 isNull(schedulerHeartbeat.leaseUntil),
@@ -148,19 +167,30 @@ export async function runAnimeScheduler() {
         const inventoryBackfills = await enqueueUnresolvedAnimeInterests();
         const maintenance = await drainMaintenanceTasks(runId, {
             limit: policy.concurrency,
+
             leaseDurationMs: policy.leaseDurationMs,
+
             leaseRenewalMs: policy.leaseRenewalMs,
         });
         let fullReconciliation:
-            | { discovered: number; releaseRequests: number; targets: number }
-            | { error: string; retryAt: string }
+            | {
+                  discovered: number;
+                  releaseRequests: number;
+                  targets: number;
+              }
+            | {
+                  error: string;
+                  retryAt: string;
+              }
             | null = null;
         if (await fullReconciliationDue(policy.fullReconciliationIntervalMs)) {
             try {
                 const result = await reconcileAllAiringReleases();
                 fullReconciliation = {
                     discovered: result.discovered,
+
                     releaseRequests: result.releaseRequests,
+
                     targets: result.targets,
                 };
             } catch (cause) {
@@ -171,20 +201,30 @@ export async function runAnimeScheduler() {
                 const retryAt = new Date(Date.now() + Math.max(30 * 60_000, retryAfterMs));
                 const error =
                     cause instanceof Error ? cause.message : 'Airing reconciliation failed';
-                fullReconciliation = { error, retryAt: retryAt.toISOString() };
+                fullReconciliation = {
+                    error,
+                    retryAt: retryAt.toISOString(),
+                };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
                         nextFullReconciliationAt: retryAt,
+
                         lastFailureAt: new Date(),
+
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             }
         }
 
-        let catalogRefresh: { completedAt: string } | { error: string; retryAt: string } | null =
-            null;
+        let catalogRefresh:
+            | { completedAt: string }
+            | {
+                  error: string;
+                  retryAt: string;
+              }
+            | null = null;
         if (await catalogRefreshDue()) {
             try {
                 await refreshCatalogSnapshots();
@@ -194,6 +234,7 @@ export async function runAnimeScheduler() {
                     .update(schedulerHeartbeat)
                     .set({
                         lastCatalogRefreshAt: refreshedAt,
+
                         nextCatalogRefreshAt: new Date(refreshedAt.getTime() + 24 * 60 * 60_000),
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -204,12 +245,17 @@ export async function runAnimeScheduler() {
                         ? cause.retryAfterMs
                         : 0;
                 const retryAt = new Date(Date.now() + Math.max(60 * 60_000, retryAfterMs));
-                catalogRefresh = { error, retryAt: retryAt.toISOString() };
+                catalogRefresh = {
+                    error,
+                    retryAt: retryAt.toISOString(),
+                };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
                         nextCatalogRefreshAt: retryAt,
+
                         lastFailureAt: new Date(),
+
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -217,8 +263,14 @@ export async function runAnimeScheduler() {
         }
 
         let calendarRefresh:
-            | { completedAt: string; entries: number }
-            | { error: string; retryAt: string }
+            | {
+                  completedAt: string;
+                  entries: number;
+              }
+            | {
+                  error: string;
+                  retryAt: string;
+              }
             | null = null;
         if (await calendarRefreshDue()) {
             try {
@@ -226,12 +278,14 @@ export async function runAnimeScheduler() {
                 const refreshedAt = result.sourceFetchedAt;
                 calendarRefresh = {
                     completedAt: refreshedAt.toISOString(),
+
                     entries: result.entries,
                 };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
                         lastCalendarRefreshAt: refreshedAt,
+
                         nextCalendarRefreshAt: new Date(
                             refreshedAt.getTime() + policy.calendarRefreshIntervalMs
                         ),
@@ -244,12 +298,17 @@ export async function runAnimeScheduler() {
                         ? cause.retryAfterMs
                         : 0;
                 const retryAt = new Date(Date.now() + Math.max(15 * 60_000, retryAfterMs));
-                calendarRefresh = { error, retryAt: retryAt.toISOString() };
+                calendarRefresh = {
+                    error,
+                    retryAt: retryAt.toISOString(),
+                };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
                         nextCalendarRefreshAt: retryAt,
+
                         lastFailureAt: new Date(),
+
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -261,12 +320,19 @@ export async function runAnimeScheduler() {
         const completedAt = new Date();
         const stats = {
             releases,
+
             maintenance,
+
             episodes,
+
             interests,
+
             inventoryBackfills,
+
             fullReconciliation,
+
             catalogRefresh,
+
             calendarRefresh,
         };
         const reconciliationError =
@@ -275,10 +341,13 @@ export async function runAnimeScheduler() {
             catalogRefresh && 'error' in catalogRefresh ? catalogRefresh.error : null;
         const calendarError =
             calendarRefresh && 'error' in calendarRefresh ? calendarRefresh.error : null;
-        const heartbeatUpdate: Partial<typeof schedulerHeartbeat.$inferInsert> = {
+        const heartbeatUpdate: Partial<SchedulerHeartbeatUpdate> = {
             completedAt,
+
             lastSuccessAt: completedAt,
+
             lastError: reconciliationError ?? catalogError ?? calendarError,
+
             stats,
         };
         if (fullReconciliation && !reconciliationError) {
@@ -304,7 +373,9 @@ export async function runAnimeScheduler() {
             .update(schedulerHeartbeat)
             .set({
                 completedAt,
+
                 lastFailureAt: completedAt,
+
                 lastError: cause instanceof Error ? cause.message : 'Anime scheduler failed',
             })
             .where(
@@ -320,16 +391,98 @@ export async function runAnimeScheduler() {
     }
 }
 
+interface SchedulerHeartbeatUpdate {
+    completedAt: Date;
+
+    lastSuccessAt: Date;
+
+    lastError: string | null;
+
+    stats: unknown;
+
+    lastFullReconciliationAt: Date;
+
+    nextFullReconciliationAt: Date;
+}
+
 export async function runAnimeMaintenance(runId: string) {
     const policy = schedulerPolicy();
     return drainMaintenanceTasks(runId, {
         limit: policy.concurrency,
+
         leaseDurationMs: policy.leaseDurationMs,
+
         leaseRenewalMs: policy.leaseRenewalMs,
     });
 }
 
-export async function animeSchedulerHealth(now = new Date()) {
+export interface AnimeSchedulerHealth {
+    healthy: boolean;
+
+    reason: string | null;
+
+    active: boolean;
+
+    startedAt: Date | null;
+
+    completedAt: Date | null;
+
+    lastSuccessAt: Date | null;
+
+    lastFailureAt: Date | null;
+
+    lastFullReconciliationAt: Date | null;
+
+    nextFullReconciliationAt: Date | null;
+
+    lastCatalogRefreshAt: Date | null;
+
+    nextCatalogRefreshAt: Date | null;
+
+    durationMs: number | null;
+
+    stats: unknown | null;
+
+    targets: {
+        pending: number;
+
+        due: number;
+
+        leased: number;
+
+        confirmed: number;
+
+        failed: number;
+
+        retired: number;
+    };
+
+    maintenanceTasks: Record<string, number>;
+
+    maintenanceOldestDueAgeMs: number | null;
+
+    anilist: {
+        blockedUntil: Date | null;
+
+        lastRequestAt: Date | null;
+
+        lastOperation: string | null;
+
+        lastStatus: number | null;
+
+        lastError: string | null;
+
+        requestCount: number;
+
+        successCount: number;
+
+        failureCount: number;
+    } | null;
+
+    oldestDueAgeMs: number | null;
+}
+
+export async function animeSchedulerHealth(now = new Date()): Promise<AnimeSchedulerHealth> {
     const [
         heartbeat,
         requestState,
@@ -353,11 +506,17 @@ export async function animeSchedulerHealth(now = new Date()) {
             .limit(1)
             .then((rows) => rows[0] ?? null),
         db
-            .select({ state: animeEpisodeTarget.state, count: count() })
+            .select({
+                state: animeEpisodeTarget.state,
+                count: count(),
+            })
             .from(animeEpisodeTarget)
             .groupBy(animeEpisodeTarget.state),
         db
-            .select({ state: maintenanceTask.state, count: count() })
+            .select({
+                state: maintenanceTask.state,
+                count: count(),
+            })
             .from(maintenanceTask)
             .groupBy(maintenanceTask.state),
         db
@@ -434,6 +593,7 @@ export async function animeSchedulerHealth(now = new Date()) {
 
     return {
         healthy,
+
         reason:
             successAge === null
                 ? 'The scheduler has not completed successfully'
@@ -444,41 +604,69 @@ export async function animeSchedulerHealth(now = new Date()) {
                     : reconciliationAge === null || reconciliationAge > 2 * 60 * 60_000
                       ? 'Full airing reconciliation is stale'
                       : null,
+
         active,
+
         startedAt: heartbeat?.startedAt ?? null,
+
         completedAt: heartbeat?.completedAt ?? null,
+
         lastSuccessAt: heartbeat?.lastSuccessAt ?? null,
+
         lastFailureAt: heartbeat?.lastFailureAt ?? null,
+
         lastFullReconciliationAt: heartbeat?.lastFullReconciliationAt ?? null,
+
         nextFullReconciliationAt: heartbeat?.nextFullReconciliationAt ?? null,
+
         lastCatalogRefreshAt: heartbeat?.lastCatalogRefreshAt ?? null,
+
         nextCatalogRefreshAt: heartbeat?.nextCatalogRefreshAt ?? null,
+
         durationMs,
+
         stats: heartbeat?.stats ?? null,
+
         targets: {
             pending: targetTotals.pending ?? 0,
+
             due: dueTargets?.count ?? 0,
+
             leased: leasedTargets?.count ?? 0,
+
             confirmed: targetTotals.confirmed ?? 0,
+
             failed: targetTotals.failed ?? 0,
+
             retired: targetTotals.retired ?? 0,
         },
+
         maintenanceTasks: Object.fromEntries(taskCounts.map((row) => [row.state, row.count])),
+
         maintenanceOldestDueAgeMs: oldestDueMaintenance
             ? now.getTime() - oldestDueMaintenance.nextAttemptAt.getTime()
             : null,
+
         anilist: requestState
             ? {
                   blockedUntil: requestState.blockedUntil,
+
                   lastRequestAt: requestState.lastRequestAt,
+
                   lastOperation: requestState.lastOperation,
+
                   lastStatus: requestState.lastStatus,
+
                   lastError: requestState.lastError,
+
                   requestCount: requestState.requestCount,
+
                   successCount: requestState.successCount,
+
                   failureCount: requestState.failureCount,
               }
             : null,
+
         oldestDueAgeMs: oldestDue ? now.getTime() - oldestDue.nextAttemptAt.getTime() : null,
     };
 }
