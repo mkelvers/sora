@@ -70,7 +70,7 @@ async function refreshSynopsis(anime: AniListAnime, source: AniListAnime) {
             });
 
         return replacement.synopsis;
-    } catch {
+    } catch (cause) {
         if (cause instanceof NoConfidentTmdbMappingError) {
             await db
                 .insert(animeSynopsis)
