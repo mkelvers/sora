@@ -7,6 +7,7 @@ import type {
     MediaStatus,
 } from './catalog/anilist/graphql/graphql.generated';
 
+/** Runtime contract for an anime card returned by catalog sources. */
 export const AnimeCardSchema = z.object({
     id: z.number().int().positive(),
     title: z.string(),
@@ -21,16 +22,20 @@ export const AnimeCardSchema = z.object({
     episode: z.number().int().positive().optional(),
 });
 
+/** Anime card shape accepted from a catalog source after runtime validation. */
 export type AnimeCard = z.infer<typeof AnimeCardSchema>;
 
+/** A paginated simulcast result, including whether another page can be fetched. */
 export const AnimeCardPageSchema = z.object({
     anime: z.array(AnimeCardSchema),
     hasNextPage: z.boolean(),
     page: z.number().int(),
 });
 
+/** Validated page of catalog cards; `page` is the source's current page number. */
 export type AnimeCardPage = z.infer<typeof AnimeCardPageSchema>;
 
+/** Provider episode data normalized for playback and progress tracking. */
 export type AnimeEpisode = {
     id: string;
     number: number;
@@ -40,6 +45,7 @@ export type AnimeEpisode = {
     duration: string;
     releaseDate: string;
     overview: string;
+    /** Absent when progress was not requested; null when no checkpoint exists. */
     progress?: {
         positionSeconds: number;
         durationSeconds: number;
@@ -49,10 +55,12 @@ export type AnimeEpisode = {
     } | null;
 };
 
+/** Runtime shape for a cached episode-source revision, which may be unknown. */
 export const EpisodeRevisionSchema = z.object({
     revision: z.string().nullable(),
 });
 
+/** Episode artwork and resume state used to build a continue-watching card. */
 export type ContinueWatchingCard = {
     animeId: number;
     title: string;
@@ -68,6 +76,13 @@ export type ContinueWatchingCard = {
     } | null;
 };
 
+/** Ordered franchise entries enriched with identifiers and relation metadata. */
+/**
+ * Franchise display order and its catalog entries.
+ *
+ * `primary` and `secondary` distinguish the focal anime from related entries;
+ * source relation metadata is retained so callers can present the order's basis.
+ */
 export type FranchiseOrder = {
     types: Array<{
         id: string;

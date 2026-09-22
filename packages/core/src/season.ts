@@ -1,20 +1,25 @@
 const seasonOrder = ['WINTER', 'SPRING', 'SUMMER', 'FALL'] as const;
 
+/** The four calendar seasons recognized by the catalog. */
 export type AnimeSeason = (typeof seasonOrder)[number];
 
+/** A season and calendar year pair used to select a simulcast period. */
 export interface AnimeSeasonSelection {
     season: AnimeSeason;
     year: number;
 }
 
+/** Earliest catalog year known for each season; missing seasons are omitted. */
 export type AnimeSeasonStartYears = Partial<Record<AnimeSeason, number>>;
 
-export function parseAnimeSeason(value: string | null | undefined) {
+/** Parses a season name case-insensitively after trimming surrounding space. */
+export function parseAnimeSeason(value: string | null | undefined): AnimeSeason | undefined {
     const season = value?.trim().toUpperCase();
 
     return seasonOrder.find((candidate) => candidate === season);
 }
 
+/** Returns the season containing `now`, using UTC calendar months and year. */
 export function currentAnimeSeason(now = new Date()): AnimeSeasonSelection {
     return {
         season: seasonOrder[Math.floor(now.getUTCMonth() / 3)],
@@ -22,6 +27,7 @@ export function currentAnimeSeason(now = new Date()): AnimeSeasonSelection {
     };
 }
 
+/** Compares seasons chronologically; a negative result means `left` is earlier. */
 export function compareAnimeSeasons(left: AnimeSeasonSelection, right: AnimeSeasonSelection) {
     return (
         left.year - right.year ||
@@ -29,6 +35,12 @@ export function compareAnimeSeasons(left: AnimeSeasonSelection, right: AnimeSeas
     );
 }
 
+/**
+ * Lists seasons with known start years through `latest`, inclusive.
+ *
+ * Each season is included only for years at or after its first known start
+ * year. An empty result means no valid start year was supplied.
+ */
 export function availableAnimeSeasons(starts: AnimeSeasonStartYears, latest: AnimeSeasonSelection) {
     const firstYear = Math.min(
         ...seasonOrder.flatMap((season) => {

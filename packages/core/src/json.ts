@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+/** Recursive value shape permitted by JSON, excluding undefined and non-JSON objects. */
 export type JsonValue =
     | string
     | number
