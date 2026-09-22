@@ -10,12 +10,9 @@ import { animeTitles } from '../catalog/anilist/anilist-text';
 import { enqueueEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { findInternalAnimeId } from '../catalog/identity';
-import {
-    create as createTmdbClient,
-    findMapping,
-    resolveStored,
-    saveVerifiedMapping,
-} from '../catalog/tmdb';
+import { create as createTmdbClient } from '../catalog/tmdb/client';
+import { resolveStored } from '../catalog/tmdb/mapping';
+import { findMapping, saveVerifiedMapping } from '../catalog/tmdb/mapping-store';
 import { normalizedProviderTitle } from '../providers/matching';
 
 async function requireRelease(anilistId: number) {

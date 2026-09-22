@@ -8,7 +8,7 @@ import {
     notification,
     watchlist,
 } from '@soraorg/database/schema';
-import { getStoredMedia } from '../catalog/tmdb';
+import { getStoredMedia } from '../catalog/tmdb/media';
 
 type InventoryNotification = {
     type: 'episode_available' | 'dub_available';
