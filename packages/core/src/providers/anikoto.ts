@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import { createDecipheriv } from 'node:crypto';
 import { z } from 'zod';
 
-import { audioAvailabilityLabel, type AudioMode } from '../audio';
+import type { AudioMode } from '../audio';
 import type { AnimeSeasonSelection } from '../season';
 import type { AnimeCard } from '../types';
 import { animeTitles, plainText } from '../catalog/anilist-text';
@@ -1278,11 +1278,9 @@ export async function getAniKotoSimulcastPage(selection: AnimeSeasonSelection, p
 
     const anime: AnimeCard[] = series.map((entry) => ({
         id: entry.anilistId,
-        href: `/anime/${entry.anilistId}`,
-        link: `/anime/${entry.anilistId}`,
         title: entry.title,
         image: entry.image,
-        audioLabel: audioAvailabilityLabel(entry.audio),
+        audio: entry.audio,
         format: entry.format,
         status: entry.status,
         score: entry.score,

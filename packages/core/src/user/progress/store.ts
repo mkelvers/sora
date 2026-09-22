@@ -1,6 +1,5 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
-import { audioAvailabilityLabel } from '../../audio';
 import type { ContinueWatchingCard } from '../../types';
 import { db } from '@soraorg/shared/db';
 import {
@@ -17,7 +16,6 @@ import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identi
 import { getStoredMedia } from '../../catalog/tmdb';
 import { updateWatchlistAfterPlayback } from '../watchlist/store';
 import { formatDuration } from '../utils';
-import { watchEpisodeHref } from '../../catalog/episode-route';
 import type { PlaybackProgressInput } from './input';
 import { selectPlaybackProgress } from './continue';
 
@@ -291,11 +289,9 @@ export async function getContinueWatchingCards(userId: string): Promise<Continue
             return {
                 animeId: progress.anilistId,
                 title: details?.title ?? progress.animeTitle ?? `Anime ${progress.anilistId}`,
-                link: watchEpisodeHref(progress.anilistId, target.number),
                 backdrop,
                 episodeImage,
-                episodeLabel: `E${target.number}`,
-                audioLabel: audioAvailabilityLabel(target.audio),
+                audio: target.audio,
                 duration: formatDuration(runtimeMinutes),
                 resumeAtSeconds: continuingCurrent ? progress.positionSeconds : 0,
                 progress: {
