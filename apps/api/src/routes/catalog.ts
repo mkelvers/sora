@@ -9,7 +9,7 @@ import {
 } from '@soraorg/core/server';
 import { parseBrowseFilters } from '@soraorg/core/server';
 import { clearPlaybackProgress } from '@soraorg/core/server';
-import { middleware, validate, type ApiEnvironment } from '../http';
+import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
 import { catalogApplication } from '../catalog';
 
 const SimulcastQuerySchema = PageQuerySchema.extend({
@@ -19,10 +19,10 @@ const SimulcastQuerySchema = PageQuerySchema.extend({
 
 export const catalog = new Hono<ApiEnvironment>();
 
-catalog.use('*', middleware);
+catalog.use('*', optionalMiddleware);
 
 catalog.get('/home', async (context) =>
-    context.json(await catalogApplication.homePage(context.get('session').user.id))
+    context.json(await catalogApplication.homePage(context.get('session')?.user.id))
 );
 
 catalog.get('/schedule', async (context) =>
@@ -35,6 +35,7 @@ catalog.get('/taxonomy', async (context) =>
 
 catalog.delete(
     '/home/continue-watching/:anilistId',
+    middleware,
     validate('param', z.object({ anilistId: AnimeIdSchema })),
     async (context) => {
         await clearPlaybackProgress(
