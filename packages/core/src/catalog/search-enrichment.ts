@@ -17,7 +17,6 @@ async function storedArtwork(anilistIds: number[]) {
             [
                 anilistId,
                 {
-                    group: `tmdb:${row.mediaType}:${row.targetId}`,
                     backdrop: row.filePath ? imageUrl(row.filePath, 'w780') : null,
                 },
             ] as const,
@@ -67,9 +66,8 @@ export async function withAnimeSearchMetadata<T extends AnimeSearchResult>(resul
         return results;
     }
 
-    const artworkIds = anilistIds;
     const [artwork, playback] = await Promise.all([
-        storedArtwork(artworkIds),
+        storedArtwork(anilistIds),
         storedPlayback(anilistIds),
     ]);
     return results.map((result) => {
