@@ -5,7 +5,7 @@ import type {
     MediaFormat,
     MediaRelation,
     MediaStatus,
-} from '@soraorg/shared/graphql/generated/graphql';
+} from './catalog/anilist/graphql/generated/graphql';
 
 export const AnimeCardSchema = z.object({
     id: z.number().int().positive(),

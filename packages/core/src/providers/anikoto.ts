@@ -1048,8 +1048,8 @@ async function requestJson(
 
 async function playbackOverride(anilistId: number) {
     const [{ db }, schema] = await Promise.all([
-        import('@soraorg/shared/db'),
-        import('@soraorg/shared/db/schema'),
+        import('@soraorg/database'),
+        import('@soraorg/database/schema'),
     ]);
     const [override] = await db
         .select({ id: schema.animeMappingOverride.externalId })
@@ -1146,8 +1146,8 @@ export async function recordAniKotoInventoryVerification(
 
     const now = new Date();
     const [{ db }, schema] = await Promise.all([
-        import('@soraorg/shared/db'),
-        import('@soraorg/shared/db/schema'),
+        import('@soraorg/database'),
+        import('@soraorg/database/schema'),
     ]);
     await db
         .update(schema.animeProviderMapping)

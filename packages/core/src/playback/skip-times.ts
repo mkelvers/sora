@@ -7,8 +7,8 @@ import {
     type SkipInterval,
     type SkipKind,
 } from '../player/skip-times';
-import { db } from '@soraorg/shared/db';
-import { animeEpisode, animeEpisodeSegmentTemplate } from '@soraorg/shared/db/schema';
+import { db } from '@soraorg/database';
+import { animeEpisode, animeEpisodeSegmentTemplate } from '@soraorg/database/schema';
 import { fetchAniSkip, validSkipInterval } from './aniskip';
 
 const aniskipFailureUntil = new Map<string, number>();

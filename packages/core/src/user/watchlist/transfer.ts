@@ -3,8 +3,8 @@ import { z } from 'zod';
 import {
     SearchAnimePageDocument,
     WatchlistTransferAnimeDocument,
-} from '@soraorg/shared/graphql/generated/graphql';
-import type { WatchlistState } from '@soraorg/shared/db/schema';
+} from '../../catalog/anilist/graphql/generated/graphql';
+import type { WatchlistState } from '@soraorg/database/schema';
 import { batches, positiveInteger, record, text, type JsonValue } from '../utils';
 import { animeTitles } from '../../catalog/anilist/anilist-text';
 import { request } from '../../catalog/anilist/anilist-client';
