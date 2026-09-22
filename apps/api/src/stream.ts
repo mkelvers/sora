@@ -238,7 +238,7 @@ function responseHeaders(response: Response) {
 }
 
 async function proxiedResponse(target: URL, response: Response) {
-    const streamLimits = {
+    const streamLimits: Record<StreamBody, number> = {
         playlist: 2 * 1024 * 1024,
         subtitle: 512 * 1024,
         segment: 64 * 1024 * 1024,

@@ -23,3 +23,8 @@ export function dateTimestamp(value: string | null | undefined) {
     const timestamp = Date.parse(`${value}T00:00:00Z`);
     return Number.isFinite(timestamp) ? timestamp : null;
 }
+
+/** Formats a date as the catalog's user-facing MM/DD/YYYY air-date string in UTC. */
+export function formatAirDate(date: Date) {
+    return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
+}

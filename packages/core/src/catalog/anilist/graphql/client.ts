@@ -1,15 +1,10 @@
-import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 import { z } from 'zod';
 
+import type { TypedDocumentString } from './graphql.generated';
 import { GraphQLRequestError } from './error';
 
 /** A generated operation with result and variable types plus its serialized query. */
-export interface GraphQLDocument<TResult, TVariables> extends DocumentTypeDecoration<
-    TResult,
-    TVariables
-> {
-    toString(): string;
-}
+export type GraphQLDocument<TResult, TVariables> = TypedDocumentString<TResult, TVariables>;
 
 /** Controls request timeout and transient retry behavior for one GraphQL operation. */
 export interface GraphQLOptions {
