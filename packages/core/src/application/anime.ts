@@ -8,7 +8,11 @@ import {
     needsEpisodeMetadataRefresh,
 } from '../catalog/episodes';
 import { getEpisodes } from '../providers/episode-inventory';
-import { getAnimeOverview, getAnimeRelease, storedAnimeRelease } from '../catalog/anilist-release';
+import {
+    getAnimeOverview,
+    getAnimeRelease,
+    storedAnimeRelease,
+} from '../catalog/anilist/anilist-release';
 import { watchEpisodeNumber } from '../catalog/episode-route';
 import { episodesAvailableToWatch } from '../providers/inventory';
 import {

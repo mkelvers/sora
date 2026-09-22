@@ -1,4 +1,4 @@
-import type { AniListAnime } from '../anilist-types';
+import type { AniListAnime } from '../anilist/anilist-types';
 
 export function isSeasonPlaceholderSynopsis(value: string) {
     return /^(?:(?:the\s+)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+season|season\s+(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th)))\s+of\b/i.test(
