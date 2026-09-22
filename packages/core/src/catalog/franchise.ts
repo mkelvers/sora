@@ -26,8 +26,7 @@ import {
 
 type FranchiseMedia = NonNullable<NonNullable<FranchiseMediaQuery['Page']>['media']>[number];
 
-type StoredFranchiseIdentity = {
-    anilistId: number;
+type StoredFranchiseIdentity = Pick<typeof animeRelease.$inferSelect, 'anilistId'> & {
     hasProviderMapping: boolean;
 };
 
