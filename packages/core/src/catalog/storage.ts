@@ -10,8 +10,8 @@ import {
 } from '@soraorg/shared/db/schema';
 import { createAnimeSearchIndex } from './search-index';
 import type { AnimeCard } from '../types';
-import { AniListAnimeSchema } from './anilist-types';
-import { plainText } from './anilist-text';
+import { AniListAnimeSchema } from './anilist/anilist-types';
+import { plainText } from './anilist/anilist-text';
 
 export function catalogSnapshotKey(filters: Omit<BrowseFilters, 'audio'>, page: number) {
     return JSON.stringify({
