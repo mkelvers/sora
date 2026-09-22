@@ -50,22 +50,23 @@ const episodeSchema = z.object({
 });
 type TmdbEpisode = z.infer<typeof episodeSchema>;
 
-function readUint32(bytes: Uint8Array, offset: number) {
-    return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset);
-}
-
+/**
+ * Inflate an RGBA PNG and reverse its per-row PNG filters.
+ * The returned rows contain reconstructed pixel bytes, four bytes per pixel.
+ */
 function pngRows(bytes: Uint8Array) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let width = 0;
     let height = 0;
     const compressed: Uint8Array[] = [];
     let offset = 8;
 
     while (offset < bytes.length) {
-        const length = readUint32(bytes, offset);
+        const length = view.getUint32(offset);
         const type = new TextDecoder().decode(bytes.slice(offset + 4, offset + 8));
         if (type === 'IHDR') {
-            width = readUint32(bytes, offset + 8);
-            height = readUint32(bytes, offset + 12);
+            width = view.getUint32(offset + 8);
+            height = view.getUint32(offset + 12);
             if (bytes[offset + 16] !== 8 || bytes[offset + 17] !== 6) {
                 throw new Error('TMDB still preview is not RGBA PNG');
             }
