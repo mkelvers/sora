@@ -3,7 +3,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer, username } from 'better-auth/plugins';
 
-import { hasInvitationClaim } from '@soraorg/core/server';
+import { hasInvitationClaim } from '@soraorg/core/user/invitations';
 import { db } from '@soraorg/database';
 import * as schema from '@soraorg/database/schema';
 

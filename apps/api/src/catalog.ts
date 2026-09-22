@@ -1,3 +1,4 @@
-import { createCatalogApplication, createCatalogSource } from '@soraorg/core/server';
+import { createCatalogSource } from '@soraorg/core/catalog/anikoto-source';
+import { createCatalogApplication } from '@soraorg/core/catalog/application';
 
 export const catalogApplication = createCatalogApplication(createCatalogSource());
