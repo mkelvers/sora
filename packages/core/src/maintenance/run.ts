@@ -23,6 +23,18 @@ import { enqueueUnresolvedAnimeInterests, reconcileAnimeInterests } from './inte
 
 const heartbeatName = 'anime-scheduler';
 
+function refreshFailure(cause: unknown, fallbackMessage: string, minimumDelayMs: number) {
+    const error = cause instanceof Error ? cause.message : fallbackMessage;
+    const retryAfterMs =
+        cause instanceof GraphQLRequestError && cause.retryAfterMs ? cause.retryAfterMs : 0;
+    const retryAt = new Date(Date.now() + Math.max(minimumDelayMs, retryAfterMs));
+    return {
+        error,
+        retryAt,
+        retryAtText: retryAt.toISOString(),
+    };
+}
+
 async function refreshDueReleases(limit: number) {
     const rows = await db
         .select({ anilistId: animeReleaseRequest.anilistId })
@@ -182,23 +194,17 @@ export async function runAnimeScheduler() {
                     targets: result.targets,
                 };
             } catch (cause) {
-                const retryAfterMs =
-                    cause instanceof GraphQLRequestError && cause.retryAfterMs
-                        ? cause.retryAfterMs
-                        : 0;
-                const retryAt = new Date(Date.now() + Math.max(30 * 60_000, retryAfterMs));
-                const error =
-                    cause instanceof Error ? cause.message : 'Airing reconciliation failed';
+                const failure = refreshFailure(cause, 'Airing reconciliation failed', 30 * 60_000);
                 fullReconciliation = {
-                    error,
-                    retryAt: retryAt.toISOString(),
+                    error: failure.error,
+                    retryAt: failure.retryAtText,
                 };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
-                        nextFullReconciliationAt: retryAt,
+                        nextFullReconciliationAt: failure.retryAt,
                         lastFailureAt: new Date(),
-                        lastError: error,
+                        lastError: failure.error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             }
@@ -224,22 +230,17 @@ export async function runAnimeScheduler() {
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             } catch (cause) {
-                const error = cause instanceof Error ? cause.message : 'Catalog refresh failed';
-                const retryAfterMs =
-                    cause instanceof GraphQLRequestError && cause.retryAfterMs
-                        ? cause.retryAfterMs
-                        : 0;
-                const retryAt = new Date(Date.now() + Math.max(60 * 60_000, retryAfterMs));
+                const failure = refreshFailure(cause, 'Catalog refresh failed', 60 * 60_000);
                 catalogRefresh = {
-                    error,
-                    retryAt: retryAt.toISOString(),
+                    error: failure.error,
+                    retryAt: failure.retryAtText,
                 };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
-                        nextCatalogRefreshAt: retryAt,
+                        nextCatalogRefreshAt: failure.retryAt,
                         lastFailureAt: new Date(),
-                        lastError: error,
+                        lastError: failure.error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             }
@@ -273,22 +274,17 @@ export async function runAnimeScheduler() {
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             } catch (cause) {
-                const error = cause instanceof Error ? cause.message : 'Calendar refresh failed';
-                const retryAfterMs =
-                    cause instanceof GraphQLRequestError && cause.retryAfterMs
-                        ? cause.retryAfterMs
-                        : 0;
-                const retryAt = new Date(Date.now() + Math.max(15 * 60_000, retryAfterMs));
+                const failure = refreshFailure(cause, 'Calendar refresh failed', 15 * 60_000);
                 calendarRefresh = {
-                    error,
-                    retryAt: retryAt.toISOString(),
+                    error: failure.error,
+                    retryAt: failure.retryAtText,
                 };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
-                        nextCalendarRefreshAt: retryAt,
+                        nextCalendarRefreshAt: failure.retryAt,
                         lastFailureAt: new Date(),
-                        lastError: error,
+                        lastError: failure.error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
             }
