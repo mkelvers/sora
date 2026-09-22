@@ -1,0 +1,15 @@
+{
+  "$schema": "https://fallow.tools/schema.json",
+  "dynamicallyLoaded": [
+    "packages/shared/src/graphql/operations/anilist/*.graphql"
+  ],
+  "ignorePatterns": [
+    "packages/shared/src/graphql/generated/**"
+  ],
+  "ignoreDependencyOverrides": [
+    {
+      "package": "@esbuild-kit/core-utils>esbuild",
+      "source": "package.json"
+    }
+  ]
+}
