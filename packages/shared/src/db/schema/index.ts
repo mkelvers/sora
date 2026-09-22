@@ -99,6 +99,14 @@ const userAnimeFields = () => ({
         }),
 });
 
+const updatedAtField = () =>
+    timestamp('updated_at', {
+        withTimezone: true,
+    })
+        .notNull()
+        .defaultNow()
+        .$onUpdate(() => new Date());
+
 export const users = pgTable(
     'users',
     {
@@ -230,10 +238,7 @@ export const animeRelation = pgTable(
         relationType: varchar('relation_type', { length: 32 }).notNull(),
         source: varchar('source', { length: 32 }).notNull(),
         verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp('updated_at', { withTimezone: true })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        updatedAt: updatedAtField(),
     },
     (table) => [
         primaryKey({ columns: [table.sourceAnimeId, table.targetAnimeId, table.relationType] }),
@@ -310,12 +315,7 @@ export const providerSnapshot = pgTable(
         })
             .notNull()
             .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        updatedAt: updatedAtField(),
     },
     (table) => [
         primaryKey({
