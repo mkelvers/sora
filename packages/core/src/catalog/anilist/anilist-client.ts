@@ -49,7 +49,7 @@ function canonical(value: JsonValue): JsonValue {
 
 function querySnapshotKey<TVariables>(
     document: GraphQLDocument<unknown, TVariables>,
-    variables: TVariables
+    variables: NoInfer<TVariables>
 ) {
     const parsedVariables = z.json().parse(JSON.parse(JSON.stringify(variables)));
     const serializedVariables = JSON.stringify(canonical(parsedVariables)) ?? 'null';
@@ -65,7 +65,7 @@ async function refresh<TResult, TVariables>(
     tx: DatabaseTransaction,
     key: string,
     document: GraphQLDocument<TResult, TVariables>,
-    variables: TVariables,
+    variables: NoInfer<TVariables>,
     options: AniListRequestOptions
 ) {
     const operation = document.toString().match(/(?:query|mutation)\s+(\w+)/)?.[1] ?? 'anonymous';
@@ -150,7 +150,7 @@ async function refresh<TResult, TVariables>(
 async function refreshWithLock<TResult, TVariables>(
     key: string,
     document: GraphQLDocument<TResult, TVariables>,
-    variables: TVariables,
+    variables: NoInfer<TVariables>,
     options: AniListRequestOptions,
     requestedAt: Date
 ) {
@@ -200,7 +200,7 @@ async function refreshWithLock<TResult, TVariables>(
  */
 export async function request<TResult, TVariables>(
     document: GraphQLDocument<TResult, TVariables>,
-    variables: TVariables,
+    variables: NoInfer<TVariables>,
     options: AniListRequestOptions = {}
 ) {
     const refreshAfterMs = options.refreshAfterMs ?? 24 * 60 * 60 * 1_000;
