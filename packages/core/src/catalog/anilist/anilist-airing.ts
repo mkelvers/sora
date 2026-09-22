@@ -1,4 +1,4 @@
-import { AiringAnimePageDocument } from './graphql/generated/graphql';
+import { AiringAnimePageDocument } from './graphql/graphql.generated';
 import { parseAiringMedia, type AiringAnime, type AiringPageEntry } from '../airing';
 import { request } from './anilist-client';
 

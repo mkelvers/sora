@@ -3,7 +3,7 @@ import type {
     MediaSeason,
     MediaSource,
     MediaStatus,
-} from './anilist/graphql/generated/graphql';
+} from './anilist/graphql/graphql.generated';
 
 export interface BrowseCatalogEntry {
     metadataSource?: string;

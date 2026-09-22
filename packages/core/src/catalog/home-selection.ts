@@ -1,4 +1,4 @@
-import type { MediaFormat } from './anilist/graphql/generated/graphql';
+import type { MediaFormat } from './anilist/graphql/graphql.generated';
 
 import { isDiscoverableAnime } from './discovery';
 

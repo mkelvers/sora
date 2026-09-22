@@ -1,6 +1,6 @@
 import { asc, notInArray, sql } from 'drizzle-orm';
 
-import { HomeHeroCandidatesDocument } from './graphql/generated/graphql';
+import { HomeHeroCandidatesDocument } from './graphql/graphql.generated';
 import { db } from '@soraorg/database';
 import { homeHeroCandidate } from '@soraorg/database/schema';
 import { eligibleHomeHeroCandidates } from '../home-selection';

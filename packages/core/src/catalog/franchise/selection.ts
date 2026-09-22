@@ -1,4 +1,4 @@
-import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql/generated/graphql';
+import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql/graphql.generated';
 
 export type FranchiseSelectionEntry = {
     malId: number;
