@@ -207,7 +207,7 @@ async function removeStoredTmdbMapping(anilistId: number) {
     if (ids.length) {
         await db.delete(animeExternalIdLink).where(
             and(
-                eq(animeExternalIdLink.animeId, owner.animeId),
+                eq(animeExternalIdLink.animeId, animeId),
                 inArray(
                     animeExternalIdLink.externalIdId,
                     ids.map(({ id }) => id)
