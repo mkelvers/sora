@@ -1,4 +1,4 @@
-import type { BrowseCatalogEntry } from './browse-types';
+import type { BrowseCatalogEntry } from './browse-types.js';
 
 export function popularCatalogPages(entries: BrowseCatalogEntry[]) {
     const unique = new Map<number, BrowseCatalogEntry>();
