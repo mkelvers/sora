@@ -6,9 +6,9 @@ import {
     animeExternalIdLink,
     animeMappingOverride,
 } from '@soraorg/shared/db/schema';
-import { animeTitles } from '../catalog/anilist-text';
+import { animeTitles } from '../catalog/anilist/anilist-text';
 import { enqueueEpisodeInventoryBackfill } from '../catalog/episode-sync';
-import { storedAnimeRelease } from '../catalog/anilist-release';
+import { storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { findInternalAnimeId } from '../catalog/identity';
 import {
     create as createTmdbClient,

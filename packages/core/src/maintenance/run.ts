@@ -10,7 +10,7 @@ import {
     maintenanceTask,
     schedulerHeartbeat,
 } from '@soraorg/shared/db/schema';
-import { refreshAnimeRelease } from '../catalog/anilist-release';
+import { refreshAnimeRelease } from '../catalog/anilist/anilist-release';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
 import { drainEpisodeTargets } from './episodes';
 import { refreshCatalogSnapshots } from './catalog';

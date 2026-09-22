@@ -7,7 +7,7 @@ import {
     refreshAnimeRelease,
     refreshAnimeSchedule,
     storedAnimeRelease,
-} from '../catalog/anilist-release';
+} from '../catalog/anilist/anilist-release';
 import {
     discoverEpisodeInventory,
     episodeInventoryBackfillKey,
