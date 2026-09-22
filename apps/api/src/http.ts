@@ -53,6 +53,19 @@ export const middleware = createMiddleware<ApiEnvironment>(async (context, next)
     await next();
 });
 
+export const optionalMiddleware = createMiddleware<ApiEnvironment>(async (context, next) => {
+    const session = await auth.api.getSession({
+        query: {
+            disableCookieCache: true,
+        },
+        headers: context.req.raw.headers,
+    });
+    if (session) {
+        context.set('session', session);
+    }
+    await next();
+});
+
 // Stream authentication uses Better Auth's short-lived signed cookie cache.
 export const streamMiddleware = createMiddleware(async (context, next) => {
     const session = await auth.api.getSession({
