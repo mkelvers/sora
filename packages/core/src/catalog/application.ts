@@ -7,7 +7,7 @@ import {
     animeEpisodeTarget,
     animeRelease,
 } from '@soraorg/shared/db/schema';
-import { audioAvailabilityLabel, type AudioMode } from '../audio';
+import type { AudioMode } from '../audio';
 import type { AnimeCard } from '../types';
 import type { BrowseFilters } from './browse-filters';
 import { catalogPage } from './query';
@@ -174,9 +174,7 @@ export function createCatalogApplication(source: CatalogSource) {
                 ? [
                       {
                           ...card,
-                          audioLabel: audioAvailabilityLabel([
-                              ...(audioByAnime.get(entry.anilistId) ?? []),
-                          ]),
+                          audio: [...(audioByAnime.get(entry.anilistId) ?? [])],
                           releasedAt: (entry.confirmedAt ?? entry.airingAt).toISOString(),
                           episode: entry.episode,
                       },

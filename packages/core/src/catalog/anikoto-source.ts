@@ -5,7 +5,6 @@ import type { BrowseSourceTaxonomy } from './browse-transform';
 import type { CatalogBrowseFilters, CatalogSource, HomeHero } from './source';
 import { animeCard } from './card';
 import { animeTitles, mediaTitle } from './anilist-text';
-import { audioAvailabilityLabel } from '../audio';
 import { isDiscoverableAnime } from './discovery';
 import { getBrowsePage, getBrowseTaxonomy, type AniListBrowseFilters } from './anilist-browse';
 import { discoverReleaseCalendar } from './anilist-calendar';
@@ -33,25 +32,19 @@ async function loadHomeHero(id: number): Promise<HomeHero | null> {
         }
 
         const episodes = await getEpisodes(details);
-        const firstEpisode = episodes[0];
-        if (!firstEpisode) {
+        if (!episodes[0]) {
             return null;
         }
 
         return {
             id,
-            href: `/anime/${id}`,
-            link: firstEpisode.href,
-            episodeLabel: firstEpisode.label,
             title: mediaTitle(details),
             image: artwork.selectedBackdrop.url,
             logo: {
                 url: artwork.selectedLogo.url,
                 size: artwork.logoSize,
             },
-            audioLabel: audioAvailabilityLabel([
-                ...new Set(episodes.flatMap(({ audio }) => audio)),
-            ]),
+            audio: [...new Set(episodes.flatMap(({ audio }) => audio))],
             genres: details.genres?.filter((genre) => genre !== null) ?? [],
             description: await resolveHeroSynopsis(details),
         };
@@ -81,15 +74,6 @@ async function search(query: string): Promise<AnimeSearchResult[]> {
                 format: entry.format ?? null,
                 popularity: entry.popularity ?? 0,
                 backdrop: null,
-                artworkGroup: null,
-                relatedIds: (
-                    entry.relations?.edges?.filter((value) => value !== null) ?? []
-                ).flatMap((edge) =>
-                    (edge?.relationType === 'PREQUEL' || edge?.relationType === 'SEQUEL') &&
-                    edge.node
-                        ? [edge.node.id]
-                        : []
-                ),
             },
         ];
     });
