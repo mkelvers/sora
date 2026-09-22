@@ -1,4 +1,4 @@
-import { ReleaseCalendarPageDocument } from '@soraorg/shared/graphql/generated/graphql';
+import { ReleaseCalendarPageDocument } from './graphql/generated/graphql';
 import type { ReleaseCalendarEntry } from '../release-calendar-parser';
 import { parseReleaseCalendarPage } from '../release-calendar-parser';
 import { request } from './anilist-client';

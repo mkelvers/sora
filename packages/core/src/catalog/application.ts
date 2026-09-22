@@ -1,12 +1,12 @@
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 
-import { db } from '@soraorg/shared/db';
+import { db } from '@soraorg/database';
 import {
     animeCatalogRefresh,
     animeEpisode,
     animeEpisodeTarget,
     animeRelease,
-} from '@soraorg/shared/db/schema';
+} from '@soraorg/database/schema';
 import { audioModesByAnime } from '../audio';
 import type { AnimeCard } from '../types';
 import type { BrowseFilters } from './browse-filters';
@@ -96,7 +96,12 @@ export function createCatalogApplication(source: CatalogSource) {
             .limit(1);
         let pageSnapshot = stored;
         if (!pageSnapshot) {
-            const result = await source.browsePage(sourceFilters, page, 42, true);
+            const result = await source.browsePage({
+                filters: sourceFilters,
+                page,
+                perPage: 42,
+                forceRefresh: true,
+            });
             pageSnapshot = await refreshCatalogPage(queryKey, result.anime, result.hasNextPage);
         }
         const catalog = await catalogPage(filters, page, pageSnapshot.animeIds);
@@ -195,7 +200,12 @@ export function createCatalogApplication(source: CatalogSource) {
             sort: 'popularity',
             order: 'desc',
         };
-        const homepage = await source.browsePage(homepageFilters, 1, 30, true);
+        const homepage = await source.browsePage({
+            filters: homepageFilters,
+            page: 1,
+            perPage: 30,
+            forceRefresh: true,
+        });
         await refreshCatalogPage(
             catalogSnapshotKey(homepageFilters, 1),
             homepage.anime,

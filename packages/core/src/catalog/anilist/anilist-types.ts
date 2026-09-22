@@ -2,7 +2,7 @@ import type {
     AnimeOverviewQuery,
     AnimeQuery,
     AnimeScheduleQuery,
-} from '@soraorg/shared/graphql/generated/graphql';
+} from './graphql/generated/graphql';
 import { z } from 'zod';
 
 export type AnimeMetadataField =
