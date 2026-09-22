@@ -1,12 +1,6 @@
-interface AiringScheduleSnapshot {
-    id: number;
-    nextAiringAt: number | null;
-    nextAiringEpisode: number | null;
-    latestAiredAt: number | null;
-    latestAiredEpisode: number | null;
-}
+import type { AiringAnime } from '../catalog/airing';
 
-export function airingTargetSchedules(snapshot: AiringScheduleSnapshot[]) {
+export function airingTargetSchedules(snapshot: AiringAnime[]) {
     return snapshot.flatMap((release) => {
         const schedules: { anilistId: number; episode: number; airingAt: Date }[] = [];
         if (release.latestAiredEpisode && release.latestAiredAt) {

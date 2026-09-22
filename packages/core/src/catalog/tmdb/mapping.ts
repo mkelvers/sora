@@ -2,7 +2,7 @@ import { animeTitles } from '../anilist/anilist-text';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { animeDate } from '../date';
 import { episodeTitleKey } from '../../providers/matching';
-import { create } from './client';
+import { create, type TmdbResponse } from './client';
 import {
     preferredTvReleaseCandidate,
     relatedSpecialMappingIsBetter,
@@ -52,11 +52,10 @@ export class NoConfidentTmdbMappingError extends Error {
 
 function seasonEvidenceScore(
     anime: AniListAnime,
-    season: {
-        air_date?: string;
-        episode_count: number;
-        season_number: number;
-    }
+    season: Pick<
+        NonNullable<TmdbResponse['seasons']>[number],
+        'air_date' | 'episode_count' | 'season_number'
+    >
 ) {
     let score = season.season_number === 0 ? 100 : 0;
 

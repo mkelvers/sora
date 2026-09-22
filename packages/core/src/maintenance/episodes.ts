@@ -16,14 +16,10 @@ interface SchedulerLimits {
     leaseRenewalMs: number;
 }
 
-type ClaimedTarget = {
-    anilistId: number;
-    targetEpisode: number;
-    airingAt: Date;
-    attemptCount: number;
-    failureCount: number;
-    leaseOwner: string;
-};
+type ClaimedTarget = Pick<
+    typeof animeEpisodeTarget.$inferSelect,
+    'anilistId' | 'targetEpisode' | 'airingAt' | 'attemptCount' | 'failureCount' | 'leaseOwner'
+> & { leaseOwner: string };
 
 async function claimTargets(runId: string, limit: number, leaseDurationMs: number) {
     const now = new Date();
