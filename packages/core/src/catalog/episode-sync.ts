@@ -39,6 +39,19 @@ import {
     episodeInventoryStatus,
     providerEpisodeCount,
 } from '../providers/inventory';
+
+function confirmedTargetValues(revision: string, confirmedAt: Date) {
+    return {
+        state: 'confirmed' as const,
+        inventoryRevision: revision,
+        confirmedAt,
+        leaseOwner: null,
+        leaseUntil: null,
+        lastError: null,
+        updatedAt: confirmedAt,
+    };
+}
+
 import {
     episodesForRelease,
     preferredEpisodeAirDate,
