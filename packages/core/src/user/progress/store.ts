@@ -14,7 +14,7 @@ import { toAnimeDetails } from '../../catalog/details';
 import { formatDuration } from '../../catalog/duration';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identity';
-import { getStoredMedia } from '../../catalog/tmdb';
+import { getStoredMedia } from '../../catalog/tmdb/media';
 import { updateWatchlistAfterPlayback } from '../watchlist/store';
 import type { PlaybackProgressInput } from './input';
 import { selectPlaybackProgress } from './continue';

@@ -6,7 +6,8 @@ import { getAnimeRelease } from '../catalog/anilist/anilist-release';
 import { refreshHomeHeroCandidates } from '../catalog/anilist/anilist-hero';
 import { refreshFranchiseOrder } from '../catalog/franchise';
 import { ensureEpisodeInventoryBackfill } from '../catalog/episode-sync';
-import { findMapping, getArtwork } from '../catalog/tmdb';
+import { getArtwork } from '../catalog/tmdb/artwork';
+import { findMapping } from '../catalog/tmdb/mapping-store';
 import { rediscoverMapping } from './mappings';
 import { createCatalogSource } from '../catalog/anikoto-source';
 
