@@ -2,7 +2,7 @@ import { and, eq, inArray, notInArray } from 'drizzle-orm';
 
 import { db } from '@soraorg/shared/db';
 import { animeEpisodeSync, animeRelease, animeReleaseRequest } from '@soraorg/shared/db/schema';
-import { discoverAiringAnime } from '../catalog/anilist-airing';
+import { discoverAiringAnime } from '../catalog/anilist/anilist-airing';
 import { airingTargetSchedules } from './airing-policy';
 import { scheduleAiringTargets, scheduleReleaseTargets } from './targets';
 
