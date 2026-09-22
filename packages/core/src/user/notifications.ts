@@ -10,23 +10,24 @@ import {
 } from '@soraorg/database/schema';
 import { getStoredMedia } from '../catalog/tmdb/media';
 
-type InventoryNotification = Pick<
-    typeof notification.$inferInsert,
-    'type' | 'episodeId' | 'episodeNumber'
->;
+interface InventoryNotification {
+    type: 'episode_available' | 'dub_available';
+    episodeId: string;
+    episodeNumber: number;
+}
 
-type NotificationEntry = Pick<
-    typeof notification.$inferSelect,
-    | 'id'
-    | 'animeId'
-    | 'episodeId'
-    | 'type'
-    | 'title'
-    | 'episodeNumber'
-    | 'imageUrl'
-    | 'createdAt'
-    | 'readAt'
-> & { anilistId: number };
+interface NotificationEntry {
+    id: string;
+    animeId: number;
+    episodeId: string;
+    type: 'episode_available' | 'dub_available';
+    title: string;
+    episodeNumber: number;
+    imageUrl: string | null;
+    createdAt: Date;
+    readAt: Date | null;
+    anilistId: number;
+}
 
 type CompactedNotificationEntry = NotificationEntry & {
     episodeNumbers: number[];

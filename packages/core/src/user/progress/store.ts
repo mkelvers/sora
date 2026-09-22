@@ -1,6 +1,8 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import type { ContinueWatchingCard } from '../../types';
+import type { AudioMode } from '../../audio';
+import { isNotNullish } from '../../collections';
 import { db } from '@soraorg/database';
 import {
     anime as animeTable,
@@ -18,6 +20,38 @@ import { getStoredMedia } from '../../catalog/tmdb/media';
 import { updateWatchlistAfterPlayback } from '../watchlist/store';
 import type { PlaybackProgressInput } from './input';
 import { selectPlaybackProgress } from './continue';
+
+interface RecentPlaybackProgress {
+    anilistId: number;
+    animeTitle: string | null;
+    animeImage: string | null;
+    details: unknown;
+    episodeId: string;
+    episodeNumber: number;
+    positionSeconds: number;
+    durationSeconds: number;
+    completed: boolean;
+    id: string;
+    lastWatchedAt: Date;
+    eventAt: Date;
+    updatedAt: Date;
+}
+
+interface ContinueEpisode {
+    anilistId: number;
+    episodeId: string;
+    number: number;
+    providerTitle: string | null;
+    metadataTitle: string | null;
+    audio: AudioMode[];
+    imageUrl: string | null;
+    runtimeMinutes: number | null;
+    airDate: string | null;
+    overview: string | null;
+    firstSeenAt: Date;
+    lastSeenAt: Date;
+    lastVerifiedAt: Date;
+}
 
 export async function savePlaybackProgress(userId: string, input: PlaybackProgressInput) {
     const [episode] = await db
@@ -165,7 +199,9 @@ export async function clearPlaybackProgress(userId: string, anilistId: number) {
     return true;
 }
 
-async function recentPlaybackProgress(userId: string | undefined) {
+async function recentPlaybackProgress(
+    userId: string | undefined
+): Promise<RecentPlaybackProgress[]> {
     if (!userId) {
         return [];
     }
@@ -201,10 +237,7 @@ async function recentPlaybackProgress(userId: string | undefined) {
 }
 
 export async function getContinueWatchingCards(userId: string): Promise<ContinueWatchingCard[]> {
-    const progressByAnime = new Map<
-        number,
-        Awaited<ReturnType<typeof recentPlaybackProgress>>[number][]
-    >();
+    const progressByAnime = new Map<number, RecentPlaybackProgress[]>();
     for (const progress of await recentPlaybackProgress(userId)) {
         const entries = progressByAnime.get(progress.anilistId) ?? [];
         entries.push(progress);
@@ -212,7 +245,7 @@ export async function getContinueWatchingCards(userId: string): Promise<Continue
     }
     const progressEntries = [...progressByAnime.values()]
         .map((progress) => selectPlaybackProgress(progress))
-        .filter((progress): progress is NonNullable<typeof progress> => progress !== null);
+        .filter(isNotNullish);
     if (!progressEntries.length) {
         return [];
     }
@@ -223,7 +256,7 @@ export async function getContinueWatchingCards(userId: string): Promise<Continue
         .from(animeEpisode)
         .where(inArray(animeEpisode.anilistId, anilistIds))
         .orderBy(asc(animeEpisode.number));
-    const episodesByAnime = new Map<number, (typeof episodeRows)[number][]>();
+    const episodesByAnime = new Map<number, ContinueEpisode[]>();
 
     for (const episode of episodeRows) {
         const episodes = episodesByAnime.get(episode.anilistId) ?? [];
@@ -231,7 +264,7 @@ export async function getContinueWatchingCards(userId: string): Promise<Continue
         episodesByAnime.set(episode.anilistId, episodes);
     }
 
-    const cards: Array<ContinueWatchingCard | null> = await Promise.all(
+    const cards: (ContinueWatchingCard | null)[] = await Promise.all(
         progressEntries.map(async (progress) => {
             const episodes = episodesByAnime.get(progress.anilistId) ?? [];
             const currentIndex = episodes.findIndex(

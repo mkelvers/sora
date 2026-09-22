@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AnimeCardSchema } from './types';
+import { AnimeCardSchema, type AnimeCard } from './types';
 
 export interface SearchArtwork {
     group: string;
@@ -14,7 +14,12 @@ export const AnimeSearchResultSchema = AnimeCardSchema.extend({
     backdrop: z.string().nullable(),
 });
 
-export type AnimeSearchResult = z.infer<typeof AnimeSearchResultSchema>;
+export interface AnimeSearchResult extends Omit<AnimeCard, 'format'> {
+    titles: string[];
+    format: string | null;
+    popularity: number;
+    backdrop: string | null;
+}
 
 function searchTokens(value: string) {
     return (

@@ -16,13 +16,16 @@ const playbackProgressSchema = z.object({
     sessionStartedAt: z.number().int().nonnegative(),
 });
 
-export type PlaybackProgressInput = Omit<
-    z.output<typeof playbackProgressSchema>,
-    'eventAt' | 'sessionStartedAt'
-> & {
+export interface PlaybackProgressInput {
+    animeId: number;
+    episodeId: string;
+    episodeNumber: number;
+    positionSeconds: number;
+    durationSeconds: number;
+    completed: boolean;
     eventAt: Date;
     sessionStartedAt: Date;
-};
+}
 
 export function parsePlaybackProgress(value: JsonValue): PlaybackProgressInput | null {
     const parsed = playbackProgressSchema.safeParse(value);
