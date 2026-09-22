@@ -4,7 +4,6 @@ import { animeTitles } from '../../catalog/anilist/anilist-text';
 import { enrichAnimeCards } from '../../catalog/card-enrichment';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { storedAudioModes } from '../../providers/episode-inventory';
-import { logger } from '../../application/logger';
 import { selectWatchlistEntries, type WatchlistSelection } from './selection';
 import {
     applyWatchlistEntries,
@@ -40,9 +39,7 @@ export async function importWatchlist(
     const result = await applyWatchlistEntries(userId, imported.entries, mode);
     try {
         await hydrateMissingAnimeReleases(imported.entries.map(({ anilistId }) => anilistId));
-    } catch (cause) {
-        logger.debug('Watchlist metadata hydration failed', cause);
-    }
+    } catch {}
     await reconcileAnimeInterests();
     await enqueueUnresolvedAnimeInterests();
 
@@ -89,13 +86,8 @@ export async function getWatchlistPage(userId: string, selection: WatchlistSelec
     );
     const [audioByAnime, enrichedCards] = await Promise.all([
         storedAudioModes(cards.map(({ id }) => id)),
-        enrichAnimeCards(cards).catch((cause) => {
-            logger.debug('Watchlist card enrichment failed', cause);
-            return cards;
-        }),
-        storeMissingWatchlistTitles(titleBackfills).catch((cause) => {
-            logger.debug('Watchlist title backfill failed', cause);
-        }),
+        enrichAnimeCards(cards).catch(() => cards),
+        storeMissingWatchlistTitles(titleBackfills).catch(() => {}),
     ]);
     const entries = selectWatchlistEntries(enrichedCards, titledStored, audioByAnime, selection);
 

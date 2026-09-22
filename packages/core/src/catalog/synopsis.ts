@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import type { AnimeCard } from '../types';
 import { db } from '@soraorg/database';
 import { animeSynopsis } from '@soraorg/database/schema';
-import { logger } from '../application/logger';
 import { getAnimeRelease, storedAnimeRelease } from './anilist/anilist-release';
 import { mediaTitle, plainText } from './anilist/anilist-text';
 import type { AniListAnime } from './anilist/anilist-types';
@@ -73,7 +72,6 @@ async function refreshSynopsis(anime: AniListAnime, source: AniListAnime) {
         return replacement.synopsis;
     } catch (cause) {
         if (cause instanceof NoConfidentTmdbMappingError) {
-            logger.debug(`No TMDB synopsis replacement found for AniList ${anime.id}`);
             await db
                 .insert(animeSynopsis)
                 .values({
@@ -116,9 +114,7 @@ async function resolvedTmdbSynopsis(
             .from(animeSynopsis)
             .where(eq(animeSynopsis.anilistId, anime.id))
             .limit(1);
-    } catch (cause) {
-        logger.debug(`Synopsis record read failed for AniList ${anime.id}`, cause);
-    }
+    } catch {}
     if (
         stored?.sourceAnilistId === source.id &&
         (anime.status === 'FINISHED' ||
@@ -135,14 +131,9 @@ async function resolvedTmdbSynopsis(
         return await refreshSynopsis(anime, source);
     } catch (cause) {
         if (stored?.sourceAnilistId === source.id) {
-            logger.debug(
-                `TMDB synopsis refresh failed for AniList ${anime.id}; using stored text`,
-                cause
-            );
             return stored.synopsis;
         }
 
-        logger.debug(`TMDB synopsis replacement failed for AniList ${anime.id}`, cause);
         return null;
     }
 }
@@ -187,11 +178,7 @@ export async function withAnimeCardSynopses<T extends AnimeCard>(cards: T[]) {
                     try {
                         const anime = await getAnimeRelease(card.id);
                         return { ...card, synopsis: await resolveAnimeSynopsis(anime) };
-                    } catch (cause) {
-                        logger.debug(
-                            `Card synopsis replacement failed for AniList ${card.id}`,
-                            cause
-                        );
+                    } catch {
                         return card;
                     }
                 })

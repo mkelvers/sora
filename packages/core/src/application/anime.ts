@@ -46,7 +46,6 @@ import {
 import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progress/store';
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
-import { logger } from './logger';
 
 export async function animePageOverview(userId: string | undefined, id: number) {
     const stored = await storedAnimeRelease(id);
@@ -291,12 +290,7 @@ async function episodePlayback(
                 anilistId: anime.id,
                 episodeId: episode.id,
                 times: playback.skipTimes,
-            }).catch((cause) => {
-                logger.debug(
-                    `AniKoto skip times could not be saved for AniList ${anime.id} episode ${episode.number}`,
-                    cause
-                );
-            });
+            }).catch(() => {});
         }
 
         return {
@@ -304,11 +298,7 @@ async function episodePlayback(
             skipTimes: playback.skipTimes,
             error: !Object.values(playback.streams).some((sources) => sources?.length),
         };
-    } catch (cause) {
-        logger.debug(
-            `Playback source resolution failed for AniList ${anime.id} episode ${episode.number}`,
-            cause
-        );
+    } catch {
         return {
             streams: {},
             skipTimes: null,

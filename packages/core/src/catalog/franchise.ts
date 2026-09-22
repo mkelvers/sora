@@ -18,7 +18,6 @@ import { enrichAnimeCards } from './card-enrichment';
 import { fetchOrder, type ChiakiEntry } from './franchise/chiaki';
 import { FranchiseRecordSchema, verifiedFranchiseRecord } from './franchise/record';
 import { withFranchisePlayback } from './franchise/playback';
-import { logger } from '../application/logger';
 import {
     isFranchiseEntryEligible,
     primaryFranchiseIds,
@@ -151,9 +150,7 @@ async function saveOrder(tx: DatabaseTransaction, malId: number, data: Franchise
                     fetchedAt,
                 },
             });
-    } catch (cause) {
-        logger.debug(`Franchise record write failed for MAL ${malId}`, cause);
-    }
+    } catch {}
 }
 
 async function refresh(tx: DatabaseTransaction, malId: number) {
@@ -270,9 +267,7 @@ async function storedFranchiseOrder(malId: number) {
             .from(animeFranchise)
             .where(eq(animeFranchise.malId, malId))
             .limit(1);
-    } catch (cause) {
-        logger.debug(`Franchise record read failed for MAL ${malId}`, cause);
-    }
+    } catch {}
 
     const parsedStored = stored ? FranchiseRecordSchema.safeParse(stored.data) : null;
     return parsedStored?.success ? parsedStored.data.order : null;

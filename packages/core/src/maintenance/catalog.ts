@@ -8,7 +8,6 @@ import { refreshFranchiseOrder } from '../catalog/franchise';
 import { ensureEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { findMapping, getArtwork } from '../catalog/tmdb';
 import { rediscoverMapping } from './mappings';
-import { logger } from '../application/logger';
 import { createCatalogSource } from '../catalog/anikoto-source';
 
 const catalog = createCatalogApplication(createCatalogSource());
@@ -62,9 +61,7 @@ async function rediscoverRelatedMappings(release: Awaited<ReturnType<typeof getA
         try {
             await getAnimeRelease(relatedId);
             await rediscoverMapping(relatedId);
-        } catch (cause) {
-            logger.debug(`Related mapping enrichment failed for AniList ${relatedId}`, cause);
-        }
+        } catch {}
     }
 }
 
@@ -80,9 +77,7 @@ export async function refreshCatalogSnapshots(now = new Date()) {
                 await rediscoverMapping(anilistId);
             }
             await getArtwork(release, { fetchMissing: true });
-        } catch (cause) {
-            logger.debug(`Hero enrichment failed for AniList ${anilistId}`, cause);
-        }
+        } catch {}
     }
     await refreshKnownFranchises(now);
 }
