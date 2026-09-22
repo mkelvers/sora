@@ -12,7 +12,6 @@ import {
     type TvSeasonEvidence,
 } from './mapping-evidence';
 import { findMapping, saveVerifiedMapping } from './mapping-store';
-import { mappingNeedsVerification } from './mapping-verification';
 import {
     alternateCandidateIsBetter,
     candidateMatchesPrimaryTitle,
@@ -27,6 +26,22 @@ import { type Candidate, type Mapping, type StoredMapping } from './types';
 interface RankedCandidate {
     candidate: Candidate;
     searchRank: number;
+}
+
+function mappingNeedsVerification(
+    mapping: Pick<StoredMapping, 'title' | 'mediaType' | 'verifiedAt' | 'mappingRevision'>,
+    title: string | null,
+    expectedMediaType: StoredMapping['mediaType'] | null,
+    now = Date.now()
+) {
+    // TMDB identities can change upstream; periodically recheck persisted matches.
+    return (
+        mapping.title !== title ||
+        (expectedMediaType !== null && mapping.mediaType !== expectedMediaType) ||
+        mapping.mappingRevision !== 'tmdb-mapping-v10' ||
+        !mapping.verifiedAt ||
+        now - mapping.verifiedAt.getTime() >= 30 * 24 * 60 * 60 * 1_000
+    );
 }
 
 export class NoConfidentTmdbMappingError extends Error {
