@@ -125,7 +125,7 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
     }
 }
 
-export async function homePage(source: CatalogSource, userId: string, now = new Date()) {
+export async function homePage(source: CatalogSource, userId?: string, now = new Date()) {
     const { season, year } = currentAnimeSeason(now);
     const [seasonRows, popularRows] = await Promise.all([
         db
@@ -158,7 +158,7 @@ export async function homePage(source: CatalogSource, userId: string, now = new 
                   .where(inArray(animeEpisode.anilistId, animeIds))
             : Promise.resolve([]),
         heroSelection(homeHeroRotationStart(now), source.loadHomeHero).catch(() => []),
-        source.continueWatching(userId).catch(() => []),
+        userId ? source.continueWatching(userId).catch(() => []) : Promise.resolve([]),
     ]);
     const audioByAnime = audioModes(episodeRows);
     const toCard = (row: (typeof seasonRows)[number]): AnimeCard => ({
