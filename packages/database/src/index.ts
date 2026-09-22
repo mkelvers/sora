@@ -1,4 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import type { TablesRelationalConfig } from 'drizzle-orm';
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import * as schema from './schema';
@@ -12,4 +14,7 @@ export const db = drizzle({
     schema,
 });
 
-export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DatabaseTransaction = PostgresJsTransaction<
+    Record<string, unknown>,
+    TablesRelationalConfig
+>;
