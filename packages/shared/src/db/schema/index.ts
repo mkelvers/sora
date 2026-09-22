@@ -66,16 +66,8 @@ export const watchlistState = pgEnum('watchlist_state', [
     'dropped',
 ]);
 
-export const users = pgTable(
-    'users',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        name: text('name').notNull(),
-        email: text('email').notNull(),
-        emailVerified: boolean('email_verified').notNull().default(false),
-        image: text('image'),
-        username: text('username').notNull(),
-        displayUsername: text('display_username').notNull(),
+function timestamps() {
+    return {
         createdAt: timestamp('created_at', {
             withTimezone: true,
         })
@@ -87,6 +79,20 @@ export const users = pgTable(
             .notNull()
             .defaultNow()
             .$onUpdate(() => new Date()),
+    };
+}
+
+export const users = pgTable(
+    'users',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        name: text('name').notNull(),
+        email: text('email').notNull(),
+        emailVerified: boolean('email_verified').notNull().default(false),
+        image: text('image'),
+        username: text('username').notNull(),
+        displayUsername: text('display_username').notNull(),
+        ...timestamps(),
     },
     (table) => [
         unique('users_email_unique').on(table.email),
@@ -116,17 +122,7 @@ export const accounts = pgTable(
         }),
         scope: text('scope'),
         password: text('password'),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     },
     (table) => [
         unique('accounts_provider_account_unique').on(table.providerId, table.accountId),
@@ -142,17 +138,7 @@ export const sessions = pgTable(
             withTimezone: true,
         }).notNull(),
         token: text('token').notNull().unique('sessions_token_unique'),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
         ipAddress: text('ip_address'),
         userAgent: text('user_agent'),
         userId: uuid('user_id')
@@ -173,17 +159,7 @@ export const verifications = pgTable(
         expiresAt: timestamp('expires_at', {
             withTimezone: true,
         }).notNull(),
-        createdAt: timestamp('created_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow(),
-        updatedAt: timestamp('updated_at', {
-            withTimezone: true,
-        })
-            .notNull()
-            .defaultNow()
-            .$onUpdate(() => new Date()),
+        ...timestamps(),
     },
     (table) => [index('verifications_identifier_idx').on(table.identifier)]
 );
