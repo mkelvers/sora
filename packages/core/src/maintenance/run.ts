@@ -54,9 +54,7 @@ async function refreshDueReleases(limit: number) {
     await scheduleReleaseTargets(refreshedIds);
     return {
         attempted: rows.length,
-
         completed: results.filter(({ ok }) => ok).length,
-
         failed: results.filter(({ ok }) => !ok).length,
     };
 }
@@ -65,7 +63,6 @@ async function fullReconciliationDue(intervalMs: number) {
     const [heartbeat] = await db
         .select({
             completedAt: schedulerHeartbeat.lastFullReconciliationAt,
-
             nextAttemptAt: schedulerHeartbeat.nextFullReconciliationAt,
         })
         .from(schedulerHeartbeat)
@@ -90,7 +87,6 @@ async function calendarRefreshDue() {
     const [heartbeat] = await db
         .select({
             completedAt: schedulerHeartbeat.lastCalendarRefreshAt,
-
             nextAttemptAt: schedulerHeartbeat.nextCalendarRefreshAt,
         })
         .from(schedulerHeartbeat)
@@ -130,15 +126,11 @@ export async function runAnimeScheduler() {
         })
         .onConflictDoUpdate({
             target: schedulerHeartbeat.name,
-
             set: {
                 activeRunId: runId,
-
                 leaseUntil,
-
                 startedAt,
             },
-
             setWhere: or(
                 isNull(schedulerHeartbeat.activeRunId),
                 isNull(schedulerHeartbeat.leaseUntil),
@@ -167,9 +159,7 @@ export async function runAnimeScheduler() {
         const inventoryBackfills = await enqueueUnresolvedAnimeInterests();
         const maintenance = await drainMaintenanceTasks(runId, {
             limit: policy.concurrency,
-
             leaseDurationMs: policy.leaseDurationMs,
-
             leaseRenewalMs: policy.leaseRenewalMs,
         });
         let fullReconciliation:
@@ -188,9 +178,7 @@ export async function runAnimeScheduler() {
                 const result = await reconcileAllAiringReleases();
                 fullReconciliation = {
                     discovered: result.discovered,
-
                     releaseRequests: result.releaseRequests,
-
                     targets: result.targets,
                 };
             } catch (cause) {
@@ -209,9 +197,7 @@ export async function runAnimeScheduler() {
                     .update(schedulerHeartbeat)
                     .set({
                         nextFullReconciliationAt: retryAt,
-
                         lastFailureAt: new Date(),
-
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -234,7 +220,6 @@ export async function runAnimeScheduler() {
                     .update(schedulerHeartbeat)
                     .set({
                         lastCatalogRefreshAt: refreshedAt,
-
                         nextCatalogRefreshAt: new Date(refreshedAt.getTime() + 24 * 60 * 60_000),
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -253,9 +238,7 @@ export async function runAnimeScheduler() {
                     .update(schedulerHeartbeat)
                     .set({
                         nextCatalogRefreshAt: retryAt,
-
                         lastFailureAt: new Date(),
-
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -278,14 +261,12 @@ export async function runAnimeScheduler() {
                 const refreshedAt = result.sourceFetchedAt;
                 calendarRefresh = {
                     completedAt: refreshedAt.toISOString(),
-
                     entries: result.entries,
                 };
                 await db
                     .update(schedulerHeartbeat)
                     .set({
                         lastCalendarRefreshAt: refreshedAt,
-
                         nextCalendarRefreshAt: new Date(
                             refreshedAt.getTime() + policy.calendarRefreshIntervalMs
                         ),
@@ -306,9 +287,7 @@ export async function runAnimeScheduler() {
                     .update(schedulerHeartbeat)
                     .set({
                         nextCalendarRefreshAt: retryAt,
-
                         lastFailureAt: new Date(),
-
                         lastError: error,
                     })
                     .where(eq(schedulerHeartbeat.name, heartbeatName));
@@ -320,19 +299,12 @@ export async function runAnimeScheduler() {
         const completedAt = new Date();
         const stats = {
             releases,
-
             maintenance,
-
             episodes,
-
             interests,
-
             inventoryBackfills,
-
             fullReconciliation,
-
             catalogRefresh,
-
             calendarRefresh,
         };
         const reconciliationError =
@@ -343,11 +315,8 @@ export async function runAnimeScheduler() {
             calendarRefresh && 'error' in calendarRefresh ? calendarRefresh.error : null;
         const heartbeatUpdate: Partial<SchedulerHeartbeatUpdate> = {
             completedAt,
-
             lastSuccessAt: completedAt,
-
             lastError: reconciliationError ?? catalogError ?? calendarError,
-
             stats,
         };
         if (fullReconciliation && !reconciliationError) {
@@ -373,9 +342,7 @@ export async function runAnimeScheduler() {
             .update(schedulerHeartbeat)
             .set({
                 completedAt,
-
                 lastFailureAt: completedAt,
-
                 lastError: cause instanceof Error ? cause.message : 'Anime scheduler failed',
             })
             .where(
@@ -393,15 +360,10 @@ export async function runAnimeScheduler() {
 
 interface SchedulerHeartbeatUpdate {
     completedAt: Date;
-
     lastSuccessAt: Date;
-
     lastError: string | null;
-
     stats: unknown;
-
     lastFullReconciliationAt: Date;
-
     nextFullReconciliationAt: Date;
 }
 
@@ -409,76 +371,45 @@ export async function runAnimeMaintenance(runId: string) {
     const policy = schedulerPolicy();
     return drainMaintenanceTasks(runId, {
         limit: policy.concurrency,
-
         leaseDurationMs: policy.leaseDurationMs,
-
         leaseRenewalMs: policy.leaseRenewalMs,
     });
 }
 
 export interface AnimeSchedulerHealth {
     healthy: boolean;
-
     reason: string | null;
-
     active: boolean;
-
     startedAt: Date | null;
-
     completedAt: Date | null;
-
     lastSuccessAt: Date | null;
-
     lastFailureAt: Date | null;
-
     lastFullReconciliationAt: Date | null;
-
     nextFullReconciliationAt: Date | null;
-
     lastCatalogRefreshAt: Date | null;
-
     nextCatalogRefreshAt: Date | null;
-
     durationMs: number | null;
-
     stats: unknown | null;
-
     targets: {
         pending: number;
-
         due: number;
-
         leased: number;
-
         confirmed: number;
-
         failed: number;
-
         retired: number;
     };
-
     maintenanceTasks: Record<string, number>;
-
     maintenanceOldestDueAgeMs: number | null;
-
     anilist: {
         blockedUntil: Date | null;
-
         lastRequestAt: Date | null;
-
         lastOperation: string | null;
-
         lastStatus: number | null;
-
         lastError: string | null;
-
         requestCount: number;
-
         successCount: number;
-
         failureCount: number;
     } | null;
-
     oldestDueAgeMs: number | null;
 }
 
@@ -593,7 +524,6 @@ export async function animeSchedulerHealth(now = new Date()): Promise<AnimeSched
 
     return {
         healthy,
-
         reason:
             successAge === null
                 ? 'The scheduler has not completed successfully'
@@ -604,69 +534,41 @@ export async function animeSchedulerHealth(now = new Date()): Promise<AnimeSched
                     : reconciliationAge === null || reconciliationAge > 2 * 60 * 60_000
                       ? 'Full airing reconciliation is stale'
                       : null,
-
         active,
-
         startedAt: heartbeat?.startedAt ?? null,
-
         completedAt: heartbeat?.completedAt ?? null,
-
         lastSuccessAt: heartbeat?.lastSuccessAt ?? null,
-
         lastFailureAt: heartbeat?.lastFailureAt ?? null,
-
         lastFullReconciliationAt: heartbeat?.lastFullReconciliationAt ?? null,
-
         nextFullReconciliationAt: heartbeat?.nextFullReconciliationAt ?? null,
-
         lastCatalogRefreshAt: heartbeat?.lastCatalogRefreshAt ?? null,
-
         nextCatalogRefreshAt: heartbeat?.nextCatalogRefreshAt ?? null,
-
         durationMs,
-
         stats: heartbeat?.stats ?? null,
-
         targets: {
             pending: targetTotals.pending ?? 0,
-
             due: dueTargets?.count ?? 0,
-
             leased: leasedTargets?.count ?? 0,
-
             confirmed: targetTotals.confirmed ?? 0,
-
             failed: targetTotals.failed ?? 0,
-
             retired: targetTotals.retired ?? 0,
         },
-
         maintenanceTasks: Object.fromEntries(taskCounts.map((row) => [row.state, row.count])),
-
         maintenanceOldestDueAgeMs: oldestDueMaintenance
             ? now.getTime() - oldestDueMaintenance.nextAttemptAt.getTime()
             : null,
-
         anilist: requestState
             ? {
                   blockedUntil: requestState.blockedUntil,
-
                   lastRequestAt: requestState.lastRequestAt,
-
                   lastOperation: requestState.lastOperation,
-
                   lastStatus: requestState.lastStatus,
-
                   lastError: requestState.lastError,
-
                   requestCount: requestState.requestCount,
-
                   successCount: requestState.successCount,
-
                   failureCount: requestState.failureCount,
               }
             : null,
-
         oldestDueAgeMs: oldestDue ? now.getTime() - oldestDue.nextAttemptAt.getTime() : null,
     };
 }

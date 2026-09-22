@@ -22,23 +22,14 @@ import { reconcileAllAiringReleases } from './reconciliation';
 /** Persisted task fields returned to the administrative API before date serialization. */
 export interface MaintenanceTask {
     id: string;
-
     kind: string;
-
     state: 'pending' | 'running' | 'completed' | 'failed';
-
     attempts: number;
-
     nextAttemptAt: Date;
-
     lastError: string | null;
-
     result: unknown | null;
-
     createdAt: Date;
-
     updatedAt: Date;
-
     completedAt: Date | null;
 }
 
@@ -81,39 +72,24 @@ export async function enqueueMaintenance(request: MaintenanceRequest) {
         .insert(maintenanceTask)
         .values({
             kind: request.kind,
-
             dedupeKey: key,
-
             payload: request,
-
             priority: maintenancePriority(request),
         })
         .onConflictDoUpdate({
             target: maintenanceTask.dedupeKey,
-
             setWhere: ne(maintenanceTask.state, 'running'),
-
             set: {
                 payload: request,
-
                 priority: maintenancePriority(request),
-
                 state: 'pending',
-
                 attempts: 0,
-
                 nextAttemptAt: new Date(),
-
                 leaseOwner: null,
-
                 leaseUntil: null,
-
                 lastError: null,
-
                 result: null,
-
                 completedAt: null,
-
                 updatedAt: new Date(),
             },
         })
@@ -139,23 +115,14 @@ export async function getMaintenanceTask(id: string): Promise<MaintenanceTask | 
     return db
         .select({
             id: maintenanceTask.id,
-
             kind: maintenanceTask.kind,
-
             state: maintenanceTask.state,
-
             attempts: maintenanceTask.attempts,
-
             nextAttemptAt: maintenanceTask.nextAttemptAt,
-
             lastError: maintenanceTask.lastError,
-
             result: maintenanceTask.result,
-
             createdAt: maintenanceTask.createdAt,
-
             updatedAt: maintenanceTask.updatedAt,
-
             completedAt: maintenanceTask.completedAt,
         })
         .from(maintenanceTask)
@@ -180,17 +147,11 @@ async function executeMaintenance(request: MaintenanceRequest) {
             .update(animeEpisodeTarget)
             .set({
                 state: 'pending',
-
                 nextAttemptAt: new Date(),
-
                 leaseOwner: null,
-
                 leaseUntil: null,
-
                 lastError: null,
-
                 retiredAt: null,
-
                 updatedAt: new Date(),
             })
             .where(
@@ -277,7 +238,6 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 leaseUntil: new Date(Date.now() + options.leaseDurationMs),
-
                 updatedAt: new Date(),
             })
             .where(
@@ -300,17 +260,11 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 state: 'completed',
-
                 result,
-
                 completedAt: new Date(),
-
                 leaseOwner: null,
-
                 leaseUntil: null,
-
                 lastError: null,
-
                 updatedAt: new Date(),
             })
             .where(
@@ -327,15 +281,10 @@ async function finishMaintenanceTask(
                 .update(maintenanceTask)
                 .set({
                     state: 'pending',
-
                     nextAttemptAt: retryAt,
-
                     leaseOwner: null,
-
                     leaseUntil: null,
-
                     lastError: null,
-
                     updatedAt: new Date(),
                 })
                 .where(
@@ -356,17 +305,11 @@ async function finishMaintenanceTask(
                 .update(maintenanceTask)
                 .set({
                     state: 'failed',
-
                     attempts: 12,
-
                     nextAttemptAt: retryAt,
-
                     leaseOwner: null,
-
                     leaseUntil: null,
-
                     lastError: cause.message,
-
                     updatedAt: new Date(),
                 })
                 .where(
@@ -389,17 +332,11 @@ async function finishMaintenanceTask(
             .update(maintenanceTask)
             .set({
                 state: failed ? 'failed' : 'pending',
-
                 attempts,
-
                 nextAttemptAt: retryAt,
-
                 leaseOwner: null,
-
                 leaseUntil: null,
-
                 lastError: cause instanceof Error ? cause.message : 'Maintenance task failed',
-
                 updatedAt: new Date(),
             })
             .where(
@@ -614,11 +551,8 @@ export async function drainMaintenanceTasks(
                     .update(maintenanceTask)
                     .set({
                         state: 'running',
-
                         leaseOwner,
-
                         leaseUntil: new Date(Date.now() + options.leaseDurationMs),
-
                         updatedAt: new Date(),
                     })
                     .where(eq(maintenanceTask.id, candidate.id))
@@ -644,7 +578,6 @@ export async function drainMaintenanceTasks(
     const executions = claimedCandidates.map(({ candidate, claimed, leaseOwner }) =>
         finishMaintenanceTask(candidate, claimed, leaseOwner, {
             leaseDurationMs: options.leaseDurationMs,
-
             leaseRenewalMs: options.leaseRenewalMs,
         })
     );
