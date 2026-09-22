@@ -39,6 +39,17 @@
         "typescript": "~6.0.3",
       },
     },
+    "packages/contracts": {
+      "name": "@soraorg/contracts",
+      "version": "0.0.1",
+      "dependencies": {
+        "@graphql-typed-document-node/core": "^3.2.0",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "typescript": "catalog:",
+      },
+    },
     "packages/core": {
       "name": "@soraorg/core",
       "version": "0.0.1",
@@ -422,6 +433,8 @@
     "@repeaterjs/repeater": ["@repeaterjs/repeater@3.1.0", "", {}, "sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ=="],
 
     "@soraorg/api": ["@soraorg/api@workspace:apps/api"],
+
+    "@soraorg/contracts": ["@soraorg/contracts@workspace:packages/contracts"],
 
     "@soraorg/core": ["@soraorg/core@workspace:packages/core"],
 
