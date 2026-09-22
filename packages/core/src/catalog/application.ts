@@ -26,6 +26,13 @@ import { createSearchOperation } from './search';
 import { createSimulcastOperations } from './simulcast';
 import type { CatalogBrowseFilters, CatalogSource } from './source';
 
+type ConfirmedEpisodeTarget = {
+    anilistId: number;
+    episode: number;
+    confirmedAt: Date | null;
+    airingAt: Date;
+};
+
 export function createCatalogApplication(source: CatalogSource) {
     const search = createSearchOperation(source);
     const simulcast = createSimulcastOperations(source);
@@ -109,7 +116,7 @@ export function createCatalogApplication(source: CatalogSource) {
             )
             .orderBy(desc(animeEpisodeTarget.confirmedAt), desc(animeEpisodeTarget.targetEpisode))
             .limit(5_000);
-        const latestByAnime = new Map<number, (typeof confirmed)[number]>();
+        const latestByAnime = new Map<number, ConfirmedEpisodeTarget>();
         for (const entry of confirmed) {
             if (!latestByAnime.has(entry.anilistId)) {
                 latestByAnime.set(entry.anilistId, entry);
