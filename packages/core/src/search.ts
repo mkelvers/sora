@@ -12,8 +12,6 @@ export const AnimeSearchResultSchema = AnimeCardSchema.extend({
     format: z.string().nullable(),
     popularity: z.number(),
     backdrop: z.string().nullable(),
-    artworkGroup: z.string().nullable(),
-    relatedIds: z.array(z.number().int()),
 });
 
 export type AnimeSearchResult = z.infer<typeof AnimeSearchResultSchema>;
@@ -162,7 +160,7 @@ export function distinctSearchArtwork(results: AnimeSearchResult[], limit: numbe
     const distinct: AnimeSearchResult[] = [];
 
     for (const result of results) {
-        const image = result.artworkGroup ?? result.backdrop ?? result.image;
+        const image = result.backdrop ?? result.image;
         if (artwork.has(image)) {
             continue;
         }
@@ -175,54 +173,4 @@ export function distinctSearchArtwork(results: AnimeSearchResult[], limit: numbe
     }
 
     return distinct;
-}
-
-export function inferSearchArtwork(
-    results: AnimeSearchResult[],
-    stored: ReadonlyMap<number, SearchArtwork>
-) {
-    const artwork = new Map(stored);
-    const groupBackdrops = new Map<string, string>();
-    for (const { group, backdrop } of stored.values()) {
-        if (backdrop) {
-            groupBackdrops.set(group, backdrop);
-        }
-    }
-
-    let changed = true;
-    while (changed) {
-        changed = false;
-        for (const result of results) {
-            if (result.format === 'MOVIE' || artwork.has(result.id)) {
-                continue;
-            }
-
-            const groups = new Set(
-                result.relatedIds
-                    .map((id) => artwork.get(id)?.group)
-                    .filter((group): group is string => group?.startsWith('tmdb:tv:') === true)
-            );
-            if (groups.size !== 1) {
-                continue;
-            }
-
-            const [group] = groups;
-            artwork.set(result.id, { group, backdrop: groupBackdrops.get(group) ?? null });
-            changed = true;
-        }
-    }
-
-    return new Map(
-        results.flatMap((result) => {
-            const value = artwork.get(result.id);
-            return value
-                ? [
-                      [
-                          result.id,
-                          { ...value, backdrop: groupBackdrops.get(value.group) ?? value.backdrop },
-                      ] as const,
-                  ]
-                : [];
-        })
-    );
 }

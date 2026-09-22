@@ -5,21 +5,19 @@ import type { BrowseCatalogEntry } from './browse-types';
 import type { BrowseSourceTaxonomy } from './browse-transform';
 import type { ReleaseCalendarEntry } from './release-calendar-parser';
 import type { AnimeSeasonSelection } from '../season';
+import type { AudioMode } from '../audio';
 
 export type CatalogBrowseFilters = Omit<BrowseFilters, 'audio'>;
 
 export interface HomeHero {
     id: number;
-    href: string;
-    link: string;
-    episodeLabel: string;
     title: string;
     image: string;
     logo: {
         url: string;
         size: number;
     };
-    audioLabel: string;
+    audio: AudioMode[];
     genres: string[];
     description: string;
 }
