@@ -10,6 +10,7 @@ import { getArtwork } from '../catalog/tmdb/artwork';
 import { findMapping } from '../catalog/tmdb/mapping-store';
 import { rediscoverMapping } from './mappings';
 import { createCatalogSource } from '../catalog/anikoto-source';
+import type { AniListAnime } from '../catalog/anilist/anilist-types';
 
 const catalog = createCatalogApplication(createCatalogSource());
 
@@ -43,10 +44,14 @@ async function refreshKnownFranchises(now: Date) {
         throw new AggregateError(failures, 'One or more franchise refreshes failed');
     }
 
-    return { attempted: malIds.length, completed, failed: 0 };
+    return {
+        attempted: malIds.length,
+        completed,
+        failed: 0,
+    };
 }
 
-async function rediscoverRelatedMappings(release: Awaited<ReturnType<typeof getAnimeRelease>>) {
+async function rediscoverRelatedMappings(release: AniListAnime) {
     const relatedIds = (release.relations?.edges ?? []).flatMap((edge) =>
         edge?.node?.type === 'ANIME' &&
         (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL')

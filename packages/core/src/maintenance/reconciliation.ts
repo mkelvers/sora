@@ -14,7 +14,12 @@ async function enqueueReleaseRequests(anilistIds: number[]) {
 
     return db
         .insert(animeReleaseRequest)
-        .values(ids.map((anilistId) => ({ anilistId, nextAttemptAt: new Date() })))
+        .values(
+            ids.map((anilistId) => ({
+                anilistId,
+                nextAttemptAt: new Date(),
+            }))
+        )
         .onConflictDoNothing()
         .returning({ anilistId: animeReleaseRequest.anilistId })
         .then((rows) => rows.length);

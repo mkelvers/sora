@@ -93,7 +93,11 @@ async function validateTmdbIdentity(
     if (release.startDate?.year && year && release.startDate.year !== year) {
         throw new Error(`TMDB ${mediaType} ${externalId} has a different release year`);
     }
-    return { release, title: suppliedTitles[0] ?? null, year };
+    return {
+        release,
+        title: suppliedTitles[0] ?? null,
+        year,
+    };
 }
 
 export async function setMetadataMappingOverride(
@@ -113,7 +117,11 @@ export async function setMetadataMappingOverride(
               validationStatus: previousOverride.validationStatus,
           }
         : previous
-          ? { source: 'automatic', externalId: previous.id, mediaType: previous.mediaType }
+          ? {
+                source: 'automatic',
+                externalId: previous.id,
+                mediaType: previous.mediaType,
+            }
           : null;
 
     await db
@@ -148,7 +156,10 @@ export async function setMetadataMappingOverride(
 
     try {
         const validation = await validateTmdbIdentity(anilistId, externalId, mediaType);
-        await saveVerifiedMapping(validation.release, { id: externalId, mediaType });
+        await saveVerifiedMapping(validation.release, {
+            id: externalId,
+            mediaType,
+        });
         const evidence = {
             checkedAt: new Date().toISOString(),
             normalizedTitle: validation.title,
@@ -156,7 +167,10 @@ export async function setMetadataMappingOverride(
         };
         await db
             .update(animeMappingOverride)
-            .set({ validationStatus: 'valid', validationEvidence: evidence })
+            .set({
+                validationStatus: 'valid',
+                validationEvidence: evidence,
+            })
             .where(
                 and(
                     eq(animeMappingOverride.anilistId, anilistId),
@@ -229,5 +243,9 @@ export async function rediscoverMapping(anilistId: number) {
     await removeStoredTmdbMapping(anilistId);
     const mapping = await resolveStored(release, { refresh: true });
     await enqueueEpisodeInventoryBackfill(anilistId);
-    return { provider: 'tmdb', externalId: mapping.id, mediaType: mapping.mediaType };
+    return {
+        provider: 'tmdb',
+        externalId: mapping.id,
+        mediaType: mapping.mediaType,
+    };
 }
