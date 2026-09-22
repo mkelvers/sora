@@ -3,18 +3,20 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@soraorg/shared/db';
 import { anime, animeExternalId, animeExternalIdLink } from '@soraorg/shared/db/schema';
 
+export function anilistIdentityCondition(anilistId: number) {
+    return and(
+        eq(animeExternalId.provider, 'anilist'),
+        eq(animeExternalId.mediaType, 'anime'),
+        eq(animeExternalId.externalId, anilistId)
+    );
+}
+
 export async function findInternalAnimeId(anilistId: number) {
     const [stored] = await db
         .select({ animeId: animeExternalIdLink.animeId })
         .from(animeExternalId)
         .innerJoin(animeExternalIdLink, eq(animeExternalIdLink.externalIdId, animeExternalId.id))
-        .where(
-            and(
-                eq(animeExternalId.provider, 'anilist'),
-                eq(animeExternalId.mediaType, 'anime'),
-                eq(animeExternalId.externalId, anilistId)
-            )
-        )
+        .where(anilistIdentityCondition(anilistId))
         .limit(1);
 
     return stored?.animeId ?? null;
