@@ -69,11 +69,10 @@ export type ContinueWatchingCard = {
     audio: AudioMode[];
     duration: string;
     resumeAtSeconds: number;
-    progress: {
-        positionSeconds: number;
-        durationSeconds: number;
-        completed: boolean;
-    } | null;
+    progress: Pick<
+        NonNullable<AnimeEpisode['progress']>,
+        'positionSeconds' | 'durationSeconds' | 'completed'
+    > | null;
 };
 
 /** Ordered franchise entries enriched with identifiers and relation metadata. */
