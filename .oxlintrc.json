@@ -15,7 +15,8 @@
         "drizzle/**",
         "node_modules/**",
         "**/generated/**",
-        "**/generated.ts"
+        "**/generated.ts",
+        "**/*.generated.ts"
     ],
     "rules": {
         "import/no-cycle": ["error", { "ignoreTypes": false }],
