@@ -66,13 +66,24 @@ export const watchlistState = pgEnum('watchlist_state', [
     'dropped',
 ]);
 
-function timestamps(): {
-    createdAt: ReturnType<typeof timestamp>;
-    updatedAt: ReturnType<typeof timestamp>;
-} {
-    return {
-        ...timestamps(),
-    };
+const createTimestamps = () => ({
+    createdAt: timestamp('created_at', {
+        withTimezone: true,
+    })
+        .notNull()
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', {
+        withTimezone: true,
+    })
+        .notNull()
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+});
+
+type TimestampFields = ReturnType<typeof createTimestamps>;
+
+function timestamps(): TimestampFields {
+    return createTimestamps();
 }
 
 export const users = pgTable(
