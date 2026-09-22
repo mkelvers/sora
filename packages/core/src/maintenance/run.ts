@@ -92,6 +92,18 @@ async function calendarRefreshDue() {
     return !heartbeat?.nextAttemptAt || heartbeat.nextAttemptAt.getTime() <= Date.now();
 }
 
+async function releaseSchedulerLease(runId: string) {
+    await db
+        .update(schedulerHeartbeat)
+        .set({ activeRunId: null, leaseUntil: null })
+        .where(
+            and(
+                eq(schedulerHeartbeat.name, heartbeatName),
+                eq(schedulerHeartbeat.activeRunId, runId)
+            )
+        );
+}
+
 export async function runAnimeScheduler() {
     const policy = schedulerPolicy();
     const runLease = schedulerRunLease();
@@ -284,15 +296,7 @@ export async function runAnimeScheduler() {
                     eq(schedulerHeartbeat.activeRunId, runId)
                 )
             );
-        await db
-            .update(schedulerHeartbeat)
-            .set({ activeRunId: null, leaseUntil: null })
-            .where(
-                and(
-                    eq(schedulerHeartbeat.name, heartbeatName),
-                    eq(schedulerHeartbeat.activeRunId, runId)
-                )
-            );
+        await releaseSchedulerLease(runId);
         return stats;
     } catch (cause) {
         const completedAt = new Date();
@@ -309,15 +313,7 @@ export async function runAnimeScheduler() {
                     eq(schedulerHeartbeat.activeRunId, runId)
                 )
             );
-        await db
-            .update(schedulerHeartbeat)
-            .set({ activeRunId: null, leaseUntil: null })
-            .where(
-                and(
-                    eq(schedulerHeartbeat.name, heartbeatName),
-                    eq(schedulerHeartbeat.activeRunId, runId)
-                )
-            );
+        await releaseSchedulerLease(runId);
         throw cause;
     } finally {
         clearInterval(leaseRenewal);
