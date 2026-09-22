@@ -7,10 +7,9 @@ import {
     searchRelevance,
     type AnimeSearchResult,
 } from '../search';
-import type * as schema from '@soraorg/database/schema';
 import { animeSearchIndex as animeSearchIndexTable } from '@soraorg/database/schema';
 
-type SearchDatabase = Pick<PostgresJsDatabase<typeof schema>, 'insert' | 'select'>;
+type SearchDatabase = Pick<PostgresJsDatabase, 'insert' | 'select'>;
 
 export function createAnimeSearchIndex(database: SearchDatabase) {
     return {
@@ -27,6 +26,7 @@ export function createAnimeSearchIndex(database: SearchDatabase) {
             const rows = await database
                 .select({
                     data: animeSearchIndexTable.data,
+
                     similarity,
                 })
                 .from(animeSearchIndexTable)
@@ -56,15 +56,20 @@ export function createAnimeSearchIndex(database: SearchDatabase) {
                 .values(
                     results.map((result) => ({
                         anilistId: result.id,
+
                         searchText: animeSearchText(result.titles),
+
                         data: result,
                     }))
                 )
                 .onConflictDoUpdate({
                     target: animeSearchIndexTable.anilistId,
+
                     set: {
                         searchText: sql.raw(`excluded."${animeSearchIndexTable.searchText.name}"`),
+
                         data: sql.raw(`excluded."${animeSearchIndexTable.data.name}"`),
+
                         updatedAt: new Date(),
                     },
                 });

@@ -1,10 +1,15 @@
 import type { FranchiseOrder } from '../../types';
-import type { animeEpisode } from '@soraorg/database/schema';
+import type { AudioMode } from '../../audio';
 
-export type FranchisePlaybackEpisode = Pick<
-    typeof animeEpisode.$inferSelect,
-    'anilistId' | 'episodeId' | 'number' | 'audio'
->;
+export interface FranchisePlaybackEpisode {
+    anilistId: number;
+
+    episodeId: string;
+
+    number: number;
+
+    audio: AudioMode[];
+}
 
 export function withFranchisePlayback(
     entries: FranchiseOrder['entries'],
@@ -20,6 +25,7 @@ export function withFranchisePlayback(
         const available = grouped.get(entry.anilistId) ?? [];
         return {
             ...entry,
+
             audio: [...new Set(available.flatMap(({ audio }) => audio))],
         };
     });
