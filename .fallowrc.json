@@ -1,0 +1,6 @@
+{
+  "$schema": "https://fallow.tools/schema.json",
+  "entry": [
+    "packages/shared/src/graphql/operations/anilist/*.graphql"
+  ]
+}
