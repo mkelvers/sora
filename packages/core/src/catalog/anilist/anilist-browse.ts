@@ -1,5 +1,4 @@
 import type { BrowseFilters } from '../browse-filters';
-import type { CatalogBrowsePageRequest } from '../source';
 import {
     BrowseAnimePageDocument,
     BrowseAnimeTaxonomyDocument,
@@ -23,8 +22,11 @@ export interface AniListBrowseFilters extends Omit<
     season: MediaSeason | null;
 }
 
-export interface AniListBrowsePageRequest extends Omit<CatalogBrowsePageRequest, 'filters'> {
+export interface AniListBrowsePageRequest {
     filters: AniListBrowseFilters;
+    page: number;
+    perPage: number;
+    forceRefresh?: boolean;
 }
 
 export async function getBrowsePage({
