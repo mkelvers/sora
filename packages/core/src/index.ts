@@ -1,4 +1,5 @@
 export * from './audio';
+export * from './binary';
 export * from './catalog/airing';
 export * from './catalog/application';
 export * from './catalog/anikoto-source';
