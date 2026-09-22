@@ -1,4 +1,4 @@
-import { SearchAnimePageDocument } from './anilist/graphql/generated/graphql';
+import { SearchAnimePageDocument } from './anilist/graphql/graphql.generated';
 import type { AnimeCard, AnimeCardPage } from '../types';
 import type { AnimeSearchResult } from '../search';
 import type { BrowseSourceTaxonomy } from './browse-transform';

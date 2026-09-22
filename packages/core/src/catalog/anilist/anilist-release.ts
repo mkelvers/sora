@@ -7,7 +7,7 @@ import {
     AnimeOverviewDocument,
     AnimeScheduleDocument,
     WatchlistAnimeDocument,
-} from './graphql/generated/graphql';
+} from './graphql/graphql.generated';
 import { db } from '@soraorg/database';
 import { validAniListIds } from '../identity';
 import {

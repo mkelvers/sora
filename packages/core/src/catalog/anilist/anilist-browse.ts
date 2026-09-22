@@ -8,7 +8,7 @@ import {
     type MediaSort,
     type MediaSource,
     type MediaStatus,
-} from './graphql/generated/graphql';
+} from './graphql/graphql.generated';
 import { GraphQLRequestError } from './graphql/error';
 import { transformBrowseEntries, transformBrowseTaxonomy } from '../browse-transform';
 import { request } from './anilist-client';

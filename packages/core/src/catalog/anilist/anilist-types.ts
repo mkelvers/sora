@@ -2,7 +2,7 @@ import type {
     AnimeOverviewQuery,
     AnimeQuery,
     AnimeScheduleQuery,
-} from './graphql/generated/graphql';
+} from './graphql/graphql.generated';
 import { z } from 'zod';
 
 export type AnimeMetadataField =

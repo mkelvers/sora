@@ -4,7 +4,7 @@ import type { FranchiseOrder } from '../types';
 import {
     FranchiseMediaDocument,
     type FranchiseMediaQuery,
-} from './anilist/graphql/generated/graphql';
+} from './anilist/graphql/graphql.generated';
 import { db, type DatabaseTransaction } from '@soraorg/database';
 import {
     animeEpisode,
