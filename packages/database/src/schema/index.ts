@@ -82,10 +82,6 @@ const createTimestamps = () => ({
 
 type TimestampFields = ReturnType<typeof createTimestamps>;
 
-function timestamps(): TimestampFields {
-    return createTimestamps();
-}
-
 const userAnimeFields = () => ({
     userId: uuid('user_id')
         .notNull()
@@ -117,7 +113,7 @@ export const users = pgTable(
         image: text('image'),
         username: text('username').notNull(),
         displayUsername: text('display_username').notNull(),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [
         unique('users_email_unique').on(table.email),
@@ -147,7 +143,7 @@ export const accounts = pgTable(
         }),
         scope: text('scope'),
         password: text('password'),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [
         unique('accounts_provider_account_unique').on(table.providerId, table.accountId),
@@ -163,7 +159,7 @@ export const sessions = pgTable(
             withTimezone: true,
         }).notNull(),
         token: text('token').notNull().unique('sessions_token_unique'),
-        ...timestamps(),
+        ...createTimestamps(),
         ipAddress: text('ip_address'),
         userAgent: text('user_agent'),
         userId: uuid('user_id')
@@ -184,7 +180,7 @@ export const verifications = pgTable(
         expiresAt: timestamp('expires_at', {
             withTimezone: true,
         }).notNull(),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [index('verifications_identifier_idx').on(table.identifier)]
 );
@@ -223,7 +219,7 @@ export const invitations = pgTable(
 export const anime = pgTable('anime', {
     id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
     title: text('title'),
-    ...timestamps(),
+    ...createTimestamps(),
 });
 
 export const animeRelation = pgTable(
@@ -272,7 +268,7 @@ export const animeRelease = pgTable(
         })
             .notNull()
             .defaultNow(),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [
         index('anime_release_status_airing_idx').on(table.status, table.nextAiringAt),
@@ -705,7 +701,7 @@ export const animeCatalog = pgTable(
         })
             .notNull()
             .defaultNow(),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [
         index('anime_catalog_safe_popularity_idx').on(table.isAdult, table.popularity),
@@ -937,7 +933,7 @@ export const watchlist = pgTable(
         id: uuid('id').primaryKey().defaultRandom(),
         ...userAnimeFields(),
         state: watchlistState('state').notNull(),
-        ...timestamps(),
+        ...createTimestamps(),
     },
     (table) => [
         unique('watchlist_user_anime_unique').on(table.userId, table.animeId),
@@ -959,7 +955,7 @@ export const playbackProgress = pgTable(
         completedAt: timestamp('completed_at', {
             withTimezone: true,
         }),
-        ...timestamps(),
+        ...createTimestamps(),
         lastWatchedAt: timestamp('last_watched_at', {
             withTimezone: true,
         })
@@ -1136,7 +1132,7 @@ export const maintenanceTask = pgTable(
         }),
         lastError: text('last_error'),
         result: jsonb('result').$type<unknown>(),
-        ...timestamps(),
+        ...createTimestamps(),
         completedAt: timestamp('completed_at', {
             withTimezone: true,
         }),
