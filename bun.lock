@@ -16,15 +16,15 @@
       "dependencies": {
         "@hono/zod-validator": "^0.9.0",
         "@soraorg/core": "workspace:*",
-        "@soraorg/shared": "workspace:*",
+        "@soraorg/database": "workspace:*",
         "better-auth": "1.6.22",
         "drizzle-orm": "catalog:",
         "hono": "^4.13.5",
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "typescript": "~6.0.3",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "apps/scheduler": {
@@ -32,46 +32,45 @@
       "version": "0.0.1",
       "dependencies": {
         "@soraorg/core": "workspace:*",
-        "@soraorg/shared": "workspace:*",
+        "@soraorg/database": "workspace:*",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "typescript": "~6.0.3",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
       },
     },
     "packages/core": {
       "name": "@soraorg/core",
       "version": "0.0.1",
       "dependencies": {
-        "@soraorg/shared": "workspace:*",
+        "@graphql-typed-document-node/core": "^3.2.0",
+        "@soraorg/database": "workspace:*",
         "cheerio": "^1.2.0",
         "drizzle-orm": "catalog:",
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "@types/node": "catalog:",
-        "typescript": "~6.0.3",
-      },
-    },
-    "packages/shared": {
-      "name": "@soraorg/shared",
-      "version": "0.0.1",
-      "dependencies": {
-        "@graphql-typed-document-node/core": "^3.2.0",
-        "drizzle-orm": "catalog:",
-        "postgres": "catalog:",
-        "zod": "^4.4.3",
-      },
-      "devDependencies": {
         "@graphql-codegen/cli": "^7.2.0",
         "@graphql-codegen/client-preset": "^6.1.3",
-        "@types/bun": "^1.4.0",
+        "@types/bun": "catalog:",
+        "@types/node": "catalog:",
+        "graphql": "^17.0.2",
+        "typescript": "catalog:",
+      },
+    },
+    "packages/database": {
+      "name": "@soraorg/database",
+      "version": "0.0.1",
+      "dependencies": {
+        "drizzle-orm": "catalog:",
+        "postgres": "catalog:",
+      },
+      "devDependencies": {
+        "@types/bun": "catalog:",
         "@types/node": "catalog:",
         "dotenv": "catalog:",
         "drizzle-kit": "catalog:",
-        "graphql": "^17.0.2",
-        "typescript": "~6.0.3",
+        "typescript": "catalog:",
       },
     },
   },
@@ -425,9 +424,9 @@
 
     "@soraorg/core": ["@soraorg/core@workspace:packages/core"],
 
-    "@soraorg/scheduler": ["@soraorg/scheduler@workspace:apps/scheduler"],
+    "@soraorg/database": ["@soraorg/database@workspace:packages/database"],
 
-    "@soraorg/shared": ["@soraorg/shared@workspace:packages/shared"],
+    "@soraorg/scheduler": ["@soraorg/scheduler@workspace:apps/scheduler"],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
