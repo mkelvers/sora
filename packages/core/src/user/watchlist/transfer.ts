@@ -6,8 +6,8 @@ import {
 } from '@soraorg/shared/graphql/generated/graphql';
 import type { WatchlistState } from '@soraorg/shared/db/schema';
 import { batches, positiveInteger, record, text, type JsonValue } from '../utils';
-import { animeTitles } from '../../catalog/anilist-text';
-import { request } from '../../catalog/anilist-client';
+import { animeTitles } from '../../catalog/anilist/anilist-text';
+import { request } from '../../catalog/anilist/anilist-client';
 
 interface TransferTitles {
     preferred?: string;

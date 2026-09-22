@@ -1,6 +1,6 @@
-import { hydrateMissingAnimeReleases } from '../../catalog/anilist-release';
+import { hydrateMissingAnimeReleases } from '../../catalog/anilist/anilist-release';
 import { storedReleaseCards } from '../../catalog/storage';
-import { animeTitles } from '../../catalog/anilist-text';
+import { animeTitles } from '../../catalog/anilist/anilist-text';
 import { enrichAnimeCards } from '../../catalog/card-enrichment';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { storedAudioModes } from '../../providers/episode-inventory';
