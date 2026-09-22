@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 
 import { isAniKotoTransientError, TargetEpisodeUnavailableError } from '@soraorg/core/server';
 import { GraphQLRequestError } from '@soraorg/shared/graphql/error';
@@ -24,10 +25,24 @@ app.get('/ready', async (context) => {
 
     return context.json({ status: 'not_ready' }, 503);
 });
+app.use(
+    '/api/auth/*',
+    cors({
+        origin: process.env.BETTER_AUTH_URL,
+        credentials: true,
+    })
+);
 app.use('/v1/*', async (context, next) => {
     await next();
     context.header('Cache-Control', 'no-store');
 });
+app.use(
+    '/v1/*',
+    cors({
+        origin: process.env.BETTER_AUTH_URL,
+        credentials: true,
+    })
+);
 app.use('/v1/*', origin);
 
 app.all('/api/auth/*', (context) => auth.handler(context.req.raw));
