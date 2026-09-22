@@ -1,6 +1,6 @@
-import type { AudioMode } from '../audio';
-import type { AniListAnime } from '../catalog/anilist-types';
-import type { EpisodeSkipTimes } from '../player/skip-times';
+import type { AudioMode } from '../audio.js';
+import type { AniListAnime } from '../catalog/anilist-types.js';
+import type { EpisodeSkipTimes } from '../player/skip-times.js';
 
 export interface ProviderEpisode {
     id: string;

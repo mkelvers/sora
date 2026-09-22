@@ -1,7 +1,7 @@
-import type { EpisodeSkipTimes, SkipInterval } from '../player/skip-times';
+import type { EpisodeSkipTimes, SkipInterval } from '../player/skip-times.js';
 import { z } from 'zod';
 
-import type { JsonValue } from '../user/utils';
+import type { JsonValue } from '../user/utils.js';
 
 const apiBaseUrl = 'https://api.aniskip.com/v2/skip-times';
 const maximumEpisodeSeconds = 7 * 24 * 60 * 60;
