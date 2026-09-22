@@ -18,11 +18,8 @@ import { readPoster } from './poster';
 
 interface BackdropMappingCandidate {
     anilistId: number;
-
     externalIdId: number;
-
     targetId: number;
-
     mediaType: 'anime' | 'movie' | 'tv';
 }
 
@@ -63,13 +60,10 @@ export async function getStoredMedia(anilistId: number) {
     return {
         anime: {
             id: anilistId,
-
             title: match.title,
         },
-
         artwork: {
             ...artwork,
-
             selectedPoster,
         },
     };
@@ -84,7 +78,6 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const artworkSources = await db
         .select({
             anilistId: animeArtworkSource.anilistId,
-
             sourceAnilistId: animeArtworkSource.sourceAnilistId,
         })
         .from(animeArtworkSource)
@@ -122,11 +115,8 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const rows = await db
         .select({
             anilistId: source.externalId,
-
             externalIdId: target.id,
-
             targetId: target.externalId,
-
             mediaType: target.mediaType,
         })
         .from(source)
@@ -174,7 +164,6 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const preferences = await db
         .select({
             externalIdId: animeArtworkPreference.externalIdId,
-
             filePath: animeArtworkPreference.backdropFilePath,
         })
         .from(animeArtworkPreference)
@@ -192,7 +181,6 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     const selectedImages = await db
         .select({
             externalIdId: animeArtwork.externalIdId,
-
             filePath: animeArtwork.filePath,
         })
         .from(animeArtwork)
@@ -234,11 +222,8 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
             ? [
                   {
                       anilistId,
-
                       targetId: ownerMapping.targetId,
-
                       mediaType: ownerMapping.mediaType,
-
                       filePath,
                   },
               ]
@@ -308,15 +293,12 @@ export async function selectArtwork(
                 .insert(animeArtworkPreference)
                 .values({
                     externalIdId: mapping.preferenceExternalIdId,
-
                     backdropFilePath: filePath,
                 })
                 .onConflictDoUpdate({
                     target: animeArtworkPreference.externalIdId,
-
                     set: {
                         backdropFilePath: filePath,
-
                         updatedAt,
                     },
                 });
@@ -335,19 +317,14 @@ export async function selectArtwork(
         .insert(animeArtworkPreference)
         .values({
             externalIdId: mapping.preferenceExternalIdId,
-
             logoFilePath: filePath,
-
             logoHidden: filePath === null,
         })
         .onConflictDoUpdate({
             target: animeArtworkPreference.externalIdId,
-
             set: {
                 logoFilePath: filePath,
-
                 logoHidden: filePath === null,
-
                 updatedAt,
             },
         });
@@ -371,10 +348,8 @@ export async function setLogoSize(anilistId: number, logoSize: number) {
         })
         .onConflictDoUpdate({
             target: animeArtworkPreference.externalIdId,
-
             set: {
                 logoSize,
-
                 updatedAt: new Date(),
             },
         });

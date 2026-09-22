@@ -289,7 +289,10 @@ function matchedMetadata(
             const broadcast = dateTimestamp(candidate.rawAirDate);
             const metadata =
                 schedule && candidate.seasonNumber === schedule.seasonNumber && broadcast !== null
-                    ? { ...candidate, airDate: displayDate(broadcast - schedule.offset) }
+                    ? {
+                          ...candidate,
+                          airDate: displayDate(broadcast - schedule.offset),
+                      }
                     : candidate;
 
             return [source[sourceIndex].id, metadata];
@@ -520,7 +523,14 @@ export function matchBestEpisodeMetadata(
     const focusedStartsAtRelease = focused[0]?.rawAirDate === animeDate(anime.startDate);
     const providerNumberMatches = source.flatMap((episode) => {
         const candidate = focusedByProviderNumber.get(episode.number);
-        return candidate ? [{ id: episode.id, candidate }] : [];
+        return candidate
+            ? [
+                  {
+                      id: episode.id,
+                      candidate,
+                  },
+              ]
+            : [];
     });
     if (focusedStartsAtRelease && providerNumberMatches.length === focused.length) {
         return new Map(providerNumberMatches.map(({ id, candidate }) => [id, candidate]));

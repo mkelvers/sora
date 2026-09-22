@@ -100,14 +100,20 @@ export async function findArtworkMappings(
         .limit(1);
 
     if (!source) {
-        return { matches: [match], preferenceExternalIdId: match.externalIdId };
+        return {
+            matches: [match],
+            preferenceExternalIdId: match.externalIdId,
+        };
     }
 
     const otherAnilistId =
         source.anilistId === anilistId ? source.sourceAnilistId : source.anilistId;
     const otherMatch = await findMapping(otherAnilistId);
     if (!otherMatch) {
-        return { matches: [match], preferenceExternalIdId: match.externalIdId };
+        return {
+            matches: [match],
+            preferenceExternalIdId: match.externalIdId,
+        };
     }
 
     return {

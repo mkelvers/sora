@@ -10,11 +10,9 @@ import { releaseSequence } from './title';
 import type { EpisodeCandidate } from './types';
 
 export interface EpisodeGroupBlock {
-    episodes: Array<
-        EpisodeCandidate & {
-            order: number;
-        }
-    >;
+    episodes: (EpisodeCandidate & {
+        order: number;
+    })[];
     name?: string;
     order: number;
 }
@@ -30,7 +28,10 @@ function orderedCandidates(block: EpisodeGroupBlock) {
         )
         .map(({ order, ...episode }, index) => {
             void order;
-            return { ...episode, releaseEpisodeNumber: index + 1 };
+            return {
+                ...episode,
+                releaseEpisodeNumber: index + 1,
+            };
         });
 }
 
@@ -49,7 +50,10 @@ function titleEvidence(source: ProviderEpisode[], candidates: EpisodeCandidate[]
         }
     });
 
-    return { distinctive, matches };
+    return {
+        distinctive,
+        matches,
+    };
 }
 
 function metadataScore(candidates: EpisodeCandidate[]) {

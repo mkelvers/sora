@@ -187,9 +187,15 @@ function tvReleaseEvidence(anime: AniListAnime, seasons: TvSeasonEvidence[]) {
                         (80 * Math.min(season.metadataCount, expectedEpisodes)) / expectedEpisodes;
                 }
 
-                return { complete, score };
+                return {
+                    complete,
+                    score,
+                };
             })
-            .sort((left, right) => right.score - left.score)[0] ?? { complete: false, score: 0 }
+            .sort((left, right) => right.score - left.score)[0] ?? {
+            complete: false,
+            score: 0,
+        }
     );
 }
 
@@ -222,7 +228,10 @@ export function tvReleaseMatchesWindow(anime: AniListAnime, seasons: TvSeasonEvi
 export function preferredTvReleaseCandidate(
     anime: AniListAnime,
     direct: Candidate,
-    candidates: { candidate: Candidate; seasons: TvSeasonEvidence[] }[]
+    candidates: {
+        candidate: Candidate;
+        seasons: TvSeasonEvidence[];
+    }[]
 ) {
     // Keep the direct candidate unless another TV record has a complete episode
     // match and stronger combined title, date, sequence, and metadata evidence.
