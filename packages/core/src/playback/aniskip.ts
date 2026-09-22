@@ -1,7 +1,7 @@
 import type { EpisodeSkipTimes, SkipInterval } from '../player/skip-times';
 import { z } from 'zod';
 
-import type { JsonValue } from '../user/utils';
+import type { JsonValue } from '../json';
 
 const aniskipIntervalSchema = z.object({
     startTime: z.number(),
@@ -21,6 +21,8 @@ export const SkipIntervalInputSchema = z.object({
 });
 
 function interval(start: number, end: number): SkipInterval | null {
+    // Reject implausibly long values from remote or user-provided data before
+    // they can be persisted or exposed as seek targets.
     const maximumEpisodeSeconds = 7 * 24 * 60 * 60;
     if (start < 0 || end <= start || end > maximumEpisodeSeconds) {
         return null;
