@@ -9,59 +9,84 @@ import * as schema from '@soraorg/database/schema';
 
 export const auth = betterAuth({
     appName: 'Arc',
+
     baseURL: process.env.BETTER_AUTH_URL!,
+
     secret: process.env.BETTER_AUTH_SECRET!,
+
     database: drizzleAdapter(db, {
         provider: 'pg',
+
         schema,
+
         usePlural: true,
     }),
+
     advanced: {
         cookiePrefix: 'arc',
+
         database: {
             generateId: 'uuid',
         },
+
         ipAddress: {
             ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'],
+
             trustedProxies: process.env.BETTER_AUTH_TRUSTED_PROXY_CIDR
                 ? [process.env.BETTER_AUTH_TRUSTED_PROXY_CIDR]
                 : [],
         },
     },
+
     emailAndPassword: {
         enabled: true,
+
         disableSignUp: false,
+
         minPasswordLength: 12,
+
         maxPasswordLength: 128,
     },
+
     session: {
         cookieCache: {
             enabled: true,
+
             maxAge: 60,
+
             strategy: 'compact',
         },
     },
+
     disabledPaths: [
         '/sign-in/email',
         '/is-username-available',
         '/request-password-reset',
         '/reset-password',
     ],
+
     rateLimit: {
         enabled: true,
+
         window: 60,
+
         max: 100,
+
         customRules: {
             '/get-session': false,
+
             '/sign-in/username': {
                 window: 60,
+
                 max: 5,
             },
         },
     },
+
     telemetry: {
         enabled: false,
     },
+
     hooks: {
         before: createAuthMiddleware(async (context) => {
             if (context.path !== '/sign-up/email') {
@@ -75,13 +100,20 @@ export const auth = betterAuth({
             }
         }),
     },
+
     plugins: [
         username({
             minUsernameLength: 3,
+
             maxUsernameLength: 30,
         }),
         bearer(),
     ],
 });
 
-export type AuthSession = typeof auth.$Infer.Session;
+/** The API context exposes only the signed-in user's stable identity to route handlers. */
+export type AuthSession = {
+    user: {
+        id: string;
+    };
+};
