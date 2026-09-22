@@ -56,7 +56,20 @@ const ArtworkSchema = z.object({
 
 export const AnimeArtworkSchema = ArtworkSchema.nullable();
 
-const PlaybackStreamSchema = z.strictObject({
+export interface PlaybackSubtitle {
+    kind: 'full' | 'sdh' | 'forced';
+    url: string;
+}
+
+export interface PlaybackStream {
+    provider: string;
+    server: string;
+    url: string;
+    quality: string | null;
+    subtitles: PlaybackSubtitle[];
+}
+
+export const PlaybackStreamSchema = z.strictObject({
     provider: z.string(),
     server: z.string(),
     url: z.string(),

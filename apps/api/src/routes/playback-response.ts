@@ -1,19 +1,23 @@
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 
-import { WatchPlaybackSchema } from '@soraorg/core/contracts/anime';
+import {
+    PlaybackStreamSchema,
+    WatchPlaybackSchema,
+    type PlaybackStream,
+} from '@soraorg/core/contracts/anime';
 import { EpisodeSkipTimesSchema, type EpisodeSkipTimes } from '@soraorg/core/player/skip-times';
 
 const playbackInputSchema = z.strictObject({
     error: z.boolean(),
     skipTimes: EpisodeSkipTimesSchema.nullable().optional(),
-    streams: z.record(z.string(), z.array(z.unknown())),
+    streams: z.record(z.string(), z.array(PlaybackStreamSchema)),
 });
 
 type PlaybackResponseInput = {
     error: boolean;
     skipTimes?: EpisodeSkipTimes | null;
-    streams: object;
+    streams: Record<string, PlaybackStream[]>;
 };
 
 export function playbackResponse(value: PlaybackResponseInput) {
