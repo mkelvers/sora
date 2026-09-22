@@ -30,8 +30,6 @@ import {
 import { request } from './anilist-client';
 import { mergeAnimeReleaseSnapshots, relationSnapshotProvider } from '../anime-release-merge';
 
-const animeMetadataDomain = 'anime_metadata';
-
 function releaseValues(media: AniListAnime, sourceFetchedAt = new Date()) {
     return {
         data: media,
@@ -76,7 +74,7 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                 .where(
                     and(
                         eq(providerSnapshot.canonicalAnimeId, sourceAnimeId),
-                        eq(providerSnapshot.domain, animeMetadataDomain),
+                        eq(providerSnapshot.domain, 'anime_metadata'),
                         eq(providerSnapshot.subjectType, 'anime')
                     )
                 );
@@ -94,7 +92,7 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                     .insert(providerSnapshot)
                     .values({
                         provider: storedProvider,
-                        domain: animeMetadataDomain,
+                        domain: 'anime_metadata',
                         subjectType: 'anime',
                         subjectId: String(storedMedia.data.metadataSourceId ?? storedMedia.data.id),
                         canonicalAnimeId: sourceAnimeId,
@@ -113,7 +111,7 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                 .insert(providerSnapshot)
                 .values({
                     provider: source,
-                    domain: animeMetadataDomain,
+                    domain: 'anime_metadata',
                     subjectType: 'anime',
                     subjectId: sourceMediaId,
                     canonicalAnimeId: sourceAnimeId,
@@ -150,7 +148,7 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                 .where(
                     and(
                         eq(providerSnapshot.canonicalAnimeId, sourceAnimeId),
-                        eq(providerSnapshot.domain, animeMetadataDomain),
+                        eq(providerSnapshot.domain, 'anime_metadata'),
                         eq(providerSnapshot.subjectType, 'anime')
                     )
                 );
@@ -489,7 +487,7 @@ async function storedAnimeReleaseSource(id: number, provider: string) {
         .where(
             and(
                 eq(providerSnapshot.canonicalAnimeId, internalAnimeId),
-                eq(providerSnapshot.domain, animeMetadataDomain),
+                eq(providerSnapshot.domain, 'anime_metadata'),
                 eq(providerSnapshot.subjectType, 'anime'),
                 eq(providerSnapshot.provider, provider)
             )

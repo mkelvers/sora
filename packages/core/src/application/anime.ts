@@ -8,11 +8,7 @@ import {
     needsEpisodeMetadataRefresh,
 } from '../catalog/episodes';
 import { getEpisodes } from '../providers/episode-inventory';
-import {
-    getAnimeOverview,
-    getAnimeRelease,
-    storedAnimeRelease,
-} from '../catalog/anilist/anilist-release';
+import { getAnimeRelease, storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { episodesAvailableToWatch } from '../providers/inventory';
 import {
     discoverEpisodeInventory,
@@ -42,52 +38,19 @@ import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progres
 import { resumePosition } from '../user/progress/continue';
 import { getWatchlistState } from '../user/watchlist/store';
 
-/**
- * Load the inexpensive, initially rendered portion of an anime page.
- * Stored metadata is preferred, with the provider overview used when no release is
- * stored. Episode details are intentionally left to the page's later request.
- */
-export async function animePageOverview(userId: string | undefined, id: number) {
-    const stored = await storedAnimeRelease(id);
-    const anime = stored ?? (await getAnimeOverview(id));
-
-    const [storedAiringSchedule, episodeRevision, watchlistState] = await Promise.all([
-        getStoredAiringSchedule(id),
-        getEpisodeRevision(id),
-        getWatchlistState(userId, id),
-    ]);
-
-    return {
-        anime: toAnimeDetails(anime, anime.description, storedAiringSchedule),
-        episodeRevision,
-        watchlistState,
-    };
-}
-
 async function storedAnimePage(userId: string | undefined, id: number, anime: AniListAnime | null) {
     if (!anime) {
         return null;
     }
 
-    const [
-        episodes,
-        artwork,
-        synopsis,
-        storedAiringSchedule,
-        episodeRevision,
-        watchlistState,
-        episodeProgress,
-        franchise,
-    ] = await Promise.all([
-        getEpisodes(anime),
-        getStoredMedia(id).catch(() => null),
-        resolveAnimeSynopsis(anime),
-        getStoredAiringSchedule(id),
-        getEpisodeRevision(id),
-        getWatchlistState(userId, id),
-        getEpisodePlaybackProgress(userId, id),
-        anime.idMal ? getStoredFranchiseOrder(anime.idMal) : Promise.resolve(null),
-    ]);
+    const episodes = await getEpisodes(anime);
+    const artwork = await getStoredMedia(id).catch(() => null);
+    const synopsis = await resolveAnimeSynopsis(anime);
+    const storedAiringSchedule = await getStoredAiringSchedule(id);
+    const episodeRevision = await getEpisodeRevision(id);
+    const watchlistState = await getWatchlistState(userId, id);
+    const episodeProgress = await getEpisodePlaybackProgress(userId, id);
+    const franchise = anime.idMal ? await getStoredFranchiseOrder(anime.idMal) : null;
     const episodeInventory = await getEpisodeInventoryState(anime, episodes.length);
     if (episodeInventory.status === 'pending' && episodes.length === 0) {
         await enqueueEpisodeInventoryBackfill(id);
@@ -308,17 +271,6 @@ export async function updateMedia(id: number, update: MediaUpdate) {
     }
 }
 
-function legacySlug(title: string, episodeId: string) {
-    return (
-        title
-            .normalize('NFKD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || `episode-${episodeId}`
-    );
-}
-
 async function episodePlayback(
     anime: AniListAnime,
     episode: ProviderEpisodeReference,
@@ -376,9 +328,16 @@ async function watchEpisode(id: number, episodeId: string) {
         }
     }
     if (currentIndex < 0) {
-        currentIndex = episodes.findIndex(
-            (episode) => legacySlug(episode.title, episode.id) === episodeId
-        );
+        currentIndex = episodes.findIndex((episode) => {
+            const slug =
+                episode.title
+                    .normalize('NFKD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '') || `episode-${episode.id}`;
+            return slug === episodeId;
+        });
     }
     if (currentIndex < 0) {
         return null;
