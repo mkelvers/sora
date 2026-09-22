@@ -48,6 +48,11 @@ export function eligibleHomeHeroCandidates<Candidate extends HomeHeroEligibility
         .toSorted((left, right) => left.trendingRank - right.trendingRank);
 }
 
+/**
+ * Keeps a small number of strong previous picks, then orders unseen candidates
+ * ahead of recently shown ones. Recent candidates remain as a final fallback
+ * so the selection can still fill when the fresh pool is small.
+ */
 export function rotatedHomeHeroCandidates(
     candidates: HomeHeroCandidate[],
     previousIds: number[],
@@ -78,6 +83,11 @@ export function rotatedHomeHeroCandidates(
     return [...retained, ...fresh, ...fallback];
 }
 
+/**
+ * Hydrates candidates in batches of six, stopping as soon as six usable heroes
+ * are found. Missing or stale candidates are skipped, and later candidates are
+ * loaded only when an earlier batch did not fill the rotation.
+ */
 export async function selectHomeHero<T>(
     candidates: HomeHeroCandidate[],
     load: (id: number) => Promise<T | null>

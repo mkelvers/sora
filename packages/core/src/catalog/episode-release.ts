@@ -91,6 +91,14 @@ function declaredReleaseWindow<T extends EpisodeSource>(episodes: T[], expected:
         : episodes;
 }
 
+/**
+ * Selects one release's episode inventory from providers that can report extra
+ * specials or number episodes relative to AniList's declared count. Provider
+ * metadata identifiers, the anime's date range, and supplemental flags provide
+ * evidence for excluding extras; when evidence is incomplete, the original
+ * inventory is preserved instead of guessing. A contiguous provider window
+ * whose numbering starts above one is renumbered to match AniList's release.
+ */
 export function episodesForRelease<T extends EpisodeSource>(
     anime: AniListAnime,
     episodes: T[],
@@ -108,11 +116,15 @@ export function episodesForRelease<T extends EpisodeSource>(
     }
 
     let selected = episodes;
+    // Prefer entries with metadata only when enough matches remain to satisfy
+    // AniList's declared count; sparse provider metadata is not a safe filter.
     const matched = selected.filter((episode) => metadata.has(episode.id));
     if (matched.length >= expected && matched.length < selected.length) {
         selected = matched;
     }
 
+    // Supplemental entries are likely specials, but retain them when metadata
+    // positively identifies them as part of this release.
     const confirmed = selected.filter(
         (episode) => !episode.supplemental || metadata.has(episode.id)
     );
@@ -125,6 +137,7 @@ export function episodesForRelease<T extends EpisodeSource>(
     const end = dateTimestamp(animeDate(anime.endDate));
 
     if (start !== null || end !== null) {
+        // Allow a two-week margin for source timezone and schedule differences.
         const inReleaseWindow = selected.filter((episode) => {
             const releasedAt = metadataDate(metadata.get(episode.id));
             if (releasedAt === null) {

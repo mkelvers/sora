@@ -1,5 +1,6 @@
 import type { AniListAnime, AnimeMetadataField } from './anilist/anilist-types';
 
+/** A provider's metadata snapshot and the time it was fetched. */
 export interface AnimeReleaseSnapshot {
     provider: string;
     data: AniListAnime;
@@ -17,6 +18,7 @@ function listOr<T>(primary: T[] | null | undefined, fallback: T[] | null | undef
 }
 
 function providerOrder(left: AnimeReleaseSnapshot, right: AnimeReleaseSnapshot) {
+    // AniList stays authoritative; among fallbacks, prefer the freshest snapshot.
     if (left.provider === 'anilist') return -1;
     if (right.provider === 'anilist') return 1;
     return right.sourceFetchedAt.getTime() - left.sourceFetchedAt.getTime();
@@ -83,6 +85,7 @@ function mergePair(
         countryOfOrigin: primary.countryOfOrigin ?? fallback.countryOfOrigin ?? null,
     };
 
+    // Track provenance only when a fallback supplies data missing from the preferred source.
     if (primary.idMal == null && fallback.idMal != null) fieldSources.idMal ??= fallbackProvider;
     if (!primary.title && fallback.title) fieldSources.title ??= fallbackProvider;
     if (!primary.synonyms?.length && fallback.synonyms?.length)

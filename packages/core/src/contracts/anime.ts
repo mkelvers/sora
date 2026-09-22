@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { EpisodeSkipTimesSchema } from '../player/skip-times';
 
+/** Accepts numeric path parameters while rejecting non-positive or fractional IDs. */
 export const AnimeIdSchema = z.coerce.number().int().positive();
 
 export const SearchQuerySchema = z.object({
@@ -12,6 +13,10 @@ export const PageQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
 });
 
+/**
+ * Calendar response contract. `airingId` is numeric for provider schedule rows
+ * and `target:<anime>:<episode>` for synthesized entries without a schedule ID.
+ */
 export const ReleaseCalendarSchema = z.object({
     events: z.array(
         z.object({
@@ -94,6 +99,10 @@ const SegmentFields = {
     kind: z.enum(['opening', 'ending']),
 };
 
+/**
+ * Manual skip-segment mutations. `apply-template` derives an interval from the
+ * latest earlier template; `set` stores an explicit interval and may create one.
+ */
 export const SegmentRequestSchema = z.discriminatedUnion('operation', [
     z.object({ ...SegmentFields, operation: z.literal('clear') }),
     z.object({
