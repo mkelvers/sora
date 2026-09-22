@@ -1,11 +1,10 @@
 import { inArray } from 'drizzle-orm';
 
-import { audioAvailabilityLabel, type AudioMode } from '../audio';
-import { inferSearchArtwork, type AnimeSearchResult, type SearchArtwork } from '../search';
+import type { AudioMode } from '../audio';
+import type { AnimeSearchResult, SearchArtwork } from '../search';
 import { db } from '@soraorg/shared/db';
 import { animeEpisode } from '@soraorg/shared/db/schema';
 import { getStoredBackdropCandidates, imageUrl } from './tmdb';
-import { watchEpisodeHref } from './episode-route';
 
 async function storedArtwork(anilistIds: number[]) {
     const rows = await getStoredBackdropCandidates(anilistIds);
@@ -65,24 +64,18 @@ export async function withAnimeSearchMetadata<T extends AnimeSearchResult>(resul
         return results;
     }
 
-    const artworkIds = [
-        ...new Set([...anilistIds, ...results.flatMap(({ relatedIds }) => relatedIds)]),
-    ];
-    const [stored, playback] = await Promise.all([
+    const artworkIds = anilistIds;
+    const [artwork, playback] = await Promise.all([
         storedArtwork(artworkIds),
         storedPlayback(anilistIds),
     ]);
-    const artwork = inferSearchArtwork(results, stored);
-
     return results.map((result) => {
         const stored = playback.get(result.id);
         const selectedArtwork = artwork.get(result.id);
         return {
             ...result,
             backdrop: selectedArtwork?.backdrop ?? null,
-            artworkGroup: selectedArtwork?.group ?? null,
-            audioLabel: stored ? audioAvailabilityLabel([...stored.audio]) : '',
-            link: stored ? watchEpisodeHref(result.id, stored.number) : result.link,
+            audio: stored ? [...stored.audio] : [],
         };
     });
 }
