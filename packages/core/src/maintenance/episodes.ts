@@ -4,28 +4,48 @@ import { db } from '@soraorg/database';
 import { animeEpisodeTarget } from '@soraorg/database/schema';
 import { refreshAnimeSchedule, storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { confirmScheduledEpisode } from '../catalog/episode-sync';
-import { nextEpisodeAttemptAt, schedulerPolicy } from './policy';
+import { nextEpisodeAttemptAt } from './policy';
 import { scheduleReleaseTargets } from './targets';
 import { enqueueScheduleDiscovery } from './schedule-repair';
 
-type SchedulerLimits = Pick<
-    ReturnType<typeof schedulerPolicy>,
-    'concurrency' | 'maxClaimedTargets' | 'claimingWindowMs' | 'leaseDurationMs' | 'leaseRenewalMs'
->;
+interface SchedulerLimits {
+    concurrency: number;
 
-type ClaimedTarget = Pick<
-    typeof animeEpisodeTarget.$inferSelect,
-    'anilistId' | 'targetEpisode' | 'airingAt' | 'attemptCount' | 'failureCount' | 'leaseOwner'
-> & { leaseOwner: string };
+    maxClaimedTargets: number;
+
+    claimingWindowMs: number;
+
+    leaseDurationMs: number;
+
+    leaseRenewalMs: number;
+}
+
+interface ClaimedTarget {
+    anilistId: number;
+
+    targetEpisode: number;
+
+    airingAt: Date;
+
+    attemptCount: number;
+
+    failureCount: number;
+
+    leaseOwner: string;
+}
 
 async function claimTargets(runId: string, limit: number, leaseDurationMs: number) {
     const now = new Date();
     const candidates = await db
         .select({
             anilistId: animeEpisodeTarget.anilistId,
+
             targetEpisode: animeEpisodeTarget.targetEpisode,
+
             airingAt: animeEpisodeTarget.airingAt,
+
             attemptCount: animeEpisodeTarget.attemptCount,
+
             failureCount: animeEpisodeTarget.failureCount,
         })
         .from(animeEpisodeTarget)
@@ -46,7 +66,9 @@ async function claimTargets(runId: string, limit: number, leaseDurationMs: numbe
             .update(animeEpisodeTarget)
             .set({
                 leaseOwner,
+
                 leaseUntil: new Date(Date.now() + leaseDurationMs),
+
                 updatedAt: new Date(),
             })
             .where(
@@ -63,7 +85,10 @@ async function claimTargets(runId: string, limit: number, leaseDurationMs: numbe
             )
             .returning({ anilistId: animeEpisodeTarget.anilistId });
         if (row) {
-            claimed.push({ ...candidate, leaseOwner });
+            claimed.push({
+                ...candidate,
+                leaseOwner,
+            });
         }
         if (claimed.length === limit) {
             break;
@@ -81,12 +106,19 @@ async function retryTarget(target: ClaimedTarget, cause: unknown) {
         .update(animeEpisodeTarget)
         .set({
             state: nextAttemptAt ? 'pending' : 'failed',
+
             attemptCount: target.attemptCount + 1,
+
             failureCount: target.failureCount + 1,
+
             nextAttemptAt: nextAttemptAt ?? now,
+
             lastError: message,
+
             leaseOwner: null,
+
             leaseUntil: null,
+
             updatedAt: now,
         })
         .where(
@@ -99,6 +131,7 @@ async function retryTarget(target: ClaimedTarget, cause: unknown) {
         );
     return {
         outcome: nextAttemptAt ? ('retried' as const) : ('failed' as const),
+
         retryAt: nextAttemptAt,
     };
 }
@@ -111,6 +144,7 @@ async function processTarget(target: ClaimedTarget, limits: SchedulerLimits) {
                 .update(animeEpisodeTarget)
                 .set({
                     leaseUntil: new Date(Date.now() + limits.leaseDurationMs),
+
                     updatedAt: new Date(),
                 })
                 .where(
@@ -147,9 +181,16 @@ async function processTarget(target: ClaimedTarget, limits: SchedulerLimits) {
         } catch (cause) {
             await enqueueScheduleDiscovery(target.anilistId, target.targetEpisode, cause);
         }
-        return { outcome: 'confirmed' as const, retryAt: null, cause: undefined };
+        return {
+            outcome: 'confirmed' as const,
+            retryAt: null,
+            cause: undefined,
+        };
     } catch (cause) {
-        return { ...(await retryTarget(target, cause)), cause };
+        return {
+            ...(await retryTarget(target, cause)),
+            cause,
+        };
     } finally {
         stopped = true;
         clearInterval(timer);
@@ -158,7 +199,12 @@ async function processTarget(target: ClaimedTarget, limits: SchedulerLimits) {
 
 export async function drainEpisodeTargets(runId: string, limits: SchedulerLimits) {
     const deadline = Date.now() + limits.claimingWindowMs;
-    const totals = { claimed: 0, confirmed: 0, retried: 0, failed: 0 };
+    const totals = {
+        claimed: 0,
+        confirmed: 0,
+        retried: 0,
+        failed: 0,
+    };
 
     while (Date.now() < deadline && totals.claimed < limits.maxClaimedTargets) {
         const available = Math.min(limits.concurrency, limits.maxClaimedTargets - totals.claimed);
