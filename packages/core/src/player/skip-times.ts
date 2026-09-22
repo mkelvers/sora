@@ -99,11 +99,17 @@ export function preferManualSkipTimes(
 export function activeSkip(
     times: EpisodeSkipTimes,
     currentTime: number
-): { kind: SkipKind; interval: SkipInterval } | null {
+): {
+    kind: SkipKind;
+    interval: SkipInterval;
+} | null {
     for (const kind of ['opening', 'ending'] as const) {
         const interval = times[kind];
         if (interval && currentTime >= interval.start && currentTime < interval.end) {
-            return { kind, interval };
+            return {
+                kind,
+                interval,
+            };
         }
     }
 
@@ -122,5 +128,8 @@ export function intervalFromTemplate(start: number, duration: number): SkipInter
         return null;
     }
 
-    return { start, end };
+    return {
+        start,
+        end,
+    };
 }

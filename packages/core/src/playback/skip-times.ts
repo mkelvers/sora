@@ -13,19 +13,18 @@ import { fetchAniSkip, validSkipInterval } from './aniskip';
 
 const aniskipFailureUntil = new Map<string, number>();
 
-type StoredSkipTimes = Pick<
-    typeof animeEpisode.$inferSelect,
-    | 'openingStartSeconds'
-    | 'openingEndSeconds'
-    | 'endingStartSeconds'
-    | 'endingEndSeconds'
-    | 'openingSkipTimesSource'
-    | 'endingSkipTimesSource'
-    | 'openingSkipTimesFetchedAt'
-    | 'endingSkipTimesFetchedAt'
-    | 'skipTimesSource'
-    | 'skipTimesFetchedAt'
->;
+interface StoredSkipTimes {
+    openingStartSeconds: number | null;
+    openingEndSeconds: number | null;
+    endingStartSeconds: number | null;
+    endingEndSeconds: number | null;
+    openingSkipTimesSource: string | null;
+    endingSkipTimesSource: string | null;
+    openingSkipTimesFetchedAt: Date | null;
+    endingSkipTimesFetchedAt: Date | null;
+    skipTimesSource: string | null;
+    skipTimesFetchedAt: Date | null;
+}
 
 function skipTimesSource(value: string | null) {
     return value === 'anikoto' || value === 'aniskip' || value === 'manual' ? value : null;
@@ -54,6 +53,7 @@ function storedTimes(row: StoredSkipTimes): EpisodeSkipTimes {
         sources: {
             // Older rows only have one source column. Apply it to a segment
             // that actually exists; an absent ending must remain discoverable.
+
             opening: skipTimesSource(row.openingSkipTimesSource) ?? (opening ? legacySource : null),
             ending: skipTimesSource(row.endingSkipTimesSource) ?? (ending ? legacySource : null),
         },
@@ -124,7 +124,10 @@ export async function getEpisodeSkipTimes({
         return {
             opening: null,
             ending: null,
-            sources: { opening: null, ending: null },
+            sources: {
+                opening: null,
+                ending: null,
+            },
         };
     }
 
@@ -214,7 +217,10 @@ async function getStoredEpisodeSkipTimes(
         : {
               opening: null,
               ending: null,
-              sources: { opening: null, ending: null },
+              sources: {
+                  opening: null,
+                  ending: null,
+              },
           };
 }
 
@@ -281,7 +287,10 @@ export async function getSegmentTemplates(
     anilistId: number,
     episodeNumber: number
 ): Promise<SegmentTemplates> {
-    const templates: SegmentTemplates = { opening: null, ending: null };
+    const templates: SegmentTemplates = {
+        opening: null,
+        ending: null,
+    };
     if (!Number.isSafeInteger(episodeNumber) || episodeNumber <= 0) {
         return templates;
     }
@@ -319,8 +328,15 @@ type SegmentSave = {
     kind: SkipKind;
 } & (
     | { operation: 'clear' }
-    | { operation: 'apply-template'; start: number }
-    | { operation: 'set'; interval: SkipInterval; createTemplate: boolean }
+    | {
+          operation: 'apply-template';
+          start: number;
+      }
+    | {
+          operation: 'set';
+          interval: SkipInterval;
+          createTemplate: boolean;
+      }
 );
 
 export async function saveEpisodeSegment(save: SegmentSave) {
@@ -430,5 +446,8 @@ export async function saveEpisodeSegment(save: SegmentSave) {
         getSegmentTemplates(save.anilistId, saved),
     ]);
 
-    return { times, templates };
+    return {
+        times,
+        templates,
+    };
 }
