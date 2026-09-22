@@ -5,19 +5,13 @@ import { db } from '@soraorg/shared/db';
 import { animeArtwork, animeArtworkPreference, animeArtworkSync } from '@soraorg/shared/db/schema';
 import type { AniListAnime } from '../anilist-types';
 import { create, imageUrl } from './client';
+import { tmdbImageFields } from './image';
 import { NoConfidentTmdbMappingError, resolveStored } from './mapping';
 import { findArtworkMappings, type ArtworkMappings } from './mapping-store';
 import { getPoster, readPoster } from './poster';
 import type { Artwork, ArtworkImage, StoredMapping } from './types';
 
-const artworkImageSchema = z.object({
-    aspect_ratio: z.number().optional(),
-    file_path: z.string().optional(),
-    height: z.number().optional(),
-    iso_639_1: z.string().nullable().optional(),
-    vote_average: z.number().optional(),
-    width: z.number().optional(),
-});
+const artworkImageSchema = z.object(tmdbImageFields);
 type ArtworkImagePayload = z.infer<typeof artworkImageSchema>;
 function artworkImage(image: ArtworkImagePayload): ArtworkImage | null {
     if (!image.file_path) {
