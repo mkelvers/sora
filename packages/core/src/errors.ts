@@ -7,6 +7,8 @@
  */
 export type CoreErrorCode =
   | "ANIME_NOT_FOUND"
+  | "SERIES_NOT_FOUND"
+  | "SEASON_NOT_FOUND"
   | "EPISODE_NOT_FOUND"
   | "PLAYBACK_UNAVAILABLE"
   | "UPSTREAM_UNAVAILABLE"
@@ -36,6 +38,26 @@ export class AnimeNotFoundError extends CoreError {
   constructor(anilistId: number) {
     super("ANIME_NOT_FOUND", `Anime ${anilistId} does not exist`);
     this.anilistId = anilistId;
+  }
+}
+
+/** The ID does not identify a stored series. */
+export class SeriesNotFoundError extends CoreError {
+  readonly seriesId: string;
+
+  constructor(seriesId: string) {
+    super("SERIES_NOT_FOUND", `Series ${seriesId} does not exist`);
+    this.seriesId = seriesId;
+  }
+}
+
+/** The ID does not identify a stored season. */
+export class SeasonNotFoundError extends CoreError {
+  readonly seasonId: string;
+
+  constructor(seasonId: string) {
+    super("SEASON_NOT_FOUND", `Season ${seasonId} does not exist`);
+    this.seasonId = seasonId;
   }
 }
 

@@ -75,6 +75,16 @@ const MovieSchema = z.object({
   runtime: z.number().nullish().transform((value) => value ?? null)
 });
 
+const ImagesSchema = z.object({
+  logos: z.array(
+    z.object({
+      file_path: z.string(),
+      iso_639_1: z.string().nullish(),
+      vote_average: z.number()
+    })
+  )
+});
+
 /** One TV show found by {@link searchShows}. */
 export type TmdbShowResult = z.infer<typeof ShowSearchSchema>["results"][number];
 
@@ -233,6 +243,36 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
   );
 }
 
+/**
+ * Finds the logo (the title artwork drawn over a backdrop) of a show or film.
+ *
+ * English logos are preferred, then logos without text language, each by
+ * TMDB's vote average. Logos in other languages are never used, since a
+ * Japanese logo on an English page reads as a mistake.
+ *
+ * @returns The logo's image path, or `null` when TMDB has none.
+ */
+export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promise<string | null> {
+  const images = await tmdb(
+    `/${mediaType}/${id}/images`,
+    {
+      include_image_language: "en,null"
+    },
+    ImagesSchema,
+    {
+      maxAgeMs: day
+    }
+  );
+
+  const logos = (images?.logos ?? [])
+    .filter((logo) => logo.iso_639_1 === "en" || !logo.iso_639_1)
+    .sort((left, right) =>
+      Number(right.iso_639_1 === "en") - Number(left.iso_639_1 === "en") || right.vote_average - left.vote_average
+    );
+
+  return logos[0]?.file_path ?? null;
+}
+
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
 function showPageSchema(seasons: readonly number[]) {
   return z.object({
@@ -246,6 +286,6 @@ function showPageSchema(seasons: readonly number[]) {
  *
  * @param size - A TMDB size bucket such as `w780` or `original`.
  */
-export function tmdbImageUrl(path: string | null, size: "w300" | "w780" | "w1280" | "original") {
+export function tmdbImageUrl(path: string | null, size: "w300" | "w500" | "w780" | "w1280" | "original") {
   return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
 }
