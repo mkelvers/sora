@@ -10,32 +10,12 @@ export function providerConfirmsEpisode(episodes: readonly EpisodeSource[], targ
     );
 }
 
-export function confirmedEpisodeAirDate(
-    episodeNumber: number,
-    fallback: string | null,
-    confirmation: {
-        targetEpisode: number;
-        airingAt: Date;
-    }
-) {
-    if (episodeNumber !== confirmation.targetEpisode) {
-        return fallback;
-    }
-
-    return formatAirDate(confirmation.airingAt);
-}
-
+/** A confirmed airing timestamp takes precedence over TMDB's calendar date. */
 export function preferredEpisodeAirDate(
-    episodeNumber: number,
     metadataAirDate: string | null,
     confirmedAiringAt: Date | null | undefined
 ) {
-    return confirmedAiringAt
-        ? confirmedEpisodeAirDate(episodeNumber, metadataAirDate, {
-              targetEpisode: episodeNumber,
-              airingAt: confirmedAiringAt,
-          })
-        : metadataAirDate;
+    return confirmedAiringAt ? formatAirDate(confirmedAiringAt) : metadataAirDate;
 }
 
 function metadataDate(

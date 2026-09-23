@@ -65,7 +65,6 @@ export function reconcileEpisodeMetadata(
             imageUrl: current?.imageUrl ?? previous?.imageUrl ?? null,
             runtimeMinutes: current?.runtime ?? previous?.runtimeMinutes ?? null,
             airDate: preferredEpisodeAirDate(
-                episode.number,
                 airDate,
                 options.confirmedAirDates?.get(episode.number)
             ),

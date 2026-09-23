@@ -15,11 +15,6 @@ import {
     isSeasonPlaceholderSynopsis,
 } from './synopsis/selection';
 
-function usefulSynopsis(value: string | null | undefined) {
-    const synopsis = value?.trim() ?? '';
-    return synopsis && !isSeasonPlaceholderSynopsis(synopsis) ? synopsis : null;
-}
-
 async function firstRelease(anime: AniListAnime, refresh = false) {
     const visited = new Set<number>();
     let current = anime;
@@ -58,7 +53,8 @@ async function firstRelease(anime: AniListAnime, refresh = false) {
 async function refreshSynopsis(anime: AniListAnime, source: AniListAnime) {
     try {
         const replacement = await getTmdbSynopsis(source);
-        replacement.synopsis = usefulSynopsis(replacement.synopsis);
+        const synopsis = replacement.synopsis?.trim() ?? '';
+        replacement.synopsis = synopsis && !isSeasonPlaceholderSynopsis(synopsis) ? synopsis : null;
         await db
             .insert(animeSynopsis)
             .values({
