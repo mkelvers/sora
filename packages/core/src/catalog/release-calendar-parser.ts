@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ReleaseCalendarPageQuery } from './anilist/graphql/graphql.generated';
-import { mediaTitle, plainText } from './anilist/anilist-text';
+import { mediaTitle, plainText } from './utils';
 
 const releaseCalendarPageSchema = z.object({
     Page: z.object({
