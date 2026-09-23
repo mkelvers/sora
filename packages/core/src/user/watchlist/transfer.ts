@@ -61,10 +61,6 @@ function importDate(value: JsonValue | undefined) {
     return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-export function importedActivityAt(index: number, importedAt: number, source?: Date) {
-    return source ?? new Date(importedAt - index);
-}
-
 function importedState(value: JsonValue | undefined): WatchlistState | null {
     const parsed = z.string().trim().safeParse(value);
     if (!parsed.success) {
@@ -275,17 +271,6 @@ function normalizedTitle(value: string) {
         .trim();
 }
 
-function titleMatches(imported: string, candidates: string[]) {
-    const normalized = normalizedTitle(imported);
-    return Boolean(normalized) && candidates.some((title) => normalizedTitle(title) === normalized);
-}
-
-function titles(media: TransferAnime) {
-    return [media.title?.english, media.title?.romaji, media.title?.native].filter(
-        (title): title is string => Boolean(title?.trim())
-    );
-}
-
 async function mediaByMalId(malIds: number[]) {
     if (!malIds.length) {
         return [];
@@ -354,7 +339,7 @@ async function resolveImport(entries: ImportEntry[]) {
         if (match) {
             resolved.set(entry.index, {
                 id: match.id,
-                title: titles(match)[0] ?? importedTitles[0] ?? null,
+                title: animeTitles(match)[0] ?? importedTitles[0] ?? null,
             });
         }
     }
@@ -389,8 +374,12 @@ async function resolveImport(entries: ImportEntry[]) {
         for (const title of Object.values(entry.titles).filter((value): value is string =>
             Boolean(value)
         )) {
+            const normalized = normalizedTitle(title);
+            if (!normalized) {
+                continue;
+            }
             for (const result of searchResults.get(title.toLocaleLowerCase('en')) ?? []) {
-                if (titleMatches(title, result.titles)) {
+                if (result.titles.some((candidate) => normalizedTitle(candidate) === normalized)) {
                     matches.set(result.id, result);
                 }
             }
@@ -412,7 +401,8 @@ export async function importedWatchlistEntries(source: string, filename: string)
     const importedAt = Date.now();
     const entries = imported.flatMap((entry) => {
         const match = resolved.get(entry.index);
-        const activityAt = importedActivityAt(entry.index, importedAt, entry.activityAt);
+        // Stagger missing timestamps so one import retains its original row order.
+        const activityAt = entry.activityAt ?? new Date(importedAt - entry.index);
         return match
             ? [
                   {

@@ -123,6 +123,7 @@ export async function storeMissingWatchlistTitles(
     `);
 }
 
+/** Applies an import atomically and marks affected anime for interest reconciliation. */
 export async function applyWatchlistEntries(
     userId: string,
     entries: WatchlistEntryInput[],
@@ -132,6 +133,9 @@ export async function applyWatchlistEntries(
 
     return db.transaction(async (tx) => {
         const anilistIds = [...new Set(entries.map(({ anilistId }) => anilistId))];
+        const titlesByAniListId = new Map(
+            entries.map(({ anilistId, title }) => [anilistId, title])
+        );
 
         for (const batch of batches(anilistIds, databaseBatchSize)) {
             await tx
@@ -194,7 +198,7 @@ export async function applyWatchlistEntries(
                 .insert(anime)
                 .values(
                     batch.map(({ externalId }) => ({
-                        title: entries.find(({ anilistId }) => anilistId === externalId)?.title,
+                        title: titlesByAniListId.get(externalId),
                     }))
                 )
                 .returning({ id: anime.id });

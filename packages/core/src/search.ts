@@ -2,11 +2,6 @@ import { z } from 'zod';
 
 import { AnimeCardSchema, type AnimeCard } from './types';
 
-export interface SearchArtwork {
-    group: string;
-    backdrop: string | null;
-}
-
 export const AnimeSearchResultSchema = AnimeCardSchema.extend({
     titles: z.array(z.string()),
     format: z.string().nullable(),
@@ -158,24 +153,4 @@ export function rankAnimeSearch(query: string, results: AnimeSearchResult[]) {
                 left.index - right.index
         )
         .map(({ result }) => result);
-}
-
-export function distinctSearchArtwork(results: AnimeSearchResult[], limit: number) {
-    const artwork = new Set<string>();
-    const distinct: AnimeSearchResult[] = [];
-
-    for (const result of results) {
-        const image = result.backdrop ?? result.image;
-        if (artwork.has(image)) {
-            continue;
-        }
-
-        artwork.add(image);
-        distinct.push(result);
-        if (distinct.length === limit) {
-            break;
-        }
-    }
-
-    return distinct;
 }
