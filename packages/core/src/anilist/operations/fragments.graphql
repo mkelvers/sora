@@ -79,3 +79,29 @@ fragment AnimeDetails on Media {
     }
   }
 }
+
+# An anime as a member of its franchise: what TMDB matching compares, plus
+# the IDs of related entries to walk the franchise graph.
+fragment FranchiseEntry on Media {
+  ...AnimeCard
+  synonyms
+  startDate {
+    year
+    month
+    day
+  }
+  endDate {
+    year
+    month
+    day
+  }
+  relations {
+    edges {
+      relationType(version: 2)
+      node {
+        id
+        type
+      }
+    }
+  }
+}
