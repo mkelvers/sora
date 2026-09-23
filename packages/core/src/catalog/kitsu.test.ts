@@ -108,6 +108,22 @@ test('joins related anime by resource type and ID', async () => {
                                     },
                                 ],
                             },
+                            productions: {
+                                data: [
+                                    {
+                                        type: 'productions',
+                                        id: '31',
+                                    },
+                                ],
+                            },
+                            staff: {
+                                data: [
+                                    {
+                                        type: 'staff',
+                                        id: '32',
+                                    },
+                                ],
+                            },
                         },
                     },
                 ],
@@ -149,6 +165,48 @@ test('joins related anime by resource type and ID', async () => {
                             externalId: '789',
                         },
                     },
+                    {
+                        type: 'productions',
+                        id: '31',
+                        attributes: {},
+                        relationships: {
+                            company: {
+                                data: {
+                                    type: 'companies',
+                                    id: '33',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        type: 'companies',
+                        id: '33',
+                        attributes: {
+                            name: 'Example studio',
+                        },
+                    },
+                    {
+                        type: 'staff',
+                        id: '32',
+                        attributes: {
+                            role: 'Director, Music',
+                        },
+                        relationships: {
+                            person: {
+                                data: {
+                                    type: 'people',
+                                    id: '34',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        type: 'people',
+                        id: '34',
+                        attributes: {
+                            name: 'Example creator',
+                        },
+                    },
                 ],
             })
         );
@@ -165,6 +223,29 @@ test('joins related anime by resource type and ID', async () => {
                             id: 789,
                         }),
                     }),
+                ],
+            },
+            studios: {
+                nodes: [{ name: 'Example studio' }],
+            },
+            staff: {
+                edges: [
+                    {
+                        role: 'Director',
+                        node: {
+                            name: {
+                                full: 'Example creator',
+                            },
+                        },
+                    },
+                    {
+                        role: 'Music',
+                        node: {
+                            name: {
+                                full: 'Example creator',
+                            },
+                        },
+                    },
                 ],
             },
         }),
