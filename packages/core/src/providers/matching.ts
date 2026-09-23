@@ -1,4 +1,4 @@
-import { animeTitles } from '../catalog/anilist/anilist-text';
+import { animeTitles } from '../catalog/utils';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import type { ProviderEpisode, ProviderEpisodeReference } from './types';
 

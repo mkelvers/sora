@@ -11,7 +11,7 @@ import {
 import type { AniListAnime } from './anilist/anilist-types';
 import type { AnimeEpisode } from '../types';
 import { refreshAnimeRelease } from './anilist/anilist-release';
-import { animeTitles } from './anilist/anilist-text';
+import { animeTitles } from './utils';
 import { ensureInternalAnimeId } from './identity';
 import {
     anikotoProvider,

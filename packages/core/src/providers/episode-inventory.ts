@@ -4,7 +4,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@soraorg/database';
 import { animeEpisode, animeProviderMapping } from '@soraorg/database/schema';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
-import { formatDuration } from '../catalog/duration';
+import { formatDuration } from '../catalog/utils';
 import { episodesAvailableToWatch } from './inventory';
 import type { AudioMode } from '../audio';
 import type { AnimeEpisode } from '../types';

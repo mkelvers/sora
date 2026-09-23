@@ -15,12 +15,6 @@ export type FranchiseSelectionEntry = {
     }[];
 };
 
-export function isFranchiseEntryEligible(
-    entry: Pick<FranchiseSelectionEntry, 'status' | 'format'>
-) {
-    return entry.status !== 'NOT_YET_RELEASED' && entry.format !== 'MUSIC';
-}
-
 const continuityRelations = new Set<MediaRelation>(['PREQUEL', 'SEQUEL']);
 const nonNarrativeMovieRelations = new Set<MediaRelation>([
     'ALTERNATIVE',

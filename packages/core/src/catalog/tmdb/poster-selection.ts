@@ -1,5 +1,5 @@
 import type { AniListAnime } from '../anilist/anilist-types';
-import { animeDate } from '../date';
+import { animeDate } from '../utils';
 import type { TmdbResponse } from './client';
 import { isSpecialRelease, releaseSequence } from './title';
 

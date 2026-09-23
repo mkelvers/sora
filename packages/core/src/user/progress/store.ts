@@ -13,7 +13,7 @@ import {
     playbackProgress,
 } from '@soraorg/database/schema';
 import { toAnimeDetails } from '../../catalog/details';
-import { formatDuration } from '../../catalog/duration';
+import { formatDuration } from '../../catalog/utils';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identity';
 import { getStoredMedia } from '../../catalog/tmdb/media';

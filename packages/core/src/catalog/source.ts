@@ -10,7 +10,7 @@ import {
     SearchAnimePageDocument,
     ReleaseCalendarPageDocument,
 } from './anilist/graphql/graphql.generated';
-import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
+import { animeTitles, mediaTitle, plainText } from './utils';
 import { request } from './anilist/anilist-client';
 import { storedAnimeRelease } from './anilist/anilist-release';
 import {

@@ -141,5 +141,3 @@ export async function graphql<TResult, TVariables>(
         }
     }
 }
-
-export { GraphQLRequestError };

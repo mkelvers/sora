@@ -1,5 +1,5 @@
 import type { AniListAnime } from '../anilist/anilist-types';
-import { animeDate } from '../date';
+import { animeDate } from '../utils';
 import type { ProviderEpisode } from '../../providers/types';
 import {
     episodeTitleKey,

@@ -1,4 +1,4 @@
-import { animeDate, dateTimestamp, formatAirDate } from './date';
+import { animeDate, dateTimestamp, formatAirDate } from './utils';
 import type { AniListAnime } from './anilist/anilist-types';
 import type { ProviderEpisode } from '../providers/types';
 

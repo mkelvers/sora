@@ -11,7 +11,7 @@ import {
 import { createAnimeSearchIndex } from './search-index';
 import type { AnimeCard } from '../types';
 import { AniListAnimeSchema } from './anilist/anilist-types';
-import { plainText } from './anilist/anilist-text';
+import { plainText } from './utils';
 
 export function catalogSnapshotKey(filters: Omit<BrowseFilters, 'audio'>, page: number) {
     return JSON.stringify({

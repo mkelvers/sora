@@ -6,12 +6,8 @@ import { z } from 'zod';
 import { db, type DatabaseTransaction } from '@soraorg/database';
 import { anilistQuerySnapshot } from '@soraorg/database/schema';
 import { record, type JsonValue } from '../../utils';
-import {
-    graphql,
-    GraphQLRequestError,
-    type GraphQLDocument,
-    type GraphQLOptions,
-} from './graphql/client';
+import { graphql, type GraphQLDocument, type GraphQLOptions } from './graphql/client';
+import { GraphQLRequestError } from './graphql/error';
 import { coordinatedAniListRequest } from './anilist-lease';
 import { requestKitsu } from '../kitsu';
 import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types';

@@ -12,7 +12,7 @@ import {
     animeRelease,
 } from '@soraorg/database/schema';
 import { request } from './anilist/anilist-client';
-import { plainText } from './anilist/anilist-text';
+import { plainText } from './utils';
 import { enrichAnimeCards } from './card-enrichment';
 import { fetchOrder, type ChiakiEntry } from './franchise/chiaki';
 import { FranchiseRecordSchema, type FranchiseOrder } from './franchise/schema';

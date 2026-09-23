@@ -4,7 +4,7 @@ import type { AnimeCard } from '../types';
 import { db } from '@soraorg/database';
 import { animeSynopsis } from '@soraorg/database/schema';
 import { getAnimeRelease, storedAnimeRelease } from './anilist/anilist-release';
-import { mediaTitle, plainText } from './anilist/anilist-text';
+import { mediaTitle, plainText } from './utils';
 import type { AniListAnime } from './anilist/anilist-types';
 import { NoConfidentTmdbMappingError } from './tmdb/mapping';
 import { getTmdbSynopsis } from './tmdb/synopsis';
