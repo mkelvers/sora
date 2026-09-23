@@ -1,20 +1,6 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 
-import type { JsonValue } from '../../utils';
-
-const playbackProgressSchema = z.object({
-    animeId: z.number().int().positive(),
-    episodeId: z.string().trim().min(1).max(512),
-    episodeNumber: z.number().refine((value) => Math.abs(value) <= 1_000_000),
-    positionSeconds: z.number().nonnegative(),
-    durationSeconds: z
-        .number()
-        .positive()
-        .max(7 * 24 * 60 * 60),
-    completed: z.boolean(),
-    eventAt: z.number().int().nonnegative(),
-    sessionStartedAt: z.number().int().nonnegative(),
-});
+import type { PlaybackProgressSchema } from '../../contracts/anime';
 
 export interface PlaybackProgressInput {
     animeId: number;
@@ -27,29 +13,30 @@ export interface PlaybackProgressInput {
     sessionStartedAt: Date;
 }
 
-export function parsePlaybackProgress(value: JsonValue): PlaybackProgressInput | null {
-    const parsed = playbackProgressSchema.safeParse(value);
+/** Converts an already validated API payload into a safe persisted checkpoint. */
+export function normalizePlaybackProgress(
+    value: z.infer<typeof PlaybackProgressSchema>
+): PlaybackProgressInput | null {
     if (
-        !parsed.success ||
         // Allow small client clock skew, but reject future checkpoints that
         // could otherwise win conflict resolution over real playback progress.
-        parsed.data.eventAt > Date.now() + 5 * 60 * 1_000 ||
-        parsed.data.sessionStartedAt > Date.now() + 5 * 60 * 1_000 ||
-        parsed.data.sessionStartedAt > parsed.data.eventAt
+        value.eventAt > Date.now() + 5 * 60 * 1_000 ||
+        value.sessionStartedAt > Date.now() + 5 * 60 * 1_000 ||
+        value.sessionStartedAt > value.eventAt
     ) {
         return null;
     }
 
     return {
-        animeId: parsed.data.animeId,
-        episodeId: parsed.data.episodeId,
-        episodeNumber: parsed.data.episodeNumber,
+        animeId: value.animeId,
+        episodeId: value.episodeId,
+        episodeNumber: value.episodeNumber,
         // Clamp browser-reported position so malformed clients cannot persist a
         // checkpoint beyond the episode's own reported duration.
-        positionSeconds: Math.min(parsed.data.positionSeconds, parsed.data.durationSeconds),
-        durationSeconds: parsed.data.durationSeconds,
-        completed: parsed.data.completed,
-        eventAt: new Date(parsed.data.eventAt),
-        sessionStartedAt: new Date(parsed.data.sessionStartedAt),
+        positionSeconds: Math.min(value.positionSeconds, value.durationSeconds),
+        durationSeconds: value.durationSeconds,
+        completed: value.completed,
+        eventAt: new Date(value.eventAt),
+        sessionStartedAt: new Date(value.sessionStartedAt),
     };
 }
