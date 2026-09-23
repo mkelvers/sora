@@ -1,0 +1,13 @@
+{
+  "name": "@sora/scheduler",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit -p .",
+    "start": "bun --env-file=../core/.env src/main.ts"
+  },
+  "dependencies": {
+    "@sora/backend": "workspace:*"
+  }
+}
