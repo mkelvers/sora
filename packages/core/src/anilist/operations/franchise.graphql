@@ -5,3 +5,14 @@ query FranchiseEntries($ids: [Int!]!, $perPage: Int!) {
     }
   }
 }
+
+query NewEntries($page: Int!, $perPage: Int!) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(type: ANIME, isAdult: false, status_in: [NOT_YET_RELEASED, RELEASING], sort: ID_DESC) {
+      ...FranchiseEntry
+    }
+  }
+}
