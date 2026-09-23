@@ -1,0 +1,13 @@
+query AnimeDetails($id: Int!) {
+  Media(id: $id, type: ANIME) {
+    ...AnimeDetails
+  }
+}
+
+query AnimeCards($ids: [Int!]!, $perPage: Int!) {
+  Page(page: 1, perPage: $perPage) {
+    media(id_in: $ids, type: ANIME) {
+      ...AnimeCard
+    }
+  }
+}

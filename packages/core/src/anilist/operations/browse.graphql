@@ -1,0 +1,35 @@
+query BrowseAnime(
+  $page: Int!
+  $perPage: Int!
+  $search: String
+  $sort: [MediaSort!]!
+  $season: MediaSeason
+  $seasonYear: Int
+  $format: [MediaFormat!]
+  $status: MediaStatus
+  $genres: [String!]
+) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      currentPage
+      hasNextPage
+    }
+    media(
+      type: ANIME
+      isAdult: false
+      search: $search
+      sort: $sort
+      season: $season
+      seasonYear: $seasonYear
+      format_in: $format
+      status: $status
+      genre_in: $genres
+    ) {
+      ...AnimeCard
+    }
+  }
+}
+
+query Genres {
+  GenreCollection
+}
