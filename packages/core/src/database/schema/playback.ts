@@ -28,7 +28,12 @@ export const providerMapping = pgTable(
   ]
 );
 
-/** A provider's episode list for one mapped anime, refreshed on a TTL. */
+/**
+ * A provider's episode list for one anime, stored permanently.
+ *
+ * Only the airing scheduler refreshes a stored list, while the anime is still
+ * airing. Stream URLs expire and are never stored here.
+ */
 export const providerEpisodes = pgTable(
   "provider_episodes",
   {
