@@ -14,7 +14,7 @@ import {
 } from '@soraorg/database/schema';
 import { toAnimeDetails } from '../../catalog/details';
 import { formatDuration } from '../../catalog/utils';
-import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
+import { parseStoredAnimeDetails } from '../../catalog/anilist/anilist-types';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../../catalog/identity';
 import { getStoredMedia } from '../../catalog/tmdb/media';
 import { updateWatchlistAfterPlayback } from '../watchlist/store';

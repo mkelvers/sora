@@ -1,5 +1,3 @@
-import type { AnimeEpisode } from '../../types';
-
 interface Progress {
     episodeId: string;
     positionSeconds: number;
@@ -49,28 +47,6 @@ export function selectPlaybackProgress<T extends PlaybackProgressCandidate>(prog
 
         return candidate.id > selected.id ? candidate : selected;
     }, null);
-}
-
-/** Returns the current or next episode to resume, respecting an unfinished release. */
-export function continuationEpisode(
-    progress: Progress | null,
-    episodes: AnimeEpisode[],
-    releaseFinished: boolean
-) {
-    if (!progress) {
-        return null;
-    }
-
-    const currentIndex = episodes.findIndex(({ id }) => id === progress.episodeId);
-    if (currentIndex < 0) {
-        return null;
-    }
-
-    if (!progress.completed) {
-        return episodes[currentIndex];
-    }
-
-    return episodes[currentIndex + 1] ?? (releaseFinished ? null : episodes[currentIndex]);
 }
 
 /** Completed checkpoints and checkpoints for another episode always resume at zero. */

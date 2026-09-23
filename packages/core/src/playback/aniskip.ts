@@ -1,4 +1,4 @@
-import type { EpisodeSkipTimes, SkipInterval } from '../player/skip-times';
+import type { EpisodeSkipTimes, SkipInterval } from './skip-times-model';
 import { z } from 'zod';
 
 import type { JsonValue } from '../utils';

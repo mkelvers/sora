@@ -6,7 +6,7 @@ import {
     type SegmentTemplates,
     type SkipInterval,
     type SkipKind,
-} from '../player/skip-times';
+} from './skip-times-model';
 import { db } from '@soraorg/database';
 import { animeEpisode, animeEpisodeSegmentTemplate } from '@soraorg/database/schema';
 import { fetchAniSkip, validSkipInterval } from './aniskip';
