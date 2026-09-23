@@ -280,6 +280,76 @@ describe("layoutShowSeasons", () => {
     ]);
   });
 
+  test("leaves out specials duplicating an outside entry by name or air date", () => {
+    const layout = layoutShowSeasons({
+      show: {
+        seasons: [],
+        episodes: [
+          episode(0, 1, "2019-05-18", "Zoku Owarimonogatari: Koyomi Reverse (1)"),
+          episode(0, 2, "2019-03-01", "Spin-off premiere"),
+          episode(0, 3, "2019-04-01", "Recap"),
+          ...weekly(1, 1, 2, "2019-01-01")
+        ]
+      },
+      members: [member(anime(1, "Owarimonogatari", {
+        episodes: 2
+      }), links(1, 1, 2))],
+      claimedSpecials: [],
+      outsideEntries: [
+        {
+          titles: ["Zoku Owarimonogatari"],
+          startDate: "2018-11-10",
+          endDate: "2018-11-10",
+          episodes: 6
+        },
+        {
+          titles: ["Spin-off"],
+          startDate: "2019-03-01",
+          endDate: "2019-03-01",
+          episodes: 1
+        }
+      ]
+    });
+
+    expect(outline(layout[0]!)).toEqual([
+      "1#1",
+      "1#2",
+      "extra:Recap"
+    ]);
+  });
+
+  test("claims specials named after the end of an outside entry's title, with same-day episodes", () => {
+    const layout = layoutShowSeasons({
+      show: {
+        seasons: [],
+        episodes: [
+          episode(0, 1, "2020-01-22", "Land vs. Air"),
+          episode(0, 2, "2020-01-22", "The Path of the Ball"),
+          episode(0, 3, "2020-02-01", "Recap"),
+          ...weekly(1, 1, 2, "2020-01-11")
+        ]
+      },
+      members: [member(anime(1, "HAIKYU!! TO THE TOP", {
+        episodes: 2
+      }), links(1, 1, 2))],
+      claimedSpecials: [],
+      outsideEntries: [
+        {
+          titles: ["HAIKYU!! LAND VS. AIR"],
+          startDate: "2020-01-10",
+          endDate: "2020-01-10",
+          episodes: 2
+        }
+      ]
+    });
+
+    expect(outline(layout[0]!)).toEqual([
+      "1#1",
+      "1#2",
+      "extra:Recap"
+    ]);
+  });
+
   test("uses TMDB's season names when seasons follow TMDB", () => {
     const layout = layoutShowSeasons({
       show: {

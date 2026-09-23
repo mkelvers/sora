@@ -3,7 +3,7 @@ import { fuzzyDate } from "../catalog/models/text";
 import { getAnime } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
 import { getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
-import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
+import { loadEntries, primaryTitlesOf, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
 import { mappedEpisodes, mappingsForShow, resolveMapping, type TmdbMapping } from "./mapping";
 import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
 
@@ -226,6 +226,7 @@ async function layoutSeasons(
         outsideEntries: outsiders
           .filter(({ mapping }) => mapping.mediaType !== "tv" || mapping.tmdbId !== id)
           .map(({ entry }) => ({
+            titles: primaryTitlesOf(entry),
             startDate: startDateOf(entry),
             endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
             episodes: entry.episodes
