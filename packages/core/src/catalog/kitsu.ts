@@ -192,6 +192,30 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
             },
         ];
     });
+    const studioNodes = related(resource, 'productions', resources)
+        .flatMap((production) => related(production, 'company', resources))
+        .map((company) => ({
+            name: z.string().parse(company.attributes.name),
+        }));
+    const staffEdges = related(resource, 'staff', resources).flatMap((staff) => {
+        const roles = z.string().parse(staff.attributes.role).split(',');
+        const person = related(staff, 'person', resources)[0];
+        const name = z.string().parse(person?.attributes.name);
+        return roles.map((role) => ({
+            role: role.trim(),
+            node: {
+                name: {
+                    full: name,
+                },
+            },
+        }));
+    });
+    let status = 'NOT_YET_RELEASED';
+    if (attributes.status === 'current') {
+        status = 'RELEASING';
+    } else if (attributes.status === 'finished') {
+        status = 'FINISHED';
+    }
     return {
         ...AniListAnimeSchema.parse({
             id,
@@ -212,12 +236,7 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
             description: attributes.description ?? attributes.synopsis ?? null,
             genres,
             format: attributes.subtype.toUpperCase(),
-            status:
-                attributes.status === 'current'
-                    ? 'RELEASING'
-                    : attributes.status === 'finished'
-                      ? 'FINISHED'
-                      : 'NOT_YET_RELEASED',
+            status,
             season: startDate?.month
                 ? ['WINTER', 'SPRING', 'SUMMER', 'FALL'][Math.floor((startDate.month - 1) / 3)]
                 : null,
@@ -259,29 +278,10 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
                 isMediaSpoiler: false,
             })),
             studios: {
-                nodes: related(resource, 'productions', resources)
-                    .flatMap((production) => related(production, 'company', resources))
-                    .map((company) => ({ name: z.string().parse(company.attributes.name) })),
+                nodes: studioNodes,
             },
             staff: {
-                edges: related(resource, 'staff', resources).flatMap((staff) =>
-                    z
-                        .string()
-                        .parse(staff.attributes.role)
-                        .split(',')
-                        .map((role) => ({
-                            role: role.trim(),
-                            node: {
-                                name: {
-                                    full: z
-                                        .string()
-                                        .parse(
-                                            related(staff, 'person', resources)[0]?.attributes.name
-                                        ),
-                                },
-                            },
-                        }))
-                ),
+                edges: staffEdges,
             },
         }),
         isAdult: attributes.nsfw,
