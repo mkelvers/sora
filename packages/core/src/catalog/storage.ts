@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import type { BrowseFilters } from './browse-filters';
-import type { BrowseCatalogEntry } from './browse-types';
+import type { BrowseCatalogEntry } from './browse-transform';
 import { db } from '@soraorg/database';
 import {
     animeCatalog,

@@ -1,8 +1,7 @@
 import type { AnimeCard, AnimeCardPage, ContinueWatchingCard } from '../types';
 import type { AnimeSearchResult } from '../search';
 import type { BrowseFilters } from './browse-filters';
-import type { BrowseCatalogEntry } from './browse-types';
-import type { BrowseSourceTaxonomy } from './browse-transform';
+import type { BrowseCatalogEntry, BrowseSourceTaxonomy } from './browse-transform';
 import type { ReleaseCalendarEntry } from './release-calendar-parser';
 import type { AnimeSeasonSelection } from '../season';
 import type { AudioMode } from '../audio';
