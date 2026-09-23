@@ -2,12 +2,35 @@ import type {
     BrowseAnimePageQuery,
     BrowseAnimeTaxonomyQuery,
     MediaFormat,
+    MediaSeason,
+    MediaSource,
+    MediaStatus,
 } from './anilist/graphql/graphql.generated';
 import { isNotNullish } from '../utils';
 import { z } from 'zod';
 import { animeTitles, mediaTitle, plainText } from './utils';
 import { isDiscoverableAnime } from './discovery';
-import type { BrowseCatalogEntry } from './browse-types';
+
+export interface BrowseCatalogEntry {
+    metadataSource?: string;
+    anilistId: number;
+    title: string;
+    searchText: string;
+    imageUrl: string;
+    synopsis: string;
+    genres: string[];
+    tags: string[];
+    format: MediaFormat | null;
+    status: MediaStatus | null;
+    source: MediaSource | null;
+    season: MediaSeason | null;
+    seasonYear: number | null;
+    countryOfOrigin: string | null;
+    isAdult: boolean;
+    popularity: number | null;
+    duration: number | null;
+    averageScore: number | null;
+}
 
 export interface BrowseSourceTaxonomy {
     genres: string[];

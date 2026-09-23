@@ -1,5 +1,5 @@
 import type { BrowseFilters } from './browse-filters';
-import type { BrowseCatalogEntry } from './browse-types';
+import type { BrowseCatalogEntry } from './browse-transform';
 import type { CatalogBrowsePageRequest } from './source';
 import { catalogSnapshotKey, refreshCatalogPage } from './storage';
 
