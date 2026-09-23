@@ -3,8 +3,12 @@ import type { Context } from 'hono';
 import { z } from 'zod';
 
 import { parseBrowseFilters } from '@soraorg/core/catalog/browse-filters';
-import { createCatalogApplication } from '@soraorg/core/catalog/application';
-import { createCatalogSource } from '@soraorg/core/catalog/source';
+import { homePage } from '@soraorg/core/catalog/home';
+import { newAnimePage, popularAnimePage } from '@soraorg/core/catalog/query';
+import { releaseCalendar } from '@soraorg/core/catalog/release-calendar';
+import { getSearchResults } from '@soraorg/core/catalog/search';
+import { simulcast } from '@soraorg/core/catalog/simulcast';
+import { catalogTaxonomy } from '@soraorg/core/catalog/storage';
 import {
     AnimeIdSchema,
     PageQuerySchema,
@@ -14,8 +18,6 @@ import {
 import { clearPlaybackProgress } from '@soraorg/core/user/progress/store';
 
 import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
-
-const catalogApplication = createCatalogApplication(createCatalogSource());
 
 const SimulcastQuerySchema = PageQuerySchema.extend({
     season: z.string().optional(),
@@ -43,16 +45,14 @@ export const catalog = new Hono<ApiEnvironment>();
 catalog.use('*', optionalMiddleware);
 
 catalog.get('/home', async (context) =>
-    context.json(await catalogApplication.homePage(context.get('session')?.user.id))
+    context.json(await homePage(context.get('session')?.user.id))
 );
 
 catalog.get('/schedule', async (context) =>
-    context.json(ReleaseCalendarSchema.parse(await catalogApplication.releaseCalendar()))
+    context.json(ReleaseCalendarSchema.parse(await releaseCalendar()))
 );
 
-catalog.get('/taxonomy', async (context) =>
-    context.json(await catalogApplication.catalogTaxonomy())
-);
+catalog.get('/taxonomy', async (context) => context.json(await catalogTaxonomy()));
 
 catalog.delete(
     '/home/continue-watching/:anilistId',
@@ -70,17 +70,13 @@ catalog.delete(
 catalog.get('/new', validate('query', PageQuerySchema), async (context) => {
     const filters = parseCatalogFilters(context);
     if (filters instanceof Response) return filters;
-    return context.json(
-        await catalogApplication.newAnimePage(context.req.valid('query').page, filters)
-    );
+    return context.json(await newAnimePage(context.req.valid('query').page, filters));
 });
 
 catalog.get('/popular', validate('query', PageQuerySchema), async (context) => {
     const filters = parseCatalogFilters(context);
     if (filters instanceof Response) return filters;
-    return context.json(
-        await catalogApplication.popularAnimePage(context.req.valid('query').page, filters)
-    );
+    return context.json(await popularAnimePage(context.req.valid('query').page, filters));
 });
 
 catalog.get('/search', validate('query', SearchQuerySchema), async (context) => {
@@ -89,11 +85,11 @@ catalog.get('/search', validate('query', SearchQuerySchema), async (context) => 
         return context.json([]);
     }
 
-    return context.json(await catalogApplication.getSearchResults(query));
+    return context.json(await getSearchResults(query));
 });
 
 catalog.get('/simulcast', validate('query', SimulcastQuerySchema), async (context) => {
-    const page = await catalogApplication.simulcast(
+    const page = await simulcast(
         new URLSearchParams(context.req.query()),
         context.req.valid('query').page
     );
