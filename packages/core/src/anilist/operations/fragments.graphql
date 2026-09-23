@@ -1,0 +1,81 @@
+# Fields needed to render an anime in a list, grid, or carousel.
+fragment AnimeCard on Media {
+  id
+  idMal
+  title {
+    romaji
+    english
+    native
+  }
+  coverImage {
+    extraLarge
+    large
+    color
+  }
+  bannerImage
+  format
+  status
+  season
+  seasonYear
+  episodes
+  duration
+  averageScore
+  popularity
+  genres
+  isAdult
+  nextAiringEpisode {
+    airingAt
+    episode
+  }
+}
+
+# Everything an anime detail screen needs, including franchise relations.
+fragment AnimeDetails on Media {
+  ...AnimeCard
+  synonyms
+  description(asHtml: false)
+  source
+  countryOfOrigin
+  startDate {
+    year
+    month
+    day
+  }
+  endDate {
+    year
+    month
+    day
+  }
+  trailer {
+    id
+    site
+  }
+  tags {
+    name
+    rank
+    isMediaSpoiler
+  }
+  studios(isMain: true) {
+    nodes {
+      id
+      name
+    }
+  }
+  relations {
+    edges {
+      relationType(version: 2)
+      node {
+        type
+        ...AnimeCard
+      }
+    }
+  }
+  recommendations(page: 1, perPage: 12, sort: [RATING_DESC]) {
+    nodes {
+      mediaRecommendation {
+        type
+        ...AnimeCard
+      }
+    }
+  }
+}
