@@ -399,6 +399,54 @@ describe("placeInShow", () => {
     expect(range(placement)?.[0]).toBe("1:S3E1");
   });
 
+  test("does not continue a franchise show with an OVA released between seasons", () => {
+    // Haikyu!! LAND VS. AIR came out two months before TO THE TOP.
+    const placement = placeInShow(
+      subject({
+        format: "OVA",
+        startDate: "2019-11-04",
+        endDate: "2019-11-04",
+        episodes: 2
+      }),
+      show([
+        ...weekly(1, "2018-10-08", 10),
+        ...weekly(2, "2020-01-11", 12)
+      ], {
+        isFranchiseShow: true,
+        prequelEnd: {
+          seasonNumber: 1,
+          episodeNumber: 10
+        }
+      })
+    );
+
+    expect(placement).toBeNull();
+  });
+
+  test("does not let an OVA released the day before a season claim its premiere", () => {
+    // Haikyu!! LAND VS. AIR: two episodes on 2020-01-10, TO THE TOP from 2020-01-11.
+    const placement = placeInShow(
+      subject({
+        format: "OVA",
+        startDate: "2020-01-10",
+        endDate: "2020-01-10",
+        episodes: 2
+      }),
+      show([
+        ...weekly(1, "2018-10-08", 10),
+        ...weekly(2, "2020-01-11", 12)
+      ], {
+        isFranchiseShow: true,
+        prequelEnd: {
+          seasonNumber: 1,
+          episodeNumber: 10
+        }
+      })
+    );
+
+    expect(placement).toBeNull();
+  });
+
   test("falls back to name, year, and episode count when air dates disagree", () => {
     const placement = placeInShow(
       subject({

@@ -151,13 +151,26 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
       }
 
       const isContinuation = index === continuation;
-      if (isRegular && !isSeriesFormat(subject.format) && !isContinuation && !isOwnShowStart(track, index, start, candidate)) {
+      const mayTakeRegularEpisodes =
+        isSeriesFormat(subject.format) ||
+        isOwnShowStart(track, index, start, candidate) ||
+        // An OVA series continuing its franchise's show must also air when
+        // that episode did; an OVA released between seasons is not the next season.
+        (isContinuation && airsNear(track[index], start));
+      if (isRegular && !mayTakeRegularEpisodes) {
         continue;
       }
 
       const picked = pick(track, index, subject, end, isRegular);
       if (isRegular) {
         picked.push(...overflowSpecials(candidate.show.episodes, picked, subject, end));
+      }
+
+      const isPartialOva = !isSeriesFormat(subject.format) && subject.episodes !== null && picked.length < subject.episodes;
+      if (isRegular && isPartialOva) {
+        // An OVA released all at once cannot be a run of weekly episodes
+        // that mostly air after it ended.
+        continue;
       }
 
       const first = picked[0];
@@ -374,6 +387,12 @@ function isOwnShowStart(track: readonly TmdbEpisode[], index: number, start: num
   );
 }
 
+/** Whether an episode aired within the start window of `start`. */
+function airsNear(episode: TmdbEpisode | undefined, start: number | null) {
+  const airDay = dayNumber(episode?.air_date ?? null);
+  return airDay !== null && start !== null && Math.abs(airDay - start) <= startWindowDays;
+}
+
 /** Formats that run as a series of episodes and may be a regular TMDB season. */
 function isSeriesFormat(format: AnimeFormat | null) {
   return format === "TV" || format === "TV_SHORT" || format === "ONA" || format === null;
@@ -585,7 +604,7 @@ function yearOf(date: string | null) {
  * Lowercases, folds full-width characters, and reduces punctuation to single
  * spaces, so "Re:ZERO -Starting Life-" and "Re: Zero Starting Life" compare equal.
  */
-function normalizeTitle(title: string) {
+export function normalizeTitle(title: string) {
   return title
     .normalize("NFKC")
     .toLowerCase()

@@ -15,7 +15,7 @@
 import type { AnimeCard } from "../catalog/models/anime";
 import type { TmdbEpisode, TmdbShow } from "../tmdb/resources";
 import { tmdbImageUrl } from "../tmdb/resources";
-import type { EpisodeLink } from "./matching";
+import { normalizeTitle, type EpisodeLink } from "./matching";
 
 /** One AniList entry of a show, with the TMDB episodes it was matched to. */
 export interface SeasonMember {
@@ -96,10 +96,18 @@ export interface ShowLayoutInput {
 
 /** A franchise entry outside the series being laid out. Dates are `YYYY-MM-DD` when known. */
 export interface OutsideEntry {
+  /** English, romaji, and native titles. */
+  titles: string[];
   startDate: string | null;
   endDate: string | null;
   episodes: number | null;
 }
+
+/**
+ * Titles shorter than this are too generic to recognise in an episode name;
+ * "Kuro" alone would claim unrelated specials.
+ */
+const minimumClaimTitleLength = 8;
 
 /**
  * Extras whose length is further than this factor from a regular episode
@@ -326,7 +334,10 @@ function extrasOf(
 
   const specials = input.show.episodes.filter((episode) => episode.season_number === 0);
   for (const entry of input.outsideEntries ?? []) {
-    for (const episode of specialsDuring(specials, entry, claimed)) {
+    for (const episode of [
+      ...specialsNamedAfter(specials, entry),
+      ...specialsDuring(specials, entry, claimed)
+    ]) {
       claimed.add(refKey(0, episode.episode_number));
     }
   }
@@ -359,6 +370,35 @@ function extrasOf(
     (left.tmdb?.air_date ?? "9999").localeCompare(right.tmdb?.air_date ?? "9999") ||
     (left.tmdb?.episode_number ?? 0) - (right.tmdb?.episode_number ?? 0)
   );
+}
+
+/**
+ * Specials named after the outside entry: its title followed by an episode
+ * name ("Zoku Owarimonogatari: Koyomi Reverse (1)"), or the distinctive end
+ * of its title alone ("Lev Appears!" for "HAIKYU!!: Lev Appears!"). Episodes
+ * the entry released on the same day as a named one are claimed with it, up
+ * to its episode count. This catches duplicates that aired far from
+ * AniList's dates, like a TV broadcast months after a theatrical release.
+ */
+function specialsNamedAfter(specials: readonly TmdbEpisode[], entry: OutsideEntry) {
+  const titles = entry.titles.map(normalizeTitle).filter((title) => title.length >= minimumClaimTitleLength);
+  const isNamedAfter = (episode: TmdbEpisode) => {
+    const name = episode.name ? normalizeTitle(episode.name) : "";
+    return titles.some(
+      (title) =>
+        name === title ||
+        name.startsWith(`${title} `) ||
+        (name.length >= minimumClaimTitleLength && title.endsWith(` ${name}`))
+    );
+  };
+
+  const named = specials.filter(isNamedAfter);
+  const namedDates = new Set(named.map((episode) => episode.air_date));
+  const sameDay = specials.filter((episode) => !named.includes(episode) && namedDates.has(episode.air_date));
+  return [
+    ...named,
+    ...sameDay.slice(0, Math.max((entry.episodes ?? named.length) - named.length, 0))
+  ];
 }
 
 /**
