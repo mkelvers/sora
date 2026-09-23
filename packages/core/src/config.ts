@@ -7,7 +7,9 @@ const EnvironmentSchema = z.object({
    * Secret for signing stream proxy tokens. Tokens authorize the proxy to fetch
    * one upstream URL, so a leaked secret lets anyone use the proxy.
    */
-  STREAM_SIGNING_SECRET: z.string().min(32)
+  STREAM_SIGNING_SECRET: z.string().min(32),
+  /** TMDB API read access token (v4 bearer token), used to group anime into series. */
+  TMDB_READ_ACCESS_TOKEN: z.string().min(1)
 });
 
 /**
@@ -22,6 +24,7 @@ export const config = (() => {
 
   return {
     databaseUrl: environment.DATABASE_URL,
-    streamSigningSecret: environment.STREAM_SIGNING_SECRET
+    streamSigningSecret: environment.STREAM_SIGNING_SECRET,
+    tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN
   };
 })();
