@@ -4,13 +4,13 @@ import { createDecipheriv } from 'node:crypto';
 import { z } from 'zod';
 
 import type { AudioMode } from '../audio';
-import { concatByteChunks, type JsonValue } from '../utils';
+import type { JsonValue } from '../utils';
 import type { AnimeSeasonSelection } from '../season';
 import type { AnimeCard } from '../types';
 import { animeTitles, plainText } from '../catalog/utils';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { validSkipInterval } from '../playback/aniskip';
-import type { EpisodeSkipTimes } from '../player/skip-times';
+import type { EpisodeSkipTimes } from '../playback/skip-times-model';
 import type {
     PlaybackProvider,
     ProviderPlayback,
@@ -20,38 +20,20 @@ import type {
     ProviderStreams,
 } from './types';
 import { normalizedProviderTitle, relatedCollectionTitle } from './matching';
+import {
+    abortable,
+    anikotoUrl,
+    catalogUrl,
+    AniKotoRequestError,
+    isAniKotoTransientError,
+    requestJson,
+    requestText,
+} from './anikoto-transport';
+import { supportedMediaUrl, supportedSubtitleUrl, validHttpsUrl } from './anikoto-media';
 
-const anikotoUrl = 'https://anikototv.to';
-const catalogUrl = 'https://anikotoapi.site';
 const providerName = 'anikoto';
-// MegaPlay returns the concrete media hostname in its source payload. Keep the
-// registrable domains here, rather than individual CDN shards, so new provider
-// subdomains work without another release while the proxy remains allowlisted.
-const aniKotoMediaHostSuffixes = [
-    'akirax.buzz',
-    'anizara.store',
-    'imgnex.top',
-    'kryntal.top',
-    'lostproject.club',
-    'megaplay.buzz',
-    'mikora.top',
-    'norami.top',
-    'shiora.site',
-    'shiora.top',
-    'tiktokcdn.com',
-    'trycloud.pro',
-    'watching.onl',
-] as const;
 const aniKotoEmbedHostnames = ['megaplay.buzz', 'vidtube.site'] as const;
 type AniKotoEmbedHostname = 'megaplay.buzz' | 'vidtube.site';
-const megaPlayMediaMirrorSuffixes = [
-    'akirax.buzz',
-    'mikora.top',
-    'norami.top',
-    'shiora.site',
-    'shiora.top',
-] as const;
-export const aniKotoMediaReferer = 'https://megaplay.buzz/';
 // Coalesce series lookups and retain results briefly; each entry removes itself on expiry.
 const seriesRequests = new Map<
     number,
@@ -60,25 +42,6 @@ const seriesRequests = new Map<
         request: Promise<AniKotoSeries>;
     }
 >();
-// Throttling and upstream cooldowns are shared by requests in this process.
-const providerCooldownUntil = {
-    catalog: 0,
-    ajax: 0,
-    site: 0,
-};
-let providerRequestTail = Promise.resolve();
-let lastProviderRequestAt = 0;
-const transientProviderTransportCodes = new Set([
-    'EAI_AGAIN',
-    'ECONNREFUSED',
-    'ECONNRESET',
-    'EHOSTUNREACH',
-    'ENETUNREACH',
-    'ENOTFOUND',
-    'EPIPE',
-    'ETIMEDOUT',
-]);
-
 const ajaxResponseSchema = z.object({
     status: z.number().int(),
     result: z.string(),
@@ -193,55 +156,10 @@ interface CaptionCandidate {
     preferred: boolean;
 }
 
-export class AniKotoRequestError extends Error {
-    constructor(
-        message: string,
-        readonly status: number,
-        readonly retryAfterMs?: number,
-        readonly localCooldown = false
-    ) {
-        super(message);
-    }
-}
-
 export class AniKotoNoMatchError extends Error {
     constructor(readonly anilistId: number) {
         super(`AniKoto has no exact identity match for AniList ${anilistId}`);
     }
-}
-
-function providerTransportCode(cause: unknown) {
-    if (!(cause instanceof Error)) {
-        return null;
-    }
-
-    const error = cause as Error & { code?: string };
-    if (error.code && transientProviderTransportCodes.has(error.code)) {
-        return error.code;
-    }
-
-    if (!(error.cause instanceof Error)) {
-        return null;
-    }
-
-    const nested = error.cause as Error & { code?: string };
-    return nested.code && transientProviderTransportCodes.has(nested.code) ? nested.code : null;
-}
-
-export function isAniKotoTransientError(cause: unknown) {
-    if (cause instanceof AniKotoRequestError) {
-        return cause.status === 429 || cause.status >= 500;
-    }
-
-    if (providerTransportCode(cause) !== null) {
-        return true;
-    }
-
-    if (cause instanceof DOMException && cause.name === 'TimeoutError') {
-        return true;
-    }
-
-    return cause instanceof AggregateError && cause.errors.some(isAniKotoTransientError);
 }
 
 function positiveId(value: JsonValue | undefined) {
@@ -252,194 +170,6 @@ function positiveId(value: JsonValue | undefined) {
 
     const number = Number(parsed.data);
     return Number.isSafeInteger(number) && number > 0 ? number : null;
-}
-
-function retryAfterMs(value: string | null) {
-    if (!value) {
-        return null;
-    }
-
-    const seconds = Number(value);
-    if (Number.isFinite(seconds) && seconds >= 0) {
-        return Math.ceil(seconds * 1000);
-    }
-
-    const timestamp = Date.parse(value);
-    return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : null;
-}
-
-async function abortable<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
-    if (!signal) {
-        return operation;
-    }
-
-    let onAbort!: () => void;
-    const aborted = new Promise<never>((_, reject) => {
-        onAbort = () => reject(signal.reason);
-        if (signal.aborted) {
-            onAbort();
-        } else {
-            signal.addEventListener('abort', onAbort, { once: true });
-        }
-    });
-    try {
-        return await Promise.race([operation, aborted]);
-    } finally {
-        signal.removeEventListener('abort', onAbort);
-    }
-}
-
-async function abortableDelay(delay: number, signal?: AbortSignal) {
-    let timer!: NodeJS.Timeout;
-    try {
-        await abortable(
-            new Promise<void>((resolve) => {
-                timer = setTimeout(resolve, delay);
-            }),
-            signal
-        );
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-async function waitForProviderRequestSlot(signal?: AbortSignal) {
-    let release!: () => void;
-    const turn = new Promise<void>((resolve) => {
-        release = resolve;
-    });
-    const previous = providerRequestTail;
-    providerRequestTail = previous.then(() => turn);
-    await previous;
-
-    try {
-        const wait = 1_000 - (Date.now() - lastProviderRequestAt);
-        if (wait > 0) {
-            await abortableDelay(wait, signal);
-        }
-        lastProviderRequestAt = Date.now();
-    } catch (cause) {
-        release();
-        throw cause;
-    }
-
-    return release;
-}
-
-export function isAniKotoDisguisedSegmentHost(hostname: string) {
-    return (
-        /^p\d+-ad-site-sign-sg\.tiktokcdn\.com$/.test(hostname) ||
-        /^s\d+\.(?:akirax\.buzz|norami\.top|shiora\.site|shiora\.top)$/.test(hostname)
-    );
-}
-
-export function unwrapAniKotoDisguisedSegment(value: Uint8Array) {
-    const bytes = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
-    const pngEnd = bytes.indexOf(new Uint8Array([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]));
-    if (pngEnd >= 0) {
-        return value.slice(pngEnd + 8);
-    }
-
-    if (value[0] === 0xff && value[1] === 0xd8) {
-        const jpegEnd = bytes.indexOf(new Uint8Array([0xff, 0xd9]), 1);
-        if (jpegEnd >= 0) {
-            return value.slice(jpegEnd + 2);
-        }
-    }
-
-    return value;
-}
-
-export function normalizeAniKotoMediaUrl(url: URL) {
-    if (
-        !url ||
-        url.protocol !== 'https:' ||
-        url.username ||
-        url.password ||
-        url.port ||
-        !aniKotoMediaHostSuffixes.some(
-            (suffix) => url.hostname === suffix || url.hostname.endsWith(`.${suffix}`)
-        )
-    ) {
-        return null;
-    }
-
-    const normalized = new URL(url.toString());
-    const shard = normalized.hostname.match(/^(s\d+)\.shiora\.(?:site|top)$/i)?.[1];
-    if (shard) {
-        normalized.hostname = `${shard}.akirax.buzz`;
-    }
-    return normalized;
-}
-
-export function aniKotoMediaCandidates(url: URL) {
-    const candidates = [url];
-    if (url.hostname.endsWith('.imgnex.top') && url.pathname.startsWith('/anime/')) {
-        for (const suffix of megaPlayMediaMirrorSuffixes) {
-            const alternate = new URL(url);
-            alternate.hostname = `megap.${suffix}`;
-            alternate.pathname = url.pathname.slice('/anime'.length);
-            candidates.push(alternate);
-        }
-    }
-    if (url.hostname.endsWith('.mikora.top')) {
-        for (const suffix of ['shiora.site', 'akirax.buzz']) {
-            const alternate = new URL(url);
-            alternate.hostname = alternate.hostname.replace(/\.mikora\.top$/, `.${suffix}`);
-            candidates.push(alternate);
-        }
-    }
-    if (url.hostname.endsWith('.shiora.top')) {
-        const alternate = new URL(url);
-        alternate.hostname = alternate.hostname.replace(/\.shiora\.top$/, '.shiora.site');
-        candidates.push(alternate);
-    }
-    if (url.hostname === 'cdn.kryntal.top' || url.hostname === 'ncdn.kryntal.top') {
-        for (const prefix of ['cdn', 'ncdn']) {
-            const alternate = new URL(url);
-            alternate.hostname = `${prefix}.watching.onl`;
-            if (!candidates.some((candidate) => candidate.hostname === alternate.hostname)) {
-                candidates.push(alternate);
-            }
-        }
-    }
-    return candidates;
-}
-
-function validHttpsUrl(value: string | undefined) {
-    if (!value?.trim()) {
-        return null;
-    }
-
-    try {
-        const url = new URL(value);
-        if (url.protocol !== 'https:' || url.username || url.password || url.port) {
-            return null;
-        }
-        return url;
-    } catch {
-        return null;
-    }
-}
-
-function supportedMediaUrl(value: string) {
-    const url = validHttpsUrl(value);
-    const normalized = url ? normalizeAniKotoMediaUrl(url) : null;
-    if (!normalized) {
-        return null;
-    }
-
-    return /\.(?:m3u8|mp4)$/i.test(normalized.pathname) ? normalized : null;
-}
-
-function supportedSubtitleUrl(value: string) {
-    const url = validHttpsUrl(value);
-    const normalized = url ? normalizeAniKotoMediaUrl(url) : null;
-    if (!normalized || !/\.vtt$/i.test(normalized.pathname)) {
-        return null;
-    }
-
-    return normalized;
 }
 
 function validOpaqueId(value: string | undefined, maxLength = 1024) {
@@ -457,10 +187,6 @@ function hasMixedAniKotoSeriesIds(episodeIds: readonly string[]) {
     );
 }
 
-function episodeAudioModes(sub: string | undefined, dub: string | undefined): AudioMode[] {
-    return [...(sub === '1' ? (['sub'] as const) : []), ...(dub === '1' ? (['dub'] as const) : [])];
-}
-
 function playableAudioModes(
     available: readonly AudioMode[],
     requested: readonly AudioMode[]
@@ -469,10 +195,6 @@ function playableAudioModes(
     return [...new Set(requested)].filter(
         (mode): mode is Exclude<AudioMode, 'raw'> => mode !== 'raw' && availableModes.has(mode)
     );
-}
-
-function serverMode(value: string | undefined): AniKotoServerMode | null {
-    return value === 'sub' || value === 'dub' || value === 'hsub' ? value : null;
 }
 
 function parseSeries(value: JsonValue): AniKotoSeries | null {
@@ -668,7 +390,13 @@ function parseEpisodeList(value: JsonValue) {
         const link = $(element);
         const id = validOpaqueId(link.attr('data-ids')?.trim(), 512);
         const number = Number(link.attr('data-num'));
-        const audio = episodeAudioModes(link.attr('data-sub'), link.attr('data-dub'));
+        const audio: AudioMode[] = [];
+        if (link.attr('data-sub') === '1') {
+            audio.push('sub');
+        }
+        if (link.attr('data-dub') === '1') {
+            audio.push('dub');
+        }
 
         if (id && Number.isFinite(number) && number > 0 && audio.length > 0) {
             episodes.set(number, {
@@ -702,8 +430,8 @@ function parseServerList(value: JsonValue) {
 
     const $ = load(parsed.data.result);
     $('.type[data-type]').each((_, element) => {
-        const embedMode = serverMode($(element).attr('data-type'));
-        if (!embedMode) {
+        const embedMode = $(element).attr('data-type');
+        if (embedMode !== 'sub' && embedMode !== 'dub' && embedMode !== 'hsub') {
             return;
         }
         const mode = embedMode === 'hsub' ? 'sub' : embedMode;
@@ -903,178 +631,6 @@ async function resolveCandidates<T, R>(
     };
 }
 
-async function readBounded(response: Response, limit: number, signal?: AbortSignal) {
-    const contentLength = Number(response.headers.get('content-length'));
-    if (Number.isFinite(contentLength) && contentLength > limit) {
-        await response.body?.cancel();
-        throw new Error('AniKoto response exceeded its size limit');
-    }
-
-    if (!response.body) {
-        const text = await response.text();
-        const bytes = new TextEncoder().encode(text);
-        if (bytes.byteLength > limit) {
-            throw new Error('AniKoto response exceeded its size limit');
-        }
-        return bytes;
-    }
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-        while (true) {
-            const chunk = await abortable(reader.read(), signal);
-            if (chunk.done) {
-                break;
-            }
-            size += chunk.value.byteLength;
-            if (size > limit) {
-                await reader.cancel();
-                throw new Error('AniKoto response exceeded its size limit');
-            }
-            chunks.push(chunk.value);
-        }
-    } catch (cause) {
-        await reader.cancel().catch(() => undefined);
-        throw cause;
-    } finally {
-        reader.releaseLock();
-    }
-
-    return concatByteChunks(chunks, size);
-}
-
-async function requestText(
-    url: URL,
-    options: {
-        /** Accept header used for the provider request. */
-
-        accept?: string;
-        /** Referer required by some provider endpoints. */
-        referer?: string;
-        /** Maximum response body size; oversized pages are rejected while streaming. */
-        maxBytes?: number;
-        /** Cancels the request and response-body read. */
-        signal?: AbortSignal;
-        /** Applies the provider-specific request throttle. */
-        throttle?: boolean;
-    } = {}
-): Promise<string> {
-    const requestTimeoutMs = 10_000;
-    const headers = new Headers({
-        Accept: options.accept ?? 'text/html',
-        Referer: options.referer ?? `${anikotoUrl}/`,
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
-    });
-    if (options.accept === 'application/json') {
-        headers.set('X-Requested-With', 'XMLHttpRequest');
-    }
-
-    const requestFamily =
-        url.origin === catalogUrl ? 'catalog' : url.pathname.startsWith('/ajax/') ? 'ajax' : 'site';
-    const cooldownUntil = providerCooldownUntil[requestFamily];
-    if (cooldownUntil > Date.now()) {
-        const cooldown = cooldownUntil - Date.now();
-        throw new AniKotoRequestError(
-            `AniKoto local request cooldown is active for ${url.hostname}${url.pathname} (${cooldown}ms remaining)`,
-            429,
-            cooldown,
-            true
-        );
-    }
-
-    for (let attempt = 0; ; attempt += 1) {
-        const releaseRequestSlot =
-            options.throttle !== false && (url.origin === anikotoUrl || url.origin === catalogUrl)
-                ? await waitForProviderRequestSlot(options.signal)
-                : null;
-        try {
-            const response = await fetch(url, {
-                headers,
-                signal: options.signal
-                    ? AbortSignal.any([options.signal, AbortSignal.timeout(requestTimeoutMs)])
-                    : AbortSignal.timeout(requestTimeoutMs),
-            });
-            if (!response.ok) {
-                const retryAfter = retryAfterMs(response.headers.get('retry-after'));
-                if (response.status === 429) {
-                    const cooldown =
-                        retryAfter !== null && retryAfter <= 5 * 60_000 ? retryAfter : 30_000;
-                    providerCooldownUntil[requestFamily] = Date.now() + cooldown;
-                    await response.body?.cancel().catch(() => undefined);
-                    throw new AniKotoRequestError(
-                        `AniKoto returned 429 for ${url.hostname}${url.pathname} (cooldown ${cooldown}ms)`,
-                        response.status,
-                        cooldown
-                    );
-                }
-                if (
-                    [500, 502, 503, 504].includes(response.status) &&
-                    attempt < 2 &&
-                    (retryAfter === null || retryAfter <= 60_000)
-                ) {
-                    const delay = retryAfter ?? Math.min(60_000, 500 * 2 ** attempt);
-                    await response.body?.cancel().catch(() => undefined);
-                    await abortableDelay(delay, options.signal);
-                    continue;
-                }
-                throw new AniKotoRequestError(
-                    `AniKoto returned ${response.status} for ${url.hostname}${url.pathname}`,
-                    response.status
-                );
-            }
-
-            return new TextDecoder().decode(
-                await readBounded(response, options.maxBytes ?? 2 * 1024 * 1024, options.signal)
-            );
-        } catch (cause) {
-            if (cause instanceof DOMException && cause.name === 'TimeoutError') {
-                const cooldown = 30_000;
-                providerCooldownUntil[requestFamily] = Date.now() + cooldown;
-                throw new AniKotoRequestError(
-                    `AniKoto request timed out for ${url.hostname}${url.pathname} (cooldown ${cooldown}ms)`,
-                    504,
-                    cooldown
-                );
-            }
-            const transportCode = providerTransportCode(cause);
-            if (transportCode) {
-                const cooldown = 30_000;
-                providerCooldownUntil[requestFamily] = Date.now() + cooldown;
-                throw new AniKotoRequestError(
-                    `AniKoto request failed for ${url.hostname}${url.pathname} (${transportCode}; cooldown ${cooldown}ms)`,
-                    503,
-                    cooldown
-                );
-            }
-            throw cause;
-        } finally {
-            releaseRequestSlot?.();
-        }
-    }
-}
-
-async function requestJson(
-    url: URL,
-    referer = `${anikotoUrl}/`,
-    signal?: AbortSignal,
-    throttle = true
-) {
-    const text = await requestText(url, {
-        accept: 'application/json',
-        referer,
-        signal,
-        throttle,
-    });
-    try {
-        return z.json().parse(JSON.parse(text));
-    } catch (cause) {
-        throw new Error('AniKoto returned invalid JSON', { cause });
-    }
-}
-
 async function playbackOverride(anilistId: number) {
     const [{ db }, schema] = await Promise.all([
         import('@soraorg/database'),
@@ -1263,19 +819,6 @@ async function loadSeries(id: number) {
     return request;
 }
 
-async function episodesForAnime(series: Pick<AniKotoSeries, 'id'>) {
-    const primary = parseEpisodeList(
-        await requestJson(new URL(`/ajax/episode/list/${series.id}`, anikotoUrl))
-    );
-    // Episode inventory is scoped to the requested provider series. Do not walk
-    // AniList PREQUEL/SEQUEL relations here: that turns one page visit into a
-    // franchise-wide provider lookup and makes a cold page appear stuck.
-    return primary.map((episode) => ({
-        ...episode,
-        id: `anikoto:${series.id}:${encodeURIComponent(episode.id)}`,
-    }));
-}
-
 export async function getAniKotoSimulcastPage(selection: AnimeSeasonSelection, page: number) {
     if (!Number.isSafeInteger(page) || page <= 0) {
         throw new RangeError('AniKoto catalog page must be a positive integer');
@@ -1328,12 +871,6 @@ export async function getAniKotoSimulcastPage(selection: AnimeSeasonSelection, p
     };
 }
 
-async function search(title: string) {
-    const url = new URL('/filter', anikotoUrl);
-    url.searchParams.set('keyword', title);
-    return parseSearchCandidates(await requestText(url));
-}
-
 async function findSeries(anime: AniListAnime) {
     const titles = animeTitles(anime).map(normalizedProviderTitle);
     const stored = await providerMediaId(anime.id);
@@ -1366,7 +903,9 @@ async function findSeries(anime: AniListAnime) {
 
     const candidates = new Map<number, SearchCandidate>();
     for (const title of animeTitles(anime).slice(0, 6)) {
-        for (const candidate of await search(title)) {
+        const url = new URL('/filter', anikotoUrl);
+        url.searchParams.set('keyword', title);
+        for (const candidate of parseSearchCandidates(await requestText(url))) {
             candidates.set(candidate.id, candidate);
         }
     }
@@ -1539,11 +1078,18 @@ async function resolveServer(
 
 async function getEpisodes(anime: AniListAnime) {
     const series = await findSeries(anime);
-    const parsed = await episodesForAnime(series);
+    // Inventory belongs to this provider series. Following AniList relations
+    // here would turn one page visit into a franchise-wide provider lookup.
+    const parsed = parseEpisodeList(
+        await requestJson(new URL(`/ajax/episode/list/${series.id}`, anikotoUrl))
+    );
     if (!parsed.length) {
         throw new Error(`AniKoto returned no playable episodes for AniList ${anime.id}`);
     }
-    return parsed;
+    return parsed.map((episode) => ({
+        ...episode,
+        id: `anikoto:${series.id}:${encodeURIComponent(episode.id)}`,
+    }));
 }
 
 /** Resolves the requested AniKoto audio modes into playable streams.
