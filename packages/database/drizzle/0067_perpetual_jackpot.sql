@@ -1,1 +1,0 @@
-ALTER TABLE "scheduler_heartbeat" ADD COLUMN "lease_until" timestamp with time zone;

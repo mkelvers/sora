@@ -1,1 +1,0 @@
-ALTER TABLE "anime_external_id_link" ADD COLUMN "mapping_revision" text;

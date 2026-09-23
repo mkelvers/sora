@@ -1,1 +1,0 @@
-ALTER TABLE "maintenance_task" ADD COLUMN "retry_cooldown_until" timestamp with time zone;
