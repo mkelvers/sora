@@ -16,7 +16,7 @@ import {
     type WatchlistState,
 } from '@soraorg/database/schema';
 import { watchlistStateAfterPlayback } from './completion';
-import { batches } from './batches';
+import { batches } from '../../utils';
 
 export type WatchlistImportMode = 'add' | 'replace';
 
