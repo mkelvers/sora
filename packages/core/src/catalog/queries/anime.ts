@@ -117,21 +117,7 @@ export function mayGainEpisodes(media: Pick<AnimeDetailsFragment, "status" | "en
  */
 export async function getAnimeCards(ids: readonly number[]): Promise<AnimeCard[]> {
   const unique = [...new Set(ids)];
-  const byId = new Map<number, AnimeCard>();
-
-  if (unique.length > 0) {
-    const stored = await db
-      .select({
-        media: animeTable.media
-      })
-      .from(animeTable)
-      .where(inArray(animeTable.anilistId, unique));
-
-    for (const row of stored) {
-      byId.set(row.media.id, toAnimeCard(row.media));
-    }
-  }
-
+  const byId = await getStoredAnimeCards(unique);
   const missing = unique.filter((id) => !byId.has(id));
 
   // AniList pages are capped at 50 entries.
@@ -159,6 +145,28 @@ export async function getAnimeCards(ids: readonly number[]): Promise<AnimeCard[]
     const card = byId.get(id);
     return card ? [card] : [];
   });
+}
+
+/**
+ * Cards for the anime among `ids` that the catalog has stored, by AniList ID.
+ * Anime that are not stored are left out; nothing is fetched.
+ *
+ * The airing scheduler keeps stored anime current, so these are fresher
+ * than cached AniList responses for anime that are still airing.
+ */
+export async function getStoredAnimeCards(ids: readonly number[]): Promise<Map<number, AnimeCard>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db
+    .select({
+      media: animeTable.media
+    })
+    .from(animeTable)
+    .where(inArray(animeTable.anilistId, [...new Set(ids)]));
+
+  return new Map(rows.map((row) => [row.media.id, toAnimeCard(row.media)]));
 }
 
 /**

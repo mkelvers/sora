@@ -4,11 +4,13 @@
  * AniList lists every season, cour, film, and special as a separate entry;
  * TMDB and Crunchyroll present a franchise as one show with seasons, plus
  * separate titles for films and spin-offs. This module matches each AniList
- * entry to TMDB by air dates and lays the entries out accordingly. AniList
- * IDs remain the canonical anime IDs: every episode carries the AniList
- * entry and episode number that playback, progress, and the watchlist use.
+ * entry to TMDB by air dates, lays the entries out accordingly, and stores
+ * the result under Sora's own series and season IDs, the only IDs clients
+ * see. A series is laid out when first requested; after that the scheduler
+ * keeps it current as its seasons air and new ones are announced.
  *
  * @packageDocumentation
  */
-export type { SeasonKind, SeriesEpisode, SeriesSeason } from "./seasons";
-export { getSeries, type Series, type SeriesKey, type SeriesKind, type SeriesSummary } from "./series";
+export type { SeasonKind } from "./seasons";
+export type { SeriesKind } from "./series";
+export { resolveSeries } from "./store";

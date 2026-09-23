@@ -23,6 +23,12 @@ export interface SeasonMember {
   /** AniList IDs of the entry's direct prequels. */
   prequelIds: number[];
   links: EpisodeLink[];
+  /**
+   * A sequel season TMDB does not list yet. It is laid out as a regular
+   * season after the listed ones, with AniList's episode numbers, until
+   * TMDB catches up.
+   */
+  isUnlistedSeason?: boolean;
 }
 
 /**
@@ -153,9 +159,10 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   const regular: SeasonMember[] = [];
   const ovas: SeasonMember[] = [];
   const oneOffs: SeasonMember[] = [];
-  for (const member of [...members].sort((left, right) => position(left) - position(right))) {
+  // Unlisted seasons have no position; AniList IDs grow with time, so they keep airing order.
+  for (const member of [...members].sort((left, right) => position(left) - position(right) || left.anime.id - right.anime.id)) {
     const hasRegularEpisodes = member.links.some((link) => link.seasonNumber > 0);
-    if (input.isShorts || hasRegularEpisodes) {
+    if (input.isShorts || hasRegularEpisodes || member.isUnlistedSeason) {
       regular.push(member);
     } else if (episodeCount(member) >= 2) {
       ovas.push(member);
@@ -169,7 +176,9 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   const followsTmdbSeasons = !input.isShorts && regularSeasons.size > 1;
 
   const groups = mergeLaterParts(
-    groupRows(memberRows, (row) => (followsTmdbSeasons ? `season:${row.seasonNumber}` : `anime:${row.member?.anime.id}`))
+    groupRows(memberRows, (row) =>
+      followsTmdbSeasons && row.seasonNumber > 0 ? `season:${row.seasonNumber}` : `anime:${row.member?.anime.id}`
+    )
   );
 
   if (!input.isShorts) {
@@ -190,12 +199,15 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
 /**
  * Lays out a single AniList entry that TMDB does not list as one season,
  * with AniList's episode numbers and no episode metadata.
+ *
+ * @param number - The season's position in its series, from 1; an entry
+ *   TMDB does not list can still have sequels that TMDB does not list either.
  */
-export function layoutStandaloneSeason(anime: AnimeCard): SeriesSeason {
+export function layoutStandaloneSeason(anime: AnimeCard, number: number): SeriesSeason {
   const count = anime.episodes ?? (anime.nextEpisode ? anime.nextEpisode.number - 1 : 1);
   return {
     kind: anime.format === "MOVIE" ? "movie" : "season",
-    number: 1,
+    number,
     title: anime.title.display,
     posterUrl: anime.coverUrl,
     anime: [anime],
@@ -468,7 +480,7 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
   const anime = [...new Map(group.rows.flatMap((row) => (row.member ? [[row.member.anime.id, row.member.anime] as const] : []))).values()];
   const tmdbSeasonNumbers = new Set(group.rows.filter((row) => row.member !== null).map((row) => row.seasonNumber));
   const [onlySeason] = tmdbSeasonNumbers.size === 1 ? [...tmdbSeasonNumbers] : [];
-  const tmdbSeason = tmdbSeasons.find((season) => season.seasonNumber === onlySeason);
+  const tmdbSeason = onlySeason ? tmdbSeasons.find((season) => season.seasonNumber === onlySeason) : undefined;
   const tmdbName = tmdbSeason?.name && !/^(?:season|series|part)\s*\d+$|^specials$/i.test(tmdbSeason.name) ? tmdbSeason.name : null;
 
   return {

@@ -156,6 +156,68 @@ describe("layoutShowSeasons", () => {
     ]);
   });
 
+  test("lays out a sequel TMDB does not list yet as the next regular season", () => {
+    const layout = layoutShowSeasons({
+      show,
+      members: [
+        seasonOne,
+        seasonTwo,
+        seasonTwoPartTwo,
+        oad,
+        {
+          ...member(anime(5, "Tensura Season 3", {
+            episodes: 3
+          }), [], [3]),
+          isUnlistedSeason: true
+        }
+      ],
+      claimedSpecials: []
+    });
+
+    const regular = layout.filter((season) => season.kind === "season");
+    expect(regular.map((season) => season.title)).toEqual([
+      "Season 1",
+      "Season 2",
+      "Season 3"
+    ]);
+    expect(outline(regular[2]!)).toEqual([
+      "5#1",
+      "5#2",
+      "5#3"
+    ]);
+    expect(layout.filter((season) => season.kind === "ova")).toHaveLength(1);
+  });
+
+  test("merges an unlisted later part into the unlisted season it continues", () => {
+    const layout = layoutShowSeasons({
+      show,
+      members: [
+        seasonOne,
+        seasonTwo,
+        seasonTwoPartTwo,
+        {
+          ...member(anime(5, "Tensura Season 3", {
+            episodes: 2
+          }), [], [3]),
+          isUnlistedSeason: true
+        },
+        {
+          ...member(anime(6, "Tensura Season 3 Part 2", {
+            episodes: 2
+          }), [], [5]),
+          isUnlistedSeason: true
+        }
+      ],
+      claimedSpecials: []
+    });
+
+    expect(layout.at(-1)?.anime.map((card) => card.id)).toEqual([
+      5,
+      6
+    ]);
+    expect(layout).toHaveLength(3);
+  });
+
   test("turns a multi-episode OVA into an OVA season", () => {
     const ova = seasons.find((season) => season.kind === "ova");
     expect(ova?.number).toBe(1);
