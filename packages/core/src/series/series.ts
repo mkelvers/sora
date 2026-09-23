@@ -1,8 +1,8 @@
-import { toAnimeCard, type AnimeCard } from "../catalog/models/anime";
+import { toAnimeCard, type AnimeCard, type AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate } from "../catalog/models/text";
-import { getAnime, getStoredAnimeCards } from "../catalog/queries/anime";
+import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
-import { getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
+import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import { loadEntries, primaryTitlesOf, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
 import { mappedEpisodes, mappingsForShow, resolveMapping, type TmdbMapping } from "./mapping";
 import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
@@ -25,8 +25,8 @@ export type SeriesKey = `tv:${number}` | `shorts:${number}` | `movie:${number}` 
  */
 export type SeriesKind = "tv" | "movie" | "standalone";
 
-/** A series as shown in a list, such as a franchise's related titles. */
-export interface SeriesSummary {
+/** A laid-out series in brief, such as one of a franchise's related titles. */
+export interface SeriesLayoutSummary {
   key: SeriesKey;
   kind: SeriesKind;
   /** The title of the series' first release, such as season 1's. */
@@ -39,28 +39,42 @@ export interface SeriesSummary {
   backdropUrl: string | null;
   /** First air or release date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
   startDate: string | null;
-  /**
-   * AniList entries known to belong to the series. Passing any of them to
-   * {@link getSeries} opens this series.
-   */
+  /** AniList entries known to belong to the series, oldest first. */
   anilistIds: number[];
 }
 
 /**
- * One title in the streaming-service sense: a whole show with all of its
- * seasons and OVAs, a film, or a standalone entry.
+ * One title in the streaming-service sense, laid out from AniList and TMDB
+ * and ready to be stored: a whole show with all of its seasons and OVAs, a
+ * film, or a standalone entry.
  */
-export interface Series extends SeriesSummary {
+export interface SeriesLayout extends SeriesLayoutSummary {
   overview: string | null;
+  /** TMDB's English or textless logo; `null` when TMDB has none. */
+  logoUrl: string | null;
   /** Regular seasons in order, then OVA seasons. A film or standalone entry has one. */
   seasons: SeriesSeason[];
   /** Other titles from the same franchise: films, spin-offs, shorts, and entries TMDB lists separately. */
-  related: SeriesSummary[];
+  related: SeriesLayoutSummary[];
   /**
    * The first AniList entry of the first season, or of the first release
    * when there are no regular seasons. The stored series is tied to it.
    */
   anchorAnilistId: number;
+  /** The series as a whole; see {@link seriesStatus}. */
+  status: AnimeStatus | null;
+  /** The earliest announced upcoming episode of any of the series' entries. */
+  nextAiring: {
+    anilistId: number;
+    episode: number;
+    /** ISO 8601 timestamp. */
+    airingAt: string;
+  } | null;
+  /**
+   * Entries that may still gain episodes. The airing scheduler must follow
+   * them, since its checks are what lay the series out again as they air.
+   */
+  airingIds: number[];
 }
 
 /**
@@ -108,7 +122,7 @@ interface MappedEntry {
  *   belongs to adult media.
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
-export async function buildSeries(anilistId: number): Promise<Series> {
+export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
   const entry = (await loadEntries([anilistId])).get(anilistId);
   if (!entry) {
     throw new AnimeNotFoundError(anilistId);
@@ -132,16 +146,21 @@ export async function buildSeries(anilistId: number): Promise<Series> {
   const seasons = await layoutSeasons(origin.key, members, outsiders);
   const summary = summarize(origin.key, members, seasons);
   const artwork = await tmdbArtwork(origin.key);
+  const now = new Date();
   return {
     ...summary,
     posterUrl: artwork.posterUrl ?? summary.posterUrl,
     backdropUrl: artwork.backdropUrl ?? summary.backdropUrl,
+    logoUrl: artwork.logoUrl,
     overview: await overviewOf(origin.key, members),
     seasons,
     related: [...related]
       .map(([relatedKey, group]) => summarize(relatedKey, group, []))
       .sort((left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999")),
-    anchorAnilistId: anchorOf(seasons, members)
+    anchorAnilistId: anchorOf(seasons, members),
+    status: seriesStatus(members.map(({ card }) => card.status)),
+    nextAiring: nextAiringOf(members),
+    airingIds: members.filter(({ entry }) => mayGainEpisodes(entry, now)).map(({ entry }) => entry.id)
   };
 }
 
@@ -296,7 +315,6 @@ async function layoutSeasons(
         kind: "movie",
         number: 1,
         title: anime[0]?.title.display ?? movie?.title ?? "Movie",
-        posterUrl: anime.at(-1)?.coverUrl ?? tmdbImageUrl(movie?.poster_path ?? null, "w780"),
         anime,
         episodes: anime.map((card, index) => ({
           number: index + 1,
@@ -339,7 +357,7 @@ function prequelIdsOf(entry: FranchiseEntry) {
  * season. Specials and OVAs only provide artwork when the series has no
  * regular seasons.
  */
-function summarize(key: SeriesKey, group: readonly MappedEntry[], seasons: readonly SeriesSeason[]): SeriesSummary {
+function summarize(key: SeriesKey, group: readonly MappedEntry[], seasons: readonly SeriesSeason[]): SeriesLayoutSummary {
   const chronological = byStartDate(group);
   const first = seasons.find((season) => season.kind === "season")?.anime[0] ?? cardOf(chronological[0]);
   const released = chronological.filter(({ entry }) => entry.status !== "NOT_YET_RELEASED");
@@ -358,20 +376,60 @@ function summarize(key: SeriesKey, group: readonly MappedEntry[], seasons: reado
   };
 }
 
-/** See {@link Series.anchorAnilistId}. */
+/**
+ * The status of a series as a whole: airing while any entry airs, then on
+ * hiatus while any entry is, then finished once any entry has finished. A
+ * series that has only been announced is not yet released.
+ *
+ * A finished series with a newly announced season stays finished until
+ * that season starts airing.
+ */
+function seriesStatus(statuses: readonly (AnimeStatus | null)[]): AnimeStatus | null {
+  const order: AnimeStatus[] = [
+    "RELEASING",
+    "HIATUS",
+    "FINISHED",
+    "NOT_YET_RELEASED",
+    "CANCELLED"
+  ];
+
+  return order.find((status) => statuses.includes(status)) ?? null;
+}
+
+/** See {@link SeriesLayout.nextAiring}. */
+function nextAiringOf(members: readonly MappedEntry[]): SeriesLayout["nextAiring"] {
+  const upcoming = members
+    .flatMap(({ card }) =>
+      card.nextEpisode
+        ? [
+            {
+              anilistId: card.id,
+              episode: card.nextEpisode.number,
+              airingAt: card.nextEpisode.airingAt
+            }
+          ]
+        : []
+    )
+    .sort((left, right) => left.airingAt.localeCompare(right.airingAt));
+
+  return upcoming[0] ?? null;
+}
+
+/** See {@link SeriesLayout.anchorAnilistId}. */
 function anchorOf(seasons: readonly SeriesSeason[], members: readonly MappedEntry[]) {
   const firstSeason = seasons.find((season) => season.kind === "season") ?? seasons[0];
   return firstSeason?.anime[0]?.id ?? cardOf(byStartDate(members)[0]).id;
 }
 
-/** TMDB's poster and backdrop for a show or film. Shorts use their own entries' artwork. */
+/** TMDB's poster, backdrop, and logo for a show or film. Shorts use their own entries' artwork. */
 async function tmdbArtwork(key: SeriesKey) {
   const [kind, id] = parseKey(key);
   if (kind === "tv") {
     const show = await getShow(id);
     return {
       posterUrl: tmdbImageUrl(show?.posterPath ?? null, "w780"),
-      backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "w1280")
+      backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "w1280"),
+      logoUrl: show ? tmdbImageUrl(await getLogoPath("tv", id), "w500") : null
     };
   }
 
@@ -379,13 +437,15 @@ async function tmdbArtwork(key: SeriesKey) {
     const movie = await getMovie(id);
     return {
       posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780"),
-      backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "w1280")
+      backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "w1280"),
+      logoUrl: movie ? tmdbImageUrl(await getLogoPath("movie", id), "w500") : null
     };
   }
 
   return {
     posterUrl: null,
-    backdropUrl: null
+    backdropUrl: null,
+    logoUrl: null
   };
 }
 

@@ -1,14 +1,11 @@
-import { inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { anilist } from "../anilist/client";
 import { NewEntriesDocument } from "../anilist/graphql.generated";
-import { db } from "../database/client";
-import { seriesEntry } from "../database/schema";
 import { AnimeNotFoundError } from "../errors";
 import { relatedIds } from "../series/entries";
-import { storeSeries } from "../series/store";
+import { storedSeriesIds, storeSeries } from "../series/store";
 import { hour } from "../time";
 import { scheduleSeriesStore } from "./queue";
 
@@ -73,7 +70,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
     );
 
     const entries = (Page?.media ?? []).flatMap((media) => (media && media.format !== "MUSIC" ? [media] : []));
-    const stored = await storedEntryIds([
+    const stored = await storedSeriesIds([
       ...entries.map((entry) => entry.id),
       ...entries.flatMap((entry) => relatedIds(entry))
     ]);
@@ -94,18 +91,3 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
     helpers.logger.info(`Queued ${queued} new entries to join their series`);
   }
 };
-
-async function storedEntryIds(ids: readonly number[]) {
-  if (ids.length === 0) {
-    return new Set<number>();
-  }
-
-  const rows = await db
-    .select({
-      anilistId: seriesEntry.anilistId
-    })
-    .from(seriesEntry)
-    .where(inArray(seriesEntry.anilistId, [...new Set(ids)]));
-
-  return new Set(rows.map((row) => row.anilistId));
-}
