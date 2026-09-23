@@ -19,12 +19,17 @@ import {
     storedReleaseCards,
 } from './storage';
 import { refreshPopularCatalog } from './refresh';
+import {
+    getBrowsePage,
+    getBrowseTaxonomy,
+    type AniListBrowseFilters,
+} from './anilist/anilist-browse';
 import { currentAnimeSeason } from '../season';
+import { enrichAnimeCards } from './card-enrichment';
 import { homePage } from './home';
 import { refreshReleaseCalendar, releaseCalendar } from './release-calendar';
-import { createSearchOperation } from './search';
-import { createSimulcastOperations } from './simulcast';
-import type { CatalogBrowseFilters, CatalogSource } from './source';
+import { getSearchResults } from './search';
+import { refreshCurrentSimulcast, simulcast } from './simulcast';
 
 type ConfirmedEpisodeTarget = {
     anilistId: number;
@@ -33,10 +38,7 @@ type ConfirmedEpisodeTarget = {
     airingAt: Date;
 };
 
-export function createCatalogApplication(source: CatalogSource) {
-    const search = createSearchOperation(source);
-    const simulcast = createSimulcastOperations(source);
-
+export function createCatalogApplication() {
     async function popularAnimePage(page: number, filters: BrowseFilters) {
         if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647) {
             throw new BrowseFilterError('Invalid browse page');
@@ -70,8 +72,9 @@ export function createCatalogApplication(source: CatalogSource) {
             .limit(1);
         let pageSnapshot = stored;
         if (!pageSnapshot) {
-            const result = await source.browsePage({
-                filters: sourceFilters,
+            const result = await getBrowsePage({
+                // The taxonomy check above validates these provider enum values.
+                filters: sourceFilters as AniListBrowseFilters,
                 page,
                 perPage: 42,
                 forceRefresh: true,
@@ -80,7 +83,7 @@ export function createCatalogApplication(source: CatalogSource) {
         }
         const catalog = await catalogPage(filters, page, pageSnapshot.animeIds);
         return {
-            anime: await source.enrichAnimeCards(catalog.anime),
+            anime: await enrichAnimeCards(catalog.anime),
             hasNextPage: pageSnapshot.hasNextPage,
             page,
             stale: Boolean(stored),
@@ -162,7 +165,7 @@ export function createCatalogApplication(source: CatalogSource) {
                 : [];
         });
         return {
-            anime: await source.enrichAnimeCards(cards),
+            anime: await enrichAnimeCards(cards),
             hasNextPage: pageEntries.length > 42,
             page,
             loadedAt: new Date().toISOString(),
@@ -171,7 +174,7 @@ export function createCatalogApplication(source: CatalogSource) {
 
     async function refreshCatalogSnapshots(now = new Date()) {
         const { season, year } = currentAnimeSeason(now);
-        const homepageFilters: CatalogBrowseFilters = {
+        const homepageFilters: AniListBrowseFilters = {
             query: '',
             genre: null,
             tag: null,
@@ -185,7 +188,7 @@ export function createCatalogApplication(source: CatalogSource) {
             sort: 'popularity',
             order: 'desc',
         };
-        const homepage = await source.browsePage({
+        const homepage = await getBrowsePage({
             filters: homepageFilters,
             page: 1,
             perPage: 30,
@@ -202,25 +205,24 @@ export function createCatalogApplication(source: CatalogSource) {
                 season: null,
                 year: null,
             },
-            source.browsePage,
             now
         );
-        await simulcast.refreshCurrentSimulcast(now);
-        await refreshCatalogTaxonomy(await source.browseTaxonomy(true));
+        await refreshCurrentSimulcast(now);
+        await refreshCatalogTaxonomy(await getBrowseTaxonomy(true));
     }
 
     return {
         catalogTaxonomy,
-        getSearchResults: search,
-        homePage: (userId: string, now?: Date) => homePage(source, userId, now),
+        getSearchResults,
+        homePage,
         newAnimePage,
         popularAnimePage,
         refreshCatalogSnapshots,
-        refreshCatalogTaxonomy: () => source.browseTaxonomy(true).then(refreshCatalogTaxonomy),
-        refreshCurrentSimulcast: simulcast.refreshCurrentSimulcast,
-        refreshReleaseCalendar: (now?: Date) => refreshReleaseCalendar(source.releaseCalendar, now),
+        refreshCatalogTaxonomy: () => getBrowseTaxonomy(true).then(refreshCatalogTaxonomy),
+        refreshCurrentSimulcast,
+        refreshReleaseCalendar,
         releaseCalendar,
-        simulcast: simulcast.simulcast,
+        simulcast,
     };
 }
 
