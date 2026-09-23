@@ -9,7 +9,7 @@ import { AnimeNotFoundError } from "../errors";
 import { refreshProviderUnits } from "../playback/episodes/episodes";
 import { streamProviders } from "../playback/providers/registry";
 import { planNextCheck, type AiringState } from "./plan";
-import { scheduleAiringCheck, trackAiringTask } from "./queue";
+import { scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "./queue";
 
 const TrackAiringPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
@@ -21,8 +21,8 @@ const TrackAiringPayloadSchema = z.object({
  * Follows one anime while it airs.
  *
  * Each run fetches the anime from AniList again, asks every provider for its
- * episode list, stores both, and schedules the next run with
- * {@link planNextCheck}. The final run schedules nothing, and the anime is
+ * episode list, stores both, queues its stored series to be laid out again,
+ * and schedules the next run with {@link planNextCheck}. The final run schedules nothing, and the anime is
  * never fetched again.
  *
  * Throwing lets graphile-worker retry the run with backoff, which is how an
@@ -42,6 +42,8 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
     throw error;
   }
+
+  await scheduleStoredSeriesRefresh(anime.id);
 
   const plan = planNextCheck(
     {

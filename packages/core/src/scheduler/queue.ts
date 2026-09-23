@@ -74,3 +74,49 @@ function payloadJson(payload: TrackAiringPayload) {
     'attempt', ${payload.attempt}::int
   )`;
 }
+
+/** The graphile-worker task that lays out and stores the series of one AniList entry. */
+export const storeSeriesTask = "store-series";
+
+/** What {@link storeSeriesTask} is asked to store. */
+export interface StoreSeriesPayload {
+  anilistId: number;
+}
+
+/**
+ * Queues laying out and storing the series an AniList entry belongs to.
+ *
+ * A job already waiting for the same entry keeps its place. A job already
+ * running is followed by a new one, so a change made meanwhile is not lost.
+ */
+export async function scheduleSeriesStore(anilistId: number) {
+  await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${storeSeriesTask},
+      payload => json_build_object('anilistId', ${anilistId}::int),
+      job_key => ${seriesJobKey(anilistId)},
+      job_key_mode => 'preserve_run_at'
+    )
+  `);
+}
+
+/**
+ * Queues laying out the series of an AniList entry again, if a stored series
+ * contains it. Called as the entry airs, so new episodes, and TMDB listing a
+ * season it did not list before, reach the stored series.
+ */
+export async function scheduleStoredSeriesRefresh(anilistId: number) {
+  await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${storeSeriesTask},
+      payload => json_build_object('anilistId', ${anilistId}::int),
+      job_key => ${seriesJobKey(anilistId)},
+      job_key_mode => 'preserve_run_at'
+    )
+    where exists (select 1 from series_entry where anilist_id = ${anilistId})
+  `);
+}
+
+function seriesJobKey(anilistId: number) {
+  return `series:${anilistId}`;
+}
