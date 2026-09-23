@@ -57,7 +57,9 @@ const ShowFields = {
   first_air_date: OptionalText,
   seasons: z.array(
     z.object({
-      season_number: z.number().int()
+      season_number: z.number().int(),
+      name: OptionalText,
+      poster_path: OptionalText
     })
   )
 };
@@ -94,8 +96,17 @@ export interface TmdbShow {
   posterPath: string | null;
   backdropPath: string | null;
   firstAirDate: string | null;
+  /** Every season TMDB lists, including specials (season 0). */
+  seasons: TmdbSeason[];
   /** Every episode, ordered by season and then episode number. */
   episodes: TmdbEpisode[];
+}
+
+/** A season's own name and artwork, such as "Mugen Train Arc". */
+export interface TmdbSeason {
+  seasonNumber: number;
+  name: string | null;
+  posterPath: string | null;
 }
 
 /** TMDB caps `append_to_response` at 20 sub-requests. */
@@ -195,6 +206,11 @@ export async function getShow(showId: number): Promise<TmdbShow | null> {
     posterPath: details.poster_path,
     backdropPath: details.backdrop_path,
     firstAirDate: details.first_air_date,
+    seasons: details.seasons.map((season) => ({
+      seasonNumber: season.season_number,
+      name: season.name,
+      posterPath: season.poster_path
+    })),
     episodes
   };
 }
