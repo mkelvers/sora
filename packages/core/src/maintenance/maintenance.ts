@@ -13,7 +13,8 @@ import {
     episodeInventoryBackfillKey,
     EpisodeInventoryUnresolvedError,
 } from '../catalog/episode-sync';
-import { AniKotoRequestError, AniKotoNoMatchError } from '../providers/anikoto';
+import { AniKotoNoMatchError } from '../providers/anikoto';
+import { AniKotoRequestError } from '../providers/anikoto-transport';
 import { episodeMetadataRevision } from '../catalog/episode-policy';
 import { rediscoverMapping, setMetadataMappingOverride } from './mappings';
 import { MaintenanceRequestSchema, type MaintenanceRequest } from '../contracts/maintenance';

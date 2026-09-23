@@ -3,16 +3,21 @@ import { db } from '@soraorg/database';
 import { animeFranchise, animeRelease } from '@soraorg/database/schema';
 import { getAnimeRelease } from '../catalog/anilist/anilist-release';
 import { getArtwork } from '../catalog/tmdb/artwork';
-import { createCatalogApplication } from '../catalog/application';
-import { createCatalogSource } from '../catalog/source';
+import {
+    getBrowsePage,
+    getBrowseTaxonomy,
+    type AniListBrowseFilters,
+} from '../catalog/anilist/anilist-browse';
+import { catalogSnapshotKey, refreshCatalogPage, refreshCatalogTaxonomy } from '../catalog/storage';
+import { refreshPopularCatalog } from '../catalog/refresh';
+import { refreshCurrentSimulcast } from '../catalog/simulcast';
+import { currentAnimeSeason } from '../season';
 import { refreshHomeHeroCandidates } from '../catalog/anilist/anilist-hero';
 import { refreshFranchiseOrder } from '../catalog/franchise';
 import { ensureEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { findMapping } from '../catalog/tmdb/mapping-store';
 import { rediscoverMapping } from './mappings';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
-
-const catalogApplication = createCatalogApplication(createCatalogSource());
 
 async function refreshKnownFranchises(now: Date) {
     const rows = await db
@@ -71,8 +76,44 @@ async function rediscoverRelatedMappings(release: AniListAnime) {
     }
 }
 
+/** Refreshes scheduled catalog pages and taxonomy, then best-effort hero enrichment. */
 export async function refreshCatalogSnapshots(now = new Date()) {
-    await catalogApplication.refreshCatalogSnapshots(now);
+    const { season, year } = currentAnimeSeason(now);
+    const homepageFilters: AniListBrowseFilters = {
+        query: '',
+        genre: null,
+        tag: null,
+        format: null,
+        status: null,
+        source: null,
+        season,
+        year,
+        country: null,
+        safe: true,
+        sort: 'popularity',
+        order: 'desc',
+    };
+    const homepage = await getBrowsePage({
+        filters: homepageFilters,
+        page: 1,
+        perPage: 30,
+        forceRefresh: true,
+    });
+    await refreshCatalogPage(
+        catalogSnapshotKey(homepageFilters, 1),
+        homepage.anime,
+        homepage.hasNextPage
+    );
+    await refreshPopularCatalog(
+        {
+            ...homepageFilters,
+            season: null,
+            year: null,
+        },
+        now
+    );
+    await refreshCurrentSimulcast(now);
+    await refreshCatalogTaxonomy(await getBrowseTaxonomy(true));
     const heroCandidates = await refreshHomeHeroCandidates(now);
     for (const { anilistId } of heroCandidates) {
         try {
@@ -87,5 +128,3 @@ export async function refreshCatalogSnapshots(now = new Date()) {
     }
     await refreshKnownFranchises(now);
 }
-
-export const refreshReleaseCalendar = catalogApplication.refreshReleaseCalendar;

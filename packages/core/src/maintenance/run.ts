@@ -12,11 +12,11 @@ import {
 } from '@soraorg/database/schema';
 import { refreshAnimeRelease } from '../catalog/anilist/anilist-release';
 import { GraphQLRequestError } from '../catalog/anilist/graphql/error';
+import { refreshReleaseCalendar } from '../catalog/release-calendar';
 import { drainEpisodeTargets } from './episodes';
 import { refreshCatalogSnapshots } from './catalog';
 import { drainMaintenanceTasks } from './maintenance';
 import { reconcileAllAiringReleases } from './reconciliation';
-import { refreshReleaseCalendar } from './catalog';
 import { scheduleReleaseTargets } from './targets';
 import { schedulerPolicy, schedulerRunLease } from './policy';
 import { enqueueUnresolvedAnimeInterests, reconcileAnimeInterests } from './interests';
@@ -122,6 +122,7 @@ async function releaseSchedulerLease(runId: string) {
         );
 }
 
+/** Claims one process lease, runs due catalog and episode work, then records heartbeat health. */
 export async function runAnimeScheduler() {
     const policy = schedulerPolicy();
     const runLease = schedulerRunLease();
@@ -514,9 +515,9 @@ export async function animeSchedulerHealth(now = new Date()): Promise<AnimeSched
         !active && heartbeat?.startedAt && heartbeat.completedAt
             ? heartbeat.completedAt.getTime() - heartbeat.startedAt.getTime()
             : null;
-    const targetTotals = Object.fromEntries(
+    const targetTotals: Record<string, number> = Object.fromEntries(
         targetCounts.map((row) => [row.state, row.count])
-    ) as Record<string, number>;
+    );
 
     return {
         healthy,
