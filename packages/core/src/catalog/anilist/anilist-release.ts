@@ -4,7 +4,6 @@ import { and, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle
 
 import {
     AnimeDocument,
-    AnimeOverviewDocument,
     AnimeScheduleDocument,
     WatchlistAnimeDocument,
 } from './graphql/graphql.generated';
@@ -20,13 +19,7 @@ import {
 } from '@soraorg/database/schema';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../identity';
 import { animeTitles } from '../utils';
-import {
-    AniListAnimeOverviewSchema,
-    AniListAnimeSchema,
-    AniListScheduleSchema,
-    type AniListAnime,
-    type AniListAnimeOverview,
-} from './anilist-types';
+import { AniListAnimeSchema, AniListScheduleSchema, type AniListAnime } from './anilist-types';
 import { request } from './anilist-client';
 import { mergeAnimeReleaseSnapshots, relationSnapshotProvider } from '../anime-release-merge';
 
@@ -298,19 +291,6 @@ async function fetchAnimeRelease(id: number) {
     }
 
     return storeAnimeRelease(parsed.data);
-}
-
-export async function getAnimeOverview(id: number): Promise<AniListAnimeOverview> {
-    const response = await request(AnimeOverviewDocument, { id }, { forceRefresh: true });
-    const parsed = AniListAnimeOverviewSchema.safeParse(response.Media);
-
-    if (!parsed.success || parsed.data.id !== id) {
-        throw new Error(`AniList returned invalid overview metadata for ${id}`, {
-            cause: parsed.success ? undefined : parsed.error,
-        });
-    }
-
-    return parsed.data;
 }
 
 export async function refreshAnimeRelease(id: number, options: { force?: boolean } = {}) {

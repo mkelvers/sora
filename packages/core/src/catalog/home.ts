@@ -3,7 +3,6 @@ import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { AnimeCard } from '../types';
 import { audioModesByAnime } from '../audio';
 import { currentAnimeSeason } from '../season';
-import type { AudioMode } from '../audio';
 import { db } from '@soraorg/database';
 import {
     animeCatalog,
@@ -26,20 +25,7 @@ import { getArtwork } from './tmdb/artwork';
 import { mediaTitle } from './utils';
 import { getContinueWatchingCards } from '../user/progress/store';
 
-interface HomeHero {
-    id: number;
-    title: string;
-    image: string;
-    logo: {
-        url: string;
-        size: number;
-    };
-    audio: AudioMode[];
-    genres: string[];
-    description: string;
-}
-
-async function loadHomeHero(id: number): Promise<HomeHero | null> {
+async function loadHomeHero(id: number) {
     try {
         const details = await storedAnimeRelease(id);
         if (!details || !isDiscoverableAnime(details)) {
@@ -69,6 +55,7 @@ async function loadHomeHero(id: number): Promise<HomeHero | null> {
             description: await resolveHeroSynopsis(details),
         };
     } catch {
+        // One failed candidate should let the rotation try the next title.
         return null;
     }
 }

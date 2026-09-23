@@ -12,58 +12,31 @@ import { getPoster, readPoster } from './poster';
 import type { Artwork, ArtworkImage, StoredMapping } from './types';
 
 const artworkImageSchema = z.object(tmdbImageFields);
-interface ArtworkImagePayload {
-    aspect_ratio?: number;
-    file_path?: string;
-    height?: number;
-    iso_639_1?: string | null;
-    vote_average?: number;
-    width?: number;
-}
-function artworkImage(image: ArtworkImagePayload): ArtworkImage | null {
-    if (!image.file_path) {
-        return null;
-    }
-
-    return {
-        aspectRatio: image.aspect_ratio ?? 0,
-        filePath: image.file_path,
-        height: image.height ?? 0,
-        language: image.iso_639_1 ?? null,
-        url: imageUrl(image.file_path),
-        voteAverage: image.vote_average ?? 0,
-        width: image.width ?? 0,
-    };
-}
-
-interface StoredArtworkImage {
-    aspectRatio: number;
-    filePath: string;
-    height: number;
-    language: string | null;
-    voteAverage: number;
-    width: number;
-}
-
-function storedImage(image: StoredArtworkImage): ArtworkImage {
-    return {
-        aspectRatio: image.aspectRatio,
-        filePath: image.filePath,
-        height: image.height,
-        language: image.language,
-        url: imageUrl(image.filePath),
-        voteAverage: image.voteAverage,
-        width: image.width,
-    };
-}
 
 function parseArtworkImages(images: unknown[]) {
     return images
         .flatMap((image) => {
             const parsed = artworkImageSchema.safeParse(image);
-            return parsed.success ? [artworkImage(parsed.data)] : [];
+            if (!parsed.success) {
+                return [];
+            }
+            const fields = parsed.data;
+            const filePath = fields.file_path;
+            if (!filePath) {
+                return [];
+            }
+            return [
+                {
+                    aspectRatio: fields.aspect_ratio ?? 0,
+                    filePath,
+                    height: fields.height ?? 0,
+                    language: fields.iso_639_1 ?? null,
+                    url: imageUrl(filePath),
+                    voteAverage: fields.vote_average ?? 0,
+                    width: fields.width ?? 0,
+                },
+            ];
         })
-        .filter((image): image is ArtworkImage => image !== null)
         .filter(
             (image, index, all) =>
                 all.findIndex(({ filePath }) => filePath === image.filePath) === index
@@ -158,7 +131,15 @@ export async function readArtwork(mapping: ArtworkMappings): Promise<Artwork | n
         const forType = (type: 'backdrop' | 'logo') =>
             images
                 .filter((image) => image.externalIdId === match.externalIdId && image.type === type)
-                .map(storedImage);
+                .map((image) => ({
+                    aspectRatio: image.aspectRatio,
+                    filePath: image.filePath,
+                    height: image.height,
+                    language: image.language,
+                    url: imageUrl(image.filePath),
+                    voteAverage: image.voteAverage,
+                    width: image.width,
+                }));
         const backdrops = forType('backdrop');
         const logos = forType('logo');
         return {

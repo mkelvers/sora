@@ -1,28 +1,8 @@
 import type { AniListAnime } from './anilist/anilist-types';
 import type { AnimeEpisode } from '../types';
-type EpisodeRefreshReason = 'metadata-source' | 'missing' | 'scheduled';
 type EpisodeMetadataCompleteness = Pick<AnimeEpisode, 'image' | 'title' | 'overview'>;
 
 export const episodeMetadataRevision = 'tmdb-episode-v7';
-
-export function episodeRefreshReason(
-    sync: {
-        metadataExternalIdId: number | null;
-        nextRefreshAt: Date | null;
-    } | null,
-    metadataExternalIdId: number | null,
-    now = Date.now()
-): EpisodeRefreshReason | null {
-    if (!sync) {
-        return 'missing';
-    }
-
-    if (metadataExternalIdId !== null && sync.metadataExternalIdId !== metadataExternalIdId) {
-        return 'metadata-source';
-    }
-
-    return sync.nextRefreshAt && sync.nextRefreshAt.getTime() <= now ? 'scheduled' : null;
-}
 
 export function canPreserveEpisodeMetadata(
     previousExternalIdId: number | null,
@@ -75,32 +55,6 @@ export function episodeMetadataRevisionAfterSync(
     }
 
     return episodeMetadataNeedsRefresh(episodes, true) ? null : episodeMetadataRevision;
-}
-
-export function episodeRefreshRetryDelay(
-    attempts: number,
-    firstScheduledAt = Date.now(),
-    now = Date.now()
-) {
-    // Backoff tops out at one day and the separate lifetime/attempt caps bound
-    // how long an unavailable provider can keep an episode queued.
-    const retryDelays = [
-        2 * 60 * 1_000,
-        5 * 60 * 1_000,
-        15 * 60 * 1_000,
-        60 * 60 * 1_000,
-        6 * 60 * 60 * 1_000,
-        12 * 60 * 60 * 1_000,
-        24 * 60 * 60 * 1_000,
-    ];
-    const lifetimeMs = 14 * 24 * 60 * 60 * 1_000;
-    const maximumAttempts = 12;
-
-    if (attempts + 1 >= maximumAttempts || now - firstScheduledAt >= lifetimeMs) {
-        return null;
-    }
-
-    return retryDelays[Math.min(attempts, retryDelays.length - 1)];
 }
 
 export function nextRefreshAt(anime: AniListAnime, stableSince: Date) {

@@ -32,8 +32,7 @@ function metadataDate(
 
     const raw = metadata.rawAirDate;
     if (raw) {
-        const timestamp = Date.parse(`${raw}T00:00:00Z`);
-        return Number.isFinite(timestamp) ? timestamp : null;
+        return dateTimestamp(raw);
     }
 
     const [month, date, year] = metadata.airDate.split('/').map(Number);

@@ -12,7 +12,6 @@ import {
 } from '@soraorg/database/schema';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { create, imageUrl, tmdbImageFields } from './client';
-import { findMapping } from './mapping-store';
 import {
     selectPoster as choosePoster,
     selectReleaseSeason,
@@ -350,97 +349,29 @@ async function fetchPosterCandidates(anime: AniListAnime, match: StoredMapping) 
     };
 }
 
-async function fetchSeriesPosterCandidates(match: StoredMapping) {
-    const client = create();
-    const { data, error } = await client.GET('/3/tv/{series_id}/images', {
-        params: {
-            path: {
-                series_id: match.id,
-            },
-        },
-    });
-    if (!data) {
-        throw new Error('TMDB series images request failed', { cause: error });
-    }
-
-    return posterCandidates(data.posters);
-}
-
-async function posterOptions(anime: AniListAnime, match: StoredMapping) {
-    const { candidates } = await fetchPosterCandidates(anime, match);
-    if (match.mediaType === 'movie') {
-        return candidates;
-    }
-
-    const series = await fetchSeriesPosterCandidates(match);
-    return [
-        ...new Map([...candidates, ...series].map((poster) => [poster.filePath, poster])).values(),
-    ];
-}
-
 export async function readPoster(match: StoredMapping) {
     const row = await storedPosterRow(match);
     return row ? storedPoster(row) : null;
 }
 
 export async function getPoster(anime: AniListAnime, match: StoredMapping) {
-    return (async () => {
-        const stored = await storedPosterRow(match);
-        // Finished releases have stable poster choices, while airing releases
-        // refresh periodically so a newly published season poster can replace a miss.
-        if (stored && (anime.status === 'FINISHED' || isFresh(stored))) {
-            return storedPoster(stored);
+    const stored = await storedPosterRow(match);
+    // Finished releases have stable poster choices, while airing releases
+    // refresh periodically so a newly published season poster can replace a miss.
+    if (stored && (anime.status === 'FINISHED' || isFresh(stored))) {
+        return storedPoster(stored);
+    }
+
+    try {
+        const { candidates, seasonNumber } = await fetchPosterCandidates(anime, match);
+        return await saveAvailablePoster(match, candidates, seasonNumber);
+    } catch (cause) {
+        const stale = stored ? storedPoster(stored) : null;
+        if (stale) {
+            return stale;
         }
-
-        try {
-            const { candidates, seasonNumber } = await fetchPosterCandidates(anime, match);
-            return await saveAvailablePoster(match, candidates, seasonNumber);
-        } catch (cause) {
-            const stale = stored ? storedPoster(stored) : null;
-            if (stale) {
-                return stale;
-            }
-            throw cause;
-        }
-    })();
-}
-
-export async function getPosterOptions(anime: AniListAnime) {
-    const match = await findMapping(anime.id);
-    if (!match) {
-        return [];
+        throw cause;
     }
-
-    return (await posterOptions(anime, match)).map((poster) => ({
-        ...poster,
-        url: imageUrl(poster.filePath),
-    }));
-}
-
-export async function selectPosterImage(anime: AniListAnime, filePath: string) {
-    const match = await findMapping(anime.id);
-    if (!match) {
-        throw new Error('No stored TMDB mapping for this anime');
-    }
-
-    const selected = await fetchPosterCandidates(anime, match);
-    const candidates =
-        match.mediaType === 'movie'
-            ? selected.candidates
-            : [...selected.candidates, ...(await fetchSeriesPosterCandidates(match))].filter(
-                  (candidate, index, all) =>
-                      all.findIndex(({ filePath }) => filePath === candidate.filePath) === index
-              );
-    const poster = candidates.find((candidate) => candidate.filePath === filePath);
-    if (!poster) {
-        throw new Error('Poster does not belong to this anime');
-    }
-
-    if (await hasVisuallyMatchingPoster(poster.filePath, await usedPosterPaths(match))) {
-        throw new Error('Poster is already assigned to a connected anime');
-    }
-
-    return savePoster(match, poster, selected.seasonNumber);
 }
 
 export async function getStoredPosters(anilistIds: number[]) {

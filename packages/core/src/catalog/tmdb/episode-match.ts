@@ -1,6 +1,6 @@
 import { animeTitles } from '../utils';
 import type { AniListAnime } from '../anilist/anilist-types';
-import { animeDate, dateTimestamp } from '../utils';
+import { animeDate, dateTimestamp, formatAirDate } from '../utils';
 import type { ProviderEpisode } from '../../providers/types';
 import {
     episodeTitleKey,
@@ -200,11 +200,6 @@ function airingDay(airingAt: number | null | undefined) {
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-function displayDate(timestamp: number) {
-    const date = new Date(timestamp);
-    return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}/${date.getUTCFullYear()}`;
-}
-
 function releaseScheduleMetadata(
     anime: AniListAnime,
     source: ProviderEpisode[],
@@ -291,7 +286,7 @@ function matchedMetadata(
                 schedule && candidate.seasonNumber === schedule.seasonNumber && broadcast !== null
                     ? {
                           ...candidate,
-                          airDate: displayDate(broadcast - schedule.offset),
+                          airDate: formatAirDate(new Date(broadcast - schedule.offset)),
                       }
                     : candidate;
 

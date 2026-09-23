@@ -1,12 +1,17 @@
-import { db } from '@soraorg/database';
+import { inArray } from 'drizzle-orm';
 
+import { db } from '@soraorg/database';
+import { animeEpisode } from '@soraorg/database/schema';
+
+import { audioModesByAnime } from '../audio';
 import type { AnimeSearchResult } from '../search';
 import { rankAnimeSearch } from '../search';
 import { SearchAnimePageDocument } from './anilist/graphql/graphql.generated';
 import { request } from './anilist/anilist-client';
 import { enrichAnimeCards } from './card-enrichment';
 import { createAnimeSearchIndex } from './search-index';
-import { withAnimeSearchMetadata } from './search-enrichment';
+import { imageUrl } from './tmdb/client';
+import { getStoredBackdropCandidates, uniqueBackdropCandidates } from './tmdb/media';
 import { animeTitles, mediaTitle, plainText } from './utils';
 
 const searchIndex = createAnimeSearchIndex(db);
@@ -47,6 +52,23 @@ async function search(query: string): Promise<AnimeSearchResult[]> {
     });
 }
 
+async function storedArtwork(anilistIds: number[]) {
+    const rows = await getStoredBackdropCandidates(anilistIds);
+
+    return new Map(
+        [
+            ...uniqueBackdropCandidates(rows, (row) => `tmdb:${row.mediaType}:${row.targetId}`),
+        ].flatMap(([anilistId, row]) => [
+            [
+                anilistId,
+                {
+                    backdrop: row.filePath ? imageUrl(row.filePath, 'w780') : null,
+                },
+            ] as const,
+        ])
+    );
+}
+
 export async function getSearchResults(query: string) {
     const normalized = query.trim();
     if (!normalized) {
@@ -58,7 +80,26 @@ export async function getSearchResults(query: string) {
         results = rankAnimeSearch(normalized, await search(normalized));
         await searchIndex.store(results);
     }
-    return withAnimeSearchMetadata<AnimeSearchResult>(
-        await enrichAnimeCards<AnimeSearchResult>(results)
-    );
+    const cards = await enrichAnimeCards<AnimeSearchResult>(results);
+    const anilistIds = [...new Set(cards.map(({ id }) => id))];
+    if (!anilistIds.length) {
+        return cards;
+    }
+
+    const [artwork, episodeRows] = await Promise.all([
+        storedArtwork(anilistIds),
+        db
+            .select({
+                anilistId: animeEpisode.anilistId,
+                audio: animeEpisode.audio,
+            })
+            .from(animeEpisode)
+            .where(inArray(animeEpisode.anilistId, anilistIds)),
+    ]);
+    const audioByAnime = audioModesByAnime(episodeRows);
+    return cards.map((card) => ({
+        ...card,
+        backdrop: artwork.get(card.id)?.backdrop ?? null,
+        audio: [...(audioByAnime.get(card.id) ?? [])],
+    }));
 }

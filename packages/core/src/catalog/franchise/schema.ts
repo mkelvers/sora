@@ -1,51 +1,19 @@
 import { z } from 'zod';
 
-import type { AnimeCard } from '../../types';
-import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql/graphql.generated';
+import { AnimeCardSchema } from '../../types';
 
-/** Franchise order stored with provider and verification metadata. */
-export type FranchiseOrder = {
-    types: {
-        id: string;
-        label: string;
-    }[];
-    entries: (AnimeCard & {
-        malId: number;
-        anilistId: number;
-        type: string;
-        format: MediaFormat | null;
-        status: MediaStatus | null;
-        episodes: number | null;
-        duration: number | null;
-        popularity: number | null;
-        relations: {
-            type: MediaRelation;
-            malId: number;
-        }[];
-        secondary: boolean;
-        primary: boolean;
-    })[];
-};
-
-const franchiseOrderSchema = z
-    .object({
-        types: z.array(
-            z.object({
-                id: z.string(),
-                label: z.string(),
-            })
-        ),
-        entries: z.array(
-            z.object({
+const franchiseOrderSchema = z.object({
+    types: z.array(
+        z.object({
+            id: z.string(),
+            label: z.string(),
+        })
+    ),
+    entries: z.array(
+        AnimeCardSchema.omit({ releasedAt: true, episode: true })
+            .required({ format: true, status: true })
+            .extend({
                 id: z.number(),
-                title: z.string(),
-                image: z.string(),
-                audio: z.array(z.enum(['sub', 'dub', 'raw'])),
-                format: z.string().nullable(),
-                status: z.string().nullable(),
-                score: z.number(),
-                genres: z.array(z.string()),
-                synopsis: z.string(),
                 malId: z.number(),
                 anilistId: z.number(),
                 type: z.string(),
@@ -61,9 +29,11 @@ const franchiseOrderSchema = z
                 secondary: z.boolean(),
                 primary: z.boolean(),
             })
-        ),
-    })
-    .transform((value) => value as FranchiseOrder);
+    ),
+});
+
+/** Persisted franchise order, inferred from the schema that validates stored JSON. */
+export type FranchiseOrder = z.infer<typeof franchiseOrderSchema>;
 
 export const FranchiseRecordSchema = z.object({
     order: franchiseOrderSchema,
