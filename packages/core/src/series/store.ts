@@ -1,11 +1,13 @@
 import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
+import { getAnime } from "../catalog/queries/anime";
 import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
-import { scheduleSeriesStore } from "../scheduler/queue";
+import { scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
 import { assignSeasonIds } from "./identity";
 import { newSeasonId, newSeriesId } from "./ids";
-import { buildSeries, type Series } from "./series";
+import type { SeriesSeason } from "./seasons";
+import { buildSeries, type SeriesLayout } from "./series";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -31,15 +33,21 @@ const episodeInsertBatch = 1_000;
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export async function resolveSeries(anilistId: number): Promise<string> {
-  const [stored] = await db
-    .select({
-      seriesId: seriesEntry.seriesId
-    })
-    .from(seriesEntry)
-    .where(eq(seriesEntry.anilistId, anilistId))
-    .limit(1);
+  return (await storedSeriesIds([anilistId])).get(anilistId) ?? storeSeries(anilistId);
+}
 
-  return stored?.seriesId ?? storeSeries(anilistId);
+/** The Sora IDs of the stored series containing the given AniList entries, by AniList ID. */
+export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
+  if (anilistIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db
+    .select()
+    .from(seriesEntry)
+    .where(inArray(seriesEntry.anilistId, [...new Set(anilistIds)]));
+
+  return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
 }
 
 /**
@@ -50,7 +58,9 @@ export async function resolveSeries(anilistId: number): Promise<string> {
  * anchor entry, or otherwise any of its entries; an entry TMDB grouped
  * elsewhere moves to that series. Seasons keep their IDs as
  * {@link assignSeasonIds} describes. Related titles that are not stored yet
- * are queued for the scheduler to store.
+ * are queued for the scheduler to store, and entries that may still gain
+ * episodes are handed to the airing scheduler, which lays the series out
+ * again as they air.
  *
  * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
  *   belongs to adult media.
@@ -60,15 +70,22 @@ export async function storeSeries(anilistId: number): Promise<string> {
   const built = await buildSeries(anilistId);
   const seriesId = await db.transaction((tx) => writeSeries(tx, built));
 
+  // Readers take the series' details from its anchor entry, so it must be stored.
+  await getAnime(built.anchorAnilistId);
+  for (const id of built.airingIds) {
+    await startTrackingAiring(id);
+  }
+
   const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
-  for (const id of await unstoredEntries(relatedIds)) {
+  const storedRelated = await storedSeriesIds(relatedIds);
+  for (const id of relatedIds.filter((id) => !storedRelated.has(id))) {
     await scheduleSeriesStore(id);
   }
 
   return seriesId;
 }
 
-async function writeSeries(tx: Transaction, built: Series) {
+async function writeSeries(tx: Transaction, built: SeriesLayout) {
   await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey})`);
 
   const seriesId = await chooseSeriesId(tx, built);
@@ -101,7 +118,9 @@ async function writeSeries(tx: Transaction, built: Series) {
     overview: built.overview,
     posterUrl: built.posterUrl,
     backdropUrl: built.backdropUrl,
+    logoUrl: built.logoUrl,
     startDate: built.startDate,
+    status: built.status,
     laidOutAt: new Date()
   };
   await tx
@@ -122,7 +141,16 @@ async function writeSeries(tx: Transaction, built: Series) {
     }))
   );
 
-  await writeSeasons(tx, seriesId, built);
+  const seasons = await writeSeasons(tx, seriesId, built);
+  const next = nextEpisodeOf(seasons, built.nextAiring);
+  await tx
+    .update(series)
+    .set({
+      nextEpisodeSeasonId: next?.seasonId ?? null,
+      nextEpisodeNumber: next?.number ?? null,
+      nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null
+    })
+    .where(eq(series.id, seriesId));
 
   await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, seriesId));
   const related = built.related.flatMap((summary, position) =>
@@ -144,7 +172,7 @@ async function writeSeries(tx: Transaction, built: Series) {
  * else the one with its key, else the oldest one holding any of its entries.
  * A layout that continues none gets a new ID.
  */
-async function chooseSeriesId(tx: Transaction, built: Series) {
+async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
   const candidates = await tx
     .select({
       id: series.id,
@@ -180,8 +208,8 @@ async function chooseSeriesId(tx: Transaction, built: Series) {
   return chosen?.id ?? newSeriesId();
 }
 
-/** Replaces a series' seasons and episodes, keeping season IDs. */
-async function writeSeasons(tx: Transaction, seriesId: string, built: Series) {
+/** Replaces a series' seasons and episodes, keeping season IDs. Returns the seasons with their IDs. */
+async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayout) {
   const stored = await tx
     .select({
       id: seriesSeason.id,
@@ -244,20 +272,46 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: Series) {
   for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
     await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
   }
+
+  return seasons;
 }
 
-/** The given AniList entries that no stored series contains. */
-async function unstoredEntries(ids: readonly number[]) {
-  if (ids.length === 0) {
-    return [];
+/**
+ * The season episode that plays AniList's next episode. While AniList does
+ * not know an entry's episode count, its season lists only the aired
+ * episodes, so the next one follows the latest listed one.
+ */
+function nextEpisodeOf(
+  seasons: readonly {
+    season: SeriesSeason;
+    id: string;
+  }[],
+  nextAiring: SeriesLayout["nextAiring"]
+) {
+  if (!nextAiring) {
+    return null;
   }
 
-  const stored = await db
-    .select({
-      anilistId: seriesEntry.anilistId
-    })
-    .from(seriesEntry)
-    .where(inArray(seriesEntry.anilistId, [...ids]));
-  const storedIds = new Set(stored.map((row) => row.anilistId));
-  return ids.filter((id) => !storedIds.has(id));
+  const plays = (episode: SeriesSeason["episodes"][number], number: number) =>
+    episode.playback?.anilistId === nextAiring.anilistId && episode.playback.episode === number;
+
+  for (const { season, id } of seasons) {
+    const listed = season.episodes.find((episode) => plays(episode, nextAiring.episode));
+    if (listed) {
+      return {
+        seasonId: id,
+        number: listed.number
+      };
+    }
+
+    const latest = season.episodes.find((episode) => plays(episode, nextAiring.episode - 1));
+    if (latest) {
+      return {
+        seasonId: id,
+        number: latest.number + 1
+      };
+    }
+  }
+
+  return null;
 }
