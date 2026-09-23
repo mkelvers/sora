@@ -1,0 +1,15 @@
+query AiringSchedule($page: Int!, $from: Int!, $until: Int!) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    airingSchedules(airingAt_greater: $from, airingAt_lesser: $until, sort: [TIME]) {
+      id
+      episode
+      airingAt
+      media {
+        ...AnimeCard
+      }
+    }
+  }
+}
