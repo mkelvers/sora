@@ -12,7 +12,7 @@
       },
     },
     "packages/core": {
-      "name": "@sora/backend",
+      "name": "@sora/core",
       "version": "0.0.1",
       "dependencies": {
         "@graphql-typed-document-node/core": "^3.2.0",
@@ -34,7 +34,7 @@
       "name": "@sora/scheduler",
       "version": "0.0.1",
       "dependencies": {
-        "@sora/backend": "workspace:*",
+        "@sora/core": "workspace:*",
       },
     },
   },
@@ -269,7 +269,7 @@
 
     "@repeaterjs/repeater": ["@repeaterjs/repeater@3.1.0", "", {}, "sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ=="],
 
-    "@sora/backend": ["@sora/backend@workspace:packages/core"],
+    "@sora/core": ["@sora/core@workspace:packages/core"],
 
     "@sora/scheduler": ["@sora/scheduler@workspace:packages/scheduler"],
 
