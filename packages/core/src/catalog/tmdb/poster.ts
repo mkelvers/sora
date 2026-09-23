@@ -11,8 +11,7 @@ import {
     animeReleasePoster,
 } from '@soraorg/database/schema';
 import type { AniListAnime } from '../anilist/anilist-types';
-import { create, imageUrl } from './client';
-import { tmdbImageFields } from './image';
+import { create, imageUrl, tmdbImageFields } from './client';
 import { findMapping } from './mapping-store';
 import {
     selectPoster as choosePoster,
