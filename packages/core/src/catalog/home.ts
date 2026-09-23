@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, lt } from 'drizzle-orm';
 import type { AnimeCard } from '../types';
 import { audioModesByAnime } from '../audio';
 import { currentAnimeSeason } from '../season';
+import type { AudioMode } from '../audio';
 import { db } from '@soraorg/database';
 import {
     animeCatalog,
@@ -16,9 +17,63 @@ import {
     selectHomeHero,
     type HomeHeroCandidate,
 } from './home-selection';
-import type { CatalogSource } from './source';
+import { storedAnimeRelease } from './anilist/anilist-release';
+import { enrichAnimeCards } from './card-enrichment';
+import { isDiscoverableAnime } from './discovery';
+import { getEpisodes } from '../providers/episode-inventory';
+import { resolveHeroSynopsis } from './synopsis';
+import { getArtwork } from './tmdb/artwork';
+import { mediaTitle } from './utils';
+import { getContinueWatchingCards } from '../user/progress/store';
 
-async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource['loadHomeHero']) {
+interface HomeHero {
+    id: number;
+    title: string;
+    image: string;
+    logo: {
+        url: string;
+        size: number;
+    };
+    audio: AudioMode[];
+    genres: string[];
+    description: string;
+}
+
+async function loadHomeHero(id: number): Promise<HomeHero | null> {
+    try {
+        const details = await storedAnimeRelease(id);
+        if (!details || !isDiscoverableAnime(details)) {
+            return null;
+        }
+
+        const artwork = await getArtwork(details, { fetchMissing: false });
+        if (!artwork?.selectedBackdrop || !artwork.selectedLogo) {
+            return null;
+        }
+
+        const episodes = await getEpisodes(details);
+        if (!episodes[0]) {
+            return null;
+        }
+
+        return {
+            id,
+            title: mediaTitle(details),
+            image: artwork.selectedBackdrop.url,
+            logo: {
+                url: artwork.selectedLogo.url,
+                size: artwork.logoSize,
+            },
+            audio: [...new Set(episodes.flatMap(({ audio }) => audio))],
+            genres: details.genres?.filter((genre) => genre !== null) ?? [],
+            description: await resolveHeroSynopsis(details),
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function heroSelection(rotationStart: string) {
     async function selectionForRotation(rotation: string) {
         return db
             .select({ anilistId: homeHeroSelection.anilistId })
@@ -115,7 +170,7 @@ async function heroSelection(rotationStart: string, loadHomeHero: CatalogSource[
     }
 }
 
-export async function homePage(source: CatalogSource, userId?: string, now = new Date()) {
+export async function homePage(userId?: string, now = new Date()) {
     const { season, year } = currentAnimeSeason(now);
     const [seasonRows, popularRows] = await Promise.all([
         db
@@ -150,8 +205,8 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
                   .from(animeEpisode)
                   .where(inArray(animeEpisode.anilistId, animeIds))
             : Promise.resolve([]),
-        heroSelection(homeHeroRotationStart(now), source.loadHomeHero).catch(() => []),
-        userId ? source.continueWatching(userId).catch(() => []) : Promise.resolve([]),
+        heroSelection(homeHeroRotationStart(now)).catch(() => []),
+        userId ? getContinueWatchingCards(userId).catch(() => []) : Promise.resolve([]),
     ]);
     const audioByAnime = audioModesByAnime(episodeRows);
     const toCard = (row: {
@@ -175,7 +230,7 @@ export async function homePage(source: CatalogSource, userId?: string, now = new
         synopsis: row.synopsis,
     });
     const seasonCards = seasonRows.map(toCard);
-    const cards = await source.enrichAnimeCards([...seasonCards, ...popularRows.map(toCard)]);
+    const cards = await enrichAnimeCards([...seasonCards, ...popularRows.map(toCard)]);
 
     return {
         highlights,

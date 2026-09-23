@@ -9,7 +9,9 @@ import {
     schedulerHeartbeat,
 } from '@soraorg/database/schema';
 import { plainText } from './utils';
-import type { ReleaseCalendarEntry } from './release-calendar-parser';
+import { request } from './anilist/anilist-client';
+import { ReleaseCalendarPageDocument } from './anilist/graphql/graphql.generated';
+import { parseReleaseCalendarPage, type ReleaseCalendarEntry } from './release-calendar-parser';
 
 function releaseCalendarWindow(now: Date) {
     const daysSinceMonday = (now.getUTCDay() + 6) % 7;
@@ -70,12 +72,47 @@ export function mergeReleaseCalendarEntries(
     );
 }
 
-export async function refreshReleaseCalendar(
-    discover: (from: Date, to: Date) => Promise<ReleaseCalendarEntry[]>,
-    now = new Date()
-) {
+async function discoverReleaseCalendar(from: Date, to: Date): Promise<ReleaseCalendarEntry[]> {
+    if (!(from < to)) {
+        throw new RangeError('Release calendar window must be ordered');
+    }
+
+    const entries = new Map<number, ReleaseCalendarEntry>();
+    const airingAtGreater = Math.floor(from.getTime() / 1_000) - 1;
+    const airingAtLesser = Math.ceil(to.getTime() / 1_000) + 1;
+
+    for (let page = 1; ; page += 1) {
+        const response = await request(
+            ReleaseCalendarPageDocument,
+            {
+                page,
+                perPage: 50,
+                airingAtGreater,
+                airingAtLesser,
+            },
+            {
+                forceRefresh: true,
+                refreshAfterMs: 15 * 60 * 1_000,
+            }
+        );
+        const parsed = parseReleaseCalendarPage(response);
+        for (const entry of parsed.entries) {
+            entries.set(entry.airingId, entry);
+        }
+
+        if (!parsed.hasNextPage) {
+            break;
+        }
+    }
+
+    return [...entries.values()].sort(
+        (left, right) => left.airingAt.getTime() - right.airingAt.getTime()
+    );
+}
+
+export async function refreshReleaseCalendar(now = new Date()) {
     const { from, to } = releaseCalendarWindow(now);
-    const entries = await discover(from, to);
+    const entries = await discoverReleaseCalendar(from, to);
     const sourceFetchedAt = new Date();
 
     await db.transaction(async (tx) => {

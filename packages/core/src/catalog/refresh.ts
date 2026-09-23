@@ -1,21 +1,14 @@
-import type { BrowseFilters } from './browse-filters';
+import { getBrowsePage, type AniListBrowseFilters } from './anilist/anilist-browse';
 import type { BrowseCatalogEntry } from './browse-transform';
-import type { CatalogBrowsePageRequest } from './source';
 import { catalogSnapshotKey, refreshCatalogPage } from './storage';
 
-export async function refreshPopularCatalog<Filters extends Omit<BrowseFilters, 'audio'>>(
-    filters: Filters,
-    fetchPage: (
-        request: Omit<CatalogBrowsePageRequest, 'filters'> & { filters: Filters }
-    ) => Promise<{
-        anime: BrowseCatalogEntry[];
-        hasNextPage: boolean;
-    }>,
+export async function refreshPopularCatalog(
+    filters: AniListBrowseFilters,
     refreshedAt = new Date()
 ) {
     const entries: BrowseCatalogEntry[] = [];
     for (let page = 1; ; page += 1) {
-        const result = await fetchPage({
+        const result = await getBrowsePage({
             filters,
             page,
             perPage: 42,
