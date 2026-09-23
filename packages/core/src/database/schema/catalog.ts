@@ -14,3 +14,16 @@ export const anilistSnapshot = pgTable(
   },
   (table) => [index("anilist_snapshot_expires_idx").on(table.expiresAt)]
 );
+
+/** Cached TMDB REST responses keyed by path and query. */
+export const tmdbSnapshot = pgTable(
+  "tmdb_snapshot",
+  {
+    key: text("key").primaryKey(),
+    path: text("path").notNull(),
+    data: jsonb("data").$type<unknown>().notNull(),
+    fetchedAt: timestamptz("fetched_at").notNull(),
+    expiresAt: timestamptz("expires_at").notNull()
+  },
+  (table) => [index("tmdb_snapshot_expires_idx").on(table.expiresAt)]
+);
