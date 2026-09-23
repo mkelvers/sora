@@ -8,7 +8,7 @@ import {
 import type { WatchlistState } from '@soraorg/database/schema';
 import { positiveInteger, record, text, type JsonValue } from '../../utils';
 import { batches } from './batches';
-import { animeTitles } from '../../catalog/anilist/anilist-text';
+import { animeTitles } from '../../catalog/utils';
 import { request } from '../../catalog/anilist/anilist-client';
 
 interface TransferTitles {

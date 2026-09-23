@@ -1,4 +1,4 @@
-import { animeTitles } from '../anilist/anilist-text';
+import { animeTitles } from '../utils';
 import type { AniListAnime } from '../anilist/anilist-types';
 import type { Candidate } from './types';
 

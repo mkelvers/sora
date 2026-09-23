@@ -19,7 +19,7 @@ import {
     providerSnapshot,
 } from '@soraorg/database/schema';
 import { ensureInternalAnimeId, findInternalAnimeId } from '../identity';
-import { animeTitles } from './anilist-text';
+import { animeTitles } from '../utils';
 import {
     AniListAnimeOverviewSchema,
     AniListAnimeSchema,
@@ -29,27 +29,6 @@ import {
 } from './anilist-types';
 import { request } from './anilist-client';
 import { mergeAnimeReleaseSnapshots, relationSnapshotProvider } from '../anime-release-merge';
-
-function releaseValues(media: AniListAnime, sourceFetchedAt = new Date()) {
-    return {
-        data: media,
-        title: animeTitles(media)[0] ?? `Anime ${media.id}`,
-        imageUrl:
-            media.coverImage?.extraLarge ?? media.coverImage?.large ?? media.bannerImage ?? null,
-        status: media.status,
-        format: media.format,
-        malId: media.idMal,
-        episodeCount: media.episodes,
-        durationMinutes: media.duration,
-        nextAiringAt: media.nextAiringEpisode
-            ? new Date(media.nextAiringEpisode.airingAt * 1_000)
-            : null,
-        nextAiringEpisode: media.nextAiringEpisode?.episode ?? null,
-        schemaRevision: 1,
-        sourceFetchedAt,
-        updatedAt: sourceFetchedAt,
-    };
-}
 
 export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = new Date()) {
     const sourceAnimeId = await ensureInternalAnimeId(media.id, animeTitles(media)[0]);
@@ -180,16 +159,38 @@ export async function storeAnimeRelease(media: AniListAnime, sourceFetchedAt = n
                     ...releaseSnapshots.map(({ sourceFetchedAt: fetchedAt }) => fetchedAt.getTime())
                 )
             );
+            const values = {
+                data: merged,
+                title: animeTitles(merged)[0] ?? `Anime ${merged.id}`,
+                imageUrl:
+                    merged.coverImage?.extraLarge ??
+                    merged.coverImage?.large ??
+                    merged.bannerImage ??
+                    null,
+                status: merged.status,
+                format: merged.format,
+                malId: merged.idMal,
+                episodeCount: merged.episodes,
+                durationMinutes: merged.duration,
+                nextAiringAt: merged.nextAiringEpisode
+                    ? new Date(merged.nextAiringEpisode.airingAt * 1_000)
+                    : null,
+                nextAiringEpisode: merged.nextAiringEpisode?.episode ?? null,
+                schemaRevision: 1,
+                sourceFetchedAt: effectiveFetchedAt,
+                updatedAt: effectiveFetchedAt,
+            };
 
             await tx
                 .insert(animeRelease)
                 .values({
                     anilistId: media.id,
-                    ...releaseValues(merged, effectiveFetchedAt),
+                    ...values,
                 })
                 .onConflictDoUpdate({
                     target: animeRelease.anilistId,
-                    set: releaseValues(merged, effectiveFetchedAt),
+                    set: values,
+                    // Kitsu may fill an empty record or refresh its own data, never replace AniList.
                     setWhere:
                         merged.metadataSource === 'kitsu'
                             ? or(

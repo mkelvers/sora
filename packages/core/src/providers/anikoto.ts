@@ -7,7 +7,7 @@ import type { AudioMode } from '../audio';
 import { concatByteChunks, type JsonValue } from '../utils';
 import type { AnimeSeasonSelection } from '../season';
 import type { AnimeCard } from '../types';
-import { animeTitles, plainText } from '../catalog/anilist/anilist-text';
+import { animeTitles, plainText } from '../catalog/utils';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
 import { validSkipInterval } from '../playback/aniskip';
 import type { EpisodeSkipTimes } from '../player/skip-times';
@@ -27,7 +27,7 @@ const providerName = 'anikoto';
 // MegaPlay returns the concrete media hostname in its source payload. Keep the
 // registrable domains here, rather than individual CDN shards, so new provider
 // subdomains work without another release while the proxy remains allowlisted.
-export const aniKotoMediaHostSuffixes = [
+const aniKotoMediaHostSuffixes = [
     'akirax.buzz',
     'anizara.store',
     'imgnex.top',
@@ -180,7 +180,7 @@ interface SearchCandidate {
     format: string | null;
 }
 
-export interface AniKotoServerCandidate {
+interface AniKotoServerCandidate {
     mode: Exclude<AudioMode, 'raw'>;
     embedMode: AniKotoServerMode;
     linkId: string;
@@ -422,7 +422,7 @@ function validHttpsUrl(value: string | undefined) {
     }
 }
 
-export function supportedMediaUrl(value: string) {
+function supportedMediaUrl(value: string) {
     const url = validHttpsUrl(value);
     const normalized = url ? normalizeAniKotoMediaUrl(url) : null;
     if (!normalized) {
@@ -432,7 +432,7 @@ export function supportedMediaUrl(value: string) {
     return /\.(?:m3u8|mp4)$/i.test(normalized.pathname) ? normalized : null;
 }
 
-export function supportedSubtitleUrl(value: string) {
+function supportedSubtitleUrl(value: string) {
     const url = validHttpsUrl(value);
     const normalized = url ? normalizeAniKotoMediaUrl(url) : null;
     if (!normalized || !/\.vtt$/i.test(normalized.pathname)) {
@@ -442,26 +442,26 @@ export function supportedSubtitleUrl(value: string) {
     return normalized;
 }
 
-export function validOpaqueId(value: string | undefined, maxLength = 1024) {
+function validOpaqueId(value: string | undefined, maxLength = 1024) {
     return value && value.length > 0 && value.length <= maxLength ? value : null;
 }
 
-export function aniKotoSeriesIdFromEpisodeId(value: string) {
+function aniKotoSeriesIdFromEpisodeId(value: string) {
     const match = value.match(/^anikoto:(\d+):/);
     return match ? positiveId(match[1]) : null;
 }
 
-export function hasMixedAniKotoSeriesIds(episodeIds: readonly string[]) {
+function hasMixedAniKotoSeriesIds(episodeIds: readonly string[]) {
     return (
         new Set(episodeIds.map(aniKotoSeriesIdFromEpisodeId).filter((id) => id !== null)).size > 1
     );
 }
 
-export function episodeAudioModes(sub: string | undefined, dub: string | undefined): AudioMode[] {
+function episodeAudioModes(sub: string | undefined, dub: string | undefined): AudioMode[] {
     return [...(sub === '1' ? (['sub'] as const) : []), ...(dub === '1' ? (['dub'] as const) : [])];
 }
 
-export function playableAudioModes(
+function playableAudioModes(
     available: readonly AudioMode[],
     requested: readonly AudioMode[]
 ): Exclude<AudioMode, 'raw'>[] {
@@ -471,11 +471,11 @@ export function playableAudioModes(
     );
 }
 
-export function serverMode(value: string | undefined): AniKotoServerMode | null {
+function serverMode(value: string | undefined): AniKotoServerMode | null {
     return value === 'sub' || value === 'dub' || value === 'hsub' ? value : null;
 }
 
-export function parseSeries(value: JsonValue): AniKotoSeries | null {
+function parseSeries(value: JsonValue): AniKotoSeries | null {
     const parsed = seriesResponseSchema.safeParse(value);
     if (!parsed.success || !parsed.data.ok || !parsed.data.data) {
         return null;
@@ -517,7 +517,7 @@ export function parseSeries(value: JsonValue): AniKotoSeries | null {
     };
 }
 
-export function matchesAniKotoIdentity(
+function matchesAniKotoIdentity(
     series: Pick<AniKotoSeries, 'anilistId' | 'malId'>,
     anime: Pick<AniListAnime, 'id' | 'idMal'>
 ) {
@@ -533,7 +533,7 @@ export function matchesAniKotoIdentity(
     return false;
 }
 
-export function matchesAniKotoRelatedIdentity(
+function matchesAniKotoRelatedIdentity(
     series: Pick<AniKotoSeries, 'anilistId' | 'malId'>,
     anime: Pick<AniListAnime, 'relations'>
 ) {
@@ -554,7 +554,7 @@ export function matchesAniKotoRelatedIdentity(
     });
 }
 
-export function matchesAniKotoIdentityOrTitle(
+function matchesAniKotoIdentityOrTitle(
     series: Pick<AniKotoSeries, 'anilistId' | 'malId' | 'title' | 'alternativeTitle'>,
     anime: Pick<AniListAnime, 'id' | 'idMal' | 'title' | 'synonyms'>
 ) {
@@ -570,12 +570,12 @@ export function matchesAniKotoIdentityOrTitle(
     );
 }
 
-export function matchesAniKotoTitle(title: string, titles: readonly string[]) {
+function matchesAniKotoTitle(title: string, titles: readonly string[]) {
     const normalizedTitle = normalizedProviderTitle(title);
     return titles.some((candidate) => normalizedTitle === normalizedProviderTitle(candidate));
 }
 
-export function matchesAniKotoFormat(providerFormat: string | null, animeFormat: string | null) {
+function matchesAniKotoFormat(providerFormat: string | null, animeFormat: string | null) {
     if (!providerFormat || !animeFormat) {
         return true;
     }
@@ -588,7 +588,7 @@ export function matchesAniKotoFormat(providerFormat: string | null, animeFormat:
     );
 }
 
-export function matchesAniKotoEpisodeCount(
+function matchesAniKotoEpisodeCount(
     providerEpisodeCount: number | undefined,
     anime: Pick<AniListAnime, 'status' | 'format' | 'episodes'>,
     exactIdentity = false
@@ -610,7 +610,7 @@ export function matchesAniKotoEpisodeCount(
     );
 }
 
-export function parseSearchCandidates(html: string) {
+function parseSearchCandidates(html: string) {
     const $ = load(html);
     const candidates = new Map<number, SearchCandidate>();
 
@@ -634,7 +634,7 @@ export function parseSearchCandidates(html: string) {
     return [...candidates.values()];
 }
 
-export function parseAniKotoCatalogPage(html: string) {
+function parseAniKotoCatalogPage(html: string) {
     const $ = load(html);
     const providerIds = new Set<number>();
 
@@ -656,7 +656,7 @@ export function parseAniKotoCatalogPage(html: string) {
     };
 }
 
-export function parseEpisodeList(value: JsonValue) {
+function parseEpisodeList(value: JsonValue) {
     const parsed = ajaxResponseSchema.safeParse(value);
     if (!parsed.success || parsed.data.status !== 200) {
         return [];
@@ -686,7 +686,7 @@ export function parseEpisodeList(value: JsonValue) {
     return [...episodes.values()].sort((left, right) => left.number - right.number);
 }
 
-export function parseServerList(value: JsonValue) {
+function parseServerList(value: JsonValue) {
     const parsed = ajaxResponseSchema.safeParse(value);
     const servers = {
         sub: [] as AniKotoServerCandidate[],
@@ -728,7 +728,7 @@ export function parseServerList(value: JsonValue) {
     return servers;
 }
 
-export function parseAniKotoSkipData(value: JsonValue | undefined) {
+function parseAniKotoSkipData(value: JsonValue | undefined) {
     const parsed = aniKotoSkipDataSchema.safeParse(value);
     if (!parsed.success) {
         return null;
@@ -757,7 +757,7 @@ export function parseAniKotoSkipData(value: JsonValue | undefined) {
         : null;
 }
 
-export function parseMegaPlaySourceId(html: string) {
+function parseMegaPlaySourceId(html: string) {
     const $ = load(html);
     const dataId = $('[data-id]')
         .map((_, element) => $(element).attr('data-id'))
@@ -789,7 +789,7 @@ function decryptMegaPlaySourceFile(token: string) {
     }
 }
 
-export function parseMegaPlaySource(value: JsonValue) {
+function parseMegaPlaySource(value: JsonValue) {
     const parsed = sourcePayloadSchema.safeParse(value);
     if (!parsed.success) {
         return null;
@@ -837,7 +837,7 @@ export function parseMegaPlaySource(value: JsonValue) {
     };
 }
 
-export function uniqueDirectStreams(streams: readonly ProviderStream[]) {
+function uniqueDirectStreams(streams: readonly ProviderStream[]) {
     const seen = new Set<string>();
     return streams.filter((stream) => {
         const key = stream.url;
@@ -853,10 +853,7 @@ export function uniqueDirectStreams(streams: readonly ProviderStream[]) {
  * Leave it on SUB so the player can treat it as translated captions and
  * calibrate it against the selected DUB encode instead of mistaking it for a
  * native, already-synchronised DUB track. */
-export function removeSharedDubCaptions(
-    sub: readonly ProviderStream[],
-    dub: readonly ProviderStream[]
-) {
+function removeSharedDubCaptions(sub: readonly ProviderStream[], dub: readonly ProviderStream[]) {
     const subCaptionUrls = new Set(sub.flatMap((stream) => stream.subtitles.map(({ url }) => url)));
     return dub.map((stream) => ({
         ...stream,
@@ -864,7 +861,7 @@ export function removeSharedDubCaptions(
     }));
 }
 
-export async function resolveCandidates<T, R>(
+async function resolveCandidates<T, R>(
     candidates: readonly T[],
     resolve: (candidate: T, signal: AbortSignal) => Promise<R | null>,
     options: {
@@ -1449,7 +1446,7 @@ async function findSeries(anime: AniListAnime) {
     throw new AniKotoNoMatchError(anime.id);
 }
 
-export function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
+function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
     const url = validHttpsUrl(value);
     if (!url || !aniKotoEmbedHostnames.includes(url.hostname as AniKotoEmbedHostname)) {
         return null;
@@ -1469,7 +1466,7 @@ export function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
         : null;
 }
 
-export async function resolveMegaPlay(embed: URL, signal: AbortSignal) {
+async function resolveMegaPlay(embed: URL, signal: AbortSignal) {
     const sourceId = parseMegaPlaySourceId(
         await requestText(embed, {
             referer: `${anikotoUrl}/`,

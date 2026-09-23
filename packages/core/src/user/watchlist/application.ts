@@ -1,10 +1,11 @@
 import { hydrateMissingAnimeReleases } from '../../catalog/anilist/anilist-release';
 import { storedReleaseCards } from '../../catalog/storage';
-import { animeTitles } from '../../catalog/anilist/anilist-text';
+import { animeTitles } from '../../catalog/utils';
 import { enrichAnimeCards } from '../../catalog/card-enrichment';
 import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
 import { storedAudioModes } from '../../providers/episode-inventory';
-import { selectWatchlistEntries, type WatchlistSelection } from './selection';
+import type { WatchlistSelection } from '../../contracts/watchlist';
+import { selectWatchlistEntries } from './selection';
 import {
     applyWatchlistEntries,
     getWatchlistEntries,

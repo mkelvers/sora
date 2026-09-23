@@ -6,7 +6,7 @@ import {
     animeExternalIdLink,
     animeMappingOverride,
 } from '@soraorg/database/schema';
-import { animeTitles } from '../catalog/anilist/anilist-text';
+import { animeTitles } from '../catalog/utils';
 import { enqueueEpisodeInventoryBackfill } from '../catalog/episode-sync';
 import { storedAnimeRelease } from '../catalog/anilist/anilist-release';
 import { findInternalAnimeId } from '../catalog/identity';

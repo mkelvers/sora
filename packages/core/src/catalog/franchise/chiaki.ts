@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 
-import type { FranchiseOrder } from '../../types';
 import { positiveInteger } from '../../utils';
+import type { FranchiseOrder } from './schema';
 
 export interface ChiakiEntry {
     malId: number;
@@ -12,44 +12,40 @@ export interface ChiakiEntry {
     secondary: boolean;
 }
 
-function imageFromStyle(style: string | undefined) {
-    const path = style?.match(/url\((['"]?)(.*?)\1\)/i)?.[2]?.trim();
-    return path ? new URL(path, 'https://chiaki.site').href : '';
-}
-
 function parseOrder(html: string) {
     const $ = cheerio.load(html);
-    const types = $('#wo_type_filter label')
-        .map((_, label) => {
-            const input = $(label).find("input[type='checkbox']").first();
-            const id = input.attr('value')?.trim();
-            const text = $(label).text().replace(/\s+/g, ' ').trim();
+    const types: FranchiseOrder['types'] = [];
+    for (const label of $('#wo_type_filter label').toArray()) {
+        const element = $(label);
+        const id = element.find("input[type='checkbox']").first().attr('value')?.trim();
+        const text = element.text().replace(/\s+/g, ' ').trim();
+        if (id && text) {
+            types.push({ id, label: text });
+        }
+    }
 
-            return id && text
-                ? {
-                      id,
-                      label: text,
-                  }
-                : null;
-        })
-        .get()
-        .filter((type): type is FranchiseOrder['types'][number] => Boolean(type));
-    const entries = $('#wo_list tr[data-id]')
-        .map((_, row) => {
-            const element = $(row);
-            const entry: ChiakiEntry = {
-                malId: positiveInteger(element.attr('data-id')) ?? 0,
-                typeId: element.attr('data-type')?.trim() ?? '',
-                title: element.find('.wo_title').first().text().trim(),
-                alternativeTitle: element.find('.uk-text-small').first().text().trim(),
-                image: imageFromStyle(element.find('.wo_avatar_big').first().attr('style')),
-                secondary: element.hasClass('wo_row_secondary'),
-            };
-
-            return entry.malId && entry.typeId && entry.title && entry.image ? entry : null;
-        })
-        .get()
-        .filter((entry): entry is ChiakiEntry => Boolean(entry));
+    const entries: ChiakiEntry[] = [];
+    for (const row of $('#wo_list tr[data-id]').toArray()) {
+        const element = $(row);
+        // Chiaki stores artwork in an inline style, sometimes as a relative URL.
+        const imagePath = element
+            .find('.wo_avatar_big')
+            .first()
+            .attr('style')
+            ?.match(/url\((['"]?)(.*?)\1\)/i)?.[2]
+            ?.trim();
+        const entry: ChiakiEntry = {
+            malId: positiveInteger(element.attr('data-id')) ?? 0,
+            typeId: element.attr('data-type')?.trim() ?? '',
+            title: element.find('.wo_title').first().text().trim(),
+            alternativeTitle: element.find('.uk-text-small').first().text().trim(),
+            image: imagePath ? new URL(imagePath, 'https://chiaki.site').href : '',
+            secondary: element.hasClass('wo_row_secondary'),
+        };
+        if (entry.malId && entry.typeId && entry.title && entry.image) {
+            entries.push(entry);
+        }
+    }
 
     if (!types.length || !entries.length) {
         throw new Error('Chiaki watch-order markup was not found');

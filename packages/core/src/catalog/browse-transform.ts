@@ -5,7 +5,7 @@ import type {
 } from './anilist/graphql/graphql.generated';
 import { isNotNullish } from '../utils';
 import { z } from 'zod';
-import { animeTitles, mediaTitle, plainText } from './anilist/anilist-text';
+import { animeTitles, mediaTitle, plainText } from './utils';
 import { isDiscoverableAnime } from './discovery';
 import type { BrowseCatalogEntry } from './browse-types';
 

@@ -1,7 +1,7 @@
 import { inflateSync } from 'node:zlib';
 import type { AniListAnime } from '../anilist/anilist-types';
 import { z } from 'zod';
-import { animeDate } from '../date';
+import { animeDate } from '../utils';
 import type { ProviderEpisode } from '../../providers/types';
 import { create, imageUrl, type TmdbClient } from './client';
 import { getEpisodeChanges } from './episode-changes';

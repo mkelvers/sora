@@ -1,11 +1,6 @@
 import { z } from 'zod';
 
 import type { AudioMode } from './audio';
-import type {
-    MediaFormat,
-    MediaRelation,
-    MediaStatus,
-} from './catalog/anilist/graphql/graphql.generated';
 
 /** Runtime contract for an anime card returned by catalog sources. */
 export const AnimeCardSchema = z.object({
@@ -89,34 +84,4 @@ export type ContinueWatchingCard = {
         NonNullable<AnimeEpisode['progress']>,
         'positionSeconds' | 'durationSeconds' | 'completed'
     > | null;
-};
-
-/** Ordered franchise entries enriched with identifiers and relation metadata. */
-/**
- * Franchise display order and its catalog entries.
- *
- * `primary` and `secondary` distinguish the focal anime from related entries;
- * source relation metadata is retained so callers can present the order's basis.
- */
-export type FranchiseOrder = {
-    types: {
-        id: string;
-        label: string;
-    }[];
-    entries: (AnimeCard & {
-        malId: number;
-        anilistId: number;
-        type: string;
-        format: MediaFormat | null;
-        status: MediaStatus | null;
-        episodes: number | null;
-        duration: number | null;
-        popularity: number | null;
-        relations: {
-            type: MediaRelation;
-            malId: number;
-        }[];
-        secondary: boolean;
-        primary: boolean;
-    })[];
 };

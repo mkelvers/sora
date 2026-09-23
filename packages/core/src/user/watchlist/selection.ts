@@ -1,15 +1,7 @@
 import type { WatchlistState } from '@soraorg/database/schema';
 import type { AudioMode } from '../../audio';
+import type { WatchlistSelection } from '../../contracts/watchlist';
 import type { AnimeCard } from '../../types';
-
-export type WatchlistSelection = {
-    state: WatchlistState | 'all';
-    sort: 'updated' | 'added' | 'alphabetical';
-    order: 'newest' | 'oldest';
-    language: 'all' | 'sub' | 'dub';
-    media: 'all' | 'series' | 'movie';
-    type: 'all' | 'airing' | 'finished' | 'not_yet_released' | 'cancelled' | 'hiatus';
-};
 
 function matchesFilters(
     card: {
