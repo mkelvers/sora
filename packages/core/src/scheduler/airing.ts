@@ -71,11 +71,13 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 };
 
 /**
- * Re-fetches every provider's episode list and returns the latest episode
- * any of them carries.
+ * Re-fetches every provider's episode list and returns the latest episode of
+ * the list viewers see: the first provider in priority order with any
+ * episodes, as `listEpisodes` picks it.
  *
- * Each provider is refreshed, not just the first, because playback falls
- * back through all of them. A failing provider is logged and skipped.
+ * Every provider is refreshed, not just that one, because playback falls
+ * back through all of them. Other providers' lists do not count, since some
+ * list episodes before they air. A failing provider is logged and skipped.
  */
 async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
   let latest: number | null = null;
@@ -86,7 +88,7 @@ async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]
         retryUnmatched: true
       });
       const last = units.at(-1);
-      if (last && (latest === null || last.number > latest)) {
+      if (latest === null && last) {
         latest = last.number;
       }
     } catch (error) {

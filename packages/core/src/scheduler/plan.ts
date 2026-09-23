@@ -8,7 +8,7 @@ export interface AiringState {
   nextAiringAt: Date | null;
   /** The latest episode AniList says has aired, or `null` when none has. */
   latestAiredEpisode: number | null;
-  /** The latest episode any provider carries, or `null` when none does. */
+  /** The latest episode in the list viewers see, or `null` when no provider has any. */
   latestReleasedEpisode: number | null;
   /** AniList's start date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, in Japan time. */
   startDate: string | null;
