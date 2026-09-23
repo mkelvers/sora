@@ -14,10 +14,10 @@ const endpoint = "https://graphql.anilist.co";
  * Minimum spacing between upstream requests from this process.
  *
  * AniList allows 90 requests per minute per IP and lowers that to 30 when
- * degraded. 700 ms keeps one process under the normal limit; the 429 handling
- * below covers the degraded case.
+ * degraded. It starts at 700 ms, under the normal limit, and follows the
+ * limit AniList reports on every response; see {@link followRateLimit}.
  */
-const requestSpacingMs = 700;
+let requestSpacingMs = 700;
 
 const requestTimeoutMs = 10_000;
 
@@ -154,6 +154,20 @@ function rateLimited<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/**
+ * Spaces requests to fit the per-minute limit in AniList's
+ * `X-RateLimit-Limit` header, with a small margin for timing jitter.
+ *
+ * The limit is per IP, so an API and a scheduler on one host can still exceed
+ * it together; the 429 handling in `execute` covers that.
+ */
+function followRateLimit(response: Response) {
+  const limit = Number(response.headers.get("x-ratelimit-limit"));
+  if (Number.isInteger(limit) && limit > 0) {
+    requestSpacingMs = Math.ceil(60_000 / limit) + 100;
+  }
+}
+
 async function execute(query: string, variables: unknown) {
   let response: Response;
   try {
@@ -175,6 +189,8 @@ async function execute(query: string, variables: unknown) {
       cause
     });
   }
+
+  followRateLimit(response);
 
   if (response.status === 429) {
     const retryAfterMs = retryAfter(response) ?? 60_000;
