@@ -53,34 +53,48 @@ const inFlight = new Map<number, Promise<TmdbMapping>>();
  * usually a later season of the show its prequel maps to, and an OVA is
  * usually a special of its parent's show. Candidate shows and movies come
  * from those mappings and from TMDB title searches; {@link placeInShow} and
- * {@link placeAsMovie} decide between them.
+ * {@link placeAsMovie} decide between them. Concurrent calls for the same
+ * entry share one resolution.
  *
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
-export function resolveMapping(entry: FranchiseEntry): Promise<TmdbMapping> {
-  return resolve(entry, new Set());
-}
-
-async function resolve(entry: FranchiseEntry, resolving: ReadonlySet<number>): Promise<TmdbMapping> {
-  const [stored] = await db
-    .select()
-    .from(tmdbMapping)
-    .where(eq(tmdbMapping.anilistId, entry.id))
-    .limit(1);
-
-  if (stored && stored.resolvedAt.getTime() + mappingLifetimeMs(entry, stored) > Date.now()) {
+export async function resolveMapping(entry: FranchiseEntry): Promise<TmdbMapping> {
+  const stored = await freshMapping(entry);
+  if (stored) {
     return stored;
   }
 
   let pending = inFlight.get(entry.id);
   if (!pending) {
-    pending = match(entry, new Set([...resolving, entry.id])).finally(() => {
+    pending = match(entry, new Set([entry.id])).finally(() => {
       inFlight.delete(entry.id);
     });
     inFlight.set(entry.id, pending);
   }
 
   return pending;
+}
+
+/**
+ * Resolves a predecessor from inside another resolution.
+ *
+ * Unlike {@link resolveMapping}, this never waits on a resolution already in
+ * flight. Two concurrent resolutions whose relations form a cycle (an OVA's
+ * parent listing the OVA as its prequel) would otherwise wait on each other
+ * forever; `resolving` stops the recursion instead.
+ */
+async function resolveNested(entry: FranchiseEntry, resolving: ReadonlySet<number>): Promise<TmdbMapping> {
+  return (await freshMapping(entry)) ?? match(entry, new Set([...resolving, entry.id]));
+}
+
+async function freshMapping(entry: FranchiseEntry) {
+  const [stored] = await db
+    .select()
+    .from(tmdbMapping)
+    .where(eq(tmdbMapping.anilistId, entry.id))
+    .limit(1);
+
+  return stored && stored.resolvedAt.getTime() + mappingLifetimeMs(entry, stored) > Date.now() ? stored : null;
 }
 
 async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Promise<TmdbMapping> {
@@ -159,7 +173,7 @@ async function predecessorMappings(entry: FranchiseEntry, resolving: ReadonlySet
     if (predecessor) {
       predecessors.push({
         relation: edge.relation,
-        mapping: await resolve(predecessor, resolving)
+        mapping: await resolveNested(predecessor, resolving)
       });
     }
   }

@@ -3,7 +3,7 @@ import { fuzzyDate } from "../catalog/models/text";
 import { getAnime } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
 import { getMovie, getShow, tmdbImageUrl, type TmdbShow } from "../tmdb/resources";
-import { loadEntries, relatedIds, type FranchiseEntry } from "./entries";
+import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
 import { mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
 
 /**
@@ -81,6 +81,9 @@ export interface EpisodeMetadata {
  * (Gundam, Lupin) whose relation graphs span hundreds of entries.
  */
 const franchiseEntryLimit = 150;
+
+/** How many sequel or prequel steps the walk takes beyond the series' own entries. */
+const outsiderHops = 2;
 
 /** An AniList entry together with where it maps on TMDB. */
 interface MappedEntry {
@@ -199,37 +202,47 @@ async function mapEntry(anilistId: number): Promise<MappedEntry> {
  * Walks the franchise outward from `origin`, collecting the entries that
  * belong to series `key` and the neighbouring entries that do not.
  *
- * Only members are expanded, so the walk stays inside the series and its
- * immediate surroundings instead of crossing the whole franchise.
+ * Members are expanded through every franchise relation. Other entries are
+ * followed only along sequels and prequels, and at most
+ * {@link outsiderHops} steps from the series, which finds film trilogies and
+ * a season whose only link is a film without crossing the whole franchise.
  */
 async function walkFranchise(origin: MappedEntry, key: SeriesKey) {
   const members: MappedEntry[] = [];
   const outsiders: MappedEntry[] = [];
   const visited = new Set([origin.entry.id]);
-  let layer = [origin];
+  let layer = [
+    {
+      ...origin,
+      hops: 0
+    }
+  ];
 
   while (layer.length > 0) {
-    const nextIds: number[] = [];
+    const next = new Map<number, number>();
     for (const mapped of layer) {
-      if (seriesKey(mapped) !== key) {
-        outsiders.push(mapped);
+      const isMember = seriesKey(mapped) === key;
+      (isMember ? members : outsiders).push(mapped);
+
+      const hops = isMember ? 0 : mapped.hops;
+      if (hops >= outsiderHops) {
         continue;
       }
 
-      members.push(mapped);
-      for (const id of relatedIds(mapped.entry)) {
+      for (const id of isMember ? relatedIds(mapped.entry) : sequenceIds(mapped.entry)) {
         if (!visited.has(id) && visited.size < franchiseEntryLimit) {
           visited.add(id);
-          nextIds.push(id);
+          next.set(id, hops + 1);
         }
       }
     }
 
-    const entries = await loadEntries(nextIds);
+    const entries = await loadEntries(next.keys());
     layer = await Promise.all(
       [...entries.values()].map(async (entry) => ({
         entry,
-        mapping: await resolveMapping(entry)
+        mapping: await resolveMapping(entry),
+        hops: next.get(entry.id) ?? outsiderHops
       }))
     );
   }

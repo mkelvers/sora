@@ -1,6 +1,7 @@
 import { anilist } from "../anilist/client";
 import { FranchiseEntriesDocument, type FranchiseEntryFragment, type MediaRelation } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
+import { UpstreamUnavailableError } from "../errors";
 import { hour } from "../time";
 import type { MatchSubject } from "./matching";
 
@@ -28,6 +29,9 @@ const franchiseRelations = new Set<MediaRelation>([
 
 /** How long a loaded entry is reused, matching the catalog's card freshness. */
 const entryLifetimeMs = hour;
+
+/** How many AniList 429s one batch waits out before failing. */
+const rateLimitRetries = 2;
 
 /** Bounds {@link recentEntries}; the oldest entries are evicted first. */
 const recentEntryLimit = 5_000;
@@ -73,16 +77,7 @@ export async function loadEntries(ids: Iterable<number>): Promise<Map<number, Fr
   // AniList pages are capped at 50 entries.
   for (let offset = 0; offset < missing.length; offset += 50) {
     const batch = missing.slice(offset, offset + 50);
-    const { Page } = await anilist(
-      FranchiseEntriesDocument,
-      {
-        ids: batch,
-        perPage: batch.length
-      },
-      {
-        maxAgeMs: hour
-      }
-    );
+    const { Page } = await fetchEntries(batch);
 
     const loaded = new Map<number, FranchiseEntry>();
     for (const media of Page?.media ?? []) {
@@ -103,6 +98,35 @@ export async function loadEntries(ids: Iterable<number>): Promise<Map<number, Fr
   return entries;
 }
 
+/**
+ * Fetches one batch, waiting out AniList rate limits.
+ *
+ * Walking a franchise needs a burst of requests and AniList often runs at
+ * its degraded limit of 30 per minute. The AniList client pauses its queue
+ * for the requested delay after a 429, so retrying simply waits in line.
+ */
+async function fetchEntries(ids: number[]) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await anilist(
+        FranchiseEntriesDocument,
+        {
+          ids,
+          perPage: ids.length
+        },
+        {
+          maxAgeMs: hour
+        }
+      );
+    } catch (cause) {
+      const isRateLimited = cause instanceof UpstreamUnavailableError && cause.retryAfterMs !== null;
+      if (!isRateLimited || attempt >= rateLimitRetries) {
+        throw cause;
+      }
+    }
+  }
+}
+
 function remember(id: number, entry: FranchiseEntry | null) {
   recentEntries.delete(id);
   recentEntries.set(id, {
@@ -117,10 +141,24 @@ function remember(id: number, entry: FranchiseEntry | null) {
   }
 }
 
+const sequenceRelations = new Set<MediaRelation>([
+  "SEQUEL",
+  "PREQUEL"
+]);
+
 /** IDs of related anime in the same franchise; see {@link franchiseRelations}. */
 export function relatedIds(entry: FranchiseEntry) {
+  return idsRelatedBy(entry, franchiseRelations);
+}
+
+/** IDs of the entry's direct sequels and prequels. */
+export function sequenceIds(entry: FranchiseEntry) {
+  return idsRelatedBy(entry, sequenceRelations);
+}
+
+function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) {
   return (entry.relations?.edges ?? []).flatMap((edge) =>
-    edge?.node?.type === "ANIME" && edge.relationType && franchiseRelations.has(edge.relationType) ? [edge.node.id] : []
+    edge?.node?.type === "ANIME" && edge.relationType && relations.has(edge.relationType) ? [edge.node.id] : []
   );
 }
 
