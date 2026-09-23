@@ -5,8 +5,8 @@
  * Start it after `bun run db:migrate` in `packages/core`; several instances
  * may run at once. It stops cleanly on SIGINT and SIGTERM.
  */
-import { closeDatabase } from "@sora/backend/database";
-import { startScheduler } from "@sora/backend/scheduler";
+import { closeDatabase } from "@sora/core/database";
+import { startScheduler } from "@sora/core/scheduler";
 
 const runner = await startScheduler();
 await runner.promise;

@@ -8,6 +8,6 @@
     "start": "bun --env-file=../core/.env src/main.ts"
   },
   "dependencies": {
-    "@sora/backend": "workspace:*"
+    "@sora/core": "workspace:*"
   }
 }
