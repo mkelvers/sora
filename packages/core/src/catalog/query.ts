@@ -65,20 +65,6 @@ function catalogOrder(filters: BrowseFilters) {
     ];
 }
 
-function audioModes(row: { hasSub: boolean; hasDub: boolean; hasRaw: boolean }) {
-    const modes: AudioMode[] = [];
-    if (row.hasSub) {
-        modes.push('sub');
-    }
-    if (row.hasDub) {
-        modes.push('dub');
-    }
-    if (row.hasRaw) {
-        modes.push('raw');
-    }
-    return modes;
-}
-
 export async function catalogPage(filters: BrowseFilters, page: number, animeIds: number[] | null) {
     if (animeIds?.length === 0) {
         return {
@@ -117,15 +103,27 @@ export async function catalogPage(filters: BrowseFilters, page: number, animeIds
           })
         : rows;
 
-    const anime: AnimeCard[] = orderedRows.slice(0, 42).map((row) => ({
-        id: row.id,
-        title: row.title,
-        image: row.image,
-        audio: audioModes(row),
-        score: row.score ?? 0,
-        genres: row.genres,
-        synopsis: row.synopsis,
-    }));
+    const anime: AnimeCard[] = orderedRows.slice(0, 42).map((row) => {
+        const audio: AudioMode[] = [];
+        if (row.hasSub) {
+            audio.push('sub');
+        }
+        if (row.hasDub) {
+            audio.push('dub');
+        }
+        if (row.hasRaw) {
+            audio.push('raw');
+        }
+        return {
+            id: row.id,
+            title: row.title,
+            image: row.image,
+            audio,
+            score: row.score ?? 0,
+            genres: row.genres,
+            synopsis: row.synopsis,
+        };
+    });
 
     return {
         anime,

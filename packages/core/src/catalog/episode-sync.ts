@@ -432,11 +432,7 @@ async function fetchAndStore(
                 runtimeMinutes: metadataValues.runtimeMinutes,
                 // AniList's confirmed airing timestamp is the release truth;
                 // TMDB's calendar date can represent the source timezone instead.
-                airDate: preferredEpisodeAirDate(
-                    episode.number,
-                    metadataValues.airDate,
-                    confirmedAiringAt
-                ),
+                airDate: preferredEpisodeAirDate(metadataValues.airDate, confirmedAiringAt),
                 overview: metadataValues.overview,
                 overviewSource: metadataValues.overviewSource,
                 firstSeenAt: previous?.firstSeenAt ?? now,

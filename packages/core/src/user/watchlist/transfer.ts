@@ -223,17 +223,15 @@ function csvRows(source: string) {
     return rows;
 }
 
-function normalizedHeader(value: string) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '_')
-        .replaceAll(/^_|_$/g, '');
-}
-
 export function parseCsvWatchlist(source: string): ImportEntry[] {
     const rows = csvRows(source);
-    const headers = rows.shift()?.map(normalizedHeader);
+    const headers = rows.shift()?.map((value) =>
+        value
+            .trim()
+            .toLowerCase()
+            .replaceAll(/[^a-z0-9]+/g, '_')
+            .replaceAll(/^_|_$/g, '')
+    );
     if (!headers?.length || !rows.length) {
         throw new WatchlistImportError(
             'The CSV file must contain a header and at least one entry.'
