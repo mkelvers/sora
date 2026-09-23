@@ -63,7 +63,7 @@ export type Placement =
       tmdbId: number;
       /** The subject's episodes that TMDB lists, in order. Never empty. */
       episodes: EpisodeLink[];
-      method: "air-date" | "continuation";
+      method: "air-date" | "continuation" | "title";
       score: number;
     }
   | {
@@ -123,8 +123,9 @@ const titleOnlyReleaseWindowDays = 120;
  * interleaved by release date, so there episodes of the wrong length are
  * skipped rather than claimed.
  *
- * Specials, OVAs, and movies are only looked for among TMDB's specials; a
- * one-off airing the same week as a regular episode is not that episode.
+ * Specials, OVAs, and movies are looked for among TMDB's specials, or as
+ * the start of a show that TMDB lists for the OVA on its own; a one-off
+ * airing the same week as a regular episode is not that episode.
  *
  * @returns The best-scoring placement, or `null` when nothing reaches
  *   {@link minimumShowScore}.
@@ -133,12 +134,10 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
   const start = dayNumber(subject.startDate);
   const end = dayNumber(subject.endDate);
   const nameSimilarity = bestSimilarity(subject.titles, [candidate.show.name, candidate.show.originalName]);
-  const tracks = isSeriesFormat(subject.format)
-    ? [
-        regularTrack(candidate.show.episodes),
-        specialsTrack(candidate.show.episodes)
-      ]
-    : [specialsTrack(candidate.show.episodes)];
+  const tracks = [
+    regularTrack(candidate.show.episodes),
+    specialsTrack(candidate.show.episodes)
+  ];
 
   let best: Placement | null = null;
   for (const track of tracks) {
@@ -148,6 +147,11 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
     for (const index of startIndexes(track, start, continuation)) {
       if (continuation !== null && index < continuation) {
         // The prequel already occupies these episodes.
+        continue;
+      }
+
+      const isContinuation = index === continuation;
+      if (isRegular && !isSeriesFormat(subject.format) && !isContinuation && !isOwnShowStart(track, index, start, candidate)) {
         continue;
       }
 
@@ -163,7 +167,6 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
       const firstAirDay = dayNumber(first.air_date);
       const lastAirDay = dayNumber(last.air_date);
       const startOffset = start !== null && firstAirDay !== null ? firstAirDay - start : null;
-      const isContinuation = index === continuation;
 
       const evidence = startScore(startOffset, isContinuation) + (isContinuation ? 40 : 0) + endScore(end, lastAirDay);
       const coverage = subject.episodes ? Math.min(picked.length / subject.episodes, 1) : 1;
@@ -190,7 +193,40 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
     }
   }
 
-  return best;
+  return best ?? placeByTitle(subject, candidate, nameSimilarity);
+}
+
+/**
+ * Places a subject that is a whole single show on its own when the air
+ * dates disagree, as they sometimes do by weeks for older titles: the show
+ * must carry the subject's name, premiere the same year, and have exactly
+ * the subject's episodes.
+ */
+function placeByTitle(subject: MatchSubject, candidate: ShowCandidate, nameSimilarity: number): Placement | null {
+  const track = regularTrack(candidate.show.episodes);
+  const firstYear = yearOf(track[0]?.air_date ?? null);
+  const matches =
+    nameSimilarity >= 0.9 &&
+    subject.episodes !== null &&
+    track.length === subject.episodes &&
+    firstYear !== null &&
+    firstYear === yearOf(subject.startDate);
+
+  if (!matches) {
+    return null;
+  }
+
+  return {
+    mediaType: "tv",
+    tmdbId: candidate.show.id,
+    episodes: track.map((episode, offset) => ({
+      anilistEpisode: offset + 1,
+      seasonNumber: episode.season_number,
+      episodeNumber: episode.episode_number
+    })),
+    method: "title",
+    score: minimumShowScore
+  };
 }
 
 /**
@@ -222,8 +258,10 @@ export function placeAsMovie(subject: MatchSubject, movie: TmdbMovieResult): Pla
   }
 
   // Synonyms often name the parent film, so a title-only match uses the
-  // primary titles alone.
-  const primarySimilarity = bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), movieTitles);
+  // primary titles alone, and the titles must number the same instalment.
+  const primarySimilarity = bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), movieTitles, {
+    sameNumbers: true
+  });
   const datesAgree =
     offset !== null
       ? offset <= titleOnlyReleaseWindowDays
@@ -273,16 +311,51 @@ export function titleSimilarity(left: string, right: string) {
   return (2 * shared) / total;
 }
 
-/** The highest similarity between any title in `left` and any in `right`. */
-export function bestSimilarity(left: readonly string[], right: readonly string[]) {
+/**
+ * The highest similarity between any title in `left` and any in `right`.
+ *
+ * @param options.sameNumbers - Only compare pairs that contain the same
+ *   numbers, so "Infinity Castle" never matches "Infinity Castle 2" however
+ *   alike the rest of the title is.
+ */
+export function bestSimilarity(
+  left: readonly string[],
+  right: readonly string[],
+  options: {
+    sameNumbers?: boolean;
+  } = {}
+) {
   let best = 0;
   for (const a of left) {
     for (const b of right) {
-      best = Math.max(best, titleSimilarity(a, b));
+      if (!options.sameNumbers || numbersIn(a) === numbersIn(b)) {
+        best = Math.max(best, titleSimilarity(a, b));
+      }
     }
   }
 
   return best;
+}
+
+/**
+ * Whether a special or OVA may start at `index` of a show's regular seasons,
+ * other than straight after its prequel there.
+ *
+ * A special airing the same week as a regular episode is not that episode,
+ * and an OVA released days before its franchise's TV premiere is not the
+ * premiere. Otherwise an OVA only takes regular episodes when TMDB lists a
+ * show for the OVA itself: outside its franchise's show, starting at the
+ * first episode, on the same day.
+ */
+function isOwnShowStart(track: readonly TmdbEpisode[], index: number, start: number | null, candidate: ShowCandidate) {
+  const firstAirDay = dayNumber(track[index]?.air_date ?? null);
+  return (
+    index === 0 &&
+    !candidate.isFranchiseShow &&
+    start !== null &&
+    firstAirDay !== null &&
+    Math.abs(firstAirDay - start) <= 1
+  );
 }
 
 /** Formats that run as a series of episodes and may be a regular TMDB season. */
@@ -435,7 +508,7 @@ function endScore(end: number | null, lastAirDay: number | null) {
  * files under specials), so AniList's second episode is TMDB's first.
  */
 function skippedLeadingEpisodes(startOffset: number | null) {
-  return startOffset !== null && startOffset >= 5 ? Math.round(startOffset / 7) : 0;
+  return startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays ? 1 : 0;
 }
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */
@@ -465,6 +538,11 @@ function normalizeTitle(title: string) {
     .replace(/[\p{P}\p{S}]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** The title's numbers in order, such as `"2"` for "Infinity Castle Part 2". */
+function numbersIn(title: string) {
+  return (normalizeTitle(title).match(/\d+/g) ?? []).map(Number).join(" ");
 }
 
 function bigrams(value: string) {
