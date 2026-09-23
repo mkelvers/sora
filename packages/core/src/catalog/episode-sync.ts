@@ -220,6 +220,11 @@ export async function retryEpisodeInventoryBackfill(anilistId: number) {
         });
 }
 
+/**
+ * Reconciles one provider inventory with stored episodes. Episode rows, progress ID
+ * changes, notifications, and an optional scheduled confirmation commit together.
+ * TMDB metadata is optional; playable provider episodes remain authoritative.
+ */
 async function fetchAndStore(
     anime: AniListAnime,
     confirmation?: {
@@ -242,6 +247,8 @@ async function fetchAndStore(
             throw cause;
         }
 
+        // A stale AniList release can produce a stale provider match. Retry once
+        // with current release metadata before failing the inventory request.
         providerEpisodes = await anikotoProvider.getEpisodes(
             await refreshAnimeRelease(anime.id, { force: true })
         );
@@ -297,6 +304,7 @@ async function fetchAndStore(
             ),
     ]);
 
+    // Metadata lookup and translation must not make confirmed provider inventory disappear.
     const resolvedMetadataSource = await resolveStored(anime, { refresh: true }).catch((cause) => {
         if (cause instanceof NoConfidentTmdbMappingError) {
             return null;
@@ -373,6 +381,8 @@ async function fetchAndStore(
             ids.push(episode.id);
             sourceIdsByNumber.set(episode.number, ids);
         });
+        // Provider IDs can change. Move progress only when the old episode number
+        // identifies exactly one current ID; ambiguous numbers stay untouched.
         const episodeIdReplacements = new Map<string, string>();
         existing.forEach((episode) => {
             const currentIds = sourceIdsByNumber.get(episode.number);
@@ -463,6 +473,7 @@ async function fetchAndStore(
                 },
             });
 
+        // First inventory sync is historical data, not a burst of new-episode alerts.
         const previousByNumber = new Map(
             [...storedText.values()].map(({ number, audio }) => [number, audio] as const)
         );
@@ -625,6 +636,8 @@ async function fetchAndStore(
         }
     });
 
+    // Persist observed episodes before recording a finished release as unresolved.
+    // The backfill can then retry without discarding the usable episodes.
     if (
         anime.status === 'FINISHED' &&
         expected !== null &&

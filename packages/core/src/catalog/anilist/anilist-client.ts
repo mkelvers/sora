@@ -10,7 +10,7 @@ import { graphql, type GraphQLDocument, type GraphQLOptions } from './graphql/cl
 import { GraphQLRequestError } from './graphql/error';
 import { coordinatedAniListRequest } from './anilist-lease';
 import { requestKitsu } from '../kitsu';
-import { AniListAnimeSchema, AniListAnimeOverviewSchema } from './anilist-types';
+import { AniListAnimeSchema } from './anilist-types';
 
 /** Controls AniList snapshot freshness and the underlying GraphQL request. */
 export interface AniListRequestOptions extends GraphQLOptions {
@@ -60,13 +60,10 @@ async function refresh<TResult, TVariables>(
                 variables,
                 options
             );
-            if (operation === 'Anime' || operation === 'AnimeOverview') {
+            if (operation === 'Anime') {
                 const parsed = z
                     .object({
-                        Media: (operation === 'Anime'
-                            ? AniListAnimeSchema
-                            : AniListAnimeOverviewSchema
-                        ).nullable(),
+                        Media: AniListAnimeSchema.nullable(),
                     })
                     .safeParse(result);
                 const requested = z.object({ id: z.number() }).parse(variables);

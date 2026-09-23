@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
-import { asc, and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { db } from '@soraorg/database';
-import { validAniListIds } from './identity';
 import { animeEpisode, animeEpisodeSync } from '@soraorg/database/schema';
 import { episodeMetadataRefreshRequired } from './episode-policy';
 
@@ -107,44 +106,4 @@ export function episodeRevision(state: {
             })
         )
         .digest('hex');
-}
-
-export async function getRelatedReleaseTitles(anilistIds: number[]) {
-    const ids = validAniListIds(anilistIds);
-    if (!ids.length) {
-        return [];
-    }
-
-    const rows = await db
-        .select({
-            anilistId: animeEpisode.anilistId,
-            number: animeEpisode.number,
-            title: animeEpisode.metadataTitle,
-            titleSource: animeEpisode.metadataTitleSource,
-        })
-        .from(animeEpisode)
-        .where(inArray(animeEpisode.anilistId, ids))
-        .orderBy(asc(animeEpisode.anilistId), asc(animeEpisode.number));
-    const releases = new Map<
-        number,
-        {
-            number: number;
-            title: string;
-        }[]
-    >();
-
-    for (const row of rows) {
-        if (!row.titleSource || !row.title?.trim()) {
-            continue;
-        }
-
-        const release = releases.get(row.anilistId) ?? [];
-        release.push({
-            number: row.number,
-            title: row.title,
-        });
-        releases.set(row.anilistId, release);
-    }
-
-    return [...releases].map(([, episodes]) => episodes);
 }

@@ -17,7 +17,6 @@ import {
     type EpisodeGroupBlock,
 } from './episode-groups';
 import { matchBestEpisodeMetadata, providerReleaseWindow } from './episode-match';
-import { movieEpisodeMetadata } from './movie-episodes';
 import { resolveStored } from './mapping';
 import { releaseSequence } from './title';
 import type { EpisodeCandidate, EpisodeMetadata, StoredEpisodeText, StoredMapping } from './types';
@@ -372,6 +371,7 @@ function seasonScore(
     return score;
 }
 
+/** Matches TMDB movie or TV metadata to provider episode IDs for one stored mapping. */
 export async function getEpisodeMetadata(
     anime: AniListAnime,
     source: ProviderEpisode[],
@@ -448,20 +448,32 @@ export async function getEpisodeMetadata(
             ? movie.overview?.trim() || translated.overview || ''
             : translated.overview || '';
 
+        const movieMetadata: EpisodeMetadata = {
+            title,
+            titleSource: title ? 'tmdb' : null,
+            overview,
+            overviewSource: overview ? 'tmdb' : null,
+            imageUrl: image ? imageUrl(image, 'w500') : null,
+            runtime: movie.runtime || null,
+            airDate: displayAirDate(movie.release_date),
+        };
         return withStoredMachineText(
-            [
-                ...movieEpisodeMetadata(source, {
-                    title,
-                    titleSource: title ? 'tmdb' : null,
-                    overview,
-                    overviewSource: overview ? 'tmdb' : null,
-                    imageUrl: image ? imageUrl(image, 'w500') : null,
-                    runtime: movie.runtime || null,
-                    airDate: displayAirDate(movie.release_date),
-                }),
-            ].map(([id, metadata]) => ({
-                id,
-                metadata,
+            source.map((episode) => ({
+                id: episode.id,
+                // A split broadcast can share artwork, but a whole movie's
+                // title, synopsis, runtime, and date are not episode facts.
+                metadata:
+                    source.length > 1
+                        ? {
+                              ...movieMetadata,
+                              title: '',
+                              titleSource: null,
+                              overview: '',
+                              overviewSource: null,
+                              runtime: null,
+                              airDate: '',
+                          }
+                        : movieMetadata,
             })),
             storedText
         );

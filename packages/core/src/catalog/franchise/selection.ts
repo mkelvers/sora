@@ -1,31 +1,29 @@
-import type { MediaFormat, MediaRelation, MediaStatus } from '../anilist/graphql/graphql.generated';
-
 export type FranchiseSelectionEntry = {
     malId: number;
     title: string;
-    format: MediaFormat | null;
-    status: MediaStatus | null;
+    format: string | null;
+    status: string | null;
     episodes: number | null;
     duration: number | null;
     popularity: number | null;
     secondary: boolean;
     relations: {
-        type: MediaRelation;
+        type: string;
         malId: number;
     }[];
 };
 
-const continuityRelations = new Set<MediaRelation>(['PREQUEL', 'SEQUEL']);
-const nonNarrativeMovieRelations = new Set<MediaRelation>([
+const continuityRelations = new Set<string>(['PREQUEL', 'SEQUEL']);
+const nonNarrativeMovieRelations = new Set<string>([
     'ALTERNATIVE',
     'COMPILATION',
     'CONTAINS',
     'SUMMARY',
     'SPIN_OFF',
 ]);
-const replacementRelations = new Set<MediaRelation>([...nonNarrativeMovieRelations, 'SIDE_STORY']);
+const replacementRelations = new Set<string>([...nonNarrativeMovieRelations, 'SIDE_STORY']);
 
-const formatWeight = new Map<MediaFormat, number>([
+const formatWeight = new Map<string, number>([
     ['TV', 100_000],
     ['MOVIE', 60_000],
     ['ONA', 30_000],
@@ -133,7 +131,7 @@ function hasRelationBetween(
     leftIds: Set<number>,
     rightId: number,
     entries: FranchiseSelectionEntry[],
-    relationTypes?: Set<MediaRelation>
+    relationTypes?: Set<string>
 ) {
     return entries.some((entry) => {
         if (entry.malId === rightId) {

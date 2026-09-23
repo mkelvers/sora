@@ -231,18 +231,6 @@ export async function getStoredBackdropCandidates(anilistIds: number[]) {
     });
 }
 
-export async function getStoredBackdrops(anilistIds: number[]) {
-    const rows = await getStoredBackdropCandidates(anilistIds);
-
-    return new Map(
-        [
-            ...uniqueBackdropCandidates(rows, (row) => `tmdb:${row.mediaType}:${row.filePath}`),
-        ].flatMap(([anilistId, row]) =>
-            row.filePath ? [[anilistId, imageUrl(row.filePath, 'w780')] as const] : []
-        )
-    );
-}
-
 export async function refreshArtwork(anilistId: number) {
     const mapping = await findArtworkMappings(anilistId);
 

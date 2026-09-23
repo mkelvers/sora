@@ -1,4 +1,4 @@
-import { asc, notInArray, sql } from 'drizzle-orm';
+import { notInArray, sql } from 'drizzle-orm';
 
 import { HomeHeroCandidatesDocument } from './graphql/graphql.generated';
 import { db } from '@soraorg/database';
@@ -85,15 +85,4 @@ export async function refreshHomeHeroCandidates(now = new Date()) {
         averageScore,
         trendingRank,
     }));
-}
-
-export async function getHomeHeroCandidates() {
-    return db
-        .select({
-            anilistId: homeHeroCandidate.anilistId,
-            averageScore: homeHeroCandidate.averageScore,
-            trendingRank: homeHeroCandidate.trendingRank,
-        })
-        .from(homeHeroCandidate)
-        .orderBy(asc(homeHeroCandidate.trendingRank));
 }

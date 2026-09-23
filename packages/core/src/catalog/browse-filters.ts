@@ -69,21 +69,7 @@ const BrowseFiltersCodec = z.codec(BrowseSearchSchema, BrowseFiltersSchema, {
     }),
 });
 
-export interface BrowseFilters {
-    query: string;
-    safe: boolean;
-    genre: string | null;
-    tag: string | null;
-    status: string | null;
-    format: string | null;
-    source: string | null;
-    season: string | null;
-    year: number | null;
-    country: string | null;
-    audio: 'sub' | 'dub' | null;
-    sort: 'popularity' | 'score';
-    order: 'asc' | 'desc';
-}
+export type BrowseFilters = z.infer<typeof BrowseFiltersSchema>;
 
 export function parseBrowseFilters(searchParams: URLSearchParams): BrowseFilters | null {
     const result = BrowseFiltersCodec.safeParse(
@@ -93,17 +79,4 @@ export function parseBrowseFilters(searchParams: URLSearchParams): BrowseFilters
     );
 
     return result.success ? result.data : null;
-}
-
-export function browseSearchParams(filters: BrowseFilters) {
-    const encoded = z.encode(BrowseFiltersCodec, {
-        ...filters,
-        query: filters.query.trim().slice(0, 200),
-    });
-
-    return new URLSearchParams(
-        Object.entries(encoded).flatMap(([name, value]) =>
-            value === null ? [] : [[name, String(value)]]
-        )
-    );
 }
