@@ -72,6 +72,11 @@ const animeAttributesSchema = z.object({
     coverImage: z.object({ original: z.url().nullish() }).nullish(),
     nsfw: z.boolean(),
 });
+const externalIdSchema = z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .transform(Number)
+    .pipe(z.number().int().positive().safe());
 
 // JSON:API relationships must be joined by both type and ID, never array position.
 function related(resource: Resource, name: string, resources: Map<string, Resource>) {
@@ -79,31 +84,31 @@ function related(resource: Resource, name: string, resources: Map<string, Resour
     const identifiers = Array.isArray(data) ? data : data ? [data] : [];
     return identifiers.map(({ type, id }) => {
         const included = resources.get(`${type}:${id}`);
-        if (!included) throw new Error(`Kitsu omitted included ${type}:${id}`);
+        if (!included) {
+            throw new Error(`Kitsu omitted included ${type}:${id}`);
+        }
         return included;
     });
 }
 
 function externalId(resource: Resource, site: string, resources: Map<string, Resource>) {
-    const ids = new Set(
-        related(resource, 'mappings', resources)
-            .filter((mapping) => mapping.attributes.externalSite === site)
-            .map((mapping) =>
-                z
-                    .string()
-                    .regex(/^[1-9]\d*$/)
-                    .transform(Number)
-                    .pipe(z.number().int().positive().safe())
-                    .parse(mapping.attributes.externalId)
-            )
-    );
+    const ids = new Set<number>();
+    for (const mapping of related(resource, 'mappings', resources)) {
+        if (mapping.attributes.externalSite === site) {
+            ids.add(externalIdSchema.parse(mapping.attributes.externalId));
+        }
+    }
     // Community mappings can be incomplete or conflicting. Never guess an Arc route ID.
-    if (ids.size !== 1) return null;
+    if (ids.size !== 1) {
+        return null;
+    }
     return [...ids][0] ?? null;
 }
 
 function fuzzyDate(value: string | null | undefined) {
-    if (!value) return null;
+    if (!value) {
+        return null;
+    }
     const [year, month, day] = value.split('-').map(Number);
     return {
         year: year ?? null,
@@ -114,7 +119,9 @@ function fuzzyDate(value: string | null | undefined) {
 
 function normalize(resource: Resource, resources: Map<string, Resource>) {
     const id = externalId(resource, 'anilist/anime', resources);
-    if (resource.type !== 'anime' || id === null) return null;
+    if (resource.type !== 'anime' || id === null) {
+        return null;
+    }
     const attributes = animeAttributesSchema.parse(resource.attributes);
     const startDate = fuzzyDate(attributes.startDate);
     const genres = related(resource, 'genres', resources).map((genre) =>
@@ -125,9 +132,13 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
     );
     const relations = related(resource, 'mediaRelationships', resources).flatMap((relation) => {
         const destination = related(relation, 'destination', resources)[0];
-        if (!destination || destination.type !== 'anime') return [];
+        if (!destination || destination.type !== 'anime') {
+            return [];
+        }
         const destinationId = externalId(destination, 'anilist/anime', resources);
-        if (destinationId === null) return [];
+        if (destinationId === null) {
+            return [];
+        }
         const destinationAttributes = animeAttributesSchema.parse(destination.attributes);
         const role = z
             .enum([
@@ -145,16 +156,25 @@ function normalize(resource: Resource, resources: Map<string, Resource>) {
                 'other',
             ])
             .parse(relation.attributes.role);
+        let relationType = role.toUpperCase();
+        switch (role) {
+            case 'alternative_setting':
+            case 'alternative_version':
+                relationType = 'ALTERNATIVE';
+                break;
+            case 'parent_story':
+                relationType = 'PARENT';
+                break;
+            case 'spinoff':
+                relationType = 'SPIN_OFF';
+                break;
+            case 'full_story':
+                relationType = 'OTHER';
+                break;
+        }
         return [
             {
-                relationType:
-                    new Map([
-                        ['alternative_setting', 'ALTERNATIVE'],
-                        ['alternative_version', 'ALTERNATIVE'],
-                        ['parent_story', 'PARENT'],
-                        ['spinoff', 'SPIN_OFF'],
-                        ['full_story', 'OTHER'],
-                    ]).get(role) ?? role.toUpperCase(),
+                relationType,
                 node: {
                     id: destinationId,
                     idMal: externalId(destination, 'myanimelist/anime', resources),
@@ -294,12 +314,8 @@ const variablesSchema = z.object({
 // Kitsu's rate limit applies to the process's outgoing requests, across catalog operations.
 let blockedUntil = 0;
 
-/** Translate Arc's supported catalog operations using Kitsu's first-party JSON:API. */
-export async function requestKitsu<Variables>(
-    operation: string,
-    variables: Variables,
-    timeoutMs = 12_000
-) {
+/** Validate Kitsu responses and translate supported operations into AniList-shaped data. */
+export async function requestKitsu(operation: string, variables: unknown, timeoutMs = 12_000) {
     // These operations require AniList-only taxonomy, trends or precise airing timestamps.
     if (
         ![
@@ -317,27 +333,36 @@ export async function requestKitsu<Variables>(
         throw new Error(`Kitsu cannot faithfully answer ${operation}`);
     }
     const input = variablesSchema.parse(variables);
-    if (Date.now() < blockedUntil) throw new Error('Kitsu is rate limited');
-    if (['Anime', 'AnimeOverview'].includes(operation) && input.id === undefined)
+    if (Date.now() < blockedUntil) {
+        throw new Error('Kitsu is rate limited');
+    }
+    if (['Anime', 'AnimeOverview'].includes(operation) && input.id === undefined) {
         throw new Error('Kitsu requires an AniList ID');
-    if (['WatchlistAnime', 'DiscoveryAnime'].includes(operation) && !input.ids)
+    }
+    if (['WatchlistAnime', 'DiscoveryAnime'].includes(operation) && !input.ids) {
         throw new Error('Kitsu requires AniList IDs');
-    if (['FranchiseMedia', 'WatchlistTransferAnime'].includes(operation) && !input.malIds)
+    }
+    if (['FranchiseMedia', 'WatchlistTransferAnime'].includes(operation) && !input.malIds) {
         throw new Error('Kitsu requires MAL IDs');
+    }
     if (
         (input.format ? [input.format] : (input.discoveryFormats ?? [])).some(
             (format) => !['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC'].includes(format)
         )
-    )
+    ) {
         throw new Error('Kitsu cannot apply the requested format');
+    }
     if (input.tag || input.source || input.countryOfOrigin) {
         throw new Error('Kitsu cannot apply AniList tag, source or country filters');
     }
     const signal = AbortSignal.timeout(timeoutMs);
+    // JSON:API includes related resources on separate pages; keep them for this request only.
     const resources = new Map<string, Resource>();
     let requests = 0;
     async function page(path: string, parameters: Record<string, string>) {
-        if (++requests > 40) throw new Error('Kitsu fallback exceeded its request budget');
+        if (++requests > 40) {
+            throw new Error('Kitsu fallback exceeded its request budget');
+        }
         const url = new URL(`https://kitsu.app/api/edge/${path}`);
         url.search = new URLSearchParams(parameters).toString();
         const response = await fetch(url, {
@@ -357,17 +382,22 @@ export async function requestKitsu<Variables>(
                       : 60_000;
             blockedUntil = Date.now() + (Number.isFinite(delay) ? Math.max(1_000, delay) : 60_000);
         }
-        if (!response.ok) throw new Error(`Kitsu request failed with ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`Kitsu request failed with ${response.status}`);
+        }
         const result = pageSchema.parse(await response.json());
         for (const resource of [...result.included, ...result.data]) {
-            const stored = resources.get(`${resource.type}:${resource.id}`);
+            const key = `${resource.type}:${resource.id}`;
+            const stored = resources.get(key);
             if (stored) {
+                // A later page may omit relationships supplied by an earlier included resource.
                 for (const [name, relationship] of Object.entries(stored.relationships)) {
-                    if (resource.relationships[name]?.data === undefined)
+                    if (resource.relationships[name]?.data === undefined) {
                         resource.relationships[name] = relationship;
+                    }
                 }
             }
-            resources.set(`${resource.type}:${resource.id}`, resource);
+            resources.set(key, resource);
         }
         return result;
     }
@@ -385,14 +415,34 @@ export async function requestKitsu<Variables>(
             if (
                 result.links?.next ||
                 result.data.some((entry) => entry.type !== 'anime' || !requested.has(entry.id))
-            )
+            ) {
                 throw new Error('Kitsu returned an unexpected anime batch');
+            }
             anime.push(...result.data);
         }
         return anime;
     }
+    async function completeRelations(anime: Resource[]) {
+        const destinations = new Set<string>();
+        for (const entry of anime) {
+            for (const relation of related(entry, 'mediaRelationships', resources)) {
+                for (const destination of related(relation, 'destination', resources)) {
+                    if (
+                        destination.type === 'anime' &&
+                        destination.relationships.mappings?.data === undefined
+                    ) {
+                        destinations.add(destination.id);
+                    }
+                }
+            }
+        }
+        // Relation previews need their own mappings before they can expose AniList IDs.
+        await loadAnime([...destinations], false);
+    }
     async function resolveIds(ids: number[], site: string, allowMissing = false) {
-        if (!ids.length) return [];
+        if (!ids.length) {
+            return [];
+        }
         const mappings: Resource[] = [];
         for (let offset = 0; ; offset += 20) {
             const result = await page('mappings', {
@@ -403,32 +453,40 @@ export async function requestKitsu<Variables>(
                 'page[offset]': String(offset),
             });
             mappings.push(...result.data);
-            if (!result.links?.next) break;
+            if (!result.links?.next) {
+                break;
+            }
         }
-        const resolvedIds = ids.flatMap((id) => {
-            const matches = mappings.filter(
-                (mapping) =>
-                    mapping.type === 'mappings' &&
-                    mapping.attributes.externalSite === site &&
-                    mapping.attributes.externalId === String(id)
-            );
-            const destinations = new Set(
-                matches.flatMap((mapping) => {
-                    const item = mapping.relationships.item?.data;
-                    return item && !Array.isArray(item) && item.type === 'anime' ? [item.id] : [];
-                })
-            );
+        const resolvedIds: {
+            externalId: number;
+            kitsuId: string;
+        }[] = [];
+        for (const id of ids) {
+            const destinations = new Set<string>();
+            for (const mapping of mappings) {
+                if (
+                    mapping.type !== 'mappings' ||
+                    mapping.attributes.externalSite !== site ||
+                    mapping.attributes.externalId !== String(id)
+                ) {
+                    continue;
+                }
+                const item = mapping.relationships.item?.data;
+                if (item && !Array.isArray(item) && item.type === 'anime') {
+                    destinations.add(item.id);
+                }
+            }
             if (destinations.size !== 1) {
-                if (allowMissing) return [];
+                if (allowMissing) {
+                    continue;
+                }
                 throw new Error(`Kitsu has no unambiguous ${site} mapping for ${id}`);
             }
-            return [
-                {
-                    externalId: id,
-                    kitsuId: [...destinations][0]!,
-                },
-            ];
-        });
+            resolvedIds.push({
+                externalId: id,
+                kitsuId: [...destinations][0]!,
+            });
+        }
         const anime = await loadAnime(
             [...new Set(resolvedIds.map(({ kitsuId }) => kitsuId))],
             true
@@ -436,67 +494,20 @@ export async function requestKitsu<Variables>(
         await completeRelations(anime);
         const results = anime.map((entry) => normalize(entry, resources));
         // Check both directions. Never substitute a Kitsu or MAL number for an AniList ID.
-        return resolvedIds.flatMap(({ externalId: id }) => {
+        const verified: NonNullable<ReturnType<typeof normalize>>[] = [];
+        for (const { externalId: id } of resolvedIds) {
             const matches = results.filter(
                 (entry) => entry && (site === 'anilist/anime' ? entry.id : entry.idMal) === id
             );
             if (matches.length !== 1 || !matches[0]) {
-                if (allowMissing) return [];
+                if (allowMissing) {
+                    continue;
+                }
                 throw new Error(`Kitsu returned conflicting metadata for ${site}:${id}`);
             }
-            return [matches[0]];
-        });
-    }
-    async function completeRelations(anime: Resource[]) {
-        const destinations = [
-            ...new Set(
-                anime.flatMap((entry) =>
-                    related(entry, 'mediaRelationships', resources)
-                        .flatMap((relation) => related(relation, 'destination', resources))
-                        .filter(
-                            (entry) =>
-                                entry.type === 'anime' &&
-                                entry.relationships.mappings?.data === undefined
-                        )
-                        .map((entry) => entry.id)
-                )
-            ),
-        ];
-        await loadAnime(destinations, false);
-    }
-    // Resolve relationships in one batch, not one request per related title.
-    if (input.id !== undefined || input.ids !== undefined || input.malIds != null) {
-        const ids = input.id !== undefined ? [input.id] : (input.ids ?? input.malIds ?? []);
-        const site = input.malIds != null ? 'myanimelist/anime' : 'anilist/anime';
-        const media = await resolveIds(ids, site, operation === 'FranchiseMedia');
-        const completed = media.filter((entry) => {
-            if (
-                (['WatchlistAnime', 'DiscoveryAnime'].includes(operation) ||
-                    input.isAdult === false) &&
-                entry.isAdult
-            )
-                return false;
-            if (input.format && entry.format !== input.format) return false;
-            if (
-                input.discoveryFormats &&
-                (!entry.format || !input.discoveryFormats.includes(entry.format))
-            )
-                return false;
-            if (input.status && entry.status !== input.status) return false;
-            if (input.season && entry.season !== input.season) return false;
-            if (input.seasonYear && entry.seasonYear !== input.seasonYear) return false;
-            if (input.genre && !entry.genres?.includes(input.genre)) return false;
-            return (
-                input.minimumPopularity == null || (entry.popularity ?? 0) > input.minimumPopularity
-            );
-        });
-        if (input.id !== undefined) return { Media: completed[0] ?? null };
-        return {
-            [operation === 'WatchlistTransferAnime' ? 'mal' : 'Page']: {
-                media: completed,
-                pageInfo: { hasNextPage: false },
-            },
-        };
+            verified.push(matches[0]);
+        }
+        return verified;
     }
     async function catalog(
         parameters: Record<string, string>,
@@ -520,31 +531,93 @@ export async function requestKitsu<Variables>(
             anime.push(...result.data);
             offset += limit;
             hasNextPage = Boolean(result.links?.next);
-            if (!hasNextPage || !result.data.length) break;
+            if (!hasNextPage || !result.data.length) {
+                break;
+            }
         }
-        if (withRelations) await completeRelations(anime);
-        const media = anime.flatMap((entry) => {
+        if (withRelations) {
+            await completeRelations(anime);
+        }
+        const media: NonNullable<ReturnType<typeof normalize>>[] = [];
+        for (const entry of anime) {
             const value = normalize(entry, resources);
-            return value && (!safe || !value.isAdult) ? [value] : [];
-        });
+            if (value && (!safe || !value.isAdult)) {
+                media.push(value);
+            }
+        }
         const counts = new Map<number, number>();
-        for (const entry of media) counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1);
+        for (const entry of media) {
+            counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1);
+        }
+        // Two Kitsu entries for one AniList ID are ambiguous; drop both from the page.
         return {
             media: media.filter((entry) => counts.get(entry.id) === 1),
             pageInfo: { hasNextPage },
         };
     }
-    if (operation === 'HomeAnime') {
-        const seasonParameters = new Map([
-            ['filter[status]', 'current,upcoming'],
-            ['filter[subtype]', (input.discoveryFormats ?? ['TV', 'ONA']).join(',')],
-            ['filter[userCount]', `${input.minimumPopularity ?? 0}...`],
-            ['sort', '-userCount'],
-        ]);
-        if (input.season) seasonParameters.set('filter[season]', input.season.toLowerCase());
-        if (input.seasonYear) seasonParameters.set('filter[seasonYear]', String(input.seasonYear));
+    // Resolve explicit AniList/MAL IDs before serving page-style catalog queries.
+    if (input.id !== undefined || input.ids !== undefined || input.malIds != null) {
+        const ids = input.id !== undefined ? [input.id] : (input.ids ?? input.malIds ?? []);
+        const site = input.malIds != null ? 'myanimelist/anime' : 'anilist/anime';
+        const media = await resolveIds(ids, site, operation === 'FranchiseMedia');
+        const completed = media.filter((entry) => {
+            if (
+                (['WatchlistAnime', 'DiscoveryAnime'].includes(operation) ||
+                    input.isAdult === false) &&
+                entry.isAdult
+            ) {
+                return false;
+            }
+            if (input.format && entry.format !== input.format) {
+                return false;
+            }
+            if (
+                input.discoveryFormats &&
+                (!entry.format || !input.discoveryFormats.includes(entry.format))
+            ) {
+                return false;
+            }
+            if (input.status && entry.status !== input.status) {
+                return false;
+            }
+            if (input.season && entry.season !== input.season) {
+                return false;
+            }
+            if (input.seasonYear && entry.seasonYear !== input.seasonYear) {
+                return false;
+            }
+            if (input.genre && !entry.genres?.includes(input.genre)) {
+                return false;
+            }
+            return (
+                input.minimumPopularity == null || (entry.popularity ?? 0) > input.minimumPopularity
+            );
+        });
+        if (input.id !== undefined) {
+            return { Media: completed[0] ?? null };
+        }
         return {
-            season: await catalog(Object.fromEntries(seasonParameters), 1, 30, true, false),
+            [operation === 'WatchlistTransferAnime' ? 'mal' : 'Page']: {
+                media: completed,
+                pageInfo: { hasNextPage: false },
+            },
+        };
+    }
+    if (operation === 'HomeAnime') {
+        const seasonParameters: Record<string, string> = {
+            'filter[status]': 'current,upcoming',
+            'filter[subtype]': (input.discoveryFormats ?? ['TV', 'ONA']).join(','),
+            'filter[userCount]': `${input.minimumPopularity ?? 0}...`,
+            sort: '-userCount',
+        };
+        if (input.season) {
+            seasonParameters['filter[season]'] = input.season.toLowerCase();
+        }
+        if (input.seasonYear) {
+            seasonParameters['filter[seasonYear]'] = String(input.seasonYear);
+        }
+        return {
+            season: await catalog(seasonParameters, 1, 30, true, false),
             popular: await catalog(
                 {
                     'filter[subtype]': 'TV',
@@ -558,13 +631,22 @@ export async function requestKitsu<Variables>(
         };
     }
     const parameters: Record<string, string> = {};
-    if (input.search) parameters['filter[text]'] = input.search;
-    if (input.minimumPopularity != null)
+    if (input.search) {
+        parameters['filter[text]'] = input.search;
+    }
+    if (input.minimumPopularity != null) {
         parameters['filter[userCount]'] = `${input.minimumPopularity}...`;
-    if (input.genre) parameters['filter[genres]'] = input.genre;
-    if (input.season) parameters['filter[season]'] = input.season.toLowerCase();
-    if (input.seasonYear) parameters['filter[seasonYear]'] = String(input.seasonYear);
-    if (input.format || input.discoveryFormats)
+    }
+    if (input.genre) {
+        parameters['filter[genres]'] = input.genre;
+    }
+    if (input.season) {
+        parameters['filter[season]'] = input.season.toLowerCase();
+    }
+    if (input.seasonYear) {
+        parameters['filter[seasonYear]'] = String(input.seasonYear);
+    }
+    if (input.format || input.discoveryFormats) {
         parameters['filter[subtype]'] = (
             input.format ? [input.format] : (input.discoveryFormats ?? [])
         )
@@ -578,24 +660,39 @@ export async function requestKitsu<Variables>(
                         : format
             )
             .join(',');
+    }
     if (input.status) {
-        const status = new Map([
-            ['FINISHED', 'finished'],
-            ['RELEASING', 'current'],
-            ['NOT_YET_RELEASED', 'upcoming,tba,unreleased'],
-        ]).get(input.status);
-        if (!status) throw new Error(`Kitsu cannot filter status ${input.status}`);
-        parameters['filter[status]'] = status;
+        switch (input.status) {
+            case 'FINISHED':
+                parameters['filter[status]'] = 'finished';
+                break;
+            case 'RELEASING':
+                parameters['filter[status]'] = 'current';
+                break;
+            case 'NOT_YET_RELEASED':
+                parameters['filter[status]'] = 'upcoming,tba,unreleased';
+                break;
+            default:
+                throw new Error(`Kitsu cannot filter status ${input.status}`);
+        }
     }
     if (input.sort?.length) {
-        const sort = new Map([
-            ['POPULARITY_DESC', '-userCount'],
-            ['POPULARITY', 'userCount'],
-            ['SCORE_DESC', '-averageRating'],
-            ['SCORE', 'averageRating'],
-        ]).get(input.sort[0]!);
-        if (!sort) throw new Error('Kitsu cannot reproduce the requested sort');
-        parameters.sort = sort;
+        switch (input.sort[0]) {
+            case 'POPULARITY_DESC':
+                parameters.sort = '-userCount';
+                break;
+            case 'POPULARITY':
+                parameters.sort = 'userCount';
+                break;
+            case 'SCORE_DESC':
+                parameters.sort = '-averageRating';
+                break;
+            case 'SCORE':
+                parameters.sort = 'averageRating';
+                break;
+            default:
+                throw new Error('Kitsu cannot reproduce the requested sort');
+        }
     }
     return {
         Page: await catalog(
