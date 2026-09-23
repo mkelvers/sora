@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
@@ -267,6 +267,14 @@ async function bestMoviePlacement(subject: MatchSubject, queries: readonly strin
 /** One-episode specials and OVAs are sometimes released as TMDB movies. */
 function isSingleEpisode(subject: MatchSubject) {
   return subject.episodes === 1 && (subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA");
+}
+
+/** Every stored mapping into one TMDB show, including entries outside any walked franchise. */
+export function mappingsForShow(showId: number): Promise<TmdbMapping[]> {
+  return db
+    .select()
+    .from(tmdbMapping)
+    .where(and(eq(tmdbMapping.mediaType, "tv"), eq(tmdbMapping.tmdbId, showId)));
 }
 
 /**

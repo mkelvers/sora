@@ -2,18 +2,24 @@ import { toAnimeCard, type AnimeCard } from "../catalog/models/anime";
 import { fuzzyDate } from "../catalog/models/text";
 import { getAnime } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
-import { getMovie, getShow, tmdbImageUrl, type TmdbShow } from "../tmdb/resources";
+import { getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
-import { mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
+import { mappedEpisodes, mappingsForShow, resolveMapping, type TmdbMapping } from "./mapping";
+import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
 
 /**
- * Identifies a series: a TMDB show (`tv:`), a TMDB film (`movie:`), or an
- * AniList entry that TMDB does not list (`anilist:`).
+ * Identifies a series:
+ *
+ * - `tv:` a TMDB show;
+ * - `shorts:` the short-form extras TMDB files under a show's specials, such
+ *   as chibi shorts, split into a series of their own;
+ * - `movie:` a TMDB film;
+ * - `anilist:` an AniList entry that TMDB does not list.
  */
-export type SeriesKey = `tv:${number}` | `movie:${number}` | `anilist:${number}`;
+export type SeriesKey = `tv:${number}` | `shorts:${number}` | `movie:${number}` | `anilist:${number}`;
 
 /**
- * - `tv`: a TMDB show holding one or more AniList entries.
+ * - `tv`: a show with seasons, or a series of shorts.
  * - `movie`: a film.
  * - `standalone`: an AniList entry TMDB does not list, shown on its own.
  */
@@ -23,7 +29,9 @@ export type SeriesKind = "tv" | "movie" | "standalone";
 export interface SeriesSummary {
   key: SeriesKey;
   kind: SeriesKind;
+  /** The title of the series' first release, such as season 1's. */
   title: string;
+  /** Artwork of the latest released entry, such as the newest season's cover. */
   posterUrl: string | null;
   backdropUrl: string | null;
   /** First air or release date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
@@ -36,45 +44,22 @@ export interface SeriesSummary {
 }
 
 /**
- * One title in the Crunchyroll sense: a whole show with all of its seasons
- * and specials, a film, or a standalone entry.
+ * One title in the streaming-service sense: a whole show with all of its
+ * seasons and OVAs, a film, or a standalone entry.
  */
 export interface Series extends SeriesSummary {
   overview: string | null;
-  /**
-   * The AniList entries that make up the series, as seasons: regular seasons
-   * in broadcast order, then specials. A film or standalone entry has one.
-   */
+  /** Regular seasons in order, then OVA seasons. A film or standalone entry has one. */
   seasons: SeriesSeason[];
-  /** Other titles from the same franchise: films, spin-offs, and entries TMDB lists separately. */
+  /** Other titles from the same franchise: films, spin-offs, shorts, and entries TMDB lists separately. */
   related: SeriesSummary[];
 }
 
-/** One AniList entry within a series. */
-export interface SeriesSeason {
-  /** The entry itself; its ID is what playback, progress, and the watchlist use. */
-  anime: AnimeCard;
-  /**
-   * The TMDB season holding the entry's first episode: `0` for specials,
-   * `null` for films and standalone entries. Several entries can share a
-   * TMDB season, such as the two cours of a split season.
-   */
-  tmdbSeasonNumber: number | null;
-}
-
-/** TMDB's description of one episode, keyed by its AniList episode number. */
-export interface EpisodeMetadata {
-  /** AniList-canonical episode number, as used by playback and progress. */
-  number: number;
-  title: string | null;
-  overview: string | null;
-  /** `YYYY-MM-DD`. */
-  airDate: string | null;
-  runtimeMinutes: number | null;
-  stillUrl: string | null;
-  tmdbSeasonNumber: number;
-  tmdbEpisodeNumber: number;
-}
+/**
+ * Entries shorter than this per episode, filed under a show's specials, are
+ * shorts rather than OVAs: chibi theatres and two-minute web extras.
+ */
+const shortEpisodeMinutes = 10;
 
 /**
  * Stops a franchise walk from wandering through sprawling franchises
@@ -92,14 +77,15 @@ interface MappedEntry {
 }
 
 /**
- * Loads the series an anime belongs to, grouped the way Crunchyroll and TMDB
- * present it.
+ * Loads the series an anime belongs to, laid out the way Crunchyroll and
+ * TMDB present it.
  *
- * AniList lists each season, cour, and special of a franchise as its own
- * entry. TMDB usually holds a whole franchise in one show. Every AniList
- * entry is matched to TMDB, and the entries that land in the same TMDB show
- * become that show's seasons. Films and spin-offs TMDB lists separately
- * become related series.
+ * AniList lists each season, cour, film, and special of a franchise as its
+ * own entry. Every entry is matched to TMDB, and the entries that land in
+ * the same TMDB show become one series: later parts merge into the season
+ * they continue, multi-episode OVAs become OVA seasons, and one-off specials
+ * sit inside the seasons by air date. Films, spin-offs, and shorts become
+ * related series. See `seasons.ts` for the layout rules.
  *
  * The first request for a franchise walks its AniList relations and matches
  * each entry, which can take many upstream requests; matches are stored, so
@@ -111,13 +97,21 @@ interface MappedEntry {
  *
  * @example
  * ```ts
- * // Tensura season 2 part 2 opens the whole show, with every season.
+ * // Tensura season 2 part 2 opens the whole show.
  * const series = await getSeries(116742);
- * series.seasons.map((season) => season.anime.id);
+ * series.seasons.map((season) => `${season.title}: ${season.episodes.length} episodes`);
  * ```
  */
 export async function getSeries(anilistId: number): Promise<Series> {
-  const origin = await mapEntry(anilistId);
+  const entry = (await loadEntries([anilistId])).get(anilistId);
+  if (!entry) {
+    throw new AnimeNotFoundError(anilistId);
+  }
+
+  const origin = {
+    entry,
+    mapping: await resolveMapping(entry)
+  };
   const key = seriesKey(origin);
   const { members, outsiders } = await walkFranchise(origin, key);
 
@@ -130,71 +124,16 @@ export async function getSeries(anilistId: number): Promise<Series> {
     ]);
   }
 
-  const relatedSummaries = await Promise.all([...related.values()].map((group) => summarize(group)));
-  relatedSummaries.sort((left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"));
-
-  const orderedMembers = orderSeasons(members);
+  const seasons = await layoutSeasons(key, members, outsiders);
+  const summary = summarize(key, members, seasons);
   return {
-    ...(await summarize(orderedMembers)),
-    overview: await overviewOf(orderedMembers),
-    seasons: orderedMembers.map(({ entry, mapping }) => ({
-      anime: toAnimeCard(entry),
-      tmdbSeasonNumber: mapping.mediaType === "tv" ? mapping.seasonNumber : null
-    })),
-    related: relatedSummaries
-  };
-}
-
-/**
- * Loads TMDB's episode titles, synopses, and stills for one AniList entry.
- *
- * Only episodes TMDB lists are returned; films and entries TMDB does not
- * list yield an empty list.
- *
- * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
- *   belongs to adult media.
- * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
- */
-export async function getEpisodeMetadata(anilistId: number): Promise<EpisodeMetadata[]> {
-  const { mapping } = await mapEntry(anilistId);
-  if (mapping.mediaType !== "tv" || mapping.tmdbId === null) {
-    return [];
-  }
-
-  const show = await getShow(mapping.tmdbId);
-  if (!show) {
-    return [];
-  }
-
-  const episodes = new Map(show.episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]));
-  return mappedEpisodes(mapping).flatMap((link) => {
-    const episode = episodes.get(`${link.seasonNumber}:${link.episodeNumber}`);
-    return episode
-      ? [
-          {
-            number: link.anilistEpisode,
-            title: episode.name,
-            overview: episode.overview,
-            airDate: episode.air_date,
-            runtimeMinutes: episode.runtime,
-            stillUrl: tmdbImageUrl(episode.still_path, "w300"),
-            tmdbSeasonNumber: link.seasonNumber,
-            tmdbEpisodeNumber: link.episodeNumber
-          }
-        ]
-      : [];
-  });
-}
-
-async function mapEntry(anilistId: number): Promise<MappedEntry> {
-  const entry = (await loadEntries([anilistId])).get(anilistId);
-  if (!entry) {
-    throw new AnimeNotFoundError(anilistId);
-  }
-
-  return {
-    entry,
-    mapping: await resolveMapping(entry)
+    ...summary,
+    backdropUrl: (await tmdbBackdrop(key)) ?? summary.backdropUrl,
+    overview: await overviewOf(key, members),
+    seasons,
+    related: [...related]
+      .map(([relatedKey, group]) => summarize(relatedKey, group, []))
+      .sort((left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"))
   };
 }
 
@@ -255,7 +194,11 @@ async function walkFranchise(origin: MappedEntry, key: SeriesKey) {
 
 function seriesKey({ entry, mapping }: MappedEntry): SeriesKey {
   if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
-    return `tv:${mapping.tmdbId}`;
+    const isShort =
+      entry.duration !== null &&
+      entry.duration < shortEpisodeMinutes &&
+      mappedEpisodes(mapping).every((link) => link.seasonNumber === 0);
+    return isShort ? `shorts:${mapping.tmdbId}` : `tv:${mapping.tmdbId}`;
   }
 
   if (mapping.mediaType === "movie" && mapping.tmdbId !== null) {
@@ -265,97 +208,152 @@ function seriesKey({ entry, mapping }: MappedEntry): SeriesKey {
   return `anilist:${entry.id}`;
 }
 
-/**
- * Orders a series' entries as seasons: regular seasons by their position on
- * TMDB, then specials, then anything else by start date.
- */
-function orderSeasons(members: readonly MappedEntry[]) {
-  const position = ({ mapping }: MappedEntry) => [
-    mapping.seasonNumber === null ? 2 : mapping.seasonNumber === 0 ? 1 : 0,
-    mapping.seasonNumber ?? 0,
-    mapping.episodeNumber ?? 0
-  ] as const;
+async function layoutSeasons(
+  key: SeriesKey,
+  members: readonly MappedEntry[],
+  outsiders: readonly MappedEntry[]
+): Promise<SeriesSeason[]> {
+  const [kind, id] = parseKey(key);
+  if (kind === "tv" || kind === "shorts") {
+    const show = await getShow(id);
+    if (show) {
+      const memberIds = new Set(members.map(({ entry }) => entry.id));
+      const others = (await mappingsForShow(id)).filter((mapping) => !memberIds.has(mapping.anilistId));
+      return layoutShowSeasons({
+        show,
+        members: members.map(toSeasonMember),
+        claimedSpecials: others.flatMap((mapping) => mappedEpisodes(mapping)),
+        outsideEntries: outsiders
+          .filter(({ mapping }) => mapping.mediaType !== "tv" || mapping.tmdbId !== id)
+          .map(({ entry }) => ({
+            startDate: startDateOf(entry),
+            endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
+            episodes: entry.episodes
+          })),
+        isShorts: kind === "shorts"
+      });
+    }
+  }
 
-  return [...members].sort((left, right) => {
-    const [a, b] = [position(left), position(right)];
-    return a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || startDateOf(left.entry).localeCompare(startDateOf(right.entry));
-  });
+  if (kind === "movie") {
+    const movie = await getMovie(id);
+    const anime = byStartDate(members).map(({ entry }) => toAnimeCard(entry));
+    return [
+      {
+        kind: "movie",
+        number: 1,
+        title: anime[0]?.title.display ?? movie?.title ?? "Movie",
+        posterUrl: anime.at(-1)?.coverUrl ?? tmdbImageUrl(movie?.poster_path ?? null, "w780"),
+        anime,
+        episodes: anime.map((card, index) => ({
+          number: index + 1,
+          title: index === 0 ? movie?.title ?? card.title.display : card.title.display,
+          overview: index === 0 ? movie?.overview ?? null : null,
+          airDate: index === 0 ? movie?.release_date ?? null : null,
+          runtimeMinutes: index === 0 ? movie?.runtime ?? card.durationMinutes : card.durationMinutes,
+          stillUrl: index === 0 ? tmdbImageUrl(movie?.backdrop_path ?? null, "w300") : null,
+          playback: {
+            anilistId: card.id,
+            episode: 1
+          },
+          tmdb: null
+        }))
+      }
+    ];
+  }
+
+  return byStartDate(members).map(({ entry }) => layoutStandaloneSeason(toAnimeCard(entry)));
 }
 
-/**
- * Describes a group of entries sharing one series key. TMDB's title and
- * artwork are used when TMDB lists the series, AniList's otherwise.
- */
-async function summarize(group: readonly MappedEntry[]): Promise<SeriesSummary> {
-  const [first] = group;
-  if (!first) {
-    throw new TypeError("A series has at least one entry");
-  }
-
-  const key = seriesKey(first);
-  const card = toAnimeCard(first.entry);
-  const anilist = {
-    key,
-    kind: "standalone" as const,
-    title: card.title.display,
-    posterUrl: card.coverUrl,
-    backdropUrl: card.bannerUrl,
-    startDate: first.entry.startDate ? fuzzyDate(first.entry.startDate) : null,
-    anilistIds: group.map(({ entry }) => entry.id)
-  };
-
-  const { mapping } = first;
-  if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
-    const show = await getShow(mapping.tmdbId);
-    return show ? showSummary(show, anilist) : anilist;
-  }
-
-  if (mapping.mediaType === "movie" && mapping.tmdbId !== null) {
-    const movie = await getMovie(mapping.tmdbId);
-    return movie
-      ? {
-          ...anilist,
-          kind: "movie",
-          title: movie.title,
-          posterUrl: tmdbImageUrl(movie.poster_path, "w780") ?? anilist.posterUrl,
-          backdropUrl: tmdbImageUrl(movie.backdrop_path, "w1280") ?? anilist.backdropUrl,
-          startDate: movie.release_date ?? anilist.startDate
-        }
-      : anilist;
-  }
-
-  return anilist;
-}
-
-function showSummary(show: TmdbShow, anilist: SeriesSummary): SeriesSummary {
+function toSeasonMember({ entry, mapping }: MappedEntry): SeasonMember {
   return {
-    ...anilist,
-    kind: "tv",
-    title: show.name,
-    posterUrl: tmdbImageUrl(show.posterPath, "w780") ?? anilist.posterUrl,
-    backdropUrl: tmdbImageUrl(show.backdropPath, "w1280") ?? anilist.backdropUrl,
-    startDate: show.firstAirDate ?? anilist.startDate
+    anime: toAnimeCard(entry),
+    prequelIds: (entry.relations?.edges ?? []).flatMap((edge) =>
+      edge?.relationType === "PREQUEL" && edge.node?.type === "ANIME" ? [edge.node.id] : []
+    ),
+    links: mappedEpisodes(mapping)
   };
+}
+
+/**
+ * Describes a series: named after its first release (season 1, not the
+ * latest season) and illustrated with the artwork of its latest released
+ * season. Specials and OVAs only provide artwork when the series has no
+ * regular seasons.
+ */
+function summarize(key: SeriesKey, group: readonly MappedEntry[], seasons: readonly SeriesSeason[]): SeriesSummary {
+  const chronological = byStartDate(group);
+  const first = seasons.find((season) => season.kind === "season")?.anime[0] ?? cardOf(chronological[0]);
+  const released = chronological.filter(({ entry }) => entry.status !== "NOT_YET_RELEASED");
+  const releasedSeasons = released.filter(({ entry }) => isSeasonFormat(entry));
+  const latest = cardOf(releasedSeasons.at(-1) ?? released.at(-1) ?? chronological.at(-1));
+  const [kind] = parseKey(key);
+
+  return {
+    key,
+    kind: kind === "movie" ? "movie" : kind === "anilist" ? "standalone" : "tv",
+    title: first.title.display,
+    posterUrl: latest.coverUrl ?? first.coverUrl,
+    backdropUrl: latest.bannerUrl ?? first.bannerUrl,
+    startDate: startDateOf(chronological[0]?.entry),
+    anilistIds: chronological.map(({ entry }) => entry.id)
+  };
+}
+
+async function tmdbBackdrop(key: SeriesKey) {
+  const [kind, id] = parseKey(key);
+  if (kind === "tv") {
+    return tmdbImageUrl((await getShow(id))?.backdropPath ?? null, "w1280");
+  }
+
+  if (kind === "movie") {
+    return tmdbImageUrl((await getMovie(id))?.backdrop_path ?? null, "w1280");
+  }
+
+  return null;
 }
 
 /** TMDB's synopsis for the series, or AniList's for its first entry when TMDB has none. */
-async function overviewOf(members: readonly MappedEntry[]) {
-  const [first] = members;
-  if (!first) {
-    return null;
-  }
-
-  const { mapping } = first;
+async function overviewOf(key: SeriesKey, members: readonly MappedEntry[]) {
+  const [kind, id] = parseKey(key);
   let overview: string | null = null;
-  if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
-    overview = (await getShow(mapping.tmdbId))?.overview ?? null;
-  } else if (mapping.mediaType === "movie" && mapping.tmdbId !== null) {
-    overview = (await getMovie(mapping.tmdbId))?.overview ?? null;
+  if (kind === "tv") {
+    overview = (await getShow(id))?.overview ?? null;
+  } else if (kind === "movie") {
+    overview = (await getMovie(id))?.overview ?? null;
   }
 
-  return overview ?? (await getAnime(first.entry.id)).description;
+  const [first] = byStartDate(members);
+  return overview ?? (first ? (await getAnime(first.entry.id)).description : null);
 }
 
-function startDateOf(entry: FranchiseEntry) {
-  return (entry.startDate ? fuzzyDate(entry.startDate) : null) ?? "9999";
+/** Whether the entry is a season in its own right rather than a special, OVA, or film. */
+function isSeasonFormat(entry: FranchiseEntry) {
+  return entry.format === "TV" || entry.format === "TV_SHORT" || entry.format === "ONA";
+}
+
+function parseKey(key: SeriesKey) {
+  const [kind, id] = key.split(":") as [
+    "tv" | "shorts" | "movie" | "anilist",
+    string
+  ];
+  return [kind, Number(id)] as const;
+}
+
+function byStartDate(group: readonly MappedEntry[]) {
+  return [...group].sort((left, right) =>
+    (startDateOf(left.entry) ?? "9999").localeCompare(startDateOf(right.entry) ?? "9999") || left.entry.id - right.entry.id
+  );
+}
+
+function cardOf(mapped: MappedEntry | undefined): AnimeCard {
+  if (!mapped) {
+    throw new TypeError("A series has at least one entry");
+  }
+
+  return toAnimeCard(mapped.entry);
+}
+
+function startDateOf(entry: FranchiseEntry | undefined) {
+  return entry?.startDate ? fuzzyDate(entry.startDate) : null;
 }
