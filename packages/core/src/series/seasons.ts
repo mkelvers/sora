@@ -45,7 +45,6 @@ export interface SeriesSeason {
   number: number;
   /** TMDB's name for the season when it has a real one ("Mugen Train Arc"), otherwise "Season N" or the entry's title. */
   title: string;
-  posterUrl: string | null;
   /** The AniList entries whose episodes make up the season, in order. */
   anime: AnimeCard[];
   episodes: SeriesEpisode[];
@@ -209,7 +208,6 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
     kind: anime.format === "MOVIE" ? "movie" : "season",
     number,
     title: anime.title.display,
-    posterUrl: anime.coverUrl,
     anime: [anime],
     episodes: Array.from({ length: Math.max(count, 1) }, (_, index) => ({
       number: index + 1,
@@ -487,7 +485,6 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
     kind,
     number,
     title: kind === "season" ? tmdbName ?? `Season ${number}` : anime[0]?.title.display ?? `OVA ${number}`,
-    posterUrl: tmdbImageUrl(tmdbSeason?.posterPath ?? null, "w780") ?? anime[0]?.coverUrl ?? null,
     anime,
     episodes: group.rows.map((row, index) => ({
       number: index + 1,
