@@ -1,28 +1,23 @@
-import { animeTitles } from '../catalog/utils';
-import type { AniListAnime } from '../catalog/anilist/anilist-types';
-import type { ProviderEpisode, ProviderEpisodeReference } from './types';
-
-type NumberedProviderEpisode = Pick<ProviderEpisode, 'number' | 'title'>;
-type HtmlEntityName = 'amp' | 'apos' | 'gt' | 'lt' | 'nbsp' | 'quot';
+import type { ProviderEpisodeReference } from './types';
 
 export function isSpecialEpisodeReference(episode: ProviderEpisodeReference) {
     return episode.number <= 0 || !Number.isInteger(episode.number);
 }
 
 function decodeHtmlEntities(value: string) {
-    const entities = {
+    const entities: Record<string, string> = {
         amp: '&',
         apos: "'",
         gt: '>',
         lt: '<',
         nbsp: ' ',
         quot: '"',
-    } as const;
+    };
 
     return value.replace(/&(?:#(\d+)|#x([\da-f]+)|([a-z]+));/gi, (entity, decimal, hex, name) => {
         if (name) {
             const key = name.toLowerCase();
-            return entities[key as HtmlEntityName] ?? entity;
+            return entities[key] ?? entity;
         }
 
         const codePoint = Number.parseInt(decimal ?? hex, decimal ? 10 : 16);
@@ -134,59 +129,6 @@ export function coversExpectedEpisodes(
     return completeRegularRelease || completeSpecialInclusiveRelease;
 }
 
-type ReleaseInventoryEvidence = 'aligned' | 'conflicting' | 'unknown';
-
-function meaningfulEpisodeTitle(title: string | undefined) {
-    const key = title ? episodeTitleKey(title) : '';
-    return key && !/^\d+$/.test(key) ? key : null;
-}
-
-export function releaseInventoryEvidence<T extends NumberedProviderEpisode>(
-    episodes: T[],
-    release: ProviderEpisodeReference['release'],
-    relatedReleases: ProviderEpisodeReference['relatedReleases'] = []
-): ReleaseInventoryEvidence {
-    const references = (release ?? []).filter(({ title }) => meaningfulEpisodeTitle(title));
-    if (!references.length) {
-        return 'unknown';
-    }
-
-    const candidates = episodes.filter(({ title }) => meaningfulEpisodeTitle(title));
-    const requiredMatches = references.length === 1 ? 1 : 2;
-    const aligned = references.filter((reference) => {
-        const candidate = candidates.find(({ number }) => number === reference.number);
-        return candidate && episodeTitleScore(reference.title ?? '', candidate.title) >= 60;
-    }).length;
-    const releaseMatches = references.filter((reference) =>
-        candidates.some(
-            (candidate) => episodeTitleScore(reference.title ?? '', candidate.title) >= 60
-        )
-    ).length;
-    const relatedEvidence = relatedReleases.map((related) => {
-        const titles = related.filter(({ title }) => meaningfulEpisodeTitle(title));
-        const required = titles.length === 1 ? 1 : 2;
-        const matches = titles.filter((reference) =>
-            candidates.some(
-                (candidate) => episodeTitleScore(reference.title ?? '', candidate.title) >= 60
-            )
-        ).length;
-
-        return {
-            matches,
-            required,
-        };
-    });
-    const matchesRelatedRelease = relatedEvidence.some(
-        ({ matches, required }) => matches >= required && matches >= releaseMatches + required
-    );
-
-    if (matchesRelatedRelease) {
-        return 'conflicting';
-    }
-
-    return aligned >= requiredMatches || releaseMatches >= requiredMatches ? 'aligned' : 'unknown';
-}
-
 const releaseTitleStopWords = new Set([
     'a',
     'an',
@@ -271,170 +213,4 @@ export function relatedCollectionTitle(left: string, right: string) {
             leftSequence.season === rightSequence.season) &&
         (!leftSequence.part || !rightSequence.part || leftSequence.part === rightSequence.part)
     );
-}
-
-function belongsToAnime(anime: AniListAnime, titles: string[]) {
-    return animeTitles(anime).some((animeTitle) =>
-        titles.some((title) => relatedCollectionTitle(animeTitle, title))
-    );
-}
-
-export function standaloneSpecialMatches(
-    anime: AniListAnime,
-    episode: ProviderEpisodeReference,
-    candidateTitles: string[]
-) {
-    if (
-        !isSpecialEpisodeReference(episode) ||
-        !episode.title?.trim() ||
-        releaseTitleWords(episode.title).size === 0
-    ) {
-        return false;
-    }
-
-    const titles = candidateTitles.filter(Boolean);
-    return (
-        titles.some((title) => episodeTitleScore(episode.title ?? '', title) >= 60) &&
-        belongsToAnime(anime, titles)
-    );
-}
-
-export function specialCollectionMatches(
-    anime: AniListAnime,
-    episode: ProviderEpisodeReference,
-    candidateTitles: string[],
-    providerEpisodeCount?: number
-) {
-    if (
-        !isSpecialEpisodeReference(episode) ||
-        !Number.isSafeInteger(episode.specialIndex) ||
-        !Number.isSafeInteger(episode.specialCount) ||
-        !episode.specialIndex ||
-        !episode.specialCount ||
-        episode.specialIndex < 1 ||
-        episode.specialIndex > episode.specialCount ||
-        (providerEpisodeCount !== undefined && providerEpisodeCount !== episode.specialCount)
-    ) {
-        return false;
-    }
-
-    const titles = candidateTitles.filter(Boolean);
-    return (
-        titles.some((title) =>
-            /\b(?:digressions?|extras?|oads?|onas?|ovas?|recaps?|specials?)\b/.test(
-                normalizedProviderTitle(title)
-            )
-        ) && belongsToAnime(anime, titles)
-    );
-}
-
-export function specialReleaseQueries(anime: AniListAnime, episode: ProviderEpisodeReference) {
-    if (
-        !isSpecialEpisodeReference(episode) ||
-        !episode.title?.trim() ||
-        releaseTitleWords(episode.title).size === 0
-    ) {
-        return [];
-    }
-
-    const searchTitle = (title: string) =>
-        title
-            .replace(/[^\p{L}\p{N}]+/gu, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-    const episodeTitle = searchTitle(episode.title);
-
-    return [
-        ...new Set([
-            ...animeTitles(anime)
-                .slice(0, 3)
-                .map((title) => `${searchTitle(title)} ${episodeTitle}`),
-            ...animeTitles(anime)
-                .slice(0, 3)
-                .map((title) => `${searchTitle(title)} specials`),
-            episodeTitle,
-        ]),
-    ];
-}
-
-export function matchProviderEpisode<T extends NumberedProviderEpisode>(
-    episodes: T[],
-    reference: ProviderEpisodeReference
-) {
-    if (reference.title) {
-        const ranked = episodes
-            .map((episode) => ({
-                episode,
-                score: episodeTitleScore(reference.title ?? '', episode.title),
-            }))
-            .sort((left, right) => right.score - left.score);
-        const [best, alternate] = ranked;
-        const specialReference = isSpecialEpisodeReference(reference);
-
-        if (
-            best?.score >= 60 &&
-            (!alternate || best.score > alternate.score) &&
-            (!specialReference || best.score === 100 || best.episode.number === reference.number)
-        ) {
-            return best.episode;
-        }
-    }
-
-    const numbered = episodes.find((episode) => episode.number === reference.number);
-    if (
-        reference.title &&
-        numbered?.title &&
-        episodeTitleKey(reference.title) &&
-        episodeTitleKey(numbered.title) &&
-        episodeTitleScore(reference.title, numbered.title) < 15
-    ) {
-        return undefined;
-    }
-
-    return numbered;
-}
-
-export function matchProviderStreamEpisode<T extends NumberedProviderEpisode>(
-    episodes: T[],
-    reference: ProviderEpisodeReference,
-    expectedEpisodes: number | null | undefined
-) {
-    const evidence = releaseInventoryEvidence(
-        episodes,
-        reference.release,
-        reference.relatedReleases
-    );
-    if (evidence === 'conflicting') {
-        return undefined;
-    }
-    if (evidence === 'aligned') {
-        const match = matchProviderEpisode(episodes, reference);
-        if (match) {
-            return match;
-        }
-    }
-
-    if (
-        Number.isInteger(reference.number) &&
-        reference.number > 0 &&
-        (episodes.length > 1 || reference.number > 1)
-    ) {
-        const numbered = episodes.find((episode) => episode.number === reference.number);
-        if (numbered) {
-            return numbered;
-        }
-    }
-
-    const match = matchProviderEpisode(episodes, reference);
-    if (match) {
-        return match;
-    }
-
-    const [only] = episodes;
-    return expectedEpisodes === 1 &&
-        reference.number === 1 &&
-        episodes.length === 1 &&
-        only.number === 1
-        ? only
-        : undefined;
 }

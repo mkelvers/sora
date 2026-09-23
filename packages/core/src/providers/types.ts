@@ -1,6 +1,6 @@
 import type { AudioMode } from '../audio';
 import type { AniListAnime } from '../catalog/anilist/anilist-types';
-import type { EpisodeSkipTimes } from '../player/skip-times';
+import type { EpisodeSkipTimes } from '../playback/skip-times-model';
 
 export interface ProviderEpisode {
     id: string;
@@ -10,17 +10,10 @@ export interface ProviderEpisode {
     supplemental?: boolean;
 }
 
-export interface ProviderEpisodeTitleReference {
+export interface ProviderEpisodeReference {
+    id: string;
     number: number;
     title?: string;
-}
-
-export interface ProviderEpisodeReference extends ProviderEpisodeTitleReference {
-    id: string;
-    release?: ProviderEpisodeTitleReference[];
-    relatedReleases?: ProviderEpisodeTitleReference[][];
-    specialIndex?: number;
-    specialCount?: number;
 }
 
 export interface ProviderStream {

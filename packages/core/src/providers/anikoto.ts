@@ -33,7 +33,6 @@ import { supportedMediaUrl, supportedSubtitleUrl, validHttpsUrl } from './anikot
 
 const providerName = 'anikoto';
 const aniKotoEmbedHostnames = ['megaplay.buzz', 'vidtube.site'] as const;
-type AniKotoEmbedHostname = 'megaplay.buzz' | 'vidtube.site';
 // Coalesce series lookups and retain results briefly; each entry removes itself on expiry.
 const seriesRequests = new Map<
     number,
@@ -416,9 +415,9 @@ function parseEpisodeList(value: JsonValue) {
 
 function parseServerList(value: JsonValue) {
     const parsed = ajaxResponseSchema.safeParse(value);
-    const servers = {
-        sub: [] as AniKotoServerCandidate[],
-        dub: [] as AniKotoServerCandidate[],
+    const servers: Record<Exclude<AudioMode, 'raw'>, AniKotoServerCandidate[]> = {
+        sub: [],
+        dub: [],
     };
     const seenByMode = {
         sub: new Set<string>(),
@@ -871,6 +870,7 @@ export async function getAniKotoSimulcastPage(selection: AnimeSeasonSelection, p
     };
 }
 
+/** Checks a stored AniKoto ID before searching titles; only verified matches are saved. */
 async function findSeries(anime: AniListAnime) {
     const titles = animeTitles(anime).map(normalizedProviderTitle);
     const stored = await providerMediaId(anime.id);
@@ -987,7 +987,7 @@ async function findSeries(anime: AniListAnime) {
 
 function validEmbed(value: string | undefined, mode: AniKotoServerMode) {
     const url = validHttpsUrl(value);
-    if (!url || !aniKotoEmbedHostnames.includes(url.hostname as AniKotoEmbedHostname)) {
+    if (!url || !aniKotoEmbedHostnames.some((hostname) => hostname === url.hostname)) {
         return null;
     }
 
