@@ -16,15 +16,24 @@ const unmatchedMappingLifetimeMs = day;
  * Resolves the provider's raw media ID for an anime, using the stored mapping
  * when it is still valid. Returns `null` when the provider has no confident
  * match.
+ *
+ * @param options.retryUnmatched - Search again even if a failed match is
+ *   younger than a day, for anime that may have just premiered.
  */
-export async function getProviderMediaId(anime: Anime, provider: BaseProvider) {
+export async function getProviderMediaId(
+  anime: Anime,
+  provider: BaseProvider,
+  options: {
+    retryUnmatched: boolean;
+  }
+) {
   const [stored] = await db
     .select()
     .from(providerMapping)
     .where(and(eq(providerMapping.anilistId, anime.id), eq(providerMapping.provider, provider.id)))
     .limit(1);
 
-  if (stored) {
+  if (stored && (stored.providerMediaId || !options.retryUnmatched)) {
     const lifetime = stored.providerMediaId ? matchedMappingLifetimeMs : unmatchedMappingLifetimeMs;
     if (stored.resolvedAt.getTime() + lifetime > Date.now()) {
       return stored.providerMediaId;

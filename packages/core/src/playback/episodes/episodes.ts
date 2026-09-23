@@ -7,7 +7,6 @@ import { plainText } from "../../catalog/models/text";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes } from "../../database/schema";
-import { day, hour } from "../../time";
 import { streamProviders } from "../providers/registry";
 import { getProviderMediaId } from "./mapping";
 
@@ -80,25 +79,52 @@ export async function listEpisodes(anilistId: number): Promise<EpisodeList> {
 }
 
 /**
- * Returns `provider`'s episode units for `anime`, from cache when fresh.
+ * Returns `provider`'s episode units for `anime`.
  *
+ * A stored list is served as is: the airing scheduler refreshes the lists of
+ * anime that are still airing, and a finished anime's list does not change.
  * An anime the provider does not carry yields an empty list.
  *
  * @throws when the provider itself fails; callers decide whether to fall back.
  */
 export async function getProviderUnits(anime: Anime, provider: BaseProvider): Promise<ProviderUnit[]> {
-  const [cached] = await db
-    .select()
+  const [stored] = await db
+    .select({
+      units: providerEpisodes.units
+    })
     .from(providerEpisodes)
     .where(and(eq(providerEpisodes.anilistId, anime.id), eq(providerEpisodes.provider, provider.id)))
     .limit(1);
 
-  const stored = cached ? ProviderUnitsSchema.safeParse(cached.units) : null;
-  if (cached && stored?.success && cached.fetchedAt.getTime() + episodeListLifetimeMs(anime) > Date.now()) {
-    return stored.data;
+  const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+  if (units?.success) {
+    return units.data;
   }
 
-  const mediaId = await getProviderMediaId(anime, provider);
+  return refreshProviderUnits(anime, provider, {
+    retryUnmatched: false
+  });
+}
+
+/**
+ * Fetches `provider`'s episode units for `anime` and stores them, replacing
+ * any stored list.
+ *
+ * Nothing is stored when the provider does not carry the anime, so a later
+ * request asks again once the provider mapping is retried.
+ *
+ * @param options.retryUnmatched - Search the provider's catalogue again even
+ *   if it recently had no match, for anime that may have just premiered.
+ * @throws when the provider itself fails.
+ */
+export async function refreshProviderUnits(
+  anime: Anime,
+  provider: BaseProvider,
+  options: {
+    retryUnmatched: boolean;
+  }
+): Promise<ProviderUnit[]> {
+  const mediaId = await getProviderMediaId(anime, provider, options);
   if (!mediaId) {
     return [];
   }
@@ -132,19 +158,4 @@ export async function getProviderUnits(anime: Anime, provider: BaseProvider): Pr
     });
 
   return units;
-}
-
-/**
- * Airing shows gain episodes weekly and are checked often; finished shows
- * rarely change.
- */
-function episodeListLifetimeMs(anime: Anime) {
-  switch (anime.status) {
-    case "RELEASING":
-      return hour / 2;
-    case "NOT_YET_RELEASED":
-      return 6 * hour;
-    default:
-      return day;
-  }
 }
