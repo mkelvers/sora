@@ -6,7 +6,10 @@ import {
     WatchPlaybackSchema,
     type PlaybackStream,
 } from '@soraorg/core/contracts/anime';
-import { EpisodeSkipTimesSchema, type EpisodeSkipTimes } from '@soraorg/core/player/skip-times';
+import {
+    EpisodeSkipTimesSchema,
+    type EpisodeSkipTimes,
+} from '@soraorg/core/playback/skip-times-model';
 
 const playbackInputSchema = z.strictObject({
     error: z.boolean(),

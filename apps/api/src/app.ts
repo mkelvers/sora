@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 
 import { GraphQLRequestError } from '@soraorg/core/catalog/anilist/graphql/error';
 import { TargetEpisodeUnavailableError } from '@soraorg/core/catalog/episode-sync';
-import { isAniKotoTransientError } from '@soraorg/core/providers/anikoto';
+import { isAniKotoTransientError } from '@soraorg/core/providers/anikoto-transport';
 import { auth } from './auth';
 import { origin } from './http';
 import { accounts } from './routes/accounts';

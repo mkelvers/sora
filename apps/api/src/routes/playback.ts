@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { PlaybackProgressSchema, SegmentRequestSchema } from '@soraorg/core/contracts/anime';
 import { validSkipInterval } from '@soraorg/core/playback/aniskip';
 import { saveEpisodeSegment } from '@soraorg/core/playback/skip-times';
-import { parsePlaybackProgress } from '@soraorg/core/user/progress/input';
+import { normalizePlaybackProgress } from '@soraorg/core/user/progress/input';
 import { savePlaybackProgress } from '@soraorg/core/user/progress/store';
 import { middleware, streamMiddleware, validate, type ApiEnvironment } from '../http';
 import { proxyStreamRequest, StreamProxyError } from '../stream';
@@ -44,7 +44,7 @@ playback.post(
     middleware,
     validate('json', PlaybackProgressSchema),
     async (context) => {
-        const input = parsePlaybackProgress(context.req.valid('json'));
+        const input = normalizePlaybackProgress(context.req.valid('json'));
         if (!input) {
             return context.json(
                 {

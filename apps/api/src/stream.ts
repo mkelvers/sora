@@ -7,7 +7,7 @@ import {
     isAniKotoDisguisedSegmentHost,
     normalizeAniKotoMediaUrl,
     unwrapAniKotoDisguisedSegment,
-} from '@soraorg/core/providers/anikoto';
+} from '@soraorg/core/providers/anikoto-media';
 
 type StreamFetch = (target: URL, init: RequestInit) => Promise<Response>;
 type StreamBody = 'playlist' | 'segment' | 'subtitle';

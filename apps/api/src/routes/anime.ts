@@ -12,7 +12,7 @@ import {
     watchPage,
     watchPlayback,
     watchSegments,
-} from '@soraorg/core/application/anime';
+} from '@soraorg/core/anime-page';
 import { getEpisodeRevision } from '@soraorg/core/catalog/episodes';
 import { AnimeArtworkSchema, AnimeIdSchema } from '@soraorg/core/contracts/anime';
 import { middleware, optionalMiddleware, validate, type ApiEnvironment } from '../http';
