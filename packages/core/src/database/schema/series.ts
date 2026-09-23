@@ -1,6 +1,6 @@
-import { doublePrecision, index, integer, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { doublePrecision, index, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
-import { timestamptz } from "./columns";
+import { jsonb, timestamptz } from "./columns";
 
 export const tmdbMediaType = pgEnum("tmdb_media_type", [
   "tv",

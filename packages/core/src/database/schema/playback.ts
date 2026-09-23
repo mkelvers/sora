@@ -1,6 +1,6 @@
-import { integer, jsonb, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
-import { timestamptz } from "./columns";
+import { jsonb, timestamptz } from "./columns";
 
 /**
  * The result of matching an AniList anime to a stream provider's catalogue.
