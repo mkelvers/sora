@@ -6,16 +6,16 @@ import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
-import { hour } from "../../time";
-import { toAnime, toAnimeCard, type Anime, type AnimeCard, type AnimeStatus } from "../models/anime";
+import { day, hour } from "../../time";
+import { toAnime, toAnimeCard, type Anime, type AnimeCard } from "../models/anime";
 
 /**
  * Loads the full details of one anime.
  *
  * The first request fetches the anime from AniList and stores it for good;
- * every later request is served from the database. An anime that has not
- * finished airing is handed to the airing scheduler, which keeps the stored
- * copy current until its final episode is out.
+ * every later request is served from the database. An anime that is still
+ * airing, or finished recently, is handed to the airing scheduler, which keeps
+ * the stored copy current until its final episode is out.
  *
  * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList, or
  *   belongs to adult media, which the catalog never serves.
@@ -41,7 +41,7 @@ export async function getAnime(anilistId: number): Promise<Anime> {
     .values(storedAnimeValues(media))
     .onConflictDoNothing();
 
-  if (isStillAiring(media.status)) {
+  if (mayGainEpisodes(media, new Date())) {
     await startTrackingAiring(anilistId);
   }
 
@@ -75,11 +75,33 @@ export async function refreshAnime(anilistId: number): Promise<Anime> {
 }
 
 /**
- * Whether AniList may still add episodes to an anime with this status, so the
- * airing scheduler needs to follow it.
+ * Finales often reach providers a day or more after they air, while AniList
+ * marks the anime finished right away. An anime that finished within this
+ * window is still tracked until its last episode is released.
  */
-export function isStillAiring(status: AnimeStatus | null) {
-  return status === "RELEASING" || status === "NOT_YET_RELEASED" || status === "HIATUS";
+const recentlyFinishedMs = 14 * day;
+
+/**
+ * Whether the airing scheduler needs to follow an anime: it is still airing,
+ * or finished so recently that providers may not carry every episode yet.
+ */
+export function mayGainEpisodes(media: Pick<AnimeDetailsFragment, "status" | "endDate">, now: Date) {
+  switch (media.status) {
+    case "RELEASING":
+    case "NOT_YET_RELEASED":
+    case "HIATUS":
+      return true;
+    case "FINISHED": {
+      const end = media.endDate;
+      if (!end?.year || !end.month || !end.day) {
+        return false;
+      }
+
+      return now.getTime() - Date.UTC(end.year, end.month - 1, end.day) < recentlyFinishedMs;
+    }
+    default:
+      return false;
+  }
 }
 
 /**
