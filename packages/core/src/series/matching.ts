@@ -156,6 +156,10 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
       }
 
       const picked = pick(track, index, subject, end, isRegular);
+      if (isRegular) {
+        picked.push(...overflowSpecials(candidate.show.episodes, picked, subject, end));
+      }
+
       const first = picked[0];
       const last = picked.at(-1);
       const isWrongLength =
@@ -177,15 +181,27 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
         20 * nameSimilarity;
 
       if (score >= minimumShowScore && (!best || score > best.score)) {
+        const leading = skippedLeadingEpisodes(startOffset) > 0 ? leadingSpecial(candidate.show.episodes, start) : null;
         const firstAnilistEpisode = skippedLeadingEpisodes(startOffset) + 1;
         best = {
           mediaType: "tv",
           tmdbId: candidate.show.id,
-          episodes: picked.map((episode, offset) => ({
-            anilistEpisode: firstAnilistEpisode + offset,
-            seasonNumber: episode.season_number,
-            episodeNumber: episode.episode_number
-          })),
+          episodes: [
+            ...(isRegular && leading
+              ? [
+                  {
+                    anilistEpisode: 1,
+                    seasonNumber: leading.season_number,
+                    episodeNumber: leading.episode_number
+                  }
+                ]
+              : []),
+            ...picked.map((episode, offset) => ({
+              anilistEpisode: firstAnilistEpisode + offset,
+              seasonNumber: episode.season_number,
+              episodeNumber: episode.episode_number
+            }))
+          ],
           method: startOffset !== null && Math.abs(startOffset) <= startWindowDays ? "air-date" : "continuation",
           score
         };
@@ -509,6 +525,45 @@ function endScore(end: number | null, lastAirDay: number | null) {
  */
 function skippedLeadingEpisodes(startOffset: number | null) {
   return startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays ? 1 : 0;
+}
+
+/**
+ * AniList episodes beyond the end of a regular run that TMDB lists as
+ * specials, such as Bakemonogatari's last three episodes, which were
+ * released online months after the broadcast. They are the specials of the
+ * right length airing after the run and before the entry ends.
+ */
+function overflowSpecials(episodes: readonly TmdbEpisode[], picked: readonly TmdbEpisode[], subject: MatchSubject, end: number | null) {
+  const missing = subject.episodes !== null ? subject.episodes - picked.length : 0;
+  const lastAirDay = dayNumber(picked.at(-1)?.air_date ?? null);
+  if (missing <= 0 || end === null || lastAirDay === null) {
+    return [];
+  }
+
+  return specialsTrack(episodes)
+    .filter((episode) => {
+      const airDay = dayNumber(episode.air_date);
+      return (
+        airDay !== null &&
+        airDay > lastAirDay &&
+        airDay <= end + endGraceDays &&
+        runtimesAgree(episode.runtime, subject.durationMinutes, specialsRuntimeTolerance)
+      );
+    })
+    .slice(0, missing);
+}
+
+/**
+ * The special that is AniList's leading "episode 0": aired on the entry's
+ * start date, a week before TMDB's first regular episode of it.
+ */
+function leadingSpecial(episodes: readonly TmdbEpisode[], start: number | null) {
+  return (
+    specialsTrack(episodes).find((episode) => {
+      const airDay = dayNumber(episode.air_date);
+      return start !== null && airDay !== null && Math.abs(airDay - start) <= 1;
+    }) ?? null
+  );
 }
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */

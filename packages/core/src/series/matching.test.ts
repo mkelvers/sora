@@ -228,8 +228,38 @@ describe("placeInShow", () => {
       show(episodes)
     );
 
-    expect(range(placement)?.[0]).toBe("2:S2E1");
+    expect(range(placement)?.slice(0, 2)).toEqual([
+      "1:S0E1",
+      "2:S2E1"
+    ]);
     expect(range(placement)?.at(-1)).toBe("13:S2E12");
+  });
+
+  test("continues into specials released after the broadcast run", () => {
+    // Bakemonogatari: 12 broadcast episodes, the last 3 released online later.
+    const episodes = [
+      special(1, "2009-08-07", 24),
+      special(2, "2009-11-03", 24),
+      special(3, "2010-02-23", 24),
+      special(4, "2010-06-25", 24),
+      ...weekly(1, "2009-07-03", 12)
+    ];
+
+    const placement = placeInShow(
+      subject({
+        startDate: "2009-07-03",
+        endDate: "2010-06-25",
+        episodes: 15
+      }),
+      show(episodes)
+    );
+
+    expect(range(placement)?.slice(11)).toEqual([
+      "12:S1E12",
+      "13:S0E2",
+      "14:S0E3",
+      "15:S0E4"
+    ]);
   });
 
   test("skips interleaved extras of a different length among specials", () => {
