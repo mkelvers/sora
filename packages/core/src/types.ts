@@ -18,19 +18,7 @@ export const AnimeCardSchema = z.object({
 });
 
 /** Anime card shape accepted from a catalog source after runtime validation. */
-export interface AnimeCard {
-    id: number;
-    title: string;
-    image: string;
-    audio: AudioMode[];
-    format?: string | null;
-    status?: string | null;
-    score: number;
-    genres: string[];
-    synopsis: string;
-    releasedAt?: string;
-    episode?: number;
-}
+export type AnimeCard = z.infer<typeof AnimeCardSchema>;
 
 /** A paginated simulcast result, including whether another page can be fetched. */
 export const AnimeCardPageSchema = z.object({
@@ -38,13 +26,6 @@ export const AnimeCardPageSchema = z.object({
     hasNextPage: z.boolean(),
     page: z.number().int(),
 });
-
-/** Validated page of catalog cards; `page` is the source's current page number. */
-export interface AnimeCardPage {
-    anime: AnimeCard[];
-    hasNextPage: boolean;
-    page: number;
-}
 
 /** Provider episode data normalized for playback and progress tracking. */
 export type AnimeEpisode = {
@@ -65,11 +46,6 @@ export type AnimeEpisode = {
         completedAt: string | null;
     } | null;
 };
-
-/** Runtime shape for a cached episode-source revision, which may be unknown. */
-export const EpisodeRevisionSchema = z.object({
-    revision: z.string().nullable(),
-});
 
 /** Episode artwork and resume state used to build a continue-watching card. */
 export type ContinueWatchingCard = {

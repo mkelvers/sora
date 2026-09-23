@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { EpisodeSkipTimesSchema } from '../player/skip-times';
+import { EpisodeSkipTimesSchema } from '../playback/skip-times-model';
 
 /** Accepts numeric path parameters while rejecting non-positive or fractional IDs. */
 export const AnimeIdSchema = z.coerce.number().int().positive();
