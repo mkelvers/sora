@@ -1,15 +1,14 @@
-import type { AudioMode } from '../audio';
-import type { AniListAnime } from '../catalog/anilist/anilist-types';
-import { toAnimeDetails } from '../catalog/details';
+import type { AudioMode } from './audio';
+import type { AniListAnime } from './catalog/anilist/anilist-types';
+import { toAnimeDetails } from './catalog/details';
 import {
     getEpisodeRevision,
-    getRelatedReleaseTitles,
     getStoredAiringSchedule,
     needsEpisodeMetadataRefresh,
-} from '../catalog/episodes';
-import { getEpisodes } from '../providers/episode-inventory';
-import { getAnimeRelease, storedAnimeRelease } from '../catalog/anilist/anilist-release';
-import { episodesAvailableToWatch } from '../providers/inventory';
+} from './catalog/episodes';
+import { getEpisodes } from './providers/episode-inventory';
+import { getAnimeRelease, storedAnimeRelease } from './catalog/anilist/anilist-release';
+import { episodesAvailableToWatch } from './providers/inventory';
 import {
     discoverEpisodeInventory,
     ensureEpisodeInventoryBackfill,
@@ -17,26 +16,23 @@ import {
     enqueueEpisodeInventoryBackfill,
     getEpisodeInventoryState,
     retryEpisodeInventoryBackfill,
-} from '../catalog/episode-sync';
-import { getFranchiseOrder, getStoredFranchiseOrder } from '../catalog/franchise';
-import {
-    AniKotoNoMatchError,
-    isAniKotoTransientError,
-    anikotoProvider,
-} from '../providers/anikoto';
-import type { ProviderEpisodeReference } from '../providers/types';
+} from './catalog/episode-sync';
+import { getFranchiseOrder, getStoredFranchiseOrder } from './catalog/franchise';
+import { AniKotoNoMatchError, anikotoProvider } from './providers/anikoto';
+import { isAniKotoTransientError } from './providers/anikoto-transport';
+import type { ProviderEpisodeReference } from './providers/types';
 import {
     getEpisodeSkipTimes,
     getSegmentTemplates,
     saveAniKotoSkipTimes,
-} from '../playback/skip-times';
-import { resolveAnimeSynopsis } from '../catalog/synopsis';
-import { getArtwork } from '../catalog/tmdb/artwork';
-import { findMapping } from '../catalog/tmdb/mapping-store';
-import { getStoredMedia, refreshArtwork, selectArtwork, setLogoSize } from '../catalog/tmdb/media';
-import { getEpisodePlaybackProgress, getPlaybackProgress } from '../user/progress/store';
-import { resumePosition } from '../user/progress/continue';
-import { getWatchlistState } from '../user/watchlist/store';
+} from './playback/skip-times';
+import { resolveAnimeSynopsis } from './catalog/synopsis';
+import { getArtwork } from './catalog/tmdb/artwork';
+import { findMapping } from './catalog/tmdb/mapping-store';
+import { getStoredMedia, refreshArtwork, selectArtwork, setLogoSize } from './catalog/tmdb/media';
+import { getEpisodePlaybackProgress, getPlaybackProgress } from './user/progress/store';
+import { resumePosition } from './user/progress/continue';
+import { getWatchlistState } from './user/watchlist/store';
 
 async function storedAnimePage(userId: string | undefined, id: number, anime: AniListAnime | null) {
     if (!anime) {
@@ -429,9 +425,9 @@ export async function watchSegments(id: number, episodeId: string) {
 }
 
 /**
- * Resolve playable streams for an episode, including release and special-order
- * context required by the provider. Returns `null` for an unknown episode; provider
- * failures are converted into an empty stream result with its error flag set.
+ * Resolve playable streams for the episode selected by the watch URL.
+ * Returns `null` for an unknown episode; provider failures become an empty
+ * stream result with its error flag set.
  */
 export async function watchPlayback(id: number, episodeId: string) {
     const context = await watchEpisode(id, episodeId);
@@ -441,39 +437,8 @@ export async function watchPlayback(id: number, episodeId: string) {
 
     const { anime, episodes, currentIndex } = context;
     const currentEpisode = episodes[currentIndex];
-    const release = episodes.map(({ number, title }) => ({
-        number,
-        title,
-    }));
-    const specials = episodes.filter(({ number }) => number <= 0 || !Number.isInteger(number));
-    const specialIndex = specials.findIndex(({ id: candidate }) => candidate === currentEpisode.id);
-    const releaseRelations = new Set(['PARENT', 'PREQUEL', 'SEQUEL']);
-    const relatedReleases = await getRelatedReleaseTitles(
-        (anime.relations?.edges ?? []).flatMap((edge) =>
-            edge?.relationType &&
-            releaseRelations.has(edge.relationType) &&
-            edge.node?.type === 'ANIME' &&
-            edge.node.id !== id
-                ? [edge.node.id]
-                : []
-        )
-    );
-    const playbackEpisode =
-        specialIndex < 0
-            ? {
-                  ...currentEpisode,
-                  release,
-                  relatedReleases,
-              }
-            : {
-                  ...currentEpisode,
-                  release,
-                  relatedReleases,
-                  specialIndex: specialIndex + 1,
-                  specialCount: specials.length,
-              };
 
-    return episodePlayback(anime, playbackEpisode, [
+    return episodePlayback(anime, currentEpisode, [
         'sub',
         'dub',
         ...(currentEpisode.audio.includes('raw') ? (['raw'] as const) : []),

@@ -2,7 +2,7 @@ import { hydrateMissingAnimeReleases } from '../../catalog/anilist/anilist-relea
 import { storedReleaseCards } from '../../catalog/storage';
 import { animeTitles } from '../../catalog/utils';
 import { enrichAnimeCards } from '../../catalog/card-enrichment';
-import { parseStoredAnimeDetails } from '../../catalog/stored-anime-details';
+import { parseStoredAnimeDetails } from '../../catalog/anilist/anilist-types';
 import { storedAudioModes } from '../../providers/episode-inventory';
 import type { WatchlistSelection } from '../../contracts/watchlist';
 import { selectWatchlistEntries } from './selection';
