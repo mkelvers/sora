@@ -8,7 +8,7 @@ import {
     animeRelease,
     schedulerHeartbeat,
 } from '@soraorg/database/schema';
-import { plainText } from './anilist/anilist-text';
+import { plainText } from './utils';
 import type { ReleaseCalendarEntry } from './release-calendar-parser';
 
 function releaseCalendarWindow(now: Date) {
