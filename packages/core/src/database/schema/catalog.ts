@@ -1,7 +1,7 @@
-import { index, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text } from "drizzle-orm/pg-core";
 
 import type { AnimeDetailsFragment, MediaStatus } from "../../anilist/graphql.generated";
-import { timestamptz } from "./columns";
+import { jsonb, timestamptz } from "./columns";
 
 /** Cached AniList GraphQL responses keyed by operation and variables. */
 export const anilistSnapshot = pgTable(
