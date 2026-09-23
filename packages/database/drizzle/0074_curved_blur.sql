@@ -1,1 +1,0 @@
-ALTER TABLE "anime_airing_schedule" ADD COLUMN "synopsis" text;
