@@ -13,3 +13,4 @@
 export * from "./catalog";
 export * from "./library";
 export * from "./playback";
+export * from "./series";
