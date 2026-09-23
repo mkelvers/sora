@@ -2,13 +2,16 @@ import { run, type Runner } from "graphile-worker";
 
 import { config } from "../config";
 import { reviveAiringChecks, trackAiring } from "./airing";
-import { trackAiringTask } from "./queue";
+import { storeSeriesTask, trackAiringTask } from "./queue";
+import { discoverSeriesEntries, storeSeriesJob } from "./series";
 
 const reviveAiringChecksTask = "revive-airing-checks";
+const discoverSeriesEntriesTask = "discover-series-entries";
 
 /**
- * Starts the background scheduler, which follows every airing anime and
- * stores each new episode once a provider carries it.
+ * Starts the background scheduler, which follows every airing anime, stores
+ * each new episode once a provider carries it, and keeps stored series
+ * current as seasons air and new ones are announced.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
  * of them. Stop it with `runner.stop()`; by default it also stops on SIGINT
@@ -21,8 +24,13 @@ export async function startScheduler(): Promise<Runner> {
     concurrency: 2,
     taskList: {
       [trackAiringTask]: trackAiring,
-      [reviveAiringChecksTask]: reviveAiringChecks
+      [reviveAiringChecksTask]: reviveAiringChecks,
+      [storeSeriesTask]: storeSeriesJob,
+      [discoverSeriesEntriesTask]: discoverSeriesEntries
     },
-    crontab: `0 * * * * ${reviveAiringChecksTask}`
+    crontab: [
+      `0 * * * * ${reviveAiringChecksTask}`,
+      `30 4 * * * ${discoverSeriesEntriesTask}`
+    ].join("\n")
   });
 }
