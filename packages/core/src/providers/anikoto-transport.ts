@@ -182,6 +182,7 @@ async function readBounded(response: Response, limit: number, signal?: AbortSign
     return concatByteChunks(chunks, size);
 }
 
+/** Shares throttling and cooldowns across requests and enforces a response size limit. */
 export async function requestText(
     url: URL,
     options: {

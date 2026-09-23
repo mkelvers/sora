@@ -48,6 +48,7 @@ export function unwrapAniKotoDisguisedSegment(value: Uint8Array) {
     return value;
 }
 
+/** Accepts only known HTTPS media hosts and rewrites legacy Shiora shards. */
 export function normalizeAniKotoMediaUrl(url: URL) {
     if (
         !url ||
@@ -70,6 +71,7 @@ export function normalizeAniKotoMediaUrl(url: URL) {
     return normalized;
 }
 
+/** Lists known provider mirrors for stream-proxy fallback after an upstream failure. */
 export function aniKotoMediaCandidates(url: URL) {
     const candidates = [url];
     if (url.hostname.endsWith('.imgnex.top') && url.pathname.startsWith('/anime/')) {
