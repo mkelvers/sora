@@ -1,5 +1,6 @@
 import { doublePrecision, index, integer, pgEnum, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
+import type { MediaStatus } from "../../anilist/graphql.generated";
 import { jsonb, timestamptz } from "./columns";
 
 export const tmdbMediaType = pgEnum("tmdb_media_type", [
@@ -61,8 +62,18 @@ export const series = pgTable("series", {
   overview: text("overview"),
   posterUrl: text("poster_url"),
   backdropUrl: text("backdrop_url"),
+  logoUrl: text("logo_url"),
   /** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
   startDate: text("start_date"),
+  /** The series as a whole: airing while any of its entries airs. */
+  status: text("status").$type<MediaStatus>(),
+  /**
+   * The next episode to air, as a season episode. Written when the series is
+   * laid out; the airing scheduler lays it out again after each broadcast.
+   */
+  nextEpisodeSeasonId: text("next_episode_season_id"),
+  nextEpisodeNumber: integer("next_episode_number"),
+  nextEpisodeAiringAt: timestamptz("next_episode_airing_at"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
   /** When the seasons and episodes were last laid out. */
   laidOutAt: timestamptz("laid_out_at").notNull()
