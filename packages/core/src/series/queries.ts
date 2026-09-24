@@ -7,7 +7,7 @@ import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from 
 import { findEpisodeListings } from "../playback/episodes/versions";
 import { AnimeNotFoundError, SeasonNotFoundError, SeriesNotFoundError, UpstreamUnavailableError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
-import { second } from "../time";
+import { second, startDeadline, timedOut } from "../time";
 import { anilistEpisodeKey } from "./episodes";
 import type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
 import { storedSeriesIds, storeSeries } from "./store";
@@ -17,14 +17,6 @@ import { storedSeriesIds, storeSeries } from "./store";
  * yet. Once it runs out, the remaining titles are queued for the scheduler.
  */
 const browseLayoutBudgetMs = 8 * second;
-
-/**
- * How long listing a season's episodes may spend looking its anime up on
- * providers to learn which languages each episode has and which are filler.
- * Episodes of an anime still being looked up are unknown until a later
- * listing.
- */
-const episodeListingsBudgetMs = 3 * second;
 
 /**
  * Loads a title's page: its details, seasons, and related titles.
@@ -91,9 +83,10 @@ export async function assertSeriesExists(seriesId: string) {
  * Lists a season's episodes, numbered from 1, with the languages each can
  * be watched in and whether each is filler.
  *
- * Both come from providers' episode lists. A season whose anime no one has
- * looked up yet spends up to {@link episodeListingsBudgetMs} matching it on
- * providers, and lists `null` for what that did not cover.
+ * Both come from providers' episode lists. The first listing of an anime
+ * no provider has been looked up for yet looks it up and stores the lists;
+ * every later listing only reads them, and the scheduler keeps them current
+ * as the anime airs.
  *
  * @throws {@link SeasonNotFoundError} when the ID does not identify a season.
  */
@@ -125,8 +118,7 @@ export async function getSeasonEpisodes(seasonId: string): Promise<SeasonEpisode
             }
           ]
         : []
-    ),
-    episodeListingsBudgetMs
+    )
   );
 
   return rows.map((row) => {
@@ -183,34 +175,37 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
  * Finds the series of each entry, laying out unknown ones within the
  * budget. Each layout stores a whole franchise, so later entries of the
  * same franchise are looked up again rather than laid out.
+ *
+ * A layout still running when the budget runs out carries on in the
+ * background, so a later search finds its series stored.
  */
 async function seriesIdsFor(anilistIds: readonly number[]) {
-  const started = Date.now();
   const found = await storedSeriesIds(anilistIds);
+  const deadline = startDeadline(browseLayoutBudgetMs);
+  let isOutOfTime = false;
 
   for (const anilistId of anilistIds) {
     if (found.has(anilistId)) {
       continue;
     }
 
-    if (Date.now() - started >= browseLayoutBudgetMs) {
+    if (isOutOfTime) {
       await scheduleSeriesStore(anilistId, "current");
       continue;
     }
 
-    try {
-      await storeSeries(anilistId);
-    } catch (error) {
-      if (error instanceof UpstreamUnavailableError) {
-        await scheduleSeriesStore(anilistId, "current");
-        continue;
-      }
+    const layout = layOutSeries(anilistId);
+    const isStored = await Promise.race([layout, deadline.reached]);
+    if (isStored === timedOut) {
+      isOutOfTime = true;
+      layout.catch((error: unknown) => {
+        console.error(`Laying out the series of anime ${anilistId} failed`, error);
+      });
+      continue;
+    }
 
-      if (error instanceof AnimeNotFoundError) {
-        continue;
-      }
-
-      throw error;
+    if (!isStored) {
+      continue;
     }
 
     const remaining = anilistIds.filter((id) => !found.has(id));
@@ -219,7 +214,45 @@ async function seriesIdsFor(anilistIds: readonly number[]) {
     }
   }
 
+  deadline.clear();
   return found;
+}
+
+/**
+ * Layouts in flight, keyed by AniList ID, so a search repeated while one is
+ * running waits on it instead of starting another.
+ */
+const layoutsInFlight = new Map<number, Promise<boolean>>();
+
+/**
+ * Stores the series of an entry, queueing it for the scheduler when AniList
+ * or TMDB fail. Resolves whether the series was stored.
+ */
+function layOutSeries(anilistId: number): Promise<boolean> {
+  const running = layoutsInFlight.get(anilistId);
+  if (running) {
+    return running;
+  }
+
+  const layout = storeSeries(anilistId)
+    .then(
+      () => true,
+      async (error: unknown) => {
+        if (error instanceof UpstreamUnavailableError) {
+          await scheduleSeriesStore(anilistId, "current");
+          return false;
+        }
+
+        if (error instanceof AnimeNotFoundError) {
+          return false;
+        }
+
+        throw error;
+      }
+    )
+    .finally(() => layoutsInFlight.delete(anilistId));
+  layoutsInFlight.set(anilistId, layout);
+  return layout;
 }
 
 async function seasonsOf(seriesId: string): Promise<Season[]> {
