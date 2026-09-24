@@ -17,7 +17,7 @@
     "graphql:generate": "graphql-codegen --config codegen.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun src/database/migrate.ts",
-    "test": "bun test"
+    "test": "bun test --isolate"
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
