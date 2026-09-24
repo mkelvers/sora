@@ -1,24 +1,13 @@
 /**
  * The anime catalog, backed by AniList.
  *
- * AniList IDs are the canonical anime IDs everywhere in the core.
+ * Inside the core, AniList IDs identify anime. Clients never see them: they
+ * browse, open, and play titles through `series`, by Sora series and season
+ * IDs. The catalog's public surface is what those clients still need
+ * directly, the genre list and browse filters, plus the types series models
+ * share.
  *
  * @packageDocumentation
  */
-export type {
-  AiringEpisode,
-  Anime,
-  AnimeCard,
-  AnimeFormat,
-  AnimeRelation,
-  AnimeRelationType,
-  AnimeSeason,
-  AnimeSource,
-  AnimeStatus,
-  AnimeTag,
-  AnimeTitle,
-  AnimeTrailer
-} from "./models/anime";
-export { getAnime, getAnimeCards } from "./queries/anime";
-export { BrowseQuerySchema, browseAnime, getGenres, type BrowseQuery, type Page } from "./queries/browse";
-export { getAiringSchedule, type ScheduledEpisode } from "./queries/schedule";
+export type { AnimeStatus, AnimeTag, AnimeTrailer } from "./models/anime";
+export { BrowseQuerySchema, getGenres, type BrowseQuery, type Page } from "./queries/browse";
