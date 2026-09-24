@@ -2,7 +2,7 @@ import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
 import { db } from "../database/client";
-import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
+import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
 import { scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
 import { assignSeasonIds } from "./identity";
 import { newSeasonId, newSeriesId } from "./ids";
@@ -20,21 +20,6 @@ const storeLockKey = 0x5e71e5;
 
 /** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
 const episodeInsertBatch = 1_000;
-
-/**
- * Returns the Sora ID of the series an AniList entry belongs to.
- *
- * The first request for an entry that no stored series contains lays out
- * its series and stores it, which can take many AniList and TMDB requests.
- * Every later request reads one row.
- *
- * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
- *   belongs to adult media.
- * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
- */
-export async function resolveSeries(anilistId: number): Promise<string> {
-  return (await storedSeriesIds([anilistId])).get(anilistId) ?? storeSeries(anilistId);
-}
 
 /** The Sora IDs of the stored series containing the given AniList entries, by AniList ID. */
 export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
@@ -56,7 +41,8 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  *
  * Stored IDs are kept. The series keeps its ID when it still contains its
  * anchor entry, or otherwise any of its entries; an entry TMDB grouped
- * elsewhere moves to that series. Seasons keep their IDs as
+ * elsewhere moves to that series. A stored series left without entries is
+ * merged into this one, and its watchlist entries move here. Seasons keep their IDs as
  * {@link assignSeasonIds} describes. Related titles that are not stored yet
  * are queued for the scheduler to store, and entries that may still gain
  * episodes are handed to the airing scheduler, which lays the series out
@@ -96,16 +82,36 @@ async function writeSeries(tx: Transaction, built: SeriesLayout) {
     .from(seriesEntry)
     .where(or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)));
 
-  // Entries leave whichever series held them; a series left empty is gone.
+  // Entries leave whichever series held them; a series left empty is merged
+  // into this one. Former owners exist only when this series was stored too.
   await tx.delete(seriesEntry).where(
     or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId))
   );
   const formerOwners = owners.map((owner) => owner.seriesId).filter((id) => id !== seriesId);
-  if (formerOwners.length > 0) {
+  const emptied =
+    formerOwners.length > 0
+      ? await tx
+          .select({
+            id: series.id
+          })
+          .from(series)
+          .where(
+            and(
+              inArray(series.id, formerOwners),
+              sql`not exists (select 1 from ${seriesEntry} where ${seriesEntry.seriesId} = ${series.id})`
+            )
+          )
+      : [];
+  if (emptied.length > 0) {
+    await mergeWatchlists(
+      tx,
+      emptied.map((row) => row.id),
+      seriesId
+    );
     await tx.delete(series).where(
-      and(
-        inArray(series.id, formerOwners),
-        sql`not exists (select 1 from ${seriesEntry} where ${seriesEntry.seriesId} = ${series.id})`
+      inArray(
+        series.id,
+        emptied.map((row) => row.id)
       )
     );
   }
@@ -165,6 +171,41 @@ async function writeSeries(tx: Transaction, built: SeriesLayout) {
   }
 
   return seriesId;
+}
+
+/**
+ * Moves watchlist entries of merged-away series to the series that absorbed
+ * them. A user who already lists the absorbing series keeps that entry; a
+ * user who listed several merged-away series keeps the most recently
+ * changed one.
+ */
+async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[], toSeriesId: string) {
+  const from = sql.join(
+    fromSeriesIds.map((id) => sql`${id}`),
+    sql`, `
+  );
+
+  await tx.execute(sql`
+    delete from watchlist_entry as moving
+    where moving.series_id in (${from})
+      and exists (
+        select 1 from watchlist_entry as other
+        where other.user_id = moving.user_id
+          and (
+            other.series_id = ${toSeriesId}
+            or (
+              other.series_id in (${from})
+              and (other.updated_at, other.series_id) > (moving.updated_at, moving.series_id)
+            )
+          )
+      )
+  `);
+  await tx
+    .update(watchlistEntry)
+    .set({
+      seriesId: toSeriesId
+    })
+    .where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
 }
 
 /**
