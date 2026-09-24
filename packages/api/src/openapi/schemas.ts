@@ -258,6 +258,10 @@ export const PlaybackVersionSchema = z
     provider: z.string().openapi({
       description: "The provider that serves this version."
     }),
+    hardsub: z.boolean().openapi({
+      description:
+        "Whether the subtitles are burned into the picture rather than served as tracks, so `subtitles` is empty and they cannot be styled or turned off. A sub with subtitle tracks is served when any provider has one. Always false for dub and raw."
+    }),
     sources: z
       .array(
         z.object({
@@ -307,7 +311,7 @@ export const PlaybackSchema = z
     episode: z.number().int(),
     versions: z.array(PlaybackVersionSchema).openapi({
       description:
-        "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has at least one subtitle track."
+        "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has subtitles: as tracks, or burned into the picture when `hardsub` is true."
     })
   })
   .openapi("Playback") satisfies z.ZodType<Playback>;
