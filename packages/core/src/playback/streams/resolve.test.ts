@@ -208,6 +208,21 @@ describe("resolvePlayback", () => {
     expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
   });
 
+  test("gives a dub no subtitles, since the sub's do not match its audio", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["dub"]
+      }
+    ]);
+    offered = [dub()];
+
+    const playback = await resolvePlayback(request);
+    expect(playback.versions[0]?.subtitles).toEqual([]);
+    expect(playback.versions[0]?.hardsub).toBe(false);
+  });
+
   test("keeps only English subtitles", async () => {
     useProviders([
       {

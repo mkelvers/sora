@@ -44,6 +44,7 @@ export interface PlaybackVersion {
   hardsub: boolean;
   /** Ordered best first. */
   sources: PlaybackSource[];
+  /** English subtitle tracks of a sub. Empty for a hardsub, and always for dub and raw. */
   subtitles: PlaybackSubtitle[];
 }
 
@@ -213,7 +214,10 @@ async function resolveVersion(
         locale,
         provider: provider.id,
         hardsub: language === "sub" && media.subtitles.length === 0,
-        ...media
+        sources: media.sources,
+        // Providers hand a dub the sub's subtitles: a translation of the
+        // Japanese dialogue, which does not match the English audio.
+        subtitles: language === "sub" ? media.subtitles : []
       };
 
       // A sub without subtitle tracks has them burned in. Later providers may
