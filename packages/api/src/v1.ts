@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { getGenres } from "@sora/core/catalog";
-import { getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
+import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import { browseSeries, getAiringSchedule, getSeason, getSeasonEpisodes, getSeries } from "@sora/core/series";
 import { cors } from "hono/cors";
 
@@ -93,22 +93,20 @@ export const v1Routes = v1
   })
 
   .openapi(route.getPlayback, async (c) => {
-    const playback = await resolvePlayback(c.req.valid("param"));
-    // Stream tokens expire; a cached playback would hand out dead ones.
+    // Absolute, so players on any origin can fetch it.
+    const streamBaseUrl = new URL("/v1/streams", c.req.url);
+    // Behind a TLS-terminating proxy the API itself is reached over HTTP.
+    const protocol = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim();
+    if (protocol === "https" || protocol === "http") {
+      streamBaseUrl.protocol = protocol;
+    }
+
+    const playback = await resolvePlayback(c.req.valid("param"), {
+      streamBaseUrl: streamBaseUrl.href
+    });
+    // Stream URLs expire; a cached playback would hand out dead ones.
     c.header("Cache-Control", "no-store");
     return c.json(playback, 200);
-  })
-
-  .openapi(route.getSkipTimes, async (c) => {
-    const { animeId, seasonId, episode } = c.req.valid("param");
-    const items = await getSkipTimes(animeId, seasonId, episode, c.req.valid("query").duration);
-    c.header("Cache-Control", "public, max-age=3600");
-    return c.json(
-      {
-        items
-      },
-      200
-    );
   })
 
   .openapi(route.getStream, (c) =>

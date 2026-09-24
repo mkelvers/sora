@@ -24,7 +24,6 @@ import {
   SeriesIdParam,
   SeriesPageSchema,
   SeriesSchema,
-  SkipSegmentSchema
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -212,37 +211,16 @@ export const getPlayback = createRoute({
   method: "get",
   path: "/anime/{animeId}/seasons/{seasonId}/episodes/{episode}/playback",
   tags: ["Playback"],
-  summary: "Get streams for an episode",
+  summary: "Get everything needed to play an episode",
   description:
-    "Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it. Sources and subtitles are stream tokens for `getStream`; they expire, so resolve again rather than storing them.",
+    "Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it, with its skip segments. Sources and subtitles are URLs a player fetches directly; they expire, so resolve again rather than storing them.",
   request: {
     params: EpisodeParams
   },
   responses: {
-    200: json(PlaybackSchema, "Streams for every version of the episode."),
+    200: json(PlaybackSchema, "Streams and skip segments for every version of the episode."),
     404: problem("No such season or episode in this title, or nothing streams it."),
     502: problem("Providers list the episode but none can stream it right now.")
-  }
-});
-
-export const getSkipTimes = createRoute({
-  operationId: "getSkipTimes",
-  method: "get",
-  path: "/anime/{animeId}/seasons/{seasonId}/episodes/{episode}/skip-times",
-  tags: ["Playback"],
-  summary: "Get opening, ending, and recap times",
-  description: "From AniKoto, falling back to crowd-sourced AniSkip times when AniKoto has none. An empty list means nothing is known.",
-  request: {
-    params: EpisodeParams,
-    query: z.object({
-      duration: z.coerce.number().positive().optional().openapi({
-        description: "The playing stream's duration in seconds; narrows results to encodes of similar length."
-      })
-    })
-  },
-  responses: {
-    200: json(itemsOf(SkipSegmentSchema), "Skippable segments, in order."),
-    404: problem("No such season or episode in this title.")
   }
 });
 
@@ -253,7 +231,7 @@ export const getStream = createRoute({
   tags: ["Playback"],
   summary: "Fetch a stream resource",
   description:
-    "Serves a playlist, segment, file, or subtitle through the stream proxy. Players fetch it directly: the token is the credential, and any origin may fetch it. Playlists reference their children by relative token, so the token must stay the last path segment. `Range` is honoured for seeking.",
+    "Serves a playlist, segment, file, or subtitle through the stream proxy. `getPlayback` hands out these URLs; players fetch them directly: the token is the credential, and any origin may fetch it. Playlists reference their children by relative token, so the token must stay the last path segment. `Range` is honoured for seeking.",
   request: {
     params: z.object({
       token: z.string().openapi({

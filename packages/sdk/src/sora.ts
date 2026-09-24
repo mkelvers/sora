@@ -1,6 +1,6 @@
 import type { AppType } from "@sora/api";
 import type { BrowseQuery, Page } from "@sora/core/catalog";
-import type { Playback, SkipSegment } from "@sora/core/playback";
+import type { Playback } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 import { hc, type ClientResponse } from "hono/client";
 import type { SuccessStatusCode } from "hono/utils/http-status";
@@ -41,17 +41,15 @@ export interface SoraOptions {
  * const season = series.seasons[0];
  * const episodes = await sora.episodes(series.id, season.id);
  * const playback = await sora.playback(series.id, season.id, 1, { signal: AbortSignal.timeout(15_000) });
- * const dub = playback.versions.find((version) => version.language === "dub");
- * const src = sora.streamUrl(playback.versions[0].sources[0].token);
+ * const dub = playback.media.find((media) => media.audio === "dub");
+ * const src = (dub ?? playback.media[0]).sources[0].url;
  * ```
  */
 export class Sora {
   readonly #api: ReturnType<typeof hc<AppType>>["v1"];
-  readonly #baseUrl: string;
 
   constructor(options: SoraOptions) {
-    this.#baseUrl = options.baseUrl.replace(/\/+$/, "");
-    this.#api = hc<AppType>(this.#baseUrl, {
+    this.#api = hc<AppType>(options.baseUrl.replace(/\/+$/, ""), {
       fetch: options.fetch,
       headers: options.headers
     }).v1;
@@ -137,8 +135,8 @@ export class Sora {
 
   /**
    * Resolves streams for every version of an episode at once, such as sub
-   * and dub. Stream tokens expire: resolve again rather than storing them,
-   * and turn them into URLs with {@link streamUrl}.
+   * and dub, each with its skip segments. Source and subtitle URLs go straight
+   * to the player; they expire, so resolve again rather than storing them.
    */
   playback(seriesId: string, seasonId: string, episode: number, options: RequestOptions = {}): Promise<Playback> {
     return read(
@@ -153,39 +151,6 @@ export class Sora {
         init(options)
       )
     );
-  }
-
-  /**
-   * Opening, ending, and recap times from AniKoto, falling back to
-   * crowd-sourced AniSkip times when AniKoto has none.
-   *
-   * @param options.durationSeconds - The playing stream's duration; narrows
-   *   AniSkip results to encodes of similar length.
-   */
-  async skipTimes(
-    seriesId: string,
-    seasonId: string,
-    episode: number,
-    options: RequestOptions & {
-      durationSeconds?: number;
-    } = {}
-  ): Promise<SkipSegment[]> {
-    const { items } = await read(
-      this.#api.anime[":animeId"].seasons[":seasonId"].episodes[":episode"]["skip-times"].$get(
-        {
-          param: {
-            animeId: seriesId,
-            seasonId,
-            episode: episode.toString()
-          },
-          query: {
-            duration: options.durationSeconds?.toString()
-          }
-        },
-        init(options)
-      )
-    );
-    return items;
   }
 
   /** Genre names accepted by {@link browse} and {@link search}. */
@@ -216,13 +181,6 @@ export class Sora {
     return items;
   }
 
-  /**
-   * The URL a player fetches a stream token from. Players fetch it directly,
-   * from any origin; no headers are needed.
-   */
-  streamUrl(token: string): string {
-    return `${this.#baseUrl}/v1/streams/${encodeURIComponent(token)}`;
-  }
 }
 
 /** {@link BrowseFilters} as query parameters, which carry every value as text. */
