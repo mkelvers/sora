@@ -11,6 +11,8 @@ interface FakeProvider {
   locale: string;
   languages: ContentLanguage[];
   fails?: boolean;
+  /** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
+  noSubtitles?: boolean;
 }
 
 /** The registry's `streamProviders`, filled in place by {@link useProviders}. */
@@ -50,18 +52,20 @@ function useProviders(list: FakeProvider[]) {
                   isHLS: true,
                   quality: "auto",
                   language,
-                  subtitles: [
-                    {
-                      url: `https://${fake.id}.example/en.vtt`,
-                      language: "en",
-                      label: "English"
-                    },
-                    {
-                      url: `https://${fake.id}.example/pt.vtt`,
-                      language: "pt",
-                      label: "Portuguese"
-                    }
-                  ]
+                  subtitles: fake.noSubtitles
+                    ? []
+                    : [
+                        {
+                          url: `https://${fake.id}.example/en.vtt`,
+                          language: "en",
+                          label: "English"
+                        },
+                        {
+                          url: `https://${fake.id}.example/pt.vtt`,
+                          language: "pt",
+                          label: "Portuguese"
+                        }
+                      ]
                 }
               ]
             };
@@ -216,6 +220,39 @@ describe("resolvePlayback", () => {
 
     const playback = await resolvePlayback(request);
     expect(playback.versions[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
+  });
+
+  test("passes over a sub without subtitle tracks for the next provider", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"],
+        noSubtitles: true
+      },
+      {
+        id: "allmanga",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
+  });
+
+  test("leaves a sub out when no provider has subtitles for it, but keeps the dub", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"],
+        noSubtitles: true
+      }
+    ]);
+    offered = [dub(), sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto"]);
   });
 
   test("serves raw from an English provider and reports no locale", async () => {
