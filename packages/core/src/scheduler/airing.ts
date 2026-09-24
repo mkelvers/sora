@@ -74,8 +74,8 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
 /**
  * Re-fetches every provider's episode list and returns the latest episode of
- * the list viewers see: the first provider in priority order with any
- * episodes, as `listEpisodes` picks it.
+ * the first provider in priority order with any episodes, the one playback
+ * tries first.
  *
  * Every provider is refreshed, not just that one, because playback falls
  * back through all of them. Other providers' lists do not count, since some

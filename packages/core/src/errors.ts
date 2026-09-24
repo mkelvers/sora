@@ -61,10 +61,13 @@ export class SeasonNotFoundError extends CoreError {
   }
 }
 
-/** No provider lists the requested episode for this anime. */
+/**
+ * The season has no such episode, or nothing can stream it: an extra only
+ * TMDB lists, or an episode no provider carries.
+ */
 export class EpisodeNotFoundError extends CoreError {
-  constructor(anilistId: number, episode: number) {
-    super("EPISODE_NOT_FOUND", `Anime ${anilistId} has no episode ${episode}`);
+  constructor(seasonId: string, episode: number) {
+    super("EPISODE_NOT_FOUND", `Season ${seasonId} has no playable episode ${episode}`);
   }
 }
 
@@ -77,8 +80,8 @@ export class EpisodeNotFoundError extends CoreError {
 export class PlaybackUnavailableError extends CoreError {
   readonly attempts: readonly ProviderAttempt[];
 
-  constructor(anilistId: number, episode: number, attempts: readonly ProviderAttempt[]) {
-    super("PLAYBACK_UNAVAILABLE", `No provider could play anime ${anilistId} episode ${episode}`);
+  constructor(seasonId: string, episode: number, attempts: readonly ProviderAttempt[]) {
+    super("PLAYBACK_UNAVAILABLE", `No provider could play season ${seasonId} episode ${episode}`);
     this.attempts = attempts;
   }
 }
