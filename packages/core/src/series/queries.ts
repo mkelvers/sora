@@ -4,7 +4,7 @@ import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, type BrowseQuery, type Page } from "../catalog/queries/browse";
 import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
-import { findEpisodeLanguages } from "../playback/episodes/versions";
+import { findEpisodeListings } from "../playback/episodes/versions";
 import { AnimeNotFoundError, SeasonNotFoundError, SeriesNotFoundError, UpstreamUnavailableError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { second } from "../time";
@@ -20,10 +20,11 @@ const browseLayoutBudgetMs = 8 * second;
 
 /**
  * How long listing a season's episodes may spend looking its anime up on
- * providers to learn which languages each episode has. Episodes of an anime
- * still being looked up have unknown languages until a later listing.
+ * providers to learn which languages each episode has and which are filler.
+ * Episodes of an anime still being looked up are unknown until a later
+ * listing.
  */
-const episodeLanguagesBudgetMs = 3 * second;
+const episodeListingsBudgetMs = 3 * second;
 
 /**
  * Loads a title's page: its details, seasons, and related titles.
@@ -88,11 +89,11 @@ export async function assertSeriesExists(seriesId: string) {
 
 /**
  * Lists a season's episodes, numbered from 1, with the languages each can
- * be watched in.
+ * be watched in and whether each is filler.
  *
- * Languages come from providers' episode lists. A season whose anime no one
- * has looked up yet spends up to {@link episodeLanguagesBudgetMs} matching it
- * on providers, and lists `null` languages for what that did not cover.
+ * Both come from providers' episode lists. A season whose anime no one has
+ * looked up yet spends up to {@link episodeListingsBudgetMs} matching it on
+ * providers, and lists `null` for what that did not cover.
  *
  * @throws {@link SeasonNotFoundError} when the ID does not identify a season.
  */
@@ -114,7 +115,7 @@ export async function getSeasonEpisodes(seasonId: string): Promise<SeasonEpisode
     .where(eq(seriesEpisode.seasonId, seasonId))
     .orderBy(asc(seriesEpisode.number));
 
-  const languages = await findEpisodeLanguages(
+  const listings = await findEpisodeListings(
     rows.flatMap((row) =>
       row.anilistId !== null && row.anilistEpisode !== null
         ? [
@@ -125,22 +126,27 @@ export async function getSeasonEpisodes(seasonId: string): Promise<SeasonEpisode
           ]
         : []
     ),
-    episodeLanguagesBudgetMs
+    episodeListingsBudgetMs
   );
 
-  return rows.map((row) => ({
-    number: row.number,
-    title: row.title,
-    overview: row.overview,
-    airDate: row.airDate,
-    runtimeMinutes: row.runtimeMinutes,
-    stillUrl: row.stillUrl,
-    isExtra: row.anilistId === null,
-    languages:
+  return rows.map((row) => {
+    const listing =
       row.anilistId !== null && row.anilistEpisode !== null
-        ? (languages.get(anilistEpisodeKey(row.anilistId, row.anilistEpisode)) ?? null)
-        : []
-  }));
+        ? listings.get(anilistEpisodeKey(row.anilistId, row.anilistEpisode))
+        : null;
+    return {
+      number: row.number,
+      title: row.title,
+      overview: row.overview,
+      airDate: row.airDate,
+      runtimeMinutes: row.runtimeMinutes,
+      stillUrl: row.stillUrl,
+      isExtra: row.anilistId === null,
+      // An extra no provider streams has no languages, and no provider to call it filler.
+      languages: listing === null ? [] : (listing?.languages ?? null),
+      isFiller: listing?.isFiller ?? null
+    };
+  });
 }
 
 /**

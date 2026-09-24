@@ -219,6 +219,13 @@ export const SeasonEpisodeSchema = z
       .openapi({
         description:
           "The ways the episode can be watched, in any locale; `listEpisodeVersions` says which. Empty when nothing streams it, and null while Sora is still looking it up on providers: list the season again shortly."
+      }),
+    isFiller: z
+      .boolean()
+      .nullable()
+      .openapi({
+        description:
+          "Whether the episode is filler: story the manga does not have. Null when no provider says, or while Sora is still looking it up on providers."
       })
   })
   .openapi("SeasonEpisode") satisfies z.ZodType<SeasonEpisode>;

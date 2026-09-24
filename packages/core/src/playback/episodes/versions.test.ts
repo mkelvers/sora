@@ -68,13 +68,20 @@ mock.module("../providers/registry", () => ({
   streamProviders
 }));
 
-const { findEpisodeLanguages, getEpisodeVersions, languagesOf, versionsOffered } = await import("./versions");
+const { fillerOf, findEpisodeListings, getEpisodeVersions, languagesOf, versionsOffered } = await import("./versions");
 
-const unit = (number: number, languages: ContentLanguage[] | null): ProviderUnit => ({
+/** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
+async function findEpisodeLanguages(...args: Parameters<typeof findEpisodeListings>) {
+  const found = await findEpisodeListings(...args);
+  return new Map([...found].map(([key, listing]) => [key, listing.languages]));
+}
+
+const unit = (number: number, languages: ContentLanguage[] | null, isFiller: boolean | null = null): ProviderUnit => ({
   id: `unit-${number}`,
   number,
   title: `Episode ${number}`,
-  languages
+  languages,
+  isFiller
 });
 
 const listed = (locale: string, languages: ContentLanguage[] | null, listsLanguages = true): ListedUnit => ({
@@ -207,6 +214,29 @@ describe("languagesOf", () => {
   });
 });
 
+describe("fillerOf", () => {
+  const listedAs = (isFiller: boolean | null): ListedUnit => ({
+    source: {
+      locale: "en",
+      listsLanguages: true
+    },
+    unit: unit(1, ["sub"], isFiller)
+  });
+
+  test("calls an episode filler when any provider does", () => {
+    expect(fillerOf([listedAs(false), listedAs(true)])).toBe(true);
+  });
+
+  test("calls an episode not filler when every provider that says agrees", () => {
+    expect(fillerOf([listedAs(null), listedAs(false)])).toBe(false);
+  });
+
+  test("does not know when no provider says", () => {
+    expect(fillerOf([listedAs(null)])).toBeNull();
+    expect(fillerOf([])).toBeNull();
+  });
+});
+
 describe("getEpisodeVersions", () => {
   test("combines the providers that list the AniList episode", async () => {
     useProviders([
@@ -259,6 +289,42 @@ describe("getEpisodeVersions", () => {
     useProviders([provider("anikoto", "en", [unit(1, ["sub", "dub"])])]);
 
     expect(await getEpisodeVersions("season", 3)).toEqual([]);
+  });
+});
+
+describe("findEpisodeListings", () => {
+  test("marks each episode filler or not, as the providers that say do", async () => {
+    useProviders([
+      provider("anikoto", "en", [unit(1, ["sub"], false), unit(2, ["sub"], true)]),
+      provider("silent", "en", [unit(1, ["dub"]), unit(2, ["dub"]), unit(3, ["dub"])])
+    ]);
+
+    const found = await findEpisodeListings(
+      [1, 2, 3].map((episode) => ({
+        anilistId: 1,
+        episode
+      })),
+      1_000
+    );
+
+    expect(Object.fromEntries([...found].map(([key, listing]) => [key, listing.isFiller]))).toEqual({
+      "1:1": false,
+      "1:2": true,
+      "1:3": null
+    });
+  });
+
+  test("does not know whether an episode is filler while it is unknown", async () => {
+    const slow = slowProvider("anikoto", "en", [unit(1, ["sub"], true)]);
+    useProviders([slow.fake]);
+
+    const found = await findEpisodeListings(firstEpisode, 20);
+    slow.finish();
+
+    expect(found.get("1:1")).toEqual({
+      languages: null,
+      isFiller: null
+    });
   });
 });
 

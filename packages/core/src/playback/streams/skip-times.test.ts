@@ -75,7 +75,8 @@ const unit = (languages: ContentLanguage[] | null): ProviderUnit => ({
   id: "anikoto:107260",
   number: 3,
   title: "Killing Magic",
-  languages
+  languages,
+  isFiller: false
 });
 
 const { preconnect } = globalThis.fetch;
