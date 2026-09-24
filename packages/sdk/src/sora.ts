@@ -7,6 +7,9 @@ import type { SuccessStatusCode } from "hono/utils/http-status";
 
 import { SoraError } from "./error";
 
+/** Filters and sorting for {@link Sora.browse} and {@link Sora.search}. */
+export type BrowseFilters = Omit<BrowseQuery, "search">;
+
 /** Options every request accepts. */
 export interface RequestOptions {
   /** Aborts the request, for example `AbortSignal.timeout(10_000)`. */
@@ -33,7 +36,7 @@ export interface SoraOptions {
  * @example
  * ```ts
  * const sora = new Sora({ baseUrl: "https://api.example.com" });
- * const { items } = await sora.browse({ search: "tensura" });
+ * const { items } = await sora.search("tensura");
  * const series = await sora.series(items[0].id);
  * const episodes = await sora.episodes(series.seasons[0].id);
  * const playback = await sora.playback(series.seasons[0].id, 1, { signal: AbortSignal.timeout(15_000) });
@@ -53,23 +56,31 @@ export class Sora {
   }
 
   /**
-   * Searches and browses titles, one card per title. A page can hold fewer
-   * cards than `perPage` when several AniList entries belong to one title.
+   * Browses titles, one card per title. A page can hold fewer cards than
+   * `perPage` when several AniList entries belong to one title.
    */
-  browse(query: BrowseQuery = {}, options: RequestOptions = {}): Promise<Page<SeriesCard>> {
+  browse(filters: BrowseFilters = {}, options: RequestOptions = {}): Promise<Page<SeriesCard>> {
     return read(
       this.#api.anime.$get(
         {
+          query: filterParams(filters)
+        },
+        init(options)
+      )
+    );
+  }
+
+  /**
+   * Searches titles for `text`, best match first unless `filters.sort` is
+   * given. One card per title, as {@link browse} returns them.
+   */
+  search(text: string, filters: BrowseFilters = {}, options: RequestOptions = {}): Promise<Page<SeriesCard>> {
+    return read(
+      this.#api.search.$get(
+        {
           query: {
-            search: query.search,
-            sort: query.sort,
-            season: query.season,
-            seasonYear: query.seasonYear?.toString(),
-            format: query.format?.join(","),
-            status: query.status,
-            genres: query.genres?.join(","),
-            page: query.page?.toString(),
-            perPage: query.perPage?.toString()
+            q: text,
+            ...filterParams(filters)
           }
         },
         init(options)
@@ -187,7 +198,7 @@ export class Sora {
     return items;
   }
 
-  /** Genre names accepted by {@link browse}. */
+  /** Genre names accepted by {@link browse} and {@link search}. */
   async genres(options: RequestOptions = {}): Promise<string[]> {
     const { items } = await read(this.#api.genres.$get(undefined, init(options)));
     return items;
@@ -222,6 +233,20 @@ export class Sora {
   streamUrl(token: string): string {
     return `${this.#baseUrl}/v1/streams/${encodeURIComponent(token)}`;
   }
+}
+
+/** {@link BrowseFilters} as query parameters, which carry every value as text. */
+function filterParams(filters: BrowseFilters) {
+  return {
+    sort: filters.sort,
+    season: filters.season,
+    seasonYear: filters.seasonYear?.toString(),
+    format: filters.format?.join(","),
+    status: filters.status,
+    genres: filters.genres?.join(","),
+    page: filters.page?.toString(),
+    perPage: filters.perPage?.toString()
+  };
 }
 
 /** Passes a method's {@link RequestOptions} to the underlying request. */

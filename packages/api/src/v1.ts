@@ -26,9 +26,18 @@ v1.use(route.getStream.getRoutingPath(), cors());
 
 export const v1Routes = v1
   .openapi(route.browseSeries, async (c) => {
-    const query = c.req.valid("query");
-    const page = await browseSeries(query);
-    c.header("Cache-Control", query.search ? "public, max-age=60" : "public, max-age=300");
+    const page = await browseSeries(c.req.valid("query"));
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json(page, 200);
+  })
+
+  .openapi(route.searchSeries, async (c) => {
+    const { q, ...filters } = c.req.valid("query");
+    const page = await browseSeries({
+      ...filters,
+      search: q
+    });
+    c.header("Cache-Control", "public, max-age=60");
     return c.json(page, 200);
   })
 

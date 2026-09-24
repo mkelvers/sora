@@ -50,16 +50,30 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
 }
 
 /**
- * The core's browse filters as query parameters. Query strings carry every
- * value as text, so numbers and lists are parsed before the core's own rules
- * apply; the core supplies defaults.
+ * The core's browse filters as query parameters, without the free-text
+ * search, which is its own route. Query strings carry every value as text,
+ * so numbers and lists are parsed before the core's own rules apply; the
+ * core supplies defaults. Unknown parameters are rejected: a misspelled one
+ * would otherwise return the unfiltered catalog.
  */
-const BrowseParams = BrowseQuerySchema.extend({
-  seasonYear: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
-  format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
-  genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
-  page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
-  perPage: z.coerce.number().pipe(browse.perPage.unwrap()).optional()
+const BrowseParams = BrowseQuerySchema.omit({
+  search: true
+})
+  .strict()
+  .extend({
+    seasonYear: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
+    format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
+    genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
+    page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
+    perPage: z.coerce.number().pipe(browse.perPage.unwrap()).optional()
+  });
+
+/** {@link BrowseParams} with the search text, which is required. */
+const SearchParams = BrowseParams.extend({
+  q: browse.search.unwrap().openapi({
+    description: "The text to search titles for.",
+    example: "k-on"
+  })
 });
 
 const EpisodeParams = z.object({
@@ -72,15 +86,33 @@ export const browseSeries = createRoute({
   method: "get",
   path: "/anime",
   tags: ["Anime"],
-  summary: "Search and browse anime",
+  summary: "Browse anime",
   description:
-    "One card per title: a show appears once, not once per season. A page can hold fewer cards than `perPage` when several AniList entries belong to one title, and a first search for an unknown franchise may come back short while the rest is prepared in the background.",
+    "Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `perPage` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
   request: {
     query: BrowseParams
   },
   responses: {
     200: json(SeriesPageSchema, "A page of titles."),
     422: problem("The query is invalid."),
+    503: problem("The catalog upstream is unavailable; retry after `Retry-After`.")
+  }
+});
+
+export const searchSeries = createRoute({
+  operationId: "searchSeries",
+  method: "get",
+  path: "/search",
+  tags: ["Anime"],
+  summary: "Search anime",
+  description:
+    "Finds titles matching `q`, best match first unless `sort` is given, narrowed by the same filters as `browseSeries`. One card per title, and a first search for an unknown franchise may come back short while the rest is prepared in the background.",
+  request: {
+    query: SearchParams
+  },
+  responses: {
+    200: json(SeriesPageSchema, "A page of titles."),
+    422: problem("The query is invalid or `q` is missing."),
     503: problem("The catalog upstream is unavailable; retry after `Retry-After`.")
   }
 });
