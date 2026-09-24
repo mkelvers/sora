@@ -103,24 +103,41 @@ export async function getEpisodeVersions(seasonId: string, episode: number): Pro
 }
 
 /**
- * Lists the languages each AniList episode can be watched in, waiting at most
- * `budgetMs` on providers.
+ * Whether the providers listing an episode call it filler: `true` if any
+ * does, `false` if those that say all say not, and `null` when none says.
+ */
+export function fillerOf(listings: readonly ListedUnit[]): boolean | null {
+  const flags = listings.flatMap(({ unit }) => (unit.isFiller === null ? [] : [unit.isFiller]));
+  return flags.length === 0 ? null : flags.includes(true);
+}
+
+/** What the providers say about one AniList episode. */
+export interface EpisodeListing {
+  /** See {@link languagesOf}; `null` while the episode is not known yet. */
+  languages: ContentLanguage[] | null;
+  /** See {@link fillerOf}; also `null` while the episode is not known yet. */
+  isFiller: boolean | null;
+}
+
+/**
+ * Lists the languages each AniList episode can be watched in, and whether it
+ * is filler, waiting at most `budgetMs` on providers.
  *
  * Providers that answered in time are used. An episode none of them offers
  * while others are still being looked up is unknown rather than unwatchable;
  * those lookups carry on in the background, so a later call finds them
  * stored.
  *
- * @returns Languages keyed by {@link anilistEpisodeKey}, or `null` for an
- *   episode that is not known yet or whose anime could not be loaded.
+ * @returns Listings keyed by {@link anilistEpisodeKey}, with `null` fields
+ *   for an episode that is not known yet or whose anime could not be loaded.
  */
-export async function findEpisodeLanguages(
+export async function findEpisodeListings(
   episodes: readonly {
     anilistId: number;
     episode: number;
   }[],
   budgetMs: number
-): Promise<Map<string, ContentLanguage[] | null>> {
+): Promise<Map<string, EpisodeListing>> {
   const anilistIds = [...new Set(episodes.map((episode) => episode.anilistId))];
   const deadline = startDeadline(budgetMs);
   const listingsById = new Map(
@@ -133,11 +150,16 @@ export async function findEpisodeLanguages(
   );
   deadline.clear();
 
-  const found = new Map<string, ContentLanguage[] | null>();
+  const found = new Map<string, EpisodeListing>();
   for (const { anilistId, episode } of episodes) {
     const listed = listingsById.get(anilistId);
-    const versions = listed ? versionsOffered(listed.listings.filter(({ unit }) => unit.number === episode)) : [];
-    found.set(anilistEpisodeKey(anilistId, episode), !listed || (versions.length === 0 && listed.pending) ? null : languagesOf(versions));
+    const listings = listed ? listed.listings.filter(({ unit }) => unit.number === episode) : [];
+    const versions = versionsOffered(listings);
+    const isKnown = !!listed && !(versions.length === 0 && listed.pending);
+    found.set(anilistEpisodeKey(anilistId, episode), {
+      languages: isKnown ? languagesOf(versions) : null,
+      isFiller: isKnown ? fillerOf(listings) : null
+    });
   }
 
   return found;

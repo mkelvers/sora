@@ -87,4 +87,10 @@ export interface SeasonEpisode {
    * it, and `null` while its providers are still being looked up.
    */
   languages: ContentLanguage[] | null;
+  /**
+   * Whether the episode is filler: story the manga does not have, made to let
+   * the anime fall behind it. `null` when no provider says, or while its
+   * providers are still being looked up.
+   */
+  isFiller: boolean | null;
 }

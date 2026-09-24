@@ -13,14 +13,21 @@ export interface ProviderUnit {
   number: number;
   title: string;
   languages: ContentLanguage[] | null;
+  /** Whether the episode is filler, or `null` when the provider does not say. */
+  isFiller: boolean | null;
 }
 
+/**
+ * A stored list that does not match this, such as one stored before a field
+ * was added, is fetched again rather than served.
+ */
 const ProviderUnitsSchema = z.array(
   z.object({
     id: z.string(),
     number: z.number(),
     title: z.string(),
-    languages: z.array(z.enum(["sub", "dub", "raw"])).nullable()
+    languages: z.array(z.enum(["sub", "dub", "raw"])).nullable(),
+    isFiller: z.boolean().nullable()
   })
 );
 
@@ -80,7 +87,8 @@ export async function refreshProviderUnits(
       id: unit.id,
       number: unit.number,
       title: unit.title,
-      languages: unit.availableLanguages ?? null
+      languages: unit.availableLanguages ?? null,
+      isFiller: unit.isFiller ?? null
     }))
     .sort((left, right) => left.number - right.number);
 
