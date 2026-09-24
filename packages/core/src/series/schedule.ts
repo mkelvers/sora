@@ -38,7 +38,7 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 
   const stored = await storedSeriesIds(anilistIds);
   for (const anilistId of anilistIds.filter((id) => !stored.has(id))) {
-    await scheduleSeriesStore(anilistId);
+    await scheduleSeriesStore(anilistId, "backfill");
   }
 
   const placed = await findSeasonEpisodes(broadcasts, {

@@ -84,18 +84,37 @@ export interface StoreSeriesPayload {
 }
 
 /**
+ * How soon a series should be stored. graphile-worker runs lower numbers
+ * first, and airing checks run at 0.
+ *
+ * - `current`: someone is waiting on it, such as a title whose episode just
+ *   aired or one a search found but had no time to lay out.
+ * - `backfill`: warming the catalog, such as related titles, the release
+ *   schedule, and new entries found by discovery. It waits for everything
+ *   current, so a large backfill never delays new episodes.
+ */
+export type SeriesStorePriority = "current" | "backfill";
+
+const seriesStorePriorities: Record<SeriesStorePriority, number> = {
+  current: 0,
+  backfill: 10
+};
+
+/**
  * Queues laying out and storing the series an AniList entry belongs to.
  *
- * A job already waiting for the same entry keeps its place. A job already
- * running is followed by a new one, so a change made meanwhile is not lost.
+ * A job already waiting for the same entry keeps its place, and keeps its
+ * priority when that is higher. A job already running is followed by a new
+ * one, so a change made meanwhile is not lost.
  */
-export async function scheduleSeriesStore(anilistId: number) {
+export async function scheduleSeriesStore(anilistId: number, priority: SeriesStorePriority) {
   await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${storeSeriesTask},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
-      job_key_mode => 'preserve_run_at'
+      job_key_mode => 'preserve_run_at',
+      priority => ${keptPriority(anilistId, seriesStorePriorities[priority])}
     )
   `);
 }
@@ -103,7 +122,7 @@ export async function scheduleSeriesStore(anilistId: number) {
 /**
  * Queues laying out the series of an AniList entry again, if a stored series
  * contains it. Called as the entry airs, so new episodes, and TMDB listing a
- * season it did not list before, reach the stored series.
+ * season it did not list before, reach the stored series. Runs as `current`.
  */
 export async function scheduleStoredSeriesRefresh(anilistId: number) {
   await db.execute(sql`
@@ -111,10 +130,22 @@ export async function scheduleStoredSeriesRefresh(anilistId: number) {
       identifier => ${storeSeriesTask},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
-      job_key_mode => 'preserve_run_at'
+      job_key_mode => 'preserve_run_at',
+      priority => ${keptPriority(anilistId, seriesStorePriorities.current)}
     )
     where exists (select 1 from series_entry where anilist_id = ${anilistId})
   `);
+}
+
+/** The higher of `priority` and that of a job already waiting for the entry, since replacing a job resets its priority. */
+function keptPriority(anilistId: number, priority: number) {
+  return sql`least(
+    ${priority}::int,
+    coalesce(
+      (select jobs.priority from graphile_worker.jobs where jobs.key = ${seriesJobKey(anilistId)} and jobs.locked_at is null),
+      ${priority}::int
+    )
+  )`;
 }
 
 function seriesJobKey(anilistId: number) {
