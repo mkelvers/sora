@@ -81,6 +81,8 @@ mock.module("./episodes", () => ({
     )
 }));
 mock.module("../providers/registry", () => ({
+  servedLocale: "en",
+  isServedSubtitle: (track: { language: string }) => track.language === "en",
   streamProviders
 }));
 
@@ -150,11 +152,11 @@ describe("versionsOffered", () => {
   test("offers each language a provider lists, in the provider's locale", () => {
     expect(versionsOffered([listed("en", ["sub", "dub"])])).toEqual([
       {
-        language: "sub",
+        language: "dub",
         locale: "en"
       },
       {
-        language: "dub",
+        language: "sub",
         locale: "en"
       }
     ]);
@@ -179,19 +181,19 @@ describe("versionsOffered", () => {
       ])
     ).toEqual([
       {
-        language: "sub",
+        language: "dub",
         locale: "en"
       },
       {
-        language: "sub",
+        language: "dub",
         locale: "pt-BR"
       },
       {
-        language: "dub",
+        language: "sub",
         locale: "en"
       },
       {
-        language: "dub",
+        language: "sub",
         locale: "pt-BR"
       },
       {
@@ -255,7 +257,7 @@ describe("fillerOf", () => {
 });
 
 describe("getEpisodeVersions", () => {
-  test("combines the providers that list the AniList episode", async () => {
+  test("combines the English providers that list the AniList episode", async () => {
     useProviders([
       provider("anikoto", "en", [unit(3, ["sub", "dub"])]),
       provider("megaplay", "en", [unit(3, ["sub", "dub"])], false),
@@ -268,16 +270,12 @@ describe("getEpisodeVersions", () => {
       anilistEpisode: 3
     })).toEqual([
       {
+        language: "dub",
+        locale: "en"
+      },
+      {
         language: "sub",
         locale: "en"
-      },
-      {
-        language: "dub",
-        locale: "en"
-      },
-      {
-        language: "dub",
-        locale: "pt-BR"
       },
       {
         language: "raw",
@@ -358,8 +356,9 @@ describe("findEpisodeLanguages", () => {
     );
 
     expect(Object.fromEntries(found)).toEqual({
-      "1:1": ["sub", "dub"],
-      "1:2": ["sub", "dub"],
+      "1:1": ["dub", "sub"],
+      // The Brazilian dub is not English.
+      "1:2": ["sub"],
       "1:3": []
     });
   });
@@ -387,7 +386,7 @@ describe("findEpisodeLanguages", () => {
     ]);
 
     expect(Object.fromEntries(found)).toEqual({
-      "1:1": ["sub", "dub"],
+      "1:1": ["dub", "sub"],
       "2:1": null
     });
     expect(queuedLookups).toEqual([2]);
@@ -396,7 +395,7 @@ describe("findEpisodeLanguages", () => {
   test("looks an anime no provider was looked up for up on the spot", async () => {
     useProviders([notLookedUp("anikoto", "en", [unit(1, ["sub"])]), notLookedUp("allmanga", "en", [unit(1, ["dub"])])]);
 
-    expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub", "dub"]);
+    expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["dub", "sub"]);
     expect(asks).toBe(2);
     expect(queuedLookups).toEqual([]);
   });

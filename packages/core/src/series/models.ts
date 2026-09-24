@@ -79,18 +79,17 @@ export interface SeasonEpisode {
   airDate: string | null;
   runtimeMinutes: number | null;
   stillUrl: string | null;
-  /** An extra only TMDB lists, such as a recap special. No provider streams it. */
-  isExtra: boolean;
   /**
-   * The ways the episode can be watched, sub before dub before raw, in any
-   * locale; see `getEpisodeVersions` for which. Empty when nothing streams
-   * it, and `null` while its providers are still being looked up.
+   * The audio the episode can be watched with, dub before sub before raw, in
+   * any locale. Empty when nothing streams it, and `null` only while its
+   * providers have not been looked up yet.
    */
-  languages: ContentLanguage[] | null;
+  audio: ContentLanguage[] | null;
   /**
    * Whether the episode is filler: story the manga does not have, made to let
-   * the anime fall behind it. `null` when no provider says, or while its
-   * providers are still being looked up.
+   * the anime fall behind it. `false` when no provider says it is.
    */
-  isFiller: boolean | null;
+  filler: boolean;
+  /** An extra only TMDB lists, such as a recap special. No provider streams it. */
+  extra: boolean;
 }

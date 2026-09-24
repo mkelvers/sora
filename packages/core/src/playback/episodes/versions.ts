@@ -3,7 +3,7 @@ import type { ContentLanguage } from "anime-sdk";
 import { getAnime } from "../../catalog/queries/anime";
 import { scheduleEpisodeLookup } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
-import { streamProviders, type StreamProvider } from "../providers/registry";
+import { servedLocale, streamProviders, type StreamProvider } from "../providers/registry";
 import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
 
 /**
@@ -26,14 +26,15 @@ export interface ListedUnit {
   unit: ProviderUnit;
 }
 
+/** Dub is preferred, then sub, then raw. */
 const languageOrder: Record<ContentLanguage, number> = {
-  sub: 0,
-  dub: 1,
+  dub: 0,
+  sub: 1,
   raw: 2
 };
 
 /**
- * The versions an episode's listings offer: sub before dub before raw, and
+ * The versions an episode's listings offer: dub before sub before raw, and
  * each by locale.
  *
  * Only providers whose lists say truthfully which languages an episode has
@@ -151,7 +152,7 @@ interface AnimeListings {
  * whose lookup is queued to run first.
  */
 async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<number, AnimeListings>> {
-  const sources = streamProviders.filter((source) => source.listsLanguages);
+  const sources = streamProviders.filter((source) => source.listsLanguages && source.locale === servedLocale);
   const ids = [...new Set(anilistIds)];
   const stored = await getStoredUnits(ids);
   const neverLookedUp = ids.filter((anilistId) => !stored.some((entry) => entry.anilistId === anilistId));
