@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { getGenres } from "@sora/core/catalog";
-import { getEpisodeVersions, getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
-import { browseSeries, getAiringSchedule, getSeasonEpisodes, getSeries } from "@sora/core/series";
+import { getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
+import { browseSeries, getAiringSchedule, getSeason, getSeasonEpisodes, getSeries } from "@sora/core/series";
 import { cors } from "hono/cors";
 
 import { onInvalidRequest } from "./errors";
@@ -47,8 +47,16 @@ export const v1Routes = v1
     return c.json(series, 200);
   })
 
+  .openapi(route.getSeason, async (c) => {
+    const { animeId, seasonId } = c.req.valid("param");
+    const season = await getSeason(animeId, seasonId);
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json(season, 200);
+  })
+
   .openapi(route.listSeasonEpisodes, async (c) => {
-    const items = await getSeasonEpisodes(c.req.valid("param").seasonId);
+    const { animeId, seasonId } = c.req.valid("param");
+    const items = await getSeasonEpisodes(animeId, seasonId);
     // Unknown languages are filled in once providers are looked up.
     c.header("Cache-Control", items.some((episode) => episode.languages === null) ? "no-store" : "public, max-age=300");
     return c.json(
@@ -84,31 +92,16 @@ export const v1Routes = v1
     );
   })
 
-  .openapi(route.listEpisodeVersions, async (c) => {
-    const { seasonId, episode } = c.req.valid("param");
-    const items = await getEpisodeVersions(seasonId, episode);
-    c.header("Cache-Control", "public, max-age=300");
-    return c.json(
-      {
-        items
-      },
-      200
-    );
-  })
-
   .openapi(route.getPlayback, async (c) => {
-    const playback = await resolvePlayback({
-      ...c.req.valid("param"),
-      ...c.req.valid("query")
-    });
+    const playback = await resolvePlayback(c.req.valid("param"));
     // Stream tokens expire; a cached playback would hand out dead ones.
     c.header("Cache-Control", "no-store");
     return c.json(playback, 200);
   })
 
   .openapi(route.getSkipTimes, async (c) => {
-    const { seasonId, episode } = c.req.valid("param");
-    const items = await getSkipTimes(seasonId, episode, c.req.valid("query").duration);
+    const { animeId, seasonId, episode } = c.req.valid("param");
+    const items = await getSkipTimes(animeId, seasonId, episode, c.req.valid("query").duration);
     c.header("Cache-Control", "public, max-age=3600");
     return c.json(
       {

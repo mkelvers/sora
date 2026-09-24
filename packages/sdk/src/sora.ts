@@ -1,7 +1,7 @@
 import type { AppType } from "@sora/api";
 import type { BrowseQuery, Page } from "@sora/core/catalog";
-import type { EpisodeVersion, Playback, SkipSegment } from "@sora/core/playback";
-import type { ScheduledEpisode, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
+import type { Playback, SkipSegment } from "@sora/core/playback";
+import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 import { hc, type ClientResponse } from "hono/client";
 import type { SuccessStatusCode } from "hono/utils/http-status";
 
@@ -38,9 +38,11 @@ export interface SoraOptions {
  * const sora = new Sora({ baseUrl: "https://api.example.com" });
  * const { items } = await sora.search("tensura");
  * const series = await sora.series(items[0].id);
- * const episodes = await sora.episodes(series.seasons[0].id);
- * const playback = await sora.playback(series.seasons[0].id, 1, { signal: AbortSignal.timeout(15_000) });
- * const src = sora.streamUrl(playback.sources[0].token);
+ * const season = series.seasons[0];
+ * const episodes = await sora.episodes(series.id, season.id);
+ * const playback = await sora.playback(series.id, season.id, 1, { signal: AbortSignal.timeout(15_000) });
+ * const dub = playback.versions.find((version) => version.language === "dub");
+ * const src = sora.streamUrl(playback.versions[0].sources[0].token);
  * ```
  */
 export class Sora {
@@ -102,12 +104,28 @@ export class Sora {
     );
   }
 
-  /** Lists a season's episodes, numbered from 1. */
-  async episodes(seasonId: string, options: RequestOptions = {}): Promise<SeasonEpisode[]> {
-    const { items } = await read(
-      this.#api.seasons[":seasonId"].episodes.$get(
+  /** Loads one season of a title. */
+  season(seriesId: string, seasonId: string, options: RequestOptions = {}): Promise<Season> {
+    return read(
+      this.#api.anime[":animeId"].seasons[":seasonId"].$get(
         {
           param: {
+            animeId: seriesId,
+            seasonId
+          }
+        },
+        init(options)
+      )
+    );
+  }
+
+  /** Lists a season's episodes, numbered from 1. */
+  async episodes(seriesId: string, seasonId: string, options: RequestOptions = {}): Promise<SeasonEpisode[]> {
+    const { items } = await read(
+      this.#api.anime[":animeId"].seasons[":seasonId"].episodes.$get(
+        {
+          param: {
+            animeId: seriesId,
             seasonId
           }
         },
@@ -118,48 +136,18 @@ export class Sora {
   }
 
   /**
-   * The ways to watch an episode, such as sub with English subtitles or an
-   * English dub. Pass a version's `language` and `locale` to
-   * {@link playback} to play it.
+   * Resolves streams for every version of an episode at once, such as sub
+   * and dub. Stream tokens expire: resolve again rather than storing them,
+   * and turn them into URLs with {@link streamUrl}.
    */
-  async versions(seasonId: string, episode: number, options: RequestOptions = {}): Promise<EpisodeVersion[]> {
-    const { items } = await read(
-      this.#api.seasons[":seasonId"].episodes[":episode"].versions.$get(
-        {
-          param: {
-            seasonId,
-            episode: episode.toString()
-          }
-        },
-        init(options)
-      )
-    );
-    return items;
-  }
-
-  /**
-   * Resolves streams for an episode. Stream tokens expire: resolve again
-   * rather than storing them, and turn them into URLs with {@link streamUrl}.
-   */
-  playback(
-    seasonId: string,
-    episode: number,
-    options: RequestOptions & {
-      language?: Playback["language"];
-      /** Language wanted for a dub's audio or a sub's subtitles; `en` unless given. Ignored for raw. */
-      locale?: string;
-    } = {}
-  ): Promise<Playback> {
+  playback(seriesId: string, seasonId: string, episode: number, options: RequestOptions = {}): Promise<Playback> {
     return read(
-      this.#api.seasons[":seasonId"].episodes[":episode"].playback.$get(
+      this.#api.anime[":animeId"].seasons[":seasonId"].episodes[":episode"].playback.$get(
         {
           param: {
+            animeId: seriesId,
             seasonId,
             episode: episode.toString()
-          },
-          query: {
-            language: options.language,
-            locale: options.locale
           }
         },
         init(options)
@@ -175,6 +163,7 @@ export class Sora {
    *   AniSkip results to encodes of similar length.
    */
   async skipTimes(
+    seriesId: string,
     seasonId: string,
     episode: number,
     options: RequestOptions & {
@@ -182,9 +171,10 @@ export class Sora {
     } = {}
   ): Promise<SkipSegment[]> {
     const { items } = await read(
-      this.#api.seasons[":seasonId"].episodes[":episode"]["skip-times"].$get(
+      this.#api.anime[":animeId"].seasons[":seasonId"].episodes[":episode"]["skip-times"].$get(
         {
           param: {
+            animeId: seriesId,
             seasonId,
             episode: episode.toString()
           },

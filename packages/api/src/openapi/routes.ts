@@ -15,12 +15,10 @@ import {
   EpisodeNumberParam,
   itemsOf,
   json,
-  EpisodeVersionSchema,
-  LanguageSchema,
-  LocaleSchema,
   PlaybackSchema,
   problem,
   ScheduledEpisodeSchema,
+  SeasonSchema,
   SeasonEpisodeSchema,
   SeasonIdParam,
   SeriesIdParam,
@@ -76,8 +74,14 @@ const SearchParams = BrowseParams.extend({
   })
 });
 
-const EpisodeParams = z.object({
-  seasonId: SeasonIdParam,
+/** A season, addressed under the series it belongs to. */
+const SeasonParams = z.object({
+  animeId: SeriesIdParam,
+  seasonId: SeasonIdParam
+});
+
+/** An episode, addressed under its season. */
+const EpisodeParams = SeasonParams.extend({
   episode: EpisodeNumberParam
 });
 
@@ -135,20 +139,33 @@ export const getSeries = createRoute({
   }
 });
 
+export const getSeason = createRoute({
+  operationId: "getSeason",
+  method: "get",
+  path: "/anime/{animeId}/seasons/{seasonId}",
+  tags: ["Anime"],
+  summary: "Get a season",
+  request: {
+    params: SeasonParams
+  },
+  responses: {
+    200: json(SeasonSchema, "The season."),
+    404: problem("No such season in this title.")
+  }
+});
+
 export const listSeasonEpisodes = createRoute({
   operationId: "listSeasonEpisodes",
   method: "get",
-  path: "/seasons/{seasonId}/episodes",
+  path: "/anime/{animeId}/seasons/{seasonId}/episodes",
   tags: ["Anime"],
   summary: "List a season's episodes",
   request: {
-    params: z.object({
-      seasonId: SeasonIdParam
-    })
+    params: SeasonParams
   },
   responses: {
     200: json(itemsOf(SeasonEpisodeSchema), "The season's episodes, numbered from 1."),
-    404: problem("No such season.")
+    404: problem("No such season in this title.")
   }
 });
 
@@ -190,43 +207,20 @@ export const getSchedule = createRoute({
   }
 });
 
-export const listEpisodeVersions = createRoute({
-  operationId: "listEpisodeVersions",
+export const getPlayback = createRoute({
+  operationId: "getPlayback",
   method: "get",
-  path: "/seasons/{seasonId}/episodes/{episode}/versions",
+  path: "/anime/{animeId}/seasons/{seasonId}/episodes/{episode}/playback",
   tags: ["Playback"],
-  summary: "List the ways to watch an episode",
+  summary: "Get streams for an episode",
   description:
-    "Every language and locale providers offer the episode in, such as sub with English subtitles or an English dub. Pass a version's `language` and `locale` to `getPlayback` to play it. An empty list means nothing streams the episode.",
+    "Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it. Sources and subtitles are stream tokens for `getStream`; they expire, so resolve again rather than storing them.",
   request: {
     params: EpisodeParams
   },
   responses: {
-    200: json(itemsOf(EpisodeVersionSchema), "Versions, sub before dub before raw."),
-    404: problem("No such season or episode.")
-  }
-});
-
-export const getPlayback = createRoute({
-  operationId: "getPlayback",
-  method: "get",
-  path: "/seasons/{seasonId}/episodes/{episode}/playback",
-  tags: ["Playback"],
-  summary: "Get streams for an episode",
-  description:
-    "Resolves streams from the first provider that can play the episode in the requested language and locale. Sources and subtitles are stream tokens for `getStream`; they expire, so resolve again rather than storing them.",
-  request: {
-    params: EpisodeParams,
-    query: z.object({
-      language: LanguageSchema.default("sub"),
-      locale: LocaleSchema.default("en").openapi({
-        description: "Language wanted for a dub's audio or a sub's subtitles. Ignored for raw."
-      })
-    })
-  },
-  responses: {
-    200: json(PlaybackSchema, "Streams for the episode."),
-    404: problem("No such season or episode, or nothing streams it."),
+    200: json(PlaybackSchema, "Streams for every version of the episode."),
+    404: problem("No such season or episode in this title, or nothing streams it."),
     502: problem("Providers list the episode but none can stream it right now.")
   }
 });
@@ -234,7 +228,7 @@ export const getPlayback = createRoute({
 export const getSkipTimes = createRoute({
   operationId: "getSkipTimes",
   method: "get",
-  path: "/seasons/{seasonId}/episodes/{episode}/skip-times",
+  path: "/anime/{animeId}/seasons/{seasonId}/episodes/{episode}/skip-times",
   tags: ["Playback"],
   summary: "Get opening, ending, and recap times",
   description: "From AniKoto, falling back to crowd-sourced AniSkip times when AniKoto has none. An empty list means nothing is known.",
@@ -248,7 +242,7 @@ export const getSkipTimes = createRoute({
   },
   responses: {
     200: json(itemsOf(SkipSegmentSchema), "Skippable segments, in order."),
-    404: problem("No such season or episode.")
+    404: problem("No such season or episode in this title.")
   }
 });
 

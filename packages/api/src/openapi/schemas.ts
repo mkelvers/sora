@@ -5,7 +5,7 @@
  */
 import { z } from "@hono/zod-openapi";
 import type { AnimeTag, AnimeTrailer, Page } from "@sora/core/catalog";
-import type { EpisodeVersion, Playback, SkipSegment } from "@sora/core/playback";
+import type { Playback, PlaybackVersion, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 
 /**
@@ -252,25 +252,14 @@ export const LocaleSchema = z.string().min(1).openapi({
   example: "en"
 });
 
-export const EpisodeVersionSchema = z
+export const PlaybackVersionSchema = z
   .object({
     language: LanguageSchema,
     locale: LocaleSchema.nullable().openapi({
-      description: "Language of a dub's audio or of a sub's subtitles. Null for raw, which keeps the original audio and has no subtitles."
-    })
-  })
-  .openapi("EpisodeVersion") satisfies z.ZodType<EpisodeVersion>;
-
-export const PlaybackSchema = z
-  .object({
-    seasonId: z.string(),
-    episode: z.number().int(),
-    language: LanguageSchema,
-    locale: LocaleSchema.nullable().openapi({
-      description: "Language of the dub's audio or of the sub's subtitles. Null for raw."
+      description: "Language of the dub's audio or of the sub's subtitles. Null for raw, which keeps the original audio and has no subtitles."
     }),
     provider: z.string().openapi({
-      description: "The provider that served this playback."
+      description: "The provider that serves this version."
     }),
     sources: z
       .array(
@@ -311,6 +300,18 @@ export const PlaybackSchema = z
           .nullable()
       })
     )
+  })
+  .openapi("PlaybackVersion") satisfies z.ZodType<PlaybackVersion>;
+
+export const PlaybackSchema = z
+  .object({
+    animeId: z.string(),
+    seasonId: z.string(),
+    episode: z.number().int(),
+    versions: z.array(PlaybackVersionSchema).openapi({
+      description:
+        "Every version a provider can stream right now, such as sub and dub: sub before dub before raw, and each by locale. A version no provider can stream right now is left out."
+    })
   })
   .openapi("Playback") satisfies z.ZodType<Playback>;
 
