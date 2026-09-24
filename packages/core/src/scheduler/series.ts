@@ -90,7 +90,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
       const isWanted =
         entry.status === "RELEASING" || premieresSoon || relatedIds(entry).some((id) => stored.has(id));
       if (!stored.has(entry.id) && isWanted) {
-        await scheduleSeriesStore(entry.id);
+        await scheduleSeriesStore(entry.id, "backfill");
         queued += 1;
       }
     }

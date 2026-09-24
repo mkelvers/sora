@@ -156,7 +156,7 @@ async function seriesIdsFor(anilistIds: readonly number[]) {
     }
 
     if (Date.now() - started >= browseLayoutBudgetMs) {
-      await scheduleSeriesStore(anilistId);
+      await scheduleSeriesStore(anilistId, "current");
       continue;
     }
 
@@ -164,7 +164,7 @@ async function seriesIdsFor(anilistIds: readonly number[]) {
       await storeSeries(anilistId);
     } catch (error) {
       if (error instanceof UpstreamUnavailableError) {
-        await scheduleSeriesStore(anilistId);
+        await scheduleSeriesStore(anilistId, "current");
         continue;
       }
 

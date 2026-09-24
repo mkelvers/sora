@@ -65,7 +65,7 @@ export async function storeSeries(anilistId: number): Promise<string> {
   const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
   const storedRelated = await storedSeriesIds(relatedIds);
   for (const id of relatedIds.filter((id) => !storedRelated.has(id))) {
-    await scheduleSeriesStore(id);
+    await scheduleSeriesStore(id, "backfill");
   }
 
   return seriesId;
