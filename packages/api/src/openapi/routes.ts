@@ -15,7 +15,9 @@ import {
   EpisodeNumberParam,
   itemsOf,
   json,
+  EpisodeVersionSchema,
   LanguageSchema,
+  LocaleSchema,
   PlaybackSchema,
   problem,
   ScheduledEpisodeSchema,
@@ -156,6 +158,23 @@ export const getSchedule = createRoute({
   }
 });
 
+export const listEpisodeVersions = createRoute({
+  operationId: "listEpisodeVersions",
+  method: "get",
+  path: "/seasons/{seasonId}/episodes/{episode}/versions",
+  tags: ["Playback"],
+  summary: "List the ways to watch an episode",
+  description:
+    "Every language and locale providers offer the episode in, such as sub with English subtitles or an English dub. Pass a version's `language` and `locale` to `getPlayback` to play it. An empty list means nothing streams the episode.",
+  request: {
+    params: EpisodeParams
+  },
+  responses: {
+    200: json(itemsOf(EpisodeVersionSchema), "Versions, sub before dub before raw."),
+    404: problem("No such season or episode.")
+  }
+});
+
 export const getPlayback = createRoute({
   operationId: "getPlayback",
   method: "get",
@@ -163,11 +182,14 @@ export const getPlayback = createRoute({
   tags: ["Playback"],
   summary: "Get streams for an episode",
   description:
-    "Resolves streams from the first provider that can play the episode. Sources and subtitles are stream tokens for `getStream`; they expire, so resolve again rather than storing them.",
+    "Resolves streams from the first provider that can play the episode in the requested language and locale. Sources and subtitles are stream tokens for `getStream`; they expire, so resolve again rather than storing them.",
   request: {
     params: EpisodeParams,
     query: z.object({
-      language: LanguageSchema.default("sub")
+      language: LanguageSchema.default("sub"),
+      locale: LocaleSchema.default("en").openapi({
+        description: "Language wanted for a dub's audio or a sub's subtitles. Ignored for raw."
+      })
     })
   },
   responses: {
@@ -183,7 +205,7 @@ export const getSkipTimes = createRoute({
   path: "/seasons/{seasonId}/episodes/{episode}/skip-times",
   tags: ["Playback"],
   summary: "Get opening, ending, and recap times",
-  description: "Crowd-sourced from AniSkip. An empty list means nothing is known.",
+  description: "From AniKoto, falling back to crowd-sourced AniSkip times when AniKoto has none. An empty list means nothing is known.",
   request: {
     params: EpisodeParams,
     query: z.object({

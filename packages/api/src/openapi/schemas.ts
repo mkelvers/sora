@@ -5,7 +5,7 @@
  */
 import { z } from "@hono/zod-openapi";
 import type { AnimeTag, AnimeTrailer, Page } from "@sora/core/catalog";
-import type { Playback, SkipSegment } from "@sora/core/playback";
+import type { EpisodeVersion, Playback, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 
 /**
@@ -194,6 +194,12 @@ export const SeriesSchema = SeriesCardSchema.extend({
   related: z.array(SeriesCardSchema)
 }).openapi("Series") satisfies z.ZodType<Series>;
 
+export const LanguageSchema = z.enum([
+  "sub",
+  "dub",
+  "raw"
+]);
+
 export const SeasonEpisodeSchema = z
   .object({
     number: z.number().int(),
@@ -206,7 +212,14 @@ export const SeasonEpisodeSchema = z
     stillUrl: z.string().nullable(),
     isExtra: z.boolean().openapi({
       description: "An extra only TMDB lists, such as a recap special. It cannot be played."
-    })
+    }),
+    languages: z
+      .array(LanguageSchema)
+      .nullable()
+      .openapi({
+        description:
+          "The ways the episode can be watched, in any locale; `listEpisodeVersions` says which. Empty when nothing streams it, and null while Sora is still looking it up on providers: list the season again shortly."
+      })
   })
   .openapi("SeasonEpisode") satisfies z.ZodType<SeasonEpisode>;
 
@@ -227,17 +240,28 @@ export const SeriesPageSchema = z
   })
   .openapi("SeriesPage") satisfies z.ZodType<Page<SeriesCard>>;
 
-export const LanguageSchema = z.enum([
-  "sub",
-  "dub",
-  "raw"
-]);
+export const LocaleSchema = z.string().min(1).openapi({
+  description: "BCP 47 language tag.",
+  example: "en"
+});
+
+export const EpisodeVersionSchema = z
+  .object({
+    language: LanguageSchema,
+    locale: LocaleSchema.nullable().openapi({
+      description: "Language of a dub's audio or of a sub's subtitles. Null for raw, which keeps the original audio and has no subtitles."
+    })
+  })
+  .openapi("EpisodeVersion") satisfies z.ZodType<EpisodeVersion>;
 
 export const PlaybackSchema = z
   .object({
     seasonId: z.string(),
     episode: z.number().int(),
     language: LanguageSchema,
+    locale: LocaleSchema.nullable().openapi({
+      description: "Language of the dub's audio or of the sub's subtitles. Null for raw."
+    }),
     provider: z.string().openapi({
       description: "The provider that served this playback."
     }),
@@ -295,8 +319,9 @@ export const SkipSegmentSchema = z
     }),
     start: z.number(),
     end: z.number(),
-    episodeLength: z.number().openapi({
-      description: "Length of the encode the segment was timed against, in seconds."
+    episodeLength: z.number().nullable().openapi({
+      description:
+        "Length of the encode the segment was timed against, in seconds. Null for AniKoto's segments, which are timed against the stream Sora serves."
     })
   })
   .openapi("SkipSegment") satisfies z.ZodType<SkipSegment>;
