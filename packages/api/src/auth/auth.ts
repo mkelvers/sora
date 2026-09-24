@@ -19,7 +19,8 @@ export const auth = betterAuth({
   baseURL: config.authUrl,
   basePath: "/auth",
   secret: config.authSecret,
-  trustedOrigins: config.trustedOrigins,
+  // Better Auth reads the same `https://*.example.com` wildcards.
+  trustedOrigins: config.trustedOrigins.map((pattern) => pattern.source),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema
