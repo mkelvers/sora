@@ -5,7 +5,7 @@
  */
 import { z } from "@hono/zod-openapi";
 import type { AnimeTag, AnimeTrailer, Page } from "@sora/core/catalog";
-import type { Playback, PlaybackVersion, SkipSegment } from "@sora/core/playback";
+import type { Playback, PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 
 /**
@@ -249,7 +249,22 @@ export const LocaleSchema = z.string().min(1).openapi({
   example: "en"
 });
 
-export const PlaybackVersionSchema = z
+export const SkipSegmentSchema = z
+  .object({
+    kind: z.enum([
+      "opening",
+      "ending"
+    ]),
+    start: z.number().nonnegative().openapi({
+      description: "Seconds from the start of the stream."
+    }),
+    end: z.number().positive().openapi({
+      description: "Seconds from the start of the stream; always after `start`."
+    })
+  })
+  .openapi("SkipSegment") satisfies z.ZodType<SkipSegment>;
+
+export const PlaybackMediaSchema = z
   .object({
     audio: LanguageSchema,
     locale: LocaleSchema.nullable().openapi({
@@ -265,8 +280,8 @@ export const PlaybackVersionSchema = z
     sources: z
       .array(
         z.object({
-          token: z.string().openapi({
-            description: "Stream token; fetch it from `GET /streams/{token}`."
+          url: z.url().openapi({
+            description: "The stream through Sora's proxy; hand it to the player as is. Expires with the playback."
           }),
           format: z.enum([
             "hls",
@@ -286,7 +301,9 @@ export const PlaybackVersionSchema = z
       }),
     subtitles: z.array(
       z.object({
-        token: z.string(),
+        url: z.url().openapi({
+          description: "The subtitle file through Sora's proxy; hand it to the player as is. Expires with the playback."
+        }),
         language: z.string().openapi({
           description: "BCP 47 language tag.",
           example: "en"
@@ -300,37 +317,22 @@ export const PlaybackVersionSchema = z
           ])
           .nullable()
       })
-    )
+    ),
+    skipSegments: z.array(SkipSegmentSchema).openapi({
+      description:
+        "Opening and ending, in playback order, as AniKoto's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none."
+    })
   })
-  .openapi("PlaybackVersion") satisfies z.ZodType<PlaybackVersion>;
+  .openapi("PlaybackMedia") satisfies z.ZodType<PlaybackMedia>;
 
 export const PlaybackSchema = z
   .object({
     animeId: z.string(),
     seasonId: z.string(),
     episode: z.number().int(),
-    versions: z.array(PlaybackVersionSchema).openapi({
+    media: z.array(PlaybackMediaSchema).openapi({
       description:
         "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has subtitles: as tracks, or burned into the picture when `hardsub` is true. Dub and raw have none."
     })
   })
   .openapi("Playback") satisfies z.ZodType<Playback>;
-
-export const SkipSegmentSchema = z
-  .object({
-    kind: z.enum([
-      "opening",
-      "ending",
-      "recap"
-    ]),
-    mixed: z.boolean().openapi({
-      description: "The song plays over story content, so skipping may lose scenes."
-    }),
-    start: z.number(),
-    end: z.number(),
-    episodeLength: z.number().nullable().openapi({
-      description:
-        "Length of the encode the segment was timed against, in seconds. Null for AniKoto's segments, which are timed against the stream Sora serves."
-    })
-  })
-  .openapi("SkipSegment") satisfies z.ZodType<SkipSegment>;
