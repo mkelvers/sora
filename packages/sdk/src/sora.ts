@@ -1,6 +1,6 @@
 import type { AppType } from "@sora/api";
 import type { BrowseQuery, Page } from "@sora/core/catalog";
-import type { Playback, SkipSegment } from "@sora/core/playback";
+import type { EpisodeVersion, Playback, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 import { hc, type ClientResponse } from "hono/client";
 import type { SuccessStatusCode } from "hono/utils/http-status";
@@ -107,6 +107,26 @@ export class Sora {
   }
 
   /**
+   * The ways to watch an episode, such as sub with English subtitles or an
+   * English dub. Pass a version's `language` and `locale` to
+   * {@link playback} to play it.
+   */
+  async versions(seasonId: string, episode: number, options: RequestOptions = {}): Promise<EpisodeVersion[]> {
+    const { items } = await read(
+      this.#api.seasons[":seasonId"].episodes[":episode"].versions.$get(
+        {
+          param: {
+            seasonId,
+            episode: episode.toString()
+          }
+        },
+        init(options)
+      )
+    );
+    return items;
+  }
+
+  /**
    * Resolves streams for an episode. Stream tokens expire: resolve again
    * rather than storing them, and turn them into URLs with {@link streamUrl}.
    */
@@ -115,6 +135,8 @@ export class Sora {
     episode: number,
     options: RequestOptions & {
       language?: Playback["language"];
+      /** Language wanted for a dub's audio or a sub's subtitles; `en` unless given. Ignored for raw. */
+      locale?: string;
     } = {}
   ): Promise<Playback> {
     return read(
@@ -125,7 +147,8 @@ export class Sora {
             episode: episode.toString()
           },
           query: {
-            language: options.language
+            language: options.language,
+            locale: options.locale
           }
         },
         init(options)
@@ -134,10 +157,11 @@ export class Sora {
   }
 
   /**
-   * Opening, ending, and recap times, crowd-sourced from AniSkip.
+   * Opening, ending, and recap times from AniKoto, falling back to
+   * crowd-sourced AniSkip times when AniKoto has none.
    *
    * @param options.durationSeconds - The playing stream's duration; narrows
-   *   results to encodes of similar length.
+   *   AniSkip results to encodes of similar length.
    */
   async skipTimes(
     seasonId: string,
