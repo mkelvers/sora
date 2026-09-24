@@ -3,7 +3,7 @@ import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getAnime } from "../catalog/queries/anime";
 import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
-import { scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
+import { scheduleEpisodeLookup, scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
 import { assignSeasonIds } from "./identity";
 import { newSeasonId, newSeriesId } from "./ids";
 import type { SeriesSeason } from "./seasons";
@@ -44,9 +44,10 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  * elsewhere moves to that series. A stored series left without entries is
  * merged into this one, and its watchlist entries move here. Seasons keep their IDs as
  * {@link assignSeasonIds} describes. Related titles that are not stored yet
- * are queued for the scheduler to store, and entries that may still gain
+ * are queued for the scheduler to store, entries that may still gain
  * episodes are handed to the airing scheduler, which lays the series out
- * again as they air.
+ * again as they air, and every entry is queued to be looked up on
+ * providers.
  *
  * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
  *   belongs to adult media.
@@ -60,6 +61,11 @@ export async function storeSeries(anilistId: number): Promise<string> {
   await getAnime(built.anchorAnilistId);
   for (const id of built.airingIds) {
     await startTrackingAiring(id);
+  }
+
+  // Episode listings read providers' episode lists from the database only.
+  for (const id of built.anilistIds) {
+    await scheduleEpisodeLookup(id, "backfill");
   }
 
   const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
