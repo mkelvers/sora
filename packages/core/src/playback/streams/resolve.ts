@@ -91,7 +91,9 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * Resolves playable streams for one episode in every English version
  * providers offer it in, such as dub and sub, at once. Each version comes
  * from the first English provider that can stream it; a version none can
- * stream right now is left out, and only English subtitles are kept.
+ * stream right now is left out, and only English subtitles are kept. A sub
+ * always has subtitles: a provider serving one without English subtitle
+ * tracks is passed over.
  *
  * Stream URLs are never exposed; clients receive proxy tokens so upstream
  * headers and hosts stay on the server.
@@ -198,12 +200,19 @@ async function resolveVersion(
         continue;
       }
 
+      const media = toPlaybackMedia(resolved.streams);
+      // A sub is only playable with subtitles to read.
+      if (language === "sub" && media.subtitles.length === 0) {
+        fail(provider, "No English subtitles");
+        continue;
+      }
+
       return {
         version: {
           audio: language,
           locale,
           provider: provider.id,
-          ...toPlaybackMedia(resolved.streams)
+          ...media
         },
         listed,
         attempts
