@@ -37,6 +37,11 @@ export interface PlaybackVersion {
   locale: string | null;
   /** The provider that serves this version. */
   provider: string;
+  /**
+   * Whether the subtitles are burned into the picture rather than served as
+   * tracks: a sub whose `subtitles` is empty. Always `false` for dub and raw.
+   */
+  hardsub: boolean;
   /** Ordered best first. */
   sources: PlaybackSource[];
   subtitles: PlaybackSubtitle[];
@@ -92,8 +97,9 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * providers offer it in, such as dub and sub, at once. Each version comes
  * from the first English provider that can stream it; a version none can
  * stream right now is left out, and only English subtitles are kept. A sub
- * always has subtitles: a provider serving one without English subtitle
- * tracks is passed over.
+ * always has subtitles: one with English subtitle tracks is preferred, and
+ * otherwise the first whose subtitles are burned in is served, marked
+ * `hardsub`.
  *
  * Stream URLs are never exposed; clients receive proxy tokens so upstream
  * headers and hosts stay on the server.
@@ -175,6 +181,7 @@ async function resolveVersion(
       reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
     });
   let listed = false;
+  let hardsubbed: PlaybackVersion | null = null;
 
   for (const { provider, locale: providerLocale } of streamProviders) {
     if (providerLocale !== servedLocale || (locale !== null && providerLocale !== locale)) {
@@ -201,19 +208,25 @@ async function resolveVersion(
       }
 
       const media = toPlaybackMedia(resolved.streams);
-      // A sub is only playable with subtitles to read.
-      if (language === "sub" && media.subtitles.length === 0) {
-        fail(provider, "No English subtitles");
+      const version = {
+        audio: language,
+        locale,
+        provider: provider.id,
+        hardsub: language === "sub" && media.subtitles.length === 0,
+        ...media
+      };
+
+      // A sub without subtitle tracks has them burned in. Later providers may
+      // serve tracks, which players can style and turn off, so they are tried
+      // first, and this one is kept to fall back on.
+      if (version.hardsub) {
+        fail(provider, "Subtitles are burned in");
+        hardsubbed ??= version;
         continue;
       }
 
       return {
-        version: {
-          audio: language,
-          locale,
-          provider: provider.id,
-          ...media
-        },
+        version,
         listed,
         attempts
       };
@@ -223,7 +236,7 @@ async function resolveVersion(
   }
 
   return {
-    version: null,
+    version: hardsubbed,
     listed,
     attempts
   };

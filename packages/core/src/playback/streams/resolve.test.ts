@@ -222,7 +222,7 @@ describe("resolvePlayback", () => {
     expect(playback.versions[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
   });
 
-  test("passes over a sub without subtitle tracks for the next provider", async () => {
+  test("prefers a later provider's subtitle tracks to burned-in subtitles", async () => {
     useProviders([
       {
         id: "anikoto",
@@ -239,9 +239,10 @@ describe("resolvePlayback", () => {
     offered = [sub()];
 
     expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
+    expect((await resolvePlayback(request)).versions[0]?.hardsub).toBe(false);
   });
 
-  test("leaves a sub out when no provider has subtitles for it, but keeps the dub", async () => {
+  test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {
     useProviders([
       {
         id: "anikoto",
@@ -252,7 +253,11 @@ describe("resolvePlayback", () => {
     ]);
     offered = [dub(), sub()];
 
-    expect(await resolvedVersions()).toEqual(["dub/en@anikoto"]);
+    const playback = await resolvePlayback(request);
+    expect(playback.versions.map((version) => [version.audio, version.provider, version.hardsub, version.subtitles.length])).toEqual([
+      ["dub", "anikoto", false, 0],
+      ["sub", "anikoto", true, 0]
+    ]);
   });
 
   test("serves raw from an English provider and reports no locale", async () => {
