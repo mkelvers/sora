@@ -1,6 +1,7 @@
 import { boolean, doublePrecision, index, integer, pgEnum, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 import { timestamptz } from "./columns";
+import { series } from "./series";
 
 export const watchlistStatus = pgEnum("watchlist_status", [
   "watching",
@@ -10,12 +11,21 @@ export const watchlistStatus = pgEnum("watchlist_status", [
   "dropped"
 ]);
 
-/** One anime on one user's watchlist. */
+/**
+ * One title on one user's watchlist.
+ *
+ * Entries follow their series: when two stored series are merged, the
+ * series store moves the entries of the one that disappears.
+ */
 export const watchlistEntry = pgTable(
   "watchlist_entry",
   {
     userId: text("user_id").notNull(),
-    anilistId: integer("anilist_id").notNull(),
+    seriesId: text("series_id")
+      .notNull()
+      .references(() => series.id, {
+        onDelete: "cascade"
+      }),
     status: watchlistStatus("status").notNull(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     updatedAt: timestamptz("updated_at").notNull().defaultNow()
@@ -24,7 +34,7 @@ export const watchlistEntry = pgTable(
     primaryKey({
       columns: [
         table.userId,
-        table.anilistId
+        table.seriesId
       ]
     }),
     index("watchlist_entry_user_updated_idx").on(table.userId, table.updatedAt)
