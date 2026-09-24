@@ -43,6 +43,13 @@
       "when": 1790207237262,
       "tag": "0005_series_details",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790207677967,
+      "tag": "0006_watchlist_by_series",
+      "breakpoints": true
     }
   ]
 }
