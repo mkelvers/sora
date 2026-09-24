@@ -2,13 +2,13 @@ import type { ContentLanguage } from "anime-sdk";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { scheduleEpisodeLookup } from "../../scheduler/queue";
-import { anilistEpisodeKey, locateEpisode } from "../../series/episodes";
+import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
 import { streamProviders, type StreamProvider } from "../providers/registry";
 import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
 
 /**
  * One way to watch an episode: its {@link ContentLanguage} and, for sub and
- * dub, whose language it is in. Pass both to `resolvePlayback` to play it.
+ * dub, whose language it is in.
  */
 export interface EpisodeVersion {
   language: ContentLanguage;
@@ -71,22 +71,15 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
 }
 
 /**
- * Lists the versions of one episode that providers offer.
+ * Lists the versions of one AniList episode that providers offer.
  *
  * Reads the providers' stored episode lists. Only an anime no provider has
  * been looked up for yet is looked up on the spot, once; after that the
  * scheduler keeps its lists current.
- *
- * @param episode - Position within the season, from 1.
- *
- * @throws {@link SeasonNotFoundError} when the season does not exist.
- * @throws {@link EpisodeNotFoundError} when the season has no such episode,
- *   or it is an extra only TMDB lists.
  */
-export async function getEpisodeVersions(seasonId: string, episode: number): Promise<EpisodeVersion[]> {
-  const located = await locateEpisode(seasonId, episode);
-  const listed = (await readAnimeListings([located.anilistId])).get(located.anilistId);
-  return versionsOffered(listed?.listings.filter(({ unit }) => unit.number === located.anilistEpisode) ?? []);
+export async function getEpisodeVersions(episode: Pick<LocatedEpisode, "anilistId" | "anilistEpisode">): Promise<EpisodeVersion[]> {
+  const listed = (await readAnimeListings([episode.anilistId])).get(episode.anilistId);
+  return versionsOffered(listed?.listings.filter(({ unit }) => unit.number === episode.anilistEpisode) ?? []);
 }
 
 /**

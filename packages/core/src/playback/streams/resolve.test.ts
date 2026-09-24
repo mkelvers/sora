@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { ContentLanguage, ResolvedMediaStream } from "anime-sdk";
 
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
+import type { EpisodeVersion } from "../episodes/versions";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -23,6 +24,8 @@ const streamProviders: {
 }[] = [];
 const units = new Map<string, ContentLanguage[]>();
 const resolved: string[] = [];
+/** The versions the stored episode lists offer, for `getEpisodeVersions`. */
+let offered: EpisodeVersion[] = [];
 
 function useProviders(list: FakeProvider[]) {
   units.clear();
@@ -81,6 +84,9 @@ mock.module("../episodes/episodes", () => ({
     }
   ]
 }));
+mock.module("../episodes/versions", () => ({
+  getEpisodeVersions: async () => offered
+}));
 mock.module("../providers/registry", () => ({
   streamProviders
 }));
@@ -90,12 +96,34 @@ mock.module("../proxy/proxy", () => ({
 
 const { resolvePlayback } = await import("./resolve");
 
+const request = {
+  animeId: "series",
+  seasonId: "season",
+  episode: 3
+};
+
+const sub = (locale = "en"): EpisodeVersion => ({
+  language: "sub",
+  locale
+});
+const dub = (locale = "en"): EpisodeVersion => ({
+  language: "dub",
+  locale
+});
+
+/** Each resolved version as `language/locale@provider`. */
+async function resolvedVersions() {
+  const playback = await resolvePlayback(request);
+  return playback.versions.map((version) => `${version.language}/${version.locale}@${version.provider}`);
+}
+
 beforeEach(() => {
   resolved.length = 0;
+  offered = [];
 });
 
 describe("resolvePlayback", () => {
-  test("serves an English dub by default, from the first English provider", async () => {
+  test("serves sub and dub together, each from the first provider in its locale", async () => {
     useProviders([
       {
         id: "brazilian",
@@ -108,96 +136,58 @@ describe("resolvePlayback", () => {
         languages: ["sub", "dub"]
       }
     ]);
+    offered = [sub(), dub(), dub("pt-BR")];
 
-    const playback = await resolvePlayback({
+    expect(await resolvedVersions()).toEqual(["sub/en@anikoto", "dub/en@anikoto", "dub/pt-BR@brazilian"]);
+    await expect(resolvePlayback(request)).resolves.toMatchObject({
+      animeId: "series",
       seasonId: "season",
-      episode: 3,
-      language: "dub"
+      episode: 3
     });
-
-    expect(playback).toMatchObject({
-      language: "dub",
-      locale: "en",
-      provider: "anikoto"
-    });
-    expect(resolved).toEqual(["anikoto:3/dub"]);
   });
 
-  test("never falls back to a dub in another locale", async () => {
+  test("tries sub and dub in English when no provider says which languages the episode has", async () => {
+    useProviders([
+      {
+        id: "megaplay",
+        locale: "en",
+        languages: ["sub", "dub"]
+      }
+    ]);
+
+    expect(await resolvedVersions()).toEqual(["sub/en@megaplay", "dub/en@megaplay"]);
+  });
+
+  test("leaves out a version no provider can stream right now", async () => {
     useProviders([
       {
         id: "anikoto",
         locale: "en",
         languages: ["sub"]
-      },
+      }
+    ]);
+    offered = [sub(), dub()];
+
+    expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+    expect(resolved).toEqual(["anikoto:3/sub"]);
+  });
+
+  test("never serves a version from a provider in another locale", async () => {
+    useProviders([
       {
         id: "brazilian",
         locale: "pt-BR",
-        languages: ["dub"]
-      }
-    ]);
-
-    await expect(
-      resolvePlayback({
-        seasonId: "season",
-        episode: 3,
-        language: "dub"
-      })
-    ).rejects.toBeInstanceOf(PlaybackUnavailableError);
-    expect(resolved).toEqual([]);
-  });
-
-  test("serves the requested locale", async () => {
-    useProviders([
-      {
-        id: "anikoto",
-        locale: "en",
         languages: ["sub", "dub"]
       },
       {
-        id: "brazilian",
-        locale: "pt-BR",
-        languages: ["dub"]
-      }
-    ]);
-
-    expect(
-      await resolvePlayback({
-        seasonId: "season",
-        episode: 3,
-        language: "dub",
-        locale: "pt-BR"
-      })
-    ).toMatchObject({
-      locale: "pt-BR",
-      provider: "brazilian"
-    });
-  });
-
-  test("applies the locale to a sub's subtitles too", async () => {
-    useProviders([
-      {
-        id: "brazilian",
-        locale: "pt-BR",
-        languages: ["sub"]
-      },
-      {
-        id: "allmanga",
+        id: "anikoto",
         locale: "en",
         languages: ["sub"]
       }
     ]);
+    offered = [sub(), dub()];
 
-    expect(
-      await resolvePlayback({
-        seasonId: "season",
-        episode: 3
-      })
-    ).toMatchObject({
-      language: "sub",
-      locale: "en",
-      provider: "allmanga"
-    });
+    expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
   });
 
   test("serves raw from any provider and reports no locale", async () => {
@@ -208,18 +198,14 @@ describe("resolvePlayback", () => {
         languages: ["raw"]
       }
     ]);
+    offered = [
+      {
+        language: "raw",
+        locale: null
+      }
+    ];
 
-    expect(
-      await resolvePlayback({
-        seasonId: "season",
-        episode: 3,
-        language: "raw"
-      })
-    ).toMatchObject({
-      language: "raw",
-      locale: null,
-      provider: "brazilian"
-    });
+    expect(await resolvedVersions()).toEqual(["raw/null@brazilian"]);
   });
 
   test("falls through a failing provider to the next in the same locale", async () => {
@@ -236,19 +222,26 @@ describe("resolvePlayback", () => {
         languages: ["dub"]
       }
     ]);
+    offered = [dub()];
 
-    expect(
-      await resolvePlayback({
-        seasonId: "season",
-        episode: 3,
-        language: "dub"
-      })
-    ).toMatchObject({
-      provider: "allmanga"
-    });
+    expect(await resolvedVersions()).toEqual(["dub/en@allmanga"]);
   });
 
-  test("reports the episode missing when no provider in the locale lists it", async () => {
+  test("reports playback unavailable when providers list the episode but none can stream it", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"],
+        fails: true
+      }
+    ]);
+    offered = [sub(), dub()];
+
+    await expect(resolvePlayback(request)).rejects.toBeInstanceOf(PlaybackUnavailableError);
+  });
+
+  test("reports the episode missing when no provider in a wanted locale lists it", async () => {
     useProviders([
       {
         id: "brazilian",
@@ -257,12 +250,6 @@ describe("resolvePlayback", () => {
       }
     ]);
 
-    await expect(
-      resolvePlayback({
-        seasonId: "season",
-        episode: 3,
-        language: "dub"
-      })
-    ).rejects.toBeInstanceOf(EpisodeNotFoundError);
+    await expect(resolvePlayback(request)).rejects.toBeInstanceOf(EpisodeNotFoundError);
   });
 });

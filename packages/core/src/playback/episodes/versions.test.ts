@@ -19,7 +19,6 @@ interface FakeProvider {
 }
 
 let providers: FakeProvider[] = [];
-let anilistEpisode = 3;
 let queuedLookups: number[] = [];
 let asks = 0;
 
@@ -48,10 +47,6 @@ function useProviders(list: FakeProvider[]) {
 }
 
 mock.module("../../series/episodes", () => ({
-  locateEpisode: async () => ({
-    anilistId: 154587,
-    anilistEpisode
-  }),
   anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`
 }));
 mock.module("../../scheduler/queue", () => ({
@@ -147,7 +142,6 @@ const firstEpisode = [
 
 beforeEach(() => {
   useProviders([]);
-  anilistEpisode = 3;
   queuedLookups = [];
   asks = 0;
 });
@@ -269,7 +263,10 @@ describe("getEpisodeVersions", () => {
       provider("brazilian", "pt-BR", [unit(3, ["dub"])])
     ]);
 
-    expect(await getEpisodeVersions("season", 3)).toEqual([
+    expect(await getEpisodeVersions({
+      anilistId: 154587,
+      anilistEpisode: 3
+    })).toEqual([
       {
         language: "sub",
         locale: "en"
@@ -293,7 +290,10 @@ describe("getEpisodeVersions", () => {
   test("lists what is stored and queues the lookup when a provider is not looked up yet", async () => {
     useProviders([provider("anikoto", "en", [unit(3, ["sub"])]), notLookedUp("allmanga", "en")]);
 
-    expect(await getEpisodeVersions("season", 3)).toEqual([
+    expect(await getEpisodeVersions({
+      anilistId: 154587,
+      anilistEpisode: 3
+    })).toEqual([
       {
         language: "sub",
         locale: "en"
@@ -305,7 +305,10 @@ describe("getEpisodeVersions", () => {
   test("returns nothing when no provider lists the episode", async () => {
     useProviders([provider("anikoto", "en", [unit(1, ["sub", "dub"])])]);
 
-    expect(await getEpisodeVersions("season", 3)).toEqual([]);
+    expect(await getEpisodeVersions({
+      anilistId: 154587,
+      anilistEpisode: 3
+    })).toEqual([]);
   });
 });
 

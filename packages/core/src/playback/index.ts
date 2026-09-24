@@ -15,7 +15,8 @@ export {
   type Playback,
   type PlaybackRequest,
   type PlaybackSource,
-  type PlaybackSubtitle
+  type PlaybackSubtitle,
+  type PlaybackVersion
 } from "./streams/resolve";
 export { getSkipTimes, type SkipSegment } from "./streams/skip-times";
-export { getEpisodeVersions, type EpisodeVersion } from "./episodes/versions";
+export type { EpisodeVersion } from "./episodes/versions";

@@ -122,7 +122,7 @@ describe("getSkipTimes", () => {
     ];
     answerAniSkip(aniSkipFound);
 
-    expect(await getSkipTimes("season", 3)).toEqual([
+    expect(await getSkipTimes("series", "season", 3)).toEqual([
       {
         kind: "opening",
         mixed: false,
@@ -144,7 +144,7 @@ describe("getSkipTimes", () => {
   test("reads the sub embed when AniKoto lists one", async () => {
     aniKotoUnits = [unit(["dub", "sub"])];
 
-    await getSkipTimes("season", 3);
+    await getSkipTimes("series", "season", 3);
 
     expect(resolveSkipSpans.mock.calls[0]?.slice(0, 2)).toEqual([
       "anikoto:107260",
@@ -155,7 +155,7 @@ describe("getSkipTimes", () => {
   test("reads the dub embed when AniKoto only has a dub", async () => {
     aniKotoUnits = [unit(["dub"])];
 
-    await getSkipTimes("season", 3);
+    await getSkipTimes("series", "season", 3);
 
     expect(resolveSkipSpans.mock.calls[0]?.[1]).toBe("dub");
   });
@@ -163,7 +163,7 @@ describe("getSkipTimes", () => {
   test("reads the sub embed when AniKoto does not say which languages it has", async () => {
     aniKotoUnits = [unit(null)];
 
-    await getSkipTimes("season", 3);
+    await getSkipTimes("series", "season", 3);
 
     expect(resolveSkipSpans.mock.calls[0]?.[1]).toBe("sub");
   });
@@ -172,7 +172,7 @@ describe("getSkipTimes", () => {
     aniKotoUnits = [unit(["sub"])];
     answerAniSkip(aniSkipFound);
 
-    expect(await getSkipTimes("season", 3)).toEqual([
+    expect(await getSkipTimes("series", "season", 3)).toEqual([
       {
         kind: "opening",
         mixed: false,
@@ -200,7 +200,7 @@ describe("getSkipTimes", () => {
     ];
     answerAniSkip(aniSkipFound);
 
-    expect(await getSkipTimes("season", 3)).toHaveLength(2);
+    expect(await getSkipTimes("series", "season", 3)).toHaveLength(2);
     expect(resolveSkipSpans).not.toHaveBeenCalled();
   });
 
@@ -211,11 +211,11 @@ describe("getSkipTimes", () => {
     };
     answerAniSkip(aniSkipFound);
 
-    expect(await getSkipTimes("season", 3)).toHaveLength(2);
+    expect(await getSkipTimes("series", "season", 3)).toHaveLength(2);
   });
 
   test("asks AniSkip for the AniList episode, every segment type, and the stream's rounded duration", async () => {
-    await getSkipTimes("season", 3, 1469.6);
+    await getSkipTimes("series", "season", 3, 1469.6);
 
     const url = new URL(String(fetchSpy.mock.calls[0]?.[0]));
     expect(url.origin + url.pathname).toBe("https://api.aniskip.com/v2/skip-times/52991/3");
@@ -260,7 +260,7 @@ describe("getSkipTimes", () => {
       ]
     });
 
-    expect((await getSkipTimes("season", 3)).map(({ kind, mixed }) => [kind, mixed])).toEqual([
+    expect((await getSkipTimes("series", "season", 3)).map(({ kind, mixed }) => [kind, mixed])).toEqual([
       ["recap", false],
       ["opening", true],
       ["ending", true]
@@ -282,20 +282,20 @@ describe("getSkipTimes", () => {
       ]
     });
 
-    expect(await getSkipTimes("season", 3)).toEqual([]);
+    expect(await getSkipTimes("series", "season", 3)).toEqual([]);
   });
 
   test("returns nothing when neither source knows the episode", async () => {
     aniKotoUnits = [unit(["sub"])];
 
-    expect(await getSkipTimes("season", 3)).toEqual([]);
+    expect(await getSkipTimes("series", "season", 3)).toEqual([]);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   test("returns nothing without asking AniSkip when the anime has no MyAnimeList ID", async () => {
     malId = null;
 
-    expect(await getSkipTimes("season", 3)).toEqual([]);
+    expect(await getSkipTimes("series", "season", 3)).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -303,12 +303,12 @@ describe("getSkipTimes", () => {
     serveFetch(async () => {
       throw new TypeError("fetch failed");
     });
-    expect(await getSkipTimes("season", 3)).toEqual([]);
+    expect(await getSkipTimes("series", "season", 3)).toEqual([]);
 
     answerAniSkip({
       unexpected: true
     });
-    expect(await getSkipTimes("season", 3)).toEqual([]);
+    expect(await getSkipTimes("series", "season", 3)).toEqual([]);
   });
 
   test("propagates a missing season or episode instead of returning nothing", async () => {
@@ -316,6 +316,6 @@ describe("getSkipTimes", () => {
       throw new Error("Season not found");
     });
 
-    await expect(getSkipTimes("missing", 3)).rejects.toThrow("Season not found");
+    await expect(getSkipTimes("series", "missing", 3)).rejects.toThrow("Season not found");
   });
 });

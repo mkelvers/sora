@@ -74,12 +74,18 @@ const kinds = {
  * @param durationSeconds - The playing stream's duration. When supplied,
  *   AniSkip only returns segments timed against a similar-length encode.
  *
- * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @throws {@link SeasonNotFoundError} when the season does not exist, or
+ *   does not belong to the series.
  * @throws {@link EpisodeNotFoundError} when the season has no such episode,
  *   or it is an extra only TMDB lists.
  */
-export async function getSkipTimes(seasonId: string, episode: number, durationSeconds?: number): Promise<SkipSegment[]> {
-  const located = await locateEpisode(seasonId, episode);
+export async function getSkipTimes(
+  seriesId: string,
+  seasonId: string,
+  episode: number,
+  durationSeconds?: number
+): Promise<SkipSegment[]> {
+  const located = await locateEpisode(seasonId, episode, seriesId);
   const anime = await getAnime(located.anilistId);
 
   const fromAniKoto = await getAniKotoSkipTimes(anime, located.anilistEpisode);
