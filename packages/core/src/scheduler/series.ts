@@ -3,10 +3,11 @@ import { z } from "zod";
 
 import { anilist } from "../anilist/client";
 import { NewEntriesDocument } from "../anilist/graphql.generated";
+import { fuzzyDate } from "../catalog/models/text";
 import { AnimeNotFoundError } from "../errors";
 import { relatedIds } from "../series/entries";
 import { storedSeriesIds, storeSeries } from "../series/store";
-import { hour } from "../time";
+import { day, hour } from "../time";
 import { scheduleSeriesStore } from "./queue";
 
 const StoreSeriesPayloadSchema = z.object({
@@ -45,17 +46,25 @@ const entriesPerPage = 50;
  */
 const discoveryPageLimit = 20;
 
+/** Upcoming entries premiering within this window are stored ahead of time. */
+const premiereWindowMs = 14 * day;
+
 /**
- * Finds new AniList entries that belong with a stored series, such as a newly
- * announced season, and queues storing them so they join it.
+ * Finds AniList entries whose series should be stored and queues storing
+ * them. Reads every upcoming and airing entry and picks those not stored yet
+ * that:
  *
- * Reads every upcoming and airing entry and picks those that are not stored
- * but are related to a stored entry. Whether an entry is a new season, a
- * later part, or a film of its own is decided when it is stored. An entry
- * whose AniList relations do not link it to anything stored yet is simply
- * looked at again on the next run.
+ * - are airing, so the release schedule can show them;
+ * - premiere within {@link premiereWindowMs}, for the same reason;
+ * - or are related to a stored entry, such as a newly announced season, so
+ *   they join their series.
+ *
+ * Whether an entry is a new season, a later part, or a title of its own is
+ * decided when it is stored. An entry that qualifies for none of these yet
+ * is simply looked at again on the next run.
  */
 export const discoverSeriesEntries: Task = async (_payload, helpers) => {
+  const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
   let queued = 0;
   for (let page = 1; page <= discoveryPageLimit; page += 1) {
     const { Page } = await anilist(
@@ -76,7 +85,11 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
     ]);
 
     for (const entry of entries) {
-      if (!stored.has(entry.id) && relatedIds(entry).some((id) => stored.has(id))) {
+      const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
+      const premieresSoon = startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
+      const isWanted =
+        entry.status === "RELEASING" || premieresSoon || relatedIds(entry).some((id) => stored.has(id));
+      if (!stored.has(entry.id) && isWanted) {
         await scheduleSeriesStore(entry.id);
         queued += 1;
       }
@@ -88,6 +101,6 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
   }
 
   if (queued > 0) {
-    helpers.logger.info(`Queued ${queued} new entries to join their series`);
+    helpers.logger.info(`Queued ${queued} entries to store their series`);
   }
 };

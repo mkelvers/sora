@@ -59,6 +59,25 @@ export async function getSeries(seriesId: string): Promise<Series> {
 }
 
 /**
+ * Checks that a series is stored, for operations that take a series ID but
+ * do not read the series itself.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export async function assertSeriesExists(seriesId: string) {
+  const [stored] = await db
+    .select({
+      id: series.id
+    })
+    .from(series)
+    .where(eq(series.id, seriesId))
+    .limit(1);
+  if (!stored) {
+    throw new SeriesNotFoundError(seriesId);
+  }
+}
+
+/**
  * Lists a season's episodes, numbered from 1.
  *
  * @throws {@link SeasonNotFoundError} when the ID does not identify a season.
@@ -197,7 +216,8 @@ async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
   return [...cards.values()];
 }
 
-function toSeriesCard(row: typeof series.$inferSelect): SeriesCard {
+/** Builds a card from a stored series row. */
+export function toSeriesCard(row: typeof series.$inferSelect): SeriesCard {
   return {
     id: row.id,
     kind: row.kind,
