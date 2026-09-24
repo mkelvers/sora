@@ -1,9 +1,9 @@
 /**
- * Stream resolution, skip times, and the stream proxy. Episodes are addressed
+ * Stream resolution with skip segments, and the stream proxy. Episodes are addressed
  * by Sora season ID and episode number.
  *
  * Streams come from third-party scrapers via `anime-sdk`. Providers are tried
- * in priority order, and clients only ever receive signed proxy tokens.
+ * in priority order, and clients only ever receive signed proxy URLs.
  *
  * @packageDocumentation
  */
@@ -13,10 +13,11 @@ export {
   PlaybackRequestSchema,
   resolvePlayback,
   type Playback,
+  type PlaybackMedia,
+  type PlaybackOptions,
   type PlaybackRequest,
   type PlaybackSource,
-  type PlaybackSubtitle,
-  type PlaybackVersion
+  type PlaybackSubtitle
 } from "./streams/resolve";
-export { getSkipTimes, type SkipSegment } from "./streams/skip-times";
+export type { SkipSegment } from "./providers/megaplay";
 export type { EpisodeVersion } from "./episodes/versions";

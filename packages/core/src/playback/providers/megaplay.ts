@@ -51,8 +51,10 @@ const SourcesResponseSchema = z
         })
       )
       .optional(),
-    intro: SkipSpanSchema.optional(),
-    outro: SkipSpanSchema.optional()
+    // Skip spans only enhance playback, so a malformed one is dropped rather
+    // than failing the stream.
+    intro: SkipSpanSchema.optional().catch(undefined),
+    outro: SkipSpanSchema.optional().catch(undefined)
   })
   .refine((body) => body.sources !== undefined || body.enc !== undefined, {
     message: "MegaPlay returned neither sources nor enc"
@@ -63,7 +65,30 @@ const EncryptedSourceSchema = z.object({
 });
 
 /** The `getSources` payload behind a MegaPlay embed. */
-export type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
+type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
+
+/** A skippable span of a stream, in seconds from its start. */
+export interface SkipSegment {
+  kind: "opening" | "ending";
+  start: number;
+  end: number;
+}
+
+/**
+ * The skip segments shipped with each stream {@link resolveMegaPlayEmbed}
+ * resolved. `anime-sdk`'s stream type has no place for them, and providers
+ * pass the resolved object through unchanged.
+ */
+const skipSegmentsByStream = new WeakMap<ResolvedMediaStream, SkipSegment[]>();
+
+/**
+ * The opening and ending MegaPlay's player ships with a resolved stream,
+ * timed against that stream, in playback order. Empty for streams from other
+ * players, which report none.
+ */
+export function skipSegmentsOf(resolved: ResolvedMediaStream): SkipSegment[] {
+  return skipSegmentsByStream.get(resolved) ?? [];
+}
 
 /**
  * Fetches the `getSources` payload behind a MegaPlay embed page.
@@ -73,7 +98,7 @@ export type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
  *
  * @throws when the embed or its sources cannot be read.
  */
-export async function fetchMegaPlaySources(
+async function fetchMegaPlaySources(
   http: HttpClient,
   embedUrl: string,
   embedReferer: string,
@@ -137,7 +162,7 @@ export async function resolveMegaPlayEmbed(
     Referer: mediaReferer
   };
 
-  return {
+  const resolved: ResolvedMediaStream = {
     type: "video",
     streams: [
       {
@@ -161,6 +186,32 @@ export async function resolveMegaPlayEmbed(
       }
     ]
   };
+  skipSegmentsByStream.set(resolved, skipSegments(body));
+
+  return resolved;
+}
+
+/**
+ * The payload's opening and ending. MegaPlay sends `0`–`0` for a span it does
+ * not know, and one that ends before it starts is as useless.
+ */
+function skipSegments({ intro, outro }: MegaPlaySources): SkipSegment[] {
+  const segments: SkipSegment[] = [];
+  if (intro && intro.end > intro.start) {
+    segments.push({
+      kind: "opening",
+      ...intro
+    });
+  }
+  if (outro && outro.end > outro.start) {
+    segments.push({
+      kind: "ending",
+      ...outro
+    });
+  }
+
+  // A cold open can put the opening after an early ending card.
+  return segments.sort((left, right) => left.start - right.start);
 }
 
 /** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */

@@ -6,28 +6,29 @@ import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError, type
 import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
+import { skipSegmentsOf, type SkipSegment } from "../providers/megaplay";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { createStreamToken } from "../proxy/proxy";
 
 /** One way to play an episode. */
 export interface PlaybackSource {
-  /** Stream proxy token; clients fetch it from the proxy route. */
-  token: string;
+  /** The stream through the proxy, ready for a player to fetch. */
+  url: string;
   format: "hls" | "mp4";
   quality: IVideoPayload["quality"];
 }
 
 export interface PlaybackSubtitle {
-  /** Stream proxy token for the subtitle file. */
-  token: string;
+  /** The subtitle file through the proxy, ready for a player to fetch. */
+  url: string;
   /** BCP 47 language tag, for example `en` or `pt-BR`. */
   language: string;
   label: string;
   format: "vtt" | "srt" | "ass" | null;
 }
 
-/** One version of an episode, ready to play. */
-export interface PlaybackVersion {
+/** One version of an episode, such as its dub, ready to play. */
+export interface PlaybackMedia {
   /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
   audio: ContentLanguage;
   /**
@@ -46,9 +47,15 @@ export interface PlaybackVersion {
   sources: PlaybackSource[];
   /** English subtitle tracks of a sub. Empty for a hardsub, and always for dub and raw. */
   subtitles: PlaybackSubtitle[];
+  /**
+   * Opening and ending, in playback order, timed against these sources: a
+   * dub can be cut differently from its sub. Empty when the provider's player
+   * reports none.
+   */
+  skipSegments: SkipSegment[];
 }
 
-/** Everything a player needs to start an episode, in every version it has. */
+/** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
   animeId: string;
   seasonId: string;
@@ -56,9 +63,9 @@ export interface Playback {
   episode: number;
   /**
    * Every version a provider can stream right now: dub before sub before
-   * raw, and each by locale, so the first is the one to play by default.
+   * raw, so the first is the one to play by default.
    */
-  versions: PlaybackVersion[];
+  media: PlaybackMedia[];
 }
 
 export const PlaybackRequestSchema = z.object({
@@ -69,6 +76,15 @@ export const PlaybackRequestSchema = z.object({
 });
 
 export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
+
+export interface PlaybackOptions {
+  /**
+   * Absolute URL of the proxy route that serves stream tokens, such as
+   * `https://api.example/v1/streams`. Each URL in the playback is a token
+   * under it.
+   */
+  streamBaseUrl: string;
+}
 
 /**
  * Tried when no provider that lists languages truthfully lists the episode,
@@ -102,8 +118,11 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * otherwise the first whose subtitles are burned in is served, marked
  * `hardsub`.
  *
- * Stream URLs are never exposed; clients receive proxy tokens so upstream
- * headers and hosts stay on the server.
+ * Each version carries the opening and ending its provider's player ships
+ * with the stream, so they need no requests of their own.
+ *
+ * Upstream URLs are never exposed; clients receive proxy URLs so upstream
+ * headers and hosts stay on the server. They expire with their tokens.
  *
  * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
  * @throws {@link SeasonNotFoundError} when the season does not exist, or
@@ -113,7 +132,7 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * @throws {@link PlaybackUnavailableError} when providers list the episode but
  *   none can currently stream any version of it.
  */
-export async function resolvePlayback(request: PlaybackRequest): Promise<Playback> {
+export async function resolvePlayback(request: PlaybackRequest, options: PlaybackOptions): Promise<Playback> {
   const parsed = PlaybackRequestSchema.safeParse(request);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid playback request", {
@@ -125,6 +144,7 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
   const located = await locateEpisode(seasonId, episode, animeId);
   const anime = await getAnime(located.anilistId);
   const offered = await getEpisodeVersions(located);
+  const streamUrl = (token: string) => `${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(token)}`;
 
   // Versions share each provider's episode list.
   const lists = new Map<string, Promise<ProviderUnit[]>>();
@@ -137,16 +157,16 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
   const served = offered.filter((version) => version.locale === null || version.locale === servedLocale);
   const results = await Promise.all(
     (served.length > 0 ? served : fallbackVersions).map((version) =>
-      resolveVersion(version, located.anilistEpisode, unitsOf)
+      resolveVersion(version, located.anilistEpisode, unitsOf, streamUrl)
     )
   );
-  const versions = results.flatMap((result) => (result.version ? [result.version] : []));
-  if (versions.length > 0) {
+  const media = results.flatMap((result) => (result.version ? [result.version] : []));
+  if (media.length > 0) {
     return {
       animeId,
       seasonId,
       episode,
-      versions
+      media
     };
   }
 
@@ -168,9 +188,10 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
 async function resolveVersion(
   { language, locale }: EpisodeVersion,
   anilistEpisode: number,
-  unitsOf: (provider: BaseProvider) => Promise<ProviderUnit[]>
+  unitsOf: (provider: BaseProvider) => Promise<ProviderUnit[]>,
+  streamUrl: (token: string) => string
 ): Promise<{
-  version: PlaybackVersion | null;
+  version: PlaybackMedia | null;
   /** Whether a provider serving the locale lists the episode. */
   listed: boolean;
   attempts: ProviderAttempt[];
@@ -182,7 +203,7 @@ async function resolveVersion(
       reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
     });
   let listed = false;
-  let hardsubbed: PlaybackVersion | null = null;
+  let hardsubbed: PlaybackMedia | null = null;
 
   for (const { provider, locale: providerLocale } of streamProviders) {
     if (providerLocale !== servedLocale || (locale !== null && providerLocale !== locale)) {
@@ -208,7 +229,7 @@ async function resolveVersion(
         continue;
       }
 
-      const media = toPlaybackMedia(resolved.streams);
+      const media = toPlaybackMedia(resolved.streams, streamUrl);
       const version = {
         audio: language,
         locale,
@@ -217,7 +238,8 @@ async function resolveVersion(
         sources: media.sources,
         // Providers hand a dub the sub's subtitles: a translation of the
         // Japanese dialogue, which does not match the English audio.
-        subtitles: language === "sub" ? media.subtitles : []
+        subtitles: language === "sub" ? media.subtitles : [],
+        skipSegments: skipSegmentsOf(resolved)
       };
 
       // A sub without subtitle tracks has them burned in. Later providers may
@@ -246,11 +268,11 @@ async function resolveVersion(
   };
 }
 
-function toPlaybackMedia(streams: IVideoPayload[]) {
+function toPlaybackMedia(streams: IVideoPayload[], streamUrl: (token: string) => string) {
   const sources = [...streams]
     .sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
     .map((stream) => ({
-      token: createStreamToken(stream.sourceUrl, stream.isHLS ? "playlist" : "file", stream.headers ?? {}),
+      url: streamUrl(createStreamToken(stream.sourceUrl, stream.isHLS ? "playlist" : "file", stream.headers ?? {})),
       format: stream.isHLS ? ("hls" as const) : ("mp4" as const),
       quality: stream.quality
     }));
@@ -261,7 +283,7 @@ function toPlaybackMedia(streams: IVideoPayload[]) {
     for (const track of stream.subtitles ?? []) {
       if (isServedSubtitle(track) && !subtitles.has(track.url)) {
         subtitles.set(track.url, {
-          token: createStreamToken(track.url, "subtitle", stream.headers ?? {}),
+          url: streamUrl(createStreamToken(track.url, "subtitle", stream.headers ?? {})),
           language: track.language,
           label: track.label,
           format: track.format ?? null
