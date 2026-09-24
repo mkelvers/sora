@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import type { Anime } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { locateEpisode } from "../../series/episodes";
+import { getProviderUnits } from "../episodes/episodes";
+import { aniKotoProvider } from "../providers/registry";
 
 /** A skippable span of an episode, in seconds from the start. */
 export interface SkipSegment {
@@ -14,8 +17,11 @@ export interface SkipSegment {
    * Length of the encode the segment was timed against. Different releases of
    * the same episode drift, so clients should prefer segments whose length is
    * close to their stream's duration.
+   *
+   * `null` for AniKoto's segments: AniKoto does not report it, but they are
+   * timed against the stream AniKoto serves for playback.
    */
-  episodeLength: number;
+  episodeLength: number | null;
 }
 
 const AniSkipResponseSchema = z.object({
@@ -56,10 +62,13 @@ const kinds = {
 } as const;
 
 /**
- * Looks up crowd-sourced opening, ending, and recap timestamps from AniSkip.
+ * Looks up opening, ending, and recap timestamps for an episode.
  *
- * Skip times are an enhancement, so any lookup failure, or an anime without a
- * MyAnimeList ID, yields an empty list instead of an error.
+ * AniKoto's own times come first. Only when it has none for the episode does
+ * the lookup fall back to crowd-sourced times from AniSkip.
+ *
+ * Skip times are an enhancement, so any lookup failure yields an empty list
+ * instead of an error, as does an episode neither source knows.
  *
  * @param episode - Position within the season, from 1.
  * @param durationSeconds - The playing stream's duration. When supplied,
@@ -72,11 +81,55 @@ const kinds = {
 export async function getSkipTimes(seasonId: string, episode: number, durationSeconds?: number): Promise<SkipSegment[]> {
   const located = await locateEpisode(seasonId, episode);
   const anime = await getAnime(located.anilistId);
+
+  const fromAniKoto = await getAniKotoSkipTimes(anime, located.anilistEpisode);
+  if (fromAniKoto.length > 0) {
+    return fromAniKoto;
+  }
+
+  return getAniSkipTimes(anime, located.anilistEpisode, durationSeconds);
+}
+
+/**
+ * AniKoto's opening and ending times, or an empty list when AniKoto does not
+ * carry the episode, has no times for it, or fails.
+ *
+ * The sub embed is read whenever AniKoto lists one, since skip times are not
+ * requested per language.
+ */
+async function getAniKotoSkipTimes(anime: Anime, anilistEpisode: number): Promise<SkipSegment[]> {
+  try {
+    const unit = (await getProviderUnits(anime, aniKotoProvider)).find((candidate) => candidate.number === anilistEpisode);
+    if (!unit) {
+      return [];
+    }
+
+    const language = !unit.languages || unit.languages.includes("sub") ? "sub" : unit.languages[0];
+    if (!language) {
+      return [];
+    }
+
+    const spans = await aniKotoProvider.resolveSkipSpans(unit.id, language, {
+      signal: AbortSignal.timeout(5_000)
+    });
+
+    return spans.map((span) => ({
+      ...span,
+      mixed: false,
+      episodeLength: null
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** AniSkip's crowd-sourced times, or an empty list when it has none or fails. */
+async function getAniSkipTimes(anime: Anime, anilistEpisode: number, durationSeconds?: number): Promise<SkipSegment[]> {
   if (!anime.malId) {
     return [];
   }
 
-  const url = new URL(`https://api.aniskip.com/v2/skip-times/${anime.malId}/${located.anilistEpisode}`);
+  const url = new URL(`https://api.aniskip.com/v2/skip-times/${anime.malId}/${anilistEpisode}`);
   for (const type of Object.keys(kinds)) {
     url.searchParams.append("types[]", type);
   }

@@ -22,6 +22,15 @@ const encryptionKey = Buffer.concat([
 ]);
 const encryptionIv = Buffer.from([87, 48, 59, 50, 55, 84, 111, 97, 85, 112, 108, 95, 80, 37, 39, 99]);
 
+/**
+ * A skippable span MegaPlay reports, in seconds. MegaPlay sends `0`–`0` when
+ * it knows nothing, so an empty span means no segment.
+ */
+const SkipSpanSchema = z.object({
+  start: z.number().nonnegative(),
+  end: z.number().nonnegative()
+});
+
 /** MegaPlay's CDNs reject media requests without this referer. */
 const mediaReferer = "https://megaplay.buzz/";
 
@@ -41,7 +50,9 @@ const SourcesResponseSchema = z
           kind: z.string().optional()
         })
       )
-      .optional()
+      .optional(),
+    intro: SkipSpanSchema.optional(),
+    outro: SkipSpanSchema.optional()
   })
   .refine((body) => body.sources !== undefined || body.enc !== undefined, {
     message: "MegaPlay returned neither sources nor enc"
@@ -51,21 +62,24 @@ const EncryptedSourceSchema = z.object({
   file: z.string().min(1)
 });
 
+/** The `getSources` payload behind a MegaPlay embed. */
+export type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
+
 /**
- * Resolves a MegaPlay embed page into playable streams.
+ * Fetches the `getSources` payload behind a MegaPlay embed page.
  *
  * @param embedUrl - The `megaplay.buzz/stream/...` embed for one episode and language.
  * @param embedReferer - The page that embeds the player; MegaPlay checks it.
  *
  * @throws when the embed or its sources cannot be read.
  */
-export async function resolveMegaPlayEmbed(
+export async function fetchMegaPlaySources(
   http: HttpClient,
   embedUrl: string,
   embedReferer: string,
   language: ContentLanguage,
   signal?: AbortSignal
-): Promise<ResolvedMediaStream> {
+): Promise<MegaPlaySources> {
   const embedPage = await (
     await http.get(embedUrl, {
       signal,
@@ -93,7 +107,26 @@ export async function resolveMegaPlayEmbed(
       "X-Requested-With": "XMLHttpRequest"
     }
   });
-  const body = SourcesResponseSchema.parse(await response.json());
+
+  return SourcesResponseSchema.parse(await response.json());
+}
+
+/**
+ * Resolves a MegaPlay embed page into playable streams.
+ *
+ * @param embedUrl - The `megaplay.buzz/stream/...` embed for one episode and language.
+ * @param embedReferer - The page that embeds the player; MegaPlay checks it.
+ *
+ * @throws when the embed or its sources cannot be read.
+ */
+export async function resolveMegaPlayEmbed(
+  http: HttpClient,
+  embedUrl: string,
+  embedReferer: string,
+  language: ContentLanguage,
+  signal?: AbortSignal
+): Promise<ResolvedMediaStream> {
+  const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language, signal);
 
   const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
   if (!file) {
@@ -119,7 +152,7 @@ export async function resolveMegaPlayEmbed(
                 {
                   url: track.file,
                   label: track.label,
-                  language: labelToBcp47(track.label),
+                  language: subtitleLanguage(track.label),
                   format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const)
                 }
               ]
@@ -128,6 +161,36 @@ export async function resolveMegaPlayEmbed(
       }
     ]
   };
+}
+
+/** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */
+const regionSubtags: Record<string, string> = {
+  brazil: "BR",
+  portugal: "PT",
+  "latin america": "419",
+  spain: "ES",
+  mexico: "MX",
+  traditional: "Hant",
+  simplified: "Hans"
+};
+
+/**
+ * The BCP 47 tag for a MegaPlay subtitle label.
+ *
+ * MegaPlay names regional variants as `Portuguese (- Portuguese(Brazil))`,
+ * which `labelToBcp47` does not know and would cut to `po`. The language part
+ * goes through `labelToBcp47`; a known region is added as its subtag, and an
+ * unknown one is dropped, leaving the plain language.
+ */
+export function subtitleLanguage(label: string) {
+  const regional = /^(.+?)\s*\(\s*-\s*.*\(([^()]+)\)\s*\)$/.exec(label.trim());
+  if (!regional?.[1] || !regional[2]) {
+    return labelToBcp47(label);
+  }
+
+  const language = labelToBcp47(regional[1]);
+  const region = regionSubtags[regional[2].trim().toLowerCase()];
+  return region ? `${language}-${region}` : language;
 }
 
 /**

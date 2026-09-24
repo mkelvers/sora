@@ -31,6 +31,11 @@ export interface Playback {
   /** Position within the season, from 1. */
   episode: number;
   language: ContentLanguage;
+  /**
+   * BCP 47 language of the dub's audio or of the sub's subtitles, as
+   * requested. `null` for raw.
+   */
+  locale: string | null;
   /** The provider that served this playback. */
   provider: string;
   /** Ordered best first. */
@@ -42,7 +47,12 @@ export const PlaybackRequestSchema = z.object({
   seasonId: z.string().min(1),
   /** Position within the season, from 1. */
   episode: z.number().int().positive(),
-  language: z.enum(["sub", "dub", "raw"]).default("sub")
+  language: z.enum(["sub", "dub", "raw"]).default("sub"),
+  /**
+   * BCP 47 language wanted for a dub's audio or a sub's subtitles. Only
+   * providers serving that language are tried. Ignored for raw.
+   */
+  locale: z.string().min(1).default("en")
 });
 
 export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
@@ -56,8 +66,8 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
 };
 
 /**
- * Resolves playable streams for one episode, trying each enabled provider in
- * priority order until one succeeds.
+ * Resolves playable streams for one episode, trying each provider that serves
+ * the requested locale in priority order until one succeeds.
  *
  * Stream URLs are never exposed; clients receive proxy tokens so upstream
  * headers and hosts stay on the server.
@@ -65,9 +75,10 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
  * @throws {@link SeasonNotFoundError} when the season does not exist.
  * @throws {@link EpisodeNotFoundError} when the season has no such episode,
- *   the episode is an extra only TMDB lists, or no provider lists it.
+ *   the episode is an extra only TMDB lists, or no provider serving the
+ *   locale lists it.
  * @throws {@link PlaybackUnavailableError} when providers list the episode but
- *   none can currently stream it in the requested language.
+ *   none can currently stream it in the requested language and locale.
  */
 export async function resolvePlayback(request: PlaybackRequest): Promise<Playback> {
   const parsed = PlaybackRequestSchema.safeParse(request);
@@ -78,12 +89,17 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
   }
 
   const { seasonId, episode, language } = parsed.data;
+  const locale = language === "raw" ? null : parsed.data.locale;
   const located = await locateEpisode(seasonId, episode);
   const anime = await getAnime(located.anilistId);
   const attempts: ProviderAttempt[] = [];
   let listed = false;
 
-  for (const provider of streamProviders) {
+  for (const { provider, locale: providerLocale } of streamProviders) {
+    if (locale !== null && providerLocale !== locale) {
+      continue;
+    }
+
     try {
       const unit = (await getProviderUnits(anime, provider)).find((candidate) => candidate.number === located.anilistEpisode);
       if (!unit) {
@@ -116,6 +132,7 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
         seasonId,
         episode,
         language,
+        locale,
         provider: provider.id,
         ...toPlaybackMedia(resolved.streams)
       };
