@@ -11,9 +11,10 @@ import {
 } from "@sora/core/library";
 
 import { ProblemError } from "../http/problem";
+import { libraryLimit } from "../http/rate-limit";
 import { createRouter } from "../http/router";
 import { requireUser } from "../http/session";
-import { EpisodeNumberParam, itemsOf, json, problem, SeasonIdParam, SeriesIdParam, signedIn } from "../schemas/common";
+import { EpisodeNumberParam, itemsOf, json, problem, SeasonIdParam, SeriesIdParam, signedIn, tooManyRequests } from "../schemas/common";
 import {
   ContinueWatchingItemSchema,
   EpisodeProgressSchema,
@@ -43,7 +44,10 @@ const AnimeParams = z.object({
 const personal = {
   tags: ["Me"],
   security: signedIn,
-  middleware: requireUser
+  middleware: [
+    requireUser,
+    libraryLimit
+  ]
 };
 
 const unauthorized = problem("Not signed in.");
@@ -58,6 +62,7 @@ const meRoute = createRoute({
   path: "/me",
   summary: "Get the signed-in user",
   responses: {
+    429: tooManyRequests,
     200: json(UserSchema, "The signed-in user."),
     401: unauthorized
   }
@@ -75,6 +80,7 @@ const watchlistRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(WatchlistItemSchema), "The watchlist."),
     401: unauthorized
   }
@@ -89,6 +95,7 @@ const watchlistEntryRoute = createRoute({
     params: AnimeParams
   },
   responses: {
+    429: tooManyRequests,
     200: json(WatchlistEntrySchema, "The entry."),
     401: unauthorized,
     404: problem("The anime is not on the watchlist.")
@@ -114,6 +121,7 @@ const putWatchlistRoute = createRoute({
     }
   },
   responses: {
+    429: tooManyRequests,
     200: json(WatchlistEntrySchema, "The status changed."),
     201: json(WatchlistEntrySchema, "The anime was added."),
     401: unauthorized,
@@ -131,6 +139,7 @@ const deleteWatchlistRoute = createRoute({
     params: AnimeParams
   },
   responses: {
+    429: tooManyRequests,
     204: {
       description: "Removed."
     },
@@ -149,6 +158,7 @@ const progressRoute = createRoute({
     params: AnimeParams
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(EpisodeProgressSchema), "Progress per episode."),
     401: unauthorized,
     404: problem("No such anime.")
@@ -164,6 +174,7 @@ const clearProgressRoute = createRoute({
     params: AnimeParams
   },
   responses: {
+    429: tooManyRequests,
     204: {
       description: "Forgotten."
     },
@@ -194,6 +205,7 @@ const putProgressRoute = createRoute({
     }
   },
   responses: {
+    429: tooManyRequests,
     204: {
       description: "Saved, or ignored as stale."
     },
@@ -216,6 +228,7 @@ const continueWatchingRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(ContinueWatchingItemSchema), "Where to resume."),
     401: unauthorized
   }
