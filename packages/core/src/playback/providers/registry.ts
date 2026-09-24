@@ -20,7 +20,7 @@ const http = new HttpClient({
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
 export const mappingClient = new MappingClient(http);
 
-/** AniKoto, which skip-time lookups also try before falling back to AniSkip. */
+/** AniKoto, the first provider playback tries. */
 export const aniKotoProvider = new AniKotoStreamProvider(http);
 
 /**

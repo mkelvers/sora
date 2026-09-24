@@ -4,6 +4,7 @@ import type { ContentLanguage, ResolvedMediaStream } from "anime-sdk";
 
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
 import type { EpisodeVersion } from "../episodes/versions";
+import type { SkipSegment } from "../providers/megaplay";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -13,6 +14,8 @@ interface FakeProvider {
   fails?: boolean;
   /** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
   noSubtitles?: boolean;
+  /** The skip segments its player ships with each language's stream. */
+  skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
 }
 
 /** The registry's `streamProviders`, filled in place by {@link useProviders}. */
@@ -29,6 +32,7 @@ const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
 
+
 function useProviders(list: FakeProvider[]) {
   units.clear();
   streamProviders.splice(
@@ -39,13 +43,14 @@ function useProviders(list: FakeProvider[]) {
       return {
         provider: {
           id: fake.id,
-          resolveStream: async (unitId: string, language: ContentLanguage): Promise<ResolvedMediaStream> => {
+          resolveStream: async (unitId: string, language: ContentLanguage): Promise<ResolvedMediaStream & { skipSegments?: SkipSegment[] }> => {
             resolved.push(`${unitId}/${language}`);
             if (fake.fails) {
               throw new Error(`${fake.id} is down`);
             }
             return {
               type: "video",
+              skipSegments: fake.skipSegments?.[language],
               streams: [
                 {
                   sourceUrl: `https://${fake.id}.example/${language}.m3u8`,
@@ -111,6 +116,9 @@ mock.module("../providers/registry", () => ({
 mock.module("../proxy/proxy", () => ({
   createStreamToken: (url: string) => `token:${url}`
 }));
+mock.module("../providers/megaplay", () => ({
+  skipSegmentsOf: (resolved: { skipSegments?: SkipSegment[] }) => resolved.skipSegments ?? []
+}));
 
 const { resolvePlayback } = await import("./resolve");
 
@@ -118,6 +126,9 @@ const request = {
   animeId: "series",
   seasonId: "season",
   episode: 3
+};
+const options = {
+  streamBaseUrl: "https://sora.example/v1/streams/"
 };
 
 const sub = (locale = "en"): EpisodeVersion => ({
@@ -131,8 +142,8 @@ const dub = (locale = "en"): EpisodeVersion => ({
 
 /** Each resolved version as `language/locale@provider`. */
 async function resolvedVersions() {
-  const playback = await resolvePlayback(request);
-  return playback.versions.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
+  const playback = await resolvePlayback(request, options);
+  return playback.media.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
 }
 
 beforeEach(() => {
@@ -157,11 +168,77 @@ describe("resolvePlayback", () => {
     offered = [dub(), dub("pt-BR"), sub()];
 
     expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
-    await expect(resolvePlayback(request)).resolves.toMatchObject({
+    await expect(resolvePlayback(request, options)).resolves.toMatchObject({
       animeId: "series",
       seasonId: "season",
       episode: 3
     });
+  });
+
+  test("gives each version the skip segments of its own stream", async () => {
+    // Attack on Titan episode 1: the dub's opening starts 16 seconds later.
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"],
+        skipSegments: {
+          dub: [
+            {
+              kind: "opening",
+              start: 154,
+              end: 230
+            }
+          ],
+          sub: [
+            {
+              kind: "opening",
+              start: 138,
+              end: 215
+            }
+          ]
+        }
+      }
+    ]);
+    offered = [dub(), sub()];
+
+    const playback = await resolvePlayback(request, options);
+    expect(playback.media.map((media) => [media.audio, media.skipSegments[0]?.start])).toEqual([
+      ["dub", 154],
+      ["sub", 138]
+    ]);
+  });
+
+  test("gives no skip segments for a stream whose player reports none", async () => {
+    useProviders([
+      {
+        id: "animeparadise",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    expect((await resolvePlayback(request, options)).media[0]?.skipSegments).toEqual([]);
+  });
+
+  test("hands out proxy URLs a player can fetch as is", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    const [version] = (await resolvePlayback(request, options)).media;
+    expect(version?.sources.map((source) => source.url)).toEqual([
+      `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/sub.m3u8")}`
+    ]);
+    expect(version?.subtitles.map((subtitle) => subtitle.url)).toEqual([
+      `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/en.vtt")}`
+    ]);
   });
 
   test("tries dub and sub in English when no provider says which languages the episode has", async () => {
@@ -218,9 +295,9 @@ describe("resolvePlayback", () => {
     ]);
     offered = [dub()];
 
-    const playback = await resolvePlayback(request);
-    expect(playback.versions[0]?.subtitles).toEqual([]);
-    expect(playback.versions[0]?.hardsub).toBe(false);
+    const playback = await resolvePlayback(request, options);
+    expect(playback.media[0]?.subtitles).toEqual([]);
+    expect(playback.media[0]?.hardsub).toBe(false);
   });
 
   test("keeps only English subtitles", async () => {
@@ -233,8 +310,8 @@ describe("resolvePlayback", () => {
     ]);
     offered = [sub()];
 
-    const playback = await resolvePlayback(request);
-    expect(playback.versions[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
+    const playback = await resolvePlayback(request, options);
+    expect(playback.media[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
   });
 
   test("prefers a later provider's subtitle tracks to burned-in subtitles", async () => {
@@ -254,7 +331,7 @@ describe("resolvePlayback", () => {
     offered = [sub()];
 
     expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
-    expect((await resolvePlayback(request)).versions[0]?.hardsub).toBe(false);
+    expect((await resolvePlayback(request, options)).media[0]?.hardsub).toBe(false);
   });
 
   test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {
@@ -268,8 +345,8 @@ describe("resolvePlayback", () => {
     ]);
     offered = [dub(), sub()];
 
-    const playback = await resolvePlayback(request);
-    expect(playback.versions.map((version) => [version.audio, version.provider, version.hardsub, version.subtitles.length])).toEqual([
+    const playback = await resolvePlayback(request, options);
+    expect(playback.media.map((version) => [version.audio, version.provider, version.hardsub, version.subtitles.length])).toEqual([
       ["dub", "anikoto", false, 0],
       ["sub", "anikoto", true, 0]
     ]);
@@ -328,7 +405,7 @@ describe("resolvePlayback", () => {
     ]);
     offered = [dub(), sub()];
 
-    await expect(resolvePlayback(request)).rejects.toBeInstanceOf(PlaybackUnavailableError);
+    await expect(resolvePlayback(request, options)).rejects.toBeInstanceOf(PlaybackUnavailableError);
   });
 
   test("reports the episode missing when no provider in a wanted locale lists it", async () => {
@@ -340,6 +417,6 @@ describe("resolvePlayback", () => {
       }
     ]);
 
-    await expect(resolvePlayback(request)).rejects.toBeInstanceOf(EpisodeNotFoundError);
+    await expect(resolvePlayback(request, options)).rejects.toBeInstanceOf(EpisodeNotFoundError);
   });
 });

@@ -3,19 +3,22 @@ import { describe, expect, test } from "bun:test";
 import { HttpClient } from "anime-sdk";
 
 import { AniKotoStreamProvider } from "./anikoto";
+import { skipSegmentsOf } from "./megaplay";
 
 const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html>";
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
-/** `getSources` as MegaPlay sends it, with the encrypted source elided. */
+/** `getSources` as MegaPlay sends it, with the source unencrypted. */
 function sources(intro: object | undefined, outro: object | undefined) {
   return JSON.stringify({
+    sources: {
+      file: "https://cdn.example/master.m3u8"
+    },
     tracks: [],
     t: 1,
     intro,
     outro,
-    server: 4,
-    enc: "elided"
+    server: 4
   });
 }
 
@@ -42,7 +45,12 @@ function providerServing(pages: Record<string, string>) {
   };
 }
 
-describe("AniKotoStreamProvider.resolveSkipSpans", () => {
+/** The skip segments shipped with the stream `provider` resolves. */
+async function skipSegments(provider: AniKotoStreamProvider, unitId: string, language: "sub" | "dub") {
+  return skipSegmentsOf(await provider.resolveStream(unitId, language));
+}
+
+describe("AniKotoStreamProvider skip segments", () => {
   test("reads the opening and ending, as for Frieren episode 3", async () => {
     const { provider } = providerServing({
       "/stream/s-2/107260/sub": embedPage,
@@ -58,7 +66,7 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       )
     });
 
-    expect(await provider.resolveSkipSpans("anikoto:107260", "sub")).toEqual([
+    expect(await skipSegments(provider, "anikoto:107260", "sub")).toEqual([
       {
         kind: "opening",
         start: 0,
@@ -72,13 +80,13 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
     ]);
   });
 
-  test("requests the embed for the unwrapped unit ID and language, then its file's sources", async () => {
+  test("come with the stream, requesting only the embed and its file's sources", async () => {
     const { provider, requested } = providerServing({
       "/stream/s-2/107260/dub": embedPage,
       "/stream/getSources": sources(undefined, undefined)
     });
 
-    await provider.resolveSkipSpans("anikoto:107260", "dub");
+    await skipSegments(provider, "anikoto:107260", "dub");
 
     expect(requested).toEqual([
       "https://megaplay.buzz/stream/s-2/107260/dub",
@@ -101,7 +109,7 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       )
     });
 
-    expect(await provider.resolveSkipSpans("anikoto:1", "sub")).toEqual([]);
+    expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([]);
   });
 
   test("keeps a known span when the other is missing", async () => {
@@ -113,7 +121,7 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       })
     });
 
-    expect(await provider.resolveSkipSpans("anikoto:1", "sub")).toEqual([
+    expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([
       {
         kind: "ending",
         start: 1300,
@@ -134,7 +142,7 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       )
     });
 
-    expect(await provider.resolveSkipSpans("anikoto:1", "sub")).toEqual([]);
+    expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([]);
   });
 
   test("orders spans by start time", async () => {
@@ -153,7 +161,7 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       )
     });
 
-    expect((await provider.resolveSkipSpans("anikoto:1", "sub")).map((span) => span.kind)).toEqual([
+    expect((await skipSegments(provider, "anikoto:1", "sub")).map((segment) => segment.kind)).toEqual([
       "ending",
       "opening"
     ]);
@@ -164,10 +172,10 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
       "/stream/s-2/1/dub": errorPage
     });
 
-    await expect(provider.resolveSkipSpans("anikoto:1", "dub")).rejects.toThrow("MegaPlay has no dub source");
+    await expect(provider.resolveStream("anikoto:1", "dub")).rejects.toThrow("MegaPlay has no dub source");
   });
 
-  test("fails on a malformed skip span", async () => {
+  test("drops a malformed span without failing the stream", async () => {
     const { provider } = providerServing({
       "/stream/s-2/1/sub": embedPage,
       "/stream/getSources": sources(
@@ -175,11 +183,20 @@ describe("AniKotoStreamProvider.resolveSkipSpans", () => {
           start: -5,
           end: 90
         },
-        undefined
+        {
+          start: 1300,
+          end: 1390
+        }
       )
     });
 
-    await expect(provider.resolveSkipSpans("anikoto:1", "sub")).rejects.toThrow();
+    expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([
+      {
+        kind: "ending",
+        start: 1300,
+        end: 1390
+      }
+    ]);
   });
 });
 
