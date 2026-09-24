@@ -49,7 +49,19 @@ function useProviders(list: FakeProvider[]) {
                   sourceUrl: `https://${fake.id}.example/${language}.m3u8`,
                   isHLS: true,
                   quality: "auto",
-                  language
+                  language,
+                  subtitles: [
+                    {
+                      url: `https://${fake.id}.example/en.vtt`,
+                      language: "en",
+                      label: "English"
+                    },
+                    {
+                      url: `https://${fake.id}.example/pt.vtt`,
+                      language: "pt",
+                      label: "Portuguese"
+                    }
+                  ]
                 }
               ]
             };
@@ -88,6 +100,8 @@ mock.module("../episodes/versions", () => ({
   getEpisodeVersions: async () => offered
 }));
 mock.module("../providers/registry", () => ({
+  servedLocale: "en",
+  isServedSubtitle: (track: { language: string }) => track.language === "en",
   streamProviders
 }));
 mock.module("../proxy/proxy", () => ({
@@ -114,7 +128,7 @@ const dub = (locale = "en"): EpisodeVersion => ({
 /** Each resolved version as `language/locale@provider`. */
 async function resolvedVersions() {
   const playback = await resolvePlayback(request);
-  return playback.versions.map((version) => `${version.language}/${version.locale}@${version.provider}`);
+  return playback.versions.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
 }
 
 beforeEach(() => {
@@ -123,7 +137,7 @@ beforeEach(() => {
 });
 
 describe("resolvePlayback", () => {
-  test("serves sub and dub together, each from the first provider in its locale", async () => {
+  test("serves English dub and sub together, never another locale", async () => {
     useProviders([
       {
         id: "brazilian",
@@ -136,9 +150,9 @@ describe("resolvePlayback", () => {
         languages: ["sub", "dub"]
       }
     ]);
-    offered = [sub(), dub(), dub("pt-BR")];
+    offered = [dub(), dub("pt-BR"), sub()];
 
-    expect(await resolvedVersions()).toEqual(["sub/en@anikoto", "dub/en@anikoto", "dub/pt-BR@brazilian"]);
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
     await expect(resolvePlayback(request)).resolves.toMatchObject({
       animeId: "series",
       seasonId: "season",
@@ -146,7 +160,7 @@ describe("resolvePlayback", () => {
     });
   });
 
-  test("tries sub and dub in English when no provider says which languages the episode has", async () => {
+  test("tries dub and sub in English when no provider says which languages the episode has", async () => {
     useProviders([
       {
         id: "megaplay",
@@ -155,7 +169,7 @@ describe("resolvePlayback", () => {
       }
     ]);
 
-    expect(await resolvedVersions()).toEqual(["sub/en@megaplay", "dub/en@megaplay"]);
+    expect(await resolvedVersions()).toEqual(["dub/en@megaplay", "sub/en@megaplay"]);
   });
 
   test("leaves out a version no provider can stream right now", async () => {
@@ -166,7 +180,7 @@ describe("resolvePlayback", () => {
         languages: ["sub"]
       }
     ]);
-    offered = [sub(), dub()];
+    offered = [dub(), sub()];
 
     expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
     expect(resolved).toEqual(["anikoto:3/sub"]);
@@ -185,16 +199,35 @@ describe("resolvePlayback", () => {
         languages: ["sub"]
       }
     ]);
-    offered = [sub(), dub()];
+    offered = [dub(), sub()];
 
     expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
   });
 
-  test("serves raw from any provider and reports no locale", async () => {
+  test("keeps only English subtitles", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    const playback = await resolvePlayback(request);
+    expect(playback.versions[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
+  });
+
+  test("serves raw from an English provider and reports no locale", async () => {
     useProviders([
       {
         id: "brazilian",
         locale: "pt-BR",
+        languages: ["raw"]
+      },
+      {
+        id: "allmanga",
+        locale: "en",
         languages: ["raw"]
       }
     ]);
@@ -205,7 +238,7 @@ describe("resolvePlayback", () => {
       }
     ];
 
-    expect(await resolvedVersions()).toEqual(["raw/null@brazilian"]);
+    expect(await resolvedVersions()).toEqual(["raw/null@allmanga"]);
   });
 
   test("falls through a failing provider to the next in the same locale", async () => {
@@ -236,7 +269,7 @@ describe("resolvePlayback", () => {
         fails: true
       }
     ]);
-    offered = [sub(), dub()];
+    offered = [dub(), sub()];
 
     await expect(resolvePlayback(request)).rejects.toBeInstanceOf(PlaybackUnavailableError);
   });

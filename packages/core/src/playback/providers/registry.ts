@@ -23,6 +23,19 @@ export const mappingClient = new MappingClient(http);
 /** AniKoto, which skip-time lookups also try before falling back to AniSkip. */
 export const aniKotoProvider = new AniKotoStreamProvider(http);
 
+/**
+ * The only language Sora serves: dubs in English, and English subtitles.
+ * Providers in other locales are never used, and other subtitle tracks are
+ * dropped.
+ */
+export const servedLocale = "en";
+
+/** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
+export function isServedSubtitle(track: { language: string; label: string }) {
+  const language = track.language.trim().toLowerCase();
+  return /^en(?:-|_|$)/.test(language) || language.startsWith("english") || /^english\b/i.test(track.label.trim());
+}
+
 /** A stream provider and what its streams and episode lists can be trusted for. */
 export interface StreamProvider {
   provider: BaseProvider;

@@ -6,7 +6,7 @@ import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError, type
 import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
-import { streamProviders } from "../providers/registry";
+import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { createStreamToken } from "../proxy/proxy";
 
 /** One way to play an episode. */
@@ -28,7 +28,8 @@ export interface PlaybackSubtitle {
 
 /** One version of an episode, ready to play. */
 export interface PlaybackVersion {
-  language: ContentLanguage;
+  /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
+  audio: ContentLanguage;
   /**
    * BCP 47 language of the dub's audio or of the sub's subtitles. `null` for
    * raw.
@@ -47,7 +48,10 @@ export interface Playback {
   seasonId: string;
   /** Position within the season, from 1. */
   episode: number;
-  /** Every version a provider can stream right now: sub before dub before raw, and each by locale. */
+  /**
+   * Every version a provider can stream right now: dub before sub before
+   * raw, and each by locale, so the first is the one to play by default.
+   */
   versions: PlaybackVersion[];
 }
 
@@ -66,12 +70,12 @@ export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
  */
 const fallbackVersions: readonly EpisodeVersion[] = [
   {
-    language: "sub",
-    locale: "en"
+    language: "dub",
+    locale: servedLocale
   },
   {
-    language: "dub",
-    locale: "en"
+    language: "sub",
+    locale: servedLocale
   }
 ];
 
@@ -84,10 +88,10 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
 };
 
 /**
- * Resolves playable streams for one episode in every version providers
- * offer it in, such as sub and dub, at once. Each version comes from the
- * first provider serving its locale that can stream it; a version none can
- * stream right now is left out.
+ * Resolves playable streams for one episode in every English version
+ * providers offer it in, such as dub and sub, at once. Each version comes
+ * from the first English provider that can stream it; a version none can
+ * stream right now is left out, and only English subtitles are kept.
  *
  * Stream URLs are never exposed; clients receive proxy tokens so upstream
  * headers and hosts stay on the server.
@@ -121,8 +125,9 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
     return list;
   };
 
+  const served = offered.filter((version) => version.locale === null || version.locale === servedLocale);
   const results = await Promise.all(
-    (offered.length > 0 ? offered : fallbackVersions).map((version) =>
+    (served.length > 0 ? served : fallbackVersions).map((version) =>
       resolveVersion(version, located.anilistEpisode, unitsOf)
     )
   );
@@ -170,7 +175,7 @@ async function resolveVersion(
   let listed = false;
 
   for (const { provider, locale: providerLocale } of streamProviders) {
-    if (locale !== null && providerLocale !== locale) {
+    if (providerLocale !== servedLocale || (locale !== null && providerLocale !== locale)) {
       continue;
     }
 
@@ -195,7 +200,7 @@ async function resolveVersion(
 
       return {
         version: {
-          language,
+          audio: language,
           locale,
           provider: provider.id,
           ...toPlaybackMedia(resolved.streams)
@@ -228,7 +233,7 @@ function toPlaybackMedia(streams: IVideoPayload[]) {
   const subtitles = new Map<string, PlaybackSubtitle>();
   for (const stream of streams) {
     for (const track of stream.subtitles ?? []) {
-      if (!subtitles.has(track.url)) {
+      if (isServedSubtitle(track) && !subtitles.has(track.url)) {
         subtitles.set(track.url, {
           token: createStreamToken(track.url, "subtitle", stream.headers ?? {}),
           language: track.language,
