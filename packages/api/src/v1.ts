@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { getGenres } from "@sora/core/catalog";
-import { getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
+import { getEpisodeVersions, getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
 import { browseSeries, getAiringSchedule, getSeasonEpisodes, getSeries } from "@sora/core/series";
 import { cors } from "hono/cors";
 
@@ -40,7 +40,8 @@ export const v1Routes = v1
 
   .openapi(route.listSeasonEpisodes, async (c) => {
     const items = await getSeasonEpisodes(c.req.valid("param").seasonId);
-    c.header("Cache-Control", "public, max-age=300");
+    // Unknown languages are filled in once providers are looked up.
+    c.header("Cache-Control", items.some((episode) => episode.languages === null) ? "no-store" : "public, max-age=300");
     return c.json(
       {
         items
@@ -74,10 +75,22 @@ export const v1Routes = v1
     );
   })
 
+  .openapi(route.listEpisodeVersions, async (c) => {
+    const { seasonId, episode } = c.req.valid("param");
+    const items = await getEpisodeVersions(seasonId, episode);
+    c.header("Cache-Control", "public, max-age=300");
+    return c.json(
+      {
+        items
+      },
+      200
+    );
+  })
+
   .openapi(route.getPlayback, async (c) => {
     const playback = await resolvePlayback({
       ...c.req.valid("param"),
-      language: c.req.valid("query").language
+      ...c.req.valid("query")
     });
     // Stream tokens expire; a cached playback would hand out dead ones.
     c.header("Cache-Control", "no-store");
