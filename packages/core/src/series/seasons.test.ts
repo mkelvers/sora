@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { AnimeCard } from "../catalog/models/anime";
 import type { TmdbEpisode } from "../tmdb/resources";
 import type { EpisodeLink } from "./matching";
-import { isLaterPart, layoutShowSeasons, type SeasonMember, type SeriesSeason } from "./seasons";
+import { isLaterPart, layoutShowSeasons, ovaSeasonTitle, type SeasonMember, type SeriesSeason } from "./seasons";
 
 function anime(id: number, title: string, overrides: Partial<AnimeCard> = {}): AnimeCard {
   return {
@@ -221,7 +221,7 @@ describe("layoutShowSeasons", () => {
   test("turns a multi-episode OVA into an OVA season", () => {
     const ova = seasons.find((season) => season.kind === "ova");
     expect(ova?.number).toBe(1);
-    expect(ova?.title).toBe("Tensura OAD");
+    expect(ova?.title).toBe("OVA Season 1");
     expect(outline(ova!)).toEqual([
       "4#1",
       "4#2"
@@ -471,5 +471,40 @@ describe("isLaterPart", () => {
     ]) {
       expect(isLaterPart(anime(1, title))).toBe(false);
     }
+  });
+});
+
+describe("ovaSeasonTitle", () => {
+  const show = anime(1, "That Time I Got Reincarnated as a Slime", {
+    title: {
+      display: "That Time I Got Reincarnated as a Slime",
+      english: "That Time I Got Reincarnated as a Slime",
+      romaji: "Tensei Shitara Slime Datta Ken",
+      native: null
+    }
+  });
+
+  test("keeps what sets the OVA apart from its show", () => {
+    expect(ovaSeasonTitle(anime(2, "That Time I Got Reincarnated as a Slime: Visions of Coleus"), show, 2)).toBe("Visions of Coleus");
+  });
+
+  test("numbers an OVA whose title adds nothing distinctive", () => {
+    expect(ovaSeasonTitle(anime(3, "That Time I Got Reincarnated as a Slime OAD"), show, 1)).toBe("OVA Season 1");
+  });
+
+  test("matches the show by any of its titles", () => {
+    const romajiOnly = anime(4, "Tensei Shitara Slime Datta Ken: Kanwa", {
+      title: {
+        display: "Tensei Shitara Slime Datta Ken: Kanwa",
+        english: null,
+        romaji: "Tensei Shitara Slime Datta Ken: Kanwa",
+        native: null
+      }
+    });
+    expect(ovaSeasonTitle(romajiOnly, show, 3)).toBe("Kanwa");
+  });
+
+  test("keeps the title of an OVA named differently from its show", () => {
+    expect(ovaSeasonTitle(anime(5, "Rimuru's Holiday"), show, 1)).toBe("Rimuru's Holiday");
   });
 });
