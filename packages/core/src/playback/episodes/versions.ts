@@ -1,11 +1,10 @@
-import type { BaseProvider, ContentLanguage } from "anime-sdk";
+import type { ContentLanguage } from "anime-sdk";
 
-import type { Anime } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
+import { scheduleEpisodeLookup } from "../../scheduler/queue";
 import { anilistEpisodeKey, locateEpisode } from "../../series/episodes";
-import { second } from "../../time";
 import { streamProviders, type StreamProvider } from "../providers/registry";
-import { getProviderUnits, type ProviderUnit } from "./episodes";
+import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
 
 /**
  * One way to watch an episode: its {@link ContentLanguage} and, for sub and
@@ -72,18 +71,11 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
 }
 
 /**
- * How long listing one episode's versions may wait on providers. A provider
- * that has not answered by then is left out, but keeps being looked up.
- */
-const episodeVersionsBudgetMs = 10 * second;
-
-/**
  * Lists the versions of one episode that providers offer.
  *
- * Every provider that lists languages truthfully is asked at once. An anime
- * no one has looked up yet takes a few seconds while providers are matched,
- * and a provider that fails or takes longer than
- * {@link episodeVersionsBudgetMs} is left out.
+ * Reads the providers' stored episode lists. Only an anime no provider has
+ * been looked up for yet is looked up on the spot, once; after that the
+ * scheduler keeps its lists current.
  *
  * @param episode - Position within the season, from 1.
  *
@@ -93,13 +85,8 @@ const episodeVersionsBudgetMs = 10 * second;
  */
 export async function getEpisodeVersions(seasonId: string, episode: number): Promise<EpisodeVersion[]> {
   const located = await locateEpisode(seasonId, episode);
-  const deadline = startDeadline(episodeVersionsBudgetMs);
-  try {
-    const { listings } = await listAnimeUnits(await getAnime(located.anilistId), deadline.reached);
-    return versionsOffered(listings.filter(({ unit }) => unit.number === located.anilistEpisode));
-  } finally {
-    deadline.clear();
-  }
+  const listed = (await readAnimeListings([located.anilistId])).get(located.anilistId);
+  return versionsOffered(listed?.listings.filter(({ unit }) => unit.number === located.anilistEpisode) ?? []);
 }
 
 /**
@@ -121,34 +108,23 @@ export interface EpisodeListing {
 
 /**
  * Lists the languages each AniList episode can be watched in, and whether it
- * is filler, waiting at most `budgetMs` on providers.
+ * is filler, from the providers' stored episode lists. Only an anime no
+ * provider has been looked up for yet is looked up on the spot, once.
  *
- * Providers that answered in time are used. An episode none of them offers
- * while others are still being looked up is unknown rather than unwatchable;
- * those lookups carry on in the background, so a later call finds them
- * stored.
+ * An episode none of the looked-up providers offers while others are not
+ * looked up yet is unknown rather than unwatchable; the scheduler looks
+ * those up.
  *
  * @returns Listings keyed by {@link anilistEpisodeKey}, with `null` fields
- *   for an episode that is not known yet or whose anime could not be loaded.
+ *   for an episode that is not known yet.
  */
 export async function findEpisodeListings(
   episodes: readonly {
     anilistId: number;
     episode: number;
-  }[],
-  budgetMs: number
+  }[]
 ): Promise<Map<string, EpisodeListing>> {
-  const anilistIds = [...new Set(episodes.map((episode) => episode.anilistId))];
-  const deadline = startDeadline(budgetMs);
-  const listingsById = new Map(
-    await Promise.all(
-      anilistIds.map(async (anilistId) => {
-        const anime = await Promise.race([getAnime(anilistId).catch(() => null), deadline.reached]);
-        return [anilistId, anime && anime !== timedOut ? await listAnimeUnits(anime, deadline.reached) : null] as const;
-      })
-    )
-  );
-  deadline.clear();
+  const listingsById = await readAnimeListings(episodes.map((episode) => episode.anilistId));
 
   const found = new Map<string, EpisodeListing>();
   for (const { anilistId, episode } of episodes) {
@@ -165,73 +141,95 @@ export async function findEpisodeListings(
   return found;
 }
 
-/** What {@link startDeadline} resolves with once its time is up. */
-const timedOut = Symbol("timedOut");
-
-/** A promise that resolves with {@link timedOut} after `ms`, and a way to cancel it. */
-function startDeadline(ms: number) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const reached = new Promise<typeof timedOut>((resolve) => {
-    timer = setTimeout(resolve, ms, timedOut);
-  });
-
-  return {
-    reached,
-    clear: () => clearTimeout(timer)
-  };
-}
-
-/** Episode lists the providers returned before a deadline. */
+/** Episode lists stored for one anime. */
 interface AnimeListings {
   listings: ListedUnit[];
-  /** Whether some provider had not answered by the deadline. */
+  /** Whether some provider that lists languages has not been looked up yet. */
   pending: boolean;
 }
 
 /**
- * Every episode of an anime as the providers that list languages truthfully
- * list it, asking them all at once and waiting until `deadline`. A failing
- * provider is left out.
+ * The episode lists of each anime from the providers that list languages
+ * truthfully.
+ *
+ * An anime no provider has been looked up for yet is looked up on the spot,
+ * once; its lists are stored, and later calls only read them. A provider
+ * missing after that, such as one that failed, is left to the scheduler,
+ * whose lookup is queued to run first.
  */
-async function listAnimeUnits(anime: Anime, deadline: Promise<typeof timedOut>): Promise<AnimeListings> {
+async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<number, AnimeListings>> {
   const sources = streamProviders.filter((source) => source.listsLanguages);
-  const results = await Promise.all(
-    sources.map((source) =>
-      Promise.race([
-        lookUpUnits(anime, source.provider).catch((): ProviderUnit[] => []),
-        deadline
-      ])
-    )
-  );
+  const ids = [...new Set(anilistIds)];
+  const stored = await getStoredUnits(ids);
+  const neverLookedUp = ids.filter((anilistId) => !stored.some((entry) => entry.anilistId === anilistId));
+  for (const found of await Promise.all(neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources)))) {
+    stored.push(...found);
+  }
 
-  return {
-    listings: results.flatMap((units, index) => {
-      const source = sources[index];
-      return units !== timedOut && source
-        ? units.map((unit) => ({
-            source,
-            unit
-          }))
-        : [];
-    }),
-    pending: results.includes(timedOut)
-  };
+  const byId = new Map<number, AnimeListings>();
+  for (const anilistId of ids) {
+    const found = sources.map((source) => ({
+      source,
+      units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.provider.id)?.units
+    }));
+    const pending = found.some(({ units }) => units === undefined);
+    if (pending) {
+      await scheduleEpisodeLookup(anilistId, "current");
+    }
+
+    byId.set(anilistId, {
+      listings: found.flatMap(({ source, units }) =>
+        (units ?? []).map((unit) => ({
+          source,
+          unit
+        }))
+      ),
+      pending
+    });
+  }
+
+  return byId;
 }
 
 /**
- * Provider lookups in flight, keyed by anime and provider, so listings made
- * while one is running wait on it instead of starting another.
+ * First lookups in flight, keyed by AniList ID, so listings made while one
+ * is running wait on it instead of starting another.
  */
-const lookupsInFlight = new Map<string, Promise<ProviderUnit[]>>();
+const lookupsInFlight = new Map<number, Promise<StoredUnits[]>>();
 
-function lookUpUnits(anime: Anime, provider: BaseProvider): Promise<ProviderUnit[]> {
-  const key = `${anime.id}:${provider.id}`;
-  const running = lookupsInFlight.get(key);
+/**
+ * Looks an anime up on `sources` at once and stores their lists. Leaves out
+ * the providers that fail, and every provider when the anime cannot be
+ * loaded.
+ */
+function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promise<StoredUnits[]> {
+  const running = lookupsInFlight.get(anilistId);
   if (running) {
     return running;
   }
 
-  const lookup = getProviderUnits(anime, provider).finally(() => lookupsInFlight.delete(key));
-  lookupsInFlight.set(key, lookup);
+  const lookup = (async () => {
+    const anime = await getAnime(anilistId).catch(() => null);
+    if (!anime) {
+      return [];
+    }
+
+    const found = await Promise.all(
+      sources.map(({ provider }) =>
+        getProviderUnits(anime, provider).then(
+          (units) => [
+            {
+              anilistId,
+              provider: provider.id,
+              units
+            }
+          ],
+          () => []
+        )
+      )
+    );
+    return found.flat();
+  })().finally(() => lookupsInFlight.delete(anilistId));
+  lookupsInFlight.set(anilistId, lookup);
   return lookup;
 }

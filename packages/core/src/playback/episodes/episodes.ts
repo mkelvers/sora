@@ -1,10 +1,10 @@
 import type { BaseProvider, ContentLanguage } from "anime-sdk";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
-import { providerEpisodes } from "../../database/schema";
+import { providerEpisodes, providerMapping } from "../../database/schema";
 import { getProviderMediaId } from "./mapping";
 
 /** A provider's own identifier for one episode, needed to resolve streams. */
@@ -57,6 +57,56 @@ export async function getProviderUnits(anime: Anime, provider: BaseProvider): Pr
   return refreshProviderUnits(anime, provider, {
     retryUnmatched: false
   });
+}
+
+/** What is stored about one provider's episodes of one anime. */
+export interface StoredUnits {
+  anilistId: number;
+  provider: string;
+  /** The provider's episode list, empty when the provider does not carry the anime. */
+  units: ProviderUnit[];
+}
+
+/**
+ * Reads the stored episode lists of the given anime, without asking any
+ * provider. A provider missing for an anime has not been looked up yet, or
+ * its stored list is outdated; {@link getProviderUnits} fills it in.
+ */
+export async function getStoredUnits(anilistIds: readonly number[]): Promise<StoredUnits[]> {
+  if (anilistIds.length === 0) {
+    return [];
+  }
+
+  const ids = [...new Set(anilistIds)];
+  const [listed, unmatched] = await Promise.all([
+    db.select().from(providerEpisodes).where(inArray(providerEpisodes.anilistId, ids)),
+    db
+      .select({
+        anilistId: providerMapping.anilistId,
+        provider: providerMapping.provider
+      })
+      .from(providerMapping)
+      .where(and(inArray(providerMapping.anilistId, ids), isNull(providerMapping.providerMediaId)))
+  ]);
+
+  return [
+    ...listed.flatMap((row) => {
+      const units = ProviderUnitsSchema.safeParse(row.units);
+      return units.success
+        ? [
+            {
+              anilistId: row.anilistId,
+              provider: row.provider,
+              units: units.data
+            }
+          ]
+        : [];
+    }),
+    ...unmatched.map((row) => ({
+      ...row,
+      units: []
+    }))
+  ];
 }
 
 /**
