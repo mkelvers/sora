@@ -4,6 +4,9 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer } from "better-auth/plugins";
 
 import { config } from "../config";
+
+/** The request header the API passes the client's address to Better Auth in. */
+export const clientAddressHeader = "x-sora-client-address";
 import * as schema from "./schema";
 
 /**
@@ -25,8 +28,20 @@ export const auth = betterAuth({
     provider: "pg",
     schema
   }),
+  // Email and password is the only way to sign in.
   emailAndPassword: {
     enabled: true
+  },
+  // On in every environment, not only production. Sign-in and sign-up get
+  // Better Auth's stricter built-in rules.
+  rateLimit: {
+    enabled: true
+  },
+  advanced: {
+    ipAddress: {
+      // Set by the API from `clientAddress`, never taken from the client.
+      ipAddressHeaders: [clientAddressHeader]
+    }
   },
   plugins: [bearer()]
 });

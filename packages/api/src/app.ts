@@ -3,8 +3,9 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { etag } from "hono/etag";
 
-import { auth } from "./auth/auth";
+import { auth, clientAddressHeader } from "./auth/auth";
 import { config } from "./config";
+import { clientAddress } from "./http/client";
 import { isTrustedOrigin } from "./http/origins";
 import { problemFromError, sendProblem } from "./http/problem";
 import type { AppEnv } from "./http/session";
@@ -71,7 +72,13 @@ export function createApp() {
       "POST"
     ],
     "/auth/*",
-    (c) => auth.handler(c.req.raw)
+    (c) => {
+      // Better Auth only sees the request, so the address it rate limits by
+      // is handed over in a header the client cannot set.
+      const request = new Request(c.req.raw);
+      request.headers.set(clientAddressHeader, clientAddress(c));
+      return auth.handler(request);
+    }
   );
 
   app.route("/", animeRoutes);
