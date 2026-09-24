@@ -1,0 +1,20 @@
+{
+  "name": "@sora/sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "hono": "^4.13.8"
+  },
+  "devDependencies": {
+    "@sora/api": "workspace:*",
+    "@sora/core": "workspace:*",
+    "@types/bun": "^1.4.2"
+  }
+}
