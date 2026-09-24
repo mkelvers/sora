@@ -18,12 +18,15 @@ type Problem = z.infer<typeof ProblemSchema>;
 export class ProblemError extends Error {
   readonly status: ContentfulStatusCode;
   readonly code: string;
+  /** Headers the problem response carries, such as `Retry-After`. */
+  readonly headers: Readonly<Record<string, string>>;
 
-  constructor(status: ContentfulStatusCode, code: string, detail: string) {
+  constructor(status: ContentfulStatusCode, code: string, detail: string, headers: Record<string, string> = {}) {
     super(detail);
     this.name = "ProblemError";
     this.status = status;
     this.code = code;
+    this.headers = headers;
   }
 }
 
@@ -76,7 +79,12 @@ export function sendProblem(
  */
 export function problemFromError(error: unknown, c: Context) {
   if (error instanceof ProblemError) {
-    return sendProblem(c, error.status, error.code, error.message);
+    const response = sendProblem(c, error.status, error.code, error.message);
+    for (const [name, value] of Object.entries(error.headers)) {
+      response.headers.set(name, value);
+    }
+
+    return response;
   }
 
   if (error instanceof CoreError) {

@@ -2,8 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { getGenres } from "@sora/core/catalog";
 import { browseSeries, getAiringSchedule, getSeasonEpisodes, getSeries } from "@sora/core/series";
 
+import { browseLimit, catalogLimit } from "../http/rate-limit";
 import { createRouter, publicCache } from "../http/router";
-import { itemsOf, json, problem, SeasonIdParam, SeriesIdParam } from "../schemas/common";
+import { itemsOf, json, problem, SeasonIdParam, SeriesIdParam, tooManyRequests } from "../schemas/common";
 import { PageSchema, ScheduledEpisodeSchema, SeasonEpisodeSchema, SeriesSchema, toScheduledEpisodeBody } from "../schemas/series";
 
 const day = 24 * 60 * 60 * 1_000;
@@ -78,6 +79,7 @@ const BrowseQuerySchema = z.object({
 const browseRoute = createRoute({
   method: "get",
   path: "/anime",
+  middleware: browseLimit,
   tags: ["Anime"],
   summary: "Search and browse anime",
   description:
@@ -87,6 +89,7 @@ const browseRoute = createRoute({
   },
   responses: {
     200: json(PageSchema, "A page of titles."),
+    429: tooManyRequests,
     422: problem("The query is invalid."),
     503: problem("The catalog upstream is unavailable; retry after `Retry-After`.")
   }
@@ -95,6 +98,7 @@ const browseRoute = createRoute({
 const seriesRoute = createRoute({
   method: "get",
   path: "/anime/{animeId}",
+  middleware: catalogLimit,
   tags: ["Anime"],
   summary: "Get an anime",
   description: "The title's page: details, artwork, seasons, the next episode, and related titles.",
@@ -104,6 +108,7 @@ const seriesRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(SeriesSchema, "The title."),
     404: problem("No such title.")
   }
@@ -112,6 +117,7 @@ const seriesRoute = createRoute({
 const episodesRoute = createRoute({
   method: "get",
   path: "/seasons/{seasonId}/episodes",
+  middleware: catalogLimit,
   tags: ["Anime"],
   summary: "List a season's episodes",
   request: {
@@ -120,6 +126,7 @@ const episodesRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(SeasonEpisodeSchema), "The season's episodes, numbered from 1."),
     404: problem("No such season.")
   }
@@ -128,9 +135,11 @@ const episodesRoute = createRoute({
 const genresRoute = createRoute({
   method: "get",
   path: "/genres",
+  middleware: catalogLimit,
   tags: ["Anime"],
   summary: "List genres",
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(z.string()), "Genre names accepted by `GET /anime`.")
   }
 });
@@ -138,6 +147,7 @@ const genresRoute = createRoute({
 const scheduleRoute = createRoute({
   method: "get",
   path: "/schedule",
+  middleware: catalogLimit,
   tags: ["Anime"],
   summary: "Release schedule",
   description: "Episodes airing in a window of up to 14 days, in broadcast order. Defaults to the next 7 days.",
@@ -152,6 +162,7 @@ const scheduleRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(ScheduledEpisodeSchema), "Scheduled episodes."),
     422: problem("The window is invalid or longer than 14 days.")
   }

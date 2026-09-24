@@ -1,9 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { getSkipTimes, proxyStream, resolvePlayback } from "@sora/core/playback";
 
+import { catalogLimit, playbackLimit } from "../http/rate-limit";
 import { createRouter, publicCache } from "../http/router";
 import { requireUser } from "../http/session";
-import { EpisodeNumberParam, itemsOf, json, problem, SeasonIdParam, signedIn } from "../schemas/common";
+import { EpisodeNumberParam, itemsOf, json, problem, SeasonIdParam, signedIn, tooManyRequests } from "../schemas/common";
 import { LanguageSchema, PlaybackSchema, SkipSegmentSchema } from "../schemas/playback";
 
 const EpisodeParams = z.object({
@@ -19,7 +20,10 @@ const playbackRoute = createRoute({
   description:
     "Resolves streams from the first provider that can play the episode. Sources and subtitles are stream tokens for `GET /streams/{token}`; they expire, so resolve again rather than storing them.",
   security: signedIn,
-  middleware: requireUser,
+  middleware: [
+    requireUser,
+    playbackLimit
+  ],
   request: {
     params: EpisodeParams,
     query: z.object({
@@ -30,6 +34,7 @@ const playbackRoute = createRoute({
     200: json(PlaybackSchema, "Streams for the episode."),
     401: problem("Not signed in."),
     404: problem("No such season or episode, or nothing streams it."),
+    429: tooManyRequests,
     502: problem("Providers list the episode but none can stream it right now.")
   }
 });
@@ -37,6 +42,7 @@ const playbackRoute = createRoute({
 const skipTimesRoute = createRoute({
   method: "get",
   path: "/seasons/{seasonId}/episodes/{episode}/skip-times",
+  middleware: catalogLimit,
   tags: ["Playback"],
   summary: "Get opening, ending, and recap times",
   description: "Crowd-sourced from AniSkip. An empty list means nothing is known.",
@@ -49,6 +55,7 @@ const skipTimesRoute = createRoute({
     })
   },
   responses: {
+    429: tooManyRequests,
     200: json(itemsOf(SkipSegmentSchema), "Skippable segments, in order."),
     404: problem("No such season or episode.")
   }

@@ -56,6 +56,9 @@ export function problem(description: string) {
   };
 }
 
+/** The response every rate-limited route may give. */
+export const tooManyRequests = problem("Too many requests; retry after `Retry-After` seconds.");
+
 /** A JSON response for the given schema, for route definitions. */
 export function json<TSchema extends z.ZodType>(schema: TSchema, description: string) {
   return {
