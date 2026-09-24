@@ -191,7 +191,10 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
 
   return [
     ...groups.map((group, index) => toSeason(group, "season", index + 1, followsTmdbSeasons ? show.seasons : [])),
-    ...ovaGroups.map((group, index) => toSeason(group, "ova", index + 1, []))
+    ...ovaGroups.map((group, index) => ({
+      ...toSeason(group, "ova", index + 1, []),
+      title: ovaSeasonTitle(group.rows[0]?.member?.anime, regular[0]?.anime, index + 1)
+    }))
   ];
 }
 
@@ -474,6 +477,47 @@ function placeExtras(groups: Group[], extras: readonly Row[]) {
   }
 }
 
+/** OVA names that say nothing beyond "this is an OVA". */
+const genericOvaName = /^(?:the\s+)?(?:ova|oad|ona|special|specials|extra|extras|bonus)(?:\s*\d+)?$/i;
+
+/**
+ * Names an OVA season by what sets it apart from its show, the way "Season
+ * N" names a regular season: "That Time I Got Reincarnated as a Slime:
+ * Visions of Coleus" becomes "Visions of Coleus". When the show's title
+ * leaves nothing distinctive ("OAD", "Specials"), the season is "OVA Season N".
+ * An OVA whose title does not start with the show's keeps its own title.
+ *
+ * @param ova - The season's first AniList entry.
+ * @param show - The show's first regular entry, whose titles are removed.
+ */
+export function ovaSeasonTitle(ova: AnimeCard | undefined, show: AnimeCard | undefined, number: number) {
+  const fallback = `OVA Season ${number}`;
+  if (!ova) {
+    return fallback;
+  }
+
+  const showTitles = [
+    show?.title.english,
+    show?.title.romaji,
+    show?.title.native
+  ].filter((title): title is string => Boolean(title));
+
+  for (const title of [
+    ova.title.display,
+    ova.title.english,
+    ova.title.romaji,
+    ova.title.native
+  ]) {
+    const prefix = title ? showTitles.find((showTitle) => title.toLowerCase().startsWith(showTitle.toLowerCase())) : undefined;
+    if (title && prefix) {
+      const rest = title.slice(prefix.length).replace(/^[\s:：\-–—~!！.]+/, "").trim();
+      return rest.length === 0 || genericOvaName.test(rest) ? fallback : rest;
+    }
+  }
+
+  return genericOvaName.test(ova.title.display) ? fallback : ova.title.display;
+}
+
 function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: TmdbShow["seasons"]): SeriesSeason {
   const anime = [...new Map(group.rows.flatMap((row) => (row.member ? [[row.member.anime.id, row.member.anime] as const] : []))).values()];
   const tmdbSeasonNumbers = new Set(group.rows.filter((row) => row.member !== null).map((row) => row.seasonNumber));
@@ -484,7 +528,7 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
   return {
     kind,
     number,
-    title: kind === "season" ? tmdbName ?? `Season ${number}` : anime[0]?.title.display ?? `OVA ${number}`,
+    title: kind === "season" ? tmdbName ?? `Season ${number}` : anime[0]?.title.display ?? `OVA Season ${number}`,
     anime,
     episodes: group.rows.map((row, index) => ({
       number: index + 1,

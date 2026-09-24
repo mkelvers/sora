@@ -62,7 +62,7 @@ export interface Season {
   kind: SeasonKind;
   /** Position among the title's seasons of the same kind, from 1. */
   number: number;
-  /** TMDB's name for the season ("Mugen Train Arc"), "Season N", or the OVA's title. */
+  /** TMDB's name for the season ("Mugen Train Arc") or "Season N"; for an OVA, what its title adds to the show's ("Visions of Coleus") or "OVA Season N". */
   title: string;
   episodeCount: number;
 }
