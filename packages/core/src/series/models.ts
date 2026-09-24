@@ -1,3 +1,5 @@
+import type { ContentLanguage } from "anime-sdk";
+
 import type { AnimeStatus, AnimeTag, AnimeTrailer } from "../catalog/models/anime";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
@@ -79,4 +81,10 @@ export interface SeasonEpisode {
   stillUrl: string | null;
   /** An extra only TMDB lists, such as a recap special. No provider streams it. */
   isExtra: boolean;
+  /**
+   * The ways the episode can be watched, sub before dub before raw, in any
+   * locale; see `getEpisodeVersions` for which. Empty when nothing streams
+   * it, and `null` while its providers are still being looked up.
+   */
+  languages: ContentLanguage[] | null;
 }

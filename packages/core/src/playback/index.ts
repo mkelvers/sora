@@ -18,3 +18,4 @@ export {
   type PlaybackSubtitle
 } from "./streams/resolve";
 export { getSkipTimes, type SkipSegment } from "./streams/skip-times";
+export { getEpisodeVersions, type EpisodeVersion } from "./episodes/versions";
