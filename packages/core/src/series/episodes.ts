@@ -30,11 +30,14 @@ export interface SeasonEpisodeRef {
 /**
  * Finds the AniList episode that plays a season episode.
  *
- * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @param seriesId - The series the season is addressed under, when it is;
+ *   a season of another series is then not found.
+ * @throws {@link SeasonNotFoundError} when the season does not exist, or
+ *   does not belong to `seriesId`.
  * @throws {@link EpisodeNotFoundError} when the season has no such episode,
  *   or it is an extra only TMDB lists, which nothing streams.
  */
-export async function locateEpisode(seasonId: string, number: number): Promise<LocatedEpisode> {
+export async function locateEpisode(seasonId: string, number: number, seriesId?: string): Promise<LocatedEpisode> {
   const [row] = await db
     .select({
       seriesId: seriesSeason.seriesId,
@@ -46,7 +49,7 @@ export async function locateEpisode(seasonId: string, number: number): Promise<L
     .where(eq(seriesSeason.id, seasonId))
     .limit(1);
 
-  if (!row) {
+  if (!row || (seriesId !== undefined && row.seriesId !== seriesId)) {
     throw new SeasonNotFoundError(seasonId);
   }
 

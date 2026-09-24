@@ -80,6 +80,21 @@ export async function assertSeriesExists(seriesId: string) {
 }
 
 /**
+ * Loads one season of a series.
+ *
+ * @throws {@link SeasonNotFoundError} when the season does not exist, or
+ *   does not belong to the series.
+ */
+export async function getSeason(seriesId: string, seasonId: string): Promise<Season> {
+  const [season] = await seasonsOf(seriesId, seasonId);
+  if (!season) {
+    throw new SeasonNotFoundError(seasonId);
+  }
+
+  return season;
+}
+
+/**
  * Lists a season's episodes, numbered from 1, with the languages each can
  * be watched in and whether each is filler.
  *
@@ -88,19 +103,11 @@ export async function assertSeriesExists(seriesId: string) {
  * every later listing only reads them, and the scheduler keeps them current
  * as the anime airs.
  *
- * @throws {@link SeasonNotFoundError} when the ID does not identify a season.
+ * @throws {@link SeasonNotFoundError} when the season does not exist, or
+ *   does not belong to the series.
  */
-export async function getSeasonEpisodes(seasonId: string): Promise<SeasonEpisode[]> {
-  const [season] = await db
-    .select({
-      id: seriesSeason.id
-    })
-    .from(seriesSeason)
-    .where(eq(seriesSeason.id, seasonId))
-    .limit(1);
-  if (!season) {
-    throw new SeasonNotFoundError(seasonId);
-  }
+export async function getSeasonEpisodes(seriesId: string, seasonId: string): Promise<SeasonEpisode[]> {
+  await getSeason(seriesId, seasonId);
 
   const rows = await db
     .select()
@@ -255,7 +262,8 @@ function layOutSeries(anilistId: number): Promise<boolean> {
   return layout;
 }
 
-async function seasonsOf(seriesId: string): Promise<Season[]> {
+/** A series' seasons in display order, or only `seasonId` among them when given. */
+async function seasonsOf(seriesId: string, seasonId?: string): Promise<Season[]> {
   return db
     .select({
       id: seriesSeason.id,
@@ -266,7 +274,9 @@ async function seasonsOf(seriesId: string): Promise<Season[]> {
     })
     .from(seriesSeason)
     .leftJoin(seriesEpisode, eq(seriesEpisode.seasonId, seriesSeason.id))
-    .where(eq(seriesSeason.seriesId, seriesId))
+    .where(
+      and(eq(seriesSeason.seriesId, seriesId), seasonId === undefined ? undefined : eq(seriesSeason.id, seasonId))
+    )
     .groupBy(seriesSeason.id)
     .orderBy(asc(seriesSeason.position));
 }
