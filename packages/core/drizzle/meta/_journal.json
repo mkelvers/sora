@@ -50,6 +50,13 @@
       "when": 1790207677967,
       "tag": "0006_watchlist_by_series",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790267232582,
+      "tag": "0007_removed_providers",
+      "breakpoints": true
     }
   ]
 }
