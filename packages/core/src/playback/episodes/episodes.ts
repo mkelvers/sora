@@ -3,30 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
-import { plainText } from "../../catalog/models/text";
-import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes } from "../../database/schema";
-import { streamProviders } from "../providers/registry";
 import { getProviderMediaId } from "./mapping";
-
-/** One playable episode of an anime. */
-export interface Episode {
-  /** AniList-canonical episode number; may be fractional for recaps such as `12.5`. */
-  number: number;
-  /** The provider's episode title, or `null` when it only says "Episode N". */
-  title: string | null;
-  /** Available audio, or `null` when the provider only reveals it at stream time. */
-  languages: ContentLanguage[] | null;
-}
-
-/** An anime's episode list as reported by one provider. */
-export interface EpisodeList {
-  anilistId: number;
-  /** The provider that supplied the list. */
-  provider: string;
-  episodes: Episode[];
-}
 
 /** A provider's own identifier for one episode, needed to resolve streams. */
 export interface ProviderUnit {
@@ -44,39 +23,6 @@ const ProviderUnitsSchema = z.array(
     languages: z.array(z.enum(["sub", "dub", "raw"])).nullable()
   })
 );
-
-/**
- * Lists an anime's episodes from the highest-priority provider that has it.
- *
- * Returns an empty list, rather than throwing, when no provider carries the
- * anime; unreleased and unlicensed titles are common and not an error.
- *
- * @throws {@link AnimeNotFoundError} when the anime does not exist.
- */
-export async function listEpisodes(anilistId: number): Promise<EpisodeList> {
-  const anime = await getAnime(anilistId);
-
-  for (const provider of streamProviders) {
-    const units = await getProviderUnits(anime, provider).catch(() => []);
-    if (units.length > 0) {
-      return {
-        anilistId,
-        provider: provider.id,
-        episodes: units.map((unit) => ({
-          number: unit.number,
-          title: /^episode\s+\d+(\.\d+)?$/i.test(unit.title.trim()) ? null : plainText(unit.title),
-          languages: unit.languages
-        }))
-      };
-    }
-  }
-
-  return {
-    anilistId,
-    provider: "none",
-    episodes: []
-  };
-}
 
 /**
  * Returns `provider`'s episode units for `anime`.
