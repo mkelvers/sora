@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError, type ProviderAttempt } from "../../errors";
+import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits } from "../episodes/episodes";
 import { streamProviders } from "../providers/registry";
 import { createStreamToken } from "../proxy/proxy";
@@ -26,7 +27,8 @@ export interface PlaybackSubtitle {
 
 /** Everything a player needs to start an episode. */
 export interface Playback {
-  anilistId: number;
+  seasonId: string;
+  /** Position within the season, from 1. */
   episode: number;
   language: ContentLanguage;
   /** The provider that served this playback. */
@@ -37,8 +39,9 @@ export interface Playback {
 }
 
 export const PlaybackRequestSchema = z.object({
-  anilistId: z.number().int().positive(),
-  episode: z.number().nonnegative(),
+  seasonId: z.string().min(1),
+  /** Position within the season, from 1. */
+  episode: z.number().int().positive(),
   language: z.enum(["sub", "dub", "raw"]).default("sub")
 });
 
@@ -59,8 +62,10 @@ const qualityRank: Record<IVideoPayload["quality"], number> = {
  * Stream URLs are never exposed; clients receive proxy tokens so upstream
  * headers and hosts stay on the server.
  *
- * @throws {@link AnimeNotFoundError} when the anime does not exist.
- * @throws {@link EpisodeNotFoundError} when no provider lists the episode.
+ * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
+ * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @throws {@link EpisodeNotFoundError} when the season has no such episode,
+ *   the episode is an extra only TMDB lists, or no provider lists it.
  * @throws {@link PlaybackUnavailableError} when providers list the episode but
  *   none can currently stream it in the requested language.
  */
@@ -72,14 +77,15 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
     });
   }
 
-  const { anilistId, episode, language } = parsed.data;
-  const anime = await getAnime(anilistId);
+  const { seasonId, episode, language } = parsed.data;
+  const located = await locateEpisode(seasonId, episode);
+  const anime = await getAnime(located.anilistId);
   const attempts: ProviderAttempt[] = [];
   let listed = false;
 
   for (const provider of streamProviders) {
     try {
-      const unit = (await getProviderUnits(anime, provider)).find((candidate) => candidate.number === episode);
+      const unit = (await getProviderUnits(anime, provider)).find((candidate) => candidate.number === located.anilistEpisode);
       if (!unit) {
         attempts.push({
           provider: provider.id,
@@ -107,7 +113,7 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
       }
 
       return {
-        anilistId,
+        seasonId,
         episode,
         language,
         provider: provider.id,
@@ -122,10 +128,10 @@ export async function resolvePlayback(request: PlaybackRequest): Promise<Playbac
   }
 
   if (!listed) {
-    throw new EpisodeNotFoundError(anilistId, episode);
+    throw new EpisodeNotFoundError(seasonId, episode);
   }
 
-  throw new PlaybackUnavailableError(anilistId, episode, attempts);
+  throw new PlaybackUnavailableError(seasonId, episode, attempts);
 }
 
 function toPlaybackMedia(streams: IVideoPayload[]) {

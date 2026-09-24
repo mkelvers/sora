@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
+import { locateEpisode } from "../../series/episodes";
 
 /** A skippable span of an episode, in seconds from the start. */
 export interface SkipSegment {
@@ -60,18 +61,22 @@ const kinds = {
  * Skip times are an enhancement, so any lookup failure, or an anime without a
  * MyAnimeList ID, yields an empty list instead of an error.
  *
+ * @param episode - Position within the season, from 1.
  * @param durationSeconds - The playing stream's duration. When supplied,
  *   AniSkip only returns segments timed against a similar-length encode.
  *
- * @throws {@link AnimeNotFoundError} when the anime does not exist.
+ * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @throws {@link EpisodeNotFoundError} when the season has no such episode,
+ *   or it is an extra only TMDB lists.
  */
-export async function getSkipTimes(anilistId: number, episode: number, durationSeconds?: number): Promise<SkipSegment[]> {
-  const anime = await getAnime(anilistId);
-  if (!anime.malId || !Number.isInteger(episode)) {
+export async function getSkipTimes(seasonId: string, episode: number, durationSeconds?: number): Promise<SkipSegment[]> {
+  const located = await locateEpisode(seasonId, episode);
+  const anime = await getAnime(located.anilistId);
+  if (!anime.malId) {
     return [];
   }
 
-  const url = new URL(`https://api.aniskip.com/v2/skip-times/${anime.malId}/${episode}`);
+  const url = new URL(`https://api.aniskip.com/v2/skip-times/${anime.malId}/${located.anilistEpisode}`);
   for (const type of Object.keys(kinds)) {
     url.searchParams.append("types[]", type);
   }
