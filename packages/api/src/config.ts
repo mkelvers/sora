@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parseOriginPattern, type OriginPattern } from "./http/origins";
+
 const EnvironmentSchema = z.object({
   /** Port the HTTP server listens on. */
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
@@ -8,23 +10,44 @@ const EnvironmentSchema = z.object({
    * builds callback and cookie settings from it.
    */
   BETTER_AUTH_URL: z.url(),
+  /**
+   * Whether the API runs behind a reverse proxy that sets `X-Forwarded-For`.
+   * Only then is that header believed; otherwise any client could claim any
+   * address and dodge rate limits.
+   */
+  TRUST_PROXY: z
+    .enum([
+      "true",
+      "false"
+    ])
+    .default("false")
+    .transform((value) => value === "true"),
   /** At least 32 random characters; signs sessions. Generate with: openssl rand -base64 48 */
   BETTER_AUTH_SECRET: z.string().min(32),
   /**
    * Comma-separated origins of browser clients allowed to call the API with
-   * credentials, such as `https://sora.example,http://localhost:5173`.
+   * credentials. `*.` matches any subdomain, such as
+   * `https://*.mkelvers.tech,http://localhost:5173`; see `http/origins.ts`.
    * Native clients send no origin and need no entry.
    */
   TRUSTED_ORIGINS: z
     .string()
     .default("")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter((origin) => origin.length > 0)
-    )
-    .pipe(z.array(z.url()))
+    .transform((value, context) => {
+      const patterns: OriginPattern[] = [];
+      for (const source of value.split(",").map((part) => part.trim()).filter((part) => part.length > 0)) {
+        try {
+          patterns.push(parseOriginPattern(source));
+        } catch (error) {
+          context.addIssue({
+            code: "custom",
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      return patterns;
+    })
 });
 
 /**
@@ -41,6 +64,7 @@ export const config = (() => {
     port: environment.PORT,
     authUrl: environment.BETTER_AUTH_URL,
     authSecret: environment.BETTER_AUTH_SECRET,
+    trustProxy: environment.TRUST_PROXY,
     trustedOrigins: environment.TRUSTED_ORIGINS
   };
 })();

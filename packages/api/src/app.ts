@@ -5,6 +5,7 @@ import { etag } from "hono/etag";
 
 import { auth } from "./auth/auth";
 import { config } from "./config";
+import { isTrustedOrigin } from "./http/origins";
 import { problemFromError, sendProblem } from "./http/problem";
 import type { AppEnv } from "./http/session";
 import { animeRoutes } from "./routes/anime";
@@ -28,7 +29,7 @@ export function createApp() {
   app.use(
     "*",
     cors({
-      origin: config.trustedOrigins,
+      origin: (origin) => (isTrustedOrigin(origin, config.trustedOrigins) ? origin : null),
       credentials: true,
       allowHeaders: [
         "Content-Type",
