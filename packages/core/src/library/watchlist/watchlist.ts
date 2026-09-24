@@ -1,10 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { AnimeCard } from "../../catalog/models/anime";
-import { getAnime, getAnimeCards } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { watchlistEntry, watchlistStatus } from "../../database/schema";
+import { series, watchlistEntry, watchlistStatus } from "../../database/schema";
+import type { SeriesCard } from "../../series/models";
+import { assertSeriesExists, toSeriesCard } from "../../series/queries";
 
 export const WatchlistStatusSchema = z.enum(watchlistStatus.enumValues);
 
@@ -17,9 +17,9 @@ export const WatchlistStatusSchema = z.enum(watchlistStatus.enumValues);
  */
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
 
-/** One anime on a user's watchlist. */
-export interface WatchlistItem {
-  anime: AnimeCard;
+/** A title's place on a user's watchlist. */
+export interface WatchlistEntry {
+  seriesId: string;
   status: WatchlistStatus;
   /** ISO 8601 timestamp. */
   addedAt: string;
@@ -27,12 +27,12 @@ export interface WatchlistItem {
   updatedAt: string;
 }
 
-/**
- * Lists a user's watchlist, most recently changed first.
- *
- * Anime that AniList no longer serves are omitted from the result but kept in
- * storage, so they reappear if AniList restores them.
- */
+/** One title on a user's watchlist, with its card for display. */
+export interface WatchlistItem extends Omit<WatchlistEntry, "seriesId"> {
+  series: SeriesCard;
+}
+
+/** Lists a user's watchlist, most recently changed first. */
 export async function getWatchlist(
   userId: string,
   filter: {
@@ -40,8 +40,12 @@ export async function getWatchlist(
   } = {}
 ): Promise<WatchlistItem[]> {
   const rows = await db
-    .select()
+    .select({
+      entry: watchlistEntry,
+      series
+    })
     .from(watchlistEntry)
+    .innerJoin(series, eq(series.id, watchlistEntry.seriesId))
     .where(
       and(
         eq(watchlistEntry.userId, userId),
@@ -50,62 +54,59 @@ export async function getWatchlist(
     )
     .orderBy(desc(watchlistEntry.updatedAt));
 
-  const cards = new Map((await getAnimeCards(rows.map((row) => row.anilistId))).map((card) => [card.id, card]));
-
-  return rows.flatMap((row) => {
-    const anime = cards.get(row.anilistId);
-    return anime
-      ? [
-          {
-            anime,
-            status: row.status,
-            addedAt: row.createdAt.toISOString(),
-            updatedAt: row.updatedAt.toISOString()
-          }
-        ]
-      : [];
-  });
+  return rows.map((row) => ({
+    series: toSeriesCard(row.series),
+    status: row.entry.status,
+    addedAt: row.entry.createdAt.toISOString(),
+    updatedAt: row.entry.updatedAt.toISOString()
+  }));
 }
 
-/** Returns the user's status for one anime, or `null` when it is not on their watchlist. */
-export async function getWatchlistStatus(userId: string, anilistId: number): Promise<WatchlistStatus | null> {
+/** Returns a title's watchlist entry, or `null` when it is not on the user's watchlist. */
+export async function getWatchlistEntry(userId: string, seriesId: string): Promise<WatchlistEntry | null> {
   const [row] = await db
-    .select({
-      status: watchlistEntry.status
-    })
+    .select()
     .from(watchlistEntry)
-    .where(and(eq(watchlistEntry.userId, userId), eq(watchlistEntry.anilistId, anilistId)))
+    .where(and(eq(watchlistEntry.userId, userId), eq(watchlistEntry.seriesId, seriesId)))
     .limit(1);
 
-  return row ? row.status : null;
+  return row ? toWatchlistEntry(row) : null;
 }
 
 /**
- * Adds an anime to the watchlist or changes its status.
+ * Adds a title to the watchlist or changes its status.
  *
- * @throws {@link AnimeNotFoundError} when the anime does not exist, so
- *   watchlists never accumulate IDs that cannot be displayed.
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
-export async function setWatchlistStatus(userId: string, anilistId: number, status: WatchlistStatus) {
-  await getAnime(anilistId);
-  await writeWatchlistStatus(userId, anilistId, status);
+export async function setWatchlistStatus(userId: string, seriesId: string, status: WatchlistStatus): Promise<WatchlistEntry> {
+  await assertSeriesExists(seriesId);
+  return writeWatchlistStatus(userId, seriesId, status);
 }
 
-/** Removes an anime from the watchlist. Removing an absent entry is a no-op. */
-export async function removeFromWatchlist(userId: string, anilistId: number) {
-  await db
+/**
+ * Removes a title from the watchlist.
+ *
+ * @returns Whether the title was on the watchlist.
+ */
+export async function removeFromWatchlist(userId: string, seriesId: string): Promise<boolean> {
+  const removed = await db
     .delete(watchlistEntry)
-    .where(and(eq(watchlistEntry.userId, userId), eq(watchlistEntry.anilistId, anilistId)));
+    .where(and(eq(watchlistEntry.userId, userId), eq(watchlistEntry.seriesId, seriesId)))
+    .returning({
+      seriesId: watchlistEntry.seriesId
+    });
+
+  return removed.length > 0;
 }
 
-/** Upserts a status for an anime already known to exist. */
-export async function writeWatchlistStatus(userId: string, anilistId: number, status: WatchlistStatus) {
+/** Upserts a status for a title already known to exist. */
+export async function writeWatchlistStatus(userId: string, seriesId: string, status: WatchlistStatus): Promise<WatchlistEntry> {
   const now = new Date();
-  await db
+  const [row] = await db
     .insert(watchlistEntry)
     .values({
       userId,
-      anilistId,
+      seriesId,
       status,
       createdAt: now,
       updatedAt: now
@@ -113,11 +114,27 @@ export async function writeWatchlistStatus(userId: string, anilistId: number, st
     .onConflictDoUpdate({
       target: [
         watchlistEntry.userId,
-        watchlistEntry.anilistId
+        watchlistEntry.seriesId
       ],
       set: {
         status,
         updatedAt: now
       }
-    });
+    })
+    .returning();
+
+  if (!row) {
+    throw new Error(`Writing the watchlist entry for series ${seriesId} returned no row`);
+  }
+
+  return toWatchlistEntry(row);
+}
+
+function toWatchlistEntry(row: typeof watchlistEntry.$inferSelect): WatchlistEntry {
+  return {
+    seriesId: row.seriesId,
+    status: row.status,
+    addedAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString()
+  };
 }

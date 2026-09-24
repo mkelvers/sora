@@ -2,7 +2,8 @@
  * Per-user library: watchlist, playback progress, and continue watching.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
- * The core trusts it, so callers must authenticate before calling.
+ * The core trusts it, so callers must authenticate before calling. Titles
+ * and episodes are addressed by Sora series and season IDs.
  *
  * @packageDocumentation
  */
@@ -17,10 +18,11 @@ export {
 export type { ContinueWatchingItem, EpisodeProgress } from "./progress/resume";
 export {
   getWatchlist,
-  getWatchlistStatus,
+  getWatchlistEntry,
   removeFromWatchlist,
   setWatchlistStatus,
   WatchlistStatusSchema,
+  type WatchlistEntry,
   type WatchlistItem,
   type WatchlistStatus
 } from "./watchlist/watchlist";
