@@ -95,7 +95,7 @@ export async function getSeason(seriesId: string, seasonId: string): Promise<Sea
 }
 
 /**
- * Lists a season's episodes, numbered from 1, with the languages each can
+ * Lists a season's episodes, numbered from 1, with the audio each can
  * be watched in and whether each is filler.
  *
  * Both come from providers' episode lists. The first listing of an anime
@@ -140,10 +140,10 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
       airDate: row.airDate,
       runtimeMinutes: row.runtimeMinutes,
       stillUrl: row.stillUrl,
-      isExtra: row.anilistId === null,
-      // An extra no provider streams has no languages, and no provider to call it filler.
-      languages: listing === null ? [] : (listing?.languages ?? null),
-      isFiller: listing?.isFiller ?? null
+      // An extra no provider streams has no audio, and no provider to call it filler.
+      audio: listing === null ? [] : (listing?.languages ?? null),
+      filler: listing?.isFiller ?? false,
+      extra: row.anilistId === null
     };
   });
 }

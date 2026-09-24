@@ -194,9 +194,10 @@ export const SeriesSchema = SeriesCardSchema.extend({
   related: z.array(SeriesCardSchema)
 }).openapi("Series") satisfies z.ZodType<Series>;
 
+/** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
 export const LanguageSchema = z.enum([
-  "sub",
   "dub",
+  "sub",
   "raw"
 ]);
 
@@ -210,23 +211,19 @@ export const SeasonEpisodeSchema = z
     }),
     runtimeMinutes: z.number().int().nullable(),
     stillUrl: z.string().nullable(),
-    isExtra: z.boolean().openapi({
-      description: "An extra only TMDB lists, such as a recap special. It cannot be played."
-    }),
-    languages: z
+    audio: z
       .array(LanguageSchema)
       .nullable()
       .openapi({
         description:
-          "The ways the episode can be watched, in any locale; `listEpisodeVersions` says which. Empty when nothing streams it, and null while Sora is still looking it up on providers: list the season again shortly."
+          "The audio the episode can be watched with, dub before sub before raw: dubbed, the original with subtitles, or the original alone. Empty when nothing streams it, and null only when Sora could not look it up on providers yet: list the season again shortly."
       }),
-    isFiller: z
-      .boolean()
-      .nullable()
-      .openapi({
-        description:
-          "Whether the episode is filler: story the manga does not have. Null when no provider says, or while Sora is still looking it up on providers."
-      })
+    filler: z.boolean().openapi({
+      description: "Whether the episode is filler: story the manga does not have. False when no provider says it is."
+    }),
+    extra: z.boolean().openapi({
+      description: "An extra only TMDB lists, such as a recap special. It cannot be played."
+    })
   })
   .openapi("SeasonEpisode") satisfies z.ZodType<SeasonEpisode>;
 
@@ -254,9 +251,9 @@ export const LocaleSchema = z.string().min(1).openapi({
 
 export const PlaybackVersionSchema = z
   .object({
-    language: LanguageSchema,
+    audio: LanguageSchema,
     locale: LocaleSchema.nullable().openapi({
-      description: "Language of the dub's audio or of the sub's subtitles. Null for raw, which keeps the original audio and has no subtitles."
+      description: "Language of the dub's audio or of the sub's subtitles: always `en`, since Sora serves English only. Null for raw, which keeps the original audio and has no subtitles."
     }),
     provider: z.string().openapi({
       description: "The provider that serves this version."
@@ -310,7 +307,7 @@ export const PlaybackSchema = z
     episode: z.number().int(),
     versions: z.array(PlaybackVersionSchema).openapi({
       description:
-        "Every version a provider can stream right now, such as sub and dub: sub before dub before raw, and each by locale. A version no provider can stream right now is left out."
+        "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only."
     })
   })
   .openapi("Playback") satisfies z.ZodType<Playback>;

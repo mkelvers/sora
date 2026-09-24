@@ -57,8 +57,8 @@ export const v1Routes = v1
   .openapi(route.listSeasonEpisodes, async (c) => {
     const { animeId, seasonId } = c.req.valid("param");
     const items = await getSeasonEpisodes(animeId, seasonId);
-    // Unknown languages are filled in once providers are looked up.
-    c.header("Cache-Control", items.some((episode) => episode.languages === null) ? "no-store" : "public, max-age=300");
+    // Unknown audio is filled in once providers are looked up.
+    c.header("Cache-Control", items.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300");
     return c.json(
       {
         items
