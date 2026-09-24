@@ -151,3 +151,31 @@ function keptPriority(anilistId: number, priority: number) {
 function seriesJobKey(anilistId: number) {
   return `series:${anilistId}`;
 }
+
+/** The graphile-worker task that looks one AniList entry up on every stream provider. */
+export const lookUpEpisodesTask = "look-up-episodes";
+
+/** What {@link lookUpEpisodesTask} is asked to look up. */
+export interface LookUpEpisodesPayload {
+  anilistId: number;
+}
+
+/**
+ * Queues looking an AniList entry up on every stream provider and storing
+ * their episode lists, so episode listings can be read from the database.
+ *
+ * A job already waiting for the same entry keeps its place. Priorities are
+ * those of {@link scheduleSeriesStore}: `current` when someone is viewing
+ * the entry's episodes, `backfill` when its series was just stored.
+ */
+export async function scheduleEpisodeLookup(anilistId: number, priority: SeriesStorePriority) {
+  await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${lookUpEpisodesTask},
+      payload => json_build_object('anilistId', ${anilistId}::int),
+      job_key => ${`episodes:${anilistId}`},
+      job_key_mode => 'preserve_run_at',
+      priority => ${seriesStorePriorities[priority]}::int
+    )
+  `);
+}
