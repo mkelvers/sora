@@ -9,6 +9,7 @@ export {
   type ArtworkChanges,
   type BrowseParams,
   type EpisodeRef,
+  type ImagesParams,
   type RequestOptions,
   type Returned,
   type ScheduleParams,
@@ -32,6 +33,7 @@ export type {
   SeasonWithEpisodes,
   Series,
   SeriesCard,
+  SeriesImage,
   SeriesMeta,
   SeriesWithEpisodes,
   SkipSegment

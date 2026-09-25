@@ -9,6 +9,7 @@ import {
   getSeasonEpisodes,
   getSeasonSeriesId,
   getSeries,
+  listSeriesImages,
   setSeriesArtwork,
   type EpisodeAddress
 } from "@sora/core/series";
@@ -153,6 +154,25 @@ export const v1Routes = v1
           ...series,
           seasons
         })
+      },
+      200
+    );
+  })
+
+  .openapi(route.listImages, async (c) => {
+    const { type, language, sort } = c.req.valid("query");
+    const images = await listSeriesImages(c.req.valid("param").anime_id, {
+      types: type,
+      languages: language,
+      sort
+    });
+    c.header("Cache-Control", "public, max-age=3600");
+    return c.json(
+      {
+        meta: {
+          count: images.length
+        },
+        results: snakeCased(images)
       },
       200
     );

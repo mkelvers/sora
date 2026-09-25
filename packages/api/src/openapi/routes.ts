@@ -14,6 +14,7 @@ import { BrowseQuerySchema } from "@sora/core/catalog";
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
   EpisodeNumberParam,
+  ImageTypeSchema,
   json,
   PlaybackMediaSchema,
   PlaybackMetaSchema,
@@ -24,6 +25,7 @@ import {
   SeasonIdParam,
   SeriesCardSchema,
   SeriesIdParam,
+  SeriesImageSchema,
   SeriesSchema
 } from "./schemas";
 
@@ -176,6 +178,50 @@ export const getSeries = createRoute({
     ),
     404: problem("No such title."),
     422: problem("The query is invalid.")
+  }
+});
+
+export const listImages = createRoute({
+  operationId: "listImages",
+  method: "get",
+  path: "/anime/{anime_id}/images",
+  tags: ["Anime"],
+  summary: "List an anime's images",
+  description:
+    "Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none.",
+  request: {
+    params: z.object({
+      anime_id: SeriesIdParam
+    }),
+    query: z
+      .object({
+        type: commaSeparated(z.array(ImageTypeSchema), "backdrop,poster").openapi({
+          description: "Only these types; every type when omitted."
+        }),
+        language: commaSeparated(
+          z.array(z.string().regex(/^(?:[a-z]{2}|none)$/)).transform((codes) => codes.map((code) => (code === "none" ? null : code))),
+          "en,none"
+        ).openapi({
+          description: "Only these ISO 639-1 languages, `none` meaning textless; every language when omitted."
+        }),
+        sort: z
+          .enum([
+            "votes",
+            "quality"
+          ])
+          .optional()
+          .openapi({
+            description:
+              "`votes`: TMDB users' rating, weighted by how many voted, then size (the default). `quality`: the largest original first, then votes."
+          })
+      })
+      .strict()
+  },
+  responses: {
+    200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+    404: problem("No such title."),
+    422: problem("The query is invalid."),
+    503: problem("TMDB is unavailable; retry after `Retry-After`.")
   }
 });
 

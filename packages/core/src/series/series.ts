@@ -456,7 +456,8 @@ function isSeasonFormat(entry: FranchiseEntry) {
   return entry.format === "TV" || entry.format === "TV_SHORT" || entry.format === "ONA";
 }
 
-function parseKey(key: SeriesKey) {
+/** A series key's kind and TMDB (or AniList) ID. */
+export function parseKey(key: SeriesKey) {
   const [kind, id] = key.split(":") as [
     "tv" | "shorts" | "movie" | "anilist",
     string
