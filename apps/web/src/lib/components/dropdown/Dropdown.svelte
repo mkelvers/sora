@@ -13,6 +13,9 @@
 
 	let { value = $bindable(), label, children }: Props = $props();
 
+	const id = $props.id();
+	const anchor = `--${id}`;
+
 	let open = $state(false);
 	let root = $state<HTMLElement>();
 	let trigger = $state<HTMLButtonElement>();
@@ -86,6 +89,7 @@
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		aria-label={label}
+		style:anchor-name={anchor}
 		onclick={() => (open ? close() : show())}
 		onkeydown={(event) => {
 			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -100,14 +104,20 @@
 		<Icon name="expand" size="sm" />
 	</button>
 
-	<ul bind:this={list} role="listbox" aria-label={label} hidden={!open} onkeydown={move}>
+	<ul
+		bind:this={list}
+		role="listbox"
+		aria-label={label}
+		hidden={!open}
+		style:position-anchor={anchor}
+		onkeydown={move}
+	>
 		{@render children()}
 	</ul>
 </div>
 
 <style>
 	.dropdown {
-		position: relative;
 		display: inline-block;
 	}
 
@@ -141,12 +151,12 @@
 	}
 
 	ul {
-		position: absolute;
-		top: calc(100% + 4px);
-		left: 0;
+		position: fixed;
+		position-area: block-end span-inline-end;
+		position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
 		z-index: 10;
-		min-width: 100%;
-		margin: 0;
+		min-width: anchor-size(width);
+		margin: 4px 0;
 		padding: 6px 0;
 		border-radius: 4px;
 		background: #202020;
