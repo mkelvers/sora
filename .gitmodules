@@ -1,3 +1,4 @@
 [submodule "packages/web"]
 	path = packages/web
 	url = git@github.com:soraorg/web.git
+	ignore = all
