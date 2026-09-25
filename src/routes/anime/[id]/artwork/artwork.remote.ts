@@ -3,31 +3,8 @@ import { error } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
 import { sora } from '$lib/server/sora';
+import { getSeries } from '../anime.remote';
 
-export const getSeries = query(z.string(), async (id) => {
-	try {
-		return await sora.series(id);
-	} catch (cause) {
-		if (cause instanceof SoraError) {
-			error(cause.status, cause.message);
-		}
-		throw cause;
-	}
-});
-
-export const getEpisodes = query(
-	z.object({
-		seriesId: z.string(),
-		seasonId: z.string()
-	}),
-	async (season) => {
-		return await sora.episodes(season);
-	}
-);
-
-const ImageType = z.enum(['poster', 'backdrop', 'logo']);
-
-// Every image at once; the artwork page filters and sorts them itself.
 export const getImages = query(z.string(), async (seriesId) => {
 	return await sora.images(seriesId);
 });
@@ -41,7 +18,7 @@ const savedSizes = {
 export const setArtwork = command(
 	z.object({
 		seriesId: z.string(),
-		type: ImageType,
+		type: z.enum(['poster', 'backdrop', 'logo']),
 		url: z.url().nullable()
 	}),
 	async ({ seriesId, type, url }) => {

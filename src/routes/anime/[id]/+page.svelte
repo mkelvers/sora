@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import Episodes from '$lib/components/anime/Episodes.svelte';
-	import SeasonTabs from '$lib/components/anime/SeasonTabs.svelte';
+	import Episodes from './_components/Episodes.svelte';
+	import SeasonTabs from './_components/SeasonTabs.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { episodesSkeleton } from '$lib/components/snippets/episodes-skeleton.svelte';
-	import { getSeries } from '$lib/remote/anime.remote';
+	import { episodesSkeleton } from './_components/episodes-skeleton.svelte';
+	import { getSeries } from './anime.remote';
     import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();

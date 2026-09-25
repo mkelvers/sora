@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import { episodesSkeleton } from '$lib/components/snippets/episodes-skeleton.svelte';
-	import { getEpisodes } from '$lib/remote/anime.remote';
+	import { episodesSkeleton } from './episodes-skeleton.svelte';
+	import { getEpisodes } from '../anime.remote';
 	import type { Season } from '@sora/sdk';
 
 	type Props = {

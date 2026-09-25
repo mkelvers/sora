@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { ArtworkFilters } from '$lib/components/artwork/artwork-filters.svelte';
-	import Filters from '$lib/components/artwork/Filters.svelte';
-	import Images from '$lib/components/artwork/Images.svelte';
+	import { ArtworkFilters } from './artwork-filters.svelte';
+	import Filters from './_components/Filters.svelte';
+	import Images from './_components/Images.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { imagesSkeleton } from '$lib/components/snippets/images-skeleton.svelte';
-	import { getSeries } from '$lib/remote/anime.remote';
+	import { imagesSkeleton } from './_components/images-skeleton.svelte';
+	import { getSeries } from '../anime.remote';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
