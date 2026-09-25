@@ -1,13 +1,16 @@
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { streamProviders } from "../playback/providers/registry";
+import { streamProviders } from "../../playback/providers/registry";
 
 const SyncProviderCatalogsPayloadSchema = z
   .object({
     full: z.boolean().optional()
   })
   .nullish();
+
+/** The graphile-worker task that mirrors provider catalogues. */
+export const syncProviderCatalogsTask = "sync-provider-catalogs";
 
 /**
  * Brings up to date the local copies of provider catalogues that series are

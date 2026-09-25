@@ -1,10 +1,10 @@
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../catalog/queries/anime";
-import { AnimeNotFoundError } from "../errors";
-import { getProviderUnits } from "../playback/episodes/episodes";
-import { streamProviders } from "../playback/providers/registry";
+import { getAnime } from "../../catalog/queries/anime";
+import { AnimeNotFoundError } from "../../errors";
+import { getProviderUnits } from "../../playback/episodes/episodes";
+import { streamProviders } from "../../playback/providers/registry";
 
 const LookUpEpisodesPayloadSchema = z.object({
   anilistId: z.number().int().positive()
