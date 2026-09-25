@@ -285,6 +285,7 @@
 	.player {
 		--side: clamp(16px, 3.3vw, 64px);
 		display: grid;
+		grid-template: minmax(0, 1fr) / minmax(0, 1fr);
 		height: 100dvh;
 		overflow: hidden;
 		background: #000;
