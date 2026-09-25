@@ -10,7 +10,14 @@ import { toAnimeCard, type AnimeCard } from "../models/anime";
 export interface Page<T> {
   items: T[];
   page: number;
+  /** The most items a page holds. */
+  perPage: number;
   hasNextPage: boolean;
+  /**
+   * Whether matching items were left out because they are still being
+   * prepared; asking again shortly includes them.
+   */
+  isPreparing: boolean;
 }
 
 /** Browse filters accepted from clients. Validate untrusted input with this schema. */
@@ -94,7 +101,9 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
   return {
     items: (Page?.media ?? []).flatMap((media) => (media ? [toAnimeCard(media)] : [])),
     page: input.page,
-    hasNextPage: Page?.pageInfo?.hasNextPage === true
+    perPage: input.perPage,
+    hasNextPage: Page?.pageInfo?.hasNextPage === true,
+    isPreparing: false
   };
 }
 
