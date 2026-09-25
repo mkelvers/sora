@@ -29,15 +29,15 @@ stores each new episode as soon as a provider carries it.
 import { SoraClient } from "@sora/sdk";
 
 const sora = new SoraClient({
-  baseUrl: "http://localhost:3000",
+  baseUrl: "http://localhost:3000"
 });
 
 const [result] = await sora.search("Frieren");
 
 const series = await sora.series(result.id, {
   params: {
-    episodes: true,
-  },
+    episodes: true
+  }
 });
 
 const season = series.seasons[0];
@@ -45,7 +45,7 @@ const episode = season.episodes[0];
 
 const media = await sora.playback({
   seasonId: season.id,
-  number: episode.number,
+  number: episode.number
 });
 ```
 
