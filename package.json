@@ -1,5 +1,5 @@
 {
-  "name": "@sora/backend",
+  "name": "@sora/server",
   "type": "module",
   "private": true,
   "workspaces": [

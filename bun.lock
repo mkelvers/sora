@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@sora/backend",
+      "name": "@sora/server",
       "devDependencies": {
         "@types/bun": "latest",
       },
