@@ -1,14 +1,21 @@
 import type { AppType } from "@sora/api";
-import type { BrowseQuery, Page } from "@sora/core/catalog";
-import type { Playback } from "@sora/core/playback";
-import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
+import type { BrowseQuery } from "@sora/core/catalog";
 import { hc, type ClientResponse } from "hono/client";
 import type { SuccessStatusCode } from "hono/utils/http-status";
 
 import { SoraError } from "./error";
 
-/** Filters and sorting for {@link Sora.browse} and {@link Sora.search}. */
-export type BrowseFilters = Omit<BrowseQuery, "search">;
+/** Filters and sorting for {@link Sora.browse} and {@link Sora.search}, named as the API's query parameters. */
+export interface BrowseFilters {
+  sort?: BrowseQuery["sort"];
+  season?: BrowseQuery["season"];
+  season_year?: number;
+  format?: BrowseQuery["format"];
+  status?: BrowseQuery["status"];
+  genres?: string[];
+  page?: number;
+  per_page?: number;
+}
 
 /** Options every request accepts. */
 export interface RequestOptions {
@@ -29,20 +36,22 @@ export interface SoraOptions {
 /**
  * A typed client for the Sora API.
  *
- * Every method maps to one `/v1` route and returns the core's models. A
- * failed request throws {@link SoraError}; an aborted one rejects with the
- * signal's reason, such as a `TimeoutError`.
+ * Every method maps to one `/v1` route and returns its body as is:
+ * `{ results, meta }`, with every field in snake_case. A failed request
+ * throws {@link SoraError}; an aborted one rejects with the signal's reason,
+ * such as a `TimeoutError`.
  *
  * @example
  * ```ts
  * const sora = new Sora({ baseUrl: "https://api.example.com" });
- * const { items } = await sora.search("tensura");
- * const series = await sora.series(items[0].id);
+ * const { results: found } = await sora.search("tensura");
+ * const { results: series } = await sora.series(found[0].id);
  * const season = series.seasons[0];
- * const episodes = await sora.episodes(series.id, season.id);
+ * const { results: episodes } = await sora.episodes(series.id, season.id);
  * const playback = await sora.playback(series.id, season.id, 1, { signal: AbortSignal.timeout(15_000) });
- * const dub = playback.media.find((media) => media.audio === "dub");
- * const src = (dub ?? playback.media[0]).sources[0].url;
+ * const dub = playback.results.find((media) => media.audio === "dub");
+ * const src = (dub ?? playback.results[0]).sources[0].url;
+ * const next = playback.meta.next; // the next episode's playback, for autoplay
  * ```
  */
 export class Sora {
@@ -57,9 +66,9 @@ export class Sora {
 
   /**
    * Browses titles, one card per title. A page can hold fewer cards than
-   * `perPage` when several AniList entries belong to one title.
+   * `per_page` when several AniList entries belong to one title.
    */
-  browse(filters: BrowseFilters = {}, options: RequestOptions = {}): Promise<Page<SeriesCard>> {
+  browse(filters: BrowseFilters = {}, options: RequestOptions = {}) {
     return read(
       this.#api.anime.$get(
         {
@@ -74,7 +83,7 @@ export class Sora {
    * Searches titles for `text`, best match first unless `filters.sort` is
    * given. One card per title, as {@link browse} returns them.
    */
-  search(text: string, filters: BrowseFilters = {}, options: RequestOptions = {}): Promise<Page<SeriesCard>> {
+  search(text: string, filters: BrowseFilters = {}, options: RequestOptions = {}) {
     return read(
       this.#api.search.$get(
         {
@@ -89,12 +98,12 @@ export class Sora {
   }
 
   /** Loads a title's page: details, artwork, seasons, the next episode, and related titles. */
-  series(seriesId: string, options: RequestOptions = {}): Promise<Series> {
+  series(seriesId: string, options: RequestOptions = {}) {
     return read(
-      this.#api.anime[":animeId"].$get(
+      this.#api.anime[":anime_id"].$get(
         {
           param: {
-            animeId: seriesId
+            anime_id: seriesId
           }
         },
         init(options)
@@ -103,13 +112,13 @@ export class Sora {
   }
 
   /** Loads one season of a title. */
-  season(seriesId: string, seasonId: string, options: RequestOptions = {}): Promise<Season> {
+  season(seriesId: string, seasonId: string, options: RequestOptions = {}) {
     return read(
-      this.#api.anime[":animeId"].seasons[":seasonId"].$get(
+      this.#api.anime[":anime_id"].seasons[":season_id"].$get(
         {
           param: {
-            animeId: seriesId,
-            seasonId
+            anime_id: seriesId,
+            season_id: seasonId
           }
         },
         init(options)
@@ -118,33 +127,34 @@ export class Sora {
   }
 
   /** Lists a season's episodes, numbered from 1. */
-  async episodes(seriesId: string, seasonId: string, options: RequestOptions = {}): Promise<SeasonEpisode[]> {
-    const { items } = await read(
-      this.#api.anime[":animeId"].seasons[":seasonId"].episodes.$get(
+  episodes(seriesId: string, seasonId: string, options: RequestOptions = {}) {
+    return read(
+      this.#api.anime[":anime_id"].seasons[":season_id"].episodes.$get(
         {
           param: {
-            animeId: seriesId,
-            seasonId
+            anime_id: seriesId,
+            season_id: seasonId
           }
         },
         init(options)
       )
     );
-    return items;
   }
 
   /**
-   * Resolves streams for every version of an episode at once, such as sub
-   * and dub, each with its skip segments. Source and subtitle URLs go straight
-   * to the player; they expire, so resolve again rather than storing them.
+   * Resolves everything needed to play an episode: every version at once,
+   * such as sub and dub, each with its sources, subtitles, and skip
+   * segments. Source and subtitle URLs go straight to the player; they
+   * expire at `meta.expires_at`, so resolve again rather than storing them.
+   * `meta.next` and `meta.previous` are the playbacks either side.
    */
-  playback(seriesId: string, seasonId: string, episode: number, options: RequestOptions = {}): Promise<Playback> {
+  playback(seriesId: string, seasonId: string, episode: number, options: RequestOptions = {}) {
     return read(
-      this.#api.anime[":animeId"].seasons[":seasonId"].episodes[":episode"].playback.$get(
+      this.#api.anime[":anime_id"].seasons[":season_id"].episodes[":episode"].playback.$get(
         {
           param: {
-            animeId: seriesId,
-            seasonId,
+            anime_id: seriesId,
+            season_id: seasonId,
             episode: episode.toString()
           }
         },
@@ -154,20 +164,19 @@ export class Sora {
   }
 
   /** Genre names accepted by {@link browse} and {@link search}. */
-  async genres(options: RequestOptions = {}): Promise<string[]> {
-    const { items } = await read(this.#api.genres.$get(undefined, init(options)));
-    return items;
+  genres(options: RequestOptions = {}) {
+    return read(this.#api.genres.$get(undefined, init(options)));
   }
 
   /** Episodes airing in a window of up to 14 days, in broadcast order. Defaults to the next 7 days. */
-  async schedule(
+  schedule(
     window: {
       from?: Date;
       until?: Date;
     } = {},
     options: RequestOptions = {}
-  ): Promise<ScheduledEpisode[]> {
-    const { items } = await read(
+  ) {
+    return read(
       this.#api.schedule.$get(
         {
           query: {
@@ -178,9 +187,7 @@ export class Sora {
         init(options)
       )
     );
-    return items;
   }
-
 }
 
 /** {@link BrowseFilters} as query parameters, which carry every value as text. */
@@ -188,12 +195,12 @@ function filterParams(filters: BrowseFilters) {
   return {
     sort: filters.sort,
     season: filters.season,
-    seasonYear: filters.seasonYear?.toString(),
+    season_year: filters.season_year?.toString(),
     format: filters.format?.join(","),
     status: filters.status,
     genres: filters.genres?.join(","),
     page: filters.page?.toString(),
-    perPage: filters.perPage?.toString()
+    per_page: filters.per_page?.toString()
   };
 }
 
