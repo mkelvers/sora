@@ -2,10 +2,10 @@ import type { Task } from "graphile-worker";
 import { and, desc, eq, notExists, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { syncSearchIndex } from "../catalog/queries/search";
-import { db } from "../database/client";
-import { animeSearch, seriesEntry } from "../database/schema";
-import { scheduleSeriesStore } from "./queue";
+import { syncSearchIndex } from "../../catalog/queries/search";
+import { db } from "../../database/client";
+import { animeSearch, seriesEntry } from "../../database/schema";
+import { scheduleSeriesStore } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
   .object({
@@ -15,6 +15,9 @@ const SyncSearchIndexPayloadSchema = z
 
 /** Entries {@link backfillSeries} queues per run; about what half an hour of AniList's rate limit lays out. */
 const backfillBatchSize = 200;
+
+/** The graphile-worker task that keeps the search index current. */
+export const syncSearchIndexTask = "sync-search-index";
 
 /**
  * Brings the search index up to date with AniList.
@@ -30,6 +33,9 @@ export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
   });
   helpers.logger.info(`Indexed ${stored} anime from ${pages} AniList pages`);
 };
+
+/** The graphile-worker task that queues popular titles to be stored. */
+export const backfillSeriesTask = "backfill-series";
 
 /**
  * Queues the most popular indexed entries whose series is not stored yet,

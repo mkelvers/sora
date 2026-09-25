@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { hour, minute } from "../time";
-import { maximumReleaseAttempts, planNextCheck, type AiringState } from "./plan";
+import { hour, minute } from "../../time";
+import { maximumReleaseAttempts, planNextCheck, type AiringState } from "./airing-plan";
 
 const now = new Date("2026-09-23T12:00:00Z");
 

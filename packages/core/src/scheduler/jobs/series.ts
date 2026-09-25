@@ -1,14 +1,14 @@
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { anilist } from "../anilist/client";
-import { NewEntriesDocument } from "../anilist/graphql.generated";
-import { fuzzyDate } from "../catalog/models/text";
-import { AnimeNotFoundError } from "../errors";
-import { relatedIds } from "../series/entries";
-import { storedSeriesIds, storeSeries } from "../series/store";
-import { day, hour } from "../time";
-import { scheduleSeriesStore } from "./queue";
+import { anilist } from "../../anilist/client";
+import { NewEntriesDocument } from "../../anilist/graphql.generated";
+import { fuzzyDate } from "../../catalog/models/text";
+import { AnimeNotFoundError } from "../../errors";
+import { relatedIds } from "../../series/entries";
+import { storedSeriesIds, storeSeries } from "../../series/store";
+import { day, hour } from "../../time";
+import { scheduleSeriesStore } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
   anilistId: z.number().int().positive()
@@ -48,6 +48,9 @@ const discoveryPageLimit = 20;
 
 /** Upcoming entries premiering within this window are stored ahead of time. */
 const premiereWindowMs = 14 * day;
+
+/** The graphile-worker task that finds new entries to store. */
+export const discoverSeriesEntriesTask = "discover-series-entries";
 
 /**
  * Finds AniList entries whose series should be stored and queues storing

@@ -1,21 +1,18 @@
 import { run, type Runner } from "graphile-worker";
 
 import { config } from "../config";
-import { reviveAiringChecks, trackAiring } from "./airing";
-import { checkProviderHealthJob, pruneProviderCallsJob } from "./calls";
-import { syncProviderCatalogs } from "./catalogs";
-import { backfillSeries, syncSearchIndexJob } from "./search";
-import { lookUpEpisodes } from "./episodes";
+import { reviveAiringChecks, reviveAiringChecksTask, trackAiring } from "./jobs/airing";
+import {
+  checkProviderHealthJob,
+  checkProviderHealthTask,
+  pruneProviderCallsJob,
+  pruneProviderCallsTask
+} from "./jobs/calls";
+import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
+import { lookUpEpisodes } from "./jobs/episodes";
+import { backfillSeries, backfillSeriesTask, syncSearchIndexJob, syncSearchIndexTask } from "./jobs/search";
+import { discoverSeriesEntries, discoverSeriesEntriesTask, storeSeriesJob } from "./jobs/series";
 import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
-import { discoverSeriesEntries, storeSeriesJob } from "./series";
-
-const reviveAiringChecksTask = "revive-airing-checks";
-const discoverSeriesEntriesTask = "discover-series-entries";
-const syncProviderCatalogsTask = "sync-provider-catalogs";
-const pruneProviderCallsTask = "prune-provider-calls";
-const checkProviderHealthTask = "check-provider-health";
-const syncSearchIndexTask = "sync-search-index";
-const backfillSeriesTask = "backfill-series";
 
 /**
  * Starts the background scheduler, which follows every airing anime, stores

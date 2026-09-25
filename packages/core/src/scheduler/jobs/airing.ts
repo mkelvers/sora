@@ -2,14 +2,14 @@ import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import type { Anime } from "../catalog/models/anime";
-import { refreshAnime } from "../catalog/queries/anime";
-import { db } from "../database/client";
-import { AnimeNotFoundError } from "../errors";
-import { refreshProviderUnits } from "../playback/episodes/episodes";
-import { streamProviders } from "../playback/providers/registry";
-import { planNextCheck, type AiringState } from "./plan";
-import { scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "./queue";
+import type { Anime } from "../../catalog/models/anime";
+import { refreshAnime } from "../../catalog/queries/anime";
+import { db } from "../../database/client";
+import { AnimeNotFoundError } from "../../errors";
+import { refreshProviderUnits } from "../../playback/episodes/episodes";
+import { streamProviders } from "../../playback/providers/registry";
+import { planNextCheck, type AiringState } from "./airing-plan";
+import { scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
 
 const TrackAiringPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
@@ -113,6 +113,9 @@ function latestAiredEpisode(anime: Anime): AiringState["latestAiredEpisode"] {
 
   return null;
 }
+
+/** The graphile-worker task that restarts tracking for airing anime that lost their check. */
+export const reviveAiringChecksTask = "revive-airing-checks";
 
 /**
  * Restarts tracking for every stored anime that is not finished but has no
