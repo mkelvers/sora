@@ -6,7 +6,7 @@ if (!env.SORA_API_URL) {
 }
 
 /**
- * The app's one Sora API client. It holds no per-request state, so every request
- * shares it; routes reach it as `locals.sora`, set in `hooks.server.ts`.
+ * The app's one Sora API client. Modules are evaluated once, so every server
+ * load, action, and endpoint that imports it shares this instance.
  */
 export const sora = new SoraClient({ baseUrl: env.SORA_API_URL });
