@@ -84,6 +84,3 @@ The API's OpenAPI document is served at
 bun run check   # type-check every package
 bun run test    # run every package's tests
 ```
-
-How provider health is tracked, and what is planned for monitoring, is in
-[`docs/operations.md`](docs/operations.md).
