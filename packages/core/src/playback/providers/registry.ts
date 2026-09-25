@@ -13,15 +13,22 @@ import { MegaPlayStreamProvider } from "./megaplay";
  * Shared HTTP client for every scraper, so per-host rate limits and retries
  * apply across all requests from this process.
  */
-const http = new HttpClient({
-  timeoutMs: 20_000
+export const providerHttp = new HttpClient({
+  timeoutMs: 20_000,
+  rateLimits: {
+    // AniKoto's API allows 60 requests a minute per IP.
+    "anikotoapi.site": {
+      capacity: 55,
+      intervalMs: 60_000
+    }
+  }
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
-export const mappingClient = new MappingClient(http);
+export const mappingClient = new MappingClient(providerHttp);
 
 /** AniKoto, the first provider playback tries. */
-export const aniKotoProvider = new AniKotoStreamProvider(http);
+export const aniKotoProvider = new AniKotoStreamProvider(providerHttp);
 
 /**
  * The only language Sora serves: dubs in English, and English subtitles.
@@ -65,17 +72,17 @@ export const streamProviders: readonly StreamProvider[] = [
     listsLanguages: true
   },
   {
-    provider: new AnimeParadiseProvider(http),
+    provider: new AnimeParadiseProvider(providerHttp),
     locale: "en",
     listsLanguages: true
   },
   {
-    provider: new MegaPlayStreamProvider(http),
+    provider: new MegaPlayStreamProvider(providerHttp),
     locale: "en",
     listsLanguages: false
   },
   {
-    provider: new AllmangaProvider(http),
+    provider: new AllmangaProvider(providerHttp),
     locale: "en",
     listsLanguages: true
   }
