@@ -5,9 +5,11 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { episodesSkeleton } from '$lib/components/snippets/episodes-skeleton.svelte';
 	import { getSeries } from '$lib/remote/anime.remote';
+    import type { PageProps } from './$types';
 
-	const series = $derived(await getSeries(page.params.id!));
+	let { params }: PageProps = $props();
 
+	const series = $derived(await getSeries(params.id));
 	let season = $derived(series.seasons[0]);
 </script>
 
