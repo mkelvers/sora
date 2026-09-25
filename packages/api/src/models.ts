@@ -13,12 +13,14 @@ import type {
   SeasonEpisodeSchema,
   SeasonSchema,
   SeriesCardSchema,
+  SeriesImageSchema,
   SeriesSchema,
   SkipSegmentSchema
 } from "./openapi/schemas";
 
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
 export type Series = z.infer<typeof SeriesSchema>;
+export type SeriesImage = z.infer<typeof SeriesImageSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
 export type SeasonEpisode = z.infer<typeof SeasonEpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;

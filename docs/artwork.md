@@ -1,12 +1,12 @@
 # Artwork
 
-A plan for exposing every backdrop, poster, and logo TMDB has for a title,
-not only the one Sora picks. Nothing here is built yet.
+How a title's poster, backdrop, and logo are chosen, how every image TMDB
+has for it is listed, and what is still planned.
 
-## Today
+## Defaults
 
-A series carries one of each, chosen in `packages/core/src/series/series.ts`
-and stored on the `series` row:
+A series carries one of each, chosen when it is laid out in
+`packages/core/src/series/series.ts` and stored on the `series` row:
 
 | Field          | Source                                   | Size       |
 | -------------- | ---------------------------------------- | ---------- |
@@ -14,120 +14,55 @@ and stored on the `series` row:
 | `backdrop_url` | the show's or film's `backdrop_path`     | `original` |
 | `logo_url`     | best-voted English or textless logo      | `w500`     |
 
-Everything else TMDB has is never fetched. `getLogoPath` in
-`packages/core/src/tmdb/resources.ts` already calls the images endpoint, but
-only for logos, and only English and textless ones.
+## Choosing another
 
-## What TMDB offers
+`PATCH /v1/anime/{anime_id}/artwork` (`sora.updateArtwork`) sets any of the
+three to an HTTPS URL, for everyone, or back to the default with `null`. The
+choice is stored in the `*_url_override` columns, which laying the series
+out again never writes, and every card and page prefers it. Anyone who can
+reach the API can change it; there are no accounts yet.
 
-`GET /3/tv/{id}/images` and `GET /3/movie/{id}/images` return `backdrops`,
-`posters`, and `logos`. Without `include_image_language`, every language
-comes back. Frieren, for example, has 192 backdrops, 142 posters, and 44
-logos, most of them textless and the rest in about a dozen languages.
+## Listing every image
 
-Each image has:
-
-| Field          | Meaning                                         |
-| -------------- | ----------------------------------------------- |
-| `file_path`    | Path to append to `https://image.tmdb.org/t/p/{size}` |
-| `width`, `height`, `aspect_ratio` | Size of the original              |
-| `iso_639_1`    | Language of any text on it; `null` when textless |
-| `iso_3166_1`   | Region, alongside the language                  |
-| `vote_average`, `vote_count` | TMDB users' votes                 |
-
-**TMDB does not say when an image was uploaded.** Sorting by newest needs
-Sora to record when it first saw each image (see below).
-
-## API
-
-```
-GET /v1/anime/{anime_id}/images
-```
+`GET /v1/anime/{anime_id}/images` (`sora.images`) lists every backdrop,
+poster, and logo TMDB has for the title, in every language, plus each
+season's posters for a show. It is built in
+`packages/core/src/series/artwork.ts` from TMDB's `/{tv|movie}/{id}/images`
+and `/tv/{id}/season/{n}/images`, one request for the title and one per
+season, each cached for a day. A season poster that is also the show's is
+listed once. Standalone entries and shorts, which TMDB does not list, have
+none.
 
 | Parameter  | Values                                        | Default |
 | ---------- | --------------------------------------------- | ------- |
-| `type`     | `backdrop`, `poster`, `logo`, comma separated  | all     |
+| `type`     | `poster`, `backdrop`, `logo`, comma separated  | all     |
 | `language` | ISO 639-1 codes and `none` (textless), comma separated | all |
-| `sort`     | `quality`, `votes`, `newest`                   | `votes` |
-| `page`, `per_page` | as on the other list routes           |         |
+| `sort`     | `votes`, `quality`                             | `votes` |
 
-So `?type=backdrop,poster&language=en,none&sort=quality` gives English and
-textless backdrops and posters, largest first; no `type` gives everything.
+- **votes**: TMDB's rating as a Bayesian average, as if every image also
+  had three votes of 5, so one 10/10 vote does not outrank dozens of 8s;
+  then size.
+- **quality**: the largest original first, then votes.
 
-Sorts:
+Each image has `type`, `url` (the original size), `width`, `height`,
+`language` (`null` when textless), `vote_average`, `vote_count`, and
+`season_number` (`null` for the title's own). A client wanting a smaller
+file swaps `/original/` for a TMDB size bucket: `w300`, `w780`, `w1280` for
+backdrops; `w185`, `w342`, `w500`, `w780` for posters; `w300`, `w500` for
+logos. `meta.count` is the number of images; there is no paging, since a
+title has a few hundred at most (Mob Psycho 100: 159).
 
-- **quality**: largest original first (`width × height`), then votes.
-- **votes**: TMDB's `vote_average`, weighted by `vote_count` so one 10/10
-  vote does not outrank a hundred 8/10 ones; then size.
-- **newest**: when Sora first saw the image, most recent first. Images Sora
-  saw when it started tracking share that time and fall back to votes.
+The web app's artwork page loads the whole list once and filters it by
+kind, language, and season in the browser; clicking an image saves it in
+the size its default uses.
 
-The response follows the other routes: snake_case, `{ results, meta }`,
-paging in `meta`.
+## Not built yet
 
-```json
-{
-  "results": [
-    {
-      "type": "backdrop",
-      "url": "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
-      "width": 3840,
-      "height": 2160,
-      "language": null,
-      "region": null,
-      "vote_average": 10,
-      "vote_count": 3,
-      "first_seen_at": "2026-09-25T10:00:00Z"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "per_page": 24,
-    "has_next_page": true,
-    "next": "…",
-    "previous": null
-  }
-}
-```
-
-`url` is always the `original` size. A client wanting a smaller file swaps
-the size segment for one of TMDB's buckets (`w300`, `w780`, `w1280` for
-backdrops; `w185`, `w500`, `w780` for posters; `w300`, `w500` for logos).
-Whether the API should do that itself, with a `size` parameter, is open.
-
-## SDK
-
-```ts
-const images = await sora.images(seriesId, {
-  params: {
-    type: ["backdrop", "poster"],
-    language: ["en", null],
-    sort: "quality"
-  }
-});
-```
-
-`language` takes `null` for textless, as the response spells it; the SDK
-sends it as `none`. `meta: true` gives paging, as on the other methods.
-
-## Core
-
-- Fetch the images endpoint once per TMDB show or film, without a language
-  filter, through the existing `tmdb()` client and its snapshot cache (a
-  day, as logos use now).
-- Store them in a `series_image` table: series, type, `file_path`, size,
-  language, region, votes, and `first_seen_at`. A refresh inserts new
-  images with the current time, updates votes on known ones, and deletes
-  ones TMDB no longer lists. Filtering, sorting, and paging then happen in
-  SQL.
-- Shorts (series with no TMDB show) have no TMDB images; the route returns
-  an empty list for them.
-- `getLogoPath` can read from the same table instead of calling TMDB itself.
-
-## Open questions
-
-- Season posters (`/tv/{id}/season/{n}/images`) and episode stills
-  (`…/episode/{e}/images`) could be listed the same way, per season.
-- Whether picking a series' default poster, backdrop, or logo from this list
-  should be part of editing a title's details.
-- Whether the API should resize URLs itself (`size` parameter).
+- **Newest first.** TMDB does not say when an image was uploaded (checked
+  on real responses: images carry size, language, region, and votes only).
+  Sorting by newest needs Sora to record when it first saw each image: a
+  `series_image` table with `first_seen_at`, refreshed from TMDB, which
+  would also let filtering and paging happen in SQL.
+- **Episode stills** (`/tv/{id}/season/{n}/episode/{e}/images`), to choose
+  a still per episode.
+- **A `size` parameter**, so the API resizes URLs instead of clients.

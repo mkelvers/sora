@@ -13,6 +13,7 @@ import type {
   SeasonMeta,
   Series,
   SeriesCard,
+  SeriesImage,
   SeriesMeta,
   SeriesWithEpisodes
 } from "@sora/api";
@@ -51,6 +52,21 @@ export interface ScheduleParams {
   from?: Date;
   /** @defaultValue 7 days after `from` */
   until?: Date;
+}
+
+/** Filters and sorting for {@link SoraClient.images}. */
+export interface ImagesParams {
+  /** Only these types; every type when omitted. */
+  type?: SeriesImage["type"][];
+  /** Only these ISO 639-1 languages, `null` meaning textless; every language when omitted. */
+  language?: (string | null)[];
+  /**
+   * `votes`: TMDB users' rating, weighted by how many voted, then size.
+   * `quality`: the largest original first, then votes.
+   *
+   * @defaultValue "votes"
+   */
+  sort?: "votes" | "quality";
 }
 
 /**
@@ -223,6 +239,34 @@ export class SoraClient {
       )
     );
     return unwrap(body as Envelope<SeriesOf<TOptions>, SeriesMeta>, options);
+  }
+
+  /**
+   * Lists every backdrop, poster, and logo TMDB has for a title, in every
+   * language, plus each season's posters; best first. Pass one's `url` to
+   * {@link updateArtwork} to choose it.
+   */
+  async images<const TOptions extends RequestOptions<ImagesParams> = {}>(
+    seriesId: string,
+    options?: TOptions
+  ): Promise<Returned<TOptions, SeriesImage[], CountMeta>> {
+    const params = options?.params;
+    const body: Envelope<SeriesImage[], CountMeta> = await read(
+      this.#api.anime[":anime_id"].images.$get(
+        {
+          param: {
+            anime_id: seriesId
+          },
+          query: {
+            type: params?.type?.join(","),
+            language: params?.language?.map((code) => code ?? "none").join(","),
+            sort: params?.sort
+          }
+        },
+        init(options)
+      )
+    );
+    return unwrap(body, options);
   }
 
   /**

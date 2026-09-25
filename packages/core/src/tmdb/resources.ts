@@ -85,6 +85,31 @@ const ImagesSchema = z.object({
   )
 });
 
+const ImageSchema = z.object({
+  file_path: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  iso_639_1: OptionalText,
+  vote_average: z.number(),
+  vote_count: z.number().int()
+});
+
+const AllImagesSchema = z.object({
+  backdrops: z.array(ImageSchema).default([]),
+  posters: z.array(ImageSchema).default([]),
+  logos: z.array(ImageSchema).default([])
+});
+
+const SeasonImagesSchema = z.object({
+  posters: z.array(ImageSchema).default([])
+});
+
+/** One image of a show, film, or season, in its original size. */
+export type TmdbImage = z.infer<typeof ImageSchema>;
+
+/** Every backdrop, poster, and logo of a show or film. */
+export type TmdbImages = z.infer<typeof AllImagesSchema>;
+
 /** One TV show found by {@link searchShows}. */
 export type TmdbShowResult = z.infer<typeof ShowSearchSchema>["results"][number];
 
@@ -271,6 +296,26 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
     );
 
   return logos[0]?.file_path ?? null;
+}
+
+/**
+ * Loads every backdrop, poster, and logo of a show or film, in every
+ * language: without `include_image_language`, TMDB filters none out.
+ *
+ * @returns The images, or `null` when TMDB does not know the ID.
+ */
+export function getImages(mediaType: "tv" | "movie", id: number): Promise<TmdbImages | null> {
+  return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
+    maxAgeMs: day
+  });
+}
+
+/** Loads a show season's posters, in every language. Empty when TMDB does not know the season. */
+export async function getSeasonPosters(showId: number, seasonNumber: number): Promise<TmdbImage[]> {
+  const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
+    maxAgeMs: day
+  });
+  return images?.posters ?? [];
 }
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */

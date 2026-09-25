@@ -7,7 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import type { AnimeTag } from "@sora/core/catalog";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
-import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
+import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard, SeriesImage } from "@sora/core/series";
 
 import type { SnakeCased } from "./envelope";
 
@@ -180,6 +180,37 @@ export const SeriesSchema = SeriesCardSchema.extend({
   seasons: z.array(SeasonSchema),
   related: z.array(SeriesCardSchema)
 }).openapi("Series") satisfies z.ZodType<SnakeCased<Series>>;
+
+export const ImageTypeSchema = z.enum([
+  "poster",
+  "backdrop",
+  "logo"
+]);
+
+export const SeriesImageSchema = z
+  .object({
+    type: ImageTypeSchema,
+    url: z.string().openapi({
+      description: "The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file.",
+      example: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg"
+    }),
+    width: z.number().int().openapi({
+      example: 3840
+    }),
+    height: z.number().int().openapi({
+      example: 2160
+    }),
+    language: z.string().nullable().openapi({
+      description: "ISO 639-1 code of any text on the image; null when it has none.",
+      example: "en"
+    }),
+    vote_average: z.number(),
+    vote_count: z.number().int(),
+    season_number: z.number().int().nullable().openapi({
+      description: "TMDB's number of the season a poster is for; null for the title's own."
+    })
+  })
+  .openapi("SeriesImage") satisfies z.ZodType<SnakeCased<SeriesImage>>;
 
 /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
 export const LanguageSchema = z.enum([
