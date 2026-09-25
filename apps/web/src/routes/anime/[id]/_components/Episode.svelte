@@ -3,9 +3,10 @@
 
 	type Props = {
 		episode: SeasonEpisode;
+		now: Date;
 	};
 
-	let { episode }: Props = $props();
+	let { episode, now }: Props = $props();
 </script>
 
 <li>
@@ -17,9 +18,15 @@
 
 	<div class="text">
 		<h2>{episode.number}. {episode.title ?? `Episode ${episode.number}`}</h2>
-		<small>
+		<div class="meta">
 			{#if episode.runtime_minutes}
 				<span>{episode.runtime_minutes}m</span>
+				<span>
+					Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('en-GB', {
+						hour: '2-digit',
+						minute: '2-digit'
+					})}
+				</span>
 			{/if}
 			{#if episode.air_date}
 				<span>
@@ -31,13 +38,13 @@
 					})}
 				</span>
 			{/if}
-			{#if episode.audio?.length}
-				<span class="audio">{episode.audio.join(', ')}</span>
-			{/if}
+			{#each episode.audio ?? [] as audio (audio)}
+				<span class="badge">{audio}</span>
+			{/each}
 			{#if episode.filler}
-				<span>Filler</span>
+				<span class="badge">Filler</span>
 			{/if}
-		</small>
+		</div>
 		{#if episode.overview}
 			<p>{episode.overview}</p>
 		{/if}
@@ -76,11 +83,38 @@
 		font-weight: 400;
 	}
 
-	small {
-		display: block;
-		margin-bottom: 8px;
+	.meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 8px;
+		margin-bottom: 10px;
 		color: #999;
 		font-size: 14px;
+	}
+
+	.meta:empty {
+		display: none;
+	}
+
+	.meta span:not(.badge) + span:not(.badge)::before {
+		content: '·';
+		margin-right: 8px;
+	}
+
+	.badge {
+		padding: 2px 6px;
+		border-radius: 4px;
+		background: rgb(255 255 255 / 0.06);
+		color: #aaa;
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		line-height: 1.3;
+		text-transform: uppercase;
+	}
+
+	.meta span:not(.badge) + .badge {
+		margin-left: 4px;
 	}
 
 	p {
@@ -88,15 +122,6 @@
 		color: #999;
 		font-size: 14px;
 		line-height: 1.45;
-	}
-
-	span + span::before {
-		content: '·';
-		margin: 0 6px;
-	}
-
-	.audio {
-		text-transform: capitalize;
 	}
 
 	@media (max-width: 720px) {
