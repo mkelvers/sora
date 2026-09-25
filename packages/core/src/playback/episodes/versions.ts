@@ -1,9 +1,9 @@
-import type { ContentLanguage } from "anime-sdk";
-
 import { getAnime } from "../../catalog/queries/anime";
 import { scheduleEpisodeLookup } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
-import { servedLocale, streamProviders, type StreamProvider } from "../providers/registry";
+import type { ContentLanguage } from "../../series/models";
+import type { StreamProvider } from "../providers/provider";
+import { servedLocale, streamProviders } from "../providers/registry";
 import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
 
 /**
@@ -164,7 +164,7 @@ async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<num
   for (const anilistId of ids) {
     const found = sources.map((source) => ({
       source,
-      units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.provider.id)?.units
+      units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units
     }));
     const pending = found.some(({ units }) => units === undefined);
     if (pending) {
@@ -209,7 +209,7 @@ function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promi
     }
 
     const found = await Promise.all(
-      sources.map(({ provider }) =>
+      sources.map((provider) =>
         getProviderUnits(anime, provider).then(
           (units) => [
             {

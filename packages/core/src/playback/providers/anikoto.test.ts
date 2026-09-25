@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test";
 import { HttpClient } from "anime-sdk";
 
 import { AniKotoStreamProvider } from "./anikoto";
-import { skipSegmentsOf } from "./megaplay";
 
 const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html>";
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
@@ -40,14 +39,17 @@ function providerServing(pages: Record<string, string>) {
   });
 
   return {
-    provider: new AniKotoStreamProvider(http),
+    provider: new AniKotoStreamProvider(http, {
+      locale: "en",
+      listsLanguages: true
+    }),
     requested
   };
 }
 
 /** The skip segments shipped with the stream `provider` resolves. */
-async function skipSegments(provider: AniKotoStreamProvider, unitId: string, language: "sub" | "dub") {
-  return skipSegmentsOf(await provider.resolveStream(unitId, language));
+async function skipSegments(provider: AniKotoStreamProvider, episodeId: string, language: "sub" | "dub") {
+  return (await provider.resolveStream(episodeId, language)).skipSegments;
 }
 
 describe("AniKotoStreamProvider skip segments", () => {
@@ -228,7 +230,7 @@ function episodeList(classes: Record<number, string>) {
   });
 }
 
-describe("AniKotoStreamProvider.fetchContentUnits", () => {
+describe("AniKotoStreamProvider.listEpisodes", () => {
   test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {
     const { provider } = providerServing({
       "/series/1498": seriesResponse,
@@ -239,7 +241,7 @@ describe("AniKotoStreamProvider.fetchContentUnits", () => {
       })
     });
 
-    const units = await provider.fetchContentUnits("anikoto:1498");
+    const units = await provider.listEpisodes("1498");
 
     expect(units.map((unit) => [unit.number, unit.isFiller])).toEqual([
       [56, false],
@@ -248,17 +250,27 @@ describe("AniKotoStreamProvider.fetchContentUnits", () => {
     ]);
   });
 
+  test("keeps the episode IDs stored lists hold, which resolveStream takes", async () => {
+    const { provider } = providerServing({
+      "/series/1498": seriesResponse
+    });
+
+    const units = await provider.listEpisodes("1498");
+
+    expect(units.map((unit) => unit.id)).toEqual(["anikoto:7936", "anikoto:7937", "anikoto:7938"]);
+  });
+
   test("lists the episodes without filler flags when the episode list cannot be read", async () => {
     const { provider } = providerServing({
       "/series/1498": seriesResponse
     });
 
-    const units = await provider.fetchContentUnits("anikoto:1498");
+    const units = await provider.listEpisodes("1498");
 
     expect(units.map((unit) => [unit.number, unit.isFiller])).toEqual([
-      [56, undefined],
-      [57, undefined],
-      [58, undefined]
+      [56, null],
+      [57, null],
+      [58, null]
     ]);
   });
 
@@ -268,8 +280,8 @@ describe("AniKotoStreamProvider.fetchContentUnits", () => {
       "/ajax/episode/list/1498": episodeList({})
     });
 
-    const units = await provider.fetchContentUnits("anikoto:1498");
+    const units = await provider.listEpisodes("1498");
 
-    expect(units.every((unit) => unit.isFiller === undefined)).toBe(true);
+    expect(units.every((unit) => unit.isFiller === null)).toBe(true);
   });
 });

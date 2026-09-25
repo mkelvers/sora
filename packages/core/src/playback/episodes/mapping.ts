@@ -1,12 +1,10 @@
-import type { BaseProvider, IMediaMetadata } from "anime-sdk";
 import { and, eq } from "drizzle-orm";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
 import { providerMapping } from "../../database/schema";
 import { day } from "../../time";
-import { findAniKotoSeries } from "../providers/anikoto-catalog";
-import { aniKotoProvider, mappingClient, providerHttp } from "../providers/registry";
+import type { StreamProvider } from "../providers/provider";
 
 /** A confirmed match is reused for a month before being re-verified. */
 const matchedMappingLifetimeMs = 30 * day;
@@ -34,7 +32,7 @@ export interface ProviderMedia {
  */
 export async function getProviderMedia(
   anime: Anime,
-  provider: BaseProvider,
+  provider: StreamProvider,
   options: {
     retryUnmatched: boolean;
   }
@@ -52,12 +50,12 @@ export async function getProviderMedia(
     }
   }
 
-  const resolution = await resolveMediaId(anime, provider);
+  const match = await provider.findMedia(anime);
   const values = {
-    providerMediaId: resolution?.rawMediaId ?? null,
-    matchedTitle: resolution?.matchedTitle ?? null,
-    method: resolution?.method ?? null,
-    episodeOffset: resolution?.episodeOffset ?? 0,
+    providerMediaId: match?.mediaId ?? null,
+    matchedTitle: match?.matchedTitle ?? null,
+    method: match?.method ?? null,
+    episodeOffset: match?.episodeOffset ?? 0,
     resolvedAt: new Date()
   };
 
@@ -86,57 +84,4 @@ function toProviderMedia(mapping: { providerMediaId: string | null; episodeOffse
         episodeOffset: mapping.episodeOffset
       }
     : null;
-}
-
-/**
- * Matches an anime to a provider's catalogue. AniKoto is matched by ID
- * against its mirrored catalogue; see {@link findAniKotoSeries}. Other
- * providers go through `anime-sdk`'s mapping client.
- */
-async function resolveMediaId(anime: Anime, provider: BaseProvider) {
-  if (provider.id !== aniKotoProvider.id) {
-    const resolution = await mappingClient.resolveProviderMediaId(toSdkMetadata(anime), provider);
-    return resolution && {
-      ...resolution,
-      episodeOffset: 0
-    };
-  }
-
-  const match = await findAniKotoSeries(providerHttp, anime);
-  return match
-    ? {
-        rawMediaId: match.anikotoId,
-        matchedTitle: match.title,
-        method: match.method,
-        episodeOffset: match.episodeOffset
-      }
-    : null;
-}
-
-/**
- * Describes an anime in the shape `anime-sdk`'s mapping client matches on:
- * titles and synonyms for fuzzy search, year and episode count as
- * discriminators, and AniList/MAL IDs for exact lookups.
- */
-function toSdkMetadata(anime: Anime): IMediaMetadata {
-  const startYear = anime.startDate ? Number(anime.startDate.slice(0, 4)) : undefined;
-
-  return {
-    id: `anilist:${anime.id}`,
-    providerId: "anilist",
-    catalogType: "ANIME",
-    title: {
-      romaji: anime.title.romaji ?? undefined,
-      english: anime.title.english ?? undefined,
-      native: anime.title.native ?? undefined
-    },
-    synonyms: anime.synonyms,
-    year: anime.seasonYear ?? startYear,
-    format: anime.format ?? undefined,
-    episodeCount: anime.episodes ?? undefined,
-    mappings: {
-      anilist: anime.id,
-      mal: anime.malId ?? undefined
-    }
-  };
 }

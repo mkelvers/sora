@@ -1,21 +1,17 @@
-import type { BaseProvider, ContentLanguage } from "anime-sdk";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
 import { providerEpisodes, providerMapping } from "../../database/schema";
+import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { getProviderMedia } from "./mapping";
 
-/** A provider's own identifier for one episode, needed to resolve streams. */
-export interface ProviderUnit {
-  id: string;
-  number: number;
-  title: string;
-  languages: ContentLanguage[] | null;
-  /** Whether the episode is filler, or `null` when the provider does not say. */
-  isFiller: boolean | null;
-}
+/**
+ * An episode as a provider lists it, numbered as the anime numbers it: a part
+ * the provider files under its prequel counts from 1.
+ */
+export type ProviderUnit = ProviderEpisode;
 
 /**
  * A stored list that does not match this, such as one stored before a field
@@ -40,7 +36,7 @@ const ProviderUnitsSchema = z.array(
  *
  * @throws when the provider itself fails; callers decide whether to fall back.
  */
-export async function getProviderUnits(anime: Anime, provider: BaseProvider): Promise<ProviderUnit[]> {
+export async function getProviderUnits(anime: Anime, provider: StreamProvider): Promise<ProviderUnit[]> {
   const [stored] = await db
     .select({
       units: providerEpisodes.units
@@ -122,7 +118,7 @@ export async function getStoredUnits(anilistIds: readonly number[]): Promise<Sto
  */
 export async function refreshProviderUnits(
   anime: Anime,
-  provider: BaseProvider,
+  provider: StreamProvider,
   options: {
     retryUnmatched: boolean;
   }
@@ -133,7 +129,7 @@ export async function refreshProviderUnits(
   }
 
   const { mediaId, episodeOffset } = media;
-  const units: ProviderUnit[] = (await provider.fetchContentUnits(`${provider.id}:${mediaId}`))
+  const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
     // A part filed under its prequel's series keeps only its own episodes,
     // numbered from 1; a later part may follow them in the same series.
     .filter(
@@ -145,8 +141,8 @@ export async function refreshProviderUnits(
       id: unit.id,
       number: unit.number - episodeOffset,
       title: unit.title,
-      languages: unit.availableLanguages ?? null,
-      isFiller: unit.isFiller ?? null
+      languages: unit.languages,
+      isFiller: unit.isFiller
     }))
     .sort((left, right) => left.number - right.number);
 

@@ -299,7 +299,7 @@ export const PlaybackMediaSchema = z
     ),
     skip_segments: z.array(SkipSegmentSchema).openapi({
       description:
-        "Opening and ending, in playback order, as AniKoto's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none."
+        "Opening and ending, in playback order, as the provider's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none."
     })
   })
   .openapi("PlaybackMedia") satisfies z.ZodType<SnakeCased<PlaybackMedia>>;

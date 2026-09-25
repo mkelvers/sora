@@ -34,7 +34,7 @@ export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
   }
 
   const failed: string[] = [];
-  for (const { provider } of streamProviders) {
+  for (const provider of streamProviders) {
     try {
       await getProviderUnits(anime, provider);
     } catch (error) {

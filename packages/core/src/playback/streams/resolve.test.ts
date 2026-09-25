@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { ContentLanguage, ResolvedMediaStream } from "anime-sdk";
-
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
+import type { ContentLanguage } from "../../series/models";
 import type { EpisodeVersion } from "../episodes/versions";
-import type { SkipSegment } from "../providers/megaplay";
+import type { ProviderStream, SkipSegment } from "../providers/provider";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -20,18 +19,15 @@ interface FakeProvider {
 
 /** The registry's `streamProviders`, filled in place by {@link useProviders}. */
 const streamProviders: {
-  provider: {
-    id: string;
-    resolveStream: (unitId: string, language: ContentLanguage) => Promise<ResolvedMediaStream>;
-  };
+  id: string;
   locale: string;
   listsLanguages: boolean;
+  resolveStream: (episodeId: string, language: ContentLanguage) => Promise<ProviderStream>;
 }[] = [];
 const units = new Map<string, ContentLanguage[]>();
 const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
-
 
 function useProviders(list: FakeProvider[]) {
   units.clear();
@@ -41,43 +37,42 @@ function useProviders(list: FakeProvider[]) {
     ...list.map((fake) => {
       units.set(fake.id, fake.languages);
       return {
-        provider: {
-          id: fake.id,
-          resolveStream: async (unitId: string, language: ContentLanguage): Promise<ResolvedMediaStream & { skipSegments?: SkipSegment[] }> => {
-            resolved.push(`${unitId}/${language}`);
-            if (fake.fails) {
-              throw new Error(`${fake.id} is down`);
-            }
-            return {
-              type: "video",
-              skipSegments: fake.skipSegments?.[language],
-              streams: [
-                {
-                  sourceUrl: `https://${fake.id}.example/${language}.m3u8`,
-                  isHLS: true,
-                  quality: "auto",
-                  language,
-                  subtitles: fake.noSubtitles
-                    ? []
-                    : [
-                        {
-                          url: `https://${fake.id}.example/en.vtt`,
-                          language: "en",
-                          label: "English"
-                        },
-                        {
-                          url: `https://${fake.id}.example/pt.vtt`,
-                          language: "pt",
-                          label: "Portuguese"
-                        }
-                      ]
-                }
-              ]
-            };
-          }
-        },
+        id: fake.id,
         locale: fake.locale,
-        listsLanguages: true
+        listsLanguages: true,
+        resolveStream: async (episodeId: string, language: ContentLanguage): Promise<ProviderStream> => {
+          resolved.push(`${episodeId}/${language}`);
+          if (fake.fails) {
+            throw new Error(`${fake.id} is down`);
+          }
+          return {
+            skipSegments: fake.skipSegments?.[language] ?? [],
+            videos: [
+              {
+                url: `https://${fake.id}.example/${language}.m3u8`,
+                format: "hls",
+                quality: "auto",
+                headers: {},
+                subtitles: fake.noSubtitles
+                  ? []
+                  : [
+                      {
+                        url: `https://${fake.id}.example/en.vtt`,
+                        language: "en",
+                        label: "English",
+                        format: null
+                      },
+                      {
+                        url: `https://${fake.id}.example/pt.vtt`,
+                        language: "pt",
+                        label: "Portuguese",
+                        format: null
+                      }
+                    ]
+              }
+            ]
+          };
+        }
       };
     })
   );
@@ -116,9 +111,6 @@ mock.module("../providers/registry", () => ({
 mock.module("../proxy/proxy", () => ({
   createStreamToken: (url: string) => `token:${url}`,
   tokenLifetimeMs: 6 * 60 * 60 * 1_000
-}));
-mock.module("../providers/megaplay", () => ({
-  skipSegmentsOf: (resolved: { skipSegments?: SkipSegment[] }) => resolved.skipSegments ?? []
 }));
 
 const { resolvePlayback } = await import("./resolve");

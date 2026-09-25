@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { ContentLanguage } from "anime-sdk";
-
+import type { ContentLanguage } from "../../series/models";
 import type { ProviderUnit } from "./episodes";
 import type { ListedUnit } from "./versions";
 
@@ -24,9 +23,7 @@ let asks = 0;
 
 /** The registry's `streamProviders`, kept in step with `providers` by {@link useProviders}. */
 const streamProviders: {
-  provider: {
-    id: string;
-  };
+  id: string;
   locale: string;
   listsLanguages: boolean;
 }[] = [];
@@ -37,9 +34,7 @@ function useProviders(list: FakeProvider[]) {
     0,
     streamProviders.length,
     ...list.map(({ id, locale, listsLanguages }) => ({
-      provider: {
-        id
-      },
+      id,
       locale,
       listsLanguages
     }))

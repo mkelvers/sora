@@ -1,14 +1,11 @@
 import { createDecipheriv } from "node:crypto";
 
-import {
-  labelToBcp47,
-  MegaPlayProvider,
-  type CallOptions,
-  type ContentLanguage,
-  type HttpClient,
-  type ResolvedMediaStream
-} from "anime-sdk";
+import { labelToBcp47, MegaPlayProvider, type HttpClient, type MappingClient } from "anime-sdk";
 import { z } from "zod";
+
+import type { ContentLanguage } from "../../series/models";
+import type { ProviderStream, SkipSegment } from "./provider";
+import { rawEpisodeId, SdkStreamProvider, type ProviderTraits } from "./sdk";
 
 /**
  * MegaPlay's player script encrypts the source URL into an `enc` field with
@@ -67,29 +64,6 @@ const EncryptedSourceSchema = z.object({
 /** The `getSources` payload behind a MegaPlay embed. */
 type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
 
-/** A skippable span of a stream, in seconds from its start. */
-export interface SkipSegment {
-  kind: "opening" | "ending";
-  start: number;
-  end: number;
-}
-
-/**
- * The skip segments shipped with each stream {@link resolveMegaPlayEmbed}
- * resolved. `anime-sdk`'s stream type has no place for them, and providers
- * pass the resolved object through unchanged.
- */
-const skipSegmentsByStream = new WeakMap<ResolvedMediaStream, SkipSegment[]>();
-
-/**
- * The opening and ending MegaPlay's player ships with a resolved stream,
- * timed against that stream, in playback order. Empty for streams from other
- * players, which report none.
- */
-export function skipSegmentsOf(resolved: ResolvedMediaStream): SkipSegment[] {
-  return skipSegmentsByStream.get(resolved) ?? [];
-}
-
 /**
  * Fetches the `getSources` payload behind a MegaPlay embed page.
  *
@@ -102,12 +76,10 @@ async function fetchMegaPlaySources(
   http: HttpClient,
   embedUrl: string,
   embedReferer: string,
-  language: ContentLanguage,
-  signal?: AbortSignal
+  language: ContentLanguage
 ): Promise<MegaPlaySources> {
   const embedPage = await (
     await http.get(embedUrl, {
-      signal,
       headers: {
         Referer: embedReferer
       }
@@ -126,7 +98,6 @@ async function fetchMegaPlaySources(
   const sourcesUrl = new URL("/stream/getSources", embedUrl);
   sourcesUrl.searchParams.set("id", fileId);
   const response = await http.get(sourcesUrl.toString(), {
-    signal,
     headers: {
       Referer: embedUrl,
       "X-Requested-With": "XMLHttpRequest"
@@ -137,7 +108,8 @@ async function fetchMegaPlaySources(
 }
 
 /**
- * Resolves a MegaPlay embed page into playable streams.
+ * Resolves a MegaPlay embed page into its stream, with the opening and ending
+ * MegaPlay's player ships with it.
  *
  * @param embedUrl - The `megaplay.buzz/stream/...` embed for one episode and language.
  * @param embedReferer - The page that embeds the player; MegaPlay checks it.
@@ -148,29 +120,24 @@ export async function resolveMegaPlayEmbed(
   http: HttpClient,
   embedUrl: string,
   embedReferer: string,
-  language: ContentLanguage,
-  signal?: AbortSignal
-): Promise<ResolvedMediaStream> {
-  const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language, signal);
+  language: ContentLanguage
+): Promise<ProviderStream> {
+  const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language);
 
   const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
   if (!file) {
     throw new Error("MegaPlay returned no source URL");
   }
 
-  const headers = {
-    Referer: mediaReferer
-  };
-
-  const resolved: ResolvedMediaStream = {
-    type: "video",
-    streams: [
+  return {
+    videos: [
       {
-        sourceUrl: file,
-        isHLS: new URL(file).pathname.endsWith(".m3u8"),
+        url: file,
+        format: new URL(file).pathname.endsWith(".m3u8") ? "hls" : "mp4",
         quality: "auto",
-        language,
-        headers,
+        headers: {
+          Referer: mediaReferer
+        },
         subtitles: (body.tracks ?? []).flatMap((track) =>
           track.kind === "captions" && track.label
             ? [
@@ -184,11 +151,9 @@ export async function resolveMegaPlayEmbed(
             : []
         )
       }
-    ]
+    ],
+    skipSegments: skipSegments(body)
   };
-  skipSegmentsByStream.set(resolved, skipSegments(body));
-
-  return resolved;
 }
 
 /**
@@ -258,21 +223,27 @@ export function decryptSourceFile(encrypted: string) {
   return EncryptedSourceSchema.parse(JSON.parse(plain)).file;
 }
 
-/** MegaPlay with its encrypted source payload handled; see {@link resolveMegaPlayEmbed}. */
-export class MegaPlayStreamProvider extends MegaPlayProvider {
-  protected override resolveStreamRaw(
-    unitId: string,
-    language: ContentLanguage = "sub",
-    options: CallOptions = {}
-  ): Promise<ResolvedMediaStream> {
-    // Unit IDs are `<anilistId>:<episode>`.
-    const [anilistId, episode] = unitId.split(":");
+/**
+ * MegaPlay, whose episode lists are made up from AniList's episode count and
+ * whose streams go through {@link resolveMegaPlayEmbed}.
+ */
+export class MegaPlayStreamProvider extends SdkStreamProvider {
+  constructor(
+    private readonly http: HttpClient,
+    mapping: MappingClient,
+    traits: ProviderTraits
+  ) {
+    super(new MegaPlayProvider(http), mapping, traits);
+  }
+
+  override resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
+    // Raw episode IDs are `<anilistId>:<episode>`.
+    const [anilistId, episode] = rawEpisodeId(this.id, episodeId).split(":");
     return resolveMegaPlayEmbed(
       this.http,
       `https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${language}`,
       "https://megaplay.buzz/",
-      language,
-      options.signal
+      language
     );
   }
 }
