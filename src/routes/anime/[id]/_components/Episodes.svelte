@@ -12,6 +12,12 @@
 	let { seriesId, season }: Props = $props();
 
 	let infoOpen = $state<number | null>(null);
+	const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric',
+		timeZone: 'UTC'
+	});
 </script>
 
 {#if $effect.pending()}
@@ -43,7 +49,7 @@
 					<dl id="info-{episode.number}">
 						{#if episode.air_date}
 							<dt>Aired</dt>
-							<dd>{episode.air_date}</dd>
+							<dd>{dateFormatter.format(new Date(episode.air_date))}</dd>
 						{/if}
 						{#if episode.audio?.length}
 							<dt>Audio</dt>
@@ -143,7 +149,7 @@
 	}
 
 	.audio {
-		text-transform: uppercase;
+		text-transform: none;
 	}
 
 	button {
