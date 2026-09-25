@@ -19,23 +19,17 @@
 Sora is an anime streaming and tracking platform. This is its web app: browse,
 search, and watch anime in the browser.
 
-It talks to the [Sora server](https://github.com/soraorg/server) through the
+It talks to the [Sora API](../api) through the
 typed `@sora/sdk`, so a change to the API that breaks the app fails
 type-checking before it ships.
 
 ## Getting started
 
-This repository lives inside the server as `packages/web` and takes the SDK from
-its Bun workspace, so clone the server with its submodules.
-
-Requires [Bun](https://bun.com) 1.4+ and a running
-[Sora API](https://github.com/soraorg/server#getting-started).
+The web app lives in the Sora monorepo as `apps/web` and takes the SDK from its
+Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
 
 ```sh
-git clone --recurse-submodules git@github.com:soraorg/server.git sora
-cd sora
-bun install
-
+bun install                # from the repository root
 bun run --filter web dev   # web app on :5173
 ```
 
