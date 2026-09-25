@@ -226,6 +226,15 @@ export type AiringScheduleQueryVariables = Exact<{
 
 export type AiringScheduleQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, airingSchedules: Array<{ id: number, episode: number, airingAt: number, media: { id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null };
 
+export type SearchIndexPageQueryVariables = Exact<{
+  page: number;
+  sort: Array<MediaSort> | MediaSort;
+  popularityBelow?: number | null | undefined;
+}>;
+
+
+export type SearchIndexPageQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ id: number, synonyms: Array<string | null> | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, genres: Array<string | null> | null, popularity: number | null, trending: number | null, averageScore: number | null, isAdult: boolean | null, updatedAt: number | null, title: { romaji: string | null, english: string | null, native: string | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null } | null> | null } | null };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -757,3 +766,36 @@ export const AiringScheduleDocument = new TypedDocumentString(`
     episode
   }
 }`) as unknown as TypedDocumentString<AiringScheduleQuery, AiringScheduleQueryVariables>;
+export const SearchIndexPageDocument = new TypedDocumentString(`
+    query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    media(type: ANIME, sort: $sort, popularity_lesser: $popularityBelow) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      synonyms
+      format
+      status
+      season
+      seasonYear
+      startDate {
+        year
+        month
+        day
+      }
+      genres
+      popularity
+      trending
+      averageScore
+      isAdult
+      updatedAt
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<SearchIndexPageQuery, SearchIndexPageQueryVariables>;

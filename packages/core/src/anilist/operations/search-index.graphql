@@ -1,0 +1,35 @@
+# One page of the anime catalogue, with what the local search index matches
+# and ranks on: most popular first for a full sweep, or newest change first
+# to catch up on what changed since the last one. AniList serves at most
+# 5000 entries per filter, so a full sweep narrows `popularityBelow` as it goes.
+query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    media(type: ANIME, sort: $sort, popularity_lesser: $popularityBelow) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      synonyms
+      format
+      status
+      season
+      seasonYear
+      startDate {
+        year
+        month
+        day
+      }
+      genres
+      popularity
+      trending
+      averageScore
+      isAdult
+      updatedAt
+    }
+  }
+}

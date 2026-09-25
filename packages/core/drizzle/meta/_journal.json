@@ -57,6 +57,34 @@
       "when": 1790267232582,
       "tag": "0007_removed_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790288681096,
+      "tag": "0008_anikoto_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790289599309,
+      "tag": "0009_provider_episode_offset",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790289812609,
+      "tag": "0010_anime_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790290393949,
+      "tag": "0011_catalog_sync",
+      "breakpoints": true
     }
   ]
 }
