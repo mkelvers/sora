@@ -149,7 +149,7 @@
 	}
 
 	.audio {
-		text-transform: none;
+		text-transform: capitalize;
 	}
 
 	button {
