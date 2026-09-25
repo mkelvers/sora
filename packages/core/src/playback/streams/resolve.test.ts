@@ -13,6 +13,8 @@ interface FakeProvider {
   fails?: boolean;
   /** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
   noSubtitles?: boolean;
+  /** Whether its subtitle files cannot be fetched from any host. */
+  unreachableSubtitles?: boolean;
   /** The skip segments its player ships with each language's stream. */
   skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
 }
@@ -57,7 +59,7 @@ function useProviders(list: FakeProvider[]) {
                   ? []
                   : [
                       {
-                        url: `https://${fake.id}.example/en.vtt`,
+                        url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
                         language: "en",
                         label: "English",
                         format: null
@@ -110,6 +112,7 @@ mock.module("../providers/registry", () => ({
 }));
 mock.module("../proxy/proxy", () => ({
   createStreamToken: (url: string) => `token:${url}`,
+  canFetchStream: async (url: string) => !url.includes(".unreachable."),
   tokenLifetimeMs: 6 * 60 * 60 * 1_000
 }));
 
@@ -345,6 +348,25 @@ describe("resolvePlayback", () => {
 
     expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
     expect((await resolvePlayback(request, options)).media[0]?.hardsub).toBe(false);
+  });
+
+  test("skips a sub whose English subtitles cannot be fetched", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"],
+        unreachableSubtitles: true
+      },
+      {
+        id: "allmanga",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [dub(), sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
   });
 
   test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {

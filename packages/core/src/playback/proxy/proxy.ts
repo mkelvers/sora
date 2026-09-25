@@ -21,17 +21,31 @@ const maximumPlaylistBytes = 4 * 1_024 * 1_024;
  *
  * Clients never see upstream headers; the proxy applies them.
  */
-export function createStreamToken(url: string, kind: StreamTargetKind, headers: Record<string, string>) {
+export function createStreamToken(url: string, kind: StreamTargetKind, headers: Record<string, string>, mirrors: string[] = []) {
   return signStreamTarget(
     {
       url,
       kind,
       headers,
-      mirrors: [],
+      mirrors,
       expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000)
     },
     config.streamSigningSecret
   );
+}
+
+/** Whether the proxy could serve `url` right now, from its own host or a mirror. */
+export async function canFetchStream(url: string, headers: Record<string, string>, mirrors: string[]) {
+  try {
+    const { response } = await fetchUpstream({ url, kind: "subtitle", headers, mirrors, expiresAt: 0 }, null);
+    await response.body?.cancel();
+    return true;
+  } catch (cause) {
+    if (cause instanceof StreamUpstreamError) {
+      return false;
+    }
+    throw cause;
+  }
 }
 
 /**
