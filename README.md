@@ -29,15 +29,15 @@ stores each new episode as soon as a provider carries it.
 import { SoraClient } from "@sora/sdk";
 
 const sora = new SoraClient({
-  baseUrl: "http://localhost:3000"
+  baseUrl: "http://localhost:3000",
 });
 
 const [result] = await sora.search("Frieren");
 
 const series = await sora.series(result.id, {
   params: {
-    episodes: true
-  }
+    episodes: true,
+  },
 });
 
 const season = series.seasons[0];
@@ -45,7 +45,7 @@ const episode = season.episodes[0];
 
 const media = await sora.playback({
   seasonId: season.id,
-  number: episode.number
+  number: episode.number,
 });
 ```
 
@@ -60,6 +60,7 @@ client fails type-checking here, before it ships.
 | [`@sora/core`](packages/core)           | Catalog, playback providers, database schema, and migrations          |
 | [`@sora/scheduler`](packages/scheduler) | Follows airing anime and stores new episodes once a provider has them |
 | [`@sora/sdk`](packages/sdk)             | Typed client for the API                                              |
+| [`web`](packages/web)                   | SvelteKit web app, as a submodule                                     |
 
 ## Getting started
 
