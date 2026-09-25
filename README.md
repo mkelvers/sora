@@ -1,42 +1,47 @@
-# sv
+<p align="center">
+  <img src=".github/assets/logo.png" alt="Sora" height="140" />
+</p>
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+<h1 align="center">Sora Web</h1>
 
-## Creating a project
+<p align="center">The Sora web app, built on the Sora API.</p>
 
-If you're seeing this, you've probably already done this step. Congrats!
+<p align="center">
+  <img alt="SvelteKit" src="https://img.shields.io/badge/framework-sveltekit-ff3e00?style=flat-square" />
+  <img alt="Bun" src="https://img.shields.io/badge/runtime-bun-f9f1e1?style=flat-square" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/lang-typescript-3178c6?style=flat-square" />
+</p>
 
-```sh
-# create a new project
-npx sv create my-app
-```
+---
 
-To recreate this project with the same configuration:
+## What is Sora Web?
 
-```sh
-# recreate this project
-npx sv@0.17.1 create --template minimal --types ts --no-install packages/web
-```
+Sora is an anime streaming and tracking platform. This is its web app: browse,
+search, and watch anime in the browser.
 
-## Developing
+It talks to the [Sora server](https://github.com/soraorg/server) through the
+typed `@sora/sdk`, so a change to the API that breaks the app fails
+type-checking before it ships.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Getting started
 
-```sh
-npm run dev
+This repository lives inside the server as `packages/web` and takes the SDK from
+its Bun workspace, so clone the server with its submodules.
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
+Requires [Bun](https://bun.com) 1.4+ and a running
+[Sora API](https://github.com/soraorg/server#getting-started).
 
 ```sh
-npm run build
+git clone --recurse-submodules git@github.com:soraorg/server.git sora
+cd sora
+bun install
+
+bun run --filter web dev   # web app on :5173
 ```
 
-You can preview the production build with `npm run preview`.
+## Development
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+bun run check   # type-check with svelte-check
+bun run build   # production build
+```
