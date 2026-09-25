@@ -122,8 +122,7 @@
 					aria-checked={kind.type === option.type}
 					onclick={() => (kind = option)}
 				>
-					<span>{option.label}</span>
-					<span class="count">{images.filter((image) => image.type === option.type).length}</span>
+					{option.label}
 				</button>
 			{/each}
 		</div>
@@ -180,13 +179,11 @@
 
 	<main>
 		<header>
-			<h2>{kind.label} <span class="count">{shown.length}</span></h2>
+			<h2>{kind.label}</h2>
 			{#if status?.error}
 				<p class="error" role="alert">{status.error}</p>
 			{:else if status?.saved}
 				<p class="saved" role="status">Saved for everyone.</p>
-			{:else}
-				<p class="hint">Click an image to use it.</p>
 			{/if}
 		</header>
 
@@ -289,8 +286,6 @@
 	}
 
 	.kind {
-		display: flex;
-		justify-content: space-between;
 		padding: 10px 12px;
 		border: none;
 		border-left: 2px solid transparent;
@@ -352,17 +347,73 @@
 
 	input[type='radio'],
 	input[type='checkbox'] {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 16px;
+		height: 16px;
 		margin: 0;
-		accent-color: #e6e6e6;
+		border: 1px solid #555;
+		background: #161616;
+		appearance: none;
+		cursor: pointer;
+		transition:
+			border-color 120ms,
+			background 120ms;
+	}
+
+	input[type='radio'] {
+		border-radius: 50%;
+	}
+
+	input[type='radio']:hover,
+	input[type='checkbox']:hover {
+		border-color: #888;
+	}
+
+	input[type='radio']:checked {
+		border-color: #e6e6e6;
+	}
+
+	input[type='radio']:checked::after {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #e6e6e6;
+		content: '';
+	}
+
+	input[type='checkbox']:checked {
+		border-color: #e6e6e6;
+		background: #e6e6e6;
+	}
+
+	/* A check mark: two borders of a box, turned. */
+	input[type='checkbox']:checked::after {
+		width: 4px;
+		height: 8px;
+		margin-top: -2px;
+		border: solid #101010;
+		border-width: 0 2px 2px 0;
+		content: '';
+		transform: rotate(45deg);
 	}
 
 	select {
-		padding: 8px 10px;
+		padding: 9px 36px 9px 12px;
 		border: 1px solid #333;
-		background: #1a1a1a;
+		background: #161616
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")
+			no-repeat right 12px center;
 		color: inherit;
 		font: inherit;
 		font-size: 14px;
+		appearance: none;
+		cursor: pointer;
+	}
+
+	select:hover {
+		border-color: #555;
 	}
 
 	.clear,
@@ -435,12 +486,12 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-		gap: 20px;
+		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+		gap: 24px;
 	}
 
 	.grid.poster {
-		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 	}
 
 	.card {
