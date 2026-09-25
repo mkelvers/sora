@@ -92,6 +92,20 @@
       "when": 1790353377196,
       "tag": "0012_provider_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790364599656,
+      "tag": "0013_original_tmdb_images",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790364880768,
+      "tag": "0014_series_artwork_overrides",
+      "breakpoints": true
     }
   ]
 }

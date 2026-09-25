@@ -9,6 +9,7 @@ import {
   getSeasonEpisodes,
   getSeasonSeriesId,
   getSeries,
+  setSeriesArtwork,
   type EpisodeAddress
 } from "@sora/core/series";
 import { cors } from "hono/cors";
@@ -152,6 +153,22 @@ export const v1Routes = v1
           ...series,
           seasons
         })
+      },
+      200
+    );
+  })
+
+  .openapi(route.updateArtwork, async (c) => {
+    const { poster_url, backdrop_url, logo_url } = c.req.valid("json");
+    const series = await setSeriesArtwork(c.req.valid("param").anime_id, {
+      posterUrl: poster_url,
+      backdropUrl: backdrop_url,
+      logoUrl: logo_url
+    });
+    return c.json(
+      {
+        meta: {},
+        results: snakeCased(series)
       },
       200
     );

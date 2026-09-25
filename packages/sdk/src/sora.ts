@@ -53,6 +53,17 @@ export interface ScheduleParams {
   until?: Date;
 }
 
+/**
+ * Artwork to choose for a title with {@link SoraClient.updateArtwork}. An
+ * HTTPS URL replaces the image, `null` goes back to the one Sora chose, and
+ * an omitted field stays as it is.
+ */
+export interface ArtworkChanges {
+  poster_url?: string | null;
+  backdrop_url?: string | null;
+  logo_url?: string | null;
+}
+
 /** A season, under the title it belongs to. */
 export interface SeasonRef {
   seriesId: string;
@@ -212,6 +223,30 @@ export class SoraClient {
       )
     );
     return unwrap(body as Envelope<SeriesOf<TOptions>, SeriesMeta>, options);
+  }
+
+  /**
+   * Chooses a title's poster, backdrop, or logo for everyone. The choice is
+   * kept when the title is laid out again. Resolves to the title with its
+   * new artwork.
+   */
+  async updateArtwork<const TOptions extends RequestOptions = {}>(
+    seriesId: string,
+    changes: ArtworkChanges,
+    options?: TOptions
+  ): Promise<Returned<TOptions, Series, SeriesMeta>> {
+    const body: Envelope<Series, SeriesMeta> = await read(
+      this.#api.anime[":anime_id"].artwork.$patch(
+        {
+          param: {
+            anime_id: seriesId
+          },
+          json: changes
+        },
+        init(options)
+      )
+    );
+    return unwrap(body, options);
   }
 
   /** Loads one season of a title. */

@@ -6,6 +6,7 @@
 export { SoraError } from "./error";
 export {
   SoraClient,
+  type ArtworkChanges,
   type BrowseParams,
   type EpisodeRef,
   type RequestOptions,

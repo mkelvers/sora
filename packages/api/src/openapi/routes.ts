@@ -179,6 +179,54 @@ export const getSeries = createRoute({
   }
 });
 
+/** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
+const ArtworkUrl = z
+  .url({
+    protocol: /^https$/
+  })
+  .max(2_048)
+  .nullable()
+  .optional();
+
+export const updateArtwork = createRoute({
+  operationId: "updateArtwork",
+  method: "patch",
+  path: "/anime/{anime_id}/artwork",
+  tags: ["Anime"],
+  summary: "Change an anime's artwork",
+  description:
+    "Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
+  request: {
+    params: z.object({
+      anime_id: SeriesIdParam
+    }),
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              poster_url: ArtworkUrl,
+              backdrop_url: ArtworkUrl,
+              logo_url: ArtworkUrl
+            })
+            .strict()
+            .openapi("ArtworkChanges", {
+              example: {
+                backdrop_url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg"
+              }
+            })
+        }
+      }
+    }
+  },
+  responses: {
+    200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title, with its new artwork."),
+    404: problem("No such title."),
+    422: problem("The body is invalid.")
+  }
+});
+
 export const getSeason = createRoute({
   operationId: "getSeason",
   method: "get",
