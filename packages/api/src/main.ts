@@ -31,6 +31,8 @@ export type AppType = typeof app;
 /** The body of every error response. */
 export type { Problem } from "./openapi/schemas";
 
+export type * from "./models";
+
 const server = Bun.serve({
   port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch,

@@ -1,12 +1,15 @@
 /**
- * The request parameters and response bodies of the `/v1` contracts. Every
- * response schema is checked against the core's type with `satisfies`, so the
- * OpenAPI document cannot drift from what the handlers return.
+ * The request parameters and response bodies of the `/v1` contracts, with
+ * every field in snake_case. Every response schema is checked with
+ * `satisfies` against the core's type in snake_case (see `SnakeCased`), so
+ * the OpenAPI document cannot drift from what the handlers return.
  */
 import { z } from "@hono/zod-openapi";
-import type { AnimeTag, AnimeTrailer, Page } from "@sora/core/catalog";
-import type { Playback, PlaybackMedia, SkipSegment } from "@sora/core/playback";
+import type { AnimeTag, AnimeTrailer } from "@sora/core/catalog";
+import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
+
+import type { SnakeCased } from "./envelope";
 
 /**
  * An RFC 9457 problem details body, which every error response carries as
@@ -49,13 +52,6 @@ export const ProblemSchema = z
 /** The body of every error response. */
 export type Problem = z.infer<typeof ProblemSchema>;
 
-/** Wraps a list so it can grow fields, such as paging, without breaking clients. */
-export function itemsOf<TItem extends z.ZodType>(item: TItem) {
-  return z.object({
-    items: z.array(item)
-  });
-}
-
 /** A problem response for the given status, for route definitions. */
 export function problem(description: string) {
   return {
@@ -82,7 +78,7 @@ export function json<TSchema extends z.ZodType>(schema: TSchema, description: st
 
 export const SeriesIdParam = z.string().openapi({
   param: {
-    name: "animeId",
+    name: "anime_id",
     in: "path"
   },
   description: "Sora series ID.",
@@ -91,7 +87,7 @@ export const SeriesIdParam = z.string().openapi({
 
 export const SeasonIdParam = z.string().openapi({
   param: {
-    name: "seasonId",
+    name: "season_id",
     in: "path"
   },
   description: "Sora season ID.",
@@ -132,21 +128,21 @@ export const SeriesCardSchema = z
     title: z.string().openapi({
       example: "That Time I Got Reincarnated as a Slime"
     }),
-    posterUrl: z.string().nullable(),
-    backdropUrl: z.string().nullable(),
-    logoUrl: z.string().nullable(),
+    poster_url: z.string().nullable(),
+    backdrop_url: z.string().nullable(),
+    logo_url: z.string().nullable(),
     year: z.number().int().nullable().openapi({
       example: 2018
     }),
     status: StatusSchema.nullable()
   })
-  .openapi("SeriesCard") satisfies z.ZodType<SeriesCard>;
+  .openapi("SeriesCard") satisfies z.ZodType<SnakeCased<SeriesCard>>;
 
 const TagSchema = z.object({
   name: z.string(),
   rank: z.number().nullable(),
   spoiler: z.boolean()
-}) satisfies z.ZodType<AnimeTag>;
+}) satisfies z.ZodType<SnakeCased<AnimeTag>>;
 
 const TrailerSchema = z.object({
   site: z.enum([
@@ -154,7 +150,7 @@ const TrailerSchema = z.object({
     "dailymotion"
   ]),
   id: z.string()
-}) satisfies z.ZodType<AnimeTrailer>;
+}) satisfies z.ZodType<SnakeCased<AnimeTrailer>>;
 
 export const SeasonSchema = z
   .object({
@@ -170,9 +166,9 @@ export const SeasonSchema = z
     title: z.string().openapi({
       example: "Season 1"
     }),
-    episodeCount: z.number().int()
+    episode_count: z.number().int()
   })
-  .openapi("Season") satisfies z.ZodType<Season>;
+  .openapi("Season") satisfies z.ZodType<SnakeCased<Season>>;
 
 export const SeriesSchema = SeriesCardSchema.extend({
   overview: z.string().nullable(),
@@ -183,16 +179,16 @@ export const SeriesSchema = SeriesCardSchema.extend({
     description: "AniList's weighted score of the first season, 0–100."
   }),
   trailer: TrailerSchema.nullable(),
-  nextEpisode: z
+  next_episode: z
     .object({
-      seasonId: z.string(),
+      season_id: z.string(),
       number: z.number().int(),
-      airingAt: z.string()
+      airing_at: z.string()
     })
     .nullable(),
   seasons: z.array(SeasonSchema),
   related: z.array(SeriesCardSchema)
-}).openapi("Series") satisfies z.ZodType<Series>;
+}).openapi("Series") satisfies z.ZodType<SnakeCased<Series>>;
 
 /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
 export const LanguageSchema = z.enum([
@@ -206,11 +202,11 @@ export const SeasonEpisodeSchema = z
     number: z.number().int(),
     title: z.string().nullable(),
     overview: z.string().nullable(),
-    airDate: z.string().nullable().openapi({
+    air_date: z.string().nullable().openapi({
       example: "2018-10-02"
     }),
-    runtimeMinutes: z.number().int().nullable(),
-    stillUrl: z.string().nullable(),
+    runtime_minutes: z.number().int().nullable(),
+    still_url: z.string().nullable(),
     audio: z
       .array(LanguageSchema)
       .nullable()
@@ -225,24 +221,16 @@ export const SeasonEpisodeSchema = z
       description: "An extra only TMDB lists, such as a recap special. It cannot be played."
     })
   })
-  .openapi("SeasonEpisode") satisfies z.ZodType<SeasonEpisode>;
+  .openapi("SeasonEpisode") satisfies z.ZodType<SnakeCased<SeasonEpisode>>;
 
 export const ScheduledEpisodeSchema = z
   .object({
     series: SeriesCardSchema,
-    seasonId: z.string(),
+    season_id: z.string(),
     episode: z.number().int(),
-    airingAt: z.string()
+    airing_at: z.string()
   })
-  .openapi("ScheduledEpisode") satisfies z.ZodType<ScheduledEpisode>;
-
-export const SeriesPageSchema = z
-  .object({
-    items: z.array(SeriesCardSchema),
-    page: z.number().int(),
-    hasNextPage: z.boolean()
-  })
-  .openapi("SeriesPage") satisfies z.ZodType<Page<SeriesCard>>;
+  .openapi("ScheduledEpisode") satisfies z.ZodType<SnakeCased<ScheduledEpisode>>;
 
 export const LocaleSchema = z.string().min(1).openapi({
   description: "BCP 47 language tag.",
@@ -262,7 +250,7 @@ export const SkipSegmentSchema = z
       description: "Seconds from the start of the stream; always after `start`."
     })
   })
-  .openapi("SkipSegment") satisfies z.ZodType<SkipSegment>;
+  .openapi("SkipSegment") satisfies z.ZodType<SnakeCased<SkipSegment>>;
 
 export const PlaybackMediaSchema = z
   .object({
@@ -318,21 +306,30 @@ export const PlaybackMediaSchema = z
           .nullable()
       })
     ),
-    skipSegments: z.array(SkipSegmentSchema).openapi({
+    skip_segments: z.array(SkipSegmentSchema).openapi({
       description:
         "Opening and ending, in playback order, as AniKoto's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none."
     })
   })
-  .openapi("PlaybackMedia") satisfies z.ZodType<PlaybackMedia>;
+  .openapi("PlaybackMedia") satisfies z.ZodType<SnakeCased<PlaybackMedia>>;
 
-export const PlaybackSchema = z
+/** The episode a playback is for, when its stream URLs expire, and the episodes either side of it. */
+export const PlaybackMetaSchema = z
   .object({
-    animeId: z.string(),
-    seasonId: z.string(),
+    anime_id: z.string(),
+    season_id: z.string(),
     episode: z.number().int(),
-    media: z.array(PlaybackMediaSchema).openapi({
+    expires_at: z.string().openapi({
+      description: "When the stream URLs stop working, as an ISO 8601 timestamp. Resolve again after it.",
+      example: "2026-09-25T18:00:00.000Z"
+    }),
+    next: z.string().nullable().openapi({
       description:
-        "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has subtitles: as tracks, or burned into the picture when `hardsub` is true. Dub and raw have none."
+        "The next episode's playback URL, into the next season of the same kind after a season's last episode, or null after the last one.",
+      example: "/v1/anime/a_CZMtco3dTTAN/seasons/s_WGQtg1RoFmfJ/episodes/2/playback"
+    }),
+    previous: z.string().nullable().openapi({
+      description: "The previous episode's playback URL, or null before the first one."
     })
   })
-  .openapi("Playback") satisfies z.ZodType<Playback>;
+  .openapi("PlaybackMeta");
