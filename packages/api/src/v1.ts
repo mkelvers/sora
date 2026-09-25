@@ -7,6 +7,7 @@ import {
   getAiringSchedule,
   getSeason,
   getSeasonEpisodes,
+  getSeasonSeriesId,
   getSeries,
   type EpisodeAddress
 } from "@sora/core/series";
@@ -34,9 +35,56 @@ export const v1 = new OpenAPIHono({
 // Browser players (hls.js, subtitle tracks) fetch streams directly.
 v1.use(route.getStream.getRoutingPath(), cors());
 
-/** A playback's URL, relative to the API's origin. */
+/** A playback's URL under its title, relative to the API's origin. */
 function playbackPath(animeId: string, { seasonId, episode }: EpisodeAddress) {
   return `/v1/anime/${animeId}/seasons/${seasonId}/episodes/${episode}/playback`;
+}
+
+/** A playback's URL under its season alone, relative to the API's origin. */
+function seasonPlaybackPath({ seasonId, episode }: EpisodeAddress) {
+  return `/v1/seasons/${seasonId}/episodes/${episode}/playback`;
+}
+
+/**
+ * Resolves an episode's playback and the episodes either side, as both
+ * playback routes answer it; `pathOf` spells the neighbours' URLs in the
+ * route's own form.
+ */
+async function playbackBody(
+  requestUrl: string,
+  forwardedProto: string | undefined,
+  address: {
+    animeId: string;
+    seasonId: string;
+    episode: number;
+  },
+  pathOf: (address: EpisodeAddress) => string
+) {
+  // Absolute, so players on any origin can fetch it.
+  const streamBaseUrl = new URL("/v1/streams", requestUrl);
+  // Behind a TLS-terminating proxy the API itself is reached over HTTP.
+  const protocol = forwardedProto?.split(",")[0]?.trim();
+  if (protocol === "https" || protocol === "http") {
+    streamBaseUrl.protocol = protocol;
+  }
+
+  const [playback, adjacent] = await Promise.all([
+    resolvePlayback(address, {
+      streamBaseUrl: streamBaseUrl.href
+    }),
+    getAdjacentEpisodes(address.animeId, address.seasonId, address.episode)
+  ]);
+  return {
+    meta: {
+      anime_id: address.animeId,
+      season_id: address.seasonId,
+      episode: address.episode,
+      expires_at: playback.expiresAt,
+      next: adjacent.next && pathOf(adjacent.next),
+      previous: adjacent.previous && pathOf(adjacent.previous)
+    },
+    results: snakeCased(playback.media)
+  };
 }
 
 export const v1Routes = v1
@@ -77,11 +125,33 @@ export const v1Routes = v1
 
   .openapi(route.getSeries, async (c) => {
     const series = await getSeries(c.req.valid("param").anime_id);
-    c.header("Cache-Control", "public, max-age=300");
+    if (!c.req.valid("query").episodes) {
+      c.header("Cache-Control", "public, max-age=300");
+      return c.json(
+        {
+          meta: {},
+          results: snakeCased(series)
+        },
+        200
+      );
+    }
+
+    const seasons = await Promise.all(
+      series.seasons.map(async (season) => ({
+        ...season,
+        episodes: await getSeasonEpisodes(series.id, season.id)
+      }))
+    );
+    // Unknown audio is filled in once providers are looked up.
+    const isAudioPending = seasons.some((season) => season.episodes.some((episode) => episode.audio === null));
+    c.header("Cache-Control", isAudioPending ? "no-store" : "public, max-age=300");
     return c.json(
       {
         meta: {},
-        results: snakeCased(series)
+        results: snakeCased({
+          ...series,
+          seasons
+        })
       },
       200
     );
@@ -155,43 +225,36 @@ export const v1Routes = v1
 
   .openapi(route.getPlayback, async (c) => {
     const { anime_id, season_id, episode } = c.req.valid("param");
-    // Absolute, so players on any origin can fetch it.
-    const streamBaseUrl = new URL("/v1/streams", c.req.url);
-    // Behind a TLS-terminating proxy the API itself is reached over HTTP.
-    const protocol = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim();
-    if (protocol === "https" || protocol === "http") {
-      streamBaseUrl.protocol = protocol;
-    }
-
-    const [playback, adjacent] = await Promise.all([
-      resolvePlayback(
-        {
-          animeId: anime_id,
-          seasonId: season_id,
-          episode
-        },
-        {
-          streamBaseUrl: streamBaseUrl.href
-        }
-      ),
-      getAdjacentEpisodes(anime_id, season_id, episode)
-    ]);
+    const body = await playbackBody(
+      c.req.url,
+      c.req.header("x-forwarded-proto"),
+      {
+        animeId: anime_id,
+        seasonId: season_id,
+        episode
+      },
+      (address) => playbackPath(anime_id, address)
+    );
     // Stream URLs expire; a cached playback would hand out dead ones.
     c.header("Cache-Control", "no-store");
-    return c.json(
+    return c.json(body, 200);
+  })
+
+  .openapi(route.getEpisodePlayback, async (c) => {
+    const { season_id, episode } = c.req.valid("param");
+    const body = await playbackBody(
+      c.req.url,
+      c.req.header("x-forwarded-proto"),
       {
-        meta: {
-          anime_id,
-          season_id,
-          episode,
-          expires_at: playback.expiresAt,
-          next: adjacent.next && playbackPath(anime_id, adjacent.next),
-          previous: adjacent.previous && playbackPath(anime_id, adjacent.previous)
-        },
-        results: snakeCased(playback.media)
+        animeId: await getSeasonSeriesId(season_id),
+        seasonId: season_id,
+        episode
       },
-      200
+      seasonPlaybackPath
     );
+    // Stream URLs expire; a cached playback would hand out dead ones.
+    c.header("Cache-Control", "no-store");
+    return c.json(body, 200);
   })
 
   .openapi(route.getStream, (c) =>

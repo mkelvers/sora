@@ -139,11 +139,43 @@ export const getSeries = createRoute({
   request: {
     params: z.object({
       anime_id: SeriesIdParam
-    })
+    }),
+    query: z
+      .object({
+        episodes: z
+          .enum([
+            "true",
+            "false"
+          ])
+          .transform((value) => value === "true")
+          .optional()
+          .openapi({
+            type: "boolean",
+            description:
+              "Whether each season carries its episodes, as `listSeasonEpisodes` lists them, so a title's page needs one request.",
+            example: true
+          })
+      })
+      .strict()
   },
   responses: {
-    200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title."),
-    404: problem("No such title.")
+    200: json(
+      envelopeOf(
+        SeriesSchema.extend({
+          seasons: z.array(
+            SeasonSchema.extend({
+              episodes: z.array(SeasonEpisodeSchema).optional().openapi({
+                description: "The season's episodes, numbered from 1; present only with `episodes=true`."
+              })
+            })
+          )
+        }),
+        EmptyMetaSchema
+      ),
+      "The title."
+    ),
+    404: problem("No such title."),
+    422: problem("The query is invalid.")
   }
 });
 
@@ -266,6 +298,23 @@ export const getPlayback = createRoute({
     404: problem("No such season or episode in this title, or nothing streams it."),
     502: problem("Providers list the episode but none can stream it right now.")
   }
+});
+
+export const getEpisodePlayback = createRoute({
+  operationId: "getEpisodePlayback",
+  method: "get",
+  path: "/seasons/{season_id}/episodes/{episode}/playback",
+  tags: ["Playback"],
+  summary: "Get everything needed to play an episode, by its season",
+  description:
+    "`getPlayback` addressed by the season alone, since a season ID identifies its title. `meta.next` and `meta.previous` are in this form too.",
+  request: {
+    params: z.object({
+      season_id: SeasonIdParam,
+      episode: EpisodeNumberParam
+    })
+  },
+  responses: getPlayback.responses
 });
 
 export const getStream = createRoute({

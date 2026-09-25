@@ -12,7 +12,15 @@
  * @packageDocumentation
  */
 export type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
-export { browseSeries, getAdjacentEpisodes, getSeason, getSeasonEpisodes, getSeries, type EpisodeAddress } from "./queries";
+export {
+  browseSeries,
+  getAdjacentEpisodes,
+  getSeason,
+  getSeasonEpisodes,
+  getSeasonSeriesId,
+  getSeries,
+  type EpisodeAddress
+} from "./queries";
 export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
 export type { SeasonKind } from "./seasons";
 export type { SeriesKind } from "./series";
