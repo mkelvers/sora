@@ -7,7 +7,7 @@
 	import { getSeries } from '$lib/remote/anime.remote';
 	import type { SeriesImage } from '@sora/sdk';
 
-	const series = $derived(await getSeries(page.params.id));
+	const series = $derived(await getSeries(page.params.id!));
 
 	let type = $state<SeriesImage['type']>('poster');
 	let sort = $state<'votes' | 'quality'>('votes');
