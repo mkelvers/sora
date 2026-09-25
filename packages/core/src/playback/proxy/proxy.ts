@@ -11,7 +11,7 @@ import { fetchUpstream, mirrorsFor, StreamUpstreamError, type Upstream } from ".
  * Long enough to finish a movie after pausing; short enough that a leaked
  * link stops working the same day.
  */
-const tokenLifetimeMs = 6 * hour;
+export const tokenLifetimeMs = 6 * hour;
 
 /** Playlists are buffered for rewriting; anything larger is not a playlist. */
 const maximumPlaylistBytes = 4 * 1_024 * 1_024;
