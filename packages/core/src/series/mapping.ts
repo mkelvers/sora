@@ -269,14 +269,6 @@ function isSingleEpisode(subject: MatchSubject) {
   return subject.episodes === 1 && (subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA");
 }
 
-/** Every stored mapping into one TMDB show, including entries outside any walked franchise. */
-export function mappingsForShow(showId: number): Promise<TmdbMapping[]> {
-  return db
-    .select()
-    .from(tmdbMapping)
-    .where(and(eq(tmdbMapping.mediaType, "tv"), eq(tmdbMapping.tmdbId, showId)));
-}
-
 /**
  * The episode links of a TV mapping, validated because they come from a
  * JSON column. A malformed value reads as no links.

@@ -9,13 +9,16 @@
  *   into the season they continue. Episodes are numbered from 1 in each
  *   season, never continuously across seasons.
  * - Multi-episode OVAs become OVA seasons of their own.
- * - One-off specials and extras that only TMDB lists are placed inside the
- *   regular seasons by air date, after the last episode that aired before them.
+ * - One-off AniList specials are placed inside the regular seasons by air
+ *   date, after the last episode that aired before them.
+ * - Specials and extras that only TMDB lists are left out. No provider can
+ *   stream them, and TMDB often lists them before, or without, any evidence
+ *   that they aired; numbering them in would shift every later episode.
  */
 import type { AnimeCard } from "../catalog/models/anime";
 import type { TmdbEpisode, TmdbShow } from "../tmdb/resources";
 import { tmdbImageUrl } from "../tmdb/resources";
-import { normalizeTitle, type EpisodeLink } from "./matching";
+import type { EpisodeLink } from "./matching";
 
 /** One AniList entry of a show, with the TMDB episodes it was matched to. */
 export interface SeasonMember {
@@ -60,14 +63,11 @@ export interface SeriesEpisode {
   airDate: string | null;
   runtimeMinutes: number | null;
   stillUrl: string | null;
-  /**
-   * The AniList entry and episode number to pass to playback and progress,
-   * or `null` for an extra that only TMDB lists and no provider serves.
-   */
+  /** The AniList entry and episode number to pass to playback and progress. */
   playback: {
     anilistId: number;
     episode: number;
-  } | null;
+  };
   /** The TMDB episode this is, when TMDB lists it. */
   tmdb: {
     seasonNumber: number;
@@ -80,50 +80,16 @@ export interface ShowLayoutInput {
   show: Pick<TmdbShow, "episodes" | "seasons">;
   members: readonly SeasonMember[];
   /**
-   * Specials matched to AniList entries outside this series, such as shorts
-   * split into their own series. They are neither members nor extras here.
-   */
-  claimedSpecials: readonly EpisodeLink[];
-  /**
-   * Franchise entries outside this series: films, spin-offs TMDB lists as
-   * separate shows, and entries TMDB matching found no place for. TMDB often
-   * duplicates them among the show's specials, with unreliable runtimes, so
-   * the specials airing within such an entry's run are treated as that
-   * entry's and not placed as extras.
-   */
-  outsideEntries?: readonly OutsideEntry[];
-  /**
    * Lays out a series of shorts: every member becomes a season of its own
-   * specials, and no extras are placed.
+   * specials, and no one-off specials are placed.
    */
   isShorts?: boolean;
 }
 
-/** A franchise entry outside the series being laid out. Dates are `YYYY-MM-DD` when known. */
-export interface OutsideEntry {
-  /** English, romaji, and native titles. */
-  titles: string[];
-  startDate: string | null;
-  endDate: string | null;
-  episodes: number | null;
-}
-
-/**
- * Titles shorter than this are too generic to recognise in an episode name;
- * "Kuro" alone would claim unrelated specials.
- */
-const minimumClaimTitleLength = 8;
-
-/**
- * Extras whose length is further than this factor from a regular episode
- * are not episodes: recap omnibuses, live events, films, or chibi shorts.
- */
-const extraRuntimeTolerance = 1.6;
-
 /** One episode slot before numbering. */
 interface Row {
-  member: SeasonMember | null;
-  anilistEpisode: number | null;
+  member: SeasonMember;
+  anilistEpisode: number;
   tmdb: TmdbEpisode | null;
   /** TMDB season the row counts towards; `0` when it has none. */
   seasonNumber: number;
@@ -176,12 +142,12 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
 
   const groups = mergeLaterParts(
     groupRows(memberRows, (row) =>
-      followsTmdbSeasons && row.seasonNumber > 0 ? `season:${row.seasonNumber}` : `anime:${row.member?.anime.id}`
+      followsTmdbSeasons && row.seasonNumber > 0 ? `season:${row.seasonNumber}` : `anime:${row.member.anime.id}`
     )
   );
 
   if (!input.isShorts) {
-    placeExtras(groups, extrasOf(input, oneOffs, episodes, groups));
+    placeOneOffs(groups, oneOffRows(oneOffs, episodes));
   }
 
   const ovaGroups = mergeLaterParts(ovas.map((member) => ({
@@ -293,10 +259,9 @@ function mergeLaterParts(groups: readonly Group[]): Group[] {
     const opener = group.rows[0]?.member;
     const continuesPrevious =
       previous !== undefined &&
-      opener !== null &&
       opener !== undefined &&
       isLaterPart(opener.anime) &&
-      previous.rows.some((row) => row.member !== null && opener.prequelIds.includes(row.member.anime.id));
+      previous.rows.some((row) => opener.prequelIds.includes(row.member.anime.id));
 
     if (previous && continuesPrevious) {
       previous.rows.push(...group.rows);
@@ -328,132 +293,37 @@ export function isLaterPart(anime: AnimeCard) {
   );
 }
 
-/**
- * Specials to place inside the regular seasons: one-episode AniList
- * specials of this show, and episode-length extras that only TMDB lists.
- */
-function extrasOf(
-  input: ShowLayoutInput,
-  oneOffs: readonly SeasonMember[],
-  episodes: ReadonlyMap<string, { episode: TmdbEpisode }>,
-  groups: readonly Group[]
-): Row[] {
-  const claimed = new Set(
-    [
-      ...input.members.flatMap((member) => member.links),
-      ...input.claimedSpecials
-    ].map((link) => refKey(link.seasonNumber, link.episodeNumber))
-  );
-
-  const specials = input.show.episodes.filter((episode) => episode.season_number === 0);
-  for (const entry of input.outsideEntries ?? []) {
-    for (const episode of [
-      ...specialsNamedAfter(specials, entry),
-      ...specialsDuring(specials, entry, claimed)
-    ]) {
-      claimed.add(refKey(0, episode.episode_number));
-    }
-  }
-
-  const runtimes = groups
-    .flatMap((group) => group.rows)
-    .map((row) => row.tmdb?.runtime ?? null)
-    .filter((runtime): runtime is number => runtime !== null && runtime > 0)
-    .sort((left, right) => left - right);
-  const typicalRuntime = runtimes[Math.floor(runtimes.length / 2)] ?? null;
-
-  const isEpisodeLength = (runtime: number | null) =>
-    runtime === null ||
-    typicalRuntime === null ||
-    (runtime >= typicalRuntime / extraRuntimeTolerance && runtime <= typicalRuntime * extraRuntimeTolerance);
-
-  const unmatched = specials
-    .filter((episode) => !claimed.has(refKey(0, episode.episode_number)) && isEpisodeLength(episode.runtime))
-    .map((episode): Row => ({
-      member: null,
-      anilistEpisode: null,
-      tmdb: episode,
-      seasonNumber: 0
-    }));
-
-  return [
-    ...oneOffs.flatMap((member) => rowsOf(member, episodes)),
-    ...unmatched
-  ].sort((left, right) =>
-    (left.tmdb?.air_date ?? "9999").localeCompare(right.tmdb?.air_date ?? "9999") ||
-    (left.tmdb?.episode_number ?? 0) - (right.tmdb?.episode_number ?? 0)
-  );
-}
-
-/**
- * Specials named after the outside entry: its title followed by an episode
- * name ("Zoku Owarimonogatari: Koyomi Reverse (1)"), or the distinctive end
- * of its title alone ("Lev Appears!" for "HAIKYU!!: Lev Appears!"). Episodes
- * the entry released on the same day as a named one are claimed with it, up
- * to its episode count. This catches duplicates that aired far from
- * AniList's dates, like a TV broadcast months after a theatrical release.
- */
-function specialsNamedAfter(specials: readonly TmdbEpisode[], entry: OutsideEntry) {
-  const titles = entry.titles.map(normalizeTitle).filter((title) => title.length >= minimumClaimTitleLength);
-  const isNamedAfter = (episode: TmdbEpisode) => {
-    const name = episode.name ? normalizeTitle(episode.name) : "";
-    return titles.some(
-      (title) =>
-        name === title ||
-        name.startsWith(`${title} `) ||
-        (name.length >= minimumClaimTitleLength && title.endsWith(` ${name}`))
+/** The episodes of one-off AniList specials, in air-date order; undated ones last. */
+function oneOffRows(oneOffs: readonly SeasonMember[], episodes: ReadonlyMap<string, { episode: TmdbEpisode }>): Row[] {
+  return oneOffs
+    .flatMap((member) => rowsOf(member, episodes))
+    .sort((left, right) =>
+      (left.tmdb?.air_date ?? "9999").localeCompare(right.tmdb?.air_date ?? "9999") ||
+      (left.tmdb?.episode_number ?? 0) - (right.tmdb?.episode_number ?? 0)
     );
-  };
-
-  const named = specials.filter(isNamedAfter);
-  const namedDates = new Set(named.map((episode) => episode.air_date));
-  const sameDay = specials.filter((episode) => !named.includes(episode) && namedDates.has(episode.air_date));
-  return [
-    ...named,
-    ...sameDay.slice(0, Math.max((entry.episodes ?? named.length) - named.length, 0))
-  ];
 }
 
 /**
- * The unclaimed specials airing within an outside entry's run, up to its
- * episode count. An entry without full dates claims nothing.
+ * Inserts each one-off special after the last regular episode that aired on
+ * or before it. Specials older than every episode open the first season;
+ * specials without a date close the last.
  */
-function specialsDuring(specials: readonly TmdbEpisode[], entry: OutsideEntry, claimed: ReadonlySet<string>) {
-  const start = entry.startDate?.length === 10 ? entry.startDate : null;
-  const end = entry.endDate?.length === 10 ? entry.endDate : start;
-  if (!start || !end) {
-    return [];
-  }
-
-  return specials
-    .filter((episode) => {
-      const airDate = episode.air_date;
-      return airDate !== null && airDate >= start && airDate <= end && !claimed.has(refKey(0, episode.episode_number));
-    })
-    .slice(0, entry.episodes ?? 1);
-}
-
-/**
- * Inserts each extra after the last regular episode that aired on or before
- * it. Extras older than every episode open the first season; extras without
- * a date close the last.
- */
-function placeExtras(groups: Group[], extras: readonly Row[]) {
+function placeOneOffs(groups: Group[], oneOffs: readonly Row[]) {
   if (groups.length === 0) {
-    if (extras.length > 0) {
+    if (oneOffs.length > 0) {
       groups.push({
-        key: "extras",
-        rows: [...extras]
+        key: "one-offs",
+        rows: [...oneOffs]
       });
     }
 
     return;
   }
 
-  for (const extra of extras) {
-    const airDate = extra.tmdb?.air_date ?? null;
+  for (const oneOff of oneOffs) {
+    const airDate = oneOff.tmdb?.air_date ?? null;
     if (airDate === null) {
-      groups.at(-1)?.rows.push(extra);
+      groups.at(-1)?.rows.push(oneOff);
       continue;
     }
 
@@ -470,9 +340,9 @@ function placeExtras(groups: Group[], extras: readonly Row[]) {
     }
 
     if (targetGroup) {
-      targetGroup.rows.splice(targetIndex + 1, 0, extra);
+      targetGroup.rows.splice(targetIndex + 1, 0, oneOff);
     } else {
-      groups[0]?.rows.unshift(extra);
+      groups[0]?.rows.unshift(oneOff);
     }
   }
 }
@@ -519,8 +389,8 @@ export function ovaSeasonTitle(ova: AnimeCard | undefined, show: AnimeCard | und
 }
 
 function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: TmdbShow["seasons"]): SeriesSeason {
-  const anime = [...new Map(group.rows.flatMap((row) => (row.member ? [[row.member.anime.id, row.member.anime] as const] : []))).values()];
-  const tmdbSeasonNumbers = new Set(group.rows.filter((row) => row.member !== null).map((row) => row.seasonNumber));
+  const anime = [...new Map(group.rows.map((row) => [row.member.anime.id, row.member.anime] as const)).values()];
+  const tmdbSeasonNumbers = new Set(group.rows.map((row) => row.seasonNumber));
   const [onlySeason] = tmdbSeasonNumbers.size === 1 ? [...tmdbSeasonNumbers] : [];
   const tmdbSeason = onlySeason ? tmdbSeasons.find((season) => season.seasonNumber === onlySeason) : undefined;
   const tmdbName = tmdbSeason?.name && !/^(?:season|series|part)\s*\d+$|^specials$/i.test(tmdbSeason.name) ? tmdbSeason.name : null;
@@ -535,14 +405,12 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
       title: row.tmdb?.name ?? null,
       overview: row.tmdb?.overview ?? null,
       airDate: row.tmdb?.air_date ?? null,
-      runtimeMinutes: row.tmdb?.runtime ?? row.member?.anime.durationMinutes ?? null,
+      runtimeMinutes: row.tmdb?.runtime ?? row.member.anime.durationMinutes,
       stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? null, "w300"),
-      playback: row.member && row.anilistEpisode !== null
-        ? {
-            anilistId: row.member.anime.id,
-            episode: row.anilistEpisode
-          }
-        : null,
+      playback: {
+        anilistId: row.member.anime.id,
+        episode: row.anilistEpisode
+      },
       tmdb: row.tmdb
         ? {
             seasonNumber: row.tmdb.season_number,
