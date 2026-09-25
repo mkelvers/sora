@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@sora/sdk": "workspace:*",
+		"class-variance-authority": "^0.7.1",
 		"zod": "^4.6.5"
 	}
 }

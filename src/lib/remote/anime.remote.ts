@@ -27,21 +27,10 @@ export const getEpisodes = query(
 
 const ImageType = z.enum(['poster', 'backdrop', 'logo']);
 
-export const getImages = query(
-	z.object({
-		seriesId: z.string(),
-		type: ImageType,
-		sort: z.enum(['votes', 'quality'])
-	}),
-	async ({ seriesId, type, sort }) => {
-		return await sora.images(seriesId, {
-			params: {
-				type: [type],
-				sort
-			}
-		});
-	}
-);
+// Every image at once; the artwork page filters and sorts them itself.
+export const getImages = query(z.string(), async (seriesId) => {
+	return await sora.images(seriesId);
+});
 
 const savedSizes = {
 	poster: 'w780',

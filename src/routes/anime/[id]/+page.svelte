@@ -18,7 +18,7 @@
 <div class="page">
 	<header>
 		{#if series.backdrop_url}
-			<img class="backdrop" src={series.backdrop_url} alt="" />
+			<img class="backdrop" src={series.backdrop_url} alt={series.title} />
 		{/if}
 
 		<div class="bar">
