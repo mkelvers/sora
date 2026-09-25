@@ -11,7 +11,13 @@ import {
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
 import { lookUpEpisodes } from "./jobs/episodes";
 import { backfillSeries, backfillSeriesTask, syncSearchIndexJob, syncSearchIndexTask } from "./jobs/search";
-import { discoverSeriesEntries, discoverSeriesEntriesTask, storeSeriesJob } from "./jobs/series";
+import {
+  discoverSeriesEntries,
+  discoverSeriesEntriesTask,
+  refreshEpisodeDetails,
+  refreshEpisodeDetailsTask,
+  storeSeriesJob
+} from "./jobs/series";
 import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
 
 /**
@@ -37,6 +43,7 @@ export async function startScheduler(): Promise<Runner> {
       [storeSeriesTask]: storeSeriesJob,
       [lookUpEpisodesTask]: lookUpEpisodes,
       [discoverSeriesEntriesTask]: discoverSeriesEntries,
+      [refreshEpisodeDetailsTask]: refreshEpisodeDetails,
       [syncProviderCatalogsTask]: syncProviderCatalogs,
       [pruneProviderCallsTask]: pruneProviderCallsJob,
       [checkProviderHealthTask]: checkProviderHealthJob,
@@ -46,6 +53,7 @@ export async function startScheduler(): Promise<Runner> {
     crontab: [
       `0 * * * * ${reviveAiringChecksTask}`,
       `30 4 * * * ${discoverSeriesEntriesTask}`,
+      `0 6 * * * ${refreshEpisodeDetailsTask}`,
       // Catalogue upkeep runs ahead of queued layouts, which can number in the
       // hundreds; the first run after a start catches up on what changed.
       `15 * * * * ${syncProviderCatalogsTask} ?id=provider-catalogs-changes&fill=1h&priority=-1`,

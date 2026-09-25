@@ -1,14 +1,17 @@
+import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
+import { db } from "../../database/client";
+import { seriesEpisode, seriesSeason } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { relatedIds } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { day, hour } from "../../time";
-import { scheduleSeriesStore } from "../queue";
+import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
   anilistId: z.number().int().positive()
@@ -106,4 +109,48 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
   if (queued > 0) {
     helpers.logger.info(`Queued ${queued} entries to store their series`);
   }
+};
+
+/**
+ * How long after an episode airs its missing TMDB details are looked for.
+ * TMDB often has only a title on the day an episode airs.
+ */
+const detailsWindowMs = 14 * day;
+
+/** The graphile-worker task that fills in details TMDB added after an episode aired. */
+export const refreshEpisodeDetailsTask = "refresh-episode-details";
+
+/**
+ * Queues laying out again every stored series with an episode that aired
+ * within {@link detailsWindowMs} and still has no overview or still.
+ *
+ * Tracking an anime stops once its last episode airs, and that layout runs
+ * before TMDB has usually filled the episode in, so without this a finale
+ * keeps its bare title.
+ */
+export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const since = new Date(Date.now() - detailsWindowMs).toISOString().slice(0, 10);
+  const stale = await db
+    .selectDistinctOn([seriesSeason.seriesId], {
+      anilistId: seriesEpisode.anilistId
+    })
+    .from(seriesEpisode)
+    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+    .where(
+      and(
+        isNotNull(seriesEpisode.anilistId),
+        gte(seriesEpisode.airDate, since),
+        lte(seriesEpisode.airDate, today),
+        or(isNull(seriesEpisode.overview), isNull(seriesEpisode.stillUrl))
+      )
+    );
+
+  for (const { anilistId } of stale) {
+    if (anilistId !== null) {
+      await scheduleStoredSeriesRefresh(anilistId);
+    }
+  }
+
+  helpers.logger.info(`Queued ${stale.length} series with episodes missing TMDB details`);
 };
