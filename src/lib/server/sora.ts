@@ -9,4 +9,6 @@ if (!env.SORA_API_URL) {
  * The app's one Sora API client. Modules are evaluated once, so every server
  * load, action, and endpoint that imports it shares this instance.
  */
-export const sora = new SoraClient({ baseUrl: env.SORA_API_URL });
+export const sora = new SoraClient({
+	baseUrl: env.SORA_API_URL
+});
