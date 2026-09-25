@@ -5,7 +5,7 @@
  * the OpenAPI document cannot drift from what the handlers return.
  */
 import { z } from "@hono/zod-openapi";
-import type { AnimeTag, AnimeTrailer } from "@sora/core/catalog";
+import type { AnimeTag } from "@sora/core/catalog";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard } from "@sora/core/series";
 
@@ -144,14 +144,6 @@ const TagSchema = z.object({
   spoiler: z.boolean()
 }) satisfies z.ZodType<SnakeCased<AnimeTag>>;
 
-const TrailerSchema = z.object({
-  site: z.enum([
-    "youtube",
-    "dailymotion"
-  ]),
-  id: z.string()
-}) satisfies z.ZodType<SnakeCased<AnimeTrailer>>;
-
 export const SeasonSchema = z
   .object({
     id: z.string().openapi({
@@ -178,7 +170,6 @@ export const SeriesSchema = SeriesCardSchema.extend({
   score: z.number().nullable().openapi({
     description: "AniList's weighted score of the first season, 0–100."
   }),
-  trailer: TrailerSchema.nullable(),
   next_episode: z
     .object({
       season_id: z.string(),
