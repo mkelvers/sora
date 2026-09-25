@@ -51,23 +51,24 @@
 		{@const chosen = current === image.url.split('/').at(-1)}
 		<button class="card" class:chosen aria-pressed={chosen} onclick={() => choose(image.url)}>
 			<span class="image">
-				<img src={image.url.replace('/original/', `/${thumbnailSizes[filters.type]}/`)} alt="" loading="lazy" />
+				<img src={image.url.replace('/original/', `/${thumbnailSizes[filters.type]}/`)} alt="" loading="lazy" decoding="async" />
 				{#if chosen}
-					<span class="badge">
+					<span class="check" title="Current">
 						<Icon name="check" size="sm" />
-						Current
 					</span>
 				{/if}
 			</span>
-			<span class="meta">
-				<span>{image.width}×{image.height}</span>
-				<span>{image.language ? names.of(image.language) : 'Textless'}</span>
-				{#if image.season_number !== null}
-					<span>{image.season_number === 0 ? 'Specials' : `Season ${image.season_number}`}</span>
-				{/if}
-				<span class="votes" title="{image.vote_count} votes">
-					<Icon name="heart" size="xs" />
-					{image.vote_average.toFixed(1)}
+			<span class="text">
+				<span class="title">{image.language ? names.of(image.language) : 'Textless'}</span>
+				<span class="meta">
+					<span>{image.width}×{image.height}</span>
+					{#if image.season_number !== null}
+						<span>{image.season_number === 0 ? 'Specials' : `Season ${image.season_number}`}</span>
+					{/if}
+					<span class="votes" title="{image.vote_count} votes">
+						<Icon name="heart" size="xs" />
+						{image.vote_average.toFixed(1)}
+					</span>
 				</span>
 			</span>
 		</button>
@@ -91,23 +92,24 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-		gap: 24px;
+		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+		gap: 28px 16px;
 	}
 
 	.grid.poster {
-		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 	}
 
 	.card {
 		display: grid;
-		gap: 8px;
+		align-content: start;
+		gap: 10px;
 		padding: 0;
 		border: none;
 		background: none;
 		color: inherit;
 		font: inherit;
-		text-align: left;
+		text-align: center;
 		cursor: pointer;
 	}
 
@@ -115,7 +117,7 @@
 		position: relative;
 		display: block;
 		aspect-ratio: 16 / 9;
-		background: #1c1c1c;
+		background: #2a2a2a;
 		outline: 2px solid transparent;
 		outline-offset: 2px;
 		transition: outline-color 120ms;
@@ -150,40 +152,69 @@
 		outline-color: #fff;
 	}
 
-	.badge {
+	.check {
 		position: absolute;
 		top: 8px;
-		left: 8px;
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		padding: 4px 8px 4px 6px;
+		right: 8px;
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
 		background: #fff;
 		color: #101010;
-		font-size: 12px;
-		font-weight: 600;
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+	}
+
+	.text {
+		display: grid;
+		gap: 4px;
+	}
+
+	.title {
+		font-size: 15px;
 	}
 
 	.meta {
 		display: flex;
-		gap: 10px;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: center;
+		gap: 4px 8px;
 		color: #999;
-		font-size: 12px;
+		font-size: 13px;
+	}
+
+	.meta > span + span::before {
+		content: '·';
+		margin-right: 8px;
 	}
 
 	.votes {
 		display: inline-flex;
 		align-items: center;
 		gap: 3px;
-		margin-left: auto;
 	}
 
 	.empty {
-		color: #777;
+		grid-column: 1 / -1;
+		margin: 0;
+		color: #999;
 	}
 
 	button:focus-visible {
 		outline: 2px solid #fff;
 		outline-offset: 2px;
+	}
+
+	@media (max-width: 720px) {
+		.grid {
+			grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+			gap: 20px 12px;
+		}
+
+		.grid.poster {
+			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+		}
 	}
 </style>
