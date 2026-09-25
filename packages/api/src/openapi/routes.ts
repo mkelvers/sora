@@ -11,19 +11,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { BrowseQuerySchema } from "@sora/core/catalog";
 
+import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
   EpisodeNumberParam,
-  itemsOf,
   json,
-  PlaybackSchema,
+  PlaybackMediaSchema,
+  PlaybackMetaSchema,
   problem,
   ScheduledEpisodeSchema,
   SeasonSchema,
   SeasonEpisodeSchema,
   SeasonIdParam,
+  SeriesCardSchema,
   SeriesIdParam,
-  SeriesPageSchema,
-  SeriesSchema,
+  SeriesSchema
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -47,22 +48,24 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
 }
 
 /**
- * The core's browse filters as query parameters, without the free-text
- * search, which is its own route. Query strings carry every value as text,
- * so numbers and lists are parsed before the core's own rules apply; the
- * core supplies defaults. Unknown parameters are rejected: a misspelled one
- * would otherwise return the unfiltered catalog.
+ * The core's browse filters as query parameters in snake_case, without the
+ * free-text search, which is its own route. Query strings carry every value
+ * as text, so numbers and lists are parsed before the core's own rules
+ * apply; the core supplies defaults. Unknown parameters are rejected: a
+ * misspelled one would otherwise return the unfiltered catalog.
  */
 const BrowseParams = BrowseQuerySchema.omit({
-  search: true
+  search: true,
+  seasonYear: true,
+  perPage: true
 })
   .strict()
   .extend({
-    seasonYear: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
+    season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
     format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
     genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
     page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
-    perPage: z.coerce.number().pipe(browse.perPage.unwrap()).optional()
+    per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional()
   });
 
 /** {@link BrowseParams} with the search text, which is required. */
@@ -75,9 +78,15 @@ const SearchParams = BrowseParams.extend({
 
 /** A season, addressed under the series it belongs to. */
 const SeasonParams = z.object({
-  animeId: SeriesIdParam,
-  seasonId: SeasonIdParam
+  anime_id: SeriesIdParam,
+  season_id: SeasonIdParam
 });
+
+/** A page of title cards. */
+const SeriesPageSchema = envelopeOf(z.array(SeriesCardSchema), PageMetaSchema);
+
+/** Nothing to say about the response beyond its results. */
+const EmptyMetaSchema = z.object({}).openapi("EmptyMeta");
 
 /** An episode, addressed under its season. */
 const EpisodeParams = SeasonParams.extend({
@@ -91,7 +100,7 @@ export const browseSeries = createRoute({
   tags: ["Anime"],
   summary: "Browse anime",
   description:
-    "Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `perPage` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
+    "Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
   request: {
     query: BrowseParams
   },
@@ -109,7 +118,7 @@ export const searchSeries = createRoute({
   tags: ["Anime"],
   summary: "Search anime",
   description:
-    "Finds titles matching `q`, best match first unless `sort` is given, narrowed by the same filters as `browseSeries`. One card per title, and a first search for an unknown franchise may come back short while the rest is prepared in the background.",
+    "Finds titles matching `q` in English, romaji, Japanese, or a known synonym or abbreviation, forgiving typos. Best match first, weighing how popular titles are, unless `sort` is given; narrowed by the same filters as `browseSeries`. One card per title, and a first search for a title not prepared yet may come back without it while it is prepared in the background.",
   request: {
     query: SearchParams
   },
@@ -123,17 +132,17 @@ export const searchSeries = createRoute({
 export const getSeries = createRoute({
   operationId: "getSeries",
   method: "get",
-  path: "/anime/{animeId}",
+  path: "/anime/{anime_id}",
   tags: ["Anime"],
   summary: "Get an anime",
   description: "The title's page: details, artwork, seasons, the next episode, and related titles.",
   request: {
     params: z.object({
-      animeId: SeriesIdParam
+      anime_id: SeriesIdParam
     })
   },
   responses: {
-    200: json(SeriesSchema, "The title."),
+    200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title."),
     404: problem("No such title.")
   }
 });
@@ -141,14 +150,22 @@ export const getSeries = createRoute({
 export const getSeason = createRoute({
   operationId: "getSeason",
   method: "get",
-  path: "/anime/{animeId}/seasons/{seasonId}",
+  path: "/anime/{anime_id}/seasons/{season_id}",
   tags: ["Anime"],
   summary: "Get a season",
   request: {
     params: SeasonParams
   },
   responses: {
-    200: json(SeasonSchema, "The season."),
+    200: json(
+      envelopeOf(
+        SeasonSchema,
+        z.object({
+          anime_id: z.string()
+        })
+      ),
+      "The season."
+    ),
     404: problem("No such season in this title.")
   }
 });
@@ -156,14 +173,23 @@ export const getSeason = createRoute({
 export const listSeasonEpisodes = createRoute({
   operationId: "listSeasonEpisodes",
   method: "get",
-  path: "/anime/{animeId}/seasons/{seasonId}/episodes",
+  path: "/anime/{anime_id}/seasons/{season_id}/episodes",
   tags: ["Anime"],
   summary: "List a season's episodes",
   request: {
     params: SeasonParams
   },
   responses: {
-    200: json(itemsOf(SeasonEpisodeSchema), "The season's episodes, numbered from 1."),
+    200: json(
+      envelopeOf(
+        z.array(SeasonEpisodeSchema),
+        CountMetaSchema.extend({
+          anime_id: z.string(),
+          season_id: z.string()
+        })
+      ),
+      "The season's episodes, numbered from 1."
+    ),
     404: problem("No such season in this title.")
   }
 });
@@ -175,7 +201,7 @@ export const listGenres = createRoute({
   tags: ["Anime"],
   summary: "List genres",
   responses: {
-    200: json(itemsOf(z.string()), "Genre names accepted by `browseSeries`.")
+    200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Genre names accepted by `browseSeries`.")
   }
 });
 
@@ -201,7 +227,16 @@ export const getSchedule = createRoute({
     })
   },
   responses: {
-    200: json(itemsOf(ScheduledEpisodeSchema), "Scheduled episodes."),
+    200: json(
+      envelopeOf(
+        z.array(ScheduledEpisodeSchema),
+        CountMetaSchema.extend({
+          from: z.string(),
+          until: z.string()
+        })
+      ),
+      "Scheduled episodes, and the window they air in."
+    ),
     422: problem("The window is invalid or longer than 14 days.")
   }
 });
@@ -209,7 +244,7 @@ export const getSchedule = createRoute({
 export const getPlayback = createRoute({
   operationId: "getPlayback",
   method: "get",
-  path: "/anime/{animeId}/seasons/{seasonId}/episodes/{episode}/playback",
+  path: "/anime/{anime_id}/seasons/{season_id}/episodes/{episode}/playback",
   tags: ["Playback"],
   summary: "Get everything needed to play an episode",
   description:
@@ -218,7 +253,16 @@ export const getPlayback = createRoute({
     params: EpisodeParams
   },
   responses: {
-    200: json(PlaybackSchema, "Streams and skip segments for every version of the episode."),
+    200: json(
+      envelopeOf(
+        z.array(PlaybackMediaSchema).openapi({
+          description:
+            "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has subtitles: as tracks, or burned into the picture when `hardsub` is true. Dub and raw have none."
+        }),
+        PlaybackMetaSchema
+      ),
+      "Streams and skip segments for every version of the episode."
+    ),
     404: problem("No such season or episode in this title, or nothing streams it."),
     502: problem("Providers list the episode but none can stream it right now.")
   }
