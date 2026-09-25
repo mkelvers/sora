@@ -62,7 +62,7 @@ function useProviders(list: FakeProvider[]) {
                         url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
                         language: "en",
                         label: "English",
-                        format: null
+                        format: "vtt"
                       },
                       {
                         url: `https://${fake.id}.example/pt.vtt`,
@@ -110,8 +110,13 @@ mock.module("../providers/registry", () => ({
   isServedSubtitle: (track: { language: string }) => track.language === "en",
   streamProviders
 }));
+/** Segment start times `segmentStarts` hands out, by playlist URL. */
+const timelines = new Map<string, number[]>();
+
 mock.module("../proxy/proxy", () => ({
-  createStreamToken: (url: string) => `token:${url}`,
+  createStreamToken: (url: string, _kind: string, _headers: unknown, options?: { shifts?: unknown }) =>
+    options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`,
+  segmentStarts: async (url: string) => timelines.get(url) ?? [],
   canFetchStream: async (url: string) => !url.includes(".unreachable."),
   tokenLifetimeMs: 6 * 60 * 60 * 1_000
 }));
@@ -142,9 +147,21 @@ async function resolvedVersions() {
   return playback.media.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
 }
 
+/** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
+function boundaries(seed: number) {
+  const times = [0];
+  let state = seed;
+  for (let index = 1; index < 300; index++) {
+    state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
+    times.push(times.at(-1)! + 1 + (state % 9_000) / 1_000);
+  }
+  return times;
+}
+
 beforeEach(() => {
   resolved.length = 0;
   offered = [];
+  timelines.clear();
 });
 
 describe("resolvePlayback", () => {
@@ -367,6 +384,41 @@ describe("resolvePlayback", () => {
     offered = [dub(), sub()];
 
     expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
+  });
+
+  test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"]
+      }
+    ]);
+    offered = [dub(), sub()];
+    const subTimeline = boundaries(1);
+    timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
+    timelines.set("https://anikoto.example/dub.m3u8", subTimeline.map((time) => time + 2));
+
+    const [dubbed] = (await resolvePlayback(request, options)).media;
+    expect(dubbed?.audio).toBe("dub");
+    expect(dubbed?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
+      'https://sora.example/v1/streams/token:https://anikoto.example/en.vtt@[{"from":0,"offset":2}]'
+    ]);
+  });
+
+  test("gives a dub no subtitles when its encode does not align with the sub's", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"]
+      }
+    ]);
+    offered = [dub(), sub()];
+    timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
+    timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
+
+    expect((await resolvePlayback(request, options)).media[0]?.subtitles).toEqual([]);
   });
 
   test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {
