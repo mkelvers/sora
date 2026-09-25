@@ -4,16 +4,34 @@
  * @packageDocumentation
  */
 export { SoraError } from "./error";
-export { Sora, type BrowseFilters, type RequestOptions, type SoraOptions } from "./sora";
+export {
+  SoraClient,
+  type BrowseParams,
+  type EpisodeRef,
+  type RequestOptions,
+  type Returned,
+  type ScheduleParams,
+  type SeasonRef,
+  type SeriesOf,
+  type SeriesParams,
+  type SoraClientOptions
+} from "./sora";
 export type {
+  CountMeta,
   Envelope,
   PageMeta,
   PlaybackMedia,
   PlaybackMeta,
   ScheduledEpisode,
+  ScheduleMeta,
   Season,
   SeasonEpisode,
+  SeasonEpisodesMeta,
+  SeasonMeta,
+  SeasonWithEpisodes,
   Series,
   SeriesCard,
+  SeriesMeta,
+  SeriesWithEpisodes,
   SkipSegment
 } from "@sora/api";

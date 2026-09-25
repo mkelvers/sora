@@ -116,6 +116,27 @@ export async function getSeason(seriesId: string, seasonId: string): Promise<Sea
   return season;
 }
 
+/**
+ * Finds the series a season belongs to, for routes that address a season
+ * without its series.
+ *
+ * @throws {@link SeasonNotFoundError} when the season does not exist.
+ */
+export async function getSeasonSeriesId(seasonId: string): Promise<string> {
+  const [season] = await db
+    .select({
+      seriesId: seriesSeason.seriesId
+    })
+    .from(seriesSeason)
+    .where(eq(seriesSeason.id, seasonId))
+    .limit(1);
+  if (!season) {
+    throw new SeasonNotFoundError(seasonId);
+  }
+
+  return season.seriesId;
+}
+
 /** An episode, by its season and its position in it. */
 export interface EpisodeAddress {
   seasonId: string;
