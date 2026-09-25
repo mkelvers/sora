@@ -25,9 +25,9 @@ const providerHttp = new HttpClient({
 const mappingClient = new MappingClient(providerHttp);
 
 /**
- * The only language Sora serves: dubs in English, and English subtitles.
- * Providers in other locales are never used, and other subtitle tracks are
- * dropped.
+ * The only locale Sora serves: dubs in English, and subs that always have
+ * English subtitles. Providers in other locales are never used; a sub's
+ * tracks in other languages are kept alongside the English ones.
  */
 export const servedLocale = "en";
 

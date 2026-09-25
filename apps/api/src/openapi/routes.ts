@@ -383,7 +383,7 @@ export const getPlayback = createRoute({
       envelopeOf(
         z.array(PlaybackMediaSchema).openapi({
           description:
-            "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out, and subtitles are English only. A sub always has subtitles: as tracks, or burned into the picture when `hardsub` is true. Dub and raw have none."
+            "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out. A sub carries every subtitle language its provider has, English first, and always has English: as a track, or burned into the picture when `hardsub` is true. Dub and raw have none."
         }),
         PlaybackMetaSchema
       ),
