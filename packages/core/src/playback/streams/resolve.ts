@@ -8,7 +8,7 @@ import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
 import { skipSegmentsOf, type SkipSegment } from "../providers/megaplay";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
-import { createStreamToken } from "../proxy/proxy";
+import { createStreamToken, tokenLifetimeMs } from "../proxy/proxy";
 
 /** One way to play an episode. */
 export interface PlaybackSource {
@@ -61,6 +61,8 @@ export interface Playback {
   seasonId: string;
   /** Position within the season, from 1. */
   episode: number;
+  /** When the stream URLs stop working, as an ISO 8601 timestamp. */
+  expiresAt: string;
   /**
    * Every version a provider can stream right now: dub before sub before
    * raw, so the first is the one to play by default.
@@ -141,6 +143,8 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
   }
 
   const { animeId, seasonId, episode } = parsed.data;
+  // Taken before any token is made, so every token outlives it.
+  const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
   const located = await locateEpisode(seasonId, episode, animeId);
   const anime = await getAnime(located.anilistId);
   const offered = await getEpisodeVersions(located);
@@ -166,6 +170,7 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
       animeId,
       seasonId,
       episode,
+      expiresAt,
       media
     };
   }

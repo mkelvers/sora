@@ -114,7 +114,8 @@ mock.module("../providers/registry", () => ({
   streamProviders
 }));
 mock.module("../proxy/proxy", () => ({
-  createStreamToken: (url: string) => `token:${url}`
+  createStreamToken: (url: string) => `token:${url}`,
+  tokenLifetimeMs: 6 * 60 * 60 * 1_000
 }));
 mock.module("../providers/megaplay", () => ({
   skipSegmentsOf: (resolved: { skipSegments?: SkipSegment[] }) => resolved.skipSegments ?? []
@@ -173,6 +174,22 @@ describe("resolvePlayback", () => {
       seasonId: "season",
       episode: 3
     });
+  });
+
+  test("says when its stream URLs expire", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    const before = Date.now();
+    const { expiresAt } = await resolvePlayback(request, options);
+    expect(Date.parse(expiresAt) - before).toBeGreaterThanOrEqual(6 * 60 * 60 * 1_000);
+    expect(Date.parse(expiresAt) - Date.now()).toBeLessThanOrEqual(6 * 60 * 60 * 1_000);
   });
 
   test("gives each version the skip segments of its own stream", async () => {
