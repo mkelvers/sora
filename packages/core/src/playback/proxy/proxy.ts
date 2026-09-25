@@ -1,7 +1,9 @@
 import { config } from "../../config";
 import { hour } from "../../time";
+import type { TimelineShift } from "../streams/align";
 import { rewritePlaylist } from "./playlist";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
+import { retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken, type StreamTarget, type StreamTargetKind } from "./token";
 import { fetchUpstream, mirrorsFor, StreamUpstreamError, type Upstream } from "./upstream";
 
@@ -21,13 +23,19 @@ const maximumPlaylistBytes = 4 * 1_024 * 1_024;
  *
  * Clients never see upstream headers; the proxy applies them.
  */
-export function createStreamToken(url: string, kind: StreamTargetKind, headers: Record<string, string>, mirrors: string[] = []) {
+export function createStreamToken(
+  url: string,
+  kind: StreamTargetKind,
+  headers: Record<string, string>,
+  { mirrors = [], shifts }: { mirrors?: string[]; shifts?: TimelineShift[] } = {}
+) {
   return signStreamTarget(
     {
       url,
       kind,
       headers,
       mirrors,
+      shifts,
       expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000)
     },
     config.streamSigningSecret
@@ -46,6 +54,33 @@ export async function canFetchStream(url: string, headers: Record<string, string
     }
     throw cause;
   }
+}
+
+/**
+ * The start time of every segment of an HLS stream, in seconds; the first
+ * variant's for a multivariant playlist.
+ *
+ * @throws {@link StreamUpstreamError} when a playlist cannot be fetched.
+ */
+export async function segmentStarts(url: string, headers: Record<string, string>) {
+  const target = { url, kind: "playlist" as const, headers, mirrors: [], expiresAt: 0 };
+  let upstream = await fetchUpstream(target, null);
+  let content = await upstream.response.text();
+
+  const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*([^#\s][^\n]*)/.exec(content)?.[1];
+  if (variant) {
+    const variantUrl = new URL(variant.trim(), upstream.url).toString();
+    upstream = await fetchUpstream({ ...target, url: variantUrl, mirrors: mirrorsFor(variantUrl, upstream.url) }, null);
+    content = await upstream.response.text();
+  }
+
+  const starts: number[] = [];
+  let elapsed = 0;
+  for (const [, duration] of content.matchAll(/^#EXTINF:([\d.]+)/gm)) {
+    starts.push(elapsed);
+    elapsed += Number(duration);
+  }
+  return starts;
 }
 
 /**
@@ -74,6 +109,16 @@ export async function proxyStream(
     return playlistResponse(target, upstream);
   }
 
+  if (target.kind === "subtitle" && target.shifts) {
+    return new Response(retimeWebVtt(await upstream.response.text(), target.shifts), {
+      status: 200,
+      headers: {
+        "Content-Type": "text/vtt; charset=utf-8",
+        "Cache-Control": "private, max-age=3600"
+      }
+    });
+  }
+
   const headers = new Headers({
     "Cache-Control": "private, max-age=3600"
   });
@@ -89,6 +134,11 @@ export async function proxyStream(
   const contentType = headers.get("Content-Type");
   if (target.kind === "segment" && contentType && /^(image|text)\//i.test(contentType)) {
     headers.set("Content-Type", "video/mp2t");
+  }
+
+  // Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
+  if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
+    headers.set("Content-Type", "text/vtt; charset=utf-8");
   }
 
   // A ranged response cannot be unwrapped without breaking its byte offsets.

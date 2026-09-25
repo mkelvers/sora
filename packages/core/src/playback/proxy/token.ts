@@ -3,13 +3,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { InvalidStreamTokenError } from "../../errors";
+import type { TimelineShift } from "../streams/align";
 
 /**
  * What the proxy should expect behind a token.
  *
  * - `playlist`: an HLS playlist whose URIs are rewritten to new tokens.
  * - `segment`: a media segment or initialization section, streamed through.
- * - `subtitle`: a subtitle file, streamed through.
+ * - `subtitle`: a subtitle file, streamed through, or retimed by `shifts`.
  * - `key`: an HLS decryption key, streamed through.
  * - `file`: a progressive (non-HLS) video file, streamed with range support.
  */
@@ -25,6 +26,8 @@ export interface StreamTarget {
   mirrors: string[];
   /** Unix time in seconds after which the token is rejected. */
   expiresAt: number;
+  /** For a subtitle made for another encode, how to move its cues onto this one. */
+  shifts?: TimelineShift[];
 }
 
 const StreamTargetSchema = z.object({
@@ -38,7 +41,8 @@ const StreamTargetSchema = z.object({
       protocol: /^https?$/
     })
   ),
-  e: z.number().int().positive()
+  e: z.number().int().positive(),
+  t: z.array(z.tuple([z.number(), z.number()])).optional()
 });
 
 /**
@@ -55,7 +59,8 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
       k: target.kind,
       h: target.headers,
       m: target.mirrors,
-      e: target.expiresAt
+      e: target.expiresAt,
+      t: target.shifts?.map(({ from, offset }) => [from, offset])
     })
   ).toString("base64url");
 
@@ -101,7 +106,8 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
     kind: parsed.data.k,
     headers: parsed.data.h,
     mirrors: parsed.data.m,
-    expiresAt: parsed.data.e
+    expiresAt: parsed.data.e,
+    shifts: parsed.data.t?.map(([from, offset]) => ({ from, offset }))
   };
 }
 

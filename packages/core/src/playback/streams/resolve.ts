@@ -8,8 +8,9 @@ import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
 import type { ContentLanguage } from "../../series/models";
 import type { ProviderVideo, SkipSegment, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
-import { canFetchStream, createStreamToken, tokenLifetimeMs } from "../proxy/proxy";
-import { mirrorsFor } from "../proxy/upstream";
+import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
+import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
+import { alignTimelines, type TimelineShift } from "./align";
 
 /** One way to play an episode. */
 export interface PlaybackSource {
@@ -48,7 +49,8 @@ export interface PlaybackMedia {
   sources: PlaybackSource[];
   /**
    * Every subtitle track of a sub, English first. A hardsub may still carry
-   * tracks in other languages. Always empty for dub and raw.
+   * tracks in other languages. A dub carries the sub's WebVTT tracks, retimed
+   * to its encode, when the two align. Always empty for raw.
    */
   subtitles: PlaybackSubtitle[];
   /**
@@ -168,6 +170,12 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
       resolveVersion(version, located.anilistEpisode, unitsOf, streamUrl)
     )
   );
+  const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
+  const dub = results.find((result) => result.version?.audio === "dub");
+  if (sub?.videos && dub?.version && dub.videos) {
+    dub.version.subtitles = await subtitlesForDub(sub.videos, dub.videos, streamUrl);
+  }
+
   const media = results.flatMap((result) => (result.version ? [result.version] : []));
   if (media.length > 0) {
     return {
@@ -201,6 +209,8 @@ async function resolveVersion(
   streamUrl: (token: string) => string
 ): Promise<{
   version: PlaybackMedia | null;
+  /** The upstream videos behind `version`. */
+  videos?: ProviderVideo[];
   /** Whether a provider serving the locale lists the episode. */
   listed: boolean;
   attempts: ProviderAttempt[];
@@ -212,7 +222,7 @@ async function resolveVersion(
       reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
     });
   let listed = false;
-  let hardsubbed: PlaybackMedia | null = null;
+  let hardsubbed: { version: PlaybackMedia; videos: ProviderVideo[] } | null = null;
 
   for (const provider of streamProviders) {
     if (provider.locale !== servedLocale || (locale !== null && provider.locale !== locale)) {
@@ -245,8 +255,8 @@ async function resolveVersion(
         provider: provider.id,
         hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
         sources: media.sources,
-        // Providers hand a dub the sub's subtitles: a translation of the
-        // Japanese dialogue, which does not match the English audio.
+        // Providers hand a dub the sub's subtitles timed to the sub's encode;
+        // resolvePlayback retimes them to the dub's once both are resolved.
         subtitles: language === "sub" ? media.subtitles : [],
         skipSegments: stream.skipSegments
       };
@@ -256,12 +266,13 @@ async function resolveVersion(
       // first, and this one is kept to fall back on.
       if (version.hardsub) {
         fail(provider, "Subtitles are burned in");
-        hardsubbed ??= version;
+        hardsubbed ??= { version, videos: stream.videos };
         continue;
       }
 
       return {
         version,
+        videos: stream.videos,
         listed,
         attempts
       };
@@ -271,13 +282,41 @@ async function resolveVersion(
   }
 
   return {
-    version: hardsubbed,
+    ...hardsubbed,
+    version: hardsubbed?.version ?? null,
     listed,
     attempts
   };
 }
 
-function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => string) {
+/**
+ * The sub's WebVTT subtitles moved onto the dub's timeline, found by aligning
+ * the two encodes' segment boundaries (see {@link alignTimelines}). Empty when
+ * either is not HLS, a playlist cannot be read, or the encodes do not align.
+ */
+async function subtitlesForDub(sub: ProviderVideo[], dub: ProviderVideo[], streamUrl: (token: string) => string) {
+  const subVideo = sub.find((video) => video.format === "hls");
+  const dubVideo = dub.find((video) => video.format === "hls");
+  if (!subVideo || !dubVideo) {
+    return [];
+  }
+
+  try {
+    const [from, onto] = await Promise.all([
+      segmentStarts(subVideo.url, subVideo.headers),
+      segmentStarts(dubVideo.url, dubVideo.headers)
+    ]);
+    const shifts = alignTimelines(from, onto);
+    return shifts ? toPlaybackMedia(sub, streamUrl, shifts).subtitles.filter((track) => track.format === "vtt") : [];
+  } catch (cause) {
+    if (cause instanceof StreamUpstreamError) {
+      return [];
+    }
+    throw cause;
+  }
+}
+
+function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => string, shifts?: TimelineShift[]) {
   const sources = [...videos]
     .sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
     .map((video) => ({
@@ -292,7 +331,9 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
     for (const track of video.subtitles) {
       if (!subtitles.has(track.url)) {
         subtitles.set(track.url, {
-          url: streamUrl(createStreamToken(track.url, "subtitle", video.headers, mirrorsFor(track.url, video.url))),
+          url: streamUrl(
+            createStreamToken(track.url, "subtitle", video.headers, { mirrors: mirrorsFor(track.url, video.url), shifts })
+          ),
           language: track.language,
           label: languageName(track.language) ?? track.label,
           format: track.format
