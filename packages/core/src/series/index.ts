@@ -11,6 +11,7 @@
  *
  * @packageDocumentation
  */
+export { setSeriesArtwork, type ArtworkChanges } from "./artwork";
 export type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
 export {
   browseSeries,

@@ -63,6 +63,14 @@ export const series = pgTable("series", {
   posterUrl: text("poster_url"),
   backdropUrl: text("backdrop_url"),
   logoUrl: text("logo_url"),
+  /**
+   * Artwork someone chose in place of the laid-out poster, backdrop, or
+   * logo; null keeps the laid-out one. Laying the series out again never
+   * writes these, so a choice outlives it.
+   */
+  posterUrlOverride: text("poster_url_override"),
+  backdropUrlOverride: text("backdrop_url_override"),
+  logoUrlOverride: text("logo_url_override"),
   /** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
   startDate: text("start_date"),
   /** The series as a whole: airing while any of its entries airs. */

@@ -511,15 +511,15 @@ async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
   return [...cards.values()];
 }
 
-/** Builds a card from a stored series row. */
+/** Builds a card from a stored series row, with any artwork chosen over the laid-out one. */
 export function toSeriesCard(row: typeof series.$inferSelect): SeriesCard {
   return {
     id: row.id,
     kind: row.kind,
     title: row.title,
-    posterUrl: row.posterUrl,
-    backdropUrl: row.backdropUrl,
-    logoUrl: row.logoUrl,
+    posterUrl: row.posterUrlOverride ?? row.posterUrl,
+    backdropUrl: row.backdropUrlOverride ?? row.backdropUrl,
+    logoUrl: row.logoUrlOverride ?? row.logoUrl,
     year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
     status: row.status
   };
