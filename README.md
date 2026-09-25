@@ -23,12 +23,25 @@ TV apps all talk to.
 ```ts
 import { SoraClient } from "@sora/sdk";
 
-const sora = new SoraClient({ baseUrl: "http://localhost:3000" });
+const sora = new SoraClient({
+  baseUrl: "http://localhost:3000"
+});
 
 const [result] = await sora.search("Frieren");
-const series = await sora.series(result.id, { params: { episodes: true } });
+
+const series = await sora.series(result.id, {
+  params: {
+    episodes: true
+  }
+});
+
 const season = series.seasons[0];
-const media = await sora.playback({ seasonId: season.id, number: season.episodes[0].number });
+const episode = season.episodes[0];
+
+const media = await sora.playback({
+  seasonId: season.id,
+  number: episode.number
+});
 ```
 
 The SDK's types are derived from the API itself, so a route change that breaks a
