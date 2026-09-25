@@ -5,7 +5,9 @@ import { browseAnime, BrowseQuerySchema, type BrowseQuery, type Page } from "../
 import { hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
+import { getStoredUnits } from "../playback/episodes/episodes";
 import { findEpisodeListings } from "../playback/episodes/versions";
+import { aniKoto } from "../playback/providers/registry";
 import {
   AnimeNotFoundError,
   InvalidInputError,
@@ -209,7 +211,8 @@ export async function getAdjacentEpisodes(
 
 /**
  * Lists a season's episodes, numbered from 1, with the audio each can
- * be watched in and whether each is filler.
+ * be watched in and whether each is filler. An episode neither TMDB nor
+ * AniKoto lists is left out.
  *
  * Both come from providers' episode lists. The first listing of an anime
  * no provider has been looked up for yet looks it up and stores the lists;
@@ -228,20 +231,30 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
     .where(eq(seriesEpisode.seasonId, seasonId))
     .orderBy(asc(seriesEpisode.number));
 
-  const listings = await findEpisodeListings(
-    rows.flatMap((row) =>
-      row.anilistId !== null && row.anilistEpisode !== null
-        ? [
-            {
-              anilistId: row.anilistId,
-              episode: row.anilistEpisode
-            }
-          ]
-        : []
-    )
+  const anilistEpisodes = rows.flatMap((row) =>
+    row.anilistId !== null && row.anilistEpisode !== null
+      ? [
+          {
+            anilistId: row.anilistId,
+            episode: row.anilistEpisode
+          }
+        ]
+      : []
+  );
+  const [listings, onAniKoto] = await Promise.all([
+    findEpisodeListings(anilistEpisodes),
+    aniKotoEpisodes(anilistEpisodes.map(({ anilistId }) => anilistId))
+  ]);
+
+  // An episode TMDB does not list, such as one AniList counts ahead of its
+  // announcement, is shown only once AniKoto streams it.
+  const shown = rows.filter(
+    (row) =>
+      row.tmdbEpisodeNumber !== null ||
+      (row.anilistId !== null && row.anilistEpisode !== null && onAniKoto.has(anilistEpisodeKey(row.anilistId, row.anilistEpisode)))
   );
 
-  return rows.map((row) => {
+  return shown.map((row) => {
     const listing =
       row.anilistId !== null && row.anilistEpisode !== null
         ? listings.get(anilistEpisodeKey(row.anilistId, row.anilistEpisode))
@@ -259,6 +272,16 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
       extra: row.anilistId === null
     };
   });
+}
+
+/** The episodes AniKoto's stored lists carry, keyed by {@link anilistEpisodeKey}. */
+async function aniKotoEpisodes(anilistIds: readonly number[]): Promise<Set<string>> {
+  const stored = await getStoredUnits(anilistIds);
+  return new Set(
+    stored
+      .filter((entry) => entry.provider === aniKoto.id)
+      .flatMap((entry) => entry.units.map((unit) => anilistEpisodeKey(entry.anilistId, unit.number)))
+  );
 }
 
 /**
