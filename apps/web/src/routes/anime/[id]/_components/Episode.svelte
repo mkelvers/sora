@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
 	import type { SeasonEpisode } from '@sora/sdk';
 
 	type Props = {
@@ -7,8 +6,6 @@
 	};
 
 	let { episode }: Props = $props();
-
-	let open = $state(false);
 </script>
 
 <li>
@@ -20,53 +17,37 @@
 
 	<div class="text">
 		<h2>{episode.number}. {episode.title ?? `Episode ${episode.number}`}</h2>
-		{#if episode.runtime_minutes}
-			<small>{episode.runtime_minutes}m</small>
-		{/if}
+		<small>
+			{#if episode.runtime_minutes}
+				<span>{episode.runtime_minutes}m</span>
+			{/if}
+			{#if episode.air_date}
+				<span>
+					{new Date(episode.air_date).toLocaleDateString('en-GB', {
+						day: 'numeric',
+						month: 'long',
+						year: 'numeric',
+						timeZone: 'UTC'
+					})}
+				</span>
+			{/if}
+			{#if episode.audio?.length}
+				<span class="audio">{episode.audio.join(', ')}</span>
+			{/if}
+			{#if episode.filler}
+				<span>Filler</span>
+			{/if}
+		</small>
 		{#if episode.overview}
 			<p>{episode.overview}</p>
 		{/if}
-
-		{#if open}
-			<dl id="info-{episode.number}">
-				{#if episode.air_date}
-					<dt>Aired</dt>
-					<dd>
-						{new Date(episode.air_date).toLocaleDateString('en-GB', {
-							day: 'numeric',
-							month: 'long',
-							year: 'numeric',
-							timeZone: 'UTC'
-						})}
-					</dd>
-				{/if}
-				{#if episode.audio?.length}
-					<dt>Audio</dt>
-					<dd class="audio">{episode.audio.join(', ')}</dd>
-				{/if}
-				{#if episode.filler}
-					<dt>Filler</dt>
-					<dd>Not in the manga</dd>
-				{/if}
-			</dl>
-		{/if}
 	</div>
-
-	<button
-		aria-label="Details"
-		title="Details"
-		aria-expanded={open}
-		aria-controls="info-{episode.number}"
-		onclick={() => (open = !open)}
-	>
-		<Icon name="info" />
-	</button>
 </li>
 
 <style>
 	li {
 		display: grid;
-		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr) auto;
+		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
 		padding: 4px 0;
@@ -109,60 +90,19 @@
 		line-height: 1.45;
 	}
 
-	dl {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 4px 16px;
-		margin: 12px 0 0;
-		padding: 12px 14px;
-		background: #1f1f1f;
-		font-size: 13px;
-	}
-
-	dt {
-		color: #999;
-	}
-
-	dd {
-		margin: 0;
+	span + span::before {
+		content: '·';
+		margin: 0 6px;
 	}
 
 	.audio {
 		text-transform: capitalize;
 	}
 
-	button {
-		display: inline-grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		border: none;
-		border-radius: 50%;
-		background: none;
-		color: #ddd;
-		cursor: pointer;
-	}
-
-	button:hover {
-		background: rgb(255 255 255 / 0.1);
-		color: #fff;
-	}
-
-	button:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
-	}
-
 	@media (max-width: 720px) {
 		li {
 			grid-template-columns: 140px minmax(0, 1fr);
 			gap: 12px;
-		}
-
-		button {
-			grid-column: 2;
-			margin-left: -10px;
 		}
 	}
 </style>

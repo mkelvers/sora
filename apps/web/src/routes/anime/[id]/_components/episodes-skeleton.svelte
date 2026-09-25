@@ -27,7 +27,7 @@
 
 	li {
 		display: grid;
-		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr) 40px;
+		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
 		padding: 4px 0;
