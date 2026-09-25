@@ -21,6 +21,7 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
-		"@sora/sdk": "workspace:*"
+		"@sora/sdk": "workspace:*",
+		"zod": "^4.6.5"
 	}
 }
