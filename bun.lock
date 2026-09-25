@@ -11,7 +11,7 @@
         "typescript": "^7",
       },
     },
-    "packages/api": {
+    "apps/api": {
       "name": "@sora/api",
       "version": "0.0.1",
       "dependencies": {
@@ -22,6 +22,31 @@
       },
       "devDependencies": {
         "@types/bun": "^1.4.2",
+      },
+    },
+    "apps/scheduler": {
+      "name": "@sora/scheduler",
+      "version": "0.0.1",
+      "dependencies": {
+        "@sora/core": "workspace:*",
+      },
+    },
+    "apps/web": {
+      "name": "web",
+      "version": "0.0.1",
+      "dependencies": {
+        "@sora/sdk": "workspace:*",
+        "class-variance-authority": "^0.7.1",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@sveltejs/adapter-auto": "^7.0.1",
+        "@sveltejs/kit": "^2.63.0",
+        "@sveltejs/vite-plugin-svelte": "^7.1.2",
+        "svelte": "^5.56.1",
+        "svelte-check": "^4.6.0",
+        "typescript": "^6.0.3",
+        "vite": "^8.0.16",
       },
     },
     "packages/core": {
@@ -43,13 +68,6 @@
         "graphql": "^17.0.2",
       },
     },
-    "packages/scheduler": {
-      "name": "@sora/scheduler",
-      "version": "0.0.1",
-      "dependencies": {
-        "@sora/core": "workspace:*",
-      },
-    },
     "packages/sdk": {
       "name": "@sora/sdk",
       "version": "0.0.1",
@@ -60,24 +78,6 @@
         "@sora/api": "workspace:*",
         "@sora/core": "workspace:*",
         "@types/bun": "^1.4.2",
-      },
-    },
-    "packages/web": {
-      "name": "web",
-      "version": "0.0.1",
-      "dependencies": {
-        "@sora/sdk": "workspace:*",
-        "class-variance-authority": "^0.7.1",
-        "zod": "^4.6.5",
-      },
-      "devDependencies": {
-        "@sveltejs/adapter-auto": "^7.0.1",
-        "@sveltejs/kit": "^2.63.0",
-        "@sveltejs/vite-plugin-svelte": "^7.1.2",
-        "svelte": "^5.56.1",
-        "svelte-check": "^4.6.0",
-        "typescript": "^6.0.3",
-        "vite": "^8.0.16",
       },
     },
   },
@@ -354,11 +354,11 @@
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
-    "@sora/api": ["@sora/api@workspace:packages/api"],
+    "@sora/api": ["@sora/api@workspace:apps/api"],
 
     "@sora/core": ["@sora/core@workspace:packages/core"],
 
-    "@sora/scheduler": ["@sora/scheduler@workspace:packages/scheduler"],
+    "@sora/scheduler": ["@sora/scheduler@workspace:apps/scheduler"],
 
     "@sora/sdk": ["@sora/sdk@workspace:packages/sdk"],
 
@@ -914,7 +914,7 @@
 
     "vitefu": ["vitefu@1.1.3", "", { "peerDependencies": { "vite": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0" }, "optionalPeers": ["vite"] }, "sha512-ub4okH7Z5KLjb6hDyjqrGXqWtWvoYdU3IGm/NorpgHncKoLTCfRIbvlhBm7r0YstIaQRYlp4yEbFqDcKSzXSSg=="],
 
-    "web": ["web@workspace:packages/web"],
+    "web": ["web@workspace:apps/web"],
 
     "web-streams-polyfill": ["web-streams-polyfill@3.3.3", "", {}, "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="],
 

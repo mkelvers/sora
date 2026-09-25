@@ -52,15 +52,20 @@ const media = await sora.playback({
 The SDK's types are derived from the API itself, so a route change that breaks a
 client fails type-checking here, before it ships.
 
+## Apps
+
+| App                                  | What it does                                                          |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| [`@sora/api`](apps/api)              | HTTP API under `/v1`, with an OpenAPI document and `/health`          |
+| [`@sora/scheduler`](apps/scheduler)  | Follows airing anime and stores new episodes once a provider has them |
+| [`web`](apps/web)                    | SvelteKit web app                                                     |
+
 ## Packages
 
-| Package                                 | What it does                                                          |
-| --------------------------------------- | --------------------------------------------------------------------- |
-| [`@sora/api`](packages/api)             | HTTP API under `/v1`, with an OpenAPI document and `/health`          |
-| [`@sora/core`](packages/core)           | Catalog, playback providers, database schema, and migrations          |
-| [`@sora/scheduler`](packages/scheduler) | Follows airing anime and stores new episodes once a provider has them |
-| [`@sora/sdk`](packages/sdk)             | Typed client for the API                                              |
-| [`web`](packages/web)                   | SvelteKit web app, as a submodule                                     |
+| Package                         | What it does                                                 |
+| ------------------------------- | ------------------------------------------------------------ |
+| [`@sora/core`](packages/core)   | Catalog, playback providers, database schema, and migrations |
+| [`@sora/sdk`](packages/sdk)     | Typed client for the API                                     |
 
 ## Getting started
 
@@ -74,6 +79,7 @@ bun run --filter @sora/core db:migrate
 
 bun run --filter @sora/api dev                    # API on :3000
 bun run --filter @sora/scheduler start            # background jobs
+bun run --filter web dev                          # web app on :5173
 ```
 
 The API's OpenAPI document is served at
