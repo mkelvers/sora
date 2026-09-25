@@ -1,4 +1,4 @@
-import { index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { bigint, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 import { jsonb, timestamptz } from "./columns";
 
@@ -84,5 +84,48 @@ export const anikotoSeries = pgTable(
   (table) => [
     index("anikoto_series_anilist_id_idx").on(table.anilistId),
     index("anikoto_series_mal_id_idx").on(table.malId)
+  ]
+);
+
+/**
+ * How each provider's calls went, per operation and hour. Every call through
+ * the provider interface is counted, including the ones playback falls
+ * through silently, so a provider that stops working shows up here.
+ *
+ * `empty` counts calls that returned nothing without failing: no match, or
+ * no episodes. A scraper whose site changed often returns nothing rather
+ * than throwing, so a jump in `empty` is as telling as one in `failed`.
+ *
+ * Rows older than a month are pruned by the scheduler.
+ */
+export const providerCalls = pgTable(
+  "provider_calls",
+  {
+    provider: text("provider").notNull(),
+    /** The provider interface method, such as `resolve_stream`. */
+    operation: text("operation").notNull(),
+    /** Start of the hour the calls began in. */
+    hour: timestamptz("hour").notNull(),
+    ok: integer("ok").notNull().default(0),
+    empty: integer("empty").notNull().default(0),
+    failed: integer("failed").notNull().default(0),
+    /** Time spent in every call of the hour, for average latency. */
+    durationMs: bigint("duration_ms", {
+      mode: "number"
+    })
+      .notNull()
+      .default(0),
+    lastError: text("last_error"),
+    lastErrorAt: timestamptz("last_error_at")
+  },
+  (table) => [
+    primaryKey({
+      columns: [
+        table.provider,
+        table.operation,
+        table.hour
+      ]
+    }),
+    index("provider_calls_hour_idx").on(table.hour)
   ]
 );
