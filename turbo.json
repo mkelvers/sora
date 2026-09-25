@@ -1,0 +1,23 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["tsconfig.json"],
+  "tasks": {
+    "dev": {
+      "dependsOn": ["^db:migrate"],
+      "persistent": true,
+      "cache": false
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".svelte-kit/output/**"]
+    },
+    "check": {},
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
+    "db:migrate": {
+      "cache": false
+    }
+  }
+}

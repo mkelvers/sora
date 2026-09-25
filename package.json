@@ -2,16 +2,20 @@
   "name": "sora",
   "type": "module",
   "private": true,
+  "packageManager": "bun@1.4.2",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "check": "bun run --filter '*' check",
-    "test": "bun run --filter '*' test"
+    "dev": "docker compose up -d --wait && turbo run dev",
+    "build": "turbo run build",
+    "check": "turbo run check",
+    "test": "turbo run test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "turbo": "^2.11.4"
   },
   "peerDependencies": {
     "typescript": "^7"
