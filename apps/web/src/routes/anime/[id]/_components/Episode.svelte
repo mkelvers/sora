@@ -2,62 +2,98 @@
 	import type { SeasonEpisode } from '@sora/sdk';
 
 	type Props = {
+		seriesId: string;
+		seasonId: string;
 		episode: SeasonEpisode;
 		now: Date;
 	};
 
-	let { episode, now }: Props = $props();
+	let { seriesId, seasonId, episode, now }: Props = $props();
+
+	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
+	const slug = $derived(
+		episode.title
+			?.normalize('NFKD')
+			.toLowerCase()
+			.replace(/[\u0300-\u036f'’]/g, '')
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '') || `episode-${episode.number}`
+	);
 </script>
 
 <li>
-	<div class="still">
-		{#if episode.still_url}
-			<img src={episode.still_url} alt="" loading="lazy" />
-		{/if}
-	</div>
-
-	<div class="text">
-		<h2>{episode.number}. {episode.title ?? `Episode ${episode.number}`}</h2>
-		<div class="meta">
-			{#if episode.runtime_minutes}
-				<span>{episode.runtime_minutes}m</span>
-				<span>
-					Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('en-GB', {
-						hour: '2-digit',
-						minute: '2-digit'
-					})}
-				</span>
-			{/if}
-			{#if episode.air_date}
-				<span>
-					{new Date(episode.air_date).toLocaleDateString('en-GB', {
-						day: 'numeric',
-						month: 'long',
-						year: 'numeric',
-						timeZone: 'UTC'
-					})}
-				</span>
-			{/if}
-			{#each episode.audio ?? [] as audio (audio)}
-				<span class="badge">{audio}</span>
-			{/each}
-			{#if episode.filler}
-				<span class="badge">Filler</span>
+	<svelte:element
+		this={playable ? 'a' : 'div'}
+		class="episode"
+		href={playable ? `/watch/${seriesId}/${seasonId}/${episode.number}/${slug}` : undefined}
+	>
+		<div class="still">
+			{#if episode.still_url}
+				<img src={episode.still_url} alt="" loading="lazy" />
 			{/if}
 		</div>
-		{#if episode.overview}
-			<p>{episode.overview}</p>
-		{/if}
-	</div>
+
+		<div class="text">
+			<h2>{episode.number}. {episode.title ?? `Episode ${episode.number}`}</h2>
+			<div class="meta">
+				{#if episode.runtime_minutes}
+					<span>{episode.runtime_minutes}m</span>
+					<span>
+						Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('en-GB', {
+							hour: '2-digit',
+							minute: '2-digit'
+						})}
+					</span>
+				{/if}
+				{#if episode.air_date}
+					<span>
+						{new Date(episode.air_date).toLocaleDateString('en-GB', {
+							day: 'numeric',
+							month: 'long',
+							year: 'numeric',
+							timeZone: 'UTC'
+						})}
+					</span>
+				{/if}
+				{#each episode.audio ?? [] as audio (audio)}
+					<span class="badge">{audio}</span>
+				{/each}
+				{#if episode.filler}
+					<span class="badge">Filler</span>
+				{/if}
+			</div>
+			{#if episode.overview}
+				<p>{episode.overview}</p>
+			{/if}
+		</div>
+	</svelte:element>
 </li>
 
 <style>
 	li {
+		padding: 2px 0;
+	}
+
+	.episode {
 		display: grid;
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
-		padding: 4px 0;
+		margin: 0 -8px;
+		padding: 8px;
+		border-radius: 6px;
+		color: inherit;
+		text-decoration: none;
+		transition: background 120ms;
+	}
+
+	a.episode:hover {
+		background: rgb(255 255 255 / 0.05);
+	}
+
+	a.episode:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 0;
 	}
 
 	.still {
@@ -125,7 +161,7 @@
 	}
 
 	@media (max-width: 720px) {
-		li {
+		.episode {
 			grid-template-columns: 140px minmax(0, 1fr);
 			gap: 12px;
 		}
