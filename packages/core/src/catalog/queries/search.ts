@@ -1,4 +1,3 @@
-import { diceSimilarity } from "anime-sdk";
 import { and, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
@@ -419,22 +418,67 @@ export function titleScore(query: string, title: string) {
     return 0.85;
   }
 
-  return 0.8 * resemblance(query, titleWords);
+  return 0.8 * resemblance(queryWords, titleWords);
 }
 
 /**
- * How closely a query resembles a title or a run of its words of about the
- * query's length, so a typo in the first words of a long title still counts.
+ * How closely a query resembles a title as a mistyped version of it, from 0
+ * to 1: every query word must be a title word with at most
+ * {@link allowedTypos} letters wrong, or it is 0. Two words run together
+ * count as one, so "rezero" resembles "re zero".
+ *
+ * Whole words are compared, not letter pairs across the title, so a word
+ * that merely shares letters with the query does not match: "frieren" is
+ * three edits from "friend", and finds no title about friends.
  */
-function resemblance(query: string, titleWords: readonly string[]) {
-  const queryWordCount = query.split(" ").length;
-  let best = diceSimilarity(query, titleWords.join(" "));
-  for (let start = 0; start < titleWords.length; start += 1) {
-    const window = titleWords.slice(start, start + queryWordCount).join(" ");
-    best = Math.max(best, diceSimilarity(query, window));
+function resemblance(queryWords: readonly string[], titleWords: readonly string[]) {
+  const titleTokens = [
+    ...titleWords,
+    ...titleWords.slice(1).map((word, index) => `${titleWords[index]}${word}`)
+  ];
+
+  let total = 0;
+  for (const queryWord of queryWords) {
+    const typos = Math.min(...titleTokens.map((token) => editDistance(queryWord, token)));
+    if (typos > allowedTypos(queryWord)) {
+      return 0;
+    }
+
+    total += 1 - typos / queryWord.length;
   }
 
-  return best;
+  return total / queryWords.length;
+}
+
+/**
+ * How many letters of a query word may be wrong: none in a short word, where
+ * one letter makes another word, one in a word of five letters or more, and
+ * two in one of nine or more.
+ */
+function allowedTypos(word: string) {
+  return word.length >= 9 ? 2 : word.length >= 5 ? 1 : 0;
+}
+
+/**
+ * The fewest letters inserted, removed, replaced, or swapped with their
+ * neighbour that turn one word into the other.
+ */
+export function editDistance(left: string, right: string) {
+  const a = [...left];
+  const b = [...right];
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(rows[i - 1]![j]! + 1, rows[i]![j - 1]! + 1, rows[i - 1]![j - 1]! + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, rows[i - 2]![j - 2]! + 1);
+      }
+      rows[i]![j] = best;
+    }
+  }
+
+  return rows[a.length]![b.length]!;
 }
 
 /**

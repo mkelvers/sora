@@ -135,13 +135,19 @@ describe("titleScore", () => {
     const exact = titleScore("one piece", "one piece");
     const prefix = titleScore("one piece", "one piece film red");
     const words = titleScore("one piece", "the one piece");
-    const resembling = titleScore("one pice", "one piece");
+    const resembling = titleScore("one peice", "one piece");
 
     expect(exact).toBe(1);
     expect(prefix).toBeLessThan(exact);
     expect(words).toBeLessThan(prefix);
     expect(resembling).toBeLessThan(words);
     expect(resembling).toBeGreaterThan(0.4);
+  });
+
+  test("does not take a word that merely shares letters with the query for a typo", () => {
+    expect(titleScore("frieren", "one piece episode of merry the tale of one more friend")).toBe(0);
+    expect(titleScore("frieren", "my deer friend nokotan")).toBe(0);
+    expect(titleScore("frieran", "sousou no frieren")).toBeGreaterThan(0.5);
   });
 
   test("matches initials of a title of several words", () => {
