@@ -1,6 +1,7 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
 import { AniKotoStreamProvider } from "./anikoto";
+import { recordingCalls } from "./calls";
 import { MegaPlayStreamProvider } from "./megaplay";
 import type { StreamProvider } from "./provider";
 import { SdkStreamProvider } from "./sdk";
@@ -40,7 +41,8 @@ export function isServedSubtitle(track: { language: string; label: string }) {
  * Every anime stream provider, in the order playback tries them.
  *
  * AniKoto comes first: it has the widest catalogue with sub and dub. Scrapers
- * break without notice, so playback falls through the rest in turn.
+ * break without notice, so playback falls through the rest in turn, and every
+ * call is recorded in `provider_calls` to show when one has broken.
  */
 export const streamProviders: readonly StreamProvider[] = [
   new AniKotoStreamProvider(providerHttp, {
@@ -61,4 +63,4 @@ export const streamProviders: readonly StreamProvider[] = [
     locale: "en",
     listsLanguages: true
   })
-];
+].map((provider) => recordingCalls(provider));
