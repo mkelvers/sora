@@ -1,8 +1,12 @@
-import type { ContentLanguage } from "anime-sdk";
-
 import type { AnimeStatus, AnimeTag } from "../catalog/models/anime";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
+
+/**
+ * How an episode is watched: dubbed audio, the original audio with subtitles
+ * (sub), or the original audio alone (raw).
+ */
+export type ContentLanguage = "sub" | "dub" | "raw";
 
 /**
  * A title for lists, grids, and search results.

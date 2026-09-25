@@ -1,13 +1,12 @@
-import {
-  AnikotoProvider,
-  type CallOptions,
-  type ContentLanguage,
-  type IContentUnit,
-  type ResolvedMediaStream
-} from "anime-sdk";
+import { AnikotoProvider, type HttpClient } from "anime-sdk";
 import { z } from "zod";
 
+import type { Anime } from "../../catalog/models/anime";
+import { findAniKotoSeries, syncAniKotoCatalog } from "./anikoto-catalog";
 import { resolveMegaPlayEmbed } from "./megaplay";
+import type { ContentLanguage } from "../../series/models";
+import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
+import { rawEpisodeId, toProviderEpisode, type ProviderTraits } from "./sdk";
 
 const siteUrl = "https://anikototv.to";
 
@@ -20,10 +19,41 @@ const EpisodeListResponseSchema = z.object({
 });
 
 /**
- * AniKoto with MegaPlay's encrypted source payload handled (see
- * {@link resolveMegaPlayEmbed}) and filler episodes marked.
+ * AniKoto: matched by ID against a mirror of its catalogue (see
+ * {@link findAniKotoSeries}), with filler episodes marked, and streamed
+ * through its MegaPlay player (see {@link resolveMegaPlayEmbed}), which
+ * ships each stream's opening and ending.
  */
-export class AniKotoStreamProvider extends AnikotoProvider {
+export class AniKotoStreamProvider implements StreamProvider {
+  readonly locale: string;
+  readonly listsLanguages: boolean;
+  private readonly sdk: AnikotoProvider;
+
+  constructor(
+    private readonly http: HttpClient,
+    traits: ProviderTraits
+  ) {
+    this.sdk = new AnikotoProvider(http);
+    this.locale = traits.locale;
+    this.listsLanguages = traits.listsLanguages;
+  }
+
+  get id() {
+    return this.sdk.id;
+  }
+
+  async findMedia(anime: Anime): Promise<ProviderMatch | null> {
+    const match = await findAniKotoSeries(this.http, anime);
+    return (
+      match && {
+        mediaId: match.anikotoId,
+        matchedTitle: match.title,
+        method: match.method,
+        episodeOffset: match.episodeOffset
+      }
+    );
+  }
+
   /**
    * Lists the episodes as `anime-sdk` does and marks each one filler or not,
    * which only AniKoto's own episode list says.
@@ -31,26 +61,35 @@ export class AniKotoStreamProvider extends AnikotoProvider {
    * Filler flags are best-effort: when that list cannot be read, the episodes
    * are returned without them.
    */
-  protected override async fetchContentUnitsRaw(mediaId: string, options: CallOptions = {}): Promise<IContentUnit[]> {
+  async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
     const [units, filler] = await Promise.all([
-      super.fetchContentUnitsRaw(mediaId, options),
-      this.fetchFillerEpisodes(mediaId, options).catch(() => null)
+      this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
+      this.fetchFillerEpisodes(mediaId).catch(() => null)
     ]);
 
-    return filler
-      ? units.map((unit) => ({
-          ...unit,
-          isFiller: filler.has(unit.number)
-        }))
-      : units;
+    return units.map((unit) => ({
+      ...toProviderEpisode(unit),
+      isFiller: filler ? filler.has(unit.number) : null
+    }));
   }
 
-  protected override resolveStreamRaw(
-    unitId: string,
-    language: ContentLanguage = "sub",
-    options: CallOptions = {}
-  ): Promise<ResolvedMediaStream> {
-    return resolveMegaPlayEmbed(this.http, this.embedUrl(unitId, language), embedReferer, language, options.signal);
+  resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
+    return resolveMegaPlayEmbed(
+      this.http,
+      `https://megaplay.buzz/stream/s-2/${rawEpisodeId(this.id, episodeId)}/${language}`,
+      embedReferer,
+      language
+    );
+  }
+
+  /**
+   * Mirrors AniKoto's catalogue, which series are matched against. The first
+   * sync, with nothing stored, reads the whole catalogue: about 450 pages at
+   * AniKoto's limit of 60 requests a minute.
+   */
+  async syncCatalog(options: { full: boolean }) {
+    const { pages, stored } = await syncAniKotoCatalog(this.http, options);
+    return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
   }
 
   /**
@@ -61,9 +100,8 @@ export class AniKotoStreamProvider extends AnikotoProvider {
    * @returns Numbers of the filler episodes.
    * @throws when the list cannot be read or lists no episodes.
    */
-  private async fetchFillerEpisodes(mediaId: string, options: CallOptions): Promise<Set<number>> {
+  private async fetchFillerEpisodes(mediaId: string): Promise<Set<number>> {
     const response = await this.http.get(`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`, {
-      signal: options.signal,
       headers: {
         "X-Requested-With": "XMLHttpRequest"
       }
@@ -85,9 +123,5 @@ export class AniKotoStreamProvider extends AnikotoProvider {
     }
 
     return filler;
-  }
-
-  private embedUrl(unitId: string, language: ContentLanguage) {
-    return `https://megaplay.buzz/stream/s-2/${unitId}/${language}`;
   }
 }

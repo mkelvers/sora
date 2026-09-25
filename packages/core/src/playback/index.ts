@@ -19,5 +19,5 @@ export {
   type PlaybackSource,
   type PlaybackSubtitle
 } from "./streams/resolve";
-export type { SkipSegment } from "./providers/megaplay";
+export type { SkipSegment } from "./providers/provider";
 export type { EpisodeVersion } from "./episodes/versions";

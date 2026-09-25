@@ -84,7 +84,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
   let latest: number | null = null;
 
-  for (const { provider } of streamProviders) {
+  for (const provider of streamProviders) {
     try {
       const units = await refreshProviderUnits(anime, provider, {
         retryUnmatched: true

@@ -1,4 +1,3 @@
-import type { BaseProvider, ContentLanguage, IVideoPayload } from "anime-sdk";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -6,7 +5,8 @@ import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError, type
 import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
-import { skipSegmentsOf, type SkipSegment } from "../providers/megaplay";
+import type { ContentLanguage } from "../../series/models";
+import type { ProviderVideo, SkipSegment, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { createStreamToken, tokenLifetimeMs } from "../proxy/proxy";
 
@@ -15,7 +15,7 @@ export interface PlaybackSource {
   /** The stream through the proxy, ready for a player to fetch. */
   url: string;
   format: "hls" | "mp4";
-  quality: IVideoPayload["quality"];
+  quality: StreamQuality;
 }
 
 export interface PlaybackSubtitle {
@@ -103,7 +103,7 @@ const fallbackVersions: readonly EpisodeVersion[] = [
   }
 ];
 
-const qualityRank: Record<IVideoPayload["quality"], number> = {
+const qualityRank: Record<StreamQuality, number> = {
   auto: 0,
   "1080p": 1,
   "720p": 2,
@@ -152,7 +152,7 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
 
   // Versions share each provider's episode list.
   const lists = new Map<string, Promise<ProviderUnit[]>>();
-  const unitsOf = (provider: BaseProvider) => {
+  const unitsOf = (provider: StreamProvider) => {
     const list = lists.get(provider.id) ?? getProviderUnits(anime, provider);
     lists.set(provider.id, list);
     return list;
@@ -193,7 +193,7 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
 async function resolveVersion(
   { language, locale }: EpisodeVersion,
   anilistEpisode: number,
-  unitsOf: (provider: BaseProvider) => Promise<ProviderUnit[]>,
+  unitsOf: (provider: StreamProvider) => Promise<ProviderUnit[]>,
   streamUrl: (token: string) => string
 ): Promise<{
   version: PlaybackMedia | null;
@@ -202,7 +202,7 @@ async function resolveVersion(
   attempts: ProviderAttempt[];
 }> {
   const attempts: ProviderAttempt[] = [];
-  const fail = (provider: BaseProvider, reason: string) =>
+  const fail = (provider: StreamProvider, reason: string) =>
     attempts.push({
       provider: provider.id,
       reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
@@ -210,8 +210,8 @@ async function resolveVersion(
   let listed = false;
   let hardsubbed: PlaybackMedia | null = null;
 
-  for (const { provider, locale: providerLocale } of streamProviders) {
-    if (providerLocale !== servedLocale || (locale !== null && providerLocale !== locale)) {
+  for (const provider of streamProviders) {
+    if (provider.locale !== servedLocale || (locale !== null && provider.locale !== locale)) {
       continue;
     }
 
@@ -228,13 +228,8 @@ async function resolveVersion(
         continue;
       }
 
-      const resolved = await provider.resolveStream(unit.id, language);
-      if (resolved.type !== "video" || resolved.streams.length === 0) {
-        fail(provider, "No video streams returned");
-        continue;
-      }
-
-      const media = toPlaybackMedia(resolved.streams, streamUrl);
+      const stream = await provider.resolveStream(unit.id, language);
+      const media = toPlaybackMedia(stream.videos, streamUrl);
       const version = {
         audio: language,
         locale,
@@ -244,7 +239,7 @@ async function resolveVersion(
         // Providers hand a dub the sub's subtitles: a translation of the
         // Japanese dialogue, which does not match the English audio.
         subtitles: language === "sub" ? media.subtitles : [],
-        skipSegments: skipSegmentsOf(resolved)
+        skipSegments: stream.skipSegments
       };
 
       // A sub without subtitle tracks has them burned in. Later providers may
@@ -273,25 +268,25 @@ async function resolveVersion(
   };
 }
 
-function toPlaybackMedia(streams: IVideoPayload[], streamUrl: (token: string) => string) {
-  const sources = [...streams]
+function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => string) {
+  const sources = [...videos]
     .sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
-    .map((stream) => ({
-      url: streamUrl(createStreamToken(stream.sourceUrl, stream.isHLS ? "playlist" : "file", stream.headers ?? {})),
-      format: stream.isHLS ? ("hls" as const) : ("mp4" as const),
-      quality: stream.quality
+    .map((video) => ({
+      url: streamUrl(createStreamToken(video.url, video.format === "hls" ? "playlist" : "file", video.headers)),
+      format: video.format,
+      quality: video.quality
     }));
 
   // Providers attach the same subtitle tracks to every quality variant.
   const subtitles = new Map<string, PlaybackSubtitle>();
-  for (const stream of streams) {
-    for (const track of stream.subtitles ?? []) {
+  for (const video of videos) {
+    for (const track of video.subtitles) {
       if (isServedSubtitle(track) && !subtitles.has(track.url)) {
         subtitles.set(track.url, {
-          url: streamUrl(createStreamToken(track.url, "subtitle", stream.headers ?? {})),
+          url: streamUrl(createStreamToken(track.url, "subtitle", video.headers)),
           language: track.language,
           label: track.label,
-          format: track.format ?? null
+          format: track.format
         });
       }
     }

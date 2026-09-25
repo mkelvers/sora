@@ -2,7 +2,7 @@ import { run, type Runner } from "graphile-worker";
 
 import { config } from "../config";
 import { reviveAiringChecks, trackAiring } from "./airing";
-import { syncAniKotoCatalogJob } from "./anikoto";
+import { syncProviderCatalogs } from "./catalogs";
 import { backfillSeries, syncSearchIndexJob } from "./search";
 import { lookUpEpisodes } from "./episodes";
 import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
@@ -10,7 +10,7 @@ import { discoverSeriesEntries, storeSeriesJob } from "./series";
 
 const reviveAiringChecksTask = "revive-airing-checks";
 const discoverSeriesEntriesTask = "discover-series-entries";
-const syncAniKotoCatalogTask = "sync-anikoto-catalog";
+const syncProviderCatalogsTask = "sync-provider-catalogs";
 const syncSearchIndexTask = "sync-search-index";
 const backfillSeriesTask = "backfill-series";
 
@@ -18,7 +18,7 @@ const backfillSeriesTask = "backfill-series";
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, looks stored titles up on
  * providers, keeps stored series current as seasons air and new ones are
- * announced, mirrors AniKoto's catalogue to match titles against, and keeps
+ * announced, mirrors the provider catalogues titles are matched against, and keeps
  * the search index current while storing the most popular titles ahead of
  * any search.
  *
@@ -37,7 +37,7 @@ export async function startScheduler(): Promise<Runner> {
       [storeSeriesTask]: storeSeriesJob,
       [lookUpEpisodesTask]: lookUpEpisodes,
       [discoverSeriesEntriesTask]: discoverSeriesEntries,
-      [syncAniKotoCatalogTask]: syncAniKotoCatalogJob,
+      [syncProviderCatalogsTask]: syncProviderCatalogs,
       [syncSearchIndexTask]: syncSearchIndexJob,
       [backfillSeriesTask]: backfillSeries
     },
@@ -46,8 +46,8 @@ export async function startScheduler(): Promise<Runner> {
       `30 4 * * * ${discoverSeriesEntriesTask}`,
       // Catalogue upkeep runs ahead of queued layouts, which can number in the
       // hundreds; the first run after a start catches up on what changed.
-      `15 * * * * ${syncAniKotoCatalogTask} ?id=anikoto-catalog-changes&fill=1h&priority=-1`,
-      `45 3 * * 0 ${syncAniKotoCatalogTask} ?id=anikoto-catalog-full&fill=1w&priority=-1 {full:true}`,
+      `15 * * * * ${syncProviderCatalogsTask} ?id=provider-catalogs-changes&fill=1h&priority=-1`,
+      `45 3 * * 0 ${syncProviderCatalogsTask} ?id=provider-catalogs-full&fill=1w&priority=-1 {full:true}`,
       `5 * * * * ${syncSearchIndexTask} ?id=search-index-changes&fill=1h&priority=-1`,
       `20 2 * * 1 ${syncSearchIndexTask} ?id=search-index-full&fill=1w&priority=-1 {full:true}`,
       `10,40 * * * * ${backfillSeriesTask} ?priority=-1`
