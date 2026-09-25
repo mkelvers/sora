@@ -17,7 +17,7 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
 		gap: 24px;
-		margin-top: 56px;
+		margin-top: 0;
 	}
 
 	.grid.poster {

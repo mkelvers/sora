@@ -1,29 +1,22 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import type { Series, SeriesImage } from '@sora/sdk';
-	import { getImages, getSeries, setArtwork } from '$lib/remote/anime.remote';
+	import type { Series } from '@sora/sdk';
+	import { getImages } from '$lib/remote/anime.remote';
+	import type { ArtworkFilters } from './artwork-filters.svelte';
+	import { chooseArtwork } from './choose-artwork';
 
 	type Props = {
 		series: Series;
-		type: SeriesImage['type'];
-		sort: 'votes' | 'quality';
+		filters: ArtworkFilters;
 	};
 
-	let { series, type, sort }: Props = $props();
+	let { series, filters }: Props = $props();
 
-	const images = $derived(
-		await getImages({
-			seriesId: series.id,
-			type,
-			sort
-		})
-	);
+	const images = $derived(await getImages(series.id));
+	const shown = $derived(filters.apply(images));
+	const hasType = $derived(images.some((image) => image.type === filters.type));
 
-	let language = $state('all');
-	const languages = $derived([...new Set(images.map((image) => image.language ?? 'none'))]);
-	const shown = $derived(images.filter((image) => language === 'all' || (image.language ?? 'none') === language));
-
-	const field = $derived(`${type}_url` as const);
+	const field = $derived(`${filters.type}_url` as const);
 	// Compared by file name, which is the same in every TMDB size.
 	const current = $derived(series[field]?.split('/').at(-1));
 
@@ -39,25 +32,9 @@
 
 	let failed = $state(false);
 
-	async function choose(url: string | null) {
-		const title = getSeries(series.id);
-		const saving = setArtwork({
-			seriesId: series.id,
-			type,
-			url
-		});
-
+	async function choose(url: string) {
 		try {
-			if (url) {
-				await saving.updates(
-					title.withOverride((series) => ({
-						...series,
-						[field]: url
-					}))
-				);
-			} else {
-				await saving.updates(title);
-			}
+			await chooseArtwork(series.id, filters.type, url);
 			failed = false;
 		} catch {
 			failed = true;
@@ -65,37 +42,19 @@
 	}
 </script>
 
-<header>
-	<div class="languages" role="radiogroup" aria-label="Language">
-		{#each ['all', ...languages] as code (code)}
-			<button role="radio" aria-checked={language === code} onclick={() => (language = code)}>
-				{#if code === 'all'}
-					All
-				{:else if code === 'none'}
-					Textless
-				{:else}
-					{names.of(code)}
-				{/if}
-			</button>
-		{/each}
-	</div>
-
-	<button class="reset" onclick={() => choose(null)}>Use default</button>
-</header>
-
 {#if failed}
 	<p class="error" role="alert">That image couldn’t be saved.</p>
 {/if}
 
-<div class="grid {type}">
+<div class="grid {filters.type}">
 	{#each shown as image (image.url)}
 		{@const chosen = current === image.url.split('/').at(-1)}
 		<button class="card" class:chosen aria-pressed={chosen} onclick={() => choose(image.url)}>
 			<span class="image">
-				<img src={image.url.replace('/original/', `/${thumbnailSizes[type]}/`)} alt="" loading="lazy" />
+				<img src={image.url.replace('/original/', `/${thumbnailSizes[filters.type]}/`)} alt="" loading="lazy" />
 				{#if chosen}
 					<span class="badge">
-						<Icon name="check" size={16} />
+						<Icon name="check" size="sm" />
 						Current
 					</span>
 				{/if}
@@ -103,60 +62,27 @@
 			<span class="meta">
 				<span>{image.width}×{image.height}</span>
 				<span>{image.language ? names.of(image.language) : 'Textless'}</span>
+				{#if image.season_number !== null}
+					<span>{image.season_number === 0 ? 'Specials' : `Season ${image.season_number}`}</span>
+				{/if}
 				<span class="votes" title="{image.vote_count} votes">
-					<Icon name="heart" size={12} />
+					<Icon name="heart" size="xs" />
 					{image.vote_average.toFixed(1)}
 				</span>
 			</span>
 		</button>
 	{:else}
-		<p class="empty">TMDB has none for this title.</p>
+		<p class="empty">
+			{#if hasType}
+				Nothing matches these filters.
+			{:else}
+				TMDB has none for this title.
+			{/if}
+		</p>
 	{/each}
 </div>
 
 <style>
-	header {
-		display: flex;
-		align-items: flex-start;
-		gap: 16px;
-		margin-bottom: 24px;
-	}
-
-	.languages {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.languages button,
-	.reset {
-		padding: 6px 12px;
-		border: 1px solid #333;
-		background: none;
-		color: #999;
-		font: inherit;
-		font-size: 13px;
-		cursor: pointer;
-	}
-
-	.languages button:hover,
-	.reset:hover {
-		border-color: #555;
-		color: #fff;
-	}
-
-	.languages button[aria-checked='true'] {
-		border-color: #e6e6e6;
-		background: #e6e6e6;
-		color: #101010;
-	}
-
-	.reset {
-		flex: none;
-		margin-left: auto;
-		color: #e6e6e6;
-	}
-
 	.error {
 		margin: 0 0 16px;
 		color: #f28b82;

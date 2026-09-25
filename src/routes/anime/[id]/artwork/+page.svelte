@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { ArtworkFilters } from '$lib/components/artwork/artwork-filters.svelte';
 	import Filters from '$lib/components/artwork/Filters.svelte';
 	import Images from '$lib/components/artwork/Images.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { imagesSkeleton } from '$lib/components/snippets/images-skeleton.svelte';
 	import { getSeries } from '$lib/remote/anime.remote';
-	import type { SeriesImage } from '@sora/sdk';
+	import type { PageProps } from './$types';
 
-	const series = $derived(await getSeries(page.params.id!));
+	let { params }: PageProps = $props();
 
-	let type = $state<SeriesImage['type']>('poster');
-	let sort = $state<'votes' | 'quality'>('votes');
+	const series = $derived(await getSeries(params.id));
+	const filters = new ArtworkFilters();
 </script>
 
 <svelte:head>
@@ -20,23 +20,26 @@
 <div class="page">
 	<aside>
 		<a class="back" href="/anime/{series.id}">
-			<Icon name="back" size={20} />
+			<Icon name="back" size="md" />
 			{series.title}
 		</a>
 		<h1>Artwork</h1>
-		<Filters bind:type bind:sort />
+
+		<svelte:boundary>
+			{#snippet pending()}{/snippet}
+
+			<Filters seriesId={series.id} {filters} />
+		</svelte:boundary>
 	</aside>
 
 	<main>
-		{#key type}
-			<svelte:boundary>
-				{#snippet pending()}
-					{@render imagesSkeleton(type)}
-				{/snippet}
+		<svelte:boundary>
+			{#snippet pending()}
+				{@render imagesSkeleton(filters.type)}
+			{/snippet}
 
-				<Images {series} {type} {sort} />
-			</svelte:boundary>
-		{/key}
+			<Images {series} {filters} />
+		</svelte:boundary>
 	</main>
 </div>
 
