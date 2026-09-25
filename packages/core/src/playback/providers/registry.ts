@@ -37,6 +37,14 @@ export function isServedSubtitle(track: { language: string; label: string }) {
   return /^en(?:-|_|$)/.test(language) || language.startsWith("english") || /^english\b/i.test(track.label.trim());
 }
 
+/** AniKoto, which playback tries first. An episode neither it nor TMDB lists is not shown. */
+export const aniKoto = recordingCalls(
+  new AniKotoStreamProvider(providerHttp, {
+    locale: "en",
+    listsLanguages: true
+  })
+);
+
 /**
  * Every anime stream provider, in the order playback tries them.
  *
@@ -45,22 +53,21 @@ export function isServedSubtitle(track: { language: string; label: string }) {
  * call is recorded in `provider_calls` to show when one has broken.
  */
 export const streamProviders: readonly StreamProvider[] = [
-  new AniKotoStreamProvider(providerHttp, {
-    locale: "en",
-    listsLanguages: true
-  }),
-  new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
-    locale: "en",
-    listsLanguages: true
-  }),
-  // MegaPlay's lists are made up from AniList's episode count and claim sub
-  // and dub for every episode.
-  new MegaPlayStreamProvider(providerHttp, mappingClient, {
-    locale: "en",
-    listsLanguages: false
-  }),
-  new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
-    locale: "en",
-    listsLanguages: true
-  })
-].map((provider) => recordingCalls(provider));
+  aniKoto,
+  ...[
+    new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
+      locale: "en",
+      listsLanguages: true
+    }),
+    // MegaPlay's lists are made up from AniList's episode count and claim sub
+    // and dub for every episode.
+    new MegaPlayStreamProvider(providerHttp, mappingClient, {
+      locale: "en",
+      listsLanguages: false
+    }),
+    new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
+      locale: "en",
+      listsLanguages: true
+    })
+  ].map((provider) => recordingCalls(provider))
+];
