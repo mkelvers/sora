@@ -21,3 +21,12 @@ export {
 } from "./streams/resolve";
 export type { SkipSegment } from "./providers/provider";
 export type { EpisodeVersion } from "./episodes/versions";
+export {
+  failingAfterCalls,
+  failingAfterMs,
+  getProviderHealth,
+  type OperationSummary,
+  type ProviderHealth,
+  type ProviderStatus
+} from "./providers/health";
+export type { ProviderOperation } from "./providers/calls";

@@ -3,8 +3,8 @@
  * `PORT` (default 3000).
  *
  * Every route is versioned under `/v1`, whose OpenAPI document is served at
- * `/v1/openapi.json`; `/health` is for load balancers. Errors are RFC 9457
- * problems.
+ * `/v1/openapi.json`; `/health` is for load balancers and also reports how
+ * each stream provider has been doing. Errors are RFC 9457 problems.
  *
  * Run the core's migrations first (`bun run db:migrate` in `packages/core`).
  * Several instances may run at once. It stops cleanly on SIGINT and SIGTERM.
@@ -13,15 +13,12 @@ import { closeDatabase } from "@sora/core/database";
 import { Hono } from "hono";
 
 import { onError, sendProblem } from "./errors";
+import { healthRoutes } from "./health";
 import { v1Routes } from "./v1";
 
 const app = new Hono()
   .route("/v1", v1Routes)
-  .get("/health", (c) =>
-    c.json({
-      status: "ok"
-    })
-  )
+  .route("/health", healthRoutes())
   .notFound((c) => sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`))
   .onError(onError);
 
