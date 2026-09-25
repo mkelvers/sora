@@ -30,7 +30,7 @@
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
-		padding: 4px 0;
+		padding: 10px 0;
 	}
 
 	.still,

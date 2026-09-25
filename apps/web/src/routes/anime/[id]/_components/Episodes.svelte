@@ -23,7 +23,7 @@
 {#if getEpisodes({ seriesId, seasonId: season.id }).current}
 	<ol>
 		{#each getEpisodes({ seriesId, seasonId: season.id }).current as episode (episode.number)}
-			<Episode {episode} {now} />
+			<Episode {seriesId} seasonId={season.id} {episode} {now} />
 		{:else}
 			<li class="empty">No episodes yet.</li>
 		{/each}
