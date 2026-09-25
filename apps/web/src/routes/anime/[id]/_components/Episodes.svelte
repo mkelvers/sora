@@ -10,12 +10,20 @@
 	};
 
 	let { seriesId, season }: Props = $props();
+
+	// Ticks on the minute, so each episode's end time stays current
+	let now = $state(new Date());
+
+	$effect(() => {
+		const timeout = setTimeout(() => (now = new Date()), 60_000 - (now.getTime() % 60_000));
+		return () => clearTimeout(timeout);
+	});
 </script>
 
 {#if getEpisodes({ seriesId, seasonId: season.id }).current}
 	<ol>
 		{#each getEpisodes({ seriesId, seasonId: season.id }).current as episode (episode.number)}
-			<Episode {episode} />
+			<Episode {episode} {now} />
 		{:else}
 			<li class="empty">No episodes yet.</li>
 		{/each}
