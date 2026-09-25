@@ -305,8 +305,8 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
     season.episodes.map((episode) => ({
       seasonId: id,
       number: episode.number,
-      anilistId: episode.playback?.anilistId ?? null,
-      anilistEpisode: episode.playback?.episode ?? null,
+      anilistId: episode.playback.anilistId,
+      anilistEpisode: episode.playback.episode,
       title: episode.title,
       overview: episode.overview,
       airDate: episode.airDate,
@@ -340,7 +340,7 @@ function nextEpisodeOf(
   }
 
   const plays = (episode: SeriesSeason["episodes"][number], number: number) =>
-    episode.playback?.anilistId === nextAiring.anilistId && episode.playback.episode === number;
+    episode.playback.anilistId === nextAiring.anilistId && episode.playback.episode === number;
 
   for (const { season, id } of seasons) {
     const listed = season.episodes.find((episode) => plays(episode, nextAiring.episode));

@@ -3,8 +3,8 @@ import { fuzzyDate } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
 import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
-import { loadEntries, primaryTitlesOf, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
-import { mappedEpisodes, mappingsForShow, resolveMapping, type TmdbMapping } from "./mapping";
+import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
+import { mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
 import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
 
 /**
@@ -143,7 +143,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
     ]);
   }
 
-  const seasons = await layoutSeasons(origin.key, members, outsiders);
+  const seasons = await layoutSeasons(origin.key, members);
   const summary = summarize(origin.key, members, seasons);
   const artwork = await tmdbArtwork(origin.key);
   const now = new Date();
@@ -281,27 +281,15 @@ function ownSeriesKey(entry: FranchiseEntry, mapping: TmdbMapping): SeriesKey {
 
 async function layoutSeasons(
   key: SeriesKey,
-  members: readonly MappedEntry[],
-  outsiders: readonly MappedEntry[]
+  members: readonly MappedEntry[]
 ): Promise<SeriesSeason[]> {
   const [kind, id] = parseKey(key);
   if (kind === "tv" || kind === "shorts") {
     const show = await getShow(id);
     if (show) {
-      const memberIds = new Set(members.map(({ entry }) => entry.id));
-      const others = (await mappingsForShow(id)).filter((mapping) => !memberIds.has(mapping.anilistId));
       return layoutShowSeasons({
         show,
         members: members.map(toSeasonMember),
-        claimedSpecials: others.flatMap((mapping) => mappedEpisodes(mapping)),
-        outsideEntries: outsiders
-          .filter(({ mapping }) => mapping.mediaType !== "tv" || mapping.tmdbId !== id)
-          .map(({ entry }) => ({
-            titles: primaryTitlesOf(entry),
-            startDate: startDateOf(entry),
-            endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
-            episodes: entry.episodes
-          })),
         isShorts: kind === "shorts"
       });
     }

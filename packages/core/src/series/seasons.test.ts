@@ -74,16 +74,14 @@ function member(card: AnimeCard, episodeLinks: EpisodeLink[], prequelIds: number
   };
 }
 
-/** Describes a season as "title: episode, episode, …" using TMDB names or AniList positions. */
+/** Describes a season's episodes as "anilistId#episode". */
 function outline(season: SeriesSeason) {
-  return season.episodes.map((item) =>
-    item.playback ? `${item.playback.anilistId}#${item.playback.episode}` : `extra:${item.title}`
-  );
+  return season.episodes.map((item) => `${item.playback.anilistId}#${item.playback.episode}`);
 }
 
 describe("layoutShowSeasons", () => {
   // Tensura, reduced: two seasons, the second split into two cours, an OAD,
-  // and TMDB-only recaps in specials.
+  // a one-off AniList special, and TMDB-only recaps in specials.
   const show = {
     seasons: [],
     episodes: [
@@ -110,22 +108,27 @@ describe("layoutShowSeasons", () => {
     format: "OVA",
     episodes: 2
   }), links(0, 2, 2));
+  const tales = member(anime(5, "Tensura Tales", {
+    format: "SPECIAL",
+    episodes: 1
+  }), links(0, 4, 1));
 
   const seasons = layoutShowSeasons({
     show,
     members: [
       seasonTwoPartTwo,
       oad,
+      tales,
       seasonOne,
       seasonTwo
-    ],
-    claimedSpecials: []
+    ]
   });
 
   test("merges a later part into the season it continues", () => {
     expect(seasons.filter((season) => season.kind === "season")).toHaveLength(2);
     expect(seasons[1]?.anime.map((card) => card.id)).toEqual([
       2,
+      5,
       3
     ]);
   });
@@ -140,19 +143,21 @@ describe("layoutShowSeasons", () => {
     ]);
   });
 
-  test("places TMDB-only extras by air date inside the regular seasons", () => {
-    expect(outline(seasons[0]!)).toEqual([
-      "1#1",
-      "1#2",
-      "1#3",
-      "extra:Veldora's Journal"
-    ]);
+  test("places one-off AniList specials by air date inside the regular seasons", () => {
     expect(outline(seasons[1]!)).toEqual([
       "2#1",
       "2#2",
-      "extra:Tales: Veldora's Journal 2",
+      "5#1",
       "3#1",
       "3#2"
+    ]);
+  });
+
+  test("leaves out specials only TMDB lists", () => {
+    expect(outline(seasons[0]!)).toEqual([
+      "1#1",
+      "1#2",
+      "1#3"
     ]);
   });
 
@@ -170,8 +175,7 @@ describe("layoutShowSeasons", () => {
           }), [], [3]),
           isUnlistedSeason: true
         }
-      ],
-      claimedSpecials: []
+      ]
     });
 
     const regular = layout.filter((season) => season.kind === "season");
@@ -207,8 +211,7 @@ describe("layoutShowSeasons", () => {
           }), [], [5]),
           isUnlistedSeason: true
         }
-      ],
-      claimedSpecials: []
+      ]
     });
 
     expect(layout.at(-1)?.anime.map((card) => card.id)).toEqual([
@@ -262,8 +265,7 @@ describe("layoutShowSeasons", () => {
         member(anime(10, "Mushoku Tensei", {
           episodes: 2
         }), links(1, 1, 2))
-      ],
-      claimedSpecials: []
+      ]
     });
 
     expect(layout.map(outline)).toEqual([
@@ -300,8 +302,7 @@ describe("layoutShowSeasons", () => {
         member(anime(3, "Re:ZERO Season 2 Part 2", {
           episodes: 2
         }), links(1, 5, 2), [2])
-      ],
-      claimedSpecials: []
+      ]
     });
 
     expect(layout.map((season) => season.anime.map((card) => card.id))).toEqual([
@@ -310,105 +311,6 @@ describe("layoutShowSeasons", () => {
         2,
         3
       ]
-    ]);
-  });
-
-  test("leaves out extras claimed elsewhere or far from episode length", () => {
-    const layout = layoutShowSeasons({
-      show: {
-        seasons: [],
-        episodes: [
-          episode(0, 1, "2019-02-01", "Chibi short", 3),
-          episode(0, 2, "2019-02-02", "Omnibus", 50),
-          episode(0, 3, "2019-02-03", "Claimed by a spin-off"),
-          ...weekly(1, 1, 2, "2019-01-01")
-        ]
-      },
-      members: [member(anime(1, "Show", {
-        episodes: 2
-      }), links(1, 1, 2))],
-      claimedSpecials: [
-        {
-          anilistEpisode: 1,
-          seasonNumber: 0,
-          episodeNumber: 3
-        }
-      ]
-    });
-
-    expect(outline(layout[0]!)).toEqual([
-      "1#1",
-      "1#2"
-    ]);
-  });
-
-  test("leaves out specials duplicating an outside entry by name or air date", () => {
-    const layout = layoutShowSeasons({
-      show: {
-        seasons: [],
-        episodes: [
-          episode(0, 1, "2019-05-18", "Zoku Owarimonogatari: Koyomi Reverse (1)"),
-          episode(0, 2, "2019-03-01", "Spin-off premiere"),
-          episode(0, 3, "2019-04-01", "Recap"),
-          ...weekly(1, 1, 2, "2019-01-01")
-        ]
-      },
-      members: [member(anime(1, "Owarimonogatari", {
-        episodes: 2
-      }), links(1, 1, 2))],
-      claimedSpecials: [],
-      outsideEntries: [
-        {
-          titles: ["Zoku Owarimonogatari"],
-          startDate: "2018-11-10",
-          endDate: "2018-11-10",
-          episodes: 6
-        },
-        {
-          titles: ["Spin-off"],
-          startDate: "2019-03-01",
-          endDate: "2019-03-01",
-          episodes: 1
-        }
-      ]
-    });
-
-    expect(outline(layout[0]!)).toEqual([
-      "1#1",
-      "1#2",
-      "extra:Recap"
-    ]);
-  });
-
-  test("claims specials named after the end of an outside entry's title, with same-day episodes", () => {
-    const layout = layoutShowSeasons({
-      show: {
-        seasons: [],
-        episodes: [
-          episode(0, 1, "2020-01-22", "Land vs. Air"),
-          episode(0, 2, "2020-01-22", "The Path of the Ball"),
-          episode(0, 3, "2020-02-01", "Recap"),
-          ...weekly(1, 1, 2, "2020-01-11")
-        ]
-      },
-      members: [member(anime(1, "HAIKYU!! TO THE TOP", {
-        episodes: 2
-      }), links(1, 1, 2))],
-      claimedSpecials: [],
-      outsideEntries: [
-        {
-          titles: ["HAIKYU!! LAND VS. AIR"],
-          startDate: "2020-01-10",
-          endDate: "2020-01-10",
-          episodes: 2
-        }
-      ]
-    });
-
-    expect(outline(layout[0]!)).toEqual([
-      "1#1",
-      "1#2",
-      "extra:Recap"
     ]);
   });
 
@@ -439,8 +341,7 @@ describe("layoutShowSeasons", () => {
         member(anime(2, "Demon Slayer Mugen Train Arc", {
           episodes: 1
         }), links(2, 1, 1), [1])
-      ],
-      claimedSpecials: []
+      ]
     });
 
     expect(layout.map((season) => season.title)).toEqual([
