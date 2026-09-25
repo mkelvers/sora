@@ -42,14 +42,14 @@ export function snakeCased<TValue>(value: TValue): SnakeCased<TValue> {
 }
 
 /**
- * The body of every successful JSON response: what was asked for under
- * `results`, and facts about the response, such as paging, under `meta`.
+ * The body of every successful JSON response: facts about the response, such
+ * as paging, under `meta`, and what was asked for under `results`.
  * `results` is an object for one resource and an array for a list.
  */
 export function envelopeOf<TResults extends z.ZodType, TMeta extends z.ZodType>(results: TResults, meta: TMeta) {
   return z.object({
-    results,
-    meta
+    meta,
+    results
   });
 }
 

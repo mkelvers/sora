@@ -20,7 +20,7 @@ const day = 24 * 60 * 60 * 1_000;
 
 /**
  * Version 1 of the API: the handlers for the contracts in `openapi/routes.ts`.
- * Every successful JSON response is `{ results, meta }`: the core's models,
+ * Every successful JSON response is `{ meta, results }`: the core's models,
  * in snake_case, under `results`, and facts about the response, such as
  * paging or the IDs it is for, under `meta`.
  *
@@ -50,8 +50,8 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
-        results: snakeCased(page.items),
-        meta: pageMeta(c.req.url, page)
+        meta: pageMeta(c.req.url, page),
+        results: snakeCased(page.items)
       },
       200
     );
@@ -68,8 +68,8 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=60");
     return c.json(
       {
-        results: snakeCased(page.items),
-        meta: pageMeta(c.req.url, page)
+        meta: pageMeta(c.req.url, page),
+        results: snakeCased(page.items)
       },
       200
     );
@@ -80,8 +80,8 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
-        results: snakeCased(series),
-        meta: {}
+        meta: {},
+        results: snakeCased(series)
       },
       200
     );
@@ -93,10 +93,10 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
-        results: snakeCased(season),
         meta: {
           anime_id
-        }
+        },
+        results: snakeCased(season)
       },
       200
     );
@@ -109,12 +109,12 @@ export const v1Routes = v1
     c.header("Cache-Control", episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300");
     return c.json(
       {
-        results: snakeCased(episodes),
         meta: {
           anime_id,
           season_id,
           count: episodes.length
-        }
+        },
+        results: snakeCased(episodes)
       },
       200
     );
@@ -125,10 +125,10 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=86400");
     return c.json(
       {
-        results: genres,
         meta: {
           count: genres.length
-        }
+        },
+        results: genres
       },
       200
     );
@@ -142,12 +142,12 @@ export const v1Routes = v1
     c.header("Cache-Control", "public, max-age=60");
     return c.json(
       {
-        results: snakeCased(episodes),
         meta: {
           from: from.toISOString(),
           until: until.toISOString(),
           count: episodes.length
-        }
+        },
+        results: snakeCased(episodes)
       },
       200
     );
@@ -180,7 +180,6 @@ export const v1Routes = v1
     c.header("Cache-Control", "no-store");
     return c.json(
       {
-        results: snakeCased(playback.media),
         meta: {
           anime_id,
           season_id,
@@ -188,7 +187,8 @@ export const v1Routes = v1
           expires_at: playback.expiresAt,
           next: adjacent.next && playbackPath(anime_id, adjacent.next),
           previous: adjacent.previous && playbackPath(anime_id, adjacent.previous)
-        }
+        },
+        results: snakeCased(playback.media)
       },
       200
     );
@@ -207,7 +207,7 @@ v1.doc31("/openapi.json", {
     title: "Sora API",
     version: "1",
     description:
-      "Anime titles laid out like a streaming service: one title per show with its seasons, OVAs, and related films, addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ results, meta }`: what was asked for under `results`, an object for one resource and an array for a list, and facts about the response under `meta`, such as paging with `next` and `previous` links. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`."
+      "Anime titles laid out like a streaming service: one title per show with its seasons, OVAs, and related films, addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`."
   },
   servers: [
     {
