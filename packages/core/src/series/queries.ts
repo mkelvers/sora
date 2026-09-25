@@ -69,7 +69,6 @@ export async function getSeries(seriesId: string): Promise<Series> {
     tags: anchor.tags,
     studios: anchor.studios,
     score: anchor.score,
-    trailer: anchor.trailer,
     nextEpisode:
       isNextEpisodeAhead && row.nextEpisodeSeasonId !== null && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
         ? {

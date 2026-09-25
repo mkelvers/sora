@@ -9,5 +9,5 @@
  *
  * @packageDocumentation
  */
-export type { AnimeStatus, AnimeTag, AnimeTrailer } from "./models/anime";
+export type { AnimeStatus, AnimeTag } from "./models/anime";
 export { BrowseQuerySchema, getGenres, type BrowseQuery, type Page } from "./queries/browse";

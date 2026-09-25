@@ -1,6 +1,6 @@
 import type { ContentLanguage } from "anime-sdk";
 
-import type { AnimeStatus, AnimeTag, AnimeTrailer } from "../catalog/models/anime";
+import type { AnimeStatus, AnimeTag } from "../catalog/models/anime";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
 
@@ -42,7 +42,6 @@ export interface Series extends SeriesCard {
   studios: string[];
   /** AniList's weighted score of the first season, 0–100. */
   score: number | null;
-  trailer: AnimeTrailer | null;
   /** The next episode to air, or `null` when none is announced. */
   nextEpisode: {
     seasonId: string;

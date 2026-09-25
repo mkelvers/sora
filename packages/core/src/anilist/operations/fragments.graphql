@@ -46,10 +46,6 @@ fragment AnimeDetails on Media {
     month
     day
   }
-  trailer {
-    id
-    site
-  }
   tags {
     name
     rank

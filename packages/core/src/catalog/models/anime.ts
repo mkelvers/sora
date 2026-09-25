@@ -80,11 +80,6 @@ export interface AnimeTag {
   spoiler: boolean;
 }
 
-export interface AnimeTrailer {
-  site: "youtube" | "dailymotion";
-  id: string;
-}
-
 /** Everything needed to render an anime's detail screen. */
 export interface Anime extends AnimeCard {
   synonyms: string[];
@@ -95,7 +90,6 @@ export interface Anime extends AnimeCard {
   /** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
   startDate: string | null;
   endDate: string | null;
-  trailer: AnimeTrailer | null;
   tags: AnimeTag[];
   studios: string[];
   relations: AnimeRelation[];
@@ -145,7 +139,6 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
     countryOfOrigin: media.countryOfOrigin,
     startDate: media.startDate ? fuzzyDate(media.startDate) : null,
     endDate: media.endDate ? fuzzyDate(media.endDate) : null,
-    trailer: toTrailer(media.trailer),
     tags: present(media.tags).map((tag) => ({
       name: tag.name,
       rank: tag.rank,
@@ -194,17 +187,6 @@ function toAnimeFormat(format: MediaFormat | null): AnimeFormat | null {
     default:
       return format;
   }
-}
-
-function toTrailer(trailer: AnimeDetailsFragment["trailer"]): AnimeTrailer | null {
-  if (!trailer?.id || (trailer.site !== "youtube" && trailer.site !== "dailymotion")) {
-    return null;
-  }
-
-  return {
-    site: trailer.site,
-    id: trailer.id
-  };
 }
 
 /** Drops GraphQL list holes; a null list is treated as empty. */
