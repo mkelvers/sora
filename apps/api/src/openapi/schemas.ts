@@ -278,14 +278,14 @@ export const PlaybackMediaSchema = z
   .object({
     audio: LanguageSchema,
     locale: LocaleSchema.nullable().openapi({
-      description: "Language of the dub's audio or of the sub's subtitles: always `en`, since Sora serves English only. Null for raw, which keeps the original audio and has no subtitles."
+      description: "Language of the dub's audio or of the sub's default subtitles: always `en`, since Sora serves English. Null for raw, which keeps the original audio and has no subtitles."
     }),
     provider: z.string().openapi({
       description: "The provider that serves this version."
     }),
     hardsub: z.boolean().openapi({
       description:
-        "Whether the subtitles are burned into the picture rather than served as tracks, so `subtitles` is empty and they cannot be styled or turned off. A sub with subtitle tracks is served when any provider has one. Always false for dub and raw."
+        "Whether the English subtitles are burned into the picture rather than served as a track, so they cannot be styled or turned off; `subtitles` then holds other languages only, if any. A sub with an English track is served when any provider has one. Always false for dub and raw."
     }),
     sources: z
       .array(
@@ -318,7 +318,10 @@ export const PlaybackMediaSchema = z
           description: "BCP 47 language tag.",
           example: "en"
         }),
-        label: z.string(),
+        label: z.string().openapi({
+          description: "The language's English name, for a subtitle menu.",
+          example: "Brazilian Portuguese"
+        }),
         format: z
           .enum([
             "vtt",

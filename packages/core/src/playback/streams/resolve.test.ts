@@ -246,7 +246,8 @@ describe("resolvePlayback", () => {
       `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/sub.m3u8")}`
     ]);
     expect(version?.subtitles.map((subtitle) => subtitle.url)).toEqual([
-      `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/en.vtt")}`
+      `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/en.vtt")}`,
+      `https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/pt.vtt")}`
     ]);
   });
 
@@ -309,7 +310,7 @@ describe("resolvePlayback", () => {
     expect(playback.media[0]?.hardsub).toBe(false);
   });
 
-  test("keeps only English subtitles", async () => {
+  test("keeps every subtitle language, English first, named by its tag", async () => {
     useProviders([
       {
         id: "anikoto",
@@ -320,7 +321,10 @@ describe("resolvePlayback", () => {
     offered = [sub()];
 
     const playback = await resolvePlayback(request, options);
-    expect(playback.media[0]?.subtitles.map((track) => track.language)).toEqual(["en"]);
+    expect(playback.media[0]?.subtitles.map((track) => [track.language, track.label])).toEqual([
+      ["en", "English"],
+      ["pt", "Portuguese"]
+    ]);
   });
 
   test("prefers a later provider's subtitle tracks to burned-in subtitles", async () => {

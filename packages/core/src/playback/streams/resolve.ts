@@ -45,7 +45,10 @@ export interface PlaybackMedia {
   hardsub: boolean;
   /** Ordered best first. */
   sources: PlaybackSource[];
-  /** English subtitle tracks of a sub. Empty for a hardsub, and always for dub and raw. */
+  /**
+   * Every subtitle track of a sub, English first. A hardsub may still carry
+   * tracks in other languages. Always empty for dub and raw.
+   */
   subtitles: PlaybackSubtitle[];
   /**
    * Opening and ending, in playback order, timed against these sources: a
@@ -115,10 +118,10 @@ const qualityRank: Record<StreamQuality, number> = {
  * Resolves playable streams for one episode in every English version
  * providers offer it in, such as dub and sub, at once. Each version comes
  * from the first English provider that can stream it; a version none can
- * stream right now is left out, and only English subtitles are kept. A sub
- * always has subtitles: one with English subtitle tracks is preferred, and
- * otherwise the first whose subtitles are burned in is served, marked
- * `hardsub`.
+ * stream right now is left out. A sub keeps every subtitle track its
+ * provider has, and always has English ones: a provider with English tracks
+ * is preferred, and otherwise the first whose English subtitles are burned in
+ * is served, marked `hardsub`.
  *
  * Each version carries the opening and ending its provider's player ships
  * with the stream, so they need no requests of their own.
@@ -234,7 +237,7 @@ async function resolveVersion(
         audio: language,
         locale,
         provider: provider.id,
-        hardsub: language === "sub" && media.subtitles.length === 0,
+        hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
         sources: media.sources,
         // Providers hand a dub the sub's subtitles: a translation of the
         // Japanese dialogue, which does not match the English audio.
@@ -242,7 +245,7 @@ async function resolveVersion(
         skipSegments: stream.skipSegments
       };
 
-      // A sub without subtitle tracks has them burned in. Later providers may
+      // A sub without English tracks has them burned in. Later providers may
       // serve tracks, which players can style and turn off, so they are tried
       // first, and this one is kept to fall back on.
       if (version.hardsub) {
@@ -281,11 +284,11 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
   const subtitles = new Map<string, PlaybackSubtitle>();
   for (const video of videos) {
     for (const track of video.subtitles) {
-      if (isServedSubtitle(track) && !subtitles.has(track.url)) {
+      if (!subtitles.has(track.url)) {
         subtitles.set(track.url, {
           url: streamUrl(createStreamToken(track.url, "subtitle", video.headers)),
           language: track.language,
-          label: track.label,
+          label: languageName(track.language) ?? track.label,
           format: track.format
         });
       }
@@ -294,6 +297,23 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
 
   return {
     sources,
-    subtitles: [...subtitles.values()]
+    subtitles: [...subtitles.values()].sort(
+      (left, right) => Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) || left.label.localeCompare(right.label)
+    )
   };
+}
+
+const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+
+/**
+ * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
+ * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
+ */
+function languageName(tag: string) {
+  try {
+    const name = languageNames.of(tag);
+    return name && name !== tag ? name : null;
+  } catch {
+    return null;
+  }
 }
