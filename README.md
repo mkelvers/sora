@@ -14,11 +14,16 @@
 
 ---
 
-## What is this?
+## What is Sora?
 
-Sora is an anime streaming and tracking platform. This repository is its server:
-the catalog, playback resolution, and background jobs that the web, mobile, and
-TV apps all talk to.
+Sora is an anime streaming and tracking platform. Every Sora app, on web, mobile,
+and TV, talks to one server.
+
+At its core is the _Sora API_, a versioned HTTP API for browsing, searching, and
+watching anime. It resolves playback across several stream providers and falls
+through to the next one when a provider breaks, so a failing source rarely
+reaches the viewer. Alongside it, a scheduler follows every airing anime and
+stores each new episode as soon as a provider carries it.
 
 ```ts
 import { SoraClient } from "@sora/sdk";
