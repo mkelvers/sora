@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Dropdown, Option } from '$lib/components/dropdown';
 	import Icon from '$lib/components/Icon.svelte';
+	import Settings, { type Setting } from './Settings.svelte';
 	import { getPlayback } from '../watch.remote';
 
 	type Props = {
@@ -15,6 +15,9 @@
 	};
 
 	let { animeId, seasonId, episode, episodeCount, series, season, title }: Props = $props();
+
+	const AUDIO = { dub: 'Dub', sub: 'Sub', raw: 'Raw' };
+	const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 	const playback = $derived(getPlayback({ animeId, seasonId, episode }).current);
 
@@ -35,7 +38,9 @@
 	let failure = $state<string>();
 	let fullscreen = $state(false);
 	let idle = $state(false);
+	let cues = $state<VTTCue[]>([]);
 	let timer: ReturnType<typeof setTimeout>;
+	let dismissing = false;
 
 	const problem = $derived(playback?.problem ?? failure);
 	const loaded = $derived(ranges.find((range) => range.start <= time && time <= range.end)?.end ?? 0);
@@ -136,6 +141,38 @@
 		return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
 	}
 
+	const settings: Setting[] = $derived([
+		...(playback && playback.media.length > 1
+			? [
+					{
+						label: 'Audio',
+						value: audio ?? '',
+						options: playback.media.map((media) => ({ value: media.audio, label: AUDIO[media.audio] })),
+						select: (value: string) => (audio = value as typeof audio)
+					}
+				]
+			: []),
+		...(subtitles.length > 0
+			? [
+					{
+						label: 'Subtitles',
+						value: subtitle,
+						options: [
+							{ value: 'off', label: 'Off' },
+							...subtitles.map((track) => ({ value: track.url, label: track.label }))
+						],
+						select: (value: string) => (subtitle = value)
+					}
+				]
+			: []),
+		{
+			label: 'Speed',
+			value: String(speed),
+			options: SPEEDS.map((rate) => ({ value: String(rate), label: rate === 1 ? 'Normal' : `${rate}×` })),
+			select: (value: string) => (speed = Number(value))
+		}
+	]);
+
 	const percent = (value: number, max: number) => `${max > 0 ? (value / max) * 100 : 0}%`;
 </script>
 
@@ -158,7 +195,8 @@
 		bind:readyState
 		crossorigin="anonymous"
 		playsinline
-		onclick={() => (paused = !paused)}
+		onpointerdown={() => (dismissing = document.querySelector(':popover-open') !== null)}
+		onclick={() => dismissing || (paused = !paused)}
 		ondblclick={toggleFullscreen}
 		onerror={() => (failure ??= 'The video could not be played.')}
 	>
@@ -169,7 +207,18 @@
 				srclang={track.language}
 				label={track.label}
 				{@attach (element) => {
-					element.track.mode = track.url === subtitle ? 'showing' : 'disabled';
+					const text = element.track;
+					if (track.url !== subtitle) {
+						text.mode = 'disabled';
+						return;
+					}
+
+					text.mode = 'hidden';
+					text.oncuechange = () => (cues = [...(text.activeCues ?? [])] as VTTCue[]);
+					return () => {
+						text.oncuechange = null;
+						cues = [];
+					};
 				}}
 			/>
 		{/each}
@@ -184,11 +233,19 @@
 		<div class="spinner" role="status" aria-label="Loading"></div>
 	{/if}
 
-	{#if segment}
-		<button class="pill skip" onclick={() => (time = segment.end)}>
-			{segment.kind === 'opening' ? 'Skip intro' : 'Skip credits'}
-		</button>
-	{/if}
+	<div class="lower">
+		{#if segment}
+			<button class="pill skip" onclick={() => (time = segment.end)}>
+				{segment.kind === 'opening' ? 'Skip intro' : 'Skip credits'}
+			</button>
+		{/if}
+
+		<div class="captions">
+			{#each cues as cue (cue)}
+				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
+			{/each}
+		</div>
+	</div>
 
 	<header class="overlay">
 		<a class="icon-button" href="/anime/{animeId}" aria-label="Back to {series}">
@@ -251,28 +308,7 @@
 				style:--fill={percent(muted ? 0 : volume, 1)}
 			/>
 
-			{#if playback && playback.media.length > 1}
-				<Dropdown bind:value={() => audio ?? '', (value) => (audio = value as typeof audio)} label="Audio">
-					{#each playback.media as media (media.audio)}
-						<Option value={media.audio}>{{ dub: 'Dub', sub: 'Sub', raw: 'Raw' }[media.audio]}</Option>
-					{/each}
-				</Dropdown>
-			{/if}
-
-			{#if subtitles.length > 0}
-				<Dropdown bind:value={() => subtitle, (value) => (subtitle = value)} label="Subtitles">
-					<Option value="off">Subtitles off</Option>
-					{#each subtitles as track (track.url)}
-						<Option value={track.url}>{track.label}</Option>
-					{/each}
-				</Dropdown>
-			{/if}
-
-			<Dropdown bind:value={() => String(speed), (value) => (speed = Number(value))} label="Speed">
-				{#each [0.5, 0.75, 1, 1.25, 1.5, 2] as rate (rate)}
-					<Option value={String(rate)}>{rate}×</Option>
-				{/each}
-			</Dropdown>
+			<Settings {settings} />
 
 			<button class="icon-button" onclick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
 				<Icon name={fullscreen ? 'exit-fullscreen' : 'fullscreen'} />
@@ -304,18 +340,40 @@
 	video {
 		width: 100%;
 		height: 100%;
-		object-fit: contain;
+		object-fit: cover;
 	}
 
-	@media (min-aspect-ratio: 4 / 3) and (max-aspect-ratio: 16 / 9) {
-		video {
-			object-fit: cover;
-		}
+	.lower {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 16px;
+		align-self: end;
+		z-index: 1;
+		margin: 0 var(--side) 150px;
+		pointer-events: none;
+		transition: margin 200ms;
 	}
 
-	video::cue {
-		background: rgb(0 0 0 / 0.6);
-		font-family: system-ui, sans-serif;
+	.idle:not(:has([aria-expanded='true'])) .lower {
+		margin-bottom: 6vh;
+	}
+
+	.captions {
+		color: #fff;
+		font-size: clamp(18px, 2.6vw, 40px);
+		font-weight: 600;
+		line-height: 1.25;
+		text-align: center;
+		text-shadow: 0 2px 6px rgb(0 0 0 / 0.6);
+		white-space: pre-line;
+		pointer-events: none;
+		-webkit-text-stroke: 0.14em #000;
+		paint-order: stroke fill;
+	}
+
+	.captions p {
+		margin: 0;
 	}
 
 	.overlay {
@@ -476,9 +534,8 @@
 	}
 
 	.skip {
-		place-self: end;
-		z-index: 1;
-		margin: 0 var(--side) 140px;
+		align-self: end;
+		pointer-events: auto;
 	}
 
 	@media (max-width: 720px) {
