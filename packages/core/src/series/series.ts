@@ -310,7 +310,7 @@ async function layoutSeasons(
           overview: index === 0 ? movie?.overview ?? null : null,
           airDate: index === 0 ? movie?.release_date ?? null : null,
           runtimeMinutes: index === 0 ? movie?.runtime ?? card.durationMinutes : card.durationMinutes,
-          stillUrl: index === 0 ? tmdbImageUrl(movie?.backdrop_path ?? null, "w300") : null,
+          stillUrl: index === 0 ? tmdbImageUrl(movie?.backdrop_path ?? null, "original") : null,
           playback: {
             anilistId: card.id,
             episode: 1
@@ -416,7 +416,7 @@ async function tmdbArtwork(key: SeriesKey) {
     const show = await getShow(id);
     return {
       posterUrl: tmdbImageUrl(show?.posterPath ?? null, "w780"),
-      backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "w1280"),
+      backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "original"),
       logoUrl: show ? tmdbImageUrl(await getLogoPath("tv", id), "w500") : null
     };
   }
@@ -425,7 +425,7 @@ async function tmdbArtwork(key: SeriesKey) {
     const movie = await getMovie(id);
     return {
       posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780"),
-      backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "w1280"),
+      backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "original"),
       logoUrl: movie ? tmdbImageUrl(await getLogoPath("movie", id), "w500") : null
     };
   }

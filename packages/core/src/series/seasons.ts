@@ -406,7 +406,7 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
       overview: row.tmdb?.overview ?? null,
       airDate: row.tmdb?.air_date ?? null,
       runtimeMinutes: row.tmdb?.runtime ?? row.member.anime.durationMinutes,
-      stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? null, "w300"),
+      stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? null, "original"),
       playback: {
         anilistId: row.member.anime.id,
         episode: row.anilistEpisode
