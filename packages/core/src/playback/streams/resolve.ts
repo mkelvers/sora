@@ -8,7 +8,8 @@ import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
 import type { ContentLanguage } from "../../series/models";
 import type { ProviderVideo, SkipSegment, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
-import { createStreamToken, tokenLifetimeMs } from "../proxy/proxy";
+import { canFetchStream, createStreamToken, tokenLifetimeMs } from "../proxy/proxy";
+import { mirrorsFor } from "../proxy/upstream";
 
 /** One way to play an episode. */
 export interface PlaybackSource {
@@ -232,6 +233,11 @@ async function resolveVersion(
       }
 
       const stream = await provider.resolveStream(unit.id, language);
+      if (language === "sub" && !(await englishSubtitlesLoad(stream.videos))) {
+        fail(provider, "English subtitles cannot be fetched");
+        continue;
+      }
+
       const media = toPlaybackMedia(stream.videos, streamUrl);
       const version = {
         audio: language,
@@ -286,7 +292,7 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
     for (const track of video.subtitles) {
       if (!subtitles.has(track.url)) {
         subtitles.set(track.url, {
-          url: streamUrl(createStreamToken(track.url, "subtitle", video.headers)),
+          url: streamUrl(createStreamToken(track.url, "subtitle", video.headers, mirrorsFor(track.url, video.url))),
           language: track.language,
           label: languageName(track.language) ?? track.label,
           format: track.format
@@ -301,6 +307,25 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
       (left, right) => Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) || left.label.localeCompare(right.label)
     )
   };
+}
+
+/**
+ * Whether a sub's English subtitles can be fetched, so it is watchable. Tracks
+ * fall back to the video's host, which often carries them when theirs is
+ * unreachable. A sub without English tracks has them burned in, so passes.
+ */
+async function englishSubtitlesLoad(videos: ProviderVideo[]) {
+  const english = videos.flatMap((video) =>
+    video.subtitles.filter(isServedSubtitle).map((track) => ({ track, video }))
+  );
+  if (english.length === 0) {
+    return true;
+  }
+
+  const loads = await Promise.all(
+    english.map(({ track, video }) => canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)))
+  );
+  return loads.includes(true);
 }
 
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
