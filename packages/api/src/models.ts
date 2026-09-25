@@ -28,6 +28,6 @@ export type PageMeta = z.infer<typeof PageMetaSchema>;
 
 /** The body of every successful JSON response. */
 export interface Envelope<TResults, TMeta> {
-  results: TResults;
   meta: TMeta;
+  results: TResults;
 }
