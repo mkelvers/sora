@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	import type { Series } from '@sora/sdk';
-	import { getImages } from '$lib/remote/anime.remote';
-	import type { ArtworkFilters } from './artwork-filters.svelte';
-	import { chooseArtwork } from './choose-artwork';
+	import { getImages } from '../artwork.remote';
+	import type { ArtworkFilters } from '../artwork-filters.svelte';
+	import { chooseArtwork } from '../choose-artwork';
 
 	type Props = {
 		series: Series;

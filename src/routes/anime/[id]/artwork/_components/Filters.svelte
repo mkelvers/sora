@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { getImages } from '$lib/remote/anime.remote';
-	import type { ArtworkFilters } from './artwork-filters.svelte';
-	import { chooseArtwork } from './choose-artwork';
+	import { getImages } from '../artwork.remote';
+	import type { ArtworkFilters } from '../artwork-filters.svelte';
+	import { chooseArtwork } from '../choose-artwork';
 
 	type Props = {
 		seriesId: string;
@@ -12,7 +12,6 @@
 
 	const images = $derived((await getImages(seriesId)).filter((image) => image.type === filters.type));
 
-	/** Languages among this type's images, most used first, textless on top. */
 	const languageCounts = $derived.by(() => {
 		const counts = new Map<string, number>();
 		for (const image of images) {
