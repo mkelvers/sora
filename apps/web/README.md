@@ -28,14 +28,10 @@ type-checking before it ships.
 The web app lives in the Sora monorepo as `apps/web` and takes the SDK from its
 Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
 
-```sh
-bun install                # from the repository root
-bun run --filter web dev   # web app on :5173
-```
-
-## Development
+`bun run dev` from the repository root starts it together with the API.
 
 ```sh
-bun run check   # type-check with svelte-check
-bun run build   # production build
+bun run --filter web dev     # only the web app, on :5173
+bun run --filter web check   # type-check with svelte-check
+bun run --filter web build   # production build
 ```

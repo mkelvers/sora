@@ -73,14 +73,18 @@ Requires [Bun](https://bun.com) 1.4+ and Docker.
 
 ```sh
 bun install
-docker compose up -d                              # local PostgreSQL
 cp packages/core/.env.example packages/core/.env  # then fill in the secrets
-bun run --filter @sora/core db:migrate
+cp apps/web/.env.example apps/web/.env
 
-bun run --filter @sora/api dev                    # API on :3000
-bun run --filter @sora/scheduler start            # background jobs
-bun run --filter web dev                          # web app on :5173
+bun run dev    # PostgreSQL, migrations, API on :3000, and web on :5173
+bun run check  # type-check every workspace
+bun run test   # run every test suite
 ```
+
+These run through [Turborepo](https://turborepo.dev), configured in
+`turbo.json`. The scheduler follows upstream providers under their rate limits,
+so `dev` leaves it out; start it on its own with
+`bun run --filter @sora/scheduler start`.
 
 The API's OpenAPI document is served at
 [`/v1/openapi.json`](http://localhost:3000/v1/openapi.json).
