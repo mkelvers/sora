@@ -24,7 +24,7 @@ export function isDisguisedSegment(head: Uint8Array) {
  *
  * @returns the segment unchanged when no transport stream is found.
  */
-export function unwrapDisguisedSegment(bytes: Uint8Array) {
+export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) {
   const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
   if (end >= 0) {
     return bytes.subarray(end + pngEnd.length);
