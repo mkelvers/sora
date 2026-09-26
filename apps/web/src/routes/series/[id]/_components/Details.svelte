@@ -10,7 +10,7 @@
 	type Status = NonNullable<Series["status"]>;
 
 	type Row = {
-		glyph: Status | "GENRES" | "STUDIO";
+		glyph: Status | "GENRES" | "THEMES" | "STUDIO";
 		term: string;
 		value: string;
 	};
@@ -34,6 +34,15 @@
 				glyph: "GENRES",
 				term: "Genres",
 				value: series.genres.join(", "),
+			},
+			{
+				glyph: "THEMES",
+				term: "Themes",
+				value: series.tags
+					.filter((tag) => !tag.spoiler && (tag.rank ?? 0) >= 60)
+					.slice(0, 8)
+					.map((tag) => tag.name)
+					.join(", "),
 			},
 			{
 				glyph: "STUDIO",
@@ -80,6 +89,8 @@
 								d="M3.5 11.6V5A1.5 1.5 0 0 1 5 3.5h6.6a1.5 1.5 0 0 1 1.06.44l7.4 7.4a1.5 1.5 0 0 1 0 2.12l-6.6 6.6a1.5 1.5 0 0 1-2.12 0l-7.4-7.4A1.5 1.5 0 0 1 3.5 11.6Z"
 							/>
 							<path stroke-width="2.5" d="M8 8h.01" />
+						{:else if row.glyph === "THEMES"}
+							<path d="M9.5 4 7.5 20M16.5 4l-2 16M4.5 9h15.5M4 15h15.5" />
 						{:else}
 							<path d="M3.5 9.5h17V18a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V9.5Z" />
 							<path d="M3.5 9.5V6.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v3M9.5 4.5l-2.5 5M15.5 4.5l-2.5 5" />

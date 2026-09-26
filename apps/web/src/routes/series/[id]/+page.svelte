@@ -14,13 +14,6 @@
 	const series = $derived(await getSeries(params.id));
 	let season = $derived(series.seasons[0]);
 
-	const tags = $derived(
-		series.tags
-			.filter((tag) => !tag.spoiler && (tag.rank ?? 0) >= 60)
-			.slice(0, 8)
-			.map((tag) => tag.name),
-	);
-
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
 			return undefined;
@@ -104,18 +97,10 @@
 		</aside>
 
 		<div class="content">
-			{#if series.overview || tags.length || next}
+			{#if series.overview || next}
 				<div class="about">
 					{#if series.overview}
 						<p class="overview">{series.overview}</p>
-					{/if}
-
-					{#if tags.length}
-						<ul class="tags" aria-label="Tags">
-							{#each tags as tag (tag)}
-								<li>{tag}</li>
-							{/each}
-						</ul>
 					{/if}
 
 					{#if next}
@@ -258,22 +243,6 @@
 		color: #ccc;
 		font-size: 16px;
 		line-height: 1.6;
-	}
-
-	.tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.tags li {
-		padding: 4px 10px;
-		background: rgb(255 255 255 / 0.06);
-		color: #aaa;
-		font-size: 13px;
 	}
 
 	.next {
