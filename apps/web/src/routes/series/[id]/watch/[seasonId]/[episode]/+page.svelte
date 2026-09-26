@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Player from './_components/Player.svelte';
-	import { getEpisode, getPlayback, getResume, saveProgress } from './watch.remote';
+	import { getEpisode, getPlayback } from './watch.remote';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
@@ -9,17 +9,9 @@
 	const { series, season, episode } = $derived(await getEpisode(address));
 
 	const playback = $derived(getPlayback(address));
-	const start = $derived(await getResume(address));
 
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
 	const base = $derived(`/series/${series.id}/watch/${season.id}`);
-
-	/** Saves progress for this one episode, even once the page has moved on to the next. */
-	function progressOf(seasonId: string, number: number) {
-		return (position: number, duration: number) => {
-			saveProgress({ seasonId, episode: number, position, duration, at: new Date().toISOString() }).catch(() => {});
-		};
-	}
 </script>
 
 <svelte:head>
@@ -31,8 +23,6 @@
 		media={playback.current?.media}
 		problem={playback.current?.problem}
 		onretry={() => playback.refresh()}
-		{start}
-		onprogress={progressOf(season.id, episode.number)}
 		back="/series/{series.id}"
 		previous={episode.number > 1 ? `${base}/${episode.number - 1}` : undefined}
 		next={episode.number < season.episode_count ? `${base}/${episode.number + 1}` : undefined}

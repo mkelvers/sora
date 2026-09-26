@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import type { PlaybackMedia } from '@sora/sdk';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
@@ -11,10 +10,6 @@
 		media: PlaybackMedia[] | undefined;
 		problem: string | null | undefined;
 		onretry: () => void;
-		/** Where to start, in seconds. */
-		start?: number;
-		/** Reports the position every few seconds while playing, and on pause and leaving. */
-		onprogress?: (position: number, duration: number) => void;
 		back: string;
 		previous?: string;
 		next?: string;
@@ -27,8 +22,6 @@
 		media: versions,
 		problem,
 		onretry,
-		start = 0,
-		onprogress,
 		back,
 		previous,
 		next,
@@ -38,29 +31,6 @@
 	}: Props = $props();
 
 	const player = new Player();
-	// Only the first value: later ones come from the saves below.
-	player.time = untrack(() => start);
-
-	// The episode this player was made for; the page re-keys it for the next.
-	const save = untrack(() => onprogress);
-
-	function report() {
-		if (player.duration > 0 && player.time > 0) {
-			save?.(player.time, player.duration);
-		}
-	}
-
-	$effect(() => {
-		if (player.paused) {
-			return;
-		}
-		const timer = setInterval(report, 10_000);
-		// Also saves on pausing and on leaving the episode.
-		return () => {
-			clearInterval(timer);
-			report();
-		};
-	});
 
 	let audio = $derived(versions?.[0]?.audio);
 	const media = $derived(versions?.find((version) => version.audio === audio));
@@ -75,7 +45,7 @@
 	);
 </script>
 
-<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
+<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
 <svelte:document onfullscreenchange={player.onfullscreenchange} />
 
 <div

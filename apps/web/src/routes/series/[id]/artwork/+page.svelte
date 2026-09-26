@@ -196,7 +196,7 @@
 
 	aside {
 		position: sticky;
-		top: calc(var(--nav) + 16px);
+		top: 24px;
 		display: grid;
 		gap: 28px;
 	}
