@@ -21,7 +21,6 @@ export {
   type SeriesParams,
   type Session,
   type SignIn,
-  type SignUp,
   type SoraClientOptions
 } from "./sora";
 export type {

@@ -16,6 +16,7 @@ import { createProfile } from "./profiles";
  * session token as `Authorization: Bearer <token>`, which the `bearer`
  * plugin accepts. Signing in returns that token.
  *
+ * Nobody can sign up: accounts are made with `bun run auth:create-account`.
  * A new account starts with one profile, named after the account.
  */
 export const auth = betterAuth({
@@ -34,6 +35,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true,
     minPasswordLength: 8
   },
   session: {

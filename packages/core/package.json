@@ -18,6 +18,7 @@
     "graphql:generate": "graphql-codegen --config codegen.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun src/database/migrate.ts",
+    "auth:create-account": "bun src/auth/create-account.ts",
     "test": "bun test --isolate"
   },
   "dependencies": {

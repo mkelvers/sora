@@ -61,7 +61,7 @@ v1.use("/profiles/*", signedIn);
 v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
   type: "http",
   scheme: "bearer",
-  description: "The session token from `POST /v1/auth/sign-in/email`, or from `POST /v1/auth/sign-up/email`."
+  description: "The session token from `POST /v1/auth/sign-in/email`."
 });
 
 /** A playback's URL under its title, relative to the API's origin. */

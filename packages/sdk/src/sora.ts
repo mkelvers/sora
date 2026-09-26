@@ -57,14 +57,6 @@ export interface ScheduleParams {
   until?: Date;
 }
 
-/** A new account for {@link SoraClient.signUp}. Its first profile takes `name`. */
-export interface SignUp {
-  name: string;
-  email: string;
-  /** At least 8 characters. */
-  password: string;
-}
-
 /** An account's credentials for {@link SoraClient.signIn}. */
 export interface SignIn {
   email: string;
@@ -236,16 +228,6 @@ export class SoraClient {
       fetch: options.fetch,
       headers: options.headers
     }).v1;
-  }
-
-  /**
-   * Creates an account, with one profile named after it, and signs it in.
-   *
-   * @throws {@link SoraError} with code `USER_ALREADY_EXISTS` (or a similar
-   *   Better Auth code) when the e-mail is taken or the password too short.
-   */
-  signUp(account: SignUp, options?: RequestOptions): Promise<Session> {
-    return this.#auth("sign-up/email", account, options);
   }
 
   /**
