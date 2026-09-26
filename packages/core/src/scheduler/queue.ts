@@ -6,6 +6,14 @@ import { db } from "../database/client";
 export const trackAiringTask = "track-airing";
 
 /**
+ * The priority of every airing check. graphile-worker runs lower numbers
+ * first, so a due check runs ahead of any queued series layout, however long
+ * that queue grows; otherwise a new episode waits behind hundreds of layouts.
+ * It is also written in SQL by `reviveAiringChecks`.
+ */
+export const airingCheckPriority = -1;
+
+/**
  * Where the airing tracker left off for one anime, carried from each run of
  * {@link trackAiringTask} to the next.
  */
@@ -37,7 +45,8 @@ export async function scheduleAiringCheck(payload: TrackAiringPayload, runAt: Da
       payload => ${payloadJson(payload)},
       run_at => ${runAt.toISOString()}::timestamptz,
       job_key => ${airingJobKey(payload.anilistId)},
-      job_key_mode => 'replace'
+      job_key_mode => 'replace',
+      priority => ${airingCheckPriority}::int
     )
   `);
 }
@@ -58,7 +67,8 @@ export async function startTrackingAiring(anilistId: number) {
         attempt: 0
       })},
       job_key => ${airingJobKey(anilistId)},
-      job_key_mode => 'unsafe_dedupe'
+      job_key_mode => 'unsafe_dedupe',
+      priority => ${airingCheckPriority}::int
     )
   `);
 }
@@ -85,7 +95,7 @@ export interface StoreSeriesPayload {
 
 /**
  * How soon a series should be stored. graphile-worker runs lower numbers
- * first, and airing checks run at 0.
+ * first, and airing checks run ahead of both, at {@link airingCheckPriority}.
  *
  * - `current`: someone is waiting on it, such as a title whose episode just
  *   aired or one a search found but had no time to lay out.

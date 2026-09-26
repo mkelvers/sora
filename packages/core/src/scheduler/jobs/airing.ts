@@ -9,7 +9,7 @@ import { AnimeNotFoundError } from "../../errors";
 import { refreshProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
 import { planNextCheck, type AiringState } from "./airing-plan";
-import { scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
+import { airingCheckPriority, scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
 
 const TrackAiringPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
@@ -130,7 +130,8 @@ export const reviveAiringChecks: Task = async (_payload, helpers) => {
       identifier => ${trackAiringTask},
       payload => json_build_object('anilistId', anime.anilist_id, 'awaitedEpisode', null, 'attempt', 0),
       job_key => 'airing:' || anime.anilist_id,
-      job_key_mode => 'replace'
+      job_key_mode => 'replace',
+      priority => ${airingCheckPriority}::int
     )
     from anime
     where anime.status in ('RELEASING', 'NOT_YET_RELEASED', 'HIATUS')
