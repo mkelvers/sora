@@ -6,15 +6,10 @@ if (!env.SORA_API_URL) {
 	throw new Error('SORA_API_URL is not set; see .env.example');
 }
 
-/**
- * The app's one Sora API client. Modules are evaluated once, so every server
- * load, action, and endpoint that imports it shares this instance.
- */
 export const sora = new SoraClient({
 	baseUrl: env.SORA_API_URL
 });
 
-/** Runs a Sora call, passing its API errors on as the same HTTP errors. */
 export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
 	try {
 		return await call();
@@ -26,13 +21,9 @@ export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
 	}
 }
 
-/** The cookie holding the signed-in account's session token. */
 export const sessionCookie = 'sora_session';
-
-/** The cookie holding the chosen profile's ID; see `rememberProfile`. */
 export const profileCookie = 'sora_profile';
 
-/** A client that sends a session token, for calls on behalf of a signed-in account. */
 export function soraAs(token: string) {
 	return new SoraClient({
 		baseUrl: env.SORA_API_URL!,

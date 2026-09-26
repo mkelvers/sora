@@ -1,25 +1,22 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
-	import Avatar from '$lib/components/ui/Avatar.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import type { PageProps } from './$types';
+	import { enhance } from "$app/forms";
+	import { page } from "$app/state";
+	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
-	// Managing is a mode of this page, kept in the URL so editing a profile
-	// comes back to it.
-	const managing = $derived(page.url.searchParams.has('manage'));
+	const managing = $derived(page.url.searchParams.has("manage"));
 
-	/** A link to `path` that keeps where the viewer was headed, and optionally the mode. */
 	function link(path: string, manage = managing) {
 		const params = new URLSearchParams();
-		const redirect = page.url.searchParams.get('redirect');
+		const redirect = page.url.searchParams.get("redirect");
 		if (manage) {
-			params.set('manage', '1');
+			params.set("manage", "1");
 		}
 		if (redirect) {
-			params.set('redirect', redirect);
+			params.set("redirect", redirect);
 		}
 		const query = params.toString();
 		return query ? `${path}?${query}` : path;
@@ -27,26 +24,36 @@
 </script>
 
 <svelte:head>
-	<title>{managing ? 'Manage profiles' : "Who's watching?"}</title>
+	<title>{managing ? "Manage profiles" : "Who's watching?"}</title>
 </svelte:head>
 
 <main>
-	<h1>{managing ? 'Manage profiles' : "Who's watching?"}</h1>
+	<h1>{managing ? "Manage profiles" : "Who's watching?"}</h1>
 
 	<form method="POST" use:enhance>
 		<ul>
 			{#each data.profiles as profile (profile.id)}
 				<li>
 					{#if managing}
-						<a class="profile" href={link(`/profiles/${profile.id}`, false)} aria-label="Edit {profile.name}">
+						<a
+							class="profile"
+							href={link(`/profiles/${profile.id}`, false)}
+							aria-label="Edit {profile.name}"
+						>
 							<span class="tile editing">
 								<Avatar seed={profile.avatar} />
-								<span class="pencil"><Icon name="edit" /></span>
+								<span class="pencil">
+									<Icon name="edit" />
+								</span>
 							</span>
 							<span class="name">{profile.name}</span>
 						</a>
 					{:else}
-						<button class="profile" name="profile" value={profile.id}>
+						<button
+							class="profile"
+							name="profile"
+							value={profile.id}
+						>
 							<Avatar seed={profile.avatar} class="tile" />
 							<span class="name">{profile.name}</span>
 						</button>
@@ -56,8 +63,10 @@
 
 			{#if !managing}
 				<li>
-					<a class="profile" href={link('/profiles/new')}>
-						<span class="tile add"><Icon name="add" /></span>
+					<a class="profile" href={link("/profiles/new")}>
+						<span class="tile add">
+							<Icon name="add" />
+						</span>
 						<span class="name">Add profile</span>
 					</a>
 				</li>
@@ -67,12 +76,12 @@
 
 	<div class="footer">
 		{#if managing}
-				<a class="pill done" href={link('/profiles', false)}>
+			<a class="pill done" href={link("/profiles", false)}>
 				<Icon name="check" size="sm" />
 				Done
 			</a>
 		{:else}
-			<a class="pill" href={link('/profiles', true)}>
+			<a class="pill" href={link("/profiles", true)}>
 				<Icon name="edit" size="sm" />
 				Manage profiles
 			</a>
@@ -110,7 +119,6 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		gap: 28px var(--gap);
-		/* At most five to a row; narrower screens fit fewer. */
 		max-width: calc(5 * var(--tile) + 4 * var(--gap));
 		margin: 0;
 		padding: 0;
@@ -258,7 +266,6 @@
 		outline-offset: 2px;
 	}
 
-	/* The quieter of the two: signing out is rarer than managing profiles. */
 	.sign-out {
 		padding: 9px 18px;
 		border: 1px solid transparent;

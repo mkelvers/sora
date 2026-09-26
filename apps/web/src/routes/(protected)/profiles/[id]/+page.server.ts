@@ -18,9 +18,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 	return {
 		profile,
-		// Drawn here so the page renders the same choices it hydrates with.
 		choices: avatarSeeds(11),
-		// An account keeps at least one profile.
 		deletable: locals.viewer!.profiles.length > 1
 	};
 };
@@ -29,10 +27,16 @@ export const actions: Actions = {
 	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '');
-		const changes = Changes.safeParse({ name, avatar: form.get('avatar') });
+		const changes = Changes.safeParse({
+			name,
+			avatar: form.get('avatar')
+		});
 
 		if (!changes.success) {
-			return fail(400, { name, message: 'Give the profile a name of up to 40 characters.' });
+			return fail(400, {
+				name,
+				message: 'Give the profile a name of up to 40 characters.'
+			});
 		}
 
 		try {
@@ -60,7 +64,6 @@ export const actions: Actions = {
 			throw cause;
 		}
 
-		// Whoever was watching as this profile must choose again.
 		if (locals.viewer!.profile?.id === params.id) {
 			cookies.delete(profileCookie, { path: '/' });
 		}

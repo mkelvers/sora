@@ -1,15 +1,17 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
-	import type { PageProps } from './$types';
+	import { enhance } from "$app/forms";
+	import { page } from "$app/state";
+	import type { PageProps } from "./$types";
 
 	let { form }: PageProps = $props();
 
 	let pending = $state(false);
 
 	const back = $derived.by(() => {
-		const redirect = page.url.searchParams.get('redirect');
-		return redirect ? `/profiles?redirect=${encodeURIComponent(redirect)}` : '/profiles';
+		const redirect = page.url.searchParams.get("redirect");
+		return redirect
+			? `/profiles?redirect=${encodeURIComponent(redirect)}`
+			: "/profiles";
 	});
 </script>
 
@@ -29,11 +31,19 @@
 		}}
 	>
 		<h1>Add profile</h1>
-		<p class="lead">Each profile keeps its own watchlist, progress, and recommendations.</p>
+		<p class="lead">
+			Each profile keeps its own watchlist, progress, and recommendations.
+		</p>
 
 		<label>
 			<span>Name</span>
-			<input name="name" value={form?.name ?? ''} maxlength="40" autocomplete="off" required />
+			<input
+				name="name"
+				value={form?.name ?? ""}
+				maxlength="40"
+				autocomplete="off"
+				required
+			/>
 		</label>
 
 		{#if form?.message}
@@ -42,7 +52,7 @@
 
 		<div class="buttons">
 			<button class="primary" type="submit" disabled={pending}>
-				{pending ? 'Adding…' : 'Add profile'}
+				{pending ? "Adding…" : "Add profile"}
 			</button>
 			<a class="secondary" href={back}>Cancel</a>
 		</div>

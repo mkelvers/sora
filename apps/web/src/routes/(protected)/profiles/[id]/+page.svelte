@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
-	import Avatar from '$lib/components/ui/Avatar.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { avatarSeeds, profilesPath, safeRedirect } from '$lib/utils';
-	import type { PageProps } from './$types';
+	import { enhance } from "$app/forms";
+	import { page } from "$app/state";
+	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import { avatarSeeds, profilesPath, safeRedirect } from "$lib/utils";
+	import type { PageProps } from "./$types";
 
 	let { data, form }: PageProps = $props();
 
@@ -14,12 +14,12 @@
 	let deleting = $state(false);
 	let confirmation: HTMLDialogElement;
 
-	// Every avatar keeps its place: the current one first, then the choices.
 	const shown = $derived([...new Set([data.profile.avatar, ...choices])]);
 
-	/** Offers new choices in every slot but the chosen one's. */
 	function shuffle() {
-		choices = choices.map((seed) => (seed === avatar ? seed : avatarSeeds(1)[0]!));
+		choices = choices.map((seed) =>
+			seed === avatar ? seed : avatarSeeds(1)[0]!,
+		);
 	}
 
 	const back = $derived(profilesPath(safeRedirect(page.url), true));
@@ -68,7 +68,12 @@
 			<div class="choices">
 				{#each shown as seed (seed)}
 					<label class="choice">
-						<input type="radio" name="avatar" value={seed} bind:group={avatar} />
+						<input
+							type="radio"
+							name="avatar"
+							value={seed}
+							bind:group={avatar}
+						/>
 						<Avatar {seed} />
 					</label>
 				{/each}
@@ -80,12 +85,19 @@
 		{/if}
 
 		<div class="buttons">
-			<button class="primary" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save'}</button>
+			<button class="primary" type="submit" disabled={pending}
+				>{pending ? "Saving…" : "Save"}</button
+			>
 			<a class="secondary" href={back}>Cancel</a>
 		</div>
 
 		<div class="danger">
-			<button type="button" class="delete" disabled={!data.deletable} onclick={() => confirmation.showModal()}>
+			<button
+				type="button"
+				class="delete"
+				disabled={!data.deletable}
+				onclick={() => confirmation.showModal()}
+			>
 				<Icon name="delete" size="sm" />
 				Delete profile
 			</button>
@@ -108,13 +120,18 @@
 	>
 		<h2 id="confirm-title">Delete {data.profile.name}?</h2>
 		<p>
-			Its watch history, progress, and watchlist are deleted with it. This cannot be undone.
+			Its watch history, progress, and watchlist are deleted with it. This
+			cannot be undone.
 		</p>
 
 		<div class="buttons">
-			<button class="secondary" type="button" onclick={() => confirmation.close()}>Cancel</button>
+			<button
+				class="secondary"
+				type="button"
+				onclick={() => confirmation.close()}>Cancel</button
+			>
 			<button class="destructive" type="submit" disabled={deleting}>
-				{deleting ? 'Deleting…' : 'Delete profile'}
+				{deleting ? "Deleting…" : "Delete profile"}
 			</button>
 		</div>
 	</form>
@@ -164,7 +181,7 @@
 		font-size: 13px;
 	}
 
-	input:not([type='radio']) {
+	input:not([type="radio"]) {
 		box-sizing: border-box;
 		width: 100%;
 		padding: 11px 12px;
@@ -178,11 +195,11 @@
 			border-color 120ms;
 	}
 
-	input:not([type='radio']):hover {
+	input:not([type="radio"]):hover {
 		background: rgb(255 255 255 / 0.09);
 	}
 
-	input:not([type='radio']):focus {
+	input:not([type="radio"]):focus {
 		border-color: #fff;
 		outline: none;
 	}
