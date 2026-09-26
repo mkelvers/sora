@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Episode from './Episode.svelte';
-	import { episodesSkeleton } from './episodes-skeleton.svelte';
+	import { episodesSkeleton } from '../_snippets/episodes-skeleton.svelte';
 	import { getEpisodes } from '../series.remote';
 	import type { Season } from '@sora/sdk';
 

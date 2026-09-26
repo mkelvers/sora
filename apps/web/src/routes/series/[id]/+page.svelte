@@ -3,7 +3,7 @@
 	import Episodes from './_components/Episodes.svelte';
 	import SeasonTabs from './_components/SeasonTabs.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { episodesSkeleton } from './_components/episodes-skeleton.svelte';
+	import { episodesSkeleton } from './_snippets/episodes-skeleton.svelte';
 	import { getSeries } from './series.remote';
     import type { PageProps } from './$types';
 
