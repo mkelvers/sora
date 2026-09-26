@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings, { type Setting } from './Settings.svelte';
 	import { getPlayback } from '../watch.remote';
@@ -115,7 +116,7 @@
 
 	function onkeydown(event: KeyboardEvent) {
 		const target = event.target as HTMLElement;
-		if (event.metaKey || event.ctrlKey || target.closest('input, [role="listbox"]') || (event.key === ' ' && target.closest('button, a'))) {
+		if (event.metaKey || event.ctrlKey || target.closest('input, [popover]') || (event.key === ' ' && target.closest('button, a'))) {
 			return;
 		}
 
@@ -227,7 +228,7 @@
 	{#if problem}
 		<div class="notice" role="alert">
 			<p>{problem}</p>
-			<button class="pill" onclick={retry}>Try again</button>
+			<Button class="pill" onclick={retry}>Try again</Button>
 		</div>
 	{:else if !playback || (readyState < 3 && !paused)}
 		<div class="spinner" role="status" aria-label="Loading"></div>
@@ -235,9 +236,9 @@
 
 	<div class="lower">
 		{#if segment}
-			<button class="pill skip" onclick={() => (time = segment.end)}>
+			<Button class="pill skip" onclick={() => (time = segment.end)}>
 				{segment.kind === 'opening' ? 'Skip intro' : 'Skip credits'}
-			</button>
+			</Button>
 		{/if}
 
 		<div class="captions">
@@ -277,15 +278,15 @@
 					<Icon name="previous" />
 				</a>
 			{/if}
-			<button class="icon-button" onclick={() => (time -= 10)} aria-label="Rewind 10 seconds">
+			<Button class="icon-button" onclick={() => (time -= 10)} aria-label="Rewind 10 seconds">
 				<Icon name="rewind" />
-			</button>
-			<button class="icon-button" onclick={() => (paused = !paused)} aria-label={paused ? 'Play' : 'Pause'}>
+			</Button>
+			<Button class="icon-button" onclick={() => (paused = !paused)} aria-label={paused ? 'Play' : 'Pause'}>
 				<Icon name={paused ? 'play' : 'pause'} />
-			</button>
-			<button class="icon-button" onclick={() => (time += 10)} aria-label="Forward 10 seconds">
+			</Button>
+			<Button class="icon-button" onclick={() => (time += 10)} aria-label="Forward 10 seconds">
 				<Icon name="forward" />
-			</button>
+			</Button>
 			{#if episode < episodeCount}
 				<a class="icon-button" href="/watch/{animeId}/{seasonId}/{episode + 1}" aria-label="Next episode">
 					<Icon name="next" />
@@ -294,9 +295,9 @@
 
 			<span class="time">{clock(time)} / {clock(duration)}</span>
 
-			<button class="icon-button" onclick={() => (muted = !muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
+			<Button class="icon-button" onclick={() => (muted = !muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
 				<Icon name={muted || volume === 0 ? 'muted' : 'volume'} />
-			</button>
+			</Button>
 			<input
 				class="range volume"
 				type="range"
@@ -310,9 +311,9 @@
 
 			<Settings {settings} />
 
-			<button class="icon-button" onclick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+			<Button class="icon-button" onclick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
 				<Icon name={fullscreen ? 'exit-fullscreen' : 'fullscreen'} />
-			</button>
+			</Button>
 		</div>
 	</footer>
 </div>
@@ -355,7 +356,7 @@
 		transition: margin 200ms;
 	}
 
-	.idle:not(:has([aria-expanded='true'])) .lower {
+	.idle:not(:has(:popover-open)) .lower {
 		margin-bottom: 6vh;
 	}
 
@@ -383,7 +384,7 @@
 		transition: opacity 200ms;
 	}
 
-	.idle:not(:has([aria-expanded='true'])) .overlay {
+	.idle:not(:has(:popover-open)) .overlay {
 		opacity: 0;
 		pointer-events: none;
 	}
@@ -462,26 +463,22 @@
 		margin-right: 12px;
 	}
 
-	.icon-button {
+	.player :global(.icon-button) {
 		display: inline-grid;
 		place-items: center;
 		width: 40px;
 		height: 40px;
-		border: none;
 		border-radius: 50%;
-		background: none;
 		color: #ddd;
-		cursor: pointer;
 		transition: background 120ms;
 	}
 
-	.icon-button:hover {
+	.player :global(.icon-button:hover) {
 		background: rgb(255 255 255 / 0.1);
 		color: #fff;
 	}
 
 	.icon-button:focus-visible,
-	.pill:focus-visible,
 	.range:focus-visible {
 		outline: 2px solid #fff;
 		outline-offset: 2px;
@@ -518,22 +515,20 @@
 		}
 	}
 
-	.pill {
+	.player :global(.pill) {
 		padding: 10px 18px;
-		border: none;
 		border-radius: 4px;
 		background: rgb(255 255 255 / 0.9);
 		color: #101010;
-		font: inherit;
+		font-size: inherit;
 		font-weight: 500;
-		cursor: pointer;
 	}
 
-	.pill:hover {
+	.player :global(.pill:hover) {
 		background: #fff;
 	}
 
-	.skip {
+	.player :global(.skip) {
 		align-self: end;
 		pointer-events: auto;
 	}
