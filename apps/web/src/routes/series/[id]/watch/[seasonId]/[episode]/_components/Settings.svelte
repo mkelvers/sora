@@ -12,13 +12,7 @@
 		speed: number;
 	};
 
-	let {
-		media,
-		audio = $bindable(),
-		subtitles,
-		subtitle = $bindable(),
-		speed = $bindable()
-	}: Props = $props();
+	let { media, audio = $bindable(), subtitles, subtitle = $bindable(), speed = $bindable() }: Props = $props();
 
 	type Menu = {
 		label: string;
