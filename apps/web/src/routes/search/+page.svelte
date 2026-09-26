@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Posters from '$lib/components/snippets/Posters.svelte';
 	import { searchSeries } from './search.remote';
 
 	const text = $derived(page.url.searchParams.get('q')?.trim() ?? '');
@@ -19,23 +20,7 @@
 		{:else if !search?.current}
 			<div class="spinner" role="status" aria-label="Searching"></div>
 		{:else if search.current.length}
-			<ul>
-				{#each search.current as series (series.id)}
-					<li>
-						<a href="/series/{series.id}">
-							{#if series.poster_url}
-								<img src={series.poster_url} alt="" loading="lazy" decoding="async" />
-							{:else}
-								<div class="poster"></div>
-							{/if}
-							<span class="title">{series.title}</span>
-							{#if series.year}
-								<span class="year">{series.year}</span>
-							{/if}
-						</a>
-					</li>
-				{/each}
-			</ul>
+			<Posters series={search.current} />
 		{:else}
 			<p>Nothing matched.</p>
 		{/if}
@@ -73,52 +58,5 @@
 		to {
 			transform: rotate(360deg);
 		}
-	}
-
-	ul {
-		--gap: 24px;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(max(200px, (100% - 5 * var(--gap)) / 6), 1fr));
-		gap: 32px var(--gap);
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	a {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		color: inherit;
-		text-decoration: none;
-	}
-
-	img,
-	.poster {
-		display: block;
-		width: 100%;
-		aspect-ratio: 2 / 3;
-		margin-bottom: 4px;
-		object-fit: cover;
-		background: #2a2a2a;
-		transition: filter 120ms;
-	}
-
-	a:hover img {
-		filter: brightness(1.15);
-	}
-
-	a:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 4px;
-	}
-
-	.title {
-		font-size: 15px;
-	}
-
-	.year {
-		color: #999;
-		font-size: 13px;
 	}
 </style>
