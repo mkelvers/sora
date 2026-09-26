@@ -20,7 +20,10 @@
 	const AUDIO = { dub: 'Dub', sub: 'Sub', raw: 'Raw' };
 	const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-	const playback = $derived(getPlayback({ seriesId, seasonId, episode }).current);
+	// The query itself is held, not just its value: its cache entry lives only
+	// as long as something references it
+	const query = $derived(getPlayback({ seriesId, seasonId, episode }));
+	const playback = $derived(query.current);
 
 	let audio = $derived(playback?.media[0]?.audio);
 	const media = $derived(playback?.media.find((media) => media.audio === audio));
