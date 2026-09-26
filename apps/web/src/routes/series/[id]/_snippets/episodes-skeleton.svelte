@@ -1,4 +1,6 @@
 <script lang="ts" module>
+	import Skeleton from '$lib/components/Skeleton.svelte';
+
 	export { episodesSkeleton };
 </script>
 
@@ -6,12 +8,11 @@
 	<ol aria-busy="true" aria-label="Loading episodes">
 		{#each { length: Math.min(count, 6) }, index (index)}
 			<li>
-				<div class="still"></div>
+				<Skeleton ratio="3 / 2" />
 				<div class="text">
-					<div style:width="45%"></div>
-					<div style:width="12%"></div>
-					<div style:width="90%"></div>
-					<div style:width="75%"></div>
+					{#each ['45%', '12%', '90%', '75%'] as width, line (line)}
+						<Skeleton variant="text" {width} />
+					{/each}
 				</div>
 			</li>
 		{/each}
@@ -33,33 +34,9 @@
 		padding: 10px 0;
 	}
 
-	.still,
-	.text div {
-		background: linear-gradient(90deg, #1f1f1f 0%, #2c2c2c 50%, #1f1f1f 100%);
-		background-size: 200% 100%;
-		animation: shimmer 1.2s linear infinite;
-	}
-
-	.still {
-		aspect-ratio: 3 / 2;
-	}
-
 	.text {
 		display: grid;
 		gap: 10px;
 		max-width: 70ch;
-	}
-
-	.text div {
-		height: 12px;
-	}
-
-	@keyframes shimmer {
-		from {
-			background-position: 200% 0;
-		}
-		to {
-			background-position: -200% 0;
-		}
 	}
 </style>

@@ -4,7 +4,7 @@
 	import Images from './_components/Images.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { imagesSkeleton } from './_components/images-skeleton.svelte';
+	import { imagesSkeleton } from './_snippets/images-skeleton.svelte';
 	import { getSeries } from '../series.remote';
 	import { chooseArtwork } from './choose-artwork';
 	import type { PageProps } from './$types';
