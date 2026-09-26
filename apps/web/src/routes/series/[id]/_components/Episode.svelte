@@ -11,21 +11,13 @@
 	let { seriesId, seasonId, episode, now }: Props = $props();
 
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
-	const slug = $derived(
-		episode.title
-			?.normalize('NFKD')
-			.toLowerCase()
-			.replace(/[\u0300-\u036f'’]/g, '')
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-|-$/g, '') || `episode-${episode.number}`
-	);
 </script>
 
 <li>
 	<svelte:element
 		this={playable ? 'a' : 'div'}
 		class="episode"
-		href={playable ? `/watch/${seriesId}/${seasonId}/${episode.number}/${slug}` : undefined}
+		href={playable ? `/series/${seriesId}/watch/${seasonId}/${episode.number}` : undefined}
 	>
 		<div class="still">
 			{#if episode.still_url}

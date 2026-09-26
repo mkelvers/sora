@@ -5,7 +5,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { imagesSkeleton } from './_components/images-skeleton.svelte';
-	import { getSeries } from '../anime.remote';
+	import { getSeries } from '../series.remote';
 	import { chooseArtwork } from './choose-artwork';
 	import type { PageProps } from './$types';
 
@@ -52,7 +52,7 @@
 		{/if}
 
 		<div class="bar">
-			<a class="icon-button" href="/anime/{series.id}" aria-label="Back to {series.title}" title="Back">
+			<a class="icon-button" href="/series/{series.id}" aria-label="Back to {series.title}" title="Back">
 				<Icon name="back" />
 			</a>
 

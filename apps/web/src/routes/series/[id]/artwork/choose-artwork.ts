@@ -1,5 +1,5 @@
 import type { SeriesImage } from '@sora/sdk';
-import { getSeries } from '../anime.remote';
+import { getSeries } from '../series.remote';
 import { setArtwork } from './artwork.remote';
 
 export async function chooseArtwork(

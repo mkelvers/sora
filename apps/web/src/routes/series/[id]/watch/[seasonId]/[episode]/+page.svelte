@@ -1,17 +1,21 @@
 <script lang="ts">
-	import Player from './_components/Player.svelte';
-	import { getEpisode } from './watch.remote';
-	import type { PageProps } from './$types';
+	import Player from "./_components/Player.svelte";
+	import { getEpisode } from "./watch.remote";
+	import type { PageProps } from "./$types";
 
 	let { params }: PageProps = $props();
 </script>
 
 <svelte:boundary>
-	{@const { series, season, episode } = await getEpisode(params)}
+	{@const { series, season, episode } = await getEpisode({
+		seriesId: params.id,
+		seasonId: params.seasonId,
+		episode: params.episode,
+	})}
 
 	{#key `${params.seasonId}/${params.episode}`}
 		<Player
-			animeId={series.id}
+			seriesId={series.id}
 			seasonId={season.id}
 			episode={episode.number}
 			episodeCount={season.episode_count}
@@ -21,10 +25,3 @@
 		/>
 	{/key}
 </svelte:boundary>
-
-<style>
-	:global(body) {
-		margin: 0;
-		background: #000;
-	}
-</style>

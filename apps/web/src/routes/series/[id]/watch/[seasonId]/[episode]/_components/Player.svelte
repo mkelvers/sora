@@ -6,7 +6,7 @@
 	import { getPlayback } from '../watch.remote';
 
 	type Props = {
-		animeId: string;
+		seriesId: string;
 		seasonId: string;
 		episode: number;
 		episodeCount: number;
@@ -15,12 +15,12 @@
 		title: string;
 	};
 
-	let { animeId, seasonId, episode, episodeCount, series, season, title }: Props = $props();
+	let { seriesId, seasonId, episode, episodeCount, series, season, title }: Props = $props();
 
 	const AUDIO = { dub: 'Dub', sub: 'Sub', raw: 'Raw' };
 	const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-	const playback = $derived(getPlayback({ animeId, seasonId, episode }).current);
+	const playback = $derived(getPlayback({ seriesId, seasonId, episode }).current);
 
 	let audio = $derived(playback?.media[0]?.audio);
 	const media = $derived(playback?.media.find((media) => media.audio === audio));
@@ -111,7 +111,7 @@
 
 	function retry() {
 		failure = undefined;
-		getPlayback({ animeId, seasonId, episode }).refresh();
+		getPlayback({ seriesId, seasonId, episode }).refresh();
 	}
 
 	function onkeydown(event: KeyboardEvent) {
@@ -249,7 +249,7 @@
 	</div>
 
 	<header class="overlay">
-		<a class="icon-button" href="/anime/{animeId}" aria-label="Back to {series}">
+		<a class="icon-button" href="/series/{seriesId}" aria-label="Back to {series}">
 			<Icon name="back" />
 		</a>
 		<div>
@@ -274,7 +274,7 @@
 
 		<div class="controls">
 			{#if episode > 1}
-				<a class="icon-button" href="/watch/{animeId}/{seasonId}/{episode - 1}" aria-label="Previous episode">
+				<a class="icon-button" href="/series/{seriesId}/watch/{seasonId}/{episode - 1}" aria-label="Previous episode">
 					<Icon name="previous" />
 				</a>
 			{/if}
@@ -288,7 +288,7 @@
 				<Icon name="forward" />
 			</Button>
 			{#if episode < episodeCount}
-				<a class="icon-button" href="/watch/{animeId}/{seasonId}/{episode + 1}" aria-label="Next episode">
+				<a class="icon-button" href="/series/{seriesId}/watch/{seasonId}/{episode + 1}" aria-label="Next episode">
 					<Icon name="next" />
 				</a>
 			{/if}
