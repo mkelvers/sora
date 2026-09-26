@@ -27,6 +27,11 @@ export function formatDate(date: string) {
 }
 
 export function formatClock(seconds: number) {
+	// A video's duration is NaN until its metadata loads
+	if (!Number.isFinite(seconds)) {
+		seconds = 0;
+	}
+
 	const pad = (value: number) => String(value).padStart(2, '0');
 
 	const hours = Math.floor(seconds / 3600);
