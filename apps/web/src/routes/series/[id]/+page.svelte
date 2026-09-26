@@ -1,10 +1,10 @@
 <script lang="ts">
+	import Actions from "./_components/Actions.svelte";
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
 	import Related from "./_components/Related.svelte";
 	import Seasons from "./_components/Seasons.svelte";
 	import Stats from "./_components/Stats.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
 	import { formatDay, formatTime, tmdbSrcset } from "$lib/utils";
 	import { getSeries } from "./series.remote";
 	import type { PageProps } from "./$types";
@@ -63,13 +63,7 @@
 				<Stats {series} />
 			</div>
 
-			<a
-				href="/series/{series.id}/artwork"
-				aria-label="Edit artwork"
-				title="Edit artwork"
-			>
-				<Icon name="edit" />
-			</a>
+			<Actions {series} />
 		</div>
 	</header>
 
@@ -175,32 +169,6 @@
 		margin: 0;
 		font-size: 28px;
 		font-weight: 400;
-	}
-
-	.bar a {
-		display: inline-grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		border: none;
-		border-radius: 50%;
-		background: none;
-		color: #ddd;
-		cursor: pointer;
-		transition:
-			background 120ms,
-			color 120ms;
-	}
-
-	.bar a:hover {
-		background: rgb(255 255 255 / 0.1);
-		color: #fff;
-	}
-
-	.bar a:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
 	}
 
 	.body {
