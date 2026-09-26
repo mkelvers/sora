@@ -25,3 +25,17 @@ export function formatDate(date: string) {
 		timeZone: 'UTC'
 	});
 }
+
+export function formatClock(seconds: number) {
+	const pad = (value: number) => String(value).padStart(2, '0');
+
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const rest = pad(Math.floor(seconds % 60));
+
+	if (hours > 0) {
+		return `${hours}:${pad(minutes)}:${rest}`;
+	}
+
+	return `${minutes}:${rest}`;
+}

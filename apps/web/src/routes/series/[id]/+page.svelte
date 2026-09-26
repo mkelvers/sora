@@ -36,8 +36,6 @@
 	<div class="body">
 		{#if series.poster_url}
 			<img class="poster" src={series.poster_url} alt={series.title} loading="eager" decoding="async" />
-		{:else}
-			<div class="poster"></div>
 		{/if}
 
 		<section>
@@ -135,7 +133,8 @@
 		padding: 0 var(--side) 64px;
 	}
 
-	.poster {
+	.poster,
+	.body:not(:has(> .poster))::before {
 		display: block;
 		position: relative;
 		width: 100%;
@@ -143,6 +142,10 @@
 		object-fit: cover;
 		margin-top: -192px;
 		background: #2a2a2a;
+	}
+
+	.body:not(:has(> .poster))::before {
+		content: '';
 	}
 
 	section {

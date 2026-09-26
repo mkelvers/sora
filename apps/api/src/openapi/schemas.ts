@@ -277,6 +277,10 @@ export const SkipSegmentSchema = z
 export const PlaybackMediaSchema = z
   .object({
     audio: LanguageSchema,
+    label: z.string().openapi({
+      description: "The audio's name, for an audio menu.",
+      example: "Dub"
+    }),
     locale: LocaleSchema.nullable().openapi({
       description: "Language of the dub's audio or of the sub's default subtitles: always `en`, since Sora serves English. Null for raw, which keeps the original audio and has no subtitles."
     }),
@@ -328,7 +332,10 @@ export const PlaybackMediaSchema = z
             "srt",
             "ass"
           ])
-          .nullable()
+          .nullable(),
+        default: z.boolean().openapi({
+          description: "Whether a player shows this track from the start: the English track, for a sub and a dub alike. None for raw or a hardsub, which has no English track."
+        })
       })
     ),
     skip_segments: z.array(SkipSegmentSchema).openapi({
