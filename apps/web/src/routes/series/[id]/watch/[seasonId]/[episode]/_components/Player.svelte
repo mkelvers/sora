@@ -431,7 +431,6 @@
 	.range {
 		height: 4px;
 		margin: 8px 0;
-		border-radius: 2px;
 		background: linear-gradient(
 			to right,
 			#fff var(--fill),
@@ -517,7 +516,6 @@
 
 	.player :global(.pill) {
 		padding: 10px 18px;
-		border-radius: 4px;
 		background: rgb(255 255 255 / 0.9);
 		color: #101010;
 		font-size: inherit;

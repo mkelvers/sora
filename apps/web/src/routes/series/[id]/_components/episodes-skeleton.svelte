@@ -62,18 +62,4 @@
 			background-position: -200% 0;
 		}
 	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.still,
-		.text div {
-			animation: none;
-		}
-	}
-
-	@media (max-width: 720px) {
-		li {
-			grid-template-columns: 140px minmax(0, 1fr);
-			gap: 12px;
-		}
-	}
 </style>

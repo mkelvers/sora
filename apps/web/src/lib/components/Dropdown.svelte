@@ -35,7 +35,6 @@
 		.dropdown :global(.dropdown-trigger) {
 			anchor-name: --dropdown-trigger;
 			padding: 8px;
-			border-radius: 4px;
 			color: #999;
 		}
 
@@ -55,7 +54,6 @@
 			padding: 6px 0;
 			overflow: hidden;
 			border: none;
-			border-radius: 4px;
 			background: #202020;
 			box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
 			color: #ccc;

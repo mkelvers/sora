@@ -20,7 +20,7 @@
 <div class="page">
 	<header>
 		{#if series.backdrop_url}
-			<img class="backdrop" src={series.backdrop_url} alt={series.title} />
+			<img class="backdrop" src={series.backdrop_url} alt={series.title} loading="eager" decoding="async" />
 		{/if}
 
 		<div class="bar">
@@ -37,7 +37,7 @@
 
 	<div class="body">
 		{#if series.poster_url}
-			<img class="poster" src={series.poster_url} alt="" />
+			<img class="poster" src={series.poster_url} alt={series.title} loading="eager" decoding="async" />
 		{:else}
 			<div class="poster"></div>
 		{/if}
@@ -59,10 +59,6 @@
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-	}
-
 	.page {
 		--poster: clamp(120px, 25vw, 480px);
 		--gap: clamp(16px, 4vw, 80px);
@@ -163,33 +159,5 @@
 	section {
 		min-width: 0;
 		padding-top: 40px;
-	}
-
-	@media (max-width: 720px) {
-		header {
-			height: 240px;
-		}
-
-		.bar {
-			min-height: 80px;
-		}
-
-		h1 {
-			font-size: 20px;
-		}
-
-		.heading span {
-			font-size: 14px;
-		}
-
-		.poster {
-			margin-top: -120px;
-		}
-
-		section {
-			grid-column: 1 / -1;
-			padding-top: 0;
-		}
-
 	}
 </style>
