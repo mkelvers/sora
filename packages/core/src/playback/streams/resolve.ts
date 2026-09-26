@@ -67,7 +67,7 @@ export interface PlaybackMedia {
 
 /** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
-  animeId: string;
+  seriesId: string;
   seasonId: string;
   /** Position within the season, from 1. */
   episode: number;
@@ -81,7 +81,7 @@ export interface Playback {
 }
 
 export const PlaybackRequestSchema = z.object({
-  animeId: z.string().min(1),
+  seriesId: z.string().min(1),
   seasonId: z.string().min(1),
   /** Position within the season, from 1. */
   episode: z.number().int().positive()
@@ -152,10 +152,10 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
     });
   }
 
-  const { animeId, seasonId, episode } = parsed.data;
+  const { seriesId, seasonId, episode } = parsed.data;
   // Taken before any token is made, so every token outlives it.
   const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-  const located = await locateEpisode(seasonId, episode, animeId);
+  const located = await locateEpisode(seasonId, episode, seriesId);
   const anime = await getAnime(located.anilistId);
   const offered = await getEpisodeVersions(located);
   const streamUrl = (token: string) => `${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(token)}`;
@@ -183,7 +183,7 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
   const media = results.flatMap((result) => (result.version ? [result.version] : []));
   if (media.length > 0) {
     return {
-      animeId,
+      seriesId,
       seasonId,
       episode,
       expiresAt,

@@ -124,7 +124,7 @@ mock.module("../proxy/proxy", () => ({
 const { resolvePlayback } = await import("./resolve");
 
 const request = {
-  animeId: "series",
+  seriesId: "series",
   seasonId: "season",
   episode: 3
 };
@@ -182,7 +182,7 @@ describe("resolvePlayback", () => {
 
     expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
     await expect(resolvePlayback(request, options)).resolves.toMatchObject({
-      animeId: "series",
+      seriesId: "series",
       seasonId: "season",
       episode: 3
     });
