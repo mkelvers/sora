@@ -1,16 +1,17 @@
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
-import { sessionCookie, soraAs } from '$lib/server/sora';
-
-/** Paths anyone may open; everything else needs a signed-in viewer. */
-const publicPaths = ['/login'];
+import { gate, rememberProfile } from '$lib/server/access';
+import { profileCookie, sessionCookie, soraAs } from '$lib/server/sora';
 
 /**
- * Resolves the session cookie to a viewer, and keeps signed-out requests out
- * of everything but the sign-in page.
+ * Resolves the session and profile cookies to a viewer, and keeps requests
+ * out until the viewer has signed in and chosen who is watching.
  *
- * Guarding here rather than in a layout also covers remote functions, which
- * are called directly and never run a layout's load.
+ * Full page loads are turned away here. Client-side navigations only reach
+ * the server through the `(protected)` layout's load, which applies the same
+ * gate, so data requests pass through to it. Remote functions are called
+ * directly and never run a load: they only need a signed-in viewer, and one
+ * that acts for a profile checks for it itself.
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
@@ -19,9 +20,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (token) {
 		const sora = soraAs(token);
 		try {
-			const [profile] = await sora.profiles();
+			const profiles = await sora.profiles();
+			const chosen = event.cookies.get(profileCookie);
+			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
+
+			event.locals.viewer = { sora, profiles, profile };
 			if (profile) {
-				event.locals.viewer = { sora, profile };
+				rememberProfile(event.cookies, profile.id);
 			}
 		} catch (cause) {
 			// An expired or revoked session; any other failure is the API's.
@@ -29,17 +34,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 				throw cause;
 			}
 			event.cookies.delete(sessionCookie, { path: '/' });
+			event.cookies.delete(profileCookie, { path: '/' });
 		}
 	}
 
-	const { pathname, search } = event.url;
-	const isPublic = publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-
-	if (!event.locals.viewer && !isPublic) {
-		if (event.isRemoteRequest) {
+	if (event.isRemoteRequest) {
+		if (!event.locals.viewer) {
 			error(401, 'Not signed in');
 		}
-		redirect(303, `/login?redirect=${encodeURIComponent(pathname + search)}`);
+	} else if (!event.isDataRequest) {
+		const target = gate(event.locals.viewer, event.url);
+		if (target) {
+			redirect(303, target);
+		}
 	}
 
 	return resolve(event);

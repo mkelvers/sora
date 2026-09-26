@@ -8,10 +8,9 @@ declare global {
 		interface Locals {
 			/** The signed-in viewer, or `null` before signing in. */
 			viewer: {
-				/** A client that acts as the signed-in account. */
 				sora: SoraClient;
-				/** The account's first profile; there is no profile picker yet. */
-				profile: Profile;
+				profiles: Profile[];
+				profile: Profile | null;
 			} | null;
 		}
 		// interface PageData {}

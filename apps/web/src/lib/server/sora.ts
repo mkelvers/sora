@@ -29,6 +29,9 @@ export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
 /** The cookie holding the signed-in account's session token. */
 export const sessionCookie = 'sora_session';
 
+/** The cookie holding the chosen profile's ID; see `rememberProfile`. */
+export const profileCookie = 'sora_profile';
+
 /** A client that sends a session token, for calls on behalf of a signed-in account. */
 export function soraAs(token: string) {
 	return new SoraClient({

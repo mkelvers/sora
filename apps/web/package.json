@@ -21,6 +21,8 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"@dicebear/core": "^10.7.0",
+		"@dicebear/styles": "^10.6.0",
 		"@sora/sdk": "workspace:*",
 		"class-variance-authority": "^0.7.1",
 		"hls.js": "^1.7.3",

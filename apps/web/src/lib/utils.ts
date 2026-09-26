@@ -87,3 +87,27 @@ export function tmdbSrcset(url: string, sizes: Record<string, number>) {
 		.map(([size, width]) => `${tmdbImage(url, size)} ${width}w`)
 		.join(', ');
 }
+
+/** A `redirect` query parameter as a path on this site, never another origin; `/` otherwise. */
+export function safeRedirect(url: URL) {
+	const target = url.searchParams.get('redirect');
+	return target?.startsWith('/') && !target.startsWith('//') ? target : '/';
+}
+
+/** Fresh DiceBear seeds, to offer as avatars. */
+export function avatarSeeds(count: number) {
+	return Array.from({ length: count }, () => crypto.randomUUID().slice(0, 8));
+}
+
+/** The profiles page, still headed for `redirect` once a profile is chosen, and optionally managing. */
+export function profilesPath(redirect: string, manage = false) {
+	const params = new URLSearchParams();
+	if (manage) {
+		params.set('manage', '1');
+	}
+	if (redirect !== '/') {
+		params.set('redirect', redirect);
+	}
+	const query = params.toString();
+	return query ? `/profiles?${query}` : '/profiles';
+}

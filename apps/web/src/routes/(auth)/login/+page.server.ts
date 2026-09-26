@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { sessionCookie, sora } from '$lib/server/sora';
+import { profileCookie, sessionCookie, sora } from '$lib/server/sora';
+import { safeRedirect } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
 
 // A form action rather than a remote function: remote functions are only
@@ -12,15 +13,9 @@ const Credentials = z.object({
 	password: z.string().min(1)
 });
 
-/** Where to go after signing in: a path on this site, never another origin. */
-function destination(url: URL) {
-	const target = url.searchParams.get('redirect');
-	return target?.startsWith('/') && !target.startsWith('//') ? target : '/';
-}
-
 export const load: PageServerLoad = ({ locals, url }) => {
 	if (locals.viewer) {
-		redirect(303, destination(url));
+		redirect(303, safeRedirect(url));
 	}
 };
 
@@ -39,6 +34,8 @@ export const actions: Actions = {
 
 		try {
 			const session = await sora.signIn(credentials.data);
+			// Every sign-in starts by asking who is watching.
+			cookies.delete(profileCookie, { path: '/' });
 			cookies.set(sessionCookie, session.token, {
 				path: '/',
 				httpOnly: true,
@@ -56,6 +53,6 @@ export const actions: Actions = {
 			throw cause;
 		}
 
-		redirect(303, destination(url));
+		redirect(303, safeRedirect(url));
 	}
 };
