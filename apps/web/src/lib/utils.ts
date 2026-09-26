@@ -43,3 +43,47 @@ export function formatClock(seconds: number) {
 
 	return `${minutes}:${rest}`;
 }
+
+export function formatDay(date: Date) {
+	return date.toLocaleDateString('da-DK', {
+		day: 'numeric',
+		month: 'long'
+	});
+}
+
+/** Formats a `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` date only as precisely as it is known. */
+export function formatFuzzyDate(date: string) {
+	const parts = date.split('-').length;
+
+	if (parts === 1) {
+		return date;
+	}
+
+	return new Date(date).toLocaleDateString('da-DK', {
+		day: parts === 3 ? 'numeric' : undefined,
+		month: 'long',
+		year: 'numeric',
+		timeZone: 'UTC'
+	});
+}
+
+const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
+
+/**
+ * Points a TMDB image at one of TMDB's size buckets, such as `w300`, instead
+ * of whichever it was stored with. Other URLs, such as AniList's, are left as is.
+ */
+export function tmdbImage(url: string, size: string) {
+	return url.replace(tmdbBucket, `$1${size}/`);
+}
+
+/** A `srcset` of TMDB size buckets, keyed by their width in pixels; `undefined` for other URLs. */
+export function tmdbSrcset(url: string, sizes: Record<string, number>) {
+	if (!tmdbBucket.test(url)) {
+		return undefined;
+	}
+
+	return Object.entries(sizes)
+		.map(([size, width]) => `${tmdbImage(url, size)} ${width}w`)
+		.join(', ');
+}
