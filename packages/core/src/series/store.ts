@@ -5,7 +5,7 @@ import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
 import { scheduleEpisodeLookup, scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
 import { assignSeasonIds } from "./identity";
-import { newSeasonId, newSeriesId } from "./ids";
+import { newId } from "../ids";
 import type { SeriesSeason } from "./seasons";
 import { buildSeries, type SeriesLayout } from "./series";
 
@@ -252,7 +252,7 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
     candidates.find((candidate) => candidate.key === built.key) ??
     candidates[0];
 
-  return chosen?.id ?? newSeriesId();
+  return chosen?.id ?? newId();
 }
 
 /** Replaces a series' seasons and episodes, keeping season IDs. Returns the seasons with their IDs. */
@@ -267,7 +267,7 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
     .from(seriesSeason)
     .where(eq(seriesSeason.seriesId, seriesId));
 
-  const seasons = assignSeasonIds(stored, built.seasons, newSeasonId);
+  const seasons = assignSeasonIds(stored, built.seasons, newId);
   const keptIds = seasons.map(({ id }) => id);
 
   // Episodes are rewritten wholesale; they are identified by season and number.

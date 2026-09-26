@@ -16,7 +16,7 @@ export type ContentLanguage = "sub" | "dub" | "raw";
  * Sora's own IDs.
  */
 export interface SeriesCard {
-  /** Sora's series ID, such as `a_4kQ9vB2xLm0T`. */
+  /** Sora's series ID, such as `GYZJ43JMR`. */
   id: string;
   kind: SeriesKind;
   /** The title of the first season, or of the film. */
@@ -62,7 +62,7 @@ export interface Series extends SeriesCard {
 
 /** One season of a title, as listed in its season picker. */
 export interface Season {
-  /** Sora's season ID, such as `s_Zp81rTq0cW5e`. */
+  /** Sora's season ID, such as `G6NQ5DWZ6`. */
   id: string;
   kind: SeasonKind;
   /** Position among the title's seasons of the same kind, from 1. */

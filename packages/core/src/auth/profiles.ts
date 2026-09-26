@@ -4,11 +4,11 @@ import { z } from "zod";
 import { db } from "../database/client";
 import { playbackProgress, profile, watchlistEntry } from "../database/schema";
 import { InvalidInputError, ProfileNotFoundError } from "../errors";
-import { newProfileId } from "../series/ids";
+import { newId } from "../ids";
 
 /** One viewer under an account. */
 export interface Profile {
-  /** Sora's profile ID, such as `p_7hTq2LmX0bZe`. */
+  /** Sora's profile ID, such as `GYZJ43JMR`. */
   id: string;
   name: string;
   /** A CSS color for the profile's tile. */
@@ -72,7 +72,7 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
   const [row] = await db
     .insert(profile)
     .values({
-      id: newProfileId(),
+      id: newId(),
       userId,
       name,
       color: color ?? palette[(existing?.total ?? 0) % palette.length]!
