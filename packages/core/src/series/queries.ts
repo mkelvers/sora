@@ -66,6 +66,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
   const isNextEpisodeAhead = row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
   return {
     ...toSeriesCard(row),
+    startDate: row.startDate,
     overview: row.overview ?? anchor.description,
     genres: anchor.genres,
     tags: anchor.tags,

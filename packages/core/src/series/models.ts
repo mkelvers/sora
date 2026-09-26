@@ -40,6 +40,8 @@ export interface SeriesCard {
  * Only the episodes differ between seasons; see `getSeasonEpisodes`.
  */
 export interface Series extends SeriesCard {
+  /** First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it. */
+  startDate: string | null;
   overview: string | null;
   genres: string[];
   tags: AnimeTag[];

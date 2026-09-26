@@ -178,6 +178,10 @@ export const SeasonSchema = z
   .openapi("Season") satisfies z.ZodType<SnakeCased<Season>>;
 
 export const SeriesSchema = SeriesCardSchema.extend({
+  start_date: z.string().nullable().openapi({
+    description: "First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it.",
+    example: "2018-10-02"
+  }),
   overview: z.string().nullable(),
   genres: z.array(z.string()),
   tags: z.array(TagSchema),
