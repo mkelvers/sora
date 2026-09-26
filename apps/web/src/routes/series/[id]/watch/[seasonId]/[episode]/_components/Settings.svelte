@@ -23,7 +23,10 @@
 	type Menu = {
 		label: string;
 		value: string;
-		options: { value: string; label: string }[];
+		options: {
+			value: string;
+			label: string
+		}[];
 		select: (value: string) => void;
 	};
 
