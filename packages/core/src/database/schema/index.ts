@@ -6,10 +6,11 @@
  * as the AniList fragment it was fetched with, so a schema change upstream
  * means regenerating the GraphQL types, not migrating data.
  *
- * User IDs are opaque strings owned by whichever identity layer sits in front
- * of the core (Better Auth, an OAuth gateway, a device pairing flow). The core
- * never stores credentials.
+ * Library rows (progress, watchlist) are keyed by a `user_id` that holds a
+ * profile ID; see {@link profile}. Accounts, sessions, and hashed passwords
+ * live in the `auth_*` tables, which Better Auth manages.
  */
+export * from "./auth";
 export * from "./catalog";
 export * from "./library";
 export * from "./playback";

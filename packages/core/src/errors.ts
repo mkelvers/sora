@@ -10,6 +10,7 @@ export type CoreErrorCode =
   | "SERIES_NOT_FOUND"
   | "SEASON_NOT_FOUND"
   | "EPISODE_NOT_FOUND"
+  | "PROFILE_NOT_FOUND"
   | "PLAYBACK_UNAVAILABLE"
   | "UPSTREAM_UNAVAILABLE"
   | "INVALID_STREAM_TOKEN"
@@ -68,6 +69,16 @@ export class SeasonNotFoundError extends CoreError {
 export class EpisodeNotFoundError extends CoreError {
   constructor(seasonId: string, episode: number) {
     super("EPISODE_NOT_FOUND", `Season ${seasonId} has no playable episode ${episode}`);
+  }
+}
+
+/** The ID does not identify a profile of the signed-in account. */
+export class ProfileNotFoundError extends CoreError {
+  readonly profileId: string;
+
+  constructor(profileId: string) {
+    super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
+    this.profileId = profileId;
   }
 }
 

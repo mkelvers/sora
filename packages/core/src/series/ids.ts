@@ -1,5 +1,5 @@
 /**
- * Sora's own IDs for series and seasons, the only IDs clients see.
+ * Sora's own IDs for series, seasons, and profiles, the only IDs clients see.
  *
  * IDs are random rather than sequential or derived from AniList, so they
  * reveal nothing about the catalogue and never change when a series is laid
@@ -22,6 +22,11 @@ export function newSeriesId() {
 /** Creates a new season ID, such as `s_Zp81rTq0cW5e`. */
 export function newSeasonId() {
   return `s_${randomText()}`;
+}
+
+/** Creates a new profile ID, such as `p_7hTq2LmX0bZe`. */
+export function newProfileId() {
+  return `p_${randomText()}`;
 }
 
 function randomText() {
