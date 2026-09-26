@@ -106,6 +106,12 @@ const regularRuntimeTolerance = 2.2;
  */
 const specialsRuntimeTolerance = 1.6;
 
+/** How far a special matched by name may air from AniList's start date. */
+const specialTitleWindowDays = 365;
+
+/** Shorter distinctive names, such as "OVA" or "Extra", are too generic to match specials by. */
+const minimumSpecialNameLength = 6;
+
 /**
  * A title-only film match may still differ this much in release date, which
  * covers festival premieres ahead of the theatrical run but not a bonus short
@@ -222,7 +228,7 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
     }
   }
 
-  return best ?? placeByTitle(subject, candidate, nameSimilarity);
+  return best ?? placeByTitle(subject, candidate, nameSimilarity) ?? placeSpecialByTitle(subject, candidate);
 }
 
 /**
@@ -249,6 +255,56 @@ function placeByTitle(subject: MatchSubject, candidate: ShowCandidate, nameSimil
     mediaType: "tv",
     tmdbId: candidate.show.id,
     episodes: track.map((episode, offset) => ({
+      anilistEpisode: offset + 1,
+      seasonNumber: episode.season_number,
+      episodeNumber: episode.episode_number
+    })),
+    method: "title",
+    score: minimumShowScore
+  };
+}
+
+/**
+ * Places a special or OVA among its franchise show's specials by name when
+ * the air dates disagree, as they do by months for OVAs bundled with manga
+ * volumes. The TMDB special must be named what the subject's title adds to
+ * the show's ("HAIKYU!! LAND VS. AIR" is "Land vs. Air") and air within
+ * {@link specialTitleWindowDays} of AniList's start. The subject's later
+ * episodes follow it among the specials.
+ */
+function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): Placement | null {
+  if (!candidate.isFranchiseShow || isSeriesFormat(subject.format)) {
+    return null;
+  }
+
+  const showNames = [
+    candidate.show.name,
+    candidate.show.originalName
+  ].map(normalizeTitle);
+  const names = subject.titles.slice(0, subject.primaryTitleCount).flatMap((title) => {
+    const normalized = normalizeTitle(title);
+    const showName = showNames.find((name) => normalized.startsWith(`${name} `));
+    return showName ? [normalized.slice(showName.length + 1)] : [];
+  }).filter((name) => name.length >= minimumSpecialNameLength);
+
+  const track = specialsTrack(candidate.show.episodes);
+  const start = dayNumber(subject.startDate);
+  const index = track.findIndex((episode) => {
+    const airDay = dayNumber(episode.air_date);
+    return (
+      (start === null || airDay === null || Math.abs(airDay - start) <= specialTitleWindowDays) &&
+      runtimesAgree(episode.runtime, subject.durationMinutes, specialsRuntimeTolerance) &&
+      episode.name !== null && bestSimilarity(names, [episode.name]) >= 0.9
+    );
+  });
+  if (index === -1) {
+    return null;
+  }
+
+  return {
+    mediaType: "tv",
+    tmdbId: candidate.show.id,
+    episodes: pick(track, index, subject, null, false).map((episode, offset) => ({
       anilistEpisode: offset + 1,
       seasonNumber: episode.season_number,
       episodeNumber: episode.episode_number

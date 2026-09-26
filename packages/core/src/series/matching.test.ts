@@ -508,6 +508,81 @@ describe("placeInShow", () => {
   });
 });
 
+describe("placeInShow by special name", () => {
+  // Haikyu!!: TMDB dates Land vs. Air twelve days after AniList, and Lev
+  // Appears four months after, beyond the air-date window.
+  const named = (episode: number, airDate: string, name: string) => ({
+    ...special(episode, airDate, 24),
+    name
+  });
+  const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
+    show: {
+      id: 60863,
+      name: "Haikyu!!",
+      originalName: "ハイキュー!!",
+      episodes: [
+        ...weekly(1, "2014-04-06", 3),
+        named(1, "2015-03-04", "Lev Appears!"),
+        named(2, "2020-01-22", "Land vs. Air"),
+        named(3, "2020-01-22", "The Path of the Ball"),
+        named(4, "2020-03-04", "Puppet Theatre")
+      ]
+    },
+    isFranchiseShow: true,
+    prequelEnd: null,
+    ...overrides
+  });
+
+  test("finds an OVA among its franchise's specials by what its title adds to the show's", () => {
+    const placement = placeInShow(subject({
+      format: "OVA",
+      titles: ["HAIKYU!! LAND VS. AIR", "Haikyuu!! Riku VS Kuu"],
+      primaryTitleCount: 2,
+      startDate: "2020-01-10",
+      episodes: 2
+    }), haikyu());
+
+    expect(placement?.method).toBe("title");
+    expect(range(placement)).toEqual([
+      "1:S0E2",
+      "2:S0E3"
+    ]);
+  });
+
+  test("accepts dates months apart", () => {
+    const placement = placeInShow(subject({
+      format: "OVA",
+      titles: ["HAIKYU!!: Lev Appears!"],
+      startDate: "2014-11-09",
+      episodes: 1
+    }), haikyu());
+
+    expect(range(placement)).toEqual([
+      "1:S0E1"
+    ]);
+  });
+
+  test("only matches in the franchise's own show", () => {
+    expect(placeInShow(subject({
+      format: "OVA",
+      titles: ["HAIKYU!!: Lev Appears!"],
+      startDate: "2014-11-09",
+      episodes: 1
+    }), haikyu({
+      isFranchiseShow: false
+    }))).toBeNull();
+  });
+
+  test("rejects a special aired more than a year away", () => {
+    expect(placeInShow(subject({
+      format: "OVA",
+      titles: ["HAIKYU!!: Lev Appears!"],
+      startDate: "2018-01-01",
+      episodes: 1
+    }), haikyu())).toBeNull();
+  });
+});
+
 describe("placeAsMovie", () => {
   test("accepts a film released on the entry's start date", () => {
     const placement = placeAsMovie(

@@ -204,13 +204,13 @@ async function isFinale(located: LocatedEpisode) {
     .select({
       seasonId: seriesEpisode.seasonId,
       number: seriesEpisode.number,
-      kind: seriesSeason.kind
+      inWatchOrder: seriesSeason.inWatchOrder
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
     .where(and(eq(seriesSeason.seriesId, located.seriesId), isNotNull(seriesEpisode.anilistId)))
     .orderBy(desc(seriesSeason.position), desc(seriesEpisode.number));
 
-  const finale = playable.find((episode) => episode.kind !== "ova") ?? playable[0];
+  const finale = playable.find((episode) => episode.inWatchOrder) ?? playable[0];
   return finale?.seasonId === located.seasonId && finale.number === located.number;
 }

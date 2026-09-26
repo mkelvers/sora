@@ -1,3 +1,4 @@
+import type { MediaRelation } from "../anilist/graphql.generated";
 import { toAnimeCard, type AnimeCard, type AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
@@ -52,7 +53,7 @@ export interface SeriesLayout extends SeriesLayoutSummary {
   overview: string | null;
   /** TMDB's English or textless logo; `null` when TMDB has none. */
   logoUrl: string | null;
-  /** Regular seasons in order, then OVA seasons. A film or standalone entry has one. */
+  /** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
   seasons: SeriesSeason[];
   /** Other titles from the same franchise: films, spin-offs, shorts, and entries TMDB lists separately. */
   related: SeriesLayoutSummary[];
@@ -108,10 +109,12 @@ interface MappedEntry {
  * AniList lists each season, cour, film, and special of a franchise as its
  * own entry. Every entry is matched to TMDB, and the entries that land in
  * the same TMDB show become one series: later parts merge into the season
- * they continue, multi-episode OVAs become OVA seasons, and one-off specials
- * sit inside the seasons by air date. A sequel season TMDB does not list yet
- * joins its prequel's series. Films, spin-offs, and shorts become related
- * series. See `seasons.ts` for the layout rules.
+ * they continue, films and OVAs that continue the story sit between the
+ * seasons in watch order, other multi-episode OVAs and recaps become extra
+ * OVA seasons, and one-off specials sit inside the seasons by air date. A
+ * sequel season TMDB does not list yet, and a film or OVA that continues a
+ * show's story, join their prequel's series. Other films, spin-offs, and
+ * shorts become related series. See `seasons.ts` for the layout rules.
  *
  * This walks the franchise's AniList relations and matches each new entry,
  * which can take many upstream requests, so only the series store calls it;
@@ -235,22 +238,32 @@ async function mapEntries(entries: readonly FranchiseEntry[]): Promise<MappedEnt
 /**
  * The series an entry belongs to.
  *
- * A sequel season that TMDB does not list yet, which is common for a season
- * that was just announced, joins the series of its prequel rather than
- * becoming a title of its own. It stays there once TMDB lists it, so its
- * season keeps its ID.
+ * Two kinds of entries join the series of their prequel rather than
+ * becoming titles of their own:
+ *
+ * - A sequel season that TMDB does not list yet, which is common for a
+ *   season that was just announced. It stays there once TMDB lists it, so
+ *   its season keeps its ID. A season that follows a film-only franchise is
+ *   its own show.
+ * - A film or OVA that TMDB lists apart from its show but that continues the
+ *   show's story, per AniList's prequel chain, such as the films between
+ *   Rascal Does Not Dream of Bunny Girl Senpai's two seasons. Watching the
+ *   show means watching them. A recap of its prequel stays a title of its
+ *   own.
  *
  * @param visited - Entries already followed, which stops prequel cycles.
  */
 async function seriesKeyOf(entry: FranchiseEntry, mapping: TmdbMapping, visited: ReadonlySet<number>): Promise<SeriesKey> {
   const own = ownSeriesKey(entry, mapping);
+  const isUnlistedSeason = mapping.tmdbId === null && isSeasonFormat(entry);
+  const isSeparateRelease = mapping.mediaType !== "tv" && !isSeasonFormat(entry);
   const [prequelId] = prequelIdsOf(entry);
-  if (mapping.tmdbId !== null || !isSeasonFormat(entry) || prequelId === undefined || visited.has(prequelId)) {
+  if (!(isUnlistedSeason || isSeparateRelease) || prequelId === undefined || visited.has(prequelId)) {
     return own;
   }
 
   const prequel = (await loadEntries([prequelId])).get(prequelId);
-  if (!prequel) {
+  if (!prequel || summaryIdsOf(prequel).includes(entry.id)) {
     return own;
   }
 
@@ -258,8 +271,13 @@ async function seriesKeyOf(entry: FranchiseEntry, mapping: TmdbMapping, visited:
     ...visited,
     entry.id
   ]));
-  // A season that follows a film is its own show, not part of the film.
-  return inherited.startsWith("movie:") ? own : inherited;
+  const [kind] = parseKey(inherited);
+  if (isUnlistedSeason) {
+    return kind === "movie" ? own : inherited;
+  }
+
+  // Only a show continues through its films; a film sequel of a film stays in its own series.
+  return kind === "tv" || kind === "anilist" ? inherited : own;
 }
 
 /** The series an entry's own TMDB mapping puts it in. */
@@ -287,9 +305,10 @@ async function layoutSeasons(
   if (kind === "tv" || kind === "shorts") {
     const show = await getShow(id);
     if (show) {
+      const recapIds = new Set(members.flatMap(({ entry }) => summaryIdsOf(entry)));
       return layoutShowSeasons({
         show,
-        members: members.map(toSeasonMember),
+        members: await Promise.all(members.map((member) => toSeasonMember(member, recapIds))),
         isShorts: kind === "shorts"
       });
     }
@@ -304,6 +323,7 @@ async function layoutSeasons(
         number: 1,
         title: anime[0]?.title.display ?? movie?.title ?? "Movie",
         anime,
+        inWatchOrder: true,
         episodes: anime.map((card, index) => ({
           number: index + 1,
           title: index === 0 ? movie?.title ?? card.title.display : card.title.display,
@@ -324,18 +344,29 @@ async function layoutSeasons(
   return byStartDate(members).map(({ card }, index) => layoutStandaloneSeason(card, index + 1));
 }
 
-function toSeasonMember({ entry, mapping, card }: MappedEntry): SeasonMember {
+async function toSeasonMember({ entry, mapping, card }: MappedEntry, recapIds: ReadonlySet<number>): Promise<SeasonMember> {
   return {
     anime: card,
     prequelIds: prequelIdsOf(entry),
     links: mappedEpisodes(mapping),
-    isUnlistedSeason: mapping.tmdbId === null
+    isRecap: recapIds.has(entry.id),
+    film: mapping.mediaType === "movie" && mapping.tmdbId !== null ? await getMovie(mapping.tmdbId) : null,
+    isUnlistedSeason: mapping.tmdbId === null && isSeasonFormat(entry)
   };
 }
 
 function prequelIdsOf(entry: FranchiseEntry) {
+  return relatedAnimeIds(entry, "PREQUEL");
+}
+
+/** IDs of the recaps AniList lists as summaries of the entry. */
+function summaryIdsOf(entry: FranchiseEntry) {
+  return relatedAnimeIds(entry, "SUMMARY");
+}
+
+function relatedAnimeIds(entry: FranchiseEntry, relation: MediaRelation) {
   return (entry.relations?.edges ?? []).flatMap((edge) =>
-    edge?.relationType === "PREQUEL" && edge.node?.type === "ANIME" ? [edge.node.id] : []
+    edge?.relationType === relation && edge.node?.type === "ANIME" ? [edge.node.id] : []
   );
 }
 

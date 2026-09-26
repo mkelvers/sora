@@ -105,7 +105,7 @@ async function titleEpisodes(seriesIds: readonly string[]) {
     .select({
       seriesId: seriesSeason.seriesId,
       seasonId: seriesSeason.id,
-      seasonKind: seriesSeason.kind,
+      inWatchOrder: seriesSeason.inWatchOrder,
       number: seriesEpisode.number,
       anilistId: seriesEpisode.anilistId,
       airDate: seriesEpisode.airDate
@@ -126,7 +126,7 @@ async function titleEpisodes(seriesIds: readonly string[]) {
           isAhead && row.seasonId === title.nextEpisodeSeasonId && title.nextEpisodeNumber !== null && row.number >= title.nextEpisodeNumber;
         return {
           seasonId: row.seasonId,
-          seasonKind: row.seasonKind,
+          inWatchOrder: row.inWatchOrder,
           number: row.number,
           isExtra: row.anilistId === null,
           isReleased: !isAtOrAfterNext && (row.airDate === null || row.airDate <= today)

@@ -286,6 +286,7 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
       number: season.number,
       position,
       title: season.title,
+      inWatchOrder: season.inWatchOrder,
       anchorAnilistId: season.anime[0]?.id ?? null
     };
     await tx

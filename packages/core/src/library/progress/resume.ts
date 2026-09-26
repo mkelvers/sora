@@ -1,5 +1,4 @@
 import type { SeriesCard } from "../../series/models";
-import type { SeasonKind } from "../../series/seasons";
 
 /** Saved progress for one season episode. */
 export interface EpisodeProgress {
@@ -30,7 +29,8 @@ export interface ContinueWatchingItem {
 /** One episode of a title, as the resume rules see it. */
 export interface TitleEpisode {
   seasonId: string;
-  seasonKind: SeasonKind;
+  /** See `SeriesSeason.inWatchOrder`. */
+  inWatchOrder: boolean;
   /** Position within the season, from 1. */
   number: number;
   /** An extra only TMDB lists, which cannot be played. */
@@ -46,8 +46,8 @@ export type ContinuePoint = Pick<ContinueWatchingItem, "seasonId" | "episode" | 
  *
  * An unfinished latest episode resumes where it stopped. After a completed
  * episode, the next playable episode follows, crossing into the next season
- * of the same kind: the last episode of season 1 leads to season 2, but the
- * last regular season does not lead into the OVAs. That next episode resumes
+ * in watch order: the last episode of season 1 leads to the film after it
+ * or to season 2, but the watch order does not lead into the extras. That next episode resumes
  * from its own checkpoint if one exists (it may have been started earlier or
  * on another device), or starts from zero if it has been released.
  *
@@ -74,7 +74,7 @@ export function continuePoint(episodes: readonly TitleEpisode[], progress: reado
   const index = episodes.findIndex((episode) => episode.seasonId === latest.seasonId && episode.number === latest.episode);
   const current = episodes[index];
   const next = index >= 0 ? episodes.slice(index + 1).find((episode) => !episode.isExtra) : undefined;
-  if (!current || !next || next.seasonKind !== current.seasonKind) {
+  if (!current || !next || next.inWatchOrder !== current.inWatchOrder) {
     return null;
   }
 

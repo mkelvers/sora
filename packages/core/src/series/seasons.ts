@@ -8,7 +8,14 @@
  * - Regular seasons follow TMDB's seasons, with later parts and cours merged
  *   into the season they continue. Episodes are numbered from 1 in each
  *   season, never continuously across seasons.
- * - Multi-episode OVAs become OVA seasons of their own.
+ * - Films and multi-episode OVAs that continue the story, per AniList's
+ *   prequel chain, sit between the seasons in watch order: right after the
+ *   season or film they follow. TMDB files them as separate films or under
+ *   specials, but skipping them leaves the next season's story missing
+ *   (Rascal Does Not Dream of Bunny Girl Senpai's films come between its two
+ *   seasons).
+ * - Other multi-episode OVAs, and recaps of any length, become extra OVA
+ *   seasons after the watch order.
  * - One-off AniList specials are placed inside the regular seasons by air
  *   date, after the last episode that aired before them.
  * - Specials and extras that only TMDB lists are left out. No provider can
@@ -16,7 +23,7 @@
  *   that they aired; numbering them in would shift every later episode.
  */
 import type { AnimeCard } from "../catalog/models/anime";
-import type { TmdbEpisode, TmdbShow } from "../tmdb/resources";
+import type { TmdbEpisode, TmdbMovie, TmdbShow } from "../tmdb/resources";
 import { tmdbImageUrl } from "../tmdb/resources";
 import type { EpisodeLink } from "./matching";
 
@@ -26,6 +33,10 @@ export interface SeasonMember {
   /** AniList IDs of the entry's direct prequels. */
   prequelIds: number[];
   links: EpisodeLink[];
+  /** A summary of other entries, such as a recap film or special, per AniList. */
+  isRecap?: boolean;
+  /** TMDB's details of the entry when TMDB lists it as a film of its own. */
+  film?: Pick<TmdbMovie, "title" | "overview" | "release_date" | "runtime" | "backdrop_path"> | null;
   /**
    * A sequel season TMDB does not list yet. It is laid out as a regular
    * season after the listed ones, with AniList's episode numbers, until
@@ -50,6 +61,13 @@ export interface SeriesSeason {
   title: string;
   /** The AniList entries whose episodes make up the season, in order. */
   anime: AnimeCard[];
+  /**
+   * Whether the season is part of the story in watch order, as regular
+   * seasons and the films and OVAs between them are. Extras, such as
+   * side-story OVAs and recaps, are not, and playback does not run on into
+   * or out of them.
+   */
+  inWatchOrder: boolean;
   episodes: SeriesEpisode[];
 }
 
@@ -101,8 +119,8 @@ interface Group {
 }
 
 /**
- * Lays out a TMDB show's AniList entries as regular seasons followed by OVA
- * seasons. See the module documentation for the rules.
+ * Lays out a TMDB show's AniList entries as seasons in watch order followed
+ * by extra OVA seasons. See the module documentation for the rules.
  */
 export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   const { show, members } = input;
@@ -121,7 +139,11 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
     );
   };
 
+  const memberIds = new Set(members.map((member) => member.anime.id));
+  const continuesStory = (member: SeasonMember) => member.prequelIds.some((id) => memberIds.has(id));
+
   const regular: SeasonMember[] = [];
+  const interludes: SeasonMember[] = [];
   const ovas: SeasonMember[] = [];
   const oneOffs: SeasonMember[] = [];
   // Unlisted seasons have no position; AniList IDs grow with time, so they keep airing order.
@@ -129,6 +151,10 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
     const hasRegularEpisodes = member.links.some((link) => link.seasonNumber > 0);
     if (input.isShorts || hasRegularEpisodes || member.isUnlistedSeason) {
       regular.push(member);
+    } else if (member.isRecap) {
+      ovas.push(member);
+    } else if (continuesStory(member) && (member.anime.format === "MOVIE" || episodeCount(member) >= 2)) {
+      interludes.push(member);
     } else if (episodeCount(member) >= 2) {
       ovas.push(member);
     } else {
@@ -150,18 +176,87 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
     placeOneOffs(groups, oneOffRows(oneOffs, episodes));
   }
 
-  const ovaGroups = mergeLaterParts(ovas.map((member) => ({
+  const watchOrder = placeInterludes(
+    groups.map((group) => ({
+      kind: "season" as const,
+      group
+    })),
+    interludes.map((member) => ({
+      kind: member.anime.format === "MOVIE" ? "movie" as const : "ova" as const,
+      group: {
+        key: `anime:${member.anime.id}`,
+        rows: rowsOf(member, episodes)
+      }
+    }))
+  );
+
+  const extras = mergeLaterParts(ovas.map((member) => ({
     key: `anime:${member.anime.id}`,
     rows: rowsOf(member, episodes)
-  })));
+  }))).map((group) => ({
+    kind: "ova" as const,
+    group
+  }));
 
+  const counts = new Map<SeasonKind, number>();
+  const firstSeason = regular[0]?.anime;
   return [
-    ...groups.map((group, index) => toSeason(group, "season", index + 1, followsTmdbSeasons ? show.seasons : [])),
-    ...ovaGroups.map((group, index) => ({
-      ...toSeason(group, "ova", index + 1, []),
-      title: ovaSeasonTitle(group.rows[0]?.member?.anime, regular[0]?.anime, index + 1)
+    ...watchOrder.map((slot) => ({
+      ...slot,
+      inWatchOrder: true
+    })),
+    ...extras.map((slot) => ({
+      ...slot,
+      inWatchOrder: false
     }))
-  ];
+  ].map(({ kind, group, inWatchOrder }) => {
+    const number = (counts.get(kind) ?? 0) + 1;
+    counts.set(kind, number);
+    const season = toSeason(group, kind, number, inWatchOrder, followsTmdbSeasons ? show.seasons : []);
+    return kind === "season"
+      ? season
+      : {
+          ...season,
+          title: extraSeasonTitle(group.rows[0]?.member, firstSeason, kind, number)
+        };
+  });
+}
+
+/** A season's rows together with the kind of season they make. */
+interface Slot {
+  kind: SeasonKind;
+  group: Group;
+}
+
+/**
+ * Inserts each film or OVA that continues the story right after the slot
+ * holding its prequel, so the watch order follows AniList's prequel chain.
+ * A chain is followed to its end before the next continuation of the same
+ * slot, and continuations of one slot keep their airing order. Chains whose
+ * prequel is not in the watch order, such as a sequel to a recap, close it.
+ */
+function placeInterludes(line: readonly Slot[], interludes: readonly Slot[]): Slot[] {
+  const memberOf = (slot: Slot) => slot.group.rows[0]?.member;
+  // AniList IDs grow with time, so they keep airing order.
+  const remaining = new Set([...interludes].sort((left, right) => (memberOf(left)?.anime.id ?? 0) - (memberOf(right)?.anime.id ?? 0)));
+  const withFollowers = (slot: Slot): Slot[] => {
+    const followers = [...remaining].filter((interlude) =>
+      memberOf(interlude)?.prequelIds.some((id) => slot.group.rows.some((row) => row.member.anime.id === id))
+    );
+    return [
+      slot,
+      ...followers.flatMap((follower) => (remaining.delete(follower) ? withFollowers(follower) : []))
+    ];
+  };
+
+  const placed = line.flatMap(withFollowers);
+  for (const interlude of remaining) {
+    if (remaining.delete(interlude)) {
+      placed.push(...withFollowers(interlude));
+    }
+  }
+
+  return placed;
 }
 
 /**
@@ -178,6 +273,7 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
     number,
     title: anime.title.display,
     anime: [anime],
+    inWatchOrder: true,
     episodes: Array.from({ length: Math.max(count, 1) }, (_, index) => ({
       number: index + 1,
       title: null,
@@ -347,24 +443,40 @@ function placeOneOffs(groups: Group[], oneOffs: readonly Row[]) {
   }
 }
 
-/** OVA names that say nothing beyond "this is an OVA". */
-const genericOvaName = /^(?:the\s+)?(?:ova|oad|ona|special|specials|extra|extras|bonus)(?:\s*\d+)?$/i;
+/** Names that say nothing beyond "this is an OVA" or "this is a film". */
+const genericExtraName = /^(?:the\s+)?(?:ova|oad|ona|special|specials|extra|extras|bonus|movie|film|the movie)(?:\s*\d+)?$/i;
 
 /**
- * Names an OVA season by what sets it apart from its show, the way "Season
- * N" names a regular season: "That Time I Got Reincarnated as a Slime:
- * Visions of Coleus" becomes "Visions of Coleus". When the show's title
- * leaves nothing distinctive ("OAD", "Specials"), the season is "OVA Season N".
- * An OVA whose title does not start with the show's keeps its own title.
+ * Names an OVA or film season by what sets it apart from its show, the way
+ * "Season N" names a regular season: "That Time I Got Reincarnated as a
+ * Slime: Visions of Coleus" becomes "Visions of Coleus", and "Demon Slayer
+ * -Kimetsu no Yaiba- The Movie: Mugen Train" becomes "Mugen Train". When
+ * the show's title leaves nothing distinctive, an OVA is "OVA Season N"
+ * ("OAD", "Specials") and a film keeps its full title ("Violet Evergarden:
+ * The Movie"). An entry whose title does not start with the show's keeps
+ * its own title.
  *
- * @param ova - The season's first AniList entry.
+ * @param extra - The season's first AniList entry. TMDB's title of a film
+ *   comes first, since AniList sometimes has only a romanised one.
  * @param show - The show's first regular entry, whose titles are removed.
  */
-export function ovaSeasonTitle(ova: AnimeCard | undefined, show: AnimeCard | undefined, number: number) {
-  const fallback = `OVA Season ${number}`;
-  if (!ova) {
-    return fallback;
-  }
+export function extraSeasonTitle(
+  extra: Pick<SeasonMember, "anime" | "film"> | undefined,
+  show: AnimeCard | undefined,
+  kind: Exclude<SeasonKind, "season">,
+  number: number
+) {
+  const ownTitles = [
+    extra?.film?.title,
+    extra?.anime.title.display,
+    extra?.anime.title.english,
+    extra?.anime.title.romaji,
+    extra?.anime.title.native
+  ].filter((title): title is string => Boolean(title));
+  const [ownTitle] = ownTitles;
+  const fallback = kind === "movie" && ownTitle && !genericExtraName.test(ownTitle)
+    ? ownTitle
+    : kind === "movie" ? `Movie ${number}` : `OVA Season ${number}`;
 
   const showTitles = [
     show?.title.english,
@@ -372,23 +484,38 @@ export function ovaSeasonTitle(ova: AnimeCard | undefined, show: AnimeCard | und
     show?.title.native
   ].filter((title): title is string => Boolean(title));
 
-  for (const title of [
-    ova.title.display,
-    ova.title.english,
-    ova.title.romaji,
-    ova.title.native
-  ]) {
-    const prefix = title ? showTitles.find((showTitle) => title.toLowerCase().startsWith(showTitle.toLowerCase())) : undefined;
-    if (title && prefix) {
-      const rest = title.slice(prefix.length).replace(/^[\s:：\-–—~!！.]+/, "").trim();
-      return rest.length === 0 || genericOvaName.test(rest) ? fallback : rest;
+  for (const title of ownTitles) {
+    const rest = showTitles.map((showTitle) => withoutPrefix(title, showTitle)).find((candidate) => candidate !== null);
+    if (rest !== undefined && rest !== null) {
+      // "the Movie: Scarlet Bond" says no more than "Scarlet Bond" in a film season.
+      const distinct = rest.replace(/^(?:the\s+)?movie(?:[^\p{L}\p{N}]+|$)/iu, "").trim();
+      return distinct.length === 0 || genericExtraName.test(distinct) ? fallback : distinct;
     }
   }
 
-  return genericOvaName.test(ova.title.display) ? fallback : ova.title.display;
+  return ownTitle && !genericExtraName.test(ownTitle) ? ownTitle : fallback;
 }
 
-function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: TmdbShow["seasons"]): SeriesSeason {
+/**
+ * The rest of `title` after `prefix`, or `null` when it does not start with
+ * it. Case and punctuation between words are ignored, so "Demon Slayer
+ * -Kimetsu no Yaiba-" starts with "Demon Slayer: Kimetsu no Yaiba".
+ */
+function withoutPrefix(title: string, prefix: string) {
+  const words = prefix.normalize("NFKC").match(/[\p{L}\p{N}]+/gu);
+  if (!words) {
+    return null;
+  }
+
+  // Words are letters and digits only, so they need no escaping.
+  const separator = "[^\\p{L}\\p{N}]*";
+  const pattern = new RegExp(`^${separator}${words.join(separator)}(?![\\p{L}\\p{N}])${separator}`, "iu");
+  const normalized = title.normalize("NFKC");
+  const match = pattern.exec(normalized);
+  return match ? normalized.slice(match[0].length).trim() : null;
+}
+
+function toSeason(group: Group, kind: SeasonKind, number: number, inWatchOrder: boolean, tmdbSeasons: TmdbShow["seasons"]): SeriesSeason {
   const anime = [...new Map(group.rows.map((row) => [row.member.anime.id, row.member.anime] as const)).values()];
   const tmdbSeasonNumbers = new Set(group.rows.map((row) => row.seasonNumber));
   const [onlySeason] = tmdbSeasonNumbers.size === 1 ? [...tmdbSeasonNumbers] : [];
@@ -400,24 +527,29 @@ function toSeason(group: Group, kind: SeasonKind, number: number, tmdbSeasons: T
     number,
     title: kind === "season" ? tmdbName ?? `Season ${number}` : anime[0]?.title.display ?? `OVA Season ${number}`,
     anime,
-    episodes: group.rows.map((row, index) => ({
-      number: index + 1,
-      title: row.tmdb?.name ?? null,
-      overview: row.tmdb?.overview ?? null,
-      airDate: row.tmdb?.air_date ?? null,
-      runtimeMinutes: row.tmdb?.runtime ?? row.member.anime.durationMinutes,
-      stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? null, "original"),
-      playback: {
-        anilistId: row.member.anime.id,
-        episode: row.anilistEpisode
-      },
-      tmdb: row.tmdb
-        ? {
-            seasonNumber: row.tmdb.season_number,
-            episodeNumber: row.tmdb.episode_number
-          }
-        : null
-    }))
+    inWatchOrder,
+    episodes: group.rows.map((row, index) => {
+      // A film TMDB lists on its own has no episode there; its details stand in.
+      const film = row.tmdb ? null : row.member.film ?? null;
+      return {
+        number: index + 1,
+        title: row.tmdb?.name ?? film?.title ?? null,
+        overview: row.tmdb?.overview ?? film?.overview ?? null,
+        airDate: row.tmdb?.air_date ?? film?.release_date ?? null,
+        runtimeMinutes: row.tmdb?.runtime ?? film?.runtime ?? row.member.anime.durationMinutes,
+        stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? film?.backdrop_path ?? null, "original"),
+        playback: {
+          anilistId: row.member.anime.id,
+          episode: row.anilistEpisode
+        },
+        tmdb: row.tmdb
+          ? {
+              seasonNumber: row.tmdb.season_number,
+              episodeNumber: row.tmdb.episode_number
+            }
+          : null
+      };
+    })
   };
 }
 

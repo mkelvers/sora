@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import type { SeasonKind } from "../../series/seasons";
 import { continuePoint, type EpisodeProgress, type TitleEpisode } from "./resume";
 
 /** A season of `count` released episodes. */
-function season(seasonId: string, count: number, seasonKind: SeasonKind = "season"): TitleEpisode[] {
+function season(seasonId: string, count: number, inWatchOrder = true): TitleEpisode[] {
   return Array.from({ length: count }, (_, index) => ({
     seasonId,
-    seasonKind,
+    inWatchOrder,
     number: index + 1,
     isExtra: false,
     isReleased: true
@@ -27,7 +26,7 @@ const checkpoint = (seasonId: string, episode: number, positionSeconds: number, 
 const frieren = [
   ...season("s1", 3),
   ...season("s2", 3),
-  ...season("ova1", 1, "ova")
+  ...season("ova1", 1, false)
 ];
 
 describe("continuePoint", () => {
@@ -79,7 +78,7 @@ describe("continuePoint", () => {
       ...season("s1", 2),
       {
         seasonId: "s1",
-        seasonKind: "season" as const,
+        inWatchOrder: true,
         number: 3,
         isExtra: true,
         isReleased: true

@@ -1,4 +1,4 @@
-import { doublePrecision, index, integer, pgEnum, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, integer, pgEnum, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 import type { MediaStatus } from "../../anilist/graphql.generated";
 import { jsonb, timestamptz } from "./columns";
@@ -135,6 +135,8 @@ export const seriesSeason = pgTable(
     /** Position among all of the series' seasons, from 0. */
     position: integer("position").notNull(),
     title: text("title").notNull(),
+    /** Whether the season is part of the story in watch order rather than an extra; see `SeriesSeason.inWatchOrder`. */
+    inWatchOrder: boolean("in_watch_order").notNull(),
     anchorAnilistId: integer("anchor_anilist_id")
   },
   (table) => [index("series_season_series_idx").on(table.seriesId, table.position)]

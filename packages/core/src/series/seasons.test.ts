@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { AnimeCard } from "../catalog/models/anime";
 import type { TmdbEpisode } from "../tmdb/resources";
 import type { EpisodeLink } from "./matching";
-import { isLaterPart, layoutShowSeasons, ovaSeasonTitle, type SeasonMember, type SeriesSeason } from "./seasons";
+import { isLaterPart, layoutShowSeasons, extraSeasonTitle, type SeasonMember, type SeriesSeason } from "./seasons";
 
 function anime(id: number, title: string, overrides: Partial<AnimeCard> = {}): AnimeCard {
   return {
@@ -351,6 +351,179 @@ describe("layoutShowSeasons", () => {
   });
 });
 
+describe("layoutShowSeasons watch order", () => {
+  // Rascal Does Not Dream of Bunny Girl Senpai: two TMDB seasons with three
+  // films between them and a fourth after, which TMDB lists as films of
+  // their own, and picture dramas under specials.
+  const show = {
+    seasons: [],
+    episodes: [
+      episode(0, 1, "2018-12-19", "Picture Drama: Inside the Heart", 8),
+      ...weekly(1, 1, 3, "2018-10-04"),
+      ...weekly(2, 1, 3, "2025-07-05")
+    ]
+  };
+
+  const film = (id: number, title: string, prequelId: number) =>
+    ({
+      ...member(anime(id, title, {
+        format: "MOVIE",
+        episodes: 1,
+        durationMinutes: 90
+      }), [], [prequelId]),
+      film: {
+        title,
+        overview: `${title} overview`,
+        release_date: "2019-06-15",
+        runtime: 90,
+        backdrop_path: null
+      }
+    }) satisfies SeasonMember;
+
+  const seasonOne = member(anime(101291, "Rascal Does Not Dream of Bunny Girl Senpai", {
+    episodes: 3
+  }), links(1, 1, 3));
+  const dreamingGirl = film(104157, "Rascal Does Not Dream of a Dreaming Girl", 101291);
+  const sister = film(154967, "Rascal Does Not Dream of a Sister Venturing Out", 104157);
+  const knapsack = film(161474, "Rascal Does Not Dream of a Knapsack Kid", 154967);
+  const seasonTwo = member(anime(171046, "Rascal Does Not Dream of Santa Claus", {
+    episodes: 3
+  }), links(2, 1, 3), [161474]);
+  const dearFriend = film(199340, "Rascal Does Not Dream of a Dear Friend", 171046);
+
+  const seasons = layoutShowSeasons({
+    show,
+    members: [
+      dearFriend,
+      seasonTwo,
+      knapsack,
+      seasonOne,
+      sister,
+      dreamingGirl
+    ]
+  });
+
+  test("places films between the seasons they follow", () => {
+    expect(seasons.map((season) => `${season.kind} ${season.number}: ${season.title}`)).toEqual([
+      "season 1: Season 1",
+      "movie 1: Rascal Does Not Dream of a Dreaming Girl",
+      "movie 2: Rascal Does Not Dream of a Sister Venturing Out",
+      "movie 3: Rascal Does Not Dream of a Knapsack Kid",
+      "season 2: Season 2",
+      "movie 4: Rascal Does Not Dream of a Dear Friend"
+    ]);
+    expect(seasons.every((season) => season.inWatchOrder)).toBe(true);
+  });
+
+  test("describes a film with TMDB's details of it", () => {
+    expect(seasons[1]?.episodes).toEqual([
+      expect.objectContaining({
+        number: 1,
+        title: "Rascal Does Not Dream of a Dreaming Girl",
+        overview: "Rascal Does Not Dream of a Dreaming Girl overview",
+        runtimeMinutes: 90,
+        playback: {
+          anilistId: 104157,
+          episode: 1
+        },
+        tmdb: null
+      })
+    ]);
+  });
+
+  // Haikyu!!, reduced: an OVA continues season 3 into season 4, a recap
+  // special summarises season 3, and a side-story OVA stands apart.
+  const haikyu = {
+    seasons: [],
+    episodes: [
+      episode(0, 1, "2015-03-04", "Lev Appears!"),
+      episode(0, 2, "2017-08-04", "Special Feature! The Spring Tournament of Their Youth"),
+      episode(0, 3, "2020-01-22", "Land vs. Air"),
+      episode(0, 4, "2020-01-22", "The Path of the Ball"),
+      episode(0, 5, "2020-03-04", "Puppet 1"),
+      episode(0, 6, "2020-03-11", "Puppet 2"),
+      ...weekly(3, 1, 2, "2016-10-08"),
+      ...weekly(4, 1, 2, "2020-01-11")
+    ]
+  };
+  const seasonThree = member(anime(21698, "HAIKYU!!", {
+    episodes: 2
+  }), links(3, 1, 2));
+  const landVsAir = member(anime(111790, "HAIKYU!! LAND VS. AIR", {
+    format: "OVA",
+    episodes: 2
+  }), links(0, 3, 2), [21698]);
+  const toTheTop = member(anime(106625, "HAIKYU!! TO THE TOP", {
+    episodes: 2
+  }), links(4, 1, 2), [111790]);
+  const recap = {
+    ...member(anime(107351, "HAIKYU!! Special Feature! The Spring Tournament of Their Youth", {
+      format: "OVA",
+      episodes: 1
+    }), links(0, 2, 1)),
+    isRecap: true
+  };
+  const puppets = member(anime(115217, "Haikyuu!! Ningyou Anime", {
+    format: "OVA",
+    episodes: 2
+  }), links(0, 5, 2));
+  const dumpsterBattle = film(153658, "HAIKYU!! The Dumpster Battle", 106625);
+
+  const haikyuSeasons = layoutShowSeasons({
+    show: haikyu,
+    members: [
+      puppets,
+      recap,
+      toTheTop,
+      dumpsterBattle,
+      landVsAir,
+      seasonThree
+    ]
+  });
+
+  test("places an OVA that continues the story in watch order", () => {
+    expect(haikyuSeasons.map((season) => `${season.kind} ${season.number}: ${season.title} ${season.inWatchOrder}`)).toEqual([
+      "season 1: Season 1 true",
+      "ova 1: LAND VS. AIR true",
+      "season 2: Season 2 true",
+      "movie 1: The Dumpster Battle true",
+      "ova 2: Special Feature! The Spring Tournament of Their Youth false",
+      "ova 3: Haikyuu!! Ningyou Anime false"
+    ]);
+    expect(outline(haikyuSeasons[1]!)).toEqual([
+      "111790#1",
+      "111790#2"
+    ]);
+  });
+
+  test("keeps recaps out of the seasons", () => {
+    expect(outline(haikyuSeasons[0]!)).toEqual([
+      "21698#1",
+      "21698#2"
+    ]);
+  });
+
+  test("keeps continuations of one season in airing order", () => {
+    const later = film(104200, "Rascal Does Not Dream of a Second Film", 101291);
+    const layout = layoutShowSeasons({
+      show,
+      members: [
+        seasonOne,
+        later,
+        dreamingGirl,
+        sister
+      ]
+    });
+
+    expect(layout.map((season) => season.anime[0]?.id)).toEqual([
+      101291,
+      104157,
+      154967,
+      104200
+    ]);
+  });
+});
+
 describe("isLaterPart", () => {
   test("recognises part and cour numbering", () => {
     for (const title of [
@@ -375,7 +548,7 @@ describe("isLaterPart", () => {
   });
 });
 
-describe("ovaSeasonTitle", () => {
+describe("extraSeasonTitle", () => {
   const show = anime(1, "That Time I Got Reincarnated as a Slime", {
     title: {
       display: "That Time I Got Reincarnated as a Slime",
@@ -386,11 +559,11 @@ describe("ovaSeasonTitle", () => {
   });
 
   test("keeps what sets the OVA apart from its show", () => {
-    expect(ovaSeasonTitle(anime(2, "That Time I Got Reincarnated as a Slime: Visions of Coleus"), show, 2)).toBe("Visions of Coleus");
+    expect(extraSeasonTitle({ anime: anime(2, "That Time I Got Reincarnated as a Slime: Visions of Coleus") }, show, "ova", 2)).toBe("Visions of Coleus");
   });
 
   test("numbers an OVA whose title adds nothing distinctive", () => {
-    expect(ovaSeasonTitle(anime(3, "That Time I Got Reincarnated as a Slime OAD"), show, 1)).toBe("OVA Season 1");
+    expect(extraSeasonTitle({ anime: anime(3, "That Time I Got Reincarnated as a Slime OAD") }, show, "ova", 1)).toBe("OVA Season 1");
   });
 
   test("matches the show by any of its titles", () => {
@@ -402,10 +575,37 @@ describe("ovaSeasonTitle", () => {
         native: null
       }
     });
-    expect(ovaSeasonTitle(romajiOnly, show, 3)).toBe("Kanwa");
+    expect(extraSeasonTitle({ anime: romajiOnly }, show, "ova", 3)).toBe("Kanwa");
+  });
+
+  test("prefers TMDB's title of a film", () => {
+    const film = {
+      anime: anime(6, "Tensei Shitara Slime Datta Ken Movie: Guren no Kizuna-hen"),
+      film: {
+        title: "That Time I Got Reincarnated as a Slime the Movie: Scarlet Bond",
+        overview: null,
+        release_date: null,
+        runtime: null,
+        backdrop_path: null
+      }
+    };
+    expect(extraSeasonTitle(film, show, "movie", 1)).toBe("Scarlet Bond");
+  });
+
+  test("ignores punctuation in the show's title", () => {
+    const demonSlayer = anime(7, "Demon Slayer: Kimetsu no Yaiba");
+    const mugenTrain = anime(8, "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train", {
+      format: "MOVIE"
+    });
+    expect(extraSeasonTitle({ anime: mugenTrain }, demonSlayer, "movie", 1)).toBe("Mugen Train");
+  });
+
+  test("keeps a film's full title when the show's leaves nothing distinctive", () => {
+    const violet = anime(9, "Violet Evergarden");
+    expect(extraSeasonTitle({ anime: anime(10, "Violet Evergarden: the Movie") }, violet, "movie", 2)).toBe("Violet Evergarden: the Movie");
   });
 
   test("keeps the title of an OVA named differently from its show", () => {
-    expect(ovaSeasonTitle(anime(5, "Rimuru's Holiday"), show, 1)).toBe("Rimuru's Holiday");
+    expect(extraSeasonTitle({ anime: anime(5, "Rimuru's Holiday") }, show, "ova", 1)).toBe("Rimuru's Holiday");
   });
 });
