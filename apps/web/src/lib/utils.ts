@@ -44,21 +44,21 @@ export function formatClock(seconds: number) {
 	return `${minutes}:${rest}`;
 }
 
-export type AnimeSeason = 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
-
-const animeSeasons: AnimeSeason[] = ['WINTER', 'SPRING', 'SUMMER', 'FALL'];
-
-/** The broadcast season `offset` seasons from the one `date` falls in. */
-export function animeSeason(date: Date, offset = 0) {
-	const index = Math.floor(date.getMonth() / 3) + offset;
-	return {
-		season: animeSeasons[((index % 4) + 4) % 4],
-		year: date.getFullYear() + Math.floor(index / 4)
-	};
+export function formatEpisode(season: { kind: string; number: number; title: string } | undefined, episode: number) {
+	if (!season || season.kind === 'season') {
+		return season ? `S${season.number} E${episode}` : `E${episode}`;
+	}
+	return season.kind === 'movie' ? season.title : `${season.title} E${episode}`;
 }
 
-export function formatAnimeSeason(season: AnimeSeason, year: number) {
-	return `${season[0]}${season.slice(1).toLowerCase()} ${year}`;
+export function formatScore(score: number) {
+	return (score / 10).toFixed(1);
+}
+
+export function formatMinutes(minutes: number) {
+	const hours = Math.floor(minutes / 60);
+	const rest = Math.round(minutes % 60);
+	return hours > 0 ? `${hours}h ${rest}m` : `${rest}m`;
 }
 
 /** "Today", "Tomorrow", or the weekday, for dates in the coming week. */

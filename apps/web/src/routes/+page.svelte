@@ -1,19 +1,23 @@
 <script lang="ts">
+	import Hero from './_components/Hero.svelte';
 	import Resume from './_components/Resume.svelte';
-	import Shelf from './_components/Shelf.svelte';
 	import Poster from '$lib/components/snippets/Poster.svelte';
-	import { getBrowse } from './browse/browse.remote';
-	import { getContinueWatching } from './home.remote';
+	import Shelf from '$lib/components/snippets/Shelf.svelte';
+	import { getContinueWatching, getFeatured, getRecommendations, getTrending } from './home.remote';
 
+	const featured = getFeatured();
 	const resume = getContinueWatching();
-	const trending = getBrowse({ sort: 'trending', per_page: 24 });
+	const recommended = getRecommendations();
+	const trending = getTrending();
 </script>
 
 <svelte:head>
 	<title>Sora</title>
 </svelte:head>
 
-<main>
+<Hero featured={featured.current} resume={resume.current} />
+
+<main class:lifted={featured.current?.length !== 0}>
 	<Shelf
 		title="Continue watching"
 		shape="wide"
@@ -26,11 +30,17 @@
 	</Shelf>
 
 	<Shelf
-		title="Trending now"
-		href="/browse?sort=trending"
-		items={trending.current?.results}
+		title="Recommended for you"
+		subtitle="Picked from what you watch"
+		items={recommended.current}
 		key={(series) => series.id}
 	>
+		{#snippet item(series)}
+			<Poster {series} />
+		{/snippet}
+	</Shelf>
+
+	<Shelf title="Trending now" items={trending.current} key={(series) => series.id}>
 		{#snippet item(series)}
 			<Poster {series} />
 		{/snippet}
@@ -39,9 +49,17 @@
 
 <style>
 	main {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 40px;
-		padding: 24px 0 64px;
+		gap: 48px;
+		padding: calc(var(--nav) + 24px) 0 96px;
+	}
+
+	/* The first row rises into the hero's fade. */
+	.lifted {
+		margin-top: -72px;
+		padding-top: 0;
 	}
 </style>
