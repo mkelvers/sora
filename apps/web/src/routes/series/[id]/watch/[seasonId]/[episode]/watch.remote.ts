@@ -2,7 +2,7 @@ import { query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { sora } from '$lib/server/sora';
+import { fromSora, sora } from '$lib/server/sora';
 
 const Params = z.object({
 	seriesId: z.string(),
@@ -10,8 +10,8 @@ const Params = z.object({
 	episode: z.coerce.number().int().positive()
 });
 
-export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) => {
-	try {
+export const getEpisode = query(Params, ({ seriesId, seasonId, episode }) =>
+	fromSora(async () => {
 		const [series, episodes] = await Promise.all([
 			sora.series(seriesId),
 			sora.episodes({ seriesId, seasonId })
@@ -24,13 +24,8 @@ export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) 
 		}
 
 		return { series, season, episode: found };
-	} catch (cause) {
-		if (cause instanceof SoraError) {
-			error(cause.status, cause.message);
-		}
-		throw cause;
-	}
-});
+	})
+);
 
 export const getPlayback = query(Params, async ({ seasonId, episode }) => {
 	try {

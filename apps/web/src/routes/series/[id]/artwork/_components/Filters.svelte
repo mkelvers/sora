@@ -1,9 +1,10 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
-	import Dropdown from '$lib/components/Dropdown.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getImages } from '../artwork.remote';
-	import type { ArtworkFilters } from '../artwork-filters.svelte';
+	import type { ArtworkFilters } from '../artwork.svelte';
+	import { formatLanguage, formatSeason } from '$lib/utils';
 
 	type Props = {
 		seriesId: string;
@@ -50,12 +51,8 @@
 	const sources = $derived([
 		{ value: 'all', label: 'Any season' },
 		{ value: 'series', label: 'The whole title' },
-		...seasonNumbers.map((number) => ({ value: String(number), label: number === 0 ? 'Specials' : `Season ${number}` }))
+		...seasonNumbers.map((number) => ({ value: String(number), label: formatSeason(number) }))
 	]);
-
-	const names = new Intl.DisplayNames(['en'], {
-		type: 'language'
-	});
 
 	function toggle(code: string) {
 		filters.languages = filters.languages.includes(code)
@@ -125,7 +122,7 @@
 							<Icon name="check" size="sm" />
 						{/if}
 					</span>
-					{code === 'none' ? 'Textless' : names.of(code)}
+					{formatLanguage(code === 'none' ? null : code)}
 					<span class="count">{count}</span>
 				</Button>
 			{/each}

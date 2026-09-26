@@ -1,8 +1,6 @@
 import { command, query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { sora } from '$lib/server/sora';
+import { fromSora, sora } from '$lib/server/sora';
 import { getSeries } from '../series.remote';
 
 export const getImages = query(z.string(), async (seriesId) => {
@@ -27,17 +25,11 @@ export const setArtwork = command(
 			saved = url.replace('/original/', `/${savedSizes[type]}/`);
 		}
 
-		let series;
-		try {
-			series = await sora.updateArtwork(seriesId, {
+		const series = await fromSora(() =>
+			sora.updateArtwork(seriesId, {
 				[`${type}_url`]: saved
-			});
-		} catch (cause) {
-			if (cause instanceof SoraError) {
-				error(cause.status, cause.message);
-			}
-			throw cause;
-		}
+			})
+		);
 
 		getSeries(seriesId).set(series);
 	}

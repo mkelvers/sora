@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import Button from '$lib/components/Button.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 	import Settings, { type Setting } from './Settings.svelte';
 	import { getPlayback } from '../watch.remote';
 
@@ -327,7 +327,6 @@
 		overflow: hidden;
 		background: #000;
 		color: #fff;
-		font-family: system-ui, sans-serif;
 	}
 
 	.player > * {

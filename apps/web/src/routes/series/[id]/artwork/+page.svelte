@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { ArtworkFilters } from './artwork-filters.svelte';
 	import Filters from './_components/Filters.svelte';
 	import Images from './_components/Images.svelte';
-	import Button from '$lib/components/Button.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import { imagesSkeleton } from './_snippets/images-skeleton.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
+	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
+	import { ArtworkFilters, chooseArtwork } from './artwork.svelte';
 	import { getSeries } from '../series.remote';
-	import { chooseArtwork } from './choose-artwork';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
@@ -99,7 +98,15 @@
 
 			<svelte:boundary>
 				{#snippet pending()}
-					{@render imagesSkeleton(filters.type)}
+					<ul class="loading" class:poster={filters.type === 'poster'} aria-busy="true" aria-label="Loading images">
+						{#each { length: 12 }, index (index)}
+							<li>
+								<Skeleton width="100%" ratio={filters.type === 'poster' ? '2 / 3' : '16 / 9'} />
+								<Skeleton variant="text" width="50%" />
+								<Skeleton variant="text" width="70%" />
+							</li>
+						{/each}
+					</ul>
 				{/snippet}
 
 				<Images {series} {filters} />
@@ -109,17 +116,9 @@
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		background: #101010;
-	}
-
 	.page {
 		--side: clamp(16px, 3.3vw, 64px);
 		min-height: 100vh;
-		background: #101010;
-		color: #e6e6e6;
-		font-family: system-ui, sans-serif;
 	}
 
 	header {
@@ -238,6 +237,26 @@
 		color: #fff;
 	}
 
+	/* Mirrors the image grid, so nothing shifts when it loads */
+	.loading {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+		gap: 28px 16px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.loading.poster {
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	}
+
+	.loading li {
+		display: grid;
+		justify-items: center;
+		gap: 10px;
+	}
+
 	.error {
 		margin: 0 0 16px;
 		color: #f28b82;
@@ -276,6 +295,15 @@
 
 		.heading span {
 			font-size: 14px;
+		}
+
+		.loading {
+			grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+			gap: 20px 12px;
+		}
+
+		.loading.poster {
+			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 		}
 	}
 </style>

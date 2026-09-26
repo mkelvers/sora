@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Episode from './Episode.svelte';
-	import { episodesSkeleton } from '../_snippets/episodes-skeleton.svelte';
+	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
 	import { getEpisodes } from '../series.remote';
 	import type { Season } from '@sora/sdk';
 
@@ -29,7 +29,18 @@
 		{/each}
 	</ol>
 {:else}
-	{@render episodesSkeleton(season.episode_count)}
+	<ol aria-busy="true" aria-label="Loading episodes">
+		{#each { length: Math.min(season.episode_count, 6) }, index (index)}
+			<li class="loading">
+				<Skeleton ratio="3 / 2" />
+				<div class="lines">
+					{#each ['45%', '12%', '90%', '75%'] as width, line (line)}
+						<Skeleton variant="text" {width} />
+					{/each}
+				</div>
+			</li>
+		{/each}
+	</ol>
 {/if}
 
 <style>
@@ -42,5 +53,27 @@
 	.empty {
 		display: block;
 		color: #999;
+	}
+
+	/* Mirrors an episode's layout, so nothing shifts when it loads */
+	.loading {
+		display: grid;
+		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
+		align-items: center;
+		gap: 24px;
+		padding: 10px 0;
+	}
+
+	.lines {
+		display: grid;
+		gap: 10px;
+		max-width: 70ch;
+	}
+
+	@media (max-width: 720px) {
+		.loading {
+			grid-template-columns: 140px minmax(0, 1fr);
+			gap: 12px;
+		}
 	}
 </style>
