@@ -11,6 +11,11 @@
 
 	let { seriesId, season }: Props = $props();
 
+	// Held here rather than called in the markup: a query's cache entry lives
+	// only as long as something references it, so an inline call can be
+	// collected mid-request and the episodes never arrive.
+	const episodes = $derived(getEpisodes({ seriesId, seasonId: season.id }));
+
 	// Ticks on the minute, so each episode's end time stays current
 	let now = $state(new Date());
 
@@ -20,9 +25,9 @@
 	});
 </script>
 
-{#if getEpisodes({ seriesId, seasonId: season.id }).current}
+{#if episodes.current}
 	<ol>
-		{#each getEpisodes({ seriesId, seasonId: season.id }).current as episode (episode.number)}
+		{#each episodes.current as episode (episode.number)}
 			<Episode {seriesId} seasonId={season.id} {episode} {now} />
 		{:else}
 			<li class="empty">No episodes yet.</li>
