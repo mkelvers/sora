@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { TmdbEpisode, TmdbMovieResult } from "../tmdb/resources";
-import { placeAsMovie, placeInShow, titleSimilarity, type MatchSubject, type ShowCandidate } from "./matching";
+import { placeAfterInCollection, placeAsMovie, placeInShow, titleSimilarity, type MatchSubject, type ShowCandidate } from "./matching";
 
 /** A weekly run of TMDB episodes, numbered from `first`. Dates are `null` when `start` is. */
 function weekly(
@@ -633,6 +633,52 @@ describe("placeAsMovie", () => {
       title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
       release_date: "2025-07-18"
     }))).toBeNull();
+  });
+});
+
+describe("placeAfterInCollection", () => {
+  // Haikyu!! Final Arc Collection: the second film has no release date yet.
+  const parts = [
+    movie({
+      id: 1012199,
+      title: "HAIKYU!! VS The Little Giant",
+      release_date: null
+    }),
+    movie({
+      id: 1012201,
+      title: "HAIKYU!! The Dumpster Battle",
+      release_date: "2024-02-16"
+    })
+  ];
+  const littleGiant = subject({
+    format: "MOVIE",
+    titles: ["Haikyuu!!: VS Chiisana Kyojin"],
+    startDate: "2027"
+  });
+
+  test("takes the film after the prequel's, however unlike the titles", () => {
+    expect(placeAfterInCollection(littleGiant, 1012201, parts)).toMatchObject({
+      mediaType: "movie",
+      tmdbId: 1012199,
+      method: "continuation"
+    });
+  });
+
+  test("rejects a next film released in another year", () => {
+    expect(placeAfterInCollection(subject({
+      format: "MOVIE",
+      startDate: "2025-06-01"
+    }), 1012201, [
+      ...parts.slice(1),
+      movie({
+        id: 3,
+        release_date: "2027-03-01"
+      })
+    ])).toBeNull();
+  });
+
+  test("finds nothing after the collection's last film", () => {
+    expect(placeAfterInCollection(littleGiant, 1012199, parts)).toBeNull();
   });
 });
 

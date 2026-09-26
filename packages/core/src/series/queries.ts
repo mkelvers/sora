@@ -213,7 +213,7 @@ export async function getAdjacentEpisodes(
 /**
  * Lists a season's episodes, numbered from 1, with the audio each can
  * be watched in and whether each is filler. An episode neither TMDB nor
- * AniKoto lists is left out.
+ * AniKoto lists is left out, except a film's.
  *
  * Both come from providers' episode lists. The first listing of an anime
  * no provider has been looked up for yet looks it up and stores the lists;
@@ -224,7 +224,7 @@ export async function getAdjacentEpisodes(
  *   does not belong to the series.
  */
 export async function getSeasonEpisodes(seriesId: string, seasonId: string): Promise<SeasonEpisode[]> {
-  await getSeason(seriesId, seasonId);
+  const season = await getSeason(seriesId, seasonId);
 
   const rows = await db
     .select()
@@ -248,10 +248,13 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
   ]);
 
   // An episode TMDB does not list, such as one AniList counts ahead of its
-  // announcement, is shown only once AniKoto streams it.
+  // announcement, is shown only once AniKoto streams it. A film is a single
+  // announced release that TMDB lists on its own, never as an episode, so it
+  // is shown ahead of its release like a listed episode.
   const shown = rows.filter(
     (row) =>
       row.tmdbEpisodeNumber !== null ||
+      season.kind === "movie" ||
       (row.anilistId !== null && row.anilistEpisode !== null && onAniKoto.has(anilistEpisodeKey(row.anilistId, row.anilistEpisode)))
   );
 

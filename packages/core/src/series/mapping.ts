@@ -4,10 +4,11 @@ import { z } from "zod";
 import { db } from "../database/client";
 import { tmdbMapping } from "../database/schema";
 import { day } from "../time";
-import { getShow, searchMovies, searchShows } from "../tmdb/resources";
+import { getCollectionParts, getMovie, getShow, searchMovies, searchShows } from "../tmdb/resources";
 import { loadEntries, primaryTitlesOf, toMatchSubject, type FranchiseEntry } from "./entries";
 import {
   bestSimilarity,
+  placeAfterInCollection,
   placeAsMovie,
   placeInShow,
   type EpisodeLink,
@@ -103,7 +104,9 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
   const queries = primaryTitlesOf(entry);
   const predecessors = await predecessorMappings(entry, resolving);
   const placement = subject.format === "MOVIE"
-    ? (await bestMoviePlacement(subject, queries)) ?? (await bestShowPlacement(subject, predecessors, []))
+    ? (await bestMoviePlacement(subject, queries)) ??
+      (await collectionPlacement(subject, predecessors)) ??
+      (await bestShowPlacement(subject, predecessors, []))
     : (await bestShowPlacement(subject, predecessors, queries)) ??
       (isSingleEpisode(subject) ? await bestMoviePlacement(subject, queries) : null);
 
@@ -263,6 +266,25 @@ async function bestMoviePlacement(subject: MatchSubject, queries: readonly strin
 }
 
 
+
+/** Places a sequel film after the film its prequel maps to, in that film's TMDB collection. */
+async function collectionPlacement(subject: MatchSubject, predecessors: readonly Predecessor[]) {
+  for (const { relation, mapping } of predecessors) {
+    if (relation !== "PREQUEL" || mapping.mediaType !== "movie" || mapping.tmdbId === null) {
+      continue;
+    }
+
+    const collectionId = (await getMovie(mapping.tmdbId))?.belongs_to_collection?.id;
+    const placement = collectionId === undefined
+      ? null
+      : placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
+    if (placement) {
+      return placement;
+    }
+  }
+
+  return null;
+}
 
 /** One-episode specials and OVAs are sometimes released as TMDB movies. */
 function isSingleEpisode(subject: MatchSubject) {

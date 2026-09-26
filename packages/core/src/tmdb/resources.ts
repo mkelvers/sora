@@ -72,7 +72,26 @@ const MovieSchema = z.object({
   poster_path: OptionalText,
   backdrop_path: OptionalText,
   release_date: OptionalText,
-  runtime: z.number().nullish().transform((value) => value ?? null)
+  // An unreleased film's runtime is 0 until TMDB knows it.
+  runtime: z.number().nullish().transform((value) => value || null),
+  belongs_to_collection: z
+    .object({
+      id: z.number().int()
+    })
+    .nullish()
+    .transform((value) => value ?? null)
+});
+
+const CollectionSchema = z.object({
+  parts: z.array(
+    z.object({
+      id: z.number().int(),
+      title: z.string(),
+      original_title: z.string(),
+      release_date: OptionalText,
+      popularity: z.number()
+    })
+  )
 });
 
 const ImagesSchema = z.object({
@@ -266,6 +285,27 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
       maxAgeMs: day
     }
   );
+}
+
+/**
+ * Loads the films of a TMDB collection, such as a franchise's film series.
+ *
+ * @returns The collection's films in TMDB's order, or `[]` when TMDB does
+ *   not know the ID.
+ */
+export async function getCollectionParts(collectionId: number): Promise<TmdbMovieResult[]> {
+  const collection = await tmdb(
+    `/collection/${collectionId}`,
+    {
+      language: "en-US"
+    },
+    CollectionSchema,
+    {
+      maxAgeMs: day
+    }
+  );
+
+  return collection?.parts ?? [];
 }
 
 /**

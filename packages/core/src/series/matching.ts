@@ -69,7 +69,7 @@ export type Placement =
   | {
       mediaType: "movie";
       tmdbId: number;
-      method: "release-date" | "title";
+      method: "release-date" | "title" | "continuation";
       score: number;
     };
 
@@ -361,6 +361,48 @@ export function placeAsMovie(subject: MatchSubject, movie: TmdbMovieResult): Pla
   }
 
   return null;
+}
+
+/**
+ * Places a sequel film as the film that follows its prequel in a TMDB
+ * collection, for when the titles do not match: AniList often names an
+ * unreleased film in romaji only ("Haikyuu!!: VS Chiisana Kyojin"), while
+ * TMDB names it in English ("HAIKYU!! VS The Little Giant").
+ *
+ * The collection's films are ordered by release, undated ones last, and
+ * the next one after the prequel must be released when the subject is,
+ * as far as either date is known.
+ *
+ * @param prequelId - The TMDB movie the subject's direct prequel maps to.
+ * @param parts - The films of the prequel's collection.
+ */
+export function placeAfterInCollection(subject: MatchSubject, prequelId: number, parts: readonly TmdbMovieResult[]): Placement | null {
+  const ordered = [...parts].sort((left, right) =>
+    (left.release_date ?? "9999").localeCompare(right.release_date ?? "9999") || left.id - right.id
+  );
+  const index = ordered.findIndex((part) => part.id === prequelId);
+  const next = index === -1 ? undefined : ordered[index + 1];
+  if (!next) {
+    return null;
+  }
+
+  const start = dayNumber(subject.startDate);
+  const release = dayNumber(next.release_date);
+  const subjectYear = yearOf(subject.startDate);
+  const releaseYear = yearOf(next.release_date);
+  const datesAgree =
+    start !== null && release !== null
+      ? Math.abs(release - start) <= titleOnlyReleaseWindowDays
+      : subjectYear === null || releaseYear === null || subjectYear === releaseYear;
+
+  return datesAgree
+    ? {
+        mediaType: "movie",
+        tmdbId: next.id,
+        method: "continuation",
+        score: minimumShowScore
+      }
+    : null;
 }
 
 /** TMDB's regular seasons as one sequence, in broadcast order. */
