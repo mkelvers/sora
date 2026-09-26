@@ -18,17 +18,7 @@
 		season: string;
 	};
 
-	let {
-		media: versions,
-		problem,
-		onretry,
-		back,
-		previous,
-		next,
-		title,
-		series,
-		season
-	}: Props = $props();
+	let { media: versions, problem, onretry, back, previous, next, title, series, season }: Props = $props();
 
 	const player = new Player();
 
