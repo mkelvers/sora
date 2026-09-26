@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
 import { sora } from '$lib/server/sora';
-import { getSeries } from '../anime.remote';
+import { getSeries } from '../series.remote';
 
 export const getImages = query(z.string(), async (seriesId) => {
 	return await sora.images(seriesId);

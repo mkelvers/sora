@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Episode from './Episode.svelte';
 	import { episodesSkeleton } from './episodes-skeleton.svelte';
-	import { getEpisodes } from '../anime.remote';
+	import { getEpisodes } from '../series.remote';
 	import type { Season } from '@sora/sdk';
 
 	type Props = {

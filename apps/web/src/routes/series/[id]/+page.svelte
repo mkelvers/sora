@@ -4,7 +4,7 @@
 	import SeasonTabs from './_components/SeasonTabs.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { episodesSkeleton } from './_components/episodes-skeleton.svelte';
-	import { getSeries } from './anime.remote';
+	import { getSeries } from './series.remote';
     import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
@@ -29,7 +29,7 @@
 				<span>{season.title}</span>
 			</div>
 
-			<a href="/anime/{series.id}/artwork" aria-label="Edit artwork" title="Edit artwork">
+			<a href="/series/{series.id}/artwork" aria-label="Edit artwork" title="Edit artwork">
 				<Icon name="edit" />
 			</a>
 		</div>

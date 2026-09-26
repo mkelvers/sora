@@ -5,16 +5,16 @@ import { z } from 'zod';
 import { sora } from '$lib/server/sora';
 
 const Params = z.object({
-	animeId: z.string(),
+	seriesId: z.string(),
 	seasonId: z.string(),
 	episode: z.coerce.number().int().positive()
 });
 
-export const getEpisode = query(Params, async ({ animeId, seasonId, episode }) => {
+export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) => {
 	try {
 		const [series, episodes] = await Promise.all([
-			sora.series(animeId),
-			sora.episodes({ seriesId: animeId, seasonId })
+			sora.series(seriesId),
+			sora.episodes({ seriesId, seasonId })
 		]);
 		const season = series.seasons.find((season) => season.id === seasonId);
 		const found = episodes.find((candidate) => candidate.number === episode);
