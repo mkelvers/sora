@@ -30,7 +30,7 @@
 	const menus = $derived.by(() => {
 		const menus: Menu[] = [];
 
-		if (media.length > 1) {
+		if (media.length > 0) {
 			menus.push({
 				label: 'Audio',
 				value: audio ?? '',
