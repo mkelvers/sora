@@ -43,7 +43,7 @@
 	@layer skeleton {
 		.skeleton {
 			display: block;
-			background: linear-gradient(90deg, #1f1f1f 0%, #2c2c2c 50%, #1f1f1f 100%);
+			background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
 			background-size: 200% 100%;
 			animation: shimmer 1.2s linear infinite;
 		}
