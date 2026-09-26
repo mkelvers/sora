@@ -2,11 +2,12 @@ import type { SeriesImage } from '@sora/sdk';
 import { getSeries } from '../series.remote';
 import { setArtwork } from './artwork.remote';
 
-export class ArtworkFilters {
+export class Artwork {
 	#type = $state<SeriesImage['type']>('poster');
 	sort = $state<'votes' | 'quality'>('votes');
 	languages = $state<string[]>([]);
 	source = $state('all');
+	error = $state<string>();
 
 	get type() {
 		return this.#type;
@@ -32,33 +33,36 @@ export class ArtworkFilters {
 		}
 
 		if (this.sort === 'quality') {
-			result = result.toSorted((left, right) => right.width * right.height - left.width * left.height);
+			const area = (image: SeriesImage) => image.width * image.height;
+			result = result.toSorted((a, b) => area(b) - area(a));
 		}
 
 		return result;
 	}
-}
 
-export async function chooseArtwork(
-	id: string,
-	type: SeriesImage['type'],
-	url: string | null
-) {
-	const title = getSeries(id);
-	const saving = setArtwork({
-		seriesId: id,
-		type,
-		url
-	});
+	choose = async (seriesId: string, url: string | null) => {
+		const series = getSeries(seriesId);
+		const saving = setArtwork({
+			seriesId,
+			type: this.type,
+			url
+		});
 
-	if (url) {
-		await saving.updates(
-			title.withOverride((series) => ({
-				...series,
-				[`${type}_url`]: url
-			}))
-		);
-	} else {
-		await saving.updates(title);
-	}
+		try {
+			if (url) {
+				await saving.updates(
+					series.withOverride((current) => ({
+						...current,
+						[`${this.type}_url`]: url
+					}))
+				);
+			} else {
+				await saving.updates(series);
+			}
+
+			this.error = undefined;
+		} catch {
+			this.error = url ? 'That image couldn’t be saved.' : 'The default couldn’t be restored.';
+		}
+	};
 }
