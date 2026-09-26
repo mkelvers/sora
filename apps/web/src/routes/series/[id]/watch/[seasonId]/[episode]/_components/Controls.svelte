@@ -13,8 +13,6 @@
 	};
 
 	let { player, previous, next, children }: Props = $props();
-
-	const percent = (value: number, max: number) => `${max > 0 ? (value / max) * 100 : 0}%`;
 </script>
 
 <input
@@ -26,8 +24,8 @@
 	bind:value={player.time}
 	aria-label="Seek"
 	aria-valuetext="{formatClock(player.time)} of {formatClock(player.duration)}"
-	style:--fill={percent(player.time, player.duration)}
-	style:--loaded={percent(player.loaded, player.duration)}
+	style:--played={player.played}
+	style:--loaded={player.loaded}
 />
 
 <div class="controls">
@@ -36,26 +34,49 @@
 			<Icon name="previous" />
 		</a>
 	{/if}
-	<Button class="icon-button" onclick={() => player.seek(-10)} aria-label="Rewind 10 seconds">
+
+	<Button
+		class="icon-button"
+		aria-label="Rewind 10 seconds"
+		onclick={() => player.seek(-10)}
+	>
 		<Icon name="rewind" />
 	</Button>
-	<Button class="icon-button" onclick={player.toggle} aria-label={player.paused ? 'Play' : 'Pause'}>
+
+	<Button
+		class="icon-button"
+		aria-label={player.paused ? 'Play' : 'Pause'}
+		onclick={player.toggle}
+	>
 		<Icon name={player.paused ? 'play' : 'pause'} />
 	</Button>
-	<Button class="icon-button" onclick={() => player.seek(10)} aria-label="Forward 10 seconds">
+
+	<Button
+		class="icon-button"
+		aria-label="Forward 10 seconds"
+		onclick={() => player.seek(10)}
+	>
 		<Icon name="forward" />
 	</Button>
+
 	{#if next}
 		<a class="icon-button" href={next} aria-label="Next episode">
 			<Icon name="next" />
 		</a>
 	{/if}
 
-	<span class="time">{formatClock(player.time)} / {formatClock(player.duration)}</span>
+	<span class="time">
+		{formatClock(player.time)} / {formatClock(player.duration)}
+	</span>
 
-	<Button class="icon-button" onclick={() => (player.muted = !player.muted)} aria-label={player.muted ? 'Unmute' : 'Mute'}>
+	<Button
+		class="icon-button"
+		aria-label={player.muted ? 'Unmute' : 'Mute'}
+		onclick={() => (player.muted = !player.muted)}
+	>
 		<Icon name={player.muted || player.volume === 0 ? 'muted' : 'volume'} />
 	</Button>
+
 	<input
 		class="range volume"
 		type="range"
@@ -64,15 +85,15 @@
 		step="0.05"
 		bind:value={player.volume}
 		aria-label="Volume"
-		style:--fill={percent(player.muted ? 0 : player.volume, 1)}
+		style:--played={player.muted ? 0 : player.volume}
 	/>
 
 	{@render children?.()}
 
 	<Button
 		class="icon-button"
-		onclick={player.toggleFullscreen}
 		aria-label={player.fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+		onclick={player.toggleFullscreen}
 	>
 		<Icon name={player.fullscreen ? 'exit-fullscreen' : 'fullscreen'} />
 	</Button>
@@ -94,13 +115,15 @@
 	}
 
 	.range {
+		--played-end: calc(var(--played) * 100%);
+		--loaded-end: calc(var(--loaded, var(--played)) * 100%);
 		height: 4px;
 		margin: 8px 0;
 		background: linear-gradient(
 			to right,
-			#fff var(--fill),
-			rgb(255 255 255 / 0.4) var(--fill) var(--loaded, var(--fill)),
-			rgb(255 255 255 / 0.2) var(--loaded, var(--fill))
+			#fff var(--played-end),
+			rgb(255 255 255 / 0.4) var(--played-end) var(--loaded-end),
+			rgb(255 255 255 / 0.2) var(--loaded-end)
 		);
 		cursor: pointer;
 		appearance: none;

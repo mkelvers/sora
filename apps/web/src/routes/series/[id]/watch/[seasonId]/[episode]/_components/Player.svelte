@@ -2,7 +2,6 @@
 	import type { PlaybackMedia } from '@sora/sdk';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import Captions from './Captions.svelte';
 	import Controls from './Controls.svelte';
 	import Settings from './Settings.svelte';
 	import { Player } from '../watch.svelte';
@@ -19,7 +18,17 @@
 		season: string;
 	};
 
-	let { media: versions, problem, onretry, back, previous, next, title, series, season }: Props = $props();
+	let {
+		media: versions,
+		problem,
+		onretry,
+		back,
+		previous,
+		next,
+		title,
+		series,
+		season
+	}: Props = $props();
 
 	const player = new Player();
 
@@ -29,16 +38,23 @@
 
 	const failure = $derived(problem ?? player.failure);
 	const loading = $derived(!failure && (!versions || player.buffering));
-	const segment = $derived(media?.skip_segments.find(({
-		start, end
-	}) => player.time >= start && player.time < end));
-	
+	const segment = $derived(
+		media?.skip_segments.find((segment) => {
+			return player.time >= segment.start && player.time < segment.end;
+		})
+	);
 </script>
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
 <svelte:document onfullscreenchange={player.onfullscreenchange} />
 
-<div class="player" class:idle={player.idle && !player.paused} class:loading aria-busy={loading} bind:this={player.root}>
+<div
+	class="player"
+	class:idle={player.idle && !player.paused}
+	class:loading
+	aria-busy={loading}
+	bind:this={player.root}
+>
 	<video
 		bind:paused={player.paused}
 		bind:currentTime={player.time}
@@ -89,7 +105,11 @@
 			</Button>
 		{/if}
 
-		<Captions cues={player.cues} />
+		<div class="captions">
+			{#each player.cues as cue (cue)}
+				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
+			{/each}
+		</div>
 	</div>
 
 	<header class="overlay">
@@ -104,7 +124,13 @@
 
 	<footer class="overlay">
 		<Controls {player} {previous} {next}>
-			<Settings media={versions ?? []} bind:audio subtitles={media?.subtitles ?? []} bind:subtitle bind:speed={player.speed} />
+			<Settings
+				media={versions ?? []}
+				subtitles={media?.subtitles ?? []}
+				bind:speed={player.speed}
+				bind:subtitle
+				bind:audio
+			/>
 		</Controls>
 	</footer>
 </div>
@@ -150,6 +176,21 @@
 
 	.idle:not(:has(:popover-open)) .lower {
 		margin-bottom: 6vh;
+	}
+
+	.captions {
+		font-size: clamp(18px, 2.6vw, 40px);
+		font-weight: 600;
+		line-height: 1.25;
+		text-align: center;
+		text-shadow: 0 2px 6px rgb(0 0 0 / 0.6);
+		white-space: pre-line;
+		-webkit-text-stroke: 0.14em #000;
+		paint-order: stroke fill;
+	}
+
+	.captions p {
+		margin: 0;
 	}
 
 	.overlay {

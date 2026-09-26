@@ -4,7 +4,6 @@ import type { PlaybackMedia } from '@sora/sdk';
 
 type Source = PlaybackMedia['sources'][number];
 
-/** The state of a player: its video, the captions it shows, and its chrome. */
 export class Player {
 	root = $state<HTMLElement>();
 	paused = $state(true);
@@ -17,12 +16,17 @@ export class Player {
 	readyState = $state(0);
 	failure = $state<string>();
 	fullscreen = $state(false);
-	/** Whether the pointer has rested long enough to hide the controls. */
 	idle = $state(false);
 	cues = $state<VTTCue[]>([]);
 
-	/** Where the stream has loaded to from the current time. */
-	loaded = $derived(this.buffered.find((range) => range.start <= this.time && this.time <= range.end)?.end ?? 0);
+	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
+	loaded = $derived.by(() => {
+		const range = this.buffered.find((range) => {
+			return range.start <= this.time && this.time <= range.end;
+		});
+
+		return range && this.duration > 0 ? range.end / this.duration : 0;
+	});
 	buffering = $derived(this.readyState < 3 && !this.paused);
 
 	#timer: ReturnType<typeof setTimeout> | undefined;
@@ -36,7 +40,6 @@ export class Player {
 		this.time += seconds;
 	};
 
-	/** Shows the controls, and hides them again once the pointer rests. */
 	wake = () => {
 		this.idle = false;
 		clearTimeout(this.#timer);
@@ -55,7 +58,6 @@ export class Player {
 		this.fullscreen = document.fullscreenElement === this.root;
 	};
 
-	// A click that closes an open menu should not also pause the video.
 	onpointerdown = () => {
 		this.#dismissing = document.querySelector(':popover-open') !== null;
 	};
@@ -68,7 +70,11 @@ export class Player {
 
 	onkeydown = (event: KeyboardEvent) => {
 		const target = event.target as HTMLElement;
-		if (event.metaKey || event.ctrlKey || target.closest('input, [popover]') || (event.key === ' ' && target.closest('button, a'))) {
+		const modified = event.metaKey || event.ctrlKey;
+		const typing = target.closest('input, [popover]') !== null;
+		const pressing = event.key === ' ' && target.closest('button, a') !== null;
+
+		if (modified || typing || pressing) {
 			return;
 		}
 
@@ -88,7 +94,6 @@ export class Player {
 		}
 	};
 
-	/** Plays a source in the video, picking up where the last one left off. */
 	stream = (source: Source | undefined): Attachment<HTMLVideoElement> => (video) => {
 		if (!source) {
 			return;
@@ -135,7 +140,6 @@ export class Player {
 		};
 	};
 
-	/** Shows a subtitle track's cues when it is the chosen one. */
 	caption = (shown: boolean): Attachment<HTMLTrackElement> => (element) => {
 		const track = element.track;
 		if (!shown) {
@@ -144,7 +148,10 @@ export class Player {
 		}
 
 		track.mode = 'hidden';
-		track.oncuechange = () => (this.cues = [...(track.activeCues ?? [])] as VTTCue[]);
+		track.oncuechange = () => {
+			this.cues = [...(track.activeCues ?? [])] as VTTCue[];
+		};
+
 		return () => {
 			track.oncuechange = null;
 			this.cues = [];
