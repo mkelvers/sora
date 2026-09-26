@@ -21,7 +21,7 @@
 	>
 		<div class="still">
 			{#if episode.still_url}
-				<img src={episode.still_url} alt="" loading="lazy" />
+				<img src={episode.still_url} alt={episode.title} loading="lazy" decoding="async" />
 			{/if}
 		</div>
 
@@ -31,7 +31,7 @@
 				{#if episode.runtime_minutes}
 					<span>{episode.runtime_minutes}m</span>
 					<span>
-						Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('en-GB', {
+						Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('da-DK', {
 							hour: '2-digit',
 							minute: '2-digit'
 						})}
@@ -39,7 +39,7 @@
 				{/if}
 				{#if episode.air_date}
 					<span>
-						{new Date(episode.air_date).toLocaleDateString('en-GB', {
+						{new Date(episode.air_date).toLocaleDateString('da-DK', {
 							day: 'numeric',
 							month: 'long',
 							year: 'numeric',
