@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Filters from './_components/Filters.svelte';
-	import Images from './_components/Images.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
-	import { Artwork } from './artwork.svelte';
-	import { getSeries } from '../series.remote';
-	import type { PageProps } from './$types';
+	import Filters from "./_components/Filters.svelte";
+	import Images from "./_components/Images.svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import { Artwork } from "./artwork.svelte";
+	import { getSeries } from "../series.remote";
+	import type { PageProps } from "./$types";
 
 	let { params }: PageProps = $props();
 
@@ -15,13 +15,13 @@
 
 	const types = [
 		{
-			value: 'poster',
-			label: 'Posters'
+			value: "poster",
+			label: "Posters",
 		},
 		{
-			value: 'backdrop',
-			label: 'Backdrops'
-		}
+			value: "backdrop",
+			label: "Backdrops",
+		},
 	] as const;
 </script>
 
@@ -32,7 +32,7 @@
 <div class="page">
 	<header>
 		{#if series.backdrop_url}
-			<img class="backdrop" src={series.backdrop_url} alt="" />
+			<img class="backdrop" src={series.backdrop_url} alt={series.title} />
 		{/if}
 
 		<div class="bar">
@@ -95,13 +95,18 @@
 				{#snippet pending()}
 					<ul
 						class="loading"
-						class:poster={artwork.type === 'poster'}
+						class:poster={artwork.type === "poster"}
 						aria-busy="true"
 						aria-label="Loading images"
 					>
 						{#each { length: 12 }, index (index)}
 							<li>
-								<Skeleton width="100%" ratio={artwork.type === 'poster' ? '2 / 3' : '16 / 9'} />
+								<Skeleton
+									width="100%"
+									ratio={artwork.type === "poster"
+										? "2 / 3"
+										: "16 / 9"}
+								/>
 								<Skeleton variant="text" width="50%" />
 								<Skeleton variant="text" width="70%" />
 							</li>
@@ -232,12 +237,11 @@
 		color: #fff;
 	}
 
-	.types > :global([aria-checked='true']) {
+	.types > :global([aria-checked="true"]) {
 		background: rgb(255 255 255 / 0.1);
 		color: #fff;
 	}
 
-	/* Mirrors the image grid, so nothing shifts when it loads */
 	.loading {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));

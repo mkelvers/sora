@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/Button.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import type { Series } from '@sora/sdk';
-	import { getImages } from '../artwork.remote';
-	import type { Artwork } from '../artwork.svelte';
-	import { formatLanguage, formatSeason } from '$lib/utils';
+	import Button from "$lib/components/ui/Button.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import type { Series } from "@sora/sdk";
+	import { getImages } from "../artwork.remote";
+	import type { Artwork } from "../artwork.svelte";
+	import { formatLanguage, formatSeason } from "$lib/utils";
 
 	type Props = {
 		series: Series;
@@ -15,24 +15,29 @@
 
 	const images = $derived(await getImages(series.id));
 	const shown = $derived(artwork.apply(images));
-	const hasType = $derived(images.some((image) => image.type === artwork.type));
+	const hasType = $derived(
+		images.some((image) => image.type === artwork.type),
+	);
 
 	const field = $derived(`${artwork.type}_url` as const);
-	const current = $derived(series[field]?.split('/').at(-1));
+	const current = $derived(series[field]?.split("/").at(-1));
 
 	const thumbnailSizes = {
-		poster: 'w342',
-		backdrop: 'w780',
-		logo: 'w300'
+		poster: "w342",
+		backdrop: "w780",
+		logo: "w300",
 	};
 </script>
 
 <div class="grid {artwork.type}">
 	{#each shown as image (image.url)}
-		{@const chosen = current === image.url.split('/').at(-1)}
-		{@const thumbnail = image.url.replace('/original/', `/${thumbnailSizes[artwork.type]}/`)}
+		{@const chosen = current === image.url.split("/").at(-1)}
+		{@const thumbnail = image.url.replace(
+			"/original/",
+			`/${thumbnailSizes[artwork.type]}/`,
+		)}
 		<Button
-			class={['card', { chosen }]}
+			class={["card", { chosen }]}
 			aria-pressed={chosen}
 			onclick={() => artwork.choose(series.id, image.url)}
 		>
@@ -105,7 +110,8 @@
 	}
 
 	.logo .image {
-		background: repeating-conic-gradient(#1c1c1c 0% 25%, #242424 0% 50%) 0 0 / 20px 20px;
+		background: repeating-conic-gradient(#1c1c1c 0% 25%, #242424 0% 50%) 0 0 /
+			20px 20px;
 	}
 
 	.image img {
@@ -163,7 +169,7 @@
 	}
 
 	.meta > span + span::before {
-		content: '';
+		content: "";
 		display: inline-block;
 		width: 4px;
 		height: 4px;

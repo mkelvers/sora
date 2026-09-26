@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/Button.svelte';
-	import Dropdown from '$lib/components/ui/Dropdown.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { getImages } from '../artwork.remote';
-	import type { Artwork } from '../artwork.svelte';
-	import { formatLanguage, formatSeason } from '$lib/utils';
+	import Button from "$lib/components/ui/Button.svelte";
+	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import { getImages } from "../artwork.remote";
+	import type { Artwork } from "../artwork.svelte";
+	import { formatLanguage, formatSeason } from "$lib/utils";
 
 	type Props = {
 		seriesId: string;
@@ -17,27 +17,32 @@
 		id: string;
 		label: string;
 		value: string;
-		options: { value: string; label: string }[];
+		options: {
+			value: string;
+			label: string;
+		}[];
 		select: (value: string) => void;
 	};
 
 	const images = $derived(
-		(await getImages(seriesId)).filter((image) => image.type === artwork.type)
+		(await getImages(seriesId)).filter(
+			(image) => image.type === artwork.type,
+		),
 	);
 
 	const languages = $derived.by(() => {
-		const groups = Map.groupBy(images, (image) => image.language ?? 'none');
+		const groups = Map.groupBy(images, (image) => image.language ?? "none");
 		const languages = [...groups].map(([code, images]) => ({
 			code,
-			count: images.length
+			count: images.length,
 		}));
 
 		return languages.toSorted((a, b) => {
-			if (a.code === 'none') {
+			if (a.code === "none") {
 				return -1;
 			}
 
-			if (b.code === 'none') {
+			if (b.code === "none") {
 				return 1;
 			}
 
@@ -57,42 +62,42 @@
 		const menus: Menu[] = [];
 
 		menus.push({
-			id: 'artwork-sort',
-			label: 'Sort by',
+			id: "artwork-sort",
+			label: "Sort by",
 			value: artwork.sort,
 			options: [
 				{
-					value: 'votes',
-					label: 'Most liked'
+					value: "votes",
+					label: "Most liked",
 				},
 				{
-					value: 'quality',
-					label: 'Best quality'
-				}
+					value: "quality",
+					label: "Best quality",
+				},
 			],
-			select: (value) => (artwork.sort = value as Artwork['sort'])
+			select: (value) => (artwork.sort = value as Artwork["sort"]),
 		});
 
 		if (seasons.length > 0) {
 			menus.push({
-				id: 'artwork-source',
-				label: 'Made for',
+				id: "artwork-source",
+				label: "Made for",
 				value: artwork.source,
 				options: [
 					{
-						value: 'all',
-						label: 'Any season'
+						value: "all",
+						label: "Any season",
 					},
 					{
-						value: 'series',
-						label: 'The whole title'
+						value: "series",
+						label: "The whole title",
 					},
 					...seasons.map((number) => ({
 						value: String(number),
-						label: formatSeason(number)
-					}))
+						label: formatSeason(number),
+					})),
 				],
-				select: (value) => (artwork.source = value)
+				select: (value) => (artwork.source = value),
 			});
 		}
 
@@ -109,9 +114,15 @@
 {#each menus as menu (menu.id)}
 	<section class="select">
 		<h2>{menu.label}</h2>
-		<Dropdown id={menu.id} alignment="left" role="menu" aria-label={menu.label}>
+		<Dropdown
+			id={menu.id}
+			alignment="left"
+			role="menu"
+			aria-label={menu.label}
+		>
 			{#snippet trigger()}
-				{menu.options.find((option) => option.value === menu.value)?.label}
+				{menu.options.find((option) => option.value === menu.value)
+					?.label}
 				<Icon name="expand" size="sm" />
 			{/snippet}
 
@@ -165,7 +176,9 @@
 							<Icon name="check" size="sm" />
 						{/if}
 					</span>
-					{formatLanguage(language.code === 'none' ? null : language.code)}
+					{formatLanguage(
+						language.code === "none" ? null : language.code,
+					)}
 					<span class="count">{language.count}</span>
 				</Button>
 			{/each}
@@ -218,7 +231,7 @@
 	}
 
 	.languages > :global(.button:hover),
-	.languages > :global([aria-pressed='true']) {
+	.languages > :global([aria-pressed="true"]) {
 		color: #fff;
 	}
 
