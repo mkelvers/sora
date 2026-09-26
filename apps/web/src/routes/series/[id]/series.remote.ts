@@ -1,19 +1,8 @@
 import { query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { sora } from '$lib/server/sora';
+import { fromSora, sora } from '$lib/server/sora';
 
-export const getSeries = query(z.string(), async (id) => {
-	try {
-		return await sora.series(id);
-	} catch (cause) {
-		if (cause instanceof SoraError) {
-			error(cause.status, cause.message);
-		}
-		throw cause;
-	}
-});
+export const getSeries = query(z.string(), (id) => fromSora(() => sora.series(id)));
 
 export const getEpisodes = query(
 	z.object({

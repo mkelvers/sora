@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import Episodes from './_components/Episodes.svelte';
 	import SeasonTabs from './_components/SeasonTabs.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import { episodesSkeleton } from './_snippets/episodes-skeleton.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getSeries } from './series.remote';
-    import type { PageProps } from './$types';
+	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
 
@@ -47,13 +45,7 @@
 				<SeasonTabs seasons={series.seasons} bind:season />
 			{/if}
 
-			<svelte:boundary>
-				{#snippet pending()}
-					{@render episodesSkeleton(season.episode_count)}
-				{/snippet}
-
-				<Episodes seriesId={series.id} {season} />
-			</svelte:boundary>
+			<Episodes seriesId={series.id} {season} />
 		</section>
 	</div>
 </div>
@@ -64,9 +56,6 @@
 		--gap: clamp(16px, 4vw, 80px);
 		--side: clamp(16px, 3.3vw, 64px);
 		min-height: 100vh;
-		background: #101010;
-		color: #e6e6e6;
-		font-family: system-ui, sans-serif;
 	}
 
 	header {

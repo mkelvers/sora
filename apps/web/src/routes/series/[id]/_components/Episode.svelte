@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SeasonEpisode } from '@sora/sdk';
+	import { formatDate, formatTime } from '$lib/utils';
 
 	type Props = {
 		seriesId: string;
@@ -30,22 +31,10 @@
 			<div class="meta">
 				{#if episode.runtime_minutes}
 					<span>{episode.runtime_minutes}m</span>
-					<span>
-						Ends at {new Date(now.getTime() + episode.runtime_minutes * 60_000).toLocaleTimeString('da-DK', {
-							hour: '2-digit',
-							minute: '2-digit'
-						})}
-					</span>
+					<span>Ends at {formatTime(new Date(now.getTime() + episode.runtime_minutes * 60_000))}</span>
 				{/if}
 				{#if episode.air_date}
-					<span>
-						{new Date(episode.air_date).toLocaleDateString('da-DK', {
-							day: 'numeric',
-							month: 'long',
-							year: 'numeric',
-							timeZone: 'UTC'
-						})}
-					</span>
+					<span>{formatDate(episode.air_date)}</span>
 				{/if}
 				{#each episode.audio ?? [] as audio (audio)}
 					<span class="badge">{audio}</span>

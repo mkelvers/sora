@@ -36,7 +36,7 @@
 	style:aspect-ratio={ratio}
 	aria-hidden="true"
 	{...props}
-></svelte:element>
+/>
 
 <style>
 	/* Layered so a caller's own styles always win, whatever their specificity. */

@@ -8,9 +8,9 @@
 </script>
 
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
-	import Dropdown from '$lib/components/Dropdown.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 
 	let { settings }: { settings: Setting[] } = $props();
 

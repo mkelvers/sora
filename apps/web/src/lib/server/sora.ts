@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
-import { SoraClient } from '@sora/sdk';
+import { error } from '@sveltejs/kit';
+import { SoraClient, SoraError } from '@sora/sdk';
 
 if (!env.SORA_API_URL) {
 	throw new Error('SORA_API_URL is not set; see .env.example');
@@ -12,3 +13,15 @@ if (!env.SORA_API_URL) {
 export const sora = new SoraClient({
 	baseUrl: env.SORA_API_URL
 });
+
+/** Runs a Sora call, passing its API errors on as the same HTTP errors. */
+export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
+	try {
+		return await call();
+	} catch (cause) {
+		if (cause instanceof SoraError) {
+			error(cause.status, cause.message);
+		}
+		throw cause;
+	}
+}

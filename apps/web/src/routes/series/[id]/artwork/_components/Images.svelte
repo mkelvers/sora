@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 	import type { Series } from '@sora/sdk';
 	import { getImages } from '../artwork.remote';
-	import type { ArtworkFilters } from '../artwork-filters.svelte';
-	import { chooseArtwork } from '../choose-artwork';
+	import { chooseArtwork, type ArtworkFilters } from '../artwork.svelte';
+	import { formatLanguage, formatSeason } from '$lib/utils';
 
 	type Props = {
 		series: Series;
@@ -20,10 +20,6 @@
 	const field = $derived(`${filters.type}_url` as const);
 	// Compared by file name, which is the same in every TMDB size.
 	const current = $derived(series[field]?.split('/').at(-1));
-
-	const names = new Intl.DisplayNames(['en'], {
-		type: 'language'
-	});
 
 	const thumbnailSizes = {
 		poster: 'w342',
@@ -60,11 +56,11 @@
 				{/if}
 			</span>
 			<span class="text">
-				<span class="title">{image.language ? names.of(image.language) : 'Textless'}</span>
+				<span class="title">{formatLanguage(image.language)}</span>
 				<span class="meta">
 					<span>{image.width}×{image.height}</span>
 					{#if image.season_number !== null}
-						<span>{image.season_number === 0 ? 'Specials' : `Season ${image.season_number}`}</span>
+						<span>{formatSeason(image.season_number)}</span>
 					{/if}
 					<span class="votes" title="{image.vote_count} votes">
 						<Icon name="heart" size="xs" />

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Season } from '@sora/sdk';
-	import Button from '$lib/components/Button.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 
 	type Props = {
 		seasons: Season[];
