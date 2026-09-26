@@ -31,7 +31,7 @@ Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
 `bun run dev` from the repository root starts it together with the API.
 
 ```sh
-bun run --filter web dev     # only the web app, on :5173
-bun run --filter web check   # type-check with svelte-check
-bun run --filter web build   # production build
+bun run --filter @sora/web dev     # only the web app, on :5173
+bun run --filter @sora/web check   # type-check with svelte-check
+bun run --filter @sora/web build   # production build
 ```
