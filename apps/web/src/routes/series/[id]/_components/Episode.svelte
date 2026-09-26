@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SeasonEpisode } from '@sora/sdk';
-	import { formatDate, formatTime } from '$lib/utils';
+	import type { SeasonEpisode } from "@sora/sdk";
+	import { formatDate, formatTime, tmdbImage, tmdbSrcset } from "$lib/utils";
 
 	type Props = {
 		seriesId: string;
@@ -14,25 +14,41 @@
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const ends = $derived(
 		episode.runtime_minutes
-			? formatTime(new Date(now.getTime() + episode.runtime_minutes * 60_000))
-			: undefined
+			? formatTime(
+					new Date(now.getTime() + episode.runtime_minutes * 60_000),
+				)
+			: undefined,
 	);
 </script>
 
 <li>
 	<svelte:element
-		this={playable ? 'a' : 'div'}
+		this={playable ? "a" : "div"}
 		class="episode"
-		href={playable ? `/series/${seriesId}/watch/${seasonId}/${episode.number}` : undefined}
+		href={playable
+			? `/series/${seriesId}/watch/${seasonId}/${episode.number}`
+			: undefined}
 	>
 		<div class="still">
 			{#if episode.still_url}
-				<img src={episode.still_url} alt={episode.title} loading="lazy" decoding="async" />
+				<img
+					src={tmdbImage(episode.still_url, "w780")}
+					srcset={tmdbSrcset(episode.still_url, {
+						w300: 300,
+						w780: 780,
+					})}
+					sizes="(max-width: 720px) 40vw, 375px"
+					alt={episode.title}
+					loading="lazy"
+					decoding="async"
+				/>
 			{/if}
 		</div>
 
 		<div class="text">
-			<h2>{episode.number}. {episode.title ?? `Episode ${episode.number}`}</h2>
+			<h3>
+				{episode.number}. {episode.title ?? `Episode ${episode.number}`}
+			</h3>
 			<div class="meta">
 				{#if episode.runtime_minutes}
 					<span>{episode.runtime_minutes}m</span>
@@ -56,6 +72,11 @@
 </li>
 
 <style>
+	li {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 230px;
+	}
+
 	.episode {
 		display: grid;
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
@@ -94,7 +115,7 @@
 		max-width: 70ch;
 	}
 
-	h2 {
+	h3 {
 		margin: 0 0 8px;
 		font-size: 15px;
 		font-weight: 400;
@@ -115,7 +136,7 @@
 	}
 
 	.meta span:not(.badge) + span:not(.badge)::before {
-		content: '';
+		content: "";
 		display: inline-block;
 		width: 4px;
 		height: 4px;

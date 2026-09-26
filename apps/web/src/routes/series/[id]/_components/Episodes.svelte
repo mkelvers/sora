@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Episode from './Episode.svelte';
-	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
-	import { getEpisodes } from '../series.remote';
-	import type { Season } from '@sora/sdk';
+	import Episode from "./Episode.svelte";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import { getEpisodes } from "../series.remote";
+	import type { Season } from "@sora/sdk";
 
 	type Props = {
 		seriesId: string;
@@ -11,11 +11,19 @@
 
 	let { seriesId, season }: Props = $props();
 
-	const episodes = $derived(getEpisodes({ seriesId, seasonId: season.id }));
+	const episodes = $derived(
+		getEpisodes({
+			seriesId,
+			seasonId: season.id,
+		}),
+	);
 	let now = $state(new Date());
 
 	$effect(() => {
-		const timeout = setTimeout(() => (now = new Date()), 60_000 - (now.getTime() % 60_000));
+		const timeout = setTimeout(
+			() => (now = new Date()),
+			60_000 - (now.getTime() % 60_000),
+		);
 		return () => clearTimeout(timeout);
 	});
 </script>
@@ -34,7 +42,7 @@
 			<li class="loading">
 				<Skeleton ratio="3 / 2" />
 				<div class="lines">
-					{#each ['45%', '12%', '90%', '75%'] as width, line (line)}
+					{#each ["45%", "12%", "90%", "75%"] as width, line (line)}
 						<Skeleton variant="text" {width} />
 					{/each}
 				</div>
