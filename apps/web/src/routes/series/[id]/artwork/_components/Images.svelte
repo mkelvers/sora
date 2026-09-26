@@ -3,21 +3,21 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import type { Series } from '@sora/sdk';
 	import { getImages } from '../artwork.remote';
-	import { chooseArtwork, type ArtworkFilters } from '../artwork.svelte';
+	import type { Artwork } from '../artwork.svelte';
 	import { formatLanguage, formatSeason } from '$lib/utils';
 
 	type Props = {
 		series: Series;
-		filters: ArtworkFilters;
+		artwork: Artwork;
 	};
 
-	let { series, filters }: Props = $props();
+	let { series, artwork }: Props = $props();
 
 	const images = $derived(await getImages(series.id));
-	const shown = $derived(filters.apply(images));
-	const hasType = $derived(images.some((image) => image.type === filters.type));
+	const shown = $derived(artwork.apply(images));
+	const hasType = $derived(images.some((image) => image.type === artwork.type));
 
-	const field = $derived(`${filters.type}_url` as const);
+	const field = $derived(`${artwork.type}_url` as const);
 	const current = $derived(series[field]?.split('/').at(-1));
 
 	const thumbnailSizes = {
@@ -25,29 +25,19 @@
 		backdrop: 'w780',
 		logo: 'w300'
 	};
-
-	let failed = $state(false);
-
-	async function choose(url: string) {
-		try {
-			await chooseArtwork(series.id, filters.type, url);
-			failed = false;
-		} catch {
-			failed = true;
-		}
-	}
 </script>
 
-{#if failed}
-	<p class="error" role="alert">That image couldn’t be saved.</p>
-{/if}
-
-<div class="grid {filters.type}">
+<div class="grid {artwork.type}">
 	{#each shown as image (image.url)}
 		{@const chosen = current === image.url.split('/').at(-1)}
-		<Button class={['card', { chosen }]} aria-pressed={chosen} onclick={() => choose(image.url)}>
+		{@const thumbnail = image.url.replace('/original/', `/${thumbnailSizes[artwork.type]}/`)}
+		<Button
+			class={['card', { chosen }]}
+			aria-pressed={chosen}
+			onclick={() => artwork.choose(series.id, image.url)}
+		>
 			<span class="image">
-				<img src={image.url.replace('/original/', `/${thumbnailSizes[filters.type]}/`)} alt="" loading="lazy" decoding="async" />
+				<img src={thumbnail} alt="" loading="lazy" decoding="async" />
 				{#if chosen}
 					<span class="check" title="Current">
 						<Icon name="check" size="sm" />
@@ -71,7 +61,7 @@
 	{:else}
 		<p class="empty">
 			{#if hasType}
-				Nothing matches these filters.
+				Nothing matches these artwork.
 			{:else}
 				TMDB has none for this title.
 			{/if}
@@ -80,12 +70,6 @@
 </div>
 
 <style>
-	.error {
-		margin: 0 0 16px;
-		color: #f28b82;
-		font-size: 14px;
-	}
-
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -179,8 +163,14 @@
 	}
 
 	.meta > span + span::before {
-		content: '·';
+		content: '';
+		display: inline-block;
+		width: 4px;
+		height: 4px;
 		margin-right: 8px;
+		background: currentColor;
+		vertical-align: middle;
+		rotate: 45deg;
 	}
 
 	.votes {

@@ -4,14 +4,14 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
-	import { ArtworkFilters, chooseArtwork } from './artwork.svelte';
+	import { Artwork } from './artwork.svelte';
 	import { getSeries } from '../series.remote';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
-	const filters = new ArtworkFilters();
+	const artwork = new Artwork();
 
 	const types = [
 		{
@@ -21,19 +21,8 @@
 		{
 			value: 'backdrop',
 			label: 'Backdrops'
-		},
-	] as const;
-
-	let failed = $state(false);
-
-	async function reset() {
-		try {
-			await chooseArtwork(series.id, filters.type, null);
-			failed = false;
-		} catch {
-			failed = true;
 		}
-	}
+	] as const;
 </script>
 
 <svelte:head>
@@ -47,7 +36,12 @@
 		{/if}
 
 		<div class="bar">
-			<a class="icon-button" href="/series/{series.id}" aria-label="Back to {series.title}" title="Back">
+			<a
+				class="icon-button"
+				href="/series/{series.id}"
+				aria-label="Back to {series.title}"
+				title="Back"
+			>
 				<Icon name="back" />
 			</a>
 
@@ -56,7 +50,12 @@
 				<span>{series.title}</span>
 			</div>
 
-			<Button class="icon-button" onclick={reset} aria-label="Use default" title="Use default">
+			<Button
+				class="icon-button"
+				aria-label="Use default"
+				title="Use default"
+				onclick={() => artwork.choose(series.id, null)}
+			>
 				<Icon name="restore" />
 			</Button>
 		</div>
@@ -71,8 +70,8 @@
 						<Button
 							variant="ghost"
 							role="radio"
-							aria-checked={filters.type === option.value}
-							onclick={() => (filters.type = option.value)}
+							aria-checked={artwork.type === option.value}
+							onclick={() => (artwork.type = option.value)}
 						>
 							{option.label}
 						</Button>
@@ -83,21 +82,26 @@
 			<svelte:boundary>
 				{#snippet pending()}{/snippet}
 
-				<Filters seriesId={series.id} {filters} />
+				<Filters seriesId={series.id} {artwork} />
 			</svelte:boundary>
 		</aside>
 
 		<main>
-			{#if failed}
-				<p class="error" role="alert">The default couldn’t be restored.</p>
+			{#if artwork.error}
+				<p class="error" role="alert">{artwork.error}</p>
 			{/if}
 
 			<svelte:boundary>
 				{#snippet pending()}
-					<ul class="loading" class:poster={filters.type === 'poster'} aria-busy="true" aria-label="Loading images">
+					<ul
+						class="loading"
+						class:poster={artwork.type === 'poster'}
+						aria-busy="true"
+						aria-label="Loading images"
+					>
 						{#each { length: 12 }, index (index)}
 							<li>
-								<Skeleton width="100%" ratio={filters.type === 'poster' ? '2 / 3' : '16 / 9'} />
+								<Skeleton width="100%" ratio={artwork.type === 'poster' ? '2 / 3' : '16 / 9'} />
 								<Skeleton variant="text" width="50%" />
 								<Skeleton variant="text" width="70%" />
 							</li>
@@ -105,7 +109,7 @@
 					</ul>
 				{/snippet}
 
-				<Images {series} {filters} />
+				<Images {series} {artwork} />
 			</svelte:boundary>
 		</main>
 	</div>

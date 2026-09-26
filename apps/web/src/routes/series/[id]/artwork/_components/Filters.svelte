@@ -3,127 +3,170 @@
 	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getImages } from '../artwork.remote';
-	import type { ArtworkFilters } from '../artwork.svelte';
+	import type { Artwork } from '../artwork.svelte';
 	import { formatLanguage, formatSeason } from '$lib/utils';
 
 	type Props = {
 		seriesId: string;
-		filters: ArtworkFilters;
+		artwork: Artwork;
 	};
 
-	let { seriesId, filters }: Props = $props();
+	let { seriesId, artwork }: Props = $props();
 
-	const images = $derived((await getImages(seriesId)).filter((image) => image.type === filters.type));
+	type Menu = {
+		id: string;
+		label: string;
+		value: string;
+		options: { value: string; label: string }[];
+		select: (value: string) => void;
+	};
 
-	const languageCounts = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const image of images) {
-			const code = image.language ?? 'none';
-			counts.set(code, (counts.get(code) ?? 0) + 1);
-		}
+	const images = $derived(
+		(await getImages(seriesId)).filter((image) => image.type === artwork.type)
+	);
 
-		return [...counts].sort(([leftCode, leftCount], [rightCode, rightCount]) => {
-			if (leftCode === 'none') {
+	const languages = $derived.by(() => {
+		const groups = Map.groupBy(images, (image) => image.language ?? 'none');
+		const languages = [...groups].map(([code, images]) => ({
+			code,
+			count: images.length
+		}));
+
+		return languages.toSorted((a, b) => {
+			if (a.code === 'none') {
 				return -1;
 			}
-			if (rightCode === 'none') {
+
+			if (b.code === 'none') {
 				return 1;
 			}
-			return rightCount - leftCount;
+
+			return b.count - a.count;
 		});
 	});
 
-	const seasonNumbers = $derived.by(() => {
-		const numbers = new Set<number>();
-		for (const image of images) {
-			if (image.season_number !== null) {
-				numbers.add(image.season_number);
-			}
-		}
-		return [...numbers].sort((left, right) => left - right);
+	const seasons = $derived.by(() => {
+		const numbers = new Set(images.map((image) => image.season_number));
+
+		return [...numbers]
+			.filter((number) => number !== null)
+			.toSorted((a, b) => a - b);
 	});
 
-	const sorts = [
-		{ value: 'votes', label: 'Most liked' },
-		{ value: 'quality', label: 'Best quality' }
-	] as const;
+	const menus = $derived.by(() => {
+		const menus: Menu[] = [];
 
-	const sources = $derived([
-		{ value: 'all', label: 'Any season' },
-		{ value: 'series', label: 'The whole title' },
-		...seasonNumbers.map((number) => ({ value: String(number), label: formatSeason(number) }))
-	]);
+		menus.push({
+			id: 'artwork-sort',
+			label: 'Sort by',
+			value: artwork.sort,
+			options: [
+				{
+					value: 'votes',
+					label: 'Most liked'
+				},
+				{
+					value: 'quality',
+					label: 'Best quality'
+				}
+			],
+			select: (value) => (artwork.sort = value as Artwork['sort'])
+		});
+
+		if (seasons.length > 0) {
+			menus.push({
+				id: 'artwork-source',
+				label: 'Made for',
+				value: artwork.source,
+				options: [
+					{
+						value: 'all',
+						label: 'Any season'
+					},
+					{
+						value: 'series',
+						label: 'The whole title'
+					},
+					...seasons.map((number) => ({
+						value: String(number),
+						label: formatSeason(number)
+					}))
+				],
+				select: (value) => (artwork.source = value)
+			});
+		}
+
+		return menus;
+	});
 
 	function toggle(code: string) {
-		filters.languages = filters.languages.includes(code)
-			? filters.languages.filter((language) => language !== code)
-			: [...filters.languages, code];
+		artwork.languages = artwork.languages.includes(code)
+			? artwork.languages.filter((language) => language !== code)
+			: [...artwork.languages, code];
 	}
 </script>
 
-{#snippet option(dropdown: string, label: string, checked: boolean, select: () => void)}
-	<Button role="menuitemradio" aria-checked={checked} popovertarget={dropdown} popovertargetaction="hide" onclick={select}>
-		<span class="check">
-			{#if checked}
-				<Icon name="check" size="sm" />
-			{/if}
-		</span>
-		{label}
-	</Button>
-{/snippet}
-
-<section class="select">
-	<h2>Sort by</h2>
-	<Dropdown id="artwork-sort" alignment="left" role="menu" aria-label="Sort by">
-		{#snippet trigger()}
-			{sorts.find((sort) => sort.value === filters.sort)?.label}
-			<Icon name="expand" size="sm" />
-		{/snippet}
-
-		{#each sorts as sort (sort.value)}
-			{@render option('artwork-sort', sort.label, filters.sort === sort.value, () => (filters.sort = sort.value))}
-		{/each}
-	</Dropdown>
-</section>
-
-{#if seasonNumbers.length > 0}
+{#each menus as menu (menu.id)}
 	<section class="select">
-		<h2>Made for</h2>
-		<Dropdown id="artwork-source" alignment="left" role="menu" aria-label="Made for">
+		<h2>{menu.label}</h2>
+		<Dropdown id={menu.id} alignment="left" role="menu" aria-label={menu.label}>
 			{#snippet trigger()}
-				{sources.find((source) => source.value === filters.source)?.label}
+				{menu.options.find((option) => option.value === menu.value)?.label}
 				<Icon name="expand" size="sm" />
 			{/snippet}
 
-			{#each sources as source (source.value)}
-				{@render option('artwork-source', source.label, filters.source === source.value, () => (filters.source = source.value))}
+			{#each menu.options as option (option.value)}
+				{@const checked = option.value === menu.value}
+				<Button
+					role="menuitemradio"
+					aria-checked={checked}
+					popovertarget={menu.id}
+					popovertargetaction="hide"
+					onclick={() => menu.select(option.value)}
+				>
+					<span class="check">
+						{#if checked}
+							<Icon name="check" size="sm" />
+						{/if}
+					</span>
+					{option.label}
+				</Button>
 			{/each}
 		</Dropdown>
 	</section>
-{/if}
+{/each}
 
-{#if languageCounts.length > 1}
+{#if languages.length > 1}
 	<section>
 		<h2>Language</h2>
 		<div class="languages" role="group" aria-label="Language">
-			<Button variant="ghost" aria-pressed={filters.languages.length === 0} onclick={() => (filters.languages = [])}>
+			<Button
+				variant="ghost"
+				aria-pressed={artwork.languages.length === 0}
+				onclick={() => (artwork.languages = [])}
+			>
 				<span class="check">
-					{#if filters.languages.length === 0}
+					{#if artwork.languages.length === 0}
 						<Icon name="check" size="sm" />
 					{/if}
 				</span>
 				All
 			</Button>
-			{#each languageCounts as [code, count] (code)}
-				{@const pressed = filters.languages.includes(code)}
-				<Button variant="ghost" aria-pressed={pressed} onclick={() => toggle(code)}>
+
+			{#each languages as language (language.code)}
+				{@const pressed = artwork.languages.includes(language.code)}
+				<Button
+					variant="ghost"
+					aria-pressed={pressed}
+					onclick={() => toggle(language.code)}
+				>
 					<span class="check">
 						{#if pressed}
 							<Icon name="check" size="sm" />
 						{/if}
 					</span>
-					{formatLanguage(code === 'none' ? null : code)}
-					<span class="count">{count}</span>
+					{formatLanguage(language.code === 'none' ? null : language.code)}
+					<span class="count">{language.count}</span>
 				</Button>
 			{/each}
 		</div>
