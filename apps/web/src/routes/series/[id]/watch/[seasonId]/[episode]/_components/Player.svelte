@@ -118,7 +118,10 @@
 		</a>
 		<div>
 			<h1>{title}</h1>
-			<p>{series} · {season}</p>
+			<p>
+				<span>{series}</span>
+				<span>{season}</span>
+			</p>
 		</div>
 	</header>
 
@@ -220,9 +223,23 @@
 	}
 
 	header p {
+		display: flex;
+		align-items: center;
+		gap: 8px;
 		margin: 2px 0 0;
 		color: #ddd;
 		font-size: 14px;
+	}
+
+	header span + span::before {
+		content: '';
+		display: inline-block;
+		width: 4px;
+		height: 4px;
+		margin-right: 8px;
+		background: currentColor;
+		vertical-align: middle;
+		rotate: 45deg;
 	}
 
 	footer {
