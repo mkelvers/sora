@@ -22,7 +22,11 @@ const providerHttp = new HttpClient({
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
-const mappingClient = new MappingClient(providerHttp);
+const mappingClient = new MappingClient(providerHttp, {
+  // Anify's API redirects to itself, so every lookup spent about 15s failing
+  // before the mapping fell through to the other sources.
+  disableAnify: true
+});
 
 /**
  * The only locale Sora serves: dubs in English, and subs that always have
