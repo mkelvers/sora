@@ -51,10 +51,6 @@
 </li>
 
 <style>
-	li {
-		padding: 2px 0;
-	}
-
 	.episode {
 		display: grid;
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
@@ -137,12 +133,5 @@
 		color: #999;
 		font-size: 14px;
 		line-height: 1.45;
-	}
-
-	@media (max-width: 720px) {
-		.episode {
-			grid-template-columns: 140px minmax(0, 1fr);
-			gap: 12px;
-		}
 	}
 </style>

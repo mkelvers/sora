@@ -22,10 +22,6 @@
 			value: 'backdrop',
 			label: 'Backdrops'
 		},
-		{
-			value: 'logo',
-			label: 'Logos'
-		}
 	] as const;
 
 	let failed = $state(false);
