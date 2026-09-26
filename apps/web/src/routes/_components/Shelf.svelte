@@ -12,9 +12,11 @@
 		item: Snippet<[T]>;
 		/** Where the heading leads, to everything in the row. */
 		href?: string;
+		/** `wide` for 16:9 cards, such as episodes to resume. */
+		shape?: 'poster' | 'wide';
 	};
 
-	let { title, items, key, item, href }: Props = $props();
+	let { title, items, key, item, href, shape = 'poster' }: Props = $props();
 
 	let list = $state<HTMLElement>();
 	let start = $state(true);
@@ -39,7 +41,7 @@
 <svelte:window onresize={update} />
 
 {#if items === undefined || items.length > 0}
-	<section>
+	<section class={shape}>
 		<div class="top">
 			<h2>
 				{#if href}
@@ -74,7 +76,7 @@
 			<ul aria-busy="true" aria-label="Loading {title}">
 				{#each { length: 8 }, index (index)}
 					<li>
-						<Skeleton ratio="2 / 3" />
+						<Skeleton ratio={shape === 'wide' ? '16 / 9' : '2 / 3'} />
 						<Skeleton variant="text" width="70%" style="margin: 10px auto 0" />
 					</li>
 				{/each}
@@ -155,6 +157,10 @@
 
 	ul::-webkit-scrollbar {
 		display: none;
+	}
+
+	.wide ul {
+		grid-auto-columns: clamp(220px, calc((100cqi - 2 * var(--side) - 4 * var(--gap)) / 4.3), 380px);
 	}
 
 	li {

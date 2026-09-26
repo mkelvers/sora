@@ -2,13 +2,18 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/Button.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { signOut } from '../login/login.remote';
+	import { getCurrentProfile } from '../profiles/profiles.remote';
 
 	type Props = {
 		onmenu: () => void;
 	};
 
 	let { onmenu }: Props = $props();
+
+	const profile = getCurrentProfile();
 
 	const query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -73,9 +78,25 @@
 			</Button>
 		{/if}
 
-		<Button class="icon-button" aria-label="Profile" title="Profile">
-			<Icon name="person" />
-		</Button>
+		<Dropdown id="profile-menu" class="profile-menu" label="Profile">
+			{#snippet trigger()}
+				{#if profile.current}
+					<span class="avatar" style:background={profile.current.color}>
+						{profile.current.name.slice(0, 1).toUpperCase()}
+					</span>
+				{:else}
+					<Icon name="person" />
+				{/if}
+			{/snippet}
+
+			{#if profile.current}
+				<p class="who">{profile.current.name}</p>
+			{/if}
+			<a href="/profiles">Switch profile</a>
+			<form {...signOut}>
+				<Button type="submit">Sign out</Button>
+			</form>
+		</Dropdown>
 	</nav>
 </header>
 
@@ -123,7 +144,53 @@
 		outline-offset: 2px;
 	}
 
-	form {
+	.avatar {
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
+		color: #fff;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	nav :global(.dropdown-trigger) {
+		width: 40px;
+		height: 40px;
+		padding: 0;
+		border-radius: 50%;
+	}
+
+	nav :global(.profile-menu > *) {
+		padding: 0;
+	}
+
+	.who {
+		margin: 0;
+		padding: 10px 16px 8px;
+		color: #fff;
+		font-size: 15px;
+	}
+
+	nav :global(.profile-menu a),
+	nav :global(.profile-menu .button) {
+		display: flex;
+		justify-content: flex-start;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 10px 16px;
+		color: #ccc;
+		font-size: 14px;
+		text-decoration: none;
+	}
+
+	nav :global(.profile-menu a:hover),
+	nav :global(.profile-menu .button:hover) {
+		background: rgb(255 255 255 / 0.08);
+		color: #fff;
+	}
+
+	form[role='search'] {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -136,7 +203,7 @@
 		color: #999;
 	}
 
-	form:focus-within {
+	form[role='search']:focus-within {
 		background: rgb(255 255 255 / 0.15);
 		color: #ddd;
 	}

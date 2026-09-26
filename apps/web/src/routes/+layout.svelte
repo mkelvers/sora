@@ -45,8 +45,8 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<!-- The player brings its own controls, back button included. -->
-{#if page.route.id?.startsWith('/series/[id]/watch')}
+<!-- The player brings its own controls; signing in and choosing a profile stand alone. -->
+{#if page.route.id?.startsWith('/series/[id]/watch') || page.route.id === '/login' || page.route.id === '/profiles'}
 	{@render children()}
 {:else}
 	<Header onmenu={toggle} />
