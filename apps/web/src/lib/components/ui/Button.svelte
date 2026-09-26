@@ -5,9 +5,7 @@
 		variants: {
 			variant: {
 				default: '',
-				ghost: 'ghost',
-				primary: 'solid primary',
-				secondary: 'solid secondary'
+				ghost: 'ghost'
 			}
 		},
 		defaultVariants: {
@@ -17,27 +15,16 @@
 </script>
 
 <script lang="ts">
-	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
+	import type { HTMLButtonAttributes } from 'svelte/elements';
 
-	type Props = VariantProps<typeof button> &
-		((HTMLButtonAttributes & { href?: undefined }) | (HTMLAnchorAttributes & { href: string }));
+	type Props = HTMLButtonAttributes & VariantProps<typeof button>;
 
-	let { class: className, variant, children, ...props }: Props = $props();
+	let { class: className, type = 'button', variant, children, ...props }: Props = $props();
 </script>
 
-{#if props.href !== undefined}
-	<a class={[button({ variant }), className]} {...props as HTMLAnchorAttributes}>
-		{@render children?.()}
-	</a>
-{:else}
-	<button
-		class={[button({ variant }), className]}
-		{...props as HTMLButtonAttributes}
-		type={(props as HTMLButtonAttributes).type ?? 'button'}
-	>
-		{@render children?.()}
-	</button>
-{/if}
+<button class={[button({ variant }), className]} {type} {...props}>
+	{@render children?.()}
+</button>
 
 <style>
 	/* Layered so a caller's own styles always win, whatever their specificity. */
@@ -55,18 +42,16 @@
 			font: inherit;
 			font-size: 14px;
 			white-space: nowrap;
-			text-decoration: none;
 			cursor: pointer;
 			outline: none;
 			user-select: none;
 			transition:
-				background-color 160ms var(--ease),
-				color 160ms var(--ease),
-				transform 160ms var(--ease);
+				background-color 120ms,
+				color 120ms;
 		}
 
 		.button:focus-visible {
-			outline: 2px solid var(--text);
+			outline: 2px solid #fff;
 			outline-offset: 2px;
 		}
 
@@ -84,38 +69,6 @@
 
 		.ghost:hover {
 			background: rgb(255 255 255 / 0.08);
-		}
-
-		.solid {
-			height: 48px;
-			padding: 0 24px;
-			border-radius: 8px;
-			font-size: 15px;
-			font-weight: 600;
-			letter-spacing: -0.005em;
-		}
-
-		.solid:active {
-			transform: scale(0.98);
-		}
-
-		.primary {
-			background: var(--text);
-			color: var(--bg);
-		}
-
-		.primary:hover {
-			background: #fff;
-		}
-
-		.secondary {
-			background: rgb(255 255 255 / 0.14);
-			color: var(--text);
-			backdrop-filter: blur(16px);
-		}
-
-		.secondary:hover {
-			background: rgb(255 255 255 / 0.22);
 		}
 	}
 </style>
