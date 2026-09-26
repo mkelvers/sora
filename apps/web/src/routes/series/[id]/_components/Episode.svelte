@@ -82,8 +82,6 @@
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
-		margin: 0 -8px;
-		padding: 8px;
 		color: inherit;
 		text-decoration: none;
 		transition: background 120ms;
@@ -99,6 +97,7 @@
 	}
 
 	.still {
+		align-self: stretch;
 		aspect-ratio: 3 / 2;
 		background: #2a2a2a;
 		overflow: hidden;
@@ -113,6 +112,7 @@
 
 	.text {
 		max-width: 70ch;
+		padding: 12px 16px 12px 0;
 	}
 
 	h3 {

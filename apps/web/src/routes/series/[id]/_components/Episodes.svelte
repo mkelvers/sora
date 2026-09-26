@@ -53,6 +53,8 @@
 
 <style>
 	ol {
+		display: grid;
+		gap: 12px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -68,7 +70,6 @@
 		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
 		align-items: center;
 		gap: 24px;
-		padding: 10px 0;
 	}
 
 	.lines {
