@@ -12,7 +12,13 @@
 		speed: number;
 	};
 
-	let { media, audio = $bindable(), subtitles, subtitle = $bindable(), speed = $bindable() }: Props = $props();
+	let {
+		media,
+		audio = $bindable(),
+		subtitles,
+		subtitle = $bindable(),
+		speed = $bindable()
+	}: Props = $props();
 
 	type Menu = {
 		label: string;
@@ -21,34 +27,48 @@
 		select: (value: string) => void;
 	};
 
-	const menus: Menu[] = $derived([
-		...(media.length > 1
-			? [
-					{
-						label: 'Audio',
-						value: audio ?? '',
-						options: media.map((version) => ({ value: version.audio, label: version.label })),
-						select: (value: string) => (audio = value as PlaybackMedia['audio'])
-					}
-				]
-			: []),
-		...(subtitles.length > 0
-			? [
-					{
-						label: 'Subtitles',
-						value: subtitle ?? '',
-						options: [{ value: '', label: 'Off' }, ...subtitles.map((track) => ({ value: track.url, label: track.label }))],
-						select: (value: string) => (subtitle = value || undefined)
-					}
-				]
-			: []),
-		{
+	const menus = $derived.by(() => {
+		const menus: Menu[] = [];
+
+		if (media.length > 1) {
+			menus.push({
+				label: 'Audio',
+				value: audio ?? '',
+				options: media.map((version) => ({
+					value: version.audio,
+					label: version.label
+				})),
+				select: (value) => (audio = value as PlaybackMedia['audio'])
+			});
+		}
+
+		if (subtitles.length > 0) {
+			menus.push({
+				label: 'Subtitles',
+				value: subtitle ?? '',
+				options: [
+					{ value: '', label: 'Off' },
+					...subtitles.map((track) => ({
+						value: track.url,
+						label: track.label
+					}))
+				],
+				select: (value) => (subtitle = value || undefined)
+			});
+		}
+
+		menus.push({
 			label: 'Speed',
 			value: String(speed),
-			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({ value: String(rate), label: rate === 1 ? 'Normal' : `${rate}×` })),
-			select: (value: string) => (speed = Number(value))
-		}
-	]);
+			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
+				value: String(rate),
+				label: rate === 1 ? 'Normal' : `${rate}×`
+			})),
+			select: (value) => (speed = Number(value))
+		});
+
+		return menus;
+	});
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
@@ -92,7 +112,9 @@
 			{#each menus as menu (menu.label)}
 				<Button role="menuitem" onclick={() => (submenu = menu.label)}>
 					{menu.label}
-					<span class="value">{menu.options.find((option) => option.value === menu.value)?.label}</span>
+					<span class="value">
+						{menu.options.find((option) => option.value === menu.value)?.label}
+					</span>
 					<Icon name="chevron-right" size="md" />
 				</Button>
 			{/each}
