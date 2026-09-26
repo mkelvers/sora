@@ -29,9 +29,10 @@
 	.poster {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 2px;
 		min-width: 0;
 		color: inherit;
+		text-align: center;
 		text-decoration: none;
 	}
 
@@ -40,7 +41,7 @@
 		display: block;
 		width: 100%;
 		aspect-ratio: 2 / 3;
-		margin-bottom: 4px;
+		margin-bottom: 6px;
 		object-fit: cover;
 		background: #2a2a2a;
 		transition: filter 120ms;
@@ -57,7 +58,7 @@
 
 	.title {
 		overflow: hidden;
-		font-size: 15px;
+		font-size: 14px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}

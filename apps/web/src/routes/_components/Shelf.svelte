@@ -10,16 +10,15 @@
 		items: T[] | undefined;
 		key: (item: T) => string;
 		item: Snippet<[T]>;
-		/** Where "See all" leads. */
+		/** Where the heading leads, to everything in the row. */
 		href?: string;
-		subtitle?: string;
 	};
 
-	let { title, items, key, item, href, subtitle }: Props = $props();
+	let { title, items, key, item, href }: Props = $props();
 
 	let list = $state<HTMLElement>();
 	let start = $state(true);
-	let end = $state(false);
+	let end = $state(true);
 
 	function update() {
 		if (!list) return;
@@ -28,7 +27,7 @@
 	}
 
 	function scroll(direction: -1 | 1) {
-		list?.scrollBy({ left: direction * list.clientWidth * 0.9, behavior: 'smooth' });
+		list?.scrollBy({ left: direction * list.clientWidth, behavior: 'smooth' });
 	}
 
 	$effect(() => {
@@ -37,114 +36,116 @@
 	});
 </script>
 
+<svelte:window onresize={update} />
+
 {#if items === undefined || items.length > 0}
 	<section>
 		<div class="top">
 			<h2>
 				{#if href}
-					<a {href}>{title}</a>
+					<a {href}>
+						{title}
+						<Icon name="chevron-right" />
+					</a>
 				{:else}
 					{title}
 				{/if}
-				{#if subtitle}
-					<span>{subtitle}</span>
-				{/if}
 			</h2>
 
-			{#if href}
-				<a class="all" {href}>See all</a>
+			{#if !(start && end)}
+				<div class="scroll">
+					<Button variant="ghost" aria-label="Scroll left" disabled={start} onclick={() => scroll(-1)}>
+						<Icon name="chevron-left" />
+					</Button>
+					<Button variant="ghost" aria-label="Scroll right" disabled={end} onclick={() => scroll(1)}>
+						<Icon name="chevron-right" />
+					</Button>
+				</div>
 			{/if}
 		</div>
 
-		<div class="track">
-			{#if items}
-				<ul bind:this={list} onscroll={update}>
-					{#each items as entry (key(entry))}
-						<li>{@render item(entry)}</li>
-					{/each}
-				</ul>
-
-				<Button class="arrow previous" aria-label="Scroll left" hidden={start} onclick={() => scroll(-1)}>
-					<Icon name="chevron-left" />
-				</Button>
-				<Button class="arrow next" aria-label="Scroll right" hidden={end} onclick={() => scroll(1)}>
-					<Icon name="chevron-right" />
-				</Button>
-			{:else}
-				<ul aria-busy="true" aria-label="Loading {title}">
-					{#each { length: 8 }, index (index)}
-						<li>
-							<Skeleton ratio="2 / 3" />
-							<Skeleton variant="text" width="70%" style="margin-top: 8px" />
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</div>
+		{#if items}
+			<ul bind:this={list} onscroll={update}>
+				{#each items as entry (key(entry))}
+					<li>{@render item(entry)}</li>
+				{/each}
+			</ul>
+		{:else}
+			<ul aria-busy="true" aria-label="Loading {title}">
+				{#each { length: 8 }, index (index)}
+					<li>
+						<Skeleton ratio="2 / 3" />
+						<Skeleton variant="text" width="70%" style="margin: 10px auto 0" />
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</section>
 {/if}
 
 <style>
 	section {
-		--side: clamp(16px, 3.3vw, 64px);
-		--gap: 16px;
-		/* Six and a bit cards on wide screens, so the row reads as scrollable. */
-		--card: clamp(140px, calc((100vw - 2 * var(--side) - 6 * var(--gap)) / 6.4), 260px);
+		--side: clamp(16px, 3vw, 48px);
+		--gap: 12px;
+		container-type: inline-size;
 	}
 
 	.top {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin: 0 var(--side) 12px;
+		margin: 0 var(--side) 8px;
 	}
 
 	h2 {
-		display: flex;
-		align-items: baseline;
-		gap: 12px;
 		margin: 0;
-		font-size: 21px;
+		font-size: 20px;
 		font-weight: 400;
 	}
 
 	h2 a {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
 		color: inherit;
 		text-decoration: none;
 	}
 
-	h2 a:hover {
-		text-decoration: underline;
-	}
-
-	h2 span {
+	h2 a :global(svg) {
 		color: #888;
-		font-size: 14px;
+		transition: color 120ms;
 	}
 
-	.all {
-		flex: none;
-		color: #999;
-		font-size: 14px;
-		text-decoration: none;
-	}
-
-	.all:hover {
+	h2 a:hover :global(svg) {
 		color: #fff;
 	}
 
-	.track {
-		position: relative;
+	h2 a:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
+	.scroll {
+		display: flex;
+		gap: 4px;
+	}
+
+	.scroll :global(.button) {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		color: #ccc;
 	}
 
 	ul {
 		display: grid;
-		grid-auto-columns: var(--card);
+		/* Seven and a bit cards across wide rows, so the row reads as scrollable. */
+		grid-auto-columns: clamp(130px, calc((100cqi - 2 * var(--side) - 7 * var(--gap)) / 7.3), 220px);
 		grid-auto-flow: column;
 		gap: var(--gap);
 		margin: 0;
-		padding: 0 var(--side) 8px;
+		padding: 0 var(--side) 4px;
 		overflow-x: auto;
 		list-style: none;
 		scroll-padding-inline: var(--side);
@@ -159,40 +160,5 @@
 	li {
 		min-width: 0;
 		scroll-snap-align: start;
-	}
-
-	.track :global(.arrow) {
-		position: absolute;
-		top: 0;
-		bottom: 48px;
-		width: var(--side);
-		min-width: 40px;
-		background: rgb(16 16 16 / 0.7);
-		color: #fff;
-		opacity: 0;
-		transition: opacity 150ms;
-	}
-
-	.track :global(.arrow[hidden]) {
-		display: none;
-	}
-
-	.track:hover :global(.arrow),
-	.track :global(.arrow:focus-visible) {
-		opacity: 1;
-	}
-
-	.track :global(.previous) {
-		left: 0;
-	}
-
-	.track :global(.next) {
-		right: 0;
-	}
-
-	@media (hover: none) {
-		.track :global(.arrow) {
-			display: none;
-		}
 	}
 </style>
