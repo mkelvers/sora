@@ -132,7 +132,7 @@ export class Player {
 				return;
 			}
 
-			video.play().catch(() => {});
+			video.play().catch(() => { });
 		});
 
 		return () => {

@@ -29,10 +29,19 @@ export const getEpisode = query(Params, ({ seriesId, seasonId, episode }) =>
 
 export const getPlayback = query(Params, async ({ seasonId, episode }) => {
 	try {
-		return { media: await sora.playback({ seasonId, number: episode }), problem: null };
+		return {
+			media: await sora.playback({
+				seasonId,
+				number: episode
+			}),
+			problem: null
+		};
 	} catch (cause) {
 		if (cause instanceof SoraError) {
-			return { media: [], problem: cause.message };
+			return {
+				media: [],
+				problem: cause.message
+			};
 		}
 		throw cause;
 	}

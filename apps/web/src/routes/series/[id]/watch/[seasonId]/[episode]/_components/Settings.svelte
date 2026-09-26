@@ -1,18 +1,24 @@
 <script lang="ts">
-	import type { PlaybackMedia } from '@sora/sdk';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Dropdown from '$lib/components/ui/Dropdown.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import type { PlaybackMedia } from "@sora/sdk";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
 
 	type Props = {
 		media: PlaybackMedia[];
-		audio: PlaybackMedia['audio'] | undefined;
-		subtitles: PlaybackMedia['subtitles'];
+		audio: PlaybackMedia["audio"] | undefined;
+		subtitles: PlaybackMedia["subtitles"];
 		subtitle: string | undefined;
 		speed: number;
 	};
 
-	let { media, audio = $bindable(), subtitles, subtitle = $bindable(), speed = $bindable() }: Props = $props();
+	let {
+		media,
+		audio = $bindable(),
+		subtitles,
+		subtitle = $bindable(),
+		speed = $bindable(),
+	}: Props = $props();
 
 	type Menu = {
 		label: string;
@@ -29,39 +35,39 @@
 
 		if (media.length > 0) {
 			menus.push({
-				label: 'Audio',
-				value: audio ?? '',
+				label: "Audio",
+				value: audio ?? "",
 				options: media.map((version) => ({
 					value: version.audio,
-					label: version.label
+					label: version.label,
 				})),
-				select: (value) => (audio = value as PlaybackMedia['audio'])
+				select: (value) => (audio = value as PlaybackMedia["audio"]),
 			});
 		}
 
 		if (subtitles.length > 0) {
 			menus.push({
-				label: 'Subtitles',
-				value: subtitle ?? '',
+				label: "Subtitles",
+				value: subtitle ?? "",
 				options: [
-					{ value: '', label: 'Off' },
+					{ value: "", label: "Off" },
 					...subtitles.map((track) => ({
 						value: track.url,
-						label: track.label
-					}))
+						label: track.label,
+					})),
 				],
-				select: (value) => (subtitle = value || undefined)
+				select: (value) => (subtitle = value || undefined),
 			});
 		}
 
 		menus.push({
-			label: 'Speed',
+			label: "Speed",
 			value: String(speed),
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
 				value: String(rate),
-				label: rate === 1 ? 'Normal' : `${rate}×`
+				label: rate === 1 ? "Normal" : `${rate}×`,
 			})),
-			select: (value) => (speed = Number(value))
+			select: (value) => (speed = Number(value)),
 		});
 
 		return menus;
@@ -76,7 +82,7 @@
 		id="player-settings"
 		label="Settings"
 		role="menu"
-		aria-label={open?.label ?? 'Settings'}
+		aria-label={open?.label ?? "Settings"}
 		ontoggle={() => (submenu = undefined)}
 	>
 		{#snippet trigger()}
@@ -110,7 +116,9 @@
 				<Button role="menuitem" onclick={() => (submenu = menu.label)}>
 					{menu.label}
 					<span class="value">
-						{menu.options.find((option) => option.value === menu.value)?.label}
+						{menu.options.find(
+							(option) => option.value === menu.value,
+						)?.label}
 					</span>
 					<Icon name="chevron-right" size="md" />
 				</Button>
@@ -157,7 +165,7 @@
 		font-weight: 500;
 	}
 
-	.settings :global([aria-checked='true']) {
+	.settings :global([aria-checked="true"]) {
 		color: #fff;
 	}
 

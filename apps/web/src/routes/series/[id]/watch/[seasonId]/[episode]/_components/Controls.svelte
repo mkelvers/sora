@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { formatClock } from '$lib/utils';
-	import type { Player } from '../watch.svelte';
+	import type { Snippet } from "svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import { formatClock } from "$lib/utils";
+	import type { Player } from "../watch.svelte";
 
 	type Props = {
 		player: Player;
@@ -23,7 +23,9 @@
 	step="any"
 	bind:value={player.time}
 	aria-label="Seek"
-	aria-valuetext="{formatClock(player.time)} of {formatClock(player.duration)}"
+	aria-valuetext="{formatClock(player.time)} of {formatClock(
+		player.duration,
+	)}"
 	style:--played={player.played}
 	style:--loaded={player.loaded}
 />
@@ -45,10 +47,10 @@
 
 	<Button
 		class="icon-button"
-		aria-label={player.paused ? 'Play' : 'Pause'}
+		aria-label={player.paused ? "Play" : "Pause"}
 		onclick={player.toggle}
 	>
-		<Icon name={player.paused ? 'play' : 'pause'} />
+		<Icon name={player.paused ? "play" : "pause"} />
 	</Button>
 
 	<Button
@@ -71,10 +73,10 @@
 
 	<Button
 		class="icon-button"
-		aria-label={player.muted ? 'Unmute' : 'Mute'}
+		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
 	>
-		<Icon name={player.muted || player.volume === 0 ? 'muted' : 'volume'} />
+		<Icon name={player.muted || player.volume === 0 ? "muted" : "volume"} />
 	</Button>
 
 	<input
@@ -92,10 +94,10 @@
 
 	<Button
 		class="icon-button"
-		aria-label={player.fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+		aria-label={player.fullscreen ? "Exit fullscreen" : "Fullscreen"}
 		onclick={player.toggleFullscreen}
 	>
-		<Icon name={player.fullscreen ? 'exit-fullscreen' : 'fullscreen'} />
+		<Icon name={player.fullscreen ? "exit-fullscreen" : "fullscreen"} />
 	</Button>
 </div>
 

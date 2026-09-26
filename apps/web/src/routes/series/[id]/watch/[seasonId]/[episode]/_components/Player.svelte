@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { PlaybackMedia } from '@sora/sdk';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import Controls from './Controls.svelte';
-	import Settings from './Settings.svelte';
-	import { Player } from '../watch.svelte';
+	import type { PlaybackMedia } from "@sora/sdk";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
+	import Controls from "./Controls.svelte";
+	import Settings from "./Settings.svelte";
+	import { Player } from "../watch.svelte";
 
 	type Props = {
 		media: PlaybackMedia[] | undefined;
@@ -18,20 +18,34 @@
 		season: string;
 	};
 
-	let { media: versions, problem, onretry, back, previous, next, title, series, season }: Props = $props();
+	let {
+		media: versions,
+		problem,
+		onretry,
+		back,
+		previous,
+		next,
+		title,
+		series,
+		season,
+	}: Props = $props();
 
 	const player = new Player();
 
 	let audio = $derived(versions?.[0]?.audio);
-	const media = $derived(versions?.find((version) => version.audio === audio));
-	let subtitle = $derived(media?.subtitles.find((track) => track.default)?.url);
+	const media = $derived(
+		versions?.find((version) => version.audio === audio),
+	);
+	let subtitle = $derived(
+		media?.subtitles.find((track) => track.default)?.url,
+	);
 
 	const failure = $derived(problem ?? player.failure);
 	const loading = $derived(!failure && (!versions || player.buffering));
 	const segment = $derived(
 		media?.skip_segments.find((segment) => {
 			return player.time >= segment.start && player.time < segment.end;
-		})
+		}),
 	);
 </script>
 
@@ -59,7 +73,7 @@
 		onpointerdown={player.onpointerdown}
 		onclick={player.onclick}
 		ondblclick={player.toggleFullscreen}
-		onerror={() => (player.failure ??= 'The video could not be played.')}
+		onerror={() => (player.failure ??= "The video could not be played.")}
 		{@attach player.stream(media?.sources[0])}
 	>
 		{#each media?.subtitles ?? [] as track (track.url)}
@@ -91,13 +105,16 @@
 	<div class="lower">
 		{#if segment}
 			<Button class="skip" onclick={() => (player.time = segment.end)}>
-				{segment.kind === 'opening' ? 'Skip intro' : 'Skip credits'}
+				{segment.kind === "opening" ? "Skip intro" : "Skip credits"}
 			</Button>
 		{/if}
 
 		<div class="captions">
 			{#each player.cues as cue (cue)}
-				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
+				<p
+					{@attach (element) =>
+						element.replaceChildren(cue.getCueAsHTML())}
+				></p>
 			{/each}
 		</div>
 	</div>
@@ -202,7 +219,11 @@
 		align-self: start;
 		align-items: center;
 		padding-bottom: 48px;
-		background: linear-gradient(rgb(0 0 0 / 0.85), rgb(0 0 0 / 0.4) 60%, transparent);
+		background: linear-gradient(
+			rgb(0 0 0 / 0.85),
+			rgb(0 0 0 / 0.4) 60%,
+			transparent
+		);
 		text-shadow: 0 1px 4px rgb(0 0 0 / 0.8);
 	}
 
@@ -222,7 +243,7 @@
 	}
 
 	header span + span::before {
-		content: '';
+		content: "";
 		display: inline-block;
 		width: 4px;
 		height: 4px;
@@ -274,7 +295,7 @@
 	}
 
 	.loading::after {
-		content: '';
+		content: "";
 		place-self: center;
 		width: 48px;
 		height: 48px;
@@ -317,11 +338,5 @@
 
 	.player :global(.skip:hover) {
 		background: #fff;
-	}
-
-	@media (max-width: 720px) {
-		h1 {
-			font-size: 16px;
-		}
 	}
 </style>
