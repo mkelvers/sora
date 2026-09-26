@@ -13,7 +13,7 @@ export interface Profile {
   name: string;
   /** A CSS color for the profile's tile. */
   color: string;
-  /** The seed of the profile's avatar: DiceBear's "thumbs" style, drawn by clients. */
+  /** The seed of the profile's avatar: DiceBear's "critters" style, drawn by clients. */
   avatar: string;
   /** ISO 8601 timestamp. */
   createdAt: string;

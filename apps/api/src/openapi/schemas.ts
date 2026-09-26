@@ -398,7 +398,7 @@ export const ProfileSchema = z
       example: "#4f7cff"
     }),
     avatar: z.string().openapi({
-      description: "The seed of the profile's avatar, in DiceBear's `thumbs` style.",
+      description: "The seed of the profile's avatar, in DiceBear's `critters` style.",
       example: "7HTQ2LMXB"
     }),
     created_at: z.string()
