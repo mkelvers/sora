@@ -563,10 +563,38 @@ export const getContinueWatching = createRoute({
     "One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. Finished and dropped titles are left out.",
   security: signedIn,
   request: {
-    params: ProfileParams
+    params: ProfileParams,
+    query: z.object({
+      series_id: SeriesIdParam.optional().openapi({
+        param: {
+          name: "series_id",
+          in: "query"
+        },
+        description: "Only this title, for a title's page: at most one entry, none when there is nothing to resume."
+      })
+    })
   },
   responses: {
     200: json(envelopeOf(z.array(ContinueWatchingItemSchema), CountMetaSchema), "The titles."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile.")
+  }
+});
+
+export const getRecommendations = createRoute({
+  operationId: "getRecommendations",
+  method: "get",
+  path: "/profiles/{profile_id}/recommendations",
+  tags: ["Profiles"],
+  summary: "Titles the profile may like",
+  description:
+    "Titles the profile has not played or listed, best fit first, from AniList users' recommendations for what it has played and listed and the genres those share, weighed by how well liked each title is. Finished and much-watched titles count most, recent ones more than old ones, and dropped titles count against what they are like. Empty for a profile with no history.",
+  security: signedIn,
+  request: {
+    params: ProfileParams
+  },
+  responses: {
+    200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
     401: problem("Not signed in."),
     404: problem("The account has no such profile.")
   }

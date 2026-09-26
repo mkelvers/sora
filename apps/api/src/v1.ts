@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, createProfile, deleteProfile, getProfile, getSession, listProfiles, updateProfile } from "@sora/core/auth";
 import { getGenres } from "@sora/core/catalog";
-import { getContinueWatching, getProgress, recordProgress } from "@sora/core/library";
+import { getContinueWatching, getProgress, getRecommendations, recordProgress } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
   browseSeries,
@@ -370,13 +370,29 @@ export const v1Routes = v1
 
   .openapi(route.getContinueWatching, async (c) => {
     const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-    const items = await getContinueWatching(profile.id);
+    const items = await getContinueWatching(profile.id, {
+      seriesId: c.req.valid("query").series_id
+    });
     return c.json(
       {
         meta: {
           count: items.length
         },
         results: snakeCased(items)
+      },
+      200
+    );
+  })
+
+  .openapi(route.getRecommendations, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const titles = await getRecommendations(profile.id);
+    return c.json(
+      {
+        meta: {
+          count: titles.length
+        },
+        results: snakeCased(titles)
       },
       200
     );

@@ -1,5 +1,6 @@
 /**
- * Per-user library: watchlist, playback progress, and continue watching.
+ * Per-user library: watchlist, playback progress, continue watching, and
+ * recommendations.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling. Titles
@@ -16,6 +17,7 @@ export {
   type ProgressUpdate
 } from "./progress/progress";
 export type { ContinueWatchingItem, EpisodeProgress } from "./progress/resume";
+export { getRecommendations } from "./recommendations/recommendations";
 export {
   getWatchlist,
   getWatchlistEntry,

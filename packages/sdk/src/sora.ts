@@ -91,6 +91,12 @@ export interface ProfileInput {
   color?: string;
 }
 
+/** Filters for {@link SoraClient.continueWatching}. */
+export interface ContinueWatchingParams {
+  /** Only this title, for a title's page: at most one entry. */
+  series_id?: string;
+}
+
 /** A playback position for {@link SoraClient.recordProgress}. */
 export interface ProgressUpdate {
   season_id: string;
@@ -310,12 +316,36 @@ export class SoraClient {
    * The titles a profile is part-way through, most recent first, each with the
    * episode and position to resume.
    */
-  async continueWatching<const TOptions extends RequestOptions = {}>(
+  async continueWatching<const TOptions extends RequestOptions<ContinueWatchingParams> = {}>(
     profileId: string,
     options?: TOptions
   ): Promise<Returned<TOptions, ContinueWatchingItem[], CountMeta>> {
     const body: Envelope<ContinueWatchingItem[], CountMeta> = await read(
       this.#api.profiles[":profile_id"]["continue-watching"].$get(
+        {
+          param: {
+            profile_id: profileId
+          },
+          query: {
+            series_id: options?.params?.series_id
+          }
+        },
+        init(options)
+      )
+    );
+    return unwrap(body, options);
+  }
+
+  /**
+   * Titles a profile has not seen that it may like, best fit first, from
+   * what it has played and listed. Empty for a profile with no history.
+   */
+  async recommendations<const TOptions extends RequestOptions = {}>(
+    profileId: string,
+    options?: TOptions
+  ): Promise<Returned<TOptions, SeriesCard[], CountMeta>> {
+    const body: Envelope<SeriesCard[], CountMeta> = await read(
+      this.#api.profiles[":profile_id"].recommendations.$get(
         {
           param: {
             profile_id: profileId

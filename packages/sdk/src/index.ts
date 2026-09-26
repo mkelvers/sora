@@ -8,6 +8,7 @@ export {
   SoraClient,
   type ArtworkChanges,
   type BrowseParams,
+  type ContinueWatchingParams,
   type EpisodeRef,
   type ImagesParams,
   type ProfileInput,

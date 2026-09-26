@@ -14,7 +14,15 @@ import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type Ti
  * are titles with nothing left to watch. See {@link continuePoint} for how
  * the episode to resume is chosen.
  */
-export async function getContinueWatching(userId: string, limit = 20): Promise<ContinueWatchingItem[]> {
+export async function getContinueWatching(
+  userId: string,
+  options: {
+    limit?: number;
+    /** Only this title, for a title's page: at most one entry. */
+    seriesId?: string;
+  } = {}
+): Promise<ContinueWatchingItem[]> {
+  const { limit = 20, seriesId } = options;
   const rows = await db
     .select({
       progress: playbackProgress,
@@ -28,7 +36,7 @@ export async function getContinueWatching(userId: string, limit = 20): Promise<C
       and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
     )
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(eq(playbackProgress.userId, userId))
+    .where(and(eq(playbackProgress.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId)))
     .orderBy(desc(playbackProgress.eventAt), desc(seriesSeason.position), desc(seriesEpisode.number));
 
   // Map insertion order keeps titles in order of their most recent event.
