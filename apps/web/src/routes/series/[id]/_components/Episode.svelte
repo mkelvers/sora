@@ -73,7 +73,6 @@
 		gap: 24px;
 		margin: 0 -8px;
 		padding: 8px;
-		border-radius: 6px;
 		color: inherit;
 		text-decoration: none;
 		transition: background 120ms;
@@ -132,7 +131,6 @@
 
 	.badge {
 		padding: 2px 6px;
-		border-radius: 4px;
 		background: rgb(255 255 255 / 0.06);
 		color: #aaa;
 		font-size: 11px;

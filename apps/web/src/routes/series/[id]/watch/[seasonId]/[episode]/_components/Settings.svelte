@@ -94,7 +94,6 @@
 		max-height: min(60vh, 440px);
 		margin: 0 0 8px;
 		overflow-y: auto;
-		border-radius: 8px;
 		background: rgb(28 28 28 / 0.96);
 		color: #e6e6e6;
 	}

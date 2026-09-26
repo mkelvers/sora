@@ -173,7 +173,6 @@
 	.languages > :global(.button) {
 		justify-content: flex-start;
 		padding: 7px 12px 7px 8px;
-		border-radius: 4px;
 		color: #999;
 		text-align: left;
 	}

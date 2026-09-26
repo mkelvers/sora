@@ -224,7 +224,6 @@
 	.types > :global(.button) {
 		justify-content: flex-start;
 		padding: 8px 12px;
-		border-radius: 4px;
 		color: #999;
 		font-size: 15px;
 		text-align: left;
