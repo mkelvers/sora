@@ -2,6 +2,7 @@
 	import { ArtworkFilters } from './artwork-filters.svelte';
 	import Filters from './_components/Filters.svelte';
 	import Images from './_components/Images.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { imagesSkeleton } from './_components/images-skeleton.svelte';
 	import { getSeries } from '../anime.remote';
@@ -51,7 +52,7 @@
 		{/if}
 
 		<div class="bar">
-			<a href="/anime/{series.id}" aria-label="Back to {series.title}" title="Back">
+			<a class="icon-button" href="/anime/{series.id}" aria-label="Back to {series.title}" title="Back">
 				<Icon name="back" />
 			</a>
 
@@ -60,9 +61,9 @@
 				<span>{series.title}</span>
 			</div>
 
-			<button onclick={reset} aria-label="Use default" title="Use default">
+			<Button class="icon-button" onclick={reset} aria-label="Use default" title="Use default">
 				<Icon name="restore" />
-			</button>
+			</Button>
 		</div>
 	</header>
 
@@ -72,9 +73,14 @@
 				<h2>Type</h2>
 				<div class="types" role="radiogroup" aria-label="Type">
 					{#each types as option (option.value)}
-						<button role="radio" aria-checked={filters.type === option.value} onclick={() => (filters.type = option.value)}>
+						<Button
+							variant="ghost"
+							role="radio"
+							aria-checked={filters.type === option.value}
+							onclick={() => (filters.type = option.value)}
+						>
 							{option.label}
-						</button>
+						</Button>
 					{/each}
 				</div>
 			</section>
@@ -163,26 +169,20 @@
 		white-space: nowrap;
 	}
 
-	.bar a,
-	.bar button {
+	.bar :global(.icon-button) {
 		display: inline-grid;
 		flex: none;
 		place-items: center;
 		width: 40px;
 		height: 40px;
-		padding: 0;
-		border: none;
 		border-radius: 50%;
-		background: none;
 		color: #ddd;
-		cursor: pointer;
 		transition:
 			background 120ms,
 			color 120ms;
 	}
 
-	.bar a:hover,
-	.bar button:hover {
+	.bar :global(.icon-button:hover) {
 		background: rgb(255 255 255 / 0.1);
 		color: #fff;
 	}
@@ -221,27 +221,20 @@
 		gap: 2px;
 	}
 
-	.types button {
+	.types > :global(.button) {
+		justify-content: flex-start;
 		padding: 8px 12px;
-		border: none;
 		border-radius: 4px;
-		background: none;
 		color: #999;
-		font: inherit;
 		font-size: 15px;
 		text-align: left;
-		cursor: pointer;
-		transition:
-			background 120ms,
-			color 120ms;
 	}
 
-	.types button:hover {
-		background: rgb(255 255 255 / 0.06);
+	.types > :global(.button:hover) {
 		color: #fff;
 	}
 
-	.types button[aria-checked='true'] {
+	.types > :global([aria-checked='true']) {
 		background: rgb(255 255 255 / 0.1);
 		color: #fff;
 	}
@@ -252,8 +245,7 @@
 		font-size: 14px;
 	}
 
-	a:focus-visible,
-	button:focus-visible {
+	a:focus-visible {
 		outline: 2px solid #fff;
 		outline-offset: 2px;
 	}

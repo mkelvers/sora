@@ -8,47 +8,37 @@
 </script>
 
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
+	import Dropdown from '$lib/components/Dropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 
 	let { settings }: { settings: Setting[] } = $props();
 
-	const id = $props.id();
-	let expanded = $state(false);
 	let submenu = $state<string>();
 	const open = $derived(settings.find((setting) => setting.label === submenu));
 
 	const current = (setting: Setting) => setting.options.find((option) => option.value === setting.value)?.label;
 </script>
 
-<button
-	class="trigger"
-	popovertarget={id}
-	aria-label="Settings"
-	aria-expanded={expanded}
-	style:anchor-name="--{id}"
->
-	<Icon name="settings" />
-</button>
+<div class="settings">
+	<Dropdown
+		id="player-settings"
+		label="Settings"
+		role="menu"
+		aria-label={open?.label ?? 'Settings'}
+		ontoggle={() => (submenu = undefined)}
+	>
+		{#snippet trigger()}
+			<Icon name="settings" />
+		{/snippet}
 
-<div
-	{id}
-	class="menu"
-	popover
-	style:position-anchor="--{id}"
-	ontoggle={(event) => {
-		expanded = event.newState === 'open';
-		submenu = undefined;
-	}}
->
-	{#if open}
-		<button class="row back" onclick={() => (submenu = undefined)}>
-			<Icon name="chevron-left" size="md" />
-			{open.label}
-		</button>
-		<div role="menu" aria-label={open.label}>
+		{#if open}
+			<Button class="back" onclick={() => (submenu = undefined)}>
+				<Icon name="chevron-left" size="md" />
+				{open.label}
+			</Button>
 			{#each open.options as option (option.value)}
-				<button
-					class="row"
+				<Button
 					role="menuitemradio"
 					aria-checked={option.value === open.value}
 					onclick={() => {
@@ -62,81 +52,61 @@
 						{/if}
 					</span>
 					{option.label}
-				</button>
+				</Button>
 			{/each}
-		</div>
-	{:else}
-		{#each settings as setting (setting.label)}
-			<button class="row" onclick={() => (submenu = setting.label)}>
-				{setting.label}
-				<span class="value">{current(setting)}</span>
-				<Icon name="chevron-right" size="md" />
-			</button>
-		{/each}
-	{/if}
+		{:else}
+			{#each settings as setting (setting.label)}
+				<Button role="menuitem" onclick={() => (submenu = setting.label)}>
+					{setting.label}
+					<span class="value">{current(setting)}</span>
+					<Icon name="chevron-right" size="md" />
+				</Button>
+			{/each}
+		{/if}
+	</Dropdown>
 </div>
 
 <style>
-	.trigger {
-		display: inline-grid;
-		place-items: center;
+	.settings :global(.dropdown-trigger) {
 		width: 40px;
 		height: 40px;
-		border: none;
+		padding: 0;
 		border-radius: 50%;
-		background: none;
 		color: #ddd;
-		cursor: pointer;
 		transition:
 			background 120ms,
 			rotate 200ms;
 	}
 
-	.trigger:hover,
-	.trigger[aria-expanded='true'] {
-		background: rgb(255 255 255 / 0.1);
+	.settings :global(.dropdown-trigger:hover),
+	.settings:has(:popover-open) :global(.dropdown-trigger) {
 		color: #fff;
 	}
 
-	.trigger[aria-expanded='true'] {
+	.settings:has(:popover-open) :global(.dropdown-trigger) {
 		rotate: 30deg;
 	}
 
-	.menu {
-		position-area: block-start span-inline-start;
-		position-try-fallbacks: flip-block;
+	.settings :global(.dropdown-menu) {
+		top: auto;
+		bottom: anchor(top);
 		min-width: 240px;
 		max-height: min(60vh, 440px);
 		margin: 0 0 8px;
-		padding: 6px 0;
-		border: none;
+		overflow-y: auto;
 		border-radius: 8px;
 		background: rgb(28 28 28 / 0.96);
-		box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
 		color: #e6e6e6;
-		font-family: system-ui, sans-serif;
-		overflow-y: auto;
 	}
 
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		width: 100%;
-		padding: 10px 16px;
-		border: none;
-		background: none;
-		color: inherit;
-		font: inherit;
-		font-size: 14px;
-		text-align: left;
-		cursor: pointer;
+	.settings :global(.back) {
+		padding-left: 10px;
+		border-bottom: 1px solid rgb(255 255 255 / 0.08);
+		font-weight: 500;
 	}
 
-	.row:hover,
-	.row:focus-visible {
-		background: rgb(255 255 255 / 0.08);
-		outline: none;
+	.settings :global([aria-checked='true']) {
+		color: #fff;
 	}
 
 	.value {
@@ -144,19 +114,9 @@
 		color: #999;
 	}
 
-	.back {
-		padding-left: 10px;
-		border-bottom: 1px solid rgb(255 255 255 / 0.08);
-		font-weight: 500;
-	}
-
 	.check {
 		display: inline-grid;
 		place-items: center;
 		width: 16px;
-	}
-
-	[aria-checked='true'] {
-		color: #fff;
 	}
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Dropdown, Option } from '$lib/components/dropdown';
+	import Button from '$lib/components/Button.svelte';
+	import Dropdown from '$lib/components/Dropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { getImages } from '../artwork.remote';
 	import type { ArtworkFilters } from '../artwork-filters.svelte';
@@ -41,6 +42,17 @@
 		return [...numbers].sort((left, right) => left - right);
 	});
 
+	const sorts = [
+		{ value: 'votes', label: 'Most liked' },
+		{ value: 'quality', label: 'Best quality' }
+	] as const;
+
+	const sources = $derived([
+		{ value: 'all', label: 'Any season' },
+		{ value: 'series', label: 'The whole title' },
+		...seasonNumbers.map((number) => ({ value: String(number), label: number === 0 ? 'Specials' : `Season ${number}` }))
+	]);
+
 	const names = new Intl.DisplayNames(['en'], {
 		type: 'language'
 	});
@@ -52,22 +64,42 @@
 	}
 </script>
 
+{#snippet option(dropdown: string, label: string, checked: boolean, select: () => void)}
+	<Button role="menuitemradio" aria-checked={checked} popovertarget={dropdown} popovertargetaction="hide" onclick={select}>
+		<span class="check">
+			{#if checked}
+				<Icon name="check" size="sm" />
+			{/if}
+		</span>
+		{label}
+	</Button>
+{/snippet}
+
 <section class="select">
 	<h2>Sort by</h2>
-	<Dropdown bind:value={filters.sort} label="Sort by">
-		<Option value="votes">Most liked</Option>
-		<Option value="quality">Best quality</Option>
+	<Dropdown id="artwork-sort" alignment="left" role="menu" aria-label="Sort by">
+		{#snippet trigger()}
+			{sorts.find((sort) => sort.value === filters.sort)?.label}
+			<Icon name="expand" size="sm" />
+		{/snippet}
+
+		{#each sorts as sort (sort.value)}
+			{@render option('artwork-sort', sort.label, filters.sort === sort.value, () => (filters.sort = sort.value))}
+		{/each}
 	</Dropdown>
 </section>
 
 {#if seasonNumbers.length > 0}
 	<section class="select">
 		<h2>Made for</h2>
-		<Dropdown bind:value={filters.source} label="Made for">
-			<Option value="all">Any season</Option>
-			<Option value="series">The whole title</Option>
-			{#each seasonNumbers as number (number)}
-				<Option value={String(number)}>{number === 0 ? 'Specials' : `Season ${number}`}</Option>
+		<Dropdown id="artwork-source" alignment="left" role="menu" aria-label="Made for">
+			{#snippet trigger()}
+				{sources.find((source) => source.value === filters.source)?.label}
+				<Icon name="expand" size="sm" />
+			{/snippet}
+
+			{#each sources as source (source.value)}
+				{@render option('artwork-source', source.label, filters.source === source.value, () => (filters.source = source.value))}
 			{/each}
 		</Dropdown>
 	</section>
@@ -77,17 +109,17 @@
 	<section>
 		<h2>Language</h2>
 		<div class="languages" role="group" aria-label="Language">
-			<button aria-pressed={filters.languages.length === 0} onclick={() => (filters.languages = [])}>
+			<Button variant="ghost" aria-pressed={filters.languages.length === 0} onclick={() => (filters.languages = [])}>
 				<span class="check">
 					{#if filters.languages.length === 0}
 						<Icon name="check" size="sm" />
 					{/if}
 				</span>
 				All
-			</button>
+			</Button>
 			{#each languageCounts as [code, count] (code)}
 				{@const pressed = filters.languages.includes(code)}
-				<button aria-pressed={pressed} onclick={() => toggle(code)}>
+				<Button variant="ghost" aria-pressed={pressed} onclick={() => toggle(code)}>
 					<span class="check">
 						{#if pressed}
 							<Icon name="check" size="sm" />
@@ -95,7 +127,7 @@
 					</span>
 					{code === 'none' ? 'Textless' : names.of(code)}
 					<span class="count">{count}</span>
-				</button>
+				</Button>
 			{/each}
 		</div>
 	</section>
@@ -116,13 +148,21 @@
 		text-transform: uppercase;
 	}
 
-	.select :global(.dropdown) {
-		display: block;
-	}
-
-	.select :global(.dropdown > button) {
+	.select :global(.dropdown-trigger) {
 		justify-content: space-between;
 		width: 100%;
+		padding: 7px 8px 7px 12px;
+		background: rgb(255 255 255 / 0.06);
+		color: #e6e6e6;
+	}
+
+	.select :global(.dropdown-trigger:hover),
+	.select:has(:popover-open) :global(.dropdown-trigger) {
+		background: rgb(255 255 255 / 0.1);
+	}
+
+	.select :global(.dropdown-trigger svg) {
+		color: #999;
 	}
 
 	.languages {
@@ -130,30 +170,16 @@
 		gap: 2px;
 	}
 
-	.languages button {
-		display: flex;
-		align-items: center;
-		gap: 8px;
+	.languages > :global(.button) {
+		justify-content: flex-start;
 		padding: 7px 12px 7px 8px;
-		border: none;
 		border-radius: 4px;
-		background: none;
 		color: #999;
-		font: inherit;
-		font-size: 14px;
 		text-align: left;
-		cursor: pointer;
-		transition:
-			background 120ms,
-			color 120ms;
 	}
 
-	.languages button:hover {
-		background: rgb(255 255 255 / 0.06);
-		color: #fff;
-	}
-
-	.languages button[aria-pressed='true'] {
+	.languages > :global(.button:hover),
+	.languages > :global([aria-pressed='true']) {
 		color: #fff;
 	}
 
@@ -170,10 +196,5 @@
 		color: #666;
 		font-size: 12px;
 		font-variant-numeric: tabular-nums;
-	}
-
-	button:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
 	}
 </style>

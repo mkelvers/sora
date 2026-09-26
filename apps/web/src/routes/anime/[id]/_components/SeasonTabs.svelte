@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Season } from '@sora/sdk';
+	import Button from '$lib/components/Button.svelte';
 
 	type Props = {
 		seasons: Season[];
@@ -11,9 +12,9 @@
 
 <div role="tablist" aria-label="Seasons">
 	{#each seasons as other (other.id)}
-		<button role="tab" aria-selected={other.id === season.id} onclick={() => (season = other)}>
+		<Button class="tab" role="tab" aria-selected={other.id === season.id} onclick={() => (season = other)}>
 			{other.title}
-		</button>
+		</Button>
 	{/each}
 </div>
 
@@ -31,32 +32,26 @@
 		display: none;
 	}
 
-	button {
-		flex: none;
+	div :global(.tab) {
 		padding: 10px 14px;
-		border: none;
 		border-bottom: 2px solid transparent;
-		background: none;
 		color: #999;
-		font: inherit;
 		font-size: 15px;
-		cursor: pointer;
 		transition:
 			color 120ms,
 			border-color 120ms;
 	}
 
-	button:hover {
+	div :global(.tab:hover) {
 		color: #fff;
 	}
 
-	button[aria-selected='true'] {
+	div :global(.tab[aria-selected='true']) {
 		border-bottom-color: #fff;
 		color: #fff;
 	}
 
-	button:focus-visible {
-		outline: 2px solid #fff;
+	div :global(.tab:focus-visible) {
 		outline-offset: -2px;
 	}
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { Series } from '@sora/sdk';
 	import { getImages } from '../artwork.remote';
@@ -49,7 +50,7 @@
 <div class="grid {filters.type}">
 	{#each shown as image (image.url)}
 		{@const chosen = current === image.url.split('/').at(-1)}
-		<button class="card" class:chosen aria-pressed={chosen} onclick={() => choose(image.url)}>
+		<Button class={['card', { chosen }]} aria-pressed={chosen} onclick={() => choose(image.url)}>
 			<span class="image">
 				<img src={image.url.replace('/original/', `/${thumbnailSizes[filters.type]}/`)} alt="" loading="lazy" decoding="async" />
 				{#if chosen}
@@ -71,7 +72,7 @@
 					</span>
 				</span>
 			</span>
-		</button>
+		</Button>
 	{:else}
 		<p class="empty">
 			{#if hasType}
@@ -100,17 +101,14 @@
 		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 	}
 
-	.card {
+	.grid :global(.card) {
 		display: grid;
+		justify-content: stretch;
 		align-content: start;
 		gap: 10px;
-		padding: 0;
-		border: none;
-		background: none;
-		color: inherit;
-		font: inherit;
+		font-size: inherit;
+		white-space: normal;
 		text-align: center;
-		cursor: pointer;
 	}
 
 	.image {
@@ -144,11 +142,11 @@
 		object-fit: contain;
 	}
 
-	.card:hover .image {
+	:global(.card:hover) .image {
 		outline-color: #555;
 	}
 
-	.card.chosen .image {
+	:global(.card.chosen) .image {
 		outline-color: #fff;
 	}
 
@@ -200,11 +198,6 @@
 		grid-column: 1 / -1;
 		margin: 0;
 		color: #999;
-	}
-
-	button:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
 	}
 
 	@media (max-width: 720px) {
