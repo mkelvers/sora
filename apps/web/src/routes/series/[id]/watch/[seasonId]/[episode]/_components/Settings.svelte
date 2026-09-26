@@ -25,7 +25,7 @@
 		value: string;
 		options: {
 			value: string;
-			label: string
+			label: string;
 		}[];
 		select: (value: string) => void;
 	};
