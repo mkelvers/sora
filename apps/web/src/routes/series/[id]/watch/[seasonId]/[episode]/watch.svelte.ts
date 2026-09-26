@@ -9,7 +9,10 @@ export class Player {
 	paused = $state(true);
 	time = $state(0);
 	duration = $state(0);
-	buffered = $state<{ start: number; end: number }[]>([]);
+	buffered = $state<{
+		start: number;
+		end: number
+	}[]>([]);
 	volume = $state(1);
 	muted = $state(false);
 	speed = $state(1);
