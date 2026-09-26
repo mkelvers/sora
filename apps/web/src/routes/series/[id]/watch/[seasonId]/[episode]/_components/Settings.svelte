@@ -1,23 +1,57 @@
-<script lang="ts" module>
-	export type Setting = {
+<script lang="ts">
+	import type { PlaybackMedia } from '@sora/sdk';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
+
+	type Props = {
+		media: PlaybackMedia[];
+		audio: PlaybackMedia['audio'] | undefined;
+		subtitles: PlaybackMedia['subtitles'];
+		subtitle: string | undefined;
+		speed: number;
+	};
+
+	let { media, audio = $bindable(), subtitles, subtitle = $bindable(), speed = $bindable() }: Props = $props();
+
+	type Menu = {
 		label: string;
 		value: string;
 		options: { value: string; label: string }[];
 		select: (value: string) => void;
 	};
-</script>
 
-<script lang="ts">
-	import Button from '$lib/components/ui/Button.svelte';
-	import Dropdown from '$lib/components/ui/Dropdown.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-
-	let { settings }: { settings: Setting[] } = $props();
+	const menus: Menu[] = $derived([
+		...(media.length > 1
+			? [
+					{
+						label: 'Audio',
+						value: audio ?? '',
+						options: media.map((version) => ({ value: version.audio, label: version.label })),
+						select: (value: string) => (audio = value as PlaybackMedia['audio'])
+					}
+				]
+			: []),
+		...(subtitles.length > 0
+			? [
+					{
+						label: 'Subtitles',
+						value: subtitle ?? '',
+						options: [{ value: '', label: 'Off' }, ...subtitles.map((track) => ({ value: track.url, label: track.label }))],
+						select: (value: string) => (subtitle = value || undefined)
+					}
+				]
+			: []),
+		{
+			label: 'Speed',
+			value: String(speed),
+			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({ value: String(rate), label: rate === 1 ? 'Normal' : `${rate}×` })),
+			select: (value: string) => (speed = Number(value))
+		}
+	]);
 
 	let submenu = $state<string>();
-	const open = $derived(settings.find((setting) => setting.label === submenu));
-
-	const current = (setting: Setting) => setting.options.find((option) => option.value === setting.value)?.label;
+	const open = $derived(menus.find((menu) => menu.label === submenu));
 </script>
 
 <div class="settings">
@@ -55,10 +89,10 @@
 				</Button>
 			{/each}
 		{:else}
-			{#each settings as setting (setting.label)}
-				<Button role="menuitem" onclick={() => (submenu = setting.label)}>
-					{setting.label}
-					<span class="value">{current(setting)}</span>
+			{#each menus as menu (menu.label)}
+				<Button role="menuitem" onclick={() => (submenu = menu.label)}>
+					{menu.label}
+					<span class="value">{menu.options.find((option) => option.value === menu.value)?.label}</span>
 					<Icon name="chevron-right" size="md" />
 				</Button>
 			{/each}

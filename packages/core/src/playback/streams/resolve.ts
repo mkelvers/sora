@@ -27,12 +27,16 @@ export interface PlaybackSubtitle {
   language: string;
   label: string;
   format: "vtt" | "srt" | "ass" | null;
+  /** Whether a player shows this track from the start: the English track, for a sub and a dub alike. */
+  default: boolean;
 }
 
 /** One version of an episode, such as its dub, ready to play. */
 export interface PlaybackMedia {
   /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
   audio: ContentLanguage;
+  /** The audio's name, for an audio menu, such as `Dub`. */
+  label: string;
   /**
    * BCP 47 language of the dub's audio or of the sub's subtitles. `null` for
    * raw.
@@ -251,13 +255,14 @@ async function resolveVersion(
       const media = toPlaybackMedia(stream.videos, streamUrl);
       const version = {
         audio: language,
+        label: audioLabels[language],
         locale,
         provider: provider.id,
         hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
         sources: media.sources,
         // Providers hand a dub the sub's subtitles timed to the sub's encode;
         // resolvePlayback retimes them to the dub's once both are resolved.
-        subtitles: language === "sub" ? media.subtitles : [],
+        subtitles: language === "sub" ? withDefault(media.subtitles) : [],
         skipSegments: stream.skipSegments
       };
 
@@ -307,7 +312,9 @@ async function subtitlesForDub(sub: ProviderVideo[], dub: ProviderVideo[], strea
       segmentStarts(dubVideo.url, dubVideo.headers)
     ]);
     const shifts = alignTimelines(from, onto);
-    return shifts ? toPlaybackMedia(sub, streamUrl, shifts).subtitles.filter((track) => track.format === "vtt") : [];
+    return shifts
+      ? withDefault(toPlaybackMedia(sub, streamUrl, shifts).subtitles.filter((track) => track.format === "vtt"))
+      : [];
   } catch (cause) {
     if (cause instanceof StreamUpstreamError) {
       return [];
@@ -336,7 +343,8 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
           ),
           language: track.language,
           label: languageName(track.language) ?? track.label,
-          format: track.format
+          format: track.format,
+          default: false
         });
       }
     }
@@ -348,6 +356,11 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
       (left, right) => Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) || left.label.localeCompare(right.label)
     )
   };
+}
+
+/** Marks the English track, which sorts first, as the one a player shows from the start. */
+function withDefault(subtitles: PlaybackSubtitle[]) {
+  return subtitles.map((track, index) => ({ ...track, default: index === 0 && isServedSubtitle(track) }));
 }
 
 /**
@@ -368,6 +381,12 @@ async function englishSubtitlesLoad(videos: ProviderVideo[]) {
   );
   return loads.includes(true);
 }
+
+const audioLabels: Record<ContentLanguage, string> = {
+  dub: "Dub",
+  sub: "Sub",
+  raw: "Raw"
+};
 
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 
