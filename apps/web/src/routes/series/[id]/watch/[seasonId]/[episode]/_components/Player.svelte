@@ -84,7 +84,7 @@
 
 	<div class="lower">
 		{#if segment}
-			<Button class="pill skip" onclick={() => (player.time = segment.end)}>
+			<Button class="skip" onclick={() => (player.time = segment.end)}>
 				{segment.kind === 'opening' ? 'Skip intro' : 'Skip credits'}
 			</Button>
 		{/if}
@@ -111,7 +111,7 @@
 
 <style>
 	.player {
-		--side: clamp(16px, 3.3vw, 64px);
+		--side: 16px;
 		display: grid;
 		grid-template: minmax(0, 1fr) / minmax(0, 1fr);
 		height: 100dvh;
@@ -142,7 +142,8 @@
 		gap: 16px;
 		align-self: end;
 		z-index: 1;
-		margin: 0 var(--side) 150px;
+		/* Just above the seek bar */
+		margin: 0 var(--side) 84px;
 		pointer-events: none;
 		transition: margin 200ms;
 	}
@@ -166,7 +167,9 @@
 	header {
 		align-self: start;
 		align-items: center;
-		background: linear-gradient(rgb(0 0 0 / 0.7), transparent);
+		padding-bottom: 48px;
+		background: linear-gradient(rgb(0 0 0 / 0.85), rgb(0 0 0 / 0.4) 60%, transparent);
+		text-shadow: 0 1px 4px rgb(0 0 0 / 0.8);
 	}
 
 	h1 {
@@ -177,7 +180,7 @@
 
 	header p {
 		margin: 2px 0 0;
-		color: #bbb;
+		color: #ddd;
 		font-size: 14px;
 	}
 
@@ -254,7 +257,18 @@
 
 	.player :global(.skip) {
 		align-self: end;
+		padding: 10px 18px;
+		background: rgb(255 255 255 / 0.9);
+		color: #101010;
+		font-size: inherit;
+		font-weight: 500;
+		box-shadow: 0 2px 12px rgb(0 0 0 / 0.6);
 		pointer-events: auto;
+		transition: background 120ms;
+	}
+
+	.player :global(.skip:hover) {
+		background: #fff;
 	}
 
 	@media (max-width: 720px) {
