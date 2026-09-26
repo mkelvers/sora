@@ -150,8 +150,9 @@ export interface EpisodeAddress {
  * The playable episodes before and after one, for moving through a title in
  * order.
  *
- * After a season's last episode comes the first of the next season of the
- * same kind, so a show plays on into its next season but not into its films;
+ * After a season's last episode comes the first of the next season in watch
+ * order, so a show plays on into its next season and the films between its
+ * seasons, but not into its extras, which only play on among themselves;
  * before a season's first comes the last of the previous one. Extras only
  * TMDB lists cannot be played, so they are passed over. Each is `null` at
  * either end.
@@ -173,7 +174,7 @@ export async function getAdjacentEpisodes(
     throw new SeasonNotFoundError(seasonId);
   }
 
-  const alike = seasons.filter((candidate) => candidate.kind === season.kind);
+  const alike = seasons.filter((candidate) => candidate.inWatchOrder === season.inWatchOrder);
   const position = new Map(alike.map((candidate, index) => [candidate.id, index]));
   const playable = (
     await db
@@ -507,6 +508,7 @@ async function seasonsOf(seriesId: string, seasonId?: string): Promise<Season[]>
       kind: seriesSeason.kind,
       number: seriesSeason.number,
       title: seriesSeason.title,
+      inWatchOrder: seriesSeason.inWatchOrder,
       episodeCount: count(seriesEpisode.number)
     })
     .from(seriesSeason)

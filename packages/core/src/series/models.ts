@@ -54,7 +54,7 @@ export interface Series extends SeriesCard {
     /** ISO 8601 timestamp. */
     airingAt: string;
   } | null;
-  /** Regular seasons in order, then OVA seasons. A film has one. */
+  /** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
   seasons: Season[];
   /** Other titles from the franchise: films, spin-offs, and shorts. */
   related: SeriesCard[];
@@ -67,8 +67,14 @@ export interface Season {
   kind: SeasonKind;
   /** Position among the title's seasons of the same kind, from 1. */
   number: number;
-  /** TMDB's name for the season ("Mugen Train Arc") or "Season N"; for an OVA, what its title adds to the show's ("Visions of Coleus") or "OVA Season N". */
+  /** TMDB's name for the season ("Mugen Train Arc") or "Season N"; for an OVA or film, what its title adds to the show's ("Visions of Coleus") or "OVA Season N" / "Movie N". */
   title: string;
+  /**
+   * Whether the season is part of the story in watch order: regular seasons
+   * and the films and OVAs between them. Extras, such as side-story OVAs and
+   * recaps, are not.
+   */
+  inWatchOrder: boolean;
   episodeCount: number;
 }
 

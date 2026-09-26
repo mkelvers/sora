@@ -158,6 +158,10 @@ export const SeasonSchema = z
     title: z.string().openapi({
       example: "Season 1"
     }),
+    in_watch_order: z.boolean().openapi({
+      description:
+        "Whether the season is part of the story in watch order: regular seasons and the films and OVAs between them. Extras, such as side-story OVAs and recaps, are not."
+    }),
     episode_count: z.number().int()
   })
   .openapi("Season") satisfies z.ZodType<SnakeCased<Season>>;
@@ -357,7 +361,7 @@ export const PlaybackMetaSchema = z
     }),
     next: z.string().nullable().openapi({
       description:
-        "The next episode's playback URL, into the next season of the same kind after a season's last episode, or null after the last one.",
+        "The next episode's playback URL, into the next season in watch order (or the next extra, from an extra) after a season's last episode, or null after the last one.",
       example: "/v1/anime/a_CZMtco3dTTAN/seasons/s_WGQtg1RoFmfJ/episodes/2/playback"
     }),
     previous: z.string().nullable().openapi({
