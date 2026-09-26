@@ -12,6 +12,11 @@
 	let { seriesId, seasonId, episode, now }: Props = $props();
 
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
+	const ends = $derived(
+		episode.runtime_minutes
+			? formatTime(new Date(now.getTime() + episode.runtime_minutes * 60_000))
+			: undefined
+	);
 </script>
 
 <li>
@@ -31,7 +36,7 @@
 			<div class="meta">
 				{#if episode.runtime_minutes}
 					<span>{episode.runtime_minutes}m</span>
-					<span>Ends at {formatTime(new Date(now.getTime() + episode.runtime_minutes * 60_000))}</span>
+					<span>Ends at {ends}</span>
 				{/if}
 				{#if episode.air_date}
 					<span>{formatDate(episode.air_date)}</span>
@@ -110,8 +115,14 @@
 	}
 
 	.meta span:not(.badge) + span:not(.badge)::before {
-		content: '·';
+		content: '';
+		display: inline-block;
+		width: 4px;
+		height: 4px;
 		margin-right: 8px;
+		background: currentColor;
+		vertical-align: middle;
+		rotate: 45deg;
 	}
 
 	.badge {
