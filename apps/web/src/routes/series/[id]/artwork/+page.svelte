@@ -263,43 +263,4 @@
 		outline: 2px solid #fff;
 		outline-offset: 2px;
 	}
-
-	@media (max-width: 860px) {
-		.body {
-			grid-template-columns: minmax(0, 1fr);
-			padding-top: 24px;
-		}
-
-		aside {
-			position: static;
-		}
-	}
-
-	@media (max-width: 720px) {
-		header {
-			height: 240px;
-		}
-
-		.bar {
-			min-height: 80px;
-			gap: 8px;
-		}
-
-		h1 {
-			font-size: 20px;
-		}
-
-		.heading span {
-			font-size: 14px;
-		}
-
-		.loading {
-			grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-			gap: 20px 12px;
-		}
-
-		.loading.poster {
-			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-		}
-	}
 </style>

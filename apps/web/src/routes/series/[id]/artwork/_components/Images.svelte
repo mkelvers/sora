@@ -18,7 +18,6 @@
 	const hasType = $derived(images.some((image) => image.type === filters.type));
 
 	const field = $derived(`${filters.type}_url` as const);
-	// Compared by file name, which is the same in every TMDB size.
 	const current = $derived(series[field]?.split('/').at(-1));
 
 	const thumbnailSizes = {
@@ -194,16 +193,5 @@
 		grid-column: 1 / -1;
 		margin: 0;
 		color: #999;
-	}
-
-	@media (max-width: 720px) {
-		.grid {
-			grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-			gap: 20px 12px;
-		}
-
-		.grid.poster {
-			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-		}
 	}
 </style>
