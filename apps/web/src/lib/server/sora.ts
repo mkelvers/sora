@@ -25,3 +25,16 @@ export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
 		throw cause;
 	}
 }
+
+/** The cookie holding the signed-in account's session token. */
+export const sessionCookie = 'sora_session';
+
+/** A client that sends a session token, for calls on behalf of a signed-in account. */
+export function soraAs(token: string) {
+	return new SoraClient({
+		baseUrl: env.SORA_API_URL!,
+		headers: {
+			Authorization: `Bearer ${token}`
+		}
+	});
+}
