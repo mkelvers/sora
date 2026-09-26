@@ -60,7 +60,7 @@ describe("pageMeta", () => {
   });
 
   test("has no previous page on the first, and no next on the last", () => {
-    const meta = pageMeta("https://api.example/v1/anime", {
+    const meta = pageMeta("https://api.example/v1/series", {
       page: 1,
       perPage: 24,
       hasNextPage: false,

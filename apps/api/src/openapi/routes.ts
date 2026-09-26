@@ -86,7 +86,7 @@ const SearchParams = BrowseParams.extend({
 
 /** A season, addressed under the series it belongs to. */
 const SeasonParams = z.object({
-  anime_id: SeriesIdParam,
+  series_id: SeriesIdParam,
   season_id: SeasonIdParam
 });
 
@@ -104,9 +104,9 @@ const EpisodeParams = SeasonParams.extend({
 export const browseSeries = createRoute({
   operationId: "browseSeries",
   method: "get",
-  path: "/anime",
-  tags: ["Anime"],
-  summary: "Browse anime",
+  path: "/series",
+  tags: ["Series"],
+  summary: "Browse series",
   description:
     "Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
   request: {
@@ -123,8 +123,8 @@ export const searchSeries = createRoute({
   operationId: "searchSeries",
   method: "get",
   path: "/search",
-  tags: ["Anime"],
-  summary: "Search anime",
+  tags: ["Series"],
+  summary: "Search series",
   description:
     "Finds titles matching `q` in English, romaji, Japanese, or a known synonym or abbreviation, forgiving typos. Best match first, weighing how popular titles are, unless `sort` is given; narrowed by the same filters as `browseSeries`. One card per title, and a first search for a title not prepared yet may come back without it while it is prepared in the background.",
   request: {
@@ -140,13 +140,13 @@ export const searchSeries = createRoute({
 export const getSeries = createRoute({
   operationId: "getSeries",
   method: "get",
-  path: "/anime/{anime_id}",
-  tags: ["Anime"],
-  summary: "Get an anime",
+  path: "/series/{series_id}",
+  tags: ["Series"],
+  summary: "Get a series",
   description: "The title's page: details, artwork, seasons, the next episode, and related titles.",
   request: {
     params: z.object({
-      anime_id: SeriesIdParam
+      series_id: SeriesIdParam
     }),
     query: z
       .object({
@@ -190,14 +190,14 @@ export const getSeries = createRoute({
 export const listImages = createRoute({
   operationId: "listImages",
   method: "get",
-  path: "/anime/{anime_id}/images",
-  tags: ["Anime"],
-  summary: "List an anime's images",
+  path: "/series/{series_id}/images",
+  tags: ["Series"],
+  summary: "List a series' images",
   description:
     "Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none.",
   request: {
     params: z.object({
-      anime_id: SeriesIdParam
+      series_id: SeriesIdParam
     }),
     query: z
       .object({
@@ -243,14 +243,14 @@ const ArtworkUrl = z
 export const updateArtwork = createRoute({
   operationId: "updateArtwork",
   method: "patch",
-  path: "/anime/{anime_id}/artwork",
-  tags: ["Anime"],
-  summary: "Change an anime's artwork",
+  path: "/series/{series_id}/artwork",
+  tags: ["Series"],
+  summary: "Change a series' artwork",
   description:
     "Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
   request: {
     params: z.object({
-      anime_id: SeriesIdParam
+      series_id: SeriesIdParam
     }),
     body: {
       required: true,
@@ -282,8 +282,8 @@ export const updateArtwork = createRoute({
 export const getSeason = createRoute({
   operationId: "getSeason",
   method: "get",
-  path: "/anime/{anime_id}/seasons/{season_id}",
-  tags: ["Anime"],
+  path: "/series/{series_id}/seasons/{season_id}",
+  tags: ["Series"],
   summary: "Get a season",
   request: {
     params: SeasonParams
@@ -293,7 +293,7 @@ export const getSeason = createRoute({
       envelopeOf(
         SeasonSchema,
         z.object({
-          anime_id: z.string()
+          series_id: z.string()
         })
       ),
       "The season."
@@ -305,8 +305,8 @@ export const getSeason = createRoute({
 export const listSeasonEpisodes = createRoute({
   operationId: "listSeasonEpisodes",
   method: "get",
-  path: "/anime/{anime_id}/seasons/{season_id}/episodes",
-  tags: ["Anime"],
+  path: "/series/{series_id}/seasons/{season_id}/episodes",
+  tags: ["Series"],
   summary: "List a season's episodes",
   request: {
     params: SeasonParams
@@ -316,7 +316,7 @@ export const listSeasonEpisodes = createRoute({
       envelopeOf(
         z.array(SeasonEpisodeSchema),
         CountMetaSchema.extend({
-          anime_id: z.string(),
+          series_id: z.string(),
           season_id: z.string()
         })
       ),
@@ -330,7 +330,7 @@ export const listGenres = createRoute({
   operationId: "listGenres",
   method: "get",
   path: "/genres",
-  tags: ["Anime"],
+  tags: ["Series"],
   summary: "List genres",
   responses: {
     200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Genre names accepted by `browseSeries`.")
@@ -341,7 +341,7 @@ export const getSchedule = createRoute({
   operationId: "getSchedule",
   method: "get",
   path: "/schedule",
-  tags: ["Anime"],
+  tags: ["Series"],
   summary: "Release schedule",
   description: "Episodes airing in a window of up to 14 days, in broadcast order. Defaults to the next 7 days.",
   request: {
@@ -376,7 +376,7 @@ export const getSchedule = createRoute({
 export const getPlayback = createRoute({
   operationId: "getPlayback",
   method: "get",
-  path: "/anime/{anime_id}/seasons/{season_id}/episodes/{episode}/playback",
+  path: "/series/{series_id}/seasons/{season_id}/episodes/{episode}/playback",
   tags: ["Playback"],
   summary: "Get everything needed to play an episode",
   description:
@@ -575,14 +575,14 @@ export const getContinueWatching = createRoute({
 export const getSeriesProgress = createRoute({
   operationId: "getSeriesProgress",
   method: "get",
-  path: "/profiles/{profile_id}/progress/{anime_id}",
+  path: "/profiles/{profile_id}/progress/{series_id}",
   tags: ["Profiles"],
   summary: "A title's saved progress",
   description: "The saved position of every episode of the title the profile has played, in title order.",
   security: signedIn,
   request: {
     params: ProfileParams.extend({
-      anime_id: SeriesIdParam
+      series_id: SeriesIdParam
     })
   },
   responses: {

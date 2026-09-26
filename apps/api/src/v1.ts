@@ -65,8 +65,8 @@ v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 });
 
 /** A playback's URL under its title, relative to the API's origin. */
-function playbackPath(animeId: string, { seasonId, episode }: EpisodeAddress) {
-  return `/v1/anime/${animeId}/seasons/${seasonId}/episodes/${episode}/playback`;
+function playbackPath(seriesId: string, { seasonId, episode }: EpisodeAddress) {
+  return `/v1/series/${seriesId}/seasons/${seasonId}/episodes/${episode}/playback`;
 }
 
 /** A playback's URL under its season alone, relative to the API's origin. */
@@ -83,7 +83,7 @@ async function playbackBody(
   requestUrl: string,
   forwardedProto: string | undefined,
   address: {
-    animeId: string;
+    seriesId: string;
     seasonId: string;
     episode: number;
   },
@@ -101,11 +101,11 @@ async function playbackBody(
     resolvePlayback(address, {
       streamBaseUrl: streamBaseUrl.href
     }),
-    getAdjacentEpisodes(address.animeId, address.seasonId, address.episode)
+    getAdjacentEpisodes(address.seriesId, address.seasonId, address.episode)
   ]);
   return {
     meta: {
-      anime_id: address.animeId,
+      series_id: address.seriesId,
       season_id: address.seasonId,
       episode: address.episode,
       expires_at: playback.expiresAt,
@@ -153,7 +153,7 @@ export const v1Routes = v1
   })
 
   .openapi(route.getSeries, async (c) => {
-    const series = await getSeries(c.req.valid("param").anime_id);
+    const series = await getSeries(c.req.valid("param").series_id);
     if (!c.req.valid("query").episodes) {
       c.header("Cache-Control", "public, max-age=300");
       return c.json(
@@ -188,7 +188,7 @@ export const v1Routes = v1
 
   .openapi(route.listImages, async (c) => {
     const { type, language, sort } = c.req.valid("query");
-    const images = await listSeriesImages(c.req.valid("param").anime_id, {
+    const images = await listSeriesImages(c.req.valid("param").series_id, {
       types: type,
       languages: language,
       sort
@@ -207,7 +207,7 @@ export const v1Routes = v1
 
   .openapi(route.updateArtwork, async (c) => {
     const { poster_url, backdrop_url, logo_url } = c.req.valid("json");
-    const series = await setSeriesArtwork(c.req.valid("param").anime_id, {
+    const series = await setSeriesArtwork(c.req.valid("param").series_id, {
       posterUrl: poster_url,
       backdropUrl: backdrop_url,
       logoUrl: logo_url
@@ -222,13 +222,13 @@ export const v1Routes = v1
   })
 
   .openapi(route.getSeason, async (c) => {
-    const { anime_id, season_id } = c.req.valid("param");
-    const season = await getSeason(anime_id, season_id);
+    const { series_id, season_id } = c.req.valid("param");
+    const season = await getSeason(series_id, season_id);
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
         meta: {
-          anime_id
+          series_id
         },
         results: snakeCased(season)
       },
@@ -237,14 +237,14 @@ export const v1Routes = v1
   })
 
   .openapi(route.listSeasonEpisodes, async (c) => {
-    const { anime_id, season_id } = c.req.valid("param");
-    const episodes = await getSeasonEpisodes(anime_id, season_id);
+    const { series_id, season_id } = c.req.valid("param");
+    const episodes = await getSeasonEpisodes(series_id, season_id);
     // Unknown audio is filled in once providers are looked up.
     c.header("Cache-Control", episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300");
     return c.json(
       {
         meta: {
-          anime_id,
+          series_id,
           season_id,
           count: episodes.length
         },
@@ -288,16 +288,16 @@ export const v1Routes = v1
   })
 
   .openapi(route.getPlayback, async (c) => {
-    const { anime_id, season_id, episode } = c.req.valid("param");
+    const { series_id, season_id, episode } = c.req.valid("param");
     const body = await playbackBody(
       c.req.url,
       c.req.header("x-forwarded-proto"),
       {
-        animeId: anime_id,
+        seriesId: series_id,
         seasonId: season_id,
         episode
       },
-      (address) => playbackPath(anime_id, address)
+      (address) => playbackPath(series_id, address)
     );
     // Stream URLs expire; a cached playback would hand out dead ones.
     c.header("Cache-Control", "no-store");
@@ -310,7 +310,7 @@ export const v1Routes = v1
       c.req.url,
       c.req.header("x-forwarded-proto"),
       {
-        animeId: await getSeasonSeriesId(season_id),
+        seriesId: await getSeasonSeriesId(season_id),
         seasonId: season_id,
         episode
       },
@@ -383,9 +383,9 @@ export const v1Routes = v1
   })
 
   .openapi(route.getSeriesProgress, async (c) => {
-    const { profile_id, anime_id } = c.req.valid("param");
+    const { profile_id, series_id } = c.req.valid("param");
     const profile = await getProfile(c.get("accountId"), profile_id);
-    const progress = await getProgress(profile.id, anime_id);
+    const progress = await getProgress(profile.id, series_id);
     return c.json(
       {
         meta: {

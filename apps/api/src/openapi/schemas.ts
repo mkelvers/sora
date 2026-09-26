@@ -29,10 +29,10 @@ export const ProblemSchema = z
       example: 404
     }),
     detail: z.string().optional().openapi({
-      example: "Series a_4kQ9vB2xLm0T does not exist"
+      example: "Series GYZJ43JMR does not exist"
     }),
     instance: z.string().optional().openapi({
-      example: "/v1/anime/a_4kQ9vB2xLm0T"
+      example: "/v1/series/GYZJ43JMR"
     }),
     code: z.string().openapi({
       description:
@@ -80,11 +80,11 @@ export function json<TSchema extends z.ZodType>(schema: TSchema, description: st
 
 export const SeriesIdParam = z.string().openapi({
   param: {
-    name: "anime_id",
+    name: "series_id",
     in: "path"
   },
   description: "Sora series ID.",
-  example: "a_CZMtco3dTTAN"
+  example: "GYZJ43JMR"
 });
 
 export const SeasonIdParam = z.string().openapi({
@@ -93,7 +93,7 @@ export const SeasonIdParam = z.string().openapi({
     in: "path"
   },
   description: "Sora season ID.",
-  example: "s_WGQtg1RoFmfJ"
+  example: "G6NQ5DWZ6"
 });
 
 export const ProfileIdParam = z.string().openapi({
@@ -102,7 +102,7 @@ export const ProfileIdParam = z.string().openapi({
     in: "path"
   },
   description: "Sora profile ID, of a profile of the signed-in account.",
-  example: "p_7hTq2LmX0bZe"
+  example: "7HTQ2LMXB"
 });
 
 export const EpisodeNumberParam = z.coerce
@@ -129,7 +129,7 @@ const StatusSchema = z.enum([
 export const SeriesCardSchema = z
   .object({
     id: z.string().openapi({
-      example: "a_CZMtco3dTTAN"
+      example: "GYZJ43JMR"
     }),
     kind: z.enum([
       "tv",
@@ -158,7 +158,7 @@ const TagSchema = z.object({
 export const SeasonSchema = z
   .object({
     id: z.string().openapi({
-      example: "s_WGQtg1RoFmfJ"
+      example: "G6NQ5DWZ6"
     }),
     kind: z.enum([
       "season",
@@ -363,7 +363,7 @@ export const PlaybackMediaSchema = z
 /** The episode a playback is for, when its stream URLs expire, and the episodes either side of it. */
 export const PlaybackMetaSchema = z
   .object({
-    anime_id: z.string(),
+    series_id: z.string(),
     season_id: z.string(),
     episode: z.number().int(),
     expires_at: z.string().openapi({
@@ -373,7 +373,7 @@ export const PlaybackMetaSchema = z
     next: z.string().nullable().openapi({
       description:
         "The next episode's playback URL, into the next season in watch order (or the next extra, from an extra) after a season's last episode, or null after the last one.",
-      example: "/v1/anime/a_CZMtco3dTTAN/seasons/s_WGQtg1RoFmfJ/episodes/2/playback"
+      example: "/v1/series/GYZJ43JMR/seasons/G6NQ5DWZ6/episodes/2/playback"
     }),
     previous: z.string().nullable().openapi({
       description: "The previous episode's playback URL, or null before the first one."
@@ -384,7 +384,7 @@ export const PlaybackMetaSchema = z
 export const ProfileSchema = z
   .object({
     id: z.string().openapi({
-      example: "p_7hTq2LmX0bZe"
+      example: "7HTQ2LMXB"
     }),
     name: z.string().openapi({
       example: "Maja"
@@ -462,7 +462,7 @@ export const ProgressUpdateSchema = z
   })
   .openapi("ProgressUpdate", {
     example: {
-      season_id: "s_WGQtg1RoFmfJ",
+      season_id: "G6NQ5DWZ6",
       episode: 3,
       position_seconds: 512.4,
       duration_seconds: 1420,

@@ -16,7 +16,7 @@ A series carries one of each, chosen when it is laid out in
 
 ## Choosing another
 
-`PATCH /v1/anime/{anime_id}/artwork` (`sora.updateArtwork`) sets any of the
+`PATCH /v1/series/{series_id}/artwork` (`sora.updateArtwork`) sets any of the
 three to an HTTPS URL, for everyone, or back to the default with `null`. The
 choice is stored in the `*_url_override` columns, which laying the series
 out again never writes, and every card and page prefers it. Anyone who can
@@ -24,7 +24,7 @@ reach the API can change it; there are no accounts yet.
 
 ## Listing every image
 
-`GET /v1/anime/{anime_id}/images` (`sora.images`) lists every backdrop,
+`GET /v1/series/{series_id}/images` (`sora.images`) lists every backdrop,
 poster, and logo TMDB has for the title, in every language, plus each
 season's posters for a show. It is built in
 `packages/core/src/series/artwork.ts` from TMDB's `/{tv|movie}/{id}/images`

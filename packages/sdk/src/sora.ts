@@ -334,11 +334,11 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, EpisodeProgress[], CountMeta>> {
     const body: Envelope<EpisodeProgress[], CountMeta> = await read(
-      this.#api.profiles[":profile_id"].progress[":anime_id"].$get(
+      this.#api.profiles[":profile_id"].progress[":series_id"].$get(
         {
           param: {
             profile_id: profileId,
-            anime_id: seriesId
+            series_id: seriesId
           }
         },
         init(options)
@@ -417,7 +417,7 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, SeriesCard[], PageMeta>> {
     const body: Envelope<SeriesCard[], PageMeta> = await read(
-      this.#api.anime.$get(
+      this.#api.series.$get(
         {
           query: browseQuery(options?.params)
         },
@@ -458,10 +458,10 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, SeriesOf<TOptions>, SeriesMeta>> {
     const body: Envelope<Series | SeriesWithEpisodes, SeriesMeta> = await read(
-      this.#api.anime[":anime_id"].$get(
+      this.#api.series[":series_id"].$get(
         {
           param: {
-            anime_id: seriesId
+            series_id: seriesId
           },
           query: {
             episodes: options?.params?.episodes ? "true" : undefined
@@ -484,10 +484,10 @@ export class SoraClient {
   ): Promise<Returned<TOptions, SeriesImage[], CountMeta>> {
     const params = options?.params;
     const body: Envelope<SeriesImage[], CountMeta> = await read(
-      this.#api.anime[":anime_id"].images.$get(
+      this.#api.series[":series_id"].images.$get(
         {
           param: {
-            anime_id: seriesId
+            series_id: seriesId
           },
           query: {
             type: params?.type?.join(","),
@@ -512,10 +512,10 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, Series, SeriesMeta>> {
     const body: Envelope<Series, SeriesMeta> = await read(
-      this.#api.anime[":anime_id"].artwork.$patch(
+      this.#api.series[":series_id"].artwork.$patch(
         {
           param: {
-            anime_id: seriesId
+            series_id: seriesId
           },
           json: changes
         },
@@ -531,10 +531,10 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, Season, SeasonMeta>> {
     const body: Envelope<Season, SeasonMeta> = await read(
-      this.#api.anime[":anime_id"].seasons[":season_id"].$get(
+      this.#api.series[":series_id"].seasons[":season_id"].$get(
         {
           param: {
-            anime_id: season.seriesId,
+            series_id: season.seriesId,
             season_id: season.seasonId
           }
         },
@@ -553,10 +553,10 @@ export class SoraClient {
     options?: TOptions
   ): Promise<Returned<TOptions, SeasonEpisode[], SeasonEpisodesMeta>> {
     const body: Envelope<SeasonEpisode[], SeasonEpisodesMeta> = await read(
-      this.#api.anime[":anime_id"].seasons[":season_id"].episodes.$get(
+      this.#api.series[":series_id"].seasons[":season_id"].episodes.$get(
         {
           param: {
-            anime_id: season.seriesId,
+            series_id: season.seriesId,
             season_id: season.seasonId
           }
         },
