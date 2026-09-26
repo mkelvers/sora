@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { db } from "../database/client";
 import { playbackProgress, profile, watchlistEntry } from "../database/schema";
-import { InvalidInputError, ProfileNotFoundError } from "../errors";
+import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
 
 /** One viewer under an account. */
@@ -13,6 +13,8 @@ export interface Profile {
   name: string;
   /** A CSS color for the profile's tile. */
   color: string;
+  /** The seed of the profile's avatar: DiceBear's "thumbs" style, drawn by clients. */
+  avatar: string;
   /** ISO 8601 timestamp. */
   createdAt: string;
 }
@@ -25,7 +27,8 @@ export const ProfileInputSchema = z.object({
   color: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
-    .optional()
+    .optional(),
+  avatar: z.string().trim().min(1).max(64).optional()
 });
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;
@@ -61,7 +64,8 @@ export async function getProfile(userId: string, profileId: string): Promise<Pro
  * @throws {@link InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
 export async function createProfile(userId: string, input: ProfileInput): Promise<Profile> {
-  const { name, color } = parse(ProfileInputSchema, input);
+  const { name, color, avatar } = parse(ProfileInputSchema, input);
+  const id = newId();
   const [existing] = await db
     .select({
       total: count()
@@ -72,10 +76,11 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
   const [row] = await db
     .insert(profile)
     .values({
-      id: newId(),
+      id,
       userId,
       name,
-      color: color ?? palette[(existing?.total ?? 0) % palette.length]!
+      color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
+      avatar: avatar ?? id
     })
     .returning();
 
@@ -83,7 +88,7 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
 }
 
 /**
- * Renames or recolors a profile.
+ * Renames a profile, or changes its color or avatar.
  *
  * @throws {@link InvalidInputError} when the input is invalid.
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
@@ -106,10 +111,17 @@ export async function updateProfile(userId: string, profileId: string, input: Pa
  * Deletes a profile with its progress and watchlist.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
+ * @throws {@link LastProfileError} when it is the account's only profile.
  */
 export async function deleteProfile(userId: string, profileId: string) {
   await getProfile(userId, profileId);
   await db.transaction(async (tx) => {
+    // Locks the account's profiles, so two deletions at once cannot remove the last two.
+    const profiles = await tx.select({ id: profile.id }).from(profile).where(eq(profile.userId, userId)).for("update");
+    if (profiles.length <= 1) {
+      throw new LastProfileError(profileId);
+    }
+
     await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
     await tx.delete(watchlistEntry).where(eq(watchlistEntry.userId, profileId));
     await tx.delete(profile).where(eq(profile.id, profileId));
@@ -132,6 +144,7 @@ function toProfile(row: typeof profile.$inferSelect): Profile {
     id: row.id,
     name: row.name,
     color: row.color,
+    avatar: row.avatar,
     createdAt: row.createdAt.toISOString()
   };
 }

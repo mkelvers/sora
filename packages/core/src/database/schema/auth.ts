@@ -96,6 +96,8 @@ export const profile = pgTable(
     name: text("name").notNull(),
     /** A CSS color for the profile's tile, such as `#4f7cff`. */
     color: text("color").notNull(),
+    /** The seed of the profile's DiceBear avatar; new profiles start with their own ID. */
+    avatar: text("avatar").notNull(),
     createdAt: timestamptz("created_at").notNull().defaultNow()
   },
   (table) => [index("profile_user_idx").on(table.userId, table.createdAt)]

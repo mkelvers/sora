@@ -134,6 +134,13 @@
       "when": 1790445761642,
       "tag": "0018_generic_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790463143572,
+      "tag": "0019_profile_avatar",
+      "breakpoints": true
     }
   ]
 }

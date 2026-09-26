@@ -11,6 +11,7 @@ export type CoreErrorCode =
   | "SEASON_NOT_FOUND"
   | "EPISODE_NOT_FOUND"
   | "PROFILE_NOT_FOUND"
+  | "LAST_PROFILE"
   | "PLAYBACK_UNAVAILABLE"
   | "UPSTREAM_UNAVAILABLE"
   | "INVALID_STREAM_TOKEN"
@@ -78,6 +79,16 @@ export class ProfileNotFoundError extends CoreError {
 
   constructor(profileId: string) {
     super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
+    this.profileId = profileId;
+  }
+}
+
+/** An account must keep at least one profile, so its last one cannot be deleted. */
+export class LastProfileError extends CoreError {
+  readonly profileId: string;
+
+  constructor(profileId: string) {
+    super("LAST_PROFILE", `Profile ${profileId} is the account's last profile`);
     this.profileId = profileId;
   }
 }

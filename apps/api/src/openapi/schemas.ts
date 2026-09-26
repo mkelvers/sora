@@ -397,6 +397,10 @@ export const ProfileSchema = z
       description: "A CSS color for the profile's tile.",
       example: "#4f7cff"
     }),
+    avatar: z.string().openapi({
+      description: "The seed of the profile's avatar, in DiceBear's `thumbs` style.",
+      example: "7HTQ2LMXB"
+    }),
     created_at: z.string()
   })
   .openapi("Profile") satisfies z.ZodType<SnakeCased<Profile>>;
@@ -410,7 +414,10 @@ export const ProfileInputSchema = z
       .optional()
       .openapi({
         description: "A hex color such as `#4f7cff`; picked from a palette when omitted."
-      })
+      }),
+    avatar: z.string().trim().min(1).max(64).optional().openapi({
+      description: "A DiceBear seed for the avatar; the profile's ID when omitted."
+    })
   })
   .openapi("ProfileInput", {
     example: {

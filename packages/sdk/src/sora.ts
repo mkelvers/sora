@@ -81,6 +81,8 @@ export interface ProfileInput {
   name: string;
   /** A hex color such as `#4f7cff`; picked from a palette when omitted. */
   color?: string;
+  /** A DiceBear seed for the avatar; the profile's ID when omitted. */
+  avatar?: string;
 }
 
 /** Filters for {@link SoraClient.continueWatching}. */

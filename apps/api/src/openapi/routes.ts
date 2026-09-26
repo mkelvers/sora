@@ -549,7 +549,8 @@ export const deleteProfile = createRoute({
       description: "Deleted."
     },
     401: problem("Not signed in."),
-    404: problem("The account has no such profile.")
+    404: problem("The account has no such profile."),
+    409: problem("The profile is the account's last; an account keeps at least one.")
   }
 });
 
