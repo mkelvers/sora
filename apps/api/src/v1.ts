@@ -1,5 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { auth, createProfile, deleteProfile, getProfile, getSession, listProfiles, updateProfile } from "@sora/core/auth";
 import { getGenres } from "@sora/core/catalog";
+import { getContinueWatching, getProgress, recordProgress } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
   browseSeries,
@@ -14,8 +16,9 @@ import {
   type EpisodeAddress
 } from "@sora/core/series";
 import { cors } from "hono/cors";
+import { createMiddleware } from "hono/factory";
 
-import { onInvalidRequest } from "./errors";
+import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
 import { pageMeta, snakeCased } from "./openapi/envelope";
 import * as route from "./openapi/routes";
 
@@ -30,12 +33,36 @@ const day = 24 * 60 * 60 * 1_000;
  * A breaking change to any route belongs in a new version mounted next to
  * this one, never here: deployed clients keep calling `/v1`.
  */
-export const v1 = new OpenAPIHono({
+export const v1 = new OpenAPIHono<V1Env>({
   defaultHook: onInvalidRequest
 });
 
 // Browser players (hls.js, subtitle tracks) fetch streams directly.
 v1.use(route.getStream.getRoutingPath(), cors());
+
+// Sign-up, sign-in, and sign-out, answered by Better Auth itself.
+v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
+
+/** Answers 401 unless the request carries a session, as a bearer token or cookie. */
+const signedIn = createMiddleware<V1Env>(async (c, next) => {
+  const session = await getSession(c.req.raw.headers);
+  if (!session) {
+    return sendProblem(c, 401, "UNAUTHORIZED", "Sign in to use this endpoint");
+  }
+
+  c.set("accountId", session.user.id);
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+
+v1.use("/profiles", signedIn);
+v1.use("/profiles/*", signedIn);
+
+v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
+  type: "http",
+  scheme: "bearer",
+  description: "The session token from `POST /v1/auth/sign-in/email`, or from `POST /v1/auth/sign-up/email`."
+});
 
 /** A playback's URL under its title, relative to the API's origin. */
 function playbackPath(animeId: string, { seasonId, episode }: EpisodeAddress) {
@@ -299,7 +326,90 @@ export const v1Routes = v1
       range: c.req.header("range") ?? null,
       signal: c.req.raw.signal
     })
-  );
+  )
+
+  .openapi(route.listProfiles, async (c) => {
+    const profiles = await listProfiles(c.get("accountId"));
+    return c.json(
+      {
+        meta: {
+          count: profiles.length
+        },
+        results: snakeCased(profiles)
+      },
+      200
+    );
+  })
+
+  .openapi(route.createProfile, async (c) => {
+    const profile = await createProfile(c.get("accountId"), c.req.valid("json"));
+    return c.json(
+      {
+        meta: {},
+        results: snakeCased(profile)
+      },
+      201
+    );
+  })
+
+  .openapi(route.updateProfile, async (c) => {
+    const profile = await updateProfile(c.get("accountId"), c.req.valid("param").profile_id, c.req.valid("json"));
+    return c.json(
+      {
+        meta: {},
+        results: snakeCased(profile)
+      },
+      200
+    );
+  })
+
+  .openapi(route.deleteProfile, async (c) => {
+    await deleteProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.getContinueWatching, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const items = await getContinueWatching(profile.id);
+    return c.json(
+      {
+        meta: {
+          count: items.length
+        },
+        results: snakeCased(items)
+      },
+      200
+    );
+  })
+
+  .openapi(route.getSeriesProgress, async (c) => {
+    const { profile_id, anime_id } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    const progress = await getProgress(profile.id, anime_id);
+    return c.json(
+      {
+        meta: {
+          count: progress.length
+        },
+        results: snakeCased(progress)
+      },
+      200
+    );
+  })
+
+  .openapi(route.recordProgress, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const update = c.req.valid("json");
+    await recordProgress(profile.id, {
+      seasonId: update.season_id,
+      episode: update.episode,
+      positionSeconds: update.position_seconds,
+      durationSeconds: update.duration_seconds,
+      completed: update.completed,
+      eventAt: update.event_at
+    });
+    return c.body(null, 204);
+  });
 
 v1.doc31("/openapi.json", {
   openapi: "3.1.0",

@@ -7,8 +7,11 @@ import type { z } from "@hono/zod-openapi";
 import type { CountMetaSchema, PageMetaSchema } from "./openapi/envelope";
 import type { getSchedule, getSeason, getSeries, listSeasonEpisodes } from "./openapi/routes";
 import type {
+  ContinueWatchingItemSchema,
+  EpisodeProgressSchema,
   PlaybackMediaSchema,
   PlaybackMetaSchema,
+  ProfileSchema,
   ScheduledEpisodeSchema,
   SeasonEpisodeSchema,
   SeasonSchema,
@@ -27,6 +30,9 @@ export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
 export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
+export type Profile = z.infer<typeof ProfileSchema>;
+export type EpisodeProgress = z.infer<typeof EpisodeProgressSchema>;
+export type ContinueWatchingItem = z.infer<typeof ContinueWatchingItemSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
 

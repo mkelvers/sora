@@ -5,7 +5,9 @@
  * the OpenAPI document cannot drift from what the handlers return.
  */
 import { z } from "@hono/zod-openapi";
+import type { Profile } from "@sora/core/auth";
 import type { AnimeTag } from "@sora/core/catalog";
+import type { ContinueWatchingItem, EpisodeProgress } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard, SeriesImage } from "@sora/core/series";
 
@@ -92,6 +94,15 @@ export const SeasonIdParam = z.string().openapi({
   },
   description: "Sora season ID.",
   example: "s_WGQtg1RoFmfJ"
+});
+
+export const ProfileIdParam = z.string().openapi({
+  param: {
+    name: "profile_id",
+    in: "path"
+  },
+  description: "Sora profile ID, of a profile of the signed-in account.",
+  example: "p_7hTq2LmX0bZe"
 });
 
 export const EpisodeNumberParam = z.coerce
@@ -369,3 +380,92 @@ export const PlaybackMetaSchema = z
     })
   })
   .openapi("PlaybackMeta");
+
+export const ProfileSchema = z
+  .object({
+    id: z.string().openapi({
+      example: "p_7hTq2LmX0bZe"
+    }),
+    name: z.string().openapi({
+      example: "Maja"
+    }),
+    color: z.string().openapi({
+      description: "A CSS color for the profile's tile.",
+      example: "#4f7cff"
+    }),
+    created_at: z.string()
+  })
+  .openapi("Profile") satisfies z.ZodType<SnakeCased<Profile>>;
+
+export const ProfileInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(40),
+    color: z
+      .string()
+      .regex(/^#[0-9a-f]{6}$/i)
+      .optional()
+      .openapi({
+        description: "A hex color such as `#4f7cff`; picked from a palette when omitted."
+      })
+  })
+  .openapi("ProfileInput", {
+    example: {
+      name: "Maja"
+    }
+  });
+
+export const EpisodeProgressSchema = z
+  .object({
+    season_id: z.string(),
+    episode: z.number().int(),
+    position_seconds: z.number(),
+    duration_seconds: z.number(),
+    completed: z.boolean(),
+    event_at: z.string()
+  })
+  .openapi("EpisodeProgress") satisfies z.ZodType<SnakeCased<EpisodeProgress>>;
+
+export const ContinueWatchingItemSchema = z
+  .object({
+    series: SeriesCardSchema,
+    season_id: z.string(),
+    episode: z.number().int(),
+    position_seconds: z.number().openapi({
+      description: "Where to seek to; 0 when starting the next episode."
+    }),
+    duration_seconds: z.number().nullable().openapi({
+      description: "The episode's length, or null when it has not been played yet."
+    }),
+    last_watched_at: z.string()
+  })
+  .openapi("ContinueWatchingItem") satisfies z.ZodType<SnakeCased<ContinueWatchingItem>>;
+
+export const ProgressUpdateSchema = z
+  .object({
+    season_id: z.string().min(1),
+    episode: z.number().int().positive(),
+    position_seconds: z.number().nonnegative(),
+    duration_seconds: z
+      .number()
+      .positive()
+      .max(24 * 60 * 60),
+    completed: z.boolean().optional().openapi({
+      description: "Marks the episode watched or unwatched. When omitted, it counts as watched past 90%."
+    }),
+    event_at: z.iso
+      .datetime({
+        offset: true
+      })
+      .openapi({
+        description: "When the player was at this position. Later events win, so an old checkpoint from an offline device cannot overwrite newer progress."
+      })
+  })
+  .openapi("ProgressUpdate", {
+    example: {
+      season_id: "s_WGQtg1RoFmfJ",
+      episode: 3,
+      position_seconds: 512.4,
+      duration_seconds: 1420,
+      event_at: "2026-09-26T19:04:11.000Z"
+    }
+  });

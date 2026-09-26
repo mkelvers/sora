@@ -1,10 +1,13 @@
 import type {
   AppType,
+  ContinueWatchingItem,
   CountMeta,
   Envelope,
   PageMeta,
   PlaybackMedia,
   PlaybackMeta,
+  EpisodeProgress,
+  Profile,
   ScheduledEpisode,
   ScheduleMeta,
   Season,
@@ -52,6 +55,53 @@ export interface ScheduleParams {
   from?: Date;
   /** @defaultValue 7 days after `from` */
   until?: Date;
+}
+
+/** A new account for {@link SoraClient.signUp}. Its first profile takes `name`. */
+export interface SignUp {
+  name: string;
+  email: string;
+  /** At least 8 characters. */
+  password: string;
+}
+
+/** An account's credentials for {@link SoraClient.signIn}. */
+export interface SignIn {
+  email: string;
+  password: string;
+}
+
+/**
+ * A signed-in session. Send `token` with every request that needs an account,
+ * as an `Authorization: Bearer <token>` header in {@link SoraClientOptions.headers}.
+ */
+export interface Session {
+  token: string;
+  account: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+/** A profile's name and tile color, for {@link SoraClient.createProfile} and {@link SoraClient.updateProfile}. */
+export interface ProfileInput {
+  name: string;
+  /** A hex color such as `#4f7cff`; picked from a palette when omitted. */
+  color?: string;
+}
+
+/** A playback position for {@link SoraClient.recordProgress}. */
+export interface ProgressUpdate {
+  season_id: string;
+  /** Position within the season, from 1. */
+  episode: number;
+  position_seconds: number;
+  duration_seconds: number;
+  /** Marks the episode watched or unwatched; derived from the position when omitted. */
+  completed?: boolean;
+  /** When the player was at this position; later events win. @defaultValue now */
+  event_at?: Date;
 }
 
 /** Filters and sorting for {@link SoraClient.images}. */
@@ -169,12 +219,194 @@ export interface SoraClientOptions {
  */
 export class SoraClient {
   readonly #api: ReturnType<typeof hc<AppType>>["v1"];
+  readonly #options: SoraClientOptions;
 
   constructor(options: SoraClientOptions) {
-    this.#api = hc<AppType>(options.baseUrl.replace(/\/+$/, ""), {
+    this.#options = {
+      ...options,
+      baseUrl: options.baseUrl.replace(/\/+$/, "")
+    };
+    this.#api = hc<AppType>(this.#options.baseUrl, {
       fetch: options.fetch,
       headers: options.headers
     }).v1;
+  }
+
+  /**
+   * Creates an account, with one profile named after it, and signs it in.
+   *
+   * @throws {@link SoraError} with code `USER_ALREADY_EXISTS` (or a similar
+   *   Better Auth code) when the e-mail is taken or the password too short.
+   */
+  signUp(account: SignUp, options?: RequestOptions): Promise<Session> {
+    return this.#auth("sign-up/email", account, options);
+  }
+
+  /**
+   * Signs an account in.
+   *
+   * @throws {@link SoraError} with code `INVALID_EMAIL_OR_PASSWORD` when the
+   *   credentials are wrong.
+   */
+  signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
+    return this.#auth("sign-in/email", credentials, options);
+  }
+
+  /** Ends the session this client's token belongs to. */
+  async signOut(options?: RequestOptions): Promise<void> {
+    await this.#auth("sign-out", {}, options);
+  }
+
+  /** Lists the signed-in account's profiles, oldest first. */
+  async profiles<const TOptions extends RequestOptions = {}>(options?: TOptions): Promise<Returned<TOptions, Profile[], CountMeta>> {
+    const body: Envelope<Profile[], CountMeta> = await read(this.#api.profiles.$get(undefined, init(options)));
+    return unwrap(body, options);
+  }
+
+  /** Adds a profile to the signed-in account; there is no limit. */
+  async createProfile(input: ProfileInput, options?: RequestOptions): Promise<Profile> {
+    const body = await read(
+      this.#api.profiles.$post(
+        {
+          json: input
+        },
+        init(options)
+      )
+    );
+    return body.results;
+  }
+
+  /** Renames or recolors one of the signed-in account's profiles. */
+  async updateProfile(profileId: string, changes: Partial<ProfileInput>, options?: RequestOptions): Promise<Profile> {
+    const body = await read(
+      this.#api.profiles[":profile_id"].$patch(
+        {
+          param: {
+            profile_id: profileId
+          },
+          json: changes
+        },
+        init(options)
+      )
+    );
+    return body.results;
+  }
+
+  /** Deletes a profile with its progress and watchlist. */
+  async deleteProfile(profileId: string, options?: RequestOptions): Promise<void> {
+    await send(
+      this.#api.profiles[":profile_id"].$delete(
+        {
+          param: {
+            profile_id: profileId
+          }
+        },
+        init(options)
+      )
+    );
+  }
+
+  /**
+   * The titles a profile is part-way through, most recent first, each with the
+   * episode and position to resume.
+   */
+  async continueWatching<const TOptions extends RequestOptions = {}>(
+    profileId: string,
+    options?: TOptions
+  ): Promise<Returned<TOptions, ContinueWatchingItem[], CountMeta>> {
+    const body: Envelope<ContinueWatchingItem[], CountMeta> = await read(
+      this.#api.profiles[":profile_id"]["continue-watching"].$get(
+        {
+          param: {
+            profile_id: profileId
+          }
+        },
+        init(options)
+      )
+    );
+    return unwrap(body, options);
+  }
+
+  /** A profile's saved position in every episode of a title it has played. */
+  async progress<const TOptions extends RequestOptions = {}>(
+    profileId: string,
+    seriesId: string,
+    options?: TOptions
+  ): Promise<Returned<TOptions, EpisodeProgress[], CountMeta>> {
+    const body: Envelope<EpisodeProgress[], CountMeta> = await read(
+      this.#api.profiles[":profile_id"].progress[":anime_id"].$get(
+        {
+          param: {
+            profile_id: profileId,
+            anime_id: seriesId
+          }
+        },
+        init(options)
+      )
+    );
+    return unwrap(body, options);
+  }
+
+  /**
+   * Saves a playback position. Report it every few seconds while playing, and
+   * on pause and exit; an older position than the saved one changes nothing.
+   */
+  async recordProgress(profileId: string, update: ProgressUpdate, options?: RequestOptions): Promise<void> {
+    await send(
+      this.#api.profiles[":profile_id"].progress.$put(
+        {
+          param: {
+            profile_id: profileId
+          },
+          json: {
+            ...update,
+            event_at: (update.event_at ?? new Date()).toISOString()
+          }
+        },
+        init(options)
+      )
+    );
+  }
+
+  /** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */
+  async #auth(path: string, body: object, options: RequestOptions | undefined): Promise<Session> {
+    const response = await (this.#options.fetch ?? fetch)(`${this.#options.baseUrl}/v1/auth/${path}`, {
+      method: "POST",
+      headers: {
+        // Better Auth checks the origin of requests that look like a browser's,
+        // as Node's fetch does; this client speaks for the API's own origin.
+        // Browsers ignore it and send their own.
+        Origin: new URL(this.#options.baseUrl).origin,
+        ...this.#options.headers,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body),
+      signal: options?.signal
+    });
+
+    const payload = (await response.json().catch(() => null)) as {
+      token?: string;
+      user?: Session["account"];
+      message?: string;
+      code?: string;
+    } | null;
+
+    if (!response.ok) {
+      throw new SoraError(payload?.message ?? `The API answered ${response.status} ${response.statusText}`, {
+        status: response.status,
+        code: payload?.code ?? "HTTP_ERROR",
+        retryAfterSeconds: null
+      });
+    }
+
+    return {
+      token: payload?.token ?? "",
+      account: {
+        id: payload?.user?.id ?? "",
+        name: payload?.user?.name ?? "",
+        email: payload?.user?.email ?? ""
+      }
+    };
   }
 
   /**
@@ -423,6 +655,14 @@ type SuccessBody<TResponse> = TResponse extends ClientResponse<infer TBody, infe
     ? TBody
     : never
   : never;
+
+/** Waits for a response that has no body, or throws {@link SoraError}. */
+async function send(pending: Promise<ClientResponse<unknown, number, string>>): Promise<void> {
+  const response = await pending;
+  if (!response.ok) {
+    throw await SoraError.from(response);
+  }
+}
 
 /** Waits for a response and returns its successful body, or throws {@link SoraError}. */
 async function read<TResponse extends ClientResponse<unknown, number, string>>(pending: Promise<TResponse>): Promise<SuccessBody<TResponse>> {

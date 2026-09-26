@@ -1,7 +1,7 @@
 import type { Hook } from "@hono/zod-openapi";
 import { CoreError, PlaybackUnavailableError, UpstreamUnavailableError, type CoreErrorCode } from "@sora/core/errors";
 import { StreamUpstreamError } from "@sora/core/playback";
-import type { Context, Env } from "hono";
+import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { STATUS_CODES } from "node:http";
 
@@ -13,17 +13,26 @@ const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
   SERIES_NOT_FOUND: 404,
   SEASON_NOT_FOUND: 404,
   EPISODE_NOT_FOUND: 404,
+  PROFILE_NOT_FOUND: 404,
   INVALID_INPUT: 422,
   INVALID_STREAM_TOKEN: 403,
   PLAYBACK_UNAVAILABLE: 502,
   UPSTREAM_UNAVAILABLE: 503
 };
 
+/** What `/v1` middleware puts on the context for handlers. */
+export interface V1Env {
+  Variables: {
+    /** The signed-in account, on routes that require one. */
+    accountId: string;
+  };
+}
+
 /** Sends a {@link Problem}. */
 export function sendProblem(
   c: Context,
   status: ContentfulStatusCode,
-  code: CoreErrorCode | "NOT_FOUND" | "INTERNAL_ERROR",
+  code: CoreErrorCode | "NOT_FOUND" | "UNAUTHORIZED" | "INTERNAL_ERROR",
   detail: string,
   errors?: Problem["errors"]
 ) {
@@ -70,7 +79,7 @@ export function onError(error: unknown, c: Context) {
  * Answers a request that fails its route's contract with a 422
  * `INVALID_INPUT` problem listing every invalid field.
  */
-export const onInvalidRequest: Hook<unknown, Env, string, unknown> = (result, c) => {
+export const onInvalidRequest: Hook<unknown, V1Env, string, unknown> = (result, c) => {
   if (!result.success) {
     return sendProblem(
       c,

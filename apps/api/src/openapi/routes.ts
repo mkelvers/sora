@@ -13,12 +13,18 @@ import { BrowseQuerySchema } from "@sora/core/catalog";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
+  ContinueWatchingItemSchema,
   EpisodeNumberParam,
+  EpisodeProgressSchema,
   ImageTypeSchema,
   json,
   PlaybackMediaSchema,
   PlaybackMetaSchema,
   problem,
+  ProfileIdParam,
+  ProfileInputSchema,
+  ProfileSchema,
+  ProgressUpdateSchema,
   ScheduledEpisodeSchema,
   SeasonSchema,
   SeasonEpisodeSchema,
@@ -448,5 +454,170 @@ export const getStream = createRoute({
     },
     403: problem("The token is forged, malformed, or expired."),
     502: problem("The upstream host failed.")
+  }
+});
+
+/** Routes that need a signed-in account, as a bearer token or session cookie. */
+const signedIn = [
+  {
+    session: []
+  }
+];
+
+const ProfileParams = z.object({
+  profile_id: ProfileIdParam
+});
+
+export const listProfiles = createRoute({
+  operationId: "listProfiles",
+  method: "get",
+  path: "/profiles",
+  tags: ["Profiles"],
+  summary: "List the account's profiles",
+  description: "Every profile of the signed-in account, oldest first. A new account starts with one.",
+  security: signedIn,
+  responses: {
+    200: json(envelopeOf(z.array(ProfileSchema), CountMetaSchema), "The profiles."),
+    401: problem("Not signed in.")
+  }
+});
+
+export const createProfile = createRoute({
+  operationId: "createProfile",
+  method: "post",
+  path: "/profiles",
+  tags: ["Profiles"],
+  summary: "Add a profile",
+  description: "An account may hold any number of profiles.",
+  security: signedIn,
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ProfileInputSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The new profile."),
+    401: problem("Not signed in."),
+    422: problem("The body is invalid.")
+  }
+});
+
+export const updateProfile = createRoute({
+  operationId: "updateProfile",
+  method: "patch",
+  path: "/profiles/{profile_id}",
+  tags: ["Profiles"],
+  summary: "Rename or recolor a profile",
+  security: signedIn,
+  request: {
+    params: ProfileParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ProfileInputSchema.partial()
+        }
+      }
+    }
+  },
+  responses: {
+    200: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The profile."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile."),
+    422: problem("The body is invalid.")
+  }
+});
+
+export const deleteProfile = createRoute({
+  operationId: "deleteProfile",
+  method: "delete",
+  path: "/profiles/{profile_id}",
+  tags: ["Profiles"],
+  summary: "Delete a profile",
+  description: "Deletes the profile with its progress and watchlist.",
+  security: signedIn,
+  request: {
+    params: ProfileParams
+  },
+  responses: {
+    204: {
+      description: "Deleted."
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile.")
+  }
+});
+
+export const getContinueWatching = createRoute({
+  operationId: "getContinueWatching",
+  method: "get",
+  path: "/profiles/{profile_id}/continue-watching",
+  tags: ["Profiles"],
+  summary: "Titles to pick back up",
+  description:
+    "One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. Finished and dropped titles are left out.",
+  security: signedIn,
+  request: {
+    params: ProfileParams
+  },
+  responses: {
+    200: json(envelopeOf(z.array(ContinueWatchingItemSchema), CountMetaSchema), "The titles."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile.")
+  }
+});
+
+export const getSeriesProgress = createRoute({
+  operationId: "getSeriesProgress",
+  method: "get",
+  path: "/profiles/{profile_id}/progress/{anime_id}",
+  tags: ["Profiles"],
+  summary: "A title's saved progress",
+  description: "The saved position of every episode of the title the profile has played, in title order.",
+  security: signedIn,
+  request: {
+    params: ProfileParams.extend({
+      anime_id: SeriesIdParam
+    })
+  },
+  responses: {
+    200: json(envelopeOf(z.array(EpisodeProgressSchema), CountMetaSchema), "The checkpoints."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title.")
+  }
+});
+
+export const recordProgress = createRoute({
+  operationId: "recordProgress",
+  method: "put",
+  path: "/profiles/{profile_id}/progress",
+  tags: ["Profiles"],
+  summary: "Save a playback position",
+  description:
+    "Players report their position every few seconds while playing, and on pause and exit. An older `event_at` than the one saved changes nothing. Playing a title puts it on the watchlist as watching; finishing the last episode of a finished title marks it completed.",
+  security: signedIn,
+  request: {
+    params: ProfileParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ProgressUpdateSchema
+        }
+      }
+    }
+  },
+  responses: {
+    204: {
+      description: "Saved."
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, season, or episode."),
+    422: problem("The body is invalid.")
   }
 });
