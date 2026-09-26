@@ -27,7 +27,6 @@ export function formatDate(date: string) {
 }
 
 export function formatClock(seconds: number) {
-	// A video's duration is NaN until its metadata loads
 	if (!Number.isFinite(seconds)) {
 		seconds = 0;
 	}
