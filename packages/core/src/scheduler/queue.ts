@@ -95,17 +95,22 @@ export interface StoreSeriesPayload {
 
 /**
  * How soon a series should be stored. graphile-worker runs lower numbers
- * first, and airing checks run ahead of both, at {@link airingCheckPriority}.
+ * first.
  *
- * - `current`: someone is waiting on it, such as a title whose episode just
- *   aired or one a search found but had no time to lay out.
+ * - `waiting`: a viewer is waiting on it, such as a title a search found or
+ *   a season whose episodes are open. Requests only read the database, so
+ *   this runs ahead of everything else, airing checks and catalogue upkeep
+ *   included; there are only ever a few such jobs.
+ * - `current`: it changed just now, such as a title whose episode just
+ *   aired. Airing checks, at {@link airingCheckPriority}, run ahead of it.
  * - `backfill`: warming the catalog, such as related titles, the release
  *   schedule, and new entries found by discovery. It waits for everything
  *   current, so a large backfill never delays new episodes.
  */
-export type SeriesStorePriority = "current" | "backfill";
+export type SeriesStorePriority = "waiting" | "current" | "backfill";
 
 const seriesStorePriorities: Record<SeriesStorePriority, number> = {
+  waiting: -2,
   current: 0,
   backfill: 10
 };
@@ -124,7 +129,7 @@ export async function scheduleSeriesStore(anilistId: number, priority: SeriesSto
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
       job_key_mode => 'preserve_run_at',
-      priority => ${keptPriority(anilistId, seriesStorePriorities[priority])}
+      priority => ${keptPriority(seriesJobKey(anilistId), seriesStorePriorities[priority])}
     )
   `);
 }
@@ -141,18 +146,18 @@ export async function scheduleStoredSeriesRefresh(anilistId: number) {
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
       job_key_mode => 'preserve_run_at',
-      priority => ${keptPriority(anilistId, seriesStorePriorities.current)}
+      priority => ${keptPriority(seriesJobKey(anilistId), seriesStorePriorities.current)}
     )
     where exists (select 1 from series_entry where anilist_id = ${anilistId})
   `);
 }
 
-/** The higher of `priority` and that of a job already waiting for the entry, since replacing a job resets its priority. */
-function keptPriority(anilistId: number, priority: number) {
+/** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
+function keptPriority(jobKey: string, priority: number) {
   return sql`least(
     ${priority}::int,
     coalesce(
-      (select jobs.priority from graphile_worker.jobs where jobs.key = ${seriesJobKey(anilistId)} and jobs.locked_at is null),
+      (select jobs.priority from graphile_worker.jobs where jobs.key = ${jobKey} and jobs.locked_at is null),
       ${priority}::int
     )
   )`;
@@ -174,18 +179,20 @@ export interface LookUpEpisodesPayload {
  * Queues looking an AniList entry up on every stream provider and storing
  * their episode lists, so episode listings can be read from the database.
  *
- * A job already waiting for the same entry keeps its place. Priorities are
- * those of {@link scheduleSeriesStore}: `current` when someone is viewing
- * the entry's episodes, `backfill` when its series was just stored.
+ * A job already waiting for the same entry keeps its place, and keeps its
+ * priority when that is higher. Priorities are those of
+ * {@link scheduleSeriesStore}: `waiting` when someone is viewing the entry's
+ * episodes, `backfill` when its series was just stored.
  */
 export async function scheduleEpisodeLookup(anilistId: number, priority: SeriesStorePriority) {
+  const jobKey = `episodes:${anilistId}`;
   await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${lookUpEpisodesTask},
       payload => json_build_object('anilistId', ${anilistId}::int),
-      job_key => ${`episodes:${anilistId}`},
+      job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
-      priority => ${seriesStorePriorities[priority]}::int
+      priority => ${keptPriority(jobKey, seriesStorePriorities[priority])}
     )
   `);
 }
