@@ -431,6 +431,49 @@ describe("layoutShowSeasons watch order", () => {
     ]);
   });
 
+  // Mob Psycho 100, reduced: one-off specials released between seasons
+  // belong to neither season.
+  const mobPsycho = layoutShowSeasons({
+    show: {
+      seasons: [],
+      episodes: [
+        episode(0, 7, "2018-03-18", "REIGEN The Miraculous Unknown Psychic"),
+        episode(0, 8, "2019-09-25", "The First Spirits and Such Company Trip"),
+        ...weekly(1, 1, 2, "2016-07-11"),
+        ...weekly(2, 1, 2, "2019-01-07")
+      ]
+    },
+    members: [
+      member(anime(21507, "Mob Psycho 100", {
+        episodes: 2
+      }), links(1, 1, 2)),
+      member(anime(101338, "Mob Psycho 100 II", {
+        episodes: 2
+      }), links(2, 1, 2), [21507]),
+      member(anime(100353, "Mob Psycho 100: Reigen", {
+        format: "SPECIAL",
+        episodes: 1
+      }), links(0, 7, 1), [21507]),
+      member(anime(109819, "Mob Psycho 100: Dai Ikkai Rei toka Soudansho Ian Ryokou", {
+        format: "SPECIAL",
+        episodes: 1
+      }), links(0, 8, 1), [101338])
+    ]
+  });
+
+  test("gathers one-off specials released outside every season's run into a Specials season", () => {
+    expect(mobPsycho.map((season) => `${season.kind} ${season.number}: ${season.title} ${season.inWatchOrder}`)).toEqual([
+      "season 1: Season 1 true",
+      "season 2: Season 2 true",
+      "ova 1: Specials false"
+    ]);
+    expect(mobPsycho.map(outline)).toEqual([
+      ["21507#1", "21507#2"],
+      ["101338#1", "101338#2"],
+      ["100353#1", "109819#1"]
+    ]);
+  });
+
   // Haikyu!!, reduced: an OVA continues season 3 into season 4, a recap
   // special summarises season 3, and a side-story OVA stands apart.
   const haikyu = {
