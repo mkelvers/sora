@@ -126,7 +126,7 @@ async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]
 async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAiredEpisode"]> {
   const fromNext = anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
   const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
-  const scheduled = await fetchLatestAiring(anime.id);
+  const scheduled = (await fetchLatestAiring(anime.id))?.episode ?? null;
   const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
   return known.length > 0 ? Math.max(...known) : null;
 }

@@ -115,7 +115,7 @@ export async function fetchEpisodeAirings(anilistIds: readonly number[]): Promis
 }
 
 /**
- * The latest episode of an AniList entry that AniList's airing schedule
+ * The latest broadcast of an AniList entry that AniList's airing schedule
  * says has aired, or `null` when it records none.
  *
  * Unlike the entry's next airing episode, this still knows an episode aired
@@ -123,7 +123,7 @@ export async function fetchEpisodeAirings(anilistIds: readonly number[]): Promis
  *
  * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
  */
-export async function fetchLatestAiring(anilistId: number): Promise<number | null> {
+export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadcast | null> {
   const { Page } = await anilist(
     LatestAiringDocument,
     {
@@ -133,5 +133,12 @@ export async function fetchLatestAiring(anilistId: number): Promise<number | nul
       maxAgeMs: 0
     }
   );
-  return Page?.airingSchedules?.[0]?.episode ?? null;
+  const latest = Page?.airingSchedules?.[0];
+  return latest
+    ? {
+        anilistId,
+        episode: latest.episode,
+        airingAt: fromUnixSeconds(latest.airingAt)
+      }
+    : null;
 }
