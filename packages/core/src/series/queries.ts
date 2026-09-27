@@ -17,7 +17,7 @@ import {
 } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { second, startDeadline, timedOut } from "../time";
-import { anilistEpisodeKey } from "./episodes";
+import { anilistEpisodeKey, isEpisodeReleased } from "./episodes";
 import type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
 import { storedSeriesIds, storeSeries } from "./store";
 
@@ -155,8 +155,8 @@ export interface EpisodeAddress {
  * order, so a show plays on into its next season and the films between its
  * seasons, but not into its extras, which only play on among themselves;
  * before a season's first comes the last of the previous one. Extras only
- * TMDB lists cannot be played, so they are passed over. Each is `null` at
- * either end.
+ * TMDB lists cannot be played, so they are passed over, and `next` is never
+ * an episode that has not been released yet. Each is `null` at either end.
  *
  * @throws {@link SeasonNotFoundError} when the season does not exist, or
  *   does not belong to the series.
@@ -169,9 +169,12 @@ export async function getAdjacentEpisodes(
   previous: EpisodeAddress | null;
   next: EpisodeAddress | null;
 }> {
-  const seasons = await seasonsOf(seriesId);
+  const [seasons, [title]] = await Promise.all([
+    seasonsOf(seriesId),
+    db.select().from(series).where(eq(series.id, seriesId)).limit(1)
+  ]);
   const season = seasons.find((candidate) => candidate.id === seasonId);
-  if (!season) {
+  if (!season || !title) {
     throw new SeasonNotFoundError(seasonId);
   }
 
@@ -181,7 +184,8 @@ export async function getAdjacentEpisodes(
     await db
       .select({
         seasonId: seriesEpisode.seasonId,
-        episode: seriesEpisode.number
+        episode: seriesEpisode.number,
+        airDate: seriesEpisode.airDate
       })
       .from(seriesEpisode)
       .where(
@@ -205,9 +209,14 @@ export async function getAdjacentEpisodes(
     (position.get(address.seasonId) ?? 0) - (position.get(seasonId) ?? 0) < 0 ||
     (address.seasonId === seasonId && address.episode < episode);
 
+  const previous = playable.findLast(isBefore);
+  const next = playable.find(isAfter);
   return {
-    previous: playable.findLast(isBefore) ?? null,
-    next: playable.find(isAfter) ?? null
+    previous: previous ? { seasonId: previous.seasonId, episode: previous.episode } : null,
+    next:
+      next && isEpisodeReleased(title, { seasonId: next.seasonId, number: next.episode, airDate: next.airDate })
+        ? { seasonId: next.seasonId, episode: next.episode }
+        : null
   };
 }
 
