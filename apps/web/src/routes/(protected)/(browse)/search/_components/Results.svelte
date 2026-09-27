@@ -71,7 +71,7 @@
 </script>
 
 {#each items as { key, card, preparing } (key)}
-	<li class={[stale && "stale"]}>
+	<li class={["transition-opacity", stale && "opacity-50"]}>
 		{#if preparing}
 			<Poster title={preparing.title} />
 		{:else if card}
@@ -80,13 +80,13 @@
 	</li>
 {:else}
 	{#if page === 1}
-		<li class={["empty", stale && "stale"]}>
+		<li class={["col-span-full py-16 text-center", stale && "opacity-50"]}>
 			{#if found.meta.preparing}
-				<p class="headline">Looking further for “{q}”…</p>
-				<p>Some matching titles are still being prepared.</p>
+				<p class="text-xl font-bold">Looking further for “{q}”…</p>
+				<p class="mt-2 text-muted">Some matching titles are still being prepared.</p>
 			{:else}
-				<p class="headline">No titles match “{q}”</p>
-				<p>Check the spelling, or try the English or Japanese title.</p>
+				<p class="text-xl font-bold">No titles match “{q}”</p>
+				<p class="mt-2 text-muted">Check the spelling, or try the English or Japanese title.</p>
 			{/if}
 		</li>
 	{/if}
@@ -94,7 +94,7 @@
 
 {#if last && found.meta.has_next_page}
 	<li
-		class="sentinel"
+		class="col-span-full h-px"
 		aria-hidden="true"
 		{@attach (node) => {
 			const observer = new IntersectionObserver(
@@ -111,38 +111,3 @@
 		}}
 	></li>
 {/if}
-
-<style>
-	li {
-		transition: opacity 160ms;
-	}
-
-	.stale {
-		opacity: 0.5;
-	}
-
-	.empty,
-	.sentinel {
-		grid-column: 1 / -1;
-	}
-
-	.empty {
-		padding: 64px 0;
-	}
-
-	.empty p {
-		margin: 0;
-		color: #888;
-		font-size: 15px;
-	}
-
-	.empty .headline {
-		margin-bottom: 8px;
-		color: #fff;
-		font-size: 20px;
-	}
-
-	.sentinel {
-		height: 1px;
-	}
-</style>
