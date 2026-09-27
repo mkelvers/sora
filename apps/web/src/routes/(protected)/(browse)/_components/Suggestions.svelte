@@ -16,7 +16,11 @@
 	} = $props();
 
 	const found = $derived(
-		await searchSeries({ q: term, page: 1, perPage: 6 }),
+		await searchSeries({
+			q: term,
+			page: 1,
+			perPage: 6
+		}),
 	);
 
 	$effect(() => {
@@ -25,8 +29,7 @@
 		}
 
 		const timer = setTimeout(
-			() =>
-				searchSeries({
+			() => searchSeries({
 					q: term,
 					page: 1,
 					perPage: 6,
