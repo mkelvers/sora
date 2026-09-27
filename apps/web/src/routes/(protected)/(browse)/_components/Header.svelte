@@ -32,7 +32,7 @@
 			<Icon name="expand" size="md" />
 		{/snippet}
 
-		<a class="current" href="/profiles/{profile.id}" title="Edit profile">
+		<a class="current" href="/profiles/{profile.id}">
 			<Avatar seed={profile.avatar} plain class="current-avatar" />
 			<span class="name">{profile.name}</span>
 			<span class="edit">

@@ -66,7 +66,6 @@
 								value={profile.id}
 								disabled={deleting !== null}
 								aria-label="Delete {profile.name}"
-								title="Delete {profile.name}"
 							>
 								<Icon name="delete" size="sm" />
 							</button>

@@ -1,4 +1,4 @@
-import { query } from '$app/server';
+import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
@@ -11,9 +11,15 @@ const EpisodeAddress = z.object({
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, episode }) => {
-	const [series, episodes] = await Promise.all([
+	const { viewer } = getRequestEvent().locals;
+	if (!viewer?.profile) {
+		error(403, 'Choose a profile first');
+	}
+
+	const [series, episodes, progress] = await Promise.all([
 		sora.series(seriesId),
-		sora.episodes({ seriesId, seasonId })
+		sora.episodes({ seriesId, seasonId }),
+		viewer.sora.progress(viewer.profile.id, seriesId)
 	]);
 	const season = series.seasons.find((season) => season.id === seasonId);
 	const found = episodes.find((candidate) => candidate.number === episode);
@@ -22,8 +28,39 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, epi
 		error(404, 'Episode not found');
 	}
 
-	return { series, season, episode: found };
+	const checkpoint = progress.find(
+		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode
+	);
+
+	return {
+		series,
+		season,
+		episode: found,
+		start: checkpoint && !checkpoint.completed ? checkpoint.position_seconds : 0
+	};
 });
+
+export const saveProgress = command(
+	z.object({
+		seasonId: z.string(),
+		episode: z.number().int().positive(),
+		position: z.number().nonnegative(),
+		duration: z.number().positive()
+	}),
+	async ({ seasonId, episode, position, duration }) => {
+		const { viewer } = getRequestEvent().locals;
+		if (!viewer?.profile) {
+			error(403, 'Choose a profile first');
+		}
+
+		await viewer.sora.recordProgress(viewer.profile.id, {
+			season_id: seasonId,
+			episode,
+			position_seconds: Math.min(position, duration),
+			duration_seconds: duration
+		});
+	}
+);
 
 export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) => {
 	try {

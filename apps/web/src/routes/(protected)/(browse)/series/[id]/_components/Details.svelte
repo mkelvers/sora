@@ -56,7 +56,7 @@
 {#if rows.length}
 	<dl>
 		{#each rows as row (row.term)}
-			<div title={row.term}>
+			<div>
 				<dt>
 					<svg
 						viewBox="0 0 24 24"

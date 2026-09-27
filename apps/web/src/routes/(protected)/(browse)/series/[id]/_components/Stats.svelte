@@ -62,7 +62,7 @@
 {#if stats.length || rating}
 	<ul>
 		{#each stats as stat (stat.kind)}
-			<li title={stat.label}>
+			<li>
 				<svg
 					viewBox="0 0 24 24"
 					fill="none"
@@ -90,7 +90,7 @@
 		{/each}
 
 		{#if rating}
-			<li title={rating.label}>
+			<li>
 				<svg
 					class="stars"
 					viewBox="0 0 120 24"

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PlaybackMedia } from "@sora/sdk";
+	import { untrack } from "svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import Controls from "./Controls.svelte";
@@ -16,6 +17,8 @@
 		title: string;
 		series: string;
 		season: string;
+		start: number;
+		onprogress: (position: number, duration: number) => void;
 	};
 
 	let {
@@ -28,9 +31,39 @@
 		title,
 		series,
 		season,
+		start,
+		onprogress,
 	}: Props = $props();
 
 	const player = new Player();
+	player.time = untrack(() => start);
+
+	let reported = -1;
+
+	function report() {
+		const position = Math.floor(player.time);
+		if (!Number.isFinite(player.duration) || player.duration <= 0) {
+			return;
+		}
+		if (position <= 0 || position === reported) {
+			return;
+		}
+
+		reported = position;
+		onprogress(position, player.duration);
+	}
+
+	$effect(() => {
+		if (player.paused) {
+			return;
+		}
+
+		const interval = setInterval(report, 10_000);
+		return () => {
+			clearInterval(interval);
+			report();
+		};
+	});
 
 	let audio = $derived(versions?.[0]?.audio);
 	const media = $derived(
@@ -49,7 +82,11 @@
 	);
 </script>
 
-<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
+<svelte:window
+	onkeydown={player.onkeydown}
+	onpointermove={player.wake}
+	onpagehide={report}
+/>
 <svelte:document onfullscreenchange={player.onfullscreenchange} />
 
 <div

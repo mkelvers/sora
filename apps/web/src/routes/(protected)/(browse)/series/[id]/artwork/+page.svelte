@@ -40,7 +40,6 @@
 				class="icon-button"
 				href="/series/{series.id}"
 				aria-label="Back to {series.title}"
-				title="Back"
 			>
 				<Icon name="back" />
 			</a>
@@ -53,7 +52,6 @@
 			<Button
 				class="icon-button"
 				aria-label="Use default"
-				title="Use default"
 				onclick={() => artwork.choose(series.id, null)}
 			>
 				<Icon name="restore" />

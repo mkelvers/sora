@@ -218,7 +218,6 @@
 	<Button
 		class="toggle"
 		aria-label="Search"
-		title="Search (/)"
 		aria-expanded={open}
 		onclick={toggle}
 	>

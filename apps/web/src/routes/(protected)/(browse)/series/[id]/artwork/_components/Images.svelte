@@ -44,7 +44,7 @@
 			<span class="image">
 				<img src={thumbnail} alt="" loading="lazy" decoding="async" />
 				{#if chosen}
-					<span class="check" title="Current">
+					<span class="check" role="img" aria-label="Current">
 						<Icon name="check" size="sm" />
 					</span>
 				{/if}
@@ -60,7 +60,7 @@
 							? "Specials"
 							: `Season ${image.season_number}`}</span>
 					{/if}
-					<span class="votes" title="{image.vote_count} votes">
+					<span class="votes">
 						<Icon name="heart" size="xs" />
 						{image.vote_average.toFixed(1)}
 					</span>
