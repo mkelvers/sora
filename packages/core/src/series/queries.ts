@@ -8,40 +8,11 @@ import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from 
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { findEpisodeListings } from "../playback/episodes/versions";
 import { aniKoto } from "../playback/providers/registry";
-import {
-  AnimeNotFoundError,
-  InvalidInputError,
-  SeasonNotFoundError,
-  SeriesNotFoundError,
-  UpstreamUnavailableError
-} from "../errors";
+import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
-import { second, startDeadline, timedOut } from "../time";
 import { anilistEpisodeKey, isEpisodeReleased } from "./episodes";
 import type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
-import { storedSeriesIds, storeSeries } from "./store";
-
-/**
- * How long a browse request may spend laying out titles that are not stored
- * yet. Once it runs out, the remaining titles are queued for the scheduler.
- * A layout takes a few AniList requests, 8–10 seconds while AniList runs at
- * its degraded limit of 30 a minute; the scheduler's backfill lays out
- * popular titles ahead of any search, so few searches wait at all.
- */
-const browseLayoutBudgetMs = 12 * second;
-
-/**
- * Layouts a browse request runs at once. AniList's rate limit, shared by
- * every request, bounds how fast they go, not this.
- */
-const browseLayoutConcurrency = 2;
-
-/**
- * How many of the first places of a page a browse request waits for titles
- * to be laid out in. Further down, titles not stored yet are queued rather
- * than waited for: a search should not wait on its tenth-best match.
- */
-const awaitedPlaces = 3;
+import { storedSeriesIds } from "./store";
 
 /**
  * Loads a title's page: its details, seasons, and related titles.
@@ -225,10 +196,10 @@ export async function getAdjacentEpisodes(
  * be watched in and whether each is filler. An episode neither TMDB nor
  * AniKoto lists is left out, except a film's.
  *
- * Both come from providers' episode lists. The first listing of an anime
- * no provider has been looked up for yet looks it up and stores the lists;
- * every later listing only reads them, and the scheduler keeps them current
- * as the anime airs.
+ * Both come from providers' stored episode lists, so a listing reads only
+ * the database. An anime no provider has been looked up for yet is queued
+ * for the scheduler, and its episodes' audio is `null` until it has run;
+ * the scheduler keeps the lists current as the anime airs.
  *
  * @throws {@link SeasonNotFoundError} when the season does not exist, or
  *   does not belong to the series.
@@ -307,10 +278,10 @@ async function aniKotoEpisodes(anilistIds: readonly number[]): Promise<Set<strin
  * are. Browsing without one follows AniList's page of entries, so a page can
  * hold fewer cards than `perPage` when several entries belong to one title.
  *
- * A title found for the first time is laid out on the spot while
- * {@link browseLayoutBudgetMs} lasts, and otherwise queued for the scheduler
- * and left out until it is stored, so a first search for an unknown
- * franchise can come back short.
+ * Reads only stored titles, so a search never waits on AniList or TMDB. An
+ * entry whose title is not stored yet is queued for the scheduler and left
+ * out until it is, with `isPreparing` set so the client can ask again; a
+ * first search for an unknown franchise comes back short.
  *
  * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
  * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed.
@@ -329,7 +300,7 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
     // One series more than the page holds tells whether another page follows.
     const { seriesIds, isPreparing } = await seriesIdsFor(ranked, {
       wantedSeries: page * perPage + 1,
-      awaitedFrom: (page - 1) * perPage
+      pageStart: (page - 1) * perPage
     });
     const ordered = seriesInOrder(ranked, seriesIds);
     return {
@@ -345,7 +316,7 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
   const anilistIds = found.items.map((anime) => anime.id);
   const { seriesIds, isPreparing } = await seriesIdsFor(anilistIds, {
     wantedSeries: Number.POSITIVE_INFINITY,
-    awaitedFrom: 0
+    pageStart: 0
   });
   return {
     items: await cardsOf(seriesInOrder(anilistIds, seriesIds)),
@@ -369,18 +340,19 @@ async function cardsOf(seriesIds: readonly string[]) {
 }
 
 /**
- * Finds the series of each entry, in the order the entries come, until the
- * first `wantedSeries` series are known.
- *
- * Entries not stored yet among the {@link awaitedPlaces} places from
- * `awaitedFrom` on, the top of the page being asked for, are laid out while
- * the request waits, {@link browseLayoutConcurrency} at a time, until the
- * budget runs out. Each layout stores a whole franchise, so entries of a
- * franchise already laid out are looked up rather than laid out again.
- *
- * Every other entry not stored yet is queued for the scheduler, and a layout
- * still running when the budget runs out carries on in the background, so a
- * later request finds their series stored.
+ * How many places, from the top of the page asked for, a viewer is taken to
+ * be waiting on: entries there not stored yet are laid out ahead of anything
+ * else, and those further down after airing checks. Suggestions show six,
+ * and a query typed letter by letter should not queue every faint match of
+ * each prefix ahead of new episodes.
+ */
+const waitedPlaces = 6;
+
+/**
+ * Finds the stored series of each entry, and queues for the scheduler the
+ * entries among the first `window.wantedSeries` places whose series is not
+ * stored yet. A stored series takes one place, and so does each entry not
+ * stored yet, since its series is not known.
  *
  * @returns Each stored entry's series, and whether entries the page wanted
  *   are still being prepared.
@@ -389,128 +361,40 @@ async function seriesIdsFor(
   anilistIds: readonly number[],
   window: {
     wantedSeries: number;
-    awaitedFrom: number;
+    pageStart: number;
   }
 ) {
   const found = await storedSeriesIds(anilistIds);
-  const attempted = new Set<number>();
-  /** Entries whose layout finished without a series, such as one AniList no longer has. */
-  const unplaceable = new Set<number>();
-  const deadline = startDeadline(browseLayoutBudgetMs);
-  let isOutOfTime = false;
-  void deadline.reached.then(() => {
-    isOutOfTime = true;
-  });
-
-  /**
-   * The entries not stored yet among the wanted places, each with its place:
-   * a stored series takes one place, and so does each entry not stored yet,
-   * since its series is not known.
-   */
-  const unresolved = () => {
-    const seen = new Set<string>();
-    const missing: {
-      anilistId: number;
-      place: number;
-    }[] = [];
-    for (const anilistId of anilistIds) {
-      const place = seen.size + missing.length;
-      if (place >= window.wantedSeries) {
-        break;
-      }
-
-      const seriesId = found.get(anilistId);
-      if (seriesId) {
-        seen.add(seriesId);
-      } else {
-        missing.push({
-          anilistId,
-          place
-        });
-      }
+  const seen = new Set<string>();
+  const missing: {
+    anilistId: number;
+    place: number;
+  }[] = [];
+  for (const anilistId of anilistIds) {
+    const place = seen.size + missing.length;
+    if (place >= window.wantedSeries) {
+      break;
     }
 
-    return missing;
-  };
-
-  const isAwaited = (place: number) => place >= window.awaitedFrom && place < window.awaitedFrom + awaitedPlaces;
-  const layOutNext = async () => {
-    for (;;) {
-      const next = unresolved().find(({ anilistId, place }) => isAwaited(place) && !attempted.has(anilistId));
-      if (next === undefined || isOutOfTime) {
-        return;
-      }
-
-      attempted.add(next.anilistId);
-      const layout = layOutSeries(next.anilistId);
-      const isStored = await Promise.race([layout, deadline.reached]);
-      if (isStored === timedOut) {
-        layout.catch((error: unknown) => {
-          console.error(`Laying out the series of anime ${next.anilistId} failed`, error);
-        });
-        return;
-      }
-
-      if (!isStored) {
-        unplaceable.add(next.anilistId);
-        continue;
-      }
-
-      for (const [id, seriesId] of await storedSeriesIds(anilistIds.filter((id) => !found.has(id)))) {
-        found.set(id, seriesId);
-      }
+    const seriesId = found.get(anilistId);
+    if (seriesId) {
+      seen.add(seriesId);
+    } else {
+      missing.push({
+        anilistId,
+        place
+      });
     }
-  };
-
-  await Promise.all(Array.from({ length: browseLayoutConcurrency }, layOutNext));
-  deadline.clear();
-
-  const stillMissing = unresolved();
-  for (const { anilistId } of stillMissing.filter(({ anilistId }) => !attempted.has(anilistId))) {
-    await scheduleSeriesStore(anilistId, "current");
   }
 
+  const isWaitedOn = (place: number) => place >= window.pageStart && place < window.pageStart + waitedPlaces;
+  await Promise.all(
+    missing.map(({ anilistId, place }) => scheduleSeriesStore(anilistId, isWaitedOn(place) ? "waiting" : "current"))
+  );
   return {
     seriesIds: found,
-    isPreparing: stillMissing.some(({ anilistId }) => !unplaceable.has(anilistId))
+    isPreparing: missing.length > 0
   };
-}
-
-/**
- * Layouts in flight, keyed by AniList ID, so a search repeated while one is
- * running waits on it instead of starting another.
- */
-const layoutsInFlight = new Map<number, Promise<boolean>>();
-
-/**
- * Stores the series of an entry, queueing it for the scheduler when AniList
- * or TMDB fail. Resolves whether the series was stored.
- */
-function layOutSeries(anilistId: number): Promise<boolean> {
-  const running = layoutsInFlight.get(anilistId);
-  if (running) {
-    return running;
-  }
-
-  const layout = storeSeries(anilistId)
-    .then(
-      () => true,
-      async (error: unknown) => {
-        if (error instanceof UpstreamUnavailableError) {
-          await scheduleSeriesStore(anilistId, "current");
-          return false;
-        }
-
-        if (error instanceof AnimeNotFoundError) {
-          return false;
-        }
-
-        throw error;
-      }
-    )
-    .finally(() => layoutsInFlight.delete(anilistId));
-  layoutsInFlight.set(anilistId, layout);
-  return layout;
 }
 
 /** A series' seasons in display order, or only `seasonId` among them when given. */
