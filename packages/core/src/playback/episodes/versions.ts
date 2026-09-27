@@ -72,14 +72,19 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
 }
 
 /**
- * Lists the versions of one AniList episode that providers offer.
+ * Lists the versions of one AniList episode that providers offer, for
+ * playing it.
  *
- * Reads the providers' stored episode lists. Only an anime no provider has
- * been looked up for yet is looked up on the spot, once; after that the
- * scheduler keeps its lists current.
+ * Reads the providers' stored episode lists. Someone is waiting to watch
+ * the episode, so an anime no provider has been looked up for yet is looked
+ * up on the spot, once; after that the scheduler keeps its lists current.
  */
 export async function getEpisodeVersions(episode: Pick<LocatedEpisode, "anilistId" | "anilistEpisode">): Promise<EpisodeVersion[]> {
-  const listed = (await readAnimeListings([episode.anilistId])).get(episode.anilistId);
+  const listed = (
+    await readAnimeListings([episode.anilistId], {
+      lookUpUnknown: true
+    })
+  ).get(episode.anilistId);
   return versionsOffered(listed?.listings.filter(({ unit }) => unit.number === episode.anilistEpisode) ?? []);
 }
 
@@ -102,12 +107,13 @@ export interface EpisodeListing {
 
 /**
  * Lists the languages each AniList episode can be watched in, and whether it
- * is filler, from the providers' stored episode lists. Only an anime no
- * provider has been looked up for yet is looked up on the spot, once.
+ * is filler, from the providers' stored episode lists.
  *
- * An episode none of the looked-up providers offers while others are not
- * looked up yet is unknown rather than unwatchable; the scheduler looks
- * those up.
+ * Reads only the database, so listing episodes never waits on a provider.
+ * An anime no provider has been looked up for yet is queued for the
+ * scheduler, and its episodes are unknown until it has run. So is an episode
+ * none of the looked-up providers offers while others are not looked up yet:
+ * it is unknown rather than unwatchable.
  *
  * @returns Listings keyed by {@link anilistEpisodeKey}, with `null` fields
  *   for an episode that is not known yet.
@@ -118,7 +124,12 @@ export async function findEpisodeListings(
     episode: number;
   }[]
 ): Promise<Map<string, EpisodeListing>> {
-  const listingsById = await readAnimeListings(episodes.map((episode) => episode.anilistId));
+  const listingsById = await readAnimeListings(
+    episodes.map((episode) => episode.anilistId),
+    {
+      lookUpUnknown: false
+    }
+  );
 
   const found = new Map<string, EpisodeListing>();
   for (const { anilistId, episode } of episodes) {
@@ -146,18 +157,25 @@ interface AnimeListings {
  * The episode lists of each anime from the providers that list languages
  * truthfully.
  *
- * An anime no provider has been looked up for yet is looked up on the spot,
- * once; its lists are stored, and later calls only read them. A provider
- * missing after that, such as one that failed, is left to the scheduler,
- * whose lookup is queued to run first.
+ * With `lookUpUnknown`, an anime no provider has been looked up for yet is
+ * looked up on the spot, once; its lists are stored, and later calls only
+ * read them. Every provider still missing, such as one that failed, is left
+ * to the scheduler, whose lookup is queued to run first.
  */
-async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<number, AnimeListings>> {
+async function readAnimeListings(
+  anilistIds: readonly number[],
+  options: {
+    lookUpUnknown: boolean;
+  }
+): Promise<Map<number, AnimeListings>> {
   const sources = streamProviders.filter((source) => source.listsLanguages && source.locale === servedLocale);
   const ids = [...new Set(anilistIds)];
   const stored = await getStoredUnits(ids);
-  const neverLookedUp = ids.filter((anilistId) => !stored.some((entry) => entry.anilistId === anilistId));
-  for (const found of await Promise.all(neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources)))) {
-    stored.push(...found);
+  if (options.lookUpUnknown) {
+    const neverLookedUp = ids.filter((anilistId) => !stored.some((entry) => entry.anilistId === anilistId));
+    for (const found of await Promise.all(neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources)))) {
+      stored.push(...found);
+    }
   }
 
   const byId = new Map<number, AnimeListings>();
@@ -166,11 +184,6 @@ async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<num
       source,
       units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units
     }));
-    const pending = found.some(({ units }) => units === undefined);
-    if (pending) {
-      await scheduleEpisodeLookup(anilistId, "current");
-    }
-
     byId.set(anilistId, {
       listings: found.flatMap(({ source, units }) =>
         (units ?? []).map((unit) => ({
@@ -178,10 +191,13 @@ async function readAnimeListings(anilistIds: readonly number[]): Promise<Map<num
           unit
         }))
       ),
-      pending
+      pending: found.some(({ units }) => units === undefined)
     });
   }
 
+  await Promise.all(
+    [...byId].flatMap(([anilistId, listed]) => (listed.pending ? [scheduleEpisodeLookup(anilistId, "waiting")] : []))
+  );
   return byId;
 }
 

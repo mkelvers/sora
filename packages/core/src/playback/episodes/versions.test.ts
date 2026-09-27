@@ -295,6 +295,53 @@ describe("getEpisodeVersions", () => {
     expect(queuedLookups).toEqual([154587]);
   });
 
+  test("looks an anime no provider was looked up for up on the spot", async () => {
+    useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])]), notLookedUp("allmanga", "en", [unit(3, ["dub"])])]);
+
+    expect(await getEpisodeVersions({
+      anilistId: 154587,
+      anilistEpisode: 3
+    })).toEqual([
+      {
+        language: "dub",
+        locale: "en"
+      },
+      {
+        language: "sub",
+        locale: "en"
+      }
+    ]);
+    expect(asks).toBe(2);
+    expect(queuedLookups).toEqual([]);
+  });
+
+  test("leaves providers that fail the first lookup to the scheduler", async () => {
+    useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])]), notLookedUp("allmanga", "en")]);
+
+    expect(await getEpisodeVersions({
+      anilistId: 154587,
+      anilistEpisode: 3
+    })).toEqual([
+      {
+        language: "sub",
+        locale: "en"
+      }
+    ]);
+    expect(queuedLookups).toEqual([154587]);
+  });
+
+  test("shares one first lookup between concurrent plays", async () => {
+    useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])])]);
+
+    const episode = {
+      anilistId: 154587,
+      anilistEpisode: 3
+    };
+    await Promise.all([getEpisodeVersions(episode), getEpisodeVersions(episode)]);
+
+    expect(asks).toBe(1);
+  });
+
   test("returns nothing when no provider lists the episode", async () => {
     useProviders([provider("anikoto", "en", [unit(1, ["sub", "dub"])])]);
 
@@ -387,18 +434,11 @@ describe("findEpisodeLanguages", () => {
     expect(queuedLookups).toEqual([2]);
   });
 
-  test("looks an anime no provider was looked up for up on the spot", async () => {
+  test("asks no provider for an anime none was looked up for, and queues its lookup", async () => {
     useProviders([notLookedUp("anikoto", "en", [unit(1, ["sub"])]), notLookedUp("allmanga", "en", [unit(1, ["dub"])])]);
 
-    expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["dub", "sub"]);
-    expect(asks).toBe(2);
-    expect(queuedLookups).toEqual([]);
-  });
-
-  test("leaves providers that fail the first lookup to the scheduler", async () => {
-    useProviders([notLookedUp("anikoto", "en", [unit(1, ["sub"])]), notLookedUp("allmanga", "en")]);
-
-    expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
+    expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toBeNull();
+    expect(asks).toBe(0);
     expect(queuedLookups).toEqual([1]);
   });
 
@@ -408,14 +448,6 @@ describe("findEpisodeLanguages", () => {
     expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
     expect(asks).toBe(0);
     expect(queuedLookups).toEqual([1]);
-  });
-
-  test("shares one first lookup between concurrent listings", async () => {
-    useProviders([notLookedUp("anikoto", "en", [unit(1, ["sub"])])]);
-
-    await Promise.all([findEpisodeLanguages(firstEpisode), findEpisodeLanguages(firstEpisode)]);
-
-    expect(asks).toBe(1);
   });
 
   test("uses the providers looked up so far when another has not been", async () => {
