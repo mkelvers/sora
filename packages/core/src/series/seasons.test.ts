@@ -128,7 +128,6 @@ describe("layoutShowSeasons", () => {
     expect(seasons.filter((season) => season.kind === "season")).toHaveLength(2);
     expect(seasons[1]?.anime.map((card) => card.id)).toEqual([
       2,
-      5,
       3
     ]);
   });
@@ -138,18 +137,24 @@ describe("layoutShowSeasons", () => {
       1,
       2,
       3,
-      4,
-      5
+      4
     ]);
   });
 
-  test("places one-off AniList specials by air date inside the regular seasons", () => {
+  test("gathers one-off AniList specials released during a season's run into a Specials season", () => {
     expect(outline(seasons[1]!)).toEqual([
       "2#1",
       "2#2",
-      "5#1",
       "3#1",
       "3#2"
+    ]);
+    expect(seasons.at(-1)).toMatchObject({
+      kind: "ova",
+      title: "Specials",
+      inWatchOrder: false
+    });
+    expect(outline(seasons.at(-1)!)).toEqual([
+      "5#1"
     ]);
   });
 

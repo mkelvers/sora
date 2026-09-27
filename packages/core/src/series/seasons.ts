@@ -16,10 +16,12 @@
  *   seasons).
  * - Other multi-episode OVAs, and recaps of any length, become extra OVA
  *   seasons after the watch order.
- * - One-off AniList specials that aired during a season's run are placed
- *   inside it by air date, after the last episode that aired before them.
- *   The rest, such as specials released between seasons, are gathered into
- *   one extra "Specials" season.
+ * - One-off AniList specials are gathered into one extra "Specials" season,
+ *   in air-date order, never placed inside a regular season. TMDB and
+ *   AniKoto both file them apart from the season's episodes, and one that
+ *   was released during a season's run, such as an OVA bundled with a manga
+ *   volume, did not air in its slot; numbering it in would shift every
+ *   later episode of the season.
  * - Specials and extras that only TMDB lists are left out. No provider can
  *   stream them, and TMDB often lists them before, or without, any evidence
  *   that they aired; numbering them in would shift every later episode.
@@ -174,7 +176,15 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
     )
   );
 
-  const specials = input.isShorts ? [] : placeOneOffs(groups, oneOffRows(oneOffs, episodes));
+  let specials = oneOffRows(oneOffs, episodes);
+  // A show of one-off specials alone lists them as its only season.
+  if (groups.length === 0 && specials.length > 0) {
+    groups.push({
+      key: "one-offs",
+      rows: specials
+    });
+    specials = [];
+  }
 
   const watchOrder = placeInterludes(
     groups.map((group) => ({
@@ -408,49 +418,6 @@ function oneOffRows(oneOffs: readonly SeasonMember[], episodes: ReadonlyMap<stri
       (left.tmdb?.air_date ?? "9999").localeCompare(right.tmdb?.air_date ?? "9999") ||
       (left.tmdb?.episode_number ?? 0) - (right.tmdb?.episode_number ?? 0)
     );
-}
-
-/**
- * Inserts each one-off special into the season it aired during, right after
- * the last episode that aired on or before it. A special belongs to a
- * season only when it aired within the season's run, with an episode of the
- * season on or before it and another on or after it; the cours of a season
- * count as one run. Specials that aired between seasons, before the first,
- * after the last, or on no known date belong to no season and are returned,
- * in air-date order.
- */
-function placeOneOffs(groups: Group[], oneOffs: readonly Row[]): Row[] {
-  if (groups.length === 0) {
-    if (oneOffs.length > 0) {
-      groups.push({
-        key: "one-offs",
-        rows: [...oneOffs]
-      });
-    }
-
-    return [];
-  }
-
-  const unplaced: Row[] = [];
-  for (const oneOff of oneOffs) {
-    const airDate = oneOff.tmdb?.air_date ?? null;
-    const group = airDate === null
-      ? undefined
-      : groups.findLast((candidate) =>
-          candidate.rows.some((row) => row.tmdb?.air_date && row.tmdb.air_date <= airDate) &&
-          candidate.rows.some((row) => row.tmdb?.air_date && row.tmdb.air_date >= airDate)
-        );
-
-    if (!group || airDate === null) {
-      unplaced.push(oneOff);
-      continue;
-    }
-
-    const index = group.rows.findLastIndex((row) => row.tmdb?.air_date && row.tmdb.air_date <= airDate);
-    group.rows.splice(index + 1, 0, oneOff);
-  }
-
-  return unplaced;
 }
 
 /** Names that say nothing beyond "this is an OVA" or "this is a film". */
