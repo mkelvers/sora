@@ -11,6 +11,7 @@ import {
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
 import { lookUpEpisodes } from "./jobs/episodes";
+import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { backfillSeries, backfillSeriesTask, syncSearchIndexJob, syncSearchIndexTask } from "./jobs/search";
 import {
@@ -20,7 +21,14 @@ import {
   refreshEpisodeDetailsTask,
   storeSeriesJob
 } from "./jobs/series";
-import { lookUpEpisodesNowTask, lookUpEpisodesTask, storeSeriesNowTask, storeSeriesTask, trackAiringTask } from "./queue";
+import {
+  lookUpEpisodesNowTask,
+  lookUpEpisodesTask,
+  pollAniKotoTask,
+  storeSeriesNowTask,
+  storeSeriesTask,
+  trackAiringTask
+} from "./queue";
 
 /** The running scheduler. */
 export interface Scheduler {
@@ -37,7 +45,8 @@ const waitedOnTasks: Record<string, Task> = {
 
 /**
  * Starts the background scheduler, which follows every airing anime, stores
- * each new episode once a provider carries it, looks stored titles up on
+ * each new episode once a provider carries it, watches AniKoto for new
+ * episodes every minute, looks stored titles up on
  * providers, keeps stored series current as seasons air and new ones are
  * announced, mirrors the provider catalogues titles are matched against,
  * keeps the search index current while storing the most popular titles ahead
@@ -59,6 +68,8 @@ export async function startScheduler(): Promise<Scheduler> {
     taskList: prioritized({
       [trackAiringTask]: trackAiring,
       [reviveAiringChecksTask]: reviveAiringChecks,
+      [pollAniKotoTask]: pollAniKoto,
+      [watchAniKotoReleasesTask]: watchAniKotoReleases,
       [storeSeriesTask]: storeSeriesJob,
       [lookUpEpisodesTask]: lookUpEpisodes,
       ...waitedOnTasks,
@@ -73,8 +84,9 @@ export async function startScheduler(): Promise<Scheduler> {
     }),
     crontab: [
       `0 * * * * ${reviveAiringChecksTask}`,
+      `* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
       `30 4 * * * ${discoverSeriesEntriesTask}`,
-      `0 6 * * * ${refreshEpisodeDetailsTask}`,
+      `0 */6 * * * ${refreshEpisodeDetailsTask}`,
       // Catalogue upkeep runs ahead of queued layouts, which can number in the
       // hundreds; the first run after a start catches up on what changed.
       `15 * * * * ${syncProviderCatalogsTask} ?id=provider-catalogs-changes&fill=1h&priority=-1`,
