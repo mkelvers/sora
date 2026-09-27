@@ -107,7 +107,7 @@
 
 <section>
 	<figure
-		class="series-hero relative z-30 grid h-[calc(100dvh-10rem)] max-h-192 min-h-120 grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150 lg:max-h-300 lg:min-h-175"
+		class="series-hero relative z-30 grid h-[calc(100dvh-10rem)] max-h-192 lg:h-[calc(100dvh-17rem)] min-h-120 grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150 lg:max-h-300 lg:min-h-175"
 	>
 		<h1 class="sr-only">{series.title}</h1>
 
@@ -212,14 +212,14 @@
 			</Dropdown>
 		</div>
 
-		<div class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pb-10 sm:px-10 lg:px-16 lg:pb-20">
+		<div class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pb-10 sm:px-10 lg:px-16 lg:pb-9">
 			<div class="w-fit">
 				{#if series.logo_url}
 					<img
 						src={tmdbImage(series.logo_url, 'w500')}
 						alt=""
 						aria-hidden="true"
-						class="h-[clamp(5rem,6.4vw,8rem)] max-w-[65vw] object-contain object-left sm:max-w-md lg:max-w-lg 2xl:max-w-2xl"
+						class="h-[clamp(5rem,8vw,11.5rem)] max-w-[65vw] object-contain object-left sm:max-w-md lg:max-w-[33rem]"
 					/>
 				{:else}
 					<p aria-hidden="true" class="max-w-3xl text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl">
@@ -229,10 +229,10 @@
 			</div>
 
 			{#if next}
-				<p class="mt-7 text-base font-semibold text-foreground/80 sm:mt-8 sm:text-lg">{next}</p>
+				<p class="mt-7 text-base text-foreground sm:mt-8">{next}</p>
 			{/if}
 
-			<p class={cn('flex flex-wrap items-center gap-y-1 text-sm text-muted lg:text-base', next ? 'mt-3' : 'mt-8 sm:mt-10 lg:mt-11')}>
+			<p class={cn('flex flex-wrap items-center gap-y-1 text-sm text-muted', next ? 'mt-5 lg:mt-7' : 'mt-8 sm:mt-10 lg:mt-11')}>
 				{#if series.audio.length}
 					<span class="metadata-tag">
 						{[series.audio.includes('sub') && 'Sub', series.audio.includes('dub') && 'Dub']
@@ -249,11 +249,11 @@
 			</p>
 
 			{#if series.score !== null}
-				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:text-base lg:mt-3.5 lg:gap-2.5">
-					<span class="flex items-center gap-0.5 text-subtle" aria-hidden="true">
+				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5">
+					<span class="flex items-center gap-1 text-subtle" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
 							<svg
-								class={cn('size-6 shrink-0 fill-current sm:size-7', index < Math.round(series.score / 20) && 'text-foreground')}
+								class={cn('size-6 shrink-0 fill-current', index < Math.round(series.score / 20) && 'text-foreground')}
 								viewBox="0 0 24 24"
 							>
 								<path d="m12 2 2.85 6.59L22 9.27 16.55 14l1.63 7L12 17.27 5.82 21l1.63-7L2 9.27l7.15-.68z"></path>
@@ -261,7 +261,7 @@
 						{/each}
 					</span>
 					<span class="hidden text-border-strong sm:inline" aria-hidden="true">|</span>
-					<strong>Average rating: {(series.score / 20).toFixed(1)} of 5</strong>
+					<span class="font-medium">Average rating: <strong>{(series.score / 20).toFixed(1)} of 5</strong></span>
 				</div>
 			{/if}
 
