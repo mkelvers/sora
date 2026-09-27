@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Series } from "@sora/sdk";
-	import { formatFuzzyDate } from "$lib/utils";
 
 	type Props = {
 		series: Series;
@@ -20,9 +19,18 @@
 			.reduce((total, season) => total + season.episode_count, 0);
 
 		if (series.start_date) {
+			const parts = series.start_date.split("-").length;
 			stats.push({
 				kind: "released",
-				value: formatFuzzyDate(series.start_date),
+				value:
+					parts === 1
+						? series.start_date
+						: new Date(series.start_date).toLocaleDateString("da-DK", {
+								day: parts === 3 ? "numeric" : undefined,
+								month: "long",
+								year: "numeric",
+								timeZone: "UTC",
+							}),
 				label: "Released",
 			});
 		}

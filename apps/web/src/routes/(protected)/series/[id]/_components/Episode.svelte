@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SeasonEpisode } from "@sora/sdk";
-	import { formatDate, formatTime, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { tmdbImage, tmdbSrcset } from "$lib/utils";
 
 	type Props = {
 		seriesId: string;
@@ -14,9 +14,12 @@
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const ends = $derived(
 		episode.runtime_minutes
-			? formatTime(
-					new Date(now.getTime() + episode.runtime_minutes * 60_000),
-				)
+			? new Date(
+					now.getTime() + episode.runtime_minutes * 60_000,
+				).toLocaleTimeString("da-DK", {
+					hour: "2-digit",
+					minute: "2-digit",
+				})
 			: undefined,
 	);
 </script>
@@ -55,7 +58,14 @@
 					<span>Ends at {ends}</span>
 				{/if}
 				{#if episode.air_date}
-					<span>{formatDate(episode.air_date)}</span>
+					<span
+						>{new Date(episode.air_date).toLocaleDateString("da-DK", {
+							day: "numeric",
+							month: "long",
+							year: "numeric",
+							timeZone: "UTC",
+						})}</span
+					>
 				{/if}
 				{#each episode.audio ?? [] as audio (audio)}
 					<span class="badge">{audio}</span>

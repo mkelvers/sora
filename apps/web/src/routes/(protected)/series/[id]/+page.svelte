@@ -5,7 +5,7 @@
 	import Related from "./_components/Related.svelte";
 	import Seasons from "./_components/Seasons.svelte";
 	import Stats from "./_components/Stats.svelte";
-	import { formatDay, formatTime, tmdbSrcset } from "$lib/utils";
+	import { tmdbSrcset } from "$lib/utils";
 	import { getSeries } from "./series.remote";
 	import type { PageProps } from "./$types";
 
@@ -30,7 +30,13 @@
 			episode: season
 				? `${season.title}, episode ${number}`
 				: `Episode ${number}`,
-			when: `${formatDay(airing)} at ${formatTime(airing)}`,
+			when: `${airing.toLocaleDateString("da-DK", {
+				day: "numeric",
+				month: "long",
+			})} at ${airing.toLocaleTimeString("da-DK", {
+				hour: "2-digit",
+				minute: "2-digit",
+			})}`,
 		};
 	});
 </script>
