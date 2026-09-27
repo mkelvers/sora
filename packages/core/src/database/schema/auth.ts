@@ -17,7 +17,7 @@ export const authUser = pgTable("auth_user", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
-  updatedAt: timestamptz("updated_at").notNull().defaultNow()
+  updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 });
 
 /** A signed-in device or browser. The token is what clients present. */
@@ -28,14 +28,14 @@ export const authSession = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => authUser.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     token: text("token").notNull().unique(),
     expiresAt: timestamptz("expires_at").notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow()
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (table) => [index("auth_session_user_idx").on(table.userId)]
 );
@@ -48,7 +48,7 @@ export const authAccount = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => authUser.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
@@ -60,7 +60,7 @@ export const authAccount = pgTable(
     scope: text("scope"),
     password: text("password"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow()
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (table) => [index("auth_account_user_idx").on(table.userId)]
 );
@@ -74,7 +74,7 @@ export const authVerification = pgTable(
     value: text("value").notNull(),
     expiresAt: timestamptz("expires_at").notNull(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow()
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (table) => [index("auth_verification_identifier_idx").on(table.identifier)]
 );
@@ -91,14 +91,14 @@ export const profile = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => authUser.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     name: text("name").notNull(),
     /** A CSS color for the profile's tile, such as `#4f7cff`. */
     color: text("color").notNull(),
     /** The seed of the profile's DiceBear avatar; new profiles start with their own ID. */
     avatar: text("avatar").notNull(),
-    createdAt: timestamptz("created_at").notNull().defaultNow()
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (table) => [index("profile_user_idx").on(table.userId, table.createdAt)]
 );

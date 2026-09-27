@@ -83,7 +83,7 @@ export function continuePoint(episodes: readonly TitleEpisode[], progress: reado
       seasonId: latest.seasonId,
       episode: latest.episode,
       positionSeconds: latest.positionSeconds,
-      durationSeconds: latest.durationSeconds
+      durationSeconds: latest.durationSeconds,
     };
   }
 
@@ -102,7 +102,7 @@ export function continuePoint(episodes: readonly TitleEpisode[], progress: reado
       seasonId: next.seasonId,
       episode: next.number,
       positionSeconds: started.positionSeconds,
-      durationSeconds: started.durationSeconds
+      durationSeconds: started.durationSeconds,
     };
   }
 
@@ -111,7 +111,7 @@ export function continuePoint(episodes: readonly TitleEpisode[], progress: reado
         seasonId: next.seasonId,
         episode: next.number,
         positionSeconds: 0,
-        durationSeconds: null
+        durationSeconds: null,
       }
     : null;
 }

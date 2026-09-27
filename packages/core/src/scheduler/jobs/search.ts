@@ -9,7 +9,7 @@ import { scheduleSeriesStore } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
   .object({
-    full: z.boolean().optional()
+    full: z.boolean().optional(),
   })
   .nullish();
 
@@ -28,8 +28,11 @@ export const syncSearchIndexTask = "sync-search-index";
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
   const payload = SyncSearchIndexPayloadSchema.parse(rawPayload);
-  const { pages, stored } = await syncSearchIndex({
-    full: payload?.full === true
+  const {
+    pages,
+    stored,
+  } = await syncSearchIndex({
+    full: payload?.full === true,
   });
   helpers.logger.info(`Indexed ${stored} anime from ${pages} AniList pages`);
 };
@@ -49,7 +52,7 @@ export const backfillSeriesTask = "backfill-series";
 export const backfillSeries: Task = async (_payload, helpers) => {
   const rows = await db
     .select({
-      anilistId: animeSearch.anilistId
+      anilistId: animeSearch.anilistId,
     })
     .from(animeSearch)
     .where(

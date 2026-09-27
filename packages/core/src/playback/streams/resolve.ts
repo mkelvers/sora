@@ -84,7 +84,7 @@ export const PlaybackRequestSchema = z.object({
   seriesId: z.string().min(1),
   seasonId: z.string().min(1),
   /** Position within the season, from 1. */
-  episode: z.number().int().positive()
+  episode: z.number().int().positive(),
 });
 
 export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
@@ -107,11 +107,11 @@ export interface PlaybackOptions {
 const alwaysTried: readonly EpisodeVersion[] = [
   {
     language: "dub",
-    locale: servedLocale
+    locale: servedLocale,
   },
   {
     language: "sub",
-    locale: servedLocale
+    locale: servedLocale,
   }
 ];
 
@@ -120,7 +120,7 @@ const qualityRank: Record<StreamQuality, number> = {
   "1080p": 1,
   "720p": 2,
   "480p": 3,
-  "360p": 4
+  "360p": 4,
 };
 
 /**
@@ -150,11 +150,15 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
   const parsed = PlaybackRequestSchema.safeParse(request);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid playback request", {
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
-  const { seriesId, seasonId, episode } = parsed.data;
+  const {
+    seriesId,
+    seasonId,
+    episode,
+  } = parsed.data;
   // Taken before any token is made, so every token outlives it.
   const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
   const located = await locateEpisode(seasonId, episode, seriesId);
@@ -193,7 +197,7 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
       seasonId,
       episode,
       expiresAt,
-      media
+      media,
     };
   }
 
@@ -231,11 +235,17 @@ async function resolveVersion(
   const fail = (provider: StreamProvider, reason: string) =>
     attempts.push({
       provider: provider.id,
-      reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
+      reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`,
     });
-  let hardsubbed = null as { version: PlaybackMedia; videos: ProviderVideo[] } | null;
+  let hardsubbed = null as {
+    version: PlaybackMedia;
+    videos: ProviderVideo[];
+  } | null;
 
-  const candidates: { provider: StreamProvider; unit: ProviderUnit }[] = [];
+  const candidates: {
+    provider: StreamProvider;
+    unit: ProviderUnit;
+  }[] = [];
   for (const provider of streamProviders) {
     if (provider.locale !== servedLocale || (locale !== null && provider.locale !== locale)) {
       continue;
@@ -244,7 +254,10 @@ async function resolveVersion(
     try {
       const unit = (await unitsOf(provider)).find((candidate) => candidate.number === anilistEpisode);
       if (unit) {
-        candidates.push({ provider, unit });
+        candidates.push({
+          provider,
+          unit,
+        });
       } else {
         fail(provider, "Episode not listed");
       }
@@ -275,7 +288,7 @@ async function resolveVersion(
         // Providers hand a dub the sub's subtitles timed to the sub's encode;
         // resolvePlayback retimes them to the dub's once both are resolved.
         subtitles: language === "sub" ? withDefault(media.subtitles) : [],
-        skipSegments: stream.skipSegments
+        skipSegments: stream.skipSegments,
       };
 
       // A sub without English tracks has them burned in. Later providers may
@@ -283,11 +296,17 @@ async function resolveVersion(
       // first, and this one is kept to fall back on.
       if (version.hardsub) {
         fail(provider, "Subtitles are burned in");
-        hardsubbed ??= { version, videos: stream.videos };
+        hardsubbed ??= {
+          version,
+          videos: stream.videos,
+        };
         return null;
       }
 
-      return { version, videos: stream.videos };
+      return {
+        version,
+        videos: stream.videos,
+      };
     } catch (cause) {
       fail(provider, cause instanceof Error ? cause.message : "Provider failed");
       return null;
@@ -300,7 +319,11 @@ async function resolveVersion(
   for (const { provider, unit } of candidates.filter(lists)) {
     const found = await attempt(provider, unit);
     if (found) {
-      return { ...found, listed, attempts };
+      return {
+        ...found,
+        listed,
+        attempts,
+      };
     }
   }
 
@@ -312,14 +335,18 @@ async function resolveVersion(
     (result) => result !== null
   );
   if (found) {
-    return { ...found, listed, attempts };
+    return {
+      ...found,
+      listed,
+      attempts,
+    };
   }
 
   return {
     ...hardsubbed,
     version: hardsubbed?.version ?? null,
     listed,
-    attempts
+    attempts,
   };
 }
 
@@ -358,7 +385,7 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
     .map((video) => ({
       url: streamUrl(createStreamToken(video.url, video.format === "hls" ? "playlist" : "file", video.headers)),
       format: video.format,
-      quality: video.quality
+      quality: video.quality,
     }));
 
   // Providers attach the same subtitle tracks to every quality variant.
@@ -368,12 +395,15 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
       if (!subtitles.has(track.url)) {
         subtitles.set(track.url, {
           url: streamUrl(
-            createStreamToken(track.url, "subtitle", video.headers, { mirrors: mirrorsFor(track.url, video.url), shifts })
+            createStreamToken(track.url, "subtitle", video.headers, {
+              mirrors: mirrorsFor(track.url, video.url),
+              shifts,
+            })
           ),
           language: track.language,
           label: languageName(track.language) ?? track.label,
           format: track.format,
-          default: false
+          default: false,
         });
       }
     }
@@ -383,13 +413,16 @@ function toPlaybackMedia(videos: ProviderVideo[], streamUrl: (token: string) => 
     sources,
     subtitles: [...subtitles.values()].sort(
       (left, right) => Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) || left.label.localeCompare(right.label)
-    )
+    ),
   };
 }
 
 /** Marks the English track, which sorts first, as the one a player shows from the start. */
 function withDefault(subtitles: PlaybackSubtitle[]) {
-  return subtitles.map((track, index) => ({ ...track, default: index === 0 && isServedSubtitle(track) }));
+  return subtitles.map((track, index) => ({
+    ...track,
+    default: index === 0 && isServedSubtitle(track),
+  }));
 }
 
 /**
@@ -399,7 +432,10 @@ function withDefault(subtitles: PlaybackSubtitle[]) {
  */
 async function englishSubtitlesLoad(videos: ProviderVideo[]) {
   const english = videos.flatMap((video) =>
-    video.subtitles.filter(isServedSubtitle).map((track) => ({ track, video }))
+    video.subtitles.filter(isServedSubtitle).map((track) => ({
+      track,
+      video,
+    }))
   );
   if (english.length === 0) {
     return true;
@@ -414,10 +450,12 @@ async function englishSubtitlesLoad(videos: ProviderVideo[]) {
 const audioLabels: Record<ContentLanguage, string> = {
   dub: "Dub",
   sub: "Sub",
-  raw: "Raw"
+  raw: "Raw",
 };
 
-const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+const languageNames = new Intl.DisplayNames(["en"], {
+  type: "language",
+});
 
 /**
  * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in

@@ -38,7 +38,10 @@ describe("alignTimelines", () => {
     const sub = boundaries(3);
     const dub = sub.map((time, index) => (index === 100 || index === 101 ? time + 57 : time));
 
-    expect(alignTimelines(sub, dub)).toEqual([{ from: 0, offset: 0 }]);
+    expect(alignTimelines(sub, dub)).toEqual([{
+      from: 0,
+      offset: 0,
+    }]);
   });
 
   test("refuses encodes of different episodes", () => {
@@ -49,8 +52,14 @@ describe("alignTimelines", () => {
 describe("shiftTime", () => {
   test("moves a time by the shift it falls in", () => {
     const shifts = [
-      { from: 0, offset: -1 },
-      { from: 100, offset: 12 }
+      {
+        from: 0,
+        offset: -1,
+      },
+      {
+        from: 100,
+        offset: 12,
+      }
     ];
 
     expect(shiftTime(shifts, 50)).toBe(49);

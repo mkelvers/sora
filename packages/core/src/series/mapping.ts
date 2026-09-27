@@ -26,7 +26,7 @@ const EpisodeLinksSchema = z.array(
   z.object({
     anilistEpisode: z.number().int(),
     seasonNumber: z.number().int(),
-    episodeNumber: z.number().int()
+    episodeNumber: z.number().int(),
   })
 );
 
@@ -122,18 +122,18 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
     episodes,
     method: placement?.method ?? null,
     score: placement?.score ?? null,
-    resolvedAt: new Date()
+    resolvedAt: new Date(),
   };
 
   const [row] = await db
     .insert(tmdbMapping)
     .values({
       anilistId: entry.id,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: tmdbMapping.anilistId,
-      set: values
+      set: values,
     })
     .returning();
 
@@ -162,7 +162,7 @@ async function predecessorMappings(entry: FranchiseEntry, resolving: ReadonlySet
       ? [
           {
             relation,
-            id
+            id,
           }
         ]
       : [];
@@ -179,7 +179,7 @@ async function predecessorMappings(entry: FranchiseEntry, resolving: ReadonlySet
     if (predecessor) {
       predecessors.push({
         relation: edge.relation,
-        mapping: await resolveNested(predecessor, resolving)
+        mapping: await resolveNested(predecessor, resolving),
       });
     }
   }
@@ -205,7 +205,7 @@ async function bestShowPlacement(
     if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
       candidates.set(mapping.tmdbId, {
         isFranchiseShow: true,
-        prequel: candidates.get(mapping.tmdbId)?.prequel ?? (relation === "PREQUEL" ? regularSeasonRun(mapping) : null)
+        prequel: candidates.get(mapping.tmdbId)?.prequel ?? (relation === "PREQUEL" ? regularSeasonRun(mapping) : null),
       });
     }
   }
@@ -217,7 +217,7 @@ async function bestShowPlacement(
     if (!candidates.has(showId)) {
       candidates.set(showId, {
         isFranchiseShow: false,
-        prequel: null
+        prequel: null,
       });
     }
   }
@@ -230,7 +230,7 @@ async function bestShowPlacement(
     const placement = show
       ? placeInShow(subject, {
           show,
-          ...candidate
+          ...candidate,
         })
       : null;
 
@@ -253,7 +253,7 @@ function regularSeasonRun(mapping: TmdbMapping): PrequelRun | null {
   return first && last && last.seasonNumber > 0
     ? {
         first,
-        last
+        last,
       }
     : null;
 }
@@ -328,7 +328,7 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
 export async function entriesMappedTo(mediaType: "tv" | "movie", tmdbId: number): Promise<number[]> {
   const rows = await db
     .select({
-      anilistId: tmdbMapping.anilistId
+      anilistId: tmdbMapping.anilistId,
     })
     .from(tmdbMapping)
     .where(and(eq(tmdbMapping.mediaType, mediaType), eq(tmdbMapping.tmdbId, tmdbId)));
@@ -355,7 +355,7 @@ export async function expireMappingsAgainstHints(anilistIds: readonly number[]):
   const expired = await db
     .update(tmdbMapping)
     .set({
-      resolvedAt: new Date(0)
+      resolvedAt: new Date(0),
     })
     .where(
       and(
@@ -371,7 +371,7 @@ export async function expireMappingsAgainstHints(anilistIds: readonly number[]):
       )
     )
     .returning({
-      anilistId: tmdbMapping.anilistId
+      anilistId: tmdbMapping.anilistId,
     });
 
   return expired.map((row) => row.anilistId);

@@ -38,7 +38,7 @@ async function refreshAniKotoEpisodes(anilistId: number): Promise<ProviderUnit[]
   const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
   const [stored] = (await getStoredUnits([anilistId])).filter((entry) => entry.provider === aniKoto.id);
   const units = await refreshProviderUnits(anime, aniKoto, {
-    retryUnmatched: true
+    retryUnmatched: true,
   });
   if (latest(units) > latest(stored?.units ?? [])) {
     await scheduleStoredSeriesRefresh(anilistId);
@@ -68,7 +68,7 @@ export const watchAniKotoReleases: Task = async (_payload, helpers) => {
     ? await db
         .select({
           anilistId: providerMapping.anilistId,
-          anikotoId: providerMapping.providerMediaId
+          anikotoId: providerMapping.providerMediaId,
         })
         .from(providerMapping)
         .where(and(eq(providerMapping.provider, aniKoto.id), inArray(providerMapping.providerMediaId, [...changedAt.keys()])))
@@ -95,13 +95,21 @@ export const watchAniKotoReleases: Task = async (_payload, helpers) => {
   }
 
   const [stored, fetched, resolved] = await Promise.all([
-    db.select({ anilistId: seriesEntry.anilistId }).from(seriesEntry).where(inArray(seriesEntry.anilistId, ids)),
+    db.select({
+      anilistId: seriesEntry.anilistId,
+    }).from(seriesEntry).where(inArray(seriesEntry.anilistId, ids)),
     db
-      .select({ anilistId: providerEpisodes.anilistId, at: providerEpisodes.fetchedAt })
+      .select({
+        anilistId: providerEpisodes.anilistId,
+        at: providerEpisodes.fetchedAt,
+      })
       .from(providerEpisodes)
       .where(and(eq(providerEpisodes.provider, aniKoto.id), inArray(providerEpisodes.anilistId, ids))),
     db
-      .select({ anilistId: providerMapping.anilistId, at: providerMapping.resolvedAt })
+      .select({
+        anilistId: providerMapping.anilistId,
+        at: providerMapping.resolvedAt,
+      })
       .from(providerMapping)
       .where(and(eq(providerMapping.provider, aniKoto.id), inArray(providerMapping.anilistId, ids)))
   ]);
@@ -130,14 +138,18 @@ export const watchAniKotoReleases: Task = async (_payload, helpers) => {
  * airing tracker keeps checking after that.
  */
 export const aniKotoPollDelaysMs = [
-  ...Array.from({ length: 15 }, () => minute),
-  ...Array.from({ length: 33 }, () => 5 * minute)
+  ...Array.from({
+    length: 15,
+  }, () => minute),
+  ...Array.from({
+    length: 33,
+  }, () => 5 * minute)
 ];
 
 const PollAniKotoPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
   episode: z.number(),
-  attempt: z.number().int().nonnegative()
+  attempt: z.number().int().nonnegative(),
 });
 
 /**
@@ -149,7 +161,11 @@ const PollAniKotoPayloadSchema = z.object({
  * and no AniList request. A look AniKoto fails counts as not finding it.
  */
 export const pollAniKoto: Task = async (rawPayload, helpers) => {
-  const { anilistId, episode, attempt } = PollAniKotoPayloadSchema.parse(rawPayload);
+  const {
+    anilistId,
+    episode,
+    attempt,
+  } = PollAniKotoPayloadSchema.parse(rawPayload);
 
   let units: ProviderUnit[] | null = [];
   try {
@@ -173,7 +189,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
       {
         anilistId,
         episode,
-        attempt: attempt + 1
+        attempt: attempt + 1,
       },
       new Date(Date.now() + delay)
     );

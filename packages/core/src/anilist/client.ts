@@ -67,10 +67,10 @@ const EnvelopeSchema = z.object({
     .array(
       z.object({
         message: z.string(),
-        status: z.number().optional()
+        status: z.number().optional(),
       })
     )
-    .optional()
+    .optional(),
 });
 
 /** When the next request of any kind may be sent, pushed back after a 429. */
@@ -181,18 +181,18 @@ async function fetchAndStore<TResult>(
     operation: operationName(query),
     data,
     fetchedAt,
-    expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs)
+    expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
   };
 
   await db
     .insert(anilistSnapshot)
     .values({
       key,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: anilistSnapshot.key,
-      set: values
+      set: values,
     });
 
   // The envelope was validated; the payload shape is guaranteed by the schema.
@@ -208,7 +208,7 @@ function rateLimited<T>(key: string, task: () => Promise<T>): Promise<T> {
     enqueue({
       key,
       priority: currentAniListPriority(),
-      send: () => task().then(resolve, reject)
+      send: () => task().then(resolve, reject),
     });
     void drain();
   });
@@ -232,7 +232,10 @@ function raisePriority(key: string, priority: number) {
   const request = waiting[index];
   if (request && priority < request.priority) {
     waiting.splice(index, 1);
-    enqueue({ ...request, priority });
+    enqueue({
+      ...request,
+      priority,
+    });
   }
 }
 
@@ -241,7 +244,9 @@ function raisePriority(key: string, priority: number) {
  * each page an aliased `Page` field taking its own IDs. How many pages fit
  * in one request is bounded by AniList's query complexity limit of 500.
  */
-export interface MediaByIdOperation<TResult, TVariables, TMedia extends { id: number }> {
+export interface MediaByIdOperation<TResult, TVariables, TMedia extends {
+  id: number;
+}> {
   document: TypedDocumentString<TResult, TVariables>;
   /** How many pages of 50 IDs one request holds. */
   pages: number;
@@ -297,7 +302,9 @@ const mediaBatchRetries = 3;
  * @throws {@link UpstreamUnavailableError} from the returned function when
  *   AniList fails, or keeps answering with 429s.
  */
-export function loadMediaById<TResult, TVariables, TMedia extends { id: number }>(
+export function loadMediaById<TResult, TVariables, TMedia extends {
+  id: number;
+}>(
   operation: MediaByIdOperation<TResult, TVariables, TMedia>
 ) {
   const capacity = operation.pages * mediaPageSize;
@@ -321,7 +328,7 @@ export function loadMediaById<TResult, TVariables, TMedia extends { id: number }
       const batch = open ?? openBatch(priority);
       batch.wanted.set(id, {
         resolve,
-        reject
+        reject,
       });
       queuedIn.set(id, batch);
       raise(batch, priority);
@@ -340,7 +347,7 @@ export function loadMediaById<TResult, TVariables, TMedia extends { id: number }
       key: `${name}:${(mediaBatchCount += 1)}`,
       priority,
       retries: 0,
-      wanted: new Map()
+      wanted: new Map(),
     };
     open = batch;
     queue(batch);
@@ -351,7 +358,7 @@ export function loadMediaById<TResult, TVariables, TMedia extends { id: number }
     enqueue({
       key: batch.key,
       priority: batch.priority,
-      send: () => send(batch)
+      send: () => send(batch),
     });
     // Once the current task is done, so IDs asked for alongside join even
     // when the request could go at once.
@@ -376,7 +383,9 @@ export function loadMediaById<TResult, TVariables, TMedia extends { id: number }
     }
 
     try {
-      const pages = Array.from({ length: Math.ceil(ids.length / mediaPageSize) }, (_, page) =>
+      const pages = Array.from({
+        length: Math.ceil(ids.length / mediaPageSize),
+      }, (_, page) =>
         ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize)
       );
       // The envelope was validated; the payload shape is guaranteed by the schema.
@@ -450,7 +459,10 @@ async function drain() {
     recentSends = [...recentSends.filter((earlier) => earlier > sentAt - minuteMs), sentAt];
     // Counted until AniList's response reports the budget itself.
     if (budget && sentAt < budget.resetAt) {
-      budget = { ...budget, remaining: budget.remaining - 1 };
+      budget = {
+        ...budget,
+        remaining: budget.remaining - 1,
+      };
     }
     await request?.send();
   }
@@ -485,7 +497,7 @@ function limiterState(): LimiterState {
     limit: requestLimit,
     recentSends,
     pausedUntil: nextRequestAt,
-    budget
+    budget,
   };
 }
 
@@ -530,7 +542,7 @@ export function followBudget(previous: Budget | null, remaining: number, now: nu
   const isNewWindow = !previous || now >= previous.resetAt || remaining > previous.remaining;
   return {
     remaining,
-    resetAt: isNewWindow ? now + 60_000 : previous.resetAt
+    resetAt: isNewWindow ? now + 60_000 : previous.resetAt,
   };
 }
 
@@ -566,18 +578,18 @@ async function execute(query: string, variables: unknown) {
       method: "POST",
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         query,
-        variables
+        variables,
       }),
-      signal: AbortSignal.timeout(requestTimeoutMs)
+      signal: AbortSignal.timeout(requestTimeoutMs),
     });
   } catch (cause) {
     throw new UpstreamUnavailableError("AniList could not be reached", {
       retryAfterMs: null,
-      cause
+      cause,
     });
   }
 
@@ -587,9 +599,12 @@ async function execute(query: string, variables: unknown) {
     const retryAfterMs = retryAfter(response) ?? 60_000;
     // Pause every queued request, not just this one.
     nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
-    budget = { remaining: 0, resetAt: Date.now() + retryAfterMs };
+    budget = {
+      remaining: 0,
+      resetAt: Date.now() + retryAfterMs,
+    };
     throw new UpstreamUnavailableError("AniList rate limit reached", {
-      retryAfterMs
+      retryAfterMs,
     });
   }
 
@@ -597,7 +612,7 @@ async function execute(query: string, variables: unknown) {
   if (!body.success) {
     throw new UpstreamUnavailableError(`AniList returned an invalid ${response.status} response`, {
       retryAfterMs: null,
-      cause: body.error
+      cause: body.error,
     });
   }
 
@@ -611,7 +626,7 @@ async function execute(query: string, variables: unknown) {
   throw new UpstreamUnavailableError(
     body.data.errors?.[0]?.message ?? `AniList returned ${response.status}`,
     {
-      retryAfterMs: retryAfter(response)
+      retryAfterMs: retryAfter(response),
     }
   );
 }

@@ -130,7 +130,7 @@ export class UpstreamUnavailableError extends CoreError {
     }
   ) {
     super("UPSTREAM_UNAVAILABLE", message, {
-      cause: options.cause
+      cause: options.cause,
     });
     this.retryAfterMs = options.retryAfterMs;
   }

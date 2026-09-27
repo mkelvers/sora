@@ -94,7 +94,7 @@ export async function getProviderHealth(now = new Date()): Promise<ProviderHealt
       lastOkHour: sql<Date | null>`max(${providerCalls.hour}) filter (where ${providerCalls.ok} > 0)`.mapWith(toDate),
       recentCalls: sql<number>`coalesce(sum(${calls}) filter (where ${isRecent}), 0)`.mapWith(Number),
       lastError: sql<string | null>`(array_agg(${providerCalls.lastError} order by ${providerCalls.lastErrorAt} desc nulls last))[1]`,
-      lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(toDate)
+      lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(toDate),
     })
     .from(providerCalls)
     .groupBy(providerCalls.provider, providerCalls.operation);
@@ -143,10 +143,10 @@ export function summarizeHealth(providerIds: readonly string[], rows: readonly O
             ok: row.ok,
             empty: row.empty,
             failed: row.failed,
-            averageMs: Math.round(row.durationMs / calls)
+            averageMs: Math.round(row.durationMs / calls),
           };
         })
-        .sort((left, right) => left.operation.localeCompare(right.operation))
+        .sort((left, right) => left.operation.localeCompare(right.operation)),
     };
   });
 }

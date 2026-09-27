@@ -46,7 +46,7 @@ export class SdkStreamProvider implements StreamProvider {
         mediaId: resolution.rawMediaId,
         matchedTitle: resolution.matchedTitle,
         method: resolution.method,
-        episodeOffset: 0
+        episodeOffset: 0,
       }
     );
   }
@@ -76,7 +76,7 @@ export function toProviderEpisode(unit: IContentUnit): ProviderEpisode {
     number: unit.number,
     title: unit.title,
     languages: unit.availableLanguages ?? null,
-    isFiller: unit.isFiller ?? null
+    isFiller: unit.isFiller ?? null,
   };
 }
 
@@ -100,10 +100,10 @@ export function toProviderStream(resolved: ResolvedMediaStream, skipSegments: Sk
         url: track.url,
         language: track.language,
         label: track.label,
-        format: track.format ?? null
-      }))
+        format: track.format ?? null,
+      })),
     })),
-    skipSegments
+    skipSegments,
   };
 }
 
@@ -122,7 +122,7 @@ function toSdkMetadata(anime: Anime): IMediaMetadata {
     title: {
       romaji: anime.title.romaji ?? undefined,
       english: anime.title.english ?? undefined,
-      native: anime.title.native ?? undefined
+      native: anime.title.native ?? undefined,
     },
     synonyms: anime.synonyms,
     year: anime.seasonYear ?? startYear,
@@ -130,7 +130,7 @@ function toSdkMetadata(anime: Anime): IMediaMetadata {
     episodeCount: anime.episodes ?? undefined,
     mappings: {
       anilist: anime.id,
-      mal: anime.malId ?? undefined
-    }
+      mal: anime.malId ?? undefined,
+    },
   };
 }

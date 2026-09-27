@@ -5,7 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
 	return {
-		profiles: locals.viewer!.profiles
+		profiles: locals.viewer!.profiles,
 	};
 };
 
@@ -22,7 +22,7 @@ export const actions: Actions = {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			maxAge: 60 * 60
+			maxAge: 60 * 60,
 		});
 
 		const target = new URL(url.searchParams.get('redirect') ?? '/', url.origin);
@@ -36,7 +36,9 @@ export const actions: Actions = {
 			await locals.viewer!.sora.deleteProfile(id);
 		} catch (cause) {
 			if (cause instanceof SoraError && cause.code === 'LAST_PROFILE') {
-				return fail(409, { message: 'An account keeps at least one profile.' });
+				return fail(409, {
+					message: 'An account keeps at least one profile.',
+				});
 			}
 			if (cause instanceof SoraError && cause.status === 404) {
 				error(404, 'No such profile');
@@ -45,7 +47,9 @@ export const actions: Actions = {
 		}
 
 		if (locals.viewer!.profile?.id === id) {
-			cookies.delete(profileCookie, { path: '/' });
+			cookies.delete(profileCookie, {
+				path: '/',
+			});
 		}
-	}
+	},
 };

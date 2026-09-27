@@ -7,7 +7,9 @@ const now = 1_000_000;
 
 /** `count` requests sent `gapMs` apart, the last `lastAgoMs` before now, oldest first. */
 function sends(count: number, gapMs: number, lastAgoMs = gapMs) {
-  return Array.from({ length: count }, (_, index) => now - lastAgoMs - (count - 1 - index) * gapMs);
+  return Array.from({
+    length: count,
+  }, (_, index) => now - lastAgoMs - (count - 1 - index) * gapMs);
 }
 
 /** AniList degraded to 30 a minute, with this process's `recentSends` and nothing else known. */
@@ -17,7 +19,7 @@ function degraded(recentSends: readonly number[], overrides: Partial<LimiterStat
     recentSends,
     pausedUntil: 0,
     budget: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -64,7 +66,10 @@ describe("waitToSend", () => {
 
   test("respects what AniList reports left, which counts other processes too", () => {
     const state = degraded([], {
-      budget: { remaining: 0, resetAt: now + 20_000 }
+      budget: {
+        remaining: 0,
+        resetAt: now + 20_000,
+      },
     });
 
     expect(waitToSend(viewerWaitingPriority, now, state)).toBe(20_000);
@@ -72,7 +77,10 @@ describe("waitToSend", () => {
 
   test("keeps background requests from spending what AniList reports is left of the reserve", () => {
     const state = degraded([], {
-      budget: { remaining: 10, resetAt: now + 20_000 }
+      budget: {
+        remaining: 10,
+        resetAt: now + 20_000,
+      },
     });
 
     expect(waitToSend(viewerWaitingPriority, now, state)).toBe(0);
@@ -84,7 +92,9 @@ describe("waitToSend", () => {
   });
 
   test("waits out a pause after a 429 whoever is waiting", () => {
-    const state = degraded([], { pausedUntil: now + 29_000 });
+    const state = degraded([], {
+      pausedUntil: now + 29_000,
+    });
 
     expect(waitToSend(viewerWaitingPriority, now, state)).toBe(29_000);
     expect(waitToSend(background, now, state)).toBe(29_000);
@@ -93,27 +103,36 @@ describe("waitToSend", () => {
 
 describe("followBudget", () => {
   test("keeps the window's end while the count goes down", () => {
-    expect(followBudget({ remaining: 11, resetAt: now + 30_000 }, 10, now)).toEqual({
+    expect(followBudget({
+      remaining: 11,
+      resetAt: now + 30_000,
+    }, 10, now)).toEqual({
       remaining: 10,
-      resetAt: now + 30_000
+      resetAt: now + 30_000,
     });
   });
 
   test("starts a new window a minute long when the count goes back up", () => {
-    expect(followBudget({ remaining: 0, resetAt: now + 30_000 }, 29, now)).toEqual({
+    expect(followBudget({
+      remaining: 0,
+      resetAt: now + 30_000,
+    }, 29, now)).toEqual({
       remaining: 29,
-      resetAt: now + 60_000
+      resetAt: now + 60_000,
     });
   });
 
   test("starts a new window after the last one ended", () => {
-    expect(followBudget({ remaining: 5, resetAt: now - 1 }, 3, now).resetAt).toBe(now + 60_000);
+    expect(followBudget({
+      remaining: 5,
+      resetAt: now - 1,
+    }, 3, now).resetAt).toBe(now + 60_000);
   });
 
   test("assumes the first window reported ends a minute later at the latest", () => {
     expect(followBudget(null, 17, now)).toEqual({
       remaining: 17,
-      resetAt: now + 60_000
+      resetAt: now + 60_000,
     });
   });
 });

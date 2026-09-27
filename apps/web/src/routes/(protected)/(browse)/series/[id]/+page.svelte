@@ -10,7 +10,9 @@
 	import { getSeries, getViewing } from "./series.remote";
 	import type { PageProps } from "./$types";
 
-	let { params }: PageProps = $props();
+	let {
+		params,
+	}: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
 	const viewing = $derived(await getViewing(params.id));
@@ -27,7 +29,10 @@
 			return undefined;
 		}
 
-		const { number, airing_at } = series.next_episode;
+		const {
+			number,
+			airing_at,
+		} = series.next_episode;
 		const airing = new Date(airing_at);
 		const now = new Date();
 		if (airing <= now) {

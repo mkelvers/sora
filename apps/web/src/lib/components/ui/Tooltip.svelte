@@ -5,12 +5,12 @@
 		variants: {
 			placement: {
 				top: 'top',
-				bottom: 'bottom'
-			}
+				bottom: 'bottom',
+			},
 		},
 		defaultVariants: {
-			placement: 'top'
-		}
+			placement: 'top',
+		},
 	});
 </script>
 
@@ -24,10 +24,19 @@
 		escapeOverflow?: boolean;
 	};
 
-	let { text, children, class: className, placement, escapeOverflow = false }: Props = $props();
+	let {
+		text,
+		children,
+		class: className,
+		placement,
+		escapeOverflow = false,
+	}: Props = $props();
 
 	let trigger = $state<HTMLSpanElement>();
-	let position = $state({ left: 0, bottom: 0 });
+	let position = $state({
+		left: 0,
+		bottom: 0,
+	});
 	let visible = $state(false);
 
 	function place() {
@@ -38,7 +47,7 @@
 		const bounds = trigger.getBoundingClientRect();
 		position = {
 			left: bounds.left + bounds.width / 2,
-			bottom: window.innerHeight - bounds.top + 8
+			bottom: window.innerHeight - bounds.top + 8,
 		};
 	}
 

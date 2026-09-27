@@ -5,7 +5,10 @@
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import type { PageProps } from "./$types";
 
-	let { data, form }: PageProps = $props();
+	let {
+		data,
+		form,
+	}: PageProps = $props();
 
 	let avatar = $derived(data.profile.avatar);
 	let choices = $derived(data.choices);
@@ -30,7 +33,9 @@
 		use:enhance={() => {
 			pending = true;
 			return async ({ update }) => {
-				await update({ reset: false });
+				await update({
+					reset: false,
+				});
 				pending = false;
 			};
 		}}

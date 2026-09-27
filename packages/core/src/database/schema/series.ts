@@ -32,7 +32,7 @@ export const tmdbMapping = pgTable(
     /** Which signal decided the match, for diagnosing bad mappings. */
     method: text("method"),
     score: doublePrecision("score"),
-    resolvedAt: timestamptz("resolved_at").notNull()
+    resolvedAt: timestamptz("resolved_at").notNull(),
   },
   (table) => [index("tmdb_mapping_target_idx").on(table.mediaType, table.tmdbId)]
 );
@@ -49,7 +49,7 @@ export const tmdbMapping = pgTable(
 export const tmdbHint = pgTable("tmdb_hint", {
   anilistId: integer("anilist_id").primaryKey(),
   showId: integer("show_id"),
-  movieIds: integer("movie_ids").array().notNull()
+  movieIds: integer("movie_ids").array().notNull(),
 });
 
 export const seriesKind = pgEnum("series_kind", [
@@ -99,7 +99,7 @@ export const series = pgTable("series", {
   nextEpisodeAiringAt: timestamptz("next_episode_airing_at"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
   /** When the seasons and episodes were last laid out. */
-  laidOutAt: timestamptz("laid_out_at").notNull()
+  laidOutAt: timestamptz("laid_out_at").notNull(),
 });
 
 /**
@@ -115,8 +115,8 @@ export const seriesEntry = pgTable(
     seriesId: text("series_id")
       .notNull()
       .references(() => series.id, {
-        onDelete: "cascade"
-      })
+        onDelete: "cascade",
+      }),
   },
   (table) => [index("series_entry_series_idx").on(table.seriesId)]
 );
@@ -142,7 +142,7 @@ export const seriesSeason = pgTable(
     seriesId: text("series_id")
       .notNull()
       .references(() => series.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     kind: seasonKind("kind").notNull(),
     /** Position among the series' seasons of the same kind, from 1. */
@@ -152,7 +152,7 @@ export const seriesSeason = pgTable(
     title: text("title").notNull(),
     /** Whether the season is part of the story in watch order rather than an extra; see `SeriesSeason.inWatchOrder`. */
     inWatchOrder: boolean("in_watch_order").notNull(),
-    anchorAnilistId: integer("anchor_anilist_id")
+    anchorAnilistId: integer("anchor_anilist_id"),
   },
   (table) => [index("series_season_series_idx").on(table.seriesId, table.position)]
 );
@@ -169,7 +169,7 @@ export const seriesEpisode = pgTable(
     seasonId: text("season_id")
       .notNull()
       .references(() => seriesSeason.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     number: integer("number").notNull(),
     anilistId: integer("anilist_id"),
@@ -183,14 +183,14 @@ export const seriesEpisode = pgTable(
     runtimeMinutes: integer("runtime_minutes"),
     stillUrl: text("still_url"),
     tmdbSeasonNumber: integer("tmdb_season_number"),
-    tmdbEpisodeNumber: integer("tmdb_episode_number")
+    tmdbEpisodeNumber: integer("tmdb_episode_number"),
   },
   (table) => [
     primaryKey({
       columns: [
         table.seasonId,
         table.number
-      ]
+      ],
     }),
     index("series_episode_anilist_idx").on(table.anilistId, table.anilistEpisode)
   ]
@@ -209,18 +209,18 @@ export const seriesRelated = pgTable(
     seriesId: text("series_id")
       .notNull()
       .references(() => series.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     anilistId: integer("anilist_id").notNull(),
     /** Display order, from 0. */
-    position: integer("position").notNull()
+    position: integer("position").notNull(),
   },
   (table) => [
     primaryKey({
       columns: [
         table.seriesId,
         table.anilistId
-      ]
+      ],
     })
   ]
 );

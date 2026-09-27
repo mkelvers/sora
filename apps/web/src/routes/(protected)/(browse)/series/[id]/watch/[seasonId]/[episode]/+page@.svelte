@@ -4,14 +4,21 @@
 	import { getEpisode, getPlayback, saveProgress } from "./watch.remote";
 	import type { PageProps } from "./$types";
 
-	let { params }: PageProps = $props();
+	let {
+		params,
+	}: PageProps = $props();
 
 	const address = $derived({
 		seriesId: params.id,
 		seasonId: params.seasonId,
 		episode: params.episode,
 	});
-	const { series, season, episode, start } = $derived(await getEpisode(address));
+	const {
+		series,
+		season,
+		episode,
+		start,
+	} = $derived(await getEpisode(address));
 
 	const playback = $derived(getPlayback(address));
 	const next = $derived(playback.current?.next ?? undefined);

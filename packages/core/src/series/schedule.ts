@@ -42,7 +42,7 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
   }
 
   const placed = await findSeasonEpisodes(broadcasts, {
-    placeUnlisted: true
+    placeUnlisted: true,
   });
   const seriesIds = [...new Set([...placed.values()].map((ref) => ref.seriesId))];
   const rows = seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
@@ -57,7 +57,7 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
             series: card,
             seasonId: ref.seasonId,
             episode: ref.number,
-            airingAt: broadcast.airingAt
+            airingAt: broadcast.airingAt,
           }
         ]
       : [];

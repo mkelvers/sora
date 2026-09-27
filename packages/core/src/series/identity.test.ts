@@ -9,8 +9,8 @@ function season(kind: SeasonKind, number: number, anilistIds: number[]) {
     kind,
     number,
     anime: anilistIds.map((id) => ({
-      id
-    }))
+      id,
+    })),
   };
 }
 
@@ -19,7 +19,7 @@ function stored(id: string, kind: SeasonKind, number: number, anchorAnilistId: n
     id,
     kind,
     number,
-    anchorAnilistId
+    anchorAnilistId,
   };
 }
 

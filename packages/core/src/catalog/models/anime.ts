@@ -122,10 +122,10 @@ export function toAnimeCard(media: AnimeCardFragment): AnimeCard {
     nextEpisode: media.nextAiringEpisode
       ? {
           number: media.nextAiringEpisode.episode,
-          airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt)
+          airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
         }
       : null,
-    isAdult: media.isAdult === true
+    isAdult: media.isAdult === true,
   };
 }
 
@@ -142,7 +142,7 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
     tags: present(media.tags).map((tag) => ({
       name: tag.name,
       rank: tag.rank,
-      spoiler: tag.isMediaSpoiler === true
+      spoiler: tag.isMediaSpoiler === true,
     })),
     studios: present(media.studios?.nodes).map((studio) => studio.name),
     relations: present(media.relations?.edges).flatMap((edge) =>
@@ -150,14 +150,14 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
         ? [
             {
               type: edge.relationType,
-              anime: toAnimeCard(edge.node)
+              anime: toAnimeCard(edge.node),
             }
           ]
         : []
     ),
     recommendations: present(media.recommendations?.nodes).flatMap((node) =>
       node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : []
-    )
+    ),
   };
 }
 
@@ -174,7 +174,7 @@ function toTitle(media: AnimeCardFragment): AnimeTitle {
     display,
     english,
     romaji,
-    native
+    native,
   };
 }
 

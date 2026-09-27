@@ -113,5 +113,7 @@ export interface StreamProvider {
    *
    * @returns A summary for the scheduler's log.
    */
-  syncCatalog?(options: { full: boolean }): Promise<string>;
+  syncCatalog?(options: {
+    full: boolean;
+  }): Promise<string>;
 }

@@ -46,11 +46,11 @@ export async function getSeries(seriesId: string): Promise<Series> {
         ? {
             seasonId: row.nextEpisodeSeasonId,
             number: row.nextEpisodeNumber,
-            airingAt: row.nextEpisodeAiringAt.toISOString()
+            airingAt: row.nextEpisodeAiringAt.toISOString(),
           }
         : null,
     seasons: (listed.get(row.id) ?? []).map(({ season }) => season),
-    related
+    related,
   };
 }
 
@@ -63,7 +63,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 export async function assertSeriesExists(seriesId: string) {
   const [stored] = await db
     .select({
-      id: series.id
+      id: series.id,
     })
     .from(series)
     .where(eq(series.id, seriesId))
@@ -97,7 +97,7 @@ export async function getSeason(seriesId: string, seasonId: string): Promise<Sea
 export async function getSeasonSeriesId(seasonId: string): Promise<string> {
   const [season] = await db
     .select({
-      seriesId: seriesSeason.seriesId
+      seriesId: seriesSeason.seriesId,
     })
     .from(seriesSeason)
     .where(eq(seriesSeason.id, seasonId))
@@ -154,7 +154,7 @@ export async function getAdjacentEpisodes(
         : [
             {
               seasonId: row.seasonId,
-              episode: row.number
+              episode: row.number,
             }
           ]
     )
@@ -169,7 +169,7 @@ export async function getAdjacentEpisodes(
 
   return {
     previous: playable.findLast(isBefore) ?? null,
-    next: playable.find(isAfter) ?? null
+    next: playable.find(isAfter) ?? null,
   };
 }
 
@@ -201,7 +201,7 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
         ? [
             {
               anilistId: row.anilistId,
-              episode: row.anilistEpisode
+              episode: row.anilistEpisode,
             }
           ]
         : []
@@ -224,7 +224,7 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
       // An extra no provider streams has no audio, and no provider to call it filler.
       audio: listing === null ? [] : (listing?.languages ?? null),
       filler: listing?.isFiller ?? false,
-      extra: row.anilistId === null
+      extra: row.anilistId === null,
     };
   });
 }
@@ -248,24 +248,34 @@ export async function getSeasonEpisodes(seriesId: string, seasonId: string): Pro
  * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
  * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed.
  */
-export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard> & { preparing: PreparingTitle[] }> {
+export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard> & {
+  preparing: PreparingTitle[];
+}> {
   const parsed = BrowseQuerySchema.safeParse(query);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid browse query", {
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
-  const { search, page, perPage, ...filters } = parsed.data;
+  const {
+    search,
+    page,
+    perPage,
+    ...filters
+  } = parsed.data;
   if (search !== undefined && (await hasSearchIndex())) {
     const found = await searchAnime(search, filters);
     const ranked = found.map((entry) => entry.anilistId);
     const pageStart = (page - 1) * perPage;
     // One series more than the page holds tells whether another page follows.
-    const { seriesIds, missing } = await seriesIdsFor(ranked, {
+    const {
+      seriesIds,
+      missing,
+    } = await seriesIdsFor(ranked, {
       wantedSeries: page * perPage + 1,
       pageStart,
-      perPage
+      perPage,
     });
     const ordered = seriesInOrder(ranked, seriesIds);
     const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
@@ -280,18 +290,21 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
         return entry && {
           title: entry.english ?? entry.romaji ?? entry.native,
           format: toAnimeFormat(entry.format),
-          year: entry.seasonYear ?? (entry.startDate ? Number(entry.startDate.slice(0, 4)) : null)
+          year: entry.seasonYear ?? (entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
         };
-      })
+      }),
     };
   }
 
   const found = await browseAnime(parsed.data);
   const anilistIds = found.items.map((anime) => anime.id);
-  const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
+  const {
+    seriesIds,
+    missing,
+  } = await seriesIdsFor(anilistIds, {
     wantedSeries: Number.POSITIVE_INFINITY,
     pageStart: 0,
-    perPage: found.perPage
+    perPage: found.perPage,
   });
   const cards = new Map(found.items.map((anime) => [anime.id, anime]));
   return {
@@ -305,9 +318,9 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
       return anime && {
         title: anime.title.display,
         format: anime.format,
-        year: anime.seasonYear
+        year: anime.seasonYear,
       };
-    })
+    }),
   };
 }
 
@@ -317,16 +330,26 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
  * out.
  */
 function preparingOn(
-  missing: readonly { anilistId: number; place: number }[],
+  missing: readonly {
+    anilistId: number;
+    place: number;
+  }[],
   pageStart: number,
   perPage: number,
-  describe: (anilistId: number) => Omit<PreparingTitle, "anilistId" | "position" | "title"> & { title: string | null } | undefined
+  describe: (anilistId: number) => Omit<PreparingTitle, "anilistId" | "position" | "title"> & {
+    title: string | null;
+  } | undefined
 ): PreparingTitle[] {
   return missing.flatMap(({ anilistId, place }) => {
     const described = describe(anilistId);
     const position = place - pageStart;
     return described?.title && position >= 0 && position < perPage
-      ? [{ ...described, anilistId, title: described.title, position }]
+      ? [{
+        ...described,
+        anilistId,
+        title: described.title,
+        position,
+      }]
       : [];
   });
 }
@@ -384,7 +407,7 @@ async function seriesIdsFor(
     } else {
       missing.push({
         anilistId,
-        place
+        place,
       });
     }
   }
@@ -397,7 +420,7 @@ async function seriesIdsFor(
   );
   return {
     seriesIds: found,
-    missing
+    missing,
   };
 }
 
@@ -427,7 +450,7 @@ async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], 
             kind: seriesSeason.kind,
             number: seriesSeason.number,
             title: seriesSeason.title,
-            inWatchOrder: seriesSeason.inWatchOrder
+            inWatchOrder: seriesSeason.inWatchOrder,
           })
           .from(seriesSeason)
           .where(
@@ -469,9 +492,9 @@ async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], 
           return {
             season: {
               ...season,
-              episodeCount: episodes.length
+              episodeCount: episodes.length,
             },
-            episodes
+            episodes,
           };
         })
     ])
@@ -482,7 +505,7 @@ async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], 
 async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
   const rows = await db
     .select({
-      series
+      series,
     })
     .from(seriesRelated)
     .innerJoin(seriesEntry, eq(seriesEntry.anilistId, seriesRelated.anilistId))
@@ -508,7 +531,7 @@ function toSeriesCard(
     logoUrl: row.logoUrlOverride ?? row.logoUrl,
     year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
     status: row.status,
-    audio
+    audio,
   };
 }
 
@@ -532,14 +555,14 @@ async function cardsFrom(
           db
             .select({
               anilistId: seriesEntry.anilistId,
-              seriesId: seriesEntry.seriesId
+              seriesId: seriesEntry.seriesId,
             })
             .from(seriesEntry)
             .where(inArray(seriesEntry.seriesId, ids)),
           db
             .select({
               anilistId: animeTable.anilistId,
-              media: animeTable.media
+              media: animeTable.media,
             })
             .from(animeTable)
             .where(
@@ -570,7 +593,7 @@ async function cardsFrom(
           score: anchor?.score ?? null,
           seasonCount: seasons.length,
           episodeCount: seasons.reduce((total, season) => total + season.episodeCount, 0),
-          startSeasonId: (all.find((season) => season.inWatchOrder) ?? all[0])?.id ?? null
+          startSeasonId: (all.find((season) => season.inWatchOrder) ?? all[0])?.id ?? null,
         }
       ];
     })

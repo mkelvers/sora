@@ -35,7 +35,7 @@ const server = Bun.serve({
   fetch: app.fetch,
   // Resolving playback and laying out a new title can take several seconds
   // before the first byte, well past Bun's default of 10.
-  idleTimeout: 120
+  idleTimeout: 120,
 });
 
 console.log(`Sora API listening on ${server.url}`);

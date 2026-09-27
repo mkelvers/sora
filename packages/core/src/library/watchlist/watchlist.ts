@@ -42,7 +42,7 @@ export async function getWatchlist(
   const rows = await db
     .select({
       entry: watchlistEntry,
-      series
+      series,
     })
     .from(watchlistEntry)
     .innerJoin(series, eq(series.id, watchlistEntry.seriesId))
@@ -59,7 +59,7 @@ export async function getWatchlist(
     series: cards.get(row.series.id)!,
     status: row.entry.status,
     addedAt: row.entry.createdAt.toISOString(),
-    updatedAt: row.entry.updatedAt.toISOString()
+    updatedAt: row.entry.updatedAt.toISOString(),
   }));
 }
 
@@ -94,7 +94,7 @@ export async function removeFromWatchlist(userId: string, seriesId: string): Pro
     .delete(watchlistEntry)
     .where(and(eq(watchlistEntry.userId, userId), eq(watchlistEntry.seriesId, seriesId)))
     .returning({
-      seriesId: watchlistEntry.seriesId
+      seriesId: watchlistEntry.seriesId,
     });
 
   return removed.length > 0;
@@ -110,7 +110,7 @@ export async function writeWatchlistStatus(userId: string, seriesId: string, sta
       seriesId,
       status,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     })
     .onConflictDoUpdate({
       target: [
@@ -119,8 +119,8 @@ export async function writeWatchlistStatus(userId: string, seriesId: string, sta
       ],
       set: {
         status,
-        updatedAt: now
-      }
+        updatedAt: now,
+      },
     })
     .returning();
 
@@ -136,6 +136,6 @@ function toWatchlistEntry(row: typeof watchlistEntry.$inferSelect): WatchlistEnt
     seriesId: row.seriesId,
     status: row.status,
     addedAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
+    updatedAt: row.updatedAt.toISOString(),
   };
 }

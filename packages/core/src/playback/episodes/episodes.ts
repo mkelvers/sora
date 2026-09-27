@@ -23,7 +23,7 @@ const ProviderUnitsSchema = z.array(
     number: z.number(),
     title: z.string(),
     languages: z.array(z.enum(["sub", "dub", "raw"])).nullable(),
-    isFiller: z.boolean().nullable()
+    isFiller: z.boolean().nullable(),
   })
 );
 
@@ -39,7 +39,7 @@ const ProviderUnitsSchema = z.array(
 export async function getProviderUnits(anime: Anime, provider: StreamProvider): Promise<ProviderUnit[]> {
   const [stored] = await db
     .select({
-      units: providerEpisodes.units
+      units: providerEpisodes.units,
     })
     .from(providerEpisodes)
     .where(and(eq(providerEpisodes.anilistId, anime.id), eq(providerEpisodes.provider, provider.id)))
@@ -51,7 +51,7 @@ export async function getProviderUnits(anime: Anime, provider: StreamProvider): 
   }
 
   return refreshProviderUnits(anime, provider, {
-    retryUnmatched: false
+    retryUnmatched: false,
   });
 }
 
@@ -79,7 +79,7 @@ export async function getStoredUnits(anilistIds: readonly number[]): Promise<Sto
     db
       .select({
         anilistId: providerMapping.anilistId,
-        provider: providerMapping.provider
+        provider: providerMapping.provider,
       })
       .from(providerMapping)
       .where(and(inArray(providerMapping.anilistId, ids), isNull(providerMapping.providerMediaId)))
@@ -93,14 +93,14 @@ export async function getStoredUnits(anilistIds: readonly number[]): Promise<Sto
             {
               anilistId: row.anilistId,
               provider: row.provider,
-              units: units.data
+              units: units.data,
             }
           ]
         : [];
     }),
     ...unmatched.map((row) => ({
       ...row,
-      units: []
+      units: [],
     }))
   ];
 }
@@ -128,7 +128,10 @@ export async function refreshProviderUnits(
     return [];
   }
 
-  const { mediaId, episodeOffset } = media;
+  const {
+    mediaId,
+    episodeOffset,
+  } = media;
   const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
     // A part filed under its prequel's series keeps only its own episodes,
     // numbered from 1; a later part may follow them in the same series.
@@ -142,27 +145,27 @@ export async function refreshProviderUnits(
       number: unit.number - episodeOffset,
       title: unit.title,
       languages: unit.languages,
-      isFiller: unit.isFiller
+      isFiller: unit.isFiller,
     }))
     .sort((left, right) => left.number - right.number);
 
   const values = {
     units,
-    fetchedAt: new Date()
+    fetchedAt: new Date(),
   };
   await db
     .insert(providerEpisodes)
     .values({
       anilistId: anime.id,
       provider: provider.id,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: [
         providerEpisodes.anilistId,
         providerEpisodes.provider
       ],
-      set: values
+      set: values,
     });
 
   return units;

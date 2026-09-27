@@ -45,7 +45,7 @@ export class Artwork {
 		const saving = setArtwork({
 			seriesId,
 			type: this.type,
-			url
+			url,
 		});
 
 		try {
@@ -53,7 +53,7 @@ export class Artwork {
 				await saving.updates(
 					series.withOverride((current) => ({
 						...current,
-						[`${this.type}_url`]: url
+						[`${this.type}_url`]: url,
 					}))
 				);
 			} else {

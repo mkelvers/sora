@@ -9,29 +9,29 @@ describe("snakeCased", () => {
         posterUrl: "https://image.example/poster.jpg",
         nextEpisode: {
           seasonId: "s_1",
-          airingAt: "2026-09-25T00:00:00.000Z"
+          airingAt: "2026-09-25T00:00:00.000Z",
         },
         seasons: [
           {
-            episodeCount: 12
+            episodeCount: 12,
           }
         ],
         skipSegments: [],
-        status: null
+        status: null,
       })
     ).toEqual({
       poster_url: "https://image.example/poster.jpg",
       next_episode: {
         season_id: "s_1",
-        airing_at: "2026-09-25T00:00:00.000Z"
+        airing_at: "2026-09-25T00:00:00.000Z",
       },
       seasons: [
         {
-          episode_count: 12
+          episode_count: 12,
         }
       ],
       skip_segments: [],
-      status: null
+      status: null,
     });
   });
 
@@ -47,7 +47,7 @@ describe("pageMeta", () => {
         page: 2,
         perPage: 10,
         hasNextPage: true,
-        isPreparing: false
+        isPreparing: false,
       })
     ).toEqual({
       page: 2,
@@ -56,7 +56,7 @@ describe("pageMeta", () => {
       next: "/v1/search?q=frieren&per_page=10&page=3",
       previous: "/v1/search?q=frieren&per_page=10&page=1",
       preparing: false,
-      preparing_titles: []
+      preparing_titles: [],
     });
   });
 
@@ -65,7 +65,7 @@ describe("pageMeta", () => {
       page: 1,
       perPage: 24,
       hasNextPage: false,
-      isPreparing: true
+      isPreparing: true,
     });
 
     expect(meta.next).toBeNull();
@@ -85,9 +85,9 @@ describe("pageMeta", () => {
           title: "Insomniacs After School",
           format: "TV",
           year: 2023,
-          position: 0
+          position: 0,
         }
-      ]
+      ],
     });
 
     expect(meta.preparing_titles).toEqual([
@@ -96,7 +96,7 @@ describe("pageMeta", () => {
         title: "Insomniacs After School",
         format: "TV",
         year: 2023,
-        position: 0
+        position: 0,
       }
     ]);
   });

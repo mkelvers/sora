@@ -34,7 +34,7 @@ const day = 24 * 60 * 60 * 1_000;
  * this one, never here: deployed clients keep calling `/v1`.
  */
 export const v1 = new OpenAPIHono<V1Env>({
-  defaultHook: onInvalidRequest
+  defaultHook: onInvalidRequest,
 });
 
 // Browser players (hls.js, subtitle tracks) fetch streams directly.
@@ -61,7 +61,7 @@ v1.use("/profiles/*", signedIn);
 v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
   type: "http",
   scheme: "bearer",
-  description: "The session token from `POST /v1/auth/sign-in/email`."
+  description: "The session token from `POST /v1/auth/sign-in/email`.",
 });
 
 /** A playback's URL under its title, relative to the API's origin. */
@@ -99,7 +99,7 @@ async function playbackBody(
 
   const [playback, adjacent] = await Promise.all([
     resolvePlayback(address, {
-      streamBaseUrl: streamBaseUrl.href
+      streamBaseUrl: streamBaseUrl.href,
     }),
     getAdjacentEpisodes(address.seriesId, address.seasonId, address.episode)
   ]);
@@ -110,43 +110,52 @@ async function playbackBody(
       episode: address.episode,
       expires_at: playback.expiresAt,
       next: adjacent.next && pathOf(adjacent.next),
-      previous: adjacent.previous && pathOf(adjacent.previous)
+      previous: adjacent.previous && pathOf(adjacent.previous),
     },
-    results: snakeCased(playback.media)
+    results: snakeCased(playback.media),
   };
 }
 
 export const v1Routes = v1
   .openapi(route.browseSeries, async (c) => {
-    const { season_year, per_page, ...filters } = c.req.valid("query");
+    const {
+      season_year,
+      per_page,
+      ...filters
+    } = c.req.valid("query");
     const page = await browseSeries({
       ...filters,
       seasonYear: season_year,
-      perPage: per_page
+      perPage: per_page,
     });
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
         meta: pageMeta(c.req.url, page),
-        results: snakeCased(page.items)
+        results: snakeCased(page.items),
       },
       200
     );
   })
 
   .openapi(route.searchSeries, async (c) => {
-    const { q, season_year, per_page, ...filters } = c.req.valid("query");
+    const {
+      q,
+      season_year,
+      per_page,
+      ...filters
+    } = c.req.valid("query");
     const page = await browseSeries({
       ...filters,
       seasonYear: season_year,
       perPage: per_page,
-      search: q
+      search: q,
     });
     c.header("Cache-Control", "public, max-age=60");
     return c.json(
       {
         meta: pageMeta(c.req.url, page),
-        results: snakeCased(page.items)
+        results: snakeCased(page.items),
       },
       200
     );
@@ -159,7 +168,7 @@ export const v1Routes = v1
       return c.json(
         {
           meta: {},
-          results: snakeCased(series)
+          results: snakeCased(series),
         },
         200
       );
@@ -168,7 +177,7 @@ export const v1Routes = v1
     const seasons = await Promise.all(
       series.seasons.map(async (season) => ({
         ...season,
-        episodes: await getSeasonEpisodes(series.id, season.id)
+        episodes: await getSeasonEpisodes(series.id, season.id),
       }))
     );
     // Unknown audio is filled in once providers are looked up.
@@ -179,65 +188,79 @@ export const v1Routes = v1
         meta: {},
         results: snakeCased({
           ...series,
-          seasons
-        })
+          seasons,
+        }),
       },
       200
     );
   })
 
   .openapi(route.listImages, async (c) => {
-    const { type, language, sort } = c.req.valid("query");
+    const {
+      type,
+      language,
+      sort,
+    } = c.req.valid("query");
     const images = await listSeriesImages(c.req.valid("param").series_id, {
       types: type,
       languages: language,
-      sort
+      sort,
     });
     c.header("Cache-Control", "public, max-age=3600");
     return c.json(
       {
         meta: {
-          count: images.length
+          count: images.length,
         },
-        results: snakeCased(images)
+        results: snakeCased(images),
       },
       200
     );
   })
 
   .openapi(route.updateArtwork, async (c) => {
-    const { poster_url, backdrop_url, logo_url } = c.req.valid("json");
+    const {
+      poster_url,
+      backdrop_url,
+      logo_url,
+    } = c.req.valid("json");
     const series = await setSeriesArtwork(c.req.valid("param").series_id, {
       posterUrl: poster_url,
       backdropUrl: backdrop_url,
-      logoUrl: logo_url
+      logoUrl: logo_url,
     });
     return c.json(
       {
         meta: {},
-        results: snakeCased(series)
+        results: snakeCased(series),
       },
       200
     );
   })
 
   .openapi(route.getSeason, async (c) => {
-    const { series_id, season_id } = c.req.valid("param");
+    const {
+      series_id,
+      season_id,
+    } = c.req.valid("param");
     const season = await getSeason(series_id, season_id);
     c.header("Cache-Control", "public, max-age=300");
     return c.json(
       {
         meta: {
-          series_id
+          series_id,
         },
-        results: snakeCased(season)
+        results: snakeCased(season),
       },
       200
     );
   })
 
   .openapi(route.listSeasonEpisodes, async (c) => {
-    const { series_id, season_id } = c.req.valid("param");
+    const {
+      series_id,
+      season_id,
+    } = c.req.valid("param");
     const episodes = await getSeasonEpisodes(series_id, season_id);
     // Unknown audio is filled in once providers are looked up.
     c.header("Cache-Control", episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300");
@@ -246,9 +269,9 @@ export const v1Routes = v1
         meta: {
           series_id,
           season_id,
-          count: episodes.length
+          count: episodes.length,
         },
-        results: snakeCased(episodes)
+        results: snakeCased(episodes),
       },
       200
     );
@@ -260,9 +283,9 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {
-          count: genres.length
+          count: genres.length,
         },
-        results: genres
+        results: genres,
       },
       200
     );
@@ -279,23 +302,27 @@ export const v1Routes = v1
         meta: {
           from: from.toISOString(),
           until: until.toISOString(),
-          count: episodes.length
+          count: episodes.length,
         },
-        results: snakeCased(episodes)
+        results: snakeCased(episodes),
       },
       200
     );
   })
 
   .openapi(route.getPlayback, async (c) => {
-    const { series_id, season_id, episode } = c.req.valid("param");
+    const {
+      series_id,
+      season_id,
+      episode,
+    } = c.req.valid("param");
     const body = await playbackBody(
       c.req.url,
       c.req.header("x-forwarded-proto"),
       {
         seriesId: series_id,
         seasonId: season_id,
-        episode
+        episode,
       },
       (address) => playbackPath(series_id, address)
     );
@@ -305,14 +332,17 @@ export const v1Routes = v1
   })
 
   .openapi(route.getEpisodePlayback, async (c) => {
-    const { season_id, episode } = c.req.valid("param");
+    const {
+      season_id,
+      episode,
+    } = c.req.valid("param");
     const body = await playbackBody(
       c.req.url,
       c.req.header("x-forwarded-proto"),
       {
         seriesId: await getSeasonSeriesId(season_id),
         seasonId: season_id,
-        episode
+        episode,
       },
       seasonPlaybackPath
     );
@@ -324,7 +354,7 @@ export const v1Routes = v1
   .openapi(route.getStream, (c) =>
     proxyStream(c.req.valid("param").token, {
       range: c.req.header("range") ?? null,
-      signal: c.req.raw.signal
+      signal: c.req.raw.signal,
     })
   )
 
@@ -333,9 +363,9 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {
-          count: profiles.length
+          count: profiles.length,
         },
-        results: snakeCased(profiles)
+        results: snakeCased(profiles),
       },
       200
     );
@@ -346,7 +376,7 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {},
-        results: snakeCased(profile)
+        results: snakeCased(profile),
       },
       201
     );
@@ -357,7 +387,7 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {},
-        results: snakeCased(profile)
+        results: snakeCased(profile),
       },
       200
     );
@@ -371,14 +401,14 @@ export const v1Routes = v1
   .openapi(route.getContinueWatching, async (c) => {
     const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
     const items = await getContinueWatching(profile.id, {
-      seriesIds: c.req.valid("query").series_id
+      seriesIds: c.req.valid("query").series_id,
     });
     return c.json(
       {
         meta: {
-          count: items.length
+          count: items.length,
         },
-        results: snakeCased(items)
+        results: snakeCased(items),
       },
       200
     );
@@ -390,24 +420,27 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {
-          count: titles.length
+          count: titles.length,
         },
-        results: snakeCased(titles)
+        results: snakeCased(titles),
       },
       200
     );
   })
 
   .openapi(route.getSeriesProgress, async (c) => {
-    const { profile_id, series_id } = c.req.valid("param");
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
     const profile = await getProfile(c.get("accountId"), profile_id);
     const progress = await getProgress(profile.id, series_id);
     return c.json(
       {
         meta: {
-          series_id
+          series_id,
         },
-        results: snakeCased(progress)
+        results: snakeCased(progress),
       },
       200
     );
@@ -422,7 +455,7 @@ export const v1Routes = v1
       positionSeconds: update.position_seconds,
       durationSeconds: update.duration_seconds,
       completed: update.completed,
-      eventAt: update.event_at
+      eventAt: update.event_at,
     });
     return c.body(null, 204);
   });
@@ -433,11 +466,11 @@ v1.doc31("/openapi.json", {
     title: "Sora API",
     version: "1",
     description:
-      "Anime titles laid out like a streaming service: one title per show with its seasons, OVAs, and related films, addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`."
+      "Anime titles laid out like a streaming service: one title per show with its seasons, OVAs, and related films, addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
   },
   servers: [
     {
-      url: "/v1"
+      url: "/v1",
     }
-  ]
+  ],
 });

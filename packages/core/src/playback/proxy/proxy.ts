@@ -27,7 +27,10 @@ export function createStreamToken(
   url: string,
   kind: StreamTargetKind,
   headers: Record<string, string>,
-  { mirrors = [], shifts }: { mirrors?: string[]; shifts?: TimelineShift[] } = {}
+  { mirrors = [], shifts }: {
+    mirrors?: string[];
+    shifts?: TimelineShift[];
+  } = {}
 ) {
   return signStreamTarget(
     {
@@ -36,7 +39,7 @@ export function createStreamToken(
       headers,
       mirrors,
       shifts,
-      expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000)
+      expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
     },
     config.streamSigningSecret
   );
@@ -45,7 +48,15 @@ export function createStreamToken(
 /** Whether the proxy could serve `url` right now, from its own host or a mirror. */
 export async function canFetchStream(url: string, headers: Record<string, string>, mirrors: string[]) {
   try {
-    const { response } = await fetchUpstream({ url, kind: "subtitle", headers, mirrors, expiresAt: 0 }, null);
+    const {
+      response,
+    } = await fetchUpstream({
+      url,
+      kind: "subtitle",
+      headers,
+      mirrors,
+      expiresAt: 0,
+    }, null);
     await response.body?.cancel();
     return true;
   } catch (cause) {
@@ -63,14 +74,24 @@ export async function canFetchStream(url: string, headers: Record<string, string
  * @throws {@link StreamUpstreamError} when a playlist cannot be fetched.
  */
 export async function segmentStarts(url: string, headers: Record<string, string>) {
-  const target = { url, kind: "playlist" as const, headers, mirrors: [], expiresAt: 0 };
+  const target = {
+    url,
+    kind: "playlist" as const,
+    headers,
+    mirrors: [],
+    expiresAt: 0,
+  };
   let upstream = await fetchUpstream(target, null);
   let content = await upstream.response.text();
 
   const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*([^#\s][^\n]*)/.exec(content)?.[1];
   if (variant) {
     const variantUrl = new URL(variant.trim(), upstream.url).toString();
-    upstream = await fetchUpstream({ ...target, url: variantUrl, mirrors: mirrorsFor(variantUrl, upstream.url) }, null);
+    upstream = await fetchUpstream({
+      ...target,
+      url: variantUrl,
+      mirrors: mirrorsFor(variantUrl, upstream.url),
+    }, null);
     content = await upstream.response.text();
   }
 
@@ -114,13 +135,13 @@ export async function proxyStream(
       status: 200,
       headers: {
         "Content-Type": "text/vtt; charset=utf-8",
-        "Cache-Control": "private, max-age=3600"
-      }
+        "Cache-Control": "private, max-age=3600",
+      },
     });
   }
 
   const headers = new Headers({
-    "Cache-Control": "private, max-age=3600"
+    "Cache-Control": "private, max-age=3600",
   });
   for (const name of ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"]) {
     const value = upstream.response.headers.get(name);
@@ -148,7 +169,7 @@ export async function proxyStream(
 
   return new Response(upstream.response.body, {
     status: upstream.response.status,
-    headers
+    headers,
   });
 }
 
@@ -162,7 +183,7 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
   if (first.done) {
     return new Response(null, {
       status: 200,
-      headers
+      headers,
     });
   }
 
@@ -177,7 +198,7 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
     headers.set("Content-Length", String(segment.byteLength));
     return new Response(segment, {
       status: 200,
-      headers
+      headers,
     });
   }
 
@@ -196,11 +217,11 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
       },
       cancel(reason) {
         return reader.cancel(reason);
-      }
+      },
     }),
     {
       status: 200,
-      headers
+      headers,
     }
   );
 }
@@ -225,7 +246,7 @@ async function playlistResponse(target: StreamTarget, upstream: Upstream) {
         kind,
         headers: target.headers,
         mirrors: mirrorsFor(url, upstream.url),
-        expiresAt: target.expiresAt
+        expiresAt: target.expiresAt,
       },
       config.streamSigningSecret
     )
@@ -236,7 +257,7 @@ async function playlistResponse(target: StreamTarget, upstream: Upstream) {
     headers: {
       "Content-Type": "application/vnd.apple.mpegurl",
       // Live playlists change; media playlists for VOD are cheap to refetch.
-      "Cache-Control": "no-cache"
-    }
+      "Cache-Control": "no-cache",
+    },
   });
 }

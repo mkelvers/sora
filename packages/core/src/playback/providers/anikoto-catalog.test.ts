@@ -3,10 +3,14 @@ import { describe, expect, mock, test } from "bun:test";
 import type { Anime } from "../../catalog/models/anime";
 
 mock.module("../../database/client", () => ({
-  db: {}
+  db: {},
 }));
 
-const { bestIdMatch, parseCatalogSeries, strictTitle } = await import("./anikoto-catalog");
+const {
+  bestIdMatch,
+  parseCatalogSeries,
+  strictTitle,
+} = await import("./anikoto-catalog");
 
 /** Frieren as AniKoto's catalogue listing sends it. */
 const frieren = {
@@ -20,9 +24,9 @@ const frieren = {
   year: 2023,
   episodes: "28",
   terms_by_type: {
-    type: ["TV"]
+    type: ["TV"],
   },
-  updated_at: "2024-10-18 09:15:13"
+  updated_at: "2024-10-18 09:15:13",
 };
 
 /** An AniList entry with what matching reads; the rest is left out. */
@@ -32,7 +36,7 @@ function anime(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">):
       display: "",
       english: null,
       romaji: null,
-      native: null
+      native: null,
     },
     synonyms: [],
     episodes: null,
@@ -40,12 +44,15 @@ function anime(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">):
     startDate: null,
     status: "FINISHED",
     relations: [],
-    ...fields
+    ...fields,
   } as Anime;
 }
 
 /** A stored AniKoto series, as the mirror holds it. */
-function series(fields: Partial<NonNullable<ReturnType<typeof parseCatalogSeries>>> & { anikotoId: number; title: string }) {
+function series(fields: Partial<NonNullable<ReturnType<typeof parseCatalogSeries>>> & {
+  anikotoId: number;
+  title: string;
+}) {
   return {
     anilistId: null,
     malId: null,
@@ -54,7 +61,7 @@ function series(fields: Partial<NonNullable<ReturnType<typeof parseCatalogSeries
     year: null,
     episodes: null,
     updatedAt: new Date(0),
-    ...fields
+    ...fields,
   };
 }
 
@@ -69,7 +76,7 @@ describe("parseCatalogSeries", () => {
       format: "TV",
       year: 2023,
       episodes: 28,
-      updatedAt: new Date("2024-10-18T09:15:13Z")
+      updatedAt: new Date("2024-10-18T09:15:13Z"),
     });
   });
 
@@ -79,12 +86,12 @@ describe("parseCatalogSeries", () => {
         ...frieren,
         ani_id: "",
         episodes: "",
-        year: null
+        year: null,
       })
     ).toMatchObject({
       anilistId: null,
       episodes: null,
-      year: null
+      year: null,
     });
   });
 
@@ -93,8 +100,8 @@ describe("parseCatalogSeries", () => {
       parseCatalogSeries({
         ...frieren,
         terms_by_type: {
-          type: [type]
-        }
+          type: [type],
+        },
       })?.format;
 
     expect(format("Movie")).toBe("MOVIE");
@@ -106,7 +113,7 @@ describe("parseCatalogSeries", () => {
   test("keeps a title with a comma whole as well as split", () => {
     const titles = parseCatalogSeries({
       ...frieren,
-      titles: "Katainaka no Ossan, Kensei ni Naru, 片田舎のおっさん、剣聖になる"
+      titles: "Katainaka no Ossan, Kensei ni Naru, 片田舎のおっさん、剣聖になる",
     })?.titles;
 
     expect(titles).toContain("Katainaka no Ossan, Kensei ni Naru, 片田舎のおっさん、剣聖になる");
@@ -118,13 +125,13 @@ describe("parseCatalogSeries", () => {
     expect(
       parseCatalogSeries({
         ...frieren,
-        title: ""
+        title: "",
       })
     ).toBeNull();
     expect(
       parseCatalogSeries({
         ...frieren,
-        updated_at: "yesterday"
+        updated_at: "yesterday",
       })
     ).toBeNull();
   });
@@ -141,7 +148,7 @@ describe("bestIdMatch", () => {
       malId: 38000,
       format: "TV",
       year: 2019,
-      episodes: 26
+      episodes: 26,
     });
     const film = series({
       anikotoId: 6780,
@@ -150,7 +157,7 @@ describe("bestIdMatch", () => {
       anilistId: 101922,
       malId: 38000,
       format: "MOVIE",
-      year: 2019
+      year: 2019,
     });
 
     expect(
@@ -165,8 +172,8 @@ describe("bestIdMatch", () => {
             display: "Demon Slayer: Kimetsu no Yaiba",
             english: "Demon Slayer: Kimetsu no Yaiba",
             romaji: "Kimetsu no Yaiba",
-            native: "鬼滅の刃"
-          }
+            native: "鬼滅の刃",
+          },
         }),
         [film, show]
       )?.anikotoId
@@ -181,7 +188,7 @@ describe("bestIdMatch", () => {
       malId: 57334,
       format: "TV",
       year: 2024,
-      episodes: 12
+      episodes: 12,
     });
 
     expect(
@@ -191,7 +198,7 @@ describe("bestIdMatch", () => {
           malId: 57334,
           format: "TV",
           episodes: 12,
-          seasonYear: 2024
+          seasonYear: 2024,
         }),
         [dandadan]
       )?.anikotoId
@@ -203,7 +210,7 @@ describe("bestIdMatch", () => {
       malId: 51705,
       format: "TV",
       year: 2023,
-      episodes: 12
+      episodes: 12,
     };
 
     expect(
@@ -213,18 +220,18 @@ describe("bestIdMatch", () => {
           malId: 51705,
           format: "TV",
           episodes: 12,
-          seasonYear: 2023
+          seasonYear: 2023,
         }),
         [
           series({
             anikotoId: 6593,
             title: "Love Flops (Uncensored)",
-            ...shared
+            ...shared,
           }),
           series({
             anikotoId: 7144,
             title: "Love Flops",
-            ...shared
+            ...shared,
           })
         ]
       )?.anikotoId
@@ -237,14 +244,14 @@ describe("bestIdMatch", () => {
         anime({
           id: 195200,
           malId: 62546,
-          format: "MOVIE"
+          format: "MOVIE",
         }),
         [
           series({
             anikotoId: 1,
             title: "Demon Slayer: Kimetsu no Yaiba",
             malId: 62546,
-            format: "TV"
+            format: "TV",
           })
         ]
       )
@@ -257,14 +264,14 @@ describe("bestIdMatch", () => {
         anime({
           id: 177709,
           malId: 58939,
-          format: "ONA"
+          format: "ONA",
         }),
         [
           series({
             anikotoId: 7498,
             title: "Sakamoto Days",
             malId: 58939,
-            format: "TV"
+            format: "TV",
           })
         ]
       )?.anikotoId

@@ -5,7 +5,10 @@
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import type { PageProps } from "./$types";
 
-	let { data, form }: PageProps = $props();
+	let {
+		data,
+		form,
+	}: PageProps = $props();
 
 	let deleting = $state<string | null>(null);
 

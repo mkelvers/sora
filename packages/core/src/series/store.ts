@@ -86,7 +86,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
   const seriesId = await chooseSeriesId(tx, built);
   const owners = await tx
     .selectDistinct({
-      seriesId: seriesEntry.seriesId
+      seriesId: seriesEntry.seriesId,
     })
     .from(seriesEntry)
     .where(or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)));
@@ -101,7 +101,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
     formerOwners.length > 0
       ? await tx
           .select({
-            id: series.id
+            id: series.id,
           })
           .from(series)
           .where(
@@ -136,23 +136,23 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
     logoUrl: built.logoUrl,
     startDate: built.startDate,
     status: built.status,
-    laidOutAt: new Date()
+    laidOutAt: new Date(),
   };
   await tx
     .insert(series)
     .values({
       id: seriesId,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: series.id,
-      set: values
+      set: values,
     });
 
   await tx.insert(seriesEntry).values(
     built.anilistIds.map((id) => ({
       anilistId: id,
-      seriesId
+      seriesId,
     }))
   );
 
@@ -163,7 +163,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
     .set({
       nextEpisodeSeasonId: next?.seasonId ?? null,
       nextEpisodeNumber: next?.number ?? null,
-      nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null
+      nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null,
     })
     .where(eq(series.id, seriesId));
 
@@ -172,7 +172,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
     summary.anilistIds.slice(0, 1).map((anilistId) => ({
       seriesId,
       anilistId,
-      position
+      position,
     }))
   );
   if (related.length > 0) {
@@ -212,7 +212,7 @@ async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[]
   await tx
     .update(watchlistEntry)
     .set({
-      seriesId: toSeriesId
+      seriesId: toSeriesId,
     })
     .where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
 }
@@ -231,7 +231,7 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
         select 1 from ${seriesEntry}
         where ${seriesEntry.seriesId} = ${series.id} and ${seriesEntry.anilistId} = ${built.anchorAnilistId}
       )`,
-      createdAt: series.createdAt
+      createdAt: series.createdAt,
     })
     .from(series)
     .where(
@@ -241,7 +241,7 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
           series.id,
           tx
             .select({
-              id: seriesEntry.seriesId
+              id: seriesEntry.seriesId,
             })
             .from(seriesEntry)
             .where(inArray(seriesEntry.anilistId, built.anilistIds))
@@ -269,7 +269,7 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
       id: seriesSeason.id,
       kind: seriesSeason.kind,
       number: seriesSeason.number,
-      anchorAnilistId: seriesSeason.anchorAnilistId
+      anchorAnilistId: seriesSeason.anchorAnilistId,
     })
     .from(seriesSeason)
     .where(eq(seriesSeason.seriesId, seriesId));
@@ -294,18 +294,18 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
       position,
       title: season.title,
       inWatchOrder: season.inWatchOrder,
-      anchorAnilistId: season.anime[0]?.id ?? null
+      anchorAnilistId: season.anime[0]?.id ?? null,
     };
     await tx
       .insert(seriesSeason)
       .values({
         id,
         seriesId,
-        ...values
+        ...values,
       })
       .onConflictDoUpdate({
         target: seriesSeason.id,
-        set: values
+        set: values,
       });
   }
 
@@ -322,7 +322,7 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
       runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
       stillUrl: episode.stillUrl,
       tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
-      tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null
+      tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
     }))
   );
   for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
@@ -356,7 +356,7 @@ function nextEpisodeOf(
     if (listed) {
       return {
         seasonId: id,
-        number: listed.number
+        number: listed.number,
       };
     }
 
@@ -364,7 +364,7 @@ function nextEpisodeOf(
     if (latest) {
       return {
         seasonId: id,
-        number: latest.number + 1
+        number: latest.number + 1,
       };
     }
   }

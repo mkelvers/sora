@@ -136,7 +136,10 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
     throw new TypeError("Mapping one entry yields one mapped entry");
   }
 
-  const { members, outsiders } = await walkFranchise(origin, await sameTitleEntries(origin));
+  const {
+    members,
+    outsiders,
+  } = await walkFranchise(origin, await sameTitleEntries(origin));
 
   const related = new Map<SeriesKey, MappedEntry[]>();
   for (const outsider of outsiders) {
@@ -163,7 +166,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
     anchorAnilistId: anchorOf(seasons, members),
     status: seriesStatus(members.map(({ card }) => card.status)),
     nextAiring: nextAiringOf(members),
-    airingIds: members.filter(({ entry }) => mayGainEpisodes(entry, now)).map(({ entry }) => entry.id)
+    airingIds: members.filter(({ entry }) => mayGainEpisodes(entry, now)).map(({ entry }) => entry.id),
   };
 }
 
@@ -204,7 +207,7 @@ async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry
   const visited = new Set([origin.entry.id, ...siblings.map((sibling) => sibling.entry.id)]);
   let layer = [origin, ...siblings].map((mapped) => ({
     mapped,
-    hops: 0
+    hops: 0,
   }));
 
   while (layer.length > 0) {
@@ -229,13 +232,13 @@ async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry
     const mapped = await mapEntries([...(await loadEntries(next.keys())).values()]);
     layer = mapped.map((item) => ({
       mapped: item,
-      hops: next.get(item.entry.id) ?? outsiderHops
+      hops: next.get(item.entry.id) ?? outsiderHops,
     }));
   }
 
   return {
     members,
-    outsiders
+    outsiders,
   };
 }
 
@@ -249,7 +252,7 @@ async function mapEntries(entries: readonly FranchiseEntry[]): Promise<MappedEnt
         entry,
         mapping,
         key: await seriesKeyOf(entry, mapping, new Set()),
-        card: stored.get(entry.id) ?? toAnimeCard(entry)
+        card: stored.get(entry.id) ?? toAnimeCard(entry),
       };
     })
   );
@@ -329,7 +332,7 @@ async function layoutSeasons(
       return layoutShowSeasons({
         show,
         members: await Promise.all(members.map((member) => toSeasonMember(member, recapIds))),
-        isShorts: kind === "shorts"
+        isShorts: kind === "shorts",
       });
     }
   }
@@ -353,10 +356,10 @@ async function layoutSeasons(
           stillUrl: index === 0 ? tmdbImageUrl(movie?.backdrop_path ?? null, "original") : null,
           playback: {
             anilistId: card.id,
-            episode: 1
+            episode: 1,
           },
-          tmdb: null
-        }))
+          tmdb: null,
+        })),
       }
     ];
   }
@@ -371,7 +374,7 @@ async function toSeasonMember({ entry, mapping, card }: MappedEntry, recapIds: R
     links: mappedEpisodes(mapping),
     isRecap: recapIds.has(entry.id),
     film: mapping.mediaType === "movie" && mapping.tmdbId !== null ? await getMovie(mapping.tmdbId) : null,
-    isUnlistedSeason: mapping.tmdbId === null && isSeasonFormat(entry)
+    isUnlistedSeason: mapping.tmdbId === null && isSeasonFormat(entry),
   };
 }
 
@@ -411,7 +414,7 @@ function summarize(key: SeriesKey, group: readonly MappedEntry[], seasons: reado
     posterUrl: latest.coverUrl ?? first.coverUrl,
     backdropUrl: latest.bannerUrl ?? first.bannerUrl,
     startDate: startDateOf(chronological[0]?.entry),
-    anilistIds: chronological.map(({ entry }) => entry.id)
+    anilistIds: chronological.map(({ entry }) => entry.id),
   };
 }
 
@@ -444,7 +447,7 @@ function nextAiringOf(members: readonly MappedEntry[]): SeriesLayout["nextAiring
             {
               anilistId: card.id,
               episode: card.nextEpisode.number,
-              airingAt: card.nextEpisode.airingAt
+              airingAt: card.nextEpisode.airingAt,
             }
           ]
         : []
@@ -468,7 +471,7 @@ async function tmdbArtwork(key: SeriesKey) {
     return {
       posterUrl: tmdbImageUrl(show?.posterPath ?? null, "w780"),
       backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "original"),
-      logoUrl: show ? tmdbImageUrl(await getLogoPath("tv", id), "w500") : null
+      logoUrl: show ? tmdbImageUrl(await getLogoPath("tv", id), "w500") : null,
     };
   }
 
@@ -477,14 +480,14 @@ async function tmdbArtwork(key: SeriesKey) {
     return {
       posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780"),
       backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "original"),
-      logoUrl: movie ? tmdbImageUrl(await getLogoPath("movie", id), "w500") : null
+      logoUrl: movie ? tmdbImageUrl(await getLogoPath("movie", id), "w500") : null,
     };
   }
 
   return {
     posterUrl: null,
     backdropUrl: null,
-    logoUrl: null
+    logoUrl: null,
   };
 }
 

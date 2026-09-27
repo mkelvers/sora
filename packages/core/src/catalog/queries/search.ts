@@ -53,10 +53,14 @@ const pagesPerWindow = 100;
  * @throws {@link UpstreamUnavailableError} when AniList fails; entries
  *   stored before the failure are kept, and a retry resumes from cached pages.
  */
-export async function syncSearchIndex(options: { full: boolean }) {
-  const [{ newest } = { newest: null }] = await db
+export async function syncSearchIndex(options: {
+  full: boolean;
+}) {
+  const [{ newest } = {
+    newest: null,
+  }] = await db
     .select({
-      newest: max(animeSearch.updatedAt)
+      newest: max(animeSearch.updatedAt),
     })
     .from(animeSearch);
   const full = options.full || newest === null;
@@ -69,7 +73,9 @@ export async function syncSearchIndex(options: { full: boolean }) {
   for (;;) {
     let leastPopular: number | undefined;
     for (let page = 1; page <= pagesPerWindow; page += 1) {
-      const { Page } = await fetchIndexPage(page, sort, popularityBelow);
+      const {
+        Page,
+      } = await fetchIndexPage(page, sort, popularityBelow);
       pages += 1;
 
       const rows = (Page?.media ?? []).flatMap((media) => (media ? [toRow(media)] : []));
@@ -84,7 +90,7 @@ export async function syncSearchIndex(options: { full: boolean }) {
 
         return {
           pages,
-          stored
+          stored,
         };
       }
     }
@@ -94,7 +100,7 @@ export async function syncSearchIndex(options: { full: boolean }) {
     if (!full) {
       return {
         pages,
-        stored
+        stored,
       };
     }
 
@@ -115,11 +121,11 @@ async function fetchIndexPage(page: number, sort: MediaSort[], popularityBelow: 
         {
           page,
           sort,
-          popularityBelow
+          popularityBelow,
         },
         {
           // Long enough for a failed sync to resume where it stopped.
-          maxAgeMs: hour
+          maxAgeMs: hour,
         }
       );
     } catch (error) {
@@ -160,7 +166,7 @@ function toRow(media: IndexedMedia): typeof animeSearch.$inferInsert {
     trending: media.trending ?? 0,
     averageScore: media.averageScore,
     isAdult: media.isAdult === true,
-    updatedAt: new Date((media.updatedAt ?? 0) * 1_000)
+    updatedAt: new Date((media.updatedAt ?? 0) * 1_000),
   };
 }
 
@@ -184,7 +190,7 @@ async function upsert(rows: (typeof animeSearch.$inferInsert)[]) {
       set: Object.fromEntries(keys.map((key) => [key, sql.raw(`excluded.${toSnakeCase(key)}`)])),
       setWhere: sql.raw(
         `(${columns.map((column) => `anime_search.${column}`).join(", ")}) is distinct from (${columns.map((column) => `excluded.${column}`).join(", ")})`
-      )
+      ),
     });
   return rows.length;
 }
@@ -233,17 +239,17 @@ const catalogName = "anime_search";
 
 async function markFullSync() {
   const values = {
-    fullSyncAt: new Date()
+    fullSyncAt: new Date(),
   };
   await db
     .insert(catalogSync)
     .values({
       catalog: catalogName,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: catalogSync.catalog,
-      set: values
+      set: values,
     });
 }
 
@@ -347,7 +353,9 @@ const trigramLength = 3;
 export function shortQueryPattern(query: string) {
   const spellings = [
     query,
-    ...Array.from({ length: query.length - 1 }, (_, index) => `${query.slice(0, index + 1)} ${query.slice(index + 1)}`)
+    ...Array.from({
+      length: query.length - 1,
+    }, (_, index) => `${query.slice(0, index + 1)} ${query.slice(index + 1)}`)
   ];
   return `(^| )(${spellings.join("|")})( |$)`;
 }
@@ -370,7 +378,7 @@ const sortOrders: Record<NonNullable<BrowseQuery["sort"]>, (left: IndexedRow, ri
   score: (left, right) => (right.averageScore ?? -1) - (left.averageScore ?? -1) || right.popularity - left.popularity,
   newest: (left, right) =>
     (right.startDate ?? "").localeCompare(left.startDate ?? "") || right.popularity - left.popularity,
-  title: (left, right) => (left.romaji ?? "").localeCompare(right.romaji ?? "")
+  title: (left, right) => (left.romaji ?? "").localeCompare(right.romaji ?? ""),
 };
 
 /**
@@ -392,7 +400,7 @@ export function rankCandidates<TCandidate extends SearchCandidate>(query: string
   return candidates
     .map((candidate) => ({
       candidate,
-      score: textScore(normalized, candidate) * popularityWeight(candidate.popularity)
+      score: textScore(normalized, candidate) * popularityWeight(candidate.popularity),
     }))
     .sort((left, right) => right.score - left.score || right.candidate.popularity - left.candidate.popularity)
     .map(({ candidate }) => candidate);
@@ -403,11 +411,11 @@ export function textScore(query: string, candidate: SearchCandidate) {
   const titles = [
     ...[candidate.english, candidate.romaji, candidate.native].map((title) => ({
       title,
-      weight: 1
+      weight: 1,
     })),
     ...candidate.synonyms.map((title) => ({
       title,
-      weight: 0.9
+      weight: 0.9,
     }))
   ];
 
@@ -505,7 +513,11 @@ function allowedTypos(word: string) {
 export function editDistance(left: string, right: string) {
   const a = [...left];
   const b = [...right];
-  const rows = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  const rows = Array.from({
+    length: a.length + 1,
+  }, (_, i) => Array.from({
+    length: b.length + 1,
+  }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
   for (let i = 1; i <= a.length; i += 1) {
     for (let j = 1; j <= b.length; j += 1) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;

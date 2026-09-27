@@ -6,7 +6,7 @@ if (!env.SORA_API_URL) {
 }
 
 export const sora = new SoraClient({
-	baseUrl: env.SORA_API_URL
+	baseUrl: env.SORA_API_URL,
 });
 
 export const sessionCookie = 'sora_session';

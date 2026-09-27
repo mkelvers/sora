@@ -36,12 +36,12 @@ export const ProgressUpdateSchema = z
      * checkpoint from an offline device cannot overwrite newer progress.
      */
     eventAt: z.iso.datetime({
-      offset: true
-    })
+      offset: true,
+    }),
   })
   .refine((update) => update.positionSeconds <= update.durationSeconds, {
     message: "Position cannot exceed duration",
-    path: ["positionSeconds"]
+    path: ["positionSeconds"],
   });
 
 export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
@@ -69,7 +69,7 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
   const parsed = ProgressUpdateSchema.safeParse(update);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid progress update", {
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
@@ -92,7 +92,7 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
     durationSeconds: input.durationSeconds,
     completed,
     eventAt,
-    updatedAt: new Date(now)
+    updatedAt: new Date(now),
   };
 
   const [written] = await db
@@ -101,7 +101,7 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
       userId,
       anilistId: located.anilistId,
       episode: located.anilistEpisode,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: [
@@ -110,10 +110,10 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
         playbackProgress.episode
       ],
       set: values,
-      setWhere: sql`${playbackProgress.eventAt} < excluded.event_at`
+      setWhere: sql`${playbackProgress.eventAt} < excluded.event_at`,
     })
     .returning({
-      episode: playbackProgress.episode
+      episode: playbackProgress.episode,
     });
 
   // A stale event changed nothing, so it must not change the watchlist either.
@@ -150,7 +150,7 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
       .select({
         progress: playbackProgress,
         seasonId: seriesEpisode.seasonId,
-        number: seriesEpisode.number
+        number: seriesEpisode.number,
       })
       .from(playbackProgress)
       .innerJoin(
@@ -164,7 +164,7 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
       .select({
         seasonId: seriesEpisode.seasonId,
         number: seriesEpisode.number,
-        completedAt: seasonCompletion.completedAt
+        completedAt: seasonCompletion.completedAt,
       })
       .from(seasonCompletion)
       .innerJoin(
@@ -177,7 +177,7 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
     db
       .select({
         seasonId: seriesEpisode.seasonId,
-        number: sql<number>`max(${seriesEpisode.number})`
+        number: sql<number>`max(${seriesEpisode.number})`,
       })
       .from(seriesEpisode)
       .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -192,10 +192,10 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
       .map(
         (row): SeasonCompletion => ({
           seasonId: row.seasonId,
-          completedAt: row.completedAt.toISOString()
+          completedAt: row.completedAt.toISOString(),
         })
       ),
-    episodes: rows.map((row) => toEpisodeProgress(row.progress, row.seasonId, row.number))
+    episodes: rows.map((row) => toEpisodeProgress(row.progress, row.seasonId, row.number)),
   };
 }
 
@@ -208,7 +208,7 @@ export async function clearProgress(userId: string, seriesId: string) {
   await assertSeriesExists(seriesId);
   const entries = db
     .select({
-      anilistId: seriesEntry.anilistId
+      anilistId: seriesEntry.anilistId,
     })
     .from(seriesEntry)
     .where(eq(seriesEntry.seriesId, seriesId));
@@ -227,7 +227,7 @@ export function toEpisodeProgress(row: typeof playbackProgress.$inferSelect, sea
     positionSeconds: row.positionSeconds,
     durationSeconds: row.durationSeconds,
     completed: row.completed,
-    eventAt: row.eventAt.toISOString()
+    eventAt: row.eventAt.toISOString(),
   };
 }
 
@@ -235,7 +235,7 @@ export function toEpisodeProgress(row: typeof playbackProgress.$inferSelect, sea
 async function isCompletedSince(userId: string, finale: LocatedEpisode, eventAt: Date) {
   const [row] = await db
     .select({
-      completedAt: seasonCompletion.completedAt
+      completedAt: seasonCompletion.completedAt,
     })
     .from(seasonCompletion)
     .where(
@@ -263,7 +263,7 @@ async function completeSeason(userId: string, finale: LocatedEpisode, completedA
         userId,
         anilistId: finale.anilistId,
         episode: finale.anilistEpisode,
-        completedAt
+        completedAt,
       })
       .onConflictDoUpdate({
         target: [
@@ -272,9 +272,9 @@ async function completeSeason(userId: string, finale: LocatedEpisode, completedA
           seasonCompletion.episode
         ],
         set: {
-          completedAt
+          completedAt,
         },
-        setWhere: sql`${seasonCompletion.completedAt} < excluded.completed_at`
+        setWhere: sql`${seasonCompletion.completedAt} < excluded.completed_at`,
       });
 
     await tx.delete(playbackProgress).where(
@@ -283,7 +283,7 @@ async function completeSeason(userId: string, finale: LocatedEpisode, completedA
         sql`(${playbackProgress.anilistId}, ${playbackProgress.episode}) in (${tx
           .select({
             anilistId: seriesEpisode.anilistId,
-            episode: seriesEpisode.anilistEpisode
+            episode: seriesEpisode.anilistEpisode,
           })
           .from(seriesEpisode)
           .where(and(eq(seriesEpisode.seasonId, finale.seasonId), isNotNull(seriesEpisode.anilistId)))})`
@@ -300,7 +300,7 @@ async function completeSeason(userId: string, finale: LocatedEpisode, completedA
 async function isFinale(located: LocatedEpisode) {
   const [stored] = await db
     .select({
-      status: series.status
+      status: series.status,
     })
     .from(series)
     .where(eq(series.id, located.seriesId))
@@ -313,7 +313,7 @@ async function isFinale(located: LocatedEpisode) {
     .select({
       seasonId: seriesEpisode.seasonId,
       number: seriesEpisode.number,
-      inWatchOrder: seriesSeason.inWatchOrder
+      inWatchOrder: seriesSeason.inWatchOrder,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))

@@ -10,7 +10,7 @@ const statusWeights: Record<WatchlistStatus, number> = {
   watching: 1.5,
   paused: 1,
   planning: 0.5,
-  dropped: -1.5
+  dropped: -1.5,
 };
 
 /** Days after which a title counts half as much toward taste. */
@@ -83,7 +83,7 @@ export function tasteOf(seeds: readonly TasteSeed[]): Taste {
 
   return {
     genres,
-    votes
+    votes,
   };
 }
 
@@ -129,7 +129,7 @@ export function rankCandidates<TCandidate extends Candidate>(taste: Taste, candi
 
     return {
       candidate,
-      score: fit * quality
+      score: fit * quality,
     };
   });
 

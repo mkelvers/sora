@@ -11,8 +11,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const sora = new SoraClient({
 			baseUrl: env.SORA_API_URL!,
 			headers: {
-				Authorization: `Bearer ${token}`
-			}
+				Authorization: `Bearer ${token}`,
+			},
 		});
 
 		try {
@@ -23,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.viewer = {
 				sora,
 				profiles,
-				profile
+				profile,
 			};
 
 			if (profile) {
@@ -31,7 +31,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					path: '/',
 					httpOnly: true,
 					sameSite: 'lax',
-					maxAge: 60 * 60
+					maxAge: 60 * 60,
 				});
 			}
 		} catch (cause) {
@@ -39,10 +39,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 				throw cause;
 			}
 			event.cookies.delete(sessionCookie, {
-				path: '/'
+				path: '/',
 			});
 			event.cookies.delete(profileCookie, {
-				path: '/'
+				path: '/',
 			});
 		}
 	}
@@ -57,7 +57,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 export const handleError: HandleServerError = ({ error }) => {
 	if (error instanceof SoraError) {
 		return {
-			message: error.message
+			message: error.message,
 		};
 	}
 };

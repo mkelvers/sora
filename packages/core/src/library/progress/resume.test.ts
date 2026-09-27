@@ -4,12 +4,14 @@ import { continuePoint, type EpisodeProgress, type TitleEpisode } from "./resume
 
 /** A season of `count` released episodes. */
 function season(seasonId: string, count: number, inWatchOrder = true): TitleEpisode[] {
-  return Array.from({ length: count }, (_, index) => ({
+  return Array.from({
+    length: count,
+  }, (_, index) => ({
     seasonId,
     inWatchOrder,
     number: index + 1,
     isExtra: false,
-    isReleased: true
+    isReleased: true,
   }));
 }
 
@@ -19,7 +21,7 @@ const checkpoint = (seasonId: string, episode: number, positionSeconds: number, 
   positionSeconds,
   durationSeconds: 1440,
   completed,
-  eventAt: "2026-01-01T00:00:00.000Z"
+  eventAt: "2026-01-01T00:00:00.000Z",
 });
 
 // Frieren, reduced: two seasons of three episodes and a one-episode OVA.
@@ -35,7 +37,7 @@ describe("continuePoint", () => {
       seasonId: "s1",
       episode: 2,
       positionSeconds: 600,
-      durationSeconds: 1440
+      durationSeconds: 1440,
     });
   });
 
@@ -44,14 +46,14 @@ describe("continuePoint", () => {
       seasonId: "s1",
       episode: 3,
       positionSeconds: 0,
-      durationSeconds: null
+      durationSeconds: null,
     });
   });
 
   test("continues from the last episode of a season into the next season", () => {
     expect(continuePoint(frieren, [checkpoint("s1", 3, 1400, true)])).toMatchObject({
       seasonId: "s2",
-      episode: 1
+      episode: 1,
     });
   });
 
@@ -69,7 +71,7 @@ describe("continuePoint", () => {
       seasonId: "s2",
       episode: 1,
       positionSeconds: 300,
-      durationSeconds: 1440
+      durationSeconds: 1440,
     });
   });
 
@@ -81,14 +83,14 @@ describe("continuePoint", () => {
         inWatchOrder: true,
         number: 3,
         isExtra: true,
-        isReleased: true
+        isReleased: true,
       },
       ...season("s2", 1)
     ];
 
     expect(continuePoint(withRecap, [checkpoint("s1", 2, 1400, true)])).toMatchObject({
       seasonId: "s2",
-      episode: 1
+      episode: 1,
     });
   });
 
@@ -97,7 +99,7 @@ describe("continuePoint", () => {
       ...season("s1", 2),
       {
         ...season("s1", 3)[2]!,
-        isReleased: false
+        isReleased: false,
       }
     ];
 

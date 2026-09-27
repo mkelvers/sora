@@ -10,7 +10,11 @@
 		progress: TitleProgress;
 	};
 
-	let { seriesId, season, progress }: Props = $props();
+	let {
+		seriesId,
+		season,
+		progress,
+	}: Props = $props();
 
 	const episodes = $derived(
 		getEpisodes({

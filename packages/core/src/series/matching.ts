@@ -239,18 +239,18 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
                   {
                     anilistEpisode: 1,
                     seasonNumber: leading.season_number,
-                    episodeNumber: leading.episode_number
+                    episodeNumber: leading.episode_number,
                   }
                 ]
               : []),
             ...picked.map((episode, offset) => ({
               anilistEpisode: firstAnilistEpisode + offset,
               seasonNumber: episode.season_number,
-              episodeNumber: episode.episode_number
+              episodeNumber: episode.episode_number,
             }))
           ],
           method: startOffset !== null && Math.abs(startOffset) <= startWindowDays ? "air-date" : "continuation",
-          score
+          score,
         };
       }
     }
@@ -285,10 +285,10 @@ function placeByTitle(subject: MatchSubject, candidate: ShowCandidate, nameSimil
     episodes: track.map((episode, offset) => ({
       anilistEpisode: offset + 1,
       seasonNumber: episode.season_number,
-      episodeNumber: episode.episode_number
+      episodeNumber: episode.episode_number,
     })),
     method: "title",
-    score: minimumShowScore
+    score: minimumShowScore,
   };
 }
 
@@ -335,10 +335,10 @@ function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): P
     episodes: pick(track, index, subject, null, false).map((episode, offset) => ({
       anilistEpisode: offset + 1,
       seasonNumber: episode.season_number,
-      episodeNumber: episode.episode_number
+      episodeNumber: episode.episode_number,
     })),
     method: "title",
-    score: minimumShowScore
+    score: minimumShowScore,
   };
 }
 
@@ -381,14 +381,14 @@ export function placeAsMovie(
       mediaType: "movie",
       tmdbId: movie.id,
       method: "release-date",
-      score: 100 - offset + 60 * similarity
+      score: 100 - offset + 60 * similarity,
     };
   }
 
   // Synonyms often name the parent film, so a title-only match uses the
   // primary titles alone, and the titles must number the same instalment.
   const primarySimilarity = bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), movieTitles, {
-    sameNumbers: true
+    sameNumbers: true,
   });
   const datesAgree =
     offset !== null
@@ -399,7 +399,7 @@ export function placeAsMovie(
       mediaType: "movie",
       tmdbId: movie.id,
       method: "title",
-      score: 30 + 60 * primarySimilarity
+      score: 30 + 60 * primarySimilarity,
     };
   }
 
@@ -443,7 +443,7 @@ export function placeAfterInCollection(subject: MatchSubject, prequelId: number,
         mediaType: "movie",
         tmdbId: next.id,
         method: "continuation",
-        score: minimumShowScore
+        score: minimumShowScore,
       }
     : null;
 }

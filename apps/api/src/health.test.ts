@@ -5,10 +5,12 @@ import type { ProviderHealth } from "@sora/core/playback";
 // The real module reads the core's configuration on import; every test here
 // passes its own loader.
 mock.module("@sora/core/playback", () => ({
-  getProviderHealth: async () => []
+  getProviderHealth: async () => [],
 }));
 
-const { healthRoutes } = await import("./health");
+const {
+  healthRoutes,
+} = await import("./health");
 
 const anikoto: ProviderHealth = {
   provider: "anikoto",
@@ -22,9 +24,9 @@ const anikoto: ProviderHealth = {
       ok: 0,
       empty: 0,
       failed: 4,
-      averageMs: 250
+      averageMs: 250,
     }
-  ]
+  ],
 };
 
 async function probe(routes: ReturnType<typeof healthRoutes>) {
@@ -34,13 +36,16 @@ async function probe(routes: ReturnType<typeof healthRoutes>) {
     body: (await response.json()) as {
       status: string;
       providers: unknown[] | null;
-    }
+    },
   };
 }
 
 describe("/health", () => {
   test("stays ok while a provider fails, and reports providers in snake_case without error messages", async () => {
-    const { status, body } = await probe(healthRoutes(async () => [anikoto]));
+    const {
+      status,
+      body,
+    } = await probe(healthRoutes(async () => [anikoto]));
 
     expect(status).toBe(200);
     expect(body).toEqual({
@@ -57,11 +62,11 @@ describe("/health", () => {
               ok: 0,
               empty: 0,
               failed: 4,
-              average_ms: 250
+              average_ms: 250,
             }
-          ]
+          ],
         }
-      ]
+      ],
     });
   });
 
@@ -92,8 +97,8 @@ describe("/health", () => {
       status: 200,
       body: {
         status: "ok",
-        providers: null
-      }
+        providers: null,
+      },
     });
     expect((await probe(routes)).body.providers).toHaveLength(1);
   });

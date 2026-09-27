@@ -34,19 +34,21 @@ export async function fetchAiringSchedule(from: Date, until: Date): Promise<Airi
   // exclusive, hence the one-second shift.
   const variables = {
     from: Math.floor(from.getTime() / hour) * (hour / 1_000) - 1,
-    until: Math.ceil(until.getTime() / hour) * (hour / 1_000) + 1
+    until: Math.ceil(until.getTime() / hour) * (hour / 1_000) + 1,
   };
   const episodes: AiringBroadcast[] = [];
 
   for (let page = 1; ; page += 1) {
-    const { Page } = await anilist(
+    const {
+      Page,
+    } = await anilist(
       AiringScheduleDocument,
       {
         ...variables,
-        page
+        page,
       },
       {
-        maxAgeMs: 15 * minute
+        maxAgeMs: 15 * minute,
       }
     );
 
@@ -57,7 +59,7 @@ export async function fetchAiringSchedule(from: Date, until: Date): Promise<Airi
         episodes.push({
           anilistId: entry.media.id,
           episode: entry.episode,
-          airingAt: fromUnixSeconds(entry.airingAt)
+          airingAt: fromUnixSeconds(entry.airingAt),
         });
       }
     }
@@ -88,14 +90,16 @@ export async function fetchEpisodeAirings(anilistIds: readonly number[]): Promis
   for (let offset = 0; offset < ids.length; offset += airingsBatchSize) {
     const batch = ids.slice(offset, offset + airingsBatchSize);
     for (let page = 1; ; page += 1) {
-      const { Page } = await anilist(
+      const {
+        Page,
+      } = await anilist(
         EpisodeAiringsDocument,
         {
           ids: batch,
-          page
+          page,
         },
         {
-          maxAgeMs: hour
+          maxAgeMs: hour,
         }
       );
 

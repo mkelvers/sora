@@ -50,7 +50,10 @@
 				label: "Subtitles",
 				value: subtitle ?? "",
 				options: [
-					{ value: "", label: "Off" },
+					{
+						value: "",
+						label: "Off",
+					},
 					...subtitles.map((track) => ({
 						value: track.url,
 						label: track.label,

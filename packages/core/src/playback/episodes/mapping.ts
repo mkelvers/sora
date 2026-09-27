@@ -56,7 +56,7 @@ export async function getProviderMedia(
     matchedTitle: match?.matchedTitle ?? null,
     method: match?.method ?? null,
     episodeOffset: match?.episodeOffset ?? 0,
-    resolvedAt: new Date()
+    resolvedAt: new Date(),
   };
 
   await db
@@ -64,24 +64,27 @@ export async function getProviderMedia(
     .values({
       anilistId: anime.id,
       provider: provider.id,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: [
         providerMapping.anilistId,
         providerMapping.provider
       ],
-      set: values
+      set: values,
     });
 
   return toProviderMedia(values);
 }
 
-function toProviderMedia(mapping: { providerMediaId: string | null; episodeOffset: number }) {
+function toProviderMedia(mapping: {
+  providerMediaId: string | null;
+  episodeOffset: number;
+}) {
   return mapping.providerMediaId
     ? {
         mediaId: mapping.providerMediaId,
-        episodeOffset: mapping.episodeOffset
+        episodeOffset: mapping.episodeOffset,
       }
     : null;
 }

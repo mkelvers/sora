@@ -11,7 +11,15 @@
 		alignment?: 'left' | 'right';
 	};
 
-	let { id, trigger, children, label, alignment = 'right', class: className, ...props }: Props = $props();
+	let {
+		id,
+		trigger,
+		children,
+		label,
+		alignment = 'right',
+		class: className,
+		...props
+	}: Props = $props();
 </script>
 
 <div class="dropdown">

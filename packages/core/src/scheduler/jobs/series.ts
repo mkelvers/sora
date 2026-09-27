@@ -16,7 +16,7 @@ import { day, hour } from "../../time";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
-  anilistId: z.number().int().positive()
+  anilistId: z.number().int().positive(),
 });
 
 /**
@@ -28,7 +28,9 @@ const StoreSeriesPayloadSchema = z.object({
  * outage is handled.
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
-  const { anilistId } = StoreSeriesPayloadSchema.parse(rawPayload);
+  const {
+    anilistId,
+  } = StoreSeriesPayloadSchema.parse(rawPayload);
   try {
     const seriesId = await storeSeries(anilistId);
     helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
@@ -79,14 +81,16 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
   const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
   let queued = 0;
   for (let page = 1; page <= discoveryPageLimit; page += 1) {
-    const { Page } = await anilist(
+    const {
+      Page,
+    } = await anilist(
       NewEntriesDocument,
       {
         page,
-        perPage: entriesPerPage
+        perPage: entriesPerPage,
       },
       {
-        maxAgeMs: hour
+        maxAgeMs: hour,
       }
     );
 
@@ -156,7 +160,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
   const stale = await db
     .selectDistinctOn([seriesSeason.seriesId], {
       anilistId: seriesEpisode.anilistId,
-      key: series.key
+      key: series.key,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -185,7 +189,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
     if (showId) {
       try {
         await getShow(Number(showId), {
-          maxAgeMs: 0
+          maxAgeMs: 0,
         });
       } catch (error) {
         helpers.logger.warn(`TMDB failed for show ${showId}: ${String(error)}`);

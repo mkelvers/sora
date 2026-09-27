@@ -38,7 +38,7 @@ export async function getContinueWatching(
         seriesId: seriesSeason.seriesId,
         seasonId: seriesEpisode.seasonId,
         position: seriesSeason.position,
-        number: seriesEpisode.number
+        number: seriesEpisode.number,
       })
       .from(playbackProgress)
       .innerJoin(
@@ -54,7 +54,7 @@ export async function getContinueWatching(
         seasonId: seriesEpisode.seasonId,
         position: seriesSeason.position,
         number: seriesEpisode.number,
-        durationMinutes: seriesEpisode.runtimeMinutes
+        durationMinutes: seriesEpisode.runtimeMinutes,
       })
       .from(seasonCompletion)
       .innerJoin(
@@ -68,7 +68,7 @@ export async function getContinueWatching(
   const rows = [
     ...checkpoints.map((row) => ({
       ...row,
-      checkpoint: toEpisodeProgress(row.progress, row.seasonId, row.number)
+      checkpoint: toEpisodeProgress(row.progress, row.seasonId, row.number),
     })),
     ...completions.map((row) => {
       const duration = (row.durationMinutes ?? 0) * 60;
@@ -80,8 +80,8 @@ export async function getContinueWatching(
           positionSeconds: duration,
           durationSeconds: duration,
           completed: true,
-          eventAt: row.completedAt.toISOString()
-        } satisfies EpisodeProgress
+          eventAt: row.completedAt.toISOString(),
+        } satisfies EpisodeProgress,
       };
     })
   ].sort(
@@ -109,7 +109,7 @@ export async function getContinueWatching(
   const [finished, stored, episodes] = await Promise.all([
     db
       .select({
-        seriesId: watchlistEntry.seriesId
+        seriesId: watchlistEntry.seriesId,
       })
       .from(watchlistEntry)
       .where(
@@ -143,7 +143,7 @@ export async function getContinueWatching(
             {
               series: cards.get(seriesId)!,
               ...point,
-              lastWatchedAt: checkpoints[0]!.eventAt
+              lastWatchedAt: checkpoints[0]!.eventAt,
             }
           ]
         : [];
@@ -169,7 +169,7 @@ async function titleEpisodes(seriesIds: readonly string[]) {
       anilistEpisode: seriesEpisode.anilistEpisode,
       airDate: seriesEpisode.airDate,
       airedAt: seriesEpisode.airedAt,
-      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber
+      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -181,13 +181,15 @@ async function titleEpisodes(seriesIds: readonly string[]) {
   return (title: typeof series.$inferSelect): TitleEpisode[] =>
     rows
       .filter(
-        (row) => row.seriesId === title.id && isEpisodeShown(title, { kind: row.seasonKind }, row, onAniKoto, now)
+        (row) => row.seriesId === title.id && isEpisodeShown(title, {
+          kind: row.seasonKind,
+        }, row, onAniKoto, now)
       )
       .map((row) => ({
         seasonId: row.seasonId,
         inWatchOrder: row.inWatchOrder,
         number: row.number,
         isExtra: row.anilistId === null,
-        isReleased: isEpisodeAvailable(title, row, onAniKoto, now)
+        isReleased: isEpisodeAvailable(title, row, onAniKoto, now),
       }));
 }

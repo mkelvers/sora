@@ -93,10 +93,10 @@ const loadFranchiseEntries = loadMediaById({
     with1: ids1.length > 0,
     with2: ids2.length > 0,
     with3: ids3.length > 0,
-    with4: ids4.length > 0
+    with4: ids4.length > 0,
   }),
   media: ({ page0, page1, page2, page3, page4 }) =>
-    [page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? [])
+    [page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? []),
 });
 
 /** Fetches entries and remembers them and their neighbours. */
@@ -110,7 +110,10 @@ async function fetchAndRemember(ids: readonly number[]) {
       continue;
     }
 
-    const { neighbours, ...entry } = media;
+    const {
+      neighbours,
+      ...entry
+    } = media;
     remember(id, isServed(entry) ? entry : null);
 
     // The next step of a walk, and the prequels matching looks up, then
@@ -118,7 +121,10 @@ async function fetchAndRemember(ids: readonly number[]) {
     for (const edge of neighbours?.edges ?? []) {
       const neighbour = edge?.node;
       if (neighbour?.type === "ANIME" && !asked.has(neighbour.id)) {
-        const { type: _type, ...neighbourEntry } = neighbour;
+        const {
+          type: _type,
+          ...neighbourEntry
+        } = neighbour;
         remember(neighbour.id, isServed(neighbourEntry) ? neighbourEntry : null);
       }
     }
@@ -134,7 +140,7 @@ function remember(id: number, entry: FranchiseEntry | null) {
   recentEntries.delete(id);
   recentEntries.set(id, {
     entry,
-    loadedAt: Date.now()
+    loadedAt: Date.now(),
   });
 
   // Maps iterate in insertion order, so the first key is the oldest.
@@ -188,7 +194,7 @@ export function toMatchSubject(entry: FranchiseEntry, now: Date): MatchSubject {
     // Before its first episode airs, an entry's length is unknown, not zero.
     episodes: entry.episodes ?? (entry.nextAiringEpisode && entry.nextAiringEpisode.episode > 1 ? entry.nextAiringEpisode.episode - 1 : null),
     airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
-    durationMinutes: entry.duration
+    durationMinutes: entry.duration,
   };
 }
 

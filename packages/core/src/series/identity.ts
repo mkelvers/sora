@@ -75,6 +75,6 @@ export function assignSeasonIds<
 
   return seasons.map((season, index) => ({
     season,
-    id: ids[index] ?? newId()
+    id: ids[index] ?? newId(),
   }));
 }

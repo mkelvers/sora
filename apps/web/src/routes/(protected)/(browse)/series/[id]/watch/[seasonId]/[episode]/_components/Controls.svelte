@@ -12,7 +12,12 @@
 		children?: Snippet;
 	};
 
-	let { player, previous, next, children }: Props = $props();
+	let {
+		player,
+		previous,
+		next,
+		children,
+	}: Props = $props();
 </script>
 
 <input

@@ -16,14 +16,29 @@
 		onmore: () => void;
 	} = $props();
 
-	const found = $derived(await searchSeries({ q, page, perPage: 24 }));
+	const found = $derived(await searchSeries({
+		q,
+		page,
+		perPage: 24,
+	}));
 	const stale = $derived(navigating.to?.url.pathname === "/search");
 
 	const items = $derived.by(() => {
 		const merged: (
-			| { key: string; card: SeriesCard; preparing?: never }
-			| { key: string; preparing: PreparingTitle; card?: never }
-		)[] = found.results.map((card) => ({ key: card.id, card }));
+			| {
+				key: string;
+				card: SeriesCard;
+				preparing?: never;
+			}
+			| {
+				key: string;
+				preparing: PreparingTitle;
+				card?: never;
+			}
+		)[] = found.results.map((card) => ({
+			key: card.id,
+			card,
+		}));
 
 		for (const preparing of found.meta.preparing_titles.toSorted(
 			(left, right) => left.position - right.position,
@@ -43,7 +58,11 @@
 		}
 
 		const timer = setTimeout(
-			() => searchSeries({ q, page, perPage: 24 }).refresh(),
+			() => searchSeries({
+				q,
+				page,
+				perPage: 24,
+			}).refresh(),
 			1000,
 		);
 

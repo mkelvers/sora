@@ -61,7 +61,7 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
   const values = {
     posterUrlOverride: changes.posterUrl,
     backdropUrlOverride: changes.backdropUrl,
-    logoUrlOverride: changes.logoUrl
+    logoUrlOverride: changes.logoUrl,
   };
 
   // Drizzle skips undefined fields, and refuses an update with none left.
@@ -71,7 +71,7 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
       .set(values)
       .where(eq(series.id, seriesId))
       .returning({
-        id: series.id
+        id: series.id,
       });
     if (updated.length === 0) {
       throw new SeriesNotFoundError(seriesId);
@@ -92,7 +92,7 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 export async function listSeriesImages(seriesId: string, query: SeriesImageQuery = {}): Promise<SeriesImage[]> {
   const [row] = await db
     .select({
-      key: series.key
+      key: series.key,
     })
     .from(series)
     .where(eq(series.id, seriesId))
@@ -149,7 +149,7 @@ function toSeriesImage(type: ImageType, image: TmdbImage, seasonNumber: number |
     language: image.iso_639_1,
     voteAverage: image.vote_average,
     voteCount: image.vote_count,
-    seasonNumber
+    seasonNumber,
   };
 }
 

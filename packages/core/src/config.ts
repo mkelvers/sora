@@ -27,7 +27,7 @@ const EnvironmentSchema = z.object({
         .split(",")
         .map((origin) => origin.trim())
         .filter(Boolean)
-    )
+    ),
 });
 
 /**
@@ -46,6 +46,6 @@ export const config = (() => {
     tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
     authSecret: environment.AUTH_SECRET,
     authUrl: environment.AUTH_URL,
-    authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS
+    authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,
   };
 })();

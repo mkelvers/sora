@@ -17,16 +17,16 @@ const providerHttp = new HttpClient({
     // AniKoto's API allows 60 requests a minute per IP.
     "anikotoapi.site": {
       capacity: 55,
-      intervalMs: 60_000
-    }
-  }
+      intervalMs: 60_000,
+    },
+  },
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
 const mappingClient = new MappingClient(providerHttp, {
   // Anify's API redirects to itself, so every lookup spent about 15s failing
   // before the mapping fell through to the other sources.
-  disableAnify: true
+  disableAnify: true,
 });
 
 /**
@@ -37,7 +37,10 @@ const mappingClient = new MappingClient(providerHttp, {
 export const servedLocale = "en";
 
 /** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
-export function isServedSubtitle(track: { language: string; label: string }) {
+export function isServedSubtitle(track: {
+  language: string;
+  label: string;
+}) {
   const language = track.language.trim().toLowerCase();
   return /^en(?:-|_|$)/.test(language) || language.startsWith("english") || /^english\b/i.test(track.label.trim());
 }
@@ -46,7 +49,7 @@ export function isServedSubtitle(track: { language: string; label: string }) {
 export const aniKoto = recordingCalls(
   new AniKotoStreamProvider(providerHttp, {
     locale: "en",
-    listsLanguages: true
+    listsLanguages: true,
   })
 );
 
@@ -67,17 +70,17 @@ export const streamProviders: readonly StreamProvider[] = [
   ...[
     new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
       locale: "en",
-      listsLanguages: true
+      listsLanguages: true,
     }),
     // MegaPlay's lists are made up from AniList's episode count and claim sub
     // and dub for every episode.
     new MegaPlayStreamProvider(providerHttp, mappingClient, {
       locale: "en",
-      listsLanguages: false
+      listsLanguages: false,
     }),
     new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
       locale: "en",
-      listsLanguages: true
+      listsLanguages: true,
     })
   ].map((provider) => recordingCalls(provider))
 ];

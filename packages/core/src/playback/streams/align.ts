@@ -59,7 +59,10 @@ export function alignTimelines(source: number[], target: number[]): TimelineShif
   path.forEach((choice, index) => {
     const offset = offsets[choice]!;
     if (shifts.at(-1)?.offset !== offset) {
-      shifts.push({ from: index === 0 ? 0 : source[index]!, offset });
+      shifts.push({
+        from: index === 0 ? 0 : source[index]!,
+        offset,
+      });
     }
   });
   return shifts;

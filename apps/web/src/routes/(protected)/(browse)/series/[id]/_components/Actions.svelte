@@ -8,7 +8,10 @@
 		resume: ContinueWatchingItem | null;
 	};
 
-	let { series, resume }: Props = $props();
+	let {
+		series,
+		resume,
+	}: Props = $props();
 
 	const play = $derived.by(() => {
 		if (resume) {

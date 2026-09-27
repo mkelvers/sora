@@ -96,10 +96,10 @@ export function planNextCheck(state: AiringState, progress: AiringProgress, now:
           done: false,
           runAt: retryAt,
           awaitedEpisode,
-          attempt
+          attempt,
         }
       : {
-          done: true
+          done: true,
         };
   }
 
@@ -108,7 +108,7 @@ export function planNextCheck(state: AiringState, progress: AiringProgress, now:
     done: false,
     runAt: retryAt && retryAt < scheduledAt ? retryAt : scheduledAt,
     awaitedEpisode,
-    attempt
+    attempt,
   };
 }
 
@@ -139,6 +139,6 @@ function japanDay(date: string | null) {
   const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
   return {
     start: new Date(start),
-    end: new Date(start + day)
+    end: new Date(start + day),
   };
 }

@@ -1,7 +1,7 @@
 import type { SeriesCard } from '@sora/sdk';
 
 export const languages = new Intl.DisplayNames(['en'], {
-	type: 'language'
+	type: 'language',
 });
 
 export function formatClock(seconds: number) {
@@ -40,12 +40,12 @@ export function tmdbSrcset(url: string, sizes: Record<string, number>) {
 
 const kinds: Partial<Record<SeriesCard['kind'], string>> = {
 	tv: 'Series',
-	movie: 'Movie'
+	movie: 'Movie',
 };
 
 const statuses: Partial<Record<NonNullable<SeriesCard['status']>, string>> = {
 	RELEASING: 'Airing',
-	NOT_YET_RELEASED: 'Upcoming'
+	NOT_YET_RELEASED: 'Upcoming',
 };
 
 export function describeCard(card: SeriesCard) {

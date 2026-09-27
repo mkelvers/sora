@@ -19,7 +19,7 @@
 		await searchSeries({
 			q: term,
 			page: 1,
-			perPage: 6
+			perPage: 6,
 		}),
 	);
 
@@ -29,7 +29,8 @@
 		}
 
 		const timer = setTimeout(
-			() => searchSeries({
+			() =>
+				searchSeries({
 					q: term,
 					page: 1,
 					perPage: 6,

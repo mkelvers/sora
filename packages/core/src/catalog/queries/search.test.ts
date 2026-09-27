@@ -1,20 +1,33 @@
 import { describe, expect, mock, test } from "bun:test";
 
 mock.module("../../database/client", () => ({
-  db: {}
+  db: {},
 }));
 
-const { normalizeTitle, popularityWeight, rankCandidates, searchText, shortQueryPattern, textScore, titleScore } = await import("./search");
+const {
+  normalizeTitle,
+  popularityWeight,
+  rankCandidates,
+  searchText,
+  shortQueryPattern,
+  textScore,
+  titleScore,
+} = await import("./search");
 
 /** An indexed entry with the fields ranking reads. */
-function entry(anilistId: number, popularity: number, titles: { english?: string; romaji?: string; native?: string; synonyms?: string[] }) {
+function entry(anilistId: number, popularity: number, titles: {
+  english?: string;
+  romaji?: string;
+  native?: string;
+  synonyms?: string[];
+}) {
   return {
     anilistId,
     popularity,
     english: titles.english ?? null,
     romaji: titles.romaji ?? null,
     native: titles.native ?? null,
-    synonyms: titles.synonyms ?? []
+    synonyms: titles.synonyms ?? [],
   };
 }
 
@@ -22,33 +35,33 @@ function entry(anilistId: number, popularity: number, titles: { english?: string
 const kimetsu = entry(101922, 1_000_000, {
   english: "Demon Slayer: Kimetsu no Yaiba",
   romaji: "Kimetsu no Yaiba",
-  native: "鬼滅の刃"
+  native: "鬼滅の刃",
 });
 const mugenTrain = entry(112151, 420_000, {
   english: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
-  romaji: "Kimetsu no Yaiba Movie: Mugen Ressha-hen"
+  romaji: "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
 });
 const onigiri = entry(21612, 9_026, {
   english: "Onigiri",
   romaji: "Onigiri",
   native: "鬼斬",
-  synonyms: ["Demon Slayer", "Demon Cutter"]
+  synonyms: ["Demon Slayer", "Demon Cutter"],
 });
 const attackOnTitan = entry(16498, 1_100_000, {
   english: "Attack on Titan",
   romaji: "Shingeki no Kyojin",
   native: "進撃の巨人",
-  synonyms: ["AoT", "SnK"]
+  synonyms: ["AoT", "SnK"],
 });
 const jujutsuKaisen = entry(113415, 900_000, {
   english: "JUJUTSU KAISEN",
   romaji: "Jujutsu Kaisen",
   native: "呪術廻戦",
-  synonyms: ["JJK", "Sorcery Fight"]
+  synonyms: ["JJK", "Sorcery Fight"],
 });
 const jujutsuKaisenZero = entry(131573, 400_000, {
   english: "JUJUTSU KAISEN 0",
-  romaji: "Jujutsu Kaisen 0: Jujutsu Kaisen Zero"
+  romaji: "Jujutsu Kaisen 0: Jujutsu Kaisen Zero",
 });
 
 const top = (query: string, candidates: ReturnType<typeof entry>[]) => rankCandidates(query, candidates)[0]?.anilistId;
@@ -83,11 +96,11 @@ describe("rankCandidates", () => {
   test("finds the far more popular remake when both have the query as their title", () => {
     const original = entry(136, 135_064, {
       english: "Hunter x Hunter",
-      romaji: "HUNTER×HUNTER"
+      romaji: "HUNTER×HUNTER",
     });
     const remake = entry(11061, 843_439, {
       english: "Hunter x Hunter (2011)",
-      romaji: "HUNTER×HUNTER (2011)"
+      romaji: "HUNTER×HUNTER (2011)",
     });
 
     expect(top("hunter x hunter", [original, remake])).toBe(11061);
@@ -96,11 +109,11 @@ describe("rankCandidates", () => {
   test("finds a title by its full name, disambiguator included, as with Oreimo 2 (ONA)", () => {
     const ona = entry(18857, 38_944, {
       english: "Oreimo 2 (ONA)",
-      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai. (ONA)"
+      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai. (ONA)",
     });
     const season = entry(13659, 90_000, {
       english: "Oreimo 2",
-      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai."
+      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai.",
     });
 
     expect(textScore(normalizeTitle("Oreimo 2 (ONA)"), ona)).toBe(1);
@@ -109,7 +122,7 @@ describe("rankCandidates", () => {
 
   test("still finds a title by its name without the disambiguator", () => {
     const remake = entry(11061, 843_439, {
-      english: "Hunter x Hunter (2011)"
+      english: "Hunter x Hunter (2011)",
     });
 
     expect(textScore(normalizeTitle("hunter x hunter"), remake)).toBe(1);
@@ -119,11 +132,11 @@ describe("rankCandidates", () => {
   test("lets a far more popular show that contains the query beat a film that starts with it", () => {
     const evangelion = entry(30, 496_647, {
       english: "Neon Genesis Evangelion",
-      romaji: "Shin Seiki Evangelion"
+      romaji: "Shin Seiki Evangelion",
     });
     const rebuild = entry(2759, 145_336, {
       english: "Evangelion: 1.0 You Are (Not) Alone",
-      romaji: "Evangelion Shin Movie: Jo"
+      romaji: "Evangelion Shin Movie: Jo",
     });
 
     expect(top("evangelion", [rebuild, evangelion])).toBe(30);
@@ -132,11 +145,11 @@ describe("rankCandidates", () => {
   test("still prefers an exact title to a slightly more popular sequel", () => {
     const clannad = entry(2167, 300_000, {
       english: "Clannad",
-      romaji: "CLANNAD"
+      romaji: "CLANNAD",
     });
     const afterStory = entry(4181, 350_000, {
       english: "Clannad: After Story",
-      romaji: "CLANNAD: AFTER STORY"
+      romaji: "CLANNAD: AFTER STORY",
     });
 
     expect(top("clannad", [afterStory, clannad])).toBe(2167);
@@ -145,7 +158,7 @@ describe("rankCandidates", () => {
   test("ignores punctuation and spacing", () => {
     const reZero = entry(21355, 700_000, {
       english: "Re:ZERO -Starting Life in Another World-",
-      romaji: "Re:Zero kara Hajimeru Isekai Seikatsu"
+      romaji: "Re:Zero kara Hajimeru Isekai Seikatsu",
     });
 
     expect(top("re zero", [onigiri, reZero])).toBe(21355);

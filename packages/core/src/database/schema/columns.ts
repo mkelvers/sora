@@ -3,7 +3,7 @@ import { customType, timestamp } from "drizzle-orm/pg-core";
 /** A `timestamp with time zone` column; every timestamp in the schema uses one. */
 export const timestamptz = (name: string) =>
   timestamp(name, {
-    withTimezone: true
+    withTimezone: true,
   });
 
 /**
@@ -20,5 +20,5 @@ export const jsonb = customType<{
 }>({
   dataType: () => "jsonb",
   toDriver: (value) => value,
-  fromDriver: (value) => value
+  fromDriver: (value) => value,
 });

@@ -5,7 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 const Changes = z.object({
 	name: z.string().trim().min(1).max(40),
-	avatar: z.string().trim().min(1).max(64)
+	avatar: z.string().trim().min(1).max(64),
 });
 
 export const load: PageServerLoad = ({ locals, params }) => {
@@ -16,7 +16,9 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 	return {
 		profile,
-		choices: Array.from({ length: 11 }, () => crypto.randomUUID().slice(0, 8))
+		choices: Array.from({
+			length: 11,
+		}, () => crypto.randomUUID().slice(0, 8)),
 	};
 };
 
@@ -26,13 +28,13 @@ export const actions: Actions = {
 		const name = String(form.get('name') ?? '');
 		const changes = Changes.safeParse({
 			name,
-			avatar: form.get('avatar')
+			avatar: form.get('avatar'),
 		});
 
 		if (!changes.success) {
 			return fail(400, {
 				name,
-				message: 'Give the profile a name of up to 40 characters.'
+				message: 'Give the profile a name of up to 40 characters.',
 			});
 		}
 
@@ -46,5 +48,5 @@ export const actions: Actions = {
 		}
 
 		redirect(303, `/profiles${url.search}`);
-	}
+	},
 };

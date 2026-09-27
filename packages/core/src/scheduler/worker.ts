@@ -40,7 +40,7 @@ export interface Scheduler {
 /** Tasks for work a viewer is waiting on; see {@link storeSeriesNowTask}. */
 const waitedOnTasks: Record<string, Task> = {
   [storeSeriesNowTask]: storeSeriesJob,
-  [lookUpEpisodesNowTask]: lookUpEpisodes
+  [lookUpEpisodesNowTask]: lookUpEpisodes,
 };
 
 /**
@@ -80,7 +80,7 @@ export async function startScheduler(): Promise<Scheduler> {
       [checkProviderHealthTask]: checkProviderHealthJob,
       [syncSearchIndexTask]: syncSearchIndexJob,
       [backfillSeriesTask]: backfillSeries,
-      [syncTmdbHintsTask]: syncTmdbHintsJob
+      [syncTmdbHintsTask]: syncTmdbHintsJob,
     }),
     crontab: [
       `0 * * * * ${reviveAiringChecksTask}`,
@@ -97,7 +97,7 @@ export async function startScheduler(): Promise<Scheduler> {
       `20 2 * * 1 ${syncSearchIndexTask} ?id=search-index-full&fill=1w&priority=-1 {full:true}`,
       `10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
       `35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`
-    ].join("\n")
+    ].join("\n"),
   });
 
   // Every slot above can be held for minutes by jobs waiting their turn on
@@ -111,14 +111,14 @@ export async function startScheduler(): Promise<Scheduler> {
     concurrency: 24,
     // graphile-worker opens connections as jobs need them, up to this.
     maxPoolSize: 24,
-    taskList: prioritized(waitedOnTasks)
+    taskList: prioritized(waitedOnTasks),
   });
 
   return {
     promise: Promise.all([main.promise, waitedOn.promise]).then(() => undefined),
     stop: async () => {
       await Promise.all([main.stop(), waitedOn.stop()]);
-    }
+    },
   };
 }
 

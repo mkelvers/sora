@@ -11,7 +11,10 @@
 		artwork: Artwork;
 	};
 
-	let { series, artwork }: Props = $props();
+	let {
+		series,
+		artwork,
+	}: Props = $props();
 
 	const images = $derived(await getImages(series.id));
 	const shown = $derived(artwork.apply(images));

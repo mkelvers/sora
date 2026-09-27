@@ -30,7 +30,7 @@ export interface ListedUnit {
 const languageOrder: Record<ContentLanguage, number> = {
   dub: 0,
   sub: 1,
-  raw: 2
+  raw: 2,
 };
 
 /**
@@ -50,7 +50,7 @@ export function versionsOffered(listings: readonly ListedUnit[]): EpisodeVersion
     for (const language of unit.languages ?? []) {
       const version = {
         language,
-        locale: language === "raw" ? null : source.locale
+        locale: language === "raw" ? null : source.locale,
       };
       versions.set(`${version.language}:${version.locale}`, version);
     }
@@ -82,7 +82,7 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
 export async function getEpisodeVersions(episode: Pick<LocatedEpisode, "anilistId" | "anilistEpisode">): Promise<EpisodeVersion[]> {
   const listed = (
     await readAnimeListings([episode.anilistId], {
-      lookUpUnknown: true
+      lookUpUnknown: true,
     })
   ).get(episode.anilistId);
   return versionsOffered(listed?.listings.filter(({ unit }) => unit.number === episode.anilistEpisode) ?? []);
@@ -127,7 +127,7 @@ export async function findEpisodeListings(
   const listingsById = await readAnimeListings(
     episodes.map((episode) => episode.anilistId),
     {
-      lookUpUnknown: false
+      lookUpUnknown: false,
     }
   );
 
@@ -139,7 +139,7 @@ export async function findEpisodeListings(
     const isKnown = !!listed && !(versions.length === 0 && listed.pending);
     found.set(anilistEpisodeKey(anilistId, episode), {
       languages: isKnown ? languagesOf(versions) : null,
-      isFiller: isKnown ? fillerOf(listings) : null
+      isFiller: isKnown ? fillerOf(listings) : null,
     });
   }
 
@@ -211,16 +211,16 @@ function listingSources() {
 function listingsOf(anilistId: number, stored: readonly StoredUnits[], sources: readonly StreamProvider[]): AnimeListings {
   const found = sources.map((source) => ({
     source,
-    units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units
+    units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units,
   }));
   return {
     listings: found.flatMap(({ source, units }) =>
       (units ?? []).map((unit) => ({
         source,
-        unit
+        unit,
       }))
     ),
-    pending: found.some(({ units }) => units === undefined)
+    pending: found.some(({ units }) => units === undefined),
   };
 }
 
@@ -254,7 +254,7 @@ function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promi
             {
               anilistId,
               provider: provider.id,
-              units
+              units,
             }
           ],
           () => []

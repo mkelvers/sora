@@ -14,14 +14,16 @@ function weekly(
   } = {}
 ): TmdbEpisode[] {
   const first = options.first ?? 1;
-  return Array.from({ length: count }, (_, index) => ({
+  return Array.from({
+    length: count,
+  }, (_, index) => ({
     season_number: season,
     episode_number: first + index,
     name: null,
     overview: null,
     air_date: start ? addDays(start, index * 7) : null,
     runtime: options.runtime ?? 24,
-    still_path: null
+    still_path: null,
   }));
 }
 
@@ -33,7 +35,7 @@ function special(episode: number, airDate: string, runtime: number): TmdbEpisode
     overview: null,
     air_date: airDate,
     runtime,
-    still_path: null
+    still_path: null,
   };
 }
 
@@ -52,7 +54,7 @@ function subject(overrides: Partial<MatchSubject>): MatchSubject {
     durationMinutes: 24,
     primaryTitleCount: titles.length,
     ...overrides,
-    titles
+    titles,
   };
 }
 
@@ -62,11 +64,11 @@ function show(episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): 
       id: 1,
       name: "Example",
       originalName: "Example",
-      episodes
+      episodes,
     },
     isFranchiseShow: false,
     prequel: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -75,12 +77,12 @@ function endingAt(season: number, episode: number) {
   return {
     first: {
       seasonNumber: season,
-      episodeNumber: 1
+      episodeNumber: 1,
     },
     last: {
       seasonNumber: season,
-      episodeNumber: episode
-    }
+      episodeNumber: episode,
+    },
   };
 }
 
@@ -91,7 +93,7 @@ function movie(overrides: Partial<TmdbMovieResult>): TmdbMovieResult {
     original_title: "Example",
     release_date: null,
     popularity: 1,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -110,7 +112,7 @@ describe("placeInShow", () => {
       ...weekly(1, "2018-10-02", 24),
       ...weekly(2, "2021-01-12", 12),
       ...weekly(2, "2021-07-06", 12, {
-        first: 13
+        first: 13,
       })
     ];
 
@@ -118,7 +120,7 @@ describe("placeInShow", () => {
       subject({
         startDate: "2021-07-06",
         endDate: "2021-09-21",
-        episodes: 12
+        episodes: 12,
       }),
       show(episodes)
     );
@@ -132,7 +134,7 @@ describe("placeInShow", () => {
     const episodes = [
       ...weekly(1, "2016-04-04", 25),
       ...weekly(1, "2020-07-08", 13, {
-        first: 26
+        first: 26,
       })
     ];
 
@@ -140,7 +142,7 @@ describe("placeInShow", () => {
       subject({
         startDate: "2020-07-08",
         endDate: "2020-09-30",
-        episodes: 13
+        episodes: 13,
       }),
       show(episodes)
     );
@@ -157,7 +159,7 @@ describe("placeInShow", () => {
         format: "ONA",
         startDate: "2026-04-06",
         endDate: "2026-06-22",
-        episodes: 13
+        episodes: 13,
       }),
       show(weekly(1, "2026-04-06", 13))
     );
@@ -171,7 +173,7 @@ describe("placeInShow", () => {
       subject({
         startDate: "2020-01-06",
         endDate: "2020-03-23",
-        episodes: 13
+        episodes: 13,
       }),
       show([
         ...weekly(1, "2020-01-06", 12),
@@ -186,11 +188,11 @@ describe("placeInShow", () => {
     // Witch Hat Atelier Season 2, before TMDB's S1E13 went to season 1.
     const placement = placeInShow(
       subject({
-        airsFrom: "2026-09-27"
+        airsFrom: "2026-09-27",
       }),
       show(weekly(1, "2026-04-06", 13), {
         isFranchiseShow: true,
-        prequel: endingAt(1, 12)
+        prequel: endingAt(1, 12),
       })
     );
 
@@ -201,14 +203,14 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2027-10",
-        airsFrom: "2026-09-27"
+        airsFrom: "2026-09-27",
       }),
       show([
         ...weekly(1, "2024-01-04", 24),
         ...weekly(2, "2027-10-01", 1)
       ], {
         isFranchiseShow: true,
-        prequel: endingAt(1, 24)
+        prequel: endingAt(1, 24),
       })
     );
 
@@ -224,7 +226,7 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2007-02-15",
-        episodes: 53
+        episodes: 53,
       }),
       show(episodes)
     );
@@ -241,11 +243,11 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2010-01-01",
-        episodes: 12
+        episodes: 12,
       }),
       show(episodes, {
         isFranchiseShow: true,
-        prequel: endingAt(1, 12)
+        prequel: endingAt(1, 12),
       })
     );
 
@@ -260,10 +262,10 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2020-01-01",
-        episodes: 12
+        episodes: 12,
       }),
       show(episodes, {
-        prequel: endingAt(1, 12)
+        prequel: endingAt(1, 12),
       })
     );
 
@@ -276,14 +278,14 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2014-10-17",
-        episodes: 12
+        episodes: 12,
       }),
       show([
         ...weekly(1, "2014-10-17", 12),
         ...weekly(2, "2017-10-07", 6)
       ], {
         isFranchiseShow: true,
-        prequel: endingAt(2, 6)
+        prequel: endingAt(2, 6),
       })
     );
 
@@ -295,10 +297,10 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2020-01-01",
-        episodes: 12
+        episodes: 12,
       }),
       show(weekly(1, "2019-01-01", 24), {
-        prequel: endingAt(1, 12)
+        prequel: endingAt(1, 12),
       })
     );
 
@@ -316,7 +318,7 @@ describe("placeInShow", () => {
       subject({
         startDate: "2023-07-03",
         endDate: "2023-09-25",
-        episodes: 13
+        episodes: 13,
       }),
       show(episodes)
     );
@@ -342,7 +344,7 @@ describe("placeInShow", () => {
       subject({
         startDate: "2009-07-03",
         endDate: "2010-06-25",
-        episodes: 15
+        episodes: 15,
       }),
       show(episodes)
     );
@@ -372,7 +374,7 @@ describe("placeInShow", () => {
         startDate: "2013-12-09",
         endDate: "2014-08-08",
         episodes: 3,
-        durationMinutes: 25
+        durationMinutes: 25,
       }),
       show(episodes)
     );
@@ -388,10 +390,10 @@ describe("placeInShow", () => {
     // Re:Zero Break Time: three-minute shorts alongside the main broadcast.
     const episodes = [
       ...weekly(1, "2016-04-04", 25, {
-        runtime: 25
+        runtime: 25,
       }),
       ...weekly(0, "2016-04-05", 11, {
-        runtime: 3
+        runtime: 3,
       })
     ];
 
@@ -401,7 +403,7 @@ describe("placeInShow", () => {
         startDate: "2016-04-08",
         endDate: "2016-06-21",
         episodes: 11,
-        durationMinutes: 3
+        durationMinutes: 3,
       }),
       show(episodes)
     );
@@ -417,7 +419,7 @@ describe("placeInShow", () => {
         format: "SPECIAL",
         startDate: "2003-05-22",
         endDate: "2003-05-22",
-        episodes: 1
+        episodes: 1,
       }),
       show(episodes)
     );
@@ -432,16 +434,16 @@ describe("placeInShow", () => {
         startDate: "1995-12-16",
         endDate: "1996-01-21",
         episodes: 2,
-        durationMinutes: 45
+        durationMinutes: 45,
       }),
       show([
         {
           ...special(1, "1995-12-16", 45),
-          season_number: 1
+          season_number: 1,
         },
         {
           ...special(2, "1996-01-21", 45),
-          season_number: 1
+          season_number: 1,
         }
       ])
     );
@@ -458,7 +460,7 @@ describe("placeInShow", () => {
         format: "OVA",
         startDate: "2020-03-30",
         endDate: "2020-03-30",
-        episodes: 1
+        episodes: 1,
       }),
       show(weekly(1, "2020-04-04", 12))
     );
@@ -474,7 +476,7 @@ describe("placeInShow", () => {
         startDate: "2008-10-24",
         endDate: "2009-06-26",
         episodes: 3,
-        durationMinutes: 30
+        durationMinutes: 30,
       }),
       show([
         ...weekly(1, "2004-07-19", 3),
@@ -482,7 +484,7 @@ describe("placeInShow", () => {
         ...weekly(3, "2008-10-24", 3)
       ], {
         isFranchiseShow: true,
-        prequel: endingAt(2, 3)
+        prequel: endingAt(2, 3),
       })
     );
 
@@ -496,14 +498,14 @@ describe("placeInShow", () => {
         format: "OVA",
         startDate: "2019-11-04",
         endDate: "2019-11-04",
-        episodes: 2
+        episodes: 2,
       }),
       show([
         ...weekly(1, "2018-10-08", 10),
         ...weekly(2, "2020-01-11", 12)
       ], {
         isFranchiseShow: true,
-        prequel: endingAt(1, 10)
+        prequel: endingAt(1, 10),
       })
     );
 
@@ -517,14 +519,14 @@ describe("placeInShow", () => {
         format: "OVA",
         startDate: "2020-01-10",
         endDate: "2020-01-10",
-        episodes: 2
+        episodes: 2,
       }),
       show([
         ...weekly(1, "2018-10-08", 10),
         ...weekly(2, "2020-01-11", 12)
       ], {
         isFranchiseShow: true,
-        prequel: endingAt(1, 10)
+        prequel: endingAt(1, 10),
       })
     );
 
@@ -536,7 +538,7 @@ describe("placeInShow", () => {
       subject({
         titles: ["Le Chevalier D'Eon"],
         startDate: "2006-07-02",
-        episodes: 24
+        episodes: 24,
       }),
       {
         ...show(weekly(1, "2006-08-19", 24)),
@@ -544,8 +546,8 @@ describe("placeInShow", () => {
           id: 1,
           name: "Le Chevalier D'Eon",
           originalName: "シュヴァリエ",
-          episodes: weekly(1, "2006-08-19", 24)
-        }
+          episodes: weekly(1, "2006-08-19", 24),
+        },
       }
     );
 
@@ -560,18 +562,18 @@ describe("placeInShow", () => {
       startDate: "2023-03-04",
       endDate: "2023-03-04",
       episodes: 1,
-      durationMinutes: 61
+      durationMinutes: 61,
     });
 
     const franchise = placeInShow(specialSubject, show(episodes, {
-      isFranchiseShow: true
+      isFranchiseShow: true,
     }));
     const duplicate = placeInShow(
       specialSubject,
       show([
         {
           ...special(1, "2023-03-04", 61),
-          season_number: 1
+          season_number: 1,
         }
       ])
     );
@@ -583,7 +585,7 @@ describe("placeInShow", () => {
     const placement = placeInShow(
       subject({
         startDate: "2019-04-06",
-        episodes: 12
+        episodes: 12,
       }),
       show(weekly(1, "2015-01-01", 12))
     );
@@ -597,7 +599,7 @@ describe("placeInShow by special name", () => {
   // Appears four months after, beyond the air-date window.
   const named = (episode: number, airDate: string, name: string) => ({
     ...special(episode, airDate, 24),
-    name
+    name,
   });
   const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
     show: {
@@ -610,11 +612,11 @@ describe("placeInShow by special name", () => {
         named(2, "2020-01-22", "Land vs. Air"),
         named(3, "2020-01-22", "The Path of the Ball"),
         named(4, "2020-03-04", "Puppet Theatre")
-      ]
+      ],
     },
     isFranchiseShow: true,
     prequel: null,
-    ...overrides
+    ...overrides,
   });
 
   test("finds an OVA among its franchise's specials by what its title adds to the show's", () => {
@@ -623,7 +625,7 @@ describe("placeInShow by special name", () => {
       titles: ["HAIKYU!! LAND VS. AIR", "Haikyuu!! Riku VS Kuu"],
       primaryTitleCount: 2,
       startDate: "2020-01-10",
-      episodes: 2
+      episodes: 2,
     }), haikyu());
 
     expect(placement?.method).toBe("title");
@@ -638,7 +640,7 @@ describe("placeInShow by special name", () => {
       format: "OVA",
       titles: ["HAIKYU!!: Lev Appears!"],
       startDate: "2014-11-09",
-      episodes: 1
+      episodes: 1,
     }), haikyu());
 
     expect(range(placement)).toEqual([
@@ -651,9 +653,9 @@ describe("placeInShow by special name", () => {
       format: "OVA",
       titles: ["HAIKYU!!: Lev Appears!"],
       startDate: "2014-11-09",
-      episodes: 1
+      episodes: 1,
     }), haikyu({
-      isFranchiseShow: false
+      isFranchiseShow: false,
     }))).toBeNull();
   });
 
@@ -662,7 +664,7 @@ describe("placeInShow by special name", () => {
       format: "OVA",
       titles: ["HAIKYU!!: Lev Appears!"],
       startDate: "2018-01-01",
-      episodes: 1
+      episodes: 1,
     }), haikyu())).toBeNull();
   });
 });
@@ -673,11 +675,11 @@ describe("placeAsMovie", () => {
       subject({
         format: "MOVIE",
         titles: ["Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train"],
-        startDate: "2020-10-16"
+        startDate: "2020-10-16",
       }),
       movie({
         title: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
-        release_date: "2020-10-16"
+        release_date: "2020-10-16",
       })
     );
 
@@ -693,11 +695,11 @@ describe("placeAsMovie", () => {
           "My Hero Academia: World Heroes' Mission"
         ],
         primaryTitleCount: 1,
-        startDate: "2022-02-16"
+        startDate: "2022-02-16",
       }),
       movie({
         title: "My Hero Academia: World Heroes' Mission",
-        release_date: "2021-08-06"
+        release_date: "2021-08-06",
       })
     );
 
@@ -711,33 +713,37 @@ describe("placeAsMovie", () => {
       titles: ["Macross Frontier: Chou Jikuu Gekijou"],
       startDate: "2011-02-26",
       episodes: 1,
-      durationMinutes: 3
+      durationMinutes: 3,
     });
     const film = {
       ...movie({
         title: "Macross Frontier: The Wings of Farewell",
         original_title: "劇場版マクロスF 恋離飛翼～サヨナラノツバサ～",
-        release_date: "2011-02-26"
+        release_date: "2011-02-26",
       }),
-      runtime: 115
+      runtime: 115,
     };
 
     expect(placeAsMovie(short, film)).toBeNull();
-    expect(placeAsMovie({ ...short, format: "MOVIE", durationMinutes: 115 }, film)?.method).toBe("release-date");
+    expect(placeAsMovie({
+      ...short,
+      format: "MOVIE",
+      durationMinutes: 115,
+    }, film)?.method).toBe("release-date");
   });
 
   test("accepts an unreleased film only on a near-exact title", () => {
     const upcoming = subject({
       format: "MOVIE",
-      titles: ["Demon Slayer: Kimetsu no Yaiba Infinity Castle Part 2"]
+      titles: ["Demon Slayer: Kimetsu no Yaiba Infinity Castle Part 2"],
     });
 
     expect(placeAsMovie(upcoming, movie({
-      title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle Part 2"
+      title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle Part 2",
     }))?.method).toBe("title");
     expect(placeAsMovie(upcoming, movie({
       title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
-      release_date: "2025-07-18"
+      release_date: "2025-07-18",
     }))).toBeNull();
   });
 });
@@ -748,37 +754,37 @@ describe("placeAfterInCollection", () => {
     movie({
       id: 1012199,
       title: "HAIKYU!! VS The Little Giant",
-      release_date: null
+      release_date: null,
     }),
     movie({
       id: 1012201,
       title: "HAIKYU!! The Dumpster Battle",
-      release_date: "2024-02-16"
+      release_date: "2024-02-16",
     })
   ];
   const littleGiant = subject({
     format: "MOVIE",
     titles: ["Haikyuu!!: VS Chiisana Kyojin"],
-    startDate: "2027"
+    startDate: "2027",
   });
 
   test("takes the film after the prequel's, however unlike the titles", () => {
     expect(placeAfterInCollection(littleGiant, 1012201, parts)).toMatchObject({
       mediaType: "movie",
       tmdbId: 1012199,
-      method: "continuation"
+      method: "continuation",
     });
   });
 
   test("rejects a next film released in another year", () => {
     expect(placeAfterInCollection(subject({
       format: "MOVIE",
-      startDate: "2025-06-01"
+      startDate: "2025-06-01",
     }), 1012201, [
       ...parts.slice(1),
       movie({
         id: 3,
-        release_date: "2027-03-01"
+        release_date: "2027-03-01",
       })
     ])).toBeNull();
   });

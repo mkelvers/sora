@@ -52,7 +52,7 @@ export function recordingCalls(provider: StreamProvider, record: CallRecorder = 
         outcome,
         startedAt,
         durationMs: Math.round(performance.now() - started),
-        error: outcome === "failed" ? errorMessage(error) : null
+        error: outcome === "failed" ? errorMessage(error) : null,
       });
       recorded.catch((cause: unknown) => {
         console.warn(`Could not record a ${operation} call to ${provider.id}: ${String(cause)}`);
@@ -80,8 +80,8 @@ export function recordingCalls(provider: StreamProvider, record: CallRecorder = 
     resolveStream: (episodeId, language) =>
       observe("resolve_stream", () => provider.resolveStream(episodeId, language), () => false),
     ...(syncCatalog && {
-      syncCatalog: (options) => observe("sync_catalog", () => syncCatalog(options), () => false)
-    })
+      syncCatalog: (options) => observe("sync_catalog", () => syncCatalog(options), () => false),
+    }),
   };
 }
 
@@ -104,7 +104,7 @@ async function storeCall(call: ProviderCall) {
       failed: failed ? 1 : 0,
       durationMs: call.durationMs,
       lastError: call.error,
-      lastErrorAt: failed ? call.startedAt : null
+      lastErrorAt: failed ? call.startedAt : null,
     })
     .onConflictDoUpdate({
       target: [
@@ -118,8 +118,8 @@ async function storeCall(call: ProviderCall) {
         failed: sql`${providerCalls.failed} + excluded.failed`,
         durationMs: sql`${providerCalls.durationMs} + excluded.duration_ms`,
         lastError: sql`coalesce(excluded.last_error, ${providerCalls.lastError})`,
-        lastErrorAt: sql`coalesce(excluded.last_error_at, ${providerCalls.lastErrorAt})`
-      }
+        lastErrorAt: sql`coalesce(excluded.last_error_at, ${providerCalls.lastErrorAt})`,
+      },
     });
 }
 
@@ -133,7 +133,7 @@ export async function pruneProviderCalls() {
     .delete(providerCalls)
     .where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))
     .returning({
-      provider: providerCalls.provider
+      provider: providerCalls.provider,
     });
   return deleted.length;
 }

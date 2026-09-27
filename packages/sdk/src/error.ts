@@ -52,7 +52,7 @@ export class SoraError extends Error {
       status: response.status,
       code: problem?.code ?? "HTTP_ERROR",
       errors: problem?.errors,
-      retryAfterSeconds: retryAfter > 0 ? retryAfter : null
+      retryAfterSeconds: retryAfter > 0 ? retryAfter : null,
     });
   }
 }

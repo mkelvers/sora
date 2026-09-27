@@ -15,7 +15,7 @@ import { airingCheckPriority, scheduleAiringCheck, scheduleAniKotoPoll, schedule
 const TrackAiringPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
   awaitedEpisode: z.number().nullable(),
-  attempt: z.number().int().nonnegative()
+  attempt: z.number().int().nonnegative(),
 });
 
 /**
@@ -52,7 +52,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
       nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
       latestAiredEpisode: await latestAiredEpisode(anime),
       latestReleasedEpisode: await refreshReleasedEpisodes(anime, helpers.logger),
-      startDate: anime.startDate
+      startDate: anime.startDate,
     },
     payload,
     new Date()
@@ -70,7 +70,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
       {
         anilistId: anime.id,
         episode: plan.awaitedEpisode,
-        attempt: 0
+        attempt: 0,
       },
       new Date(Date.now() + minute)
     );
@@ -80,7 +80,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
     {
       anilistId: anime.id,
       awaitedEpisode: plan.awaitedEpisode,
-      attempt: plan.attempt
+      attempt: plan.attempt,
     },
     plan.runAt
   );
@@ -101,7 +101,7 @@ async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]
   for (const provider of streamProviders) {
     try {
       const units = await refreshProviderUnits(anime, provider, {
-        retryUnmatched: true
+        retryUnmatched: true,
       });
       const last = units.at(-1);
       if (latest === null && last) {

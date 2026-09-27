@@ -18,7 +18,7 @@ function row(provider: string, operation: string, fields: Partial<OperationRow>)
     recentCalls: 0,
     lastError: null,
     lastErrorAt: null,
-    ...fields
+    ...fields,
   };
 }
 
@@ -32,7 +32,7 @@ describe("summarizeHealth", () => {
           ok: 1,
           failed: 4,
           lastOkHour: hoursAgo(3),
-          recentCalls: 5
+          recentCalls: 5,
         })
       ])
     ).toBe("ok");
@@ -45,7 +45,7 @@ describe("summarizeHealth", () => {
           ok: 3,
           failed: 9,
           lastOkHour: hoursAgo(4),
-          recentCalls: 5
+          recentCalls: 5,
         })
       ])
     ).toBe("failing");
@@ -56,7 +56,7 @@ describe("summarizeHealth", () => {
       statusOf([
         row("anikoto", "find_media", {
           empty: 20,
-          recentCalls: 20
+          recentCalls: 20,
         })
       ])
     ).toBe("failing");
@@ -66,10 +66,10 @@ describe("summarizeHealth", () => {
     expect(
       statusOf([
         row("anikoto", "find_media", {
-          recentCalls: 3
+          recentCalls: 3,
         }),
         row("anikoto", "resolve_stream", {
-          recentCalls: 2
+          recentCalls: 2,
         })
       ])
     ).toBe("failing");
@@ -81,7 +81,7 @@ describe("summarizeHealth", () => {
         row("anikoto", "find_media", {
           empty: 4,
           lastOkHour: hoursAgo(6),
-          recentCalls: 4
+          recentCalls: 4,
         })
       ])
     ).toBe("idle");
@@ -92,7 +92,7 @@ describe("summarizeHealth", () => {
       statusOf([
         row("anikoto", "resolve_stream", {
           failed: 20,
-          recentCalls: 0
+          recentCalls: 0,
         })
       ])
     ).toBe("idle");
@@ -105,11 +105,11 @@ describe("summarizeHealth", () => {
       [
         row("removed", "resolve_stream", {
           ok: 1,
-          lastOkHour: hoursAgo(0)
+          lastOkHour: hoursAgo(0),
         }),
         row("megaplay", "resolve_stream", {
           ok: 1,
-          lastOkHour: hoursAgo(0)
+          lastOkHour: hoursAgo(0),
         })
       ],
       now
@@ -125,12 +125,12 @@ describe("summarizeHealth", () => {
         row("anikoto", "list_episodes", {
           lastOkHour: hoursAgo(2),
           lastError: "older",
-          lastErrorAt: new Date("2026-09-25T15:10:00Z")
+          lastErrorAt: new Date("2026-09-25T15:10:00Z"),
         }),
         row("anikoto", "resolve_stream", {
           lastOkHour: hoursAgo(5),
           lastError: "MegaPlay has no dub source for this episode",
-          lastErrorAt: new Date("2026-09-25T16:20:00Z")
+          lastErrorAt: new Date("2026-09-25T16:20:00Z"),
         })
       ],
       now
@@ -139,7 +139,7 @@ describe("summarizeHealth", () => {
     expect(health).toMatchObject({
       lastOkAt: "2026-09-25T14:00:00.000Z",
       lastError: "MegaPlay has no dub source for this episode",
-      lastErrorAt: "2026-09-25T16:20:00.000Z"
+      lastErrorAt: "2026-09-25T16:20:00.000Z",
     });
   });
 
@@ -152,11 +152,11 @@ describe("summarizeHealth", () => {
           empty: 0,
           failed: 1,
           durationMs: 1_000,
-          lastOkHour: hoursAgo(0)
+          lastOkHour: hoursAgo(0),
         }),
         // Called only before the last day: still counts toward the latest success.
         row("anikoto", "find_media", {
-          lastOkHour: hoursAgo(30)
+          lastOkHour: hoursAgo(30),
         })
       ],
       now
@@ -168,7 +168,7 @@ describe("summarizeHealth", () => {
         ok: 3,
         empty: 0,
         failed: 1,
-        averageMs: 250
+        averageMs: 250,
       }
     ]);
   });

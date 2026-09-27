@@ -15,7 +15,7 @@ const embedReferer = `${siteUrl}/`;
 
 /** AniKoto's episode list, as its watch page loads it: HTML in a JSON envelope. */
 const EpisodeListResponseSchema = z.object({
-  result: z.string()
+  result: z.string(),
 });
 
 /** The languages AniKoto streams, in the order episode lists give them. */
@@ -58,7 +58,7 @@ export class AniKotoStreamProvider implements StreamProvider {
         mediaId: match.anikotoId,
         matchedTitle: match.title,
         method: match.method,
-        episodeOffset: match.episodeOffset
+        episodeOffset: match.episodeOffset,
       }
     );
   }
@@ -88,7 +88,7 @@ export class AniKotoStreamProvider implements StreamProvider {
       if (!entry) {
         return {
           ...episode,
-          isFiller: null
+          isFiller: null,
         };
       }
 
@@ -96,7 +96,7 @@ export class AniKotoStreamProvider implements StreamProvider {
       return {
         ...episode,
         languages: languageOrder.filter((language) => languages.has(language)),
-        isFiller: entry.isFiller
+        isFiller: entry.isFiller,
       };
     });
   }
@@ -115,8 +115,13 @@ export class AniKotoStreamProvider implements StreamProvider {
    * sync, with nothing stored, reads the whole catalogue: about 450 pages at
    * AniKoto's limit of 60 requests a minute.
    */
-  async syncCatalog(options: { full: boolean }) {
-    const { pages, stored } = await syncAniKotoCatalog(this.http, options);
+  async syncCatalog(options: {
+    full: boolean;
+  }) {
+    const {
+      pages,
+      stored,
+    } = await syncAniKotoCatalog(this.http, options);
     return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
   }
 
@@ -131,10 +136,12 @@ export class AniKotoStreamProvider implements StreamProvider {
   private async fetchEpisodeList(mediaId: string): Promise<Map<number, ListedEpisode>> {
     const response = await this.http.get(`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`, {
       headers: {
-        "X-Requested-With": "XMLHttpRequest"
-      }
+        "X-Requested-With": "XMLHttpRequest",
+      },
     });
-    const { result } = EpisodeListResponseSchema.parse(await response.json());
+    const {
+      result,
+    } = EpisodeListResponseSchema.parse(await response.json());
 
     const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/g) ?? [];
     if (links.length === 0) {
@@ -151,7 +158,7 @@ export class AniKotoStreamProvider implements StreamProvider {
       const classes = /\bclass="([^"]*)"/.exec(link)?.[1]?.split(/\s+/) ?? [];
       episodes.set(number, {
         languages: languageOrder.filter((language) => new RegExp(`\\bdata-${language}="1"`).test(link)),
-        isFiller: classes.includes("filler")
+        isFiller: classes.includes("filler"),
       });
     }
 

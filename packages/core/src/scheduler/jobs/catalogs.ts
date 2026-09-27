@@ -5,7 +5,7 @@ import { streamProviders } from "../../playback/providers/registry";
 
 const SyncProviderCatalogsPayloadSchema = z
   .object({
-    full: z.boolean().optional()
+    full: z.boolean().optional(),
   })
   .nullish();
 
@@ -32,7 +32,7 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
     try {
       helpers.logger.info(
         await provider.syncCatalog({
-          full: payload?.full === true
+          full: payload?.full === true,
         })
       );
     } catch (error) {

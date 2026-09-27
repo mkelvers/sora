@@ -40,8 +40,8 @@ const ListEntrySchema = z.object({
   anilist_id: TmdbIdSchema,
   themoviedb_id: z.object({
     tv: TmdbIdSchema.optional(),
-    movie: z.array(TmdbIdSchema).optional()
-  })
+    movie: z.array(TmdbIdSchema).optional(),
+  }),
 });
 
 /** The TMDB titles hinted for an AniList entry, or `null` when there are none. */
@@ -49,7 +49,7 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
   const [row] = await db
     .select({
       showId: tmdbHint.showId,
-      movieIds: tmdbHint.movieIds
+      movieIds: tmdbHint.movieIds,
     })
     .from(tmdbHint)
     .where(eq(tmdbHint.anilistId, anilistId))
@@ -60,7 +60,7 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
   return row
     ? {
         showId: row.showId,
-        movieIds: [...row.movieIds]
+        movieIds: [...row.movieIds],
       }
     : null;
 }
@@ -86,11 +86,14 @@ export function parseTmdbHints(list: unknown): Map<number, TmdbHint> {
       continue;
     }
 
-    const { anilist_id: anilistId, themoviedb_id: ids } = parsed.data;
+    const {
+      anilist_id: anilistId,
+      themoviedb_id: ids,
+    } = parsed.data;
     const known = hints.get(anilistId);
     const hint = {
       showId: known?.showId ?? ids.tv ?? null,
-      movieIds: [...new Set([...(known?.movieIds ?? []), ...(ids.movie ?? [])])]
+      movieIds: [...new Set([...(known?.movieIds ?? []), ...(ids.movie ?? [])])],
     };
     if (hint.showId !== null || hint.movieIds.length > 0) {
       hints.set(anilistId, hint);
@@ -118,7 +121,7 @@ export async function syncTmdbHints(): Promise<number[]> {
     throw new UpstreamUnavailableError(
       `Fribb/anime-lists lists ${fetched.size} TMDB hints against ${stored.size} stored; keeping the stored ones`,
       {
-        retryAfterMs: null
+        retryAfterMs: null,
       }
     );
   }
@@ -133,15 +136,15 @@ export async function syncTmdbHints(): Promise<number[]> {
         .values(
           changed.slice(start, start + writeBatchSize).map(([anilistId, hint]) => ({
             anilistId,
-            ...hint
+            ...hint,
           }))
         )
         .onConflictDoUpdate({
           target: tmdbHint.anilistId,
           set: {
             showId: sql`excluded.show_id`,
-            movieIds: sql`excluded.movie_ids`
-          }
+            movieIds: sql`excluded.movie_ids`,
+          },
         });
     }
 
@@ -160,7 +163,7 @@ async function downloadHints() {
   let list: unknown;
   try {
     const response = await fetch(listUrl, {
-      signal: AbortSignal.timeout(downloadTimeoutMs)
+      signal: AbortSignal.timeout(downloadTimeoutMs),
     });
     if (!response.ok) {
       throw new Error(`GitHub answered ${response.status}`);
@@ -170,7 +173,7 @@ async function downloadHints() {
   } catch (error) {
     throw new UpstreamUnavailableError("Downloading the Fribb/anime-lists list failed", {
       retryAfterMs: null,
-      cause: error
+      cause: error,
     });
   }
 
@@ -179,7 +182,7 @@ async function downloadHints() {
   } catch (error) {
     throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
       retryAfterMs: null,
-      cause: error
+      cause: error,
     });
   }
 }

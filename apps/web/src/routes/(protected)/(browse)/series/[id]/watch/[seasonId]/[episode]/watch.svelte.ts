@@ -87,7 +87,7 @@ export class Player {
 			ArrowLeft: () => (this.time -= 10),
 			ArrowRight: () => (this.time += 10),
 			m: () => (this.muted = !this.muted),
-			f: this.toggleFullscreen
+			f: this.toggleFullscreen,
 		}[event.key];
 
 		if (action) {
@@ -114,7 +114,9 @@ export class Player {
 			}
 
 			if (source.format === 'hls' && Hls.isSupported()) {
-				hls = new Hls({ startPosition: start });
+				hls = new Hls({
+					startPosition: start,
+				});
 				hls.on(Hls.Events.ERROR, (_, data) => {
 					if (data.fatal) {
 						this.failure =

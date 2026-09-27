@@ -8,7 +8,9 @@
 	import { getSeries } from "../series.remote";
 	import type { PageProps } from "./$types";
 
-	let { params }: PageProps = $props();
+	let {
+		params,
+	}: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
 	const artwork = new Artwork();

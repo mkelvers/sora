@@ -27,7 +27,7 @@ import type { AiringBroadcast } from "./schedule";
 export async function getAnime(anilistId: number): Promise<Anime> {
   const [stored] = await db
     .select({
-      media: animeTable.media
+      media: animeTable.media,
     })
     .from(animeTable)
     .where(eq(animeTable.anilistId, anilistId))
@@ -69,8 +69,8 @@ export async function refreshAnime(anilistId: number): Promise<Anime> {
       set: {
         media: values.media,
         status: values.status,
-        refreshedAt: values.refreshedAt
-      }
+        refreshedAt: values.refreshedAt,
+      },
     });
 
   return toAnime(media);
@@ -125,14 +125,16 @@ export async function getAnimeCards(ids: readonly number[]): Promise<AnimeCard[]
   // AniList pages are capped at 50 entries.
   for (let offset = 0; offset < missing.length; offset += 50) {
     const batch = missing.slice(offset, offset + 50).sort((left, right) => left - right);
-    const { Page } = await anilist(
+    const {
+      Page,
+    } = await anilist(
       AnimeCardsDocument,
       {
         ids: batch,
-        perPage: batch.length
+        perPage: batch.length,
       },
       {
-        maxAgeMs: hour
+        maxAgeMs: hour,
       }
     );
 
@@ -163,7 +165,7 @@ export async function getStoredAnimeCards(ids: readonly number[]): Promise<Map<n
 
   const rows = await db
     .select({
-      media: animeTable.media
+      media: animeTable.media,
     })
     .from(animeTable)
     .where(inArray(animeTable.anilistId, [...new Set(ids)]));
@@ -187,9 +189,9 @@ const loadAnimeDetails = loadMediaById({
     ids3,
     with1: ids1.length > 0,
     with2: ids2.length > 0,
-    with3: ids3.length > 0
+    with3: ids3.length > 0,
   }),
-  media: ({ page0, page1, page2, page3 }) => [page0, page1, page2, page3].flatMap((page) => page?.media ?? [])
+  media: ({ page0, page1, page2, page3 }) => [page0, page1, page2, page3].flatMap((page) => page?.media ?? []),
 });
 
 /**
@@ -202,13 +204,15 @@ const loadAnimeDetails = loadMediaById({
  * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
  */
 export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadcast | null> {
-  const { Page } = await anilist(
+  const {
+    Page,
+  } = await anilist(
     LatestAiringDocument,
     {
-      id: anilistId
+      id: anilistId,
     },
     {
-      maxAgeMs: 0
+      maxAgeMs: 0,
     }
   );
   const latest = Page?.airingSchedules?.[0];
@@ -216,7 +220,7 @@ export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadc
     ? {
         anilistId,
         episode: latest.episode,
-        airingAt: fromUnixSeconds(latest.airingAt)
+        airingAt: fromUnixSeconds(latest.airingAt),
       }
     : null;
 }
@@ -264,8 +268,8 @@ async function settleStatus(media: AnimeDetailsFragment): Promise<AnimeDetailsFr
       : {
           year: aired.getUTCFullYear(),
           month: aired.getUTCMonth() + 1,
-          day: aired.getUTCDate()
-        }
+          day: aired.getUTCDate(),
+        },
   };
 }
 
@@ -274,6 +278,6 @@ function storedAnimeValues(media: AnimeDetailsFragment) {
     anilistId: media.id,
     media,
     status: media.status,
-    refreshedAt: new Date()
+    refreshedAt: new Date(),
   };
 }

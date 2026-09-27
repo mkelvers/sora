@@ -14,7 +14,14 @@
 		checkpoint: EpisodeProgress | undefined;
 	};
 
-	let { seriesId, seasonId, episode, now, completed, checkpoint }: Props =
+	let {
+		seriesId,
+		seasonId,
+		episode,
+		now,
+		completed,
+		checkpoint,
+	}: Props =
 		$props();
 
 	let marking = $state(false);

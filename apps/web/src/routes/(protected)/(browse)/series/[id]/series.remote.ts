@@ -8,13 +8,15 @@ export const getSeries = query(z.string(), (id) => sora.series(id));
 export const getEpisodes = query(
 	z.object({
 		seriesId: z.string(),
-		seasonId: z.string()
+		seasonId: z.string(),
 	}),
 	(season) => sora.episodes(season)
 );
 
 export const getViewing = query(z.string(), async (seriesId) => {
-	const { viewer } = getRequestEvent().locals;
+	const {
+		viewer,
+	} = getRequestEvent().locals;
 	if (!viewer?.profile) {
 		error(403, 'Choose a profile first');
 	}
@@ -22,13 +24,16 @@ export const getViewing = query(z.string(), async (seriesId) => {
 	const [resume, progress] = await Promise.all([
 		viewer.sora.continueWatching(viewer.profile.id, {
 			params: {
-				series_id: [seriesId]
-			}
+				series_id: [seriesId],
+			},
 		}),
 		viewer.sora.progress(viewer.profile.id, seriesId)
 	]);
 
-	return { resume: resume[0] ?? null, progress };
+	return {
+		resume: resume[0] ?? null,
+		progress,
+	};
 });
 
 export const markWatched = command(
@@ -37,10 +42,12 @@ export const markWatched = command(
 		seasonId: z.string(),
 		episode: z.number().int().positive(),
 		duration: z.number().positive(),
-		watched: z.boolean()
+		watched: z.boolean(),
 	}),
 	async ({ seriesId, seasonId, episode, duration, watched }) => {
-		const { viewer } = getRequestEvent().locals;
+		const {
+			viewer,
+		} = getRequestEvent().locals;
 		if (!viewer?.profile) {
 			error(403, 'Choose a profile first');
 		}
@@ -50,7 +57,7 @@ export const markWatched = command(
 			episode,
 			position_seconds: watched ? duration : 0,
 			duration_seconds: duration,
-			completed: watched
+			completed: watched,
 		});
 
 		await getViewing(seriesId).refresh();

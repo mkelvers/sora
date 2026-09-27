@@ -11,10 +11,14 @@ chain.limit = async () => [];
 chain.onConflictDoUpdate = async () => undefined;
 
 mock.module("../database/client", () => ({
-  db: chain
+  db: chain,
 }));
 
-const { anilist, loadMediaById, withAniListPriority } = await import("./client");
+const {
+  anilist,
+  loadMediaById,
+  withAniListPriority,
+} = await import("./client");
 
 type Pages = Record<string, number[] | number | boolean>;
 
@@ -26,33 +30,54 @@ let failNext = false;
 let rateLimitNext = false;
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
-  const variables = (JSON.parse(String(init?.body)) as { variables: Pages }).variables;
+  const variables = (JSON.parse(String(init?.body)) as {
+    variables: Pages;
+  }).variables;
   sent.push(variables);
   if (rateLimitNext) {
     rateLimitNext = false;
-    return new Response(JSON.stringify({ errors: [{ message: "Too Many Requests.", status: 429 }] }), {
+    return new Response(JSON.stringify({
+      errors: [{
+        message: "Too Many Requests.",
+        status: 429,
+      }],
+    }), {
       status: 429,
-      headers: { "Retry-After": "1" }
+      headers: {
+        "Retry-After": "1",
+      },
     });
   }
 
   if (failNext) {
     failNext = false;
-    return new Response(JSON.stringify({ errors: [{ message: "Internal error" }] }), { status: 500 });
+    return new Response(JSON.stringify({
+      errors: [{
+        message: "Internal error",
+      }],
+    }), {
+      status: 500,
+    });
   }
 
   const data = Object.fromEntries(
     Object.entries(variables).flatMap(([name, ids]) =>
       Array.isArray(ids)
-        ? [[name.replace("ids", "page"), { media: ids.filter((id) => !unknown.has(id)).map((id) => ({ id })) }]]
+        ? [[name.replace("ids", "page"), {
+          media: ids.filter((id) => !unknown.has(id)).map((id) => ({
+            id,
+          })),
+        }]]
         : []
     )
   );
-  return new Response(JSON.stringify({ data }), {
+  return new Response(JSON.stringify({
+    data,
+  }), {
     headers: {
       "x-ratelimit-limit": "90",
-      "x-ratelimit-remaining": "80"
-    }
+      "x-ratelimit-remaining": "80",
+    },
   });
 }) as typeof fetch;
 
@@ -64,8 +89,12 @@ beforeEach(() => {
   sent.length = 0;
 });
 
-type Media = { id: number };
-type Result = Record<string, { media: Media[] } | undefined>;
+type Media = {
+  id: number;
+};
+type Result = Record<string, {
+  media: Media[];
+} | undefined>;
 
 const document = "query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }" as unknown as TypedDocumentString<
   Result,
@@ -79,12 +108,14 @@ function loader(pages: number) {
     pages,
     variables: (split) =>
       Object.fromEntries(
-        Array.from({ length: pages }, (_, page) => [
+        Array.from({
+          length: pages,
+        }, (_, page) => [
           [`ids${page}`, split[page] ?? []],
           ...(page > 0 ? [[`with${page}`, (split[page]?.length ?? 0) > 0]] : [])
         ]).flat()
       ),
-    media: (result) => Object.values(result).flatMap((page) => page?.media ?? [])
+    media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
   });
 }
 
@@ -95,7 +126,11 @@ test("sends the IDs asked for at once in one request", async () => {
 
   const [left, right] = await Promise.all([load([3, 1]), load([2])]);
 
-  expect(sent).toEqual([{ ids0: [1, 2, 3], ids1: [], with1: false }]);
+  expect(sent).toEqual([{
+    ids0: [1, 2, 3],
+    ids1: [],
+    with1: false,
+  }]);
   expect([...left.keys()]).toEqual([3, 1]);
   expect([...right.keys()]).toEqual([2]);
 });
@@ -115,7 +150,9 @@ test("gathers the IDs asked for while a request waits its turn", async () => {
 
 test("splits a request over pages of 50, and fills a request before starting another", async () => {
   const load = loader(2);
-  const ids = Array.from({ length: 130 }, (_, index) => 1_000 + index);
+  const ids = Array.from({
+    length: 130,
+  }, (_, index) => 1_000 + index);
 
   const loaded = await load(ids);
 
@@ -128,10 +165,16 @@ test("splits a request over pages of 50, and fills a request before starting ano
 
 test("sends a batch a viewer joins ahead of background work queued before it", async () => {
   const load = loader(1);
-  const other = "query Other($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<unknown, { id: number }>;
+  const other = "query Other($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<unknown, {
+    id: number;
+  }>;
 
   await withAniListPriority(background, () => load([20]));
-  const queuedBefore = withAniListPriority(background, () => anilist(other, { id: 21 }, { maxAgeMs: 0 }));
+  const queuedBefore = withAniListPriority(background, () => anilist(other, {
+    id: 21,
+  }, {
+    maxAgeMs: 0,
+  }));
   await Bun.sleep(5);
   const shared = withAniListPriority(background, () => load([22]));
   // The same ID, asked for by a search while the background batch still waits its turn.
@@ -147,9 +190,13 @@ test("asks for an ID once while it is queued, and leaves out IDs AniList does no
 
   const [left, right] = await Promise.all([load([30, 404]), load([30])]);
 
-  expect(sent).toEqual([{ ids0: [30, 404] }]);
+  expect(sent).toEqual([{
+    ids0: [30, 404],
+  }]);
   expect([...left.keys()]).toEqual([30]);
-  expect(right.get(30)).toEqual({ id: 30 });
+  expect(right.get(30)).toEqual({
+    id: 30,
+  });
 });
 
 test("fails every caller of a request AniList fails, and asks again on the next call", async () => {
@@ -159,7 +206,9 @@ test("fails every caller of a request AniList fails, and asks again on the next 
   const results = await Promise.allSettled([load([40]), load([41])]);
 
   expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
-  expect((await load([40])).get(40)).toEqual({ id: 40 });
+  expect((await load([40])).get(40)).toEqual({
+    id: 40,
+  });
   expect(sent.map((variables) => variables.ids0)).toEqual([[40, 41], [40]]);
 }, 10_000);
 
@@ -169,7 +218,11 @@ test("waits out a 429 and asks again, rather than failing its callers", async ()
 
   const [left, right] = await Promise.all([load([50]), load([51])]);
 
-  expect(left.get(50)).toEqual({ id: 50 });
-  expect(right.get(51)).toEqual({ id: 51 });
+  expect(left.get(50)).toEqual({
+    id: 50,
+  });
+  expect(right.get(51)).toEqual({
+    id: 51,
+  });
   expect(sent.map((variables) => variables.ids0)).toEqual([[50, 51], [50, 51]]);
 }, 10_000);

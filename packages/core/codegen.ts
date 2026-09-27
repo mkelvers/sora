@@ -29,9 +29,9 @@ export default {
         scalars: {
           CountryCode: "string",
           FuzzyDateInt: "number",
-          Json: "unknown"
-        }
-      }
-    }
-  }
+          Json: "unknown",
+        },
+      },
+    },
+  },
 } satisfies CodegenConfig;

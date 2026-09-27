@@ -14,7 +14,7 @@ import * as schema from "./schema";
  */
 export const db = drizzle({
   client: new SQL(config.databaseUrl),
-  schema
+  schema,
 });
 
 /**
@@ -26,12 +26,12 @@ export const db = drizzle({
  */
 export async function migrateDatabase() {
   await migrate(db, {
-    migrationsFolder: new URL("../../drizzle", import.meta.url).pathname
+    migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
   });
   // The catalog enqueues scheduler jobs with SQL, so graphile-worker's schema
   // must exist before any request, not only once a scheduler has started.
   await runMigrations({
-    connectionString: config.databaseUrl
+    connectionString: config.databaseUrl,
   });
 }
 

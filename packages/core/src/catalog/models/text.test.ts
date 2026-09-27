@@ -22,22 +22,22 @@ describe("fuzzyDate", () => {
     expect(fuzzyDate({
       year: 2023,
       month: 9,
-      day: 29
+      day: 29,
     })).toBe("2023-09-29");
     expect(fuzzyDate({
       year: 2023,
       month: 9,
-      day: null
+      day: null,
     })).toBe("2023-09");
     expect(fuzzyDate({
       year: 2023,
       month: null,
-      day: null
+      day: null,
     })).toBe("2023");
     expect(fuzzyDate({
       year: null,
       month: 9,
-      day: 29
+      day: 29,
     })).toBeNull();
   });
 });

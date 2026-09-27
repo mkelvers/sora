@@ -11,7 +11,7 @@ export const anilistSnapshot = pgTable(
     operation: text("operation").notNull(),
     data: jsonb("data").$type<unknown>().notNull(),
     fetchedAt: timestamptz("fetched_at").notNull(),
-    expiresAt: timestamptz("expires_at").notNull()
+    expiresAt: timestamptz("expires_at").notNull(),
   },
   (table) => [index("anilist_snapshot_expires_idx").on(table.expiresAt)]
 );
@@ -24,7 +24,7 @@ export const tmdbSnapshot = pgTable(
     path: text("path").notNull(),
     data: jsonb("data").$type<unknown>().notNull(),
     fetchedAt: timestamptz("fetched_at").notNull(),
-    expiresAt: timestamptz("expires_at").notNull()
+    expiresAt: timestamptz("expires_at").notNull(),
   },
   (table) => [index("tmdb_snapshot_expires_idx").on(table.expiresAt)]
 );
@@ -49,7 +49,7 @@ export const anime = pgTable(
     /** Copied from `media` so the scheduler can find anime that are still airing. */
     status: text("status").$type<MediaStatus>(),
     savedAt: timestamptz("saved_at").notNull().defaultNow(),
-    refreshedAt: timestamptz("refreshed_at").notNull()
+    refreshedAt: timestamptz("refreshed_at").notNull(),
   },
   (table) => [index("anime_status_idx").on(table.status)]
 );
@@ -87,7 +87,7 @@ export const animeSearch = pgTable(
     averageScore: integer("average_score"),
     isAdult: boolean("is_adult").notNull(),
     /** When AniList last changed the entry. */
-    updatedAt: timestamptz("updated_at").notNull()
+    updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
     // Without a pending list: each sync updates thousands of rows, and a
@@ -96,7 +96,7 @@ export const animeSearch = pgTable(
     index("anime_search_text_idx")
       .using("gin", table.searchText.op("gin_trgm_ops"))
       .with({
-        fastupdate: false
+        fastupdate: false,
       }),
     index("anime_search_updated_at_idx").on(table.updatedAt)
   ]
@@ -108,5 +108,5 @@ export const animeSearch = pgTable(
  */
 export const catalogSync = pgTable("catalog_sync", {
   catalog: text("catalog").primaryKey(),
-  fullSyncAt: timestamptz("full_sync_at").notNull()
+  fullSyncAt: timestamptz("full_sync_at").notNull(),
 });

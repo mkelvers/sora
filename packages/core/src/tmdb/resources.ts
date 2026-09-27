@@ -16,9 +16,9 @@ const ShowSearchSchema = z.object({
       name: z.string(),
       original_name: z.string(),
       first_air_date: OptionalText,
-      popularity: z.number()
+      popularity: z.number(),
     })
-  )
+  ),
 });
 
 const MovieSearchSchema = z.object({
@@ -28,9 +28,9 @@ const MovieSearchSchema = z.object({
       title: z.string(),
       original_title: z.string(),
       release_date: OptionalText,
-      popularity: z.number()
+      popularity: z.number(),
     })
-  )
+  ),
 });
 
 const EpisodeSchema = z.object({
@@ -40,11 +40,11 @@ const EpisodeSchema = z.object({
   overview: OptionalText,
   air_date: OptionalText,
   runtime: z.number().nullish().transform((value) => value ?? null),
-  still_path: OptionalText
+  still_path: OptionalText,
 });
 
 const SeasonSchema = z.object({
-  episodes: z.array(EpisodeSchema)
+  episodes: z.array(EpisodeSchema),
 });
 
 const ShowFields = {
@@ -59,9 +59,9 @@ const ShowFields = {
     z.object({
       season_number: z.number().int(),
       name: OptionalText,
-      poster_path: OptionalText
+      poster_path: OptionalText,
     })
-  )
+  ),
 };
 
 const MovieSchema = z.object({
@@ -76,10 +76,10 @@ const MovieSchema = z.object({
   runtime: z.number().nullish().transform((value) => value || null),
   belongs_to_collection: z
     .object({
-      id: z.number().int()
+      id: z.number().int(),
     })
     .nullish()
-    .transform((value) => value ?? null)
+    .transform((value) => value ?? null),
 });
 
 const CollectionSchema = z.object({
@@ -89,9 +89,9 @@ const CollectionSchema = z.object({
       title: z.string(),
       original_title: z.string(),
       release_date: OptionalText,
-      popularity: z.number()
+      popularity: z.number(),
     })
-  )
+  ),
 });
 
 const ImagesSchema = z.object({
@@ -99,9 +99,9 @@ const ImagesSchema = z.object({
     z.object({
       file_path: z.string(),
       iso_639_1: z.string().nullish(),
-      vote_average: z.number()
+      vote_average: z.number(),
     })
-  )
+  ),
 });
 
 const ImageSchema = z.object({
@@ -110,17 +110,17 @@ const ImageSchema = z.object({
   height: z.number().int(),
   iso_639_1: OptionalText,
   vote_average: z.number(),
-  vote_count: z.number().int()
+  vote_count: z.number().int(),
 });
 
 const AllImagesSchema = z.object({
   backdrops: z.array(ImageSchema).default([]),
   posters: z.array(ImageSchema).default([]),
-  logos: z.array(ImageSchema).default([])
+  logos: z.array(ImageSchema).default([]),
 });
 
 const SeasonImagesSchema = z.object({
-  posters: z.array(ImageSchema).default([])
+  posters: z.array(ImageSchema).default([]),
 });
 
 /** One image of a show, film, or season, in its original size. */
@@ -179,11 +179,11 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
     {
       query,
       include_adult: "false",
-      language: "en-US"
+      language: "en-US",
     },
     ShowSearchSchema,
     {
-      maxAgeMs: searchLifetimeMs
+      maxAgeMs: searchLifetimeMs,
     }
   );
 
@@ -197,11 +197,11 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
     {
       query,
       include_adult: "false",
-      language: "en-US"
+      language: "en-US",
     },
     MovieSearchSchema,
     {
-      maxAgeMs: searchLifetimeMs
+      maxAgeMs: searchLifetimeMs,
     }
   );
 
@@ -228,16 +228,18 @@ export async function getShow(
   let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
 
   for (let firstSeason = 0; ; firstSeason += seasonsPerRequest) {
-    const seasons = Array.from({ length: seasonsPerRequest }, (_, index) => firstSeason + index);
+    const seasons = Array.from({
+      length: seasonsPerRequest,
+    }, (_, index) => firstSeason + index);
     const page = await tmdb(
       `/tv/${showId}`,
       {
         append_to_response: seasons.map((season) => `season/${season}`).join(","),
-        language: "en-US"
+        language: "en-US",
       },
       showPageSchema(seasons),
       {
-        maxAgeMs: options.maxAgeMs ?? showLifetimeMs
+        maxAgeMs: options.maxAgeMs ?? showLifetimeMs,
       }
     );
 
@@ -269,9 +271,9 @@ export async function getShow(
     seasons: details.seasons.map((season) => ({
       seasonNumber: season.season_number,
       name: season.name,
-      posterPath: season.poster_path
+      posterPath: season.poster_path,
     })),
-    episodes
+    episodes,
   };
 }
 
@@ -284,11 +286,11 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
   return tmdb(
     `/movie/${movieId}`,
     {
-      language: "en-US"
+      language: "en-US",
     },
     MovieSchema,
     {
-      maxAgeMs: day
+      maxAgeMs: day,
     }
   );
 }
@@ -303,11 +305,11 @@ export async function getCollectionParts(collectionId: number): Promise<TmdbMovi
   const collection = await tmdb(
     `/collection/${collectionId}`,
     {
-      language: "en-US"
+      language: "en-US",
     },
     CollectionSchema,
     {
-      maxAgeMs: day
+      maxAgeMs: day,
     }
   );
 
@@ -327,11 +329,11 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
   const images = await tmdb(
     `/${mediaType}/${id}/images`,
     {
-      include_image_language: "en,null"
+      include_image_language: "en,null",
     },
     ImagesSchema,
     {
-      maxAgeMs: day
+      maxAgeMs: day,
     }
   );
 
@@ -352,14 +354,14 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
  */
 export function getImages(mediaType: "tv" | "movie", id: number): Promise<TmdbImages | null> {
   return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
-    maxAgeMs: day
+    maxAgeMs: day,
   });
 }
 
 /** Loads a show season's posters, in every language. Empty when TMDB does not know the season. */
 export async function getSeasonPosters(showId: number, seasonNumber: number): Promise<TmdbImage[]> {
   const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
-    maxAgeMs: day
+    maxAgeMs: day,
   });
   return images?.posters ?? [];
 }
@@ -368,7 +370,7 @@ export async function getSeasonPosters(showId: number, seasonNumber: number): Pr
 function showPageSchema(seasons: readonly number[]) {
   return z.object({
     ...ShowFields,
-    ...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()]))
+    ...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
   }) as z.ZodObject<typeof ShowFields & Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>>;
 }
 

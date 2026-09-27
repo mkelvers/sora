@@ -28,7 +28,10 @@
 		class?: string;
 	};
 
-	let { seed, class: className }: Props = $props();
+	let {
+		seed,
+		class: className,
+	}: Props = $props();
 
 	const src = $derived.by(() => {
 		const options = {

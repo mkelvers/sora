@@ -225,11 +225,11 @@ export class SoraClient {
   constructor(options: SoraClientOptions) {
     this.#options = {
       ...options,
-      baseUrl: options.baseUrl.replace(/\/+$/, "")
+      baseUrl: options.baseUrl.replace(/\/+$/, ""),
     };
     this.#api = hc<AppType>(this.#options.baseUrl, {
       fetch: options.fetch,
-      headers: options.headers
+      headers: options.headers,
     }).v1;
   }
 
@@ -259,7 +259,7 @@ export class SoraClient {
     const body = await read(
       this.#api.profiles.$post(
         {
-          json: input
+          json: input,
         },
         init(options)
       )
@@ -273,9 +273,9 @@ export class SoraClient {
       this.#api.profiles[":profile_id"].$patch(
         {
           param: {
-            profile_id: profileId
+            profile_id: profileId,
           },
-          json: changes
+          json: changes,
         },
         init(options)
       )
@@ -289,8 +289,8 @@ export class SoraClient {
       this.#api.profiles[":profile_id"].$delete(
         {
           param: {
-            profile_id: profileId
-          }
+            profile_id: profileId,
+          },
         },
         init(options)
       )
@@ -309,11 +309,11 @@ export class SoraClient {
       this.#api.profiles[":profile_id"]["continue-watching"].$get(
         {
           param: {
-            profile_id: profileId
+            profile_id: profileId,
           },
           query: {
-            series_id: options?.params?.series_id?.join(",")
-          }
+            series_id: options?.params?.series_id?.join(","),
+          },
         },
         init(options)
       )
@@ -333,8 +333,8 @@ export class SoraClient {
       this.#api.profiles[":profile_id"].recommendations.$get(
         {
           param: {
-            profile_id: profileId
-          }
+            profile_id: profileId,
+          },
         },
         init(options)
       )
@@ -358,8 +358,8 @@ export class SoraClient {
         {
           param: {
             profile_id: profileId,
-            series_id: seriesId
-          }
+            series_id: seriesId,
+          },
         },
         init(options)
       )
@@ -376,12 +376,12 @@ export class SoraClient {
       this.#api.profiles[":profile_id"].progress.$put(
         {
           param: {
-            profile_id: profileId
+            profile_id: profileId,
           },
           json: {
             ...update,
-            event_at: (update.event_at ?? new Date()).toISOString()
-          }
+            event_at: (update.event_at ?? new Date()).toISOString(),
+          },
         },
         init(options)
       )
@@ -398,10 +398,10 @@ export class SoraClient {
         // Browsers ignore it and send their own.
         Origin: new URL(this.#options.baseUrl).origin,
         ...this.#options.headers,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-      signal: options?.signal
+      signal: options?.signal,
     });
 
     const payload = (await response.json().catch(() => null)) as {
@@ -415,7 +415,7 @@ export class SoraClient {
       throw new SoraError(payload?.message ?? `The API answered ${response.status} ${response.statusText}`, {
         status: response.status,
         code: payload?.code ?? "HTTP_ERROR",
-        retryAfterSeconds: null
+        retryAfterSeconds: null,
       });
     }
 
@@ -424,8 +424,8 @@ export class SoraClient {
       account: {
         id: payload?.user?.id ?? "",
         name: payload?.user?.name ?? "",
-        email: payload?.user?.email ?? ""
-      }
+        email: payload?.user?.email ?? "",
+      },
     };
   }
 
@@ -439,7 +439,7 @@ export class SoraClient {
     const body: Envelope<SeriesCard[], PageMeta> = await read(
       this.#api.series.$get(
         {
-          query: browseQuery(options?.params)
+          query: browseQuery(options?.params),
         },
         init(options)
       )
@@ -460,8 +460,8 @@ export class SoraClient {
         {
           query: {
             q: query,
-            ...browseQuery(options?.params)
-          }
+            ...browseQuery(options?.params),
+          },
         },
         init(options)
       )
@@ -481,11 +481,11 @@ export class SoraClient {
       this.#api.series[":series_id"].$get(
         {
           param: {
-            series_id: seriesId
+            series_id: seriesId,
           },
           query: {
-            episodes: options?.params?.episodes ? "true" : undefined
-          }
+            episodes: options?.params?.episodes ? "true" : undefined,
+          },
         },
         init(options)
       )
@@ -507,13 +507,13 @@ export class SoraClient {
       this.#api.series[":series_id"].images.$get(
         {
           param: {
-            series_id: seriesId
+            series_id: seriesId,
           },
           query: {
             type: params?.type?.join(","),
             language: params?.language?.map((code) => code ?? "none").join(","),
-            sort: params?.sort
-          }
+            sort: params?.sort,
+          },
         },
         init(options)
       )
@@ -535,9 +535,9 @@ export class SoraClient {
       this.#api.series[":series_id"].artwork.$patch(
         {
           param: {
-            series_id: seriesId
+            series_id: seriesId,
           },
-          json: changes
+          json: changes,
         },
         init(options)
       )
@@ -555,8 +555,8 @@ export class SoraClient {
         {
           param: {
             series_id: season.seriesId,
-            season_id: season.seasonId
-          }
+            season_id: season.seasonId,
+          },
         },
         init(options)
       )
@@ -577,8 +577,8 @@ export class SoraClient {
         {
           param: {
             series_id: season.seriesId,
-            season_id: season.seasonId
-          }
+            season_id: season.seasonId,
+          },
         },
         init(options)
       )
@@ -602,8 +602,8 @@ export class SoraClient {
         {
           param: {
             season_id: episode.seasonId,
-            episode: episode.number.toString()
-          }
+            episode: episode.number.toString(),
+          },
         },
         init(options)
       )
@@ -628,8 +628,8 @@ export class SoraClient {
         {
           query: {
             from: options?.params?.from?.toISOString(),
-            until: options?.params?.until?.toISOString()
-          }
+            until: options?.params?.until?.toISOString(),
+          },
         },
         init(options)
       )
@@ -648,7 +648,7 @@ function browseQuery(params: BrowseParams = {}) {
     status: params.status,
     genres: params.genres?.join(","),
     page: params.page?.toString(),
-    per_page: params.per_page?.toString()
+    per_page: params.per_page?.toString(),
   };
 }
 
@@ -656,8 +656,8 @@ function browseQuery(params: BrowseParams = {}) {
 function init(options: RequestOptions<unknown> | undefined) {
   return {
     init: {
-      signal: options?.signal
-    }
+      signal: options?.signal,
+    },
   };
 }
 

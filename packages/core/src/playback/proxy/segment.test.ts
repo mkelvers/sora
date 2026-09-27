@@ -4,7 +4,7 @@ import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 
 /** Three MPEG-TS packets, each starting with the sync byte. */
 const transportStream = Uint8Array.from({
-  length: 188 * 3
+  length: 188 * 3,
 }, (_, index) => (index % 188 === 0 ? 0x47 : 0x00));
 
 describe("disguised segments", () => {

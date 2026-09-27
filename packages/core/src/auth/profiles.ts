@@ -28,7 +28,7 @@ export const ProfileInputSchema = z.object({
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
     .optional(),
-  avatar: z.string().trim().min(1).max(64).optional()
+  avatar: z.string().trim().min(1).max(64).optional(),
 });
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;
@@ -64,11 +64,15 @@ export async function getProfile(userId: string, profileId: string): Promise<Pro
  * @throws {@link InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
 export async function createProfile(userId: string, input: ProfileInput): Promise<Profile> {
-  const { name, color, avatar } = parse(ProfileInputSchema, input);
+  const {
+    name,
+    color,
+    avatar,
+  } = parse(ProfileInputSchema, input);
   const id = newId();
   const [existing] = await db
     .select({
-      total: count()
+      total: count(),
     })
     .from(profile)
     .where(eq(profile.userId, userId));
@@ -80,7 +84,7 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
       userId,
       name,
       color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
-      avatar: avatar ?? id
+      avatar: avatar ?? id,
     })
     .returning();
 
@@ -117,7 +121,9 @@ export async function deleteProfile(userId: string, profileId: string) {
   await getProfile(userId, profileId);
   await db.transaction(async (tx) => {
     // Locks the account's profiles, so two deletions at once cannot remove the last two.
-    const profiles = await tx.select({ id: profile.id }).from(profile).where(eq(profile.userId, userId)).for("update");
+    const profiles = await tx.select({
+      id: profile.id,
+    }).from(profile).where(eq(profile.userId, userId)).for("update");
     if (profiles.length <= 1) {
       throw new LastProfileError(profileId);
     }
@@ -133,7 +139,7 @@ function parse<TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.ou
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid profile", {
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
@@ -146,6 +152,6 @@ function toProfile(row: typeof profile.$inferSelect): Profile {
     name: row.name,
     color: row.color,
     avatar: row.avatar,
-    createdAt: row.createdAt.toISOString()
+    createdAt: row.createdAt.toISOString(),
   };
 }

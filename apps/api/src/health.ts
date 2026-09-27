@@ -20,7 +20,10 @@ const cacheMs = 60_000;
  * are in `provider_calls` and the scheduler's warnings.
  */
 export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProviderHealth) {
-  let cached: { at: number; providers: Promise<ProviderHealth[] | null> } | null = null;
+  let cached: {
+    at: number;
+    providers: Promise<ProviderHealth[] | null>;
+  } | null = null;
 
   const providers = () => {
     if (!cached || Date.now() - cached.at >= cacheMs) {
@@ -31,7 +34,7 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
           // Not cached: the next probe tries again.
           cached = null;
           return null;
-        })
+        }),
       };
     }
     return cached.providers;
@@ -41,7 +44,7 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
     const health = await providers();
     return c.json({
       status: "ok",
-      providers: health && snakeCased(health.map(({ lastError: _lastError, ...provider }) => provider))
+      providers: health && snakeCased(health.map(({ lastError: _lastError, ...provider }) => provider)),
     });
   });
 }

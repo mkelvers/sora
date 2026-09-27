@@ -127,10 +127,13 @@ interface Group {
  * by extra OVA seasons. See the module documentation for the rules.
  */
 export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
-  const { show, members } = input;
+  const {
+    show,
+    members,
+  } = input;
   const episodes = new Map(show.episodes.map((episode, index) => [refKey(episode.season_number, episode.episode_number), {
     episode,
-    index
+    index,
   }]));
   // An entry is ordered by its regular episodes; an "episode 0" filed under
   // specials must not move a later season to the front.
@@ -181,7 +184,7 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   if (groups.length === 0 && specials.length > 0) {
     groups.push({
       key: "one-offs",
-      rows: specials
+      rows: specials,
     });
     specials = [];
   }
@@ -189,31 +192,31 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   const watchOrder = placeInterludes(
     groups.map((group) => ({
       kind: "season" as const,
-      group
+      group,
     })),
     interludes.map((member) => ({
       kind: member.anime.format === "MOVIE" ? "movie" as const : "ova" as const,
       group: {
         key: `anime:${member.anime.id}`,
-        rows: rowsOf(member, episodes)
-      }
+        rows: rowsOf(member, episodes),
+      },
     }))
   );
 
   const extras = mergeLaterParts(ovas.map((member) => ({
     key: `anime:${member.anime.id}`,
-    rows: rowsOf(member, episodes)
+    rows: rowsOf(member, episodes),
   }))).map((group) => ({
     kind: "ova" as const,
-    group
+    group,
   }));
   if (specials.length > 0) {
     extras.push({
       kind: "ova",
       group: {
         key: "specials",
-        rows: specials
-      }
+        rows: specials,
+      },
     });
   }
 
@@ -222,11 +225,11 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
   return [
     ...watchOrder.map((slot) => ({
       ...slot,
-      inWatchOrder: true
+      inWatchOrder: true,
     })),
     ...extras.map((slot) => ({
       ...slot,
-      inWatchOrder: false
+      inWatchOrder: false,
     }))
   ].map(({ kind, group, inWatchOrder }) => {
     const number = (counts.get(kind) ?? 0) + 1;
@@ -238,7 +241,7 @@ export function layoutShowSeasons(input: ShowLayoutInput): SeriesSeason[] {
 
     return {
       ...season,
-      title: group.key === "specials" ? "Specials" : extraSeasonTitle(group.rows[0]?.member, firstSeason, kind, number)
+      title: group.key === "specials" ? "Specials" : extraSeasonTitle(group.rows[0]?.member, firstSeason, kind, number),
     };
   });
 }
@@ -295,7 +298,9 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
     title: anime.title.display,
     anime: [anime],
     inWatchOrder: true,
-    episodes: Array.from({ length: Math.max(count, 1) }, (_, index) => ({
+    episodes: Array.from({
+      length: Math.max(count, 1),
+    }, (_, index) => ({
       number: index + 1,
       title: null,
       overview: null,
@@ -304,10 +309,10 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
       stillUrl: null,
       playback: {
         anilistId: anime.id,
-        episode: index + 1
+        episode: index + 1,
       },
-      tmdb: null
-    }))
+      tmdb: null,
+    })),
   };
 }
 
@@ -316,17 +321,21 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
  * Each counts towards the TMDB season of its nearest listed neighbour, so an
  * "episode 0" filed under specials stays with the season it opens.
  */
-function rowsOf(member: SeasonMember, episodes: ReadonlyMap<string, { episode: TmdbEpisode }>): Row[] {
+function rowsOf(member: SeasonMember, episodes: ReadonlyMap<string, {
+  episode: TmdbEpisode;
+}>): Row[] {
   const links = new Map(member.links.map((link) => [link.anilistEpisode, link]));
   const count = Math.max(episodeCount(member), ...member.links.map((link) => link.anilistEpisode));
 
-  const rows: Row[] = Array.from({ length: count }, (_, index) => {
+  const rows: Row[] = Array.from({
+    length: count,
+  }, (_, index) => {
     const link = links.get(index + 1);
     return {
       member,
       anilistEpisode: index + 1,
       tmdb: link ? episodes.get(refKey(link.seasonNumber, link.episodeNumber))?.episode ?? null : null,
-      seasonNumber: link?.seasonNumber ?? 0
+      seasonNumber: link?.seasonNumber ?? 0,
     };
   });
 
@@ -357,7 +366,7 @@ function groupRows(memberRows: readonly Row[][], keyOf: (row: Row) => string): G
     } else {
       groups.push({
         key,
-        rows: [row]
+        rows: [row],
       });
     }
   }
@@ -385,7 +394,7 @@ function mergeLaterParts(groups: readonly Group[]): Group[] {
     } else {
       merged.push({
         key: group.key,
-        rows: [...group.rows]
+        rows: [...group.rows],
       });
     }
   }
@@ -411,7 +420,9 @@ export function isLaterPart(anime: AnimeCard) {
 }
 
 /** The episodes of one-off AniList specials, in air-date order; undated ones last. */
-function oneOffRows(oneOffs: readonly SeasonMember[], episodes: ReadonlyMap<string, { episode: TmdbEpisode }>): Row[] {
+function oneOffRows(oneOffs: readonly SeasonMember[], episodes: ReadonlyMap<string, {
+  episode: TmdbEpisode;
+}>): Row[] {
   return oneOffs
     .flatMap((member) => rowsOf(member, episodes))
     .sort((left, right) =>
@@ -517,16 +528,16 @@ function toSeason(group: Group, kind: SeasonKind, number: number, inWatchOrder: 
         stillUrl: tmdbImageUrl(row.tmdb?.still_path ?? film?.backdrop_path ?? null, "original"),
         playback: {
           anilistId: row.member.anime.id,
-          episode: row.anilistEpisode
+          episode: row.anilistEpisode,
         },
         tmdb: row.tmdb
           ? {
               seasonNumber: row.tmdb.season_number,
-              episodeNumber: row.tmdb.episode_number
+              episodeNumber: row.tmdb.episode_number,
             }
-          : null
+          : null,
       };
-    })
+    }),
   };
 }
 

@@ -5,12 +5,12 @@
 		variants: {
 			variant: {
 				block: '',
-				text: 'text'
-			}
+				text: 'text',
+			},
 		},
 		defaultVariants: {
-			variant: 'block'
-		}
+			variant: 'block',
+		},
 	});
 </script>
 
@@ -25,7 +25,15 @@
 			ratio?: string;
 		};
 
-	let { as = 'div', class: className, variant, width, height, ratio, ...props }: Props = $props();
+	let {
+		as = 'div',
+		class: className,
+		variant,
+		width,
+		height,
+		ratio,
+		...props
+	}: Props = $props();
 </script>
 
 <svelte:element

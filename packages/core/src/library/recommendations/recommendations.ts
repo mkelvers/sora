@@ -93,7 +93,7 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
       .select({
         seriesId: seriesEntry.seriesId,
         episodes: count(),
-        lastPlayedAt: max(playbackProgress.eventAt)
+        lastPlayedAt: max(playbackProgress.eventAt),
       })
       .from(playbackProgress)
       .innerJoin(seriesEntry, eq(seriesEntry.anilistId, playbackProgress.anilistId))
@@ -103,7 +103,7 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
       .select({
         seriesId: watchlistEntry.seriesId,
         status: watchlistEntry.status,
-        updatedAt: watchlistEntry.updatedAt
+        updatedAt: watchlistEntry.updatedAt,
       })
       .from(watchlistEntry)
       .where(eq(watchlistEntry.userId, userId))
@@ -114,7 +114,7 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
     activity.set(row.seriesId, {
       status: null,
       episodesPlayed: row.episodes,
-      lastActiveAt: row.lastPlayedAt ?? new Date(0)
+      lastActiveAt: row.lastPlayedAt ?? new Date(0),
     });
   }
   for (const row of listed) {
@@ -122,7 +122,7 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
     activity.set(row.seriesId, {
       status: row.status,
       episodesPlayed: title?.episodesPlayed ?? 0,
-      lastActiveAt: title && title.lastActiveAt > row.updatedAt ? title.lastActiveAt : row.updatedAt
+      lastActiveAt: title && title.lastActiveAt > row.updatedAt ? title.lastActiveAt : row.updatedAt,
     });
   }
 
@@ -138,7 +138,7 @@ async function seedsOf(weights: ReadonlyMap<string, number>): Promise<TasteSeed[
   const rows = await db
     .select({
       seriesId: seriesEntry.seriesId,
-      media: anime.media
+      media: anime.media,
     })
     .from(seriesEntry)
     .innerJoin(anime, eq(anime.anilistId, seriesEntry.anilistId))
@@ -156,7 +156,7 @@ async function seedsOf(weights: ReadonlyMap<string, number>): Promise<TasteSeed[
     const seed = seeds.get(seriesId) ?? {
       weight: weights.get(seriesId) ?? 0,
       genres: new Set<string>(),
-      recommended: [] as number[]
+      recommended: [] as number[],
     };
     for (const genre of media.genres ?? []) {
       if (genre) {
@@ -175,7 +175,7 @@ async function seedsOf(weights: ReadonlyMap<string, number>): Promise<TasteSeed[
   return [...seeds.values()].map((seed): TasteSeed => ({
     weight: seed.weight,
     genres: [...seed.genres],
-    recommended: seed.recommended
+    recommended: seed.recommended,
   }));
 }
 
@@ -222,7 +222,7 @@ async function candidatesFor(recommended: readonly number[], genres: readonly st
 async function relatedOf(seriesIds: readonly string[]): Promise<Set<number>> {
   const rows = await db
     .select({
-      anilistId: seriesRelated.anilistId
+      anilistId: seriesRelated.anilistId,
     })
     .from(seriesRelated)
     .where(inArray(seriesRelated.seriesId, [...seriesIds]));

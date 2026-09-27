@@ -24,18 +24,18 @@ export const watchlistEntry = pgTable(
     seriesId: text("series_id")
       .notNull()
       .references(() => series.id, {
-        onDelete: "cascade"
+        onDelete: "cascade",
       }),
     status: watchlistStatus("status").notNull(),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow()
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (table) => [
     primaryKey({
       columns: [
         table.userId,
         table.seriesId
-      ]
+      ],
     }),
     index("watchlist_entry_user_updated_idx").on(table.userId, table.updatedAt)
   ]
@@ -58,7 +58,7 @@ export const playbackProgress = pgTable(
     completed: boolean("completed").notNull(),
     /** Client-side time of the event; later events win across devices. */
     eventAt: timestamptz("event_at").notNull(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow()
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (table) => [
     primaryKey({
@@ -66,7 +66,7 @@ export const playbackProgress = pgTable(
         table.userId,
         table.anilistId,
         table.episode
-      ]
+      ],
     }),
     index("playback_progress_user_event_idx").on(table.userId, table.eventAt)
   ]
@@ -88,7 +88,7 @@ export const seasonCompletion = pgTable(
     anilistId: integer("anilist_id").notNull(),
     episode: doublePrecision("episode").notNull(),
     /** Client-side time of the event that completed the finale. */
-    completedAt: timestamptz("completed_at").notNull()
+    completedAt: timestamptz("completed_at").notNull(),
   },
   (table) => [
     primaryKey({
@@ -96,7 +96,7 @@ export const seasonCompletion = pgTable(
         table.userId,
         table.anilistId,
         table.episode
-      ]
+      ],
     })
   ]
 );

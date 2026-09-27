@@ -18,7 +18,7 @@ const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
   INVALID_INPUT: 422,
   INVALID_STREAM_TOKEN: 403,
   PLAYBACK_UNAVAILABLE: 502,
-  UPSTREAM_UNAVAILABLE: 503
+  UPSTREAM_UNAVAILABLE: 503,
 };
 
 /** What `/v1` middleware puts on the context for handlers. */
@@ -44,12 +44,12 @@ export function sendProblem(
     detail,
     instance: c.req.path,
     code,
-    errors
+    errors,
   };
 
   return c.newResponse(JSON.stringify(body), status, {
     "Content-Type": "application/problem+json",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
   });
 }
 
@@ -89,7 +89,7 @@ export const onInvalidRequest: Hook<unknown, V1Env, string, unknown> = (result, 
       "The request is invalid",
       result.error.issues.map((issue) => ({
         path: issue.path.join("."),
-        message: issue.message
+        message: issue.message,
       }))
     );
   }

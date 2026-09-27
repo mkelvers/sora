@@ -71,19 +71,19 @@ function useProviders(list: FakeProvider[]) {
                         url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
                         language: "en",
                         label: "English",
-                        format: "vtt"
+                        format: "vtt",
                       },
                       {
                         url: `https://${fake.id}.example/pt.vtt`,
                         language: "pt",
                         label: "Portuguese",
-                        format: null
+                        format: null,
                       }
-                    ]
+                    ],
               }
-            ]
+            ],
           };
-        }
+        },
       };
     })
   );
@@ -92,62 +92,70 @@ function useProviders(list: FakeProvider[]) {
 mock.module("../../series/episodes", () => ({
   locateEpisode: async () => ({
     anilistId: 154587,
-    anilistEpisode: 3
+    anilistEpisode: 3,
   }),
-  anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`
+  anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
 }));
 mock.module("../../catalog/queries/anime", () => ({
   getAnime: async (id: number) => ({
-    id
-  })
+    id,
+  }),
 }));
 mock.module("../episodes/episodes", () => ({
-  getProviderUnits: async (_anime: unknown, provider: { id: string }) => [
+  getProviderUnits: async (_anime: unknown, provider: {
+    id: string;
+  }) => [
     {
       id: `${provider.id}:3`,
       number: 3,
       title: "Episode 3",
-      languages: units.get(provider.id) ?? null
+      languages: units.get(provider.id) ?? null,
     }
-  ]
+  ],
 }));
 mock.module("../episodes/versions", () => ({
-  getEpisodeVersions: async () => offered
+  getEpisodeVersions: async () => offered,
 }));
 mock.module("../providers/registry", () => ({
   servedLocale: "en",
-  isServedSubtitle: (track: { language: string }) => track.language === "en",
-  streamProviders
+  isServedSubtitle: (track: {
+    language: string;
+  }) => track.language === "en",
+  streamProviders,
 }));
 /** Segment start times `segmentStarts` hands out, by playlist URL. */
 const timelines = new Map<string, number[]>();
 
 mock.module("../proxy/proxy", () => ({
-  createStreamToken: (url: string, _kind: string, _headers: unknown, options?: { shifts?: unknown }) =>
+  createStreamToken: (url: string, _kind: string, _headers: unknown, options?: {
+    shifts?: unknown;
+  }) =>
     options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`,
   segmentStarts: async (url: string) => timelines.get(url) ?? [],
   canFetchStream: async (url: string) => !url.includes(".unreachable."),
-  tokenLifetimeMs: 6 * 60 * 60 * 1_000
+  tokenLifetimeMs: 6 * 60 * 60 * 1_000,
 }));
 
-const { resolvePlayback } = await import("./resolve");
+const {
+  resolvePlayback,
+} = await import("./resolve");
 
 const request = {
   seriesId: "series",
   seasonId: "season",
-  episode: 3
+  episode: 3,
 };
 const options = {
-  streamBaseUrl: "https://sora.example/v1/streams/"
+  streamBaseUrl: "https://sora.example/v1/streams/",
 };
 
 const sub = (locale = "en"): EpisodeVersion => ({
   language: "sub",
-  locale
+  locale,
 });
 const dub = (locale = "en"): EpisodeVersion => ({
   language: "dub",
-  locale
+  locale,
 });
 
 /** Each resolved version as `language/locale@provider`. */
@@ -179,12 +187,12 @@ describe("resolvePlayback", () => {
       {
         id: "brazilian",
         locale: "pt-BR",
-        languages: ["dub"]
+        languages: ["dub"],
       },
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       }
     ]);
     offered = [dub(), dub("pt-BR"), sub()];
@@ -193,7 +201,7 @@ describe("resolvePlayback", () => {
     await expect(resolvePlayback(request, options)).resolves.toMatchObject({
       seriesId: "series",
       seasonId: "season",
-      episode: 3
+      episode: 3,
     });
   });
 
@@ -202,13 +210,15 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [sub()];
 
     const before = Date.now();
-    const { expiresAt } = await resolvePlayback(request, options);
+    const {
+      expiresAt,
+    } = await resolvePlayback(request, options);
     expect(Date.parse(expiresAt) - before).toBeGreaterThanOrEqual(6 * 60 * 60 * 1_000);
     expect(Date.parse(expiresAt) - Date.now()).toBeLessThanOrEqual(6 * 60 * 60 * 1_000);
   });
@@ -225,17 +235,17 @@ describe("resolvePlayback", () => {
             {
               kind: "opening",
               start: 154,
-              end: 230
+              end: 230,
             }
           ],
           sub: [
             {
               kind: "opening",
               start: 138,
-              end: 215
+              end: 215,
             }
-          ]
-        }
+          ],
+        },
       }
     ]);
     offered = [dub(), sub()];
@@ -252,7 +262,7 @@ describe("resolvePlayback", () => {
       {
         id: "animeparadise",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [sub()];
@@ -265,7 +275,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [sub()];
@@ -285,7 +295,7 @@ describe("resolvePlayback", () => {
       {
         id: "megaplay",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       }
     ]);
 
@@ -297,7 +307,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -312,13 +322,13 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub"],
-        streams: ["sub", "dub"]
+        streams: ["sub", "dub"],
       },
       {
         id: "megaplay",
         locale: "en",
         languages: ["sub", "dub"],
-        streams: ["sub"]
+        streams: ["sub"],
       }
     ]);
     offered = [sub()];
@@ -332,12 +342,12 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub"],
-        streams: ["sub", "dub"]
+        streams: ["sub", "dub"],
       },
       {
         id: "animeparadise",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -351,13 +361,13 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       },
       {
         id: "animeparadise",
         locale: "en",
         languages: ["sub"],
-        streams: ["sub", "dub"]
+        streams: ["sub", "dub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -372,7 +382,7 @@ describe("resolvePlayback", () => {
         id,
         locale: "en",
         languages: ["sub"],
-        delayMs: 40
+        delayMs: 40,
       }))
     );
     offered = [sub()];
@@ -391,13 +401,13 @@ describe("resolvePlayback", () => {
         locale: "en",
         languages: ["sub"],
         streams: ["sub", "dub"],
-        delayMs: 30
+        delayMs: 30,
       },
       {
         id: "animeparadise",
         locale: "en",
         languages: ["sub"],
-        streams: ["sub", "dub"]
+        streams: ["sub", "dub"],
       }
     ]);
     offered = [sub()];
@@ -411,13 +421,13 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["raw"],
-        streams: ["raw", "sub", "dub"]
+        streams: ["raw", "sub", "dub"],
       }
     ]);
     offered = [
       {
         language: "raw",
-        locale: null
+        locale: null,
       }
     ];
 
@@ -429,12 +439,12 @@ describe("resolvePlayback", () => {
       {
         id: "brazilian",
         locale: "pt-BR",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       },
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -447,7 +457,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["dub"]
+        languages: ["dub"],
       }
     ]);
     offered = [dub()];
@@ -462,7 +472,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [sub()];
@@ -480,12 +490,12 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub"],
-        noSubtitles: true
+        noSubtitles: true,
       },
       {
         id: "allmanga",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [sub()];
@@ -500,12 +510,12 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub", "dub"],
-        unreachableSubtitles: true
+        unreachableSubtitles: true,
       },
       {
         id: "allmanga",
         locale: "en",
-        languages: ["sub"]
+        languages: ["sub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -518,7 +528,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -538,7 +548,7 @@ describe("resolvePlayback", () => {
       {
         id: "anikoto",
         locale: "en",
-        languages: ["sub", "dub"]
+        languages: ["sub", "dub"],
       }
     ]);
     offered = [dub(), sub()];
@@ -554,7 +564,7 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub", "dub"],
-        noSubtitles: true
+        noSubtitles: true,
       }
     ]);
     offered = [dub(), sub()];
@@ -571,18 +581,18 @@ describe("resolvePlayback", () => {
       {
         id: "brazilian",
         locale: "pt-BR",
-        languages: ["raw"]
+        languages: ["raw"],
       },
       {
         id: "allmanga",
         locale: "en",
-        languages: ["raw"]
+        languages: ["raw"],
       }
     ]);
     offered = [
       {
         language: "raw",
-        locale: null
+        locale: null,
       }
     ];
 
@@ -595,12 +605,12 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["dub"],
-        fails: true
+        fails: true,
       },
       {
         id: "allmanga",
         locale: "en",
-        languages: ["dub"]
+        languages: ["dub"],
       }
     ]);
     offered = [dub()];
@@ -614,7 +624,7 @@ describe("resolvePlayback", () => {
         id: "anikoto",
         locale: "en",
         languages: ["sub", "dub"],
-        fails: true
+        fails: true,
       }
     ]);
     offered = [dub(), sub()];
@@ -627,7 +637,7 @@ describe("resolvePlayback", () => {
       {
         id: "brazilian",
         locale: "pt-BR",
-        languages: ["dub"]
+        languages: ["dub"],
       }
     ]);
 

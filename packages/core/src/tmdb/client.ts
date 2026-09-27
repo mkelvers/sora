@@ -103,7 +103,7 @@ export async function tmdb<TSchema extends z.ZodType>(
   if (!parsed.success) {
     throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
       retryAfterMs: null,
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
@@ -122,18 +122,18 @@ async function fetchAndStore(key: string, path: string, url: URL, options: TmdbR
     path,
     data,
     fetchedAt,
-    expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs)
+    expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
   };
 
   await db
     .insert(tmdbSnapshot)
     .values({
       key,
-      ...values
+      ...values,
     })
     .onConflictDoUpdate({
       target: tmdbSnapshot.key,
-      set: values
+      set: values,
     });
 
   return data;
@@ -148,14 +148,14 @@ async function execute(url: URL): Promise<unknown> {
       response = await fetch(url, {
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${config.tmdbReadAccessToken}`
+          Authorization: `Bearer ${config.tmdbReadAccessToken}`,
         },
-        signal: AbortSignal.timeout(requestTimeoutMs)
+        signal: AbortSignal.timeout(requestTimeoutMs),
       });
     } catch (cause) {
       throw new UpstreamUnavailableError("TMDB could not be reached", {
         retryAfterMs: null,
-        cause
+        cause,
       });
     }
 
@@ -168,7 +168,7 @@ async function execute(url: URL): Promise<unknown> {
       }
 
       throw new UpstreamUnavailableError("TMDB rate limit reached", {
-        retryAfterMs
+        retryAfterMs,
       });
     }
 
@@ -179,7 +179,7 @@ async function execute(url: URL): Promise<unknown> {
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok || body === null) {
       throw new UpstreamUnavailableError(`TMDB returned ${response.status} for ${url.pathname}`, {
-        retryAfterMs: retryAfter(response)
+        retryAfterMs: retryAfter(response),
       });
     }
 

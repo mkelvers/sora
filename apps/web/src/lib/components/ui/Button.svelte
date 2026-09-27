@@ -5,12 +5,12 @@
 		variants: {
 			variant: {
 				default: '',
-				ghost: 'ghost'
-			}
+				ghost: 'ghost',
+			},
 		},
 		defaultVariants: {
-			variant: 'default'
-		}
+			variant: 'default',
+		},
 	});
 </script>
 
@@ -19,7 +19,13 @@
 
 	type Props = HTMLButtonAttributes & VariantProps<typeof button>;
 
-	let { class: className, type = 'button', variant, children, ...props }: Props = $props();
+	let {
+		class: className,
+		type = 'button',
+		variant,
+		children,
+		...props
+	}: Props = $props();
 </script>
 
 <button class={[button({ variant }), className]} {type} {...props}>

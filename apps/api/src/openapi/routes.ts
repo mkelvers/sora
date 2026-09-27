@@ -35,7 +35,9 @@ import {
   TitleProgressSchema
 } from "./schemas";
 
-const { shape: browse } = BrowseQuerySchema;
+const {
+  shape: browse,
+} = BrowseQuerySchema;
 
 /** A comma-separated query value, such as `genres=Action,Comedy`, as a list. */
 function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList, example: string) {
@@ -51,7 +53,7 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
     .optional()
     .openapi({
       type: "string",
-      example
+      example,
     });
 }
 
@@ -65,7 +67,7 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
 const BrowseParams = BrowseQuerySchema.omit({
   search: true,
   seasonYear: true,
-  perPage: true
+  perPage: true,
 })
   .strict()
   .extend({
@@ -73,21 +75,21 @@ const BrowseParams = BrowseQuerySchema.omit({
     format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
     genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
     page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
-    per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional()
+    per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
   });
 
 /** {@link BrowseParams} with the search text, which is required. */
 const SearchParams = BrowseParams.extend({
   q: browse.search.unwrap().openapi({
     description: "The text to search titles for.",
-    example: "k-on"
-  })
+    example: "k-on",
+  }),
 });
 
 /** A season, addressed under the series it belongs to. */
 const SeasonParams = z.object({
   series_id: SeriesIdParam,
-  season_id: SeasonIdParam
+  season_id: SeasonIdParam,
 });
 
 /** A page of title cards. */
@@ -98,7 +100,7 @@ const EmptyMetaSchema = z.object({}).openapi("EmptyMeta");
 
 /** An episode, addressed under its season. */
 const EpisodeParams = SeasonParams.extend({
-  episode: EpisodeNumberParam
+  episode: EpisodeNumberParam,
 });
 
 export const browseSeries = createRoute({
@@ -110,13 +112,13 @@ export const browseSeries = createRoute({
   description:
     "Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
   request: {
-    query: BrowseParams
+    query: BrowseParams,
   },
   responses: {
     200: json(SeriesPageSchema, "A page of titles."),
     422: problem("The query is invalid."),
-    503: problem("The catalog upstream is unavailable; retry after `Retry-After`.")
-  }
+    503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
+  },
 });
 
 export const searchSeries = createRoute({
@@ -128,13 +130,13 @@ export const searchSeries = createRoute({
   description:
     "Finds titles matching `q` in English, romaji, Japanese, or a known synonym or abbreviation, forgiving typos. Best match first, weighing how popular titles are, unless `sort` is given; narrowed by the same filters as `browseSeries`. One card per title, and a first search for a title not prepared yet may come back without it while it is prepared in the background.",
   request: {
-    query: SearchParams
+    query: SearchParams,
   },
   responses: {
     200: json(SeriesPageSchema, "A page of titles."),
     422: problem("The query is invalid or `q` is missing."),
-    503: problem("The catalog upstream is unavailable; retry after `Retry-After`.")
-  }
+    503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
+  },
 });
 
 export const getSeries = createRoute({
@@ -146,7 +148,7 @@ export const getSeries = createRoute({
   description: "The title's page: details, artwork, seasons, the next episode, and related titles.",
   request: {
     params: z.object({
-      series_id: SeriesIdParam
+      series_id: SeriesIdParam,
     }),
     query: z
       .object({
@@ -161,10 +163,10 @@ export const getSeries = createRoute({
             type: "boolean",
             description:
               "Whether each season carries its episodes, as `listSeasonEpisodes` lists them, so a title's page needs one request.",
-            example: true
-          })
+            example: true,
+          }),
       })
-      .strict()
+      .strict(),
   },
   responses: {
     200: json(
@@ -173,18 +175,18 @@ export const getSeries = createRoute({
           seasons: z.array(
             SeasonSchema.extend({
               episodes: z.array(SeasonEpisodeSchema).optional().openapi({
-                description: "The season's episodes, numbered from 1; present only with `episodes=true`."
-              })
+                description: "The season's episodes, numbered from 1; present only with `episodes=true`.",
+              }),
             })
-          )
+          ),
         }),
         EmptyMetaSchema
       ),
       "The title."
     ),
     404: problem("No such title."),
-    422: problem("The query is invalid.")
-  }
+    422: problem("The query is invalid."),
+  },
 });
 
 export const listImages = createRoute({
@@ -197,18 +199,18 @@ export const listImages = createRoute({
     "Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none.",
   request: {
     params: z.object({
-      series_id: SeriesIdParam
+      series_id: SeriesIdParam,
     }),
     query: z
       .object({
         type: commaSeparated(z.array(ImageTypeSchema), "backdrop,poster").openapi({
-          description: "Only these types; every type when omitted."
+          description: "Only these types; every type when omitted.",
         }),
         language: commaSeparated(
           z.array(z.string().regex(/^(?:[a-z]{2}|none)$/)).transform((codes) => codes.map((code) => (code === "none" ? null : code))),
           "en,none"
         ).openapi({
-          description: "Only these ISO 639-1 languages, `none` meaning textless; every language when omitted."
+          description: "Only these ISO 639-1 languages, `none` meaning textless; every language when omitted.",
         }),
         sort: z
           .enum([
@@ -218,23 +220,23 @@ export const listImages = createRoute({
           .optional()
           .openapi({
             description:
-              "`votes`: TMDB users' rating, weighted by how many voted, then size (the default). `quality`: the largest original first, then votes."
-          })
+              "`votes`: TMDB users' rating, weighted by how many voted, then size (the default). `quality`: the largest original first, then votes.",
+          }),
       })
-      .strict()
+      .strict(),
   },
   responses: {
     200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
     404: problem("No such title."),
     422: problem("The query is invalid."),
-    503: problem("TMDB is unavailable; retry after `Retry-After`.")
-  }
+    503: problem("TMDB is unavailable; retry after `Retry-After`."),
+  },
 });
 
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
 const ArtworkUrl = z
   .url({
-    protocol: /^https$/
+    protocol: /^https$/,
   })
   .max(2_048)
   .nullable()
@@ -250,7 +252,7 @@ export const updateArtwork = createRoute({
     "Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
   request: {
     params: z.object({
-      series_id: SeriesIdParam
+      series_id: SeriesIdParam,
     }),
     body: {
       required: true,
@@ -260,23 +262,23 @@ export const updateArtwork = createRoute({
             .object({
               poster_url: ArtworkUrl,
               backdrop_url: ArtworkUrl,
-              logo_url: ArtworkUrl
+              logo_url: ArtworkUrl,
             })
             .strict()
             .openapi("ArtworkChanges", {
               example: {
-                backdrop_url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg"
-              }
-            })
-        }
-      }
-    }
+                backdrop_url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
+              },
+            }),
+        },
+      },
+    },
   },
   responses: {
     200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title, with its new artwork."),
     404: problem("No such title."),
-    422: problem("The body is invalid.")
-  }
+    422: problem("The body is invalid."),
+  },
 });
 
 export const getSeason = createRoute({
@@ -286,20 +288,20 @@ export const getSeason = createRoute({
   tags: ["Series"],
   summary: "Get a season",
   request: {
-    params: SeasonParams
+    params: SeasonParams,
   },
   responses: {
     200: json(
       envelopeOf(
         SeasonSchema,
         z.object({
-          series_id: z.string()
+          series_id: z.string(),
         })
       ),
       "The season."
     ),
-    404: problem("No such season in this title.")
-  }
+    404: problem("No such season in this title."),
+  },
 });
 
 export const listSeasonEpisodes = createRoute({
@@ -309,7 +311,7 @@ export const listSeasonEpisodes = createRoute({
   tags: ["Series"],
   summary: "List a season's episodes",
   request: {
-    params: SeasonParams
+    params: SeasonParams,
   },
   responses: {
     200: json(
@@ -317,13 +319,13 @@ export const listSeasonEpisodes = createRoute({
         z.array(SeasonEpisodeSchema),
         CountMetaSchema.extend({
           series_id: z.string(),
-          season_id: z.string()
+          season_id: z.string(),
         })
       ),
       "The season's episodes, numbered from 1."
     ),
-    404: problem("No such season in this title.")
-  }
+    404: problem("No such season in this title."),
+  },
 });
 
 export const listGenres = createRoute({
@@ -333,8 +335,8 @@ export const listGenres = createRoute({
   tags: ["Series"],
   summary: "List genres",
   responses: {
-    200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Genre names accepted by `browseSeries`.")
-  }
+    200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Genre names accepted by `browseSeries`."),
+  },
 });
 
 export const getSchedule = createRoute({
@@ -348,15 +350,15 @@ export const getSchedule = createRoute({
     query: z.object({
       from: z.iso
         .datetime({
-          offset: true
+          offset: true,
         })
         .optional(),
       until: z.iso
         .datetime({
-          offset: true
+          offset: true,
         })
-        .optional()
-    })
+        .optional(),
+    }),
   },
   responses: {
     200: json(
@@ -364,13 +366,13 @@ export const getSchedule = createRoute({
         z.array(ScheduledEpisodeSchema),
         CountMetaSchema.extend({
           from: z.string(),
-          until: z.string()
+          until: z.string(),
         })
       ),
       "Scheduled episodes, and the window they air in."
     ),
-    422: problem("The window is invalid or longer than 14 days.")
-  }
+    422: problem("The window is invalid or longer than 14 days."),
+  },
 });
 
 export const getPlayback = createRoute({
@@ -382,22 +384,22 @@ export const getPlayback = createRoute({
   description:
     "Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it, with its skip segments. Sources and subtitles are URLs a player fetches directly; they expire, so resolve again rather than storing them.",
   request: {
-    params: EpisodeParams
+    params: EpisodeParams,
   },
   responses: {
     200: json(
       envelopeOf(
         z.array(PlaybackMediaSchema).openapi({
           description:
-            "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out. A sub carries every subtitle language its provider has, English first, and always has English: as a track, or burned into the picture when `hardsub` is true. A dub carries the sub's WebVTT tracks retimed to its own encode, when the two encodes can be aligned. Raw has none."
+            "Every English version a provider can stream right now: dub before sub before raw, so the first is the one to play by default. A version no provider can stream right now is left out. A sub carries every subtitle language its provider has, English first, and always has English: as a track, or burned into the picture when `hardsub` is true. A dub carries the sub's WebVTT tracks retimed to its own encode, when the two encodes can be aligned. Raw has none.",
         }),
         PlaybackMetaSchema
       ),
       "Streams and skip segments for every version of the episode."
     ),
     404: problem("No such season or episode in this title, or nothing streams it."),
-    502: problem("Providers list the episode but none can stream it right now.")
-  }
+    502: problem("Providers list the episode but none can stream it right now."),
+  },
 });
 
 export const getEpisodePlayback = createRoute({
@@ -411,10 +413,10 @@ export const getEpisodePlayback = createRoute({
   request: {
     params: z.object({
       season_id: SeasonIdParam,
-      episode: EpisodeNumberParam
-    })
+      episode: EpisodeNumberParam,
+    }),
   },
-  responses: getPlayback.responses
+  responses: getPlayback.responses,
 });
 
 export const getStream = createRoute({
@@ -430,42 +432,42 @@ export const getStream = createRoute({
       token: z.string().openapi({
         param: {
           name: "token",
-          in: "path"
-        }
-      })
-    })
+          in: "path",
+        },
+      }),
+    }),
   },
   responses: {
     200: {
       description: "The resource.",
       content: {
         "application/vnd.apple.mpegurl": {
-          schema: z.string()
+          schema: z.string(),
         },
         "application/octet-stream": {
           schema: z.string().openapi({
-            format: "binary"
-          })
-        }
-      }
+            format: "binary",
+          }),
+        },
+      },
     },
     206: {
-      description: "Part of the resource, for a `Range` request."
+      description: "Part of the resource, for a `Range` request.",
     },
     403: problem("The token is forged, malformed, or expired."),
-    502: problem("The upstream host failed.")
-  }
+    502: problem("The upstream host failed."),
+  },
 });
 
 /** Routes that need a signed-in account, as a bearer token or session cookie. */
 const signedIn = [
   {
-    session: []
+    session: [],
   }
 ];
 
 const ProfileParams = z.object({
-  profile_id: ProfileIdParam
+  profile_id: ProfileIdParam,
 });
 
 export const listProfiles = createRoute({
@@ -478,8 +480,8 @@ export const listProfiles = createRoute({
   security: signedIn,
   responses: {
     200: json(envelopeOf(z.array(ProfileSchema), CountMetaSchema), "The profiles."),
-    401: problem("Not signed in.")
-  }
+    401: problem("Not signed in."),
+  },
 });
 
 export const createProfile = createRoute({
@@ -495,16 +497,16 @@ export const createProfile = createRoute({
       required: true,
       content: {
         "application/json": {
-          schema: ProfileInputSchema
-        }
-      }
-    }
+          schema: ProfileInputSchema,
+        },
+      },
+    },
   },
   responses: {
     201: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The new profile."),
     401: problem("Not signed in."),
-    422: problem("The body is invalid.")
-  }
+    422: problem("The body is invalid."),
+  },
 });
 
 export const updateProfile = createRoute({
@@ -520,17 +522,17 @@ export const updateProfile = createRoute({
       required: true,
       content: {
         "application/json": {
-          schema: ProfileInputSchema.partial()
-        }
-      }
-    }
+          schema: ProfileInputSchema.partial(),
+        },
+      },
+    },
   },
   responses: {
     200: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The profile."),
     401: problem("Not signed in."),
     404: problem("The account has no such profile."),
-    422: problem("The body is invalid.")
-  }
+    422: problem("The body is invalid."),
+  },
 });
 
 export const deleteProfile = createRoute({
@@ -542,16 +544,16 @@ export const deleteProfile = createRoute({
   description: "Deletes the profile with its progress and watchlist.",
   security: signedIn,
   request: {
-    params: ProfileParams
+    params: ProfileParams,
   },
   responses: {
     204: {
-      description: "Deleted."
+      description: "Deleted.",
     },
     401: problem("Not signed in."),
     404: problem("The account has no such profile."),
-    409: problem("The profile is the account's last; an account keeps at least one.")
-  }
+    409: problem("The profile is the account's last; an account keeps at least one."),
+  },
 });
 
 export const getContinueWatching = createRoute({
@@ -568,15 +570,15 @@ export const getContinueWatching = createRoute({
     query: z.object({
       series_id: commaSeparated(z.array(z.string()).min(1).max(50), "GYZJ43JMR,U06QF6S1R").openapi({
         description:
-          "Only these titles, such as a title's page or a page of search results: at most one entry each, none for a title with nothing to resume."
-      })
-    })
+          "Only these titles, such as a title's page or a page of search results: at most one entry each, none for a title with nothing to resume.",
+      }),
+    }),
   },
   responses: {
     200: json(envelopeOf(z.array(ContinueWatchingItemSchema), CountMetaSchema), "The titles."),
     401: problem("Not signed in."),
-    404: problem("The account has no such profile.")
-  }
+    404: problem("The account has no such profile."),
+  },
 });
 
 export const getRecommendations = createRoute({
@@ -589,13 +591,13 @@ export const getRecommendations = createRoute({
     "Titles the profile has not played or listed, best fit first, from AniList users' recommendations for what it has played and listed and the genres those share, weighed by how well liked each title is. Finished and much-watched titles count most, recent ones more than old ones, and dropped titles count against what they are like. Empty for a profile with no history.",
   security: signedIn,
   request: {
-    params: ProfileParams
+    params: ProfileParams,
   },
   responses: {
     200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
     401: problem("Not signed in."),
-    404: problem("The account has no such profile.")
-  }
+    404: problem("The account has no such profile."),
+  },
 });
 
 export const getSeriesProgress = createRoute({
@@ -608,22 +610,22 @@ export const getSeriesProgress = createRoute({
   security: signedIn,
   request: {
     params: ProfileParams.extend({
-      series_id: SeriesIdParam
-    })
+      series_id: SeriesIdParam,
+    }),
   },
   responses: {
     200: json(
       envelopeOf(
         TitleProgressSchema,
         z.object({
-          series_id: z.string()
+          series_id: z.string(),
         })
       ),
       "The progress."
     ),
     401: problem("Not signed in."),
-    404: problem("The account has no such profile, or no such title.")
-  }
+    404: problem("The account has no such profile, or no such title."),
+  },
 });
 
 export const recordProgress = createRoute({
@@ -641,17 +643,17 @@ export const recordProgress = createRoute({
       required: true,
       content: {
         "application/json": {
-          schema: ProgressUpdateSchema
-        }
-      }
-    }
+          schema: ProgressUpdateSchema,
+        },
+      },
+    },
   },
   responses: {
     204: {
-      description: "Saved."
+      description: "Saved.",
     },
     401: problem("Not signed in."),
     404: problem("The account has no such profile, season, or episode."),
-    422: problem("The body is invalid.")
-  }
+    422: problem("The body is invalid."),
+  },
 });

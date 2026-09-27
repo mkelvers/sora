@@ -11,10 +11,14 @@ chain.limit = async () => [];
 chain.onConflictDoUpdate = async () => undefined;
 
 mock.module("../database/client", () => ({
-  db: chain
+  db: chain,
 }));
 
-const { anilist, viewerWaitingPriority, withAniListPriority } = await import("./client");
+const {
+  anilist,
+  viewerWaitingPriority,
+  withAniListPriority,
+} = await import("./client");
 
 /** The `id` variable of each request AniList received, in the order they were sent. */
 const sent: number[] = [];
@@ -22,13 +26,21 @@ const sent: number[] = [];
 const sentAt: number[] = [];
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
-  sent.push((JSON.parse(String(init?.body)) as { variables: { id: number } }).variables.id);
+  sent.push((JSON.parse(String(init?.body)) as {
+    variables: {
+      id: number;
+    };
+  }).variables.id);
   sentAt.push(performance.now());
-  return new Response(JSON.stringify({ data: { Media: null } }), {
+  return new Response(JSON.stringify({
+    data: {
+      Media: null,
+    },
+  }), {
     headers: {
       "x-ratelimit-limit": "30",
-      "x-ratelimit-remaining": "29"
-    }
+      "x-ratelimit-remaining": "29",
+    },
   });
 }) as typeof fetch;
 
@@ -36,8 +48,14 @@ afterAll(() => {
   globalThis.fetch = realFetch;
 });
 
-const document = "query Media($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<unknown, { id: number }>;
-const fetchMedia = (id: number) => anilist(document, { id }, { maxAgeMs: 0 });
+const document = "query Media($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<unknown, {
+  id: number;
+}>;
+const fetchMedia = (id: number) => anilist(document, {
+  id,
+}, {
+  maxAgeMs: 0,
+});
 const background = 10;
 
 test("sends a request a viewer joins ahead of background work queued before it", async () => {

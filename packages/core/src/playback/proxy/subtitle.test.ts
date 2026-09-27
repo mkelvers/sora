@@ -15,8 +15,14 @@ Before the opening
 describe("retimeWebVtt", () => {
   test("moves each cue by the shift at its start, keeping its length and settings", () => {
     const shifts = [
-      { from: 0, offset: 0.5 },
-      { from: 90, offset: -60 }
+      {
+        from: 0,
+        offset: 0.5,
+      },
+      {
+        from: 90,
+        offset: -60,
+      }
     ];
 
     expect(retimeWebVtt(vtt, shifts)).toBe(`WEBVTT
@@ -31,7 +37,10 @@ Before the opening
   });
 
   test("drops cues that would start before the video", () => {
-    expect(retimeWebVtt(vtt, [{ from: 0, offset: -60 }])).toBe(`WEBVTT
+    expect(retimeWebVtt(vtt, [{
+      from: 0,
+      offset: -60,
+    }])).toBe(`WEBVTT
 
 2
 00:00:40.000 --> 00:00:42.250 line:90%

@@ -46,7 +46,7 @@ export async function locateEpisode(seasonId: string, number: number, seriesId?:
     .select({
       seriesId: seriesSeason.seriesId,
       anilistId: seriesEpisode.anilistId,
-      anilistEpisode: seriesEpisode.anilistEpisode
+      anilistEpisode: seriesEpisode.anilistEpisode,
     })
     .from(seriesSeason)
     .leftJoin(seriesEpisode, and(eq(seriesEpisode.seasonId, seriesSeason.id), eq(seriesEpisode.number, number)))
@@ -66,7 +66,7 @@ export async function locateEpisode(seasonId: string, number: number, seriesId?:
     seasonId,
     number,
     anilistId: row.anilistId,
-    anilistEpisode: row.anilistEpisode
+    anilistEpisode: row.anilistEpisode,
   };
 }
 
@@ -101,7 +101,7 @@ export async function findSeasonEpisodes(
       seasonId: seriesEpisode.seasonId,
       number: seriesEpisode.number,
       anilistId: seriesEpisode.anilistId,
-      anilistEpisode: seriesEpisode.anilistEpisode
+      anilistEpisode: seriesEpisode.anilistEpisode,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -123,7 +123,7 @@ export async function findSeasonEpisodes(
     const ref = {
       seriesId: row.seriesId,
       seasonId: row.seasonId,
-      number: row.number
+      number: row.number,
     };
     listed.set(anilistEpisodeKey(row.anilistId, row.anilistEpisode), ref);
 
@@ -131,7 +131,7 @@ export async function findSeasonEpisodes(
     if (!previous || row.anilistEpisode > previous.anilistEpisode) {
       latest.set(row.anilistId, {
         anilistEpisode: row.anilistEpisode,
-        ref
+        ref,
       });
     }
   }
@@ -145,7 +145,7 @@ export async function findSeasonEpisodes(
     } else if (options.placeUnlisted && last && episode > last.anilistEpisode) {
       found.set(key, {
         ...last.ref,
-        number: last.ref.number + (episode - last.anilistEpisode)
+        number: last.ref.number + (episode - last.anilistEpisode),
       });
     }
   }
@@ -212,7 +212,7 @@ export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promis
     carried: new Set(
       stored.flatMap((entry) => entry.units.map((unit) => anilistEpisodeKey(entry.anilistId, unit.number)))
     ),
-    lookedUp: new Set(stored.map((entry) => entry.anilistId))
+    lookedUp: new Set(stored.map((entry) => entry.anilistId)),
   };
 }
 
@@ -303,7 +303,7 @@ export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode 
       airedAt: seriesEpisode.airedAt,
       tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
       entryStatus: anime.status,
-      title: series
+      title: series,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -314,7 +314,12 @@ export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode 
 
   const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
   const row = rows.find((candidate) =>
-    isEpisodeShown(candidate.title, { kind: candidate.seasonKind }, { ...candidate, seasonId }, onAniKoto)
+    isEpisodeShown(candidate.title, {
+      kind: candidate.seasonKind,
+    }, {
+      ...candidate,
+      seasonId,
+    }, onAniKoto)
   );
   if (!row || row.anilistId === null || row.anilistEpisode === null) {
     return null;
@@ -332,6 +337,6 @@ export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode 
     seasonId,
     number: row.number,
     anilistId: row.anilistId,
-    anilistEpisode: row.anilistEpisode
+    anilistEpisode: row.anilistEpisode,
   };
 }

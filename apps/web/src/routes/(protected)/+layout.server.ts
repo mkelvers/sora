@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = ({ locals, route, url }) => {
 	return {
 		viewer: {
 			profile: locals.viewer.profile,
-			profiles: locals.viewer.profiles
-		}
+			profiles: locals.viewer.profiles,
+		},
 	};
 };

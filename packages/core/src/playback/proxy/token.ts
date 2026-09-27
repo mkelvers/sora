@@ -32,17 +32,17 @@ export interface StreamTarget {
 
 const StreamTargetSchema = z.object({
   u: z.url({
-    protocol: /^https?$/
+    protocol: /^https?$/,
   }),
   k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
   h: z.record(z.string(), z.string()),
   m: z.array(
     z.url({
-      protocol: /^https?$/
+      protocol: /^https?$/,
     })
   ),
   e: z.number().int().positive(),
-  t: z.array(z.tuple([z.number(), z.number()])).optional()
+  t: z.array(z.tuple([z.number(), z.number()])).optional(),
 });
 
 /**
@@ -60,7 +60,7 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
       h: target.headers,
       m: target.mirrors,
       e: target.expiresAt,
-      t: target.shifts?.map(({ from, offset }) => [from, offset])
+      t: target.shifts?.map(({ from, offset }) => [from, offset]),
     })
   ).toString("base64url");
 
@@ -107,7 +107,10 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
     headers: parsed.data.h,
     mirrors: parsed.data.m,
     expiresAt: parsed.data.e,
-    shifts: parsed.data.t?.map(([from, offset]) => ({ from, offset }))
+    shifts: parsed.data.t?.map(([from, offset]) => ({
+      from,
+      offset,
+    })),
   };
 }
 

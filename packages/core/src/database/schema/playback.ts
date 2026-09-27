@@ -22,14 +22,14 @@ export const providerMapping = pgTable(
      * is the provider's episode `episodeOffset + 1`.
      */
     episodeOffset: integer("episode_offset").notNull().default(0),
-    resolvedAt: timestamptz("resolved_at").notNull()
+    resolvedAt: timestamptz("resolved_at").notNull(),
   },
   (table) => [
     primaryKey({
       columns: [
         table.anilistId,
         table.provider
-      ]
+      ],
     })
   ]
 );
@@ -46,14 +46,14 @@ export const providerEpisodes = pgTable(
     anilistId: integer("anilist_id").notNull(),
     provider: text("provider").notNull(),
     units: jsonb("units").$type<unknown>().notNull(),
-    fetchedAt: timestamptz("fetched_at").notNull()
+    fetchedAt: timestamptz("fetched_at").notNull(),
   },
   (table) => [
     primaryKey({
       columns: [
         table.anilistId,
         table.provider
-      ]
+      ],
     })
   ]
 );
@@ -79,7 +79,7 @@ export const anikotoSeries = pgTable(
     year: integer("year"),
     episodes: integer("episodes"),
     /** When AniKoto last changed the series; its catalogue is ordered by it. */
-    updatedAt: timestamptz("updated_at").notNull()
+    updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
     index("anikoto_series_anilist_id_idx").on(table.anilistId),
@@ -111,12 +111,12 @@ export const providerCalls = pgTable(
     failed: integer("failed").notNull().default(0),
     /** Time spent in every call of the hour, for average latency. */
     durationMs: bigint("duration_ms", {
-      mode: "number"
+      mode: "number",
     })
       .notNull()
       .default(0),
     lastError: text("last_error"),
-    lastErrorAt: timestamptz("last_error_at")
+    lastErrorAt: timestamptz("last_error_at"),
   },
   (table) => [
     primaryKey({
@@ -124,7 +124,7 @@ export const providerCalls = pgTable(
         table.provider,
         table.operation,
         table.hour
-      ]
+      ],
     }),
     index("provider_calls_hour_idx").on(table.hour)
   ]

@@ -30,31 +30,31 @@ export const auth = betterAuth({
       user: authUser,
       session: authSession,
       account: authAccount,
-      verification: authVerification
-    }
+      verification: authVerification,
+    },
   }),
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
-    minPasswordLength: 8
+    minPasswordLength: 8,
   },
   session: {
     // Long-lived, as TVs and phones stay signed in; renewed daily while used.
     expiresIn: (90 * day) / 1_000,
-    updateAge: day / 1_000
+    updateAge: day / 1_000,
   },
   databaseHooks: {
     user: {
       create: {
         after: async (user) => {
           await createProfile(user.id, {
-            name: user.name
+            name: user.name,
           });
-        }
-      }
-    }
+        },
+      },
+    },
   },
-  plugins: [bearer()]
+  plugins: [bearer()],
 });
 
 /** A signed-in account and its session, as {@link getSession} returns it. */
@@ -63,6 +63,6 @@ export type Session = typeof auth.$Infer.Session;
 /** The session a request's cookie or bearer token belongs to, or `null`. */
 export function getSession(headers: Headers): Promise<Session | null> {
   return auth.api.getSession({
-    headers
+    headers,
   });
 }

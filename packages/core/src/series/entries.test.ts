@@ -7,16 +7,27 @@ const requests: number[][] = [];
 function media(id: number, relatedIds: number[] = []) {
   const entry = (entryId: number) => ({
     id: entryId,
-    title: { romaji: `Entry ${entryId}`, english: null, native: null },
+    title: {
+      romaji: `Entry ${entryId}`,
+      english: null,
+      native: null,
+    },
     format: "TV",
     isAdult: false,
-    relations: { edges: [] }
+    relations: {
+      edges: [],
+    },
   });
   return {
     ...entry(id),
     neighbours: {
-      edges: relatedIds.map((related) => ({ node: { type: "ANIME", ...entry(related) } }))
-    }
+      edges: relatedIds.map((related) => ({
+        node: {
+          type: "ANIME",
+          ...entry(related),
+        },
+      })),
+    },
   };
 }
 
@@ -24,10 +35,12 @@ mock.module("../anilist/client", () => ({
   loadMediaById: () => async (ids: readonly number[]) => {
     requests.push([...ids]);
     return new Map(ids.map((id) => [id, media(id, id === 1 ? [2] : [])]));
-  }
+  },
 }));
 
-const { loadEntries } = await import("./entries");
+const {
+  loadEntries,
+} = await import("./entries");
 
 let nextId = 100;
 beforeEach(() => {
@@ -53,17 +66,25 @@ test("answers a later request for a neighbour from the one that brought it", asy
 });
 
 test("leaves the length of an entry that has not aired unknown", async () => {
-  const { toMatchSubject } = await import("./entries");
+  const {
+    toMatchSubject,
+  } = await import("./entries");
   const upcoming = {
     ...media(nextId++),
     status: "NOT_YET_RELEASED",
     episodes: null,
-    nextAiringEpisode: { episode: 1, airingAt: 0 }
+    nextAiringEpisode: {
+      episode: 1,
+      airingAt: 0,
+    },
   };
   const airing = {
     ...upcoming,
     status: "RELEASING",
-    nextAiringEpisode: { episode: 4, airingAt: 0 }
+    nextAiringEpisode: {
+      episode: 4,
+      airingAt: 0,
+    },
   };
 
   expect(toMatchSubject(upcoming as never, new Date()).episodes).toBeNull();

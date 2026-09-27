@@ -3,7 +3,9 @@
 	import { page } from "$app/state";
 	import type { PageProps } from "./$types";
 
-	let { form }: PageProps = $props();
+	let {
+		form,
+	}: PageProps = $props();
 
 	let pending = $state(false);
 </script>
@@ -18,7 +20,9 @@
 		use:enhance={() => {
 			pending = true;
 			return async ({ update }) => {
-				await update({ reset: false });
+				await update({
+					reset: false,
+				});
 				pending = false;
 			};
 		}}

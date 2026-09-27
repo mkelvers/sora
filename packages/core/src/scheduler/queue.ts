@@ -65,7 +65,7 @@ export async function startTrackingAiring(anilistId: number) {
       payload => ${payloadJson({
         anilistId,
         awaitedEpisode: null,
-        attempt: 0
+        attempt: 0,
       })},
       job_key => ${airingJobKey(anilistId)},
       job_key_mode => 'unsafe_dedupe',
@@ -155,7 +155,7 @@ export type SeriesStorePriority = "waiting" | "current" | "backfill";
 const seriesStorePriorities: Record<SeriesStorePriority, number> = {
   waiting: viewerWaitingPriority,
   current: 0,
-  backfill: 10
+  backfill: 10,
 };
 
 /**

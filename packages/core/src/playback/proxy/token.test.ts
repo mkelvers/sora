@@ -8,10 +8,10 @@ const target: StreamTarget = {
   url: "https://cdn.example.com/show/master.m3u8",
   kind: "playlist",
   headers: {
-    Referer: "https://example.com/"
+    Referer: "https://example.com/",
   },
   mirrors: ["https://mirror.example.com/show/master.m3u8"],
-  expiresAt: 2_000_000_000
+  expiresAt: 2_000_000_000,
 };
 
 describe("stream tokens", () => {
@@ -31,7 +31,7 @@ describe("stream tokens", () => {
       k: "file",
       h: {},
       m: [],
-      e: 2_000_000_000
+      e: 2_000_000_000,
     })).toString("base64url");
 
     expect(() => verifyStreamToken(`${forged}.${signature}`, secret, new Date(0))).toThrow(InvalidStreamTokenError);

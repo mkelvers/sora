@@ -31,7 +31,7 @@ export const BrowseQuerySchema = z.object({
   status: z.enum(["RELEASING", "FINISHED", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]).optional(),
   genres: z.array(z.string().min(1)).max(10).optional(),
   page: z.number().int().positive().max(500).default(1),
-  perPage: z.number().int().positive().max(50).default(24)
+  perPage: z.number().int().positive().max(50).default(24),
 });
 
 export type BrowseQuery = z.input<typeof BrowseQuerySchema>;
@@ -50,7 +50,7 @@ const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>,
     "START_DATE_DESC",
     "POPULARITY_DESC"
   ],
-  title: ["TITLE_ROMAJI"]
+  title: ["TITLE_ROMAJI"],
 };
 
 /**
@@ -67,7 +67,7 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
   const parsed = BrowseQuerySchema.safeParse(query);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid browse query", {
-      cause: parsed.error
+      cause: parsed.error,
     });
   }
 
@@ -78,7 +78,9 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
       ? ["SEARCH_MATCH"]
       : sortOrders.trending;
 
-  const { Page } = await anilist(
+  const {
+    Page,
+  } = await anilist(
     BrowseAnimeDocument,
     {
       page: input.page,
@@ -90,11 +92,11 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
       seasonYear: input.seasonYear,
       format: input.format,
       status: input.status,
-      genres: input.genres
+      genres: input.genres,
     },
     {
       // Searches are rarely repeated exactly; lists like "trending" are shared.
-      maxAgeMs: input.search ? 10 * minute : hour
+      maxAgeMs: input.search ? 10 * minute : hour,
     }
   );
 
@@ -103,17 +105,19 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
     page: input.page,
     perPage: input.perPage,
     hasNextPage: Page?.pageInfo?.hasNextPage === true,
-    isPreparing: false
+    isPreparing: false,
   };
 }
 
 /** Lists the genre names accepted by {@link browseAnime}. */
 export async function getGenres(): Promise<string[]> {
-  const { GenreCollection } = await anilist(
+  const {
+    GenreCollection,
+  } = await anilist(
     GenresDocument,
     {},
     {
-      maxAgeMs: 7 * day
+      maxAgeMs: 7 * day,
     }
   );
 

@@ -36,26 +36,28 @@ function useProviders(list: FakeProvider[]) {
     ...list.map(({ id, locale, listsLanguages }) => ({
       id,
       locale,
-      listsLanguages
+      listsLanguages,
     }))
   );
 }
 
 mock.module("../../series/episodes", () => ({
-  anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`
+  anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
 }));
 mock.module("../../scheduler/queue", () => ({
   scheduleEpisodeLookup: async (anilistId: number) => {
     queuedLookups.push(anilistId);
-  }
+  },
 }));
 mock.module("../../catalog/queries/anime", () => ({
   getAnime: async (id: number) => ({
-    id
-  })
+    id,
+  }),
 }));
 mock.module("./episodes", () => ({
-  getProviderUnits: (_anime: unknown, target: { id: string }) => {
+  getProviderUnits: (_anime: unknown, target: {
+    id: string;
+  }) => {
     asks += 1;
     return providers.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
   },
@@ -68,20 +70,28 @@ mock.module("./episodes", () => ({
               {
                 anilistId,
                 provider: candidate.id,
-                units
+                units,
               }
             ]
           : [];
       })
-    )
+    ),
 }));
 mock.module("../providers/registry", () => ({
   servedLocale: "en",
-  isServedSubtitle: (track: { language: string }) => track.language === "en",
-  streamProviders
+  isServedSubtitle: (track: {
+    language: string;
+  }) => track.language === "en",
+  streamProviders,
 }));
 
-const { fillerOf, findEpisodeListings, getEpisodeVersions, languagesOf, versionsOffered } = await import("./versions");
+const {
+  fillerOf,
+  findEpisodeListings,
+  getEpisodeVersions,
+  languagesOf,
+  versionsOffered,
+} = await import("./versions");
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
 async function findEpisodeLanguages(...args: Parameters<typeof findEpisodeListings>) {
@@ -94,15 +104,15 @@ const unit = (number: number, languages: ContentLanguage[] | null, isFiller: boo
   number,
   title: `Episode ${number}`,
   languages,
-  isFiller
+  isFiller,
 });
 
 const listed = (locale: string, languages: ContentLanguage[] | null, listsLanguages = true): ListedUnit => ({
   source: {
     locale,
-    listsLanguages
+    listsLanguages,
   },
-  unit: unit(1, languages)
+  unit: unit(1, languages),
 });
 
 /** A provider that has been looked up for every anime and lists `units` for each. */
@@ -111,7 +121,7 @@ const provider = (id: string, locale: string, units: ProviderUnit[], listsLangua
   locale,
   listsLanguages,
   units: () => units,
-  ask: async () => units
+  ask: async () => units,
 });
 
 /**
@@ -127,13 +137,13 @@ const notLookedUp = (id: string, locale: string, answer?: ProviderUnit[]): FakeP
     }
 
     return answer;
-  }
+  },
 });
 
 const firstEpisode = [
   {
     anilistId: 1,
-    episode: 1
+    episode: 1,
   }
 ];
 
@@ -148,11 +158,11 @@ describe("versionsOffered", () => {
     expect(versionsOffered([listed("en", ["sub", "dub"])])).toEqual([
       {
         language: "dub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       }
     ]);
   });
@@ -161,7 +171,7 @@ describe("versionsOffered", () => {
     expect(versionsOffered([listed("en", ["raw"])])).toEqual([
       {
         language: "raw",
-        locale: null
+        locale: null,
       }
     ]);
   });
@@ -177,23 +187,23 @@ describe("versionsOffered", () => {
     ).toEqual([
       {
         language: "dub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "dub",
-        locale: "pt-BR"
+        locale: "pt-BR",
       },
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "sub",
-        locale: "pt-BR"
+        locale: "pt-BR",
       },
       {
         language: "raw",
-        locale: null
+        locale: null,
       }
     ]);
   });
@@ -213,15 +223,15 @@ describe("languagesOf", () => {
       languagesOf([
         {
           language: "sub",
-          locale: "en"
+          locale: "en",
         },
         {
           language: "sub",
-          locale: "pt-BR"
+          locale: "pt-BR",
         },
         {
           language: "dub",
-          locale: "pt-BR"
+          locale: "pt-BR",
         }
       ])
     ).toEqual(["sub", "dub"]);
@@ -232,9 +242,9 @@ describe("fillerOf", () => {
   const listedAs = (isFiller: boolean | null): ListedUnit => ({
     source: {
       locale: "en",
-      listsLanguages: true
+      listsLanguages: true,
     },
-    unit: unit(1, ["sub"], isFiller)
+    unit: unit(1, ["sub"], isFiller),
   });
 
   test("calls an episode filler when any provider does", () => {
@@ -262,19 +272,19 @@ describe("getEpisodeVersions", () => {
 
     expect(await getEpisodeVersions({
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     })).toEqual([
       {
         language: "dub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "raw",
-        locale: null
+        locale: null,
       }
     ]);
     expect(queuedLookups).toEqual([]);
@@ -285,11 +295,11 @@ describe("getEpisodeVersions", () => {
 
     expect(await getEpisodeVersions({
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     })).toEqual([
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       }
     ]);
     expect(queuedLookups).toEqual([154587]);
@@ -300,15 +310,15 @@ describe("getEpisodeVersions", () => {
 
     expect(await getEpisodeVersions({
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     })).toEqual([
       {
         language: "dub",
-        locale: "en"
+        locale: "en",
       },
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       }
     ]);
     expect(asks).toBe(2);
@@ -320,11 +330,11 @@ describe("getEpisodeVersions", () => {
 
     expect(await getEpisodeVersions({
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     })).toEqual([
       {
         language: "sub",
-        locale: "en"
+        locale: "en",
       }
     ]);
     expect(queuedLookups).toEqual([154587]);
@@ -335,7 +345,7 @@ describe("getEpisodeVersions", () => {
 
     const episode = {
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     };
     await Promise.all([getEpisodeVersions(episode), getEpisodeVersions(episode)]);
 
@@ -347,7 +357,7 @@ describe("getEpisodeVersions", () => {
 
     expect(await getEpisodeVersions({
       anilistId: 154587,
-      anilistEpisode: 3
+      anilistEpisode: 3,
     })).toEqual([]);
   });
 });
@@ -362,14 +372,14 @@ describe("findEpisodeListings", () => {
     const found = await findEpisodeListings(
       [1, 2, 3].map((episode) => ({
         anilistId: 1,
-        episode
+        episode,
       }))
     );
 
     expect(Object.fromEntries([...found].map(([key, listing]) => [key, listing.isFiller]))).toEqual({
       "1:1": false,
       "1:2": true,
-      "1:3": null
+      "1:3": null,
     });
   });
 
@@ -378,7 +388,7 @@ describe("findEpisodeListings", () => {
 
     expect((await findEpisodeListings(firstEpisode)).get("1:1")).toEqual({
       languages: null,
-      isFiller: null
+      isFiller: null,
     });
   });
 });
@@ -393,7 +403,7 @@ describe("findEpisodeLanguages", () => {
     const found = await findEpisodeLanguages(
       [1, 2, 3].map((episode) => ({
         anilistId: 1,
-        episode
+        episode,
       }))
     );
 
@@ -401,7 +411,7 @@ describe("findEpisodeLanguages", () => {
       "1:1": ["dub", "sub"],
       // The Brazilian dub is not English.
       "1:2": ["sub"],
-      "1:3": []
+      "1:3": [],
     });
   });
 
@@ -412,24 +422,24 @@ describe("findEpisodeLanguages", () => {
         units: (anilistId) => (anilistId === 1 ? [unit(1, ["sub", "dub"])] : undefined),
         ask: async () => {
           throw new Error("AniKoto is down");
-        }
+        },
       }
     ]);
 
     const found = await findEpisodeLanguages([
       {
         anilistId: 1,
-        episode: 1
+        episode: 1,
       },
       {
         anilistId: 2,
-        episode: 1
+        episode: 1,
       }
     ]);
 
     expect(Object.fromEntries(found)).toEqual({
       "1:1": ["dub", "sub"],
-      "2:1": null
+      "2:1": null,
     });
     expect(queuedLookups).toEqual([2]);
   });
@@ -474,7 +484,7 @@ describe("findEpisodeLanguages", () => {
       provider("anikoto", "en", [unit(1, ["sub"])]),
       {
         ...notLookedUp("megaplay", "en"),
-        listsLanguages: false
+        listsLanguages: false,
       }
     ]);
 

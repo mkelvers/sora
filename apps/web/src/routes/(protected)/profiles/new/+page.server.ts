@@ -13,22 +13,24 @@ export const actions: Actions = {
 		if (!parsed.success) {
 			return fail(400, {
 				name,
-				message: 'Give the profile a name of up to 40 characters.'
+				message: 'Give the profile a name of up to 40 characters.',
 			});
 		}
 
 		try {
-			await locals.viewer!.sora.createProfile({ name: parsed.data });
+			await locals.viewer!.sora.createProfile({
+				name: parsed.data,
+			});
 		} catch (cause) {
 			if (cause instanceof SoraError && cause.status === 422) {
 				return fail(400, {
 					name,
-					message: 'Give the profile a name of up to 40 characters.'
+					message: 'Give the profile a name of up to 40 characters.',
 				});
 			}
 			throw cause;
 		}
 
 		redirect(303, `/profiles${url.search}`);
-	}
+	},
 };

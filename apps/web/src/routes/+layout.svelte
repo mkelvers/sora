@@ -2,7 +2,10 @@
 	import favicon from "$lib/assets/favicon.png";
 	import "./layout.css";
 
-	let { data, children } = $props();
+	let {
+		data,
+		children,
+	} = $props();
 </script>
 
 <svelte:head>

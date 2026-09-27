@@ -92,11 +92,11 @@ async function fetchFollowingRedirects(start: string, headers: Headers, signal?:
               signal,
               AbortSignal.timeout(upstreamTimeoutMs)
             ])
-          : AbortSignal.timeout(upstreamTimeoutMs)
+          : AbortSignal.timeout(upstreamTimeoutMs),
       });
     } catch (cause) {
       throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
-        cause
+        cause,
       });
     }
 
@@ -113,7 +113,7 @@ async function fetchFollowingRedirects(start: string, headers: Headers, signal?:
 
     return {
       response,
-      url
+      url,
     };
   }
 

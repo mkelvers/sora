@@ -47,26 +47,26 @@ const CatalogSeriesSchema = z.object({
   episodes: OptionalIdSchema,
   terms_by_type: z
     .object({
-      type: z.array(z.string()).optional()
+      type: z.array(z.string()).optional(),
     })
     .nullish(),
   /** `YYYY-MM-DD hh:mm:ss`, in UTC. */
-  updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+  updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
 });
 
 /** AniKoto's series endpoint; the series itself is read by {@link parseCatalogSeries}. */
 const SeriesResponseSchema = z.object({
   data: z.object({
-    anime: z.unknown()
-  })
+    anime: z.unknown(),
+  }),
 });
 
 const CatalogPageSchema = z.object({
   data: z.array(z.unknown()),
   pagination: z.object({
     page: z.number().int(),
-    total_pages: z.number().int().nonnegative()
-  })
+    total_pages: z.number().int().nonnegative(),
+  }),
 });
 
 /** AniKoto's series types, as AniList formats. */
@@ -79,7 +79,7 @@ const formats: Record<string, AnimeFormat> = {
   ona: "ONA",
   special: "SPECIAL",
   "tv special": "SPECIAL",
-  music: "MUSIC"
+  music: "MUSIC",
 };
 
 /** Formats one site may list as another: a TV short as TV, a web series as TV or OVA. */
@@ -105,9 +105,11 @@ export async function syncAniKotoCatalog(
     signal?: AbortSignal;
   }
 ) {
-  const [{ newest } = { newest: null }] = await db
+  const [{ newest } = {
+    newest: null,
+  }] = await db
     .select({
-      newest: max(anikotoSeries.updatedAt)
+      newest: max(anikotoSeries.updatedAt),
     })
     .from(anikotoSeries);
   const full = options.full || newest === null;
@@ -119,7 +121,7 @@ export async function syncAniKotoCatalog(
   let stored = 0;
   for (let page = 1; ; page += 1) {
     const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
-      signal: options.signal
+      signal: options.signal,
     });
     const listing = CatalogPageSchema.parse(await response.json());
     pages += 1;
@@ -142,7 +144,7 @@ export async function syncAniKotoCatalog(
 
       return {
         pages,
-        stored
+        stored,
       };
     }
   }
@@ -173,7 +175,7 @@ export async function readRecentAniKotoChanges(http: HttpClient): Promise<AniKot
   return rows.map((row) => ({
     anikotoId: row.anikotoId,
     anilistId: row.anilistId ?? null,
-    updatedAt: row.updatedAt
+    updatedAt: row.updatedAt,
   }));
 }
 
@@ -210,7 +212,7 @@ function toRow(series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
     format: type ? (formats[type] ?? null) : null,
     year: series.year,
     episodes: series.episodes,
-    updatedAt: new Date(`${series.updated_at.replace(" ", "T")}Z`)
+    updatedAt: new Date(`${series.updated_at.replace(" ", "T")}Z`),
   };
 }
 
@@ -232,8 +234,8 @@ async function upsert(rows: (typeof anikotoSeries.$inferInsert)[]) {
         format: sql`excluded.format`,
         year: sql`excluded.year`,
         episodes: sql`excluded.episodes`,
-        updatedAt: sql`excluded.updated_at`
-      }
+        updatedAt: sql`excluded.updated_at`,
+      },
     });
   return rows.length;
 }
@@ -317,7 +319,7 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
 
   const [stored] = await db
     .select({
-      episodes: anikotoSeries.episodes
+      episodes: anikotoSeries.episodes,
     })
     .from(anikotoSeries)
     .where(eq(anikotoSeries.anikotoId, Number(series.anikotoId)));
@@ -328,7 +330,7 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
     ? {
         ...series,
         method: "continuation",
-        episodeOffset
+        episodeOffset,
       }
     : null;
 }
@@ -350,7 +352,7 @@ async function matchStoredSeries(anime: Anime): Promise<AniKotoMatch | null> {
       anikotoId: String(best.anikotoId),
       title: best.title,
       method: "id",
-      episodeOffset: 0
+      episodeOffset: 0,
     };
   }
 
@@ -360,7 +362,7 @@ async function matchStoredSeries(anime: Anime): Promise<AniKotoMatch | null> {
         anikotoId: String(byTitle[0].anikotoId),
         title: byTitle[0].title,
         method: "title",
-        episodeOffset: 0
+        episodeOffset: 0,
       }
     : null;
 }
@@ -386,7 +388,7 @@ async function lookUpSeries(http: HttpClient, anime: Anime) {
       : (
           await db
             .select({
-              anikotoId: anikotoSeries.anikotoId
+              anikotoId: anikotoSeries.anikotoId,
             })
             .from(anikotoSeries)
             .where(inArray(anikotoSeries.anikotoId, [...found]))
@@ -421,7 +423,7 @@ export function bestIdMatch<TCandidate extends StoredSeries>(anime: Anime, candi
     if (score !== null && (best === null || score > best.score)) {
       best = {
         candidate,
-        score
+        score,
       };
     }
   }

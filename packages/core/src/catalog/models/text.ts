@@ -30,7 +30,7 @@ const namedEntities: Record<string, string> = {
   rsquo: "’",
   lsquo: "‘",
   rdquo: "”",
-  ldquo: "“"
+  ldquo: "“",
 };
 
 function decodeEntity(entity: string, body: string) {

@@ -12,13 +12,13 @@ function state(overrides: Partial<AiringState>): AiringState {
     latestAiredEpisode: null,
     latestReleasedEpisode: null,
     startDate: null,
-    ...overrides
+    ...overrides,
   };
 }
 
 const fresh = {
   awaitedEpisode: null,
-  attempt: 0
+  attempt: 0,
 };
 
 describe("planNextCheck", () => {
@@ -28,7 +28,7 @@ describe("planNextCheck", () => {
       state({
         nextAiringAt,
         latestAiredEpisode: 5,
-        latestReleasedEpisode: 5
+        latestReleasedEpisode: 5,
       }),
       fresh,
       now
@@ -38,7 +38,7 @@ describe("planNextCheck", () => {
       done: false,
       runAt: nextAiringAt,
       awaitedEpisode: null,
-      attempt: 0
+      attempt: 0,
     });
   });
 
@@ -47,7 +47,7 @@ describe("planNextCheck", () => {
       state({
         nextAiringAt: new Date("2026-09-30T08:00:00Z"),
         latestAiredEpisode: 6,
-        latestReleasedEpisode: 5
+        latestReleasedEpisode: 5,
       }),
       fresh,
       now
@@ -57,7 +57,7 @@ describe("planNextCheck", () => {
       done: false,
       runAt: new Date(now.getTime() + 15 * minute),
       awaitedEpisode: 6,
-      attempt: 0
+      attempt: 0,
     });
   });
 
@@ -66,18 +66,18 @@ describe("planNextCheck", () => {
       state({
         nextAiringAt: new Date("2026-09-30T08:00:00Z"),
         latestAiredEpisode: 6,
-        latestReleasedEpisode: 5
+        latestReleasedEpisode: 5,
       }),
       {
         awaitedEpisode: 6,
-        attempt: 2
+        attempt: 2,
       },
       now
     );
 
     expect(plan).toMatchObject({
       runAt: new Date(now.getTime() + 2 * hour),
-      attempt: 3
+      attempt: 3,
     });
   });
 
@@ -87,17 +87,17 @@ describe("planNextCheck", () => {
       state({
         nextAiringAt,
         latestAiredEpisode: 6,
-        latestReleasedEpisode: 5
+        latestReleasedEpisode: 5,
       }),
       {
         awaitedEpisode: 6,
-        attempt: maximumReleaseAttempts - 1
+        attempt: maximumReleaseAttempts - 1,
       },
       now
     );
 
     expect(plan).toMatchObject({
-      runAt: nextAiringAt
+      runAt: nextAiringAt,
     });
   });
 
@@ -106,14 +106,14 @@ describe("planNextCheck", () => {
       state({
         status: "FINISHED",
         latestAiredEpisode: 12,
-        latestReleasedEpisode: 12
+        latestReleasedEpisode: 12,
       }),
       fresh,
       now
     );
 
     expect(plan).toEqual({
-      done: true
+      done: true,
     });
   });
 
@@ -121,24 +121,24 @@ describe("planNextCheck", () => {
     const finale = state({
       status: "FINISHED",
       latestAiredEpisode: 12,
-      latestReleasedEpisode: 11
+      latestReleasedEpisode: 11,
     });
 
     expect(planNextCheck(finale, fresh, now)).toMatchObject({
       done: false,
-      awaitedEpisode: 12
+      awaitedEpisode: 12,
     });
     expect(
       planNextCheck(
         finale,
         {
           awaitedEpisode: 12,
-          attempt: maximumReleaseAttempts - 1
+          attempt: maximumReleaseAttempts - 1,
         },
         now
       )
     ).toEqual({
-      done: true
+      done: true,
     });
   });
 
@@ -146,14 +146,14 @@ describe("planNextCheck", () => {
     const plan = planNextCheck(
       state({
         status: "NOT_YET_RELEASED",
-        startDate: "2026-10-05"
+        startDate: "2026-10-05",
       }),
       fresh,
       now
     );
 
     expect(plan).toMatchObject({
-      runAt: new Date("2026-10-04T15:00:00Z")
+      runAt: new Date("2026-10-04T15:00:00Z"),
     });
   });
 
@@ -162,14 +162,14 @@ describe("planNextCheck", () => {
     const plan = planNextCheck(
       state({
         status: "NOT_YET_RELEASED",
-        startDate: "2026-10-05"
+        startDate: "2026-10-05",
       }),
       fresh,
       duringPremiere
     );
 
     expect(plan).toMatchObject({
-      runAt: new Date(duringPremiere.getTime() + 20 * minute)
+      runAt: new Date(duringPremiere.getTime() + 20 * minute),
     });
   });
 
@@ -180,14 +180,14 @@ describe("planNextCheck", () => {
       state({
         status: "NOT_YET_RELEASED",
         startDate: "2026-10-05",
-        nextAiringAt
+        nextAiringAt,
       }),
       fresh,
       now
     );
 
     expect(plan).toMatchObject({
-      runAt: nextAiringAt
+      runAt: nextAiringAt,
     });
   });
 
@@ -195,14 +195,14 @@ describe("planNextCheck", () => {
     const plan = planNextCheck(
       state({
         status: "NOT_YET_RELEASED",
-        startDate: "2027-01"
+        startDate: "2027-01",
       }),
       fresh,
       now
     );
 
     expect(plan).toMatchObject({
-      runAt: new Date("2026-09-24T12:00:00Z")
+      runAt: new Date("2026-09-24T12:00:00Z"),
     });
   });
 
@@ -211,14 +211,14 @@ describe("planNextCheck", () => {
       state({
         nextAiringAt: new Date(now.getTime() - minute),
         latestAiredEpisode: 4,
-        latestReleasedEpisode: 4
+        latestReleasedEpisode: 4,
       }),
       fresh,
       now
     );
 
     expect(plan).toMatchObject({
-      runAt: new Date(now.getTime() + 20 * minute)
+      runAt: new Date(now.getTime() + 20 * minute),
     });
   });
 });

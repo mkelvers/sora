@@ -1,11 +1,15 @@
 import { describe, expect, mock, test } from "bun:test";
 
 mock.module("../database/client", () => ({
-  db: {}
+  db: {},
 }));
 
-const { viewerWaitingPriority } = await import("../anilist/client");
-const { seriesStorePriority } = await import("./queue");
+const {
+  viewerWaitingPriority,
+} = await import("../anilist/client");
+const {
+  seriesStorePriority,
+} = await import("./queue");
 
 describe("seriesStorePriority", () => {
   test("runs a viewer's top result ahead of the looser matches found with it", () => {

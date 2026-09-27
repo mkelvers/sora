@@ -25,7 +25,7 @@ const encryptionIv = Buffer.from([87, 48, 59, 50, 55, 84, 111, 97, 85, 112, 108,
  */
 const SkipSpanSchema = z.object({
   start: z.number().nonnegative(),
-  end: z.number().nonnegative()
+  end: z.number().nonnegative(),
 });
 
 /** MegaPlay's CDNs reject media requests without this referer. */
@@ -35,7 +35,7 @@ const SourcesResponseSchema = z
   .object({
     sources: z
       .object({
-        file: z.string().min(1)
+        file: z.string().min(1),
       })
       .optional(),
     enc: z.string().min(1).optional(),
@@ -44,21 +44,21 @@ const SourcesResponseSchema = z
         z.object({
           file: z.string().min(1),
           label: z.string().optional(),
-          kind: z.string().optional()
+          kind: z.string().optional(),
         })
       )
       .optional(),
     // Skip spans only enhance playback, so a malformed one is dropped rather
     // than failing the stream.
     intro: SkipSpanSchema.optional().catch(undefined),
-    outro: SkipSpanSchema.optional().catch(undefined)
+    outro: SkipSpanSchema.optional().catch(undefined),
   })
   .refine((body) => body.sources !== undefined || body.enc !== undefined, {
-    message: "MegaPlay returned neither sources nor enc"
+    message: "MegaPlay returned neither sources nor enc",
   });
 
 const EncryptedSourceSchema = z.object({
-  file: z.string().min(1)
+  file: z.string().min(1),
 });
 
 /** The `getSources` payload behind a MegaPlay embed. */
@@ -81,8 +81,8 @@ async function fetchMegaPlaySources(
   const embedPage = await (
     await http.get(embedUrl, {
       headers: {
-        Referer: embedReferer
-      }
+        Referer: embedReferer,
+      },
     })
   ).text();
 
@@ -100,8 +100,8 @@ async function fetchMegaPlaySources(
   const response = await http.get(sourcesUrl.toString(), {
     headers: {
       Referer: embedUrl,
-      "X-Requested-With": "XMLHttpRequest"
-    }
+      "X-Requested-With": "XMLHttpRequest",
+    },
   });
 
   return SourcesResponseSchema.parse(await response.json());
@@ -136,7 +136,7 @@ export async function resolveMegaPlayEmbed(
         format: new URL(file).pathname.endsWith(".m3u8") ? "hls" : "mp4",
         quality: "auto",
         headers: {
-          Referer: mediaReferer
+          Referer: mediaReferer,
         },
         subtitles: (body.tracks ?? []).flatMap((track) =>
           track.kind === "captions" && track.label
@@ -145,14 +145,14 @@ export async function resolveMegaPlayEmbed(
                   url: track.file,
                   label: track.label,
                   language: subtitleLanguage(track.label),
-                  format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const)
+                  format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const),
                 }
               ]
             : []
-        )
+        ),
       }
     ],
-    skipSegments: skipSegments(body)
+    skipSegments: skipSegments(body),
   };
 }
 
@@ -165,13 +165,13 @@ function skipSegments({ intro, outro }: MegaPlaySources): SkipSegment[] {
   if (intro && intro.end > intro.start) {
     segments.push({
       kind: "opening",
-      ...intro
+      ...intro,
     });
   }
   if (outro && outro.end > outro.start) {
     segments.push({
       kind: "ending",
-      ...outro
+      ...outro,
     });
   }
 
@@ -187,7 +187,7 @@ const regionSubtags: Record<string, string> = {
   spain: "ES",
   mexico: "MX",
   traditional: "Hant",
-  simplified: "Hans"
+  simplified: "Hans",
 };
 
 /**
