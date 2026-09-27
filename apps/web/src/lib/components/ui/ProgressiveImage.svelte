@@ -9,7 +9,7 @@
         loading?: 'eager' | 'lazy';
         previewLoading?: 'eager' | 'lazy';
         fetchpriority?: 'high' | 'low' | 'auto';
-        displaySize?: 'w342' | 'w500' | 'w780' | 'w1280';
+        displaySize?: 'w342' | 'w500' | 'w780' | 'w1280' | 'original';
         sizes?: string;
         ontransitionend?: (event: TransitionEvent) => void;
         onready?: () => void;
@@ -43,10 +43,16 @@
     );
     const fullSrcSet = $derived(
         displaySize
-            ? [displaySize === 'w342' ? 'w185' : displaySize === 'w1280' ? 'w780' : 'w342', displaySize]
+            ? {
+                  w342: ['w185', 'w342'],
+                  w500: ['w342', 'w500'],
+                  w780: ['w342', 'w780'],
+                  w1280: ['w780', 'w1280'],
+                  original: ['w780', 'w1280', 'original'],
+              }[displaySize]
                   .map(
                       (size) =>
-                          `${src.replace(/(\/image\.tmdb\.org\/t\/p\/)[^/]+(?=\/|$)/, `$1${size}`)} ${size.slice(1)}w`
+                          `${src.replace(/(\/image\.tmdb\.org\/t\/p\/)[^/]+(?=\/|$)/, `$1${size}`)} ${size === 'original' ? 3840 : size.slice(1)}w`
                   )
                   .join(', ')
             : undefined

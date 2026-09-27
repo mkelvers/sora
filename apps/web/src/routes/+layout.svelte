@@ -1,6 +1,6 @@
 <script lang="ts">
-	import favicon from "$lib/assets/favicon.png";
-	import "./layout.css";
+	import favicon from '$lib/assets/favicon.png';
+	import './layout.css';
 
 	let {
 		data,
@@ -13,34 +13,10 @@
 </svelte:head>
 
 {#if data.mobile}
-	<main>
-		<h1>Sora is made for desktop</h1>
-		<p>Open it on a computer to watch. A mobile app is on its way.</p>
+	<main class="grid min-h-dvh place-content-center gap-2 bg-canvas p-6 text-center text-foreground">
+		<h1 class="text-2xl font-semibold">Sora is made for desktop</h1>
+		<p class="text-muted">Open it on a computer to watch. A mobile app is on its way.</p>
 	</main>
 {:else}
 	{@render children()}
 {/if}
-
-<style>
-	main {
-		display: grid;
-		place-content: center;
-		gap: 8px;
-		box-sizing: border-box;
-		min-height: 100vh;
-		padding: 24px;
-		text-align: center;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 24px;
-		font-weight: 400;
-	}
-
-	p {
-		margin: 0;
-		color: #999;
-		font-size: 15px;
-	}
-</style>
