@@ -146,6 +146,9 @@ const MovieReleasesSchema = z.object({
   ),
 });
 
+/** The rating TMDB lists for a title no board rated. */
+const notRated = "NR";
+
 /** TMDB's release type of a theatrical release, whose certification a film is known by. */
 const theatricalRelease = 3;
 
@@ -397,21 +400,23 @@ export async function getSeasonPosters(showId: number, seasonNumber: number): Pr
  * A film's theatrical certification is preferred over those of its other
  * releases.
  *
- * @returns The rating, or `null` when TMDB lists none for the US.
+ * @returns The rating, or `null` when TMDB lists none for the US, or only
+ *   "NR" (not rated).
  */
 export async function getContentRating(mediaType: "tv" | "movie", id: number): Promise<string | null> {
   if (mediaType === "tv") {
     const ratings = await tmdb(`/tv/${id}/content_ratings`, {}, ShowRatingsSchema, {
       maxAgeMs: day,
     });
-    return ratings?.results.find((result) => result.iso_3166_1 === "US")?.rating || null;
+    const rating = ratings?.results.find((result) => result.iso_3166_1 === "US")?.rating;
+    return rating && rating !== notRated ? rating : null;
   }
 
   const releases = await tmdb(`/movie/${id}/release_dates`, {}, MovieReleasesSchema, {
     maxAgeMs: day,
   });
   const rated = (releases?.results.find((result) => result.iso_3166_1 === "US")?.release_dates ?? [])
-    .filter((release) => release.certification)
+    .filter((release) => release.certification && release.certification !== notRated)
     .sort((left, right) => Number(right.type === theatricalRelease) - Number(left.type === theatricalRelease));
   return rated[0]?.certification ?? null;
 }
