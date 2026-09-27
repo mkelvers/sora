@@ -146,6 +146,22 @@ export async function findEpisodeListings(
   return found;
 }
 
+/**
+ * The languages any episode of each anime can be watched in, dub before sub
+ * before raw, from the providers' stored episode lists.
+ *
+ * Reads only the database and queues nothing: an anime no provider has been
+ * looked up for yet has no languages until the scheduler has run.
+ */
+export async function findAnimeLanguages(anilistIds: readonly number[]): Promise<Map<number, ContentLanguage[]>> {
+  const sources = listingSources();
+  const ids = [...new Set(anilistIds)];
+  const stored = await getStoredUnits(ids);
+  return new Map(
+    ids.map((anilistId) => [anilistId, languagesOf(versionsOffered(listingsOf(anilistId, stored, sources).listings))])
+  );
+}
+
 /** Episode lists stored for one anime. */
 interface AnimeListings {
   listings: ListedUnit[];
@@ -168,7 +184,7 @@ async function readAnimeListings(
     lookUpUnknown: boolean;
   }
 ): Promise<Map<number, AnimeListings>> {
-  const sources = streamProviders.filter((source) => source.listsLanguages && source.locale === servedLocale);
+  const sources = listingSources();
   const ids = [...new Set(anilistIds)];
   const stored = await getStoredUnits(ids);
   if (options.lookUpUnknown) {
@@ -178,27 +194,34 @@ async function readAnimeListings(
     }
   }
 
-  const byId = new Map<number, AnimeListings>();
-  for (const anilistId of ids) {
-    const found = sources.map((source) => ({
-      source,
-      units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units
-    }));
-    byId.set(anilistId, {
-      listings: found.flatMap(({ source, units }) =>
-        (units ?? []).map((unit) => ({
-          source,
-          unit
-        }))
-      ),
-      pending: found.some(({ units }) => units === undefined)
-    });
-  }
+  const byId = new Map(ids.map((anilistId) => [anilistId, listingsOf(anilistId, stored, sources)]));
 
   await Promise.all(
     [...byId].flatMap(([anilistId, listed]) => (listed.pending ? [scheduleEpisodeLookup(anilistId, "waiting")] : []))
   );
   return byId;
+}
+
+/** The providers whose lists say truthfully which languages the served locale has. */
+function listingSources() {
+  return streamProviders.filter((source) => source.listsLanguages && source.locale === servedLocale);
+}
+
+/** One anime's episode lists among `stored`, from `sources`. */
+function listingsOf(anilistId: number, stored: readonly StoredUnits[], sources: readonly StreamProvider[]): AnimeListings {
+  const found = sources.map((source) => ({
+    source,
+    units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)?.units
+  }));
+  return {
+    listings: found.flatMap(({ source, units }) =>
+      (units ?? []).map((unit) => ({
+        source,
+        unit
+      }))
+    ),
+    pending: found.some(({ units }) => units === undefined)
+  };
 }
 
 /**
