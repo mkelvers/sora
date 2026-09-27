@@ -74,6 +74,40 @@ export async function startTrackingAiring(anilistId: number) {
   `);
 }
 
+/** The graphile-worker task that watches AniKoto for one aired episode. */
+export const pollAniKotoTask = "poll-anikoto";
+
+/** Where watching AniKoto for an aired episode left off; see {@link pollAniKotoTask}. */
+export interface PollAniKotoPayload {
+  anilistId: number;
+  /** The aired episode AniKoto does not carry yet. */
+  episode: number;
+  /** How many looks have already not found it. */
+  attempt: number;
+}
+
+/**
+ * Schedules the next look on AniKoto for an aired episode, replacing any
+ * pending one for the anime. Runs at {@link airingCheckPriority}, since a
+ * viewer may be waiting on the episode.
+ */
+export async function scheduleAniKotoPoll(payload: PollAniKotoPayload, runAt: Date) {
+  await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${pollAniKotoTask},
+      payload => json_build_object(
+        'anilistId', ${payload.anilistId}::int,
+        'episode', ${payload.episode}::float8,
+        'attempt', ${payload.attempt}::int
+      ),
+      run_at => ${runAt.toISOString()}::timestamptz,
+      job_key => ${`anikoto-poll:${payload.anilistId}`},
+      job_key_mode => 'replace',
+      priority => ${airingCheckPriority}::int
+    )
+  `);
+}
+
 /**
  * Builds the payload in SQL, since the driver would send a serialized
  * payload as a JSON string rather than an object.
