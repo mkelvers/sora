@@ -161,11 +161,17 @@ export type MediaType =
   | 'MANGA';
 
 export type AnimeDetailsQueryVariables = Exact<{
-  id: number;
+  ids0: Array<number> | number;
+  ids1: Array<number> | number;
+  ids2: Array<number> | number;
+  ids3: Array<number> | number;
+  with1: boolean;
+  with2: boolean;
+  with3: boolean;
 }>;
 
 
-export type AnimeDetailsQuery = { Media: { synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { nodes: Array<{ id: number, name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null };
+export type AnimeDetailsQuery = { page0: { media: Array<{ synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { nodes: Array<{ id: number, name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page1?: { media: Array<{ synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { nodes: Array<{ id: number, name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page2?: { media: Array<{ synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { nodes: Array<{ id: number, name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page3?: { media: Array<{ synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { nodes: Array<{ id: number, name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
 
 export type AnimeCardsQueryVariables = Exact<{
   ids: Array<number> | number;
@@ -202,12 +208,21 @@ export type AnimeDetailsFragment = { synonyms: Array<string | null> | null, desc
 export type FranchiseEntryFragment = { synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null };
 
 export type FranchiseEntriesQueryVariables = Exact<{
-  ids: Array<number> | number;
-  perPage: number;
+  ids0: Array<number> | number;
+  ids1: Array<number> | number;
+  ids2: Array<number> | number;
+  ids3: Array<number> | number;
+  ids4: Array<number> | number;
+  with1: boolean;
+  with2: boolean;
+  with3: boolean;
+  with4: boolean;
 }>;
 
 
-export type FranchiseEntriesQuery = { Page: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
+export type FranchiseEntriesQuery = { page0: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page1?: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page2?: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page3?: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null, page4?: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
+
+export type FranchiseEntryWithNeighboursFragment = { synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null };
 
 export type NewEntriesQueryVariables = Exact<{
   page: number;
@@ -412,10 +427,91 @@ export const FranchiseEntryFragmentDoc = new TypedDocumentString(`
     episode
   }
 }`, {"fragmentName":"FranchiseEntry"}) as unknown as TypedDocumentString<FranchiseEntryFragment, unknown>;
+export const FranchiseEntryWithNeighboursFragmentDoc = new TypedDocumentString(`
+    fragment FranchiseEntryWithNeighbours on Media {
+  ...FranchiseEntry
+  neighbours: relations {
+    edges {
+      node {
+        type
+        ...FranchiseEntry
+      }
+    }
+  }
+}
+    fragment AnimeCard on Media {
+  id
+  idMal
+  title {
+    romaji
+    english
+    native
+  }
+  coverImage {
+    extraLarge
+    large
+    color
+  }
+  bannerImage
+  format
+  status
+  season
+  seasonYear
+  episodes
+  duration
+  averageScore
+  popularity
+  genres
+  isAdult
+  nextAiringEpisode {
+    airingAt
+    episode
+  }
+}
+fragment FranchiseEntry on Media {
+  ...AnimeCard
+  synonyms
+  startDate {
+    year
+    month
+    day
+  }
+  endDate {
+    year
+    month
+    day
+  }
+  relations {
+    edges {
+      relationType(version: 2)
+      node {
+        id
+        type
+      }
+    }
+  }
+}`, {"fragmentName":"FranchiseEntryWithNeighbours"}) as unknown as TypedDocumentString<FranchiseEntryWithNeighboursFragment, unknown>;
 export const AnimeDetailsDocument = new TypedDocumentString(`
-    query AnimeDetails($id: Int!) {
-  Media(id: $id, type: ANIME) {
-    ...AnimeDetails
+    query AnimeDetails($ids0: [Int!]!, $ids1: [Int!]!, $ids2: [Int!]!, $ids3: [Int!]!, $with1: Boolean!, $with2: Boolean!, $with3: Boolean!) {
+  page0: Page(page: 1, perPage: 50) {
+    media(id_in: $ids0, type: ANIME) {
+      ...AnimeDetails
+    }
+  }
+  page1: Page(page: 1, perPage: 50) @include(if: $with1) {
+    media(id_in: $ids1, type: ANIME) {
+      ...AnimeDetails
+    }
+  }
+  page2: Page(page: 1, perPage: 50) @include(if: $with2) {
+    media(id_in: $ids2, type: ANIME) {
+      ...AnimeDetails
+    }
+  }
+  page3: Page(page: 1, perPage: 50) @include(if: $with3) {
+    media(id_in: $ids3, type: ANIME) {
+      ...AnimeDetails
+    }
   }
 }
     fragment AnimeCard on Media {
@@ -586,18 +682,30 @@ export const GenresDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<GenresQuery, GenresQueryVariables>;
 export const FranchiseEntriesDocument = new TypedDocumentString(`
-    query FranchiseEntries($ids: [Int!]!, $perPage: Int!) {
-  Page(page: 1, perPage: $perPage) {
-    media(id_in: $ids, type: ANIME) {
-      ...FranchiseEntry
-      neighbours: relations {
-        edges {
-          node {
-            type
-            ...FranchiseEntry
-          }
-        }
-      }
+    query FranchiseEntries($ids0: [Int!]!, $ids1: [Int!]!, $ids2: [Int!]!, $ids3: [Int!]!, $ids4: [Int!]!, $with1: Boolean!, $with2: Boolean!, $with3: Boolean!, $with4: Boolean!) {
+  page0: Page(page: 1, perPage: 50) {
+    media(id_in: $ids0, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page1: Page(page: 1, perPage: 50) @include(if: $with1) {
+    media(id_in: $ids1, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page2: Page(page: 1, perPage: 50) @include(if: $with2) {
+    media(id_in: $ids2, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page3: Page(page: 1, perPage: 50) @include(if: $with3) {
+    media(id_in: $ids3, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page4: Page(page: 1, perPage: 50) @include(if: $with4) {
+    media(id_in: $ids4, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
     }
   }
 }
@@ -649,6 +757,17 @@ fragment FranchiseEntry on Media {
       node {
         id
         type
+      }
+    }
+  }
+}
+fragment FranchiseEntryWithNeighbours on Media {
+  ...FranchiseEntry
+  neighbours: relations {
+    edges {
+      node {
+        type
+        ...FranchiseEntry
       }
     }
   }

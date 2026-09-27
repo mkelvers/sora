@@ -1,16 +1,55 @@
 # Entries by ID, each with its related entries in full, so walking a
 # franchise takes one request for every two steps rather than one for each.
-query FranchiseEntries($ids: [Int!]!, $perPage: Int!) {
-  Page(page: 1, perPage: $perPage) {
-    media(id_in: $ids, type: ANIME) {
-      ...FranchiseEntry
-      neighbours: relations {
-        edges {
-          node {
-            type
-            ...FranchiseEntry
-          }
-        }
+#
+# A page holds at most 50, so the IDs are split over aliased pages, each
+# taking its own; pages past the first are left out when not needed. Each
+# page costs 84 of the 500 query complexity AniList allows a request, so five
+# fit.
+query FranchiseEntries(
+  $ids0: [Int!]!
+  $ids1: [Int!]!
+  $ids2: [Int!]!
+  $ids3: [Int!]!
+  $ids4: [Int!]!
+  $with1: Boolean!
+  $with2: Boolean!
+  $with3: Boolean!
+  $with4: Boolean!
+) {
+  page0: Page(page: 1, perPage: 50) {
+    media(id_in: $ids0, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page1: Page(page: 1, perPage: 50) @include(if: $with1) {
+    media(id_in: $ids1, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page2: Page(page: 1, perPage: 50) @include(if: $with2) {
+    media(id_in: $ids2, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page3: Page(page: 1, perPage: 50) @include(if: $with3) {
+    media(id_in: $ids3, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+  page4: Page(page: 1, perPage: 50) @include(if: $with4) {
+    media(id_in: $ids4, type: ANIME) {
+      ...FranchiseEntryWithNeighbours
+    }
+  }
+}
+
+fragment FranchiseEntryWithNeighbours on Media {
+  ...FranchiseEntry
+  neighbours: relations {
+    edges {
+      node {
+        type
+        ...FranchiseEntry
       }
     }
   }
