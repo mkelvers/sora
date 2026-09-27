@@ -1,4 +1,4 @@
-import { run, type Runner, type Task, type TaskList } from "graphile-worker";
+import { run, type Task, type TaskList } from "graphile-worker";
 
 import { withAniListPriority } from "../anilist/client";
 import { config } from "../config";
@@ -19,7 +19,20 @@ import {
   refreshEpisodeDetailsTask,
   storeSeriesJob
 } from "./jobs/series";
-import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
+import { lookUpEpisodesNowTask, lookUpEpisodesTask, storeSeriesNowTask, storeSeriesTask, trackAiringTask } from "./queue";
+
+/** The running scheduler. */
+export interface Scheduler {
+  /** Settles once every worker has stopped. */
+  promise: Promise<void>;
+  stop(): Promise<void>;
+}
+
+/** Tasks for work a viewer is waiting on; see {@link storeSeriesNowTask}. */
+const waitedOnTasks: Record<string, Task> = {
+  [storeSeriesNowTask]: storeSeriesJob,
+  [lookUpEpisodesNowTask]: lookUpEpisodes
+};
 
 /**
  * Starts the background scheduler, which follows every airing anime, stores
@@ -30,11 +43,11 @@ import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
  * of any search, and warns about providers that stop working.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
- * of them. Stop it with `runner.stop()`; by default it also stops on SIGINT
- * and SIGTERM.
+ * of them. Stop it with `stop()`; by default it also stops on SIGINT and
+ * SIGTERM.
  */
-export async function startScheduler(): Promise<Runner> {
-  return run({
+export async function startScheduler(): Promise<Scheduler> {
+  const main = await run({
     connectionString: config.databaseUrl,
     // Long jobs, such as a full catalogue sync or an airing check waiting
     // out a provider's rate limit, must not take every slot from a layout a
@@ -46,6 +59,7 @@ export async function startScheduler(): Promise<Runner> {
       [reviveAiringChecksTask]: reviveAiringChecks,
       [storeSeriesTask]: storeSeriesJob,
       [lookUpEpisodesTask]: lookUpEpisodes,
+      ...waitedOnTasks,
       [discoverSeriesEntriesTask]: discoverSeriesEntries,
       [refreshEpisodeDetailsTask]: refreshEpisodeDetails,
       [syncProviderCatalogsTask]: syncProviderCatalogs,
@@ -69,6 +83,22 @@ export async function startScheduler(): Promise<Runner> {
       `10,40 * * * * ${backfillSeriesTask} ?priority=-1`
     ].join("\n")
   });
+
+  // Every slot above can be held for minutes by jobs waiting their turn on
+  // AniList, and a running job is never interrupted, so work a viewer waits
+  // on has workers of its own. It still runs ahead of those jobs on AniList.
+  const waitedOn = await run({
+    connectionString: config.databaseUrl,
+    concurrency: 4,
+    taskList: prioritized(waitedOnTasks)
+  });
+
+  return {
+    promise: Promise.all([main.promise, waitedOn.promise]).then(() => undefined),
+    stop: async () => {
+      await Promise.all([main.stop(), waitedOn.stop()]);
+    }
+  };
 }
 
 /** Runs each task with its AniList requests queued at its job's priority; see {@link withAniListPriority}. */
