@@ -1,6 +1,7 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
 import { AniKotoStreamProvider } from "./anikoto";
+import { readRecentAniKotoChanges } from "./anikoto-catalog";
 import { recordingCalls } from "./calls";
 import { MegaPlayStreamProvider } from "./megaplay";
 import type { StreamProvider } from "./provider";
@@ -41,13 +42,18 @@ export function isServedSubtitle(track: { language: string; label: string }) {
   return /^en(?:-|_|$)/.test(language) || language.startsWith("english") || /^english\b/i.test(track.label.trim());
 }
 
-/** AniKoto, which playback tries first. An episode neither it nor TMDB lists is not shown. */
+/** AniKoto, which playback tries first, and which decides what episodes seasons list. */
 export const aniKoto = recordingCalls(
   new AniKotoStreamProvider(providerHttp, {
     locale: "en",
     listsLanguages: true
   })
 );
+
+/** The series AniKoto changed most recently; see {@link readRecentAniKotoChanges}. */
+export function readAniKotoChanges() {
+  return readRecentAniKotoChanges(providerHttp);
+}
 
 /**
  * Every anime stream provider, in the order playback tries them.

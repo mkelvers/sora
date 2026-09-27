@@ -148,6 +148,35 @@ export async function syncAniKotoCatalog(
   }
 }
 
+/** A series AniKoto changed, as its catalogue listing gives it. */
+export interface AniKotoChange {
+  anikotoId: number;
+  /** The AniList entry AniKoto files the series under, when it says. */
+  anilistId: number | null;
+  updatedAt: Date;
+}
+
+/**
+ * Reads the series AniKoto changed most recently, newest first: the first
+ * page of its catalogue listing. Adding an episode changes its series,
+ * though the series' timestamp may trail the episode's by a few minutes.
+ *
+ * The series are stored in the mirror too, so a series that just premiered
+ * can be matched without waiting for the hourly sync.
+ *
+ * @throws when AniKoto's API fails.
+ */
+export async function readRecentAniKotoChanges(http: HttpClient): Promise<AniKotoChange[]> {
+  const response = await http.get(`${apiUrl}/recent-anime?page=1`);
+  const rows = CatalogPageSchema.parse(await response.json()).data.flatMap((item) => parseCatalogSeries(item) ?? []);
+  await upsert(rows);
+  return rows.map((row) => ({
+    anikotoId: row.anikotoId,
+    anilistId: row.anilistId ?? null,
+    updatedAt: row.updatedAt
+  }));
+}
+
 /**
  * Reads one series of AniKoto's catalogue, as its listing and its series
  * endpoint send it, or `null` when it is malformed.
