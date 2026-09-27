@@ -5,6 +5,7 @@
 	import Related from "./_components/Related.svelte";
 	import Seasons from "./_components/Seasons.svelte";
 	import Stats from "./_components/Stats.svelte";
+	import Icon from "$lib/components/ui/Icon.svelte";
 	import { tmdbSrcset } from "$lib/utils";
 	import { getSeries } from "./series.remote";
 	import type { PageProps } from "./$types";
@@ -19,24 +20,29 @@
 			return undefined;
 		}
 
-		const { season_id, number, airing_at } = series.next_episode;
+		const { number, airing_at } = series.next_episode;
 		const airing = new Date(airing_at);
-		const season =
-			series.seasons.length > 1
-				? series.seasons.find((season) => season.id === season_id)
-				: undefined;
+		const now = new Date();
+		if (airing <= now) {
+			return undefined;
+		}
+
+		const days = Math.round(
+			(new Date(airing).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) /
+				86_400_000,
+		);
+		const day =
+			days < 2
+				? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(days, "day")
+				: days < 7
+					? `on ${airing.toLocaleDateString("en-GB", { weekday: "long" })}`
+					: `on ${airing.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
 
 		return {
-			episode: season
-				? `${season.title}, episode ${number}`
-				: `Episode ${number}`,
-			when: `${airing.toLocaleDateString("da-DK", {
-				day: "numeric",
-				month: "long",
-			})} at ${airing.toLocaleTimeString("da-DK", {
-				hour: "2-digit",
-				minute: "2-digit",
-			})}`,
+			number,
+			airing_at,
+			when: `${day} at ${airing.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`,
+			date: airing.toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" }),
 		};
 	});
 </script>
@@ -105,8 +111,11 @@
 
 					{#if next}
 						<p class="next">
-							<span class="label">Next episode</span>
-							{next.episode} airs {next.when}
+							<Icon name="schedule" size="sm" />
+							<span>
+								Episode {next.number} airs
+								<time datetime={next.airing_at} title={next.date}>{next.when}</time>
+							</span>
 						</p>
 					{/if}
 				</div>
@@ -221,22 +230,11 @@
 
 	.next {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 4px 12px;
+		align-items: center;
+		gap: 8px;
 		margin: 0;
-		padding: 12px 16px;
-		border-left: 2px solid #fff;
-		background: rgb(255 255 255 / 0.04);
-		color: #ccc;
+		color: #888;
 		font-size: 14px;
-	}
-
-	.next .label {
-		color: #777;
-		font-size: 12px;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
 	}
 
 	.section-head {
