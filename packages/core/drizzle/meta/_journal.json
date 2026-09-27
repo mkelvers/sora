@@ -148,6 +148,13 @@
       "when": 1790481111856,
       "tag": "0020_season_completion",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790483245893,
+      "tag": "0021_search_index_without_pending_list",
+      "breakpoints": true
     }
   ]
 }

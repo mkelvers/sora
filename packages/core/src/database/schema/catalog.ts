@@ -90,7 +90,14 @@ export const animeSearch = pgTable(
     updatedAt: timestamptz("updated_at").notNull()
   },
   (table) => [
-    index("anime_search_text_idx").using("gin", table.searchText.op("gin_trgm_ops")),
+    // Without a pending list: each sync updates thousands of rows, and a
+    // pending list that long made the planner pass over the index and scan
+    // the whole table on every search, until autovacuum next flushed it.
+    index("anime_search_text_idx")
+      .using("gin", table.searchText.op("gin_trgm_ops"))
+      .with({
+        fastupdate: false
+      }),
     index("anime_search_updated_at_idx").on(table.updatedAt)
   ]
 );
