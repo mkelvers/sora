@@ -4,7 +4,7 @@ mock.module("../../database/client", () => ({
   db: {}
 }));
 
-const { normalizeTitle, popularityWeight, rankCandidates, searchText, titleScore } = await import("./search");
+const { normalizeTitle, popularityWeight, rankCandidates, searchText, shortQueryPattern, titleScore } = await import("./search");
 
 /** An indexed entry with the fields ranking reads. */
 function entry(anilistId: number, popularity: number, titles: { english?: string; romaji?: string; native?: string; synonyms?: string[] }) {
@@ -177,5 +177,27 @@ describe("searchText", () => {
     expect(searchText(["Attack on Titan", "Shingeki no Kyojin", "Attack on Titan", null])).toBe(
       "attack on titan | shingeki no kyojin | aot | snk"
     );
+  });
+
+  test("holds the initials of a title without its disambiguator too", () => {
+    expect(searchText(["ONE PIECE (Movie)"])).toBe("one piece movie | opm | op");
+  });
+});
+
+describe("shortQueryPattern", () => {
+  const matches = (query: string, text: string) => new RegExp(shortQueryPattern(query)).test(text);
+
+  test("matches a whole word or initials of the search text", () => {
+    expect(matches("op", "one piece movie | opm | op")).toBe(true);
+    expect(matches("k", "k on | ko")).toBe(true);
+  });
+
+  test("matches two words run together", () => {
+    expect(matches("ko", "k on x | kox")).toBe(false);
+    expect(matches("kx", "k x")).toBe(true);
+  });
+
+  test("does not match part of a word", () => {
+    expect(matches("fr", "frieren beyond journey s end | fbjse")).toBe(false);
   });
 });

@@ -164,20 +164,26 @@ function toRow(media: IndexedMedia): typeof animeSearch.$inferInsert {
   };
 }
 
+/**
+ * Stores index rows, rewriting a stored row only when something in it
+ * changed: a sync reads thousands of unchanged entries, and each rewrite
+ * leaves a dead row and new trigram index entries behind.
+ */
 async function upsert(rows: (typeof animeSearch.$inferInsert)[]) {
   if (rows.length === 0) {
     return 0;
   }
 
+  const keys = Object.keys(rows[0] ?? {}).filter((key) => key !== "anilistId");
+  const columns = keys.map(toSnakeCase);
   await db
     .insert(animeSearch)
     .values(rows)
     .onConflictDoUpdate({
       target: animeSearch.anilistId,
-      set: Object.fromEntries(
-        Object.keys(rows[0] ?? {}).flatMap((key) =>
-          key === "anilistId" ? [] : [[key, sql.raw(`excluded.${toSnakeCase(key)}`)]]
-        )
+      set: Object.fromEntries(keys.map((key) => [key, sql.raw(`excluded.${toSnakeCase(key)}`)])),
+      setWhere: sql.raw(
+        `(${columns.map((column) => `anime_search.${column}`).join(", ")}) is distinct from (${columns.map((column) => `excluded.${column}`).join(", ")})`
       )
     });
   return rows.length;
@@ -190,16 +196,19 @@ function toSnakeCase(name: string) {
 /**
  * The text the index matches queries against: every title in
  * {@link normalizeTitle}'s form, followed by the initials of each title of
- * two or more words.
+ * two or more words, both with and without a {@link disambiguator}, which
+ * {@link textScore} ignores: "ONE PIECE (Movie)" is found by `op` too.
  */
 export function searchText(titles: readonly (string | null)[]) {
   const normalized = [...new Set(titles.flatMap((title) => (title ? [normalizeTitle(title)] : [])))].filter(
     (title) => title.length > 0
   );
-  const initials = normalized.flatMap((title) => {
-    const words = title.split(" ");
-    return words.length >= 2 ? [words.map((word) => word[0]).join("")] : [];
-  });
+  const initials = titles.flatMap((title) =>
+    (title ? [title, title.replace(disambiguator, "")] : []).flatMap((spelling) => {
+      const words = normalizeTitle(spelling).split(" ");
+      return words.length >= 2 ? [words.map((word) => word[0]).join("")] : [];
+    })
+  );
 
   return [...normalized, ...new Set(initials)].join(" | ");
 }
@@ -268,8 +277,9 @@ export type SearchCandidate = Pick<
  * only when `format` asks for them.
  *
  * Candidates come from the index by trigram similarity, which forgives typos
- * and word order. Those whose titles match well enough are ranked by
- * {@link rankCandidates}, or ordered by `sort` when one is given.
+ * and word order; a query too short for trigrams is matched as a word, see
+ * {@link shortQueryPattern}. Those whose titles match well enough are ranked
+ * by {@link rankCandidates}, or ordered by `sort` when one is given.
  */
 export async function searchAnime(query: string, filters: Omit<BrowseQuery, "search" | "page" | "perPage"> = {}) {
   const normalized = normalizeTitle(query);
@@ -297,6 +307,7 @@ export async function searchAnime(query: string, filters: Omit<BrowseQuery, "sea
     conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::jsonb`);
   }
 
+  const isShort = normalized.length < trigramLength;
   const candidates = await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`set local pg_trgm.word_similarity_threshold = ${candidateThreshold}`));
     return tx
@@ -305,7 +316,9 @@ export async function searchAnime(query: string, filters: Omit<BrowseQuery, "sea
       .where(
         and(
           ...conditions,
-          sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${escapeLike(normalized)}%`})`
+          isShort
+            ? sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`
+            : sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${escapeLike(normalized)}%`})`
         )
       )
       .orderBy(desc(sql`word_similarity(${normalized}, ${animeSearch.searchText})`), desc(animeSearch.popularity))
@@ -315,6 +328,28 @@ export async function searchAnime(query: string, filters: Omit<BrowseQuery, "sea
   // The index offers anything faintly alike; only real matches are results.
   const matches = candidates.filter((candidate) => textScore(normalized, candidate) >= minimumMatch);
   return filters.sort ? [...matches].sort(sortOrders[filters.sort]) : rankCandidates(query, matches);
+}
+
+/** The fewest characters the trigram index can find a query by. */
+const trigramLength = 3;
+
+/**
+ * Matches a normalized query shorter than {@link trigramLength} as a whole
+ * word of the search text, or as two words run together, which covers every
+ * match {@link textScore} accepts of so short a query: the title itself, a
+ * word of it, or its initials, since a word that short allows no typo.
+ *
+ * The trigram index cannot find such a query, so offering candidates by
+ * similarity would score every entry of the index on every keystroke.
+ * Normalized text holds only letters, digits, and spaces, none of them
+ * special in a pattern.
+ */
+export function shortQueryPattern(query: string) {
+  const spellings = [
+    query,
+    ...Array.from({ length: query.length - 1 }, (_, index) => `${query.slice(0, index + 1)} ${query.slice(index + 1)}`)
+  ];
+  return `(^| )(${spellings.join("|")})( |$)`;
 }
 
 /**
