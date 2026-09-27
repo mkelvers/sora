@@ -11,7 +11,10 @@
 		artwork: Artwork;
 	};
 
-	let { seriesId, artwork }: Props = $props();
+	let {
+		seriesId,
+		artwork,
+	}: Props = $props();
 
 	type Menu = {
 		id: string;
@@ -123,7 +126,7 @@
 			{#snippet trigger()}
 				{menu.options.find((option) => option.value === menu.value)
 					?.label}
-				<Icon name="expand" size="sm" />
+				<Icon name="expand" size="md" />
 			{/snippet}
 
 			{#each menu.options as option (option.value)}
