@@ -13,7 +13,17 @@ import { BrowseQuerySchema } from "@sora/core/catalog";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
+  AniListImportSchema,
   ContinueWatchingItemSchema,
+  HistoryItemSchema,
+  HistoryMetaSchema,
+  ImportSummarySchema,
+  LibraryTitleSchema,
+  MarkWatchedSchema,
+  WatchlistChangeSchema,
+  WatchlistItemSchema,
+  WatchlistMetaSchema,
+  WatchStatusSchema,
   EpisodeNumberParam,
   ImageTypeSchema,
   json,
@@ -563,7 +573,7 @@ export const getContinueWatching = createRoute({
   tags: ["Profiles"],
   summary: "Titles to pick back up",
   description:
-    "One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. Finished and dropped titles are left out.",
+    "One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. The next season only follows when it was already out as the last one was finished; a season released later is not pushed here. Titles with nothing to continue, dropped titles, and titles dismissed from the row and not played since are left out.",
   security: signedIn,
   request: {
     params: ProfileParams,
@@ -635,7 +645,7 @@ export const recordProgress = createRoute({
   tags: ["Profiles"],
   summary: "Save a playback position",
   description:
-    "Players report their position every few seconds while playing, and on pause and exit. An older `event_at` than the one saved changes nothing. Playing a title puts it on the watchlist as watching; finishing the last episode of a finished title marks it completed.",
+    "Players report their position every few seconds while playing, and on pause and exit. An older `event_at` than the one saved changes nothing. Playing a title puts it on the watchlist, undrops it, and lifts a dismissal from continue watching.",
   security: signedIn,
   request: {
     params: ProfileParams,
@@ -655,5 +665,269 @@ export const recordProgress = createRoute({
     401: problem("Not signed in."),
     404: problem("The account has no such profile, season, or episode."),
     422: problem("The body is invalid."),
+  },
+});
+
+const ProfileSeriesParams = ProfileParams.extend({
+  series_id: SeriesIdParam,
+});
+
+export const dismissContinueWatching = createRoute({
+  operationId: "dismissContinueWatching",
+  method: "delete",
+  path: "/profiles/{profile_id}/continue-watching/{series_id}",
+  tags: ["Profiles"],
+  summary: "Remove a title from continue watching",
+  description: "Hides the title from continue watching until the profile plays it again. Its progress and watchlist entry stay as they are.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+  },
+  responses: {
+    204: {
+      description: "Dismissed.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title."),
+  },
+});
+
+export const markWatched = createRoute({
+  operationId: "markWatched",
+  method: "put",
+  path: "/profiles/{profile_id}/progress/{series_id}/watched",
+  tags: ["Profiles"],
+  summary: "Mark a season or title watched",
+  description:
+    "Marks every released episode of a season, or of every season in watch order, watched or unwatched at once. Marking watched records each episode as finished now; marking unwatched forgets their progress.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: MarkWatchedSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: "Marked.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title or season."),
+    422: problem("The body is invalid."),
+  },
+});
+
+export const clearProgress = createRoute({
+  operationId: "clearProgress",
+  method: "delete",
+  path: "/profiles/{profile_id}/progress/{series_id}",
+  tags: ["Profiles"],
+  summary: "Forget a title's progress",
+  description: "Forgets every episode of the title the profile played, to start it over. A listed title stays listed, as not started.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+  },
+  responses: {
+    204: {
+      description: "Forgotten.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title."),
+  },
+});
+
+export const getWatchlist = createRoute({
+  operationId: "getWatchlist",
+  method: "get",
+  path: "/profiles/{profile_id}/watchlist",
+  tags: ["Profiles"],
+  summary: "The profile's watchlist",
+  description:
+    "Every listed title, most recently active first, with how far the profile is through it. Only whether a title is listed and dropped is stored; its status and season are read from what the profile watched.",
+  security: signedIn,
+  request: {
+    params: ProfileParams,
+    query: z.object({
+      status: WatchStatusSchema.optional().openapi({
+        description: "Only titles in this status.",
+      }),
+    }),
+  },
+  responses: {
+    200: json(envelopeOf(z.array(WatchlistItemSchema), WatchlistMetaSchema), "The titles."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile."),
+  },
+});
+
+export const getWatchlistEntry = createRoute({
+  operationId: "getWatchlistEntry",
+  method: "get",
+  path: "/profiles/{profile_id}/watchlist/{series_id}",
+  tags: ["Profiles"],
+  summary: "A title's place in the profile's library",
+  description: "Whether the title is listed, and how far the profile is through it, listed or not.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+  },
+  responses: {
+    200: json(envelopeOf(LibraryTitleSchema, EmptyMetaSchema), "The title's place."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title."),
+  },
+});
+
+export const addToWatchlist = createRoute({
+  operationId: "addToWatchlist",
+  method: "put",
+  path: "/profiles/{profile_id}/watchlist/{series_id}",
+  tags: ["Profiles"],
+  summary: "List a title",
+  description: "Puts the title on the watchlist. A listed title is left as it is.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+  },
+  responses: {
+    204: {
+      description: "Listed.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title."),
+  },
+});
+
+export const updateWatchlistEntry = createRoute({
+  operationId: "updateWatchlistEntry",
+  method: "patch",
+  path: "/profiles/{profile_id}/watchlist/{series_id}",
+  tags: ["Profiles"],
+  summary: "Drop a title, or take that back",
+  description: "Dropping a title that is not listed lists it. Its progress is kept either way.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: WatchlistChangeSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: "Changed.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such title."),
+    422: problem("The body is invalid."),
+  },
+});
+
+export const removeFromWatchlist = createRoute({
+  operationId: "removeFromWatchlist",
+  method: "delete",
+  path: "/profiles/{profile_id}/watchlist/{series_id}",
+  tags: ["Profiles"],
+  summary: "Unlist a title",
+  description: "Takes the title off the watchlist. What the profile watched of it stays in its history.",
+  security: signedIn,
+  request: {
+    params: ProfileSeriesParams,
+  },
+  responses: {
+    204: {
+      description: "Unlisted, or was not listed.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile."),
+  },
+});
+
+export const getHistory = createRoute({
+  operationId: "getHistory",
+  method: "get",
+  path: "/profiles/{profile_id}/history",
+  tags: ["Profiles"],
+  summary: "The episodes the profile played",
+  description: "One item per episode, most recently played first, a page at a time.",
+  security: signedIn,
+  request: {
+    params: ProfileParams,
+    query: z.object({
+      after: z.string().optional().openapi({
+        description: "Where the page starts: taken from the previous page's `next`.",
+      }),
+      limit: z.coerce.number().int().min(1).max(200).optional().openapi({
+        description: "Items per page; 50 when omitted.",
+      }),
+    }),
+  },
+  responses: {
+    200: json(envelopeOf(z.array(HistoryItemSchema), HistoryMetaSchema), "The page."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile."),
+    422: problem("`after` is not from a previous page."),
+  },
+});
+
+export const forgetEpisode = createRoute({
+  operationId: "forgetEpisode",
+  method: "delete",
+  path: "/profiles/{profile_id}/history/{season_id}/{episode}",
+  tags: ["Profiles"],
+  summary: "Remove an episode from history",
+  description: "Forgets the profile's progress in the episode, as if it was never played.",
+  security: signedIn,
+  request: {
+    params: ProfileParams.extend({
+      season_id: SeasonIdParam,
+      episode: EpisodeNumberParam,
+    }),
+  },
+  responses: {
+    204: {
+      description: "Forgotten, or was never played.",
+    },
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or no such season or episode."),
+  },
+});
+
+export const importAniList = createRoute({
+  operationId: "importAniList",
+  method: "post",
+  path: "/profiles/{profile_id}/imports/anilist",
+  tags: ["Profiles"],
+  summary: "Import an AniList list",
+  description:
+    "Imports a public AniList anime list: every entry is listed, and the episodes it records as watched become the profile's history, so each title's status follows from them. Completed and rewatching entries count every episode, watching, paused, and dropped ones their progress, and planned ones none; a title is dropped once every entry of it imported is. Titles Sora has not prepared yet join the watchlist once they are. Importing again brings over what changed; progress made on Sora since is kept.",
+  security: signedIn,
+  request: {
+    params: ProfileParams,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: AniListImportSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: json(envelopeOf(ImportSummarySchema, EmptyMetaSchema), "What was imported."),
+    401: problem("Not signed in."),
+    404: problem("The account has no such profile, or AniList has no public anime list under the name."),
+    422: problem("The body is invalid."),
+    503: problem("AniList is unavailable."),
   },
 });

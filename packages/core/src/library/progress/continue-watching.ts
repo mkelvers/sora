@@ -1,20 +1,18 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { playbackProgress, seasonCompletion, series, seriesEpisode, seriesSeason, watchlistEntry } from "../../database/schema";
-import { isEpisodeAvailable, isEpisodeShown, loadAniKotoEpisodes } from "../../series/episodes";
-import { toSeriesCards } from "../../series/queries";
-import { toEpisodeProgress } from "./progress";
-import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type TitleEpisode } from "./resume";
+import { continueWatchingDismissal, watchlistEntry } from "../../database/schema";
+import { assertSeriesExists, toSeriesCards } from "../../series/queries";
+import { continuePoint, type ContinueWatchingItem } from "./resume";
+import { loadCheckpoints, loadTitles } from "./titles";
 
 /**
  * Builds the "continue watching" row: one entry per recently played title,
  * most recent first.
  *
- * Titles marked `completed` or `dropped` on the watchlist are left out, as
- * are titles with nothing left to watch. See {@link continuePoint} for how
- * the episode to resume is chosen; a completed season counts as a completed
- * checkpoint at the episode that ended it, since its own were cleared.
+ * Titles with nothing left to continue are left out (see
+ * {@link continuePoint}), as are dropped titles and titles the user
+ * dismissed from the row and has not played since.
  */
 export async function getContinueWatching(
   userId: string,
@@ -30,120 +28,35 @@ export async function getContinueWatching(
   }
 
   const limit = options.limit ?? only?.length ?? 20;
-  const inTitles = only === undefined ? undefined : inArray(seriesSeason.seriesId, [...only]);
-  const [checkpoints, completions] = await Promise.all([
-    db
-      .select({
-        progress: playbackProgress,
-        seriesId: seriesSeason.seriesId,
-        seasonId: seriesEpisode.seasonId,
-        position: seriesSeason.position,
-        number: seriesEpisode.number,
-      })
-      .from(playbackProgress)
-      .innerJoin(
-        seriesEpisode,
-        and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
-      )
-      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(playbackProgress.userId, userId), inTitles)),
-    db
-      .select({
-        completedAt: seasonCompletion.completedAt,
-        seriesId: seriesSeason.seriesId,
-        seasonId: seriesEpisode.seasonId,
-        position: seriesSeason.position,
-        number: seriesEpisode.number,
-        durationMinutes: seriesEpisode.runtimeMinutes,
-      })
-      .from(seasonCompletion)
-      .innerJoin(
-        seriesEpisode,
-        and(eq(seriesEpisode.anilistId, seasonCompletion.anilistId), eq(seriesEpisode.anilistEpisode, seasonCompletion.episode))
-      )
-      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(seasonCompletion.userId, userId), inTitles))
+  const [checkpoints, hidden] = await Promise.all([
+    loadCheckpoints(userId, only),
+    hiddenTitles(userId, only)
   ]);
 
-  const rows = [
-    ...checkpoints.map((row) => ({
-      ...row,
-      checkpoint: toEpisodeProgress(row.progress, row.seasonId, row.number),
-    })),
-    ...completions.map((row) => {
-      const duration = (row.durationMinutes ?? 0) * 60;
-      return {
-        ...row,
-        checkpoint: {
-          seasonId: row.seasonId,
-          episode: row.number,
-          positionSeconds: duration,
-          durationSeconds: duration,
-          completed: true,
-          eventAt: row.completedAt.toISOString(),
-        } satisfies EpisodeProgress,
-      };
+  // Over-fetch, because some titles drop out once their episodes are known.
+  const candidates = [...checkpoints]
+    .filter(([seriesId, progress]) => {
+      const dismissedAt = hidden.dismissed.get(seriesId);
+      return !hidden.dropped.has(seriesId) && (dismissedAt === undefined || dismissedAt < progress[0]!.eventAt);
     })
-  ].sort(
-    (left, right) =>
-      right.checkpoint.eventAt.localeCompare(left.checkpoint.eventAt) || right.position - left.position || right.number - left.number
-  );
-
-  // Map insertion order keeps titles in order of their most recent event.
-  const bySeries = new Map<string, EpisodeProgress[]>();
-  for (const row of rows) {
-    const known = bySeries.get(row.seriesId);
-    if (known) {
-      known.push(row.checkpoint);
-    } else if (bySeries.size < limit * 2) {
-      // Over-fetch, because some titles drop out once their episodes are known.
-      bySeries.set(row.seriesId, [row.checkpoint]);
-    }
-  }
-
-  const seriesIds = [...bySeries.keys()];
-  if (seriesIds.length === 0) {
+    .slice(0, limit * 2);
+  if (candidates.length === 0) {
     return [];
   }
 
-  const [finished, stored, episodes] = await Promise.all([
-    db
-      .select({
-        seriesId: watchlistEntry.seriesId,
-      })
-      .from(watchlistEntry)
-      .where(
-        and(
-          eq(watchlistEntry.userId, userId),
-          inArray(watchlistEntry.seriesId, seriesIds),
-          inArray(watchlistEntry.status, [
-            "completed",
-            "dropped"
-          ])
-        )
-      ),
-    db.select().from(series).where(inArray(series.id, seriesIds)),
-    titleEpisodes(seriesIds)
-  ]);
+  const titles = await loadTitles(candidates.map(([seriesId]) => seriesId));
+  const cards = await toSeriesCards([...titles.series.values()]);
 
-  const excluded = new Set(finished.map((row) => row.seriesId));
-  const seriesById = new Map(stored.map((row) => [row.id, row]));
-  const cards = await toSeriesCards(stored);
-
-  return [...bySeries]
-    .flatMap(([seriesId, checkpoints]): ContinueWatchingItem[] => {
-      const row = seriesById.get(seriesId);
-      if (!row || excluded.has(seriesId)) {
-        return [];
-      }
-
-      const point = continuePoint(episodes(row), checkpoints);
-      return point
+  return candidates
+    .flatMap(([seriesId, progress]): ContinueWatchingItem[] => {
+      const card = cards.get(seriesId);
+      const point = card ? continuePoint(titles.episodes(seriesId), progress) : null;
+      return card && point
         ? [
             {
-              series: cards.get(seriesId)!,
+              series: card,
               ...point,
-              lastWatchedAt: checkpoints[0]!.eventAt,
+              lastWatchedAt: progress[0]!.eventAt,
             }
           ]
         : [];
@@ -152,44 +65,64 @@ export async function getContinueWatching(
 }
 
 /**
- * Loads every episode of the given titles in title order, and returns a
- * lookup of one title's episodes. Only the episodes seasons list count (see
- * {@link isEpisodeShown}); each is released once AniKoto carries it (see
- * {@link isEpisodeAvailable}).
+ * Removes a title from "continue watching" until the user plays it again.
+ * It does not drop the title or change anything else about it.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
-async function titleEpisodes(seriesIds: readonly string[]) {
-  const rows = await db
-    .select({
-      seriesId: seriesSeason.seriesId,
-      seasonId: seriesSeason.id,
-      seasonKind: seriesSeason.kind,
-      inWatchOrder: seriesSeason.inWatchOrder,
-      number: seriesEpisode.number,
-      anilistId: seriesEpisode.anilistId,
-      anilistEpisode: seriesEpisode.anilistEpisode,
-      airDate: seriesEpisode.airDate,
-      airedAt: seriesEpisode.airedAt,
-      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+export async function dismissFromContinueWatching(userId: string, seriesId: string) {
+  await assertSeriesExists(seriesId);
+  const dismissedAt = new Date();
+  await db
+    .insert(continueWatchingDismissal)
+    .values({
+      userId,
+      seriesId,
+      dismissedAt,
     })
-    .from(seriesEpisode)
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(inArray(seriesSeason.seriesId, [...seriesIds]))
-    .orderBy(asc(seriesSeason.seriesId), asc(seriesSeason.position), asc(seriesEpisode.number));
-  const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
+    .onConflictDoUpdate({
+      target: [
+        continueWatchingDismissal.userId,
+        continueWatchingDismissal.seriesId
+      ],
+      set: {
+        dismissedAt,
+      },
+    });
+}
 
-  const now = new Date();
-  return (title: typeof series.$inferSelect): TitleEpisode[] =>
-    rows
-      .filter(
-        (row) => row.seriesId === title.id && isEpisodeShown(title, {
-          kind: row.seasonKind,
-        }, row, onAniKoto, now)
+/**
+ * The titles hidden from the row: when each dismissed one was dismissed,
+ * and the dropped ones, which stay hidden until played again (playing a
+ * dropped title undrops it).
+ */
+async function hiddenTitles(userId: string, seriesIds: readonly string[] | undefined) {
+  const [dismissed, dropped] = await Promise.all([
+    db
+      .select()
+      .from(continueWatchingDismissal)
+      .where(
+        and(
+          eq(continueWatchingDismissal.userId, userId),
+          seriesIds ? inArray(continueWatchingDismissal.seriesId, [...seriesIds]) : undefined
+        )
+      ),
+    db
+      .select({
+        seriesId: watchlistEntry.seriesId,
+      })
+      .from(watchlistEntry)
+      .where(
+        and(
+          eq(watchlistEntry.userId, userId),
+          seriesIds ? inArray(watchlistEntry.seriesId, [...seriesIds]) : undefined,
+          isNotNull(watchlistEntry.droppedAt)
+        )
       )
-      .map((row) => ({
-        seasonId: row.seasonId,
-        inWatchOrder: row.inWatchOrder,
-        number: row.number,
-        isExtra: row.anilistId === null,
-        isReleased: isEpisodeAvailable(title, row, onAniKoto, now),
-      }));
+  ]);
+
+  return {
+    dismissed: new Map(dismissed.map((row) => [row.seriesId, row.dismissedAt.toISOString()])),
+    dropped: new Set(dropped.map((row) => row.seriesId)),
+  };
 }

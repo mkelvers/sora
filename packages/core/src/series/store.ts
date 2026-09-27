@@ -3,7 +3,7 @@ import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
-import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
+import { continueWatchingDismissal, series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
 import { scheduleEpisodeLookup, scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
 import { anilistEpisodeKey } from "./episodes";
 import { assignSeasonIds } from "./identity";
@@ -186,7 +186,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
  * Moves watchlist entries of merged-away series to the series that absorbed
  * them. A user who already lists the absorbing series keeps that entry; a
  * user who listed several merged-away series keeps the most recently
- * changed one.
+ * changed one. Dismissals from "continue watching" move the same way.
  */
 async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[], toSeriesId: string) {
   const from = sql.join(
@@ -215,6 +215,28 @@ async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[]
       seriesId: toSeriesId,
     })
     .where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
+
+  await tx.execute(sql`
+    delete from continue_watching_dismissal as moving
+    where moving.series_id in (${from})
+      and exists (
+        select 1 from continue_watching_dismissal as other
+        where other.user_id = moving.user_id
+          and (
+            other.series_id = ${toSeriesId}
+            or (
+              other.series_id in (${from})
+              and (other.dismissed_at, other.series_id) > (moving.dismissed_at, moving.series_id)
+            )
+          )
+      )
+  `);
+  await tx
+    .update(continueWatchingDismissal)
+    .set({
+      seriesId: toSeriesId,
+    })
+    .where(inArray(continueWatchingDismissal.seriesId, [...fromSeriesIds]));
 }
 
 /**

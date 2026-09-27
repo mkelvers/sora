@@ -1,14 +1,13 @@
 import { popularityWeight } from "../../catalog/queries/search";
-import type { WatchlistStatus } from "../watchlist/watchlist";
+import type { WatchStatus } from "../progress/resume";
 
 /**
- * How a title's place on the watchlist counts toward taste. A dropped title
- * counts against what it is like.
+ * How far a profile got through a title counts toward taste. A dropped
+ * title counts against what it is like.
  */
-const statusWeights: Record<WatchlistStatus, number> = {
+const statusWeights: Record<WatchStatus, number> = {
   completed: 2,
   watching: 1.5,
-  paused: 1,
   planning: 0.5,
   dropped: -1.5,
 };
@@ -24,7 +23,7 @@ const votesShare = 0.65;
 
 /** What a profile did with a title, as taste sees it. */
 export interface TitleActivity {
-  status: WatchlistStatus | null;
+  status: WatchStatus | null;
   /** Episodes of the title played at all. */
   episodesPlayed: number;
   /** When the profile last played or listed the title. */

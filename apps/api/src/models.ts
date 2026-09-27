@@ -5,9 +5,16 @@
 import type { z } from "@hono/zod-openapi";
 
 import type { CountMetaSchema, PageMetaSchema, PreparingTitleSchema } from "./openapi/envelope";
-import type { getSchedule, getSeason, getSeries, getSeriesProgress, listSeasonEpisodes } from "./openapi/routes";
+import type { getHistory, getSchedule, getSeason, getSeries, getSeriesProgress, getWatchlist, listSeasonEpisodes } from "./openapi/routes";
 import type {
   ContinueWatchingItemSchema,
+  CurrentSeasonSchema,
+  HistoryItemSchema,
+  ImportSummarySchema,
+  LibraryTitleSchema,
+  NamedSeasonSchema,
+  WatchlistItemSchema,
+  WatchStatusSchema,
   EpisodeProgressSchema,
   SeasonCompletionSchema,
   PlaybackMediaSchema,
@@ -37,6 +44,13 @@ export type EpisodeProgress = z.infer<typeof EpisodeProgressSchema>;
 export type SeasonCompletion = z.infer<typeof SeasonCompletionSchema>;
 export type TitleProgress = z.infer<typeof TitleProgressSchema>;
 export type ContinueWatchingItem = z.infer<typeof ContinueWatchingItemSchema>;
+export type WatchStatus = z.infer<typeof WatchStatusSchema>;
+export type NamedSeason = z.infer<typeof NamedSeasonSchema>;
+export type CurrentSeason = z.infer<typeof CurrentSeasonSchema>;
+export type WatchlistItem = z.infer<typeof WatchlistItemSchema>;
+export type LibraryTitle = z.infer<typeof LibraryTitleSchema>;
+export type HistoryItem = z.infer<typeof HistoryItemSchema>;
+export type ImportSummary = z.infer<typeof ImportSummarySchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
@@ -71,6 +85,8 @@ export type SeasonMeta = SuccessBody<typeof getSeason>["meta"];
 export type SeasonEpisodesMeta = SuccessBody<typeof listSeasonEpisodes>["meta"];
 export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
 export type TitleProgressMeta = SuccessBody<typeof getSeriesProgress>["meta"];
+export type WatchlistMeta = SuccessBody<typeof getWatchlist>["meta"];
+export type HistoryMeta = SuccessBody<typeof getHistory>["meta"];
 
 /** The body of every successful JSON response. */
 export interface Envelope<TResults, TMeta> {

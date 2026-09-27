@@ -28,6 +28,21 @@ export type MediaFormat =
   /** Anime which are under 15 minutes in length and broadcast on television */
   | 'TV_SHORT';
 
+/** Media list watching/reading status enum. */
+export type MediaListStatus =
+  /** Finished watching/reading */
+  | 'COMPLETED'
+  /** Currently watching/reading */
+  | 'CURRENT'
+  /** Stopped watching/reading before completing */
+  | 'DROPPED'
+  /** Paused watching/reading */
+  | 'PAUSED'
+  /** Planning to watch/read */
+  | 'PLANNING'
+  /** Re-watching/reading */
+  | 'REPEATING';
+
 /** Type of relation media has to its parent. */
 export type MediaRelation =
   /** An adaption of this media into a different format */
@@ -1809,6 +1824,28 @@ export type SearchIndexPageQuery = {
   } | null;
 };
 
+export type UserAnimeListQueryVariables = Exact<{
+  userName: string;
+}>;
+
+
+export type UserAnimeListQuery = {
+  MediaListCollection: {
+    lists: Array<{
+      entries: Array<{
+        mediaId: number;
+        status: MediaListStatus | null;
+        progress: number | null;
+        updatedAt: number | null;
+        media: {
+          episodes: number | null;
+          duration: number | null;
+        } | null;
+      } | null> | null;
+    } | null> | null;
+  } | null;
+};
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -2509,3 +2546,21 @@ export const SearchIndexPageDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SearchIndexPageQuery, SearchIndexPageQueryVariables>;
+export const UserAnimeListDocument = new TypedDocumentString(`
+    query UserAnimeList($userName: String!) {
+  MediaListCollection(userName: $userName, type: ANIME) {
+    lists {
+      entries {
+        mediaId
+        status
+        progress
+        updatedAt
+        media {
+          episodes
+          duration
+        }
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<UserAnimeListQuery, UserAnimeListQueryVariables>;

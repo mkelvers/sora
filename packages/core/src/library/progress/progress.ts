@@ -1,13 +1,13 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
-import { playbackProgress, seasonCompletion, series, seriesEntry, seriesEpisode, seriesSeason } from "../../database/schema";
-import { InvalidInputError } from "../../errors";
-import { getSeasonFinale, locateEpisode, type LocatedEpisode } from "../../series/episodes";
+import { continueWatchingDismissal, playbackProgress, seriesEntry, seriesEpisode, watchlistEntry } from "../../database/schema";
+import { InvalidInputError, SeasonNotFoundError } from "../../errors";
+import { locateEpisode } from "../../series/episodes";
 import { assertSeriesExists } from "../../series/queries";
-import { getWatchlistEntry, writeWatchlistStatus, type WatchlistStatus } from "../watchlist/watchlist";
-import type { EpisodeProgress, SeasonCompletion, TitleProgress } from "./resume";
+import { completedSeasons, type TitleProgress } from "./resume";
+import { loadCheckpoints, loadTitles } from "./titles";
 
 /**
  * Share of an episode that must be watched for it to count as completed when
@@ -17,6 +17,9 @@ const completionRatio = 0.9;
 
 /** Clients may report events slightly in the future because of clock skew. */
 const allowedClockSkewMs = 5 * 60_000;
+
+/** Length assumed for an episode marked watched without playing it, when its runtime is unknown. */
+const defaultEpisodeSeconds = 24 * 60;
 
 /** A playback checkpoint reported by a client. */
 export const ProgressUpdateSchema = z
@@ -47,18 +50,15 @@ export const ProgressUpdateSchema = z
 export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
 
 /**
- * Records a playback checkpoint and keeps the watchlist in step with it.
+ * Records a playback checkpoint.
  *
  * Checkpoints are stored against the AniList episode that plays the season
- * episode, so progress survives the title being laid out again.
+ * episode, so progress survives the title being laid out again. They are
+ * the user's history: how far they are through a title, and whether they
+ * finished a season, are read from them.
  *
- * Completing a season's finale records the season as completed and clears
- * its episode checkpoints; see {@link getSeasonFinale}. A checkpoint from
- * before a season was completed changes nothing, like any other stale event.
- *
- * Watching a title moves it to `watching` unless it is already `completed`
- * (a rewatch). Completing the finale of a finished title moves it to
- * `completed`; see {@link isFinale}.
+ * Playing a title puts it on the watchlist, undrops it, and brings it back
+ * to "continue watching" if it was dismissed from there.
  *
  * @throws {@link InvalidInputError} when the update fails validation.
  * @throws {@link SeasonNotFoundError} when the season does not exist.
@@ -81,126 +81,133 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
   }
 
   const located = await locateEpisode(input.seasonId, input.episode);
-  const finale = await getSeasonFinale(located.seasonId);
-  if (finale && (await isCompletedSince(userId, finale, eventAt))) {
-    return;
-  }
-
-  const completed = input.completed ?? input.positionSeconds >= input.durationSeconds * completionRatio;
-  const values = {
-    positionSeconds: input.positionSeconds,
-    durationSeconds: input.durationSeconds,
-    completed,
-    eventAt,
-    updatedAt: new Date(now),
-  };
-
-  const [written] = await db
-    .insert(playbackProgress)
-    .values({
-      userId,
+  const written = await writeCheckpoints(userId, [
+    {
       anilistId: located.anilistId,
       episode: located.anilistEpisode,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: [
-        playbackProgress.userId,
-        playbackProgress.anilistId,
-        playbackProgress.episode
-      ],
-      set: values,
-      setWhere: sql`${playbackProgress.eventAt} < excluded.event_at`,
-    })
-    .returning({
-      episode: playbackProgress.episode,
-    });
+      positionSeconds: input.positionSeconds,
+      durationSeconds: input.durationSeconds,
+      completed: input.completed ?? input.positionSeconds >= input.durationSeconds * completionRatio,
+      eventAt,
+    }
+  ]);
 
   // A stale event changed nothing, so it must not change the watchlist either.
-  if (!written) {
+  if (written > 0) {
+    await markPlayed(userId, located.seriesId, eventAt);
+  }
+}
+
+/**
+ * Marks every released episode of a season, or of every season of a title
+ * in watch order, watched or unwatched at once.
+ *
+ * Marking watched gives each episode a completed checkpoint; marking
+ * unwatched forgets their checkpoints.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link SeasonNotFoundError} when the title has no such season.
+ */
+export async function markWatched(
+  userId: string,
+  target: {
+    seriesId: string;
+    /** Only this season; every season in watch order when omitted. */
+    seasonId?: string;
+  },
+  watched: boolean
+) {
+  await assertSeriesExists(target.seriesId);
+  const titles = await loadTitles([target.seriesId]);
+  const listed = titles.episodes(target.seriesId);
+  if (target.seasonId !== undefined && !listed.some((episode) => episode.seasonId === target.seasonId)) {
+    throw new SeasonNotFoundError(target.seasonId);
+  }
+
+  const marked = listed.filter(
+    (episode) =>
+      !episode.isExtra && episode.isReleased && (target.seasonId === undefined ? episode.inWatchOrder : episode.seasonId === target.seasonId)
+  );
+  if (marked.length === 0) {
     return;
   }
 
-  if (completed && finale?.number === located.number) {
-    await completeSeason(userId, finale, eventAt);
+  const rows = await db
+    .select({
+      seasonId: seriesEpisode.seasonId,
+      number: seriesEpisode.number,
+      anilistId: seriesEpisode.anilistId,
+      anilistEpisode: seriesEpisode.anilistEpisode,
+      runtimeMinutes: seriesEpisode.runtimeMinutes,
+    })
+    .from(seriesEpisode)
+    .where(inArray(seriesEpisode.seasonId, [...new Set(marked.map((episode) => episode.seasonId))]));
+  const order = new Map(marked.map((episode, index) => [`${episode.seasonId}:${episode.number}`, index]));
+  const episodes = rows
+    .filter((row) => row.anilistId !== null && order.has(`${row.seasonId}:${row.number}`))
+    .sort((left, right) => order.get(`${left.seasonId}:${left.number}`)! - order.get(`${right.seasonId}:${right.number}`)!);
+
+  if (!watched) {
+    await db.delete(playbackProgress).where(
+      and(
+        eq(playbackProgress.userId, userId),
+        or(...episodes.map((row) => and(eq(playbackProgress.anilistId, row.anilistId!), eq(playbackProgress.episode, row.anilistEpisode!))))
+      )
+    );
+    return;
   }
 
-  const current = (await getWatchlistEntry(userId, located.seriesId))?.status ?? null;
-  const next: WatchlistStatus | null =
-    completed && (await isFinale(located)) ? "completed" : current === "completed" || current === "watching" ? null : "watching";
-
-  if (next && next !== current) {
-    await writeWatchlistStatus(userId, located.seriesId, next);
-  }
+  // Episodes a user marks at once are recorded in watch order, a millisecond apart.
+  const now = Date.now();
+  await writeCheckpoints(
+    userId,
+    episodes.map((row, index) => {
+      const seconds = (row.runtimeMinutes ?? 0) * 60 || defaultEpisodeSeconds;
+      return {
+        anilistId: row.anilistId!,
+        episode: row.anilistEpisode!,
+        positionSeconds: seconds,
+        durationSeconds: seconds,
+        completed: true,
+        eventAt: new Date(now - episodes.length + index + 1),
+      };
+    })
+  );
+  await markPlayed(userId, target.seriesId, new Date(now));
 }
 
 /**
  * Lists a title's saved progress: the seasons watched to the end, and the
  * checkpoints of every episode, both in title order.
  *
- * Checkpoints for episodes the title no longer lists are left out, as are
- * completions of seasons that have gained episodes since.
+ * Checkpoints for episodes the title no longer lists are left out, and a
+ * season that gained episodes since it was finished is no longer complete.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 export async function getProgress(userId: string, seriesId: string): Promise<TitleProgress> {
   await assertSeriesExists(seriesId);
-  const [rows, completions, finales] = await Promise.all([
-    db
-      .select({
-        progress: playbackProgress,
-        seasonId: seriesEpisode.seasonId,
-        number: seriesEpisode.number,
-      })
-      .from(playbackProgress)
-      .innerJoin(
-        seriesEpisode,
-        and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
-      )
-      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(playbackProgress.userId, userId), eq(seriesSeason.seriesId, seriesId)))
-      .orderBy(asc(seriesSeason.position), asc(seriesEpisode.number)),
-    db
-      .select({
-        seasonId: seriesEpisode.seasonId,
-        number: seriesEpisode.number,
-        completedAt: seasonCompletion.completedAt,
-      })
-      .from(seasonCompletion)
-      .innerJoin(
-        seriesEpisode,
-        and(eq(seriesEpisode.anilistId, seasonCompletion.anilistId), eq(seriesEpisode.anilistEpisode, seasonCompletion.episode))
-      )
-      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(seasonCompletion.userId, userId), eq(seriesSeason.seriesId, seriesId)))
-      .orderBy(asc(seriesSeason.position)),
-    db
-      .select({
-        seasonId: seriesEpisode.seasonId,
-        number: sql<number>`max(${seriesEpisode.number})`,
-      })
-      .from(seriesEpisode)
-      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(seriesSeason.seriesId, seriesId), isNotNull(seriesEpisode.anilistId)))
-      .groupBy(seriesEpisode.seasonId)
+  const [titles, checkpoints] = await Promise.all([
+    loadTitles([seriesId]),
+    loadCheckpoints(userId, [seriesId])
   ]);
+  const episodes = titles.episodes(seriesId);
+  const progress = checkpoints.get(seriesId) ?? [];
+  const order = new Map(episodes.map((episode, index) => [`${episode.seasonId}:${episode.number}`, index]));
 
-  const lastBySeason = new Map(finales.map((row) => [row.seasonId, row.number]));
   return {
-    completedSeasons: completions
-      .filter((row) => lastBySeason.get(row.seasonId) === row.number)
-      .map(
-        (row): SeasonCompletion => ({
-          seasonId: row.seasonId,
-          completedAt: row.completedAt.toISOString(),
-        })
+    completedSeasons: completedSeasons(episodes, progress),
+    episodes: progress
+      .filter((checkpoint) => order.has(`${checkpoint.seasonId}:${checkpoint.episode}`))
+      .sort(
+        (left, right) => order.get(`${left.seasonId}:${left.episode}`)! - order.get(`${right.seasonId}:${right.episode}`)!
       ),
-    episodes: rows.map((row) => toEpisodeProgress(row.progress, row.seasonId, row.number)),
   };
 }
 
 /**
- * Forgets all progress for a title, for example to restart it.
+ * Forgets all progress for a title, for example to start it over. It stays
+ * on the watchlist, as not started.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
@@ -213,113 +220,124 @@ export async function clearProgress(userId: string, seriesId: string) {
     .from(seriesEntry)
     .where(eq(seriesEntry.seriesId, seriesId));
 
-  await db.transaction(async (tx) => {
-    await tx.delete(playbackProgress).where(and(eq(playbackProgress.userId, userId), inArray(playbackProgress.anilistId, entries)));
-    await tx.delete(seasonCompletion).where(and(eq(seasonCompletion.userId, userId), inArray(seasonCompletion.anilistId, entries)));
-  });
-}
-
-/** Builds a season checkpoint from a stored row and where its episode sits. */
-export function toEpisodeProgress(row: typeof playbackProgress.$inferSelect, seasonId: string, episode: number): EpisodeProgress {
-  return {
-    seasonId,
-    episode,
-    positionSeconds: row.positionSeconds,
-    durationSeconds: row.durationSeconds,
-    completed: row.completed,
-    eventAt: row.eventAt.toISOString(),
-  };
-}
-
-/** Whether the season that `finale` ends was completed at or after `eventAt`. */
-async function isCompletedSince(userId: string, finale: LocatedEpisode, eventAt: Date) {
-  const [row] = await db
-    .select({
-      completedAt: seasonCompletion.completedAt,
-    })
-    .from(seasonCompletion)
-    .where(
-      and(
-        eq(seasonCompletion.userId, userId),
-        eq(seasonCompletion.anilistId, finale.anilistId),
-        eq(seasonCompletion.episode, finale.anilistEpisode),
-        gte(seasonCompletion.completedAt, eventAt)
-      )
-    )
-    .limit(1);
-
-  return row !== undefined;
+  await db.delete(playbackProgress).where(and(eq(playbackProgress.userId, userId), inArray(playbackProgress.anilistId, entries)));
 }
 
 /**
- * Records the season that `finale` ends as completed at `completedAt`, and
- * clears the checkpoints of its episodes, so watching it again starts fresh.
+ * Forgets one episode's checkpoint, taking it out of the user's history.
+ *
+ * @returns Whether there was one.
+ * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @throws {@link EpisodeNotFoundError} when the season has no such
+ *   playable episode.
  */
-async function completeSeason(userId: string, finale: LocatedEpisode, completedAt: Date) {
+export async function forgetEpisode(userId: string, seasonId: string, episode: number): Promise<boolean> {
+  const located = await locateEpisode(seasonId, episode);
+  const removed = await db
+    .delete(playbackProgress)
+    .where(
+      and(
+        eq(playbackProgress.userId, userId),
+        eq(playbackProgress.anilistId, located.anilistId),
+        eq(playbackProgress.episode, located.anilistEpisode)
+      )
+    )
+    .returning({
+      episode: playbackProgress.episode,
+    });
+
+  return removed.length > 0;
+}
+
+/** One checkpoint to write; see {@link writeCheckpoints}. */
+export interface CheckpointInput {
+  anilistId: number;
+  episode: number;
+  positionSeconds: number;
+  durationSeconds: number;
+  completed: boolean;
+  eventAt: Date;
+}
+
+/** Checkpoint rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
+const checkpointBatch = 1_000;
+
+/**
+ * Upserts checkpoints. A checkpoint only replaces a saved one with an older
+ * event, so an old event from an offline device changes nothing.
+ *
+ * @returns How many were written.
+ */
+export async function writeCheckpoints(userId: string, checkpoints: readonly CheckpointInput[]): Promise<number> {
+  const updatedAt = new Date();
+  let written = 0;
+  for (let start = 0; start < checkpoints.length; start += checkpointBatch) {
+    const rows = await db
+      .insert(playbackProgress)
+      .values(
+        checkpoints.slice(start, start + checkpointBatch).map((checkpoint) => ({
+          userId,
+          ...checkpoint,
+          updatedAt,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [
+          playbackProgress.userId,
+          playbackProgress.anilistId,
+          playbackProgress.episode
+        ],
+        set: {
+          positionSeconds: sql`excluded.position_seconds`,
+          durationSeconds: sql`excluded.duration_seconds`,
+          completed: sql`excluded.completed`,
+          eventAt: sql`excluded.event_at`,
+          updatedAt,
+        },
+        setWhere: sql`${playbackProgress.eventAt} < excluded.event_at`,
+      })
+      .returning({
+        episode: playbackProgress.episode,
+      });
+    written += rows.length;
+  }
+
+  return written;
+}
+
+/**
+ * Puts a title the user played at `playedAt` on their watchlist, undrops it
+ * if they dropped it before then, and lifts an earlier dismissal from
+ * "continue watching".
+ */
+async function markPlayed(userId: string, seriesId: string, playedAt: Date) {
   await db.transaction(async (tx) => {
     await tx
-      .insert(seasonCompletion)
+      .insert(watchlistEntry)
       .values({
         userId,
-        anilistId: finale.anilistId,
-        episode: finale.anilistEpisode,
-        completedAt,
+        seriesId,
       })
       .onConflictDoUpdate({
         target: [
-          seasonCompletion.userId,
-          seasonCompletion.anilistId,
-          seasonCompletion.episode
+          watchlistEntry.userId,
+          watchlistEntry.seriesId
         ],
         set: {
-          completedAt,
+          droppedAt: null,
+          updatedAt: new Date(),
         },
-        setWhere: sql`${seasonCompletion.completedAt} < excluded.completed_at`,
+        setWhere: and(isNotNull(watchlistEntry.droppedAt), lt(watchlistEntry.droppedAt, playedAt)),
       });
 
-    await tx.delete(playbackProgress).where(
-      and(
-        eq(playbackProgress.userId, userId),
-        sql`(${playbackProgress.anilistId}, ${playbackProgress.episode}) in (${tx
-          .select({
-            anilistId: seriesEpisode.anilistId,
-            episode: seriesEpisode.anilistEpisode,
-          })
-          .from(seriesEpisode)
-          .where(and(eq(seriesEpisode.seasonId, finale.seasonId), isNotNull(seriesEpisode.anilistId)))})`
-      )
-    );
+    await tx
+      .delete(continueWatchingDismissal)
+      .where(
+        and(
+          eq(continueWatchingDismissal.userId, userId),
+          eq(continueWatchingDismissal.seriesId, seriesId),
+          lt(continueWatchingDismissal.dismissedAt, playedAt)
+        )
+      );
   });
-}
-
-/**
- * Whether an episode ends a finished title: the last playable episode of its
- * last regular season (or film), or of its last season when it has only
- * OVAs. OVAs after the regular seasons do not have to be watched.
- */
-async function isFinale(located: LocatedEpisode) {
-  const [stored] = await db
-    .select({
-      status: series.status,
-    })
-    .from(series)
-    .where(eq(series.id, located.seriesId))
-    .limit(1);
-  if (stored?.status !== "FINISHED") {
-    return false;
-  }
-
-  const playable = await db
-    .select({
-      seasonId: seriesEpisode.seasonId,
-      number: seriesEpisode.number,
-      inWatchOrder: seriesSeason.inWatchOrder,
-    })
-    .from(seriesEpisode)
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(and(eq(seriesSeason.seriesId, located.seriesId), isNotNull(seriesEpisode.anilistId)))
-    .orderBy(desc(seriesSeason.position), desc(seriesEpisode.number));
-
-  const finale = playable.find((episode) => episode.inWatchOrder) ?? playable[0];
-  return finale?.seasonId === located.seasonId && finale.number === located.number;
 }

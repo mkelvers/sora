@@ -1,7 +1,7 @@
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { anime, series, seriesEpisode, seriesSeason } from "../database/schema";
+import { seriesEpisode, seriesSeason } from "../database/schema";
 import { EpisodeNotFoundError, SeasonNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
@@ -277,66 +277,4 @@ export function isEpisodeShown(
 
   const hasDetails = episode.tmdbEpisodeNumber !== null || season.kind === "movie" || title.kind !== "tv";
   return hasDetails && isEpisodeAvailable(title, episode, onAniKoto, now);
-}
-
-/**
- * Finds the episode that ends a season: its last listed episode (see
- * {@link isEpisodeShown}) other than an extra, once the season has finished
- * airing.
- *
- * A season has finished when the AniList entry of that episode is finished
- * or cancelled. When that entry is not stored, the title's status and
- * announced next episode decide instead.
- *
- * @returns The finale, or `null` while the season is still airing or lists
- *   no playable episodes.
- */
-export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode | null> {
-  const rows = await db
-    .select({
-      seriesId: seriesSeason.seriesId,
-      seasonKind: seriesSeason.kind,
-      number: seriesEpisode.number,
-      anilistId: seriesEpisode.anilistId,
-      anilistEpisode: seriesEpisode.anilistEpisode,
-      airDate: seriesEpisode.airDate,
-      airedAt: seriesEpisode.airedAt,
-      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
-      entryStatus: anime.status,
-      title: series,
-    })
-    .from(seriesEpisode)
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .innerJoin(series, eq(series.id, seriesSeason.seriesId))
-    .leftJoin(anime, eq(anime.anilistId, seriesEpisode.anilistId))
-    .where(and(eq(seriesEpisode.seasonId, seasonId), isNotNull(seriesEpisode.anilistId)))
-    .orderBy(desc(seriesEpisode.number));
-
-  const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
-  const row = rows.find((candidate) =>
-    isEpisodeShown(candidate.title, {
-      kind: candidate.seasonKind,
-    }, {
-      ...candidate,
-      seasonId,
-    }, onAniKoto)
-  );
-  if (!row || row.anilistId === null || row.anilistEpisode === null) {
-    return null;
-  }
-
-  const hasFinished = row.entryStatus
-    ? row.entryStatus === "FINISHED" || row.entryStatus === "CANCELLED"
-    : row.title.status === "FINISHED" || row.title.nextEpisodeSeasonId !== seasonId;
-  if (!hasFinished) {
-    return null;
-  }
-
-  return {
-    seriesId: row.seriesId,
-    seasonId,
-    number: row.number,
-    anilistId: row.anilistId,
-    anilistEpisode: row.anilistEpisode,
-  };
 }

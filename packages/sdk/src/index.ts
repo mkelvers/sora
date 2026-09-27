@@ -10,7 +10,9 @@ export {
   type BrowseParams,
   type ContinueWatchingParams,
   type EpisodeRef,
+  type HistoryParams,
   type ImagesParams,
+  type MarkWatched,
   type ProfileInput,
   type ProgressUpdate,
   type RequestOptions,
@@ -21,11 +23,18 @@ export {
   type SeriesParams,
   type Session,
   type SignIn,
-  type SoraClientOptions
+  type SoraClientOptions,
+  type WatchlistParams
 } from "./sora";
 export type {
   ContinueWatchingItem,
   CountMeta,
+  CurrentSeason,
+  HistoryItem,
+  HistoryMeta,
+  ImportSummary,
+  LibraryTitle,
+  NamedSeason,
   EpisodeProgress,
   Envelope,
   PageMeta,
@@ -48,5 +57,8 @@ export type {
   SeriesWithEpisodes,
   SkipSegment,
   TitleProgress,
-  TitleProgressMeta
+  TitleProgressMeta,
+  WatchlistItem,
+  WatchlistMeta,
+  WatchStatus
 } from "@sora/api";

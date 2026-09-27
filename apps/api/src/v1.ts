@@ -1,7 +1,23 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth, createProfile, deleteProfile, getProfile, getSession, listProfiles, updateProfile } from "@sora/core/auth";
 import { getGenres } from "@sora/core/catalog";
-import { getContinueWatching, getProgress, getRecommendations, recordProgress } from "@sora/core/library";
+import {
+  addToWatchlist,
+  clearProgress,
+  dismissFromContinueWatching,
+  forgetEpisode,
+  getContinueWatching,
+  getHistory,
+  getLibraryTitle,
+  getProgress,
+  getRecommendations,
+  getWatchlist,
+  importAniListList,
+  markWatched,
+  recordProgress,
+  removeFromWatchlist,
+  setDropped
+} from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
   browseSeries,
@@ -458,6 +474,148 @@ export const v1Routes = v1
       eventAt: update.event_at,
     });
     return c.body(null, 204);
+  })
+
+  .openapi(route.dismissContinueWatching, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await dismissFromContinueWatching(profile.id, series_id);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.markWatched, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    const body = c.req.valid("json");
+    await markWatched(profile.id, {
+      seriesId: series_id,
+      seasonId: body.season_id,
+    }, body.watched);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.clearProgress, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await clearProgress(profile.id, series_id);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.getWatchlist, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const watchlist = await getWatchlist(profile.id, {
+      status: c.req.valid("query").status,
+    });
+    return c.json(
+      {
+        meta: {
+          count: watchlist.items.length,
+          counts: watchlist.counts,
+          preparing: watchlist.preparing,
+        },
+        results: snakeCased(watchlist.items),
+      },
+      200
+    );
+  })
+
+  .openapi(route.getWatchlistEntry, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    const title = await getLibraryTitle(profile.id, series_id);
+    return c.json(
+      {
+        meta: {},
+        results: snakeCased(title),
+      },
+      200
+    );
+  })
+
+  .openapi(route.addToWatchlist, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await addToWatchlist(profile.id, series_id);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.updateWatchlistEntry, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await setDropped(profile.id, series_id, c.req.valid("json").dropped);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.removeFromWatchlist, async (c) => {
+    const {
+      profile_id,
+      series_id,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await removeFromWatchlist(profile.id, series_id);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.getHistory, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const query = c.req.valid("query");
+    const page = await getHistory(profile.id, {
+      after: query.after,
+      limit: query.limit,
+    });
+    const next = new URL(c.req.url);
+    next.searchParams.set("after", page.next ?? "");
+    return c.json(
+      {
+        meta: {
+          count: page.items.length,
+          next: page.next === null ? null : `${next.pathname}${next.search}`,
+        },
+        results: snakeCased(page.items),
+      },
+      200
+    );
+  })
+
+  .openapi(route.forgetEpisode, async (c) => {
+    const {
+      profile_id,
+      season_id,
+      episode,
+    } = c.req.valid("param");
+    const profile = await getProfile(c.get("accountId"), profile_id);
+    await forgetEpisode(profile.id, season_id, episode);
+    return c.body(null, 204);
+  })
+
+  .openapi(route.importAniList, async (c) => {
+    const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+    const summary = await importAniListList(profile.id, c.req.valid("json").user_name);
+    return c.json(
+      {
+        meta: {},
+        results: snakeCased(summary),
+      },
+      200
+    );
   });
 
 v1.doc31("/openapi.json", {
