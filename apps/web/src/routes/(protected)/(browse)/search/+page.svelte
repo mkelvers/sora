@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Poster from "$lib/components/ui/Poster.svelte";
+	import Poster from "$lib/components/Poster.svelte";
 	import Results from "./_components/Results.svelte";
 
 	const q = $derived(page.url.searchParams.get("q")?.trim() ?? "");

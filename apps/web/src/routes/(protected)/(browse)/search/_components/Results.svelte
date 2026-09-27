@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
-	import Poster from "$lib/components/ui/Poster.svelte";
+	import Poster from "$lib/components/Poster.svelte";
 	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
 	import { searchSeries } from "../search.remote";
 
