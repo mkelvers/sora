@@ -1,8 +1,8 @@
 <script lang="ts" module>
 	import { Avatar, Style } from "@dicebear/core";
-	import critters from "@dicebear/styles/critters.json";
+	import avatar from "@dicebear/styles/sprouts.json";
 
-	const style = new Style(critters);
+	const style = new Style(avatar);
 </script>
 
 <script lang="ts">
