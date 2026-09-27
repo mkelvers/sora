@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
+	import { CheckIcon, HeartIcon } from "phosphor-svelte";
+	import { cn } from "$lib/utils";
 	import type { Series } from "@sora/sdk";
 	import { getImages } from "../artwork.remote";
 	import type { Artwork } from "../artwork.svelte";
@@ -32,169 +33,56 @@
 	};
 </script>
 
-<div class="grid {artwork.type}">
+<div
+	class={cn(
+		"grid gap-x-5 gap-y-8",
+		artwork.type === "poster" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+	)}
+>
 	{#each shown as image (image.url)}
 		{@const chosen = current === image.url.split("/").at(-1)}
-		{@const thumbnail = image.url.replace(
-			"/original/",
-			`/${thumbnailSizes[artwork.type]}/`,
-		)}
 		<Button
-			class={["card", { chosen }]}
+			class="group grid min-w-0 cursor-pointer justify-stretch gap-3 text-left"
 			aria-pressed={chosen}
 			onclick={() => artwork.choose(series.id, image.url)}
 		>
-			<span class="image">
-				<img src={thumbnail} alt="" loading="lazy" decoding="async" />
+			<span
+				class={cn(
+					"relative block overflow-hidden bg-surface outline-2 outline-offset-2 transition-[outline-color]",
+					artwork.type === "poster" ? "aspect-2/3" : "aspect-video",
+					chosen ? "outline-accent" : "outline-transparent group-hover:outline-border-strong",
+				)}
+			>
+				<img
+					src={image.url.replace("/original/", `/${thumbnailSizes[artwork.type]}/`)}
+					alt=""
+					loading="lazy"
+					decoding="async"
+					class="size-full object-cover"
+				/>
 				{#if chosen}
-					<span class="check" role="img" aria-label="Current">
-						<Icon name="check" size="sm" />
+					<span class="absolute top-2 right-2 grid size-7 place-items-center bg-accent text-on-accent" role="img" aria-label="Current">
+						<CheckIcon size="1rem" weight="bold" />
 					</span>
 				{/if}
 			</span>
-			<span class="text">
-				<span class="title">{image.language
-					? languages.of(image.language)
-					: "Textless"}</span>
-				<span class="meta">
+			<span class="grid gap-1">
+				<span class="text-sm font-semibold">{image.language ? languages.of(image.language) : "Textless"}</span>
+				<span class="flex flex-wrap items-center gap-x-3 text-xs text-muted">
 					<span>{image.width}×{image.height}</span>
 					{#if image.season_number !== null}
-						<span>{image.season_number === 0
-							? "Specials"
-							: `Season ${image.season_number}`}</span>
+						<span>{image.season_number === 0 ? "Specials" : `Season ${image.season_number}`}</span>
 					{/if}
-					<span class="votes">
-						<Icon name="heart" size="xs" />
+					<span class="inline-flex items-center gap-1">
+						<HeartIcon size="0.8rem" weight="fill" />
 						{image.vote_average.toFixed(1)}
 					</span>
 				</span>
 			</span>
 		</Button>
 	{:else}
-		<p class="empty">
-			{#if hasType}
-				Nothing matches these artwork.
-			{:else}
-				TMDB has none for this title.
-			{/if}
+		<p class="col-span-full py-10 text-muted">
+			{hasType ? "Nothing matches these filters." : "TMDB has none for this title."}
 		</p>
 	{/each}
 </div>
-
-<style>
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-		gap: 28px 16px;
-	}
-
-	.grid.poster {
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	}
-
-	.grid :global(.card) {
-		display: grid;
-		justify-content: stretch;
-		align-content: start;
-		gap: 10px;
-		font-size: inherit;
-		white-space: normal;
-		text-align: center;
-	}
-
-	.image {
-		position: relative;
-		display: block;
-		aspect-ratio: 16 / 9;
-		background: #2a2a2a;
-		outline: 2px solid transparent;
-		outline-offset: 2px;
-		transition: outline-color 120ms;
-	}
-
-	.poster .image {
-		aspect-ratio: 2 / 3;
-	}
-
-	.logo .image {
-		background: repeating-conic-gradient(#1c1c1c 0% 25%, #242424 0% 50%) 0 0 /
-			20px 20px;
-	}
-
-	.image img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.logo .image img {
-		box-sizing: border-box;
-		padding: 16px;
-		object-fit: contain;
-	}
-
-	:global(.card:hover) .image {
-		outline-color: #555;
-	}
-
-	:global(.card.chosen) .image {
-		outline-color: #fff;
-	}
-
-	.check {
-		position: absolute;
-		top: 8px;
-		right: 8px;
-		display: grid;
-		place-items: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		background: #fff;
-		color: #101010;
-		box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
-	}
-
-	.text {
-		display: grid;
-		gap: 4px;
-	}
-
-	.title {
-		font-size: 15px;
-	}
-
-	.meta {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		align-items: center;
-		gap: 4px 8px;
-		color: #999;
-		font-size: 13px;
-	}
-
-	.meta > span + span::before {
-		content: "";
-		display: inline-block;
-		width: 4px;
-		height: 4px;
-		margin-right: 8px;
-		background: currentColor;
-		vertical-align: middle;
-		rotate: 45deg;
-	}
-
-	.votes {
-		display: inline-flex;
-		align-items: center;
-		gap: 3px;
-	}
-
-	.empty {
-		grid-column: 1 / -1;
-		margin: 0;
-		color: #999;
-	}
-</style>

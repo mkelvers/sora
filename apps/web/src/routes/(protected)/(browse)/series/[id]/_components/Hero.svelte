@@ -118,7 +118,7 @@
 					alt=""
 					class="absolute inset-x-0 top-0 z-0 h-dvh w-full"
 					imageClass="object-[45%_0%]"
-					displaySize="w1280"
+					displaySize="original"
 					loading="eager"
 					fetchpriority="high"
 				/>

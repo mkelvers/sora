@@ -1,8 +1,9 @@
 <script lang="ts">
 	import Filters from "./_components/Filters.svelte";
 	import Images from "./_components/Images.svelte";
+	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
+	import { cn } from "$lib/utils";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { Artwork } from "./artwork.svelte";
 	import { getSeries } from "../series.remote";
@@ -31,244 +32,87 @@
 	<title>Artwork · {series.title}</title>
 </svelte:head>
 
-<div class="page">
-	<header>
-		{#if series.backdrop_url}
-			<img class="backdrop" src={series.backdrop_url} alt={series.title} />
-		{/if}
-
-		<div class="bar">
+<main class="min-h-[calc(100dvh-3.5rem)] bg-canvas text-foreground">
+	<div class="mx-auto w-full max-w-384 px-5 py-9 sm:px-10 sm:py-11 lg:px-16 lg:py-14">
+		<div class="flex items-center gap-3">
 			<a
-				class="icon-button"
 				href="/series/{series.id}"
+				class="grid size-10 place-items-center text-muted transition-colors hover:text-foreground"
 				aria-label="Back to {series.title}"
 			>
-				<Icon name="back" />
+				<CaretLeftIcon size="1.5rem" weight="bold" />
 			</a>
-
-			<div class="heading">
-				<h1>Artwork</h1>
-				<span>{series.title}</span>
+			<div class="min-w-0 flex-1">
+				<h1 class="text-2xl font-semibold">Artwork</h1>
+				<p class="truncate text-sm text-muted">{series.title}</p>
 			</div>
-
 			<Button
-				class="icon-button"
-				aria-label="Use default"
+				class="min-h-10 gap-2 border-2 border-border-strong px-4 text-xs font-bold text-muted uppercase hover:border-foreground hover:text-foreground"
 				onclick={() => artwork.choose(series.id, null)}
 			>
-				<Icon name="restore" />
+				<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
+				Use default
 			</Button>
 		</div>
-	</header>
 
-	<div class="body">
-		<aside>
-			<section>
-				<h2>Type</h2>
-				<div class="types" role="radiogroup" aria-label="Type">
-					{#each types as option (option.value)}
-						<Button
-							variant="ghost"
+		<nav class="mt-8 border-b border-border" aria-label="Type">
+			<ul class="-mb-px flex gap-7" role="radiogroup">
+				{#each types as option (option.value)}
+					<li>
+						<button
+							type="button"
 							role="radio"
 							aria-checked={artwork.type === option.value}
+							class={cn(
+								"inline-flex h-12 cursor-pointer items-center border-b-2 text-sm font-medium transition-colors hover:text-foreground",
+								artwork.type === option.value ? "border-accent text-foreground" : "border-transparent text-muted",
+							)}
 							onclick={() => (artwork.type = option.value)}
 						>
 							{option.label}
-						</Button>
-					{/each}
-				</div>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</nav>
+
+		<div class="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
+			<aside class="grid content-start gap-6">
+				<svelte:boundary>
+					{#snippet pending()}{/snippet}
+
+					<Filters seriesId={series.id} {artwork} />
+				</svelte:boundary>
+			</aside>
+
+			<section>
+				{#if artwork.error}
+					<p class="mb-6 text-sm text-status-error" role="alert">{artwork.error}</p>
+				{/if}
+
+				<svelte:boundary>
+					{#snippet pending()}
+						<ul
+							class={cn(
+								"grid gap-x-5 gap-y-8",
+								artwork.type === "poster" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+							)}
+							aria-busy="true"
+							aria-label="Loading images"
+						>
+							{#each { length: 12 }, index (index)}
+								<li>
+									<Skeleton class={artwork.type === "poster" ? "aspect-2/3" : "aspect-video"} />
+									<Skeleton class="mt-3 h-3 w-1/2" />
+									<Skeleton class="mt-2 h-3 w-2/3" />
+								</li>
+							{/each}
+						</ul>
+					{/snippet}
+
+					<Images {series} {artwork} />
+				</svelte:boundary>
 			</section>
-
-			<svelte:boundary>
-				{#snippet pending()}{/snippet}
-
-				<Filters seriesId={series.id} {artwork} />
-			</svelte:boundary>
-		</aside>
-
-		<main>
-			{#if artwork.error}
-				<p class="error" role="alert">{artwork.error}</p>
-			{/if}
-
-			<svelte:boundary>
-				{#snippet pending()}
-					<ul
-						class="loading"
-						class:poster={artwork.type === "poster"}
-						aria-busy="true"
-						aria-label="Loading images"
-					>
-						{#each { length: 12 }, index (index)}
-							<li>
-								<Skeleton
-									width="100%"
-									ratio={artwork.type === "poster"
-										? "2 / 3"
-										: "16 / 9"}
-								/>
-								<Skeleton variant="text" width="50%" />
-								<Skeleton variant="text" width="70%" />
-							</li>
-						{/each}
-					</ul>
-				{/snippet}
-
-				<Images {series} {artwork} />
-			</svelte:boundary>
-		</main>
+		</div>
 	</div>
-</div>
-
-<style>
-	.page {
-		--side: clamp(16px, 3.3vw, 64px);
-		min-height: 100vh;
-	}
-
-	header {
-		position: relative;
-		height: 432px;
-		background: #1c1c1c;
-	}
-
-	.backdrop {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.bar {
-		position: absolute;
-		inset: auto 0 0;
-		display: flex;
-		align-items: center;
-		gap: 16px;
-		box-sizing: border-box;
-		min-height: 108px;
-		padding: 16px var(--side);
-		background: rgb(40 40 40 / 0.85);
-	}
-
-	.heading {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		min-width: 0;
-		margin-right: auto;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 28px;
-		font-weight: 400;
-	}
-
-	.heading span {
-		overflow: hidden;
-		color: #bbb;
-		font-size: 17px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.bar :global(.icon-button) {
-		display: inline-grid;
-		flex: none;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		color: #ddd;
-		transition:
-			background 120ms,
-			color 120ms;
-	}
-
-	.bar :global(.icon-button:hover) {
-		background: rgb(255 255 255 / 0.1);
-		color: #fff;
-	}
-
-	.body {
-		display: grid;
-		grid-template-columns: 220px minmax(0, 1fr);
-		gap: clamp(24px, 3vw, 56px);
-		align-items: start;
-		padding: 40px var(--side) 64px;
-	}
-
-	aside {
-		position: sticky;
-		top: 24px;
-		display: grid;
-		gap: 28px;
-	}
-
-	section {
-		display: grid;
-		gap: 10px;
-	}
-
-	h2 {
-		margin: 0;
-		color: #999;
-		font-size: 12px;
-		font-weight: 400;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.types {
-		display: grid;
-		gap: 2px;
-	}
-
-	.types > :global(.button) {
-		justify-content: flex-start;
-		padding: 8px 12px;
-		color: #999;
-		font-size: 15px;
-		text-align: left;
-	}
-
-	.types > :global(.button:hover) {
-		color: #fff;
-	}
-
-	.types > :global([aria-checked="true"]) {
-		background: rgb(255 255 255 / 0.1);
-		color: #fff;
-	}
-
-	.loading {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-		gap: 28px 16px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.loading.poster {
-		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	}
-
-	.loading li {
-		display: grid;
-		justify-items: center;
-		gap: 10px;
-	}
-
-	.error {
-		margin: 0 0 16px;
-		color: #f28b82;
-		font-size: 14px;
-	}
-
-	a:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 2px;
-	}
-</style>
+</main>

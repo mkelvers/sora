@@ -56,7 +56,7 @@
 										alt=""
 										class="col-start-1 row-start-1"
 										imageClass="object-top"
-										displaySize="w1280"
+										displaySize="original"
 										previewLoading={index === current ? 'eager' : 'lazy'}
 										fetchpriority={index === current ? 'high' : 'low'}
 										onready={() => (ready.backdrops = new Set(ready.backdrops).add(slide.id))}
