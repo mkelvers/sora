@@ -172,6 +172,9 @@ export const SeriesCardSchema = z
     score: z.number().nullable().openapi({
       description: "AniList's weighted score of the first season, 0–100.",
     }),
+    genres: z.array(z.string()).openapi({
+      description: "AniList's genres of the first season.",
+    }),
     season_count: z.number().int().openapi({
       description: "How many regular seasons it has, OVAs and films left out. A film has none.",
     }),
@@ -218,7 +221,6 @@ export const SeriesSchema = SeriesCardSchema.extend({
     description: "First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it.",
     example: "2018-10-02",
   }),
-  genres: z.array(z.string()),
   tags: z.array(TagSchema),
   studios: z.array(z.string()),
   next_episode: z

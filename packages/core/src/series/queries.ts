@@ -521,7 +521,7 @@ async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
 function toSeriesCard(
   row: typeof series.$inferSelect,
   audio: ContentLanguage[]
-): Omit<SeriesCard, "overview" | "score" | "seasonCount" | "episodeCount" | "startSeasonId"> {
+): Omit<SeriesCard, "overview" | "score" | "genres" | "seasonCount" | "episodeCount" | "startSeasonId"> {
   return {
     id: row.id,
     kind: row.kind,
@@ -591,6 +591,7 @@ async function cardsFrom(
           ...toSeriesCard(row, order.filter((language) => audio.has(language))),
           overview: row.overview ?? anchor?.description ?? null,
           score: anchor?.score ?? null,
+          genres: anchor?.genres ?? [],
           seasonCount: seasons.length,
           episodeCount: seasons.reduce((total, season) => total + season.episodeCount, 0),
           startSeasonId: (all.find((season) => season.inWatchOrder) ?? all[0])?.id ?? null,

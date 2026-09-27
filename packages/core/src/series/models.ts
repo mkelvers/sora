@@ -40,6 +40,8 @@ export interface SeriesCard {
   overview: string | null;
   /** AniList's weighted score of the first season, 0–100. */
   score: number | null;
+  /** AniList's genres of the first season. */
+  genres: string[];
   /** How many regular seasons it has, OVAs and films left out. A film has none. */
   seasonCount: number;
   /** How many episodes its regular seasons list, as their season pages list them. */
