@@ -3,6 +3,10 @@ import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../database/client";
 import { anime, series, seriesEpisode, seriesSeason } from "../database/schema";
 import { EpisodeNotFoundError, SeasonNotFoundError } from "../errors";
+import { getStoredUnits } from "../playback/episodes/episodes";
+import { aniKoto } from "../playback/providers/registry";
+import type { SeasonKind } from "./seasons";
+import type { SeriesKind } from "./series";
 
 /**
  * A season episode together with the AniList episode that plays it.
@@ -163,7 +167,8 @@ export interface ReleaseSchedule {
 
 /**
  * Whether an episode has been released: it is not at or past the title's
- * announced next episode, and TMDB does not date it in the future.
+ * announced next episode, and has aired. When it aired is AniList's airing
+ * time when known, and otherwise TMDB's air date.
  */
 export function isEpisodeReleased(
   title: ReleaseSchedule,
@@ -172,6 +177,7 @@ export function isEpisodeReleased(
     number: number;
     /** `YYYY-MM-DD`. */
     airDate: string | null;
+    airedAt: Date | null;
   },
   now = new Date()
 ) {
@@ -181,29 +187,121 @@ export function isEpisodeReleased(
     episode.seasonId === title.nextEpisodeSeasonId &&
     title.nextEpisodeNumber !== null &&
     episode.number >= title.nextEpisodeNumber;
+  const hasAired = episode.airedAt
+    ? episode.airedAt <= now
+    : episode.airDate === null || episode.airDate <= now.toISOString().slice(0, 10);
 
-  return !isAtOrAfterNext && (episode.airDate === null || episode.airDate <= now.toISOString().slice(0, 10));
+  return !isAtOrAfterNext && hasAired;
+}
+
+/** The episodes AniKoto's stored lists carry; see {@link loadAniKotoEpisodes}. */
+export interface AniKotoEpisodes {
+  /** Keyed by {@link anilistEpisodeKey}. */
+  carried: ReadonlySet<string>;
+  /** The AniList entries AniKoto has been looked up for, whether it carries them or not. */
+  lookedUp: ReadonlySet<number>;
 }
 
 /**
- * Finds the episode that ends a season: its last playable episode, once the
- * season has finished airing and that episode is out.
+ * Reads which episodes of the given AniList entries AniKoto carries, from
+ * its stored episode lists, without asking AniKoto.
+ */
+export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promise<AniKotoEpisodes> {
+  const stored = (await getStoredUnits(anilistIds)).filter((entry) => entry.provider === aniKoto.id);
+  return {
+    carried: new Set(
+      stored.flatMap((entry) => entry.units.map((unit) => anilistEpisodeKey(entry.anilistId, unit.number)))
+    ),
+    lookedUp: new Set(stored.map((entry) => entry.anilistId))
+  };
+}
+
+/** What {@link isEpisodeAvailable} and {@link isEpisodeShown} need to know about an episode. */
+export interface EpisodeListingRow {
+  seasonId: string;
+  number: number;
+  anilistId: number | null;
+  anilistEpisode: number | null;
+  /** `YYYY-MM-DD`. */
+  airDate: string | null;
+  airedAt: Date | null;
+  tmdbEpisodeNumber: number | null;
+}
+
+/**
+ * Whether an episode can be watched: AniKoto, the source of truth for which
+ * episodes exist, carries it. An extra only TMDB lists never can.
  *
- * A season has finished when the AniList entry of its last episode is
- * finished or cancelled. When that entry is not stored, the title's status
- * and announced next episode decide instead.
+ * Until AniKoto has been looked up for the entry, the episode counts as
+ * available once {@link isEpisodeReleased} says it has been released.
+ */
+export function isEpisodeAvailable(
+  title: ReleaseSchedule,
+  episode: EpisodeListingRow,
+  onAniKoto: AniKotoEpisodes,
+  now = new Date()
+) {
+  if (episode.anilistId === null || episode.anilistEpisode === null) {
+    return false;
+  }
+
+  return onAniKoto.lookedUp.has(episode.anilistId)
+    ? onAniKoto.carried.has(anilistEpisodeKey(episode.anilistId, episode.anilistEpisode))
+    : isEpisodeReleased(title, episode, now);
+}
+
+/**
+ * Whether a season lists an episode: it is available (see
+ * {@link isEpisodeAvailable}) and has its details. An extra only TMDB lists
+ * is always listed.
  *
- * @returns The finale, or `null` while the season is still airing or has no
- *   playable episodes.
+ * An episode of a title TMDB lists has its details once TMDB lists the
+ * episode; until then the scheduler lays the title out again to look for
+ * them (see `refreshEpisodeDetails`). A film has the details of the film
+ * itself, and a title TMDB does not list has only what AniList knows.
+ */
+export function isEpisodeShown(
+  title: ReleaseSchedule & {
+    kind: SeriesKind;
+  },
+  season: {
+    kind: SeasonKind;
+  },
+  episode: EpisodeListingRow,
+  onAniKoto: AniKotoEpisodes,
+  now = new Date()
+) {
+  if (episode.anilistId === null) {
+    return true;
+  }
+
+  const hasDetails = episode.tmdbEpisodeNumber !== null || season.kind === "movie" || title.kind !== "tv";
+  return hasDetails && isEpisodeAvailable(title, episode, onAniKoto, now);
+}
+
+/**
+ * Finds the episode that ends a season: its last listed episode (see
+ * {@link isEpisodeShown}) other than an extra, once the season has finished
+ * airing.
+ *
+ * A season has finished when the AniList entry of that episode is finished
+ * or cancelled. When that entry is not stored, the title's status and
+ * announced next episode decide instead.
+ *
+ * @returns The finale, or `null` while the season is still airing or lists
+ *   no playable episodes.
  */
 export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode | null> {
-  const [row] = await db
+  const rows = await db
     .select({
       seriesId: seriesSeason.seriesId,
+      seasonKind: seriesSeason.kind,
       number: seriesEpisode.number,
       anilistId: seriesEpisode.anilistId,
       anilistEpisode: seriesEpisode.anilistEpisode,
       airDate: seriesEpisode.airDate,
+      airedAt: seriesEpisode.airedAt,
+      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
       entryStatus: anime.status,
       title: series
     })
@@ -212,9 +310,12 @@ export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode 
     .innerJoin(series, eq(series.id, seriesSeason.seriesId))
     .leftJoin(anime, eq(anime.anilistId, seriesEpisode.anilistId))
     .where(and(eq(seriesEpisode.seasonId, seasonId), isNotNull(seriesEpisode.anilistId)))
-    .orderBy(desc(seriesEpisode.number))
-    .limit(1);
+    .orderBy(desc(seriesEpisode.number));
 
+  const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
+  const row = rows.find((candidate) =>
+    isEpisodeShown(candidate.title, { kind: candidate.seasonKind }, { ...candidate, seasonId }, onAniKoto)
+  );
   if (!row || row.anilistId === null || row.anilistEpisode === null) {
     return null;
   }
@@ -222,7 +323,7 @@ export async function getSeasonFinale(seasonId: string): Promise<LocatedEpisode 
   const hasFinished = row.entryStatus
     ? row.entryStatus === "FINISHED" || row.entryStatus === "CANCELLED"
     : row.title.status === "FINISHED" || row.title.nextEpisodeSeasonId !== seasonId;
-  if (!hasFinished || !isEpisodeReleased(row.title, { seasonId, number: row.number, airDate: row.airDate })) {
+  if (!hasFinished) {
     return null;
   }
 
