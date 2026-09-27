@@ -8,6 +8,7 @@ import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
 import { day, hour } from "../../time";
 import { toAnime, toAnimeCard, type Anime, type AnimeCard } from "../models/anime";
+import { fetchLatestAiring } from "./schedule";
 
 /**
  * Loads the full details of one anime.
@@ -197,7 +198,45 @@ async function fetchAnimeDetails(anilistId: number) {
     throw new AnimeNotFoundError(anilistId);
   }
 
-  return media;
+  return settleStatus(media);
+}
+
+/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
+const japanOffsetMs = 9 * hour;
+
+/**
+ * Marks an anime finished once its final episode has aired.
+ *
+ * AniList's editors mark an anime finished by hand, often hours or a day
+ * after its finale airs. An anime AniList still calls airing, with nothing
+ * announced after an aired episode numbered at least its episode count, is
+ * finished already; its end date, when AniList has none yet, is the day in
+ * Japan that episode aired.
+ *
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ */
+async function settleStatus(media: AnimeDetailsFragment): Promise<AnimeDetailsFragment> {
+  if (media.status !== "RELEASING" || !media.episodes || media.nextAiringEpisode) {
+    return media;
+  }
+
+  const latest = await fetchLatestAiring(media.id);
+  if (!latest || latest.episode < media.episodes) {
+    return media;
+  }
+
+  const aired = new Date(Date.parse(latest.airingAt) + japanOffsetMs);
+  return {
+    ...media,
+    status: "FINISHED",
+    endDate: media.endDate?.year
+      ? media.endDate
+      : {
+          year: aired.getUTCFullYear(),
+          month: aired.getUTCMonth() + 1,
+          day: aired.getUTCDate()
+        }
+  };
 }
 
 function storedAnimeValues(media: AnimeDetailsFragment) {
