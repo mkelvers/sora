@@ -35,22 +35,35 @@
 		}
 
 		const days = Math.round(
-			(new Date(airing).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) /
+			(new Date(airing).setHours(0, 0, 0, 0) -
+				new Date(now).setHours(0, 0, 0, 0)) /
 				86_400_000,
 		);
 		const day =
 			days < 2
-				? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(days, "day")
+				? new Intl.RelativeTimeFormat("en", {
+						numeric: "auto",
+					}).format(days, "day")
 				: days < 7
 					? `on ${airing.toLocaleDateString("en-GB", {
-						weekday: "long" })}`
-					: `on ${airing.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
+							weekday: "long",
+						})}`
+					: `on ${airing.toLocaleDateString("en-GB", {
+							day: "numeric",
+							month: "long",
+						})}`;
 
 		return {
 			number,
 			airing_at,
-			when: `${day} at ${airing.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`,
-			date: airing.toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" }),
+			when: `${day} at ${airing.toLocaleTimeString("en-GB", {
+				hour: "2-digit",
+				minute: "2-digit",
+			})}`,
+			date: airing.toLocaleString("en-GB", {
+				dateStyle: "full",
+				timeStyle: "short",
+			}),
 		};
 	});
 </script>
@@ -122,7 +135,9 @@
 							<Icon name="schedule" size="sm" />
 							<span>
 								Episode {next.number} airs
-								<time datetime={next.airing_at}>{next.when}</time>
+								<time datetime={next.airing_at}>
+									{next.when}
+								</time>
 							</span>
 						</p>
 					{/if}

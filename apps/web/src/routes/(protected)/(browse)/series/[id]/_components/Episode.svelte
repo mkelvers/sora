@@ -45,7 +45,7 @@
 		episode.runtime_minutes
 			? new Date(
 					now.getTime() + episode.runtime_minutes * 60_000,
-				).toLocaleTimeString("da-DK", {
+				).toLocaleTimeString("en-GB", {
 					hour: "2-digit",
 					minute: "2-digit",
 				})
@@ -93,7 +93,7 @@
 				{/if}
 				{#if episode.air_date}
 					<span
-						>{new Date(episode.air_date).toLocaleDateString("da-DK", {
+						>{new Date(episode.air_date).toLocaleDateString("en-GB", {
 							day: "numeric",
 							month: "long",
 							year: "numeric",

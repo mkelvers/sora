@@ -25,7 +25,7 @@
 				value:
 					parts === 1
 						? series.start_date
-						: new Date(series.start_date).toLocaleDateString("da-DK", {
+						: new Date(series.start_date).toLocaleDateString("en-GB", {
 								day: parts === 3 ? "numeric" : undefined,
 								month: "long",
 								year: "numeric",
@@ -38,7 +38,7 @@
 		if (series.kind !== "movie" && episodes > 0) {
 			stats.push({
 				kind: "episodes",
-				value: `${episodes.toLocaleString("da-DK")} ${episodes === 1 ? "episode" : "episodes"}`,
+				value: `${episodes.toLocaleString("en-GB")} ${episodes === 1 ? "episode" : "episodes"}`,
 				label: episodes === 1 ? "Episode" : "Episodes",
 			});
 		}
@@ -54,7 +54,7 @@
 		const stars = Math.round(series.score / 10) / 2;
 		return {
 			stars,
-			label: `Average rating on AniList: ${stars.toLocaleString("da-DK")} of 5 stars (${series.score}%)`,
+			label: `Average rating on AniList: ${stars.toLocaleString("en-GB")} of 5 stars (${series.score}%)`,
 		};
 	});
 </script>
