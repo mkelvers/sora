@@ -223,6 +223,15 @@ export const SeriesSchema = SeriesCardSchema.extend({
   }),
   tags: z.array(TagSchema),
   studios: z.array(z.string()),
+  original_language: z.string().nullable().openapi({
+    description:
+      "The language of the original audio, which sub and raw keep, as an ISO 639-1 code. Null when AniList does not say where the title was made.",
+    example: "ja",
+  }),
+  content_rating: z.string().nullable().openapi({
+    description: "TMDB's US content rating. Null when TMDB lists none.",
+    example: "TV-14",
+  }),
   next_episode: z
     .object({
       season_id: z.string(),
