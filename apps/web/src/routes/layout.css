@@ -199,11 +199,12 @@
             background-image:
                 linear-gradient(
                     to right,
-                    rgb(0 0 0 / 0.6) 0%,
-                    rgb(0 0 0 / 0.24) 32%,
-                    transparent 62%
+                    var(--theme-canvas) 0%,
+                    rgb(0 0 0 / 0.55) 15%,
+                    rgb(0 0 0 / 0.25) 35%,
+                    transparent 55%
                 ),
-                linear-gradient(to left, rgb(0 0 0 / 0.18), transparent 28%);
+                linear-gradient(to left, rgb(0 0 0 / 0.18), transparent 12%);
         }
 
         &::after {
@@ -215,8 +216,8 @@
             background-image: linear-gradient(
                 to top,
                 var(--theme-canvas) 0%,
-                rgb(0 0 0 / 0.62) 15%,
-                transparent 54%
+                rgb(0 0 0 / 0.4) 12%,
+                transparent 32%
             );
         }
     }
