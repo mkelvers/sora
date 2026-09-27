@@ -56,7 +56,7 @@
 		{#if preparing}
 			<Poster title={preparing.title} />
 		{:else if card}
-			<Poster {card} />
+			<Poster {card} resume={found.resumes[card.id]} />
 		{/if}
 	</li>
 {:else}
