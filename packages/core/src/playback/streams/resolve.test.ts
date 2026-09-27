@@ -9,7 +9,12 @@ import type { ProviderStream, SkipSegment } from "../providers/provider";
 interface FakeProvider {
   id: string;
   locale: string;
+  /** The languages its stored episode list gives episode 3. */
   languages: ContentLanguage[];
+  /** The languages its player streams, when they differ from what its list says. */
+  streams?: ContentLanguage[];
+  /** How long it takes to answer, in milliseconds. */
+  delayMs?: number;
   fails?: boolean;
   /** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
   noSubtitles?: boolean;
@@ -44,8 +49,12 @@ function useProviders(list: FakeProvider[]) {
         listsLanguages: true,
         resolveStream: async (episodeId: string, language: ContentLanguage): Promise<ProviderStream> => {
           resolved.push(`${episodeId}/${language}`);
+          await Bun.sleep(fake.delayMs ?? 0);
           if (fake.fails) {
             throw new Error(`${fake.id} is down`);
+          }
+          if (!(fake.streams ?? fake.languages).includes(language)) {
+            throw new Error(`${fake.id} has no ${language} source`);
           }
           return {
             skipSegments: fake.skipSegments?.[language] ?? [],
@@ -294,7 +303,125 @@ describe("resolvePlayback", () => {
     offered = [dub(), sub()];
 
     expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
-    expect(resolved).toEqual(["anikoto:3/sub"]);
+    expect(resolved.toSorted()).toEqual(["anikoto:3/dub", "anikoto:3/sub"]);
+  });
+
+  test("asks for a dub a provider's stored list leaves out, as for Banished from the Hero's Party episode 1", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"],
+        streams: ["sub", "dub"]
+      },
+      {
+        id: "megaplay",
+        locale: "en",
+        languages: ["sub", "dub"],
+        streams: ["sub"]
+      }
+    ]);
+    offered = [sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+  });
+
+  test("asks providers whose list has the version before those whose list leaves it out", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"],
+        streams: ["sub", "dub"]
+      },
+      {
+        id: "animeparadise",
+        locale: "en",
+        languages: ["sub", "dub"]
+      }
+    ]);
+    offered = [dub(), sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@animeparadise", "sub/en@anikoto"]);
+    expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["animeparadise:3/dub"]);
+  });
+
+  test("does not ask providers whose list leaves the version out when one that lists it streams it", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub", "dub"]
+      },
+      {
+        id: "animeparadise",
+        locale: "en",
+        languages: ["sub"],
+        streams: ["sub", "dub"]
+      }
+    ]);
+    offered = [dub(), sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+    expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["anikoto:3/dub"]);
+  });
+
+  test("asks every provider whose list leaves the version out at once, not in turn", async () => {
+    useProviders(
+      ["anikoto", "animeparadise", "megaplay", "allmanga"].map((id) => ({
+        id,
+        locale: "en",
+        languages: ["sub"],
+        delayMs: 40
+      }))
+    );
+    offered = [sub()];
+
+    const started = performance.now();
+    expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+    // In turn, the four dub requests would take 160 ms.
+    expect(performance.now() - started).toBeLessThan(120);
+    expect(resolved.filter((call) => call.endsWith("/dub"))).toHaveLength(4);
+  });
+
+  test("serves an unlisted version from the first provider in priority order, not the fastest", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["sub"],
+        streams: ["sub", "dub"],
+        delayMs: 30
+      },
+      {
+        id: "animeparadise",
+        locale: "en",
+        languages: ["sub"],
+        streams: ["sub", "dub"]
+      }
+    ]);
+    offered = [sub()];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
+  });
+
+  test("asks for dub and sub even when no stored list offers either", async () => {
+    useProviders([
+      {
+        id: "anikoto",
+        locale: "en",
+        languages: ["raw"],
+        streams: ["raw", "sub", "dub"]
+      }
+    ]);
+    offered = [
+      {
+        language: "raw",
+        locale: null
+      }
+    ];
+
+    expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto", "raw/null@anikoto"]);
   });
 
   test("never serves a version from a provider in another locale", async () => {

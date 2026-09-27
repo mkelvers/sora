@@ -99,10 +99,12 @@ export interface PlaybackOptions {
 }
 
 /**
- * Tried when no provider that lists languages truthfully lists the episode,
- * since the others may still stream it.
+ * Asked of providers for every episode, whatever their stored episode lists
+ * say. Those lists are snapshots, and a provider's list can leave out a dub
+ * its player streams (AniKoto's API leaves out many), so they only decide
+ * which provider is asked first.
  */
-const fallbackVersions: readonly EpisodeVersion[] = [
+const alwaysTried: readonly EpisodeVersion[] = [
   {
     language: "dub",
     locale: servedLocale
@@ -168,9 +170,13 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
     return list;
   };
 
-  const served = offered.filter((version) => version.locale === null || version.locale === servedLocale);
+  const served = offered.filter(
+    (version) =>
+      (version.locale === null || version.locale === servedLocale) &&
+      !alwaysTried.some((tried) => tried.language === version.language && tried.locale === version.locale)
+  );
   const results = await Promise.all(
-    (served.length > 0 ? served : fallbackVersions).map((version) =>
+    [...alwaysTried, ...served].map((version) =>
       resolveVersion(version, located.anilistEpisode, unitsOf, streamUrl)
     )
   );
@@ -203,8 +209,10 @@ export async function resolvePlayback(request: PlaybackRequest, options: Playbac
 }
 
 /**
- * Resolves one version of an AniList episode, trying each provider that
- * serves its locale in priority order until one succeeds.
+ * Resolves one version of an AniList episode from the first provider that
+ * serves its locale and can stream it: those whose episode list has the
+ * version, in priority order, then those whose list leaves it out, since
+ * lists can be stale or incomplete.
  */
 async function resolveVersion(
   { language, locale }: EpisodeVersion,
@@ -225,9 +233,9 @@ async function resolveVersion(
       provider: provider.id,
       reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`
     });
-  let listed = false;
-  let hardsubbed: { version: PlaybackMedia; videos: ProviderVideo[] } | null = null;
+  let hardsubbed = null as { version: PlaybackMedia; videos: ProviderVideo[] } | null;
 
+  const candidates: { provider: StreamProvider; unit: ProviderUnit }[] = [];
   for (const provider of streamProviders) {
     if (provider.locale !== servedLocale || (locale !== null && provider.locale !== locale)) {
       continue;
@@ -235,21 +243,25 @@ async function resolveVersion(
 
     try {
       const unit = (await unitsOf(provider)).find((candidate) => candidate.number === anilistEpisode);
-      if (!unit) {
+      if (unit) {
+        candidates.push({ provider, unit });
+      } else {
         fail(provider, "Episode not listed");
-        continue;
       }
+    } catch (cause) {
+      fail(provider, cause instanceof Error ? cause.message : "Provider failed");
+    }
+  }
 
-      listed = true;
-      if (unit.languages && !unit.languages.includes(language)) {
-        fail(provider, `No ${language} audio`);
-        continue;
-      }
+  const listed = candidates.length > 0;
 
+  /** Resolves the version from one provider; `null`, with the reason recorded, when it cannot. */
+  const attempt = async (provider: StreamProvider, unit: ProviderUnit) => {
+    try {
       const stream = await provider.resolveStream(unit.id, language);
       if (language === "sub" && !(await englishSubtitlesLoad(stream.videos))) {
         fail(provider, "English subtitles cannot be fetched");
-        continue;
+        return null;
       }
 
       const media = toPlaybackMedia(stream.videos, streamUrl);
@@ -272,18 +284,35 @@ async function resolveVersion(
       if (version.hardsub) {
         fail(provider, "Subtitles are burned in");
         hardsubbed ??= { version, videos: stream.videos };
-        continue;
+        return null;
       }
 
-      return {
-        version,
-        videos: stream.videos,
-        listed,
-        attempts
-      };
+      return { version, videos: stream.videos };
     } catch (cause) {
       fail(provider, cause instanceof Error ? cause.message : "Provider failed");
+      return null;
     }
+  };
+
+  // Providers whose list has the version are asked in turn, so a later one
+  // is asked only when an earlier one fails.
+  const lists = ({ unit }: (typeof candidates)[number]) => !unit.languages || unit.languages.includes(language);
+  for (const { provider, unit } of candidates.filter(lists)) {
+    const found = await attempt(provider, unit);
+    if (found) {
+      return { ...found, listed, attempts };
+    }
+  }
+
+  // The rest are asked at once, since most leave the version out because
+  // they do not have it: an episode without a dub then costs one round trip
+  // rather than one per provider. The first in priority order that has it wins.
+  const unlisted = candidates.filter((candidate) => !lists(candidate));
+  const found = (await Promise.all(unlisted.map(({ provider, unit }) => attempt(provider, unit)))).find(
+    (result) => result !== null
+  );
+  if (found) {
+    return { ...found, listed, attempts };
   }
 
   return {
