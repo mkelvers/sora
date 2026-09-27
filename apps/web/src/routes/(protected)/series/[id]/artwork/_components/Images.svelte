@@ -4,7 +4,7 @@
 	import type { Series } from "@sora/sdk";
 	import { getImages } from "../artwork.remote";
 	import type { Artwork } from "../artwork.svelte";
-	import { formatLanguage, formatSeason } from "$lib/utils";
+	import { languages } from "$lib/utils";
 
 	type Props = {
 		series: Series;
@@ -50,11 +50,15 @@
 				{/if}
 			</span>
 			<span class="text">
-				<span class="title">{formatLanguage(image.language)}</span>
+				<span class="title">{image.language
+					? languages.of(image.language)
+					: "Textless"}</span>
 				<span class="meta">
 					<span>{image.width}×{image.height}</span>
 					{#if image.season_number !== null}
-						<span>{formatSeason(image.season_number)}</span>
+						<span>{image.season_number === 0
+							? "Specials"
+							: `Season ${image.season_number}`}</span>
 					{/if}
 					<span class="votes" title="{image.vote_count} votes">
 						<Icon name="heart" size="xs" />

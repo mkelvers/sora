@@ -4,7 +4,7 @@
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import { getImages } from "../artwork.remote";
 	import type { Artwork } from "../artwork.svelte";
-	import { formatLanguage, formatSeason } from "$lib/utils";
+	import { languages as languageNames } from "$lib/utils";
 
 	type Props = {
 		seriesId: string;
@@ -94,7 +94,7 @@
 					},
 					...seasons.map((number) => ({
 						value: String(number),
-						label: formatSeason(number),
+						label: number === 0 ? "Specials" : `Season ${number}`,
 					})),
 				],
 				select: (value) => (artwork.source = value),
@@ -176,9 +176,9 @@
 							<Icon name="check" size="sm" />
 						{/if}
 					</span>
-					{formatLanguage(
-						language.code === "none" ? null : language.code,
-					)}
+					{language.code === "none"
+						? "Textless"
+						: languageNames.of(language.code)}
 					<span class="count">{language.count}</span>
 				</Button>
 			{/each}
