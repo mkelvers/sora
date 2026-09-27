@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { Series } from "@sora/sdk";
+	import Icon, { paths } from "$lib/components/ui/Icon.svelte";
 
 	type Props = {
 		series: Series;
 	};
 
-	let { series }: Props = $props();
+	let {
+		series,
+	}: Props = $props();
 
 	const id = $props.id();
 	const stats = $derived.by(() => {
@@ -63,27 +66,7 @@
 	<ul>
 		{#each stats as stat (stat.kind)}
 			<li>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					{#if stat.kind === "released"}
-						<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-						<path d="M3.5 10h17M8 3v4M16 3v4" />
-						<path
-							stroke-width="2"
-							d="M8 14h.01M12 14h.01M16 14h.01M8 17.25h.01M12 17.25h.01"
-						/>
-					{:else}
-						<rect x="2.5" y="7" width="19" height="13.5" rx="2.5" />
-						<path d="M8 2.5l4 4.5 4-4.5" />
-					{/if}
-				</svg>
+				<Icon name={stat.kind === "released" ? "calendar" : "tv"} size="sm" />
 				<span class="label">{stat.label}:</span>
 				{stat.value}
 			</li>
@@ -111,7 +94,7 @@
 							{#each { length: 5 }, index (index)}
 								<path
 									transform="translate({index * 24} 0)"
-									d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9-4.4-4.1 6-.8z"
+									d={paths.star}
 								/>
 							{/each}
 						</g>
@@ -143,16 +126,11 @@
 		white-space: nowrap;
 	}
 
-	svg {
-		flex: none;
-		width: 17px;
-		height: 17px;
-		color: #fff;
-	}
-
 	.stars {
+		flex: none;
 		width: 80px;
 		height: 16px;
+		color: #fff;
 	}
 
 	.label {
