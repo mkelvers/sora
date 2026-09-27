@@ -1,6 +1,7 @@
 import { anilist } from "../../anilist/client";
-import { AiringScheduleDocument } from "../../anilist/graphql.generated";
+import { AiringScheduleDocument, EpisodeAiringsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
 import { InvalidInputError } from "../../errors";
+import { anilistEpisodeKey } from "../../series/episodes";
 import { day, hour, minute } from "../../time";
 import { fromUnixSeconds } from "../models/text";
 
@@ -65,4 +66,72 @@ export async function fetchAiringSchedule(from: Date, until: Date): Promise<Airi
       return episodes;
     }
   }
+}
+
+/** Entries {@link fetchEpisodeAirings} asks AniList about per request. */
+const airingsBatchSize = 50;
+
+/**
+ * When each aired episode of the given AniList entries aired, as AniList's
+ * airing schedule records it: the moment of broadcast, which a TMDB air
+ * date in Japan's calendar can place a day late.
+ *
+ * Entries AniList has no schedule for, as for most older anime, have no
+ * episodes in the result.
+ *
+ * @returns Broadcast times keyed by {@link anilistEpisodeKey}.
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ */
+export async function fetchEpisodeAirings(anilistIds: readonly number[]): Promise<Map<string, Date>> {
+  const ids = [...new Set(anilistIds)];
+  const airings = new Map<string, Date>();
+  for (let offset = 0; offset < ids.length; offset += airingsBatchSize) {
+    const batch = ids.slice(offset, offset + airingsBatchSize);
+    for (let page = 1; ; page += 1) {
+      const { Page } = await anilist(
+        EpisodeAiringsDocument,
+        {
+          ids: batch,
+          page
+        },
+        {
+          maxAgeMs: hour
+        }
+      );
+
+      for (const entry of Page?.airingSchedules ?? []) {
+        if (entry) {
+          airings.set(anilistEpisodeKey(entry.mediaId, entry.episode), new Date(entry.airingAt * 1_000));
+        }
+      }
+
+      if (!Page?.pageInfo?.hasNextPage) {
+        break;
+      }
+    }
+  }
+
+  return airings;
+}
+
+/**
+ * The latest episode of an AniList entry that AniList's airing schedule
+ * says has aired, or `null` when it records none.
+ *
+ * Unlike the entry's next airing episode, this still knows an episode aired
+ * when AniList has nothing announced after it, or moved its broadcast.
+ *
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ */
+export async function fetchLatestAiring(anilistId: number): Promise<number | null> {
+  const { Page } = await anilist(
+    LatestAiringDocument,
+    {
+      id: anilistId
+    },
+    {
+      maxAgeMs: 0
+    }
+  );
+  return Page?.airingSchedules?.[0]?.episode ?? null;
 }

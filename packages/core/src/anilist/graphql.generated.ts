@@ -241,6 +241,21 @@ export type AiringScheduleQueryVariables = Exact<{
 
 export type AiringScheduleQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, airingSchedules: Array<{ id: number, episode: number, airingAt: number, media: { id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null };
 
+export type EpisodeAiringsQueryVariables = Exact<{
+  ids: Array<number> | number;
+  page: number;
+}>;
+
+
+export type EpisodeAiringsQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, airingSchedules: Array<{ mediaId: number, episode: number, airingAt: number } | null> | null } | null };
+
+export type LatestAiringQueryVariables = Exact<{
+  id: number;
+}>;
+
+
+export type LatestAiringQuery = { Page: { airingSchedules: Array<{ episode: number, airingAt: number } | null> | null } | null };
+
 export type SearchIndexPageQueryVariables = Exact<{
   page: number;
   sort: Array<MediaSort> | MediaSort;
@@ -885,6 +900,30 @@ export const AiringScheduleDocument = new TypedDocumentString(`
     episode
   }
 }`) as unknown as TypedDocumentString<AiringScheduleQuery, AiringScheduleQueryVariables>;
+export const EpisodeAiringsDocument = new TypedDocumentString(`
+    query EpisodeAirings($ids: [Int!]!, $page: Int!) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    airingSchedules(mediaId_in: $ids, notYetAired: false, sort: [MEDIA_ID, EPISODE]) {
+      mediaId
+      episode
+      airingAt
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<EpisodeAiringsQuery, EpisodeAiringsQueryVariables>;
+export const LatestAiringDocument = new TypedDocumentString(`
+    query LatestAiring($id: Int!) {
+  Page(page: 1, perPage: 1) {
+    airingSchedules(mediaId: $id, notYetAired: false, sort: [EPISODE_DESC]) {
+      episode
+      airingAt
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<LatestAiringQuery, LatestAiringQueryVariables>;
 export const SearchIndexPageDocument = new TypedDocumentString(`
     query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) {
   Page(page: $page, perPage: 50) {
