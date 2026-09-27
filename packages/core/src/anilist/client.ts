@@ -124,7 +124,7 @@ export function currentAniListPriority() {
  *
  * @example
  * ```ts
- * const { Media } = await anilist(AnimeDetailsDocument, { id: 21 }, { maxAgeMs: HOUR });
+ * const { Page } = await anilist(AnimeCardsDocument, { ids: [21, 20], perPage: 2 }, { maxAgeMs: HOUR });
  * ```
  */
 export async function anilist<TResult, TVariables>(
@@ -234,6 +234,189 @@ function raisePriority(key: string, priority: number) {
     waiting.splice(index, 1);
     enqueue({ ...request, priority });
   }
+}
+
+/**
+ * An operation that loads AniList media by ID in pages of 50, AniList's cap,
+ * each page an aliased `Page` field taking its own IDs. How many pages fit
+ * in one request is bounded by AniList's query complexity limit of 500.
+ */
+export interface MediaByIdOperation<TResult, TVariables, TMedia extends { id: number }> {
+  document: TypedDocumentString<TResult, TVariables>;
+  /** How many pages of 50 IDs one request holds. */
+  pages: number;
+  /** The variables for IDs split into at most `pages` pages, the first never empty. */
+  variables: (pages: readonly number[][]) => NoInfer<TVariables>;
+  /** Every media a response holds, from all its pages. */
+  media: (result: TResult) => Iterable<TMedia | null | undefined>;
+}
+
+/** IDs gathered into one request of a {@link loadMediaById} loader while it waits its turn. */
+interface MediaBatch<TMedia> {
+  key: string;
+  priority: number;
+  /** How many 429s it has waited out. */
+  retries: number;
+  wanted: Map<
+    number,
+    {
+      resolve: (media: TMedia | null) => void;
+      reject: (cause: unknown) => void;
+    }
+  >;
+}
+
+const mediaPageSize = 50;
+let mediaBatchCount = 0;
+
+/**
+ * How many AniList 429s one batch waits out before failing its callers.
+ * Walking franchises needs bursts of requests and AniList often runs at its
+ * degraded limit of 30 per minute, but a 429 only pauses the queue.
+ */
+const mediaBatchRetries = 3;
+
+/**
+ * Creates a loader of AniList media by ID that shares requests between
+ * callers.
+ *
+ * IDs are gathered into a request queued like any other, and every ID asked
+ * for while it waits for its turn under the rate limit joins it, up to
+ * `operation.pages` pages of 50. Callers that start at about the same time,
+ * as the layouts of the titles one search found do, then share requests
+ * rather than spend AniList's small budget each on their own. The request
+ * is sent at the most urgent priority among its callers', so a viewer's IDs
+ * never wait for a background job's; the background IDs simply come along.
+ *
+ * Responses are not cached; an ID already queued or being fetched shares
+ * that request. A request AniList answers with a 429 is queued again, to
+ * go once the pause that follows ends, rather than failing its callers.
+ *
+ * @returns A function resolving to the media AniList has among `ids`, by
+ *   ID; unknown IDs are left out.
+ * @throws {@link UpstreamUnavailableError} from the returned function when
+ *   AniList fails, or keeps answering with 429s.
+ */
+export function loadMediaById<TResult, TVariables, TMedia extends { id: number }>(
+  operation: MediaByIdOperation<TResult, TVariables, TMedia>
+) {
+  const capacity = operation.pages * mediaPageSize;
+  const query = operation.document.toString();
+  const name = operationName(query);
+  /** IDs queued or being fetched, each settling with its media, or `null` when AniList has none. */
+  const loading = new Map<number, Promise<TMedia | null>>();
+  /** The batch each queued ID waits in, until it is sent. */
+  const queuedIn = new Map<number, MediaBatch<TMedia>>();
+  /** The batch new IDs join, until it is full or sent. */
+  let open: MediaBatch<TMedia> | null = null;
+
+  function load(id: number, priority: number) {
+    const pending = loading.get(id);
+    if (pending) {
+      raise(queuedIn.get(id), priority);
+      return pending;
+    }
+
+    const loaded = new Promise<TMedia | null>((resolve, reject) => {
+      const batch = open ?? openBatch(priority);
+      batch.wanted.set(id, {
+        resolve,
+        reject
+      });
+      queuedIn.set(id, batch);
+      raise(batch, priority);
+      if (batch.wanted.size >= capacity) {
+        open = null;
+      }
+    }).finally(() => {
+      loading.delete(id);
+    });
+    loading.set(id, loaded);
+    return loaded;
+  }
+
+  function openBatch(priority: number) {
+    const batch: MediaBatch<TMedia> = {
+      key: `${name}:${(mediaBatchCount += 1)}`,
+      priority,
+      retries: 0,
+      wanted: new Map()
+    };
+    open = batch;
+    queue(batch);
+    return batch;
+  }
+
+  function queue(batch: MediaBatch<TMedia>) {
+    enqueue({
+      key: batch.key,
+      priority: batch.priority,
+      send: () => send(batch)
+    });
+    // Once the current task is done, so IDs asked for alongside join even
+    // when the request could go at once.
+    queueMicrotask(() => void drain());
+  }
+
+  function raise(batch: MediaBatch<TMedia> | undefined, priority: number) {
+    if (batch && priority < batch.priority) {
+      batch.priority = priority;
+      raisePriority(batch.key, priority);
+    }
+  }
+
+  async function send(batch: MediaBatch<TMedia>) {
+    if (open === batch) {
+      open = null;
+    }
+
+    const ids = [...batch.wanted.keys()].sort((left, right) => left - right);
+    for (const id of ids) {
+      queuedIn.delete(id);
+    }
+
+    try {
+      const pages = Array.from({ length: Math.ceil(ids.length / mediaPageSize) }, (_, page) =>
+        ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize)
+      );
+      // The envelope was validated; the payload shape is guaranteed by the schema.
+      const data = (await execute(query, operation.variables(pages))) as TResult;
+      const found = new Map<number, TMedia>();
+      for (const media of operation.media(data)) {
+        if (media) {
+          found.set(media.id, media);
+        }
+      }
+
+      for (const [id, { resolve }] of batch.wanted) {
+        resolve(found.get(id) ?? null);
+      }
+    } catch (cause) {
+      const isRateLimited = cause instanceof UpstreamUnavailableError && cause.retryAfterMs !== null;
+      if (isRateLimited && batch.retries < mediaBatchRetries) {
+        batch.retries += 1;
+        for (const id of ids) {
+          queuedIn.set(id, batch);
+        }
+        queue(batch);
+        return;
+      }
+
+      for (const { reject } of batch.wanted.values()) {
+        reject(cause);
+      }
+    }
+  }
+
+  return async (ids: Iterable<number>): Promise<Map<number, TMedia>> => {
+    const priority = currentAniListPriority();
+    const unique = [...new Set(ids)];
+    const loaded = await Promise.all(unique.map((id) => load(id, priority)));
+    return new Map(unique.flatMap((id, index) => {
+      const media = loaded[index];
+      return media ? [[id, media] as const] : [];
+    }));
+  };
 }
 
 /** Ends the drain loop's current wait early; set while it waits. */
