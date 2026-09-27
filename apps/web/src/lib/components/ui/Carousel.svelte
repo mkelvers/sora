@@ -13,6 +13,7 @@
         active: number;
         previous: number | null;
         paused: boolean;
+        cycle: number;
         select: (index: number, instant?: boolean) => void;
     }
 
@@ -29,6 +30,7 @@
     let active = $state(0);
     let previous = $state<number | null>(null);
     let paused = $state(false);
+    let cycle = $state(0);
     let canScrollPrevious = $state(false);
     let canScrollNext = $state(false);
 
@@ -81,6 +83,7 @@
         });
         api.on('autoplay:play', () => (paused = false));
         api.on('autoplay:stop', () => (paused = true));
+        api.on('autoplay:timerset', () => cycle++);
 
         paused = !autoplayApi?.isPlaying();
         active = api.selectedScrollSnap();
@@ -115,6 +118,7 @@
             active,
             previous,
             paused: paused || prefersReducedMotion.current,
+            cycle,
             select,
         })}
     </div>
