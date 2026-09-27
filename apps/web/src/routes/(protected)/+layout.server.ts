@@ -11,4 +11,11 @@ export const load: LayoutServerLoad = ({ locals, route, url }) => {
 	if (!locals.viewer.profile && !route.id.startsWith('/(protected)/profiles')) {
 		redirect(303, `/profiles?redirect=${here}`);
 	}
+
+	return {
+		viewer: {
+			profile: locals.viewer.profile,
+			profiles: locals.viewer.profiles
+		}
+	};
 };

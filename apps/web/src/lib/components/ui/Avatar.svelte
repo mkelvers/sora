@@ -8,15 +8,19 @@
 <script lang="ts">
 	type Props = {
 		seed: string;
+		plain?: boolean;
 		class?: string;
 	};
 
-	let { seed, class: className }: Props = $props();
+	let { seed, plain = false, class: className }: Props = $props();
 
 	const src = $derived(
 		new Avatar(style, {
 			seed,
 			animationVariant: "fastest",
+			...(plain && {
+				backgroundColor: [],
+			}),
 		}).toDataUri(),
 	);
 </script>
