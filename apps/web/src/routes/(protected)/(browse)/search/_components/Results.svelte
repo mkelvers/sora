@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import { describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import Poster from "$lib/components/ui/Poster.svelte";
 	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
 	import { searchSeries } from "../search.remote";
 
@@ -19,13 +18,6 @@
 
 	const found = $derived(await searchSeries({ q, page, perPage: 24 }));
 	const stale = $derived(navigating.to?.url.pathname === "/search");
-
-	const formats: Partial<Record<NonNullable<PreparingTitle["format"]>, string>> = {
-		TV: "Series",
-		TV_SHORT: "Series",
-		ONA: "Series",
-		MOVIE: "Movie",
-	};
 
 	const items = $derived.by(() => {
 		const merged: (
@@ -60,44 +52,13 @@
 </script>
 
 {#each items as { key, card, preparing } (key)}
-	{#if preparing}
-		<li class={["preparing", stale && "stale"]} aria-busy="true">
-			<div class="poster">
-				<Skeleton height="100%" />
-			</div>
-			<span class="title">{preparing.title}</span>
-			<span class="meta">
-				{[preparing.year, preparing.format && formats[preparing.format], "Preparing"]
-					.filter(Boolean)
-					.join(" · ")}
-			</span>
-		</li>
-	{:else if card}
-		<li class={[stale && "stale"]}>
-			<a href="/series/{card.id}">
-				<div class="poster">
-					{#if card.poster_url}
-						<img
-							src={tmdbImage(card.poster_url, "w342")}
-							srcset={tmdbSrcset(card.poster_url, {
-								w185: 185,
-								w342: 342,
-								w500: 500,
-							})}
-							sizes="(min-width: 1800px) 240px, 180px"
-							alt=""
-							loading="lazy"
-							decoding="async"
-						/>
-					{:else}
-						<span class="fallback">{card.title}</span>
-					{/if}
-				</div>
-				<span class="title">{card.title}</span>
-				<span class="meta">{describeCard(card)}</span>
-			</a>
-		</li>
-	{/if}
+	<li class={[stale && "stale"]}>
+		{#if preparing}
+			<Poster title={preparing.title} />
+		{:else if card}
+			<Poster {card} />
+		{/if}
+	</li>
 {:else}
 	{#if page === 1}
 		<li class={["empty", stale && "stale"]}>
@@ -139,70 +100,6 @@
 
 	.stale {
 		opacity: 0.5;
-	}
-
-	a,
-	.preparing {
-		display: grid;
-		align-content: start;
-		gap: 2px;
-		color: inherit;
-		text-decoration: none;
-	}
-
-	.preparing .title {
-		color: #bbb;
-	}
-
-	a:focus-visible {
-		outline: 2px solid #fff;
-		outline-offset: 4px;
-	}
-
-	.poster {
-		display: grid;
-		aspect-ratio: 2 / 3;
-		margin-bottom: 10px;
-		overflow: hidden;
-		background: #202020;
-	}
-
-	.poster img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transition:
-			scale 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-			opacity 160ms;
-	}
-
-	a:hover .poster img {
-		scale: 1.04;
-		opacity: 0.85;
-	}
-
-	.fallback {
-		align-self: end;
-		padding: 16px;
-		color: #777;
-		font-size: 14px;
-		line-height: 1.35;
-	}
-
-	.title {
-		display: -webkit-box;
-		overflow: hidden;
-		font-size: 14px;
-		line-height: 1.35;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-	}
-
-	.meta {
-		color: #888;
-		font-size: 13px;
 	}
 
 	.empty,

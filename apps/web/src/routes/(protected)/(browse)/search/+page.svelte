@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Poster from "$lib/components/ui/Poster.svelte";
 	import Results from "./_components/Results.svelte";
 
 	const q = $derived(page.url.searchParams.get("q")?.trim() ?? "");
@@ -14,10 +14,7 @@
 
 <div class="page">
 	{#if q}
-		<h1>
-			<span class="label">Results for</span>
-			<span class="query">{q}</span>
-		</h1>
+		<h1 class="hidden">Search results for {q}</h1>
 
 		<ul class="grid">
 			{#each { length: count }, index (index)}
@@ -31,11 +28,7 @@
 
 					{#snippet pending()}
 						{#each { length: 12 }, index (index)}
-							<li class="placeholder">
-								<Skeleton ratio="2 / 3" />
-								<Skeleton variant="text" width="80%" />
-								<Skeleton variant="text" width="40%" />
-							</li>
+							<li><Poster /></li>
 						{/each}
 					{/snippet}
 
@@ -60,28 +53,16 @@
 	.page {
 		--side: clamp(16px, 3.3vw, 64px);
 
-		padding: 48px var(--side) 80px;
+		padding: 40px var(--side) 80px;
 	}
 
-	h1 {
-		display: grid;
-		gap: 6px;
-		margin: 0 0 36px;
-		font-weight: 400;
-	}
-
-	.label {
-		color: #888;
-		font-size: 13px;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.query {
-		color: #fff;
-		font-size: clamp(28px, 3vw, 44px);
-		line-height: 1.15;
-		overflow-wrap: anywhere;
+	.hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 
 	.grid {
@@ -90,19 +71,10 @@
 			auto-fill,
 			minmax(clamp(140px, 11vw, 240px), 1fr)
 		);
-		gap: 36px 20px;
+		gap: 48px 36px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
-	}
-
-	.placeholder {
-		display: grid;
-		gap: 8px;
-	}
-
-	.placeholder :global(.skeleton:first-child) {
-		margin-bottom: 4px;
 	}
 
 	.failed {
