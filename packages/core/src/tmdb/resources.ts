@@ -123,35 +123,6 @@ const SeasonImagesSchema = z.object({
   posters: z.array(ImageSchema).default([]),
 });
 
-const ShowRatingsSchema = z.object({
-  results: z.array(
-    z.object({
-      iso_3166_1: z.string(),
-      rating: z.string(),
-    })
-  ),
-});
-
-const MovieReleasesSchema = z.object({
-  results: z.array(
-    z.object({
-      iso_3166_1: z.string(),
-      release_dates: z.array(
-        z.object({
-          certification: z.string(),
-          type: z.number().int(),
-        })
-      ),
-    })
-  ),
-});
-
-/** The rating TMDB lists for a title no board rated. */
-const notRated = "NR";
-
-/** TMDB's release type of a theatrical release, whose certification a film is known by. */
-const theatricalRelease = 3;
-
 /** One image of a show, film, or season, in its original size. */
 export type TmdbImage = z.infer<typeof ImageSchema>;
 
@@ -393,32 +364,6 @@ export async function getSeasonPosters(showId: number, seasonNumber: number): Pr
     maxAgeMs: day,
   });
   return images?.posters ?? [];
-}
-
-/**
- * Finds the US content rating of a show or film, such as `TV-14` or `PG-13`.
- * A film's theatrical certification is preferred over those of its other
- * releases.
- *
- * @returns The rating, or `null` when TMDB lists none for the US, or only
- *   "NR" (not rated).
- */
-export async function getContentRating(mediaType: "tv" | "movie", id: number): Promise<string | null> {
-  if (mediaType === "tv") {
-    const ratings = await tmdb(`/tv/${id}/content_ratings`, {}, ShowRatingsSchema, {
-      maxAgeMs: day,
-    });
-    const rating = ratings?.results.find((result) => result.iso_3166_1 === "US")?.rating;
-    return rating && rating !== notRated ? rating : null;
-  }
-
-  const releases = await tmdb(`/movie/${id}/release_dates`, {}, MovieReleasesSchema, {
-    maxAgeMs: day,
-  });
-  const rated = (releases?.results.find((result) => result.iso_3166_1 === "US")?.release_dates ?? [])
-    .filter((release) => release.certification && release.certification !== notRated)
-    .sort((left, right) => Number(right.type === theatricalRelease) - Number(left.type === theatricalRelease));
-  return rated[0]?.certification ?? null;
 }
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */

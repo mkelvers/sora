@@ -81,14 +81,6 @@ export interface Series extends SeriesCard {
   genres: string[];
   tags: AnimeTag[];
   studios: string[];
-  /**
-   * The language of the original audio, which sub and raw keep, as an
-   * ISO 639-1 code such as `ja`; `null` when AniList does not say where the
-   * title was made.
-   */
-  originalLanguage: string | null;
-  /** TMDB's US content rating, such as `TV-14`; `null` when TMDB lists none. */
-  contentRating: string | null;
   /** The next episode to air, or `null` when none is announced. */
   nextEpisode: {
     seasonId: string;

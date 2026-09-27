@@ -2,7 +2,6 @@
 	import type { Series } from '@sora/sdk';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { cn } from '$lib/utils';
-	import Rating from './Rating.svelte';
 
 	let {
 		series,
@@ -11,19 +10,6 @@
 	} = $props();
 
 	let expanded = $state(false);
-
-	const original = $derived(
-		series.original_language
-			? new Intl.DisplayNames(['en'], {
-					type: 'language',
-				}).of(series.original_language)
-			: undefined
-	);
-	const audio = $derived(
-		[(series.audio.includes('sub') || series.audio.includes('raw')) && original, series.audio.includes('dub') && 'English']
-			.filter((language) => !!language)
-			.join(', ')
-	);
 </script>
 
 <div class="relative z-20 bg-canvas px-5 sm:px-10 lg:px-16">
@@ -43,35 +29,6 @@
 				)}
 			>
 				<p class="max-w-3xl text-foreground">{series.overview ?? ''}</p>
-				<div class="space-y-3">
-					{#if audio}
-						<p>
-							<strong class="font-normal text-foreground">Audio:</strong>
-							{audio}
-						</p>
-					{/if}
-					{#if series.audio.includes('sub')}
-						<p>
-							<strong class="font-normal text-foreground">Subtitles:</strong>
-							English
-						</p>
-					{/if}
-					{#if series.content_rating}
-						<p>
-							<strong class="font-normal text-foreground">Content advisory:</strong>
-							<Rating rating={series.content_rating} />
-						</p>
-					{/if}
-					{#if series.genres.length}
-						<p>
-							<strong class="font-normal text-foreground">Genres:</strong>
-							{series.genres.join(', ')}
-						</p>
-					{/if}
-					{#if series.studios.length}
-						<p class="text-xs font-semibold text-foreground">Animation by {series.studios.join(', ')}</p>
-					{/if}
-				</div>
 			</section>
 		</div>
 

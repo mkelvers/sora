@@ -3,7 +3,7 @@ import { toAnimeCard, type AnimeCard, type AnimeStatus } from "../catalog/models
 import { fuzzyDate } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
-import { getContentRating, getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
+import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
 import { entriesMappedTo, mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
 import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
@@ -53,8 +53,6 @@ export interface SeriesLayout extends SeriesLayoutSummary {
   overview: string | null;
   /** TMDB's English or textless logo; `null` when TMDB has none. */
   logoUrl: string | null;
-  /** TMDB's US content rating, such as `TV-14`; `null` when TMDB lists none. */
-  contentRating: string | null;
   /** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
   seasons: SeriesSeason[];
   /** Other titles from the same franchise: films, spin-offs, shorts, and entries TMDB lists separately. */
@@ -160,7 +158,6 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
     posterUrl: artwork.posterUrl ?? summary.posterUrl,
     backdropUrl: artwork.backdropUrl ?? summary.backdropUrl,
     logoUrl: artwork.logoUrl,
-    contentRating: await contentRatingOf(origin.key),
     overview: await overviewOf(origin.key, members),
     seasons,
     related: [...related]
@@ -492,12 +489,6 @@ async function tmdbArtwork(key: SeriesKey) {
     backdropUrl: null,
     logoUrl: null,
   };
-}
-
-/** TMDB's US content rating of a show or film. Shorts and standalone entries have none. */
-function contentRatingOf(key: SeriesKey) {
-  const [kind, id] = parseKey(key);
-  return kind === "tv" || kind === "movie" ? getContentRating(kind, id) : Promise.resolve(null);
 }
 
 /** TMDB's synopsis for the series, or AniList's for its first entry when TMDB has none. */

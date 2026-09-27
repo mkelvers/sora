@@ -86,8 +86,6 @@ export const series = pgTable("series", {
   posterUrlOverride: text("poster_url_override"),
   backdropUrlOverride: text("backdrop_url_override"),
   logoUrlOverride: text("logo_url_override"),
-  /** TMDB's US content rating, such as `TV-14`. */
-  contentRating: text("content_rating"),
   /** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
   startDate: text("start_date"),
   /** The series as a whole: airing while any of its entries airs. */
