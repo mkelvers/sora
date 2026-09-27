@@ -134,6 +134,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
     posterUrl: built.posterUrl,
     backdropUrl: built.backdropUrl,
     logoUrl: built.logoUrl,
+    contentRating: built.contentRating,
     startDate: built.startDate,
     status: built.status,
     laidOutAt: new Date(),
