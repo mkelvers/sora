@@ -1,7 +1,6 @@
-import { anilist, currentAniListPriority } from "../anilist/client";
+import { loadMediaById } from "../anilist/client";
 import { FranchiseEntriesDocument, type FranchiseEntryFragment, type MediaRelation } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
-import { UpstreamUnavailableError } from "../errors";
 import { hour } from "../time";
 import type { MatchSubject } from "./matching";
 
@@ -30,9 +29,6 @@ const franchiseRelations = new Set<MediaRelation>([
 /** How long a loaded entry is reused, matching the catalog's card freshness. */
 const entryLifetimeMs = hour;
 
-/** How many AniList 429s one batch waits out before failing. */
-const rateLimitRetries = 2;
-
 /** Bounds {@link recentEntries}; the oldest entries are evicted first. */
 const recentEntryLimit = 5_000;
 
@@ -40,9 +36,9 @@ const recentEntryLimit = 5_000;
  * Entries loaded recently by this process, by AniList ID.
  *
  * Walking a franchise and resolving each entry's prequels request the same
- * entries in many different combinations. Snapshots are keyed by the exact
- * batch, so without this each combination would cost an AniList request
- * against a limit of 30–90 per minute.
+ * entries again and again. AniList responses by ID are not cached, so
+ * without this each would cost an AniList request against a limit of 30–90
+ * per minute.
  */
 const recentEntries = new Map<
   number,
@@ -53,9 +49,13 @@ const recentEntries = new Map<
 >();
 
 /**
- * Loads franchise entries by AniList ID in batches of 50. Each batch also
- * brings the entries related to those asked for, which are kept for later
- * calls, so walking a franchise costs one request for every two steps.
+ * Loads franchise entries by AniList ID. Each also brings the entries
+ * related to it, which are kept for later calls, so walking a franchise
+ * costs one request for every two steps.
+ *
+ * IDs asked for while a request waits its turn share it, up to 250, so the
+ * layouts of many titles at once, as a search starts, cost a request or two
+ * rather than one each; see {@link loadMediaById}.
  *
  * Unknown, adult, and music-video IDs are left out: music videos are not
  * watchable series, and adult media is never served.
@@ -67,7 +67,7 @@ export async function loadEntries(ids: Iterable<number>): Promise<Map<number, Fr
     return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
   });
   if (missing.length > 0) {
-    await loadTogether(missing);
+    await fetchAndRemember(missing);
   }
 
   const entries = new Map<number, FranchiseEntry>();
@@ -81,99 +81,45 @@ export async function loadEntries(ids: Iterable<number>): Promise<Map<number, Fr
   return entries;
 }
 
-/** How long IDs asked for at about the same time are gathered into one request. */
-const gatherMs = 25;
+const loadFranchiseEntries = loadMediaById({
+  document: FranchiseEntriesDocument,
+  pages: 5,
+  variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = [], ids4 = []]) => ({
+    ids0,
+    ids1,
+    ids2,
+    ids3,
+    ids4,
+    with1: ids1.length > 0,
+    with2: ids2.length > 0,
+    with3: ids3.length > 0,
+    with4: ids4.length > 0
+  }),
+  media: ({ page0, page1, page2, page3, page4 }) =>
+    [page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? [])
+});
 
-/** IDs being gathered into one request, by the AniList priority they are asked at. */
-const gathering = new Map<number, { ids: Set<number>; loaded: Promise<void> }>();
-
-/**
- * Loads `ids` into {@link recentEntries} together with any others asked for
- * at the same priority within {@link gatherMs}. Layouts that start at once,
- * as several a search found do, then share requests rather than each asking
- * for its own entry. Priorities are gathered apart, so a viewer's IDs never
- * wait in a background request.
- */
-function loadTogether(ids: readonly number[]): Promise<void> {
-  const priority = currentAniListPriority();
-  let batch = gathering.get(priority);
-  if (!batch) {
-    const gathered = new Set<number>();
-    batch = {
-      ids: gathered,
-      loaded: Bun.sleep(gatherMs).then(() => {
-        gathering.delete(priority);
-        return fetchAndRemember([...gathered].sort((left, right) => left - right));
-      })
-    };
-    gathering.set(priority, batch);
-  }
-
-  for (const id of ids) {
-    batch.ids.add(id);
-  }
-
-  return batch.loaded;
-}
-
-/** Fetches entries in pages of 50, AniList's cap, and remembers them and their neighbours. */
+/** Fetches entries and remembers them and their neighbours. */
 async function fetchAndRemember(ids: readonly number[]) {
-  for (let offset = 0; offset < ids.length; offset += 50) {
-    const batch = ids.slice(offset, offset + 50);
-    const { Page } = await fetchEntries(batch);
-
-    const loaded = new Map<number, FranchiseEntry>();
-    for (const media of Page?.media ?? []) {
-      if (!media) {
-        continue;
-      }
-
-      const { neighbours, ...entry } = media;
-      if (isServed(entry)) {
-        loaded.set(entry.id, entry);
-      }
-
-      // The next step of a walk, and the prequels matching looks up, then
-      // need no request of their own.
-      for (const edge of neighbours?.edges ?? []) {
-        const neighbour = edge?.node;
-        if (neighbour?.type === "ANIME" && !batch.includes(neighbour.id)) {
-          const { type: _type, ...neighbourEntry } = neighbour;
-          remember(neighbour.id, isServed(neighbourEntry) ? neighbourEntry : null);
-        }
-      }
+  const loaded = await loadFranchiseEntries(ids);
+  const asked = new Set(ids);
+  for (const id of ids) {
+    const media = loaded.get(id);
+    if (!media) {
+      remember(id, null);
+      continue;
     }
 
-    for (const id of batch) {
-      remember(id, loaded.get(id) ?? null);
-    }
-  }
-}
+    const { neighbours, ...entry } = media;
+    remember(id, isServed(entry) ? entry : null);
 
-/**
- * Fetches one batch, waiting out AniList rate limits.
- *
- * Walking a franchise needs a burst of requests and AniList often runs at
- * its degraded limit of 30 per minute. The AniList client pauses its queue
- * for the requested delay after a 429, so retrying simply waits in line.
- */
-async function fetchEntries(ids: number[]) {
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await anilist(
-        FranchiseEntriesDocument,
-        {
-          ids,
-          perPage: ids.length
-        },
-        {
-          maxAgeMs: hour
-        }
-      );
-    } catch (cause) {
-      const isRateLimited = cause instanceof UpstreamUnavailableError && cause.retryAfterMs !== null;
-      if (!isRateLimited || attempt >= rateLimitRetries) {
-        throw cause;
+    // The next step of a walk, and the prequels matching looks up, then
+    // need no request of their own.
+    for (const edge of neighbours?.edges ?? []) {
+      const neighbour = edge?.node;
+      if (neighbour?.type === "ANIME" && !asked.has(neighbour.id)) {
+        const { type: _type, ...neighbourEntry } = neighbour;
+        remember(neighbour.id, isServed(neighbourEntry) ? neighbourEntry : null);
       }
     }
   }
