@@ -19,7 +19,7 @@ export {
   type SeriesImage,
   type SeriesImageQuery
 } from "./artwork";
-export type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
+export type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 export {
   browseSeries,
   getAdjacentEpisodes,

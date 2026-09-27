@@ -178,7 +178,7 @@ function toTitle(media: AnimeCardFragment): AnimeTitle {
   };
 }
 
-function toAnimeFormat(format: MediaFormat | null): AnimeFormat | null {
+export function toAnimeFormat(format: MediaFormat | null): AnimeFormat | null {
   switch (format) {
     case "MANGA":
     case "NOVEL":

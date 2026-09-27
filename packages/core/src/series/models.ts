@@ -1,4 +1,4 @@
-import type { AnimeStatus, AnimeTag } from "../catalog/models/anime";
+import type { AnimeFormat, AnimeStatus, AnimeTag } from "../catalog/models/anime";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
 
@@ -30,6 +30,21 @@ export interface SeriesCard {
   year: number | null;
   /** Airing while any season airs; see `seriesStatus`. */
   status: AnimeStatus | null;
+}
+
+/**
+ * A title a search or browse found that is not stored yet. It is being
+ * prepared in the background and appears as a {@link SeriesCard} once it is;
+ * until then only what the search index knows about it can be shown.
+ */
+export interface PreparingTitle {
+  anilistId: number;
+  /** English, then romaji, then native, as AniList lists it. */
+  title: string;
+  format: AnimeFormat | null;
+  year: number | null;
+  /** Where on the page, from 0 among its cards, the title is expected once prepared. */
+  position: number;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { and, asc, count, eq, inArray, isNotNull, ne } from "drizzle-orm";
 
+import { toAnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, BrowseQuerySchema, type BrowseQuery, type Page } from "../catalog/queries/browse";
 import { hasSearchIndex, searchAnime } from "../catalog/queries/search";
@@ -11,7 +12,7 @@ import { aniKoto } from "../playback/providers/registry";
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { anilistEpisodeKey, isEpisodeReleased } from "./episodes";
-import type { Season, SeasonEpisode, Series, SeriesCard } from "./models";
+import type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 import { storedSeriesIds } from "./store";
 
 /**
@@ -280,13 +281,15 @@ async function aniKotoEpisodes(anilistIds: readonly number[]): Promise<Set<strin
  *
  * Reads only stored titles, so a search never waits on AniList or TMDB. An
  * entry whose title is not stored yet is queued for the scheduler and left
- * out until it is, with `isPreparing` set so the client can ask again; a
- * first search for an unknown franchise comes back short.
+ * out of `items` until it is, with `isPreparing` set so the client can ask
+ * again. Those on the page are listed in `preparing`, with what the search
+ * index knows of them and where they are expected, so a client can show
+ * them at once rather than a page that comes back short.
  *
  * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
  * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed.
  */
-export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>> {
+export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard> & { preparing: PreparingTitle[] }> {
   const parsed = BrowseQuerySchema.safeParse(query);
   if (!parsed.success) {
     throw new InvalidInputError("Invalid browse query", {
@@ -296,35 +299,75 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
 
   const { search, page, perPage, ...filters } = parsed.data;
   if (search !== undefined && (await hasSearchIndex())) {
-    const ranked = (await searchAnime(search, filters)).map((entry) => entry.anilistId);
+    const found = await searchAnime(search, filters);
+    const ranked = found.map((entry) => entry.anilistId);
+    const pageStart = (page - 1) * perPage;
     // One series more than the page holds tells whether another page follows.
-    const { seriesIds, isPreparing } = await seriesIdsFor(ranked, {
+    const { seriesIds, missing } = await seriesIdsFor(ranked, {
       wantedSeries: page * perPage + 1,
-      pageStart: (page - 1) * perPage
+      pageStart
     });
     const ordered = seriesInOrder(ranked, seriesIds);
+    const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
     return {
-      items: await cardsOf(ordered.slice((page - 1) * perPage, page * perPage)),
+      items: await cardsOf(ordered.slice(pageStart, page * perPage)),
       page,
       perPage,
       hasNextPage: ordered.length > page * perPage,
-      isPreparing
+      isPreparing: missing.length > 0,
+      preparing: preparingOn(missing, pageStart, perPage, (anilistId) => {
+        const entry = indexed.get(anilistId);
+        return entry && {
+          title: entry.english ?? entry.romaji ?? entry.native,
+          format: toAnimeFormat(entry.format),
+          year: entry.seasonYear ?? (entry.startDate ? Number(entry.startDate.slice(0, 4)) : null)
+        };
+      })
     };
   }
 
   const found = await browseAnime(parsed.data);
   const anilistIds = found.items.map((anime) => anime.id);
-  const { seriesIds, isPreparing } = await seriesIdsFor(anilistIds, {
+  const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
     wantedSeries: Number.POSITIVE_INFINITY,
     pageStart: 0
   });
+  const cards = new Map(found.items.map((anime) => [anime.id, anime]));
   return {
     items: await cardsOf(seriesInOrder(anilistIds, seriesIds)),
     page: found.page,
     perPage: found.perPage,
     hasNextPage: found.hasNextPage,
-    isPreparing
+    isPreparing: missing.length > 0,
+    preparing: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
+      const anime = cards.get(anilistId);
+      return anime && {
+        title: anime.title.display,
+        format: anime.format,
+        year: anime.seasonYear
+      };
+    })
   };
+}
+
+/**
+ * The titles not stored yet among a page's places, where they are expected
+ * on it, described by `describe`. Entries it knows nothing about are left
+ * out.
+ */
+function preparingOn(
+  missing: readonly { anilistId: number; place: number }[],
+  pageStart: number,
+  perPage: number,
+  describe: (anilistId: number) => Omit<PreparingTitle, "anilistId" | "position" | "title"> & { title: string | null } | undefined
+): PreparingTitle[] {
+  return missing.flatMap(({ anilistId, place }) => {
+    const described = describe(anilistId);
+    const position = place - pageStart;
+    return described?.title && position >= 0 && position < perPage
+      ? [{ ...described, anilistId, title: described.title, position }]
+      : [];
+  });
 }
 
 /** The distinct series of `anilistIds`, in the order their entries come. */
@@ -354,8 +397,8 @@ const waitedPlaces = 6;
  * stored yet. A stored series takes one place, and so does each entry not
  * stored yet, since its series is not known.
  *
- * @returns Each stored entry's series, and whether entries the page wanted
- *   are still being prepared.
+ * @returns Each stored entry's series, and the entries the page wanted that
+ *   are still being prepared, with their places.
  */
 async function seriesIdsFor(
   anilistIds: readonly number[],
@@ -389,11 +432,13 @@ async function seriesIdsFor(
 
   const isWaitedOn = (place: number) => place >= window.pageStart && place < window.pageStart + waitedPlaces;
   await Promise.all(
-    missing.map(({ anilistId, place }) => scheduleSeriesStore(anilistId, isWaitedOn(place) ? "waiting" : "current"))
+    missing.map(({ anilistId, place }) =>
+      isWaitedOn(place) ? scheduleSeriesStore(anilistId, "waiting", place - window.pageStart) : scheduleSeriesStore(anilistId, "current")
+    )
   );
   return {
     seriesIds: found,
-    isPreparing: missing.length > 0
+    missing
   };
 }
 
