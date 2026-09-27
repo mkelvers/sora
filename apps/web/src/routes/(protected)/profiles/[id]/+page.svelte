@@ -11,8 +11,6 @@
 	let avatar = $derived(data.profile.avatar);
 	let choices = $derived(data.choices);
 	let pending = $state(false);
-	let deleting = $state(false);
-	let confirmation: HTMLDialogElement;
 
 	const shown = $derived([...new Set([data.profile.avatar, ...choices])]);
 
@@ -90,52 +88,8 @@
 			>
 			<a class="secondary" href={back}>Cancel</a>
 		</div>
-
-		<div class="danger">
-			<button
-				type="button"
-				class="delete"
-				disabled={!data.deletable}
-				onclick={() => confirmation.showModal()}
-			>
-				<Icon name="delete" size="sm" />
-				Delete profile
-			</button>
-		</div>
 	</form>
 </main>
-
-<dialog bind:this={confirmation} aria-labelledby="confirm-title" closedby="any">
-	<form
-		method="POST"
-		action="?/delete"
-		use:enhance={() => {
-			deleting = true;
-			return async ({ update }) => {
-				confirmation.close();
-				await update();
-				deleting = false;
-			};
-		}}
-	>
-		<h2 id="confirm-title">Delete {data.profile.name}?</h2>
-		<p>
-			Its watch history, progress, and watchlist are deleted with it. This
-			cannot be undone.
-		</p>
-
-		<div class="buttons">
-			<button
-				class="secondary"
-				type="button"
-				onclick={() => confirmation.close()}>Cancel</button
-			>
-			<button class="destructive" type="submit" disabled={deleting}>
-				{deleting ? "Deleting…" : "Delete profile"}
-			</button>
-		</div>
-	</form>
-</dialog>
 
 <style>
 	main {
@@ -339,95 +293,8 @@
 		color: #fff;
 	}
 
-	.danger {
-		display: grid;
-		padding-top: 24px;
-		border-top: 1px solid rgb(255 255 255 / 0.08);
-	}
-
-	/* As wide and tall as Save and Cancel, so its edges line up with theirs. */
-	.delete {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
-		padding: 12px;
-		border: none;
-		background: rgb(229 72 77 / 0.1);
-		color: #ff6b6b;
-		font: inherit;
-		font-size: 15px;
-		cursor: pointer;
-		transition: background 120ms;
-	}
-
-	.delete:hover {
-		background: rgb(229 72 77 / 0.18);
-	}
-
-	.delete:disabled {
-		background: rgb(229 72 77 / 0.1);
-		opacity: 0.4;
-		cursor: default;
-	}
-
-	dialog {
-		box-sizing: border-box;
-		width: min(100% - 32px, 400px);
-		padding: 28px;
-		border: none;
-		background: #1c1c1c;
-		box-shadow: 0 24px 64px rgb(0 0 0 / 0.6);
-		color: #e6e6e6;
-	}
-
-	dialog::backdrop {
-		background: rgb(0 0 0 / 0.6);
-	}
-
-	dialog form {
-		gap: 16px;
-		width: auto;
-	}
-
-	h2 {
-		margin: 0;
-		font-size: 20px;
-		font-weight: 400;
-	}
-
-	dialog p {
-		margin: 0 0 8px;
-		color: #999;
-		font-size: 14px;
-		line-height: 1.5;
-	}
-
-	.destructive {
-		flex: 1;
-		padding: 12px;
-		border: none;
-		background: #e5484d;
-		color: #fff;
-		font: inherit;
-		font-size: 15px;
-		cursor: pointer;
-		transition: opacity 120ms;
-	}
-
-	.destructive:hover {
-		opacity: 0.9;
-	}
-
-	.destructive:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
 	.primary:focus-visible,
-	.secondary:focus-visible,
-	.delete:focus-visible,
-	.destructive:focus-visible {
+	.secondary:focus-visible {
 		outline: 2px solid #fff;
 		outline-offset: 2px;
 	}

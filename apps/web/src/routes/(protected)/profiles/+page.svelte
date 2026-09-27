@@ -5,7 +5,9 @@
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import type { PageProps } from "./$types";
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+
+	let deleting = $state<string | null>(null);
 
 	const managing = $derived(page.url.searchParams.has("manage"));
 
@@ -21,6 +23,11 @@
 		const query = params.toString();
 		return query ? `${path}?${query}` : path;
 	}
+
+	function action(name: string) {
+		const query = page.url.search.slice(1);
+		return query ? `?/${name}&${query}` : `?/${name}`;
+	}
 </script>
 
 <svelte:head>
@@ -30,7 +37,19 @@
 <main>
 	<h1>{managing ? "Manage profiles" : "Who's watching?"}</h1>
 
-	<form method="POST" use:enhance>
+	<form
+		method="POST"
+		action={action("select")}
+		use:enhance={({ submitter }) => {
+			if (managing && submitter instanceof HTMLButtonElement) {
+				deleting = submitter.value;
+			}
+			return async ({ update }) => {
+				await update();
+				deleting = null;
+			};
+		}}
+	>
 		<ul>
 			{#each data.profiles as profile (profile.id)}
 				<li>
@@ -48,6 +67,19 @@
 							</span>
 							<span class="name">{profile.name}</span>
 						</a>
+						{#if data.profiles.length > 1}
+							<button
+								class="delete"
+								name="profile"
+								value={profile.id}
+								formaction={action("delete")}
+								disabled={deleting !== null}
+								aria-label="Delete {profile.name}"
+								title="Delete {profile.name}"
+							>
+								<Icon name="delete" size="sm" />
+							</button>
+						{/if}
 					{:else}
 						<button
 							class="profile"
@@ -72,6 +104,10 @@
 				</li>
 			{/if}
 		</ul>
+
+		{#if form?.message}
+			<p class="error" role="alert">{form.message}</p>
+		{/if}
 	</form>
 
 	<div class="footer">
@@ -219,6 +255,53 @@
 	.profile:hover .name,
 	.profile:focus-visible .name {
 		color: #fff;
+	}
+
+	li {
+		position: relative;
+	}
+
+	.delete {
+		display: grid;
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background: rgb(16 16 16 / 0.75);
+		color: #ff6b6b;
+		cursor: pointer;
+		transition:
+			background 120ms,
+			color 120ms;
+	}
+
+	.delete:hover {
+		background: #e5484d;
+		color: #fff;
+	}
+
+	.delete:disabled {
+		background: rgb(16 16 16 / 0.75);
+		color: #ff6b6b;
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.delete:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
+	.error {
+		margin: 24px 0 0;
+		color: #ff8a80;
+		font-size: 14px;
+		text-align: center;
 	}
 
 	.footer {

@@ -1,7 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { profileCookie } from '$lib/server/sora';
 import { avatarSeeds, profilesPath, safeRedirect } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -18,8 +17,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 	return {
 		profile,
-		choices: avatarSeeds(11),
-		deletable: locals.viewer!.profiles.length > 1
+		choices: avatarSeeds(11)
 	};
 };
 
@@ -48,25 +46,6 @@ export const actions: Actions = {
 			throw cause;
 		}
 
-		redirect(303, profilesPath(safeRedirect(url), true));
-	},
-
-	delete: async ({ locals, params, cookies, url }) => {
-		try {
-			await locals.viewer!.sora.deleteProfile(params.id);
-		} catch (cause) {
-			if (cause instanceof SoraError && cause.code === 'LAST_PROFILE') {
-				return fail(409, { message: 'An account keeps at least one profile.' });
-			}
-			if (cause instanceof SoraError && cause.status === 404) {
-				error(404, 'No such profile');
-			}
-			throw cause;
-		}
-
-		if (locals.viewer!.profile?.id === params.id) {
-			cookies.delete(profileCookie, { path: '/' });
-		}
 		redirect(303, profilesPath(safeRedirect(url), true));
 	}
 };
