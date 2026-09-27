@@ -1,5 +1,6 @@
-import { run, type Runner } from "graphile-worker";
+import { run, type Runner, type Task, type TaskList } from "graphile-worker";
 
+import { withAniListPriority } from "../anilist/client";
 import { config } from "../config";
 import { reviveAiringChecks, reviveAiringChecksTask, trackAiring } from "./jobs/airing";
 import {
@@ -35,9 +36,12 @@ import { lookUpEpisodesTask, storeSeriesTask, trackAiringTask } from "./queue";
 export async function startScheduler(): Promise<Runner> {
   return run({
     connectionString: config.databaseUrl,
-    // AniList and provider requests are rate limited per process anyway.
-    concurrency: 2,
-    taskList: {
+    // Long jobs, such as a full catalogue sync or an airing check waiting
+    // out a provider's rate limit, must not take every slot from a layout a
+    // viewer is waiting on. AniList's limit is shared by the whole process
+    // and serves the most urgent job first, so more slots cost it nothing.
+    concurrency: 8,
+    taskList: prioritized({
       [trackAiringTask]: trackAiring,
       [reviveAiringChecksTask]: reviveAiringChecks,
       [storeSeriesTask]: storeSeriesJob,
@@ -49,7 +53,7 @@ export async function startScheduler(): Promise<Runner> {
       [checkProviderHealthTask]: checkProviderHealthJob,
       [syncSearchIndexTask]: syncSearchIndexJob,
       [backfillSeriesTask]: backfillSeries
-    },
+    }),
     crontab: [
       `0 * * * * ${reviveAiringChecksTask}`,
       `30 4 * * * ${discoverSeriesEntriesTask}`,
@@ -65,4 +69,14 @@ export async function startScheduler(): Promise<Runner> {
       `10,40 * * * * ${backfillSeriesTask} ?priority=-1`
     ].join("\n")
   });
+}
+
+/** Runs each task with its AniList requests queued at its job's priority; see {@link withAniListPriority}. */
+function prioritized(tasks: Record<string, Task>): TaskList {
+  return Object.fromEntries(
+    Object.entries(tasks).map(([name, task]): [string, Task] => [
+      name,
+      (payload, helpers) => withAniListPriority(helpers.job.priority, async () => task(payload, helpers))
+    ])
+  );
 }
