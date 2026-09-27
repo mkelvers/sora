@@ -26,6 +26,16 @@
 	let now = $state(new Date());
 
 	$effect(() => {
+		if (!episodes.current?.some((episode) => episode.audio === null)) {
+			return;
+		}
+
+		const timer = setTimeout(() => episodes.refresh(), 3000);
+
+		return () => clearTimeout(timer);
+	});
+
+	$effect(() => {
 		const timeout = setTimeout(
 			() => (now = new Date()),
 			60_000 - (now.getTime() % 60_000),
