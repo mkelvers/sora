@@ -40,7 +40,7 @@
 	<Button
 		class="icon-button"
 		aria-label="Rewind 10 seconds"
-		onclick={() => player.seek(-10)}
+		onclick={() => (player.time -= 10)}
 	>
 		<Icon name="rewind" />
 	</Button>
@@ -48,7 +48,7 @@
 	<Button
 		class="icon-button"
 		aria-label={player.paused ? "Play" : "Pause"}
-		onclick={player.toggle}
+		onclick={() => (player.paused = !player.paused)}
 	>
 		<Icon name={player.paused ? "play" : "pause"} />
 	</Button>
@@ -56,7 +56,7 @@
 	<Button
 		class="icon-button"
 		aria-label="Forward 10 seconds"
-		onclick={() => player.seek(10)}
+		onclick={() => (player.time += 10)}
 	>
 		<Icon name="forward" />
 	</Button>
@@ -155,11 +155,5 @@
 	.volume {
 		width: 88px;
 		margin-right: 12px;
-	}
-
-	@media (max-width: 720px) {
-		.volume {
-			display: none;
-		}
 	}
 </style>

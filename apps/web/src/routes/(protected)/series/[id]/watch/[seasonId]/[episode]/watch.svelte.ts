@@ -35,14 +35,6 @@ export class Player {
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#dismissing = false;
 
-	toggle = () => {
-		this.paused = !this.paused;
-	};
-
-	seek = (seconds: number) => {
-		this.time += seconds;
-	};
-
 	wake = () => {
 		this.idle = false;
 		clearTimeout(this.#timer);
@@ -67,7 +59,7 @@ export class Player {
 
 	onclick = () => {
 		if (!this.#dismissing) {
-			this.toggle();
+			this.paused = !this.paused;
 		}
 	};
 
@@ -82,10 +74,10 @@ export class Player {
 		}
 
 		const action = {
-			' ': this.toggle,
-			k: this.toggle,
-			ArrowLeft: () => this.seek(-10),
-			ArrowRight: () => this.seek(10),
+			' ': () => (this.paused = !this.paused),
+			k: () => (this.paused = !this.paused),
+			ArrowLeft: () => (this.time -= 10),
+			ArrowRight: () => (this.time += 10),
 			m: () => (this.muted = !this.muted),
 			f: this.toggleFullscreen
 		}[event.key];
