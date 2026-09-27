@@ -6,7 +6,7 @@ import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
 import { db } from "../../database/client";
-import { seriesEpisode, seriesSeason } from "../../database/schema";
+import { animeSearch, seriesEpisode, seriesSeason } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { relatedIds } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
@@ -32,6 +32,10 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
     helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
   } catch (error) {
     if (error instanceof AnimeNotFoundError) {
+      // Searches queue every entry they find that is not stored, so an entry
+      // left in the index would be queued again by each one. A sync puts it
+      // back should AniList serve it again.
+      await db.delete(animeSearch).where(eq(animeSearch.anilistId, anilistId));
       helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
       return;
     }
