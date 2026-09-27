@@ -1,4 +1,4 @@
-import { anilist } from "../anilist/client";
+import { anilist, currentAniListPriority } from "../anilist/client";
 import { FranchiseEntriesDocument, type FranchiseEntryFragment, type MediaRelation } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
 import { UpstreamUnavailableError } from "../errors";
@@ -53,49 +53,101 @@ const recentEntries = new Map<
 >();
 
 /**
- * Loads franchise entries by AniList ID in batches of 50.
+ * Loads franchise entries by AniList ID in batches of 50. Each batch also
+ * brings the entries related to those asked for, which are kept for later
+ * calls, so walking a franchise costs one request for every two steps.
  *
  * Unknown, adult, and music-video IDs are left out: music videos are not
  * watchable series, and adult media is never served.
  */
 export async function loadEntries(ids: Iterable<number>): Promise<Map<number, FranchiseEntry>> {
-  const entries = new Map<number, FranchiseEntry>();
-  const missing: number[] = [];
-  for (const id of new Set(ids)) {
+  const wanted = [...new Set(ids)];
+  const missing = wanted.filter((id) => {
     const recent = recentEntries.get(id);
-    if (recent && recent.loadedAt + entryLifetimeMs > Date.now()) {
-      if (recent.entry) {
-        entries.set(id, recent.entry);
-      }
-    } else {
-      missing.push(id);
-    }
+    return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
+  });
+  if (missing.length > 0) {
+    await loadTogether(missing);
   }
 
-  missing.sort((left, right) => left - right);
-
-  // AniList pages are capped at 50 entries.
-  for (let offset = 0; offset < missing.length; offset += 50) {
-    const batch = missing.slice(offset, offset + 50);
-    const { Page } = await fetchEntries(batch);
-
-    const loaded = new Map<number, FranchiseEntry>();
-    for (const media of Page?.media ?? []) {
-      if (media && !media.isAdult && media.format !== "MUSIC") {
-        loaded.set(media.id, media);
-      }
-    }
-
-    for (const id of batch) {
-      const entry = loaded.get(id) ?? null;
-      remember(id, entry);
-      if (entry) {
-        entries.set(id, entry);
-      }
+  const entries = new Map<number, FranchiseEntry>();
+  for (const id of wanted) {
+    const entry = recentEntries.get(id)?.entry;
+    if (entry) {
+      entries.set(id, entry);
     }
   }
 
   return entries;
+}
+
+/** How long IDs asked for at about the same time are gathered into one request. */
+const gatherMs = 25;
+
+/** IDs being gathered into one request, by the AniList priority they are asked at. */
+const gathering = new Map<number, { ids: Set<number>; loaded: Promise<void> }>();
+
+/**
+ * Loads `ids` into {@link recentEntries} together with any others asked for
+ * at the same priority within {@link gatherMs}. Layouts that start at once,
+ * as several a search found do, then share requests rather than each asking
+ * for its own entry. Priorities are gathered apart, so a viewer's IDs never
+ * wait in a background request.
+ */
+function loadTogether(ids: readonly number[]): Promise<void> {
+  const priority = currentAniListPriority();
+  let batch = gathering.get(priority);
+  if (!batch) {
+    const gathered = new Set<number>();
+    batch = {
+      ids: gathered,
+      loaded: Bun.sleep(gatherMs).then(() => {
+        gathering.delete(priority);
+        return fetchAndRemember([...gathered].sort((left, right) => left - right));
+      })
+    };
+    gathering.set(priority, batch);
+  }
+
+  for (const id of ids) {
+    batch.ids.add(id);
+  }
+
+  return batch.loaded;
+}
+
+/** Fetches entries in pages of 50, AniList's cap, and remembers them and their neighbours. */
+async function fetchAndRemember(ids: readonly number[]) {
+  for (let offset = 0; offset < ids.length; offset += 50) {
+    const batch = ids.slice(offset, offset + 50);
+    const { Page } = await fetchEntries(batch);
+
+    const loaded = new Map<number, FranchiseEntry>();
+    for (const media of Page?.media ?? []) {
+      if (!media) {
+        continue;
+      }
+
+      const { neighbours, ...entry } = media;
+      if (isServed(entry)) {
+        loaded.set(entry.id, entry);
+      }
+
+      // The next step of a walk, and the prequels matching looks up, then
+      // need no request of their own.
+      for (const edge of neighbours?.edges ?? []) {
+        const neighbour = edge?.node;
+        if (neighbour?.type === "ANIME" && !batch.includes(neighbour.id)) {
+          const { type: _type, ...neighbourEntry } = neighbour;
+          remember(neighbour.id, isServed(neighbourEntry) ? neighbourEntry : null);
+        }
+      }
+    }
+
+    for (const id of batch) {
+      remember(id, loaded.get(id) ?? null);
+    }
+  }
 }
 
 /**
@@ -125,6 +177,11 @@ async function fetchEntries(ids: number[]) {
       }
     }
   }
+}
+
+/** Whether an entry is served at all: adult media and music videos never are. */
+function isServed(entry: FranchiseEntry) {
+  return !entry.isAdult && entry.format !== "MUSIC";
 }
 
 function remember(id: number, entry: FranchiseEntry | null) {
