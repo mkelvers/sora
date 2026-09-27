@@ -2,7 +2,6 @@
 	import Actions from "./_components/Actions.svelte";
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
-	import Related from "./_components/Related.svelte";
 	import Seasons from "./_components/Seasons.svelte";
 	import Stats from "./_components/Stats.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
@@ -131,10 +130,6 @@
 
 				<Episodes seriesId={series.id} {season} />
 			</section>
-
-			{#if series.related.length}
-				<Related related={series.related} />
-			{/if}
 		</div>
 	</div>
 </div>
