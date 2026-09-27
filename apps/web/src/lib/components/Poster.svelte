@@ -49,14 +49,14 @@
 		if (resume) {
 			return {
 				href: `/series/${card.id}/watch/${resume.season_id}/${resume.episode}`,
-				label: `${resume.position_seconds > 0 ? 'Resume' : 'Play'} episode ${resume.episode}`
+				label: `${resume.position_seconds > 0 ? 'Resume' : 'Play'} E${resume.episode}`
 			};
 		}
 
 		return (
 			card.start_season_id && {
 				href: `/series/${card.id}/watch/${card.start_season_id}/1`,
-				label: card.kind === 'movie' ? 'Play' : 'Play episode 1'
+				label: card.kind === 'movie' ? 'Play' : 'Play E1'
 			}
 		);
 	});
