@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { playbackProgress, series, seriesEpisode, seriesSeason, watchlistEntry } from "../../database/schema";
+import { playbackProgress, seasonCompletion, series, seriesEpisode, seriesSeason, watchlistEntry } from "../../database/schema";
+import { isEpisodeReleased } from "../../series/episodes";
 import { toSeriesCard } from "../../series/queries";
 import { toEpisodeProgress } from "./progress";
 import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type TitleEpisode } from "./resume";
@@ -12,7 +13,8 @@ import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type Ti
  *
  * Titles marked `completed` or `dropped` on the watchlist are left out, as
  * are titles with nothing left to watch. See {@link continuePoint} for how
- * the episode to resume is chosen.
+ * the episode to resume is chosen; a completed season counts as a completed
+ * checkpoint at the episode that ended it, since its own were cleared.
  */
 export async function getContinueWatching(
   userId: string,
@@ -23,32 +25,73 @@ export async function getContinueWatching(
   } = {}
 ): Promise<ContinueWatchingItem[]> {
   const { limit = 20, seriesId } = options;
-  const rows = await db
-    .select({
-      progress: playbackProgress,
-      seriesId: seriesSeason.seriesId,
-      seasonId: seriesEpisode.seasonId,
-      number: seriesEpisode.number
+  const [checkpoints, completions] = await Promise.all([
+    db
+      .select({
+        progress: playbackProgress,
+        seriesId: seriesSeason.seriesId,
+        seasonId: seriesEpisode.seasonId,
+        position: seriesSeason.position,
+        number: seriesEpisode.number
+      })
+      .from(playbackProgress)
+      .innerJoin(
+        seriesEpisode,
+        and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
+      )
+      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+      .where(and(eq(playbackProgress.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId))),
+    db
+      .select({
+        completedAt: seasonCompletion.completedAt,
+        seriesId: seriesSeason.seriesId,
+        seasonId: seriesEpisode.seasonId,
+        position: seriesSeason.position,
+        number: seriesEpisode.number,
+        durationMinutes: seriesEpisode.runtimeMinutes
+      })
+      .from(seasonCompletion)
+      .innerJoin(
+        seriesEpisode,
+        and(eq(seriesEpisode.anilistId, seasonCompletion.anilistId), eq(seriesEpisode.anilistEpisode, seasonCompletion.episode))
+      )
+      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+      .where(and(eq(seasonCompletion.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId)))
+  ]);
+
+  const rows = [
+    ...checkpoints.map((row) => ({
+      ...row,
+      checkpoint: toEpisodeProgress(row.progress, row.seasonId, row.number)
+    })),
+    ...completions.map((row) => {
+      const duration = (row.durationMinutes ?? 0) * 60;
+      return {
+        ...row,
+        checkpoint: {
+          seasonId: row.seasonId,
+          episode: row.number,
+          positionSeconds: duration,
+          durationSeconds: duration,
+          completed: true,
+          eventAt: row.completedAt.toISOString()
+        } satisfies EpisodeProgress
+      };
     })
-    .from(playbackProgress)
-    .innerJoin(
-      seriesEpisode,
-      and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
-    )
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(and(eq(playbackProgress.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId)))
-    .orderBy(desc(playbackProgress.eventAt), desc(seriesSeason.position), desc(seriesEpisode.number));
+  ].sort(
+    (left, right) =>
+      right.checkpoint.eventAt.localeCompare(left.checkpoint.eventAt) || right.position - left.position || right.number - left.number
+  );
 
   // Map insertion order keeps titles in order of their most recent event.
   const bySeries = new Map<string, EpisodeProgress[]>();
   for (const row of rows) {
-    const checkpoints = bySeries.get(row.seriesId);
-    const checkpoint = toEpisodeProgress(row.progress, row.seasonId, row.number);
-    if (checkpoints) {
-      checkpoints.push(checkpoint);
+    const known = bySeries.get(row.seriesId);
+    if (known) {
+      known.push(row.checkpoint);
     } else if (bySeries.size < limit * 2) {
       // Over-fetch, because some titles drop out once their episodes are known.
-      bySeries.set(row.seriesId, [checkpoint]);
+      bySeries.set(row.seriesId, [row.checkpoint]);
     }
   }
 
@@ -103,10 +146,8 @@ export async function getContinueWatching(
 
 /**
  * Loads every episode of the given titles in title order, and returns a
- * lookup of one title's episodes with their release state.
- *
- * An episode has not been released while it is at or past the title's
- * announced next episode, or while TMDB dates it in the future.
+ * lookup of one title's episodes with their release state; see
+ * {@link isEpisodeReleased}.
  */
 async function titleEpisodes(seriesIds: readonly string[]) {
   const rows = await db
@@ -124,21 +165,14 @@ async function titleEpisodes(seriesIds: readonly string[]) {
     .orderBy(asc(seriesSeason.seriesId), asc(seriesSeason.position), asc(seriesEpisode.number));
 
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  return (title: typeof series.$inferSelect): TitleEpisode[] => {
-    const isAhead = title.nextEpisodeAiringAt !== null && title.nextEpisodeAiringAt > now;
-    return rows
+  return (title: typeof series.$inferSelect): TitleEpisode[] =>
+    rows
       .filter((row) => row.seriesId === title.id)
-      .map((row) => {
-        const isAtOrAfterNext =
-          isAhead && row.seasonId === title.nextEpisodeSeasonId && title.nextEpisodeNumber !== null && row.number >= title.nextEpisodeNumber;
-        return {
-          seasonId: row.seasonId,
-          inWatchOrder: row.inWatchOrder,
-          number: row.number,
-          isExtra: row.anilistId === null,
-          isReleased: !isAtOrAfterNext && (row.airDate === null || row.airDate <= today)
-        };
-      });
-  };
+      .map((row) => ({
+        seasonId: row.seasonId,
+        inWatchOrder: row.inWatchOrder,
+        number: row.number,
+        isExtra: row.anilistId === null,
+        isReleased: isEpisodeReleased(title, row, now)
+      }));
 }
