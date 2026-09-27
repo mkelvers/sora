@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
@@ -50,8 +51,33 @@ const EnvelopeSchema = z.object({
 });
 
 let nextRequestAt = 0;
-let queue: Promise<unknown> = Promise.resolve();
 const inFlight = new Map<string, Promise<unknown>>();
+
+/** A request waiting for its turn under the rate limit. */
+interface QueuedRequest {
+  priority: number;
+  /** Sends the request and settles its caller's promise; never rejects. */
+  send: () => Promise<void>;
+}
+
+/** Requests waiting for their turn, most urgent first and, within a priority, oldest first. */
+const waiting: QueuedRequest[] = [];
+let isDraining = false;
+
+const priorityContext = new AsyncLocalStorage<number>();
+
+/**
+ * Runs `work` with the AniList requests it makes queued at `priority`,
+ * lower numbers first, as graphile-worker orders jobs.
+ *
+ * Requests made outside any priority go first of all: they are made while
+ * serving someone, whereas the scheduler runs each job under the job's own
+ * priority. A job a viewer is waiting on then gets AniList's limited
+ * requests ahead of a catalogue sync that makes hundreds.
+ */
+export function withAniListPriority<T>(priority: number, work: () => Promise<T>): Promise<T> {
+  return priorityContext.run(priority, work);
+}
 
 /**
  * Executes a generated AniList operation with caching, request coalescing,
@@ -138,20 +164,43 @@ async function fetchAndStore<TResult>(
   return data as TResult;
 }
 
-/** Serializes upstream calls so they are spaced by {@link requestSpacingMs}. */
+/**
+ * Serializes upstream calls so they are spaced by {@link requestSpacingMs},
+ * sending the most urgent waiting one next; see {@link withAniListPriority}.
+ */
 function rateLimited<T>(task: () => Promise<T>): Promise<T> {
-  const run = queue.then(async () => {
+  return new Promise<T>((resolve, reject) => {
+    const request: QueuedRequest = {
+      priority: priorityContext.getStore() ?? Number.NEGATIVE_INFINITY,
+      send: () => task().then(resolve, reject)
+    };
+    const later = waiting.findIndex((other) => other.priority > request.priority);
+    waiting.splice(later === -1 ? waiting.length : later, 0, request);
+    void drain();
+  });
+}
+
+async function drain() {
+  if (isDraining) {
+    return;
+  }
+
+  isDraining = true;
+  while (waiting.length > 0) {
+    // Picked only once its turn comes, so a more urgent request queued
+    // during the wait goes first.
     const wait = nextRequestAt - Date.now();
     if (wait > 0) {
       await Bun.sleep(wait);
+      continue;
     }
 
+    const request = waiting.shift();
     nextRequestAt = Date.now() + requestSpacingMs;
-    return task();
-  });
+    await request?.send();
+  }
 
-  queue = run.catch(() => undefined);
-  return run;
+  isDraining = false;
 }
 
 /**
