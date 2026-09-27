@@ -50,6 +50,6 @@ const statuses: Partial<Record<NonNullable<SeriesCard['status']>, string>> = {
 
 export function describeCard(card: SeriesCard) {
 	return [card.year, kinds[card.kind], card.status && statuses[card.status]]
-		.filter(Boolean)
+		.filter((part) => !!part)
 		.join(' · ');
 }
