@@ -5,10 +5,11 @@
 import type { z } from "@hono/zod-openapi";
 
 import type { CountMetaSchema, PageMetaSchema } from "./openapi/envelope";
-import type { getSchedule, getSeason, getSeries, listSeasonEpisodes } from "./openapi/routes";
+import type { getSchedule, getSeason, getSeries, getSeriesProgress, listSeasonEpisodes } from "./openapi/routes";
 import type {
   ContinueWatchingItemSchema,
   EpisodeProgressSchema,
+  SeasonCompletionSchema,
   PlaybackMediaSchema,
   PlaybackMetaSchema,
   ProfileSchema,
@@ -18,7 +19,8 @@ import type {
   SeriesCardSchema,
   SeriesImageSchema,
   SeriesSchema,
-  SkipSegmentSchema
+  SkipSegmentSchema,
+  TitleProgressSchema
 } from "./openapi/schemas";
 
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
@@ -32,6 +34,8 @@ export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type EpisodeProgress = z.infer<typeof EpisodeProgressSchema>;
+export type SeasonCompletion = z.infer<typeof SeasonCompletionSchema>;
+export type TitleProgress = z.infer<typeof TitleProgressSchema>;
 export type ContinueWatchingItem = z.infer<typeof ContinueWatchingItemSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
@@ -65,6 +69,7 @@ export type SeriesMeta = SuccessBody<typeof getSeries>["meta"];
 export type SeasonMeta = SuccessBody<typeof getSeason>["meta"];
 export type SeasonEpisodesMeta = SuccessBody<typeof listSeasonEpisodes>["meta"];
 export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
+export type TitleProgressMeta = SuccessBody<typeof getSeriesProgress>["meta"];
 
 /** The body of every successful JSON response. */
 export interface Envelope<TResults, TMeta> {

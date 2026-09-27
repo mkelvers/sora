@@ -15,7 +15,6 @@ import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
   ContinueWatchingItemSchema,
   EpisodeNumberParam,
-  EpisodeProgressSchema,
   ImageTypeSchema,
   json,
   PlaybackMediaSchema,
@@ -32,7 +31,8 @@ import {
   SeriesCardSchema,
   SeriesIdParam,
   SeriesImageSchema,
-  SeriesSchema
+  SeriesSchema,
+  TitleProgressSchema
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -607,7 +607,7 @@ export const getSeriesProgress = createRoute({
   path: "/profiles/{profile_id}/progress/{series_id}",
   tags: ["Profiles"],
   summary: "A title's saved progress",
-  description: "The saved position of every episode of the title the profile has played, in title order.",
+  description: "The seasons of the title the profile has watched to the end, and the saved position of every episode it has played, in title order.",
   security: signedIn,
   request: {
     params: ProfileParams.extend({
@@ -615,7 +615,15 @@ export const getSeriesProgress = createRoute({
     })
   },
   responses: {
-    200: json(envelopeOf(z.array(EpisodeProgressSchema), CountMetaSchema), "The checkpoints."),
+    200: json(
+      envelopeOf(
+        TitleProgressSchema,
+        z.object({
+          series_id: z.string()
+        })
+      ),
+      "The progress."
+    ),
     401: problem("Not signed in."),
     404: problem("The account has no such profile, or no such title.")
   }

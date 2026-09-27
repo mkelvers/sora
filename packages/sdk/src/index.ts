@@ -37,6 +37,7 @@ export type {
   Season,
   SeasonEpisode,
   SeasonEpisodesMeta,
+  SeasonCompletion,
   SeasonMeta,
   SeasonWithEpisodes,
   Series,
@@ -44,5 +45,7 @@ export type {
   SeriesImage,
   SeriesMeta,
   SeriesWithEpisodes,
-  SkipSegment
+  SkipSegment,
+  TitleProgress,
+  TitleProgressMeta
 } from "@sora/api";

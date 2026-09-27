@@ -7,7 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Profile } from "@sora/core/auth";
 import type { AnimeTag } from "@sora/core/catalog";
-import type { ContinueWatchingItem, EpisodeProgress } from "@sora/core/library";
+import type { ContinueWatchingItem, EpisodeProgress, SeasonCompletion, TitleProgress } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type { ScheduledEpisode, Season, SeasonEpisode, Series, SeriesCard, SeriesImage } from "@sora/core/series";
 
@@ -435,6 +435,27 @@ export const EpisodeProgressSchema = z
     event_at: z.string()
   })
   .openapi("EpisodeProgress") satisfies z.ZodType<SnakeCased<EpisodeProgress>>;
+
+export const SeasonCompletionSchema = z
+  .object({
+    season_id: z.string(),
+    completed_at: z.string().openapi({
+      description: "When its last episode was finished, as an ISO 8601 timestamp."
+    })
+  })
+  .openapi("SeasonCompletion") satisfies z.ZodType<SnakeCased<SeasonCompletion>>;
+
+export const TitleProgressSchema = z
+  .object({
+    completed_seasons: z.array(SeasonCompletionSchema).openapi({
+      description:
+        "Seasons watched to the end, in title order. Finishing a season's last episode completes it and clears the checkpoints of its episodes; a season that gains episodes afterwards is no longer listed."
+    }),
+    episodes: z.array(EpisodeProgressSchema).openapi({
+      description: "The checkpoint of every episode played, in title order. An episode of a completed season has one only when it was played again since."
+    })
+  })
+  .openapi("TitleProgress") satisfies z.ZodType<SnakeCased<TitleProgress>>;
 
 export const ContinueWatchingItemSchema = z
   .object({

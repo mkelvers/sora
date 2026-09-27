@@ -6,7 +6,6 @@ import type {
   PageMeta,
   PlaybackMedia,
   PlaybackMeta,
-  EpisodeProgress,
   Profile,
   ScheduledEpisode,
   ScheduleMeta,
@@ -18,7 +17,9 @@ import type {
   SeriesCard,
   SeriesImage,
   SeriesMeta,
-  SeriesWithEpisodes
+  SeriesWithEpisodes,
+  TitleProgress,
+  TitleProgressMeta
 } from "@sora/api";
 import type { BrowseQuery } from "@sora/core/catalog";
 import { hc, type ClientResponse } from "hono/client";
@@ -341,13 +342,18 @@ export class SoraClient {
     return unwrap(body, options);
   }
 
-  /** A profile's saved position in every episode of a title it has played. */
+  /**
+   * A profile's progress through a title: the seasons it has watched to the
+   * end, and its saved position in every episode it has played. Finishing a
+   * season's last episode completes the season and clears its episodes'
+   * positions.
+   */
   async progress<const TOptions extends RequestOptions = {}>(
     profileId: string,
     seriesId: string,
     options?: TOptions
-  ): Promise<Returned<TOptions, EpisodeProgress[], CountMeta>> {
-    const body: Envelope<EpisodeProgress[], CountMeta> = await read(
+  ): Promise<Returned<TOptions, TitleProgress, TitleProgressMeta>> {
+    const body: Envelope<TitleProgress, TitleProgressMeta> = await read(
       this.#api.profiles[":profile_id"].progress[":series_id"].$get(
         {
           param: {

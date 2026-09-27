@@ -405,7 +405,7 @@ export const v1Routes = v1
     return c.json(
       {
         meta: {
-          count: progress.length
+          series_id
         },
         results: snakeCased(progress)
       },
