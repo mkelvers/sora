@@ -9,7 +9,7 @@
 		card,
 		resume = null,
 		title = card?.title,
-		sizes = '(min-width: 1800px) 240px, 180px'
+		sizes = '(min-width: 1800px) 240px, 180px',
 	}: {
 		card?: SeriesCard;
 		resume?: ContinueWatchingItem | null;
@@ -49,14 +49,14 @@
 		if (resume) {
 			return {
 				href: `/series/${card.id}/watch/${resume.season_id}/${resume.episode}`,
-				label: `${resume.position_seconds > 0 ? 'Resume' : 'Play'} E${resume.episode}`
+				label: `${resume.position_seconds > 0 ? 'Resume' : 'Play'} E${resume.episode}`,
 			};
 		}
 
 		return (
 			card.start_season_id && {
 				href: `/series/${card.id}/watch/${card.start_season_id}/1`,
-				label: card.kind === 'movie' ? 'Play' : 'Play E1'
+				label: card.kind === 'movie' ? 'Play' : 'Play E1',
 			}
 		);
 	});
@@ -122,7 +122,7 @@
 			{#if play}
 				<Tooltip text={play.label}>
 					<a href={play.href} aria-label={play.label}>
-						<Icon name="play-outline" size="lg" />
+						<Icon name="play" size="lg" />
 					</a>
 				</Tooltip>
 			{/if}
