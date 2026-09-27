@@ -1,5 +1,7 @@
 <script lang="ts">
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
 	import { searchSeries } from "../search.remote";
 
 	let {
@@ -17,6 +19,31 @@
 	const found = $derived(await searchSeries({ q, page, perPage: 24 }));
 	const stale = $derived($effect.pending() > 0);
 
+	const formats: Partial<Record<NonNullable<PreparingTitle["format"]>, string>> = {
+		TV: "Series",
+		TV_SHORT: "Series",
+		ONA: "Series",
+		MOVIE: "Movie",
+	};
+
+	const items = $derived.by(() => {
+		const merged: (
+			| { key: string; card: SeriesCard; preparing?: never }
+			| { key: string; preparing: PreparingTitle; card?: never }
+		)[] = found.results.map((card) => ({ key: card.id, card }));
+
+		for (const preparing of found.meta.preparing_titles.toSorted(
+			(left, right) => left.position - right.position,
+		)) {
+			merged.splice(Math.min(preparing.position, merged.length), 0, {
+				key: `anilist:${preparing.anilist_id}`,
+				preparing,
+			});
+		}
+
+		return merged;
+	});
+
 	$effect(() => {
 		if (!found.meta.preparing) {
 			return;
@@ -24,38 +51,52 @@
 
 		const timer = setTimeout(
 			() => searchSeries({ q, page, perPage: 24 }).refresh(),
-			3000,
+			1000,
 		);
 
 		return () => clearTimeout(timer);
 	});
 </script>
 
-{#each found.results as card (card.id)}
-	<li class={[stale && "stale"]}>
-		<a href="/series/{card.id}">
+{#each items as { key, card, preparing } (key)}
+	{#if preparing}
+		<li class={["preparing", stale && "stale"]} aria-busy="true">
 			<div class="poster">
-				{#if card.poster_url}
-					<img
-						src={tmdbImage(card.poster_url, "w342")}
-						srcset={tmdbSrcset(card.poster_url, {
-							w185: 185,
-							w342: 342,
-							w500: 500,
-						})}
-						sizes="(min-width: 1800px) 240px, 180px"
-						alt=""
-						loading="lazy"
-						decoding="async"
-					/>
-				{:else}
-					<span class="fallback">{card.title}</span>
-				{/if}
+				<Skeleton height="100%" />
 			</div>
-			<span class="title">{card.title}</span>
-			<span class="meta">{describeCard(card)}</span>
-		</a>
-	</li>
+			<span class="title">{preparing.title}</span>
+			<span class="meta">
+				{[preparing.year, preparing.format && formats[preparing.format], "Preparing"]
+					.filter(Boolean)
+					.join(" · ")}
+			</span>
+		</li>
+	{:else if card}
+		<li class={[stale && "stale"]}>
+			<a href="/series/{card.id}">
+				<div class="poster">
+					{#if card.poster_url}
+						<img
+							src={tmdbImage(card.poster_url, "w342")}
+							srcset={tmdbSrcset(card.poster_url, {
+								w185: 185,
+								w342: 342,
+								w500: 500,
+							})}
+							sizes="(min-width: 1800px) 240px, 180px"
+							alt=""
+							loading="lazy"
+							decoding="async"
+						/>
+					{:else}
+						<span class="fallback">{card.title}</span>
+					{/if}
+				</div>
+				<span class="title">{card.title}</span>
+				<span class="meta">{describeCard(card)}</span>
+			</a>
+		</li>
+	{/if}
 {:else}
 	{#if page === 1}
 		<li class={["empty", stale && "stale"]}>
@@ -99,11 +140,17 @@
 		opacity: 0.5;
 	}
 
-	a {
+	a,
+	.preparing {
 		display: grid;
+		align-content: start;
 		gap: 2px;
 		color: inherit;
 		text-decoration: none;
+	}
+
+	.preparing .title {
+		color: #bbb;
 	}
 
 	a:focus-visible {
