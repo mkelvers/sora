@@ -55,7 +55,14 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
     .where(eq(tmdbHint.anilistId, anilistId))
     .limit(1);
 
-  return row ?? null;
+  // Bun's driver reads an integer array as an Int32Array, whose `map`
+  // would turn each of its IDs into a number again.
+  return row
+    ? {
+        showId: row.showId,
+        movieIds: [...row.movieIds]
+      }
+    : null;
 }
 
 /**
