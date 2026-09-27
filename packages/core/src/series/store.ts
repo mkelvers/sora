@@ -1,9 +1,11 @@
 import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
+import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
 import { scheduleEpisodeLookup, scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
+import { anilistEpisodeKey } from "./episodes";
 import { assignSeasonIds } from "./identity";
 import { newId } from "../ids";
 import type { SeriesSeason } from "./seasons";
@@ -55,7 +57,8 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  */
 export async function storeSeries(anilistId: number): Promise<string> {
   const built = await buildSeries(anilistId);
-  const seriesId = await db.transaction((tx) => writeSeries(tx, built));
+  const airings = await fetchEpisodeAirings(built.anilistIds);
+  const seriesId = await db.transaction((tx) => writeSeries(tx, built, airings));
 
   // Readers take the series' details from its anchor entry, so it must be stored.
   await getAnime(built.anchorAnilistId);
@@ -77,7 +80,7 @@ export async function storeSeries(anilistId: number): Promise<string> {
   return seriesId;
 }
 
-async function writeSeries(tx: Transaction, built: SeriesLayout) {
+async function writeSeries(tx: Transaction, built: SeriesLayout, airings: ReadonlyMap<string, Date>) {
   await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey})`);
 
   const seriesId = await chooseSeriesId(tx, built);
@@ -153,7 +156,7 @@ async function writeSeries(tx: Transaction, built: SeriesLayout) {
     }))
   );
 
-  const seasons = await writeSeasons(tx, seriesId, built);
+  const seasons = await writeSeasons(tx, seriesId, built, airings);
   const next = nextEpisodeOf(seasons, built.nextAiring);
   await tx
     .update(series)
@@ -255,8 +258,12 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
   return chosen?.id ?? newId();
 }
 
-/** Replaces a series' seasons and episodes, keeping season IDs. Returns the seasons with their IDs. */
-async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayout) {
+/**
+ * Replaces a series' seasons and episodes, keeping season IDs, each episode
+ * with when AniList's airing schedule says it aired (see
+ * {@link fetchEpisodeAirings}). Returns the seasons with their IDs.
+ */
+async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayout, airings: ReadonlyMap<string, Date>) {
   const stored = await tx
     .select({
       id: seriesSeason.id,
@@ -311,6 +318,7 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
       title: episode.title,
       overview: episode.overview,
       airDate: episode.airDate,
+      airedAt: airings.get(anilistEpisodeKey(episode.playback.anilistId, episode.playback.episode)) ?? null,
       runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
       stillUrl: episode.stillUrl,
       tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
