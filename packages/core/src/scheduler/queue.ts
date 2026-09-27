@@ -170,10 +170,11 @@ export async function scheduleSeriesStore(anilistId: number, priority: SeriesSto
 /**
  * Queues laying out the series of an AniList entry again, if a stored series
  * contains it. Called as the entry airs, so new episodes, and TMDB listing a
- * season it did not list before, reach the stored series. Runs as `current`.
+ * season it did not list before, reach the stored series, and when what the
+ * layout is derived from changed.
  */
-export async function scheduleStoredSeriesRefresh(anilistId: number) {
-  const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriorities.current);
+export async function scheduleStoredSeriesRefresh(anilistId: number, priority: Exclude<SeriesStorePriority, "waiting"> = "current") {
+  const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriorities[priority]);
   await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${taskAt(kept, storeSeriesTask, storeSeriesNowTask)},
