@@ -207,7 +207,7 @@ export type FranchiseEntriesQueryVariables = Exact<{
 }>;
 
 
-export type FranchiseEntriesQuery = { Page: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
+export type FranchiseEntriesQuery = { Page: { media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, neighbours: { edges: Array<{ node: { type: MediaType | null, synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
 
 export type NewEntriesQueryVariables = Exact<{
   page: number;
@@ -590,6 +590,14 @@ export const FranchiseEntriesDocument = new TypedDocumentString(`
   Page(page: 1, perPage: $perPage) {
     media(id_in: $ids, type: ANIME) {
       ...FranchiseEntry
+      neighbours: relations {
+        edges {
+          node {
+            type
+            ...FranchiseEntry
+          }
+        }
+      }
     }
   }
 }

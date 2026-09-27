@@ -1,7 +1,17 @@
+# Entries by ID, each with its related entries in full, so walking a
+# franchise takes one request for every two steps rather than one for each.
 query FranchiseEntries($ids: [Int!]!, $perPage: Int!) {
   Page(page: 1, perPage: $perPage) {
     media(id_in: $ids, type: ANIME) {
       ...FranchiseEntry
+      neighbours: relations {
+        edges {
+          node {
+            type
+            ...FranchiseEntry
+          }
+        }
+      }
     }
   }
 }
