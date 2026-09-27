@@ -1,5 +1,6 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
+import { viewerWaitingPriority } from "../anilist/client";
 import { db } from "../database/client";
 
 /** The graphile-worker task that follows one anime while it airs. */
@@ -88,6 +89,14 @@ function payloadJson(payload: TrackAiringPayload) {
 /** The graphile-worker task that lays out and stores the series of one AniList entry. */
 export const storeSeriesTask = "store-series";
 
+/**
+ * {@link storeSeriesTask} for a series a viewer is waiting on. Its own task
+ * name lets a pool of workers that runs nothing else pick it up at once,
+ * rather than after a slot among long catalogue jobs frees up; see
+ * {@link startScheduler}.
+ */
+export const storeSeriesNowTask = "store-series-now";
+
 /** What {@link storeSeriesTask} is asked to store. */
 export interface StoreSeriesPayload {
   anilistId: number;
@@ -110,10 +119,28 @@ export interface StoreSeriesPayload {
 export type SeriesStorePriority = "waiting" | "current" | "backfill";
 
 const seriesStorePriorities: Record<SeriesStorePriority, number> = {
-  waiting: -2,
+  waiting: viewerWaitingPriority,
   current: 0,
   backfill: 10
 };
+
+/**
+ * Places among a viewer's results told apart by priority when `waiting`:
+ * the first runs most urgently, the last of them at `waiting` itself.
+ */
+const rankedPlaces = 6;
+
+/**
+ * The graphile-worker priority of a series layout: see
+ * {@link SeriesStorePriority}, with `waiting` ones told apart by `rank`
+ * (see {@link scheduleSeriesStore}). Every `waiting` priority stays at or
+ * below `waiting`, so it keeps the workers and AniList requests kept for
+ * viewers.
+ */
+export function seriesStorePriority(priority: SeriesStorePriority, rank = rankedPlaces - 1) {
+  const urgency = priority === "waiting" ? Math.min(rankedPlaces - 1, Math.max(0, rankedPlaces - 1 - rank)) : 0;
+  return seriesStorePriorities[priority] - urgency;
+}
 
 /**
  * Queues laying out and storing the series an AniList entry belongs to.
@@ -121,15 +148,21 @@ const seriesStorePriorities: Record<SeriesStorePriority, number> = {
  * A job already waiting for the same entry keeps its place, and keeps its
  * priority when that is higher. A job already running is followed by a new
  * one, so a change made meanwhile is not lost.
+ *
+ * @param rank - Where a `waiting` entry is among the results the viewer
+ *   waits on, from 0. Higher places run first, so a search for one title
+ *   lays that title out before the looser matches it also found, which
+ *   share AniList's limited requests.
  */
-export async function scheduleSeriesStore(anilistId: number, priority: SeriesStorePriority) {
+export async function scheduleSeriesStore(anilistId: number, priority: SeriesStorePriority, rank?: number) {
+  const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriority(priority, rank));
   await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${storeSeriesTask},
+      identifier => ${taskAt(kept, storeSeriesTask, storeSeriesNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
       job_key_mode => 'preserve_run_at',
-      priority => ${keptPriority(seriesJobKey(anilistId), seriesStorePriorities[priority])}
+      priority => ${kept}
     )
   `);
 }
@@ -140,13 +173,14 @@ export async function scheduleSeriesStore(anilistId: number, priority: SeriesSto
  * season it did not list before, reach the stored series. Runs as `current`.
  */
 export async function scheduleStoredSeriesRefresh(anilistId: number) {
+  const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriorities.current);
   await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${storeSeriesTask},
+      identifier => ${taskAt(kept, storeSeriesTask, storeSeriesNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${seriesJobKey(anilistId)},
       job_key_mode => 'preserve_run_at',
-      priority => ${keptPriority(seriesJobKey(anilistId), seriesStorePriorities.current)}
+      priority => ${kept}
     )
     where exists (select 1 from series_entry where anilist_id = ${anilistId})
   `);
@@ -163,12 +197,25 @@ function keptPriority(jobKey: string, priority: number) {
   )`;
 }
 
+/**
+ * The task a job runs as at `priority`: `waitedOn` when a viewer is waiting
+ * on it, so a job raised to `waiting` moves to the workers kept free for
+ * such jobs, and one already there stays when it is queued again at a lower
+ * priority, since it keeps its priority too.
+ */
+function taskAt(priority: SQL, task: string, waitedOn: string) {
+  return sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
+}
+
 function seriesJobKey(anilistId: number) {
   return `series:${anilistId}`;
 }
 
 /** The graphile-worker task that looks one AniList entry up on every stream provider. */
 export const lookUpEpisodesTask = "look-up-episodes";
+
+/** {@link lookUpEpisodesTask} for episodes a viewer is waiting on; see {@link storeSeriesNowTask}. */
+export const lookUpEpisodesNowTask = "look-up-episodes-now";
 
 /** What {@link lookUpEpisodesTask} is asked to look up. */
 export interface LookUpEpisodesPayload {
@@ -186,13 +233,14 @@ export interface LookUpEpisodesPayload {
  */
 export async function scheduleEpisodeLookup(anilistId: number, priority: SeriesStorePriority) {
   const jobKey = `episodes:${anilistId}`;
+  const kept = keptPriority(jobKey, seriesStorePriorities[priority]);
   await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${lookUpEpisodesTask},
+      identifier => ${taskAt(kept, lookUpEpisodesTask, lookUpEpisodesNowTask)},
       payload => json_build_object('anilistId', ${anilistId}::int),
       job_key => ${jobKey},
       job_key_mode => 'preserve_run_at',
-      priority => ${keptPriority(jobKey, seriesStorePriorities[priority])}
+      priority => ${kept}
     )
   `);
 }
