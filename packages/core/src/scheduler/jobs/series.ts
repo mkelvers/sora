@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -6,10 +6,12 @@ import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
 import { db } from "../../database/client";
-import { animeSearch, seriesEpisode, seriesSeason } from "../../database/schema";
+import { animeSearch, providerEpisodes, series, seriesEpisode, seriesSeason } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
+import { aniKoto } from "../../playback/providers/registry";
 import { relatedIds } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
+import { getShow } from "../../tmdb/resources";
 import { day, hour } from "../../time";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
@@ -125,32 +127,71 @@ const detailsWindowMs = 14 * day;
 export const refreshEpisodeDetailsTask = "refresh-episode-details";
 
 /**
- * Queues laying out again every stored series with an episode that aired
- * within {@link detailsWindowMs} and still has no overview or still.
+ * Queues laying out again every stored series with an episode that is
+ * missing TMDB details:
  *
- * Tracking an anime stops once its last episode airs, and that layout runs
- * before TMDB has usually filled the episode in, so without this a finale
- * keeps its bare title.
+ * - one AniKoto carries that TMDB does not list yet, which a season does not
+ *   list until TMDB does (see `isEpisodeShown`), however long that takes;
+ * - one that aired within {@link detailsWindowMs} and still has no title
+ *   other than TMDB's "Episode N", no overview, or no still, going by when
+ *   AniList says it aired when it knows. Tracking an anime stops once its
+ *   last episode airs, and that layout runs before TMDB has usually filled
+ *   the episode in, so without this a finale keeps its bare title.
+ *
+ * Each such series' TMDB show is fetched anew first, so the layout reads
+ * what TMDB has now rather than a copy up to half a day old.
  */
 export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
   const today = new Date().toISOString().slice(0, 10);
   const since = new Date(Date.now() - detailsWindowMs).toISOString().slice(0, 10);
+  const onAniKoto = sql`exists (
+    select 1
+    from ${providerEpisodes}, jsonb_array_elements(${providerEpisodes.units}) as unit
+    where ${providerEpisodes.anilistId} = ${seriesEpisode.anilistId}
+      and ${providerEpisodes.provider} = ${aniKoto.id}
+      and (unit ->> 'number')::numeric = ${seriesEpisode.anilistEpisode}
+  )`;
+  // AniList's broadcast time, in UTC, over TMDB's date in the airing country's calendar.
+  const airedOn = sql<string>`coalesce(to_char(${seriesEpisode.airedAt} at time zone 'UTC', 'YYYY-MM-DD'), ${seriesEpisode.airDate})`;
   const stale = await db
     .selectDistinctOn([seriesSeason.seriesId], {
-      anilistId: seriesEpisode.anilistId
+      anilistId: seriesEpisode.anilistId,
+      key: series.key
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+    .innerJoin(series, eq(series.id, seriesSeason.seriesId))
     .where(
       and(
         isNotNull(seriesEpisode.anilistId),
-        gte(seriesEpisode.airDate, since),
-        lte(seriesEpisode.airDate, today),
-        or(isNull(seriesEpisode.overview), isNull(seriesEpisode.stillUrl))
+        or(
+          and(eq(series.kind, "tv"), ne(seriesSeason.kind, "movie"), isNull(seriesEpisode.tmdbEpisodeNumber), onAniKoto),
+          and(
+            gte(airedOn, since),
+            lte(airedOn, today),
+            or(
+              isNull(seriesEpisode.title),
+              sql`${seriesEpisode.title} ~* '^episode [0-9]+$'`,
+              isNull(seriesEpisode.overview),
+              isNull(seriesEpisode.stillUrl)
+            )
+          )
+        )
       )
     );
 
-  for (const { anilistId } of stale) {
+  for (const { anilistId, key } of stale) {
+    const showId = /^tv:(\d+)$/.exec(key)?.[1];
+    if (showId) {
+      try {
+        await getShow(Number(showId), {
+          maxAgeMs: 0
+        });
+      } catch (error) {
+        helpers.logger.warn(`TMDB failed for show ${showId}: ${String(error)}`);
+      }
+    }
+
     if (anilistId !== null) {
       await scheduleStoredSeriesRefresh(anilistId);
     }
