@@ -178,7 +178,6 @@
 		gap: 16px;
 		align-self: end;
 		z-index: 1;
-		/* Just above the seek bar */
 		margin: 0 var(--side) 84px;
 		pointer-events: none;
 		transition: margin 200ms;

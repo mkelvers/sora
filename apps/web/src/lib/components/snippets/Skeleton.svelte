@@ -39,7 +39,6 @@
 />
 
 <style>
-	/* Layered so a caller's own styles always win, whatever their specificity. */
 	@layer skeleton {
 		.skeleton {
 			display: block;
@@ -50,12 +49,6 @@
 
 		.text {
 			height: 12px;
-		}
-
-		@media (prefers-reduced-motion: reduce) {
-			.skeleton {
-				animation: none;
-			}
 		}
 	}
 

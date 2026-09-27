@@ -7,7 +7,6 @@
 		id: string;
 		trigger: Snippet;
 		children: Snippet;
-		/** Accessible name for a trigger without visible text. */
 		label?: string;
 		alignment?: 'left' | 'right';
 	};
@@ -26,7 +25,6 @@
 </div>
 
 <style>
-	/* Layered so a caller's own styles always win, whatever their specificity. */
 	@layer dropdown {
 		.dropdown {
 			anchor-scope: --dropdown-trigger;

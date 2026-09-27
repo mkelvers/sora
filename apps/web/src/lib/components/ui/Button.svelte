@@ -27,7 +27,6 @@
 </button>
 
 <style>
-	/* Layered so a caller's own styles always win, whatever their specificity. */
 	@layer button {
 		.button {
 			display: inline-flex;
