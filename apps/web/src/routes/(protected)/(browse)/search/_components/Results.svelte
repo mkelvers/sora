@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { navigating } from "$app/state";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
@@ -17,7 +18,7 @@
 	} = $props();
 
 	const found = $derived(await searchSeries({ q, page, perPage: 24 }));
-	const stale = $derived($effect.pending() > 0);
+	const stale = $derived(navigating.to?.url.pathname === "/search");
 
 	const formats: Partial<Record<NonNullable<PreparingTitle["format"]>, string>> = {
 		TV: "Series",
