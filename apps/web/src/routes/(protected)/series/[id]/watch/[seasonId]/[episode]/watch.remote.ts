@@ -2,18 +2,19 @@ import { query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { fromSora, sora } from '$lib/server/sora';
+import { sora } from '$lib/server/sora';
 
-const Params = z.object({
+const EpisodeAddress = z.object({
 	seriesId: z.string(),
 	seasonId: z.string(),
 	episode: z.coerce.number().int().positive()
 });
 
-export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) => {
-	const [series, episodes] = await fromSora(
-		Promise.all([sora.series(seriesId), sora.episodes({ seriesId, seasonId })])
-	);
+export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, episode }) => {
+	const [series, episodes] = await Promise.all([
+		sora.series(seriesId),
+		sora.episodes({ seriesId, seasonId })
+	]);
 	const season = series.seasons.find((season) => season.id === seasonId);
 	const found = episodes.find((candidate) => candidate.number === episode);
 
@@ -24,7 +25,7 @@ export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) 
 	return { series, season, episode: found };
 });
 
-export const getPlayback = query(Params, async ({ seasonId, episode }) => {
+export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) => {
 	try {
 		return {
 			media: await sora.playback({

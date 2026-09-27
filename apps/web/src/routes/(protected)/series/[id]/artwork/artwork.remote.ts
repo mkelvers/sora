@@ -1,9 +1,9 @@
 import { command, query } from '$app/server';
 import { z } from 'zod';
-import { fromSora, sora } from '$lib/server/sora';
+import { sora } from '$lib/server/sora';
 import { getSeries } from '../series.remote';
 
-export const getImages = query(z.string(), (seriesId) => fromSora(sora.images(seriesId)));
+export const getImages = query(z.string(), (seriesId) => sora.images(seriesId));
 
 const savedSizes = {
 	poster: 'w780',
@@ -18,11 +18,9 @@ export const setArtwork = command(
 		url: z.url().nullable()
 	}),
 	async ({ seriesId, type, url }) => {
-		const series = await fromSora(
-			sora.updateArtwork(seriesId, {
-				[`${type}_url`]: url?.replace('/original/', `/${savedSizes[type]}/`) ?? null
-			})
-		);
+		const series = await sora.updateArtwork(seriesId, {
+			[`${type}_url`]: url?.replace('/original/', `/${savedSizes[type]}/`) ?? null
+		});
 
 		getSeries(seriesId).set(series);
 	}

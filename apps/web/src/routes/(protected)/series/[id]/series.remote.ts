@@ -1,20 +1,20 @@
 import { command, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { fromSora, sora } from '$lib/server/sora';
+import { sora } from '$lib/server/sora';
 
-export const getSeries = query(z.string(), (id) => fromSora(sora.series(id)));
+export const getSeries = query(z.string(), (id) => sora.series(id));
 
 export const getEpisodes = query(
 	z.object({
 		seriesId: z.string(),
 		seasonId: z.string()
 	}),
-	(season) => fromSora(sora.episodes(season))
+	(season) => sora.episodes(season)
 );
 
 export const shuffleEpisode = command(z.string(), async (seriesId) => {
-	const series = await fromSora(sora.series(seriesId, { params: { episodes: true } }));
+	const series = await sora.series(seriesId, { params: { episodes: true } });
 	const playable = series.seasons
 		.filter((season) => season.in_watch_order)
 		.flatMap((season) =>
