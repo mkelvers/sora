@@ -126,6 +126,13 @@ const StatusSchema = z.enum([
   "HIATUS"
 ]);
 
+/** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
+export const LanguageSchema = z.enum([
+  "dub",
+  "sub",
+  "raw"
+]);
+
 export const SeriesCardSchema = z
   .object({
     id: z.string().openapi({
@@ -145,7 +152,25 @@ export const SeriesCardSchema = z
     year: z.number().int().nullable().openapi({
       example: 2018
     }),
-    status: StatusSchema.nullable()
+    status: StatusSchema.nullable(),
+    audio: z.array(LanguageSchema).openapi({
+      description:
+        "The audio any of its episodes can be watched with, dub before sub before raw. Empty when nothing streams it, or while Sora has not looked it up on providers yet."
+    }),
+    overview: z.string().nullable(),
+    score: z.number().nullable().openapi({
+      description: "AniList's weighted score of the first season, 0–100."
+    }),
+    season_count: z.number().int().openapi({
+      description: "How many regular seasons it has, OVAs and films left out. A film has none."
+    }),
+    episode_count: z.number().int().openapi({
+      description: "How many episodes its regular seasons list."
+    }),
+    start_season_id: z.string().nullable().openapi({
+      description:
+        "The season watching starts at: the first in watch order, or the first season when none is. Null for a title with no seasons laid out."
+    })
   })
   .openapi("SeriesCard") satisfies z.ZodType<SnakeCased<SeriesCard>>;
 
@@ -182,13 +207,9 @@ export const SeriesSchema = SeriesCardSchema.extend({
     description: "First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it.",
     example: "2018-10-02"
   }),
-  overview: z.string().nullable(),
   genres: z.array(z.string()),
   tags: z.array(TagSchema),
   studios: z.array(z.string()),
-  score: z.number().nullable().openapi({
-    description: "AniList's weighted score of the first season, 0–100."
-  }),
   next_episode: z
     .object({
       season_id: z.string(),
@@ -230,13 +251,6 @@ export const SeriesImageSchema = z
     })
   })
   .openapi("SeriesImage") satisfies z.ZodType<SnakeCased<SeriesImage>>;
-
-/** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
-export const LanguageSchema = z.enum([
-  "dub",
-  "sub",
-  "raw"
-]);
 
 export const SeasonEpisodeSchema = z
   .object({
