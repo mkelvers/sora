@@ -38,6 +38,10 @@
     --theme-dropdown-hover: #151515;
     --theme-dropdown-foreground: #8c8c8c;
 
+    --accent: var(--theme-accent);
+    --tooltip: var(--theme-tooltip);
+    --tooltip-foreground: var(--theme-tooltip-foreground);
+
     --theme-hero-scrim-inline-start: rgb(0 0 0 / 0.58);
     --theme-hero-scrim-inline-end: rgb(48 48 48 / 0.38);
     --theme-hero-scrim-top: rgb(0 0 0 / 0.1);
@@ -217,7 +221,7 @@
         }
     }
 
-    .anime-hero {
+    .series-hero {
         &::before {
             background-image:
                 radial-gradient(ellipse at 0% 0%, rgb(0 0 0 / 0.3), transparent 34%),
@@ -267,7 +271,7 @@
             }
         }
 
-        .anime-hero {
+        .series-hero {
             &::before {
                 background-image:
                     linear-gradient(to bottom, var(--theme-hero-scrim-top), transparent 24%),
