@@ -217,7 +217,13 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
  *
  * @returns The show, or `null` when TMDB does not know the ID.
  */
-export async function getShow(showId: number): Promise<TmdbShow | null> {
+export async function getShow(
+  showId: number,
+  options: {
+    /** How old a cached copy may be; by default {@link showLifetimeMs}. */
+    maxAgeMs?: number;
+  } = {}
+): Promise<TmdbShow | null> {
   const episodes: TmdbEpisode[] = [];
   let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
 
@@ -231,7 +237,7 @@ export async function getShow(showId: number): Promise<TmdbShow | null> {
       },
       showPageSchema(seasons),
       {
-        maxAgeMs: showLifetimeMs
+        maxAgeMs: options.maxAgeMs ?? showLifetimeMs
       }
     );
 
