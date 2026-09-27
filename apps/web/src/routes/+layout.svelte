@@ -1,46 +1,42 @@
 <script lang="ts">
-	import favicon from "$lib/assets/favicon.png";
-	import "./layout.css";
+    import { getTextDirection } from '$lib/paraglide/runtime.js';
+    import './layout.css';
+    import favicon from '$lib/assets/favicon.svg';
+    import { locale } from '$lib/locale.svelte';
+    import { m } from '$lib/i18n.svelte';
+    import type { LayoutProps } from './$types';
 
-	let {
-		data,
-		children,
-	} = $props();
+    let { data, children }: LayoutProps = $props();
+
+    $effect(() => {
+        document.documentElement.lang = locale.current;
+        document.documentElement.dir = getTextDirection(locale.current);
+    });
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+    <link rel="icon" href={favicon} type="image/svg+xml" />
+
+    <meta name="robots" content="noindex, nofollow" />
+
+    <meta property="og:site_name" content="Arc" />
+
+    <meta property="og:type" content="website" />
+
+    <meta property="og:url" content={data.canonical} />
+
+    <meta property="og:title" content="Arc — Watch anime" />
+
+    <meta property="og:description" content="Watch anime on Arc." />
+
+    <meta name="twitter:card" content="summary" />
 </svelte:head>
 
-{#if data.mobile}
-	<main>
-		<h1>Sora is made for desktop</h1>
-		<p>Open it on a computer to watch. A mobile app is on its way.</p>
-	</main>
-{:else}
-	{@render children()}
-{/if}
+<a
+    href="#main-content"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-100 focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-on-accent"
+>
+    {m.nav_skip_to_content()}
+</a>
 
-<style>
-	main {
-		display: grid;
-		place-content: center;
-		gap: 8px;
-		box-sizing: border-box;
-		min-height: 100vh;
-		padding: 24px;
-		text-align: center;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 24px;
-		font-weight: 400;
-	}
-
-	p {
-		margin: 0;
-		color: #999;
-		font-size: 15px;
-	}
-</style>
+{@render children()}

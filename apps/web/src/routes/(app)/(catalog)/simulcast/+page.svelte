@@ -1,0 +1,197 @@
+<script lang="ts">
+    import { onDestroy, untrack } from 'svelte';
+    import { CaretDownIcon } from 'phosphor-svelte';
+
+    import { AnimeCardPageSchema, type AnimeCard as AnimeCardModel } from '@arc/core/client';
+    import emptyArtwork from '$lib/assets/simulcast-empty.webp';
+    import AnimeCard from '$lib/components/AnimeCard.svelte';
+    import Dropdown from '$lib/components/ui/dropdown/Dropdown.svelte';
+    import Button from '$lib/components/ui/button/Button.svelte';
+    import EmptyState from '$lib/components/ui/EmptyState.svelte';
+    import Spinner from '$lib/components/ui/Spinner.svelte';
+    import { m } from '$lib/i18n.svelte';
+    import type { PageProps } from './$types';
+
+    let { data }: PageProps = $props();
+    let loadedSelection = untrack(() => `${data.season}:${data.year}`);
+    let anime = $state<AnimeCardModel[]>(untrack(() => data.page.anime));
+    let nextPage = $state<number | null>(untrack(() => (data.page.hasNextPage ? data.page.page + 1 : null)));
+    let loading = $state(false);
+    let sentinel = $state<HTMLDivElement>();
+    let activeRequest: AbortController | undefined;
+    let label = $derived(localizedSeasonLabel(data.season, data.year));
+    let options = $derived(
+        data.options.map((option) => ({
+            ...option,
+            label: localizedSeasonLabel(option.season, option.year),
+        }))
+    );
+
+    function localizedSeasonLabel(season: string, year: number) {
+        let name = season;
+        switch (season) {
+            case 'WINTER':
+                name = m.season_winter();
+                break;
+            case 'SPRING':
+                name = m.season_spring();
+                break;
+            case 'SUMMER':
+                name = m.season_summer();
+                break;
+            case 'FALL':
+                name = m.season_fall();
+                break;
+        }
+        return `${name} ${year}`;
+    }
+
+    async function loadMore() {
+        const page = nextPage;
+        if (page === null || loading) {
+            return;
+        }
+
+        const requestSelection = loadedSelection;
+        const controller = new AbortController();
+        activeRequest?.abort();
+        activeRequest = controller;
+        loading = true;
+
+        try {
+            const query = new URLSearchParams({
+                season: data.season.toLowerCase(),
+                year: String(data.year),
+                page: String(page),
+            });
+            const response = await fetch(`/v1/simulcast?${query}`, {
+                headers: {
+                    Accept: 'application/json',
+                },
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                throw new Error(`Simulcast page request returned ${response.status}`);
+            }
+
+            const result = AnimeCardPageSchema.safeParse(await response.json());
+            if (!result.success || result.data.page !== page) {
+                throw new TypeError('Simulcast page request returned an invalid response');
+            }
+            if (loadedSelection !== requestSelection) {
+                return;
+            }
+
+            const existing = new Set(anime.map(({ id }) => id));
+            anime = [...anime, ...result.data.anime.filter(({ id }) => !existing.has(id))];
+            nextPage = result.data.hasNextPage ? page + 1 : null;
+        } catch (cause) {
+            if (!(cause instanceof DOMException) || cause.name !== 'AbortError') {
+                console.warn(`Simulcast page ${page} could not be loaded`, cause);
+            }
+        } finally {
+            if (activeRequest === controller) {
+                activeRequest = undefined;
+                loading = false;
+            }
+        }
+    }
+
+    $effect(() => {
+        const selection = `${data.season}:${data.year}`;
+        if (selection === loadedSelection) {
+            return;
+        }
+
+        activeRequest?.abort();
+        loadedSelection = selection;
+        anime = data.page.anime;
+        nextPage = data.page.hasNextPage ? data.page.page + 1 : null;
+        loading = false;
+    });
+
+    $effect(() => {
+        if (!sentinel || nextPage === null) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry?.isIntersecting) {
+                    void loadMore();
+                }
+            },
+            { rootMargin: '600px 0px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    });
+
+    onDestroy(() => activeRequest?.abort());
+</script>
+
+<svelte:head>
+    <title>Arc — {label} {m.simulcast_title()}</title>
+    <meta name="description" content={m.simulcast_title()} />
+</svelte:head>
+
+<main class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16">
+    <section class="mx-auto w-full max-w-264" aria-labelledby="simulcast-title">
+        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h1 id="simulcast-title" class="text-xl font-bold sm:text-2xl">{m.simulcast_title()}</h1>
+            <Dropdown id="simulcast-season" className="max-h-80 min-w-48 overflow-y-auto *:p-0">
+                {#snippet trigger()}
+                    <CaretDownIcon size="1rem" weight="bold" class="text-muted" aria-hidden="true" />
+                    <span>{label}</span>
+                {/snippet}
+                {#snippet children()}
+                    <div role="menu" aria-label={m.simulcast_choose({ label })}>
+                        {#each options as option}
+                            <a
+                                role="menuitem"
+                                href={option.href}
+                                aria-current={option.current ? 'page' : undefined}
+                                class:text-foreground={option.current}
+                                class:text-muted={!option.current}
+                                class="block whitespace-nowrap px-5 py-3 text-sm leading-tight font-normal hover:bg-panel-hover hover:text-foreground focus:bg-panel-hover focus:text-foreground focus:outline-none"
+                            >
+                                {option.label}
+                            </a>
+                        {/each}
+                    </div>
+                {/snippet}
+            </Dropdown>
+        </div>
+
+        {#if anime.length}
+            <section aria-labelledby="simulcast-results-title">
+                <h2 id="simulcast-results-title" class="sr-only">{m.simulcast_title()}</h2>
+                <div
+                    class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
+                >
+                    {#each anime as entry (entry.id)}
+                        <AnimeCard anime={entry} reserveTitleSpace={false} truncateTitle={false} />
+                    {/each}
+                </div>
+            </section>
+        {:else}
+            <EmptyState
+                artwork={emptyArtwork}
+                artworkWidth={1254}
+                artworkHeight={1254}
+                id="empty-simulcast-message"
+                body={m.simulcast_empty({ label })}
+            />
+        {/if}
+
+        {#if nextPage !== null}
+            <div bind:this={sentinel} class="flex min-h-24 items-center justify-center" aria-live="polite">
+                {#if loading}
+                    <Spinner label={m.simulcast_loading()} />
+                {:else}
+                    <span class="sr-only">{m.simulcast_auto_loading()}</span>
+                {/if}
+            </div>
+        {/if}
+    </section>
+</main>

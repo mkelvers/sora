@@ -1,21 +1,287 @@
+@import '@fontsource-variable/dm-sans/wght.css';
+@import 'tailwindcss';
+
+:root {
+    color-scheme: dark;
+
+    --theme-canvas: #000;
+    --theme-header: #272727;
+    --theme-header-hover: #151515;
+    --theme-search: #151515;
+    --theme-search-recent: oklch(0.23 0.006 285);
+    --theme-foreground: #fff;
+    --theme-surface: oklch(0.17 0.006 285);
+    --theme-muted: oklch(0.71 0.008 285);
+    --theme-subtle: oklch(0.57 0.008 285);
+    --theme-border: oklch(0.35 0.008 285);
+    --theme-border-strong: oklch(0.5 0.008 285);
+    --theme-accent: #0a5cff;
+    --theme-on-accent: #fff;
+    --theme-status-error: #f04427;
+    --theme-status-success: #2ca66f;
+    --theme-on-status: oklch(0.13 0.01 48);
+    --theme-panel: oklch(0.26 0.004 285);
+    --theme-panel-strong: oklch(0.23 0.004 285);
+    --theme-panel-selected: oklch(0.2 0.004 285);
+    --theme-panel-hover: oklch(0.15 0.004 285);
+    --theme-media-tile: oklch(0.17 0.004 285);
+    --theme-watch-primary: oklch(0.9 0.004 285);
+    --theme-watch-secondary: oklch(0.74 0.004 285);
+    --theme-watch-muted: oklch(0.63 0.004 285);
+    --theme-player-panel: oklch(0.18 0.012 285);
+    --theme-input-accent: #2abdbb;
+    --theme-tooltip: #414141;
+    --theme-tooltip-foreground: #ececec;
+    --theme-episode-action: #213944;
+    --theme-episode-action-hover: #2f5161;
+    --theme-dropdown: #272727;
+    --theme-dropdown-hover: #151515;
+    --theme-dropdown-foreground: #8c8c8c;
+
+    --theme-hero-scrim-inline-start: rgb(0 0 0 / 0.58);
+    --theme-hero-scrim-inline-end: rgb(48 48 48 / 0.38);
+    --theme-hero-scrim-top: rgb(0 0 0 / 0.1);
+    --theme-hero-scrim-bottom: rgb(0 0 0 / 1);
+    --theme-hero-scrim-bottom-soft: rgb(0 0 0 / 0.72);
+    --theme-hero-scrim-corner: rgb(0 0 0 / 0.42);
+    --theme-hero-scrim-corner-alt: rgb(0 0 0 / 0.38);
+}
+
+@theme inline {
+    --breakpoint-wide: 90rem;
+    --breakpoint-hero: 120rem;
+    --color-canvas: var(--theme-canvas);
+    --color-header: var(--theme-header);
+    --color-header-hover: var(--theme-header-hover);
+    --color-search: var(--theme-search);
+    --color-search-recent: var(--theme-search-recent);
+    --color-foreground: var(--theme-foreground);
+    --color-surface: var(--theme-surface);
+    --color-muted: var(--theme-muted);
+    --color-subtle: var(--theme-subtle);
+    --color-border: var(--theme-border);
+    --color-border-strong: var(--theme-border-strong);
+    --color-accent: var(--theme-accent);
+    --color-on-accent: var(--theme-on-accent);
+    --color-status-error: var(--theme-status-error);
+    --color-status-success: var(--theme-status-success);
+    --color-on-status: var(--theme-on-status);
+    --color-panel: var(--theme-panel);
+    --color-panel-strong: var(--theme-panel-strong);
+    --color-panel-selected: var(--theme-panel-selected);
+    --color-panel-hover: var(--theme-panel-hover);
+    --color-media-tile: var(--theme-media-tile);
+    --color-watch-primary: var(--theme-watch-primary);
+    --color-watch-secondary: var(--theme-watch-secondary);
+    --color-watch-muted: var(--theme-watch-muted);
+    --color-player-panel: var(--theme-player-panel);
+    --color-input-accent: var(--theme-input-accent);
+    --color-tooltip: var(--theme-tooltip);
+    --color-tooltip-foreground: var(--theme-tooltip-foreground);
+    --color-episode-action: var(--theme-episode-action);
+    --color-episode-action-hover: var(--theme-episode-action-hover);
+    --color-dropdown: var(--theme-dropdown);
+    --color-dropdown-hover: var(--theme-dropdown-hover);
+    --color-dropdown-foreground: var(--theme-dropdown-foreground);
+}
+
+@utility auto-cols-franchise {
+    grid-auto-columns: 46%;
+}
+
+@utility auto-cols-franchise-md {
+    grid-auto-columns: calc((100% - 6.25rem) / 5.2);
+}
+
+@utility auto-cols-franchise-2xl {
+    grid-auto-columns: calc((100% - 8.75rem) / 7.2);
+}
+
+@utility subtitle-outline {
+    -webkit-text-stroke: 0.25em #000;
+    paint-order: stroke fill;
+}
+
+@utility metadata-tag {
+    &:not(:first-child)::before {
+        width: 0.25rem;
+        height: 0.25rem;
+        margin-inline: 0.25rem;
+        display: inline-block;
+        background-color: currentcolor;
+        content: '';
+        line-height: 1;
+        vertical-align: middle;
+        transform: rotate(45deg);
+    }
+}
+
+@utility scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 @layer base {
+    html,
+    body {
+        @apply min-h-dvh min-w-0 bg-canvas text-foreground;
+    }
 
-	html,
-	body {
-		margin: 0;
-		padding: 0;
-		box-sizing: border-box;
-	}
+    html {
+        font-family: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+        font-synthesis: none;
+        overflow-wrap: anywhere;
+        text-rendering: optimizeLegibility;
+    }
 
-	:root {
-		--accent: #0a64ff;
-		--tooltip: #414141;
-		--tooltip-foreground: #ececec;
-	}
+    img,
+    video,
+    iframe {
+        max-inline-size: 100%;
+    }
 
-	body {
-		background: #101010;
-		color: #e6e6e6;
-		font-family: system-ui, sans-serif;
-	}
+    :where(a, button, input, select, textarea, summary):focus-visible {
+        outline: 2px solid var(--theme-accent);
+        outline-offset: 3px;
+    }
+
+    :where(input[type='checkbox'], input[type='radio'], input[type='range']) {
+        accent-color: var(--theme-input-accent);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: inherit;
+        letter-spacing: -0.03em;
+        line-height: 1.214;
+    }
+
+    button,
+    a,
+    input {
+        touch-action: manipulation;
+    }
+}
+
+@layer components {
+    .dropdown-root {
+        anchor-scope: all;
+    }
+
+    .home-hero-slide {
+        &::before {
+            content: '';
+            z-index: 10;
+            grid-column: 1;
+            grid-row: 1;
+            pointer-events: none;
+            background-image:
+                linear-gradient(
+                    to right,
+                    rgb(0 0 0 / 0.6) 0%,
+                    rgb(0 0 0 / 0.24) 32%,
+                    transparent 62%
+                ),
+                linear-gradient(to left, rgb(0 0 0 / 0.18), transparent 28%);
+        }
+
+        &::after {
+            content: '';
+            z-index: 10;
+            grid-column: 1;
+            grid-row: 1;
+            pointer-events: none;
+            background-image: linear-gradient(
+                to top,
+                var(--theme-canvas) 0%,
+                rgb(0 0 0 / 0.62) 15%,
+                transparent 54%
+            );
+        }
+    }
+
+    .anime-hero {
+        &::before {
+            background-image:
+                radial-gradient(ellipse at 0% 0%, rgb(0 0 0 / 0.3), transparent 34%),
+                radial-gradient(ellipse at 100% 0%, rgb(48 48 48 / 0.18), transparent 34%),
+                radial-gradient(ellipse at 0% 50%, rgb(0 0 0 / 0.22), transparent 28%),
+                radial-gradient(ellipse at 100% 50%, rgb(48 48 48 / 0.12), transparent 28%),
+                linear-gradient(to right, var(--theme-hero-scrim-inline-start), transparent 26%),
+                linear-gradient(to left, var(--theme-hero-scrim-inline-end), transparent 18%),
+                linear-gradient(to bottom, var(--theme-hero-scrim-top), transparent 12%);
+        }
+
+        &::after {
+            background-image:
+                linear-gradient(
+                    to top,
+                    var(--theme-hero-scrim-bottom) 0%,
+                    var(--theme-hero-scrim-bottom-soft) 12%,
+                    transparent 54%
+                ),
+                linear-gradient(to top right, var(--theme-hero-scrim-corner), transparent 42%),
+                linear-gradient(to top left, var(--theme-hero-scrim-corner-alt), transparent 40%);
+        }
+    }
+
+    .details-fade {
+        mask-image: linear-gradient(to bottom, black 45%, transparent 100%);
+    }
+
+    .volume-input {
+        writing-mode: vertical-lr;
+        direction: rtl;
+    }
+
+    @variant max-sm {
+        .home-hero-slide {
+            &::before {
+                background-image: linear-gradient(to right, rgb(0 0 0 / 0.42), transparent 80%);
+            }
+
+            &::after {
+                background-image: linear-gradient(
+                    to top,
+                    var(--theme-canvas) 0%,
+                    rgb(0 0 0 / 0.76) 38%,
+                    transparent 82%
+                );
+            }
+        }
+
+        .anime-hero {
+            &::before {
+                background-image:
+                    linear-gradient(to bottom, var(--theme-hero-scrim-top), transparent 24%),
+                    linear-gradient(to right, var(--theme-hero-scrim-inline-start), transparent 70%);
+            }
+
+            &::after {
+                background-image: linear-gradient(
+                    to top,
+                    var(--theme-hero-scrim-bottom) 0%,
+                    var(--theme-hero-scrim-bottom-soft) 55%,
+                    transparent 88%
+                );
+            }
+        }
+    }
 }

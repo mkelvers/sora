@@ -1,0 +1,155 @@
+<script lang="ts">
+    import { onMount, tick } from 'svelte';
+    import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, ListBulletsIcon } from 'phosphor-svelte';
+
+    import type { FranchiseOrder as FranchiseOrderData } from '@arc/core/client';
+    import { cn } from '$lib/utils';
+    import AnimeCard from '$lib/components/AnimeCard.svelte';
+    import Button from '$lib/components/ui/button/Button.svelte';
+    import { matchesFranchiseFilter, type FranchiseFilter } from '$lib/franchise';
+    import Dropdown from '$lib/components/ui/dropdown/Dropdown.svelte';
+    import { m } from '$lib/i18n.svelte';
+
+    interface Props {
+        order: FranchiseOrderData;
+        currentAnimeId: number;
+    }
+
+    let { order, currentAnimeId }: Props = $props();
+
+    let track = $state<HTMLDivElement>();
+    let canScrollBack = $state(false);
+    let canScrollForward = $state(false);
+    let filter = $state<FranchiseFilter>('main');
+    const filters: Array<{ value: FranchiseFilter; label: string }> = [
+        { value: 'main', label: m.franchise_main() },
+        { value: 'movies', label: m.franchise_movies() },
+        { value: 'side-stories', label: m.franchise_side() },
+    ];
+    const selectedFilterLabel = $derived(
+        filters.find(({ value }) => value === filter)?.label ?? m.franchise_main()
+    );
+    const visibleEntries = $derived(
+        order.entries.filter((entry) => matchesFranchiseFilter(entry, filter, currentAnimeId))
+    );
+
+    function updateScrollState() {
+        if (!track) {
+            return;
+        }
+
+        const maxScroll = track.scrollWidth - track.clientWidth;
+        canScrollBack = track.scrollLeft > 1;
+        canScrollForward = track.scrollLeft < maxScroll - 1;
+    }
+
+    function scrollByPage(direction: -1 | 1) {
+        if (!track) {
+            return;
+        }
+
+        track.scrollBy({
+            left: direction * track.clientWidth,
+            behavior: 'smooth',
+        });
+    }
+
+    $effect(() => {
+        if (!visibleEntries.length) {
+            canScrollBack = false;
+            canScrollForward = false;
+            return;
+        }
+
+        void tick().then(() => {
+            if (track) {
+                track.scrollLeft = 0;
+            }
+            updateScrollState();
+        });
+    });
+
+    onMount(() => {
+        if (!track) {
+            return;
+        }
+
+        const observer = new ResizeObserver(updateScrollState);
+        observer.observe(track);
+        updateScrollState();
+
+        return () => observer.disconnect();
+    });
+</script>
+
+<section class="pb-7" aria-labelledby="franchise-order-title">
+    <div class="mb-6 flex min-h-9 items-center justify-between gap-4 px-2">
+        <h2 id="franchise-order-title" class="text-lg font-semibold">{m.franchise_order()}</h2>
+
+        <Dropdown id="franchise-order-filter" className="w-48 *:p-0">
+            {#snippet trigger()}
+                <ListBulletsIcon size="1rem" weight="bold" aria-hidden="true" />
+                <span>{selectedFilterLabel}</span>
+                <CaretDownIcon size="0.8rem" weight="bold" aria-hidden="true" />
+            {/snippet}
+
+            {#snippet children()}
+                <div role="menu" aria-label={m.franchise_filters()}>
+                    {#each filters as option}
+                        <Button
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={filter === option.value}
+                            class={cn(
+                                'flex min-h-11 w-full items-center justify-start px-5 text-left text-sm text-muted transition-colors hover:bg-panel-hover hover:text-foreground focus:bg-panel-hover focus:text-foreground focus:outline-none',
+                                filter === option.value && 'text-foreground'
+                            )}
+                            onclick={() => (filter = option.value)}
+                        >
+                            {option.label}
+                        </Button>
+                    {/each}
+                </div>
+            {/snippet}
+        </Dropdown>
+    </div>
+
+    {#if visibleEntries.length}
+        <div class="relative">
+            <div
+                id="franchise-order-list"
+                bind:this={track}
+                class="scrollbar-hidden grid snap-x snap-mandatory scroll-px-2 auto-cols-franchise grid-flow-col gap-x-2 gap-y-8 overflow-x-auto overflow-y-hidden px-2 overscroll-x-contain scroll-smooth sm:gap-x-3 md:auto-cols-franchise-md md:gap-x-7.5 2xl:auto-cols-franchise-2xl"
+                onscroll={updateScrollState}
+            >
+                {#each visibleEntries as entry}
+                    <div class="min-w-0 snap-start">
+                        <AnimeCard anime={entry} current={entry.anilistId === currentAnimeId} />
+                    </div>
+                {/each}
+            </div>
+
+            {#if canScrollBack}
+                <Button
+                    type="button"
+                    class="absolute inset-y-0 left-0 z-20 my-auto hidden size-10 place-items-center text-white drop-shadow-lg focus-visible:ring-1 focus-visible:ring-white focus-visible:outline-none md:grid"
+                    aria-label={m.shared_franchise_previous()}
+                    onclick={() => scrollByPage(-1)}
+                >
+                    <CaretLeftIcon size="1.75rem" weight="bold" aria-hidden="true" />
+                </Button>
+            {/if}
+
+            {#if canScrollForward}
+                <Button
+                    type="button"
+                    class="absolute inset-y-0 right-0 z-20 my-auto hidden size-10 place-items-center text-white drop-shadow-lg focus-visible:ring-1 focus-visible:ring-white focus-visible:outline-none md:grid"
+                    aria-label={m.shared_franchise_next()}
+                    onclick={() => scrollByPage(1)}
+                >
+                    <CaretRightIcon size="1.75rem" weight="bold" aria-hidden="true" />
+                </Button>
+            {/if}
+        </div>
+    {/if}
+</section>
