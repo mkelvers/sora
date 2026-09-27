@@ -4,12 +4,14 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { refreshAnime } from "../../catalog/queries/anime";
+import { fetchLatestAiring } from "../../catalog/queries/schedule";
 import { db } from "../../database/client";
 import { AnimeNotFoundError } from "../../errors";
 import { refreshProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
+import { minute } from "../../time";
 import { planNextCheck, type AiringState } from "./airing-plan";
-import { airingCheckPriority, scheduleAiringCheck, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
+import { airingCheckPriority, scheduleAiringCheck, scheduleAniKotoPoll, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
 
 const TrackAiringPayloadSchema = z.object({
   anilistId: z.number().int().positive(),
@@ -49,7 +51,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
     {
       status: anime.status,
       nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
-      latestAiredEpisode: latestAiredEpisode(anime),
+      latestAiredEpisode: await latestAiredEpisode(anime),
       latestReleasedEpisode: await refreshReleasedEpisodes(anime, helpers.logger),
       startDate: anime.startDate
     },
@@ -60,6 +62,19 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
   if (plan.done) {
     helpers.logger.info(`Anime ${anime.id} has finished airing; no longer tracking it`);
     return;
+  }
+
+  // A newly aired episode is watched for on AniKoto every minute or so,
+  // between the tracker's own checks.
+  if (plan.awaitedEpisode !== null && plan.attempt === 0) {
+    await scheduleAniKotoPoll(
+      {
+        anilistId: anime.id,
+        episode: plan.awaitedEpisode,
+        attempt: 0
+      },
+      new Date(Date.now() + minute)
+    );
   }
 
   await scheduleAiringCheck(
@@ -101,17 +116,19 @@ async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]
   return latest;
 }
 
-/** The latest episode AniList says has aired, or `null` when unknown or none. */
-function latestAiredEpisode(anime: Anime): AiringState["latestAiredEpisode"] {
-  if (anime.status === "FINISHED") {
-    return anime.episodes;
-  }
-
-  if (anime.nextEpisode && anime.nextEpisode.number > 1) {
-    return anime.nextEpisode.number - 1;
-  }
-
-  return null;
+/**
+ * The latest episode AniList says has aired, or `null` when unknown or none.
+ *
+ * Its airing schedule decides when it records the episode: an entry whose
+ * broadcast AniList moved can have no next episode announced while the one
+ * it moved has not reached providers yet.
+ */
+async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAiredEpisode"]> {
+  const fromNext = anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
+  const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
+  const scheduled = await fetchLatestAiring(anime.id);
+  const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
+  return known.length > 0 ? Math.max(...known) : null;
 }
 
 /** The graphile-worker task that restarts tracking for airing anime that lost their check. */
