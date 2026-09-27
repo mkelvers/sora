@@ -411,10 +411,14 @@ export function textScore(query: string, candidate: SearchCandidate) {
     }))
   ];
 
+  // With and without the disambiguator: "oreimo 2" and "oreimo 2 ona" both
+  // name "Oreimo 2 (ONA)".
   return Math.max(
     0,
     ...titles.flatMap(({ title, weight }) =>
-      title ? [weight * titleScore(query, normalizeTitle(title.replace(disambiguator, "")))] : []
+      title
+        ? [title, title.replace(disambiguator, "")].map((spelling) => weight * titleScore(query, normalizeTitle(spelling)))
+        : []
     )
   );
 }

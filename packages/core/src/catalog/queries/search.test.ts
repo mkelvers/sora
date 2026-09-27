@@ -4,7 +4,7 @@ mock.module("../../database/client", () => ({
   db: {}
 }));
 
-const { normalizeTitle, popularityWeight, rankCandidates, searchText, shortQueryPattern, titleScore } = await import("./search");
+const { normalizeTitle, popularityWeight, rankCandidates, searchText, shortQueryPattern, textScore, titleScore } = await import("./search");
 
 /** An indexed entry with the fields ranking reads. */
 function entry(anilistId: number, popularity: number, titles: { english?: string; romaji?: string; native?: string; synonyms?: string[] }) {
@@ -91,6 +91,29 @@ describe("rankCandidates", () => {
     });
 
     expect(top("hunter x hunter", [original, remake])).toBe(11061);
+  });
+
+  test("finds a title by its full name, disambiguator included, as with Oreimo 2 (ONA)", () => {
+    const ona = entry(18857, 38_944, {
+      english: "Oreimo 2 (ONA)",
+      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai. (ONA)"
+    });
+    const season = entry(13659, 90_000, {
+      english: "Oreimo 2",
+      romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai."
+    });
+
+    expect(textScore(normalizeTitle("Oreimo 2 (ONA)"), ona)).toBe(1);
+    expect(top("oreimo 2 ona", [season, ona])).toBe(18857);
+  });
+
+  test("still finds a title by its name without the disambiguator", () => {
+    const remake = entry(11061, 843_439, {
+      english: "Hunter x Hunter (2011)"
+    });
+
+    expect(textScore(normalizeTitle("hunter x hunter"), remake)).toBe(1);
+    expect(textScore(normalizeTitle("hunter x hunter 2011"), remake)).toBe(1);
   });
 
   test("lets a far more popular show that contains the query beat a film that starts with it", () => {
