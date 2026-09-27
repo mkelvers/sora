@@ -1,13 +1,13 @@
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
-import { playbackProgress, series, seriesEntry, seriesEpisode, seriesSeason } from "../../database/schema";
+import { playbackProgress, seasonCompletion, series, seriesEntry, seriesEpisode, seriesSeason } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
-import { locateEpisode, type LocatedEpisode } from "../../series/episodes";
+import { getSeasonFinale, locateEpisode, type LocatedEpisode } from "../../series/episodes";
 import { assertSeriesExists } from "../../series/queries";
 import { getWatchlistEntry, writeWatchlistStatus, type WatchlistStatus } from "../watchlist/watchlist";
-import type { EpisodeProgress } from "./resume";
+import type { EpisodeProgress, SeasonCompletion, TitleProgress } from "./resume";
 
 /**
  * Share of an episode that must be watched for it to count as completed when
@@ -52,6 +52,10 @@ export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
  * Checkpoints are stored against the AniList episode that plays the season
  * episode, so progress survives the title being laid out again.
  *
+ * Completing a season's finale records the season as completed and clears
+ * its episode checkpoints; see {@link getSeasonFinale}. A checkpoint from
+ * before a season was completed changes nothing, like any other stale event.
+ *
  * Watching a title moves it to `watching` unless it is already `completed`
  * (a rewatch). Completing the finale of a finished title moves it to
  * `completed`; see {@link isFinale}.
@@ -77,6 +81,11 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
   }
 
   const located = await locateEpisode(input.seasonId, input.episode);
+  const finale = await getSeasonFinale(located.seasonId);
+  if (finale && (await isCompletedSince(userId, finale, eventAt))) {
+    return;
+  }
+
   const completed = input.completed ?? input.positionSeconds >= input.durationSeconds * completionRatio;
   const values = {
     positionSeconds: input.positionSeconds,
@@ -112,6 +121,10 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
     return;
   }
 
+  if (completed && finale?.number === located.number) {
+    await completeSeason(userId, finale, eventAt);
+  }
+
   const current = (await getWatchlistEntry(userId, located.seriesId))?.status ?? null;
   const next: WatchlistStatus | null =
     completed && (await isFinale(located)) ? "completed" : current === "completed" || current === "watching" ? null : "watching";
@@ -122,30 +135,68 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
 }
 
 /**
- * Lists saved progress for every episode of a title, in title order.
+ * Lists a title's saved progress: the seasons watched to the end, and the
+ * checkpoints of every episode, both in title order.
  *
- * Checkpoints for episodes the title no longer lists are left out.
+ * Checkpoints for episodes the title no longer lists are left out, as are
+ * completions of seasons that have gained episodes since.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
-export async function getProgress(userId: string, seriesId: string): Promise<EpisodeProgress[]> {
+export async function getProgress(userId: string, seriesId: string): Promise<TitleProgress> {
   await assertSeriesExists(seriesId);
-  const rows = await db
-    .select({
-      progress: playbackProgress,
-      seasonId: seriesEpisode.seasonId,
-      number: seriesEpisode.number
-    })
-    .from(playbackProgress)
-    .innerJoin(
-      seriesEpisode,
-      and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
-    )
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(and(eq(playbackProgress.userId, userId), eq(seriesSeason.seriesId, seriesId)))
-    .orderBy(asc(seriesSeason.position), asc(seriesEpisode.number));
+  const [rows, completions, finales] = await Promise.all([
+    db
+      .select({
+        progress: playbackProgress,
+        seasonId: seriesEpisode.seasonId,
+        number: seriesEpisode.number
+      })
+      .from(playbackProgress)
+      .innerJoin(
+        seriesEpisode,
+        and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
+      )
+      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+      .where(and(eq(playbackProgress.userId, userId), eq(seriesSeason.seriesId, seriesId)))
+      .orderBy(asc(seriesSeason.position), asc(seriesEpisode.number)),
+    db
+      .select({
+        seasonId: seriesEpisode.seasonId,
+        number: seriesEpisode.number,
+        completedAt: seasonCompletion.completedAt
+      })
+      .from(seasonCompletion)
+      .innerJoin(
+        seriesEpisode,
+        and(eq(seriesEpisode.anilistId, seasonCompletion.anilistId), eq(seriesEpisode.anilistEpisode, seasonCompletion.episode))
+      )
+      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+      .where(and(eq(seasonCompletion.userId, userId), eq(seriesSeason.seriesId, seriesId)))
+      .orderBy(asc(seriesSeason.position)),
+    db
+      .select({
+        seasonId: seriesEpisode.seasonId,
+        number: sql<number>`max(${seriesEpisode.number})`
+      })
+      .from(seriesEpisode)
+      .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+      .where(and(eq(seriesSeason.seriesId, seriesId), isNotNull(seriesEpisode.anilistId)))
+      .groupBy(seriesEpisode.seasonId)
+  ]);
 
-  return rows.map((row) => toEpisodeProgress(row.progress, row.seasonId, row.number));
+  const lastBySeason = new Map(finales.map((row) => [row.seasonId, row.number]));
+  return {
+    completedSeasons: completions
+      .filter((row) => lastBySeason.get(row.seasonId) === row.number)
+      .map(
+        (row): SeasonCompletion => ({
+          seasonId: row.seasonId,
+          completedAt: row.completedAt.toISOString()
+        })
+      ),
+    episodes: rows.map((row) => toEpisodeProgress(row.progress, row.seasonId, row.number))
+  };
 }
 
 /**
@@ -155,20 +206,17 @@ export async function getProgress(userId: string, seriesId: string): Promise<Epi
  */
 export async function clearProgress(userId: string, seriesId: string) {
   await assertSeriesExists(seriesId);
-  await db.delete(playbackProgress).where(
-    and(
-      eq(playbackProgress.userId, userId),
-      inArray(
-        playbackProgress.anilistId,
-        db
-          .select({
-            anilistId: seriesEntry.anilistId
-          })
-          .from(seriesEntry)
-          .where(eq(seriesEntry.seriesId, seriesId))
-      )
-    )
-  );
+  const entries = db
+    .select({
+      anilistId: seriesEntry.anilistId
+    })
+    .from(seriesEntry)
+    .where(eq(seriesEntry.seriesId, seriesId));
+
+  await db.transaction(async (tx) => {
+    await tx.delete(playbackProgress).where(and(eq(playbackProgress.userId, userId), inArray(playbackProgress.anilistId, entries)));
+    await tx.delete(seasonCompletion).where(and(eq(seasonCompletion.userId, userId), inArray(seasonCompletion.anilistId, entries)));
+  });
 }
 
 /** Builds a season checkpoint from a stored row and where its episode sits. */
@@ -181,6 +229,67 @@ export function toEpisodeProgress(row: typeof playbackProgress.$inferSelect, sea
     completed: row.completed,
     eventAt: row.eventAt.toISOString()
   };
+}
+
+/** Whether the season that `finale` ends was completed at or after `eventAt`. */
+async function isCompletedSince(userId: string, finale: LocatedEpisode, eventAt: Date) {
+  const [row] = await db
+    .select({
+      completedAt: seasonCompletion.completedAt
+    })
+    .from(seasonCompletion)
+    .where(
+      and(
+        eq(seasonCompletion.userId, userId),
+        eq(seasonCompletion.anilistId, finale.anilistId),
+        eq(seasonCompletion.episode, finale.anilistEpisode),
+        gte(seasonCompletion.completedAt, eventAt)
+      )
+    )
+    .limit(1);
+
+  return row !== undefined;
+}
+
+/**
+ * Records the season that `finale` ends as completed at `completedAt`, and
+ * clears the checkpoints of its episodes, so watching it again starts fresh.
+ */
+async function completeSeason(userId: string, finale: LocatedEpisode, completedAt: Date) {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(seasonCompletion)
+      .values({
+        userId,
+        anilistId: finale.anilistId,
+        episode: finale.anilistEpisode,
+        completedAt
+      })
+      .onConflictDoUpdate({
+        target: [
+          seasonCompletion.userId,
+          seasonCompletion.anilistId,
+          seasonCompletion.episode
+        ],
+        set: {
+          completedAt
+        },
+        setWhere: sql`${seasonCompletion.completedAt} < excluded.completed_at`
+      });
+
+    await tx.delete(playbackProgress).where(
+      and(
+        eq(playbackProgress.userId, userId),
+        sql`(${playbackProgress.anilistId}, ${playbackProgress.episode}) in (${tx
+          .select({
+            anilistId: seriesEpisode.anilistId,
+            episode: seriesEpisode.anilistEpisode
+          })
+          .from(seriesEpisode)
+          .where(and(eq(seriesEpisode.seasonId, finale.seasonId), isNotNull(seriesEpisode.anilistId)))})`
+      )
+    );
+  });
 }
 
 /**
