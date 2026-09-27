@@ -17,6 +17,7 @@
 	import { cn, tmdbImage } from '$lib/utils';
 	import { getListed, setListed } from '$lib/watchlist.remote';
 	import { clearProgress, markAllWatched, setDropped } from '../series.remote';
+	import Rating from './Rating.svelte';
 
 	let {
 		series,
@@ -233,6 +234,11 @@
 			{/if}
 
 			<p class={cn('flex flex-wrap items-center gap-y-1 text-sm text-muted', next ? 'mt-5 lg:mt-7' : 'mt-8 sm:mt-10 lg:mt-11')}>
+				{#if series.content_rating}
+					<span class="metadata-tag">
+						<Rating rating={series.content_rating} />
+					</span>
+				{/if}
 				{#if series.audio.length}
 					<span class="metadata-tag">
 						{[series.audio.includes('sub') && 'Sub', series.audio.includes('dub') && 'Dub']

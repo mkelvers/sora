@@ -7,6 +7,7 @@
 		children: Snippet;
 		trigger: Snippet;
 		id: string;
+		label?: string;
 		alignment?: "left" | "right";
 		className?: string;
 	};
@@ -16,6 +17,7 @@
 		children,
 		className,
 		id,
+		label,
 		trigger,
 	}: Props = $props();
 </script>
@@ -24,6 +26,7 @@
 	<Button
 		class="dropdown-trigger cursor-pointer p-2 uppercase tracking-wide hover:bg-dropdown hover:text-white group-has-[.dropdown-menu:popover-open]:bg-dropdown group-has-[.dropdown-menu:popover-open]:text-white text-[#8c8c8c]"
 		variant="ghost"
+		aria-label={label}
 		popovertarget={id}
 	>
 		{@render trigger()}
@@ -43,6 +46,10 @@
 </div>
 
 <style>
+	.dropdown-root {
+		anchor-scope: --dropdown-trigger;
+	}
+
 	:global(.dropdown-trigger) {
 		anchor-name: --dropdown-trigger;
 	}

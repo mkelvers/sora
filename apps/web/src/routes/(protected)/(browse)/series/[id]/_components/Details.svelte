@@ -2,6 +2,7 @@
 	import type { Series } from '@sora/sdk';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { cn } from '$lib/utils';
+	import Rating from './Rating.svelte';
 
 	let {
 		series,
@@ -11,57 +12,17 @@
 
 	let expanded = $state(false);
 
-	const statuses: Record<NonNullable<Series['status']>, string> = {
-		FINISHED: 'Finished',
-		RELEASING: 'Airing',
-		NOT_YET_RELEASED: 'Upcoming',
-		CANCELLED: 'Cancelled',
-		HIATUS: 'On hiatus',
-	};
-
-	const rows = $derived(
-		[
-			{
-				term: 'Production',
-				value: series.studios.join(', '),
-			},
-			{
-				term: 'Status',
-				value: series.status ? statuses[series.status] : '',
-			},
-			{
-				term: 'Released',
-				value: series.start_date
-					? series.start_date.length === 4
-						? series.start_date
-						: new Date(series.start_date).toLocaleDateString('en-US', {
-								day: series.start_date.length === 10 ? 'numeric' : undefined,
-								month: 'long',
-								year: 'numeric',
-								timeZone: 'UTC',
-							})
-					: '',
-			},
-			{
-				term: 'Episodes',
-				value:
-					series.kind === 'movie' || series.episode_count === 0
-						? ''
-						: `${series.episode_count} across ${series.season_count} ${series.season_count === 1 ? 'season' : 'seasons'}`,
-			},
-			{
-				term: 'Genres',
-				value: series.genres.join(', '),
-			},
-			{
-				term: 'Themes',
-				value: series.tags
-					.filter((tag) => !tag.spoiler && (tag.rank ?? 0) >= 60)
-					.slice(0, 8)
-					.map((tag) => tag.name)
-					.join(', '),
-			},
-		].filter((row) => row.value)
+	const original = $derived(
+		series.original_language
+			? new Intl.DisplayNames(['en'], {
+					type: 'language',
+				}).of(series.original_language)
+			: undefined
+	);
+	const audio = $derived(
+		[(series.audio.includes('sub') || series.audio.includes('raw')) && original, series.audio.includes('dub') && 'English']
+			.filter((language) => !!language)
+			.join(', ')
 	);
 </script>
 
@@ -83,12 +44,33 @@
 			>
 				<p class="max-w-3xl text-foreground">{series.overview ?? ''}</p>
 				<div class="space-y-3">
-					{#each rows as row (row.term)}
+					{#if audio}
 						<p>
-							<strong class="font-normal text-foreground">{row.term}:</strong>
-							{row.value}
+							<strong class="font-normal text-foreground">Audio:</strong>
+							{audio}
 						</p>
-					{/each}
+					{/if}
+					{#if series.audio.includes('sub')}
+						<p>
+							<strong class="font-normal text-foreground">Subtitles:</strong>
+							English
+						</p>
+					{/if}
+					{#if series.content_rating}
+						<p>
+							<strong class="font-normal text-foreground">Content advisory:</strong>
+							<Rating rating={series.content_rating} />
+						</p>
+					{/if}
+					{#if series.genres.length}
+						<p>
+							<strong class="font-normal text-foreground">Genres:</strong>
+							{series.genres.join(', ')}
+						</p>
+					{/if}
+					{#if series.studios.length}
+						<p class="text-xs font-semibold text-foreground">Animation by {series.studios.join(', ')}</p>
+					{/if}
 				</div>
 			</section>
 		</div>
