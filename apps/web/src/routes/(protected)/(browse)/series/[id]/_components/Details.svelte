@@ -1,119 +1,105 @@
 <script lang="ts">
-	import type { Series } from "@sora/sdk";
-	import Icon, { type IconName } from "$lib/components/ui/Icon.svelte";
-
-	type Props = {
-		series: Series;
-	};
+	import type { Series } from '@sora/sdk';
+	import Button from '$lib/components/ui/Button.svelte';
+	import { cn } from '$lib/utils';
 
 	let {
 		series,
-	}: Props = $props();
+	}: {
+		series: Series;
+	} = $props();
 
-	type Status = NonNullable<Series["status"]>;
+	let expanded = $state(false);
 
-	type Row = {
-		glyph: Status | "GENRES" | "THEMES" | "STUDIO";
-		term: string;
-		value: string;
-	};
-
-	const statuses: Record<Status, string> = {
-		FINISHED: "Finished",
-		RELEASING: "Airing",
-		NOT_YET_RELEASED: "Upcoming",
-		CANCELLED: "Cancelled",
-		HIATUS: "On hiatus",
-	};
-
-	const glyphs: Record<Row["glyph"], IconName> = {
-		FINISHED: "check",
-		RELEASING: "live",
-		NOT_YET_RELEASED: "schedule",
-		CANCELLED: "close",
-		HIATUS: "pause",
-		GENRES: "label",
-		THEMES: "hash",
-		STUDIO: "movie",
+	const statuses: Record<NonNullable<Series['status']>, string> = {
+		FINISHED: 'Finished',
+		RELEASING: 'Airing',
+		NOT_YET_RELEASED: 'Upcoming',
+		CANCELLED: 'Cancelled',
+		HIATUS: 'On hiatus',
 	};
 
 	const rows = $derived(
 		[
-			series.status && {
-				glyph: series.status,
-				term: "Status",
-				value: statuses[series.status],
+			{
+				term: 'Production',
+				value: series.studios.join(', '),
 			},
 			{
-				glyph: "GENRES",
-				term: "Genres",
-				value: series.genres.join(", "),
+				term: 'Status',
+				value: series.status ? statuses[series.status] : '',
 			},
 			{
-				glyph: "THEMES",
-				term: "Themes",
+				term: 'Released',
+				value: series.start_date
+					? series.start_date.length === 4
+						? series.start_date
+						: new Date(series.start_date).toLocaleDateString('en-US', {
+								day: series.start_date.length === 10 ? 'numeric' : undefined,
+								month: 'long',
+								year: 'numeric',
+								timeZone: 'UTC',
+							})
+					: '',
+			},
+			{
+				term: 'Episodes',
+				value:
+					series.kind === 'movie' || series.episode_count === 0
+						? ''
+						: `${series.episode_count} across ${series.season_count} ${series.season_count === 1 ? 'season' : 'seasons'}`,
+			},
+			{
+				term: 'Genres',
+				value: series.genres.join(', '),
+			},
+			{
+				term: 'Themes',
 				value: series.tags
 					.filter((tag) => !tag.spoiler && (tag.rank ?? 0) >= 60)
 					.slice(0, 8)
 					.map((tag) => tag.name)
-					.join(", "),
+					.join(', '),
 			},
-			{
-				glyph: "STUDIO",
-				term: series.studios.length > 1 ? "Studios" : "Studio",
-				value: series.studios.join(", "),
-			},
-		].filter((row): row is Row => Boolean(row?.value)),
+		].filter((row) => row.value)
 	);
 </script>
 
-{#if rows.length}
-	<dl>
-		{#each rows as row (row.term)}
-			<div>
-				<dt>
-					<Icon name={glyphs[row.glyph]} size="sm" />
-					<span class="term">{row.term}</span>
-				</dt>
-				<dd>{row.value}</dd>
-			</div>
-		{/each}
-	</dl>
-{/if}
+<div class="relative z-20 bg-canvas px-5 sm:px-10 lg:px-16">
+	<div class="border-b border-border pt-7 lg:pt-8">
+		<div
+			class={cn(
+				'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
+				expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+			)}
+		>
+			<section
+				id="series-details"
+				inert={!expanded}
+				class={cn(
+					'grid min-h-24 max-w-432 min-w-0 grid-cols-1 gap-8 overflow-hidden text-xs leading-5 text-muted md:grid-cols-2 md:gap-12 lg:gap-28 lg:text-sm lg:leading-6',
+					!expanded && 'mask-[linear-gradient(to_bottom,black_45%,transparent_100%)]'
+				)}
+			>
+				<p class="max-w-3xl text-foreground">{series.overview ?? ''}</p>
+				<div class="space-y-3">
+					{#each rows as row (row.term)}
+						<p>
+							<strong class="font-normal text-foreground">{row.term}:</strong>
+							{row.value}
+						</p>
+					{/each}
+				</div>
+			</section>
+		</div>
 
-<style>
-	dl {
-		display: grid;
-		gap: 12px;
-		margin: 0;
-	}
-
-	div {
-		display: flex;
-		align-items: flex-start;
-		gap: 10px;
-	}
-
-	dt {
-		display: flex;
-		flex: none;
-		padding-top: 1px;
-		color: #fff;
-	}
-
-	.term {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
-
-	dd {
-		margin: 0;
-		color: #ccc;
-		font-size: 14px;
-		line-height: 1.45;
-	}
-</style>
+		<Button
+			class="min-h-11 text-xs font-semibold text-accent uppercase"
+			aria-expanded={expanded}
+			aria-controls="series-details"
+			onclick={() => (expanded = !expanded)}
+		>
+			{expanded ? 'Fewer details' : 'More details'}
+		</Button>
+	</div>
+</div>

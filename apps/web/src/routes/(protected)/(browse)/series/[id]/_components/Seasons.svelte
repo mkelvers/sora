@@ -1,96 +1,48 @@
 <script lang="ts">
-	import type { Season } from "@sora/sdk";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
-
-	type Props = {
-		seasons: Season[];
-		season: Season;
-	};
+	import { CaretDownIcon } from 'phosphor-svelte';
+	import type { Season } from '@sora/sdk';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
+	import { cn } from '$lib/utils';
 
 	let {
 		seasons,
 		season = $bindable(),
-	}: Props = $props();
+	}: {
+		seasons: Season[];
+		season: Season;
+	} = $props();
 </script>
 
-<div class="seasons">
-	<Dropdown id="seasons" class="menu" role="menu" aria-label="Seasons">
+<div class="min-w-0 [&_.dropdown-trigger]:max-w-full [&_.dropdown-trigger]:gap-2 [&_.dropdown-trigger]:px-0 [&_.dropdown-trigger]:text-lg [&_.dropdown-trigger]:font-bold [&_.dropdown-trigger]:normal-case [&_.dropdown-trigger]:tracking-normal [&_.dropdown-trigger]:text-foreground [&_.dropdown-trigger]:hover:bg-transparent">
+	<Dropdown id="seasons" alignment="left" className="max-h-[min(60vh,30rem)] w-max max-w-[min(28rem,calc(100vw-2rem))] overflow-y-auto *:p-0">
 		{#snippet trigger()}
-			<Icon name="expand" size="md" />
-			<span class="current">{season.title}</span>
+			<CaretDownIcon size="1.1rem" weight="fill" />
+			<span class="truncate">{season.title}</span>
 		{/snippet}
 
-		{#each seasons as other (other.id)}
-			<Button
-				role="menuitemradio"
-				aria-checked={other.id === season.id}
-				popovertarget="seasons"
-				popovertargetaction="hide"
-				onclick={() => (season = other)}
-			>
-				<span class="title">{other.title}</span>
-				<span class="count">
-					{other.episode_count}
-					{other.episode_count === 1 ? "Episode" : "Episodes"}
-				</span>
-			</Button>
-		{/each}
+		{#snippet children()}
+			<div role="menu" aria-label="Seasons">
+				{#each seasons as other (other.id)}
+					<Button
+						role="menuitemradio"
+						aria-checked={other.id === season.id}
+						popovertarget="seasons"
+						popovertargetaction="hide"
+						class={cn(
+							'flex w-full items-center justify-start gap-6 px-5 py-3 text-left text-sm text-muted hover:bg-panel-hover hover:text-foreground',
+							other.id === season.id && 'bg-panel-hover text-foreground'
+						)}
+						onclick={() => (season = other)}
+					>
+						<span class="truncate">{other.title}</span>
+						<span class="ml-auto text-xs tabular-nums">
+							{other.episode_count}
+							{other.episode_count === 1 ? 'Episode' : 'Episodes'}
+						</span>
+					</Button>
+				{/each}
+			</div>
+		{/snippet}
 	</Dropdown>
 </div>
-
-<style>
-	.seasons {
-		min-width: 0;
-	}
-
-	.seasons :global(.dropdown-trigger),
-	.seasons :global(.dropdown-trigger:hover),
-	.seasons :global(.dropdown-trigger:focus-visible),
-	.seasons:has(:popover-open) :global(.dropdown-trigger) {
-		gap: 2px;
-		max-width: 100%;
-		padding: 4px 0;
-		background: none;
-		color: #fff;
-		font-size: 18px;
-		outline: none;
-	}
-
-	.current {
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.seasons :global(.menu) {
-		width: max-content;
-		max-width: min(440px, calc(100vw - 32px));
-		max-height: min(60vh, 480px);
-		overflow: hidden auto;
-	}
-
-	.seasons :global(.menu > .button) {
-		gap: 24px;
-		padding: 12px 20px;
-		color: #888;
-		font-size: 15px;
-	}
-
-	.seasons :global(.menu > .button[aria-checked="true"]),
-	.seasons :global(.menu > .button:hover),
-	.seasons :global(.menu > .button:focus-visible) {
-		color: #fff;
-	}
-
-	.title {
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.count {
-		margin-left: auto;
-		font-size: 12px;
-		font-variant-numeric: tabular-nums;
-	}
-</style>
