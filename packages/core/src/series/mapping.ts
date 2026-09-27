@@ -1,11 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { tmdbMapping } from "../database/schema";
+import { tmdbHint, tmdbMapping } from "../database/schema";
 import { day } from "../time";
 import { getCollectionParts, getMovie, getShow, searchMovies, searchShows } from "../tmdb/resources";
 import { loadEntries, primaryTitlesOf, toMatchSubject, type FranchiseEntry } from "./entries";
+import { tmdbHintFor, type TmdbHint } from "./hints";
 import {
   bestSimilarity,
   placeAfterInCollection,
@@ -14,8 +15,8 @@ import {
   type EpisodeLink,
   type MatchSubject,
   type Placement,
-  type ShowCandidate,
-  type TmdbEpisodeRef
+  type PrequelRun,
+  type ShowCandidate
 } from "./matching";
 
 /** A stored AniList-to-TMDB mapping; `tmdbId` is `null` when no match was found. */
@@ -53,9 +54,10 @@ const inFlight = new Map<number, Promise<TmdbMapping>>();
  * The entry's prequel and parent are resolved first, because a sequel is
  * usually a later season of the show its prequel maps to, and an OVA is
  * usually a special of its parent's show. Candidate shows and movies come
- * from those mappings and from TMDB title searches; {@link placeInShow} and
- * {@link placeAsMovie} decide between them. Concurrent calls for the same
- * entry share one resolution.
+ * from those mappings, from the entry's TMDB hint (see `hints.ts`), and from
+ * TMDB title searches; {@link placeInShow} and {@link placeAsMovie} decide
+ * between them, so a wrong hint is no more trusted than a search result.
+ * Concurrent calls for the same entry share one resolution.
  *
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
@@ -103,12 +105,13 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
   // Synonyms are too noisy to search with.
   const queries = primaryTitlesOf(entry);
   const predecessors = await predecessorMappings(entry, resolving);
+  const hint = await tmdbHintFor(entry.id);
   const placement = subject.format === "MOVIE"
-    ? (await bestMoviePlacement(subject, queries)) ??
+    ? (await bestMoviePlacement(subject, queries, hint)) ??
       (await collectionPlacement(subject, predecessors)) ??
-      (await bestShowPlacement(subject, predecessors, []))
-    : (await bestShowPlacement(subject, predecessors, queries)) ??
-      (isSingleEpisode(subject) ? await bestMoviePlacement(subject, queries) : null);
+      (await bestShowPlacement(subject, predecessors, hint, []))
+    : (await bestShowPlacement(subject, predecessors, hint, queries)) ??
+      (isSingleEpisode(subject) ? await bestMoviePlacement(subject, queries, hint) : null);
 
   const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
   const values = {
@@ -187,26 +190,34 @@ async function predecessorMappings(entry: FranchiseEntry, resolving: ReadonlySet
 /**
  * Places the subject in the most plausible TMDB show.
  *
- * Candidates are the shows the predecessors map to, plus title-search
- * results for `queries`. Movies pass no queries and only fall back to their
- * predecessors' shows, where TMDB sometimes lists a film as a special.
+ * Candidates are the shows the predecessors map to, the hinted show, and
+ * title-search results for `queries`. Movies pass no queries and only fall
+ * back to those shows, where TMDB sometimes lists a film as a special.
  */
-async function bestShowPlacement(subject: MatchSubject, predecessors: readonly Predecessor[], queries: readonly string[]) {
+async function bestShowPlacement(
+  subject: MatchSubject,
+  predecessors: readonly Predecessor[],
+  hint: TmdbHint | null,
+  queries: readonly string[]
+) {
   const candidates = new Map<number, Omit<ShowCandidate, "show">>();
   for (const { relation, mapping } of predecessors) {
     if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
       candidates.set(mapping.tmdbId, {
         isFranchiseShow: true,
-        prequelEnd: candidates.get(mapping.tmdbId)?.prequelEnd ?? (relation === "PREQUEL" ? regularSeasonEnd(mapping) : null)
+        prequel: candidates.get(mapping.tmdbId)?.prequel ?? (relation === "PREQUEL" ? regularSeasonRun(mapping) : null)
       });
     }
   }
 
-  for (const showId of await searchedShowIds(subject, queries)) {
+  for (const showId of [
+    ...(hint?.showId ? [hint.showId] : []),
+    ...(await searchedShowIds(subject, queries))
+  ]) {
     if (!candidates.has(showId)) {
       candidates.set(showId, {
         isFranchiseShow: false,
-        prequelEnd: null
+        prequel: null
       });
     }
   }
@@ -231,10 +242,20 @@ async function bestShowPlacement(subject: MatchSubject, predecessors: readonly P
   return best;
 }
 
-/** The last TMDB episode of a prequel mapped to regular seasons, which a sequel would follow. */
-function regularSeasonEnd(mapping: TmdbMapping): TmdbEpisodeRef | null {
-  const last = mappedEpisodes(mapping).at(-1);
-  return last && last.seasonNumber > 0 ? last : null;
+/**
+ * Where a prequel mapped to regular seasons runs, which a sequel would
+ * follow. A special listed ahead of its first regular episode is left out.
+ */
+function regularSeasonRun(mapping: TmdbMapping): PrequelRun | null {
+  const episodes = mappedEpisodes(mapping);
+  const first = episodes.find((episode) => episode.seasonNumber > 0);
+  const last = episodes.at(-1);
+  return first && last && last.seasonNumber > 0
+    ? {
+        first,
+        last
+      }
+    : null;
 }
 
 /** Finds TMDB shows by title, most similar to the subject first. */
@@ -252,19 +273,34 @@ async function searchedShowIds(subject: MatchSubject, queries: readonly string[]
     .map(([id]) => id);
 }
 
-/** Searches TMDB movies by the subject's titles and returns the best confident match. */
-async function bestMoviePlacement(subject: MatchSubject, queries: readonly string[]) {
-  let best: Placement | null = null;
-  for (const found of await Promise.all(queries.map((query) => searchMovies(query)))) {
-    for (const movie of found.slice(0, resultsPerQuery)) {
+/** Weighs the hinted movies and those found by the subject's titles, and returns the best confident match. */
+async function bestMoviePlacement(subject: MatchSubject, queries: readonly string[], hint: TmdbHint | null) {
+  const [hinted, found] = await Promise.all([
+    Promise.all((hint?.movieIds ?? []).map((movieId) => getMovie(movieId))),
+    Promise.all(queries.map(async (query) => (await searchMovies(query)).slice(0, resultsPerQuery)))
+  ]);
+
+  const placements = new Map<number, Placement>();
+  for (const movies of [hinted.filter((movie) => movie !== null), ...found]) {
+    for (const movie of movies) {
       const placement = placeAsMovie(subject, movie);
-      if (placement && (!best || placement.score > best.score)) {
-        best = placement;
+      if (placement && placement.score > (placements.get(movie.id)?.score ?? Number.NEGATIVE_INFINITY)) {
+        placements.set(movie.id, placement);
       }
     }
   }
 
-  return best;
+  // Search results leave out runtimes, which tell a bonus short from the
+  // film it was released with, so the best are checked against the details.
+  for (const [movieId] of [...placements].sort(([, left], [, right]) => right.score - left.score)) {
+    const movie = await getMovie(movieId);
+    const confirmed = movie && placeAsMovie(subject, movie);
+    if (confirmed) {
+      return confirmed;
+    }
+  }
+
+  return null;
 }
 
 
@@ -288,9 +324,57 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
   return null;
 }
 
+/** The entries whose stored mappings place them in one TMDB show or movie. */
+export async function entriesMappedTo(mediaType: "tv" | "movie", tmdbId: number): Promise<number[]> {
+  const rows = await db
+    .select({
+      anilistId: tmdbMapping.anilistId
+    })
+    .from(tmdbMapping)
+    .where(and(eq(tmdbMapping.mediaType, mediaType), eq(tmdbMapping.tmdbId, tmdbId)));
+  return rows.map((row) => row.anilistId);
+}
+
 /** One-episode specials and OVAs are sometimes released as TMDB movies. */
 function isSingleEpisode(subject: MatchSubject) {
   return subject.episodes === 1 && (subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA");
+}
+
+/**
+ * Marks the stored mappings of `anilistIds` to be matched again, as when
+ * their TMDB hints changed. A mapping already at one of its entry's hinted
+ * titles is kept, since a hint cannot move it elsewhere.
+ *
+ * @returns The entries whose mappings were marked.
+ */
+export async function expireMappingsAgainstHints(anilistIds: readonly number[]): Promise<number[]> {
+  if (anilistIds.length === 0) {
+    return [];
+  }
+
+  const expired = await db
+    .update(tmdbMapping)
+    .set({
+      resolvedAt: new Date(0)
+    })
+    .where(
+      and(
+        inArray(tmdbMapping.anilistId, [...anilistIds]),
+        sql`not exists (
+          select 1 from ${tmdbHint}
+          where ${tmdbHint.anilistId} = ${tmdbMapping.anilistId}
+            and (
+              (${tmdbMapping.mediaType} = 'tv' and ${tmdbHint.showId} = ${tmdbMapping.tmdbId})
+              or (${tmdbMapping.mediaType} = 'movie' and ${tmdbMapping.tmdbId} = any(${tmdbHint.movieIds}))
+            )
+        )`
+      )
+    )
+    .returning({
+      anilistId: tmdbMapping.anilistId
+    });
+
+  return expired.map((row) => row.anilistId);
 }
 
 /**
