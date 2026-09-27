@@ -4,7 +4,7 @@ import { db } from "../../database/client";
 import { anime, animeSearch, playbackProgress, series, seriesEntry, seriesRelated, watchlistEntry } from "../../database/schema";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
-import { toSeriesCard } from "../../series/queries";
+import { toSeriesCards } from "../../series/queries";
 import { favoriteGenres, rankCandidates, tasteOf, titleWeight, type TasteSeed, type TitleActivity } from "./taste";
 
 /** Genres a taste is matched on beyond users' votes. */
@@ -82,7 +82,7 @@ export async function getRecommendations(userId: string, limit = 20): Promise<Se
   }
 
   const rows = await db.select().from(series).where(inArray(series.id, picked));
-  const cards = new Map(rows.map((row) => [row.id, toSeriesCard(row)]));
+  const cards = await toSeriesCards(rows);
   return picked.flatMap((id) => cards.get(id) ?? []);
 }
 

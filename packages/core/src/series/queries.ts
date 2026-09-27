@@ -1,16 +1,16 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
-import { toAnimeFormat } from "../catalog/models/anime";
+import { toAnime, toAnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, BrowseQuerySchema, type BrowseQuery, type Page } from "../catalog/queries/browse";
 import { hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { db } from "../database/client";
-import { series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
-import { findEpisodeListings } from "../playback/episodes/versions";
+import { anime as animeTable, series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
+import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episodes";
-import type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
+import type { ContentLanguage, PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 import { storedSeriesIds } from "./store";
 
 /**
@@ -27,21 +27,20 @@ export async function getSeries(seriesId: string): Promise<Series> {
     throw new SeriesNotFoundError(seriesId);
   }
 
-  const [anchor, seasons, related] = await Promise.all([
+  const [anchor, listed, related] = await Promise.all([
     getAnime(row.anchorAnilistId),
-    seasonsOf(row.id),
+    listedSeasonsOf([row]),
     relatedOf(row.id)
   ]);
+  const cards = await cardsFrom([row], listed);
 
   const isNextEpisodeAhead = row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
   return {
-    ...toSeriesCard(row),
+    ...cards.get(row.id)!,
     startDate: row.startDate,
-    overview: row.overview ?? anchor.description,
     genres: anchor.genres,
     tags: anchor.tags,
     studios: anchor.studios,
-    score: anchor.score,
     nextEpisode:
       isNextEpisodeAhead && row.nextEpisodeSeasonId !== null && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
         ? {
@@ -50,7 +49,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
             airingAt: row.nextEpisodeAiringAt.toISOString()
           }
         : null,
-    seasons,
+    seasons: (listed.get(row.id) ?? []).map(({ season }) => season),
     related
   };
 }
@@ -340,7 +339,7 @@ function seriesInOrder(anilistIds: readonly number[], seriesIds: ReadonlyMap<num
 /** Cards for stored series, in the given order. */
 async function cardsOf(seriesIds: readonly string[]) {
   const rows = seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, [...seriesIds])) : [];
-  const cards = new Map(rows.map((row) => [row.id, toSeriesCard(row)]));
+  const cards = await toSeriesCards(rows);
   return seriesIds.flatMap((id) => cards.get(id) ?? []);
 }
 
@@ -413,51 +412,70 @@ async function seasonsOf(seriesId: string, seasonId?: string): Promise<Season[]>
  * order. `episodeCount` counts only those.
  */
 async function listedSeasons(seriesId: string, seasonId?: string) {
-  const [[title], seasons] = await Promise.all([
-    db.select().from(series).where(eq(series.id, seriesId)).limit(1),
-    db
-      .select({
-        id: seriesSeason.id,
-        kind: seriesSeason.kind,
-        number: seriesSeason.number,
-        title: seriesSeason.title,
-        inWatchOrder: seriesSeason.inWatchOrder
-      })
-      .from(seriesSeason)
-      .where(
-        and(eq(seriesSeason.seriesId, seriesId), seasonId === undefined ? undefined : eq(seriesSeason.id, seasonId))
-      )
-      .orderBy(asc(seriesSeason.position))
-  ]);
-  if (!title || seasons.length === 0) {
-    return [];
-  }
+  const [title] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+  return title ? ((await listedSeasonsOf([title], seasonId)).get(title.id) ?? []) : [];
+}
 
-  const rows = await db
-    .select()
-    .from(seriesEpisode)
-    .where(
-      inArray(
-        seriesEpisode.seasonId,
-        seasons.map((season) => season.id)
-      )
-    )
-    .orderBy(asc(seriesEpisode.number));
+/** {@link listedSeasons} of several series at once, keyed by series ID. */
+async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], seasonId?: string) {
+  const seasons =
+    titles.length > 0
+      ? await db
+          .select({
+            seriesId: seriesSeason.seriesId,
+            id: seriesSeason.id,
+            kind: seriesSeason.kind,
+            number: seriesSeason.number,
+            title: seriesSeason.title,
+            inWatchOrder: seriesSeason.inWatchOrder
+          })
+          .from(seriesSeason)
+          .where(
+            and(
+              inArray(
+                seriesSeason.seriesId,
+                titles.map((title) => title.id)
+              ),
+              seasonId === undefined ? undefined : eq(seriesSeason.id, seasonId)
+            )
+          )
+          .orderBy(asc(seriesSeason.position))
+      : [];
+  const rows =
+    seasons.length > 0
+      ? await db
+          .select()
+          .from(seriesEpisode)
+          .where(
+            inArray(
+              seriesEpisode.seasonId,
+              seasons.map((season) => season.id)
+            )
+          )
+          .orderBy(asc(seriesEpisode.number))
+      : [];
   const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
 
   const now = new Date();
-  return seasons.map((season) => {
-    const episodes = rows.filter(
-      (row) => row.seasonId === season.id && isEpisodeShown(title, season, row, onAniKoto, now)
-    );
-    return {
-      season: {
-        ...season,
-        episodeCount: episodes.length
-      },
-      episodes
-    };
-  });
+  return new Map(
+    titles.map((title) => [
+      title.id,
+      seasons
+        .filter((season) => season.seriesId === title.id)
+        .map(({ seriesId: _, ...season }) => {
+          const episodes = rows.filter(
+            (row) => row.seasonId === season.id && isEpisodeShown(title, season, row, onAniKoto, now)
+          );
+          return {
+            season: {
+              ...season,
+              episodeCount: episodes.length
+            },
+            episodes
+          };
+        })
+    ])
+  );
 }
 
 /** Related titles that are stored, in display order. Titles still queued for storing are left out. */
@@ -472,12 +490,15 @@ async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
     .where(and(eq(seriesRelated.seriesId, seriesId), ne(series.id, seriesId)))
     .orderBy(asc(seriesRelated.position));
 
-  const cards = new Map(rows.map((row) => [row.series.id, toSeriesCard(row.series)]));
+  const cards = await toSeriesCards(rows.map((row) => row.series));
   return [...cards.values()];
 }
 
 /** Builds a card from a stored series row, with any artwork chosen over the laid-out one. */
-export function toSeriesCard(row: typeof series.$inferSelect): SeriesCard {
+function toSeriesCard(
+  row: typeof series.$inferSelect,
+  audio: ContentLanguage[]
+): Omit<SeriesCard, "overview" | "score" | "seasonCount" | "episodeCount" | "startSeasonId"> {
   return {
     id: row.id,
     kind: row.kind,
@@ -486,6 +507,72 @@ export function toSeriesCard(row: typeof series.$inferSelect): SeriesCard {
     backdropUrl: row.backdropUrlOverride ?? row.backdropUrl,
     logoUrl: row.logoUrlOverride ?? row.logoUrl,
     year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
-    status: row.status
+    status: row.status,
+    audio
   };
+}
+
+/**
+ * Builds the cards of stored series rows, keyed by series ID, with the audio
+ * and the seasons and episodes each series lists. Reads only the database.
+ */
+export async function toSeriesCards(rows: readonly (typeof series.$inferSelect)[]): Promise<Map<string, SeriesCard>> {
+  return cardsFrom(rows, await listedSeasonsOf(rows));
+}
+
+/** {@link toSeriesCards} with the rows' seasons already listed. */
+async function cardsFrom(
+  rows: readonly (typeof series.$inferSelect)[],
+  listed: Map<string, Awaited<ReturnType<typeof listedSeasons>>>
+): Promise<Map<string, SeriesCard>> {
+  const ids = [...new Set(rows.map((row) => row.id))];
+  const [entries, anchors] =
+    ids.length > 0
+      ? await Promise.all([
+          db
+            .select({
+              anilistId: seriesEntry.anilistId,
+              seriesId: seriesEntry.seriesId
+            })
+            .from(seriesEntry)
+            .where(inArray(seriesEntry.seriesId, ids)),
+          db
+            .select({
+              anilistId: animeTable.anilistId,
+              media: animeTable.media
+            })
+            .from(animeTable)
+            .where(
+              inArray(
+                animeTable.anilistId,
+                rows.map((row) => row.anchorAnilistId)
+              )
+            )
+        ])
+      : [[], []];
+  const languages = await findAnimeLanguages(entries.map((entry) => entry.anilistId));
+  const anime = new Map(anchors.map((anchor) => [anchor.anilistId, toAnime(anchor.media)]));
+  const order: ContentLanguage[] = ["dub", "sub", "raw"];
+
+  return new Map(
+    rows.map((row) => {
+      const audio = new Set(
+        entries.flatMap((entry) => (entry.seriesId === row.id ? (languages.get(entry.anilistId) ?? []) : []))
+      );
+      const anchor = anime.get(row.anchorAnilistId);
+      const all = (listed.get(row.id) ?? []).map(({ season }) => season);
+      const seasons = all.filter((season) => season.kind === "season");
+      return [
+        row.id,
+        {
+          ...toSeriesCard(row, order.filter((language) => audio.has(language))),
+          overview: row.overview ?? anchor?.description ?? null,
+          score: anchor?.score ?? null,
+          seasonCount: seasons.length,
+          episodeCount: seasons.reduce((total, season) => total + season.episodeCount, 0),
+          startSeasonId: (all.find((season) => season.inWatchOrder) ?? all[0])?.id ?? null
+        }
+      ];
+    })
+  );
 }

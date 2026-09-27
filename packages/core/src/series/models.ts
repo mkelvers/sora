@@ -30,6 +30,25 @@ export interface SeriesCard {
   year: number | null;
   /** Airing while any season airs; see `seriesStatus`. */
   status: AnimeStatus | null;
+  /**
+   * The audio any of its episodes can be watched with, dub before sub before
+   * raw. Empty when nothing streams it, or while its providers have not been
+   * looked up yet.
+   */
+  audio: ContentLanguage[];
+  /** TMDB's synopsis of the title, or AniList's of the first season when TMDB has none. */
+  overview: string | null;
+  /** AniList's weighted score of the first season, 0–100. */
+  score: number | null;
+  /** How many regular seasons it has, OVAs and films left out. A film has none. */
+  seasonCount: number;
+  /** How many episodes its regular seasons list, as their season pages list them. */
+  episodeCount: number;
+  /**
+   * The season watching starts at: the first in watch order, or the first
+   * season when none is. `null` for a title with no seasons laid out.
+   */
+  startSeasonId: string | null;
 }
 
 /**
@@ -57,12 +76,9 @@ export interface PreparingTitle {
 export interface Series extends SeriesCard {
   /** First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it. */
   startDate: string | null;
-  overview: string | null;
   genres: string[];
   tags: AnimeTag[];
   studios: string[];
-  /** AniList's weighted score of the first season, 0–100. */
-  score: number | null;
   /** The next episode to air, or `null` when none is announced. */
   nextEpisode: {
     seasonId: string;

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../../database/client";
 import { series, watchlistEntry, watchlistStatus } from "../../database/schema";
 import type { SeriesCard } from "../../series/models";
-import { assertSeriesExists, toSeriesCard } from "../../series/queries";
+import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 
 export const WatchlistStatusSchema = z.enum(watchlistStatus.enumValues);
 
@@ -54,8 +54,9 @@ export async function getWatchlist(
     )
     .orderBy(desc(watchlistEntry.updatedAt));
 
+  const cards = await toSeriesCards(rows.map((row) => row.series));
   return rows.map((row) => ({
-    series: toSeriesCard(row.series),
+    series: cards.get(row.series.id)!,
     status: row.entry.status,
     addedAt: row.entry.createdAt.toISOString(),
     updatedAt: row.entry.updatedAt.toISOString()

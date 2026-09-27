@@ -6,7 +6,7 @@ import { series } from "../database/schema";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { anilistEpisodeKey, findSeasonEpisodes } from "./episodes";
 import type { SeriesCard } from "./models";
-import { toSeriesCard } from "./queries";
+import { toSeriesCards } from "./queries";
 import { storedSeriesIds } from "./store";
 
 /** One episode broadcast in the release calendar. */
@@ -46,7 +46,7 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
   });
   const seriesIds = [...new Set([...placed.values()].map((ref) => ref.seriesId))];
   const rows = seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
-  const cards = new Map(rows.map((row) => [row.id, toSeriesCard(row)]));
+  const cards = await toSeriesCards(rows);
 
   return broadcasts.flatMap((broadcast) => {
     const ref = placed.get(anilistEpisodeKey(broadcast.anilistId, broadcast.episode));

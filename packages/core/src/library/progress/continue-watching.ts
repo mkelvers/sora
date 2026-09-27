@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../database/client";
 import { playbackProgress, seasonCompletion, series, seriesEpisode, seriesSeason, watchlistEntry } from "../../database/schema";
 import { isEpisodeAvailable, isEpisodeShown, loadAniKotoEpisodes } from "../../series/episodes";
-import { toSeriesCard } from "../../series/queries";
+import { toSeriesCards } from "../../series/queries";
 import { toEpisodeProgress } from "./progress";
 import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type TitleEpisode } from "./resume";
 
@@ -20,11 +20,17 @@ export async function getContinueWatching(
   userId: string,
   options: {
     limit?: number;
-    /** Only this title, for a title's page: at most one entry. */
-    seriesId?: string;
+    /** Only these titles, such as a title's page or a page of search results: at most one entry each. */
+    seriesIds?: readonly string[];
   } = {}
 ): Promise<ContinueWatchingItem[]> {
-  const { limit = 20, seriesId } = options;
+  const only = options.seriesIds;
+  if (only?.length === 0) {
+    return [];
+  }
+
+  const limit = options.limit ?? only?.length ?? 20;
+  const inTitles = only === undefined ? undefined : inArray(seriesSeason.seriesId, [...only]);
   const [checkpoints, completions] = await Promise.all([
     db
       .select({
@@ -40,7 +46,7 @@ export async function getContinueWatching(
         and(eq(seriesEpisode.anilistId, playbackProgress.anilistId), eq(seriesEpisode.anilistEpisode, playbackProgress.episode))
       )
       .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(playbackProgress.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId))),
+      .where(and(eq(playbackProgress.userId, userId), inTitles)),
     db
       .select({
         completedAt: seasonCompletion.completedAt,
@@ -56,7 +62,7 @@ export async function getContinueWatching(
         and(eq(seriesEpisode.anilistId, seasonCompletion.anilistId), eq(seriesEpisode.anilistEpisode, seasonCompletion.episode))
       )
       .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-      .where(and(eq(seasonCompletion.userId, userId), seriesId === undefined ? undefined : eq(seriesSeason.seriesId, seriesId)))
+      .where(and(eq(seasonCompletion.userId, userId), inTitles))
   ]);
 
   const rows = [
@@ -122,6 +128,7 @@ export async function getContinueWatching(
 
   const excluded = new Set(finished.map((row) => row.seriesId));
   const seriesById = new Map(stored.map((row) => [row.id, row]));
+  const cards = await toSeriesCards(stored);
 
   return [...bySeries]
     .flatMap(([seriesId, checkpoints]): ContinueWatchingItem[] => {
@@ -134,7 +141,7 @@ export async function getContinueWatching(
       return point
         ? [
             {
-              series: toSeriesCard(row),
+              series: cards.get(seriesId)!,
               ...point,
               lastWatchedAt: checkpoints[0]!.eventAt
             }
