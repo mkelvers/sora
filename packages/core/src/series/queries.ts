@@ -305,7 +305,8 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
     // One series more than the page holds tells whether another page follows.
     const { seriesIds, missing } = await seriesIdsFor(ranked, {
       wantedSeries: page * perPage + 1,
-      pageStart
+      pageStart,
+      perPage
     });
     const ordered = seriesInOrder(ranked, seriesIds);
     const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
@@ -330,7 +331,8 @@ export async function browseSeries(query: BrowseQuery): Promise<Page<SeriesCard>
   const anilistIds = found.items.map((anime) => anime.id);
   const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
     wantedSeries: Number.POSITIVE_INFINITY,
-    pageStart: 0
+    pageStart: 0,
+    perPage: found.perPage
   });
   const cards = new Map(found.items.map((anime) => [anime.id, anime]));
   return {
@@ -383,19 +385,16 @@ async function cardsOf(seriesIds: readonly string[]) {
 }
 
 /**
- * How many places, from the top of the page asked for, a viewer is taken to
- * be waiting on: entries there not stored yet are laid out ahead of anything
- * else, and those further down after airing checks. Suggestions show six,
- * and a query typed letter by letter should not queue every faint match of
- * each prefix ahead of new episodes.
- */
-const waitedPlaces = 6;
-
-/**
  * Finds the stored series of each entry, and queues for the scheduler the
  * entries among the first `window.wantedSeries` places whose series is not
  * stored yet. A stored series takes one place, and so does each entry not
  * stored yet, since its series is not known.
+ *
+ * The viewer is taken to be waiting on the page they asked for, the
+ * `window.perPage` places from `window.pageStart`: entries there are laid
+ * out ahead of anything else, and those further down after airing checks.
+ * Suggestions ask for a small page, so a query typed letter by letter does
+ * not queue every faint match of each prefix ahead of new episodes.
  *
  * @returns Each stored entry's series, and the entries the page wanted that
  *   are still being prepared, with their places.
@@ -405,6 +404,7 @@ async function seriesIdsFor(
   window: {
     wantedSeries: number;
     pageStart: number;
+    perPage: number;
   }
 ) {
   const found = await storedSeriesIds(anilistIds);
@@ -430,7 +430,7 @@ async function seriesIdsFor(
     }
   }
 
-  const isWaitedOn = (place: number) => place >= window.pageStart && place < window.pageStart + waitedPlaces;
+  const isWaitedOn = (place: number) => place >= window.pageStart && place < window.pageStart + window.perPage;
   await Promise.all(
     missing.map(({ anilistId, place }) =>
       isWaitedOn(place) ? scheduleSeriesStore(anilistId, "waiting", place - window.pageStart) : scheduleSeriesStore(anilistId, "current")
