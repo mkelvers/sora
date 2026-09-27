@@ -7,6 +7,13 @@
  * databases record Japanese broadcast dates, so an entry's first episode and
  * the TMDB episode it corresponds to usually air on the same day.
  *
+ * Once an entry's first episode is found, AniList's episode count decides
+ * how many episodes it has, since AniList is what playback follows. TMDB's
+ * dates can differ from AniList's by days or, for older titles, by years,
+ * so they only mark where a run cannot continue: after a broadcast break
+ * that follows the entry's end, or, for an entry that has not aired yet,
+ * anywhere TMDB's episodes have already aired.
+ *
  * Nothing here performs I/O; see `mapping.ts` for how candidates are found.
  */
 import type { AnimeFormat } from "../catalog/models/anime";
@@ -24,6 +31,13 @@ export interface MatchSubject {
   endDate: string | null;
   /** Planned episode count, or the number aired so far when the total is unknown. */
   episodes: number | null;
+  /**
+   * `YYYY-MM-DD` before which none of the entry's episodes aired. For an
+   * entry AniList lists as not yet released it is the day matching runs,
+   * since AniList releases an entry once its first episode airs; otherwise
+   * `null`, since TMDB may date an entry's episodes before AniList does.
+   */
+  airsFrom: string | null;
   /** Typical episode length in minutes. */
   durationMinutes: number | null;
 }
@@ -181,6 +195,11 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 
       const first = picked[0];
       const last = picked.at(-1);
+      if (first && airedBefore(first, subject.airsFrom)) {
+        // A season that has not aired yet cannot be episodes that have.
+        continue;
+      }
+
       const isWrongLength =
         isRegular && !runtimesAgree(medianRuntime(picked), subject.durationMinutes, regularRuntimeTolerance);
       if (!first || !last || isWrongLength) {
@@ -524,13 +543,21 @@ function startIndexes(track: readonly TmdbEpisode[], start: number | null, conti
 
 /**
  * Collects the episodes from `index` that belong to the subject: up to its
- * episode count, and never past its end date. When both are unknown the run
- * ends at the first long broadcast break.
+ * episode count, and otherwise not past its end date. When both are unknown
+ * the run ends at the first long broadcast break.
+ *
+ * A TV or web series whose episode count is known keeps its count past the
+ * end date, up to a broadcast break: AniList counts a double premiere as two
+ * episodes on one day where TMDB lists them a week apart, so TMDB's last
+ * episode can air a week after AniList's end date (Witch Hat Atelier). An
+ * episode after a break past the end date belongs to a later broadcast,
+ * such as the next season when TMDB lists one episode fewer.
  *
  * Regular seasons are taken as a contiguous run. Among specials, episodes of
  * the wrong length are skipped, since TMDB interleaves unrelated extras.
  */
 function pick(track: readonly TmdbEpisode[], index: number, subject: MatchSubject, end: number | null, isRegular: boolean) {
+  const countsEpisodes = isRegular && isSeriesFormat(subject.format) && subject.episodes !== null;
   const picked: TmdbEpisode[] = [];
   let previousDay: number | null = null;
 
@@ -540,7 +567,10 @@ function pick(track: readonly TmdbEpisode[], index: number, subject: MatchSubjec
     }
 
     const airDay = dayNumber(episode.air_date);
-    if (airDay !== null && end !== null && airDay > end + endGraceDays) {
+    const isPastEnd = airDay !== null && end !== null && airDay > end + endGraceDays;
+    const continuesBroadcast =
+      airDay !== null && previousDay !== null && airDay - previousDay <= broadcastBreakDays;
+    if (isPastEnd && !(countsEpisodes && continuesBroadcast)) {
       break;
     }
 
@@ -577,6 +607,13 @@ function indexAfter(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
   );
 
   return index === -1 ? null : index + 1;
+}
+
+/** Whether an episode aired before `date`; undated episodes and an unknown date never do. */
+function airedBefore(episode: TmdbEpisode, date: string | null) {
+  const airDay = dayNumber(episode.air_date);
+  const day = dayNumber(date);
+  return airDay !== null && day !== null && airDay < day;
 }
 
 /** Whether two episode lengths describe the same kind of content. Unknown lengths agree with anything. */

@@ -99,7 +99,7 @@ async function freshMapping(entry: FranchiseEntry) {
 }
 
 async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Promise<TmdbMapping> {
-  const subject = toMatchSubject(entry);
+  const subject = toMatchSubject(entry, new Date());
   // Synonyms are too noisy to search with.
   const queries = primaryTitlesOf(entry);
   const predecessors = await predecessorMappings(entry, resolving);

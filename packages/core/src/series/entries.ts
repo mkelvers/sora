@@ -162,8 +162,12 @@ function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelatio
   );
 }
 
-/** Describes an entry in the shape the matching rules compare. */
-export function toMatchSubject(entry: FranchiseEntry): MatchSubject {
+/**
+ * Describes an entry in the shape the matching rules compare.
+ *
+ * @param now - When matching runs, which an entry that has not aired yet cannot have aired before.
+ */
+export function toMatchSubject(entry: FranchiseEntry, now: Date): MatchSubject {
   const primaryTitles = primaryTitlesOf(entry);
   const synonyms = (entry.synonyms ?? []).filter(
     (synonym): synonym is string => Boolean(synonym) && !primaryTitles.includes(synonym ?? "")
@@ -179,6 +183,7 @@ export function toMatchSubject(entry: FranchiseEntry): MatchSubject {
     startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
     endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
     episodes: entry.episodes ?? (entry.nextAiringEpisode ? entry.nextAiringEpisode.episode - 1 : null),
+    airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
     durationMinutes: entry.duration
   };
 }

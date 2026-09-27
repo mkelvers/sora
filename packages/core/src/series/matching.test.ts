@@ -48,6 +48,7 @@ function subject(overrides: Partial<MatchSubject>): MatchSubject {
     startDate: null,
     endDate: null,
     episodes: null,
+    airsFrom: null,
     durationMinutes: 24,
     primaryTitleCount: titles.length,
     ...overrides,
@@ -132,6 +133,78 @@ describe("placeInShow", () => {
 
     expect(range(placement)?.[0]).toBe("1:S1E26");
     expect(range(placement)).toHaveLength(13);
+  });
+
+  test("keeps AniList's episode count when TMDB's last episode airs after AniList's end date", () => {
+    // Witch Hat Atelier: AniList airs episodes 1 and 2 on 2026-04-06 and ends
+    // on 2026-06-22; TMDB airs one episode a week until 2026-06-29.
+    const placement = placeInShow(
+      subject({
+        format: "ONA",
+        startDate: "2026-04-06",
+        endDate: "2026-06-22",
+        episodes: 13
+      }),
+      show(weekly(1, "2026-04-06", 13))
+    );
+
+    expect(range(placement)).toHaveLength(13);
+    expect(range(placement)?.at(-1)).toBe("13:S1E13");
+  });
+
+  test("does not take the next season's premiere when TMDB lists one episode fewer", () => {
+    const placement = placeInShow(
+      subject({
+        startDate: "2020-01-06",
+        endDate: "2020-03-23",
+        episodes: 13
+      }),
+      show([
+        ...weekly(1, "2020-01-06", 12),
+        ...weekly(2, "2020-07-06", 12)
+      ])
+    );
+
+    expect(range(placement)).toHaveLength(12);
+  });
+
+  test("does not give an upcoming season episodes that have already aired", () => {
+    // Witch Hat Atelier Season 2, before TMDB's S1E13 went to season 1.
+    const placement = placeInShow(
+      subject({
+        airsFrom: "2026-09-27"
+      }),
+      show(weekly(1, "2026-04-06", 13), {
+        isFranchiseShow: true,
+        prequelEnd: {
+          seasonNumber: 1,
+          episodeNumber: 12
+        }
+      })
+    );
+
+    expect(placement).toBeNull();
+  });
+
+  test("continues a prequel with an upcoming season's announced episodes", () => {
+    const placement = placeInShow(
+      subject({
+        startDate: "2027-10",
+        airsFrom: "2026-09-27"
+      }),
+      show([
+        ...weekly(1, "2024-01-04", 24),
+        ...weekly(2, "2027-10-01", 1)
+      ], {
+        isFranchiseShow: true,
+        prequelEnd: {
+          seasonNumber: 1,
+          episodeNumber: 24
+        }
+      })
+    );
+
+    expect(range(placement)).toEqual(["1:S2E1"]);
   });
 
   test("spans several TMDB seasons for one long AniList entry", () => {
