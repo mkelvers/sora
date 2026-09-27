@@ -65,8 +65,22 @@ function show(episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): 
       episodes
     },
     isFranchiseShow: false,
-    prequelEnd: null,
+    prequel: null,
     ...overrides
+  };
+}
+
+/** A prequel run through a season up to `episode`, from the season's first episode. */
+function endingAt(season: number, episode: number) {
+  return {
+    first: {
+      seasonNumber: season,
+      episodeNumber: 1
+    },
+    last: {
+      seasonNumber: season,
+      episodeNumber: episode
+    }
   };
 }
 
@@ -176,10 +190,7 @@ describe("placeInShow", () => {
       }),
       show(weekly(1, "2026-04-06", 13), {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 12
-        }
+        prequel: endingAt(1, 12)
       })
     );
 
@@ -197,10 +208,7 @@ describe("placeInShow", () => {
         ...weekly(2, "2027-10-01", 1)
       ], {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 24
-        }
+        prequel: endingAt(1, 24)
       })
     );
 
@@ -237,10 +245,7 @@ describe("placeInShow", () => {
       }),
       show(episodes, {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 12
-        }
+        prequel: endingAt(1, 12)
       })
     );
 
@@ -258,14 +263,32 @@ describe("placeInShow", () => {
         episodes: 12
       }),
       show(episodes, {
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 12
-        }
+        prequel: endingAt(1, 12)
       })
     );
 
     expect(range(placement)?.[0]).toBe("1:S1E13");
+  });
+
+  test("ignores a prequel that aired after the entry", () => {
+    // Yuki Yuna is a Hero: AniList lists the Washio Sumi chapter, TMDB's
+    // season 2 three years later, as a prequel of the first season.
+    const placement = placeInShow(
+      subject({
+        startDate: "2014-10-17",
+        episodes: 12
+      }),
+      show([
+        ...weekly(1, "2014-10-17", 12),
+        ...weekly(2, "2017-10-07", 6)
+      ], {
+        isFranchiseShow: true,
+        prequel: endingAt(2, 6)
+      })
+    );
+
+    expect(placement?.method).toBe("air-date");
+    expect(range(placement)?.[0]).toBe("1:S1E1");
   });
 
   test("numbers a continuation from the entry's first episode even when dates are far off", () => {
@@ -275,10 +298,7 @@ describe("placeInShow", () => {
         episodes: 12
       }),
       show(weekly(1, "2019-01-01", 24), {
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 12
-        }
+        prequel: endingAt(1, 12)
       })
     );
 
@@ -462,10 +482,7 @@ describe("placeInShow", () => {
         ...weekly(3, "2008-10-24", 3)
       ], {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 2,
-          episodeNumber: 3
-        }
+        prequel: endingAt(2, 3)
       })
     );
 
@@ -486,10 +503,7 @@ describe("placeInShow", () => {
         ...weekly(2, "2020-01-11", 12)
       ], {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 10
-        }
+        prequel: endingAt(1, 10)
       })
     );
 
@@ -510,10 +524,7 @@ describe("placeInShow", () => {
         ...weekly(2, "2020-01-11", 12)
       ], {
         isFranchiseShow: true,
-        prequelEnd: {
-          seasonNumber: 1,
-          episodeNumber: 10
-        }
+        prequel: endingAt(1, 10)
       })
     );
 
@@ -602,7 +613,7 @@ describe("placeInShow by special name", () => {
       ]
     },
     isFranchiseShow: true,
-    prequelEnd: null,
+    prequel: null,
     ...overrides
   });
 
@@ -691,6 +702,28 @@ describe("placeAsMovie", () => {
     );
 
     expect(placement).toBeNull();
+  });
+
+  test("rejects a bonus short released with a film, once the film's runtime is known", () => {
+    // Macross Frontier: Chou Jikuu Gekijou came out with The Wings of Farewell.
+    const short = subject({
+      format: "OVA",
+      titles: ["Macross Frontier: Chou Jikuu Gekijou"],
+      startDate: "2011-02-26",
+      episodes: 1,
+      durationMinutes: 3
+    });
+    const film = {
+      ...movie({
+        title: "Macross Frontier: The Wings of Farewell",
+        original_title: "劇場版マクロスF 恋離飛翼～サヨナラノツバサ～",
+        release_date: "2011-02-26"
+      }),
+      runtime: 115
+    };
+
+    expect(placeAsMovie(short, film)).toBeNull();
+    expect(placeAsMovie({ ...short, format: "MOVIE", durationMinutes: 115 }, film)?.method).toBe("release-date");
   });
 
   test("accepts an unreleased film only on a near-exact title", () => {

@@ -63,11 +63,17 @@ export interface ShowCandidate {
    */
   isFranchiseShow: boolean;
   /**
-   * The last TMDB episode of the subject's direct prequel, when the prequel
-   * is a regular season of this show. A sequel usually starts right after
-   * it, which places it even when TMDB has no air dates.
+   * The first and last TMDB episodes of the subject's direct prequel, when
+   * the prequel is a regular season of this show. A sequel usually starts
+   * right after it, which places it even when TMDB has no air dates.
    */
-  prequelEnd: TmdbEpisodeRef | null;
+  prequel: PrequelRun | null;
+}
+
+/** Where a prequel's regular episodes run in a TMDB show. */
+export interface PrequelRun {
+  first: TmdbEpisodeRef;
+  last: TmdbEpisodeRef;
 }
 
 /** Where the subject sits on TMDB, with the evidence behind it. */
@@ -162,7 +168,10 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
   let best: Placement | null = null;
   for (const track of tracks) {
     const isRegular = track[0] !== undefined && track[0].season_number > 0;
-    const continuation = isRegular && candidate.prequelEnd ? indexAfter(track, candidate.prequelEnd) : null;
+    const continuation =
+      isRegular && candidate.prequel && !airsLater(track, candidate.prequel.first, start)
+        ? indexAfter(track, candidate.prequel.last)
+        : null;
 
     for (const index of startIndexes(track, start, continuation)) {
       if (continuation !== null && index < continuation) {
@@ -341,9 +350,24 @@ function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): P
  * together. Otherwise the titles must match nearly exactly, because bonus
  * shorts are often named after the film they accompany.
  *
+ * A bonus short released with its film shares its date and much of its
+ * title, such as Macross Frontier's three-minute Chou Jikuu Gekijou and The
+ * Wings of Farewell, so a movie whose runtime is known must also run about
+ * as long as the subject.
+ *
  * @returns A placement, or `null` when the movie is not a confident match.
  */
-export function placeAsMovie(subject: MatchSubject, movie: TmdbMovieResult): Placement | null {
+export function placeAsMovie(
+  subject: MatchSubject,
+  movie: Pick<TmdbMovieResult, "id" | "title" | "original_title" | "release_date"> & {
+    runtime?: number | null;
+  }
+): Placement | null {
+  const subjectMinutes = subject.durationMinutes === null ? null : subject.durationMinutes * (subject.episodes ?? 1);
+  if (!runtimesAgree(movie.runtime ?? null, subjectMinutes, regularRuntimeTolerance)) {
+    return null;
+  }
+
   const movieTitles = [movie.title, movie.original_title];
   const similarity = bestSimilarity(subject.titles, movieTitles);
   const start = dayNumber(subject.startDate);
@@ -607,6 +631,20 @@ function indexAfter(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
   );
 
   return index === -1 ? null : index + 1;
+}
+
+/**
+ * Whether a prequel's first episode aired well after the subject started.
+ * AniList orders prequels by story, so a prequel told later, such as Yuki
+ * Yuna is a Hero's Washio Sumi chapter, can air a season after the entry it
+ * precedes; it then occupies nothing before that entry.
+ */
+function airsLater(track: readonly TmdbEpisode[], first: TmdbEpisodeRef, start: number | null) {
+  const episode = track.find(
+    (candidate) => candidate.season_number === first.seasonNumber && candidate.episode_number === first.episodeNumber
+  );
+  const airDay = dayNumber(episode?.air_date ?? null);
+  return airDay !== null && start !== null && airDay - start > startWindowDays;
 }
 
 /** Whether an episode aired before `date`; undated episodes and an unknown date never do. */
