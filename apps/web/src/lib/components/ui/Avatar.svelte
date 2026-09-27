@@ -25,21 +25,16 @@
 <script lang="ts">
 	type Props = {
 		seed: string;
-		plain?: boolean;
 		class?: string;
 	};
 
-	let { seed, plain = false, class: className }: Props = $props();
+	let { seed, class: className }: Props = $props();
 
 	const src = $derived.by(() => {
 		const options = {
 			seed,
 			animationVariant: "fastest",
 		} as const;
-
-		if (!plain) {
-			return new Avatar(style, options).toDataUri();
-		}
 
 		const variant = new Avatar(style, options).toJSON().options
 			.plantVariant;

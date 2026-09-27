@@ -28,12 +28,12 @@
 
 	<Dropdown id="account" label="Account" class="account">
 		{#snippet trigger()}
-			<Avatar seed={profile.avatar} plain class="trigger-avatar" />
+			<Avatar seed={profile.avatar} class="trigger-avatar" />
 			<Icon name="expand" size="md" />
 		{/snippet}
 
 		<a class="current" href="/profiles/{profile.id}">
-			<Avatar seed={profile.avatar} plain class="current-avatar" />
+			<Avatar seed={profile.avatar} class="current-avatar" />
 			<span class="name">{profile.name}</span>
 			<span class="edit">
 				<Icon name="edit" size="sm" />
@@ -48,7 +48,7 @@
 				name="profile"
 				value={other.id}
 			>
-				<Avatar seed={other.avatar} plain class="item-avatar" />
+				<Avatar seed={other.avatar} class="item-avatar" />
 				{other.name}
 			</Button>
 		{/each}
