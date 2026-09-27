@@ -11,6 +11,7 @@ import {
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
 import { lookUpEpisodes } from "./jobs/episodes";
+import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { backfillSeries, backfillSeriesTask, syncSearchIndexJob, syncSearchIndexTask } from "./jobs/search";
 import {
   discoverSeriesEntries,
@@ -40,7 +41,8 @@ const waitedOnTasks: Record<string, Task> = {
  * providers, keeps stored series current as seasons air and new ones are
  * announced, mirrors the provider catalogues titles are matched against,
  * keeps the search index current while storing the most popular titles ahead
- * of any search, and warns about providers that stop working.
+ * of any search, keeps the hints that match titles to TMDB current, and
+ * warns about providers that stop working.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
  * of them. Stop it with `stop()`; by default it also stops on SIGINT and
@@ -66,7 +68,8 @@ export async function startScheduler(): Promise<Scheduler> {
       [pruneProviderCallsTask]: pruneProviderCallsJob,
       [checkProviderHealthTask]: checkProviderHealthJob,
       [syncSearchIndexTask]: syncSearchIndexJob,
-      [backfillSeriesTask]: backfillSeries
+      [backfillSeriesTask]: backfillSeries,
+      [syncTmdbHintsTask]: syncTmdbHintsJob
     }),
     crontab: [
       `0 * * * * ${reviveAiringChecksTask}`,
@@ -80,7 +83,8 @@ export async function startScheduler(): Promise<Scheduler> {
       `25 * * * * ${checkProviderHealthTask}`,
       `5 * * * * ${syncSearchIndexTask} ?id=search-index-changes&fill=1h&priority=-1`,
       `20 2 * * 1 ${syncSearchIndexTask} ?id=search-index-full&fill=1w&priority=-1 {full:true}`,
-      `10,40 * * * * ${backfillSeriesTask} ?priority=-1`
+      `10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
+      `35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`
     ].join("\n")
   });
 
