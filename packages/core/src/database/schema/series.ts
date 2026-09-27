@@ -37,6 +37,21 @@ export const tmdbMapping = pgTable(
   (table) => [index("tmdb_mapping_target_idx").on(table.mediaType, table.tmdbId)]
 );
 
+/**
+ * TMDB titles that the community-kept Fribb/anime-lists project links to an
+ * AniList entry.
+ *
+ * A hint is only a candidate: matching still decides from air dates and
+ * episode counts whether, and where, the entry sits in it. Hints find the
+ * TMDB title a title search misses, as when AniList and TMDB name a show
+ * differently. The scheduler keeps them current; see `syncTmdbHints`.
+ */
+export const tmdbHint = pgTable("tmdb_hint", {
+  anilistId: integer("anilist_id").primaryKey(),
+  showId: integer("show_id"),
+  movieIds: integer("movie_ids").array().notNull()
+});
+
 export const seriesKind = pgEnum("series_kind", [
   "tv",
   "movie",
