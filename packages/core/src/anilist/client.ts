@@ -12,13 +12,36 @@ import type { TypedDocumentString } from "./graphql.generated";
 const endpoint = "https://graphql.anilist.co";
 
 /**
- * Minimum spacing between upstream requests from this process.
- *
- * AniList allows 90 requests per minute per IP and lowers that to 30 when
- * degraded. It starts at 700 ms, under the normal limit, and follows the
- * limit AniList reports on every response; see {@link followRateLimit}.
+ * Requests per minute AniList allows this IP: 90, or 30 when degraded.
+ * Starts at the normal limit and follows the one AniList reports on every
+ * response; see {@link followRateLimit}.
  */
-let requestSpacingMs = 700;
+let requestLimit = 90;
+
+/**
+ * Minimum spacing between requests a viewer is waiting on. They may use the
+ * {@link viewerReserve} without waiting for a new window, but AniList also
+ * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
+ * with most of the minute's budget still left.
+ */
+const viewerSpacingMs = 1_000;
+
+/**
+ * Requests of each minute's budget kept for requests a viewer is waiting
+ * on: background requests wait rather than spend them. A search that finds
+ * a title not stored yet needs about three, for a few titles at once.
+ */
+const viewerReserve = 10;
+
+/**
+ * The most urgent priority of background work. Requests at a more urgent
+ * priority, or made outside any, are made for a viewer who is waiting on
+ * them; see {@link withAniListPriority}.
+ */
+export const viewerWaitingPriority = -2;
+
+/** What is left of AniList's budget; see {@link Budget}. */
+let budget: Budget | null = null;
 
 const requestTimeoutMs = 10_000;
 
@@ -50,11 +73,16 @@ const EnvelopeSchema = z.object({
     .optional()
 });
 
+/** When the next request of any kind may be sent, pushed back after a 429. */
 let nextRequestAt = 0;
+/** When each request of the last minute was sent; see {@link LimiterState}. */
+let recentSends: number[] = [];
 const inFlight = new Map<string, Promise<unknown>>();
 
 /** A request waiting for its turn under the rate limit. */
 interface QueuedRequest {
+  /** The snapshot key of the request, which callers asking the same share. */
+  key: string;
   priority: number;
   /** Sends the request and settles its caller's promise; never rejects. */
   send: () => Promise<void>;
@@ -77,6 +105,11 @@ const priorityContext = new AsyncLocalStorage<number>();
  */
 export function withAniListPriority<T>(priority: number, work: () => Promise<T>): Promise<T> {
   return priorityContext.run(priority, work);
+}
+
+/** The priority requests made here are queued at; see {@link withAniListPriority}. */
+export function currentAniListPriority() {
+  return priorityContext.getStore() ?? Number.NEGATIVE_INFINITY;
 }
 
 /**
@@ -115,6 +148,8 @@ export async function anilist<TResult, TVariables>(
 
   const pending = inFlight.get(key);
   if (pending) {
+    // A viewer asking what a background job already queued should not wait at its priority.
+    raisePriority(key, currentAniListPriority());
     return pending as Promise<TResult>;
   }
 
@@ -140,7 +175,7 @@ async function fetchAndStore<TResult>(
   variables: unknown,
   options: AniListRequestOptions
 ) {
-  const data = await rateLimited(() => execute(query, variables));
+  const data = await rateLimited(key, () => execute(query, variables));
   const fetchedAt = new Date();
   const values = {
     operation: operationName(query),
@@ -165,20 +200,44 @@ async function fetchAndStore<TResult>(
 }
 
 /**
- * Serializes upstream calls so they are spaced by {@link requestSpacingMs},
- * sending the most urgent waiting one next; see {@link withAniListPriority}.
+ * Serializes upstream calls, sending the most urgent waiting one next; see
+ * {@link withAniListPriority}, as soon as {@link waitToSend} allows.
  */
-function rateLimited<T>(task: () => Promise<T>): Promise<T> {
+function rateLimited<T>(key: string, task: () => Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const request: QueuedRequest = {
-      priority: priorityContext.getStore() ?? Number.NEGATIVE_INFINITY,
+    enqueue({
+      key,
+      priority: currentAniListPriority(),
       send: () => task().then(resolve, reject)
-    };
-    const later = waiting.findIndex((other) => other.priority > request.priority);
-    waiting.splice(later === -1 ? waiting.length : later, 0, request);
+    });
     void drain();
   });
 }
+
+/** Queues a request behind every one at least as urgent. */
+function enqueue(request: QueuedRequest) {
+  const later = waiting.findIndex((other) => other.priority > request.priority);
+  waiting.splice(later === -1 ? waiting.length : later, 0, request);
+  // A waiting viewer's request should not sit out a background one's wait.
+  wake?.();
+}
+
+/**
+ * Moves a queued request up to `priority` when that is more urgent, as when
+ * a more urgent caller asks for the same thing. A request already sent is
+ * left alone.
+ */
+function raisePriority(key: string, priority: number) {
+  const index = waiting.findIndex((request) => request.key === key);
+  const request = waiting[index];
+  if (request && priority < request.priority) {
+    waiting.splice(index, 1);
+    enqueue({ ...request, priority });
+  }
+}
+
+/** Ends the drain loop's current wait early; set while it waits. */
+let wake: (() => void) | null = null;
 
 async function drain() {
   if (isDraining) {
@@ -189,14 +248,27 @@ async function drain() {
   while (waiting.length > 0) {
     // Picked only once its turn comes, so a more urgent request queued
     // during the wait goes first.
-    const wait = nextRequestAt - Date.now();
+    const [next] = waiting;
+    const wait = next ? waitToSend(next.priority, Date.now(), limiterState()) : 0;
     if (wait > 0) {
-      await Bun.sleep(wait);
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, wait);
+        wake = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+      wake = null;
       continue;
     }
 
     const request = waiting.shift();
-    nextRequestAt = Date.now() + requestSpacingMs;
+    const sentAt = Date.now();
+    recentSends = [...recentSends.filter((earlier) => earlier > sentAt - minuteMs), sentAt];
+    // Counted until AniList's response reports the budget itself.
+    if (budget && sentAt < budget.resetAt) {
+      budget = { ...budget, remaining: budget.remaining - 1 };
+    }
     await request?.send();
   }
 
@@ -204,17 +276,104 @@ async function drain() {
 }
 
 /**
- * Spaces requests to fit the per-minute limit in AniList's
- * `X-RateLimit-Limit` header, with a small margin for timing jitter.
+ * What is left of AniList's budget for this IP: `remaining` requests until
+ * `resetAt`, when a new minute's budget starts. AniList counts a fixed
+ * window a minute long; it does not refill as time passes.
+ */
+export interface Budget {
+  remaining: number;
+  resetAt: number;
+}
+
+/** What decides when the next AniList request may be sent. */
+export interface LimiterState {
+  /** Requests per minute AniList allows. */
+  limit: number;
+  /** When this process sent each request of the last minute, oldest first. */
+  recentSends: readonly number[];
+  /** When any request may be sent again, after a 429. */
+  pausedUntil: number;
+  /** What AniList last reported; `null` before it has. */
+  budget: Budget | null;
+}
+
+function limiterState(): LimiterState {
+  return {
+    limit: requestLimit,
+    recentSends,
+    pausedUntil: nextRequestAt,
+    budget
+  };
+}
+
+/**
+ * How long a request at `priority` must wait before it may be sent at `now`,
+ * in milliseconds: until a pause after a 429 ends, its spacing has passed,
+ * and the part of the budget it may use has a request left. Background
+ * requests leave the {@link viewerReserve} alone; requests a viewer waits on
+ * may use all of it, {@link viewerSpacingMs} apart.
  *
- * The limit is per IP, so an API and a scheduler on one host can still exceed
- * it together; the 429 handling in `execute` covers that.
+ * AniList allows `limit` requests in any 60 s, however they fall into the
+ * minutes its `X-RateLimit-Remaining` counts, so the requests this process
+ * sent in the last 60 s bound the budget as well as that header, which also
+ * counts other processes on the same IP.
+ */
+export function waitToSend(priority: number, now: number, state: LimiterState) {
+  const isViewerWaiting = priority <= viewerWaitingPriority;
+  const spacing = isViewerWaiting ? viewerSpacingMs : spacingFor(state.limit);
+  const floor = isViewerWaiting ? 0 : viewerReserve;
+  const recent = state.recentSends.filter((sentAt) => sentAt > now - minuteMs);
+  const lastSentAt = recent.at(-1) ?? Number.NEGATIVE_INFINITY;
+
+  // Enough of the oldest recent requests must leave the last 60 s to bring
+  // them under the budget this request may use.
+  const excess = recent.length - (state.limit - floor - 1);
+  const windowWait = excess > 0 ? (recent[excess - 1] ?? now) + minuteMs - now : 0;
+  const reportedWait =
+    state.budget && now < state.budget.resetAt && state.budget.remaining <= floor ? state.budget.resetAt - now : 0;
+
+  return Math.max(0, state.pausedUntil - now, lastSentAt + spacing - now, windowWait, reportedWait);
+}
+
+const minuteMs = 60_000;
+
+/**
+ * The budget after AniList reports `remaining` at `now`. A count higher
+ * than expected means a new window started, at the latest now, so it ends
+ * a minute from now at the latest; that bound is kept, since resetting
+ * early would send into a spent budget.
+ */
+export function followBudget(previous: Budget | null, remaining: number, now: number): Budget {
+  const isNewWindow = !previous || now >= previous.resetAt || remaining > previous.remaining;
+  return {
+    remaining,
+    resetAt: isNewWindow ? now + 60_000 : previous.resetAt
+  };
+}
+
+/**
+ * Follows the per-minute limit and remaining budget AniList reports in its
+ * `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers.
+ *
+ * The limit is per IP, so an API and a scheduler on one host share it; the
+ * budget each reads back includes the other's requests, and the 429
+ * handling in `execute` covers the rest.
  */
 function followRateLimit(response: Response) {
   const limit = Number(response.headers.get("x-ratelimit-limit"));
   if (Number.isInteger(limit) && limit > 0) {
-    requestSpacingMs = Math.ceil(60_000 / limit) + 100;
+    requestLimit = limit;
   }
+
+  const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+  if (response.headers.has("x-ratelimit-remaining") && Number.isInteger(remaining) && remaining >= 0) {
+    budget = followBudget(budget, remaining, Date.now());
+  }
+}
+
+/** Spacing between background requests: the per-minute limit spread evenly, with a margin for jitter. */
+function spacingFor(limit: number) {
+  return Math.ceil(60_000 / limit) + 100;
 }
 
 async function execute(query: string, variables: unknown) {
@@ -245,6 +404,7 @@ async function execute(query: string, variables: unknown) {
     const retryAfterMs = retryAfter(response) ?? 60_000;
     // Pause every queued request, not just this one.
     nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+    budget = { remaining: 0, resetAt: Date.now() + retryAfterMs };
     throw new UpstreamUnavailableError("AniList rate limit reached", {
       retryAfterMs
     });
@@ -273,9 +433,15 @@ async function execute(query: string, variables: unknown) {
   );
 }
 
+/**
+ * How long AniList asks to wait, from `Retry-After`. It sometimes answers a
+ * 429 with `Retry-After: 0`, meaning now; a second is waited then, so as not
+ * to answer it with a burst.
+ */
 function retryAfter(response: Response) {
-  const seconds = Number(response.headers.get("Retry-After"));
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : null;
+  const header = response.headers.get("Retry-After");
+  const seconds = header === null ? Number.NaN : Number(header);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.max(seconds, 1) * 1_000 : null;
 }
 
 function operationName(query: string) {
