@@ -28,7 +28,7 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, epi
 		error(404, 'Episode not found');
 	}
 
-	const checkpoint = progress.find(
+	const checkpoint = progress.episodes.find(
 		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode
 	);
 
@@ -64,18 +64,31 @@ export const saveProgress = command(
 
 export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) => {
 	try {
-		return {
-			media: await sora.playback({
+		const { results, meta } = await sora.playback(
+			{
 				seasonId,
 				number: episode
-			}),
-			problem: null
+			},
+			{ meta: true }
+		);
+		const address = (path: string | null) => {
+			const match = path?.match(/\/seasons\/([^/]+)\/episodes\/(\d+)\/playback$/);
+			return match ? { season_id: match[1]!, episode: Number(match[2]) } : null;
+		};
+
+		return {
+			media: results,
+			problem: null,
+			next: address(meta.next),
+			previous: address(meta.previous)
 		};
 	} catch (cause) {
 		if (cause instanceof SoraError) {
 			return {
 				media: [],
-				problem: cause.message
+				problem: cause.message,
+				next: null,
+				previous: null
 			};
 		}
 		throw cause;

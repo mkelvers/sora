@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { untrack } from "svelte";
+	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import Controls from "./Controls.svelte";
@@ -8,6 +9,7 @@
 	import { Player } from "../watch.svelte";
 
 	type Props = {
+		id: string;
 		media: PlaybackMedia[] | undefined;
 		problem: string | null | undefined;
 		onretry: () => void;
@@ -18,10 +20,13 @@
 		series: string;
 		season: string;
 		start: number;
-		onprogress: (position: number, duration: number) => void;
+		onprogress: (position: number, duration: number) => Promise<void>;
+		onnearend: () => void;
+		onended: () => void;
 	};
 
 	let {
+		id,
 		media: versions,
 		problem,
 		onretry,
@@ -33,12 +38,49 @@
 		season,
 		start,
 		onprogress,
+		onnearend,
+		onended,
 	}: Props = $props();
 
 	const player = new Player();
 	player.time = untrack(() => start);
+	player.load(untrack(() => start));
 
 	let reported = -1;
+	let nearing = false;
+	let current = untrack(() => id);
+
+	$effect.pre(() => {
+		if (id === current) {
+			return;
+		}
+
+		current = id;
+		reported = -1;
+		nearing = false;
+		player.load(start);
+	});
+
+	$effect(() => {
+		if (nearing || player.duration <= 0 || player.duration - player.time > 60) {
+			return;
+		}
+
+		nearing = true;
+		untrack(onnearend);
+	});
+
+	beforeNavigate(report);
+
+	async function end() {
+		const duration = player.duration;
+		if (Number.isFinite(duration) && duration > 0) {
+			reported = Math.floor(duration);
+			await onprogress(duration, duration);
+		}
+
+		onended();
+	}
 
 	function report() {
 		const position = Math.floor(player.time);
@@ -65,7 +107,11 @@
 		};
 	});
 
-	let audio = $derived(versions?.[0]?.audio);
+	let preferred = $state<PlaybackMedia["audio"]>();
+	const audio = $derived(
+		versions?.find((version) => version.audio === preferred)?.audio ??
+			versions?.[0]?.audio,
+	);
 	const media = $derived(
 		versions?.find((version) => version.audio === audio),
 	);
@@ -111,6 +157,7 @@
 		onclick={player.onclick}
 		ondblclick={player.toggleFullscreen}
 		onerror={() => (player.failure ??= "The video could not be played.")}
+		onended={end}
 		{@attach player.stream(media?.sources[0])}
 	>
 		{#each media?.subtitles ?? [] as track (track.url)}
@@ -176,7 +223,7 @@
 				subtitles={media?.subtitles ?? []}
 				bind:speed={player.speed}
 				bind:subtitle
-				bind:audio
+				bind:audio={() => audio, (value) => (preferred = value)}
 			/>
 		</Controls>
 	</footer>

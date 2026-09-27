@@ -34,6 +34,14 @@ export class Player {
 
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#dismissing = false;
+	#resume: number | undefined;
+
+	load = (start: number) => {
+		this.#resume = start;
+		this.duration = 0;
+		this.failure = undefined;
+		this.cues = [];
+	};
 
 	wake = () => {
 		this.idle = false;
@@ -94,7 +102,8 @@ export class Player {
 			return;
 		}
 
-		const start = untrack(() => this.time);
+		const start = this.#resume ?? untrack(() => this.time);
+		this.#resume = undefined;
 		let hls: import('hls.js').default | undefined;
 		let cancelled = false;
 		this.failure = undefined;
