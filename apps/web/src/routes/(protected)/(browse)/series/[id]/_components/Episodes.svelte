@@ -2,12 +2,12 @@
 	import Episode from "./Episode.svelte";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { getEpisodes } from "../series.remote";
-	import type { EpisodeProgress, Season } from "@sora/sdk";
+	import type { Season, TitleProgress } from "@sora/sdk";
 
 	type Props = {
 		seriesId: string;
 		season: Season;
-		progress: EpisodeProgress[];
+		progress: TitleProgress;
 	};
 
 	let { seriesId, season, progress }: Props = $props();
@@ -17,6 +17,11 @@
 			seriesId,
 			seasonId: season.id,
 		}),
+	);
+	const completed = $derived(
+		progress.completed_seasons.some(
+			(completion) => completion.season_id === season.id,
+		),
 	);
 	let now = $state(new Date());
 
@@ -37,7 +42,8 @@
 				seasonId={season.id}
 				{episode}
 				{now}
-				checkpoint={progress.find(
+				{completed}
+				checkpoint={progress.episodes.find(
 					(checkpoint) =>
 						checkpoint.season_id === season.id &&
 						checkpoint.episode === episode.number,

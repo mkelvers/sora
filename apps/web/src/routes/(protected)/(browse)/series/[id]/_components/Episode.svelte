@@ -10,14 +10,16 @@
 		seasonId: string;
 		episode: SeasonEpisode;
 		now: Date;
+		completed: boolean;
 		checkpoint: EpisodeProgress | undefined;
 	};
 
-	let { seriesId, seasonId, episode, now, checkpoint }: Props = $props();
+	let { seriesId, seasonId, episode, now, completed, checkpoint }: Props =
+		$props();
 
 	let marking = $state(false);
 
-	const watched = $derived(checkpoint?.completed ?? false);
+	const watched = $derived(checkpoint?.completed ?? completed);
 	const played = $derived(
 		checkpoint && !checkpoint.completed && checkpoint.position_seconds > 0
 			? checkpoint.position_seconds / checkpoint.duration_seconds
