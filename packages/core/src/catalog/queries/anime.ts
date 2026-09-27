@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 
-import { anilist } from "../../anilist/client";
+import { anilist, loadMediaById } from "../../anilist/client";
 import { AnimeCardsDocument, AnimeDetailsDocument, type AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema";
@@ -35,7 +35,7 @@ export async function getAnime(anilistId: number): Promise<Anime> {
     return toAnime(stored.media);
   }
 
-  const media = await fetchAnimeDetails(anilistId, hour);
+  const media = await fetchAnimeDetails(anilistId);
   await db
     .insert(animeTable)
     .values(storedAnimeValues(media))
@@ -57,7 +57,7 @@ export async function getAnime(anilistId: number): Promise<Anime> {
  * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
  */
 export async function refreshAnime(anilistId: number): Promise<Anime> {
-  const media = await fetchAnimeDetails(anilistId, 0);
+  const media = await fetchAnimeDetails(anilistId);
   const values = storedAnimeValues(media);
   await db
     .insert(animeTable)
@@ -170,25 +170,34 @@ export async function getStoredAnimeCards(ids: readonly number[]): Promise<Map<n
 }
 
 /**
- * @param maxAgeMs - How old a cached AniList snapshot may be; `0` always asks AniList.
- * @throws {@link AnimeNotFoundError} for unknown and adult anime.
+ * Loads anime details by ID, up to 200 to a request shared by every caller
+ * that asks while it waits its turn; see {@link loadMediaById}. Layouts and
+ * airing checks each ask for one anime, so running at once they share a
+ * request rather than spend one each.
  */
-async function fetchAnimeDetails(anilistId: number, maxAgeMs: number) {
-  const { Media } = await anilist(
-    AnimeDetailsDocument,
-    {
-      id: anilistId
-    },
-    {
-      maxAgeMs
-    }
-  );
+const loadAnimeDetails = loadMediaById({
+  document: AnimeDetailsDocument,
+  pages: 4,
+  variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = []]) => ({
+    ids0,
+    ids1,
+    ids2,
+    ids3,
+    with1: ids1.length > 0,
+    with2: ids2.length > 0,
+    with3: ids3.length > 0
+  }),
+  media: ({ page0, page1, page2, page3 }) => [page0, page1, page2, page3].flatMap((page) => page?.media ?? [])
+});
 
-  if (!Media || Media.isAdult) {
+/** @throws {@link AnimeNotFoundError} for unknown and adult anime. */
+async function fetchAnimeDetails(anilistId: number) {
+  const media = (await loadAnimeDetails([anilistId])).get(anilistId);
+  if (!media || media.isAdult) {
     throw new AnimeNotFoundError(anilistId);
   }
 
-  return Media;
+  return media;
 }
 
 function storedAnimeValues(media: AnimeDetailsFragment) {
