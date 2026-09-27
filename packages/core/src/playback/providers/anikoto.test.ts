@@ -202,31 +202,45 @@ describe("AniKotoStreamProvider skip segments", () => {
   });
 });
 
-/** AniKoto's series API, listing episodes 56–58 of Naruto: Shippuden. */
-const seriesResponse = JSON.stringify({
-  ok: true,
-  data: {
-    episodes: [56, 57, 58].map((number) => ({
-      id: 27298 + number,
-      title: `Episode ${number}`,
-      number,
-      episode_embed_id: `${7880 + number}`,
-      embed_url: {
-        sub: `https://megaplay.buzz/stream/s-2/${7880 + number}/sub`
-      }
-    }))
-  }
-});
+/**
+ * AniKoto's series API, listing `numbers` with an embed for each language
+ * in `languages`. Its episodes default to 56–58 of Naruto: Shippuden, sub only.
+ */
+function seriesResponseOf(numbers: readonly number[], languages: (number: number) => readonly string[] = () => ["sub"]) {
+  return JSON.stringify({
+    ok: true,
+    data: {
+      episodes: numbers.map((number) => ({
+        id: 27298 + number,
+        title: `Episode ${number}`,
+        number,
+        episode_embed_id: `${7880 + number}`,
+        embed_url: Object.fromEntries(
+          languages(number).map((language) => [language, `https://megaplay.buzz/stream/s-2/${7880 + number}/${language}`])
+        )
+      }))
+    }
+  });
+}
 
-/** AniKoto's episode list, as its watch page loads it, with `classes` per episode number. */
-function episodeList(classes: Record<number, string>) {
-  const links = Object.entries(classes).map(
-    ([number, className]) =>
-      `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-sub="1" class="${className}" >${number}</a></li>`
-  );
+const seriesResponse = seriesResponseOf([56, 57, 58]);
+
+/** One link of AniKoto's episode list. `sub` and `dub` default to flagged and unflagged. */
+interface ListedLink {
+  className?: string;
+  sub?: "0" | "1";
+  dub?: "0" | "1";
+}
+
+/** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
+function episodeList(links: Record<number, ListedLink | string>) {
+  const items = Object.entries(links).map(([number, link]) => {
+    const { className = "", sub = "1", dub = "0" } = typeof link === "string" ? { className: link } : link;
+    return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
+  });
   return JSON.stringify({
     status: 200,
-    result: `<div class="body"><ul class="ep-range">${links.join("\n")}</ul></div>`
+    result: `<div class="body"><ul class="ep-range">${items.join("\n")}</ul></div>`
   });
 }
 
@@ -283,5 +297,98 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
     const units = await provider.listEpisodes("1498");
 
     expect(units.every((unit) => unit.isFiller === null)).toBe(true);
+  });
+});
+
+describe("AniKotoStreamProvider.listEpisodes languages", () => {
+  test("adds dubs the API leaves out, as in Banished from the Hero's Party episodes 1–3", async () => {
+    const { provider } = providerServing({
+      "/series/6752": seriesResponseOf([1, 2, 3, 4], (number) => (number < 4 ? ["sub"] : ["sub", "dub"])),
+      "/ajax/episode/list/6752": episodeList({
+        1: { className: "active", dub: "1" },
+        2: { dub: "1" },
+        3: { dub: "1" },
+        4: { dub: "1" }
+      })
+    });
+
+    const units = await provider.listEpisodes("6752");
+
+    expect(units.map((unit) => [unit.number, unit.languages])).toEqual([
+      [1, ["sub", "dub"]],
+      [2, ["sub", "dub"]],
+      [3, ["sub", "dub"]],
+      [4, ["sub", "dub"]]
+    ]);
+  });
+
+  test("lists no dub when neither the API nor the episode list has one", async () => {
+    const { provider } = providerServing({
+      "/series/1498": seriesResponse,
+      "/ajax/episode/list/1498": episodeList({
+        56: {},
+        57: {},
+        58: {}
+      })
+    });
+
+    const units = await provider.listEpisodes("1498");
+
+    expect(units.every((unit) => unit.languages?.join() === "sub")).toBe(true);
+  });
+
+  test("keeps a language the API has an embed for when the episode list does not flag it", async () => {
+    const { provider } = providerServing({
+      "/series/1498": seriesResponseOf([56], () => ["sub", "dub"]),
+      "/ajax/episode/list/1498": episodeList({
+        56: { dub: "0" }
+      })
+    });
+
+    const [unit] = await provider.listEpisodes("1498");
+
+    expect(unit?.languages).toEqual(["sub", "dub"]);
+  });
+
+  test("lists a dub-only episode without a sub", async () => {
+    const { provider } = providerServing({
+      "/series/1498": seriesResponseOf([56], () => ["dub"]),
+      "/ajax/episode/list/1498": episodeList({
+        56: { sub: "0", dub: "1" }
+      })
+    });
+
+    const [unit] = await provider.listEpisodes("1498");
+
+    expect(unit?.languages).toEqual(["dub"]);
+  });
+
+  test("keeps the API's languages when the episode list cannot be read", async () => {
+    const { provider } = providerServing({
+      "/series/6752": seriesResponseOf([1, 4], (number) => (number < 4 ? ["sub"] : ["sub", "dub"]))
+    });
+
+    const units = await provider.listEpisodes("6752");
+
+    expect(units.map((unit) => [unit.number, unit.languages])).toEqual([
+      [1, ["sub"]],
+      [4, ["sub", "dub"]]
+    ]);
+  });
+
+  test("keeps the API's languages, and leaves filler unknown, for an episode the list leaves out", async () => {
+    const { provider } = providerServing({
+      "/series/1498": seriesResponseOf([56, 57]),
+      "/ajax/episode/list/1498": episodeList({
+        56: { className: "filler", dub: "1" }
+      })
+    });
+
+    const units = await provider.listEpisodes("1498");
+
+    expect(units.map((unit) => [unit.number, unit.languages, unit.isFiller])).toEqual([
+      [56, ["sub", "dub"], true],
+      [57, ["sub"], null]
+    ]);
   });
 });
