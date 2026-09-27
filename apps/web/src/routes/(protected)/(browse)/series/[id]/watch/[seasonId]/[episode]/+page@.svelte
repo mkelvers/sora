@@ -69,6 +69,8 @@
 	title="{episode.number}. {title}"
 	series={series.title}
 	season={season.title}
+	logo={series.logo_url}
+	overview={episode.overview}
 	{start}
 	onprogress={(position, duration) =>
 		saveProgress({

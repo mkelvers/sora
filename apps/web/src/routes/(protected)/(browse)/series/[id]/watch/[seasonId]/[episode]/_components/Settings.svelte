@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { PlaybackMedia } from "@sora/sdk";
+	import { CaretLeftIcon, CaretRightIcon, CheckIcon, GearSixIcon } from "phosphor-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
 
 	type Props = {
 		media: PlaybackMedia[];
@@ -80,35 +79,44 @@
 	const open = $derived(menus.find((menu) => menu.label === submenu));
 </script>
 
-<div class="settings">
-	<Dropdown
+<div class="relative">
+	<Button
+		class="player-settings-trigger grid size-11 cursor-pointer place-items-center transition-[opacity,transform] duration-150 hover:opacity-75 active:scale-90 sm:size-9"
+		popovertarget="player-settings"
+		aria-label="Settings"
+	>
+		<GearSixIcon size="1.5rem" weight="bold" />
+	</Button>
+
+	<div
 		id="player-settings"
-		label="Settings"
+		popover
 		role="menu"
 		aria-label={open?.label ?? "Settings"}
+		class="player-settings m-0 mb-3 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel py-2 text-sm text-watch-secondary shadow-lg open:flex"
 		ontoggle={() => (submenu = undefined)}
 	>
-		{#snippet trigger()}
-			<Icon name="settings" />
-		{/snippet}
-
 		{#if open}
-			<Button class="back" onclick={() => (submenu = undefined)}>
-				<Icon name="chevron-left" size="md" />
+			<Button
+				class="flex min-h-11 w-full items-center justify-start gap-2 border-b border-white/10 px-3 font-bold text-watch-primary hover:bg-white/5"
+				onclick={() => (submenu = undefined)}
+			>
+				<CaretLeftIcon size="1.1rem" weight="bold" />
 				{open.label}
 			</Button>
 			{#each open.options as option (option.value)}
 				<Button
 					role="menuitemradio"
 					aria-checked={option.value === open.value}
+					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 hover:bg-white/5 hover:text-watch-primary aria-checked:text-watch-primary"
 					onclick={() => {
 						open.select(option.value);
 						submenu = undefined;
 					}}
 				>
-					<span class="check">
+					<span class="grid w-4 place-items-center text-accent">
 						{#if option.value === open.value}
-							<Icon name="check" size="sm" />
+							<CheckIcon size="1rem" weight="bold" />
 						{/if}
 					</span>
 					{option.label}
@@ -116,70 +124,31 @@
 			{/each}
 		{:else}
 			{#each menus as menu (menu.label)}
-				<Button role="menuitem" onclick={() => (submenu = menu.label)}>
+				<Button
+					role="menuitem"
+					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 hover:bg-white/5 hover:text-watch-primary"
+					onclick={() => (submenu = menu.label)}
+				>
 					{menu.label}
-					<span class="value">
-						{menu.options.find(
-							(option) => option.value === menu.value,
-						)?.label}
+					<span class="ml-auto text-watch-muted">
+						{menu.options.find((option) => option.value === menu.value)?.label}
 					</span>
-					<Icon name="chevron-right" size="md" />
+					<CaretRightIcon size="1rem" weight="bold" />
 				</Button>
 			{/each}
 		{/if}
-	</Dropdown>
+	</div>
 </div>
 
 <style>
-	.settings :global(.dropdown-trigger) {
-		width: 40px;
-		height: 40px;
-		padding: 0;
-		border-radius: 50%;
-		color: #ddd;
-		transition:
-			background 120ms,
-			rotate 200ms;
+	:global(.player-settings-trigger) {
+		anchor-name: --player-settings;
 	}
 
-	.settings :global(.dropdown-trigger:hover),
-	.settings:has(:popover-open) :global(.dropdown-trigger) {
-		color: #fff;
-	}
-
-	.settings:has(:popover-open) :global(.dropdown-trigger) {
-		rotate: 30deg;
-	}
-
-	.settings :global(.dropdown-menu) {
-		top: auto;
+	.player-settings {
+		position-anchor: --player-settings;
+		inset: auto;
+		right: anchor(right);
 		bottom: anchor(top);
-		min-width: 240px;
-		max-height: min(60vh, 440px);
-		margin: 0 0 8px;
-		overflow-y: auto;
-		background: rgb(28 28 28 / 0.96);
-		color: #e6e6e6;
-	}
-
-	.settings :global(.back) {
-		padding-left: 10px;
-		border-bottom: 1px solid rgb(255 255 255 / 0.08);
-		font-weight: 500;
-	}
-
-	.settings :global([aria-checked="true"]) {
-		color: #fff;
-	}
-
-	.value {
-		margin-left: auto;
-		color: #999;
-	}
-
-	.check {
-		display: inline-grid;
-		place-items: center;
-		width: 16px;
 	}
 </style>

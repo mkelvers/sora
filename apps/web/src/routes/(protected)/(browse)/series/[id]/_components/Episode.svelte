@@ -1,284 +1,149 @@
 <script lang="ts">
-	import type { EpisodeProgress, SeasonEpisode } from "@sora/sdk";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
-	import { tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { markWatched } from "../series.remote";
-
-	type Props = {
-		seriesId: string;
-		seasonId: string;
-		episode: SeasonEpisode;
-		now: Date;
-		checkpoint: EpisodeProgress | undefined;
-	};
+	import { CalendarBlankIcon, CheckIcon, PlayIcon } from 'phosphor-svelte';
+	import type { EpisodeProgress, SeasonEpisode } from '@sora/sdk';
+	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
+	import { cn } from '$lib/utils';
+	import { markWatched } from '../series.remote';
 
 	let {
 		seriesId,
 		seasonId,
+		title,
+		backdrop,
 		episode,
-		now,
 		checkpoint,
-	}: Props =
-		$props();
+	}: {
+		seriesId: string;
+		seasonId: string;
+		title: string;
+		backdrop: string | null;
+		episode: SeasonEpisode;
+		checkpoint: EpisodeProgress | undefined;
+	} = $props();
 
 	let marking = $state(false);
 
-	const watched = $derived(checkpoint?.completed ?? false);
+	const watched = $derived(!!checkpoint?.completed);
 	const played = $derived(
 		checkpoint && !checkpoint.completed && checkpoint.position_seconds > 0
 			? checkpoint.position_seconds / checkpoint.duration_seconds
-			: 0,
+			: 0
 	);
-
-	async function mark() {
-		marking = true;
-		try {
-			await markWatched({
-				seriesId,
-				seasonId,
-				episode: episode.number,
-				duration:
-					checkpoint?.duration_seconds ?? (episode.runtime_minutes ?? 24) * 60,
-				watched: !watched,
-			});
-		} finally {
-			marking = false;
-		}
-	}
-
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
-	const ends = $derived(
-		episode.runtime_minutes
-			? new Date(
-					now.getTime() + episode.runtime_minutes * 60_000,
-				).toLocaleTimeString("en-GB", {
-					hour: "2-digit",
-					minute: "2-digit",
-				})
-			: undefined,
+	const heading = $derived(`E${episode.number}${episode.title ? ` – ${episode.title}` : ''}`);
+	const audio = $derived(
+		[episode.audio?.includes('sub') && 'Sub', episode.audio?.includes('dub') && 'Dub']
+			.filter((label) => !!label)
+			.join(' | ')
 	);
+	const released = $derived(
+		episode.aired_at
+			? new Date(episode.aired_at).toLocaleDateString('en-US', {
+					month: 'short',
+					day: 'numeric',
+					year: 'numeric',
+				})
+			: episode.air_date
+				? new Date(episode.air_date).toLocaleDateString('en-US', {
+						month: 'short',
+						day: 'numeric',
+						year: 'numeric',
+						timeZone: 'UTC',
+					})
+				: null
+	);
+	const image = $derived(episode.still_url ?? backdrop);
 </script>
 
-<li class:watched>
+<li class="group relative min-h-56 min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_18rem]">
 	<svelte:element
-		this={playable ? "a" : "div"}
-		class="episode"
-		href={playable
-			? `/series/${seriesId}/watch/${seasonId}/${episode.number}`
-			: undefined}
+		this={playable ? 'a' : 'div'}
+		href={playable ? `/series/${seriesId}/watch/${seasonId}/${episode.number}` : undefined}
+		class="block min-w-0 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 	>
-		<div class="still">
-			{#if episode.still_url}
-				<img
-					src={tmdbImage(episode.still_url, "w780")}
-					srcset={tmdbSrcset(episode.still_url, {
-						w300: 300,
-						w780: 780,
-					})}
-					sizes="30vw"
-					alt={episode.title}
-					loading="lazy"
-					decoding="async"
-				/>
-			{/if}
-			{#if played}
-				<span class="progress">
-					<span style:width="{played * 100}%"></span>
-				</span>
-			{/if}
-		</div>
-
-		<div class="text">
-			<h3>
-				{episode.number}. {episode.title ?? `Episode ${episode.number}`}
-			</h3>
-			<div class="meta">
+		<div class="transition-opacity duration-150 group-hover:opacity-0 group-has-focus-visible:opacity-0">
+			<div class="relative aspect-video overflow-hidden bg-surface">
+				{#if image}
+					<ProgressiveImage src={image} alt="" displaySize="w780" imageClass={cn('brightness-75', watched && 'opacity-60')} />
+				{/if}
 				{#if episode.runtime_minutes}
-					<span>{episode.runtime_minutes}m</span>
-					<span>Ends at {ends}</span>
+					<span class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white">
+						{episode.runtime_minutes}m
+					</span>
 				{/if}
-				{#if episode.aired_at}
-					<span
-						>{new Date(episode.aired_at).toLocaleDateString("en-GB", {
-							day: "numeric",
-							month: "long",
-							year: "numeric",
-						})}</span
-					>
-				{:else if episode.air_date}
-					<span
-						>{new Date(episode.air_date).toLocaleDateString("en-GB", {
-							day: "numeric",
-							month: "long",
-							year: "numeric",
-							timeZone: "UTC",
-						})}</span
-					>
+				{#if watched}
+					<span class="absolute top-2 left-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white uppercase">Watched</span>
 				{/if}
-				{#each episode.audio ?? [] as audio (audio)}
-					<span class="badge">{audio}</span>
-				{/each}
-				{#if episode.filler}
-					<span class="badge">Filler</span>
+				{#if played}
+					<span class="absolute inset-x-0 bottom-0 h-1 bg-black/60">
+						<span class="block h-full bg-accent" style:width="{played * 100}%"></span>
+					</span>
 				{/if}
 			</div>
+
+			<div class="mt-3 min-w-0">
+				<p class="line-clamp-1 text-xs font-medium text-subtle uppercase">{title}</p>
+				<h3 class="mt-1 text-sm leading-snug font-bold text-foreground">{heading}</h3>
+				<p class="mt-3 text-sm text-muted">
+					{[audio, episode.filler && 'Filler', episode.extra && 'Extra'].filter((part) => !!part).join(' · ')}
+				</p>
+			</div>
+		</div>
+
+		<div
+			class="pointer-events-none absolute inset-0 z-10 flex flex-col bg-surface p-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
+		>
+			<p class="line-clamp-1 text-xs font-medium text-subtle uppercase">{title}</p>
+			<h3 class="mt-2 text-sm leading-snug font-bold text-foreground">{heading}</h3>
+			{#if released}
+				<p class="mt-1 flex items-center gap-1.5 text-xs text-muted">
+					<CalendarBlankIcon size="0.875rem" />
+					{released}
+				</p>
+			{/if}
 			{#if episode.overview}
-				<p>{episode.overview}</p>
+				<p class="mt-2 line-clamp-6 text-xs leading-4 text-foreground">{episode.overview}</p>
+			{/if}
+			{#if playable}
+				<span class="mt-auto inline-flex items-center gap-2 pt-3 text-xs font-bold text-accent uppercase">
+					<PlayIcon size="1.25rem" weight="bold" />
+					{played ? 'Resume' : 'Play'} E{episode.number}
+				</span>
 			{/if}
 		</div>
 	</svelte:element>
 
 	{#if !episode.extra}
-		<Button
-			class="mark"
-			aria-pressed={watched}
-			aria-label={watched ? "Mark as unwatched" : "Mark as watched"}
-			disabled={marking}
-			onclick={mark}
-		>
-			<Icon name="check" />
-		</Button>
+		<div class="absolute right-2 bottom-2 z-20 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100">
+			<Tooltip text={watched ? 'Mark as unwatched' : 'Mark as watched'}>
+				<button
+					type="button"
+					class={cn(
+						'grid size-9 cursor-pointer place-items-center transition-[color,transform] duration-150 active:scale-90',
+						watched ? 'text-accent' : 'text-muted hover:text-foreground'
+					)}
+					aria-pressed={watched}
+					aria-label={watched ? 'Mark as unwatched' : 'Mark as watched'}
+					disabled={marking}
+					onclick={async () => {
+						marking = true;
+						try {
+							await markWatched({
+								seriesId,
+								seasonId,
+								episode: episode.number,
+								duration: checkpoint?.duration_seconds ?? (episode.runtime_minutes ?? 24) * 60,
+								watched: !watched,
+							});
+						} finally {
+							marking = false;
+						}
+					}}
+				>
+					<CheckIcon size="1.3rem" weight="bold" />
+				</button>
+			</Tooltip>
+		</div>
 	{/if}
 </li>
-
-<style>
-	li {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) 40px;
-		align-items: center;
-		gap: 16px;
-		padding-right: 16px;
-		transition: background 120ms;
-		content-visibility: auto;
-		contain-intrinsic-size: auto 230px;
-	}
-
-	li:has(> a.episode):hover {
-		background: rgb(255 255 255 / 0.05);
-	}
-
-	li:has(> a.episode:focus-visible) {
-		outline: 2px solid #fff;
-	}
-
-	.episode {
-		display: grid;
-		grid-template-columns: minmax(160px, 3fr) minmax(0, 5fr);
-		align-items: center;
-		gap: 24px;
-		color: inherit;
-		text-decoration: none;
-	}
-
-	a.episode:focus-visible {
-		outline: none;
-	}
-
-	.still {
-		display: grid;
-		align-self: stretch;
-		aspect-ratio: 3 / 2;
-		background: #2a2a2a;
-		overflow: hidden;
-	}
-
-	.still > * {
-		grid-area: 1 / 1;
-	}
-
-	.still img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.watched .still img {
-		opacity: 0.5;
-	}
-
-	.progress {
-		align-self: end;
-		height: 4px;
-		background: rgb(0 0 0 / 0.6);
-	}
-
-	.progress span {
-		display: block;
-		height: 100%;
-		background: var(--accent);
-	}
-
-	li :global(.mark) {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		color: #ddd;
-	}
-
-	li :global(.mark:hover) {
-		background: rgb(255 255 255 / 0.1);
-		color: #fff;
-	}
-
-	li :global(.mark[aria-pressed="true"]) {
-		color: var(--accent);
-	}
-
-	.text {
-		padding: 12px 0;
-	}
-
-	h3 {
-		margin: 0 0 8px;
-		font-size: 16px;
-		font-weight: 400;
-	}
-
-	.meta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 6px 8px;
-		margin-bottom: 10px;
-		color: #999;
-		font-size: 14px;
-	}
-
-	.meta:empty {
-		display: none;
-	}
-
-	.meta span:not(.badge) + span:not(.badge)::before {
-		content: "";
-		display: inline-block;
-		width: 4px;
-		height: 4px;
-		margin-right: 8px;
-		background: currentColor;
-		vertical-align: middle;
-		rotate: 45deg;
-	}
-
-	.badge {
-		padding: 2px 6px;
-		background: rgb(255 255 255 / 0.06);
-		color: #aaa;
-		font-size: 11px;
-		letter-spacing: 0.04em;
-		line-height: 1.3;
-		text-transform: uppercase;
-	}
-
-	.meta span:not(.badge) + .badge {
-		margin-left: 4px;
-	}
-
-	p {
-		margin: 0;
-		color: #999;
-		font-size: 15px;
-		line-height: 1.55;
-	}
-</style>

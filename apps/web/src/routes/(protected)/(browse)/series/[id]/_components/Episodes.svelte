@@ -1,28 +1,29 @@
 <script lang="ts">
-	import Episode from "./Episode.svelte";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import { getEpisodes } from "../series.remote";
-	import type { Season, TitleProgress } from "@sora/sdk";
-
-	type Props = {
-		seriesId: string;
-		season: Season;
-		progress: TitleProgress;
-	};
+	import type { Season, TitleProgress } from '@sora/sdk';
+	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
+	import { getEpisodes } from '../series.remote';
+	import Episode from './Episode.svelte';
 
 	let {
 		seriesId,
+		title,
+		backdrop,
 		season,
 		progress,
-	}: Props = $props();
+	}: {
+		seriesId: string;
+		title: string;
+		backdrop: string | null;
+		season: Season;
+		progress: TitleProgress;
+	} = $props();
 
 	const episodes = $derived(
 		getEpisodes({
 			seriesId,
 			seasonId: season.id,
-		}),
+		})
 	);
-	let now = $state(new Date());
 
 	$effect(() => {
 		if (!episodes.current?.some((episode) => episode.audio === null)) {
@@ -33,74 +34,36 @@
 
 		return () => clearTimeout(timer);
 	});
-
-	$effect(() => {
-		const timeout = setTimeout(
-			() => (now = new Date()),
-			60_000 - (now.getTime() % 60_000),
-		);
-		return () => clearTimeout(timeout);
-	});
 </script>
 
 {#if episodes.current}
-	<ol>
-		{#each episodes.current as episode (episode.number)}
-			<Episode
-				{seriesId}
-				seasonId={season.id}
-				{episode}
-				{now}
-				checkpoint={progress.episodes.find(
-					(checkpoint) =>
-						checkpoint.season_id === season.id &&
-						checkpoint.episode === episode.number,
-				)}
-			/>
-		{:else}
-			<li class="empty">No episodes yet.</li>
-		{/each}
-	</ol>
+	{#if episodes.current.length}
+		<ol class="grid grid-cols-1 gap-x-5 gap-y-8 md:grid-cols-4 xl:grid-cols-5 hero:grid-cols-7">
+			{#each episodes.current as episode (episode.number)}
+				<Episode
+					{seriesId}
+					seasonId={season.id}
+					{title}
+					{backdrop}
+					{episode}
+					checkpoint={progress.episodes.find(
+						(checkpoint) => checkpoint.season_id === season.id && checkpoint.episode === episode.number
+					)}
+				/>
+			{/each}
+		</ol>
+	{:else}
+		<p class="py-10 text-muted">No episodes yet.</p>
+	{/if}
 {:else}
-	<ol aria-busy="true" aria-label="Loading episodes">
-		{#each { length: Math.min(season.episode_count, 6) }, index (index)}
-			<li class="loading">
-				<Skeleton ratio="3 / 2" />
-				<div class="lines">
-					{#each ["45%", "12%", "90%", "75%"] as width, line (line)}
-						<Skeleton variant="text" {width} />
-					{/each}
-				</div>
+	<ol class="grid grid-cols-1 gap-x-5 gap-y-8 md:grid-cols-4 xl:grid-cols-5 hero:grid-cols-7" aria-busy="true" aria-label="Loading episodes">
+		{#each { length: Math.min(season.episode_count, 10) }, index (index)}
+			<li class="min-h-56">
+				<Skeleton class="aspect-video" />
+				<Skeleton class="mt-3 h-3 w-3/4" />
+				<Skeleton class="mt-2 h-4 w-2/5" />
+				<Skeleton class="mt-3 h-3 w-1/3" />
 			</li>
 		{/each}
 	</ol>
 {/if}
-
-<style>
-	ol {
-		display: grid;
-		gap: 12px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.empty {
-		display: block;
-		color: #999;
-	}
-
-	.loading {
-		display: grid;
-		grid-template-columns: minmax(160px, 3fr) minmax(0, 5fr);
-		align-items: center;
-		gap: 24px;
-		padding-right: 72px;
-	}
-
-	.lines {
-		display: grid;
-		gap: 10px;
-		max-width: 70ch;
-	}
-</style>
