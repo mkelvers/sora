@@ -2,7 +2,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { playbackProgress, profile, watchlistEntry } from "../database/schema";
+import { playbackProgress, profile, seasonCompletion, watchlistEntry } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
 
@@ -123,6 +123,7 @@ export async function deleteProfile(userId: string, profileId: string) {
     }
 
     await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
+    await tx.delete(seasonCompletion).where(eq(seasonCompletion.userId, profileId));
     await tx.delete(watchlistEntry).where(eq(watchlistEntry.userId, profileId));
     await tx.delete(profile).where(eq(profile.id, profileId));
   });

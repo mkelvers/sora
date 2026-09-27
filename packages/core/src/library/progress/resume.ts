@@ -12,6 +12,22 @@ export interface EpisodeProgress {
   eventAt: string;
 }
 
+/** A season watched to the end. */
+export interface SeasonCompletion {
+  seasonId: string;
+  /** ISO 8601 timestamp of the event that completed its finale. */
+  completedAt: string;
+}
+
+/**
+ * A title's saved progress. A completed season keeps no episode checkpoints
+ * of its own, except for episodes played again since.
+ */
+export interface TitleProgress {
+  completedSeasons: SeasonCompletion[];
+  episodes: EpisodeProgress[];
+}
+
 /** Where to pick a title back up. */
 export interface ContinueWatchingItem {
   series: SeriesCard;

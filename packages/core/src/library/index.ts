@@ -16,7 +16,7 @@ export {
   recordProgress,
   type ProgressUpdate
 } from "./progress/progress";
-export type { ContinueWatchingItem, EpisodeProgress } from "./progress/resume";
+export type { ContinueWatchingItem, EpisodeProgress, SeasonCompletion, TitleProgress } from "./progress/resume";
 export { getRecommendations } from "./recommendations/recommendations";
 export {
   getWatchlist,

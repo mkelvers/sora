@@ -71,3 +71,32 @@ export const playbackProgress = pgTable(
     index("playback_progress_user_event_idx").on(table.userId, table.eventAt)
   ]
 );
+
+/**
+ * A season one user has watched to the end.
+ *
+ * Recorded against the AniList episode of the season's finale when it was
+ * completed, like {@link playbackProgress}, so it survives the title being
+ * laid out again. The season's episode checkpoints are cleared when it is
+ * recorded. It only counts while that episode is still the season's last
+ * playable one: a cour merged in behind it leaves the season unfinished again.
+ */
+export const seasonCompletion = pgTable(
+  "season_completion",
+  {
+    userId: text("user_id").notNull(),
+    anilistId: integer("anilist_id").notNull(),
+    episode: doublePrecision("episode").notNull(),
+    /** Client-side time of the event that completed the finale. */
+    completedAt: timestamptz("completed_at").notNull()
+  },
+  (table) => [
+    primaryKey({
+      columns: [
+        table.userId,
+        table.anilistId,
+        table.episode
+      ]
+    })
+  ]
+);
