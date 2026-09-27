@@ -13,6 +13,14 @@ import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episod
 import type { ContentLanguage, PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 import { storedSeriesIds } from "./store";
 
+/** The language anime from each country AniList lists is made in, by ISO 3166-1 code. */
+const originalLanguages: Record<string, string> = {
+  JP: "ja",
+  CN: "zh",
+  TW: "zh",
+  KR: "ko",
+};
+
 /**
  * Loads a title's page: its details, seasons, and related titles.
  *
@@ -41,6 +49,8 @@ export async function getSeries(seriesId: string): Promise<Series> {
     genres: anchor.genres,
     tags: anchor.tags,
     studios: anchor.studios,
+    originalLanguage: anchor.countryOfOrigin ? (originalLanguages[anchor.countryOfOrigin] ?? null) : null,
+    contentRating: row.contentRating,
     nextEpisode:
       isNextEpisodeAhead && row.nextEpisodeSeasonId !== null && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
         ? {
