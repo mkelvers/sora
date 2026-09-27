@@ -1,5 +1,5 @@
 import { anilist } from "../../anilist/client";
-import { AiringScheduleDocument, EpisodeAiringsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
+import { AiringScheduleDocument, EpisodeAiringsDocument } from "../../anilist/graphql.generated";
 import { InvalidInputError } from "../../errors";
 import { anilistEpisodeKey } from "../../series/episodes";
 import { day, hour, minute } from "../../time";
@@ -112,33 +112,4 @@ export async function fetchEpisodeAirings(anilistIds: readonly number[]): Promis
   }
 
   return airings;
-}
-
-/**
- * The latest broadcast of an AniList entry that AniList's airing schedule
- * says has aired, or `null` when it records none.
- *
- * Unlike the entry's next airing episode, this still knows an episode aired
- * when AniList has nothing announced after it, or moved its broadcast.
- *
- * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
- */
-export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadcast | null> {
-  const { Page } = await anilist(
-    LatestAiringDocument,
-    {
-      id: anilistId
-    },
-    {
-      maxAgeMs: 0
-    }
-  );
-  const latest = Page?.airingSchedules?.[0];
-  return latest
-    ? {
-        anilistId,
-        episode: latest.episode,
-        airingAt: fromUnixSeconds(latest.airingAt)
-      }
-    : null;
 }

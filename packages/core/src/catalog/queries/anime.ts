@@ -1,14 +1,15 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { anilist, loadMediaById } from "../../anilist/client";
-import { AnimeCardsDocument, AnimeDetailsDocument, type AnimeDetailsFragment } from "../../anilist/graphql.generated";
+import { AnimeCardsDocument, AnimeDetailsDocument, LatestAiringDocument, type AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
 import { day, hour } from "../../time";
 import { toAnime, toAnimeCard, type Anime, type AnimeCard } from "../models/anime";
-import { fetchLatestAiring } from "./schedule";
+import { fromUnixSeconds } from "../models/text";
+import type { AiringBroadcast } from "./schedule";
 
 /**
  * Loads the full details of one anime.
@@ -190,6 +191,35 @@ const loadAnimeDetails = loadMediaById({
   }),
   media: ({ page0, page1, page2, page3 }) => [page0, page1, page2, page3].flatMap((page) => page?.media ?? [])
 });
+
+/**
+ * The latest broadcast of an AniList entry that AniList's airing schedule
+ * says has aired, or `null` when it records none.
+ *
+ * Unlike the entry's next airing episode, this still knows an episode aired
+ * when AniList has nothing announced after it, or moved its broadcast.
+ *
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ */
+export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadcast | null> {
+  const { Page } = await anilist(
+    LatestAiringDocument,
+    {
+      id: anilistId
+    },
+    {
+      maxAgeMs: 0
+    }
+  );
+  const latest = Page?.airingSchedules?.[0];
+  return latest
+    ? {
+        anilistId,
+        episode: latest.episode,
+        airingAt: fromUnixSeconds(latest.airingAt)
+      }
+    : null;
+}
 
 /** @throws {@link AnimeNotFoundError} for unknown and adult anime. */
 async function fetchAnimeDetails(anilistId: number) {
