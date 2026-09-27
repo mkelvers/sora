@@ -1,0 +1,1 @@
+ALTER TABLE "series_episode" ADD COLUMN "aired_at" timestamp with time zone;

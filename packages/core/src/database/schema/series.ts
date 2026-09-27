@@ -176,8 +176,10 @@ export const seriesEpisode = pgTable(
     anilistEpisode: integer("anilist_episode"),
     title: text("title"),
     overview: text("overview"),
-    /** `YYYY-MM-DD`. */
+    /** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
     airDate: text("air_date"),
+    /** When the episode aired, from AniList's airing schedule; null when AniList has no schedule for it. */
+    airedAt: timestamptz("aired_at"),
     runtimeMinutes: integer("runtime_minutes"),
     stillUrl: text("still_url"),
     tmdbSeasonNumber: integer("tmdb_season_number"),
