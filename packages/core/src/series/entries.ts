@@ -185,7 +185,8 @@ export function toMatchSubject(entry: FranchiseEntry, now: Date): MatchSubject {
     primaryTitleCount: primaryTitles.length,
     startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
     endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
-    episodes: entry.episodes ?? (entry.nextAiringEpisode ? entry.nextAiringEpisode.episode - 1 : null),
+    // Before its first episode airs, an entry's length is unknown, not zero.
+    episodes: entry.episodes ?? (entry.nextAiringEpisode && entry.nextAiringEpisode.episode > 1 ? entry.nextAiringEpisode.episode - 1 : null),
     airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
     durationMinutes: entry.duration
   };

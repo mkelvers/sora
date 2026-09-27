@@ -51,3 +51,21 @@ test("answers a later request for a neighbour from the one that brought it", asy
   expect(requests).toEqual([[1]]);
   expect(neighbours.get(2)?.id).toBe(2);
 });
+
+test("leaves the length of an entry that has not aired unknown", async () => {
+  const { toMatchSubject } = await import("./entries");
+  const upcoming = {
+    ...media(nextId++),
+    status: "NOT_YET_RELEASED",
+    episodes: null,
+    nextAiringEpisode: { episode: 1, airingAt: 0 }
+  };
+  const airing = {
+    ...upcoming,
+    status: "RELEASING",
+    nextAiringEpisode: { episode: 4, airingAt: 0 }
+  };
+
+  expect(toMatchSubject(upcoming as never, new Date()).episodes).toBeNull();
+  expect(toMatchSubject(airing as never, new Date()).episodes).toBe(3);
+});
