@@ -2,7 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { playbackProgress, seasonCompletion, series, seriesEpisode, seriesSeason, watchlistEntry } from "../../database/schema";
-import { isEpisodeReleased } from "../../series/episodes";
+import { isEpisodeAvailable, isEpisodeShown, loadAniKotoEpisodes } from "../../series/episodes";
 import { toSeriesCard } from "../../series/queries";
 import { toEpisodeProgress } from "./progress";
 import { continuePoint, type ContinueWatchingItem, type EpisodeProgress, type TitleEpisode } from "./resume";
@@ -146,33 +146,41 @@ export async function getContinueWatching(
 
 /**
  * Loads every episode of the given titles in title order, and returns a
- * lookup of one title's episodes with their release state; see
- * {@link isEpisodeReleased}.
+ * lookup of one title's episodes. Only the episodes seasons list count (see
+ * {@link isEpisodeShown}); each is released once AniKoto carries it (see
+ * {@link isEpisodeAvailable}).
  */
 async function titleEpisodes(seriesIds: readonly string[]) {
   const rows = await db
     .select({
       seriesId: seriesSeason.seriesId,
       seasonId: seriesSeason.id,
+      seasonKind: seriesSeason.kind,
       inWatchOrder: seriesSeason.inWatchOrder,
       number: seriesEpisode.number,
       anilistId: seriesEpisode.anilistId,
-      airDate: seriesEpisode.airDate
+      anilistEpisode: seriesEpisode.anilistEpisode,
+      airDate: seriesEpisode.airDate,
+      airedAt: seriesEpisode.airedAt,
+      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
     .where(inArray(seriesSeason.seriesId, [...seriesIds]))
     .orderBy(asc(seriesSeason.seriesId), asc(seriesSeason.position), asc(seriesEpisode.number));
+  const onAniKoto = await loadAniKotoEpisodes(rows.flatMap((row) => row.anilistId ?? []));
 
   const now = new Date();
   return (title: typeof series.$inferSelect): TitleEpisode[] =>
     rows
-      .filter((row) => row.seriesId === title.id)
+      .filter(
+        (row) => row.seriesId === title.id && isEpisodeShown(title, { kind: row.seasonKind }, row, onAniKoto, now)
+      )
       .map((row) => ({
         seasonId: row.seasonId,
         inWatchOrder: row.inWatchOrder,
         number: row.number,
         isExtra: row.anilistId === null,
-        isReleased: isEpisodeReleased(title, row, now)
+        isReleased: isEpisodeAvailable(title, row, onAniKoto, now)
       }));
 }

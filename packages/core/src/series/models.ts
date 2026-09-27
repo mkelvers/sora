@@ -101,8 +101,15 @@ export interface SeasonEpisode {
   number: number;
   title: string | null;
   overview: string | null;
-  /** `YYYY-MM-DD`. */
+  /** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
   airDate: string | null;
+  /**
+   * ISO 8601 timestamp of the broadcast, from AniList's airing schedule; a
+   * client shows it in the viewer's time zone. `null` when AniList has no
+   * schedule for the episode, as for most older anime; `airDate` is then the
+   * only date known.
+   */
+  airedAt: string | null;
   runtimeMinutes: number | null;
   stillUrl: string | null;
   /**
