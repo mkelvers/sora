@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
 	import { tmdbImage, tmdbSrcset } from '$lib/utils';
 	import type { ContinueWatchingItem, SeriesCard } from '@sora/sdk';
 
@@ -16,9 +17,11 @@
 		sizes?: string;
 	} = $props();
 
+	let listed = $state(false);
+
 	const labels = $derived(
 		[card?.audio.includes('sub') && 'Sub', card?.audio.includes('dub') && 'Dub']
-			.filter(Boolean)
+			.filter((label) => !!label)
 			.join(' | ')
 	);
 
@@ -35,7 +38,7 @@
 			card.season_count > 0 && `${card.season_count} ${card.season_count === 1 ? 'Season' : 'Seasons'}`,
 			card.episode_count > 0 &&
 				`${card.episode_count} ${card.episode_count === 1 ? 'Episode' : 'Episodes'}`
-		].filter((count) => count !== false);
+		].filter((count) => !!count);
 	});
 
 	const play = $derived.by(() => {
@@ -117,15 +120,22 @@
 
 		<div class="actions">
 			{#if play}
-				<a class="play" href={play.href}>
-					<Icon name="play" size="sm" />
-					{play.label}
-				</a>
+				<Tooltip text={play.label}>
+					<a href={play.href} aria-label={play.label}>
+						<Icon name="play-outline" size="lg" />
+					</a>
+				</Tooltip>
 			{/if}
 
-			<button class="watchlist" type="button" aria-label="Add to watchlist">
-				<Icon name="bookmark" size="sm" />
-			</button>
+			<Tooltip text={listed ? 'Remove from Watchlist' : 'Add to Watchlist'}>
+				<button
+					type="button"
+					aria-label={listed ? 'Remove from Watchlist' : 'Add to Watchlist'}
+					onclick={() => (listed = !listed)}
+				>
+					<Icon name={listed ? 'watchlist-filled' : 'watchlist'} size="lg" />
+				</button>
+			</Tooltip>
 		</div>
 	{/if}
 </div>
@@ -141,7 +151,6 @@
 			height: 100%;
 			margin: -10px;
 			padding: 10px 10px 12px;
-			transition: background-color 160ms;
 		}
 
 		.poster:has(.link:focus-visible) {
@@ -211,7 +220,7 @@
 			display: flex;
 			flex-direction: column;
 			gap: 8px;
-			padding: 14px 12px 58px;
+			padding: 14px 12px 60px;
 			overflow: hidden;
 			background: rgb(20 20 20 / 0.88);
 			opacity: 0;
@@ -251,10 +260,10 @@
 
 		.actions {
 			position: absolute;
-			bottom: 14px;
-			left: 12px;
+			bottom: 8px;
+			left: 4px;
 			display: flex;
-			gap: 6px;
+			gap: 0;
 			visibility: hidden;
 			opacity: 0;
 			transition:
@@ -262,57 +271,25 @@
 				visibility 160ms;
 		}
 
-		.play,
-		.watchlist {
-			display: inline-flex;
-			align-items: center;
-			height: 32px;
-			border: none;
-			font: inherit;
-			font-size: 13px;
-			font-weight: 600;
-			text-decoration: none;
-			cursor: pointer;
-			transition:
-				background-color 120ms,
-				color 120ms;
-		}
-
-		.play {
-			gap: 6px;
-			padding: 0 12px 0 8px;
-			background: #fff;
-			color: #111;
-			white-space: nowrap;
-		}
-
-		.play:hover {
-			background: #ddd;
-		}
-
-		.watchlist {
-			justify-content: center;
-			width: 32px;
+		.actions a,
+		.actions button {
+			display: inline-grid;
+			place-items: center;
+			width: 40px;
+			height: 40px;
 			padding: 0;
-			background: rgb(255 255 255 / 0.12);
-			color: #fff;
+			border: none;
+			background: none;
+			color: var(--accent);
+			cursor: pointer;
 		}
 
-		.watchlist:hover {
-			background: rgb(255 255 255 / 0.22);
-		}
-
-		.play:focus-visible,
-		.watchlist:focus-visible {
+		.actions a:focus-visible,
+		.actions button:focus-visible {
 			outline: 2px solid #fff;
-			outline-offset: 2px;
 		}
 
 		@media (hover: hover) {
-			.poster:not(.pending):hover {
-				background: #1c1c1c;
-			}
-
 			.poster:hover .overview,
 			.poster:hover .actions {
 				visibility: visible;
