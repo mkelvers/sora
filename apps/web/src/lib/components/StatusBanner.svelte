@@ -3,13 +3,12 @@
     import { fly } from 'svelte/transition';
     import { prefersReducedMotion } from 'svelte/motion';
     import { cn } from '$lib/utils';
-    import { m } from '$lib/i18n.svelte';
-    import Button from '$lib/components/ui/button/Button.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
 
     interface Props {
         message: string;
         tone?: 'error' | 'success';
-        ondismiss: () => void;
+        ondismiss?: () => void;
     }
 
     let { message, tone = 'success', ondismiss }: Props = $props();
@@ -18,7 +17,7 @@
         if (!message || tone === 'error') {
             return;
         }
-        const timeout = setTimeout(ondismiss, 4_000);
+        const timeout = setTimeout(() => ondismiss?.(), 4_000);
         return () => clearTimeout(timeout);
     });
 </script>
@@ -42,7 +41,7 @@
             variant="ghost"
             class="absolute inset-y-0 right-0 grid w-12 place-items-center transition-[background-color,transform] duration-150 hover:bg-black/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-status active:scale-90"
             type="button"
-            aria-label={m.shared_dismiss()}
+            aria-label="Dismiss"
             onclick={ondismiss}
         >
             <XIcon size={20} weight="bold" aria-hidden="true" />
