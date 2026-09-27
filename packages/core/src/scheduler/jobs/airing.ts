@@ -3,8 +3,7 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
-import { refreshAnime } from "../../catalog/queries/anime";
-import { fetchLatestAiring } from "../../catalog/queries/schedule";
+import { fetchLatestAiring, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { AnimeNotFoundError } from "../../errors";
 import { refreshProviderUnits } from "../../playback/episodes/episodes";
