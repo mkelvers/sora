@@ -10,22 +10,19 @@ const Params = z.object({
 	episode: z.coerce.number().int().positive()
 });
 
-export const getEpisode = query(Params, ({ seriesId, seasonId, episode }) =>
-	fromSora(async () => {
-		const [series, episodes] = await Promise.all([
-			sora.series(seriesId),
-			sora.episodes({ seriesId, seasonId })
-		]);
-		const season = series.seasons.find((season) => season.id === seasonId);
-		const found = episodes.find((candidate) => candidate.number === episode);
+export const getEpisode = query(Params, async ({ seriesId, seasonId, episode }) => {
+	const [series, episodes] = await fromSora(
+		Promise.all([sora.series(seriesId), sora.episodes({ seriesId, seasonId })])
+	);
+	const season = series.seasons.find((season) => season.id === seasonId);
+	const found = episodes.find((candidate) => candidate.number === episode);
 
-		if (!season || !found) {
-			error(404, 'Episode not found');
-		}
+	if (!season || !found) {
+		error(404, 'Episode not found');
+	}
 
-		return { series, season, episode: found };
-	})
-);
+	return { series, season, episode: found };
+});
 
 export const getPlayback = query(Params, async ({ seasonId, episode }) => {
 	try {

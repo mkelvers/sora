@@ -10,9 +10,9 @@ export const sora = new SoraClient({
 	baseUrl: env.SORA_API_URL
 });
 
-export async function fromSora<T>(call: () => Promise<T>): Promise<T> {
+export async function fromSora<T>(call: Promise<T>): Promise<T> {
 	try {
-		return await call();
+		return await call;
 	} catch (cause) {
 		if (cause instanceof SoraError) {
 			error(cause.status, cause.message);
