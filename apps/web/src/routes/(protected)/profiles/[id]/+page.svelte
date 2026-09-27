@@ -293,15 +293,4 @@
 		outline: 2px solid #fff;
 		outline-offset: 2px;
 	}
-
-	@media (max-width: 480px) {
-		.identity {
-			grid-template-columns: 80px minmax(0, 1fr);
-			gap: 16px;
-		}
-
-		.identity :global(.preview) {
-			width: 80px;
-		}
-	}
 </style>
