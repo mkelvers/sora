@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { HistoryItem } from "@sora/sdk";
+	import { XIcon } from "phosphor-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
 	import { tmdbImage } from "$lib/utils";
 	import { forget, getHistory } from "./history.remote";
 
@@ -52,251 +52,95 @@
 </script>
 
 <svelte:head>
-	<title>History</title>
+	<title>History · Sora</title>
 </svelte:head>
 
-<div class="page">
-	<header>
-		<nav class="tabs" aria-label="Library">
-			<a href="/list">Watchlist</a>
-			<a href="/list/history" aria-current="page">History</a>
+<main class="min-h-[calc(100dvh-3.5rem)] bg-canvas text-foreground">
+	<div class="mx-auto w-full max-w-5xl px-5 py-9 sm:px-10 sm:py-11 lg:px-16 lg:py-14">
+		<nav class="flex gap-6" aria-label="Library">
+			<a href="/list" class="text-2xl font-semibold text-subtle transition-colors hover:text-foreground">Watchlist</a>
+			<a href="/list/history" class="text-2xl font-semibold" aria-current="page">History</a>
 		</nav>
-	</header>
 
-	{#each days as { day, runs } (day)}
-		<section>
-			<h2>{day}</h2>
+		{#each days as { day, runs } (day)}
+			<section class="mt-10">
+				<h2 class="mb-3 border-b border-border pb-3 text-xs font-bold text-muted uppercase">{day}</h2>
 
-			<ol>
-				{#each runs as run (`${run[0]!.season_id}:${run[0]!.episode}:${run[0]!.watched_at}`)}
-					{@const latest = run[0]!}
-					{@const numbers = run.map((item) => item.episode)}
-					<li>
-						<a
-							class="entry"
-							href="/series/{latest.series.id}/watch/{latest.season_id}/{latest.episode}"
-						>
-							<span class="poster">
-								{#if latest.series.poster_url}
-									<img
-										src={tmdbImage(latest.series.poster_url, "w92")}
-										alt=""
-										loading="lazy"
-									/>
-								{/if}
-							</span>
-
-							<span class="text">
-								<span class="title">{latest.series.title}</span>
-								<span class="what">
-									{latest.series.season_count > 1 ? `${latest.season_title} · ` : ""}
-									{run.length > 1
-										? `Episodes ${Math.min(...numbers)}–${Math.max(...numbers)}`
-										: `Episode ${latest.episode}${latest.episode_title ? ` · ${latest.episode_title}` : ""}`}
+				<ol>
+					{#each runs as run (`${run[0]!.season_id}:${run[0]!.episode}:${run[0]!.watched_at}`)}
+						{@const latest = run[0]!}
+						{@const numbers = run.map((item) => item.episode)}
+						<li class="group flex items-center gap-2">
+							<a
+								class="grid min-w-0 flex-1 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-4 p-2 transition-colors hover:bg-surface"
+								href="/series/{latest.series.id}/watch/{latest.season_id}/{latest.episode}"
+							>
+								<span class="block aspect-2/3 bg-surface">
+									{#if latest.series.poster_url}
+										<img
+											src={tmdbImage(latest.series.poster_url, "w92")}
+											alt=""
+											loading="lazy"
+											class="size-full object-cover"
+										/>
+									{/if}
 								</span>
-								{#if !latest.completed}
-									<span class="left">
-										{Math.max(1, Math.round((latest.duration_seconds - latest.position_seconds) / 60))} min left
+
+								<span class="grid min-w-0 gap-0.5">
+									<span class="truncate text-sm font-semibold">{latest.series.title}</span>
+									<span class="truncate text-sm text-muted">
+										{latest.series.season_count > 1 ? `${latest.season_title} · ` : ""}{run.length > 1
+											? `Episodes ${Math.min(...numbers)}–${Math.max(...numbers)}`
+											: `E${latest.episode}${latest.episode_title ? ` – ${latest.episode_title}` : ""}`}
 									</span>
-								{/if}
-							</span>
+									{#if !latest.completed}
+										<span class="text-xs text-accent">
+											{Math.max(1, Math.round((latest.duration_seconds - latest.position_seconds) / 60))} min left
+										</span>
+									{/if}
+								</span>
 
-							<time datetime={latest.watched_at}>
-								{new Date(latest.watched_at).toLocaleTimeString("en-GB", {
-									hour: "2-digit",
-									minute: "2-digit",
-								})}
-							</time>
-						</a>
+								<time class="text-xs text-muted tabular-nums" datetime={latest.watched_at}>
+									{new Date(latest.watched_at).toLocaleTimeString("en-GB", {
+										hour: "2-digit",
+										minute: "2-digit",
+									})}
+								</time>
+							</a>
 
-						<Button
-							variant="ghost"
-							class="remove"
-							aria-label="Remove from history"
-							onclick={() =>
-								forget(
-									run.map((item) => ({
-										seasonId: item.season_id,
-										number: item.episode,
-									})),
-								).updates(getHistory(pages))}
-						>
-							<Icon name="close" size="sm" />
-						</Button>
-					</li>
-				{/each}
-			</ol>
-		</section>
-	{:else}
-		<div class="empty">
-			<h1>Nothing watched yet</h1>
-			<p>Episodes you play show up here.</p>
-		</div>
-	{/each}
+							<Button
+								class="grid size-9 place-items-center text-subtle opacity-0 transition-[color,opacity] group-hover:opacity-100 hover:text-status-error focus-visible:opacity-100"
+								aria-label="Remove from history"
+								onclick={() =>
+									forget(
+										run.map((item) => ({
+											seasonId: item.season_id,
+											number: item.episode,
+										})),
+									).updates(getHistory(pages))}
+							>
+								<XIcon size="1rem" weight="bold" />
+							</Button>
+						</li>
+					{/each}
+				</ol>
+			</section>
+		{:else}
+			<section class="mt-8 grid min-h-112 place-items-center border border-dashed border-border px-6 py-12 text-center">
+				<div>
+					<h2 class="text-xl font-bold sm:text-2xl">Nothing watched yet</h2>
+					<p class="mt-3 text-sm text-muted sm:text-base">Episodes you play show up here.</p>
+				</div>
+			</section>
+		{/each}
 
-	{#if history.more}
-		<Button class="more" onclick={() => (pages += 1)}>Show more</Button>
-	{/if}
-</div>
-
-<style>
-	.page {
-		--side: clamp(16px, 3.3vw, 64px);
-
-		display: grid;
-		gap: 32px;
-		max-width: 960px;
-		padding: 32px var(--side) 80px;
-	}
-
-	.tabs {
-		display: flex;
-		gap: 28px;
-	}
-
-	.tabs a {
-		padding-bottom: 6px;
-		border-bottom: 2px solid transparent;
-		color: #888;
-		font-size: 22px;
-		text-decoration: none;
-	}
-
-	.tabs a:hover {
-		color: #fff;
-	}
-
-	.tabs a[aria-current="page"] {
-		border-color: var(--accent);
-		color: #fff;
-	}
-
-	section {
-		display: grid;
-		gap: 8px;
-	}
-
-	h2 {
-		margin: 0 0 4px;
-		color: #999;
-		font-size: 14px;
-		font-weight: 600;
-	}
-
-	ol {
-		display: grid;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	li {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.entry {
-		display: grid;
-		flex: 1;
-		grid-template-columns: 40px minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 16px;
-		min-width: 0;
-		padding: 8px;
-		color: inherit;
-		text-decoration: none;
-		transition: background 120ms;
-	}
-
-	.entry:hover {
-		background: rgb(255 255 255 / 0.05);
-	}
-
-	.poster {
-		display: block;
-		aspect-ratio: 2 / 3;
-		background: #222;
-	}
-
-	.poster img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.text {
-		display: grid;
-		gap: 2px;
-		min-width: 0;
-	}
-
-	.title,
-	.what {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.title {
-		font-size: 15px;
-		font-weight: 600;
-	}
-
-	.what,
-	.left,
-	time {
-		color: #999;
-		font-size: 13px;
-	}
-
-	.left {
-		color: var(--accent);
-	}
-
-	time {
-		font-variant-numeric: tabular-nums;
-	}
-
-	li :global(.remove) {
-		padding: 8px;
-		color: #777;
-	}
-
-	li :global(.remove:hover) {
-		color: #fff;
-	}
-
-	.page > :global(.more) {
-		justify-self: start;
-		padding: 10px 18px;
-		background: #1f1f1f;
-		color: #ddd;
-	}
-
-	.page > :global(.more:hover) {
-		background: #2a2a2a;
-		color: #fff;
-	}
-
-	.empty {
-		display: grid;
-		place-content: center;
-		gap: 8px;
-		min-height: 40vh;
-		text-align: center;
-	}
-
-	.empty h1 {
-		margin: 0;
-		font-size: 24px;
-		font-weight: 400;
-	}
-
-	.empty p {
-		margin: 0;
-		color: #999;
-		font-size: 15px;
-	}
-</style>
+		{#if history.more}
+			<Button
+				class="mx-auto mt-10 flex min-h-11 w-full max-w-md items-center justify-center bg-episode-action px-5 text-xs font-bold uppercase hover:bg-episode-action-hover"
+				onclick={() => (pages += 1)}
+			>
+				Show more
+			</Button>
+		{/if}
+	</div>
+</main>

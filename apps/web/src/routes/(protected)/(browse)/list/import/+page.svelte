@@ -1,158 +1,64 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
+	import Input from "$lib/components/ui/Input.svelte";
 	import { importAniList } from "./import.remote";
 
 	const summary = $derived(importAniList.result);
 </script>
 
 <svelte:head>
-	<title>Import from AniList</title>
+	<title>Import from AniList · Sora</title>
 </svelte:head>
 
-<div class="page">
-	<a class="back" href="/list">Watchlist</a>
+<main class="min-h-[calc(100dvh-3.5rem)] bg-canvas text-foreground">
+	<div class="mx-auto w-full max-w-2xl px-5 py-9 sm:px-10 sm:py-11 lg:py-14">
+		<a href="/list" class="text-xs font-bold text-muted uppercase hover:text-foreground">Watchlist</a>
+		<h1 class="mt-3 text-2xl font-semibold">Import from AniList</h1>
+		<p class="mt-4 text-sm leading-6 text-muted sm:text-base sm:leading-7">
+			Everything on your AniList anime list joins your watchlist, and the episodes you’ve watched there become
+			your history here, so each title shows as watching, completed, or planned from what you’ve actually seen.
+			Titles you dropped stay dropped. Your list needs to be public.
+		</p>
 
-	<h1>Import from AniList</h1>
-	<p class="lead">
-		Everything on your AniList anime list joins your watchlist, and the
-		episodes you’ve watched there become your history here, so each title
-		shows as watching, completed, or planned from what you’ve actually seen.
-		Titles you dropped stay dropped. Your list needs to be public.
-	</p>
+		<form class="mt-10" {...importAniList}>
+			<label for="user-name" class="text-sm text-muted">AniList user name</label>
+			<div class="mt-2 flex gap-2">
+				<Input
+					id="user-name"
+					autocomplete="username"
+					spellcheck="false"
+					class="h-11"
+					{...importAniList.fields.userName.as("text")}
+				/>
+				<Button
+					type="submit"
+					class="min-h-11 bg-accent px-6 text-xs font-bold text-on-accent uppercase hover:brightness-110"
+					disabled={importAniList.pending > 0}
+				>
+					{importAniList.pending > 0 ? "Importing…" : "Import"}
+				</Button>
+			</div>
 
-	<form {...importAniList}>
-		<label for="user-name">AniList user name</label>
-		<div class="row">
-			<input
-				id="user-name"
-				autocomplete="username"
-				spellcheck="false"
-				{...importAniList.fields.userName.as("text")}
-			/>
-			<Button type="submit" class="submit" disabled={importAniList.pending > 0}>
-				{importAniList.pending > 0 ? "Importing…" : "Import"}
-			</Button>
-		</div>
+			{#each importAniList.fields.userName.issues() ?? [] as issue (issue.message)}
+				<p class="mt-2 text-sm text-status-error">{issue.message}</p>
+			{/each}
+		</form>
 
-		{#each importAniList.fields.userName.issues() ?? [] as issue (issue.message)}
-			<p class="issue">{issue.message}</p>
-		{/each}
-	</form>
-
-	{#if summary}
-		<div class="done" role="status">
-			<p>
-				Imported {summary.entries}
-				{summary.entries === 1 ? "title" : "titles"} and
-				{summary.episodes}
-				{summary.episodes === 1 ? "watched episode" : "watched episodes"}.
-			</p>
-			{#if summary.preparing > 0}
+		{#if summary}
+			<div class="mt-8 grid gap-2 bg-surface p-5 text-sm" role="status">
 				<p>
-					{summary.preparing}
-					{summary.preparing === 1 ? "title is" : "titles are"} still being
-					prepared and will join your watchlist as they’re ready.
+					Imported {summary.entries}
+					{summary.entries === 1 ? "title" : "titles"} and {summary.episodes}
+					{summary.episodes === 1 ? "watched episode" : "watched episodes"}.
 				</p>
-			{/if}
-			<a href="/list">Go to your watchlist</a>
-		</div>
-	{/if}
-</div>
-
-<style>
-	.page {
-		--side: clamp(16px, 3.3vw, 64px);
-
-		display: grid;
-		align-content: start;
-		gap: 20px;
-		max-width: 640px;
-		padding: 32px var(--side) 80px;
-	}
-
-	.back {
-		color: #999;
-		font-size: 14px;
-	}
-
-	.back:hover {
-		color: #fff;
-	}
-
-	h1 {
-		margin: 0;
-		font-size: 28px;
-		font-weight: 400;
-	}
-
-	.lead {
-		margin: 0;
-		color: #aaa;
-		font-size: 15px;
-		line-height: 1.6;
-	}
-
-	form {
-		display: grid;
-		gap: 8px;
-	}
-
-	label {
-		color: #ccc;
-		font-size: 14px;
-	}
-
-	.row {
-		display: flex;
-		gap: 8px;
-	}
-
-	input {
-		flex: 1;
-		min-width: 0;
-		height: 44px;
-		padding: 0 14px;
-		border: 1px solid #333;
-		background: #1a1a1a;
-		color: #fff;
-		font: inherit;
-		font-size: 15px;
-		outline: none;
-	}
-
-	input:focus-visible {
-		border-color: #fff;
-	}
-
-	.row :global(.submit) {
-		height: 44px;
-		padding: 0 22px;
-		background: var(--accent);
-		color: #fff;
-		font-weight: 600;
-	}
-
-	.issue {
-		margin: 0;
-		color: #ff8a80;
-		font-size: 14px;
-	}
-
-	.done {
-		display: grid;
-		gap: 8px;
-		padding: 16px;
-		background: #1a1a1a;
-	}
-
-	.done p {
-		margin: 0;
-		color: #ddd;
-		font-size: 15px;
-	}
-
-	.done a {
-		color: #fff;
-		font-size: 14px;
-	}
-</style>
+				{#if summary.preparing > 0}
+					<p class="text-muted">
+						{summary.preparing}
+						{summary.preparing === 1 ? "title is" : "titles are"} still being prepared and will join your watchlist as they’re ready.
+					</p>
+				{/if}
+				<a href="/list" class="mt-2 text-xs font-bold text-accent uppercase">Go to your watchlist</a>
+			</div>
+		{/if}
+	</div>
+</main>
