@@ -2,14 +2,15 @@
 	import Episode from "./Episode.svelte";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { getEpisodes } from "../series.remote";
-	import type { Season } from "@sora/sdk";
+	import type { EpisodeProgress, Season } from "@sora/sdk";
 
 	type Props = {
 		seriesId: string;
 		season: Season;
+		progress: EpisodeProgress[];
 	};
 
-	let { seriesId, season }: Props = $props();
+	let { seriesId, season, progress }: Props = $props();
 
 	const episodes = $derived(
 		getEpisodes({
@@ -31,7 +32,17 @@
 {#if episodes.current}
 	<ol>
 		{#each episodes.current as episode (episode.number)}
-			<Episode {seriesId} seasonId={season.id} {episode} {now} />
+			<Episode
+				{seriesId}
+				seasonId={season.id}
+				{episode}
+				{now}
+				checkpoint={progress.find(
+					(checkpoint) =>
+						checkpoint.season_id === season.id &&
+						checkpoint.episode === episode.number,
+				)}
+			/>
 		{:else}
 			<li class="empty">No episodes yet.</li>
 		{/each}
@@ -67,9 +78,10 @@
 
 	.loading {
 		display: grid;
-		grid-template-columns: minmax(160px, 375px) minmax(0, 1fr);
+		grid-template-columns: minmax(160px, 3fr) minmax(0, 5fr);
 		align-items: center;
 		gap: 24px;
+		padding-right: 72px;
 	}
 
 	.lines {

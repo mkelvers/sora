@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Player from "./_components/Player.svelte";
-	import { getEpisode, getPlayback } from "./watch.remote";
+	import { getEpisode, getPlayback, saveProgress } from "./watch.remote";
 	import type { PageProps } from "./$types";
 
 	let { params }: PageProps = $props();
@@ -10,7 +10,7 @@
 		seasonId: params.seasonId,
 		episode: params.episode,
 	});
-	const { series, season, episode } = $derived(await getEpisode(address));
+	const { series, season, episode, start } = $derived(await getEpisode(address));
 
 	const playback = $derived(getPlayback(address));
 
@@ -37,5 +37,13 @@
 		title="{episode.number}. {title}"
 		series={series.title}
 		season={season.title}
+		{start}
+		onprogress={(position, duration) =>
+			saveProgress({
+				seasonId: season.id,
+				episode: episode.number,
+				position,
+				duration,
+			}).catch(() => {})}
 	/>
 {/key}

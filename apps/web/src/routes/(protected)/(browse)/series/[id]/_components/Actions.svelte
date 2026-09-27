@@ -1,65 +1,47 @@
 <script lang="ts">
-	import type { Series } from "@sora/sdk";
-	import { goto } from "$app/navigation";
-	import Button from "$lib/components/ui/Button.svelte";
+	import type { ContinueWatchingItem, Series } from "@sora/sdk";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
-	import { shuffleEpisode } from "../series.remote";
 
 	type Props = {
 		series: Series;
+		resume: ContinueWatchingItem | null;
 	};
 
-	let { series }: Props = $props();
+	let { series, resume }: Props = $props();
 
-	const first = $derived(
-		series.seasons.find((season) => season.in_watch_order) ?? series.seasons[0],
-	);
+	const play = $derived.by(() => {
+		if (resume) {
+			const season = series.seasons.find((season) => season.id === resume.season_id);
+			const where =
+				series.seasons.length > 1 && season
+					? `${season.title}, episode ${resume.episode}`
+					: `episode ${resume.episode}`;
 
-	let shuffling = $state(false);
-	let copied = $state(false);
-
-	async function shuffle() {
-		shuffling = true;
-		try {
-			const episode = await shuffleEpisode(series.id);
-			await goto(`/series/${series.id}/watch/${episode.seasonId}/${episode.number}`);
-		} finally {
-			shuffling = false;
+			return {
+				href: `/series/${series.id}/watch/${resume.season_id}/${resume.episode}`,
+				label: `${resume.position_seconds > 0 ? "Resume" : "Play"} ${where}`,
+			};
 		}
-	}
 
-	async function copyLink() {
-		await navigator.clipboard.writeText(`${location.origin}/series/${series.id}`);
-		copied = true;
-		setTimeout(() => {
-			copied = false;
-			document.getElementById("series-actions")?.hidePopover();
-		}, 1200);
-	}
+		const first =
+			series.seasons.find((season) => season.in_watch_order) ?? series.seasons[0];
+
+		return (
+			first && {
+				href: `/series/${series.id}/watch/${first.id}/1`,
+				label: "Play",
+			}
+		);
+	});
 </script>
 
 <div class="actions">
-	{#if first}
-		<a
-			class="action"
-			href="/series/{series.id}/watch/{first.id}/1"
-			aria-label="Play from the beginning"
-			title="Play from the beginning"
-		>
+	{#if play}
+		<a class="action" href={play.href} aria-label={play.label}>
 			<Icon name="play" />
 		</a>
 	{/if}
-
-	<Button
-		class="action"
-		aria-label="Play a random episode"
-		title="Play a random episode"
-		disabled={shuffling}
-		onclick={shuffle}
-	>
-		<Icon name="shuffle" />
-	</Button>
 
 	<Dropdown id="series-actions" label="More" role="menu" aria-label="More">
 		{#snippet trigger()}
@@ -70,10 +52,6 @@
 			<Icon name="edit" size="sm" />
 			Edit artwork
 		</a>
-		<Button role="menuitem" onclick={copyLink}>
-			<Icon name={copied ? "check" : "link"} size="sm" />
-			{copied ? "Link copied" : "Copy link"}
-		</Button>
 	</Dropdown>
 </div>
 
@@ -85,7 +63,7 @@
 		gap: 4px;
 	}
 
-	.actions :global(.action),
+	.action,
 	.actions :global(.dropdown-trigger) {
 		display: inline-grid;
 		place-items: center;
@@ -99,20 +77,19 @@
 			color 120ms;
 	}
 
-	.actions :global(.action:hover),
+	.action:hover,
 	.actions :global(.dropdown-trigger:hover),
 	.actions:has(:popover-open) :global(.dropdown-trigger) {
 		background: rgb(255 255 255 / 0.1);
 		color: #fff;
 	}
 
-	.actions :global(.action:focus-visible) {
+	.action:focus-visible {
 		outline: 2px solid #fff;
 		outline-offset: 2px;
 	}
 
-	.actions :global(.dropdown-menu a),
-	.actions :global(.dropdown-menu .button) {
+	.actions :global(.dropdown-menu a) {
 		display: flex;
 		align-items: center;
 		gap: 12px;

@@ -1,4 +1,4 @@
-import { command, query } from '$app/server';
+import { command, getRequestEvent, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { sora } from '$lib/server/sora';
@@ -13,19 +13,46 @@ export const getEpisodes = query(
 	(season) => sora.episodes(season)
 );
 
-export const shuffleEpisode = command(z.string(), async (seriesId) => {
-	const series = await sora.series(seriesId, { params: { episodes: true } });
-	const playable = series.seasons
-		.filter((season) => season.in_watch_order)
-		.flatMap((season) =>
-			season.episodes
-				.filter((episode) => !episode.extra && episode.audio?.length !== 0)
-				.map((episode) => ({ seasonId: season.id, number: episode.number }))
-		);
-
-	if (!playable.length) {
-		error(404, 'Nothing to play yet');
+export const getViewing = query(z.string(), async (seriesId) => {
+	const { viewer } = getRequestEvent().locals;
+	if (!viewer?.profile) {
+		error(403, 'Choose a profile first');
 	}
 
-	return playable[Math.floor(Math.random() * playable.length)];
+	const [resume, progress] = await Promise.all([
+		viewer.sora.continueWatching(viewer.profile.id, {
+			params: {
+				series_id: seriesId
+			}
+		}),
+		viewer.sora.progress(viewer.profile.id, seriesId)
+	]);
+
+	return { resume: resume[0] ?? null, progress };
 });
+
+export const markWatched = command(
+	z.object({
+		seriesId: z.string(),
+		seasonId: z.string(),
+		episode: z.number().int().positive(),
+		duration: z.number().positive(),
+		watched: z.boolean()
+	}),
+	async ({ seriesId, seasonId, episode, duration, watched }) => {
+		const { viewer } = getRequestEvent().locals;
+		if (!viewer?.profile) {
+			error(403, 'Choose a profile first');
+		}
+
+		await viewer.sora.recordProgress(viewer.profile.id, {
+			season_id: seasonId,
+			episode,
+			position_seconds: watched ? duration : 0,
+			duration_seconds: duration,
+			completed: watched
+		});
+
+		await getViewing(seriesId).refresh();
+	}
+);

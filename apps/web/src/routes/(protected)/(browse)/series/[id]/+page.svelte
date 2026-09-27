@@ -4,15 +4,23 @@
 	import Episodes from "./_components/Episodes.svelte";
 	import Seasons from "./_components/Seasons.svelte";
 	import Stats from "./_components/Stats.svelte";
+	import { untrack } from "svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
 	import { tmdbSrcset } from "$lib/utils";
-	import { getSeries } from "./series.remote";
+	import { getSeries, getViewing } from "./series.remote";
 	import type { PageProps } from "./$types";
 
 	let { params }: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
-	let season = $derived(series.seasons[0]);
+	const viewing = $derived(await getViewing(params.id));
+	let season = $derived.by(() => {
+		const resume = untrack(() => viewing.resume);
+		return (
+			series.seasons.find((season) => season.id === resume?.season_id) ??
+			series.seasons[0]
+		);
+	});
 
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
@@ -34,7 +42,8 @@
 			days < 2
 				? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(days, "day")
 				: days < 7
-					? `on ${airing.toLocaleDateString("en-GB", { weekday: "long" })}`
+					? `on ${airing.toLocaleDateString("en-GB", {
+						weekday: "long" })}`
 					: `on ${airing.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
 
 		return {
@@ -74,7 +83,7 @@
 				<Stats {series} />
 			</div>
 
-			<Actions {series} />
+			<Actions {series} resume={viewing.resume} />
 		</div>
 	</header>
 
@@ -113,7 +122,7 @@
 							<Icon name="schedule" size="sm" />
 							<span>
 								Episode {next.number} airs
-								<time datetime={next.airing_at} title={next.date}>{next.when}</time>
+								<time datetime={next.airing_at}>{next.when}</time>
 							</span>
 						</p>
 					{/if}
@@ -128,7 +137,11 @@
 					{/if}
 				</div>
 
-				<Episodes seriesId={series.id} {season} />
+				<Episodes
+					seriesId={series.id}
+					{season}
+					progress={viewing.progress}
+				/>
 			</section>
 		</div>
 	</div>
@@ -136,7 +149,7 @@
 
 <style>
 	.page {
-		--poster: clamp(120px, 25vw, 480px);
+		--poster: clamp(120px, min(25vw, (100vh - 320px) / 1.5), 480px);
 		--gap: clamp(16px, 4vw, 80px);
 		--side: clamp(16px, 3.3vw, 64px);
 		min-height: 100vh;
@@ -190,6 +203,8 @@
 	}
 
 	aside {
+		position: sticky;
+		top: calc(56px + 24px + 192px);
 		display: grid;
 		gap: 32px;
 	}
