@@ -125,7 +125,7 @@
 		}
 
 		.tooltip:hover .positioner,
-		.tooltip:focus-within .positioner {
+		.tooltip:has(:focus-visible) .positioner {
 			visibility: visible;
 			opacity: 1;
 		}
