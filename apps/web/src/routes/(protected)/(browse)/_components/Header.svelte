@@ -5,6 +5,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
+	import Search from "./Search.svelte";
 
 	let {
 		profile,
@@ -23,9 +24,7 @@
 </script>
 
 <header>
-	<Button class="search" aria-label="Search" title="Search">
-		<Icon name="search" />
-	</Button>
+	<Search />
 
 	<Dropdown id="account" label="Account" class="account">
 		{#snippet trigger()}
@@ -84,14 +83,9 @@
 		background: rgb(40 40 40 / 0.85);
 	}
 
-	header :global(.search),
 	header :global(.dropdown-trigger) {
 		height: 100%;
 		color: #999;
-	}
-
-	header :global(.search) {
-		width: 56px;
 	}
 
 	header :global(.dropdown) {
@@ -103,7 +97,6 @@
 		padding: 0 12px 0 16px;
 	}
 
-	header :global(.search:hover),
 	header :global(.dropdown-trigger:hover),
 	header
 		:global(.dropdown:has(.dropdown-menu:popover-open) .dropdown-trigger) {
