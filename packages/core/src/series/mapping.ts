@@ -211,9 +211,11 @@ async function bestShowPlacement(subject: MatchSubject, predecessors: readonly P
     }
   }
 
+  // Fetched at once, weighed in order, so ties go the same way as fetched in turn.
+  const shows = await Promise.all([...candidates.keys()].map((showId) => getShow(showId)));
   let best: Placement | null = null;
-  for (const [showId, candidate] of candidates) {
-    const show = await getShow(showId);
+  for (const [index, candidate] of [...candidates.values()].entries()) {
+    const show = shows[index];
     const placement = show
       ? placeInShow(subject, {
           show,
@@ -238,8 +240,8 @@ function regularSeasonEnd(mapping: TmdbMapping): TmdbEpisodeRef | null {
 /** Finds TMDB shows by title, most similar to the subject first. */
 async function searchedShowIds(subject: MatchSubject, queries: readonly string[]) {
   const results = new Map<number, number>();
-  for (const query of queries) {
-    for (const show of (await searchShows(query)).slice(0, resultsPerQuery)) {
+  for (const found of await Promise.all(queries.map((query) => searchShows(query)))) {
+    for (const show of found.slice(0, resultsPerQuery)) {
       results.set(show.id, bestSimilarity(subject.titles, [show.name, show.original_name]));
     }
   }
@@ -253,8 +255,8 @@ async function searchedShowIds(subject: MatchSubject, queries: readonly string[]
 /** Searches TMDB movies by the subject's titles and returns the best confident match. */
 async function bestMoviePlacement(subject: MatchSubject, queries: readonly string[]) {
   let best: Placement | null = null;
-  for (const query of queries) {
-    for (const movie of (await searchMovies(query)).slice(0, resultsPerQuery)) {
+  for (const found of await Promise.all(queries.map((query) => searchMovies(query)))) {
+    for (const movie of found.slice(0, resultsPerQuery)) {
       const placement = placeAsMovie(subject, movie);
       if (placement && (!best || placement.score > best.score)) {
         best = placement;
