@@ -88,8 +88,8 @@ export interface ProfileInput {
 
 /** Filters for {@link SoraClient.continueWatching}. */
 export interface ContinueWatchingParams {
-  /** Only this title, for a title's page: at most one entry. */
-  series_id?: string;
+  /** Only these titles, such as a title's page or a page of search results: at most one entry each. */
+  series_id?: string[];
 }
 
 /** A playback position for {@link SoraClient.recordProgress}. */
@@ -312,7 +312,7 @@ export class SoraClient {
             profile_id: profileId
           },
           query: {
-            series_id: options?.params?.series_id
+            series_id: options?.params?.series_id?.join(",")
           }
         },
         init(options)

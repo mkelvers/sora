@@ -566,12 +566,9 @@ export const getContinueWatching = createRoute({
   request: {
     params: ProfileParams,
     query: z.object({
-      series_id: SeriesIdParam.optional().openapi({
-        param: {
-          name: "series_id",
-          in: "query"
-        },
-        description: "Only this title, for a title's page: at most one entry, none when there is nothing to resume."
+      series_id: commaSeparated(z.array(z.string()).min(1).max(50), "GYZJ43JMR,U06QF6S1R").openapi({
+        description:
+          "Only these titles, such as a title's page or a page of search results: at most one entry each, none for a title with nothing to resume."
       })
     })
   },

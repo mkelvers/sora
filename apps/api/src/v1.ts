@@ -371,7 +371,7 @@ export const v1Routes = v1
   .openapi(route.getContinueWatching, async (c) => {
     const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
     const items = await getContinueWatching(profile.id, {
-      seriesId: c.req.valid("query").series_id
+      seriesIds: c.req.valid("query").series_id
     });
     return c.json(
       {

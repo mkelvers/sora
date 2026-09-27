@@ -22,7 +22,7 @@ export const getViewing = query(z.string(), async (seriesId) => {
 	const [resume, progress] = await Promise.all([
 		viewer.sora.continueWatching(viewer.profile.id, {
 			params: {
-				series_id: seriesId
+				series_id: [seriesId]
 			}
 		}),
 		viewer.sora.progress(viewer.profile.id, seriesId)
