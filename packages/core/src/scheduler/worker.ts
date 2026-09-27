@@ -87,9 +87,14 @@ export async function startScheduler(): Promise<Scheduler> {
   // Every slot above can be held for minutes by jobs waiting their turn on
   // AniList, and a running job is never interrupted, so work a viewer waits
   // on has workers of its own. It still runs ahead of those jobs on AniList.
+  // A slot for each title of a search page lets their layouts run at once
+  // and share AniList requests, rather than a few at a time each paying
+  // their own; they spend most of their time waiting on AniList and TMDB.
   const waitedOn = await run({
     connectionString: config.databaseUrl,
-    concurrency: 4,
+    concurrency: 24,
+    // graphile-worker opens connections as jobs need them, up to this.
+    maxPoolSize: 24,
     taskList: prioritized(waitedOnTasks)
   });
 
