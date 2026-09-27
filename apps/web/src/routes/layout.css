@@ -8,7 +8,9 @@
 	}
 
 	:root {
-		--accent: #ff8a1f;
+		--accent: #0a64ff;
+		--tooltip: #414141;
+		--tooltip-foreground: #ececec;
 	}
 
 	body {
