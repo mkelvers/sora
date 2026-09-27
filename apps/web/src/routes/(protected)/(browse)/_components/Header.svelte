@@ -71,9 +71,9 @@
 						<div role="dialog" aria-label="Account">
 							<a
 								href="/profiles/{profile.id}"
-								class="flex min-h-20 items-center gap-3 px-5 py-3 transition-colors hover:bg-header"
+								class="flex min-h-14 items-center gap-3 px-5 py-2 transition-colors hover:bg-header"
 							>
-								<Avatar seed={profile.avatar} class="size-11" />
+								<Avatar seed={profile.avatar} class="size-9" />
 								<span class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
 									{profile.name}
 								</span>
