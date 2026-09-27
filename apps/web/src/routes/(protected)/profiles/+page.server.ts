@@ -1,8 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
-import { rememberProfile } from '$lib/server/access';
 import { profileCookie } from '$lib/server/sora';
-import { safeRedirect } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
@@ -20,8 +18,15 @@ export const actions: Actions = {
 			error(404, 'No such profile');
 		}
 
-		rememberProfile(cookies, profile.id);
-		redirect(303, safeRedirect(url));
+		cookies.set(profileCookie, profile.id, {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			maxAge: 60 * 60
+		});
+
+		const target = new URL(url.searchParams.get('redirect') ?? '/', url.origin);
+		redirect(303, target.origin === url.origin ? target.pathname + target.search : '/');
 	},
 
 	delete: async ({ request, locals, cookies }) => {

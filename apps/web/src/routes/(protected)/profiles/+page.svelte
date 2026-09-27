@@ -11,23 +11,15 @@
 
 	const managing = $derived(page.url.searchParams.has("manage"));
 
-	function link(path: string, manage = managing) {
-		const params = new URLSearchParams();
-		const redirect = page.url.searchParams.get("redirect");
-		if (manage) {
+	const switchMode = $derived.by(() => {
+		const params = new URLSearchParams(page.url.search);
+		if (managing) {
+			params.delete("manage");
+		} else {
 			params.set("manage", "1");
 		}
-		if (redirect) {
-			params.set("redirect", redirect);
-		}
-		const query = params.toString();
-		return query ? `${path}?${query}` : path;
-	}
-
-	function action(name: string) {
-		const query = page.url.search.slice(1);
-		return query ? `?/${name}&${query}` : `?/${name}`;
-	}
+		return params.size > 0 ? `/profiles?${params}` : "/profiles";
+	});
 </script>
 
 <svelte:head>
@@ -39,7 +31,7 @@
 
 	<form
 		method="POST"
-		action={action("select")}
+		action="?/{managing ? 'delete' : 'select'}{page.url.search.replace('?', '&')}"
 		use:enhance={({ submitter }) => {
 			if (managing && submitter instanceof HTMLButtonElement) {
 				deleting = submitter.value;
@@ -56,7 +48,7 @@
 					{#if managing}
 						<a
 							class="profile"
-							href={link(`/profiles/${profile.id}`, false)}
+							href="/profiles/{profile.id}{page.url.search}"
 							aria-label="Edit {profile.name}"
 						>
 							<span class="tile editing">
@@ -72,7 +64,6 @@
 								class="delete"
 								name="profile"
 								value={profile.id}
-								formaction={action("delete")}
 								disabled={deleting !== null}
 								aria-label="Delete {profile.name}"
 								title="Delete {profile.name}"
@@ -95,7 +86,7 @@
 
 			{#if !managing}
 				<li>
-					<a class="profile" href={link("/profiles/new")}>
+					<a class="profile" href="/profiles/new{page.url.search}">
 						<span class="tile add">
 							<Icon name="add" />
 						</span>
@@ -112,12 +103,12 @@
 
 	<div class="footer">
 		{#if managing}
-			<a class="pill done" href={link("/profiles", false)}>
+			<a class="pill done" href={switchMode}>
 				<Icon name="check" size="sm" />
 				Done
 			</a>
 		{:else}
-			<a class="pill" href={link("/profiles", true)}>
+			<a class="pill" href={switchMode}>
 				<Icon name="edit" size="sm" />
 				Manage profiles
 			</a>

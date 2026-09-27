@@ -3,7 +3,6 @@
 	import { page } from "$app/state";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
-	import { avatarSeeds, profilesPath, safeRedirect } from "$lib/utils";
 	import type { PageProps } from "./$types";
 
 	let { data, form }: PageProps = $props();
@@ -16,11 +15,9 @@
 
 	function shuffle() {
 		choices = choices.map((seed) =>
-			seed === avatar ? seed : avatarSeeds(1)[0]!,
+			seed === avatar ? seed : crypto.randomUUID().slice(0, 8),
 		);
 	}
-
-	const back = $derived(profilesPath(safeRedirect(page.url), true));
 </script>
 
 <svelte:head>
@@ -30,7 +27,6 @@
 <main>
 	<form
 		method="POST"
-		action="?/save"
 		use:enhance={() => {
 			pending = true;
 			return async ({ update }) => {
@@ -86,7 +82,7 @@
 			<button class="primary" type="submit" disabled={pending}
 				>{pending ? "Saving…" : "Save"}</button
 			>
-			<a class="secondary" href={back}>Cancel</a>
+			<a class="secondary" href="/profiles{page.url.search}">Cancel</a>
 		</div>
 	</form>
 </main>
@@ -169,7 +165,6 @@
 		border: none;
 	}
 
-	/* Floated, a legend lays out as a grid item like the rest. */
 	legend {
 		float: left;
 		padding: 0;

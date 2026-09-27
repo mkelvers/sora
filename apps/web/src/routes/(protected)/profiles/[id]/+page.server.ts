@@ -1,7 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { avatarSeeds, profilesPath, safeRedirect } from '$lib/utils';
 import type { Actions, PageServerLoad } from './$types';
 
 const Changes = z.object({
@@ -17,12 +16,12 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 	return {
 		profile,
-		choices: avatarSeeds(11)
+		choices: Array.from({ length: 11 }, () => crypto.randomUUID().slice(0, 8))
 	};
 };
 
 export const actions: Actions = {
-	save: async ({ request, locals, params, url }) => {
+	default: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '');
 		const changes = Changes.safeParse({
@@ -46,6 +45,6 @@ export const actions: Actions = {
 			throw cause;
 		}
 
-		redirect(303, profilesPath(safeRedirect(url), true));
+		redirect(303, `/profiles${url.search}`);
 	}
 };

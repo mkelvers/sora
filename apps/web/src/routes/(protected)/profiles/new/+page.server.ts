@@ -1,7 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { SoraError } from '@sora/sdk';
 import { z } from 'zod';
-import { profilesPath, safeRedirect } from '$lib/utils';
 import type { Actions } from './$types';
 
 const Name = z.string().trim().min(1).max(40);
@@ -30,6 +29,6 @@ export const actions: Actions = {
 			throw cause;
 		}
 
-		redirect(303, profilesPath(safeRedirect(url)));
+		redirect(303, `/profiles${url.search}`);
 	}
 };

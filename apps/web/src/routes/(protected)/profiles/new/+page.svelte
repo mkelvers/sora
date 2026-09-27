@@ -6,13 +6,6 @@
 	let { form }: PageProps = $props();
 
 	let pending = $state(false);
-
-	const back = $derived.by(() => {
-		const redirect = page.url.searchParams.get("redirect");
-		return redirect
-			? `/profiles?redirect=${encodeURIComponent(redirect)}`
-			: "/profiles";
-	});
 </script>
 
 <svelte:head>
@@ -54,7 +47,7 @@
 			<button class="primary" type="submit" disabled={pending}>
 				{pending ? "Adding…" : "Add profile"}
 			</button>
-			<a class="secondary" href={back}>Cancel</a>
+			<a class="secondary" href="/profiles{page.url.search}">Cancel</a>
 		</div>
 	</form>
 </main>
