@@ -6,10 +6,20 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Icon from "$lib/components/ui/Icon.svelte";
 
-	let { profile, profiles }: { profile: Profile; profiles: Profile[] } = $props();
+	let {
+		profile,
+		profiles,
+	}: {
+		profile: Profile;
+		profiles: Profile[];
+	} = $props();
 
-	const others = $derived(profiles.filter((other) => other.id !== profile.id));
-	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
+	const others = $derived(
+		profiles.filter((other) => other.id !== profile.id),
+	);
+	const here = $derived(
+		encodeURIComponent(page.url.pathname + page.url.search),
+	);
 </script>
 
 <header>
@@ -32,7 +42,13 @@
 		</a>
 
 		{#each others as other (other.id)}
-			<Button class="item" type="submit" form="switch" name="profile" value={other.id}>
+			<Button
+				class="item"
+				type="submit"
+				form="switch"
+				name="profile"
+				value={other.id}
+			>
 				<Avatar seed={other.avatar} plain class="item-avatar" />
 				{other.name}
 			</Button>
@@ -48,7 +64,12 @@
 		</Button>
 	</Dropdown>
 
-	<form id="switch" method="POST" action="/profiles?/select&redirect={here}" hidden></form>
+	<form
+		id="switch"
+		method="POST"
+		action="/profiles?/select&redirect={here}"
+		hidden
+	></form>
 	<form id="sign-out" method="POST" action="/logout" hidden></form>
 </header>
 
@@ -84,13 +105,14 @@
 
 	header :global(.search:hover),
 	header :global(.dropdown-trigger:hover),
-	header :global(.dropdown:has(.dropdown-menu:popover-open) .dropdown-trigger) {
+	header
+		:global(.dropdown:has(.dropdown-menu:popover-open) .dropdown-trigger) {
 		background: #151515;
 		color: #fff;
 	}
 
 	header :global(.trigger-avatar) {
-		width: 32px;
+		width: 36px;
 	}
 
 	header :global(.account) {
@@ -119,7 +141,7 @@
 	}
 
 	.current :global(.current-avatar) {
-		width: 40px;
+		width: 44px;
 	}
 
 	.name {
@@ -166,7 +188,7 @@
 	}
 
 	header :global(.item-avatar) {
-		width: 28px;
-		margin: 0 -4px;
+		width: 32px;
+		margin: 0 -6px;
 	}
 </style>
