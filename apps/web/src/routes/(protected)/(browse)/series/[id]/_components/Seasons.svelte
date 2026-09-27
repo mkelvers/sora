@@ -9,32 +9,32 @@
 		season: Season;
 	};
 
-	let { seasons, season = $bindable() }: Props = $props();
+	let {
+		seasons,
+		season = $bindable(),
+	}: Props = $props();
 </script>
 
 <div class="seasons">
 	<Dropdown id="seasons" class="menu" role="menu" aria-label="Seasons">
 		{#snippet trigger()}
-			{season.title}
-			<Icon name="expand" size="sm" />
+			<Icon name="expand" size="md" />
+			<span class="current">{season.title}</span>
 		{/snippet}
 
 		{#each seasons as other (other.id)}
-			{@const checked = other.id === season.id}
 			<Button
 				role="menuitemradio"
-				aria-checked={checked}
+				aria-checked={other.id === season.id}
 				popovertarget="seasons"
 				popovertargetaction="hide"
 				onclick={() => (season = other)}
 			>
-				<span class="check">
-					{#if checked}
-						<Icon name="check" size="sm" />
-					{/if}
-				</span>
 				<span class="title">{other.title}</span>
-				<span class="count">{other.episode_count}</span>
+				<span class="count">
+					{other.episode_count}
+					{other.episode_count === 1 ? "Episode" : "Episodes"}
+				</span>
 			</Button>
 		{/each}
 	</Dropdown>
@@ -45,35 +45,42 @@
 		min-width: 0;
 	}
 
-	.seasons :global(.dropdown-trigger) {
-		max-width: 100%;
-		padding: 7px 8px 7px 12px;
-		background: rgb(255 255 255 / 0.06);
-		color: #e6e6e6;
-		font-size: 15px;
-	}
-
+	.seasons :global(.dropdown-trigger),
 	.seasons :global(.dropdown-trigger:hover),
+	.seasons :global(.dropdown-trigger:focus-visible),
 	.seasons:has(:popover-open) :global(.dropdown-trigger) {
-		background: rgb(255 255 255 / 0.1);
+		gap: 2px;
+		max-width: 100%;
+		padding: 4px 0;
+		background: none;
+		color: #fff;
+		font-size: 18px;
+		outline: none;
 	}
 
-	.seasons :global(.dropdown-trigger svg) {
-		color: #999;
+	.current {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.seasons :global(.menu) {
-		max-width: min(420px, calc(100vw - 32px));
+		width: max-content;
+		max-width: min(440px, calc(100vw - 32px));
 		max-height: min(60vh, 480px);
 		overflow: hidden auto;
 	}
 
-	.check {
-		display: inline-grid;
-		flex: none;
-		place-items: center;
-		width: 16px;
-		height: 16px;
+	.seasons :global(.menu > .button) {
+		gap: 24px;
+		padding: 12px 20px;
+		color: #888;
+		font-size: 15px;
+	}
+
+	.seasons :global(.menu > .button[aria-checked="true"]),
+	.seasons :global(.menu > .button:hover),
+	.seasons :global(.menu > .button:focus-visible) {
+		color: #fff;
 	}
 
 	.title {
@@ -83,8 +90,6 @@
 
 	.count {
 		margin-left: auto;
-		padding-left: 16px;
-		color: #666;
 		font-size: 12px;
 		font-variant-numeric: tabular-nums;
 	}
