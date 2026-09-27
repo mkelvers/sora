@@ -93,7 +93,15 @@
 					<span>{episode.runtime_minutes}m</span>
 					<span>Ends at {ends}</span>
 				{/if}
-				{#if episode.air_date}
+				{#if episode.aired_at}
+					<span
+						>{new Date(episode.aired_at).toLocaleDateString("en-GB", {
+							day: "numeric",
+							month: "long",
+							year: "numeric",
+						})}</span
+					>
+				{:else if episode.air_date}
 					<span
 						>{new Date(episode.air_date).toLocaleDateString("en-GB", {
 							day: "numeric",

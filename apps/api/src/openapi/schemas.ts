@@ -244,7 +244,13 @@ export const SeasonEpisodeSchema = z
     title: z.string().nullable(),
     overview: z.string().nullable(),
     air_date: z.string().nullable().openapi({
+      description: "YYYY-MM-DD, in the calendar of the country the episode aired in.",
       example: "2018-10-02"
+    }),
+    aired_at: z.string().nullable().openapi({
+      description:
+        "ISO 8601 timestamp of the broadcast, to show in the viewer's time zone. Null when it is not known, as for most older anime; air_date is then the only date known.",
+      example: "2018-10-02T15:00:00.000Z"
     }),
     runtime_minutes: z.number().int().nullable(),
     still_url: z.string().nullable(),
