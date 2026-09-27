@@ -7,8 +7,7 @@
     import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
     import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
     import { cn } from '$lib/utils';
-    import Button from '$lib/components/ui/button/Button.svelte';
-    import { m } from '$lib/i18n.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
 
     interface CarouselState {
         active: number;
@@ -124,7 +123,7 @@
         <Button
             type="button"
             class="absolute top-1/2 left-0 z-30 grid size-12 -translate-y-1/2 place-items-center text-white drop-shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-white"
-            aria-label={m.shared_previous()}
+            aria-label="Previous"
             onclick={() => emblaApi?.scrollPrev()}
         >
             <CaretLeftIcon size="1.65rem" weight="bold" aria-hidden="true" />
@@ -135,7 +134,7 @@
         <Button
             type="button"
             class="absolute top-1/2 right-0 z-30 grid size-12 -translate-y-1/2 place-items-center text-white drop-shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-white"
-            aria-label={m.shared_next()}
+            aria-label="Next"
             onclick={() => emblaApi?.scrollNext()}
         >
             <CaretRightIcon size="1.65rem" weight="bold" aria-hidden="true" />
