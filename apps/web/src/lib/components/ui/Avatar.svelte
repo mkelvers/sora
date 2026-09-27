@@ -41,7 +41,8 @@
 			return new Avatar(style, options).toDataUri();
 		}
 
-		const variant = new Avatar(style, options).toJSON().options.plantVariant;
+		const variant = new Avatar(style, options).toJSON().options
+			.plantVariant;
 		const top = tops[String(variant)] ?? tops.flower;
 
 		return new Avatar(style, {
