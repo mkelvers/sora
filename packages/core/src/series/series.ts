@@ -5,7 +5,7 @@ import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queri
 import { AnimeNotFoundError } from "../errors";
 import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
-import { mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
+import { entriesMappedTo, mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
 import { layoutShowSeasons, layoutStandaloneSeason, type SeasonMember, type SeriesSeason } from "./seasons";
 
 /**
@@ -136,7 +136,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
     throw new TypeError("Mapping one entry yields one mapped entry");
   }
 
-  const { members, outsiders } = await walkFranchise(origin);
+  const { members, outsiders } = await walkFranchise(origin, await sameTitleEntries(origin));
 
   const related = new Map<SeriesKey, MappedEntry[]>();
   for (const outsider of outsiders) {
@@ -168,24 +168,44 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 }
 
 /**
- * Walks the franchise outward from `origin`, collecting the entries that
- * belong to its series and the neighbouring entries that do not.
+ * The other entries already mapped to the TMDB title `origin` belongs to,
+ * that belong to its series too.
+ *
+ * Every entry in one TMDB title belongs to one series, but AniList does not
+ * always relate them: a bonus short may name only the show as its parent,
+ * not the film it came with. A layout that walked relations alone would
+ * leave such an entry out, and laying that entry out would take the series
+ * back without the first, so the two would take turns holding it.
+ */
+async function sameTitleEntries(origin: MappedEntry): Promise<MappedEntry[]> {
+  const [kind, tmdbId] = parseKey(origin.key);
+  if (kind === "anilist") {
+    return [];
+  }
+
+  const ids = (await entriesMappedTo(kind === "movie" ? "movie" : "tv", tmdbId)).filter((id) => id !== origin.entry.id);
+  const mapped = await mapEntries([...(await loadEntries(ids)).values()]);
+  return mapped.filter((sibling) => sibling.key === origin.key);
+}
+
+/**
+ * Walks the franchise outward from `origin` and the `siblings` known to
+ * share its series, collecting the entries that belong to its series and
+ * the neighbouring entries that do not.
  *
  * Members are expanded through every franchise relation. Other entries are
  * followed only along sequels and prequels, and at most
  * {@link outsiderHops} steps from the series, which finds film trilogies and
  * a season whose only link is a film without crossing the whole franchise.
  */
-async function walkFranchise(origin: MappedEntry) {
+async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry[]) {
   const members: MappedEntry[] = [];
   const outsiders: MappedEntry[] = [];
-  const visited = new Set([origin.entry.id]);
-  let layer = [
-    {
-      mapped: origin,
-      hops: 0
-    }
-  ];
+  const visited = new Set([origin.entry.id, ...siblings.map((sibling) => sibling.entry.id)]);
+  let layer = [origin, ...siblings].map((mapped) => ({
+    mapped,
+    hops: 0
+  }));
 
   while (layer.length > 0) {
     const next = new Map<number, number>();
