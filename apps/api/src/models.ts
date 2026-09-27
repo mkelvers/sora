@@ -4,7 +4,7 @@
  */
 import type { z } from "@hono/zod-openapi";
 
-import type { CountMetaSchema, PageMetaSchema } from "./openapi/envelope";
+import type { CountMetaSchema, PageMetaSchema, PreparingTitleSchema } from "./openapi/envelope";
 import type { getSchedule, getSeason, getSeries, getSeriesProgress, listSeasonEpisodes } from "./openapi/routes";
 import type {
   ContinueWatchingItemSchema,
@@ -38,6 +38,7 @@ export type SeasonCompletion = z.infer<typeof SeasonCompletionSchema>;
 export type TitleProgress = z.infer<typeof TitleProgressSchema>;
 export type ContinueWatchingItem = z.infer<typeof ContinueWatchingItemSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
+export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
 
 /** A season as `getSeries` returns it with `episodes=true`. */

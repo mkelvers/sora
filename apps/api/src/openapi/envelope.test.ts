@@ -55,7 +55,8 @@ describe("pageMeta", () => {
       has_next_page: true,
       next: "/v1/search?q=frieren&per_page=10&page=3",
       previous: "/v1/search?q=frieren&per_page=10&page=1",
-      preparing: false
+      preparing: false,
+      preparing_titles: []
     });
   });
 
@@ -70,5 +71,33 @@ describe("pageMeta", () => {
     expect(meta.next).toBeNull();
     expect(meta.previous).toBeNull();
     expect(meta.preparing).toBe(true);
+  });
+
+  test("lists the titles being prepared in snake_case, where they are expected", () => {
+    const meta = pageMeta("https://api.example/v1/search?q=insomniacs", {
+      page: 1,
+      perPage: 24,
+      hasNextPage: false,
+      isPreparing: true,
+      preparing: [
+        {
+          anilistId: 143653,
+          title: "Insomniacs After School",
+          format: "TV",
+          year: 2023,
+          position: 0
+        }
+      ]
+    });
+
+    expect(meta.preparing_titles).toEqual([
+      {
+        anilist_id: 143653,
+        title: "Insomniacs After School",
+        format: "TV",
+        year: 2023,
+        position: 0
+      }
+    ]);
   });
 });

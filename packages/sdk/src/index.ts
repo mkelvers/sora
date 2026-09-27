@@ -31,6 +31,7 @@ export type {
   PageMeta,
   PlaybackMedia,
   PlaybackMeta,
+  PreparingTitle,
   Profile,
   ScheduledEpisode,
   ScheduleMeta,
