@@ -11,11 +11,21 @@
 
 	let { data, form }: PageProps = $props();
 
-	let avatar = $derived(data.profile.avatar);
+	let selected = $derived(`${data.profile.avatar.style}:${data.profile.avatar.seed}`);
 	let choices = $derived(data.choices);
 	let pending = $state(false);
 
-	const shown = $derived([...new Set([data.profile.avatar, ...choices])]);
+	const shown = $derived(
+		[data.profile.avatar, ...choices]
+			.map((avatar) => ({
+				avatar,
+				key: `${avatar.style}:${avatar.seed}`,
+			}))
+			.filter(({ key }, index, all) => all.findIndex((other) => other.key === key) === index),
+	);
+	const current = $derived(
+		shown.find(({ key }) => key === selected)?.avatar ?? data.profile.avatar,
+	);
 </script>
 
 <svelte:head>
@@ -38,7 +48,7 @@
 	<h1 class="text-3xl font-normal">Edit profile</h1>
 
 	<div class="mt-10 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-6">
-		<Avatar seed={avatar} class="size-24" />
+		<Avatar avatar={current} class="size-24" />
 		<div>
 			<label class="block text-sm text-muted" for="name">Name</label>
 			<Input
@@ -60,8 +70,13 @@
 				variant="ghost"
 				class="min-h-9 px-3 text-xs font-bold text-muted uppercase hover:text-foreground"
 				onclick={() =>
-					(choices = choices.map((seed) =>
-						seed === avatar ? seed : crypto.randomUUID().slice(0, 8),
+					(choices = choices.map((choice) =>
+						`${choice.style}:${choice.seed}` === selected
+							? choice
+							: {
+									style: choice.style,
+									seed: crypto.randomUUID().slice(0, 8),
+								},
 					))}
 			>
 				<ShuffleIcon size="1rem" aria-hidden="true" />
@@ -70,12 +85,12 @@
 		</div>
 
 		<div class="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6">
-			{#each shown as seed (seed)}
+			{#each shown as { avatar, key } (key)}
 				<label
 					class="cursor-pointer outline-2 outline-offset-2 outline-transparent transition-[outline-color] hover:outline-border-strong has-checked:outline-accent"
 				>
-					<input class="sr-only" type="radio" name="avatar" value={seed} bind:group={avatar} />
-					<Avatar {seed} class="w-full" />
+					<input class="sr-only" type="radio" name="avatar" value={key} bind:group={selected} />
+					<Avatar {avatar} class="w-full" />
 				</label>
 			{/each}
 		</div>

@@ -6,7 +6,21 @@ import type { Actions, PageServerLoad } from "./$types";
 
 const Changes = z.object({
 	name: z.string().trim().min(1).max(40),
-	avatar: z.string().trim().min(1).max(64),
+	avatar: z
+		.string()
+		.transform((value) => {
+			const [style, ...seed] = value.split(":");
+			return {
+				style,
+				seed: seed.join(":"),
+			};
+		})
+		.pipe(
+			z.object({
+				style: z.enum(["sprouts", "critters"]),
+				seed: z.string().trim().min(1).max(64),
+			}),
+		),
 });
 
 export const load: PageServerLoad = ({ locals, params }) => {
@@ -21,7 +35,10 @@ export const load: PageServerLoad = ({ locals, params }) => {
 			{
 				length: 11,
 			},
-			() => crypto.randomUUID().slice(0, 8),
+			(_, index) => ({
+				style: index % 2 === 0 ? ("critters" as const) : ("sprouts" as const),
+				seed: crypto.randomUUID().slice(0, 8),
+			}),
 		),
 	};
 };

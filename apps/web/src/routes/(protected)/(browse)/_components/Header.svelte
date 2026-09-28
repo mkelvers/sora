@@ -35,7 +35,7 @@
 			>
 				<Dropdown className="w-[min(21rem,calc(100vw-1rem))] bg-header-hover *:p-0">
 					{#snippet trigger()}
-						<Avatar seed={profile.avatar} class="size-8" />
+						<Avatar avatar={profile.avatar} class="size-8" />
 						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
@@ -45,7 +45,7 @@
 								href="/profiles/{profile.id}"
 								class="flex min-h-14 items-center gap-3 px-5 py-2 transition-colors focus:bg-header focus:outline-none"
 							>
-								<Avatar seed={profile.avatar} class="size-9" />
+								<Avatar avatar={profile.avatar} class="size-9" />
 								<span class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
 									{profile.name}
 								</span>
@@ -60,7 +60,7 @@
 									value={other.id}
 									class={item}
 								>
-									<Avatar seed={other.avatar} class="size-7" />
+									<Avatar avatar={other.avatar} class="size-7" />
 									{other.name}
 								</Button>
 							{/each}

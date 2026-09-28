@@ -59,7 +59,7 @@
 						>
 							<span class="relative grid size-32 place-items-center sm:size-36">
 								<Avatar
-									seed={profile.avatar}
+									avatar={profile.avatar}
 									class="size-full opacity-40 transition-opacity group-hover:opacity-60"
 								/>
 								<PencilSimpleIcon
@@ -92,7 +92,7 @@
 							class="group flex w-32 cursor-pointer flex-col items-center gap-3 sm:w-36"
 						>
 							<Avatar
-								seed={profile.avatar}
+								avatar={profile.avatar}
 								class="size-32 outline-2 outline-offset-4 outline-transparent transition-[outline-color] group-hover:outline-foreground group-focus-visible:outline-foreground sm:size-36"
 							/>
 							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground"

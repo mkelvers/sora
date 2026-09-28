@@ -1,9 +1,12 @@
 <script lang="ts" module>
 	import { cn } from "$lib/utils";
 	import { Avatar, Style } from "@dicebear/core";
-	import avatar from "@dicebear/styles/sprouts.json";
+	import crittersDefinition from "@dicebear/styles/critters.json";
+	import sproutsDefinition from "@dicebear/styles/sprouts.json";
+	import type { ProfileAvatar } from "@sora/sdk";
 
-	const style = new Style(avatar);
+	const sprouts = new Style(sproutsDefinition);
+	const critters = new Style(crittersDefinition);
 
 	const tops: Record<string, number> = {
 		ball: 25.5,
@@ -25,22 +28,29 @@
 
 <script lang="ts">
 	type Props = {
-		seed: string;
+		avatar: ProfileAvatar;
 		class?: string;
 	};
 
-	let { seed, class: className }: Props = $props();
+	let { avatar, class: className }: Props = $props();
 
 	const src = $derived.by(() => {
 		const options = {
-			seed,
+			seed: avatar.seed,
 			animationVariant: "fastest",
 		} as const;
 
-		const variant = new Avatar(style, options).toJSON().options.plantVariant;
+		if (avatar.style === "critters") {
+			return new Avatar(critters, {
+				...options,
+				backgroundColor: [],
+			}).toDataUri();
+		}
+
+		const variant = new Avatar(sprouts, options).toJSON().options.plantVariant;
 		const top = tops[String(variant)] ?? tops.flower;
 
-		return new Avatar(style, {
+		return new Avatar(sprouts, {
 			...options,
 			backgroundColor: [],
 			scale,
