@@ -131,11 +131,6 @@ export const storeSeriesTask = "store-series";
  */
 export const storeSeriesNowTask = "store-series-now";
 
-/** What {@link storeSeriesTask} is asked to store. */
-export interface StoreSeriesPayload {
-	anilistId: number;
-}
-
 /**
  * How soon a series should be stored. graphile-worker runs lower numbers
  * first.
@@ -259,11 +254,6 @@ export const lookUpEpisodesTask = "look-up-episodes";
 
 /** {@link lookUpEpisodesTask} for episodes a viewer is waiting on; see {@link storeSeriesNowTask}. */
 export const lookUpEpisodesNowTask = "look-up-episodes-now";
-
-/** What {@link lookUpEpisodesTask} is asked to look up. */
-export interface LookUpEpisodesPayload {
-	anilistId: number;
-}
 
 /**
  * Queues looking an AniList entry up on every stream provider and storing
