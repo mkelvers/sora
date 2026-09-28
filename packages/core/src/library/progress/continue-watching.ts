@@ -15,53 +15,56 @@ import { loadCheckpoints, loadTitles } from "./titles";
  * dismissed from the row and has not played since.
  */
 export async function getContinueWatching(
-  userId: string,
-  options: {
-    limit?: number;
-    /** Only these titles, such as a title's page or a page of search results: at most one entry each. */
-    seriesIds?: readonly string[];
-  } = {}
+	userId: string,
+	options: {
+		limit?: number;
+		/** Only these titles, such as a title's page or a page of search results: at most one entry each. */
+		seriesIds?: readonly string[];
+	} = {},
 ): Promise<ContinueWatchingItem[]> {
-  const only = options.seriesIds;
-  if (only?.length === 0) {
-    return [];
-  }
+	const only = options.seriesIds;
+	if (only?.length === 0) {
+		return [];
+	}
 
-  const limit = options.limit ?? only?.length ?? 20;
-  const [checkpoints, hidden] = await Promise.all([
-    loadCheckpoints(userId, only),
-    hiddenTitles(userId, only)
-  ]);
+	const limit = options.limit ?? only?.length ?? 20;
+	const [checkpoints, hidden] = await Promise.all([
+		loadCheckpoints(userId, only),
+		hiddenTitles(userId, only),
+	]);
 
-  // Over-fetch, because some titles drop out once their episodes are known.
-  const candidates = [...checkpoints]
-    .filter(([seriesId, progress]) => {
-      const dismissedAt = hidden.dismissed.get(seriesId);
-      return !hidden.dropped.has(seriesId) && (dismissedAt === undefined || dismissedAt < progress[0]!.eventAt);
-    })
-    .slice(0, limit * 2);
-  if (candidates.length === 0) {
-    return [];
-  }
+	// Over-fetch, because some titles drop out once their episodes are known.
+	const candidates = [...checkpoints]
+		.filter(([seriesId, progress]) => {
+			const dismissedAt = hidden.dismissed.get(seriesId);
+			return (
+				!hidden.dropped.has(seriesId) &&
+				(dismissedAt === undefined || dismissedAt < progress[0]!.eventAt)
+			);
+		})
+		.slice(0, limit * 2);
+	if (candidates.length === 0) {
+		return [];
+	}
 
-  const titles = await loadTitles(candidates.map(([seriesId]) => seriesId));
-  const cards = await toSeriesCards([...titles.series.values()]);
+	const titles = await loadTitles(candidates.map(([seriesId]) => seriesId));
+	const cards = await toSeriesCards([...titles.series.values()]);
 
-  return candidates
-    .flatMap(([seriesId, progress]): ContinueWatchingItem[] => {
-      const card = cards.get(seriesId);
-      const point = card ? continuePoint(titles.episodes(seriesId), progress) : null;
-      return card && point
-        ? [
-            {
-              series: card,
-              ...point,
-              lastWatchedAt: progress[0]!.eventAt,
-            }
-          ]
-        : [];
-    })
-    .slice(0, limit);
+	return candidates
+		.flatMap(([seriesId, progress]): ContinueWatchingItem[] => {
+			const card = cards.get(seriesId);
+			const point = card ? continuePoint(titles.episodes(seriesId), progress) : null;
+			return card && point
+				? [
+						{
+							series: card,
+							...point,
+							lastWatchedAt: progress[0]!.eventAt,
+						},
+					]
+				: [];
+		})
+		.slice(0, limit);
 }
 
 /**
@@ -71,24 +74,21 @@ export async function getContinueWatching(
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 export async function dismissFromContinueWatching(userId: string, seriesId: string) {
-  await assertSeriesExists(seriesId);
-  const dismissedAt = new Date();
-  await db
-    .insert(continueWatchingDismissal)
-    .values({
-      userId,
-      seriesId,
-      dismissedAt,
-    })
-    .onConflictDoUpdate({
-      target: [
-        continueWatchingDismissal.userId,
-        continueWatchingDismissal.seriesId
-      ],
-      set: {
-        dismissedAt,
-      },
-    });
+	await assertSeriesExists(seriesId);
+	const dismissedAt = new Date();
+	await db
+		.insert(continueWatchingDismissal)
+		.values({
+			userId,
+			seriesId,
+			dismissedAt,
+		})
+		.onConflictDoUpdate({
+			target: [continueWatchingDismissal.userId, continueWatchingDismissal.seriesId],
+			set: {
+				dismissedAt,
+			},
+		});
 }
 
 /**
@@ -97,32 +97,32 @@ export async function dismissFromContinueWatching(userId: string, seriesId: stri
  * dropped title undrops it).
  */
 async function hiddenTitles(userId: string, seriesIds: readonly string[] | undefined) {
-  const [dismissed, dropped] = await Promise.all([
-    db
-      .select()
-      .from(continueWatchingDismissal)
-      .where(
-        and(
-          eq(continueWatchingDismissal.userId, userId),
-          seriesIds ? inArray(continueWatchingDismissal.seriesId, [...seriesIds]) : undefined
-        )
-      ),
-    db
-      .select({
-        seriesId: watchlistEntry.seriesId,
-      })
-      .from(watchlistEntry)
-      .where(
-        and(
-          eq(watchlistEntry.userId, userId),
-          seriesIds ? inArray(watchlistEntry.seriesId, [...seriesIds]) : undefined,
-          isNotNull(watchlistEntry.droppedAt)
-        )
-      )
-  ]);
+	const [dismissed, dropped] = await Promise.all([
+		db
+			.select()
+			.from(continueWatchingDismissal)
+			.where(
+				and(
+					eq(continueWatchingDismissal.userId, userId),
+					seriesIds ? inArray(continueWatchingDismissal.seriesId, [...seriesIds]) : undefined,
+				),
+			),
+		db
+			.select({
+				seriesId: watchlistEntry.seriesId,
+			})
+			.from(watchlistEntry)
+			.where(
+				and(
+					eq(watchlistEntry.userId, userId),
+					seriesIds ? inArray(watchlistEntry.seriesId, [...seriesIds]) : undefined,
+					isNotNull(watchlistEntry.droppedAt),
+				),
+			),
+	]);
 
-  return {
-    dismissed: new Map(dismissed.map((row) => [row.seriesId, row.dismissedAt.toISOString()])),
-    dropped: new Set(dropped.map((row) => row.seriesId)),
-  };
+	return {
+		dismissed: new Map(dismissed.map((row) => [row.seriesId, row.dismissedAt.toISOString()])),
+		dropped: new Set(dropped.map((row) => row.seriesId)),
+	};
 }
