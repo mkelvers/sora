@@ -10,21 +10,21 @@ import {
 } from "@sora/core/auth";
 import { getGenres } from "@sora/core/catalog";
 import {
-	addToWatchlist,
+	addToLibrary,
 	clearProgress,
 	dismissFromContinueWatching,
 	forgetEpisode,
 	getContinueWatching,
 	getHistory,
-	getLibraryTitle,
+	getLibrary,
+	getLibraryEntry,
 	getProgress,
 	getRecommendations,
-	getWatchlist,
 	importAniListList,
 	markWatched,
 	recordProgress,
-	removeFromWatchlist,
-	setDropped,
+	removeFromLibrary,
+	setLibraryStatus,
 } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
@@ -454,7 +454,6 @@ export const v1Routes = v1
 			episode: update.episode,
 			positionSeconds: update.position_seconds,
 			durationSeconds: update.duration_seconds,
-			completed: update.completed,
 			eventAt: update.event_at,
 		});
 		return c.body(null, 204);
@@ -476,6 +475,7 @@ export const v1Routes = v1
 			{
 				seriesId: series_id,
 				seasonId: body.season_id,
+				episode: body.episode,
 			},
 			body.watched,
 		);
@@ -489,55 +489,55 @@ export const v1Routes = v1
 		return c.body(null, 204);
 	})
 
-	.openapi(route.getWatchlist, async (c) => {
+	.openapi(route.getLibrary, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const watchlist = await getWatchlist(profile.id, {
+		const library = await getLibrary(profile.id, {
 			status: c.req.valid("query").status,
 		});
 		return c.json(
 			{
 				meta: {
-					count: watchlist.items.length,
-					counts: watchlist.counts,
-					preparing: watchlist.preparing,
+					count: library.items.length,
+					counts: library.counts,
+					preparing: library.preparing,
 				},
-				results: snakeCased(watchlist.items),
+				results: snakeCased(library.items),
 			},
 			200,
 		);
 	})
 
-	.openapi(route.getWatchlistEntry, async (c) => {
+	.openapi(route.getLibraryEntry, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		const title = await getLibraryTitle(profile.id, series_id);
+		const entry = await getLibraryEntry(profile.id, series_id);
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(title),
+				results: snakeCased(entry),
 			},
 			200,
 		);
 	})
 
-	.openapi(route.addToWatchlist, async (c) => {
+	.openapi(route.addToLibrary, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await addToWatchlist(profile.id, series_id);
+		await addToLibrary(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.updateWatchlistEntry, async (c) => {
+	.openapi(route.updateLibraryEntry, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await setDropped(profile.id, series_id, c.req.valid("json").dropped);
+		await setLibraryStatus(profile.id, series_id, c.req.valid("json").status);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.removeFromWatchlist, async (c) => {
+	.openapi(route.removeFromLibrary, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeFromWatchlist(profile.id, series_id);
+		await removeFromLibrary(profile.id, series_id);
 		return c.body(null, 204);
 	})
 

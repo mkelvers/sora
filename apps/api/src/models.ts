@@ -10,21 +10,21 @@ import type {
 	getSchedule,
 	getSeason,
 	getSeries,
+	getLibrary,
 	getSeriesProgress,
-	getWatchlist,
 	listSeasonEpisodes,
 } from "./openapi/routes";
 import type {
 	ContinueWatchingItemSchema,
-	CurrentSeasonSchema,
 	HistoryItemSchema,
 	ImportSummarySchema,
-	LibraryTitleSchema,
+	LibraryEntrySchema,
+	LibraryItemSchema,
+	LibraryStatusSchema,
 	NamedSeasonSchema,
-	WatchlistItemSchema,
-	WatchStatusSchema,
 	EpisodeProgressSchema,
-	SeasonCompletionSchema,
+	SeasonProgressSchema,
+	SeriesProgressSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
 	ProfileSchema,
@@ -49,14 +49,14 @@ export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type EpisodeProgress = z.infer<typeof EpisodeProgressSchema>;
-export type SeasonCompletion = z.infer<typeof SeasonCompletionSchema>;
+export type SeasonProgress = z.infer<typeof SeasonProgressSchema>;
+export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
 export type TitleProgress = z.infer<typeof TitleProgressSchema>;
 export type ContinueWatchingItem = z.infer<typeof ContinueWatchingItemSchema>;
-export type WatchStatus = z.infer<typeof WatchStatusSchema>;
+export type LibraryStatus = z.infer<typeof LibraryStatusSchema>;
 export type NamedSeason = z.infer<typeof NamedSeasonSchema>;
-export type CurrentSeason = z.infer<typeof CurrentSeasonSchema>;
-export type WatchlistItem = z.infer<typeof WatchlistItemSchema>;
-export type LibraryTitle = z.infer<typeof LibraryTitleSchema>;
+export type LibraryItem = z.infer<typeof LibraryItemSchema>;
+export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
 export type HistoryItem = z.infer<typeof HistoryItemSchema>;
 export type ImportSummary = z.infer<typeof ImportSummarySchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
@@ -93,7 +93,7 @@ export type SeasonMeta = SuccessBody<typeof getSeason>["meta"];
 export type SeasonEpisodesMeta = SuccessBody<typeof listSeasonEpisodes>["meta"];
 export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
 export type TitleProgressMeta = SuccessBody<typeof getSeriesProgress>["meta"];
-export type WatchlistMeta = SuccessBody<typeof getWatchlist>["meta"];
+export type LibraryMeta = SuccessBody<typeof getLibrary>["meta"];
 export type HistoryMeta = SuccessBody<typeof getHistory>["meta"];
 
 /** The body of every successful JSON response. */

@@ -9,15 +9,15 @@ import type { Profile } from "@sora/core/auth";
 import type { AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatchingItem,
-	CurrentSeason,
 	EpisodeProgress,
 	HistoryItem,
 	ImportSummary,
-	LibraryTitle,
-	SeasonCompletion,
+	LibraryEntry,
+	LibraryItem,
 	NamedSeason,
+	SeasonProgress,
+	SeriesProgress,
 	TitleProgress,
-	WatchlistItem,
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
@@ -441,31 +441,13 @@ export const EpisodeProgressSchema = z
 		episode: z.number().int(),
 		position_seconds: z.number(),
 		duration_seconds: z.number(),
-		completed: z.boolean(),
+		watched: z.boolean().openapi({
+			description:
+				"Whether the episode is watched: played to the end or marked. Playing it again does not take that back.",
+		}),
 		event_at: z.string(),
 	})
 	.openapi("EpisodeProgress") satisfies z.ZodType<SnakeCased<EpisodeProgress>>;
-
-export const SeasonCompletionSchema = z
-	.object({
-		season_id: z.string(),
-		completed_at: z.string().openapi({
-			description: "When its last episode was finished, as an ISO 8601 timestamp.",
-		}),
-	})
-	.openapi("SeasonCompletion") satisfies z.ZodType<SnakeCased<SeasonCompletion>>;
-
-export const TitleProgressSchema = z
-	.object({
-		completed_seasons: z.array(SeasonCompletionSchema).openapi({
-			description:
-				"Seasons watched to the end, in title order: those whose last episode is watched, once the season has finished airing. A season that gains episodes afterwards is no longer listed.",
-		}),
-		episodes: z.array(EpisodeProgressSchema).openapi({
-			description: "The checkpoint of every episode played or marked watched, in title order.",
-		}),
-	})
-	.openapi("TitleProgress") satisfies z.ZodType<SnakeCased<TitleProgress>>;
 
 export const ContinueWatchingItemSchema = z
 	.object({
@@ -482,6 +464,76 @@ export const ContinueWatchingItemSchema = z
 	})
 	.openapi("ContinueWatchingItem") satisfies z.ZodType<SnakeCased<ContinueWatchingItem>>;
 
+export const NamedSeasonSchema = z
+	.object({
+		season_id: z.string(),
+		title: z.string().openapi({
+			example: "Season 2",
+		}),
+	})
+	.openapi("NamedSeason") satisfies z.ZodType<SnakeCased<NamedSeason>>;
+
+export const SeasonProgressSchema = NamedSeasonSchema.extend({
+	watched_episodes: z.number().int(),
+	released_episodes: z.number().int().openapi({
+		description: "Released episodes of the season, extras aside.",
+	}),
+	completed: z.boolean().openapi({
+		description:
+			"Whether the season has finished airing and every episode of it is watched. It says nothing about the title's library status.",
+	}),
+}).openapi("SeasonProgress") satisfies z.ZodType<SnakeCased<SeasonProgress>>;
+
+const seriesProgressFields = {
+	seasons: z.array(SeasonProgressSchema).openapi({
+		description: "Every season with a released episode, in title order.",
+	}),
+	watched_episodes: z.number().int().openapi({
+		description: "Released episodes in watch order watched, extras aside.",
+	}),
+	released_episodes: z.number().int().openapi({
+		description: "Released episodes in watch order, extras aside.",
+	}),
+	caught_up: z.boolean().openapi({
+		description:
+			"Whether every released episode in watch order is watched. Unlike a `completed` status, a new episode or season takes it back.",
+	}),
+	next: z
+		.object({
+			season_id: z.string(),
+			episode: z.number().int(),
+			position_seconds: z.number().openapi({
+				description: "Where to seek to; 0 when starting the episode.",
+			}),
+			duration_seconds: z.number().nullable(),
+		})
+		.nullable()
+		.openapi({
+			description:
+				"Where to pick the title back up, as continue watching would, or null when there is nothing to continue.",
+		}),
+	new_season: NamedSeasonSchema.nullable().openapi({
+		description:
+			"A season the profile has not started that it can watch, such as one released since, offered once there is nothing to continue; otherwise null.",
+	}),
+	last_watched_at: z.string().nullable().openapi({
+		description: "When an episode was last played or marked, as an ISO 8601 timestamp.",
+	}),
+};
+
+export const SeriesProgressSchema = z
+	.object(seriesProgressFields)
+	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
+
+export const TitleProgressSchema = z
+	.object({
+		...seriesProgressFields,
+		episodes: z.array(EpisodeProgressSchema).openapi({
+			description: "The state of every episode played or marked watched, in title order.",
+		}),
+	})
+	.openapi("TitleProgress") satisfies z.ZodType<SnakeCased<TitleProgress>>;
+
 export const ProgressUpdateSchema = z
 	.object({
 		season_id: z.string().min(1),
@@ -491,10 +543,6 @@ export const ProgressUpdateSchema = z
 			.number()
 			.positive()
 			.max(24 * 60 * 60),
-		completed: z.boolean().optional().openapi({
-			description:
-				"Marks the episode watched or unwatched. When omitted, it counts as watched past 90%.",
-		}),
 		event_at: z.iso
 			.datetime({
 				offset: true,
@@ -514,63 +562,38 @@ export const ProgressUpdateSchema = z
 		},
 	});
 
-export const WatchStatusSchema = z
+export const LibraryStatusSchema = z
 	.enum(["planning", "watching", "completed", "dropped"])
-	.openapi("WatchStatus", {
+	.openapi("LibraryStatus", {
 		description:
-			"How far the profile is through a title, read from what it watched rather than stored, so it stays true as the title gains seasons. `planning`: nothing played. `watching`: more to watch of what it started. `completed`: every season it started is watched to the end; a season released later that it has not started does not change that. `dropped`: it gave up on the title, which only it can say.",
+			"The profile's relationship to a whole title, which only it sets: playing a `planning` title is the one thing that changes it, to `watching`. It is not read from progress, so a `completed` title stays completed when a new season comes out; see `caught_up` for that.",
 	});
 
-export const NamedSeasonSchema = z
-	.object({
-		season_id: z.string(),
-		title: z.string().openapi({
-			example: "Season 2",
-		}),
-	})
-	.openapi("NamedSeason") satisfies z.ZodType<SnakeCased<NamedSeason>>;
-
-export const CurrentSeasonSchema = NamedSeasonSchema.extend({
-	episode: z.number().int().nullable().openapi({
-		description: "The episode to play next, or null when there is none to continue.",
-	}),
-	watched_episodes: z.number().int(),
-	released_episodes: z.number().int().openapi({
-		description: "Released episodes of the season, extras aside.",
-	}),
-}).openapi("CurrentSeason") satisfies z.ZodType<SnakeCased<CurrentSeason>>;
-
-const titleStateFields = {
-	status: WatchStatusSchema,
-	dropped_at: z.string().nullable(),
-	current_season: CurrentSeasonSchema.nullable().openapi({
-		description:
-			"The season the profile would continue with, or else the one it played last; null before it played anything.",
-	}),
-	new_season: NamedSeasonSchema.nullable().openapi({
-		description:
-			"For a completed title, a season the profile has not started that it can watch, such as one released since; otherwise null.",
-	}),
-	last_watched_at: z.string().nullable(),
-};
-
-export const WatchlistItemSchema = z
+export const LibraryItemSchema = z
 	.object({
 		series: SeriesCardSchema,
+		status: LibraryStatusSchema,
 		added_at: z.string(),
-		...titleStateFields,
+		updated_at: z.string().openapi({
+			description: "When the status last changed.",
+		}),
+		progress: SeriesProgressSchema,
 	})
-	.openapi("WatchlistItem") satisfies z.ZodType<SnakeCased<WatchlistItem>>;
+	.openapi("LibraryItem") satisfies z.ZodType<SnakeCased<LibraryItem>>;
 
-export const LibraryTitleSchema = z
+export const LibraryEntrySchema = z
 	.object({
-		listed: z.boolean(),
+		status: LibraryStatusSchema.nullable().openapi({
+			description: "The title's status, or null when it is not in the library.",
+		}),
 		added_at: z.string().nullable(),
-		...titleStateFields,
+		updated_at: z.string().nullable().openapi({
+			description: "When the status last changed.",
+		}),
 	})
-	.openapi("LibraryTitle") satisfies z.ZodType<SnakeCased<LibraryTitle>>;
+	.openapi("LibraryEntry") satisfies z.ZodType<SnakeCased<LibraryEntry>>;
 
-export const WatchlistMetaSchema = z
+export const LibraryMetaSchema = z
 	.object({
 		count: z.number().int().nonnegative(),
 		counts: z
@@ -581,29 +604,34 @@ export const WatchlistMetaSchema = z
 				dropped: z.number().int().nonnegative(),
 			})
 			.openapi({
-				description: "How many listed titles are in each status, whatever `status` filters.",
+				description: "How many titles have each status, whatever `status` filters.",
 			}),
 		preparing: z.number().int().nonnegative().openapi({
 			description:
-				"Imported titles Sora is still preparing, which join the list once they are. Ask again later to include them.",
+				"Imported titles Sora is still preparing, which join the library once they are. Ask again later to include them.",
 		}),
 	})
-	.openapi("WatchlistMeta");
+	.openapi("LibraryMeta");
 
-export const WatchlistChangeSchema = z
+export const LibraryChangeSchema = z
 	.object({
-		dropped: z.boolean().openapi({
-			description: "Marks the title dropped, or takes that back. Playing it again also undrops it.",
-		}),
+		status: LibraryStatusSchema,
 	})
-	.openapi("WatchlistChange");
+	.openapi("LibraryChange");
 
 export const MarkWatchedSchema = z
 	.object({
 		season_id: z.string().min(1).optional().openapi({
 			description: "Only this season; every season in watch order when omitted.",
 		}),
+		episode: z.number().int().positive().optional().openapi({
+			description: "Only this episode of `season_id`.",
+		}),
 		watched: z.boolean(),
+	})
+	.refine((body) => body.episode === undefined || body.season_id !== undefined, {
+		message: "An episode needs its season",
+		path: ["season_id"],
 	})
 	.openapi("MarkWatched");
 
@@ -614,10 +642,11 @@ export const HistoryItemSchema = z
 		season_title: z.string(),
 		episode: z.number().int(),
 		episode_title: z.string().nullable(),
-		position_seconds: z.number(),
+		position_seconds: z.number().openapi({
+			description: "How far its latest playback got.",
+		}),
 		duration_seconds: z.number(),
-		completed: z.boolean(),
-		watched_at: z.string().openapi({
+		played_at: z.string().openapi({
 			description: "When the episode was last played, as an ISO 8601 timestamp.",
 		}),
 	})
@@ -652,7 +681,7 @@ export const ImportSummarySchema = z
 		}),
 		preparing: z.number().int().openapi({
 			description:
-				"Entries whose titles Sora is still preparing; they join the watchlist once they are.",
+				"Entries whose titles Sora is still preparing; they join the library once they are.",
 		}),
 	})
 	.openapi("ImportSummary") satisfies z.ZodType<SnakeCased<ImportSummary>>;
