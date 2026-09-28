@@ -4,10 +4,11 @@ import { z } from "zod";
 import { db } from "../database/client";
 import {
 	continueWatchingDismissal,
+	libraryEntry,
+	libraryImport,
+	playbackHistory,
 	playbackProgress,
 	profile,
-	watchlistEntry,
-	watchlistImport,
 } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
@@ -131,7 +132,7 @@ export async function updateProfile(
 }
 
 /**
- * Deletes a profile with its progress and watchlist.
+ * Deletes a profile with its library, progress, and history.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  * @throws {@link LastProfileError} when it is the account's only profile.
@@ -152,8 +153,9 @@ export async function deleteProfile(userId: string, profileId: string) {
 		}
 
 		await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
-		await tx.delete(watchlistEntry).where(eq(watchlistEntry.userId, profileId));
-		await tx.delete(watchlistImport).where(eq(watchlistImport.userId, profileId));
+		await tx.delete(playbackHistory).where(eq(playbackHistory.userId, profileId));
+		await tx.delete(libraryEntry).where(eq(libraryEntry.userId, profileId));
+		await tx.delete(libraryImport).where(eq(libraryImport.userId, profileId));
 		await tx
 			.delete(continueWatchingDismissal)
 			.where(eq(continueWatchingDismissal.userId, profileId));
