@@ -3,11 +3,23 @@ import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
-import { continueWatchingDismissal, series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason, watchlistEntry } from "../database/schema";
-import { scheduleEpisodeLookup, scheduleSeriesStore, startTrackingAiring } from "../scheduler/queue";
+import {
+	continueWatchingDismissal,
+	series,
+	seriesEntry,
+	seriesEpisode,
+	seriesRelated,
+	seriesSeason,
+	watchlistEntry,
+} from "../database/schema";
+import { newId } from "../ids";
+import {
+	scheduleEpisodeLookup,
+	scheduleSeriesStore,
+	startTrackingAiring,
+} from "../scheduler/queue";
 import { anilistEpisodeKey } from "./episodes";
 import { assignSeasonIds } from "./identity";
-import { newId } from "../ids";
 import type { SeriesSeason } from "./seasons";
 import { buildSeries, type SeriesLayout } from "./series";
 
@@ -25,16 +37,16 @@ const episodeInsertBatch = 1_000;
 
 /** The Sora IDs of the stored series containing the given AniList entries, by AniList ID. */
 export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
-  if (anilistIds.length === 0) {
-    return new Map();
-  }
+	if (anilistIds.length === 0) {
+		return new Map();
+	}
 
-  const rows = await db
-    .select()
-    .from(seriesEntry)
-    .where(inArray(seriesEntry.anilistId, [...new Set(anilistIds)]));
+	const rows = await db
+		.select()
+		.from(seriesEntry)
+		.where(inArray(seriesEntry.anilistId, [...new Set(anilistIds)]));
 
-  return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
+	return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
 }
 
 /**
@@ -56,130 +68,138 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export async function storeSeries(anilistId: number): Promise<string> {
-  const built = await buildSeries(anilistId);
-  const airings = await fetchEpisodeAirings(built.anilistIds);
-  const seriesId = await db.transaction((tx) => writeSeries(tx, built, airings));
+	const built = await buildSeries(anilistId);
+	const airings = await fetchEpisodeAirings(built.anilistIds);
+	const seriesId = await db.transaction((tx) => writeSeries(tx, built, airings));
 
-  // Readers take the series' details from its anchor entry, so it must be stored.
-  await getAnime(built.anchorAnilistId);
-  for (const id of built.airingIds) {
-    await startTrackingAiring(id);
-  }
+	// Readers take the series' details from its anchor entry, so it must be stored.
+	await getAnime(built.anchorAnilistId);
+	for (const id of built.airingIds) {
+		await startTrackingAiring(id);
+	}
 
-  // Episode listings read providers' episode lists from the database only.
-  for (const id of built.anilistIds) {
-    await scheduleEpisodeLookup(id, "backfill");
-  }
+	// Episode listings read providers' episode lists from the database only.
+	for (const id of built.anilistIds) {
+		await scheduleEpisodeLookup(id, "backfill");
+	}
 
-  const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
-  const storedRelated = await storedSeriesIds(relatedIds);
-  for (const id of relatedIds.filter((id) => !storedRelated.has(id))) {
-    await scheduleSeriesStore(id, "backfill");
-  }
+	const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
+	const storedRelated = await storedSeriesIds(relatedIds);
+	for (const id of relatedIds.filter((id) => !storedRelated.has(id))) {
+		await scheduleSeriesStore(id, "backfill");
+	}
 
-  return seriesId;
+	return seriesId;
 }
 
-async function writeSeries(tx: Transaction, built: SeriesLayout, airings: ReadonlyMap<string, Date>) {
-  await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey})`);
+async function writeSeries(
+	tx: Transaction,
+	built: SeriesLayout,
+	airings: ReadonlyMap<string, Date>,
+) {
+	await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey})`);
 
-  const seriesId = await chooseSeriesId(tx, built);
-  const owners = await tx
-    .selectDistinct({
-      seriesId: seriesEntry.seriesId,
-    })
-    .from(seriesEntry)
-    .where(or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)));
+	const seriesId = await chooseSeriesId(tx, built);
+	const owners = await tx
+		.selectDistinct({
+			seriesId: seriesEntry.seriesId,
+		})
+		.from(seriesEntry)
+		.where(
+			or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)),
+		);
 
-  // Entries leave whichever series held them; a series left empty is merged
-  // into this one. Former owners exist only when this series was stored too.
-  await tx.delete(seriesEntry).where(
-    or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId))
-  );
-  const formerOwners = owners.map((owner) => owner.seriesId).filter((id) => id !== seriesId);
-  const emptied =
-    formerOwners.length > 0
-      ? await tx
-          .select({
-            id: series.id,
-          })
-          .from(series)
-          .where(
-            and(
-              inArray(series.id, formerOwners),
-              sql`not exists (select 1 from ${seriesEntry} where ${seriesEntry.seriesId} = ${series.id})`
-            )
-          )
-      : [];
-  if (emptied.length > 0) {
-    await mergeWatchlists(
-      tx,
-      emptied.map((row) => row.id),
-      seriesId
-    );
-    await tx.delete(series).where(
-      inArray(
-        series.id,
-        emptied.map((row) => row.id)
-      )
-    );
-  }
+	// Entries leave whichever series held them; a series left empty is merged
+	// into this one. Former owners exist only when this series was stored too.
+	await tx
+		.delete(seriesEntry)
+		.where(
+			or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)),
+		);
+	const formerOwners = owners.map((owner) => owner.seriesId).filter((id) => id !== seriesId);
+	const emptied =
+		formerOwners.length > 0
+			? await tx
+					.select({
+						id: series.id,
+					})
+					.from(series)
+					.where(
+						and(
+							inArray(series.id, formerOwners),
+							sql`not exists (select 1 from ${seriesEntry} where ${seriesEntry.seriesId} = ${series.id})`,
+						),
+					)
+			: [];
+	if (emptied.length > 0) {
+		await mergeWatchlists(
+			tx,
+			emptied.map((row) => row.id),
+			seriesId,
+		);
+		await tx.delete(series).where(
+			inArray(
+				series.id,
+				emptied.map((row) => row.id),
+			),
+		);
+	}
 
-  const values = {
-    key: built.key,
-    kind: built.kind,
-    anchorAnilistId: built.anchorAnilistId,
-    title: built.title,
-    overview: built.overview,
-    posterUrl: built.posterUrl,
-    backdropUrl: built.backdropUrl,
-    logoUrl: built.logoUrl,
-    startDate: built.startDate,
-    status: built.status,
-    laidOutAt: new Date(),
-  };
-  await tx
-    .insert(series)
-    .values({
-      id: seriesId,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: series.id,
-      set: values,
-    });
+	const values = {
+		key: built.key,
+		kind: built.kind,
+		anchorAnilistId: built.anchorAnilistId,
+		title: built.title,
+		overview: built.overview,
+		posterUrl: built.posterUrl,
+		backdropUrl: built.backdropUrl,
+		logoUrl: built.logoUrl,
+		startDate: built.startDate,
+		status: built.status,
+		laidOutAt: new Date(),
+	};
+	await tx
+		.insert(series)
+		.values({
+			id: seriesId,
+			...values,
+		})
+		.onConflictDoUpdate({
+			target: series.id,
+			set: values,
+		});
 
-  await tx.insert(seriesEntry).values(
-    built.anilistIds.map((id) => ({
-      anilistId: id,
-      seriesId,
-    }))
-  );
+	await tx.insert(seriesEntry).values(
+		built.anilistIds.map((id) => ({
+			anilistId: id,
+			seriesId,
+		})),
+	);
 
-  const seasons = await writeSeasons(tx, seriesId, built, airings);
-  const next = nextEpisodeOf(seasons, built.nextAiring);
-  await tx
-    .update(series)
-    .set({
-      nextEpisodeSeasonId: next?.seasonId ?? null,
-      nextEpisodeNumber: next?.number ?? null,
-      nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null,
-    })
-    .where(eq(series.id, seriesId));
+	const seasons = await writeSeasons(tx, seriesId, built, airings);
+	const next = nextEpisodeOf(seasons, built.nextAiring);
+	await tx
+		.update(series)
+		.set({
+			nextEpisodeSeasonId: next?.seasonId ?? null,
+			nextEpisodeNumber: next?.number ?? null,
+			nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null,
+		})
+		.where(eq(series.id, seriesId));
 
-  await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, seriesId));
-  const related = built.related.flatMap((summary, position) =>
-    summary.anilistIds.slice(0, 1).map((anilistId) => ({
-      seriesId,
-      anilistId,
-      position,
-    }))
-  );
-  if (related.length > 0) {
-    await tx.insert(seriesRelated).values(related);
-  }
+	await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, seriesId));
+	const related = built.related.flatMap((summary, position) =>
+		summary.anilistIds.slice(0, 1).map((anilistId) => ({
+			seriesId,
+			anilistId,
+			position,
+		})),
+	);
+	if (related.length > 0) {
+		await tx.insert(seriesRelated).values(related);
+	}
 
-  return seriesId;
+	return seriesId;
 }
 
 /**
@@ -188,13 +208,17 @@ async function writeSeries(tx: Transaction, built: SeriesLayout, airings: Readon
  * user who listed several merged-away series keeps the most recently
  * changed one. Dismissals from "continue watching" move the same way.
  */
-async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[], toSeriesId: string) {
-  const from = sql.join(
-    fromSeriesIds.map((id) => sql`${id}`),
-    sql`, `
-  );
+async function mergeWatchlists(
+	tx: Transaction,
+	fromSeriesIds: readonly string[],
+	toSeriesId: string,
+) {
+	const from = sql.join(
+		fromSeriesIds.map((id) => sql`${id}`),
+		sql`, `,
+	);
 
-  await tx.execute(sql`
+	await tx.execute(sql`
     delete from watchlist_entry as moving
     where moving.series_id in (${from})
       and exists (
@@ -209,14 +233,14 @@ async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[]
           )
       )
   `);
-  await tx
-    .update(watchlistEntry)
-    .set({
-      seriesId: toSeriesId,
-    })
-    .where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
+	await tx
+		.update(watchlistEntry)
+		.set({
+			seriesId: toSeriesId,
+		})
+		.where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
 
-  await tx.execute(sql`
+	await tx.execute(sql`
     delete from continue_watching_dismissal as moving
     where moving.series_id in (${from})
       and exists (
@@ -231,12 +255,12 @@ async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[]
           )
       )
   `);
-  await tx
-    .update(continueWatchingDismissal)
-    .set({
-      seriesId: toSeriesId,
-    })
-    .where(inArray(continueWatchingDismissal.seriesId, [...fromSeriesIds]));
+	await tx
+		.update(continueWatchingDismissal)
+		.set({
+			seriesId: toSeriesId,
+		})
+		.where(inArray(continueWatchingDismissal.seriesId, [...fromSeriesIds]));
 }
 
 /**
@@ -245,39 +269,39 @@ async function mergeWatchlists(tx: Transaction, fromSeriesIds: readonly string[]
  * A layout that continues none gets a new ID.
  */
 async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
-  const candidates = await tx
-    .select({
-      id: series.id,
-      key: series.key,
-      anchorHeld: sql<boolean>`exists (
+	const candidates = await tx
+		.select({
+			id: series.id,
+			key: series.key,
+			anchorHeld: sql<boolean>`exists (
         select 1 from ${seriesEntry}
         where ${seriesEntry.seriesId} = ${series.id} and ${seriesEntry.anilistId} = ${built.anchorAnilistId}
       )`,
-      createdAt: series.createdAt,
-    })
-    .from(series)
-    .where(
-      or(
-        eq(series.key, built.key),
-        inArray(
-          series.id,
-          tx
-            .select({
-              id: seriesEntry.seriesId,
-            })
-            .from(seriesEntry)
-            .where(inArray(seriesEntry.anilistId, built.anilistIds))
-        )
-      )
-    )
-    .orderBy(series.createdAt);
+			createdAt: series.createdAt,
+		})
+		.from(series)
+		.where(
+			or(
+				eq(series.key, built.key),
+				inArray(
+					series.id,
+					tx
+						.select({
+							id: seriesEntry.seriesId,
+						})
+						.from(seriesEntry)
+						.where(inArray(seriesEntry.anilistId, built.anilistIds)),
+				),
+			),
+		)
+		.orderBy(series.createdAt);
 
-  const chosen =
-    candidates.find((candidate) => candidate.anchorHeld) ??
-    candidates.find((candidate) => candidate.key === built.key) ??
-    candidates[0];
+	const chosen =
+		candidates.find((candidate) => candidate.anchorHeld) ??
+		candidates.find((candidate) => candidate.key === built.key) ??
+		candidates[0];
 
-  return chosen?.id ?? newId();
+	return chosen?.id ?? newId();
 }
 
 /**
@@ -285,73 +309,82 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
  * with when AniList's airing schedule says it aired (see
  * {@link fetchEpisodeAirings}). Returns the seasons with their IDs.
  */
-async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayout, airings: ReadonlyMap<string, Date>) {
-  const stored = await tx
-    .select({
-      id: seriesSeason.id,
-      kind: seriesSeason.kind,
-      number: seriesSeason.number,
-      anchorAnilistId: seriesSeason.anchorAnilistId,
-    })
-    .from(seriesSeason)
-    .where(eq(seriesSeason.seriesId, seriesId));
+async function writeSeasons(
+	tx: Transaction,
+	seriesId: string,
+	built: SeriesLayout,
+	airings: ReadonlyMap<string, Date>,
+) {
+	const stored = await tx
+		.select({
+			id: seriesSeason.id,
+			kind: seriesSeason.kind,
+			number: seriesSeason.number,
+			anchorAnilistId: seriesSeason.anchorAnilistId,
+		})
+		.from(seriesSeason)
+		.where(eq(seriesSeason.seriesId, seriesId));
 
-  const seasons = assignSeasonIds(stored, built.seasons, newId);
-  const keptIds = seasons.map(({ id }) => id);
+	const seasons = assignSeasonIds(stored, built.seasons, newId);
+	const keptIds = seasons.map(({ id }) => id);
 
-  // Episodes are rewritten wholesale; they are identified by season and number.
-  await tx.delete(seriesSeason).where(
-    keptIds.length > 0
-      ? and(eq(seriesSeason.seriesId, seriesId), notInArray(seriesSeason.id, keptIds))
-      : eq(seriesSeason.seriesId, seriesId)
-  );
-  if (keptIds.length > 0) {
-    await tx.delete(seriesEpisode).where(inArray(seriesEpisode.seasonId, keptIds));
-  }
+	// Episodes are rewritten wholesale; they are identified by season and number.
+	await tx
+		.delete(seriesSeason)
+		.where(
+			keptIds.length > 0
+				? and(eq(seriesSeason.seriesId, seriesId), notInArray(seriesSeason.id, keptIds))
+				: eq(seriesSeason.seriesId, seriesId),
+		);
+	if (keptIds.length > 0) {
+		await tx.delete(seriesEpisode).where(inArray(seriesEpisode.seasonId, keptIds));
+	}
 
-  for (const [position, { season, id }] of seasons.entries()) {
-    const values = {
-      kind: season.kind,
-      number: season.number,
-      position,
-      title: season.title,
-      inWatchOrder: season.inWatchOrder,
-      anchorAnilistId: season.anime[0]?.id ?? null,
-    };
-    await tx
-      .insert(seriesSeason)
-      .values({
-        id,
-        seriesId,
-        ...values,
-      })
-      .onConflictDoUpdate({
-        target: seriesSeason.id,
-        set: values,
-      });
-  }
+	for (const [position, { season, id }] of seasons.entries()) {
+		const values = {
+			kind: season.kind,
+			number: season.number,
+			position,
+			title: season.title,
+			inWatchOrder: season.inWatchOrder,
+			anchorAnilistId: season.anime[0]?.id ?? null,
+		};
+		await tx
+			.insert(seriesSeason)
+			.values({
+				id,
+				seriesId,
+				...values,
+			})
+			.onConflictDoUpdate({
+				target: seriesSeason.id,
+				set: values,
+			});
+	}
 
-  const episodes = seasons.flatMap(({ season, id }) =>
-    season.episodes.map((episode) => ({
-      seasonId: id,
-      number: episode.number,
-      anilistId: episode.playback.anilistId,
-      anilistEpisode: episode.playback.episode,
-      title: episode.title,
-      overview: episode.overview,
-      airDate: episode.airDate,
-      airedAt: airings.get(anilistEpisodeKey(episode.playback.anilistId, episode.playback.episode)) ?? null,
-      runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
-      stillUrl: episode.stillUrl,
-      tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
-      tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
-    }))
-  );
-  for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
-    await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
-  }
+	const episodes = seasons.flatMap(({ season, id }) =>
+		season.episodes.map((episode) => ({
+			seasonId: id,
+			number: episode.number,
+			anilistId: episode.playback.anilistId,
+			anilistEpisode: episode.playback.episode,
+			title: episode.title,
+			overview: episode.overview,
+			airDate: episode.airDate,
+			airedAt:
+				airings.get(anilistEpisodeKey(episode.playback.anilistId, episode.playback.episode)) ??
+				null,
+			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
+			stillUrl: episode.stillUrl,
+			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
+			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
+		})),
+	);
+	for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
+		await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
+	}
 
-  return seasons;
+	return seasons;
 }
 
 /**
@@ -360,36 +393,36 @@ async function writeSeasons(tx: Transaction, seriesId: string, built: SeriesLayo
  * episodes, so the next one follows the latest listed one.
  */
 function nextEpisodeOf(
-  seasons: readonly {
-    season: SeriesSeason;
-    id: string;
-  }[],
-  nextAiring: SeriesLayout["nextAiring"]
+	seasons: readonly {
+		season: SeriesSeason;
+		id: string;
+	}[],
+	nextAiring: SeriesLayout["nextAiring"],
 ) {
-  if (!nextAiring) {
-    return null;
-  }
+	if (!nextAiring) {
+		return null;
+	}
 
-  const plays = (episode: SeriesSeason["episodes"][number], number: number) =>
-    episode.playback.anilistId === nextAiring.anilistId && episode.playback.episode === number;
+	const plays = (episode: SeriesSeason["episodes"][number], number: number) =>
+		episode.playback.anilistId === nextAiring.anilistId && episode.playback.episode === number;
 
-  for (const { season, id } of seasons) {
-    const listed = season.episodes.find((episode) => plays(episode, nextAiring.episode));
-    if (listed) {
-      return {
-        seasonId: id,
-        number: listed.number,
-      };
-    }
+	for (const { season, id } of seasons) {
+		const listed = season.episodes.find((episode) => plays(episode, nextAiring.episode));
+		if (listed) {
+			return {
+				seasonId: id,
+				number: listed.number,
+			};
+		}
 
-    const latest = season.episodes.find((episode) => plays(episode, nextAiring.episode - 1));
-    if (latest) {
-      return {
-        seasonId: id,
-        number: latest.number + 1,
-      };
-    }
-  }
+		const latest = season.episodes.find((episode) => plays(episode, nextAiring.episode - 1));
+		if (latest) {
+			return {
+				seasonId: id,
+				number: latest.number + 1,
+			};
+		}
+	}
 
-  return null;
+	return null;
 }
