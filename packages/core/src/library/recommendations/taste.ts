@@ -1,11 +1,11 @@
 import { popularityWeight } from "../../catalog/queries/search";
-import type { WatchStatus } from "../progress/resume";
+import type { LibraryStatus } from "../entries/entries";
 
 /**
- * How far a profile got through a title counts toward taste. A dropped
- * title counts against what it is like.
+ * The status a profile gave a title counts toward taste. A dropped title
+ * counts against what it is like.
  */
-const statusWeights: Record<WatchStatus, number> = {
+const statusWeights: Record<LibraryStatus, number> = {
 	completed: 2,
 	watching: 1.5,
 	planning: 0.5,
@@ -23,7 +23,8 @@ const votesShare = 0.65;
 
 /** What a profile did with a title, as taste sees it. */
 export interface TitleActivity {
-	status: WatchStatus | null;
+	/** The title's library status, or `null` when it is not in the library. */
+	status: LibraryStatus | null;
 	/** Episodes of the title played at all. */
 	episodesPlayed: number;
 	/** When the profile last played or listed the title. */

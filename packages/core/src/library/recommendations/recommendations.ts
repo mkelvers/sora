@@ -7,13 +7,12 @@ import {
 	playbackProgress,
 	series,
 	seriesEntry,
+	libraryEntry,
 	seriesRelated,
-	watchlistEntry,
 } from "../../database/schema";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
-import { getTitleStates } from "../watchlist/watchlist";
 import {
 	favoriteGenres,
 	rankCandidates,
@@ -37,7 +36,7 @@ const recommendedFormats = ["TV", "ONA", "MOVIE"] as const;
 
 /**
  * Suggests titles a profile has not seen, best fit first, from what it has
- * played and put on its watchlist.
+ * played and put in its library.
  *
  * Taste comes from AniList users' recommendations for those titles and from
  * the genres they share; see {@link rankCandidates}. Titles already played or
@@ -115,26 +114,26 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
 			.groupBy(seriesEntry.seriesId),
 		db
 			.select({
-				seriesId: watchlistEntry.seriesId,
-				updatedAt: watchlistEntry.updatedAt,
+				seriesId: libraryEntry.seriesId,
+				status: libraryEntry.status,
+				updatedAt: libraryEntry.updatedAt,
 			})
-			.from(watchlistEntry)
-			.where(eq(watchlistEntry.userId, userId)),
+			.from(libraryEntry)
+			.where(eq(libraryEntry.userId, userId)),
 	]);
 
 	const seriesIds = [...new Set([...played, ...listed].map((row) => row.seriesId))];
-	const states = await getTitleStates(userId, seriesIds);
 	const playedBySeries = new Map(played.map((row) => [row.seriesId, row]));
-	const listedAt = new Map(listed.map((row) => [row.seriesId, row.updatedAt]));
+	const listedBySeries = new Map(listed.map((row) => [row.seriesId, row]));
 
 	return new Map(
 		seriesIds.map((seriesId) => {
 			const lastPlayedAt = playedBySeries.get(seriesId)?.lastPlayedAt ?? new Date(0);
-			const changedAt = listedAt.get(seriesId) ?? new Date(0);
+			const changedAt = listedBySeries.get(seriesId)?.updatedAt ?? new Date(0);
 			return [
 				seriesId,
 				{
-					status: states.get(seriesId)?.status ?? null,
+					status: listedBySeries.get(seriesId)?.status ?? null,
 					episodesPlayed: playedBySeries.get(seriesId)?.episodes ?? 0,
 					lastActiveAt: lastPlayedAt > changedAt ? lastPlayedAt : changedAt,
 				},

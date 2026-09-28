@@ -5,12 +5,12 @@ import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import {
 	continueWatchingDismissal,
+	libraryEntry,
 	series,
 	seriesEntry,
 	seriesEpisode,
 	seriesRelated,
 	seriesSeason,
-	watchlistEntry,
 } from "../database/schema";
 import { newId } from "../ids";
 import {
@@ -56,7 +56,7 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  * Stored IDs are kept. The series keeps its ID when it still contains its
  * anchor entry, or otherwise any of its entries; an entry TMDB grouped
  * elsewhere moves to that series. A stored series left without entries is
- * merged into this one, and its watchlist entries move here. Seasons keep their IDs as
+ * merged into this one, and its library entries move here. Seasons keep their IDs as
  * {@link assignSeasonIds} describes. Related titles that are not stored yet
  * are queued for the scheduler to store, entries that may still gain
  * episodes are handed to the airing scheduler, which lays the series out
@@ -132,7 +132,7 @@ async function writeSeries(
 					)
 			: [];
 	if (emptied.length > 0) {
-		await mergeWatchlists(
+		await mergeLibraries(
 			tx,
 			emptied.map((row) => row.id),
 			seriesId,
@@ -203,12 +203,12 @@ async function writeSeries(
 }
 
 /**
- * Moves watchlist entries of merged-away series to the series that absorbed
- * them. A user who already lists the absorbing series keeps that entry; a
- * user who listed several merged-away series keeps the most recently
- * changed one. Dismissals from "continue watching" move the same way.
+ * Moves library entries of merged-away series to the series that absorbed
+ * them. A user who already has the absorbing series keeps that entry; a
+ * user who had several merged-away series keeps the most recently changed
+ * one. Dismissals from "continue watching" move the same way.
  */
-async function mergeWatchlists(
+async function mergeLibraries(
 	tx: Transaction,
 	fromSeriesIds: readonly string[],
 	toSeriesId: string,
@@ -219,10 +219,10 @@ async function mergeWatchlists(
 	);
 
 	await tx.execute(sql`
-    delete from watchlist_entry as moving
+    delete from library_entry as moving
     where moving.series_id in (${from})
       and exists (
-        select 1 from watchlist_entry as other
+        select 1 from library_entry as other
         where other.user_id = moving.user_id
           and (
             other.series_id = ${toSeriesId}
@@ -234,11 +234,11 @@ async function mergeWatchlists(
       )
   `);
 	await tx
-		.update(watchlistEntry)
+		.update(libraryEntry)
 		.set({
 			seriesId: toSeriesId,
 		})
-		.where(inArray(watchlistEntry.seriesId, [...fromSeriesIds]));
+		.where(inArray(libraryEntry.seriesId, [...fromSeriesIds]));
 
 	await tx.execute(sql`
     delete from continue_watching_dismissal as moving
