@@ -10,6 +10,7 @@ import {
 	pruneProviderCallsTask,
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
+import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
@@ -86,6 +87,7 @@ export async function startScheduler(): Promise<Scheduler> {
 			[syncSearchIndexTask]: syncSearchIndexJob,
 			[backfillSeriesTask]: backfillSeries,
 			[syncTmdbHintsTask]: syncTmdbHintsJob,
+			[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
 		}),
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
@@ -102,6 +104,7 @@ export async function startScheduler(): Promise<Scheduler> {
 			`20 2 * * 1 ${syncSearchIndexTask} ?id=search-index-full&fill=1w&priority=-1 {full:true}`,
 			`10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
 			`35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`,
+			`55 * * * * ${storeMissingBackdropEdgesTask} ?fill=1h&priority=-1`,
 		].join("\n"),
 	});
 
