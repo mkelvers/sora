@@ -2,7 +2,7 @@
 	import { CalendarBlankIcon, PlayIcon } from 'phosphor-svelte';
 	import type { EpisodeProgress, SeasonEpisode } from '@sora/sdk';
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
-	import { cn } from '$lib/utils';
+	import { audioLabel, cn } from '$lib/utils';
 
 	let {
 		seriesId,

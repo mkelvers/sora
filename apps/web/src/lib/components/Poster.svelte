@@ -4,7 +4,7 @@
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
 	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
 	import Tooltip from '$lib/components/ui/Tooltip.svelte';
-	import { cn } from '$lib/utils';
+	import { audioLabel, cn } from '$lib/utils';
 	import { getListed, setListed } from '$lib/watchlist.remote';
 	import type { ContinueWatchingItem, SeriesCard } from '@sora/sdk';
 

@@ -5,7 +5,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Carousel from '$lib/components/ui/Carousel.svelte';
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
-	import { cn, tmdbImage } from '$lib/utils';
+	import { audioLabel, cn, tmdbImage } from '$lib/utils';
 	import { getListed, setListed } from '$lib/watchlist.remote';
 
 	let {

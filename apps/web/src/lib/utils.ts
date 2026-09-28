@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { ContentLanguage, SeriesCard } from '@sora/sdk';
+import type { SeriesCard } from '@sora/sdk';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -10,7 +10,7 @@ export const languages = new Intl.DisplayNames(['en'], {
 	type: 'language',
 });
 
-export function audioLabel(audio: ContentLanguage[] | null | undefined) {
+export function audioLabel(audio: SeriesCard['audio'] | null | undefined) {
 	const sub = !!audio?.includes('sub');
 	const dub = !!audio?.includes('dub');
 

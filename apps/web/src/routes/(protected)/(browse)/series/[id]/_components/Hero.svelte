@@ -14,7 +14,7 @@
 	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
 	import Tooltip from '$lib/components/ui/Tooltip.svelte';
-	import { cn, tmdbImage } from '$lib/utils';
+	import { audioLabel, cn, tmdbImage } from '$lib/utils';
 	import { getListed, setListed } from '$lib/watchlist.remote';
 	import { clearProgress, markAllWatched, setDropped } from '../series.remote';
 

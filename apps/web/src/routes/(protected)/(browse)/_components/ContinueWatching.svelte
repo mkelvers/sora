@@ -6,6 +6,7 @@
 	import Carousel from '$lib/components/ui/Carousel.svelte';
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
 	import Tooltip from '$lib/components/ui/Tooltip.svelte';
+	import { audioLabel } from '$lib/utils';
 	import { dismiss, getContinueWatching } from '../home.remote';
 
 	let {
