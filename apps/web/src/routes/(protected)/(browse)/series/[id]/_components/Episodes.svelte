@@ -1,8 +1,9 @@
 <script lang="ts">
-	import type { Season, TitleProgress } from '@sora/sdk';
-	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
-	import { getEpisodes } from '../series.remote';
-	import Episode from './Episode.svelte';
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import type { Season, TitleProgress } from "@sora/sdk";
+
+	import { getEpisodes } from "../series.remote";
+	import Episode from "./Episode.svelte";
 
 	let {
 		seriesId,
@@ -22,7 +23,7 @@
 		getEpisodes({
 			seriesId,
 			seasonId: season.id,
-		})
+		}),
 	);
 
 	$effect(() => {
@@ -38,7 +39,9 @@
 
 {#if episodes.current}
 	{#if episodes.current.length}
-		<ol class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7">
+		<ol
+			class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7"
+		>
 			{#each episodes.current as episode (episode.number)}
 				<Episode
 					{seriesId}
@@ -47,7 +50,8 @@
 					{backdrop}
 					{episode}
 					checkpoint={progress.episodes.find(
-						(checkpoint) => checkpoint.season_id === season.id && checkpoint.episode === episode.number
+						(checkpoint) =>
+							checkpoint.season_id === season.id && checkpoint.episode === episode.number,
 					)}
 				/>
 			{/each}
@@ -56,7 +60,11 @@
 		<p class="py-10 text-muted">No episodes yet.</p>
 	{/if}
 {:else}
-	<ol class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7" aria-busy="true" aria-label="Loading episodes">
+	<ol
+		class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7"
+		aria-busy="true"
+		aria-label="Loading episodes"
+	>
 		{#each { length: Math.min(season.episode_count, 10) }, index (index)}
 			<li class="min-h-56">
 				<Skeleton class="aspect-video" />
