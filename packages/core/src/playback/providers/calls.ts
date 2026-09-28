@@ -12,7 +12,7 @@ export type ProviderOperation = "find_media" | "list_episodes" | "resolve_stream
  * How a call went: it returned something, returned nothing (no match, no
  * episodes), or threw.
  */
-export type CallOutcome = "ok" | "empty" | "failed";
+type CallOutcome = "ok" | "empty" | "failed";
 
 /** One finished call to a provider. */
 export interface ProviderCall {

@@ -91,7 +91,7 @@ export function toProviderEpisode(unit: IContentUnit): ProviderEpisode {
  *
  * @throws when it has no videos.
  */
-export function toProviderStream(
+function toProviderStream(
 	resolved: ResolvedMediaStream,
 	skipSegments: SkipSegment[],
 ): ProviderStream {

@@ -249,7 +249,7 @@ async function upsert(rows: (typeof anikotoSeries.$inferInsert)[]) {
  * as a `continuation` of its prequel's series, which AniKoto numbers on
  * through both.
  */
-export type AniKotoMatchMethod = "id" | "title" | "continuation";
+type AniKotoMatchMethod = "id" | "title" | "continuation";
 
 /**
  * Finds the AniKoto series of an anime in the mirrored catalogue.

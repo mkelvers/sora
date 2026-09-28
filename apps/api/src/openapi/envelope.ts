@@ -5,7 +5,7 @@ import type { PreparingTitle } from "@sora/core/series";
  * A camelCase name in snake_case, as the API spells every JSON field and
  * query parameter: `hasNextPage` becomes `has_next_page`.
  */
-export type SnakeCase<TName extends string> = TName extends `${infer THead}${infer TTail}`
+type SnakeCase<TName extends string> = TName extends `${infer THead}${infer TTail}`
 	? `${THead extends Lowercase<THead> ? THead : `_${Lowercase<THead>}`}${SnakeCase<TTail>}`
 	: TName;
 
@@ -21,7 +21,7 @@ export type SnakeCased<TValue> = TValue extends readonly (infer TItem)[]
 		: TValue;
 
 /** Spells a camelCase name in snake_case at runtime; see {@link SnakeCase}. */
-export function snakeCase(name: string) {
+function snakeCase(name: string) {
 	return name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 

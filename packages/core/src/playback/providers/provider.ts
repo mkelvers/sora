@@ -38,7 +38,7 @@ export interface SkipSegment {
 
 export type StreamQuality = "1080p" | "720p" | "480p" | "360p" | "auto";
 
-export interface ProviderSubtitle {
+interface ProviderSubtitle {
 	url: string;
 	/** BCP 47 language tag, for example `en` or `pt-BR`. */
 	language: string;

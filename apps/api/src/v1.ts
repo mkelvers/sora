@@ -58,7 +58,7 @@ const day = 24 * 60 * 60 * 1_000;
  * A breaking change to any route belongs in a new version mounted next to
  * this one, never here: deployed clients keep calling `/v1`.
  */
-export const v1 = new OpenAPIHono<V1Env>({
+const v1 = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 });
 
