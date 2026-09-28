@@ -44,6 +44,7 @@ export type {
 	PlaybackMeta,
 	PreparingTitle,
 	Profile,
+	ProfileAvatar,
 	ScheduledEpisode,
 	ScheduleMeta,
 	Season,

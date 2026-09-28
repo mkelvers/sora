@@ -14,6 +14,7 @@ import type {
 	PlaybackMedia,
 	PlaybackMeta,
 	Profile,
+	ProfileAvatar,
 	ScheduledEpisode,
 	ScheduleMeta,
 	Season,
@@ -84,13 +85,13 @@ export interface Session {
 	};
 }
 
-/** A profile's name and tile color, for {@link SoraClient.createProfile} and {@link SoraClient.updateProfile}. */
+/** A profile's name, tile color, and avatar, for {@link SoraClient.createProfile} and {@link SoraClient.updateProfile}. */
 export interface ProfileInput {
 	name: string;
 	/** A hex color such as `#4f7cff`; picked from a palette when omitted. */
 	color?: string;
-	/** A DiceBear seed for the avatar; the profile's ID when omitted. */
-	avatar?: string;
+	/** A sprout seeded with the profile's ID when omitted. */
+	avatar?: ProfileAvatar;
 }
 
 /** Filters for {@link SoraClient.continueWatching}. */
