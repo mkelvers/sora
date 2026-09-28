@@ -5,6 +5,9 @@ import { second } from "../../time";
 import type { StreamTarget } from "./token";
 
 const upstreamTimeoutMs = 15 * second;
+
+/** Segments arrive at about the stream's bitrate from a cold host, so they get longer. */
+const segmentTimeoutMs = 45 * second;
 const maximumRedirects = 5;
 
 /** The proxied upstream could not be fetched. Retryable. */
@@ -41,8 +44,10 @@ export async function fetchUpstream(
 		headers.set("Range", range);
 	}
 
+	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
+
 	try {
-		return await fetchFollowingRedirects(target.url, headers, signal);
+		return await fetchFollowingRedirects(target.url, headers, timeoutMs, signal);
 	} catch (cause) {
 		if (!(cause instanceof StreamUpstreamError)) {
 			throw cause;
@@ -50,7 +55,7 @@ export async function fetchUpstream(
 
 		for (const mirror of target.mirrors) {
 			try {
-				return await fetchFollowingRedirects(mirror, headers, signal);
+				return await fetchFollowingRedirects(mirror, headers, timeoutMs, signal);
 			} catch (mirrorCause) {
 				if (!(mirrorCause instanceof StreamUpstreamError)) {
 					throw mirrorCause;
@@ -83,6 +88,7 @@ export function mirrorsFor(url: string, playlistUrl: string) {
 async function fetchFollowingRedirects(
 	start: string,
 	headers: Headers,
+	timeoutMs: number,
 	signal?: AbortSignal,
 ): Promise<Upstream> {
 	let url = start;
@@ -96,8 +102,8 @@ async function fetchFollowingRedirects(
 				headers,
 				redirect: "manual",
 				signal: signal
-					? AbortSignal.any([signal, AbortSignal.timeout(upstreamTimeoutMs)])
-					: AbortSignal.timeout(upstreamTimeoutMs),
+					? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+					: AbortSignal.timeout(timeoutMs),
 			});
 		} catch (cause) {
 			throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
