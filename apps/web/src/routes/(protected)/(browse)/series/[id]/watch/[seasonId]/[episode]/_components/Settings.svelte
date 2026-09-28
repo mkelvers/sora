@@ -57,7 +57,12 @@
 					},
 					...subtitles.map((track) => ({
 						value: track.url,
-						label: track.label,
+						label:
+							track.kind === "signs"
+								? `${track.label} (Signs)`
+								: track.kind === "captions"
+									? `${track.label} (Captions)`
+									: track.label,
 					})),
 				],
 				select: (value) => (subtitle = value || undefined),
