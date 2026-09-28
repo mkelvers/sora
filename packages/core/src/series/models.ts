@@ -1,4 +1,5 @@
 import type { AnimeFormat, AnimeStatus, AnimeTag } from "../catalog/models/anime";
+import type { ImageEdges } from "./edges";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
 
@@ -91,6 +92,12 @@ export interface Series extends SeriesCard {
 		/** ISO 8601 timestamp. */
 		airingAt: string;
 	} | null;
+	/**
+	 * The backdrop's average colour down its left and right edges, to fill
+	 * the space beside it when it is shown whole. `null` without a backdrop,
+	 * or until it is measured.
+	 */
+	backdropEdges: ImageEdges | null;
 	/** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
 	seasons: Season[];
 	/** Other titles from the franchise: films, spin-offs, and shorts. */

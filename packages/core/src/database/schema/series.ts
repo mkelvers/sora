@@ -235,6 +235,19 @@ export const seriesImage = pgTable(
 );
 
 /**
+ * The average colour down an image's left and right edges, keyed by its URL,
+ * so a page can fill the space beside a backdrop shown whole with colours
+ * that continue it. Measured once per URL; see `storeImageEdges`.
+ */
+export const imageEdge = pgTable("image_edge", {
+	url: text("url").primaryKey(),
+	/** `#rrggbb`. */
+	left: text("left").notNull(),
+	/** `#rrggbb`. */
+	right: text("right").notNull(),
+});
+
+/**
  * Other titles from a series' franchise: films, spin-offs, and shorts.
  *
  * A related title is recorded by one of its AniList entries rather than by

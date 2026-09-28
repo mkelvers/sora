@@ -13,6 +13,7 @@ import { db } from "../database/client";
 import {
 	anime as animeTable,
 	animeSearch,
+	imageEdge,
 	series,
 	seriesEntry,
 	seriesEpisode,
@@ -22,6 +23,7 @@ import {
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { scheduleSeriesStore } from "../scheduler/queue";
+import { effectiveBackdrop } from "./edges";
 import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episodes";
 import type {
 	ContentLanguage,
@@ -42,10 +44,23 @@ import { storedSeriesIds } from "./store";
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 export async function getSeries(seriesId: string): Promise<Series> {
-	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
-	if (!row) {
+	const [found] = await db
+		.select({
+			series,
+			edges: {
+				left: imageEdge.left,
+				right: imageEdge.right,
+			},
+		})
+		.from(series)
+		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
+		.where(eq(series.id, seriesId))
+		.limit(1);
+	if (!found) {
 		throw new SeriesNotFoundError(seriesId);
 	}
+
+	const row = found.series;
 
 	const [anchor, listed, related, [indexed]] = await Promise.all([
 		getAnime(row.anchorAnilistId),
@@ -81,6 +96,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 						airingAt: row.nextEpisodeAiringAt.toISOString(),
 					}
 				: null,
+		backdropEdges: found.edges,
 		seasons: listedOnly(listed.get(row.id)),
 		related,
 	};

@@ -18,6 +18,7 @@ import {
 	scheduleSeriesStore,
 	startTrackingAiring,
 } from "../scheduler/queue";
+import { storeBackdropEdges } from "./edges";
 import { anilistEpisodeKey } from "./episodes";
 import { assignSeasonIds } from "./identity";
 import type { SeriesSeason } from "./seasons";
@@ -71,6 +72,7 @@ export async function storeSeries(anilistId: number): Promise<string> {
 	const built = await buildSeries(anilistId);
 	const airings = await fetchEpisodeAirings(built.anilistIds);
 	const seriesId = await db.transaction((tx) => writeSeries(tx, built, airings));
+	await storeBackdropEdges(seriesId);
 
 	// Readers take the series' details from its anchor entry, so it must be stored.
 	await getAnime(built.anchorAnilistId);

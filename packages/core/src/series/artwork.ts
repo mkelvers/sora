@@ -11,6 +11,7 @@ import {
 	tmdbImageUrl,
 	type TmdbImage,
 } from "../tmdb/resources";
+import { storeBackdropEdges } from "./edges";
 import type { Series } from "./models";
 import { getSeries } from "./queries";
 import { parseKey, type SeriesKey } from "./series";
@@ -79,6 +80,8 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 		if (updated.length === 0) {
 			throw new SeriesNotFoundError(seriesId);
 		}
+
+		await storeBackdropEdges(seriesId);
 	}
 
 	return getSeries(seriesId);

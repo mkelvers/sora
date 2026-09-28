@@ -20,6 +20,7 @@ export {
 	type SeriesImage,
 	type SeriesImageQuery,
 } from "./artwork";
+export type { ImageEdges } from "./edges";
 export type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 export {
 	browseSeries,
