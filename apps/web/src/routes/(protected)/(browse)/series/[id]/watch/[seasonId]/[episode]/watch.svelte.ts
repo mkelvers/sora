@@ -150,8 +150,13 @@ export class Player {
 							return;
 						}
 
+						const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 						const instance = new Hls({
 							startPosition: start,
+							maxBufferLength: 7200,
+							maxMaxBufferLength: 7200,
+							maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
+							backBufferLength: 60,
 						});
 						let recovered = 0;
 
