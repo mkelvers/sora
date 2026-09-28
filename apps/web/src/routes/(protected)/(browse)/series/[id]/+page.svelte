@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Button from "$lib/components/ui/Button.svelte";
+	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import { DotsThreeVerticalIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
 
 	import type { PageProps } from "./$types";
@@ -6,7 +9,7 @@
 	import Episodes from "./_components/Episodes.svelte";
 	import Hero from "./_components/Hero.svelte";
 	import Seasons from "./_components/Seasons.svelte";
-	import { getSeries, getViewing } from "./series.remote";
+	import { getSeries, getViewing, markAllWatched } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
@@ -15,8 +18,12 @@
 	const series = $derived(await seriesQuery);
 	const viewing = $derived(await viewingQuery);
 	let season = $derived.by(() => {
-		const resume = untrack(() => viewing.resume);
-		return series.seasons.find((season) => season.id === resume?.season_id) ?? series.seasons[0];
+		const next = untrack(() => viewing.progress.next);
+		return series.seasons.find((season) => season.id === next?.season_id) ?? series.seasons[0];
+	});
+	const seasonWatched = $derived.by(() => {
+		const standing = viewing.progress.seasons.find((other) => other.season_id === season?.id);
+		return !!standing && standing.watched_episodes === standing.released_episodes;
 	});
 </script>
 
@@ -26,7 +33,7 @@
 
 <main class="bg-canvas text-foreground">
 	{#if season}
-		<Hero {series} resume={viewing.resume} library={viewing.library} />
+		<Hero {series} progress={viewing.progress} library={viewing.library} />
 	{/if}
 
 	<Details {series} />
@@ -41,6 +48,28 @@
 					{#if series.seasons.length > 1}
 						<Seasons seasons={series.seasons} bind:season />
 					{/if}
+					<div class="ml-auto text-sm font-bold [&_.dropdown-trigger]:gap-1">
+						<Dropdown className="w-64">
+							{#snippet trigger()}
+								<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
+								<span>Options</span>
+							{/snippet}
+							{#snippet children()}
+								<Button
+									role="menuitem"
+									class="font-normal hover:text-foreground"
+									onclick={() =>
+										markAllWatched({
+											seriesId: series.id,
+											seasonId: season.id,
+											watched: !seasonWatched,
+										})}
+								>
+									Mark Season as {seasonWatched ? "Unwatched" : "Watched"}
+								</Button>
+							{/snippet}
+						</Dropdown>
+					</div>
 				</div>
 
 				<Episodes
