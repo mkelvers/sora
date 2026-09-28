@@ -19,16 +19,19 @@ const defaultEpisodeMinutes = 24;
 const importBatch = 1_000;
 
 /** AniList user names: 2 to 20 letters and digits. */
-export const AniListUserNameSchema = z.string().trim().regex(/^[A-Za-z0-9]{2,20}$/, "Not an AniList user name");
+export const AniListUserNameSchema = z
+	.string()
+	.trim()
+	.regex(/^[A-Za-z0-9]{2,20}$/, "Not an AniList user name");
 
 /** What {@link importAniListList} brought over. */
 export interface ImportSummary {
-  /** Entries on the AniList list. */
-  entries: number;
-  /** Episodes recorded as watched. */
-  episodes: number;
-  /** Entries whose titles are still being prepared; they join the watchlist once they are. */
-  preparing: number;
+	/** Entries on the AniList list. */
+	entries: number;
+	/** Episodes recorded as watched. */
+	episodes: number;
+	/** Entries whose titles are still being prepared; they join the watchlist once they are. */
+	preparing: number;
 }
 
 /**
@@ -53,93 +56,104 @@ export interface ImportSummary {
  * @throws {@link UpstreamUnavailableError} when AniList fails.
  */
 export async function importAniListList(userId: string, userName: string): Promise<ImportSummary> {
-  const parsed = AniListUserNameSchema.safeParse(userName);
-  if (!parsed.success) {
-    throw new InvalidInputError("Invalid AniList user name", {
-      cause: parsed.error,
-    });
-  }
+	const parsed = AniListUserNameSchema.safeParse(userName);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid AniList user name", {
+			cause: parsed.error,
+		});
+	}
 
-  const {
-    MediaListCollection,
-  } = await anilist(
-    UserAnimeListDocument,
-    {
-      userName: parsed.data,
-    },
-    {
-      maxAgeMs: minute,
-    }
-  );
-  if (!MediaListCollection) {
-    throw new AniListListNotFoundError(parsed.data);
-  }
+	const { MediaListCollection } = await anilist(
+		UserAnimeListDocument,
+		{
+			userName: parsed.data,
+		},
+		{
+			maxAgeMs: minute,
+		},
+	);
+	if (!MediaListCollection) {
+		throw new AniListListNotFoundError(parsed.data);
+	}
 
-  const entries = (MediaListCollection.lists ?? []).flatMap((list) => (list?.entries ?? []).flatMap((entry) => entry ?? []));
-  const checkpoints = entries.flatMap((entry): CheckpointInput[] => {
-    const watched = watchedEpisodes(entry.status, entry.progress ?? 0, entry.media?.episodes ?? null);
-    const seconds = (entry.media?.duration ?? defaultEpisodeMinutes) * 60;
-    const changedAt = (entry.updatedAt ?? 0) * 1000 || Date.now();
-    // Each episode a millisecond after the one before, so the last one watched is the latest.
-    return Array.from({
-      length: watched,
-    }, (_, index) => ({
-      anilistId: entry.mediaId,
-      episode: index + 1,
-      positionSeconds: seconds,
-      durationSeconds: seconds,
-      completed: true,
-      eventAt: new Date(changedAt - watched + index + 1),
-    }));
-  });
-  await writeCheckpoints(userId, checkpoints);
+	const entries = (MediaListCollection.lists ?? []).flatMap((list) =>
+		(list?.entries ?? []).flatMap((entry) => entry ?? []),
+	);
+	const checkpoints = entries.flatMap((entry): CheckpointInput[] => {
+		const watched = watchedEpisodes(
+			entry.status,
+			entry.progress ?? 0,
+			entry.media?.episodes ?? null,
+		);
+		const seconds = (entry.media?.duration ?? defaultEpisodeMinutes) * 60;
+		const changedAt = (entry.updatedAt ?? 0) * 1000 || Date.now();
+		// Each episode a millisecond after the one before, so the last one watched is the latest.
+		return Array.from(
+			{
+				length: watched,
+			},
+			(_, index) => ({
+				anilistId: entry.mediaId,
+				episode: index + 1,
+				positionSeconds: seconds,
+				durationSeconds: seconds,
+				completed: true,
+				eventAt: new Date(changedAt - watched + index + 1),
+			}),
+		);
+	});
+	await writeCheckpoints(userId, checkpoints);
 
-  const rows = entries.map((entry) => ({
-    userId,
-    anilistId: entry.mediaId,
-    droppedAt: entry.status === "DROPPED" ? new Date((entry.updatedAt ?? 0) * 1000 || Date.now()) : null,
-  }));
-  for (let start = 0; start < rows.length; start += importBatch) {
-    await db
-      .insert(watchlistImport)
-      .values(rows.slice(start, start + importBatch))
-      .onConflictDoUpdate({
-        target: [
-          watchlistImport.userId,
-          watchlistImport.anilistId
-        ],
-        set: {
-          droppedAt: sql`excluded.dropped_at`,
-          createdAt: sql`excluded.created_at`,
-        },
-      });
-  }
-  await resolveImportedEntries(userId);
+	const rows = entries.map((entry) => ({
+		userId,
+		anilistId: entry.mediaId,
+		droppedAt:
+			entry.status === "DROPPED" ? new Date((entry.updatedAt ?? 0) * 1000 || Date.now()) : null,
+	}));
+	for (let start = 0; start < rows.length; start += importBatch) {
+		await db
+			.insert(watchlistImport)
+			.values(rows.slice(start, start + importBatch))
+			.onConflictDoUpdate({
+				target: [watchlistImport.userId, watchlistImport.anilistId],
+				set: {
+					droppedAt: sql`excluded.dropped_at`,
+					createdAt: sql`excluded.created_at`,
+				},
+			});
+	}
+	await resolveImportedEntries(userId);
 
-  const stored = await storedSeriesIds(entries.map((entry) => entry.mediaId));
-  const missing = [...new Set(entries.map((entry) => entry.mediaId).filter((id) => !stored.has(id)))];
-  for (const anilistId of missing) {
-    await scheduleSeriesStore(anilistId, "current");
-  }
+	const stored = await storedSeriesIds(entries.map((entry) => entry.mediaId));
+	const missing = [
+		...new Set(entries.map((entry) => entry.mediaId).filter((id) => !stored.has(id))),
+	];
+	for (const anilistId of missing) {
+		await scheduleSeriesStore(anilistId, "current");
+	}
 
-  return {
-    entries: entries.length,
-    episodes: checkpoints.length,
-    preparing: missing.length,
-  };
+	return {
+		entries: entries.length,
+		episodes: checkpoints.length,
+		preparing: missing.length,
+	};
 }
 
 /** How many episodes of an entry, from the first, count as watched. */
-function watchedEpisodes(status: MediaListStatus | null, progress: number, episodes: number | null) {
-  switch (status) {
-    case "COMPLETED":
-    case "REPEATING":
-      return Math.max(progress, episodes ?? 0);
-    case "CURRENT":
-    case "PAUSED":
-    case "DROPPED":
-      return progress;
-    default:
-      return 0;
-  }
+function watchedEpisodes(
+	status: MediaListStatus | null,
+	progress: number,
+	episodes: number | null,
+) {
+	switch (status) {
+		case "COMPLETED":
+		case "REPEATING":
+			return Math.max(progress, episodes ?? 0);
+		case "CURRENT":
+		case "PAUSED":
+		case "DROPPED":
+			return progress;
+		default:
+			return 0;
+	}
 }
