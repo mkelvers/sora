@@ -26,15 +26,7 @@
 
 <main class="bg-canvas text-foreground">
 	{#if season}
-		<Hero
-			{series}
-			{season}
-			resume={viewing.resume}
-			library={viewing.library}
-			seasonWatched={viewing.progress.completed_seasons.some(
-				(completion) => completion.season_id === season?.id,
-			)}
-		/>
+		<Hero {series} resume={viewing.resume} library={viewing.library} />
 	{/if}
 
 	<Details {series} />

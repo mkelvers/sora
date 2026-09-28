@@ -40,35 +40,17 @@ export const getViewing = query(z.string(), async (seriesId) => {
 export const markAllWatched = command(
 	z.object({
 		seriesId: z.string(),
-		seasonId: z.string().optional(),
 		watched: z.boolean(),
 	}),
-	async ({ seriesId, seasonId, watched }) => {
+	async ({ seriesId, watched }) => {
 		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
 			error(403, "Choose a profile first");
 		}
 
 		await viewer.sora.markWatched(viewer.profile.id, seriesId, {
-			season_id: seasonId,
 			watched,
 		});
-		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
-	},
-);
-
-export const setDropped = command(
-	z.object({
-		seriesId: z.string(),
-		dropped: z.boolean(),
-	}),
-	async ({ seriesId, dropped }) => {
-		const { viewer } = getRequestEvent().locals;
-		if (!viewer?.profile) {
-			error(403, "Choose a profile first");
-		}
-
-		await viewer.sora.setDropped(viewer.profile.id, seriesId, dropped);
 		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
 	},
 );

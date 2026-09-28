@@ -3,34 +3,21 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { audioLabel, cn, tmdbImage } from "$lib/utils";
+	import { cn, tmdbImage } from "$lib/utils";
 	import { getListed, setListed } from "$lib/watchlist.remote";
-	import type { ContinueWatchingItem, LibraryTitle, Season, Series } from "@sora/sdk";
-	import {
-		ArrowCounterClockwiseIcon,
-		BookmarkSimpleIcon,
-		CheckIcon,
-		DotsThreeVerticalIcon,
-		ImageIcon,
-		PlayIcon,
-		ProhibitIcon,
-		TrashIcon,
-	} from "phosphor-svelte";
+	import type { ContinueWatchingItem, LibraryTitle, Series } from "@sora/sdk";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
-	import { clearProgress, markAllWatched, setDropped } from "../series.remote";
+	import { clearProgress, markAllWatched } from "../series.remote";
 
 	let {
 		series,
-		season,
 		resume,
 		library,
-		seasonWatched,
 	}: {
 		series: Series;
-		season: Season;
 		resume: ContinueWatchingItem | null;
 		library: LibraryTitle;
-		seasonWatched: boolean;
 	} = $props();
 
 	const listing = getListed();
@@ -60,20 +47,6 @@
 	});
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
-
-	const standing = $derived.by(() => {
-		const { status, new_season } = library;
-
-		if (status === "dropped") {
-			return "Dropped";
-		}
-
-		if (status === "completed") {
-			return new_season ? `Watched · ${new_season.title} is out` : "Watched";
-		}
-
-		return null;
-	});
 
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
@@ -143,60 +116,17 @@
 							onclick={() =>
 								markAllWatched({
 									seriesId: series.id,
-									seasonId: season.id,
-									watched: !seasonWatched,
+									watched: true,
 								})}
 						>
-							<CheckIcon size="1.1rem" />
-							{series.seasons.length > 1
-								? `Mark ${season.title} as ${seasonWatched ? "unwatched" : "watched"}`
-								: `Mark as ${seasonWatched ? "unwatched" : "watched"}`}
-						</Button>
-
-						{#if series.seasons.length > 1}
-							<Button
-								role="menuitem"
-								class={item}
-								onclick={() =>
-									markAllWatched({
-										seriesId: series.id,
-										watched: true,
-									})}
-							>
-								<CheckIcon size="1.1rem" />
-								Mark all as watched
-							</Button>
-						{/if}
-
-						<Button
-							role="menuitem"
-							class={item}
-							onclick={() =>
-								setDropped({
-									seriesId: series.id,
-									dropped: library.status !== "dropped",
-								})}
-						>
-							{#if library.status === "dropped"}
-								<ArrowCounterClockwiseIcon size="1.1rem" />
-								Undo drop
-							{:else}
-								<ProhibitIcon size="1.1rem" />
-								Drop
-							{/if}
+							Mark Series as Watched
 						</Button>
 
 						{#if library.last_watched_at}
 							<Button role="menuitem" class={item} onclick={() => clearProgress(series.id)}>
-								<TrashIcon size="1.1rem" />
 								Clear progress
 							</Button>
 						{/if}
-
-						<a role="menuitem" href="/series/{series.id}/artwork" class={item}>
-							<ImageIcon size="1.1rem" />
-							Edit artwork
-						</a>
 					</div>
 				{/snippet}
 			</Dropdown>
@@ -225,27 +155,13 @@
 				<p class="mt-7 text-base text-foreground sm:mt-8">{next}</p>
 			{/if}
 
-			<p
-				class={cn(
-					"flex flex-wrap items-center gap-y-1 text-sm text-muted",
-					next ? "mt-5 lg:mt-7" : "mt-8 sm:mt-10 lg:mt-11",
-				)}
-			>
-				{#if series.audio.length}
-					<span class="metadata-tag">
-						{audioLabel(series.audio)}
-					</span>
-				{/if}
-				{#if series.genres.length}
-					<span class="metadata-tag">{series.genres.join(", ")}</span>
-				{/if}
-				{#if standing}
-					<span class="metadata-tag text-foreground">{standing}</span>
-				{/if}
-			</p>
-
 			{#if series.score !== null}
-				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5">
+				<div
+					class={cn(
+						"flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5",
+						next ? "mt-5 lg:mt-7" : "mt-8 sm:mt-10 lg:mt-11",
+					)}
+				>
 					<span class="flex items-center gap-0.5" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
 							<span class="relative size-6 shrink-0">
