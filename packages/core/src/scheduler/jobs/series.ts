@@ -6,17 +6,23 @@ import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
 import { db } from "../../database/client";
-import { animeSearch, providerEpisodes, series, seriesEpisode, seriesSeason } from "../../database/schema";
+import {
+	animeSearch,
+	providerEpisodes,
+	series,
+	seriesEpisode,
+	seriesSeason,
+} from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { relatedIds } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
-import { getShow, tmdbImageUrl, type TmdbShow } from "../../tmdb/resources";
 import { day, hour } from "../../time";
+import { getShow, tmdbImageUrl, type TmdbShow } from "../../tmdb/resources";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
-  anilistId: z.number().int().positive(),
+	anilistId: z.number().int().positive(),
 });
 
 /**
@@ -28,24 +34,22 @@ const StoreSeriesPayloadSchema = z.object({
  * outage is handled.
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
-  const {
-    anilistId,
-  } = StoreSeriesPayloadSchema.parse(rawPayload);
-  try {
-    const seriesId = await storeSeries(anilistId);
-    helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
-  } catch (error) {
-    if (error instanceof AnimeNotFoundError) {
-      // Searches queue every entry they find that is not stored, so an entry
-      // left in the index would be queued again by each one. A sync puts it
-      // back should AniList serve it again.
-      await db.delete(animeSearch).where(eq(animeSearch.anilistId, anilistId));
-      helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
-      return;
-    }
+	const { anilistId } = StoreSeriesPayloadSchema.parse(rawPayload);
+	try {
+		const seriesId = await storeSeries(anilistId);
+		helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
+	} catch (error) {
+		if (error instanceof AnimeNotFoundError) {
+			// Searches queue every entry they find that is not stored, so an entry
+			// left in the index would be queued again by each one. A sync puts it
+			// back should AniList serve it again.
+			await db.delete(animeSearch).where(eq(animeSearch.anilistId, anilistId));
+			helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
+			return;
+		}
 
-    throw error;
-  }
+		throw error;
+	}
 };
 
 /** AniList pages are capped at 50 entries. */
@@ -78,47 +82,50 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  * is simply looked at again on the next run.
  */
 export const discoverSeriesEntries: Task = async (_payload, helpers) => {
-  const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
-  let queued = 0;
-  for (let page = 1; page <= discoveryPageLimit; page += 1) {
-    const {
-      Page,
-    } = await anilist(
-      NewEntriesDocument,
-      {
-        page,
-        perPage: entriesPerPage,
-      },
-      {
-        maxAgeMs: hour,
-      }
-    );
+	const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
+	let queued = 0;
+	for (let page = 1; page <= discoveryPageLimit; page += 1) {
+		const { Page } = await anilist(
+			NewEntriesDocument,
+			{
+				page,
+				perPage: entriesPerPage,
+			},
+			{
+				maxAgeMs: hour,
+			},
+		);
 
-    const entries = (Page?.media ?? []).flatMap((media) => (media && media.format !== "MUSIC" ? [media] : []));
-    const stored = await storedSeriesIds([
-      ...entries.map((entry) => entry.id),
-      ...entries.flatMap((entry) => relatedIds(entry))
-    ]);
+		const entries = (Page?.media ?? []).flatMap((media) =>
+			media && media.format !== "MUSIC" ? [media] : [],
+		);
+		const stored = await storedSeriesIds([
+			...entries.map((entry) => entry.id),
+			...entries.flatMap((entry) => relatedIds(entry)),
+		]);
 
-    for (const entry of entries) {
-      const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
-      const premieresSoon = startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
-      const isWanted =
-        entry.status === "RELEASING" || premieresSoon || relatedIds(entry).some((id) => stored.has(id));
-      if (!stored.has(entry.id) && isWanted) {
-        await scheduleSeriesStore(entry.id, "backfill");
-        queued += 1;
-      }
-    }
+		for (const entry of entries) {
+			const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
+			const premieresSoon =
+				startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
+			const isWanted =
+				entry.status === "RELEASING" ||
+				premieresSoon ||
+				relatedIds(entry).some((id) => stored.has(id));
+			if (!stored.has(entry.id) && isWanted) {
+				await scheduleSeriesStore(entry.id, "backfill");
+				queued += 1;
+			}
+		}
 
-    if (Page?.pageInfo?.hasNextPage !== true) {
-      break;
-    }
-  }
+		if (Page?.pageInfo?.hasNextPage !== true) {
+			break;
+		}
+	}
 
-  if (queued > 0) {
-    helpers.logger.info(`Queued ${queued} entries to store their series`);
-  }
+	if (queued > 0) {
+		helpers.logger.info(`Queued ${queued} entries to store their series`);
+	}
 };
 
 /**
@@ -151,77 +158,82 @@ export const refreshEpisodeDetailsTask = "refresh-episode-details";
  * has now rather than a copy up to half a day old.
  */
 export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const since = new Date(Date.now() - detailsWindowMs).toISOString().slice(0, 10);
-  const onAniKoto = sql`exists (
+	const today = new Date().toISOString().slice(0, 10);
+	const since = new Date(Date.now() - detailsWindowMs).toISOString().slice(0, 10);
+	const onAniKoto = sql`exists (
     select 1
     from ${providerEpisodes}, jsonb_array_elements(${providerEpisodes.units}) as unit
     where ${providerEpisodes.anilistId} = ${seriesEpisode.anilistId}
       and ${providerEpisodes.provider} = ${aniKoto.id}
       and (unit ->> 'number')::numeric = ${seriesEpisode.anilistEpisode}
   )`;
-  // AniList's broadcast time, in UTC, over TMDB's date in the airing country's calendar.
-  const airedOn = sql<string>`coalesce(to_char(${seriesEpisode.airedAt} at time zone 'UTC', 'YYYY-MM-DD'), ${seriesEpisode.airDate})`;
-  const unlisted = and(eq(series.kind, "tv"), ne(seriesSeason.kind, "movie"), isNull(seriesEpisode.tmdbEpisodeNumber), onAniKoto);
-  const stale = await db
-    .select({
-      seriesId: series.id,
-      key: series.key,
-      anilistId: sql<number>`min(${seriesEpisode.anilistId})`,
-      needsLayout: sql<boolean>`bool_or(coalesce(${unlisted}, false))`,
-    })
-    .from(seriesEpisode)
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .innerJoin(series, eq(series.id, seriesSeason.seriesId))
-    .where(
-      and(
-        isNotNull(seriesEpisode.anilistId),
-        or(
-          unlisted,
-          and(
-            gte(airedOn, since),
-            lte(airedOn, today),
-            or(
-              isNull(seriesEpisode.title),
-              sql`${seriesEpisode.title} ~* '^episode [0-9]+$'`,
-              isNull(seriesEpisode.overview),
-              isNull(seriesEpisode.stillUrl)
-            )
-          )
-        )
-      )
-    )
-    .groupBy(series.id);
+	// AniList's broadcast time, in UTC, over TMDB's date in the airing country's calendar.
+	const airedOn = sql<string>`coalesce(to_char(${seriesEpisode.airedAt} at time zone 'UTC', 'YYYY-MM-DD'), ${seriesEpisode.airDate})`;
+	const unlisted = and(
+		eq(series.kind, "tv"),
+		ne(seriesSeason.kind, "movie"),
+		isNull(seriesEpisode.tmdbEpisodeNumber),
+		onAniKoto,
+	);
+	const stale = await db
+		.select({
+			seriesId: series.id,
+			key: series.key,
+			anilistId: sql<number>`min(${seriesEpisode.anilistId})`,
+			needsLayout: sql<boolean>`bool_or(coalesce(${unlisted}, false))`,
+		})
+		.from(seriesEpisode)
+		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+		.innerJoin(series, eq(series.id, seriesSeason.seriesId))
+		.where(
+			and(
+				isNotNull(seriesEpisode.anilistId),
+				or(
+					unlisted,
+					and(
+						gte(airedOn, since),
+						lte(airedOn, today),
+						or(
+							isNull(seriesEpisode.title),
+							sql`${seriesEpisode.title} ~* '^episode [0-9]+$'`,
+							isNull(seriesEpisode.overview),
+							isNull(seriesEpisode.stillUrl),
+						),
+					),
+				),
+			),
+		)
+		.groupBy(series.id);
 
-  let updated = 0;
-  let queued = 0;
-  for (const { seriesId, key, anilistId, needsLayout } of stale) {
-    const showId = /^tv:(\d+)$/.exec(key)?.[1];
-    let show: TmdbShow | null = null;
-    if (showId) {
-      try {
-        show = await getShow(Number(showId), {
-          maxAgeMs: 0,
-        });
-      } catch (error) {
-        helpers.logger.warn(`TMDB failed for show ${showId}: ${String(error)}`);
-      }
-    }
+	let updated = 0;
+	let queued = 0;
+	for (const { seriesId, key, anilistId, needsLayout } of stale) {
+		const showId = /^tv:(\d+)$/.exec(key)?.[1];
+		let show: TmdbShow | null = null;
+		if (showId) {
+			try {
+				show = await getShow(Number(showId), {
+					maxAgeMs: 0,
+				});
+			} catch (error) {
+				helpers.logger.warn(`TMDB failed for show ${showId}: ${String(error)}`);
+			}
+		}
 
-    if (show) {
-      updated += await copyEpisodeDetails(seriesId, show);
-    }
+		if (show) {
+			updated += await copyEpisodeDetails(seriesId, show);
+		}
 
-    // A film's details, and those of a show TMDB could not serve, only come with a layout.
-    if (needsLayout || !show) {
-      await scheduleStoredSeriesRefresh(anilistId);
-      queued += 1;
-    }
-  }
+		// A film's details, and those of a show TMDB could not serve, only come with a layout.
+		if (needsLayout || !show) {
+			await scheduleStoredSeriesRefresh(anilistId);
+			queued += 1;
+		}
+	}
 
-  helpers.logger.info(
-    `Filled in ${updated} episodes from TMDB and queued ${queued} of ${stale.length} series with episodes missing TMDB details`
-  );
+	helpers.logger.info(
+		`Filled in ${updated} episodes from TMDB and queued ${queued} of ${stale.length} series with episodes missing TMDB details`,
+	);
 };
 
 /**
@@ -230,48 +242,58 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
  * changed.
  */
 async function copyEpisodeDetails(seriesId: string, show: TmdbShow) {
-  const tmdbEpisodes = new Map(show.episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]));
-  const stored = await db
-    .select({
-      seasonId: seriesEpisode.seasonId,
-      number: seriesEpisode.number,
-      title: seriesEpisode.title,
-      overview: seriesEpisode.overview,
-      airDate: seriesEpisode.airDate,
-      runtimeMinutes: seriesEpisode.runtimeMinutes,
-      stillUrl: seriesEpisode.stillUrl,
-      tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
-      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
-    })
-    .from(seriesEpisode)
-    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-    .where(and(eq(seriesSeason.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
+	const tmdbEpisodes = new Map(
+		show.episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
+	);
+	const stored = await db
+		.select({
+			seasonId: seriesEpisode.seasonId,
+			number: seriesEpisode.number,
+			title: seriesEpisode.title,
+			overview: seriesEpisode.overview,
+			airDate: seriesEpisode.airDate,
+			runtimeMinutes: seriesEpisode.runtimeMinutes,
+			stillUrl: seriesEpisode.stillUrl,
+			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
+			tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+		})
+		.from(seriesEpisode)
+		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+		.where(and(eq(seriesSeason.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
 
-  let changed = 0;
-  for (const episode of stored) {
-    const tmdbEpisode = tmdbEpisodes.get(`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`);
-    if (!tmdbEpisode) {
-      continue;
-    }
+	let changed = 0;
+	for (const episode of stored) {
+		const tmdbEpisode = tmdbEpisodes.get(
+			`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`,
+		);
+		if (!tmdbEpisode) {
+			continue;
+		}
 
-    const details = {
-      title: tmdbEpisode.name,
-      overview: tmdbEpisode.overview,
-      airDate: tmdbEpisode.air_date,
-      // Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
-      runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
-      stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
-    };
-    if (Object.entries(details).every(([name, value]) => episode[name as keyof typeof details] === value)) {
-      continue;
-    }
+		const details = {
+			title: tmdbEpisode.name,
+			overview: tmdbEpisode.overview,
+			airDate: tmdbEpisode.air_date,
+			// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
+			runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
+			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
+		};
+		if (
+			Object.entries(details).every(
+				([name, value]) => episode[name as keyof typeof details] === value,
+			)
+		) {
+			continue;
+		}
 
-    await db
-      .update(seriesEpisode)
-      .set(details)
-      .where(and(eq(seriesEpisode.seasonId, episode.seasonId), eq(seriesEpisode.number, episode.number)));
-    changed += 1;
-  }
+		await db
+			.update(seriesEpisode)
+			.set(details)
+			.where(
+				and(eq(seriesEpisode.seasonId, episode.seasonId), eq(seriesEpisode.number, episode.number)),
+			);
+		changed += 1;
+	}
 
-  return changed;
+	return changed;
 }
