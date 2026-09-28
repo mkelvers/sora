@@ -2,6 +2,7 @@ import { config } from "../../config";
 import { hour } from "../../time";
 import type { TimelineShift } from "../streams/align";
 import { rewritePlaylist } from "./playlist";
+import { readSegment, rememberSegmentOrder } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
 import {
@@ -140,6 +141,22 @@ export async function proxyStream(
 	},
 ): Promise<Response> {
 	const target = verifyStreamToken(token, config.streamSigningSecret);
+
+	if (target.kind === "segment" && !request.range) {
+		const segment = await readSegment(target);
+		const headers = new Headers({
+			"Cache-Control": "private, max-age=3600",
+			"Content-Length": String(segment.bytes.byteLength),
+		});
+		if (segment.contentType) {
+			headers.set("Content-Type", segment.contentType);
+		}
+		return new Response(segment.bytes, {
+			status: 200,
+			headers,
+		});
+	}
+
 	const upstream = await fetchUpstream(target, request.range, request.signal);
 
 	if (target.kind === "playlist") {
@@ -258,18 +275,21 @@ async function playlistResponse(target: StreamTarget, upstream: Upstream) {
 
 	// Children inherit the parent's headers and expiry, so a playlist cannot be
 	// used to mint tokens that outlive the one the client was given.
-	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) =>
-		signStreamTarget(
-			{
-				url,
-				kind,
-				headers: target.headers,
-				mirrors: mirrorsFor(url, upstream.url),
-				expiresAt: target.expiresAt,
-			},
-			config.streamSigningSecret,
-		),
-	);
+	const segments: StreamTarget[] = [];
+	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) => {
+		const child: StreamTarget = {
+			url,
+			kind,
+			headers: target.headers,
+			mirrors: mirrorsFor(url, upstream.url),
+			expiresAt: target.expiresAt,
+		};
+		if (kind === "segment") {
+			segments.push(child);
+		}
+		return signStreamTarget(child, config.streamSigningSecret);
+	});
+	rememberSegmentOrder(segments);
 
 	return new Response(rewritten, {
 		status: 200,
