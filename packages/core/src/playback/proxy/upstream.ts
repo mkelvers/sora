@@ -8,6 +8,10 @@ const upstreamTimeoutMs = 15 * second;
 
 /** Segments arrive at about the stream's bitrate from a cold host, so they get longer. */
 const segmentTimeoutMs = 45 * second;
+
+/** How long a host may go without answering before the next candidate also starts. */
+const hedgeDelayMs = 1.5 * second;
+const segmentHedgeMs = 12 * second;
 const maximumRedirects = 5;
 
 /** The proxied upstream could not be fetched. Retryable. */
@@ -65,6 +69,113 @@ export async function fetchUpstream(
 
 		// The primary host's failure is the one worth reporting.
 		throw cause;
+	}
+}
+
+/** A whole upstream body, read before any candidate host is trusted. */
+export interface UpstreamBytes {
+	bytes: Uint8Array<ArrayBuffer>;
+	headers: Headers;
+	/** Final URL after redirects, used to resolve relative playlist URIs. */
+	url: string;
+}
+
+/**
+ * Fetches a target's whole body, moving on to its mirrors when a host fails
+ * or stalls.
+ *
+ * Hosts sometimes send their headers and then never the body, which only
+ * reading it shows. The next candidate starts once the previous one fails, or
+ * after a while without an answer, and the first to finish wins, so a stalled
+ * host costs a few seconds instead of the whole timeout.
+ *
+ * @throws {@link StreamUpstreamError} with the primary host's failure when
+ *   every candidate fails.
+ */
+export async function fetchUpstreamBytes(
+	target: StreamTarget,
+	signal?: AbortSignal,
+): Promise<UpstreamBytes> {
+	const candidates = [target.url, ...target.mirrors];
+	const headers = new Headers(target.headers);
+	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
+	const hedgeMs = target.kind === "segment" ? segmentHedgeMs : hedgeDelayMs;
+	const losers = new AbortController();
+	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
+
+	return new Promise((resolve, reject) => {
+		let launched = 0;
+		let failed = 0;
+		let settled = false;
+		let hedge: ReturnType<typeof setTimeout> | undefined;
+		let primaryFailure: unknown;
+
+		const launch = () => {
+			clearTimeout(hedge);
+			if (settled || launched >= candidates.length) {
+				return;
+			}
+
+			const candidate = candidates[launched]!;
+			launched += 1;
+			hedge = setTimeout(launch, hedgeMs);
+
+			attempt(candidate, headers, timeoutMs, cancelled).then(
+				(result) => {
+					if (settled) {
+						return;
+					}
+					settled = true;
+					clearTimeout(hedge);
+					losers.abort();
+					resolve(result);
+				},
+				(cause) => {
+					if (settled) {
+						return;
+					}
+					if (!(cause instanceof StreamUpstreamError)) {
+						settled = true;
+						clearTimeout(hedge);
+						losers.abort();
+						reject(cause);
+						return;
+					}
+
+					primaryFailure ??= cause;
+					failed += 1;
+					if (failed === candidates.length) {
+						settled = true;
+						clearTimeout(hedge);
+						reject(primaryFailure);
+						return;
+					}
+					launch();
+				},
+			);
+		};
+
+		launch();
+	});
+}
+
+async function attempt(
+	url: string,
+	headers: Headers,
+	timeoutMs: number,
+	signal: AbortSignal,
+): Promise<UpstreamBytes> {
+	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
+	try {
+		return {
+			bytes: new Uint8Array(await upstream.response.arrayBuffer()),
+			headers: upstream.response.headers,
+			url: upstream.url,
+		};
+	} catch (cause) {
+		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
+			cause,
+		});
 	}
 }
 

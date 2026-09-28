@@ -11,7 +11,13 @@ import {
 	type StreamTarget,
 	type StreamTargetKind,
 } from "./token";
-import { fetchUpstream, mirrorsFor, StreamUpstreamError, type Upstream } from "./upstream";
+import {
+	fetchUpstream,
+	fetchUpstreamBytes,
+	mirrorsFor,
+	StreamUpstreamError,
+	type UpstreamBytes,
+} from "./upstream";
 
 /**
  * How long tokens handed to clients stay valid.
@@ -76,6 +82,36 @@ export async function canFetchStream(
 	} catch (cause) {
 		if (cause instanceof StreamUpstreamError) {
 			return false;
+		}
+		throw cause;
+	}
+}
+
+/**
+ * A subtitle file's text, from its own host or a mirror.
+ *
+ * @returns `null` when neither can serve it right now.
+ */
+export async function readSubtitle(
+	url: string,
+	headers: Record<string, string>,
+	mirrors: string[],
+) {
+	try {
+		const { bytes } = await fetchUpstreamBytes(
+			{
+				url,
+				kind: "subtitle",
+				headers,
+				mirrors,
+				expiresAt: 0,
+			},
+			undefined,
+		);
+		return new TextDecoder().decode(bytes);
+	} catch (cause) {
+		if (cause instanceof StreamUpstreamError) {
+			return null;
 		}
 		throw cause;
 	}
@@ -157,21 +193,45 @@ export async function proxyStream(
 		});
 	}
 
-	const upstream = await fetchUpstream(target, request.range, request.signal);
-
 	if (target.kind === "playlist") {
+		const upstream = await fetchUpstreamBytes(target, request.signal);
 		return playlistResponse(target, upstream);
 	}
 
-	if (target.kind === "subtitle" && target.shifts) {
-		return new Response(retimeWebVtt(await upstream.response.text(), target.shifts), {
+	if (target.kind === "subtitle" || target.kind === "key") {
+		const upstream = await fetchUpstreamBytes(target, request.signal);
+		if (target.kind === "subtitle" && target.shifts) {
+			const text = new TextDecoder().decode(upstream.bytes);
+			return new Response(retimeWebVtt(text, target.shifts), {
+				status: 200,
+				headers: {
+					"Content-Type": "text/vtt; charset=utf-8",
+					"Cache-Control": "private, max-age=3600",
+				},
+			});
+		}
+
+		const headers = new Headers({
+			"Cache-Control": "private, max-age=3600",
+			"Content-Length": String(upstream.bytes.byteLength),
+		});
+		const contentType = upstream.headers.get("Content-Type");
+		if (contentType) {
+			headers.set("Content-Type", contentType);
+		}
+
+		// Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
+		if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
+			headers.set("Content-Type", "text/vtt; charset=utf-8");
+		}
+
+		return new Response(upstream.bytes, {
 			status: 200,
-			headers: {
-				"Content-Type": "text/vtt; charset=utf-8",
-				"Cache-Control": "private, max-age=3600",
-			},
+			headers,
 		});
 	}
+
+	const upstream = await fetchUpstream(target, request.range, request.signal);
 
 	const headers = new Headers({
 		"Cache-Control": "private, max-age=3600",
@@ -188,11 +248,6 @@ export async function proxyStream(
 	const contentType = headers.get("Content-Type");
 	if (target.kind === "segment" && contentType && /^(image|text)\//i.test(contentType)) {
 		headers.set("Content-Type", "video/mp2t");
-	}
-
-	// Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
-	if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
-		headers.set("Content-Type", "text/vtt; charset=utf-8");
 	}
 
 	// A ranged response cannot be unwrapped without breaking its byte offsets.
@@ -259,18 +314,14 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
 	);
 }
 
-async function playlistResponse(target: StreamTarget, upstream: Upstream) {
-	const length = Number(upstream.response.headers.get("Content-Length"));
-	if (length > maximumPlaylistBytes) {
-		throw new StreamUpstreamError("Upstream playlist is too large", upstream.response.status);
+async function playlistResponse(target: StreamTarget, upstream: UpstreamBytes) {
+	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
+		throw new StreamUpstreamError("Upstream playlist is too large", null);
 	}
 
-	const content = await upstream.response.text();
+	const content = new TextDecoder().decode(upstream.bytes);
 	if (!content.trimStart().startsWith("#EXTM3U")) {
-		throw new StreamUpstreamError(
-			"Upstream did not return an HLS playlist",
-			upstream.response.status,
-		);
+		throw new StreamUpstreamError("Upstream did not return an HLS playlist", null);
 	}
 
 	// Children inherit the parent's headers and expiry, so a playlist cannot be

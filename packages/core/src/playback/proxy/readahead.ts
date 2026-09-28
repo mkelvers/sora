@@ -1,6 +1,6 @@
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import type { StreamTarget } from "./token";
-import { fetchUpstream } from "./upstream";
+import { fetchUpstreamBytes } from "./upstream";
 
 /**
  * How many segments past the one being played are fetched ahead of time.
@@ -19,8 +19,8 @@ const cacheBudgetBytes = 256 * 1_024 * 1_024;
 const rememberedSegments = 20_000;
 
 /** A segment ready to send, with any disguise already removed. */
-export interface Segment {
-	bytes: Uint8Array;
+interface Segment {
+	bytes: Uint8Array<ArrayBuffer>;
 	contentType: string | null;
 }
 
@@ -130,10 +130,9 @@ function evict(keep: string) {
 }
 
 async function download(target: StreamTarget): Promise<Segment> {
-	const { response } = await fetchUpstream(target, null);
-	const body = new Uint8Array(await response.arrayBuffer());
+	const { bytes: body, headers } = await fetchUpstreamBytes(target);
 	const disguised = isDisguisedSegment(body);
-	const contentType = response.headers.get("Content-Type");
+	const contentType = headers.get("Content-Type");
 
 	return {
 		bytes: disguised ? unwrapDisguisedSegment(body) : body,
