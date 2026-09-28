@@ -102,6 +102,13 @@ export const series = pgTable("series", {
 	createdAt: timestamptz("created_at").notNull().defaultNow(),
 	/** When the seasons and episodes were last laid out. */
 	laidOutAt: timestamptz("laid_out_at").notNull(),
+	/**
+	 * The `key` whose TMDB images `series_image` holds, and when they were
+	 * fetched; both null until they first are. A key other than `key` means
+	 * the stored images belong to another TMDB title.
+	 */
+	imagesKey: text("images_key"),
+	imagesFetchedAt: timestamptz("images_fetched_at"),
 });
 
 /**
@@ -188,6 +195,42 @@ export const seriesEpisode = pgTable(
 			columns: [table.seasonId, table.number],
 		}),
 		index("series_episode_anilist_idx").on(table.anilistId, table.anilistEpisode),
+	],
+);
+
+export const imageType = pgEnum("image_type", ["poster", "backdrop", "logo"]);
+
+/**
+ * Every backdrop, poster, and logo TMDB had for a series when last fetched,
+ * in every language, plus each season's posters for a show.
+ *
+ * Fetched the first time they are listed and kept until someone asks for
+ * them again, so choosing artwork never waits on TMDB twice.
+ */
+export const seriesImage = pgTable(
+	"series_image",
+	{
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		type: imageType("type").notNull(),
+		/** The original size on TMDB's image host. */
+		url: text("url").notNull(),
+		width: integer("width").notNull(),
+		height: integer("height").notNull(),
+		/** ISO 639-1 code of any text on the image; null when it has none. */
+		language: text("language"),
+		voteAverage: doublePrecision("vote_average").notNull(),
+		voteCount: integer("vote_count").notNull(),
+		/** TMDB's number of the season a poster is for; null for the title's own. */
+		seasonNumber: integer("season_number"),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.seriesId, table.type, table.url],
+		}),
 	],
 );
 
