@@ -10,28 +10,25 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
  * Run with `bun run graphql:generate` after editing an operation.
  */
 export default {
-  schema: "https://graphql.anilist.co",
-  documents: "src/anilist/operations/*.graphql",
-  generates: {
-    "src/anilist/graphql.generated.ts": {
-      plugins: [
-        "typescript-operations",
-        "typed-document-node"
-      ],
-      config: {
-        documentMode: "string",
-        enumsAsTypes: true,
-        skipTypename: true,
-        useTypeImports: true,
-        // AniList treats an explicit null differently from an omitted variable
-        // (`format_in: null` is a 500), so optional variables must stay optional.
-        avoidOptionals: false,
-        scalars: {
-          CountryCode: "string",
-          FuzzyDateInt: "number",
-          Json: "unknown",
-        },
-      },
-    },
-  },
+	schema: "https://graphql.anilist.co",
+	documents: "src/anilist/operations/*.graphql",
+	generates: {
+		"src/anilist/graphql.generated.ts": {
+			plugins: ["typescript-operations", "typed-document-node"],
+			config: {
+				documentMode: "string",
+				enumsAsTypes: true,
+				skipTypename: true,
+				useTypeImports: true,
+				// AniList treats an explicit null differently from an omitted variable
+				// (`format_in: null` is a 500), so optional variables must stay optional.
+				avoidOptionals: false,
+				scalars: {
+					CountryCode: "string",
+					FuzzyDateInt: "number",
+					Json: "unknown",
+				},
+			},
+		},
+	},
 } satisfies CodegenConfig;
