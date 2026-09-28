@@ -11,9 +11,9 @@ import { fromUnixSeconds, fuzzyDate, plainText } from "./text";
 
 export type AnimeFormat = Exclude<MediaFormat, "MANGA" | "NOVEL" | "ONE_SHOT">;
 export type AnimeStatus = MediaStatus;
-export type AnimeSeason = MediaSeason;
-export type AnimeSource = MediaSource;
-export type AnimeRelationType = MediaRelation;
+type AnimeSeason = MediaSeason;
+type AnimeSource = MediaSource;
+type AnimeRelationType = MediaRelation;
 
 /**
  * Every title AniList knows, plus the one to show.
@@ -22,7 +22,7 @@ export type AnimeRelationType = MediaRelation;
  * most Western clients expect. Clients that want a different preference can
  * pick from the individual fields.
  */
-export interface AnimeTitle {
+interface AnimeTitle {
 	display: string;
 	english: string | null;
 	romaji: string | null;
@@ -30,7 +30,7 @@ export interface AnimeTitle {
 }
 
 /** An upcoming episode announced by AniList. */
-export interface AiringEpisode {
+interface AiringEpisode {
 	number: number;
 	/** ISO 8601 timestamp. */
 	airingAt: string;
@@ -68,7 +68,7 @@ export interface AnimeCard {
 }
 
 /** A related entry in the same franchise. */
-export interface AnimeRelation {
+interface AnimeRelation {
 	type: AnimeRelationType;
 	anime: AnimeCard;
 }

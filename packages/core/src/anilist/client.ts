@@ -108,7 +108,7 @@ export function withAniListPriority<T>(priority: number, work: () => Promise<T>)
 }
 
 /** The priority requests made here are queued at; see {@link withAniListPriority}. */
-export function currentAniListPriority() {
+function currentAniListPriority() {
 	return priorityContext.getStore() ?? Number.NEGATIVE_INFINITY;
 }
 

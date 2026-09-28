@@ -163,7 +163,7 @@ export interface TmdbShow {
 }
 
 /** A season's own name and artwork, such as "Mugen Train Arc". */
-export interface TmdbSeason {
+interface TmdbSeason {
 	seasonNumber: number;
 	name: string | null;
 	posterPath: string | null;

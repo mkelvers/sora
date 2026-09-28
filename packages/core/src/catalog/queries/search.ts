@@ -561,7 +561,7 @@ function allowedTypos(word: string) {
  * The fewest letters inserted, removed, replaced, or swapped with their
  * neighbour that turn one word into the other.
  */
-export function editDistance(left: string, right: string) {
+function editDistance(left: string, right: string) {
 	const a = [...left];
 	const b = [...right];
 	const rows = Array.from(
