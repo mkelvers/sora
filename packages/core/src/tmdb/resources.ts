@@ -366,16 +366,30 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
  *
  * @returns The images, or `null` when TMDB does not know the ID.
  */
-export function getImages(mediaType: "tv" | "movie", id: number): Promise<TmdbImages | null> {
+export function getImages(
+	mediaType: "tv" | "movie",
+	id: number,
+	options: {
+		/** How old a cached copy may be; a day by default. */
+		maxAgeMs?: number;
+	} = {},
+): Promise<TmdbImages | null> {
 	return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
-		maxAgeMs: day,
+		maxAgeMs: options.maxAgeMs ?? day,
 	});
 }
 
 /** Loads a show season's posters, in every language. Empty when TMDB does not know the season. */
-export async function getSeasonPosters(showId: number, seasonNumber: number): Promise<TmdbImage[]> {
+export async function getSeasonPosters(
+	showId: number,
+	seasonNumber: number,
+	options: {
+		/** How old a cached copy may be; a day by default. */
+		maxAgeMs?: number;
+	} = {},
+): Promise<TmdbImage[]> {
 	const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
-		maxAgeMs: day,
+		maxAgeMs: options.maxAgeMs ?? day,
 	});
 	return images?.posters ?? [];
 }

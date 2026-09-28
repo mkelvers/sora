@@ -13,6 +13,7 @@
  */
 export {
 	listSeriesImages,
+	refreshSeriesImages,
 	setSeriesArtwork,
 	type ArtworkChanges,
 	type ImageType,
