@@ -49,4 +49,5 @@ export const dismiss = command(z.string(), async (seriesId) => {
 	}
 
 	await viewer.sora.dismissContinueWatching(viewer.profile.id, seriesId);
+	await getContinueWatching().refresh();
 });

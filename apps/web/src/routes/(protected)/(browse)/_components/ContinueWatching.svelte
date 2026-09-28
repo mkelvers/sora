@@ -9,7 +9,7 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { ContinueWatchingItem } from "@sora/sdk";
-	import { XIcon } from "phosphor-svelte";
+	import { TrashIcon } from "phosphor-svelte";
 
 	import { dismiss, getContinueWatching } from "../home.remote";
 
@@ -78,13 +78,13 @@
 							</div>
 
 							<div
-								class="absolute top-2 right-2 z-10 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100"
+								class="absolute right-2 bottom-2 z-10 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100"
 							>
 								<Tooltip text="Remove">
 									{#snippet children(trigger)}
 										<Button
 											{...trigger}
-											class="grid size-8 place-items-center bg-black/70 text-white transition-[background-color,transform] duration-150 hover:bg-status-error active:scale-90"
+											class="grid size-8 place-items-center text-muted transition-[color,transform] duration-150 hover:text-status-error active:scale-90"
 											aria-label="Remove {item.series.title} from Continue Watching"
 											onclick={() =>
 												dismiss(item.series.id).updates(
@@ -93,7 +93,7 @@
 													),
 												)}
 										>
-											<XIcon size="1rem" weight="bold" />
+											<TrashIcon size="1.125rem" />
 										</Button>
 									{/snippet}
 								</Tooltip>
