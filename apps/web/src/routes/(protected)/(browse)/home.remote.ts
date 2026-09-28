@@ -1,6 +1,5 @@
-import { command, getRequestEvent, query } from "$app/server";
-import { sora } from "$lib/server/sora";
-import { error } from "@sveltejs/kit";
+import { command, query } from "$app/server";
+import { remoteViewer, sora } from "$lib/server/sora";
 import { z } from "zod";
 
 export const getFeatured = query(async () => {
@@ -25,28 +24,19 @@ export const getTrending = query(() =>
 );
 
 export const getContinueWatching = query(async () => {
-	const { viewer } = getRequestEvent().locals;
-	if (!viewer?.profile) {
-		error(403, "Choose a profile first");
-	}
+	const viewer = remoteViewer();
 
 	return viewer.sora.continueWatching(viewer.profile.id);
 });
 
 export const getRecommendations = query(async () => {
-	const { viewer } = getRequestEvent().locals;
-	if (!viewer?.profile) {
-		error(403, "Choose a profile first");
-	}
+	const viewer = remoteViewer();
 
 	return viewer.sora.recommendations(viewer.profile.id);
 });
 
 export const dismiss = command(z.string(), async (seriesId) => {
-	const { viewer } = getRequestEvent().locals;
-	if (!viewer?.profile) {
-		error(403, "Choose a profile first");
-	}
+	const viewer = remoteViewer();
 
 	await viewer.sora.dismissContinueWatching(viewer.profile.id, seriesId);
 	await getContinueWatching().refresh();

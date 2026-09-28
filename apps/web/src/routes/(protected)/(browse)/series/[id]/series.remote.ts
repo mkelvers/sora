@@ -1,7 +1,6 @@
-import { command, getRequestEvent, query } from "$app/server";
+import { command, query } from "$app/server";
 import { getListed } from "$lib/library.remote";
-import { sora } from "$lib/server/sora";
-import { error } from "@sveltejs/kit";
+import { remoteViewer, sora } from "$lib/server/sora";
 import { z } from "zod";
 
 export const getSeries = query(z.string(), (id) => sora.series(id));
@@ -15,10 +14,7 @@ export const getEpisodes = query(
 );
 
 export const getViewing = query(z.string(), async (seriesId) => {
-	const { viewer } = getRequestEvent().locals;
-	if (!viewer?.profile) {
-		error(403, "Choose a profile first");
-	}
+	const viewer = remoteViewer();
 
 	const [progress, library] = await Promise.all([
 		viewer.sora.progress(viewer.profile.id, seriesId),
@@ -37,10 +33,7 @@ export const setStatus = command(
 		status: z.enum(["planning", "watching", "completed", "dropped"]).nullable(),
 	}),
 	async ({ seriesId, status }) => {
-		const { viewer } = getRequestEvent().locals;
-		if (!viewer?.profile) {
-			error(403, "Choose a profile first");
-		}
+		const viewer = remoteViewer();
 
 		if (status) {
 			await viewer.sora.setLibraryStatus(viewer.profile.id, seriesId, status);
@@ -59,10 +52,7 @@ export const markAllWatched = command(
 		watched: z.boolean(),
 	}),
 	async ({ seriesId, seasonId, watched }) => {
-		const { viewer } = getRequestEvent().locals;
-		if (!viewer?.profile) {
-			error(403, "Choose a profile first");
-		}
+		const viewer = remoteViewer();
 
 		await viewer.sora.markWatched(viewer.profile.id, seriesId, {
 			season_id: seasonId,

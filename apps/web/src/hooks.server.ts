@@ -1,7 +1,10 @@
 import { env } from "$env/dynamic/private";
 import { profileCookie, sessionCookie } from "$lib/server/sora";
-import { SoraClient, SoraError } from "@sora/sdk";
+import { SoraClient, SoraError, type Profile } from "@sora/sdk";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
+
+const remoteProfilesTtl = 5 * 60_000;
+const knownProfiles = new Map<string, { profiles: Profile[]; at: number }>();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
@@ -16,7 +19,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 
 		try {
-			const profiles = await sora.profiles();
+			let known = knownProfiles.get(token);
+			if (!event.isRemoteRequest || !known || Date.now() - known.at >= remoteProfilesTtl) {
+				known = {
+					profiles: await sora.profiles(),
+					at: Date.now(),
+				};
+				if (knownProfiles.size > 500) {
+					knownProfiles.clear();
+				}
+				knownProfiles.set(token, known);
+			}
+			const { profiles } = known;
 			const chosen = event.cookies.get(profileCookie);
 			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
 
@@ -49,6 +63,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (event.isRemoteRequest && !event.locals.viewer) {
 		error(401, "Not signed in");
+	}
+
+	if (event.isRemoteRequest && !event.locals.viewer?.profile) {
+		error(403, "Choose a profile first");
 	}
 
 	return resolve(event);

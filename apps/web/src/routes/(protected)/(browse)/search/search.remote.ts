@@ -1,6 +1,5 @@
-import { getRequestEvent, query } from "$app/server";
-import { sora } from "$lib/server/sora";
-import { error } from "@sveltejs/kit";
+import { query } from "$app/server";
+import { remoteViewer, sora } from "$lib/server/sora";
 import { z } from "zod";
 
 export const searchSeries = query(
@@ -10,10 +9,7 @@ export const searchSeries = query(
 		perPage: z.number().int().min(1).max(50).default(24),
 	}),
 	async ({ q, page, perPage }) => {
-		const { viewer } = getRequestEvent().locals;
-		if (!viewer?.profile) {
-			error(403, "Choose a profile first");
-		}
+		const viewer = remoteViewer();
 
 		const found = await sora.search(q, {
 			params: {

@@ -1,3 +1,4 @@
+import { getRequestEvent } from "$app/server";
 import { env } from "$env/dynamic/private";
 import { SoraClient } from "@sora/sdk";
 
@@ -11,3 +12,11 @@ export const sora = new SoraClient({
 
 export const sessionCookie = "sora_session";
 export const profileCookie = "sora_profile";
+
+export function remoteViewer() {
+	const { viewer } = getRequestEvent().locals;
+	return {
+		sora: viewer!.sora,
+		profile: viewer!.profile!,
+	};
+}
