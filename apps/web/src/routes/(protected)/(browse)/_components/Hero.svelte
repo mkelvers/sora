@@ -2,8 +2,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Carousel from "$lib/components/ui/Carousel.svelte";
 	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, tmdbImage } from "$lib/utils";
-	import { getListed, setListed } from "$lib/watchlist.remote";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, CaretLeftIcon, CaretRightIcon, PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
@@ -164,7 +164,7 @@
 						<button
 							type="button"
 							class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={() =>
 								setListed({

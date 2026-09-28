@@ -3,8 +3,8 @@
 	import CardMedia from "$lib/components/ui/CardMedia.svelte";
 	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn } from "$lib/utils";
-	import { getListed, setListed } from "$lib/watchlist.remote";
 	import type { ContinueWatchingItem, SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -154,13 +154,13 @@
 					</Tooltip>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
+				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 					{#snippet children(trigger)}
 						<button
 							{...trigger}
 							type="button"
 							class="grid size-9 cursor-pointer place-items-center transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={() =>
 								setListed({

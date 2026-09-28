@@ -31,7 +31,7 @@
 >
 	<h1 class="text-center text-3xl font-normal">Add profile</h1>
 	<p class="mt-4 text-center text-sm text-muted">
-		Each profile keeps its own watchlist, progress, and recommendations.
+		Each profile keeps its own library, progress, and recommendations.
 	</p>
 
 	<label class="mt-12 block text-sm text-muted" for="name">Name</label>
