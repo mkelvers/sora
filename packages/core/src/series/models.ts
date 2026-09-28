@@ -81,6 +81,8 @@ export interface Series extends SeriesCard {
   genres: string[];
   tags: AnimeTag[];
   studios: string[];
+  /** How many AniList users have scored the first season, behind `score`; `null` until the search index has it. */
+  scoreCount: number | null;
   /** The next episode to air, or `null` when none is announced. */
   nextEpisode: {
     seasonId: string;

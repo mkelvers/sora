@@ -85,6 +85,8 @@ export const animeSearch = pgTable(
     popularity: integer("popularity").notNull(),
     trending: integer("trending").notNull(),
     averageScore: integer("average_score"),
+    /** How many AniList users have scored it; `null` when AniList has no score distribution for it. */
+    scoreCount: integer("score_count"),
     isAdult: boolean("is_adult").notNull(),
     /** When AniList last changed the entry. */
     updatedAt: timestamptz("updated_at").notNull(),

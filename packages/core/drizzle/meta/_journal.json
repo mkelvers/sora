@@ -183,6 +183,13 @@
       "when": 1790545063996,
       "tag": "0025_drop_stored_status",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790553858712,
+      "tag": "0026_anime_score_count",
+      "breakpoints": true
     }
   ]
 }

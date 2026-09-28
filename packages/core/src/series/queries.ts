@@ -5,7 +5,7 @@ import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, BrowseQuerySchema, type BrowseQuery, type Page } from "../catalog/queries/browse";
 import { hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { db } from "../database/client";
-import { anime as animeTable, series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
+import { anime as animeTable, animeSearch, series, seriesEntry, seriesEpisode, seriesRelated, seriesSeason } from "../database/schema";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { scheduleSeriesStore } from "../scheduler/queue";
@@ -27,10 +27,17 @@ export async function getSeries(seriesId: string): Promise<Series> {
     throw new SeriesNotFoundError(seriesId);
   }
 
-  const [anchor, listed, related] = await Promise.all([
+  const [anchor, listed, related, [indexed]] = await Promise.all([
     getAnime(row.anchorAnilistId),
     listedSeasonsOf([row]),
-    relatedOf(row.id)
+    relatedOf(row.id),
+    db
+      .select({
+        scoreCount: animeSearch.scoreCount,
+      })
+      .from(animeSearch)
+      .where(eq(animeSearch.anilistId, row.anchorAnilistId))
+      .limit(1)
   ]);
   const cards = await cardsFrom([row], listed);
 
@@ -41,6 +48,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
     genres: anchor.genres,
     tags: anchor.tags,
     studios: anchor.studios,
+    scoreCount: indexed?.scoreCount ?? null,
     nextEpisode:
       isNextEpisodeAhead && row.nextEpisodeSeasonId !== null && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
         ? {

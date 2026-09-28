@@ -165,6 +165,8 @@ function toRow(media: IndexedMedia): typeof animeSearch.$inferInsert {
     popularity: media.popularity ?? 0,
     trending: media.trending ?? 0,
     averageScore: media.averageScore,
+    scoreCount:
+      media.stats?.scoreDistribution?.reduce((total, bucket) => total + (bucket?.amount ?? 0), 0) ?? null,
     isAdult: media.isAdult === true,
     updatedAt: new Date((media.updatedAt ?? 0) * 1_000),
   };

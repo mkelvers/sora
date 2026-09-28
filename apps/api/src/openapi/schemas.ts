@@ -223,6 +223,10 @@ export const SeriesSchema = SeriesCardSchema.extend({
   }),
   tags: z.array(TagSchema),
   studios: z.array(z.string()),
+  score_count: z.number().int().nullable().openapi({
+    description: "How many AniList users have scored the first season, behind `score`. Null until Sora's search index has it.",
+    example: 610640,
+  }),
   next_episode: z
     .object({
       season_id: z.string(),

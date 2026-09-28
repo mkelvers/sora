@@ -28,6 +28,11 @@ query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) 
       popularity
       trending
       averageScore
+      stats {
+        scoreDistribution {
+          amount
+        }
+      }
       isAdult
       updatedAt
     }
