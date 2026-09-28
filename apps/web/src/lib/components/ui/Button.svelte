@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
 	import { cva, type VariantProps } from "class-variance-authority";
-	import type { Component, Snippet } from "svelte";
+	import type { Snippet } from "svelte";
 	import type { HTMLButtonAttributes } from "svelte/elements";
 
 	const buttonVariants = cva(
@@ -19,41 +19,18 @@
 		},
 	);
 
-	type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
-
-	type Props = HTMLButtonAttributes & {
-		children?: Snippet;
-	} & (
-			| {
-					variant?: Exclude<ButtonVariant, "ghost">;
-			  }
-			| {
-					variant: Extract<ButtonVariant, "ghost">;
-					icon?: Component;
-			  }
-		);
-
 	let {
 		class: className,
 		type = "button",
 		children,
 		variant = "default",
-		icon: Icon,
 		...props
-	}: Props & {
-		icon?: Component;
-	} = $props();
+	}: HTMLButtonAttributes &
+		VariantProps<typeof buttonVariants> & {
+			children?: Snippet;
+		} = $props();
 </script>
 
 <button class={cn(buttonVariants({ variant }), className)} {type} {...props}>
-	{#if Icon}
-		<span
-			aria-hidden="true"
-			class="inline-flex size-4 shrink-0 items-center justify-center [&>svg]:size-4"
-		>
-			<Icon />
-		</span>
-	{/if}
-
 	{@render children?.()}
 </button>
