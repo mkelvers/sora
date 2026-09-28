@@ -3,32 +3,53 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { cn, tmdbImage } from "$lib/utils";
-	import { getListed, setListed } from "$lib/watchlist.remote";
-	import type { ContinueWatchingItem, LibraryTitle, Series } from "@sora/sdk";
-	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
+	import { getListed, setListed } from "$lib/library.remote";
+	import { audioLabel, cn, tmdbImage } from "$lib/utils";
+	import type { LibraryEntry, LibraryStatus, Series, TitleProgress } from "@sora/sdk";
+	import {
+		BookmarkSimpleIcon,
+		CheckIcon,
+		DotsThreeVerticalIcon,
+		ListChecksIcon,
+		PlayIcon,
+	} from "phosphor-svelte";
 
-	import { clearProgress, markAllWatched } from "../series.remote";
+	import { markAllWatched, setStatus } from "../series.remote";
 
 	let {
 		series,
-		resume,
+		progress,
 		library,
 	}: {
 		series: Series;
-		resume: ContinueWatchingItem | null;
-		library: LibraryTitle;
+		progress: TitleProgress;
+		library: LibraryEntry;
 	} = $props();
 
 	const listing = getListed();
-	const listed = $derived(listing.current?.includes(series.id) ?? library.listed);
+	const listed = $derived(listing.current?.includes(series.id) ?? library.status !== null);
+
+	const statuses: [LibraryStatus, string][] = [
+		["watching", "Watching"],
+		["planning", "Plan to Watch"],
+		["completed", "Completed"],
+		["dropped", "Dropped"],
+	];
 
 	const play = $derived.by(() => {
-		if (resume) {
-			const where = series.seasons.find((other) => other.id === resume.season_id);
+		const { next, new_season } = progress;
+		if (next) {
+			const where = series.seasons.find((other) => other.id === next.season_id);
 			return {
-				href: `/series/${series.id}/watch/${resume.season_id}/${resume.episode}`,
-				label: `${resume.position_seconds > 0 ? "Continue" : "Start"} ${series.seasons.length > 1 && where ? `${where.title} ` : ""}E${resume.episode}`,
+				href: `/series/${series.id}/watch/${next.season_id}/${next.episode}`,
+				label: `${next.position_seconds > 0 ? "Continue" : "Start"} ${series.seasons.length > 1 && where ? `${where.title} ` : ""}E${next.episode}`,
+			};
+		}
+
+		if (new_season) {
+			return {
+				href: `/series/${series.id}/watch/${new_season.season_id}/1`,
+				label: `Start ${new_season.title} E1`,
 			};
 		}
 
@@ -36,12 +57,11 @@
 		return (
 			first && {
 				href: `/series/${series.id}/watch/${first.id}/1`,
-				label:
-					library.status === "completed"
-						? "Watch again"
-						: series.kind === "movie"
-							? "Play"
-							: "Start watching E1",
+				label: progress.caught_up
+					? "Watch again"
+					: series.kind === "movie"
+						? "Play"
+						: "Start watching E1",
 			}
 		);
 	});
@@ -116,17 +136,14 @@
 							onclick={() =>
 								markAllWatched({
 									seriesId: series.id,
-									watched: true,
+									watched: !progress.caught_up,
 								})}
 						>
-							Mark Series as Watched
+							Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
 						</Button>
 
-						{#if library.last_watched_at}
-							<Button role="menuitem" class={item} onclick={() => clearProgress(series.id)}>
-								Clear progress
-							</Button>
-						{/if}
+						<a role="menuitem" href="/series/{series.id}/artwork" class={item}>View Media Options</a
+						>
 					</div>
 				{/snippet}
 			</Dropdown>
@@ -155,13 +172,28 @@
 				<p class="mt-7 text-base text-foreground sm:mt-8">{next}</p>
 			{/if}
 
+			<p
+				class={cn(
+					"flex flex-wrap items-center gap-y-1 text-sm text-muted",
+					next ? "mt-5 lg:mt-7" : "mt-8 sm:mt-10 lg:mt-11",
+				)}
+			>
+				{#if series.audio.length}
+					<span class="metadata-tag">
+						{audioLabel(series.audio)}
+					</span>
+				{/if}
+				{#if series.genres.length}
+					<span class="metadata-tag">
+						{#each series.genres as genre, index (genre)}{#if index > 0},{" "}{/if}<span
+								class="underline underline-offset-2">{genre}</span
+							>{/each}
+					</span>
+				{/if}
+			</p>
+
 			{#if series.score !== null}
-				<div
-					class={cn(
-						"flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5",
-						next ? "mt-5 lg:mt-7" : "mt-8 sm:mt-10 lg:mt-11",
-					)}
-				>
+				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5">
 					<span class="flex items-center gap-0.5" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
 							<span class="relative size-6 shrink-0">
@@ -190,25 +222,25 @@
 			{/if}
 
 			<div
-				class="mt-7 flex items-center gap-2 text-xs font-bold text-accent max-sm:flex-wrap sm:text-sm lg:mt-8 lg:gap-2.5"
+				class="mt-7 flex items-center gap-3 text-xs font-bold text-accent max-sm:flex-wrap sm:text-sm lg:mt-8 lg:gap-4"
 			>
 				{#if play}
 					<a
 						href={play.href}
-						class="flex h-10 items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97] sm:px-6"
+						class="flex h-10 items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 sm:px-6"
 					>
 						<PlayIcon size="1.55em" weight="bold" />
 						{play.label}
 					</a>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
+				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 					{#snippet children(trigger)}
 						<button
 							{...trigger}
 							type="button"
-							class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+							class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
+							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={() =>
 								setListed({
@@ -222,6 +254,42 @@
 						>
 							<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
 						</button>
+					{/snippet}
+				</Tooltip>
+
+				<Tooltip text="Manage Status">
+					{#snippet children(trigger)}
+						<div
+							{...trigger}
+							class="[&_.dropdown-trigger]:grid [&_.dropdown-trigger]:size-10 [&_.dropdown-trigger]:place-items-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:[font-size:inherit] [&_.dropdown-trigger]:text-accent [&_.dropdown-trigger]:transition-[filter] [&_.dropdown-trigger]:duration-150 [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:text-accent [&_.dropdown-trigger]:hover:bg-transparent [&_.dropdown-trigger]:hover:brightness-120"
+						>
+							<Dropdown alignment="left" label="Manage Status" className="w-56 *:p-0">
+								{#snippet trigger()}
+									<ListChecksIcon size="1.8em" weight="bold" />
+								{/snippet}
+								{#snippet children()}
+									<div role="menu" aria-label="Status">
+										{#each statuses as [status, label] (status)}
+											<Button
+												role="menuitemradio"
+												aria-checked={library.status === status}
+												class={cn(item, library.status === status && "text-foreground")}
+												onclick={() =>
+													setStatus({
+														seriesId: series.id,
+														status,
+													})}
+											>
+												{label}
+												{#if library.status === status}
+													<CheckIcon size="1rem" weight="bold" class="ml-auto" />
+												{/if}
+											</Button>
+										{/each}
+									</div>
+								{/snippet}
+							</Dropdown>
+						</div>
 					{/snippet}
 				</Tooltip>
 			</div>
