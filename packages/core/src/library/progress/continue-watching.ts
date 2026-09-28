@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { continueWatchingDismissal, watchlistEntry } from "../../database/schema";
+import { continueWatchingDismissal, libraryEntry } from "../../database/schema";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { continuePoint, type ContinueWatchingItem } from "./resume";
 import { loadCheckpoints, loadTitles } from "./titles";
@@ -10,9 +10,10 @@ import { loadCheckpoints, loadTitles } from "./titles";
  * Builds the "continue watching" row: one entry per recently played title,
  * most recent first.
  *
- * Titles with nothing left to continue are left out (see
- * {@link continuePoint}), as are dropped titles and titles the user
- * dismissed from the row and has not played since.
+ * The row is read from episode progress alone; library status is not a
+ * way into it. Titles with nothing left to continue are left out (see
+ * {@link continuePoint}), as are titles the user dropped or dismissed from
+ * the row and has not played since.
  */
 export async function getContinueWatching(
 	userId: string,
@@ -36,11 +37,8 @@ export async function getContinueWatching(
 	// Over-fetch, because some titles drop out once their episodes are known.
 	const candidates = [...checkpoints]
 		.filter(([seriesId, progress]) => {
-			const dismissedAt = hidden.dismissed.get(seriesId);
-			return (
-				!hidden.dropped.has(seriesId) &&
-				(dismissedAt === undefined || dismissedAt < progress[0]!.eventAt)
-			);
+			const hiddenAt = [hidden.dismissed.get(seriesId), hidden.dropped.get(seriesId)];
+			return hiddenAt.every((at) => at === undefined || at < progress[0]!.eventAt);
 		})
 		.slice(0, limit * 2);
 	if (candidates.length === 0) {
@@ -69,7 +67,7 @@ export async function getContinueWatching(
 
 /**
  * Removes a title from "continue watching" until the user plays it again.
- * It does not drop the title or change anything else about it.
+ * It does not change the title's library status or anything else about it.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
@@ -92,9 +90,8 @@ export async function dismissFromContinueWatching(userId: string, seriesId: stri
 }
 
 /**
- * The titles hidden from the row: when each dismissed one was dismissed,
- * and the dropped ones, which stay hidden until played again (playing a
- * dropped title undrops it).
+ * The titles hidden from the row until played again: when each dismissed
+ * one was dismissed, and when each dropped one was dropped.
  */
 async function hiddenTitles(userId: string, seriesIds: readonly string[] | undefined) {
 	const [dismissed, dropped] = await Promise.all([
@@ -109,20 +106,21 @@ async function hiddenTitles(userId: string, seriesIds: readonly string[] | undef
 			),
 		db
 			.select({
-				seriesId: watchlistEntry.seriesId,
+				seriesId: libraryEntry.seriesId,
+				droppedAt: libraryEntry.updatedAt,
 			})
-			.from(watchlistEntry)
+			.from(libraryEntry)
 			.where(
 				and(
-					eq(watchlistEntry.userId, userId),
-					seriesIds ? inArray(watchlistEntry.seriesId, [...seriesIds]) : undefined,
-					isNotNull(watchlistEntry.droppedAt),
+					eq(libraryEntry.userId, userId),
+					seriesIds ? inArray(libraryEntry.seriesId, [...seriesIds]) : undefined,
+					eq(libraryEntry.status, "dropped"),
 				),
 			),
 	]);
 
 	return {
 		dismissed: new Map(dismissed.map((row) => [row.seriesId, row.dismissedAt.toISOString()])),
-		dropped: new Set(dropped.map((row) => row.seriesId)),
+		dropped: new Map(dropped.map((row) => [row.seriesId, row.droppedAt.toISOString()])),
 	};
 }

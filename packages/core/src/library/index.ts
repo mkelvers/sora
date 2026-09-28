@@ -1,48 +1,55 @@
 /**
- * Per-user library: watchlist, playback progress and history, continue
- * watching, imports, and recommendations.
+ * Per-user library: library statuses, episode progress, playback history,
+ * continue watching, imports, and recommendations.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling. Titles
  * and episodes are addressed by Sora series and season IDs.
  *
- * The watchlist stores only what a user chose: that a title is listed, and
- * whether they dropped it. How far they are through a title is read from
- * their progress, so it stays true as the title gains seasons.
+ * Four things are kept apart:
+ *
+ * - A series' library status is the user's stated relationship to it, and
+ *   only they change it, apart from starting a `planning` series.
+ * - Episode progress is whether each episode is watched, and where playback
+ *   of it stands. Season progress, whether the user is caught up, and what
+ *   to watch next are derived from it, never stored.
+ * - History is when episodes were actually played. Marking an episode
+ *   watched is not playback and does not appear there.
+ * - Continue watching is derived from episode progress alone.
  *
  * @packageDocumentation
  */
+export {
+	addToLibrary,
+	getLibrary,
+	getLibraryEntry,
+	LibraryStatusSchema,
+	removeFromLibrary,
+	setLibraryStatus,
+	type Library,
+	type LibraryEntry,
+	type LibraryItem,
+	type LibraryStatus,
+} from "./entries/entries";
 export { AniListUserNameSchema, importAniListList, type ImportSummary } from "./import/anilist";
 export { dismissFromContinueWatching, getContinueWatching } from "./progress/continue-watching";
-export { getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
+export { forgetEpisode, getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
 export {
 	clearProgress,
-	forgetEpisode,
 	getProgress,
 	markWatched,
+	MarkWatchedSchema,
 	ProgressUpdateSchema,
 	recordProgress,
+	type MarkWatchedTarget,
 	type ProgressUpdate,
 } from "./progress/progress";
 export type {
 	ContinueWatchingItem,
 	EpisodeProgress,
-	SeasonCompletion,
+	NamedSeason,
+	SeasonProgress,
+	SeriesProgress,
 	TitleProgress,
-	WatchStatus,
 } from "./progress/resume";
 export { getRecommendations } from "./recommendations/recommendations";
-export {
-	addToWatchlist,
-	getLibraryTitle,
-	getWatchlist,
-	removeFromWatchlist,
-	setDropped,
-	WatchStatusSchema,
-	type CurrentSeason,
-	type LibraryTitle,
-	type NamedSeason,
-	type TitleState,
-	type Watchlist,
-	type WatchlistItem,
-} from "./watchlist/watchlist";

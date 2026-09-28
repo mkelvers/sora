@@ -4,13 +4,13 @@ import { z } from "zod";
 import { anilist } from "../../anilist/client";
 import { UserAnimeListDocument, type MediaListStatus } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
-import { watchlistImport } from "../../database/schema";
+import { libraryImport } from "../../database/schema";
 import { AniListListNotFoundError, InvalidInputError } from "../../errors";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { storedSeriesIds } from "../../series/store";
 import { minute } from "../../time";
+import { resolveImportedEntries, type LibraryStatus } from "../entries/entries";
 import { writeCheckpoints, type CheckpointInput } from "../progress/progress";
-import { resolveImportedEntries } from "../watchlist/watchlist";
 
 /** Length assumed for an imported episode when AniList does not know it. */
 const defaultEpisodeMinutes = 24;
@@ -30,25 +30,27 @@ export interface ImportSummary {
 	entries: number;
 	/** Episodes recorded as watched. */
 	episodes: number;
-	/** Entries whose titles are still being prepared; they join the watchlist once they are. */
+	/** Entries whose titles are still being prepared; they join the library once they are. */
 	preparing: number;
 }
 
 /**
- * Imports a user's public AniList anime list: every entry goes on the
- * watchlist, and the episodes they watched become their history, so each
- * title's status follows from them as it does for anything watched here.
+ * Imports a user's public AniList anime list: every entry goes into the
+ * library with its AniList status, and the episodes it records as watched
+ * are marked watched. Nothing goes into the user's history, since nothing
+ * was played here.
  *
- * - Completed and rewatching entries: every episode, watched.
- * - Watching and paused entries: episodes up to their progress.
- * - Dropped entries: the same, and the title is dropped once every entry
- *   of it imported is.
- * - Planning entries: listed only.
+ * - Completed and rewatching entries: every episode watched.
+ * - Watching, paused, and dropped entries: episodes up to their progress.
+ *   Paused entries go in as `watching`, as Sora has no paused status.
+ * - Planning entries: no episodes.
  *
- * Episodes are recorded at when the entry last changed on AniList, so
- * anything watched here since is kept. Entries whose titles are not stored
- * yet are queued for the scheduler and join the watchlist once they are.
- * Importing again brings over what changed.
+ * A title made of several AniList entries takes a status from all of them;
+ * see {@link resolveImportedEntries}. A title already in the library keeps
+ * its status. Episodes are recorded at when the entry last changed on
+ * AniList, so anything watched here since is kept. Entries whose titles
+ * are not stored yet are queued for the scheduler and join the library
+ * once they are. Importing again brings over what changed.
  *
  * @throws {@link InvalidInputError} when the user name is not valid.
  * @throws {@link AniListListNotFoundError} when AniList has no public anime
@@ -97,7 +99,7 @@ export async function importAniListList(userId: string, userName: string): Promi
 				episode: index + 1,
 				positionSeconds: seconds,
 				durationSeconds: seconds,
-				completed: true,
+				watched: true,
 				eventAt: new Date(changedAt - watched + index + 1),
 			}),
 		);
@@ -107,17 +109,16 @@ export async function importAniListList(userId: string, userName: string): Promi
 	const rows = entries.map((entry) => ({
 		userId,
 		anilistId: entry.mediaId,
-		droppedAt:
-			entry.status === "DROPPED" ? new Date((entry.updatedAt ?? 0) * 1000 || Date.now()) : null,
+		status: libraryStatus(entry.status),
 	}));
 	for (let start = 0; start < rows.length; start += importBatch) {
 		await db
-			.insert(watchlistImport)
+			.insert(libraryImport)
 			.values(rows.slice(start, start + importBatch))
 			.onConflictDoUpdate({
-				target: [watchlistImport.userId, watchlistImport.anilistId],
+				target: [libraryImport.userId, libraryImport.anilistId],
 				set: {
-					droppedAt: sql`excluded.dropped_at`,
+					status: sql`excluded.status`,
 					createdAt: sql`excluded.created_at`,
 				},
 			});
@@ -137,6 +138,22 @@ export async function importAniListList(userId: string, userName: string): Promi
 		episodes: checkpoints.length,
 		preparing: missing.length,
 	};
+}
+
+/** The library status an AniList list status stands for. */
+function libraryStatus(status: MediaListStatus | null): LibraryStatus {
+	switch (status) {
+		case "CURRENT":
+		case "REPEATING":
+		case "PAUSED":
+			return "watching";
+		case "COMPLETED":
+			return "completed";
+		case "DROPPED":
+			return "dropped";
+		default:
+			return "planning";
+	}
 }
 
 /** How many episodes of an entry, from the first, count as watched. */
