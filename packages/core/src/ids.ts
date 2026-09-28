@@ -17,14 +17,14 @@ const unbiasedByteLimit = 256 - (256 % alphabet.length);
 
 /** Creates a new ID, such as `GYZJ43JMR`. */
 export function newId() {
-  let id = "";
-  while (id.length < idLength) {
-    for (const byte of crypto.getRandomValues(new Uint8Array(idLength * 2))) {
-      if (byte < unbiasedByteLimit && id.length < idLength) {
-        id += alphabet[byte % alphabet.length];
-      }
-    }
-  }
+	let id = "";
+	while (id.length < idLength) {
+		for (const byte of crypto.getRandomValues(new Uint8Array(idLength * 2))) {
+			if (byte < unbiasedByteLimit && id.length < idLength) {
+				id += alphabet[byte % alphabet.length];
+			}
+		}
+	}
 
-  return id;
+	return id;
 }
