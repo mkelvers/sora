@@ -36,7 +36,7 @@ export type SeriesKey =
 export type SeriesKind = "tv" | "movie" | "standalone";
 
 /** A laid-out series in brief, such as one of a franchise's related titles. */
-export interface SeriesLayoutSummary {
+interface SeriesLayoutSummary {
 	key: SeriesKey;
 	kind: SeriesKind;
 	/** The title of the series' first release, such as season 1's. */

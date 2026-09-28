@@ -79,7 +79,7 @@ export interface SeriesSeason {
 }
 
 /** One episode of a season. */
-export interface SeriesEpisode {
+interface SeriesEpisode {
 	/** Position within the season, from 1. */
 	number: number;
 	title: string | null;

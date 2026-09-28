@@ -75,7 +75,7 @@ export async function storeMissingBackdropEdges(): Promise<{
  * Never throws: an image that fails to load or decode is left for
  * {@link storeMissingBackdropEdges} to measure again.
  */
-export async function storeImageEdges(url: string): Promise<boolean> {
+async function storeImageEdges(url: string): Promise<boolean> {
 	const [stored] = await db
 		.select({
 			url: imageEdge.url,

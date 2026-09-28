@@ -168,7 +168,7 @@ export async function loadCheckpoints(
 }
 
 /** Builds a season checkpoint from a stored row and where its episode sits. */
-export function toEpisodeProgress(
+function toEpisodeProgress(
 	row: typeof playbackProgress.$inferSelect,
 	seasonId: string,
 	episode: number,

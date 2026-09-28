@@ -157,7 +157,7 @@ export const watchAniKotoReleases: Task = async (_payload, helpers) => {
  * streaming can start hours after the broadcast AniList records. The
  * airing tracker keeps checking after that.
  */
-export const aniKotoPollDelaysMs = [
+const aniKotoPollDelaysMs = [
 	...Array.from(
 		{
 			length: 15,

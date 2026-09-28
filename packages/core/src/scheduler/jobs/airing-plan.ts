@@ -37,7 +37,7 @@ export type AiringPlan =
  * carries yet. Providers usually post subs within hours, sometimes a day
  * later; the last delay repeats.
  */
-export const releaseRetryDelaysMs = [
+const releaseRetryDelaysMs = [
 	15 * minute,
 	30 * minute,
 	hour,
@@ -54,7 +54,7 @@ export const releaseRetryDelaysMs = [
 export const maximumReleaseAttempts = 11;
 
 /** How often to check on premiere day when AniList has a date but no time. */
-export const premiereDayCheckIntervalMs = 20 * minute;
+const premiereDayCheckIntervalMs = 20 * minute;
 
 /** How often to ask AniList about an airing anime with no announced episode. */
 const unscheduledCheckIntervalMs = day;

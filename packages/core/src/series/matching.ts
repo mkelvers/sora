@@ -43,7 +43,7 @@ export interface MatchSubject {
 }
 
 /** Identifies one TMDB episode of a show. */
-export interface TmdbEpisodeRef {
+interface TmdbEpisodeRef {
 	seasonNumber: number;
 	episodeNumber: number;
 }
@@ -99,7 +99,7 @@ export type Placement =
  * A same-day start alone clears it; a start a week off needs a matching end
  * date or a prequel to back it up.
  */
-export const minimumShowScore = 70;
+const minimumShowScore = 70;
 
 /** How far a TMDB start may drift from AniList's before it is not considered at all. */
 const startWindowDays = 10;
@@ -482,12 +482,12 @@ export function placeAfterInCollection(
 }
 
 /** TMDB's regular seasons as one sequence, in broadcast order. */
-export function regularTrack(episodes: readonly TmdbEpisode[]) {
+function regularTrack(episodes: readonly TmdbEpisode[]) {
 	return episodes.filter((episode) => episode.season_number > 0);
 }
 
 /** TMDB's specials season. */
-export function specialsTrack(episodes: readonly TmdbEpisode[]) {
+function specialsTrack(episodes: readonly TmdbEpisode[]) {
 	return episodes.filter((episode) => episode.season_number === 0);
 }
 
@@ -844,7 +844,7 @@ function yearOf(date: string | null) {
  * Lowercases, folds full-width characters, and reduces punctuation to single
  * spaces, so "Re:ZERO -Starting Life-" and "Re: Zero Starting Life" compare equal.
  */
-export function normalizeTitle(title: string) {
+function normalizeTitle(title: string) {
 	return title
 		.normalize("NFKC")
 		.toLowerCase()
