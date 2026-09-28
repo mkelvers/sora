@@ -156,7 +156,7 @@
 						src={tmdbImage(series.logo_url, "w500")}
 						alt=""
 						aria-hidden="true"
-						class="h-[clamp(5rem,8vw,11.5rem)] max-w-[65vw] object-contain object-left sm:max-w-md lg:max-w-[33rem]"
+						class="h-[clamp(5rem,8vw,11.5rem)] max-w-[65vw] object-contain object-left sm:max-w-md lg:max-w-lg"
 					/>
 				{:else}
 					<p
