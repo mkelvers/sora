@@ -1,9 +1,9 @@
 <script lang="ts" module>
-	import { Avatar, Style } from '@dicebear/core'
-	import { cn } from '$lib/utils'
-	import avatar from '@dicebear/styles/sprouts.json'
+	import { cn } from "$lib/utils";
+	import { Avatar, Style } from "@dicebear/core";
+	import avatar from "@dicebear/styles/sprouts.json";
 
-	const style = new Style(avatar)
+	const style = new Style(avatar);
 
 	const tops: Record<string, number> = {
 		ball: 25.5,
@@ -18,27 +18,27 @@
 		succulent: 34,
 		tall: 14,
 		tulip: 21,
-	}
-	const bottom = 109.5
-	const scale = 1
+	};
+	const bottom = 109.5;
+	const scale = 1;
 </script>
 
 <script lang="ts">
 	type Props = {
-		seed: string
-		class?: string
-	}
+		seed: string;
+		class?: string;
+	};
 
-	let { seed, class: className }: Props = $props()
+	let { seed, class: className }: Props = $props();
 
 	const src = $derived.by(() => {
 		const options = {
 			seed,
-			animationVariant: 'fastest',
-		} as const
+			animationVariant: "fastest",
+		} as const;
 
-		const variant = new Avatar(style, options).toJSON().options.plantVariant
-		const top = tops[String(variant)] ?? tops.flower
+		const variant = new Avatar(style, options).toJSON().options.plantVariant;
+		const top = tops[String(variant)] ?? tops.flower;
 
 		return new Avatar(style, {
 			...options,
@@ -46,12 +46,12 @@
 			scale,
 			translateX: -1.5 * scale,
 			translateY: -((top + bottom) / 2 - 50) * scale,
-		}).toDataUri()
-	})
+		}).toDataUri();
+	});
 </script>
 
 <img
-	class={cn('block aspect-square w-full object-cover', className)}
+	class={cn("block aspect-square w-full object-cover", className)}
 	{src}
 	alt=""
 	draggable="false"
