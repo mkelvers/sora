@@ -18,7 +18,7 @@ const subscribeFullscreen = createSubscriber((update) => {
 
 export class Player {
 	root?: HTMLElement;
-	paused = $state(true);
+	paused = $state(false);
 	time = $state(0);
 	duration = $state(0);
 	buffered = $state<Range[]>([]);
@@ -60,6 +60,7 @@ export class Player {
 
 	load = (start: number) => {
 		this.#resume = start;
+		this.paused = false;
 		this.duration = 0;
 		this.failure = undefined;
 		this.cues = [];
