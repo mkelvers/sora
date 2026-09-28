@@ -225,6 +225,20 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			airing_at: z.string(),
 		})
 		.nullable(),
+	backdrop_edges: z
+		.object({
+			left: z.string().openapi({
+				example: "#1b2330",
+			}),
+			right: z.string().openapi({
+				example: "#0d1118",
+			}),
+		})
+		.nullable()
+		.openapi({
+			description:
+				"The backdrop's average colour down its left and right edges, as `#rrggbb`, to fill the space beside it when it is shown whole. Null without a backdrop, or until Sora has measured it.",
+		}),
 	seasons: z.array(SeasonSchema),
 	related: z.array(SeriesCardSchema),
 }).openapi("Series") satisfies z.ZodType<SnakeCased<Series>>;
