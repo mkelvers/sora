@@ -39,41 +39,6 @@ export const getViewing = query(z.string(), async (seriesId) => {
 	};
 });
 
-export const markWatched = command(
-	z.object({
-		seriesId: z.string(),
-		seasonId: z.string(),
-		episode: z.number().int().positive(),
-		duration: z.number().positive(),
-		watched: z.boolean(),
-	}),
-	async ({ seriesId, seasonId, episode, duration, watched }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
-		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
-		}
-
-		if (watched) {
-			await viewer.sora.recordProgress(viewer.profile.id, {
-				season_id: seasonId,
-				episode,
-				position_seconds: duration,
-				duration_seconds: duration,
-				completed: true,
-			});
-		} else {
-			await viewer.sora.forgetEpisode(viewer.profile.id, {
-				seasonId,
-				number: episode,
-			});
-		}
-
-		await getViewing(seriesId).refresh();
-	}
-);
-
 export const markAllWatched = command(
 	z.object({
 		seriesId: z.string(),

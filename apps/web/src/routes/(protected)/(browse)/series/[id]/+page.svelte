@@ -40,7 +40,7 @@
 		{#if season}
 			<section class="py-7 sm:pb-12 lg:pb-16" aria-labelledby="episodes">
 				<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-					<h2 id="episodes" class={series.seasons.length > 1 ? 'sr-only' : 'text-lg font-bold'}>{series.seasons.length > 1 ? 'Episodes' : season.title}</h2>
+					<h2 id="episodes" class={series.seasons.length > 1 ? 'sr-only' : 'text-lg font-bold'}>{series.seasons.length > 1 ? 'Episodes' : series.title}</h2>
 					{#if series.seasons.length > 1}
 						<Seasons seasons={series.seasons} bind:season />
 					{/if}

@@ -53,10 +53,11 @@
 		);
 	});
 
+	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
+
 	const standing = $derived.by(() => {
 		const {
 			status,
-			current_season,
 			new_season,
 		} = library;
 
@@ -66,16 +67,6 @@
 
 		if (status === 'completed') {
 			return new_season ? `Watched · ${new_season.title} is out` : 'Watched';
-		}
-
-		if (status === 'watching' && current_season) {
-			return [
-				'Watching',
-				series.seasons.length > 1 && current_season.title,
-				`${current_season.watched_episodes} of ${current_season.released_episodes} episodes`,
-			]
-				.filter((part) => !!part)
-				.join(' · ');
 		}
 
 		return null;
@@ -104,6 +95,12 @@
 	const item =
 		'flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted hover:bg-panel-hover hover:text-foreground focus:bg-panel-hover focus:text-foreground focus:outline-none';
 </script>
+
+{#snippet star(tone: string)}
+	<svg class={cn('size-6 max-w-none', tone)} viewBox="0 0 24 24" stroke-linejoin="miter">
+		<path d="M12 2.5l2.94 6.08 6.56.95-4.75 4.63 1.12 6.54L12 17.6l-5.87 3.1 1.12-6.54L2.5 9.53l6.56-.95z"></path>
+	</svg>
+{/snippet}
 
 <section>
 	<figure
@@ -235,9 +232,7 @@
 			<p class={cn('flex flex-wrap items-center gap-y-1 text-sm text-muted', next ? 'mt-5 lg:mt-7' : 'mt-8 sm:mt-10 lg:mt-11')}>
 				{#if series.audio.length}
 					<span class="metadata-tag">
-						{[series.audio.includes('sub') && 'Sub', series.audio.includes('dub') && 'Dub']
-							.filter((label) => !!label)
-							.join(' | ')}
+						{audioLabel(series.audio)}
 					</span>
 				{/if}
 				{#if series.genres.length}
@@ -250,18 +245,30 @@
 
 			{#if series.score !== null}
 				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5">
-					<span class="flex items-center gap-1 text-subtle" aria-hidden="true">
+					<span class="flex items-center gap-0.5" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
-							<svg
-								class={cn('size-6 shrink-0 fill-current', index < Math.round(series.score / 20) && 'text-foreground')}
-								viewBox="0 0 24 24"
-							>
-								<path d="m12 2 2.85 6.59L22 9.27 16.55 14l1.63 7L12 17.27 5.82 21l1.63-7L2 9.27l7.15-.68z"></path>
-							</svg>
+							<span class="relative size-6 shrink-0">
+								{@render star('fill-none stroke-[#bbb] stroke-[1.5]')}
+								<span
+									class="absolute inset-y-0 left-0 overflow-hidden"
+									style:width="{Math.min(Math.max(rating - index, 0), 1) * 100}%"
+								>
+									{@render star('fill-[#bbb] stroke-[#bbb] stroke-[1.5]')}
+								</span>
+							</span>
 						{/each}
 					</span>
 					<span class="hidden text-border-strong sm:inline" aria-hidden="true">|</span>
-					<span class="font-medium">Average rating: <strong>{(series.score / 20).toFixed(1)} of 5</strong></span>
+					<span class="font-medium text-[#bbb]">
+						Average rating:
+						<strong class="text-foreground">
+							{rating.toFixed(1)}{series.score_count
+								? ` (${new Intl.NumberFormat('en-US', {
+										notation: 'compact',
+									}).format(series.score_count)})`
+								: ''}
+						</strong>
+					</span>
 				</div>
 			{/if}
 

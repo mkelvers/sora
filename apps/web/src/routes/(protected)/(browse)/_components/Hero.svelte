@@ -127,9 +127,7 @@
 					>
 						{#if series.audio.length}
 							<span class="metadata-tag">
-								{[series.audio.includes('sub') && 'Sub', series.audio.includes('dub') && 'Dub']
-									.filter((label) => !!label)
-									.join(' | ')}
+								{audioLabel(series.audio)}
 							</span>
 						{/if}
 						{#if series.genres.length}

@@ -25,11 +25,7 @@
 	const listing = getListed();
 	const listed = $derived(!!card && !!listing.current?.includes(card.id));
 
-	const audio = $derived(
-		[card?.audio.includes('sub') && 'Sub', card?.audio.includes('dub') && 'Dub']
-			.filter((label) => !!label)
-			.join(' | ')
-	);
+	const audio = $derived(audioLabel(card?.audio));
 
 	const play = $derived.by(() => {
 		if (!card) {

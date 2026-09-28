@@ -20,7 +20,7 @@
 		next?: string;
 		title: string;
 		series: string;
-		season: string;
+		season?: string;
 		logo: string | null;
 		overview: string | null;
 		start: number;
@@ -196,7 +196,7 @@
 
 		<div class="absolute inset-x-0 mx-auto max-w-[60vw] text-center">
 			<p class="truncate text-sm font-bold tracking-wide drop-shadow sm:text-base">{series}</p>
-			<p class="mt-0.5 truncate text-xs font-medium text-white/75 drop-shadow sm:text-sm">{season} · {title}</p>
+			<p class="mt-0.5 truncate text-xs font-medium text-white/75 drop-shadow sm:text-sm">{season ? `${season} · ${title}` : title}</p>
 		</div>
 
 		<div class="size-11" aria-hidden="true"></div>

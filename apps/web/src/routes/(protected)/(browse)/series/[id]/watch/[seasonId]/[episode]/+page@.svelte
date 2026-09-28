@@ -68,7 +68,7 @@
 	next={next && `/series/${series.id}/watch/${next.season_id}/${next.episode}`}
 	title="{episode.number}. {title}"
 	series={series.title}
-	season={season.title}
+	season={series.seasons.length > 1 ? season.title : undefined}
 	logo={series.logo_url}
 	overview={episode.overview}
 	{start}

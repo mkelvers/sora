@@ -1,11 +1,8 @@
 <script lang="ts">
-	import { CalendarBlankIcon, CheckIcon, DotsThreeVerticalIcon, PlayIcon } from 'phosphor-svelte';
+	import { CalendarBlankIcon, PlayIcon } from 'phosphor-svelte';
 	import type { EpisodeProgress, SeasonEpisode } from '@sora/sdk';
 	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 	import { cn } from '$lib/utils';
-	import { markWatched } from '../series.remote';
 
 	let {
 		seriesId,
@@ -23,8 +20,6 @@
 		checkpoint: EpisodeProgress | undefined;
 	} = $props();
 
-	let marking = $state(false);
-
 	const watched = $derived(!!checkpoint?.completed);
 	const played = $derived(
 		checkpoint && !checkpoint.completed && checkpoint.position_seconds > 0
@@ -33,11 +28,7 @@
 	);
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const heading = $derived(`E${episode.number}${episode.title ? ` – ${episode.title}` : ''}`);
-	const audio = $derived(
-		[episode.audio?.includes('dub') && 'Dub', episode.audio?.includes('sub') && 'Sub']
-			.filter((label) => !!label)
-			.join(' | ')
-	);
+	const audio = $derived(audioLabel(episode.audio));
 	const released = $derived(
 		episode.aired_at
 			? new Date(episode.aired_at).toLocaleDateString('en-US', {
@@ -85,7 +76,7 @@
 
 			<p class="mt-3.5 line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase">{title}</p>
 			<h3 class="mt-1.5 text-[0.9375rem] leading-snug font-bold text-foreground">{heading}</h3>
-			<p class="mt-auto flex h-10 items-center pt-1 pr-10 text-sm text-muted">
+			<p class="mt-2 text-sm text-muted">
 				{[audio, episode.filler && 'Filler', episode.extra && 'Extra'].filter((part) => !!part).join(' · ')}
 			</p>
 		</div>
@@ -112,42 +103,4 @@
 			{/if}
 		</div>
 	</svelte:element>
-
-	{#if !episode.extra}
-		<div class="absolute right-0 bottom-0 z-20 [&_.dropdown-trigger]:grid [&_.dropdown-trigger]:size-10 [&_.dropdown-trigger]:place-items-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:text-foreground">
-			<Dropdown id="episode-{seasonId}-{episode.number}" label="Episode options" className="w-56 *:p-0">
-				{#snippet trigger()}
-					<DotsThreeVerticalIcon size="1.25rem" weight="bold" />
-				{/snippet}
-				{#snippet children()}
-					<div role="menu" aria-label="Episode options">
-						<Button
-							role="menuitem"
-							class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted normal-case hover:bg-panel-hover hover:text-foreground focus:bg-panel-hover focus:text-foreground focus:outline-none"
-							popovertarget="episode-{seasonId}-{episode.number}"
-							popovertargetaction="hide"
-							disabled={marking}
-							onclick={async () => {
-								marking = true;
-								try {
-									await markWatched({
-										seriesId,
-										seasonId,
-										episode: episode.number,
-										duration: checkpoint?.duration_seconds ?? (episode.runtime_minutes ?? 24) * 60,
-										watched: !watched,
-									});
-								} finally {
-									marking = false;
-								}
-							}}
-						>
-							<CheckIcon size="1.1rem" />
-							{watched ? 'Mark as unwatched' : 'Mark as watched'}
-						</Button>
-					</div>
-				{/snippet}
-			</Dropdown>
-		</div>
-	{/if}
 </li>

@@ -57,9 +57,7 @@
 										</p>
 										{#if item.series.audio.length}
 											<p class="mt-auto pt-5 text-sm text-muted">
-												{[item.series.audio.includes('sub') && 'Sub', item.series.audio.includes('dub') && 'Dub']
-													.filter((label) => !!label)
-													.join(' | ')}
+												{audioLabel(item.series.audio)}
 											</p>
 										{/if}
 									</div>
