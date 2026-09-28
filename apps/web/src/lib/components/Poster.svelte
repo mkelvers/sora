@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import CardMedia from "$lib/components/ui/CardMedia.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
@@ -56,9 +55,9 @@
 >
 	{#if !card}
 		<div aria-busy="true">
-			<CardMedia aspect="poster">
+			<div class="relative aspect-2/3 overflow-hidden bg-surface">
 				<Skeleton class="size-full" />
-			</CardMedia>
+			</div>
 			{#if title}
 				<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold text-muted">
 					{title}
@@ -73,7 +72,7 @@
 				href="/series/{card.id}"
 				class="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 			>
-				<CardMedia aspect="poster">
+				<div class="relative aspect-2/3 overflow-hidden bg-surface">
 					{#if card.poster_url}
 						<Image
 							src={tmdbImage(card.poster_url, "w500")}
@@ -84,7 +83,7 @@
 					{:else}
 						<span class="grid size-full items-end p-4 text-sm text-subtle">{card.title}</span>
 					{/if}
-				</CardMedia>
+				</div>
 				<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold">{card.title}</h3>
 				{#if meta}
 					<p class="mt-1.5 text-sm text-muted">{meta}</p>
