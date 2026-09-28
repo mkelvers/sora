@@ -66,7 +66,7 @@
 											{item.series.title}
 										</h3>
 										<p class="mt-1.5 text-sm text-muted">
-											{item.position_seconds > 0 ? "Continue" : "Up next"}: E{item.episode}
+											{item.position_seconds > 0 ? "Continue with" : "Up next:"} E{item.episode}
 										</p>
 										{#if item.series.audio.length}
 											<p class="mt-auto pt-5 text-sm text-muted">

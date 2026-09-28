@@ -52,7 +52,7 @@
 			const where = series.seasons.find((other) => other.id === next.season_id);
 			return {
 				href: `/series/${series.id}/watch/${next.season_id}/${next.episode}`,
-				label: `${next.position_seconds > 0 ? "Continue" : "Start"} ${series.seasons.length > 1 && where ? `${where.title} ` : ""}E${next.episode}`,
+				label: `${next.position_seconds > 0 ? "Continue with" : "Start with"} ${series.seasons.length > 1 && where ? `${where.title} ` : ""}E${next.episode}`,
 			};
 		}
 
