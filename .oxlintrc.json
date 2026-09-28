@@ -1,0 +1,21 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "import", "promise"],
+	"categories": {
+		"correctness": "error"
+	},
+	"rules": {
+		"no-unused-vars": [
+			"error",
+			{
+				"ignoreRestSiblings": true
+			}
+		]
+	},
+	"env": {
+		"browser": true,
+		"node": true,
+		"es2024": true
+	},
+	"ignorePatterns": ["packages/core/drizzle/**", "**/*.generated.ts", "**/.svelte-kit/**"]
+}
