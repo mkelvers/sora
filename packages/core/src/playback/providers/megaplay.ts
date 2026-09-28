@@ -196,12 +196,19 @@ const regionSubtags: Record<string, string> = {
  * MegaPlay names regional variants as `Portuguese (- Portuguese(Brazil))`,
  * which `labelToBcp47` does not know and would cut to `po`. The language part
  * goes through `labelToBcp47`; a known region is added as its subtag, and an
- * unknown one is dropped, leaving the plain language.
+ * unknown one is dropped, leaving the plain language. Other notes after the
+ * language, such as `German (German - (Forced))` or `English 2`, are dropped
+ * too.
  */
 export function subtitleLanguage(label: string) {
 	const regional = /^(.+?)\s*\(\s*-\s*.*\(([^()]+)\)\s*\)$/.exec(label.trim());
 	if (!regional?.[1] || !regional[2]) {
-		return labelToBcp47(label);
+		return labelToBcp47(
+			label
+				.replace(/\s*\(.*$/, "")
+				.replace(/\s+\d+$/, "")
+				.trim(),
+		);
 	}
 
 	const language = labelToBcp47(regional[1]);
@@ -213,7 +220,7 @@ export function subtitleLanguage(label: string) {
  * Decrypts MegaPlay's `enc` field into the source file URL. Node's base64
  * decoder accepts both the standard and URL-safe alphabets MegaPlay mixes.
  */
-export function decryptSourceFile(encrypted: string) {
+function decryptSourceFile(encrypted: string) {
 	const decipher = createDecipheriv("aes-256-cbc", encryptionKey, encryptionIv);
 	const plain = Buffer.concat([
 		decipher.update(Buffer.from(encrypted, "base64")),

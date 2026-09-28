@@ -19,4 +19,11 @@ describe("subtitleLanguage", () => {
 	test("keeps the plain language when the region is unknown", () => {
 		expect(subtitleLanguage("French (- French(Canada))")).toBe("fr");
 	});
+
+	test("reads the language before a note such as a track type or number", () => {
+		expect(subtitleLanguage("English (English Signs [CR])")).toBe("en");
+		expect(subtitleLanguage("German (German - (Forced))")).toBe("de");
+		expect(subtitleLanguage("English 2")).toBe("en");
+		expect(subtitleLanguage("Portuguese (Portuguese - (Brazil))")).toBe("pt");
+	});
 });
