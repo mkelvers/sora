@@ -1,32 +1,24 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+
+	import type { PageProps } from "./$types";
 	import Player from "./_components/Player.svelte";
 	import { getEpisode, getPlayback, saveProgress } from "./watch.remote";
-	import type { PageProps } from "./$types";
 
-	let {
-		params,
-	}: PageProps = $props();
+	let { params }: PageProps = $props();
 
 	const address = $derived({
 		seriesId: params.id,
 		seasonId: params.seasonId,
 		episode: params.episode,
 	});
-	const {
-		series,
-		season,
-		episode,
-		start,
-	} = $derived(await getEpisode(address));
+	const { series, season, episode, start } = $derived(await getEpisode(address));
 
 	const playback = $derived(getPlayback(address));
 	const next = $derived(playback.current?.next ?? undefined);
 	const previous = $derived(playback.current?.previous ?? undefined);
 
-	const following = $derived(
-		next?.season_id === season.id ? next : undefined,
-	);
+	const following = $derived(next?.season_id === season.id ? next : undefined);
 
 	const key = $derived(`${season.id}/${episode.number}`);
 	let nearing = $state<string>();
@@ -40,9 +32,7 @@
 				}
 			: undefined,
 	);
-	const preload = $derived(
-		upcoming && [getEpisode(upcoming), getPlayback(upcoming)],
-	);
+	const preload = $derived(upcoming && [getEpisode(upcoming), getPlayback(upcoming)]);
 
 	$effect(() => {
 		for (const query of preload ?? []) {
@@ -63,8 +53,7 @@
 	problem={playback.current?.problem}
 	onretry={() => playback.refresh()}
 	back="/series/{series.id}"
-	previous={previous &&
-		`/series/${series.id}/watch/${previous.season_id}/${previous.episode}`}
+	previous={previous && `/series/${series.id}/watch/${previous.season_id}/${previous.episode}`}
 	next={next && `/series/${series.id}/watch/${next.season_id}/${next.episode}`}
 	title="{episode.number}. {title}"
 	series={series.title}

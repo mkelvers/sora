@@ -1,8 +1,8 @@
-import { command, getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { SoraError } from '@sora/sdk';
-import { z } from 'zod';
-import { sora } from '$lib/server/sora';
+import { command, getRequestEvent, query } from "$app/server";
+import { sora } from "$lib/server/sora";
+import { SoraError } from "@sora/sdk";
+import { error } from "@sveltejs/kit";
+import { z } from "zod";
 
 const EpisodeAddress = z.object({
 	seriesId: z.string(),
@@ -11,11 +11,9 @@ const EpisodeAddress = z.object({
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, episode }) => {
-	const {
-		viewer,
-	} = getRequestEvent().locals;
+	const { viewer } = getRequestEvent().locals;
 	if (!viewer?.profile) {
-		error(403, 'Choose a profile first');
+		error(403, "Choose a profile first");
 	}
 
 	const [series, episodes, progress] = await Promise.all([
@@ -24,17 +22,17 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, epi
 			seriesId,
 			seasonId,
 		}),
-		viewer.sora.progress(viewer.profile.id, seriesId)
+		viewer.sora.progress(viewer.profile.id, seriesId),
 	]);
 	const season = series.seasons.find((season) => season.id === seasonId);
 	const found = episodes.find((candidate) => candidate.number === episode);
 
 	if (!season || !found) {
-		error(404, 'Episode not found');
+		error(404, "Episode not found");
 	}
 
 	const checkpoint = progress.episodes.find(
-		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode
+		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode,
 	);
 
 	return {
@@ -53,11 +51,9 @@ export const saveProgress = command(
 		duration: z.number().positive(),
 	}),
 	async ({ seasonId, episode, position, duration }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
+		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
+			error(403, "Choose a profile first");
 		}
 
 		await viewer.sora.recordProgress(viewer.profile.id, {
@@ -66,29 +62,28 @@ export const saveProgress = command(
 			position_seconds: Math.min(position, duration),
 			duration_seconds: duration,
 		});
-	}
+	},
 );
 
 export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) => {
 	try {
-		const {
-			results,
-			meta,
-		} = await sora.playback(
+		const { results, meta } = await sora.playback(
 			{
 				seasonId,
 				number: episode,
 			},
 			{
 				meta: true,
-			}
+			},
 		);
 		const address = (path: string | null) => {
 			const match = path?.match(/\/seasons\/([^/]+)\/episodes\/(\d+)\/playback$/);
-			return match ? {
-				season_id: match[1]!,
-				episode: Number(match[2]),
-			} : null;
+			return match
+				? {
+						season_id: match[1]!,
+						episode: Number(match[2]),
+					}
+				: null;
 		};
 
 		return {
