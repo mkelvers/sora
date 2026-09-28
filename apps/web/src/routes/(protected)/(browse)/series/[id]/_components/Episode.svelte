@@ -109,7 +109,7 @@
 				</p>
 			{/if}
 			{#if episode.overview}
-				<p class="mt-2 line-clamp-4 text-sm leading-snug text-foreground">{episode.overview}</p>
+				<p class="mt-2 line-clamp-4 text-xs leading-snug text-foreground">{episode.overview}</p>
 			{/if}
 			{#if playable}
 				<span
