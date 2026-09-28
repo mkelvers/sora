@@ -12,22 +12,22 @@
  * @packageDocumentation
  */
 export {
-  listSeriesImages,
-  setSeriesArtwork,
-  type ArtworkChanges,
-  type ImageType,
-  type SeriesImage,
-  type SeriesImageQuery
+	listSeriesImages,
+	setSeriesArtwork,
+	type ArtworkChanges,
+	type ImageType,
+	type SeriesImage,
+	type SeriesImageQuery,
 } from "./artwork";
 export type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 export {
-  browseSeries,
-  getAdjacentEpisodes,
-  getSeason,
-  getSeasonEpisodes,
-  getSeasonSeriesId,
-  getSeries,
-  type EpisodeAddress
+	browseSeries,
+	getAdjacentEpisodes,
+	getSeason,
+	getSeasonEpisodes,
+	getSeasonSeriesId,
+	getSeries,
+	type EpisodeAddress,
 } from "./queries";
 export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
 export type { SeasonKind } from "./seasons";
