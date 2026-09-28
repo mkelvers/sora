@@ -6,17 +6,17 @@
  * messages are not.
  */
 export type CoreErrorCode =
-  | "ANIME_NOT_FOUND"
-  | "SERIES_NOT_FOUND"
-  | "SEASON_NOT_FOUND"
-  | "EPISODE_NOT_FOUND"
-  | "PROFILE_NOT_FOUND"
-  | "ANILIST_LIST_NOT_FOUND"
-  | "LAST_PROFILE"
-  | "PLAYBACK_UNAVAILABLE"
-  | "UPSTREAM_UNAVAILABLE"
-  | "INVALID_STREAM_TOKEN"
-  | "INVALID_INPUT";
+	| "ANIME_NOT_FOUND"
+	| "SERIES_NOT_FOUND"
+	| "SEASON_NOT_FOUND"
+	| "EPISODE_NOT_FOUND"
+	| "PROFILE_NOT_FOUND"
+	| "ANILIST_LIST_NOT_FOUND"
+	| "LAST_PROFILE"
+	| "PLAYBACK_UNAVAILABLE"
+	| "UPSTREAM_UNAVAILABLE"
+	| "INVALID_STREAM_TOKEN"
+	| "INVALID_INPUT";
 
 /**
  * Base class for every failure the core expects callers to handle.
@@ -25,43 +25,43 @@ export type CoreErrorCode =
  * should be reported as an internal error.
  */
 export class CoreError extends Error {
-  readonly code: CoreErrorCode;
+	readonly code: CoreErrorCode;
 
-  constructor(code: CoreErrorCode, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "CoreError";
-    this.code = code;
-  }
+	constructor(code: CoreErrorCode, message: string, options?: ErrorOptions) {
+		super(message, options);
+		this.name = "CoreError";
+		this.code = code;
+	}
 }
 
 /** The AniList ID does not identify an anime. */
 export class AnimeNotFoundError extends CoreError {
-  readonly anilistId: number;
+	readonly anilistId: number;
 
-  constructor(anilistId: number) {
-    super("ANIME_NOT_FOUND", `Anime ${anilistId} does not exist`);
-    this.anilistId = anilistId;
-  }
+	constructor(anilistId: number) {
+		super("ANIME_NOT_FOUND", `Anime ${anilistId} does not exist`);
+		this.anilistId = anilistId;
+	}
 }
 
 /** The ID does not identify a stored series. */
 export class SeriesNotFoundError extends CoreError {
-  readonly seriesId: string;
+	readonly seriesId: string;
 
-  constructor(seriesId: string) {
-    super("SERIES_NOT_FOUND", `Series ${seriesId} does not exist`);
-    this.seriesId = seriesId;
-  }
+	constructor(seriesId: string) {
+		super("SERIES_NOT_FOUND", `Series ${seriesId} does not exist`);
+		this.seriesId = seriesId;
+	}
 }
 
 /** The ID does not identify a stored season. */
 export class SeasonNotFoundError extends CoreError {
-  readonly seasonId: string;
+	readonly seasonId: string;
 
-  constructor(seasonId: string) {
-    super("SEASON_NOT_FOUND", `Season ${seasonId} does not exist`);
-    this.seasonId = seasonId;
-  }
+	constructor(seasonId: string) {
+		super("SEASON_NOT_FOUND", `Season ${seasonId} does not exist`);
+		this.seasonId = seasonId;
+	}
 }
 
 /**
@@ -69,39 +69,39 @@ export class SeasonNotFoundError extends CoreError {
  * TMDB lists, or an episode no provider carries.
  */
 export class EpisodeNotFoundError extends CoreError {
-  constructor(seasonId: string, episode: number) {
-    super("EPISODE_NOT_FOUND", `Season ${seasonId} has no playable episode ${episode}`);
-  }
+	constructor(seasonId: string, episode: number) {
+		super("EPISODE_NOT_FOUND", `Season ${seasonId} has no playable episode ${episode}`);
+	}
 }
 
 /** The ID does not identify a profile of the signed-in account. */
 export class ProfileNotFoundError extends CoreError {
-  readonly profileId: string;
+	readonly profileId: string;
 
-  constructor(profileId: string) {
-    super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
-    this.profileId = profileId;
-  }
+	constructor(profileId: string) {
+		super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
+		this.profileId = profileId;
+	}
 }
 
 /** AniList has no public anime list under the user name: it does not exist, or the user keeps their list private. */
 export class AniListListNotFoundError extends CoreError {
-  readonly userName: string;
+	readonly userName: string;
 
-  constructor(userName: string) {
-    super("ANILIST_LIST_NOT_FOUND", `AniList has no public anime list for ${userName}`);
-    this.userName = userName;
-  }
+	constructor(userName: string) {
+		super("ANILIST_LIST_NOT_FOUND", `AniList has no public anime list for ${userName}`);
+		this.userName = userName;
+	}
 }
 
 /** An account must keep at least one profile, so its last one cannot be deleted. */
 export class LastProfileError extends CoreError {
-  readonly profileId: string;
+	readonly profileId: string;
 
-  constructor(profileId: string) {
-    super("LAST_PROFILE", `Profile ${profileId} is the account's last profile`);
-    this.profileId = profileId;
-  }
+	constructor(profileId: string) {
+		super("LAST_PROFILE", `Profile ${profileId} is the account's last profile`);
+		this.profileId = profileId;
+	}
 }
 
 /**
@@ -111,18 +111,18 @@ export class LastProfileError extends CoreError {
  * mapping apart from a broken scraper.
  */
 export class PlaybackUnavailableError extends CoreError {
-  readonly attempts: readonly ProviderAttempt[];
+	readonly attempts: readonly ProviderAttempt[];
 
-  constructor(seasonId: string, episode: number, attempts: readonly ProviderAttempt[]) {
-    super("PLAYBACK_UNAVAILABLE", `No provider could play season ${seasonId} episode ${episode}`);
-    this.attempts = attempts;
-  }
+	constructor(seasonId: string, episode: number, attempts: readonly ProviderAttempt[]) {
+		super("PLAYBACK_UNAVAILABLE", `No provider could play season ${seasonId} episode ${episode}`);
+		this.attempts = attempts;
+	}
 }
 
 /** One provider's reason for not serving a stream. */
 export interface ProviderAttempt {
-  provider: string;
-  reason: string;
+	provider: string;
+	reason: string;
 }
 
 /**
@@ -130,33 +130,33 @@ export interface ProviderAttempt {
  * returned an invalid response. Callers should treat this as retryable.
  */
 export class UpstreamUnavailableError extends CoreError {
-  /** Delay the upstream asked for before retrying, in milliseconds. */
-  readonly retryAfterMs: number | null;
+	/** Delay the upstream asked for before retrying, in milliseconds. */
+	readonly retryAfterMs: number | null;
 
-  constructor(
-    message: string,
-    options: {
-      retryAfterMs: number | null;
-      cause?: unknown;
-    }
-  ) {
-    super("UPSTREAM_UNAVAILABLE", message, {
-      cause: options.cause,
-    });
-    this.retryAfterMs = options.retryAfterMs;
-  }
+	constructor(
+		message: string,
+		options: {
+			retryAfterMs: number | null;
+			cause?: unknown;
+		},
+	) {
+		super("UPSTREAM_UNAVAILABLE", message, {
+			cause: options.cause,
+		});
+		this.retryAfterMs = options.retryAfterMs;
+	}
 }
 
 /** A stream proxy token is malformed, forged, or expired. */
 export class InvalidStreamTokenError extends CoreError {
-  constructor(reason: string) {
-    super("INVALID_STREAM_TOKEN", reason);
-  }
+	constructor(reason: string) {
+		super("INVALID_STREAM_TOKEN", reason);
+	}
 }
 
 /** Caller-supplied input failed validation. */
 export class InvalidInputError extends CoreError {
-  constructor(message: string, options?: ErrorOptions) {
-    super("INVALID_INPUT", message, options);
-  }
+	constructor(message: string, options?: ErrorOptions) {
+		super("INVALID_INPUT", message, options);
+	}
 }
