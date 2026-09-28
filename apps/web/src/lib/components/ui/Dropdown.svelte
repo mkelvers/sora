@@ -10,10 +10,10 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
-		className?: string;
+		class?: string;
 	};
 
-	let { alignment = "right", children, className, label, trigger }: Props = $props();
+	let { alignment = "right", children, class: className, label, trigger }: Props = $props();
 
 	const popover = new Popover({
 		focus: {

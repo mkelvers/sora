@@ -47,7 +47,7 @@
 						<Seasons seasons={series.seasons} bind:season />
 					{/if}
 					<div class="ml-auto text-sm font-bold [&_.dropdown-trigger]:gap-1">
-						<Dropdown className="w-64">
+						<Dropdown class="w-64">
 							{#snippet trigger()}
 								<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 								<span>Options</span>

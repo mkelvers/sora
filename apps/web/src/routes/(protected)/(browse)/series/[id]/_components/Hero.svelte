@@ -145,7 +145,7 @@
 		<div
 			class="z-30 col-start-1 row-start-1 mt-3 mr-3 self-start justify-self-end leading-none font-bold sm:mt-5 sm:mr-8 lg:mr-12 [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:text-white"
 		>
-			<Dropdown className="w-64 *:p-0">
+			<Dropdown class="w-64 *:p-0">
 				{#snippet trigger()}
 					<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 					<span>More</span>
@@ -290,7 +290,7 @@
 							{...trigger}
 							class="[&_.dropdown-trigger]:grid [&_.dropdown-trigger]:size-10 [&_.dropdown-trigger]:place-items-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:[font-size:inherit] [&_.dropdown-trigger]:text-accent [&_.dropdown-trigger]:transition-[filter] [&_.dropdown-trigger]:duration-150 [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:text-accent [&_.dropdown-trigger]:hover:bg-transparent [&_.dropdown-trigger]:hover:brightness-120"
 						>
-							<Dropdown alignment="left" label="Manage Status" className="w-56 *:p-0">
+							<Dropdown alignment="left" label="Manage Status" class="w-56 *:p-0">
 								{#snippet trigger()}
 									<ListChecksIcon size="1.8em" weight="bold" />
 								{/snippet}

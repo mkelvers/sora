@@ -33,7 +33,7 @@
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
 			>
-				<Dropdown className="w-[min(21rem,calc(100vw-1rem))] bg-header-hover *:p-0">
+				<Dropdown class="w-[min(21rem,calc(100vw-1rem))] bg-header-hover *:p-0">
 					{#snippet trigger()}
 						<Avatar avatar={profile.avatar} class="size-8" />
 						<CaretDownIcon size="1rem" weight="fill" />
