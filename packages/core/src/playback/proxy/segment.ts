@@ -10,9 +10,9 @@ const tsSyncByte = 0x47;
  * Only the first bytes are needed.
  */
 export function isDisguisedSegment(head: Uint8Array) {
-  const png = pngSignature.every((byte, index) => head[index] === byte);
-  const jpeg = head[0] === 0xff && head[1] === 0xd8;
-  return png || jpeg;
+	const png = pngSignature.every((byte, index) => head[index] === byte);
+	const jpeg = head[0] === 0xff && head[1] === 0xd8;
+	return png || jpeg;
 }
 
 /**
@@ -24,21 +24,23 @@ export function isDisguisedSegment(head: Uint8Array) {
  *
  * @returns the segment unchanged when no transport stream is found.
  */
-export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) {
-  const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
-  if (end >= 0) {
-    return bytes.subarray(end + pngEnd.length);
-  }
+export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(
+	bytes: Uint8Array<Backing>,
+) {
+	const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
+	if (end >= 0) {
+		return bytes.subarray(end + pngEnd.length);
+	}
 
-  for (let offset = 0; offset + 2 * tsPacketSize < bytes.length; offset += 1) {
-    if (
-      bytes[offset] === tsSyncByte &&
-      bytes[offset + tsPacketSize] === tsSyncByte &&
-      bytes[offset + 2 * tsPacketSize] === tsSyncByte
-    ) {
-      return bytes.subarray(offset);
-    }
-  }
+	for (let offset = 0; offset + 2 * tsPacketSize < bytes.length; offset += 1) {
+		if (
+			bytes[offset] === tsSyncByte &&
+			bytes[offset + tsPacketSize] === tsSyncByte &&
+			bytes[offset + 2 * tsPacketSize] === tsSyncByte
+		) {
+			return bytes.subarray(offset);
+		}
+	}
 
-  return bytes;
+	return bytes;
 }

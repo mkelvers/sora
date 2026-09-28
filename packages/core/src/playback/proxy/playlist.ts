@@ -18,44 +18,47 @@ export type PlaylistUriSigner = (url: string, kind: StreamTargetKind) => string;
  * ```
  */
 export function rewritePlaylist(content: string, playlistUrl: string, sign: PlaylistUriSigner) {
-  const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/m.test(content);
-  const lineKind: StreamTargetKind = isMaster ? "playlist" : "segment";
-  const resolve = (uri: string) => new URL(uri, playlistUrl).toString();
+	const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/m.test(content);
+	const lineKind: StreamTargetKind = isMaster ? "playlist" : "segment";
+	const resolve = (uri: string) => new URL(uri, playlistUrl).toString();
 
-  return content
-    .split(/\r?\n/)
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        return line;
-      }
+	return content
+		.split(/\r?\n/)
+		.map((line) => {
+			const trimmed = line.trim();
+			if (!trimmed) {
+				return line;
+			}
 
-      if (!trimmed.startsWith("#")) {
-        return sign(resolve(trimmed), lineKind);
-      }
+			if (!trimmed.startsWith("#")) {
+				return sign(resolve(trimmed), lineKind);
+			}
 
-      const kind = tagUriKind(trimmed);
-      if (!kind) {
-        return line;
-      }
+			const kind = tagUriKind(trimmed);
+			if (!kind) {
+				return line;
+			}
 
-      return line.replace(/URI="([^"]+)"/, (_match, uri: string) => `URI="${sign(resolve(uri), kind)}"`);
-    })
-    .join("\n");
+			return line.replace(
+				/URI="([^"]+)"/,
+				(_match, uri: string) => `URI="${sign(resolve(uri), kind)}"`,
+			);
+		})
+		.join("\n");
 }
 
 function tagUriKind(tag: string): StreamTargetKind | null {
-  if (tag.startsWith("#EXT-X-MEDIA:") || tag.startsWith("#EXT-X-I-FRAME-STREAM-INF:")) {
-    return "playlist";
-  }
+	if (tag.startsWith("#EXT-X-MEDIA:") || tag.startsWith("#EXT-X-I-FRAME-STREAM-INF:")) {
+		return "playlist";
+	}
 
-  if (tag.startsWith("#EXT-X-MAP:")) {
-    return "segment";
-  }
+	if (tag.startsWith("#EXT-X-MAP:")) {
+		return "segment";
+	}
 
-  if (tag.startsWith("#EXT-X-KEY:") || tag.startsWith("#EXT-X-SESSION-KEY:")) {
-    return "key";
-  }
+	if (tag.startsWith("#EXT-X-KEY:") || tag.startsWith("#EXT-X-SESSION-KEY:")) {
+		return "key";
+	}
 
-  return null;
+	return null;
 }
