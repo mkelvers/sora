@@ -1,14 +1,20 @@
 <script lang="ts">
 	import Poster from "$lib/components/Poster.svelte";
-	import Carousel from "$lib/components/ui/Carousel.svelte";
+	import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
+	import Content from "$lib/components/ui/carousel/Content.svelte";
+	import Item from "$lib/components/ui/carousel/Item.svelte";
+	import Next from "$lib/components/ui/carousel/Next.svelte";
+	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 
 	import ContinueWatching from "./_components/ContinueWatching.svelte";
 	import Hero from "./_components/Hero.svelte";
 	import { getContinueWatching, getFeatured, getRecommendations, getTrending } from "./home.remote";
 
-	const [featured, continuing, recommended, trending] = $derived(
-		await Promise.all([getFeatured(), getContinueWatching(), getRecommendations(), getTrending()]),
+	const continueWatching = getContinueWatching();
+	const [featured, , recommended, trending] = $derived(
+		await Promise.all([getFeatured(), continueWatching, getRecommendations(), getTrending()]),
 	);
+	const continuing = $derived(continueWatching.current ?? []);
 	const resumes = $derived(new Map(continuing.map((item) => [item.series.id, item])));
 	const rows = $derived([
 		{
@@ -44,19 +50,19 @@
 					{row.title}
 				</h2>
 
-				<Carousel controls class="min-w-0">
+				<Carousel class="min-w-0" options={{ slidesToScroll: "auto" }}>
 					{#snippet children()}
-						<div
-							class="scrollbar-hidden flex gap-3 overscroll-x-contain px-4 pt-2 pb-4 sm:gap-4 sm:px-10 lg:gap-7.5 lg:px-16 hero:gap-6"
-						>
+						<Content class="gap-3 pt-2 pb-4 pl-4 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16 hero:gap-6">
 							{#each row.cards as card (card.id)}
-								<div
-									class="min-w-0 shrink-0 grow-0 basis-[calc((100vw-2.75rem)/2)] min-[30em]:basis-[calc((100vw-4rem)/3)] min-[35.5em]:basis-[calc((100vw-4.75rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] lg:basis-[calc((100vw-17.375rem)/5)] 2xl:basis-[calc((100vw-19.25rem)/6)] hero:basis-[calc((100vw-16.875rem)/7)]"
+								<Item
+									class="basis-[calc((100vw-2.75rem)/2)] last:mr-4 min-[30em]:basis-[calc((100vw-4rem)/3)] min-[35.5em]:basis-[calc((100vw-4.75rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-17.375rem)/5)] lg:last:mr-16 2xl:basis-[calc((100vw-19.25rem)/6)] hero:basis-[calc((100vw-16.875rem)/7)]"
 								>
 									<Poster {card} resume={resumes.get(card.id)} />
-								</div>
+								</Item>
 							{/each}
-						</div>
+						</Content>
+						<Previous />
+						<Next />
 					{/snippet}
 				</Carousel>
 			</section>

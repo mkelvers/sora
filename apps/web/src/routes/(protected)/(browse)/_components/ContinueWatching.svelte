@@ -1,7 +1,10 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import CardMedia from "$lib/components/ui/CardMedia.svelte";
-	import Carousel from "$lib/components/ui/Carousel.svelte";
+	import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
+	import Content from "$lib/components/ui/carousel/Content.svelte";
+	import Item from "$lib/components/ui/carousel/Item.svelte";
+	import Next from "$lib/components/ui/carousel/Next.svelte";
+	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
@@ -24,18 +27,16 @@
 	>
 		<h2 id="continue-watching" class="mb-5 text-xl font-bold sm:text-2xl">Continue Watching</h2>
 
-		<Carousel controls class="min-w-0">
+		<Carousel class="min-w-0" options={{ slidesToScroll: "auto" }}>
 			{#snippet children()}
-				<div
-					class="scrollbar-hidden flex min-w-0 gap-3 overscroll-x-contain pb-4 sm:gap-4 lg:gap-7.5"
-				>
+				<Content class="gap-3 pb-4 sm:gap-4 lg:gap-7.5">
 					{#each items as item (item.series.id)}
 						{@const progress =
 							item.duration_seconds && item.position_seconds > 0
 								? Math.min(100, (item.position_seconds / item.duration_seconds) * 100)
 								: 0}
-						<div
-							class="group relative min-w-0 shrink-0 grow-0 basis-[calc((100vw-3.75rem)/1.35)] min-[30em]:basis-[calc((100vw-4.75rem)/2.1)] min-[35.5em]:basis-[calc((100vw-5.75rem)/2.7)] sm:basis-[calc((100vw-8.75rem)/3.25)] lg:basis-[calc((100vw-18.375rem)/4.25)] 2xl:basis-[calc((100vw-20.25rem)/5.25)]"
+						<Item
+							class="group relative basis-[calc((100vw-3.75rem)/1.35)] min-[30em]:basis-[calc((100vw-4.75rem)/2.1)] min-[35.5em]:basis-[calc((100vw-5.75rem)/2.7)] sm:basis-[calc((100vw-8.75rem)/3.25)] lg:basis-[calc((100vw-18.375rem)/4.25)] 2xl:basis-[calc((100vw-20.25rem)/5.25)]"
 						>
 							<div
 								class="min-w-0 p-2 transition-colors group-focus-within:bg-surface group-hover:bg-surface"
@@ -45,7 +46,7 @@
 									class="block"
 									aria-label="Continue watching {item.series.title}, episode {item.episode}"
 								>
-									<CardMedia aspect="video">
+									<div class="relative aspect-video overflow-hidden bg-surface">
 										{#if item.series.backdrop_url}
 											<Image
 												src={tmdbImage(item.series.backdrop_url, "w780")}
@@ -58,7 +59,7 @@
 												<div class="h-full bg-accent" style:width="{progress}%"></div>
 											</div>
 										{/if}
-									</CardMedia>
+									</div>
 
 									<div class="flex min-h-24 flex-col pt-3">
 										<h3 class="line-clamp-2 text-sm leading-snug font-semibold">
@@ -83,7 +84,7 @@
 									{#snippet children(trigger)}
 										<Button
 											{...trigger}
-											class="grid size-8 place-items-center text-white/75 drop-shadow-sm transition-[color,transform] duration-150 hover:text-status-error active:scale-90"
+											class="grid size-8 place-items-center bg-black/70 text-white transition-[background-color,transform] duration-150 hover:bg-status-error active:scale-90"
 											aria-label="Remove {item.series.title} from Continue Watching"
 											onclick={() =>
 												dismiss(item.series.id).updates(
@@ -97,9 +98,11 @@
 									{/snippet}
 								</Tooltip>
 							</div>
-						</div>
+						</Item>
 					{/each}
-				</div>
+				</Content>
+				<Previous />
+				<Next />
 			{/snippet}
 		</Carousel>
 	</section>
