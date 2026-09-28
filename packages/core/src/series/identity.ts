@@ -2,11 +2,11 @@ import type { SeasonKind } from "./seasons";
 
 /** What identifies a stored season when a series is laid out again. */
 export interface StoredSeason {
-  id: string;
-  kind: SeasonKind;
-  number: number;
-  /** The season's first AniList entry, or `null` for a season made only of TMDB extras. */
-  anchorAnilistId: number | null;
+	id: string;
+	kind: SeasonKind;
+	number: number;
+	/** The season's first AniList entry, or `null` for a season made only of TMDB extras. */
+	anchorAnilistId: number | null;
 }
 
 /**
@@ -28,53 +28,66 @@ export interface StoredSeason {
  * @returns Each season with its ID, in the order of `seasons`.
  */
 export function assignSeasonIds<
-  TSeason extends {
-    kind: SeasonKind;
-    number: number;
-    /** The season's AniList entries, in order. */
-    anime: readonly {
-      id: number;
-    }[];
-  }
+	TSeason extends {
+		kind: SeasonKind;
+		number: number;
+		/** The season's AniList entries, in order. */
+		anime: readonly {
+			id: number;
+		}[];
+	},
 >(
-  stored: readonly StoredSeason[],
-  seasons: readonly TSeason[],
-  newId: () => string
+	stored: readonly StoredSeason[],
+	seasons: readonly TSeason[],
+	newId: () => string,
 ): {
-  season: TSeason;
-  id: string;
+	season: TSeason;
+	id: string;
 }[] {
-  const available = new Set(stored);
-  const take = (season: StoredSeason | undefined) => {
-    if (season) {
-      available.delete(season);
-    }
+	const available = new Set(stored);
+	const take = (season: StoredSeason | undefined) => {
+		if (season) {
+			available.delete(season);
+		}
 
-    return season?.id;
-  };
+		return season?.id;
+	};
 
-  const ids: (string | undefined)[] = seasons.map((season) =>
-    take([...available].find((candidate) => candidate.anchorAnilistId !== null && candidate.anchorAnilistId === season.anime[0]?.id))
-  );
+	const ids: (string | undefined)[] = seasons.map((season) =>
+		take(
+			[...available].find(
+				(candidate) =>
+					candidate.anchorAnilistId !== null && candidate.anchorAnilistId === season.anime[0]?.id,
+			),
+		),
+	);
 
-  seasons.forEach((season, index) => {
-    if (ids[index] !== undefined) {
-      return;
-    }
+	seasons.forEach((season, index) => {
+		if (ids[index] !== undefined) {
+			return;
+		}
 
-    const entryIds = new Set(season.anime.map((anime) => anime.id));
-    ids[index] =
-      season.anime.length > 0
-        ? take([...available].find((candidate) => candidate.anchorAnilistId !== null && entryIds.has(candidate.anchorAnilistId)))
-        : take(
-            [...available].find(
-              (candidate) => candidate.anchorAnilistId === null && candidate.kind === season.kind && candidate.number === season.number
-            )
-          );
-  });
+		const entryIds = new Set(season.anime.map((anime) => anime.id));
+		ids[index] =
+			season.anime.length > 0
+				? take(
+						[...available].find(
+							(candidate) =>
+								candidate.anchorAnilistId !== null && entryIds.has(candidate.anchorAnilistId),
+						),
+					)
+				: take(
+						[...available].find(
+							(candidate) =>
+								candidate.anchorAnilistId === null &&
+								candidate.kind === season.kind &&
+								candidate.number === season.number,
+						),
+					);
+	});
 
-  return seasons.map((season, index) => ({
-    season,
-    id: ids[index] ?? newId(),
-  }));
+	return seasons.map((season, index) => ({
+		season,
+		id: ids[index] ?? newId(),
+	}));
 }
