@@ -13,8 +13,8 @@ import * as schema from "./schema";
  * parameters or constructors.
  */
 export const db = drizzle({
-  client: new SQL(config.databaseUrl),
-  schema,
+	client: new SQL(config.databaseUrl),
+	schema,
 });
 
 /**
@@ -25,17 +25,17 @@ export const db = drizzle({
  * requests. Running it from several replicas at once is not safe.
  */
 export async function migrateDatabase() {
-  await migrate(db, {
-    migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
-  });
-  // The catalog enqueues scheduler jobs with SQL, so graphile-worker's schema
-  // must exist before any request, not only once a scheduler has started.
-  await runMigrations({
-    connectionString: config.databaseUrl,
-  });
+	await migrate(db, {
+		migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
+	});
+	// The catalog enqueues scheduler jobs with SQL, so graphile-worker's schema
+	// must exist before any request, not only once a scheduler has started.
+	await runMigrations({
+		connectionString: config.databaseUrl,
+	});
 }
 
 /** Closes the connection pool so the process can exit cleanly. */
 export async function closeDatabase() {
-  await db.$client.close();
+	await db.$client.close();
 }
