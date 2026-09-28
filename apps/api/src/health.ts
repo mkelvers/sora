@@ -20,31 +20,32 @@ const cacheMs = 60_000;
  * are in `provider_calls` and the scheduler's warnings.
  */
 export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProviderHealth) {
-  let cached: {
-    at: number;
-    providers: Promise<ProviderHealth[] | null>;
-  } | null = null;
+	let cached: {
+		at: number;
+		providers: Promise<ProviderHealth[] | null>;
+	} | null = null;
 
-  const providers = () => {
-    if (!cached || Date.now() - cached.at >= cacheMs) {
-      cached = {
-        at: Date.now(),
-        providers: load().catch((error: unknown) => {
-          console.warn(`Could not read provider health: ${String(error)}`);
-          // Not cached: the next probe tries again.
-          cached = null;
-          return null;
-        }),
-      };
-    }
-    return cached.providers;
-  };
+	const providers = () => {
+		if (!cached || Date.now() - cached.at >= cacheMs) {
+			cached = {
+				at: Date.now(),
+				providers: load().catch((error: unknown) => {
+					console.warn(`Could not read provider health: ${String(error)}`);
+					// Not cached: the next probe tries again.
+					cached = null;
+					return null;
+				}),
+			};
+		}
+		return cached.providers;
+	};
 
-  return new Hono().get("/", async (c) => {
-    const health = await providers();
-    return c.json({
-      status: "ok",
-      providers: health && snakeCased(health.map(({ lastError: _lastError, ...provider }) => provider)),
-    });
-  });
+	return new Hono().get("/", async (c) => {
+		const health = await providers();
+		return c.json({
+			status: "ok",
+			providers:
+				health && snakeCased(health.map(({ lastError: _lastError, ...provider }) => provider)),
+		});
+	});
 }
