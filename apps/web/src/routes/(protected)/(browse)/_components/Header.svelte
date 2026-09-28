@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import {
-		BookmarkSimpleIcon,
 		CaretDownIcon,
-		MagnifyingGlassIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
 		UsersIcon,
@@ -12,8 +10,8 @@
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Dropdown from '$lib/components/ui/Dropdown.svelte';
-	import Logo from '$lib/components/ui/Logo.svelte';
 	import { cn } from '$lib/utils';
+	import Search from './Search.svelte';
 
 	let {
 		profile,
@@ -32,31 +30,9 @@
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
-	<nav class="flex h-full items-center justify-between pl-3 md:pl-6" aria-label="Primary">
-		<a
-			href="/"
-			class="inline-flex h-12 items-center justify-center text-muted transition-colors hover:text-foreground"
-			aria-label="Home"
-		>
-			<Logo alt="Sora" />
-		</a>
-
+	<nav class="flex h-full items-center justify-end pl-3 md:pl-6" aria-label="Primary">
 		<div class="flex h-full items-center">
-			<a
-				href="/search"
-				class={cn(link, page.url.pathname === '/search' && 'bg-header-hover text-foreground')}
-				aria-label="Search"
-			>
-				<MagnifyingGlassIcon size="1.5rem" />
-			</a>
-
-			<a
-				href="/list"
-				class={cn(link, page.url.pathname.startsWith('/list') && 'bg-header-hover text-foreground')}
-				aria-label="Watchlist"
-			>
-				<BookmarkSimpleIcon size="1.5rem" />
-			</a>
+			<Search />
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
