@@ -10,7 +10,11 @@
 	"files.eol": "\n",
 	"files.insertFinalNewline": true,
 	"files.trimTrailingWhitespace": true,
+	"[svelte]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
 	"oxc.enable": true,
+	"oxc.fmt.configPath": ".oxfmtrc.json",
 	"prettier.enable": false,
 	"eslint.enable": false,
 	"biome.enabled": false
