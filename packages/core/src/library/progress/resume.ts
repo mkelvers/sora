@@ -1,27 +1,74 @@
 import type { SeriesCard } from "../../series/models";
 
-/** Saved progress for one season episode. */
+/**
+ * Share of an episode that must be played for it to count as watched.
+ * Leaves room for ending credits and previews.
+ */
+export const completionRatio = 0.9;
+
+/** One episode's state: whether it is watched, and where playback of it stands. */
 export interface EpisodeProgress {
 	seasonId: string;
 	/** Position within the season, from 1. */
 	episode: number;
 	positionSeconds: number;
 	durationSeconds: number;
-	completed: boolean;
-	/** ISO 8601 timestamp of the event that produced this checkpoint. */
+	watched: boolean;
+	/** ISO 8601 timestamp of the event that produced this state. */
 	eventAt: string;
 }
 
-/** A season watched to the end. */
-export interface SeasonCompletion {
+/** A season of a title, named. */
+export interface NamedSeason {
 	seasonId: string;
-	/** ISO 8601 timestamp of the event that completed its last episode. */
-	completedAt: string;
+	/** Such as "Season 2" or the film's title. */
+	title: string;
 }
 
-/** A title's saved progress. */
-export interface TitleProgress {
-	completedSeasons: SeasonCompletion[];
+/** How far a user is through one season, read from their episode progress. */
+export interface SeasonProgress extends NamedSeason {
+	/** Released episodes of the season watched, extras aside. */
+	watchedEpisodes: number;
+	/** Released episodes of the season, extras aside. */
+	releasedEpisodes: number;
+	/**
+	 * Whether the season has finished airing and every one of its episodes
+	 * is watched. It says nothing about the series' library status.
+	 */
+	completed: boolean;
+}
+
+/**
+ * How far a user is through a title, read from their episode progress
+ * rather than stored, so it stays true as the title gains episodes.
+ */
+export interface SeriesProgress {
+	/** Every season with a released episode, in title order. */
+	seasons: SeasonProgress[];
+	/** Released episodes in watch order watched, extras aside. */
+	watchedEpisodes: number;
+	/** Released episodes in watch order, extras aside. */
+	releasedEpisodes: number;
+	/**
+	 * Whether every released episode in watch order is watched. Unlike a
+	 * `completed` library status, a new episode or season takes it back.
+	 */
+	caughtUp: boolean;
+	/** Where to pick the title back up; see {@link continuePoint}. */
+	next: ContinuePoint | null;
+	/**
+	 * A season the user has not started that they can watch, offered once
+	 * there is nothing to continue, such as one released since; see
+	 * {@link unstartedSeason}.
+	 */
+	newSeason: NamedSeason | null;
+	/** ISO 8601 timestamp of the latest change to an episode's state, or `null`. */
+	lastWatchedAt: string | null;
+}
+
+/** A title's episode states, and what is derived from them. */
+export interface TitleProgress extends SeriesProgress {
+	/** The state of every episode played or marked watched, in title order. */
 	episodes: EpisodeProgress[];
 }
 
@@ -53,7 +100,7 @@ export interface TitleEpisode {
 	releasedAt: string | null;
 	/**
 	 * Whether it ends its season: the season's last playable episode, once
-	 * the season has finished airing. Watching it completes the season.
+	 * the season has finished airing. Only a season with one can be completed.
 	 */
 	isFinale: boolean;
 }
@@ -65,23 +112,11 @@ export type ContinuePoint = Pick<
 >;
 
 /**
- * How far a user is through a title, read from their progress rather than
- * stored, so it stays true as the title gains seasons.
- *
- * - `planning`: listed, nothing played.
- * - `watching`: there is more to watch of what they started.
- * - `completed`: every season they started is watched to the end. A season
- *   released later that they have not started does not change that.
- * - `dropped`: they gave up on it, which only they can say.
- */
-export type WatchStatus = "planning" | "watching" | "completed" | "dropped";
-
-/**
  * Decides where to resume a title.
  *
- * An unfinished latest episode resumes where it stopped. After a completed
- * episode, the next playable episode follows, crossing into the next season
- * in watch order: the last episode of season 1 leads to the film after it
+ * An unfinished latest episode resumes where it stopped, even one watched
+ * before and now played again. After a finished episode, the next playable
+ * episode follows, crossing into the next season in watch order: the last episode of season 1 leads to the film after it
  * or to season 2, but the watch order does not lead into the extras. That
  * next episode resumes from its own checkpoint if one exists (it may have
  * been started earlier or on another device), or starts from zero if it has
@@ -105,7 +140,7 @@ export function continuePoint(
 		return null;
 	}
 
-	if (!latest.completed) {
+	if (!isFinished(latest)) {
 		return {
 			seasonId: latest.seasonId,
 			episode: latest.episode,
@@ -128,7 +163,7 @@ export function continuePoint(
 		(checkpoint) =>
 			checkpoint.seasonId === next.seasonId &&
 			checkpoint.episode === next.number &&
-			!checkpoint.completed,
+			!isFinished(checkpoint),
 	);
 	if (started) {
 		return {
@@ -154,91 +189,50 @@ export function continuePoint(
 }
 
 /**
- * The seasons watched to the end: those whose finale (see
- * {@link TitleEpisode.isFinale}) has a completed checkpoint, in title order.
- */
-export function completedSeasons(
-	episodes: readonly TitleEpisode[],
-	progress: readonly EpisodeProgress[],
-): SeasonCompletion[] {
-	return episodes.flatMap((episode) => {
-		const checkpoint = episode.isFinale ? find(progress, episode) : undefined;
-		return checkpoint?.completed
-			? [
-					{
-						seasonId: episode.seasonId,
-						completedAt: checkpoint.eventAt,
-					},
-				]
-			: [];
-	});
-}
-
-/**
- * How far a user is through a title; see {@link WatchStatus}.
+ * Derives how far a user is through a title from their episode progress;
+ * see {@link SeriesProgress}.
  *
+ * @param episodes - Every episode of the title, in title order.
  * @param progress - The title's checkpoints, most recent first.
- * @param dropped - Whether the user marked the title dropped.
+ * @param seasonTitles - Season titles by season ID.
  */
-export function watchStatus(
+export function seriesProgress(
 	episodes: readonly TitleEpisode[],
 	progress: readonly EpisodeProgress[],
-	dropped: boolean,
-): WatchStatus {
-	if (dropped) {
-		return "dropped";
-	}
-
-	const listed = progress.filter((checkpoint) =>
-		episodes.some((episode) => isAt(checkpoint, episode)),
-	);
-	if (listed.length === 0) {
-		return "planning";
-	}
-
-	const completed = new Set(completedSeasons(episodes, listed).map((season) => season.seasonId));
-	const started = new Set(listed.map((checkpoint) => checkpoint.seasonId));
-	const finished = [...started].every((seasonId) => completed.has(seasonId));
-	return finished && continuePoint(episodes, listed) === null ? "completed" : "watching";
-}
-
-/** Where a user is in one season of a title. */
-export interface SeasonStanding {
-	seasonId: string;
-	/** The episode to play next, or `null` when there is none to continue. */
-	episode: number | null;
-	/** Released episodes of the season watched to the end. */
-	watchedEpisodes: number;
-	/** Released episodes of the season, extras aside. */
-	releasedEpisodes: number;
-}
-
-/**
- * The season a user is in: the one they would continue with, or else the
- * one they played last. `null` before they played anything.
- *
- * @param progress - The title's checkpoints, most recent first.
- */
-export function seasonStanding(
-	episodes: readonly TitleEpisode[],
-	progress: readonly EpisodeProgress[],
-): SeasonStanding | null {
-	const point = continuePoint(episodes, progress);
-	const seasonId =
-		point?.seasonId ??
-		progress.find((checkpoint) => episodes.some((episode) => isAt(checkpoint, episode)))?.seasonId;
-	if (seasonId === undefined) {
-		return null;
-	}
-
-	const released = episodes.filter(
-		(episode) => episode.seasonId === seasonId && episode.isReleased && !episode.isExtra,
-	);
-	return {
+	seasonTitles: ReadonlyMap<string, string>,
+): SeriesProgress {
+	const released = episodes.filter((episode) => episode.isReleased && !episode.isExtra);
+	const watched = (episode: TitleEpisode) => find(progress, episode)?.watched === true;
+	const named = (seasonId: string): NamedSeason => ({
 		seasonId,
-		episode: point?.episode ?? null,
-		watchedEpisodes: released.filter((episode) => find(progress, episode)?.completed).length,
-		releasedEpisodes: released.length,
+		title: seasonTitles.get(seasonId) ?? "",
+	});
+
+	const seasons = [...new Set(released.map((episode) => episode.seasonId))].map((seasonId) => {
+		const inSeason = released.filter((episode) => episode.seasonId === seasonId);
+		const watchedEpisodes = inSeason.filter(watched).length;
+		return {
+			...named(seasonId),
+			watchedEpisodes,
+			releasedEpisodes: inSeason.length,
+			completed:
+				watchedEpisodes === inSeason.length && inSeason.some((episode) => episode.isFinale),
+		};
+	});
+
+	const inWatchOrder = released.filter((episode) => episode.inWatchOrder);
+	const watchedEpisodes = inWatchOrder.filter(watched).length;
+	const next = continuePoint(episodes, progress);
+	const unstarted = next ? null : unstartedSeason(episodes, progress);
+
+	return {
+		seasons,
+		watchedEpisodes,
+		releasedEpisodes: inWatchOrder.length,
+		caughtUp: inWatchOrder.length > 0 && watchedEpisodes === inWatchOrder.length,
+		next,
+		newSeason: unstarted ? named(unstarted) : null,
+		lastWatchedAt: progress[0]?.eventAt ?? null,
 	};
 }
 
@@ -269,6 +263,13 @@ export function unstartedSeason(
 	return next && !progress.some((checkpoint) => checkpoint.seasonId === next.seasonId)
 		? next.seasonId
 		: null;
+}
+
+/** Whether playback of an episode reached its end, rather than stopping part-way. */
+function isFinished(checkpoint: EpisodeProgress) {
+	return (
+		checkpoint.watched && checkpoint.positionSeconds >= checkpoint.durationSeconds * completionRatio
+	);
 }
 
 function isAt(checkpoint: EpisodeProgress, episode: TitleEpisode) {

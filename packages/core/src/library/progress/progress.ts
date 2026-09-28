@@ -1,25 +1,20 @@
-import { and, eq, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
 import {
 	continueWatchingDismissal,
+	playbackHistory,
 	playbackProgress,
 	seriesEntry,
 	seriesEpisode,
-	watchlistEntry,
 } from "../../database/schema";
-import { InvalidInputError, SeasonNotFoundError } from "../../errors";
+import { EpisodeNotFoundError, InvalidInputError, SeasonNotFoundError } from "../../errors";
 import { locateEpisode } from "../../series/episodes";
 import { assertSeriesExists } from "../../series/queries";
-import { completedSeasons, type TitleProgress } from "./resume";
+import { markStarted } from "../entries/entries";
+import { completionRatio, seriesProgress, type TitleProgress } from "./resume";
 import { loadCheckpoints, loadTitles } from "./titles";
-
-/**
- * Share of an episode that must be watched for it to count as completed when
- * the client does not say. Leaves room for ending credits and previews.
- */
-const completionRatio = 0.9;
 
 /** Clients may report events slightly in the future because of clock skew. */
 const allowedClockSkewMs = 5 * 60_000;
@@ -39,11 +34,6 @@ export const ProgressUpdateSchema = z
 			.positive()
 			.max(24 * 60 * 60),
 		/**
-		 * Explicit completion, for "mark as watched" actions. When omitted,
-		 * completion is derived from position and duration.
-		 */
-		completed: z.boolean().optional(),
-		/**
 		 * When the client observed this position. Later events win, so an old
 		 * checkpoint from an offline device cannot overwrite newer progress.
 		 */
@@ -59,15 +49,18 @@ export const ProgressUpdateSchema = z
 export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
 
 /**
- * Records a playback checkpoint.
+ * Records where playback of an episode stands, as the player reports it.
  *
  * Checkpoints are stored against the AniList episode that plays the season
- * episode, so progress survives the title being laid out again. They are
- * the user's history: how far they are through a title, and whether they
- * finished a season, are read from them.
+ * episode, so progress survives the title being laid out again. Playing an
+ * episode past {@link completionRatio} marks it watched; playing a watched
+ * episode again keeps it watched. The playback also goes into the user's
+ * history.
  *
- * Playing a title puts it on the watchlist, undrops it, and brings it back
- * to "continue watching" if it was dismissed from there.
+ * Playing a title puts it in the library as `watching`, starts it if it was
+ * `planning` (see {@link markStarted}), and brings it back to "continue
+ * watching" if it was dismissed from there. Any other status is the user's
+ * to change.
  *
  * @throws {@link InvalidInputError} when the update fails validation.
  * @throws {@link SeasonNotFoundError} when the season does not exist.
@@ -96,53 +89,108 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
 			episode: located.anilistEpisode,
 			positionSeconds: input.positionSeconds,
 			durationSeconds: input.durationSeconds,
-			completed:
-				input.completed ?? input.positionSeconds >= input.durationSeconds * completionRatio,
+			watched: input.positionSeconds >= input.durationSeconds * completionRatio,
 			eventAt,
 		},
 	]);
 
-	// A stale event changed nothing, so it must not change the watchlist either.
-	if (written > 0) {
-		await markPlayed(userId, located.seriesId, eventAt);
+	// A stale event changed nothing, so it must not change the library either.
+	if (written === 0) {
+		return;
 	}
+
+	await db
+		.insert(playbackHistory)
+		.values({
+			userId,
+			anilistId: located.anilistId,
+			episode: located.anilistEpisode,
+			positionSeconds: input.positionSeconds,
+			durationSeconds: input.durationSeconds,
+			playedAt: eventAt,
+		})
+		.onConflictDoUpdate({
+			target: [playbackHistory.userId, playbackHistory.anilistId, playbackHistory.episode],
+			set: {
+				positionSeconds: sql`excluded.position_seconds`,
+				durationSeconds: sql`excluded.duration_seconds`,
+				playedAt: sql`excluded.played_at`,
+			},
+			setWhere: sql`${playbackHistory.playedAt} < excluded.played_at`,
+		});
+	await markStarted(userId, located.seriesId);
+	await db
+		.delete(continueWatchingDismissal)
+		.where(
+			and(
+				eq(continueWatchingDismissal.userId, userId),
+				eq(continueWatchingDismissal.seriesId, located.seriesId),
+				lt(continueWatchingDismissal.dismissedAt, eventAt),
+			),
+		);
 }
 
+/** What {@link markWatched} marks. */
+export const MarkWatchedSchema = z
+	.object({
+		seriesId: z.string().min(1),
+		/** Only this season; every season in watch order when omitted. */
+		seasonId: z.string().min(1).optional(),
+		/** Only this episode of `seasonId`, from 1. */
+		episode: z.number().int().positive().optional(),
+	})
+	.refine((target) => target.episode === undefined || target.seasonId !== undefined, {
+		message: "An episode needs its season",
+		path: ["seasonId"],
+	});
+
+export type MarkWatchedTarget = z.input<typeof MarkWatchedSchema>;
+
 /**
- * Marks every released episode of a season, or of every season of a title
- * in watch order, watched or unwatched at once.
+ * Marks an episode, every released episode of a season, or every released
+ * episode of a title in watch order, watched or unwatched.
  *
- * Marking watched gives each episode a completed checkpoint; marking
- * unwatched forgets their checkpoints.
+ * This changes episode state only: it is not playback, so it leaves the
+ * user's history alone, and it never sets a library status such as
+ * `completed`. Marking watched does start a `planning` title, as playing
+ * it would (see {@link markStarted}), and wins over any saved playback of
+ * the episodes, however recent. Marking unwatched forgets the episodes'
+ * state, position included.
  *
+ * @throws {@link InvalidInputError} when the target fails validation.
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  * @throws {@link SeasonNotFoundError} when the title has no such season.
+ * @throws {@link EpisodeNotFoundError} when the season has no such released
+ *   playable episode.
  */
-export async function markWatched(
-	userId: string,
-	target: {
-		seriesId: string;
-		/** Only this season; every season in watch order when omitted. */
-		seasonId?: string;
-	},
-	watched: boolean,
-) {
-	await assertSeriesExists(target.seriesId);
-	const titles = await loadTitles([target.seriesId]);
-	const listed = titles.episodes(target.seriesId);
-	if (
-		target.seasonId !== undefined &&
-		!listed.some((episode) => episode.seasonId === target.seasonId)
-	) {
-		throw new SeasonNotFoundError(target.seasonId);
+export async function markWatched(userId: string, target: MarkWatchedTarget, watched: boolean) {
+	const parsed = MarkWatchedSchema.safeParse(target);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid mark target", {
+			cause: parsed.error,
+		});
+	}
+
+	const { seriesId, seasonId, episode } = parsed.data;
+	await assertSeriesExists(seriesId);
+	const titles = await loadTitles([seriesId]);
+	const listed = titles.episodes(seriesId);
+	if (seasonId !== undefined && !listed.some((candidate) => candidate.seasonId === seasonId)) {
+		throw new SeasonNotFoundError(seasonId);
 	}
 
 	const marked = listed.filter(
-		(episode) =>
-			!episode.isExtra &&
-			episode.isReleased &&
-			(target.seasonId === undefined ? episode.inWatchOrder : episode.seasonId === target.seasonId),
+		(candidate) =>
+			!candidate.isExtra &&
+			candidate.isReleased &&
+			(seasonId === undefined
+				? candidate.inWatchOrder
+				: candidate.seasonId === seasonId &&
+					(episode === undefined || candidate.number === episode)),
 	);
+	if (episode !== undefined && marked.length === 0) {
+		throw new EpisodeNotFoundError(seasonId!, episode);
+	}
 	if (marked.length === 0) {
 		return;
 	}
@@ -157,10 +205,10 @@ export async function markWatched(
 		})
 		.from(seriesEpisode)
 		.where(
-			inArray(seriesEpisode.seasonId, [...new Set(marked.map((episode) => episode.seasonId))]),
+			inArray(seriesEpisode.seasonId, [...new Set(marked.map((candidate) => candidate.seasonId))]),
 		);
 	const order = new Map(
-		marked.map((episode, index) => [`${episode.seasonId}:${episode.number}`, index]),
+		marked.map((candidate, index) => [`${candidate.seasonId}:${candidate.number}`, index]),
 	);
 	const episodes = rows
 		.filter((row) => row.anilistId !== null && order.has(`${row.seasonId}:${row.number}`))
@@ -200,20 +248,23 @@ export async function markWatched(
 				episode: row.anilistEpisode!,
 				positionSeconds: seconds,
 				durationSeconds: seconds,
-				completed: true,
+				watched: true,
 				eventAt: new Date(now - episodes.length + index + 1),
 			};
 		}),
+		{
+			overwrite: true,
+		},
 	);
-	await markPlayed(userId, target.seriesId, new Date(now));
+	await markStarted(userId, seriesId);
 }
 
 /**
- * Lists a title's saved progress: the seasons watched to the end, and the
- * checkpoints of every episode, both in title order.
+ * A title's episode states in title order, with what is derived from them:
+ * season progress, whether the user is caught up, and where to continue.
  *
- * Checkpoints for episodes the title no longer lists are left out, and a
- * season that gained episodes since it was finished is no longer complete.
+ * Episodes the title no longer lists are left out, and a season that gained
+ * episodes since it was finished is no longer complete.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
@@ -230,7 +281,7 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
 	);
 
 	return {
-		completedSeasons: completedSeasons(episodes, progress),
+		...seriesProgress(episodes, progress, titles.seasonTitles),
 		episodes: progress
 			.filter((checkpoint) => order.has(`${checkpoint.seasonId}:${checkpoint.episode}`))
 			.sort(
@@ -242,8 +293,8 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
 }
 
 /**
- * Forgets all progress for a title, for example to start it over. It stays
- * on the watchlist, as not started.
+ * Forgets every episode state of a title, for example to start it over. Its
+ * library status and the user's history of it stay as they are.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
@@ -261,43 +312,13 @@ export async function clearProgress(userId: string, seriesId: string) {
 		.where(and(eq(playbackProgress.userId, userId), inArray(playbackProgress.anilistId, entries)));
 }
 
-/**
- * Forgets one episode's checkpoint, taking it out of the user's history.
- *
- * @returns Whether there was one.
- * @throws {@link SeasonNotFoundError} when the season does not exist.
- * @throws {@link EpisodeNotFoundError} when the season has no such
- *   playable episode.
- */
-export async function forgetEpisode(
-	userId: string,
-	seasonId: string,
-	episode: number,
-): Promise<boolean> {
-	const located = await locateEpisode(seasonId, episode);
-	const removed = await db
-		.delete(playbackProgress)
-		.where(
-			and(
-				eq(playbackProgress.userId, userId),
-				eq(playbackProgress.anilistId, located.anilistId),
-				eq(playbackProgress.episode, located.anilistEpisode),
-			),
-		)
-		.returning({
-			episode: playbackProgress.episode,
-		});
-
-	return removed.length > 0;
-}
-
 /** One checkpoint to write; see {@link writeCheckpoints}. */
 export interface CheckpointInput {
 	anilistId: number;
 	episode: number;
 	positionSeconds: number;
 	durationSeconds: number;
-	completed: boolean;
+	watched: boolean;
 	eventAt: Date;
 }
 
@@ -306,13 +327,19 @@ const checkpointBatch = 1_000;
 
 /**
  * Upserts checkpoints. A checkpoint only replaces a saved one with an older
- * event, so an old event from an offline device changes nothing.
+ * event, so an old event from an offline device changes nothing, and it
+ * never takes back that an episode was watched.
  *
+ * @param options.overwrite - Replace saved checkpoints whatever their event
+ *   time, for a user's explicit choice, which wins over any playback.
  * @returns How many were written.
  */
 export async function writeCheckpoints(
 	userId: string,
 	checkpoints: readonly CheckpointInput[],
+	options: {
+		overwrite?: boolean;
+	} = {},
 ): Promise<number> {
 	const updatedAt = new Date();
 	let written = 0;
@@ -331,11 +358,13 @@ export async function writeCheckpoints(
 				set: {
 					positionSeconds: sql`excluded.position_seconds`,
 					durationSeconds: sql`excluded.duration_seconds`,
-					completed: sql`excluded.completed`,
+					watched: sql`${playbackProgress.watched} or excluded.watched`,
 					eventAt: sql`excluded.event_at`,
 					updatedAt,
 				},
-				setWhere: sql`${playbackProgress.eventAt} < excluded.event_at`,
+				setWhere: options.overwrite
+					? undefined
+					: sql`${playbackProgress.eventAt} < excluded.event_at`,
 			})
 			.returning({
 				episode: playbackProgress.episode,
@@ -344,38 +373,4 @@ export async function writeCheckpoints(
 	}
 
 	return written;
-}
-
-/**
- * Puts a title the user played at `playedAt` on their watchlist, undrops it
- * if they dropped it before then, and lifts an earlier dismissal from
- * "continue watching".
- */
-async function markPlayed(userId: string, seriesId: string, playedAt: Date) {
-	await db.transaction(async (tx) => {
-		await tx
-			.insert(watchlistEntry)
-			.values({
-				userId,
-				seriesId,
-			})
-			.onConflictDoUpdate({
-				target: [watchlistEntry.userId, watchlistEntry.seriesId],
-				set: {
-					droppedAt: null,
-					updatedAt: new Date(),
-				},
-				setWhere: and(isNotNull(watchlistEntry.droppedAt), lt(watchlistEntry.droppedAt, playedAt)),
-			});
-
-		await tx
-			.delete(continueWatchingDismissal)
-			.where(
-				and(
-					eq(continueWatchingDismissal.userId, userId),
-					eq(continueWatchingDismissal.seriesId, seriesId),
-					lt(continueWatchingDismissal.dismissedAt, playedAt),
-				),
-			);
-	});
 }

@@ -178,7 +178,7 @@ export function toEpisodeProgress(
 		episode,
 		positionSeconds: row.positionSeconds,
 		durationSeconds: row.durationSeconds,
-		completed: row.completed,
+		watched: row.watched,
 		eventAt: row.eventAt.toISOString(),
 	};
 }

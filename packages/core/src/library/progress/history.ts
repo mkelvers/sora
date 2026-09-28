@@ -1,12 +1,16 @@
 import { and, desc, eq, lt, or, type SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { playbackProgress, series, seriesEpisode, seriesSeason } from "../../database/schema";
+import { playbackHistory, series, seriesEpisode, seriesSeason } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
+import { locateEpisode } from "../../series/episodes";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
 
-/** One episode a user played, as their history lists it. */
+/**
+ * One episode a user played, as their history lists it. Only playback puts
+ * an episode here; marking it watched does not.
+ */
 export interface HistoryItem {
 	series: SeriesCard;
 	seasonId: string;
@@ -15,11 +19,11 @@ export interface HistoryItem {
 	/** Position within the season, from 1. */
 	episode: number;
 	episodeTitle: string | null;
+	/** How far its latest playback got. */
 	positionSeconds: number;
 	durationSeconds: number;
-	completed: boolean;
 	/** ISO 8601 timestamp of when it was last played. */
-	watchedAt: string;
+	playedAt: string;
 }
 
 /** A page of history, and where the next one starts. */
@@ -47,30 +51,30 @@ export async function getHistory(
 	const limit = options.limit ?? 50;
 	const rows = await db
 		.select({
-			progress: playbackProgress,
+			history: playbackHistory,
 			series,
 			seasonId: seriesSeason.id,
 			seasonTitle: seriesSeason.title,
 			episode: seriesEpisode.number,
 			episodeTitle: seriesEpisode.title,
 		})
-		.from(playbackProgress)
+		.from(playbackHistory)
 		.innerJoin(
 			seriesEpisode,
 			and(
-				eq(seriesEpisode.anilistId, playbackProgress.anilistId),
-				eq(seriesEpisode.anilistEpisode, playbackProgress.episode),
+				eq(seriesEpisode.anilistId, playbackHistory.anilistId),
+				eq(seriesEpisode.anilistEpisode, playbackHistory.episode),
 			),
 		)
 		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
 		.innerJoin(series, eq(series.id, seriesSeason.seriesId))
 		.where(
-			and(eq(playbackProgress.userId, userId), options.after ? after(options.after) : undefined),
+			and(eq(playbackHistory.userId, userId), options.after ? after(options.after) : undefined),
 		)
 		.orderBy(
-			desc(playbackProgress.eventAt),
-			desc(playbackProgress.anilistId),
-			desc(playbackProgress.episode),
+			desc(playbackHistory.playedAt),
+			desc(playbackHistory.anilistId),
+			desc(playbackHistory.episode),
 		)
 		.limit(limit + 1);
 
@@ -91,21 +95,18 @@ export async function getHistory(
 							seasonTitle: row.seasonTitle,
 							episode: row.episode,
 							episodeTitle: row.episodeTitle,
-							positionSeconds: row.progress.positionSeconds,
-							durationSeconds: row.progress.durationSeconds,
-							completed: row.progress.completed,
-							watchedAt: row.progress.eventAt.toISOString(),
+							positionSeconds: row.history.positionSeconds,
+							durationSeconds: row.history.durationSeconds,
+							playedAt: row.history.playedAt.toISOString(),
 						},
 					]
 				: [];
 		}),
 		next:
 			rows.length > limit && last
-				? [
-						last.progress.eventAt.toISOString(),
-						last.progress.anilistId,
-						last.progress.episode,
-					].join("_")
+				? [last.history.playedAt.toISOString(), last.history.anilistId, last.history.episode].join(
+						"_",
+					)
 				: null,
 	};
 }
@@ -123,12 +124,43 @@ function after(cursor: string): SQL | undefined {
 	}
 
 	return or(
-		lt(playbackProgress.eventAt, eventAt),
-		and(eq(playbackProgress.eventAt, eventAt), lt(playbackProgress.anilistId, Number(anilistId))),
+		lt(playbackHistory.playedAt, eventAt),
+		and(eq(playbackHistory.playedAt, eventAt), lt(playbackHistory.anilistId, Number(anilistId))),
 		and(
-			eq(playbackProgress.eventAt, eventAt),
-			eq(playbackProgress.anilistId, Number(anilistId)),
-			lt(playbackProgress.episode, Number(episode)),
+			eq(playbackHistory.playedAt, eventAt),
+			eq(playbackHistory.anilistId, Number(anilistId)),
+			lt(playbackHistory.episode, Number(episode)),
 		),
 	);
+}
+
+/**
+ * Takes one episode out of the user's history. Whether it is watched, and
+ * where playback of it stands, stay as they are.
+ *
+ * @returns Whether it was in their history.
+ * @throws {@link SeasonNotFoundError} when the season does not exist.
+ * @throws {@link EpisodeNotFoundError} when the season has no such
+ *   playable episode.
+ */
+export async function forgetEpisode(
+	userId: string,
+	seasonId: string,
+	episode: number,
+): Promise<boolean> {
+	const located = await locateEpisode(seasonId, episode);
+	const removed = await db
+		.delete(playbackHistory)
+		.where(
+			and(
+				eq(playbackHistory.userId, userId),
+				eq(playbackHistory.anilistId, located.anilistId),
+				eq(playbackHistory.episode, located.anilistEpisode),
+			),
+		)
+		.returning({
+			episode: playbackHistory.episode,
+		});
+
+	return removed.length > 0;
 }

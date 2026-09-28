@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-	completedSeasons,
 	continuePoint,
-	seasonStanding,
+	seriesProgress,
 	unstartedSeason,
-	watchStatus,
 	type EpisodeProgress,
 	type TitleEpisode,
 } from "./resume";
@@ -37,14 +35,14 @@ const checkpoint = (
 	seasonId: string,
 	episode: number,
 	positionSeconds: number,
-	completed: boolean,
+	watched: boolean,
 	eventAt = "2026-01-01T00:00:00.000Z",
 ): EpisodeProgress => ({
 	seasonId,
 	episode,
 	positionSeconds,
 	durationSeconds: 1440,
-	completed,
+	watched,
 	eventAt,
 });
 
@@ -67,6 +65,14 @@ describe("continuePoint", () => {
 			episode: 2,
 			positionSeconds: 600,
 			durationSeconds: 1440,
+		});
+	});
+
+	test("resumes a watched episode played again where it stopped", () => {
+		expect(continuePoint(frieren, [checkpoint("s1", 2, 600, true)])).toMatchObject({
+			seasonId: "s1",
+			episode: 2,
+			positionSeconds: 600,
 		});
 	});
 
@@ -168,14 +174,71 @@ describe("continuePoint", () => {
 	});
 });
 
-describe("completedSeasons", () => {
-	test("lists a season once its finale is watched", () => {
-		expect(completedSeasons(frieren, [checkpoint("s1", 3, 1400, true)])).toEqual([
+const titles = new Map([
+	["s1", "Season 1"],
+	["s2", "Season 2"],
+	["ova1", "OVA"],
+]);
+
+describe("seriesProgress", () => {
+	test("counts nothing before anything is played", () => {
+		expect(seriesProgress(frieren, [], titles)).toMatchObject({
+			watchedEpisodes: 0,
+			releasedEpisodes: 6,
+			caughtUp: false,
+			next: null,
+			newSeason: null,
+			lastWatchedAt: null,
+		});
+	});
+
+	test("counts each season's watched episodes", () => {
+		const progress = [checkpoint("s1", 2, 1400, true), checkpoint("s1", 1, 1400, true)];
+
+		expect(seriesProgress(frieren, progress, titles).seasons).toEqual([
 			{
 				seasonId: "s1",
-				completedAt: "2026-01-01T00:00:00.000Z",
+				title: "Season 1",
+				watchedEpisodes: 2,
+				releasedEpisodes: 3,
+				completed: false,
+			},
+			{
+				seasonId: "s2",
+				title: "Season 2",
+				watchedEpisodes: 0,
+				releasedEpisodes: 3,
+				completed: false,
+			},
+			{
+				seasonId: "ova1",
+				title: "OVA",
+				watchedEpisodes: 0,
+				releasedEpisodes: 1,
+				completed: false,
 			},
 		]);
+		expect(seriesProgress(frieren, progress, titles).next).toMatchObject({
+			seasonId: "s1",
+			episode: 3,
+		});
+	});
+
+	test("completes a season once every episode is watched, without catching up", () => {
+		const progress = seriesProgress(frieren, watchedSeason("s1", 3), titles);
+
+		expect(progress.seasons[0]?.completed).toBe(true);
+		expect(progress.caughtUp).toBe(false);
+		expect(progress.next).toMatchObject({
+			seasonId: "s2",
+			episode: 1,
+		});
+	});
+
+	test("does not complete a season whose finale alone is watched", () => {
+		const progress = seriesProgress(frieren, [checkpoint("s1", 3, 1400, true)], titles);
+
+		expect(progress.seasons[0]?.completed).toBe(false);
 	});
 
 	test("does not complete a season still airing", () => {
@@ -184,71 +247,61 @@ describe("completedSeasons", () => {
 			isFinale: false,
 		}));
 
-		expect(completedSeasons(airing, [checkpoint("s1", 3, 1400, true)])).toEqual([]);
-	});
-});
-
-describe("watchStatus", () => {
-	test("is planning before anything is played", () => {
-		expect(watchStatus(frieren, [], false)).toBe("planning");
+		expect(seriesProgress(airing, watchedSeason("s1", 3), titles).seasons[0]?.completed).toBe(
+			false,
+		);
 	});
 
-	test("is watching part-way through a season", () => {
-		expect(watchStatus(frieren, [checkpoint("s1", 2, 1400, true)], false)).toBe("watching");
+	test("is caught up once every released episode in watch order is watched", () => {
+		const progress = seriesProgress(
+			frieren,
+			[...watchedSeason("s2", 3), ...watchedSeason("s1", 3)],
+			titles,
+		);
+
+		expect(progress).toMatchObject({
+			watchedEpisodes: 6,
+			releasedEpisodes: 6,
+			caughtUp: true,
+			next: null,
+		});
 	});
 
-	test("is watching after a season while the next one was already out", () => {
-		expect(watchStatus(frieren, watchedSeason("s1", 3), false)).toBe("watching");
+	test("is no longer caught up once a new episode airs", () => {
+		const weekly = [...season("s1", 2)].map((episode) => ({
+			...episode,
+			isFinale: false,
+		}));
+		const aired = [
+			...weekly,
+			{
+				...weekly[1]!,
+				number: 3,
+			},
+		];
+
+		expect(seriesProgress(weekly, watchedSeason("s1", 2), titles).caughtUp).toBe(true);
+		expect(seriesProgress(aired, watchedSeason("s1", 2), titles)).toMatchObject({
+			caughtUp: false,
+			next: {
+				seasonId: "s1",
+				episode: 3,
+			},
+		});
 	});
 
-	test("is completed once every started season is finished", () => {
-		expect(
-			watchStatus(frieren, [...watchedSeason("s2", 3), ...watchedSeason("s1", 3)], false),
-		).toBe("completed");
-	});
-
-	test("stays completed when a season is released later", () => {
+	test("offers a season released after the last one was finished", () => {
 		const later = [...season("s1", 2), ...season("s2", 2, true, "2026-06-01T00:00:00.000Z")];
+		const progress = seriesProgress(later, watchedSeason("s1", 2), titles);
 
-		expect(watchStatus(later, watchedSeason("s1", 2), false)).toBe("completed");
+		expect(progress).toMatchObject({
+			caughtUp: false,
+			next: null,
+			newSeason: {
+				seasonId: "s2",
+				title: "Season 2",
+			},
+		});
 		expect(unstartedSeason(later, watchedSeason("s1", 2))).toBe("s2");
-	});
-
-	test("is watching again once the new season is started", () => {
-		const later = [...season("s1", 2), ...season("s2", 2, true, "2026-06-01T00:00:00.000Z")];
-
-		expect(
-			watchStatus(
-				later,
-				[checkpoint("s2", 1, 300, false, "2026-07-01T00:00:00.000Z"), ...watchedSeason("s1", 2)],
-				false,
-			),
-		).toBe("watching");
-	});
-
-	test("is dropped when the user says so, whatever was watched", () => {
-		expect(watchStatus(frieren, watchedSeason("s1", 3), true)).toBe("dropped");
-	});
-});
-
-describe("seasonStanding", () => {
-	test("counts the watched episodes of the season to continue", () => {
-		expect(
-			seasonStanding(frieren, [checkpoint("s1", 2, 1400, true), checkpoint("s1", 1, 1400, true)]),
-		).toEqual({
-			seasonId: "s1",
-			episode: 3,
-			watchedEpisodes: 2,
-			releasedEpisodes: 3,
-		});
-	});
-
-	test("keeps the last season played once there is nothing to continue", () => {
-		expect(seasonStanding(frieren, watchedSeason("s2", 3))).toEqual({
-			seasonId: "s2",
-			episode: null,
-			watchedEpisodes: 3,
-			releasedEpisodes: 3,
-		});
 	});
 });
