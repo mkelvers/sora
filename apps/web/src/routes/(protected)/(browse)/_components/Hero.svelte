@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Carousel from "$lib/components/ui/Carousel.svelte";
-	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import Image from "$lib/components/ui/Image.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
-	import { audioLabel, cn, tmdbImage } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, CaretLeftIcon, CaretRightIcon, PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
@@ -52,16 +52,21 @@
 								tabindex={index === current ? undefined : -1}
 							>
 								{#if slide.backdrop_url && (index === current || index === previous)}
-									<ProgressiveImage
-										src={slide.backdrop_url}
-										alt=""
-										class="col-start-1 row-start-1"
-										imageClass="object-top"
-										displaySize="original"
-										previewLoading={index === current ? "eager" : "lazy"}
-										fetchpriority={index === current ? "high" : "low"}
-										onready={() => (ready.backdrops = new Set(ready.backdrops).add(slide.id))}
-									/>
+									<div class="col-start-1 row-start-1">
+										<Image
+											src={tmdbImage(slide.backdrop_url, "original")}
+											srcset={tmdbSrcset(slide.backdrop_url, {
+												w780: 780,
+												w1280: 1280,
+												original: 3840,
+											})}
+											alt=""
+											class="object-top"
+											loading={index === current ? "eager" : "lazy"}
+											fetchpriority={index === current ? "high" : "low"}
+											onready={() => (ready.backdrops = new Set(ready.backdrops).add(slide.id))}
+										/>
+									</div>
 								{/if}
 							</a>
 						</article>

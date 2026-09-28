@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
-	import { audioLabel, cn } from "$lib/utils";
+	import Image from "$lib/components/ui/Image.svelte";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { EpisodeProgress, SeasonEpisode } from "@sora/sdk";
 	import { CalendarBlankIcon, PlayIcon } from "phosphor-svelte";
 
@@ -61,11 +61,11 @@
 		>
 			<div class="relative aspect-video overflow-hidden bg-surface">
 				{#if image}
-					<ProgressiveImage
-						src={image}
+					<Image
+						src={tmdbImage(image, "w780")}
+						srcset={tmdbSrcset(image, { w342: 342, w780: 780 })}
 						alt=""
-						displaySize="w780"
-						imageClass={cn("brightness-75", watched && "opacity-60")}
+						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
 				{#if watched || episode.runtime_minutes}

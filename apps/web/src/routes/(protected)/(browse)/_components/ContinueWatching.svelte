@@ -2,9 +2,9 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import CardMedia from "$lib/components/ui/CardMedia.svelte";
 	import Carousel from "$lib/components/ui/Carousel.svelte";
-	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { audioLabel } from "$lib/utils";
+	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { ContinueWatchingItem } from "@sora/sdk";
 	import { XIcon } from "phosphor-svelte";
 
@@ -47,7 +47,11 @@
 								>
 									<CardMedia aspect="video">
 										{#if item.series.backdrop_url}
-											<ProgressiveImage src={item.series.backdrop_url} alt="" displaySize="w780" />
+											<Image
+												src={tmdbImage(item.series.backdrop_url, "w780")}
+												srcset={tmdbSrcset(item.series.backdrop_url, { w342: 342, w780: 780 })}
+												alt=""
+											/>
 										{/if}
 										{#if progress > 0}
 											<div class="absolute inset-x-0 bottom-0 z-10 h-1 bg-black/60">

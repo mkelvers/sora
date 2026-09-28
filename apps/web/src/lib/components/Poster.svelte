@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import CardMedia from "$lib/components/ui/CardMedia.svelte";
-	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
-	import { audioLabel, cn } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { ContinueWatchingItem, SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -75,11 +75,11 @@
 			>
 				<CardMedia aspect="poster">
 					{#if card.poster_url}
-						<ProgressiveImage
-							src={card.poster_url}
-							alt=""
-							displaySize="w500"
+						<Image
+							src={tmdbImage(card.poster_url, "w500")}
+							srcset={tmdbSrcset(card.poster_url, { w342: 342, w500: 500 })}
 							sizes="(min-width: 1024px) 14rem, 45vw"
+							alt=""
 						/>
 					{:else}
 						<span class="grid size-full items-end p-4 text-sm text-subtle">{card.title}</span>
@@ -96,13 +96,16 @@
 		</div>
 
 		{#if card.poster_url}
-			<ProgressiveImage
-				src={card.poster_url}
-				alt=""
-				displaySize="w500"
-				sizes="(min-width: 1024px) 14rem, 45vw"
-				class="pointer-events-none absolute -inset-2 size-auto opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
-			/>
+			<div
+				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+			>
+				<Image
+					src={tmdbImage(card.poster_url, "w500")}
+					srcset={tmdbSrcset(card.poster_url, { w342: 342, w500: 500 })}
+					sizes="(min-width: 1024px) 14rem, 45vw"
+					alt=""
+				/>
+			</div>
 		{/if}
 
 		<div

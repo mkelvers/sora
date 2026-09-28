@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
-	import { audioLabel, cn, tmdbImage } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { LibraryEntry, LibraryStatus, Series, TitleProgress } from "@sora/sdk";
 	import {
 		BookmarkSimpleIcon,
@@ -130,15 +130,16 @@
 		<h1 class="sr-only">{series.title}</h1>
 
 		{#if series.backdrop_url}
-			<ProgressiveImage
-				src={series.backdrop_url}
-				alt=""
-				class="absolute inset-0 z-0"
-				imageClass="object-[50%_35%]"
-				displaySize="original"
-				loading="eager"
-				fetchpriority="high"
-			/>
+			<div class="absolute inset-0 z-0">
+				<Image
+					src={tmdbImage(series.backdrop_url, "original")}
+					srcset={tmdbSrcset(series.backdrop_url, { w780: 780, w1280: 1280, original: 3840 })}
+					alt=""
+					class="object-[50%_35%]"
+					loading="eager"
+					fetchpriority="high"
+				/>
+			</div>
 		{/if}
 
 		<div
