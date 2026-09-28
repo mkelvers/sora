@@ -80,8 +80,8 @@ export const authVerification = pgTable(
 );
 
 /**
- * One viewer under an account, as on Netflix. Progress and the watchlist
- * belong to a profile: their `user_id` is a profile ID. An account may hold
+ * One viewer under an account, as on Netflix. The library, progress, and
+ * history belong to a profile: their `user_id` is a profile ID. An account may hold
  * any number of profiles.
  */
 export const profile = pgTable(

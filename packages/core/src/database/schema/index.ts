@@ -6,7 +6,7 @@
  * as the AniList fragment it was fetched with, so a schema change upstream
  * means regenerating the GraphQL types, not migrating data.
  *
- * Library rows (progress, watchlist) are keyed by a `user_id` that holds a
+ * Library rows (statuses, progress, history) are keyed by a `user_id` that holds a
  * profile ID; see {@link profile}. Accounts, sessions, and hashed passwords
  * live in the `auth_*` tables, which Better Auth manages.
  */
