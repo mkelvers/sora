@@ -2,7 +2,6 @@ import { eq, inArray } from "drizzle-orm";
 
 import { anilist, loadMediaById } from "../../anilist/client";
 import {
-	AnimeCardsDocument,
 	AnimeDetailsDocument,
 	LatestAiringDocument,
 	type AnimeDetailsFragment,
@@ -109,49 +108,6 @@ export function mayGainEpisodes(
 		default:
 			return false;
 	}
-}
-
-/**
- * Loads cards for many anime, preserving the order of `ids`.
- *
- * Stored anime are served from the database. The rest are fetched from
- * AniList in one request per 50 IDs and not stored, since a card lacks the
- * details a stored anime needs.
- *
- * Unknown and adult IDs are omitted rather than failing the whole batch,
- * because the IDs usually come from stored user data that may predate a
- * removal on AniList.
- */
-export async function getAnimeCards(ids: readonly number[]): Promise<AnimeCard[]> {
-	const unique = [...new Set(ids)];
-	const byId = await getStoredAnimeCards(unique);
-	const missing = unique.filter((id) => !byId.has(id));
-
-	// AniList pages are capped at 50 entries.
-	for (let offset = 0; offset < missing.length; offset += 50) {
-		const batch = missing.slice(offset, offset + 50).sort((left, right) => left - right);
-		const { Page } = await anilist(
-			AnimeCardsDocument,
-			{
-				ids: batch,
-				perPage: batch.length,
-			},
-			{
-				maxAgeMs: hour,
-			},
-		);
-
-		for (const media of Page?.media ?? []) {
-			if (media && !media.isAdult) {
-				byId.set(media.id, toAnimeCard(media));
-			}
-		}
-	}
-
-	return unique.flatMap((id) => {
-		const card = byId.get(id);
-		return card ? [card] : [];
-	});
 }
 
 /**
