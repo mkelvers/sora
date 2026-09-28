@@ -2,7 +2,7 @@
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { cn } from "$lib/utils";
-	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
+	import { ArrowsClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
 
 	import { getSeries } from "../series.remote";
 	import type { PageProps } from "./$types";
@@ -80,10 +80,15 @@
 		</nav>
 		<Button
 			class="ml-auto gap-2 text-xs font-bold tracking-wide text-dropdown-foreground uppercase hover:text-foreground"
-			onclick={() => media.choose(series.id, null)}
+			disabled={media.refreshing}
+			onclick={() => media.refresh(series.id)}
 		>
-			<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
-			Use default
+			<ArrowsClockwiseIcon
+				size="1rem"
+				weight="bold"
+				class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
+			/>
+			{media.refreshing ? "Refreshing" : "Refresh"}
 		</Button>
 	</div>
 

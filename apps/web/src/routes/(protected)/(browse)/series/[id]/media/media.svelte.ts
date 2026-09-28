@@ -1,13 +1,14 @@
 import type { SeriesImage } from "@sora/sdk";
 
 import { getSeries } from "../series.remote";
-import { setArtwork } from "./media.remote";
+import { refreshImages, setArtwork } from "./media.remote";
 
 export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
 	sort = $state<"votes" | "quality">("votes");
 	languages = $state<string[]>([]);
 	source = $state("all");
+	refreshing = $state(false);
 	error = $state<string>();
 
 	get type() {
@@ -41,29 +42,33 @@ export class Media {
 		return result;
 	}
 
-	choose = async (seriesId: string, url: string | null) => {
-		const series = getSeries(seriesId);
-		const saving = setArtwork({
-			seriesId,
-			type: this.type,
-			url,
-		});
-
+	choose = async (seriesId: string, url: string) => {
 		try {
-			if (url) {
-				await saving.updates(
-					series.withOverride((current) => ({
-						...current,
-						[`${this.type}_url`]: url,
-					})),
-				);
-			} else {
-				await saving.updates(series);
-			}
-
+			await setArtwork({
+				seriesId,
+				type: this.type,
+				url,
+			}).updates(
+				getSeries(seriesId).withOverride((current) => ({
+					...current,
+					[`${this.type}_url`]: url,
+				})),
+			);
 			this.error = undefined;
 		} catch {
-			this.error = url ? "That image couldn’t be saved." : "The default couldn’t be restored.";
+			this.error = "That image couldn’t be saved.";
+		}
+	};
+
+	refresh = async (seriesId: string) => {
+		this.refreshing = true;
+		try {
+			await refreshImages(seriesId);
+			this.error = undefined;
+		} catch {
+			this.error = "TMDB couldn’t be reached. Try again in a moment.";
+		} finally {
+			this.refreshing = false;
 		}
 	};
 }

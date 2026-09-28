@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { series, seriesImage } from "../database/schema";
-import { day } from "../time";
 import { SeriesNotFoundError } from "../errors";
+import { day } from "../time";
 import {
 	getImages,
 	getSeasonPosters,
@@ -232,9 +232,7 @@ async function seasonPostersOf(showId: number, maxAgeMs: number): Promise<Series
 				await getSeasonPosters(showId, seasonNumber, {
 					maxAgeMs,
 				})
-			).map((image) =>
-				toSeriesImage("poster", image, seasonNumber),
-			),
+			).map((image) => toSeriesImage("poster", image, seasonNumber)),
 		),
 	);
 	return perSeason.flat();

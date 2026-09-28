@@ -140,7 +140,7 @@
 			{#each menu.options as option (option.value)}
 				<div
 					{...menu.select.getOption(option.value, option.label)}
-					class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-dropdown-foreground hover:text-foreground aria-selected:bg-dropdown-hover aria-selected:text-foreground data-highlighted:bg-dropdown-hover"
+					class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-dropdown-foreground data-highlighted:bg-dropdown-hover data-highlighted:text-foreground"
 				>
 					{option.label}
 				</div>

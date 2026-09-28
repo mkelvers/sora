@@ -6,6 +6,10 @@ import { getSeries } from "../series.remote";
 
 export const getImages = query(z.string(), (seriesId) => sora.images(seriesId));
 
+export const refreshImages = command(z.string(), async (seriesId) => {
+	getImages(seriesId).set(await sora.refreshImages(seriesId));
+});
+
 const savedSizes = {
 	poster: "w780",
 	backdrop: "original",
@@ -16,11 +20,11 @@ export const setArtwork = command(
 	z.object({
 		seriesId: z.string(),
 		type: z.enum(["poster", "backdrop", "logo"]),
-		url: z.url().nullable(),
+		url: z.url(),
 	}),
 	async ({ seriesId, type, url }) => {
 		const series = await sora.updateArtwork(seriesId, {
-			[`${type}_url`]: url?.replace("/original/", `/${savedSizes[type]}/`) ?? null,
+			[`${type}_url`]: url.replace("/original/", `/${savedSizes[type]}/`),
 		});
 
 		getSeries(seriesId).set(series);

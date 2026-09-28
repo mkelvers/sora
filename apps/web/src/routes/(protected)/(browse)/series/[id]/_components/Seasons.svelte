@@ -41,7 +41,7 @@
 		{#each seasons as other (other.id)}
 			<div
 				{...select.getOption(other.id, other.title)}
-				class="flex w-full cursor-pointer items-center gap-6 px-5 py-3.5 text-left text-base text-dropdown-foreground hover:text-foreground aria-selected:text-foreground data-highlighted:bg-dropdown-hover"
+				class="flex w-full cursor-pointer items-center gap-6 px-5 py-3.5 text-left text-base text-dropdown-foreground data-highlighted:bg-dropdown-hover data-highlighted:text-foreground"
 			>
 				<span class="truncate">{other.title}</span>
 				<span class="ml-auto shrink-0 text-xs tabular-nums">
