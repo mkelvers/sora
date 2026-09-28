@@ -69,7 +69,7 @@
 			value: String(speed),
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
 				value: String(rate),
-				label: rate === 1 ? "Normal" : `${rate}×`,
+				label: rate === 1 ? "Normal" : `${rate}x`,
 			})),
 			select: (value) => (speed = Number(value)),
 		});
@@ -117,7 +117,7 @@
 		bind:this={content}
 		role="menu"
 		aria-label={open?.label ?? "Settings"}
-		class="inset-auto m-0 max-h-[min(60vh,440px)] min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] open:flex"
+		class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] open:flex"
 		onpointermove={(event) => {
 			const item = (event.target as HTMLElement).closest<HTMLElement>("button");
 			if (item && item !== document.activeElement) {
