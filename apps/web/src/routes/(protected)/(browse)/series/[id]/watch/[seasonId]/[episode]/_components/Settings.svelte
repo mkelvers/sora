@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { PlaybackMedia } from "@sora/sdk";
-	import { CaretLeftIcon, CaretRightIcon, CheckIcon, GearSixIcon } from "phosphor-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import type { PlaybackMedia } from "@sora/sdk";
+	import { Popover } from "melt/builders";
+	import { CaretLeftIcon, CaretRightIcon, CheckIcon, GearSixIcon } from "phosphor-svelte";
 
 	type Props = {
 		media: PlaybackMedia[];
@@ -77,24 +78,32 @@
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
+
+	const popover = new Popover({
+		onOpenChange: () => (submenu = undefined),
+		floatingConfig: {
+			computePosition: {
+				placement: "top-end",
+			},
+			offset: 12,
+		},
+	});
 </script>
 
 <div class="relative">
 	<Button
-		class="player-settings-trigger grid size-11 cursor-pointer place-items-center transition-[opacity,transform] duration-150 hover:opacity-75 active:scale-90 sm:size-9"
-		popovertarget="player-settings"
+		{...popover.trigger}
+		class="grid size-11 cursor-pointer place-items-center transition-[opacity,transform] duration-150 hover:opacity-75 active:scale-90 sm:size-9"
 		aria-label="Settings"
 	>
 		<GearSixIcon size="1.5rem" weight="bold" />
 	</Button>
 
 	<div
-		id="player-settings"
-		popover
+		{...popover.content}
 		role="menu"
 		aria-label={open?.label ?? "Settings"}
-		class="player-settings m-0 mb-3 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel py-2 text-sm text-watch-secondary shadow-lg open:flex"
-		ontoggle={() => (submenu = undefined)}
+		class="inset-auto m-0 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel py-2 text-sm text-watch-secondary shadow-lg open:flex"
 	>
 		{#if open}
 			<Button
@@ -139,16 +148,3 @@
 		{/if}
 	</div>
 </div>
-
-<style>
-	:global(.player-settings-trigger) {
-		anchor-name: --player-settings;
-	}
-
-	.player-settings {
-		position-anchor: --player-settings;
-		inset: auto;
-		right: anchor(right);
-		bottom: anchor(top);
-	}
-</style>

@@ -1,14 +1,15 @@
 <script lang="ts">
-	import type { PlaybackMedia } from "@sora/sdk";
-	import { untrack } from "svelte";
 	import { beforeNavigate } from "$app/navigation";
-	import { CaretLeftIcon } from "phosphor-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Spinner from "$lib/components/ui/Spinner.svelte";
 	import { tmdbImage } from "$lib/utils";
+	import type { PlaybackMedia } from "@sora/sdk";
+	import { CaretLeftIcon } from "phosphor-svelte";
+	import { untrack } from "svelte";
+
+	import { Player } from "../watch.svelte";
 	import Controls from "./Controls.svelte";
 	import Settings from "./Settings.svelte";
-	import { Player } from "../watch.svelte";
 
 	type Props = {
 		id: string;
@@ -48,9 +49,7 @@
 		onended,
 	}: Props = $props();
 
-	const player = new Player();
-	player.time = untrack(() => start);
-	player.load(untrack(() => start));
+	const player = new Player(untrack(() => start));
 
 	let reported = -1;
 	let nearing = false;
@@ -115,15 +114,10 @@
 
 	let preferred = $state<PlaybackMedia["audio"]>();
 	const audio = $derived(
-		versions?.find((version) => version.audio === preferred)?.audio ??
-			versions?.[0]?.audio,
+		versions?.find((version) => version.audio === preferred)?.audio ?? versions?.[0]?.audio,
 	);
-	const media = $derived(
-		versions?.find((version) => version.audio === audio),
-	);
-	let subtitle = $derived(
-		media?.subtitles.find((track) => track.default)?.url,
-	);
+	const media = $derived(versions?.find((version) => version.audio === audio));
+	let subtitle = $derived(media?.subtitles.find((track) => track.default)?.url);
 
 	const failure = $derived(problem ?? player.failure);
 	const loading = $derived(!failure && (!versions || player.buffering));
@@ -135,12 +129,7 @@
 	);
 </script>
 
-<svelte:window
-	onkeydown={player.onkeydown}
-	onpointermove={player.wake}
-	onpagehide={report}
-/>
-<svelte:document onfullscreenchange={player.onfullscreenchange} />
+<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
 
 <div
 	bind:this={player.root}
@@ -161,6 +150,7 @@
 		bind:readyState={player.readyState}
 		class="size-full bg-black object-cover"
 		crossorigin="anonymous"
+		autoplay
 		playsinline
 		onpointerdown={player.onpointerdown}
 		onclick={player.onclick}
@@ -196,7 +186,9 @@
 
 		<div class="absolute inset-x-0 mx-auto max-w-[60vw] text-center">
 			<p class="truncate text-sm font-bold tracking-wide drop-shadow sm:text-base">{series}</p>
-			<p class="mt-0.5 truncate text-xs font-medium text-white/75 drop-shadow sm:text-sm">{season ? `${season} · ${title}` : title}</p>
+			<p class="mt-0.5 truncate text-xs font-medium text-white/75 drop-shadow sm:text-sm">
+				{season ? `${season} · ${title}` : title}
+			</p>
 		</div>
 
 		<div class="size-11" aria-hidden="true"></div>
@@ -223,17 +215,23 @@
 					class="mb-4 h-[clamp(3rem,4.5vw,6rem)] max-w-[70vw] object-contain object-left drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)] sm:max-w-sm md:max-w-md lg:max-w-lg"
 				/>
 			{:else}
-				<p class="mb-3 text-3xl font-black tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-4xl md:text-5xl">
+				<p
+					class="mb-3 text-3xl font-black tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-4xl md:text-5xl"
+				>
 					{series}
 				</p>
 			{/if}
 
-			<h1 class="text-2xl font-extrabold tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-3xl md:text-4xl">
+			<h1
+				class="text-2xl font-extrabold tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-3xl md:text-4xl"
+			>
 				{title}
 			</h1>
 
 			{#if overview}
-				<p class="mt-4 line-clamp-4 max-w-xl text-sm leading-relaxed text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] sm:line-clamp-5 sm:max-w-2xl sm:text-base md:text-lg lg:max-w-3xl">
+				<p
+					class="mt-4 line-clamp-4 max-w-xl text-sm leading-relaxed text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] sm:line-clamp-5 sm:max-w-2xl sm:text-base md:text-lg lg:max-w-3xl"
+				>
 					{overview}
 				</p>
 			{/if}
@@ -248,13 +246,19 @@
 			]}
 		>
 			{#each player.cues as cue (cue)}
-				<p class="subtitle-outline m-0 px-2 py-0.5" {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
+				<p
+					class="m-0 px-2 py-0.5 subtitle-outline"
+					{@attach (element) => element.replaceChildren(cue.getCueAsHTML())}
+				></p>
 			{/each}
 		</div>
 	{/if}
 
 	{#if failure}
-		<div role="alert" class="absolute inset-0 z-20 grid place-items-center bg-black px-6 text-center">
+		<div
+			role="alert"
+			class="absolute inset-0 z-20 grid place-items-center bg-black px-6 text-center"
+		>
 			<div>
 				<p class="text-base font-bold">{failure}</p>
 				<Button
@@ -269,7 +273,11 @@
 			</div>
 		</div>
 	{:else if loading}
-		<div role="status" aria-label="Loading video" class="pointer-events-none absolute inset-0 grid place-items-center bg-black/40">
+		<div
+			role="status"
+			aria-label="Loading video"
+			class="pointer-events-none absolute inset-0 grid place-items-center bg-black/40"
+		>
 			<Spinner size="2.5rem" />
 		</div>
 	{/if}
