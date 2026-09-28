@@ -49,13 +49,15 @@ export const markAllWatched = command(
 	z.object({
 		seriesId: z.string(),
 		seasonId: z.string().optional(),
+		episode: z.number().int().positive().optional(),
 		watched: z.boolean(),
 	}),
-	async ({ seriesId, seasonId, watched }) => {
+	async ({ seriesId, seasonId, episode, watched }) => {
 		const viewer = remoteViewer();
 
 		await viewer.sora.markWatched(viewer.profile.id, seriesId, {
 			season_id: seasonId,
+			episode,
 			watched,
 		});
 		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
