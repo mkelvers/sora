@@ -1,12 +1,27 @@
 import { and, count, desc, eq, gte, inArray, max, ne, sql, type SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { anime, animeSearch, playbackProgress, series, seriesEntry, seriesRelated, watchlistEntry } from "../../database/schema";
+import {
+	anime,
+	animeSearch,
+	playbackProgress,
+	series,
+	seriesEntry,
+	seriesRelated,
+	watchlistEntry,
+} from "../../database/schema";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
 import { getTitleStates } from "../watchlist/watchlist";
-import { favoriteGenres, rankCandidates, tasteOf, titleWeight, type TasteSeed, type TitleActivity } from "./taste";
+import {
+	favoriteGenres,
+	rankCandidates,
+	tasteOf,
+	titleWeight,
+	type TasteSeed,
+	type TitleActivity,
+} from "./taste";
 
 /** Genres a taste is matched on beyond users' votes. */
 const matchedGenres = 3;
@@ -18,11 +33,7 @@ const genreCandidateLimit = 300;
 const genreCandidatePopularity = 10_000;
 
 /** Formats worth recommending: shows and films, not music videos, specials, or OVAs. */
-const recommendedFormats = [
-  "TV",
-  "ONA",
-  "MOVIE"
-] as const;
+const recommendedFormats = ["TV", "ONA", "MOVIE"] as const;
 
 /**
  * Suggests titles a profile has not seen, best fit first, from what it has
@@ -36,98 +47,100 @@ const recommendedFormats = [
  * gets none.
  */
 export async function getRecommendations(userId: string, limit = 20): Promise<SeriesCard[]> {
-  const activity = await titleActivity(userId);
-  if (activity.size === 0) {
-    return [];
-  }
+	const activity = await titleActivity(userId);
+	if (activity.size === 0) {
+		return [];
+	}
 
-  const now = new Date();
-  const weights = new Map([...activity].map(([seriesId, title]) => [seriesId, titleWeight(title, now)]));
-  const taste = tasteOf(await seedsOf(weights));
-  const genres = favoriteGenres(taste, matchedGenres);
-  if (genres.length === 0 && taste.votes.size === 0) {
-    return [];
-  }
+	const now = new Date();
+	const weights = new Map(
+		[...activity].map(([seriesId, title]) => [seriesId, titleWeight(title, now)]),
+	);
+	const taste = tasteOf(await seedsOf(weights));
+	const genres = favoriteGenres(taste, matchedGenres);
+	if (genres.length === 0 && taste.votes.size === 0) {
+		return [];
+	}
 
-  const [candidates, related] = await Promise.all([
-    candidatesFor([...taste.votes.keys()], genres),
-    relatedOf([...activity.keys()])
-  ]);
-  const ranked = rankCandidates(
-    taste,
-    candidates.filter((candidate) => !related.has(candidate.anilistId))
-  );
-  const seriesIds = await seriesOf(ranked.map((candidate) => candidate.anilistId));
+	const [candidates, related] = await Promise.all([
+		candidatesFor([...taste.votes.keys()], genres),
+		relatedOf([...activity.keys()]),
+	]);
+	const ranked = rankCandidates(
+		taste,
+		candidates.filter((candidate) => !related.has(candidate.anilistId)),
+	);
+	const seriesIds = await seriesOf(ranked.map((candidate) => candidate.anilistId));
 
-  const picked: string[] = [];
-  const missing: number[] = [];
-  for (const { anilistId } of ranked) {
-    if (picked.length >= limit) {
-      break;
-    }
+	const picked: string[] = [];
+	const missing: number[] = [];
+	for (const { anilistId } of ranked) {
+		if (picked.length >= limit) {
+			break;
+		}
 
-    const seriesId = seriesIds.get(anilistId);
-    if (seriesId === undefined) {
-      missing.push(anilistId);
-    } else if (!activity.has(seriesId) && !picked.includes(seriesId)) {
-      picked.push(seriesId);
-    }
-  }
+		const seriesId = seriesIds.get(anilistId);
+		if (seriesId === undefined) {
+			missing.push(anilistId);
+		} else if (!activity.has(seriesId) && !picked.includes(seriesId)) {
+			picked.push(seriesId);
+		}
+	}
 
-  for (const anilistId of missing.slice(0, limit)) {
-    await scheduleSeriesStore(anilistId, "backfill");
-  }
+	for (const anilistId of missing.slice(0, limit)) {
+		await scheduleSeriesStore(anilistId, "backfill");
+	}
 
-  if (picked.length === 0) {
-    return [];
-  }
+	if (picked.length === 0) {
+		return [];
+	}
 
-  const rows = await db.select().from(series).where(inArray(series.id, picked));
-  const cards = await toSeriesCards(rows);
-  return picked.flatMap((id) => cards.get(id) ?? []);
+	const rows = await db.select().from(series).where(inArray(series.id, picked));
+	const cards = await toSeriesCards(rows);
+	return picked.flatMap((id) => cards.get(id) ?? []);
 }
 
 /** What a profile did with each title it has played or listed, keyed by series ID. */
 async function titleActivity(userId: string): Promise<Map<string, TitleActivity>> {
-  const [played, listed] = await Promise.all([
-    db
-      .select({
-        seriesId: seriesEntry.seriesId,
-        episodes: count(),
-        lastPlayedAt: max(playbackProgress.eventAt),
-      })
-      .from(playbackProgress)
-      .innerJoin(seriesEntry, eq(seriesEntry.anilistId, playbackProgress.anilistId))
-      .where(eq(playbackProgress.userId, userId))
-      .groupBy(seriesEntry.seriesId),
-    db
-      .select({
-        seriesId: watchlistEntry.seriesId,
-        updatedAt: watchlistEntry.updatedAt,
-      })
-      .from(watchlistEntry)
-      .where(eq(watchlistEntry.userId, userId))
-  ]);
+	const [played, listed] = await Promise.all([
+		db
+			.select({
+				seriesId: seriesEntry.seriesId,
+				episodes: count(),
+				lastPlayedAt: max(playbackProgress.eventAt),
+			})
+			.from(playbackProgress)
+			.innerJoin(seriesEntry, eq(seriesEntry.anilistId, playbackProgress.anilistId))
+			.where(eq(playbackProgress.userId, userId))
+			.groupBy(seriesEntry.seriesId),
+		db
+			.select({
+				seriesId: watchlistEntry.seriesId,
+				updatedAt: watchlistEntry.updatedAt,
+			})
+			.from(watchlistEntry)
+			.where(eq(watchlistEntry.userId, userId)),
+	]);
 
-  const seriesIds = [...new Set([...played, ...listed].map((row) => row.seriesId))];
-  const states = await getTitleStates(userId, seriesIds);
-  const playedBySeries = new Map(played.map((row) => [row.seriesId, row]));
-  const listedAt = new Map(listed.map((row) => [row.seriesId, row.updatedAt]));
+	const seriesIds = [...new Set([...played, ...listed].map((row) => row.seriesId))];
+	const states = await getTitleStates(userId, seriesIds);
+	const playedBySeries = new Map(played.map((row) => [row.seriesId, row]));
+	const listedAt = new Map(listed.map((row) => [row.seriesId, row.updatedAt]));
 
-  return new Map(
-    seriesIds.map((seriesId) => {
-      const lastPlayedAt = playedBySeries.get(seriesId)?.lastPlayedAt ?? new Date(0);
-      const changedAt = listedAt.get(seriesId) ?? new Date(0);
-      return [
-        seriesId,
-        {
-          status: states.get(seriesId)?.status ?? null,
-          episodesPlayed: playedBySeries.get(seriesId)?.episodes ?? 0,
-          lastActiveAt: lastPlayedAt > changedAt ? lastPlayedAt : changedAt,
-        },
-      ];
-    })
-  );
+	return new Map(
+		seriesIds.map((seriesId) => {
+			const lastPlayedAt = playedBySeries.get(seriesId)?.lastPlayedAt ?? new Date(0);
+			const changedAt = listedAt.get(seriesId) ?? new Date(0);
+			return [
+				seriesId,
+				{
+					status: states.get(seriesId)?.status ?? null,
+					episodesPlayed: playedBySeries.get(seriesId)?.episodes ?? 0,
+					lastActiveAt: lastPlayedAt > changedAt ? lastPlayedAt : changedAt,
+				},
+			];
+		}),
+	);
 }
 
 /**
@@ -136,48 +149,48 @@ async function titleActivity(userId: string): Promise<Map<string, TitleActivity>
  * count.
  */
 async function seedsOf(weights: ReadonlyMap<string, number>): Promise<TasteSeed[]> {
-  const rows = await db
-    .select({
-      seriesId: seriesEntry.seriesId,
-      media: anime.media,
-    })
-    .from(seriesEntry)
-    .innerJoin(anime, eq(anime.anilistId, seriesEntry.anilistId))
-    .where(inArray(seriesEntry.seriesId, [...weights.keys()]));
+	const rows = await db
+		.select({
+			seriesId: seriesEntry.seriesId,
+			media: anime.media,
+		})
+		.from(seriesEntry)
+		.innerJoin(anime, eq(anime.anilistId, seriesEntry.anilistId))
+		.where(inArray(seriesEntry.seriesId, [...weights.keys()]));
 
-  const seeds = new Map<
-    string,
-    {
-      weight: number;
-      genres: Set<string>;
-      recommended: number[];
-    }
-  >();
-  for (const { seriesId, media } of rows) {
-    const seed = seeds.get(seriesId) ?? {
-      weight: weights.get(seriesId) ?? 0,
-      genres: new Set<string>(),
-      recommended: [] as number[],
-    };
-    for (const genre of media.genres ?? []) {
-      if (genre) {
-        seed.genres.add(genre);
-      }
-    }
-    for (const node of media.recommendations?.nodes ?? []) {
-      const recommendation = node?.mediaRecommendation;
-      if (recommendation?.type === "ANIME" && !recommendation.isAdult) {
-        seed.recommended.push(recommendation.id);
-      }
-    }
-    seeds.set(seriesId, seed);
-  }
+	const seeds = new Map<
+		string,
+		{
+			weight: number;
+			genres: Set<string>;
+			recommended: number[];
+		}
+	>();
+	for (const { seriesId, media } of rows) {
+		const seed = seeds.get(seriesId) ?? {
+			weight: weights.get(seriesId) ?? 0,
+			genres: new Set<string>(),
+			recommended: [] as number[],
+		};
+		for (const genre of media.genres ?? []) {
+			if (genre) {
+				seed.genres.add(genre);
+			}
+		}
+		for (const node of media.recommendations?.nodes ?? []) {
+			const recommendation = node?.mediaRecommendation;
+			if (recommendation?.type === "ANIME" && !recommendation.isAdult) {
+				seed.recommended.push(recommendation.id);
+			}
+		}
+		seeds.set(seriesId, seed);
+	}
 
-  return [...seeds.values()].map((seed): TasteSeed => ({
-    weight: seed.weight,
-    genres: [...seed.genres],
-    recommended: seed.recommended,
-  }));
+	return [...seeds.values()].map((seed): TasteSeed => ({
+		weight: seed.weight,
+		genres: [...seed.genres],
+		recommended: seed.recommended,
+	}));
 }
 
 /**
@@ -186,61 +199,64 @@ async function seedsOf(weights: ReadonlyMap<string, number>): Promise<TasteSeed[
  * started airing.
  */
 async function candidatesFor(recommended: readonly number[], genres: readonly string[]) {
-  const suitable: SQL[] = [
-    eq(animeSearch.isAdult, false),
-    inArray(animeSearch.format, [...recommendedFormats]),
-    ne(animeSearch.status, "NOT_YET_RELEASED")
-  ];
+	const suitable: SQL[] = [
+		eq(animeSearch.isAdult, false),
+		inArray(animeSearch.format, [...recommendedFormats]),
+		ne(animeSearch.status, "NOT_YET_RELEASED"),
+	];
 
-  const [voted, alike] = await Promise.all([
-    recommended.length > 0
-      ? db
-          .select()
-          .from(animeSearch)
-          .where(and(...suitable, inArray(animeSearch.anilistId, [...recommended])))
-      : [],
-    genres.length > 0
-      ? db
-          .select()
-          .from(animeSearch)
-          .where(
-            and(
-              ...suitable,
-              gte(animeSearch.popularity, genreCandidatePopularity),
-              sql`${animeSearch.genres} ?| ${sql.raw(`array[${genres.map(quoteLiteral).join(",")}]`)}`
-            )
-          )
-          .orderBy(desc(animeSearch.popularity))
-          .limit(genreCandidateLimit)
-      : []
-  ]);
+	const [voted, alike] = await Promise.all([
+		recommended.length > 0
+			? db
+					.select()
+					.from(animeSearch)
+					.where(and(...suitable, inArray(animeSearch.anilistId, [...recommended])))
+			: [],
+		genres.length > 0
+			? db
+					.select()
+					.from(animeSearch)
+					.where(
+						and(
+							...suitable,
+							gte(animeSearch.popularity, genreCandidatePopularity),
+							sql`${animeSearch.genres} ?| ${sql.raw(`array[${genres.map(quoteLiteral).join(",")}]`)}`,
+						),
+					)
+					.orderBy(desc(animeSearch.popularity))
+					.limit(genreCandidateLimit)
+			: [],
+	]);
 
-  const byId = new Map([...voted, ...alike].map((row) => [row.anilistId, row]));
-  return [...byId.values()];
+	const byId = new Map([...voted, ...alike].map((row) => [row.anilistId, row]));
+	return [...byId.values()];
 }
 
 /** The AniList entries related to the given series, such as their films and spin-offs. */
 async function relatedOf(seriesIds: readonly string[]): Promise<Set<number>> {
-  const rows = await db
-    .select({
-      anilistId: seriesRelated.anilistId,
-    })
-    .from(seriesRelated)
-    .where(inArray(seriesRelated.seriesId, [...seriesIds]));
-  return new Set(rows.map((row) => row.anilistId));
+	const rows = await db
+		.select({
+			anilistId: seriesRelated.anilistId,
+		})
+		.from(seriesRelated)
+		.where(inArray(seriesRelated.seriesId, [...seriesIds]));
+	return new Set(rows.map((row) => row.anilistId));
 }
 
 /** The stored series of each AniList entry that has one. */
 async function seriesOf(anilistIds: readonly number[]): Promise<Map<number, string>> {
-  if (anilistIds.length === 0) {
-    return new Map();
-  }
+	if (anilistIds.length === 0) {
+		return new Map();
+	}
 
-  const rows = await db.select().from(seriesEntry).where(inArray(seriesEntry.anilistId, [...anilistIds]));
-  return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
+	const rows = await db
+		.select()
+		.from(seriesEntry)
+		.where(inArray(seriesEntry.anilistId, [...anilistIds]));
+	return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
 }
 
 /** A genre name as an SQL string literal; genre names come from AniList, not from clients, but are quoted all the same. */
 function quoteLiteral(text: string) {
-  return `'${text.replaceAll("'", "''")}'`;
+	return `'${text.replaceAll("'", "''")}'`;
 }
