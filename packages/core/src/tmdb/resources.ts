@@ -5,122 +5,128 @@ import { tmdb } from "./client";
 
 /** TMDB sends missing dates and text as `""` or `null`; both become `null`. */
 const OptionalText = z
-  .string()
-  .nullish()
-  .transform((value) => (value ? value : null));
+	.string()
+	.nullish()
+	.transform((value) => (value ? value : null));
 
 const ShowSearchSchema = z.object({
-  results: z.array(
-    z.object({
-      id: z.number().int(),
-      name: z.string(),
-      original_name: z.string(),
-      first_air_date: OptionalText,
-      popularity: z.number(),
-    })
-  ),
+	results: z.array(
+		z.object({
+			id: z.number().int(),
+			name: z.string(),
+			original_name: z.string(),
+			first_air_date: OptionalText,
+			popularity: z.number(),
+		}),
+	),
 });
 
 const MovieSearchSchema = z.object({
-  results: z.array(
-    z.object({
-      id: z.number().int(),
-      title: z.string(),
-      original_title: z.string(),
-      release_date: OptionalText,
-      popularity: z.number(),
-    })
-  ),
+	results: z.array(
+		z.object({
+			id: z.number().int(),
+			title: z.string(),
+			original_title: z.string(),
+			release_date: OptionalText,
+			popularity: z.number(),
+		}),
+	),
 });
 
 const EpisodeSchema = z.object({
-  season_number: z.number().int(),
-  episode_number: z.number().int(),
-  name: OptionalText,
-  overview: OptionalText,
-  air_date: OptionalText,
-  runtime: z.number().nullish().transform((value) => value ?? null),
-  still_path: OptionalText,
+	season_number: z.number().int(),
+	episode_number: z.number().int(),
+	name: OptionalText,
+	overview: OptionalText,
+	air_date: OptionalText,
+	runtime: z
+		.number()
+		.nullish()
+		.transform((value) => value ?? null),
+	still_path: OptionalText,
 });
 
 const SeasonSchema = z.object({
-  episodes: z.array(EpisodeSchema),
+	episodes: z.array(EpisodeSchema),
 });
 
 const ShowFields = {
-  id: z.number().int(),
-  name: z.string(),
-  original_name: z.string(),
-  overview: OptionalText,
-  poster_path: OptionalText,
-  backdrop_path: OptionalText,
-  first_air_date: OptionalText,
-  seasons: z.array(
-    z.object({
-      season_number: z.number().int(),
-      name: OptionalText,
-      poster_path: OptionalText,
-    })
-  ),
+	id: z.number().int(),
+	name: z.string(),
+	original_name: z.string(),
+	overview: OptionalText,
+	poster_path: OptionalText,
+	backdrop_path: OptionalText,
+	first_air_date: OptionalText,
+	seasons: z.array(
+		z.object({
+			season_number: z.number().int(),
+			name: OptionalText,
+			poster_path: OptionalText,
+		}),
+	),
 };
 
 const MovieSchema = z.object({
-  id: z.number().int(),
-  title: z.string(),
-  original_title: z.string(),
-  overview: OptionalText,
-  poster_path: OptionalText,
-  backdrop_path: OptionalText,
-  release_date: OptionalText,
-  // An unreleased film's runtime is 0 until TMDB knows it.
-  runtime: z.number().nullish().transform((value) => value || null),
-  belongs_to_collection: z
-    .object({
-      id: z.number().int(),
-    })
-    .nullish()
-    .transform((value) => value ?? null),
+	id: z.number().int(),
+	title: z.string(),
+	original_title: z.string(),
+	overview: OptionalText,
+	poster_path: OptionalText,
+	backdrop_path: OptionalText,
+	release_date: OptionalText,
+	// An unreleased film's runtime is 0 until TMDB knows it.
+	runtime: z
+		.number()
+		.nullish()
+		.transform((value) => value || null),
+	belongs_to_collection: z
+		.object({
+			id: z.number().int(),
+		})
+		.nullish()
+		.transform((value) => value ?? null),
 });
 
 const CollectionSchema = z.object({
-  parts: z.array(
-    z.object({
-      id: z.number().int(),
-      title: z.string(),
-      original_title: z.string(),
-      release_date: OptionalText,
-      popularity: z.number(),
-    })
-  ),
+	parts: z.array(
+		z.object({
+			id: z.number().int(),
+			title: z.string(),
+			original_title: z.string(),
+			release_date: OptionalText,
+			popularity: z.number(),
+		}),
+	),
 });
 
 const ImagesSchema = z.object({
-  logos: z.array(
-    z.object({
-      file_path: z.string(),
-      iso_639_1: z.string().nullish(),
-      vote_average: z.number(),
-    })
-  ),
+	logos: z.array(
+		z.object({
+			file_path: z.string(),
+			iso_639_1: z.string().nullish(),
+			vote_average: z.number(),
+		}),
+	),
 });
 
 const ImageSchema = z.object({
-  file_path: z.string(),
-  width: z.number().int(),
-  height: z.number().int(),
-  iso_639_1: OptionalText,
-  vote_average: z.number(),
-  vote_count: z.number().int(),
+	file_path: z.string(),
+	width: z.number().int(),
+	height: z.number().int(),
+	iso_639_1: OptionalText,
+	vote_average: z.number(),
+	vote_count: z.number().int(),
 });
 
 const AllImagesSchema = z.object({
-  backdrops: z.array(ImageSchema).default([]),
-  posters: z.array(ImageSchema).default([]),
-  logos: z.array(ImageSchema).default([]),
+	backdrops: z.array(ImageSchema).default([]),
+	posters: z.array(ImageSchema).default([]),
+	logos: z.array(ImageSchema).default([]),
 });
 
 const SeasonImagesSchema = z.object({
-  posters: z.array(ImageSchema).default([]),
+	posters: z.array(ImageSchema).default([]),
 });
 
 /** One image of a show, film, or season, in its original size. */
@@ -143,24 +149,24 @@ export type TmdbMovie = z.infer<typeof MovieSchema>;
 
 /** A TMDB show with every episode of every season, including specials (season 0). */
 export interface TmdbShow {
-  id: number;
-  name: string;
-  originalName: string;
-  overview: string | null;
-  posterPath: string | null;
-  backdropPath: string | null;
-  firstAirDate: string | null;
-  /** Every season TMDB lists, including specials (season 0). */
-  seasons: TmdbSeason[];
-  /** Every episode, ordered by season and then episode number. */
-  episodes: TmdbEpisode[];
+	id: number;
+	name: string;
+	originalName: string;
+	overview: string | null;
+	posterPath: string | null;
+	backdropPath: string | null;
+	firstAirDate: string | null;
+	/** Every season TMDB lists, including specials (season 0). */
+	seasons: TmdbSeason[];
+	/** Every episode, ordered by season and then episode number. */
+	episodes: TmdbEpisode[];
 }
 
 /** A season's own name and artwork, such as "Mugen Train Arc". */
 export interface TmdbSeason {
-  seasonNumber: number;
-  name: string | null;
-  posterPath: string | null;
+	seasonNumber: number;
+	name: string | null;
+	posterPath: string | null;
 }
 
 /** TMDB caps `append_to_response` at 20 sub-requests. */
@@ -174,38 +180,38 @@ const showLifetimeMs = 12 * hour;
 
 /** Searches TMDB TV shows by title. Returns the first page, best matches first. */
 export async function searchShows(query: string): Promise<TmdbShowResult[]> {
-  const result = await tmdb(
-    "/search/tv",
-    {
-      query,
-      include_adult: "false",
-      language: "en-US",
-    },
-    ShowSearchSchema,
-    {
-      maxAgeMs: searchLifetimeMs,
-    }
-  );
+	const result = await tmdb(
+		"/search/tv",
+		{
+			query,
+			include_adult: "false",
+			language: "en-US",
+		},
+		ShowSearchSchema,
+		{
+			maxAgeMs: searchLifetimeMs,
+		},
+	);
 
-  return result?.results ?? [];
+	return result?.results ?? [];
 }
 
 /** Searches TMDB movies by title. Returns the first page, best matches first. */
 export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
-  const result = await tmdb(
-    "/search/movie",
-    {
-      query,
-      include_adult: "false",
-      language: "en-US",
-    },
-    MovieSearchSchema,
-    {
-      maxAgeMs: searchLifetimeMs,
-    }
-  );
+	const result = await tmdb(
+		"/search/movie",
+		{
+			query,
+			include_adult: "false",
+			language: "en-US",
+		},
+		MovieSearchSchema,
+		{
+			maxAgeMs: searchLifetimeMs,
+		},
+	);
 
-  return result?.results ?? [];
+	return result?.results ?? [];
 }
 
 /**
@@ -218,63 +224,69 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
  * @returns The show, or `null` when TMDB does not know the ID.
  */
 export async function getShow(
-  showId: number,
-  options: {
-    /** How old a cached copy may be; by default {@link showLifetimeMs}. */
-    maxAgeMs?: number;
-  } = {}
+	showId: number,
+	options: {
+		/** How old a cached copy may be; by default {@link showLifetimeMs}. */
+		maxAgeMs?: number;
+	} = {},
 ): Promise<TmdbShow | null> {
-  const episodes: TmdbEpisode[] = [];
-  let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
+	const episodes: TmdbEpisode[] = [];
+	let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
 
-  for (let firstSeason = 0; ; firstSeason += seasonsPerRequest) {
-    const seasons = Array.from({
-      length: seasonsPerRequest,
-    }, (_, index) => firstSeason + index);
-    const page = await tmdb(
-      `/tv/${showId}`,
-      {
-        append_to_response: seasons.map((season) => `season/${season}`).join(","),
-        language: "en-US",
-      },
-      showPageSchema(seasons),
-      {
-        maxAgeMs: options.maxAgeMs ?? showLifetimeMs,
-      }
-    );
+	for (let firstSeason = 0; ; firstSeason += seasonsPerRequest) {
+		const seasons = Array.from(
+			{
+				length: seasonsPerRequest,
+			},
+			(_, index) => firstSeason + index,
+		);
+		const page = await tmdb(
+			`/tv/${showId}`,
+			{
+				append_to_response: seasons.map((season) => `season/${season}`).join(","),
+				language: "en-US",
+			},
+			showPageSchema(seasons),
+			{
+				maxAgeMs: options.maxAgeMs ?? showLifetimeMs,
+			},
+		);
 
-    if (!page) {
-      return null;
-    }
+		if (!page) {
+			return null;
+		}
 
-    details ??= page;
-    for (const season of seasons) {
-      episodes.push(...(page[`season/${season}`]?.episodes ?? []));
-    }
+		details ??= page;
+		for (const season of seasons) {
+			episodes.push(...(page[`season/${season}`]?.episodes ?? []));
+		}
 
-    const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
-    if (lastSeason < firstSeason + seasonsPerRequest) {
-      break;
-    }
-  }
+		const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
+		if (lastSeason < firstSeason + seasonsPerRequest) {
+			break;
+		}
+	}
 
-  episodes.sort((left, right) => left.season_number - right.season_number || left.episode_number - right.episode_number);
+	episodes.sort(
+		(left, right) =>
+			left.season_number - right.season_number || left.episode_number - right.episode_number,
+	);
 
-  return {
-    id: details.id,
-    name: details.name,
-    originalName: details.original_name,
-    overview: details.overview,
-    posterPath: details.poster_path,
-    backdropPath: details.backdrop_path,
-    firstAirDate: details.first_air_date,
-    seasons: details.seasons.map((season) => ({
-      seasonNumber: season.season_number,
-      name: season.name,
-      posterPath: season.poster_path,
-    })),
-    episodes,
-  };
+	return {
+		id: details.id,
+		name: details.name,
+		originalName: details.original_name,
+		overview: details.overview,
+		posterPath: details.poster_path,
+		backdropPath: details.backdrop_path,
+		firstAirDate: details.first_air_date,
+		seasons: details.seasons.map((season) => ({
+			seasonNumber: season.season_number,
+			name: season.name,
+			posterPath: season.poster_path,
+		})),
+		episodes,
+	};
 }
 
 /**
@@ -283,16 +295,16 @@ export async function getShow(
  * @returns The movie, or `null` when TMDB does not know the ID.
  */
 export function getMovie(movieId: number): Promise<TmdbMovie | null> {
-  return tmdb(
-    `/movie/${movieId}`,
-    {
-      language: "en-US",
-    },
-    MovieSchema,
-    {
-      maxAgeMs: day,
-    }
-  );
+	return tmdb(
+		`/movie/${movieId}`,
+		{
+			language: "en-US",
+		},
+		MovieSchema,
+		{
+			maxAgeMs: day,
+		},
+	);
 }
 
 /**
@@ -302,18 +314,18 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
  *   not know the ID.
  */
 export async function getCollectionParts(collectionId: number): Promise<TmdbMovieResult[]> {
-  const collection = await tmdb(
-    `/collection/${collectionId}`,
-    {
-      language: "en-US",
-    },
-    CollectionSchema,
-    {
-      maxAgeMs: day,
-    }
-  );
+	const collection = await tmdb(
+		`/collection/${collectionId}`,
+		{
+			language: "en-US",
+		},
+		CollectionSchema,
+		{
+			maxAgeMs: day,
+		},
+	);
 
-  return collection?.parts ?? [];
+	return collection?.parts ?? [];
 }
 
 /**
@@ -326,24 +338,26 @@ export async function getCollectionParts(collectionId: number): Promise<TmdbMovi
  * @returns The logo's image path, or `null` when TMDB has none.
  */
 export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promise<string | null> {
-  const images = await tmdb(
-    `/${mediaType}/${id}/images`,
-    {
-      include_image_language: "en,null",
-    },
-    ImagesSchema,
-    {
-      maxAgeMs: day,
-    }
-  );
+	const images = await tmdb(
+		`/${mediaType}/${id}/images`,
+		{
+			include_image_language: "en,null",
+		},
+		ImagesSchema,
+		{
+			maxAgeMs: day,
+		},
+	);
 
-  const logos = (images?.logos ?? [])
-    .filter((logo) => logo.iso_639_1 === "en" || !logo.iso_639_1)
-    .sort((left, right) =>
-      Number(right.iso_639_1 === "en") - Number(left.iso_639_1 === "en") || right.vote_average - left.vote_average
-    );
+	const logos = (images?.logos ?? [])
+		.filter((logo) => logo.iso_639_1 === "en" || !logo.iso_639_1)
+		.sort(
+			(left, right) =>
+				Number(right.iso_639_1 === "en") - Number(left.iso_639_1 === "en") ||
+				right.vote_average - left.vote_average,
+		);
 
-  return logos[0]?.file_path ?? null;
+	return logos[0]?.file_path ?? null;
 }
 
 /**
@@ -353,25 +367,28 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
  * @returns The images, or `null` when TMDB does not know the ID.
  */
 export function getImages(mediaType: "tv" | "movie", id: number): Promise<TmdbImages | null> {
-  return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
-    maxAgeMs: day,
-  });
+	return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
+		maxAgeMs: day,
+	});
 }
 
 /** Loads a show season's posters, in every language. Empty when TMDB does not know the season. */
 export async function getSeasonPosters(showId: number, seasonNumber: number): Promise<TmdbImage[]> {
-  const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
-    maxAgeMs: day,
-  });
-  return images?.posters ?? [];
+	const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
+		maxAgeMs: day,
+	});
+	return images?.posters ?? [];
 }
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
 function showPageSchema(seasons: readonly number[]) {
-  return z.object({
-    ...ShowFields,
-    ...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
-  }) as z.ZodObject<typeof ShowFields & Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>>;
+	return z.object({
+		...ShowFields,
+		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
+	}) as z.ZodObject<
+		typeof ShowFields &
+			Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>
+	>;
 }
 
 /**
@@ -379,6 +396,9 @@ function showPageSchema(seasons: readonly number[]) {
  *
  * @param size - A TMDB size bucket such as `w780` or `original`.
  */
-export function tmdbImageUrl(path: string | null, size: "w300" | "w500" | "w780" | "w1280" | "original") {
-  return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+export function tmdbImageUrl(
+	path: string | null,
+	size: "w300" | "w500" | "w780" | "w1280" | "original",
+) {
+	return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
 }

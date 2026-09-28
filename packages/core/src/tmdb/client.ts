@@ -26,11 +26,11 @@ const rateLimitRetries = 2;
 
 /** Freshness policy for one TMDB request. */
 export interface TmdbRequestOptions {
-  /**
-   * How long a cached response is served without asking TMDB again, in
-   * milliseconds.
-   */
-  maxAgeMs: number;
+	/**
+	 * How long a cached response is served without asking TMDB again, in
+	 * milliseconds.
+	 */
+	maxAgeMs: number;
 }
 
 let nextRequestAt = 0;
@@ -54,151 +54,149 @@ const inFlight = new Map<string, Promise<unknown>>();
  * ```
  */
 export async function tmdb<TSchema extends z.ZodType>(
-  path: string,
-  query: Record<string, string>,
-  schema: TSchema,
-  options: TmdbRequestOptions
+	path: string,
+	query: Record<string, string>,
+	schema: TSchema,
+	options: TmdbRequestOptions,
 ): Promise<z.infer<TSchema> | null> {
-  const url = new URL(`${endpoint}${path}`);
-  for (const [name, value] of Object.entries(query).sort(([left], [right]) => left.localeCompare(right))) {
-    url.searchParams.set(name, value);
-  }
+	const url = new URL(`${endpoint}${path}`);
+	for (const [name, value] of Object.entries(query).sort(([left], [right]) =>
+		left.localeCompare(right),
+	)) {
+		url.searchParams.set(name, value);
+	}
 
-  const key = createHash("sha256").update(url.toString()).digest("hex");
-  const [snapshot] = await db
-    .select()
-    .from(tmdbSnapshot)
-    .where(eq(tmdbSnapshot.key, key))
-    .limit(1);
+	const key = createHash("sha256").update(url.toString()).digest("hex");
+	const [snapshot] = await db.select().from(tmdbSnapshot).where(eq(tmdbSnapshot.key, key)).limit(1);
 
-  const cached = snapshot ? schema.safeParse(snapshot.data) : null;
-  if (snapshot && cached?.success && snapshot.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-    return cached.data;
-  }
+	const cached = snapshot ? schema.safeParse(snapshot.data) : null;
+	if (snapshot && cached?.success && snapshot.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
+		return cached.data;
+	}
 
-  let pending = inFlight.get(key);
-  if (!pending) {
-    pending = fetchAndStore(key, path, url, options).finally(() => {
-      inFlight.delete(key);
-    });
-    inFlight.set(key, pending);
-  }
+	let pending = inFlight.get(key);
+	if (!pending) {
+		pending = fetchAndStore(key, path, url, options).finally(() => {
+			inFlight.delete(key);
+		});
+		inFlight.set(key, pending);
+	}
 
-  let data: unknown;
-  try {
-    data = await pending;
-  } catch (cause) {
-    if (cached?.success && cause instanceof UpstreamUnavailableError) {
-      return cached.data;
-    }
+	let data: unknown;
+	try {
+		data = await pending;
+	} catch (cause) {
+		if (cached?.success && cause instanceof UpstreamUnavailableError) {
+			return cached.data;
+		}
 
-    throw cause;
-  }
+		throw cause;
+	}
 
-  if (data === null) {
-    return null;
-  }
+	if (data === null) {
+		return null;
+	}
 
-  const parsed = schema.safeParse(data);
-  if (!parsed.success) {
-    throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
-      retryAfterMs: null,
-      cause: parsed.error,
-    });
-  }
+	const parsed = schema.safeParse(data);
+	if (!parsed.success) {
+		throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
+			retryAfterMs: null,
+			cause: parsed.error,
+		});
+	}
 
-  return parsed.data;
+	return parsed.data;
 }
 
 /** Fetches one resource and stores it as a snapshot. A 404 is returned as `null` and not stored. */
 async function fetchAndStore(key: string, path: string, url: URL, options: TmdbRequestOptions) {
-  const data = await execute(url);
-  if (data === null) {
-    return null;
-  }
+	const data = await execute(url);
+	if (data === null) {
+		return null;
+	}
 
-  const fetchedAt = new Date();
-  const values = {
-    path,
-    data,
-    fetchedAt,
-    expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
-  };
+	const fetchedAt = new Date();
+	const values = {
+		path,
+		data,
+		fetchedAt,
+		expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
+	};
 
-  await db
-    .insert(tmdbSnapshot)
-    .values({
-      key,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: tmdbSnapshot.key,
-      set: values,
-    });
+	await db
+		.insert(tmdbSnapshot)
+		.values({
+			key,
+			...values,
+		})
+		.onConflictDoUpdate({
+			target: tmdbSnapshot.key,
+			set: values,
+		});
 
-  return data;
+	return data;
 }
 
 async function execute(url: URL): Promise<unknown> {
-  for (let attempt = 0; ; attempt += 1) {
-    await nextSlot();
+	for (let attempt = 0; ; attempt += 1) {
+		await nextSlot();
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${config.tmdbReadAccessToken}`,
-        },
-        signal: AbortSignal.timeout(requestTimeoutMs),
-      });
-    } catch (cause) {
-      throw new UpstreamUnavailableError("TMDB could not be reached", {
-        retryAfterMs: null,
-        cause,
-      });
-    }
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
+				},
+				signal: AbortSignal.timeout(requestTimeoutMs),
+			});
+		} catch (cause) {
+			throw new UpstreamUnavailableError("TMDB could not be reached", {
+				retryAfterMs: null,
+				cause,
+			});
+		}
 
-    if (response.status === 429) {
-      const retryAfterMs = retryAfter(response) ?? 2_000;
-      // Pause every request from this process, not just this one.
-      nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
-      if (attempt < rateLimitRetries) {
-        continue;
-      }
+		if (response.status === 429) {
+			const retryAfterMs = retryAfter(response) ?? 2_000;
+			// Pause every request from this process, not just this one.
+			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+			if (attempt < rateLimitRetries) {
+				continue;
+			}
 
-      throw new UpstreamUnavailableError("TMDB rate limit reached", {
-        retryAfterMs,
-      });
-    }
+			throw new UpstreamUnavailableError("TMDB rate limit reached", {
+				retryAfterMs,
+			});
+		}
 
-    if (response.status === 404) {
-      return null;
-    }
+		if (response.status === 404) {
+			return null;
+		}
 
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok || body === null) {
-      throw new UpstreamUnavailableError(`TMDB returned ${response.status} for ${url.pathname}`, {
-        retryAfterMs: retryAfter(response),
-      });
-    }
+		const body: unknown = await response.json().catch(() => null);
+		if (!response.ok || body === null) {
+			throw new UpstreamUnavailableError(`TMDB returned ${response.status} for ${url.pathname}`, {
+				retryAfterMs: retryAfter(response),
+			});
+		}
 
-    return body;
-  }
+		return body;
+	}
 }
 
 /** Waits until this request may start, reserving the following slot for the next caller. */
 async function nextSlot() {
-  const startAt = Math.max(Date.now(), nextRequestAt);
-  nextRequestAt = startAt + requestSpacingMs;
+	const startAt = Math.max(Date.now(), nextRequestAt);
+	nextRequestAt = startAt + requestSpacingMs;
 
-  const wait = startAt - Date.now();
-  if (wait > 0) {
-    await Bun.sleep(wait);
-  }
+	const wait = startAt - Date.now();
+	if (wait > 0) {
+		await Bun.sleep(wait);
+	}
 }
 
 function retryAfter(response: Response) {
-  const seconds = Number(response.headers.get("Retry-After"));
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : null;
+	const seconds = Number(response.headers.get("Retry-After"));
+	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : null;
 }
