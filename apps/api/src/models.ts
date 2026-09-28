@@ -5,29 +5,37 @@
 import type { z } from "@hono/zod-openapi";
 
 import type { CountMetaSchema, PageMetaSchema, PreparingTitleSchema } from "./openapi/envelope";
-import type { getHistory, getSchedule, getSeason, getSeries, getSeriesProgress, getWatchlist, listSeasonEpisodes } from "./openapi/routes";
 import type {
-  ContinueWatchingItemSchema,
-  CurrentSeasonSchema,
-  HistoryItemSchema,
-  ImportSummarySchema,
-  LibraryTitleSchema,
-  NamedSeasonSchema,
-  WatchlistItemSchema,
-  WatchStatusSchema,
-  EpisodeProgressSchema,
-  SeasonCompletionSchema,
-  PlaybackMediaSchema,
-  PlaybackMetaSchema,
-  ProfileSchema,
-  ScheduledEpisodeSchema,
-  SeasonEpisodeSchema,
-  SeasonSchema,
-  SeriesCardSchema,
-  SeriesImageSchema,
-  SeriesSchema,
-  SkipSegmentSchema,
-  TitleProgressSchema
+	getHistory,
+	getSchedule,
+	getSeason,
+	getSeries,
+	getSeriesProgress,
+	getWatchlist,
+	listSeasonEpisodes,
+} from "./openapi/routes";
+import type {
+	ContinueWatchingItemSchema,
+	CurrentSeasonSchema,
+	HistoryItemSchema,
+	ImportSummarySchema,
+	LibraryTitleSchema,
+	NamedSeasonSchema,
+	WatchlistItemSchema,
+	WatchStatusSchema,
+	EpisodeProgressSchema,
+	SeasonCompletionSchema,
+	PlaybackMediaSchema,
+	PlaybackMetaSchema,
+	ProfileSchema,
+	ScheduledEpisodeSchema,
+	SeasonEpisodeSchema,
+	SeasonSchema,
+	SeriesCardSchema,
+	SeriesImageSchema,
+	SeriesSchema,
+	SkipSegmentSchema,
+	TitleProgressSchema,
 } from "./openapi/schemas";
 
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
@@ -57,27 +65,27 @@ export type CountMeta = z.infer<typeof CountMetaSchema>;
 
 /** A season as `getSeries` returns it with `episodes=true`. */
 export type SeasonWithEpisodes = Season & {
-  episodes: SeasonEpisode[];
+	episodes: SeasonEpisode[];
 };
 
 /** A title as `getSeries` returns it with `episodes=true`: every season carries its episodes. */
 export type SeriesWithEpisodes = Omit<Series, "seasons"> & {
-  seasons: SeasonWithEpisodes[];
+	seasons: SeasonWithEpisodes[];
 };
 
 /** The body a route answers with on success. */
 type SuccessBody<
-  TRoute extends {
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: z.ZodType;
-          };
-        };
-      };
-    };
-  }
+	TRoute extends {
+		responses: {
+			200: {
+				content: {
+					"application/json": {
+						schema: z.ZodType;
+					};
+				};
+			};
+		};
+	},
 > = z.infer<TRoute["responses"][200]["content"]["application/json"]["schema"]>;
 
 export type SeriesMeta = SuccessBody<typeof getSeries>["meta"];
@@ -90,6 +98,6 @@ export type HistoryMeta = SuccessBody<typeof getHistory>["meta"];
 
 /** The body of every successful JSON response. */
 export interface Envelope<TResults, TMeta> {
-  meta: TMeta;
-  results: TResults;
+	meta: TMeta;
+	results: TResults;
 }
