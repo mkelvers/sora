@@ -197,6 +197,13 @@
       "when": 1790613575447,
       "tag": "0027_library_status",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790620056666,
+      "tag": "0028_series_images",
+      "breakpoints": true
     }
   ]
 }
