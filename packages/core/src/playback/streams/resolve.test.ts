@@ -22,6 +22,8 @@ interface FakeProvider {
 	unreachableSubtitles?: boolean;
 	/** The skip segments its player ships with each language's stream. */
 	skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
+	/** Subtitle tracks only one language's stream carries, by their labels. */
+	extraSubtitles?: Partial<Record<ContentLanguage, string[]>>;
 }
 
 /** The registry's `streamProviders`, filled in place by {@link useProviders}. */
@@ -82,6 +84,12 @@ function useProviders(list: FakeProvider[]) {
 												label: "Portuguese",
 												format: null,
 											},
+											...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
+												url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
+												language: "en",
+												label,
+												format: "vtt" as const,
+											})),
 										],
 							},
 						],
@@ -141,6 +149,7 @@ mock.module("../proxy/proxy", () => ({
 	) => (options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`),
 	segmentStarts: async (url: string) => timelines.get(url) ?? [],
 	canFetchStream: async (url: string) => !url.includes(".unreachable."),
+	readSubtitle: async () => null,
 	tokenLifetimeMs: 6 * 60 * 60 * 1_000,
 }));
 
@@ -552,6 +561,38 @@ describe("resolvePlayback", () => {
 		expect(dubbed?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
 			'https://sora.example/v1/streams/token:https://anikoto.example/en.vtt@[{"from":0,"offset":2}]',
 		]);
+	});
+
+	test("adds the dub's own signs and captions, but not its dialogue, to the sub's retimed dialogue", async () => {
+		useProviders([
+			{
+				id: "anikoto",
+				locale: "en",
+				languages: ["sub", "dub"],
+				extraSubtitles: {
+					dub: [
+						"English (English Closed Captions [CR])",
+						"English (English Signs [CR])",
+						"English (AI)",
+					],
+				},
+			},
+		]);
+		offered = [dub(), sub()];
+		const subTimeline = boundaries(1);
+		timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
+		timelines.set(
+			"https://anikoto.example/dub.m3u8",
+			subTimeline.map((time) => time + 2),
+		);
+
+		const [dubbed, subbed] = (await resolvePlayback(request, options)).media;
+		expect(dubbed?.subtitles.map((track) => [track.kind, track.default])).toEqual([
+			[null, true],
+			["signs", false],
+			["captions", false],
+		]);
+		expect(subbed?.subtitles.map((track) => track.kind)).toEqual([null, null]);
 	});
 
 	test("gives a dub no subtitles when its encode does not align with the sub's", async () => {

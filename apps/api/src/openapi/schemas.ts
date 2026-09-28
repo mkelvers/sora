@@ -35,7 +35,7 @@ import type { SnakeCased } from "./envelope";
  * An RFC 9457 problem details body, which every error response carries as
  * `application/problem+json`.
  */
-export const ProblemSchema = z
+const ProblemSchema = z
 	.object({
 		type: z.string().openapi({
 			example: "about:blank",
@@ -139,7 +139,7 @@ export const EpisodeNumberParam = z.coerce
 const StatusSchema = z.enum(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]);
 
 /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
-export const LanguageSchema = z.enum(["dub", "sub", "raw"]);
+const LanguageSchema = z.enum(["dub", "sub", "raw"]);
 
 export const SeriesCardSchema = z
 	.object({
@@ -310,7 +310,7 @@ export const ScheduledEpisodeSchema = z
 	})
 	.openapi("ScheduledEpisode") satisfies z.ZodType<SnakeCased<ScheduledEpisode>>;
 
-export const LocaleSchema = z.string().min(1).openapi({
+const LocaleSchema = z.string().min(1).openapi({
 	description: "BCP 47 language tag.",
 	example: "en",
 });
@@ -374,9 +374,13 @@ export const PlaybackMediaSchema = z
 					example: "Brazilian Portuguese",
 				}),
 				format: z.enum(["vtt", "srt", "ass"]).nullable(),
+				kind: z.enum(["dialogue", "signs", "captions"]).nullable().openapi({
+					description:
+						"What the track carries, worked out from its name and its cues: `dialogue` is what the characters say, `signs` is text shown on screen and forced subtitles, and `captions` is dialogue with descriptions of sound. Null when that is not clear, in which case a menu should show the track as plain subtitles.",
+				}),
 				default: z.boolean().openapi({
 					description:
-						"Whether a player shows this track from the start: the English track, for a sub and a dub alike. None for raw or a hardsub, which has no English track.",
+						"Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. None for raw or a hardsub, which has no English track.",
 				}),
 			}),
 		),

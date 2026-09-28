@@ -21,6 +21,8 @@ import { isServedSubtitle, servedLocale, streamProviders } from "../providers/re
 import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { alignTimelines, type TimelineShift } from "./align";
+import type { SubtitleKind } from "./subtitle-kind";
+import { subtitleKinds } from "./subtitle-kinds";
 
 /** One way to play an episode. */
 export interface PlaybackSource {
@@ -37,7 +39,13 @@ export interface PlaybackSubtitle {
 	language: string;
 	label: string;
 	format: "vtt" | "srt" | "ass" | null;
-	/** Whether a player shows this track from the start: the English track, for a sub and a dub alike. */
+	/**
+	 * What the track carries, worked out from its name and its cues: dialogue,
+	 * signs (text shown on screen, and forced subtitles), or captions (dialogue
+	 * with descriptions of sound). `null` when that is not clear.
+	 */
+	kind: SubtitleKind | null;
+	/** Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. */
 	default: boolean;
 }
 
@@ -286,12 +294,16 @@ async function resolveVersion(
 	const attempt = async (provider: StreamProvider, unit: ProviderUnit) => {
 		try {
 			const stream = await provider.resolveStream(unit.id, language);
-			if (language === "sub" && !(await englishSubtitlesLoad(stream.videos))) {
+			const [loads, kinds] =
+				language === "sub"
+					? await Promise.all([englishSubtitlesLoad(stream.videos), subtitleKinds(stream.videos)])
+					: [true, new Map<string, SubtitleKind | null>()];
+			if (!loads) {
 				fail(provider, "English subtitles cannot be fetched");
 				return null;
 			}
 
-			const media = toPlaybackMedia(stream.videos, streamUrl);
+			const media = toPlaybackMedia(stream.videos, streamUrl, kinds);
 			const version = {
 				audio: language,
 				label: audioLabels[language],
@@ -375,6 +387,24 @@ async function subtitlesForDub(
 	dub: ProviderVideo[],
 	streamUrl: (token: string) => string,
 ) {
+	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
+	const retimed = await retimedSubtitles(sub, dub, streamUrl, subKinds);
+
+	// Signs and captions exist only on the dub, timed to it as they are. Its
+	// dialogue can be the sub's, timed to the sub, so only retiming serves that.
+	const own = toPlaybackMedia(dub, streamUrl, dubKinds).subtitles.filter(
+		(track) => track.format === "vtt" && (track.kind === "signs" || track.kind === "captions"),
+	);
+
+	return withDefault([...retimed, ...own].sort(compareSubtitles));
+}
+
+async function retimedSubtitles(
+	sub: ProviderVideo[],
+	dub: ProviderVideo[],
+	streamUrl: (token: string) => string,
+	kinds: Map<string, SubtitleKind | null>,
+) {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
 	if (!subVideo || !dubVideo) {
@@ -388,10 +418,8 @@ async function subtitlesForDub(
 		]);
 		const shifts = alignTimelines(from, onto);
 		return shifts
-			? withDefault(
-					toPlaybackMedia(sub, streamUrl, shifts).subtitles.filter(
-						(track) => track.format === "vtt",
-					),
+			? toPlaybackMedia(sub, streamUrl, kinds, shifts).subtitles.filter(
+					(track) => track.format === "vtt",
 				)
 			: [];
 	} catch (cause) {
@@ -405,6 +433,7 @@ async function subtitlesForDub(
 function toPlaybackMedia(
 	videos: ProviderVideo[],
 	streamUrl: (token: string) => string,
+	kinds: Map<string, SubtitleKind | null>,
 	shifts?: TimelineShift[],
 ) {
 	const sources = [...videos]
@@ -432,6 +461,7 @@ function toPlaybackMedia(
 					language: track.language,
 					label: languageName(track.language) ?? track.label,
 					format: track.format,
+					kind: kinds.get(track.url) ?? null,
 					default: false,
 				});
 			}
@@ -440,19 +470,33 @@ function toPlaybackMedia(
 
 	return {
 		sources,
-		subtitles: [...subtitles.values()].sort(
-			(left, right) =>
-				Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
-				left.label.localeCompare(right.label),
-		),
+		subtitles: [...subtitles.values()].sort(compareSubtitles),
 	};
 }
 
-/** Marks the English track, which sorts first, as the one a player shows from the start. */
+const kindRank = {
+	dialogue: 0,
+	signs: 1,
+	captions: 2,
+};
+
+/** English first, then dialogue before signs before captions, then by language. */
+function compareSubtitles(left: PlaybackSubtitle, right: PlaybackSubtitle) {
+	return (
+		Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
+		kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
+		left.label.localeCompare(right.label)
+	);
+}
+
+/**
+ * Marks the English dialogue track, which sorts first, as the one a player
+ * shows from the start. English that is only signs or captions is not.
+ */
 function withDefault(subtitles: PlaybackSubtitle[]) {
 	return subtitles.map((track, index) => ({
 		...track,
-		default: index === 0 && isServedSubtitle(track),
+		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
 	}));
 }
 
