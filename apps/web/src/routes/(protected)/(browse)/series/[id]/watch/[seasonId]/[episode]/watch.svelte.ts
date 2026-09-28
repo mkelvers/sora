@@ -38,7 +38,11 @@ export class Player {
 
 		return range && this.duration > 0 ? range.end / this.duration : 0;
 	});
-	buffering = $derived(this.readyState < 3 && !this.paused);
+	buffering = $derived(
+		this.readyState < 3 &&
+			!this.paused &&
+			!this.buffered.some((range) => range.start <= this.time && this.time + 0.5 < range.end),
+	);
 
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#dismissing = false;
