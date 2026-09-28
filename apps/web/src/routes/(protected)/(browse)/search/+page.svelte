@@ -16,7 +16,7 @@
 	{#if q}
 		<h1 class="sr-only">Search results for {q}</h1>
 
-		<ul class="grid grid-cols-[repeat(auto-fill,minmax(clamp(8.75rem,11vw,15rem),1fr))] gap-x-9 gap-y-12">
+		<ul class="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-4 md:gap-x-9 md:gap-y-12 wide:grid-cols-6 hero:grid-cols-7">
 			{#each { length: count }, index (index)}
 				<svelte:boundary>
 					<Results {q} page={index + 1} last={index + 1 === count} onmore={() => (count += 1)} />

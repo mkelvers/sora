@@ -38,7 +38,7 @@
 
 {#if episodes.current}
 	{#if episodes.current.length}
-		<ol class="grid grid-cols-1 gap-x-5 gap-y-8 md:grid-cols-4 xl:grid-cols-5 hero:grid-cols-7">
+		<ol class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7">
 			{#each episodes.current as episode (episode.number)}
 				<Episode
 					{seriesId}
@@ -56,7 +56,7 @@
 		<p class="py-10 text-muted">No episodes yet.</p>
 	{/if}
 {:else}
-	<ol class="grid grid-cols-1 gap-x-5 gap-y-8 md:grid-cols-4 xl:grid-cols-5 hero:grid-cols-7" aria-busy="true" aria-label="Loading episodes">
+	<ol class="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 md:grid-cols-4 wide:grid-cols-6 hero:grid-cols-7" aria-busy="true" aria-label="Loading episodes">
 		{#each { length: Math.min(season.episode_count, 10) }, index (index)}
 			<li class="min-h-56">
 				<Skeleton class="aspect-video" />
