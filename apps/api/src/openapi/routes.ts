@@ -202,7 +202,7 @@ export const listImages = createRoute({
 	tags: ["Series"],
 	summary: "List a series' images",
 	description:
-		"Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none.",
+		"Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none. They are fetched from TMDB the first time and kept; `refreshImages` fetches them again.",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
@@ -232,6 +232,26 @@ export const listImages = createRoute({
 		200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
 		404: problem("No such title."),
 		422: problem("The query is invalid."),
+		503: problem("TMDB is unavailable; retry after `Retry-After`."),
+	},
+});
+
+export const refreshImages = createRoute({
+	operationId: "refreshImages",
+	method: "post",
+	path: "/series/{series_id}/images/refresh",
+	tags: ["Series"],
+	summary: "Refresh a series' images",
+	description:
+		"Fetches the title's images from TMDB again, past every cache, and keeps them in place of the old, so artwork added on TMDB since can be chosen. When TMDB fails, the kept images stay as they were.",
+	request: {
+		params: z.object({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+		404: problem("No such title."),
 		503: problem("TMDB is unavailable; retry after `Retry-After`."),
 	},
 });
