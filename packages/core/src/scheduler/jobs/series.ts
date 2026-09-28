@@ -11,7 +11,7 @@ import { AnimeNotFoundError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { relatedIds } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
-import { getShow } from "../../tmdb/resources";
+import { getShow, tmdbImageUrl, type TmdbShow } from "../../tmdb/resources";
 import { day, hour } from "../../time";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
@@ -131,19 +131,24 @@ const detailsWindowMs = 14 * day;
 export const refreshEpisodeDetailsTask = "refresh-episode-details";
 
 /**
- * Queues laying out again every stored series with an episode that is
- * missing TMDB details:
+ * Brings every stored series with an episode missing TMDB details up to
+ * date:
  *
  * - one AniKoto carries that TMDB does not list yet, which a season does not
- *   list until TMDB does (see `isEpisodeShown`), however long that takes;
+ *   list until TMDB does (see `isEpisodeShown`), however long that takes.
+ *   Listing it changes the layout, so the series is queued to be laid out
+ *   again.
  * - one that aired within {@link detailsWindowMs} and still has no title
  *   other than TMDB's "Episode N", no overview, or no still, going by when
  *   AniList says it aired when it knows. Tracking an anime stops once its
  *   last episode airs, and that layout runs before TMDB has usually filled
- *   the episode in, so without this a finale keeps its bare title.
+ *   the episode in, so without this a finale keeps its bare title. The
+ *   details are copied from TMDB straight into the stored episodes: a layout
+ *   needs AniList, whose requests go to more urgent jobs first, so a queued
+ *   one can wait for hours.
  *
- * Each such series' TMDB show is fetched anew first, so the layout reads
- * what TMDB has now rather than a copy up to half a day old.
+ * Each such series' TMDB show is fetched anew first, so both read what TMDB
+ * has now rather than a copy up to half a day old.
  */
 export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
   const today = new Date().toISOString().slice(0, 10);
@@ -157,10 +162,13 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
   )`;
   // AniList's broadcast time, in UTC, over TMDB's date in the airing country's calendar.
   const airedOn = sql<string>`coalesce(to_char(${seriesEpisode.airedAt} at time zone 'UTC', 'YYYY-MM-DD'), ${seriesEpisode.airDate})`;
+  const unlisted = and(eq(series.kind, "tv"), ne(seriesSeason.kind, "movie"), isNull(seriesEpisode.tmdbEpisodeNumber), onAniKoto);
   const stale = await db
-    .selectDistinctOn([seriesSeason.seriesId], {
-      anilistId: seriesEpisode.anilistId,
+    .select({
+      seriesId: series.id,
       key: series.key,
+      anilistId: sql<number>`min(${seriesEpisode.anilistId})`,
+      needsLayout: sql<boolean>`bool_or(coalesce(${unlisted}, false))`,
     })
     .from(seriesEpisode)
     .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
@@ -169,7 +177,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       and(
         isNotNull(seriesEpisode.anilistId),
         or(
-          and(eq(series.kind, "tv"), ne(seriesSeason.kind, "movie"), isNull(seriesEpisode.tmdbEpisodeNumber), onAniKoto),
+          unlisted,
           and(
             gte(airedOn, since),
             lte(airedOn, today),
@@ -182,13 +190,17 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
           )
         )
       )
-    );
+    )
+    .groupBy(series.id);
 
-  for (const { anilistId, key } of stale) {
+  let updated = 0;
+  let queued = 0;
+  for (const { seriesId, key, anilistId, needsLayout } of stale) {
     const showId = /^tv:(\d+)$/.exec(key)?.[1];
+    let show: TmdbShow | null = null;
     if (showId) {
       try {
-        await getShow(Number(showId), {
+        show = await getShow(Number(showId), {
           maxAgeMs: 0,
         });
       } catch (error) {
@@ -196,10 +208,70 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       }
     }
 
-    if (anilistId !== null) {
+    if (show) {
+      updated += await copyEpisodeDetails(seriesId, show);
+    }
+
+    // A film's details, and those of a show TMDB could not serve, only come with a layout.
+    if (needsLayout || !show) {
       await scheduleStoredSeriesRefresh(anilistId);
+      queued += 1;
     }
   }
 
-  helpers.logger.info(`Queued ${stale.length} series with episodes missing TMDB details`);
+  helpers.logger.info(
+    `Filled in ${updated} episodes from TMDB and queued ${queued} of ${stale.length} series with episodes missing TMDB details`
+  );
 };
+
+/**
+ * Copies TMDB's current details onto a stored series' episodes, as a layout
+ * would derive them (see `layoutShowSeasons`). Returns how many episodes
+ * changed.
+ */
+async function copyEpisodeDetails(seriesId: string, show: TmdbShow) {
+  const tmdbEpisodes = new Map(show.episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]));
+  const stored = await db
+    .select({
+      seasonId: seriesEpisode.seasonId,
+      number: seriesEpisode.number,
+      title: seriesEpisode.title,
+      overview: seriesEpisode.overview,
+      airDate: seriesEpisode.airDate,
+      runtimeMinutes: seriesEpisode.runtimeMinutes,
+      stillUrl: seriesEpisode.stillUrl,
+      tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
+      tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+    })
+    .from(seriesEpisode)
+    .innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+    .where(and(eq(seriesSeason.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
+
+  let changed = 0;
+  for (const episode of stored) {
+    const tmdbEpisode = tmdbEpisodes.get(`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`);
+    if (!tmdbEpisode) {
+      continue;
+    }
+
+    const details = {
+      title: tmdbEpisode.name,
+      overview: tmdbEpisode.overview,
+      airDate: tmdbEpisode.air_date,
+      // Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
+      runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
+      stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
+    };
+    if (Object.entries(details).every(([name, value]) => episode[name as keyof typeof details] === value)) {
+      continue;
+    }
+
+    await db
+      .update(seriesEpisode)
+      .set(details)
+      .where(and(eq(seriesEpisode.seasonId, episode.seasonId), eq(seriesEpisode.number, episode.number)));
+    changed += 1;
+  }
+
+  return changed;
+}
