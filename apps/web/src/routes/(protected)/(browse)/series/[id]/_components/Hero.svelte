@@ -131,14 +131,15 @@
 
 		{#if series.backdrop_url}
 			<div
-				class="absolute inset-0 z-0 overflow-hidden"
+				class="series-hero-frame absolute inset-0 z-0 overflow-hidden"
+				style:--edge-image="url({tmdbImage(series.backdrop_url, 'w300')})"
 				style:background-image={series.backdrop_edges &&
 					`linear-gradient(to right, ${series.backdrop_edges.left}, ${series.backdrop_edges.right})`}
 			>
 				<ProgressiveImage
 					src={series.backdrop_url}
 					alt=""
-					class="series-hero-backdrop absolute inset-y-0 left-1/2 aspect-video h-full w-auto max-w-full -translate-x-1/2"
+					class="series-hero-backdrop absolute inset-y-0 left-1/2 z-10 aspect-video h-full w-auto max-w-full -translate-x-1/2"
 					imageClass="object-contain max-sm:object-cover"
 					displaySize="original"
 					loading="eager"
