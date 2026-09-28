@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Series } from '@sora/sdk';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { cn } from '$lib/utils';
+	import Button from "$lib/components/ui/Button.svelte";
+	import { cn } from "$lib/utils";
+	import type { Series } from "@sora/sdk";
 
 	let {
 		series,
@@ -20,7 +20,9 @@
 
 		const section = details;
 		const observer = new ResizeObserver(() => {
-			overflowing = section.scrollHeight > parseFloat(getComputedStyle(document.documentElement).fontSize) * 6 + 1;
+			overflowing =
+				section.scrollHeight >
+				parseFloat(getComputedStyle(document.documentElement).fontSize) * 6 + 1;
 		});
 		observer.observe(section);
 		for (const child of section.children) {
@@ -32,11 +34,11 @@
 </script>
 
 <div class="relative z-20 bg-canvas px-5 sm:px-10 lg:px-16">
-	<div class={cn('pt-7 lg:pt-8', !overflowing && 'pb-7 lg:pb-8')}>
+	<div class={cn("pt-7 lg:pt-8", !overflowing && "pb-7 lg:pb-8")}>
 		<div
 			class={cn(
-				'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
-				expanded || !overflowing ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+				"grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+				expanded || !overflowing ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
 			)}
 		>
 			<section
@@ -44,9 +46,11 @@
 				id="series-details"
 				inert={overflowing && !expanded}
 				class={cn(
-					'grid max-w-432 min-w-0 grid-cols-1 gap-8 overflow-hidden text-xs leading-5 text-muted md:grid-cols-2 md:gap-12 lg:gap-28 lg:text-sm lg:leading-6',
-					overflowing ? 'min-h-24' : 'min-h-0',
-					overflowing && !expanded && 'mask-[linear-gradient(to_bottom,black_45%,transparent_100%)]'
+					"grid max-w-432 min-w-0 grid-cols-1 gap-8 overflow-hidden text-xs leading-5 text-muted md:grid-cols-2 md:gap-12 lg:gap-28 lg:text-sm lg:leading-6",
+					overflowing ? "min-h-24" : "min-h-0",
+					overflowing &&
+						!expanded &&
+						"mask-[linear-gradient(to_bottom,black_45%,transparent_100%)]",
 				)}
 			>
 				{#if series.overview}
@@ -62,7 +66,7 @@
 				aria-controls="series-details"
 				onclick={() => (expanded = !expanded)}
 			>
-				{expanded ? 'Fewer details' : 'More details'}
+				{expanded ? "Fewer details" : "More details"}
 			</Button>
 		{/if}
 	</div>
