@@ -7,7 +7,7 @@ import { getProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
 
 const LookUpEpisodesPayloadSchema = z.object({
-  anilistId: z.number().int().positive(),
+	anilistId: z.number().int().positive(),
 });
 
 /**
@@ -19,33 +19,33 @@ const LookUpEpisodesPayloadSchema = z.object({
  * once the others are stored, so graphile-worker retries it with backoff.
  */
 export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
-  const {
-    anilistId,
-  } = LookUpEpisodesPayloadSchema.parse(rawPayload);
+	const { anilistId } = LookUpEpisodesPayloadSchema.parse(rawPayload);
 
-  let anime;
-  try {
-    anime = await getAnime(anilistId);
-  } catch (error) {
-    if (error instanceof AnimeNotFoundError) {
-      helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
-      return;
-    }
+	let anime;
+	try {
+		anime = await getAnime(anilistId);
+	} catch (error) {
+		if (error instanceof AnimeNotFoundError) {
+			helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
+			return;
+		}
 
-    throw error;
-  }
+		throw error;
+	}
 
-  const failed: string[] = [];
-  for (const provider of streamProviders) {
-    try {
-      await getProviderUnits(anime, provider);
-    } catch (error) {
-      helpers.logger.warn(`Provider ${provider.id} failed for anime ${anilistId}: ${String(error)}`);
-      failed.push(provider.id);
-    }
-  }
+	const failed: string[] = [];
+	for (const provider of streamProviders) {
+		try {
+			await getProviderUnits(anime, provider);
+		} catch (error) {
+			helpers.logger.warn(
+				`Provider ${provider.id} failed for anime ${anilistId}: ${String(error)}`,
+			);
+			failed.push(provider.id);
+		}
+	}
 
-  if (failed.length > 0) {
-    throw new Error(`Looking up anime ${anilistId} failed on ${failed.join(", ")}`);
-  }
+	if (failed.length > 0) {
+		throw new Error(`Looking up anime ${anilistId} failed on ${failed.join(", ")}`);
+	}
 };

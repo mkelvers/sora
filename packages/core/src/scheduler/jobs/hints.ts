@@ -17,11 +17,13 @@ export const syncTmdbHintsTask = "sync-tmdb-hints";
  * while matching goes on with the stored hints.
  */
 export const syncTmdbHintsJob: Task = async (_payload, helpers) => {
-  const changed = await syncTmdbHints();
-  const expired = await expireMappingsAgainstHints(changed);
-  for (const anilistId of expired) {
-    await scheduleStoredSeriesRefresh(anilistId, "backfill");
-  }
+	const changed = await syncTmdbHints();
+	const expired = await expireMappingsAgainstHints(changed);
+	for (const anilistId of expired) {
+		await scheduleStoredSeriesRefresh(anilistId, "backfill");
+	}
 
-  helpers.logger.info(`${changed.length} TMDB hints changed; matching ${expired.length} entries again`);
+	helpers.logger.info(
+		`${changed.length} TMDB hints changed; matching ${expired.length} entries again`,
+	);
 };
