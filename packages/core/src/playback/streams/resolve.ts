@@ -20,7 +20,7 @@ import type {
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
-import { alignTimelines, type TimelineShift } from "./align";
+import { alignTimelines, shiftTime, type TimelineShift } from "./align";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 
@@ -206,8 +206,14 @@ export async function resolvePlayback(
 	);
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
-	if (sub?.videos && dub?.version && dub.videos) {
-		dub.version.subtitles = await subtitlesForDub(sub.videos, dub.videos, streamUrl);
+	if (sub?.version && sub.videos && dub?.version && dub.videos) {
+		const shifts = await timelineShifts(sub.videos, dub.videos);
+		dub.version.subtitles = await subtitlesForDub(sub.videos, dub.videos, streamUrl, shifts);
+		dub.version.skipSegments = skipSegmentsForDub(
+			sub.version.skipSegments,
+			dub.version.skipSegments,
+			shifts,
+		);
 	}
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
@@ -378,17 +384,48 @@ async function resolveVersion(
 }
 
 /**
- * The sub's WebVTT subtitles moved onto the dub's timeline, found by aligning
- * the two encodes' segment boundaries (see {@link alignTimelines}). Empty when
- * either is not HLS, a playlist cannot be read, or the encodes do not align.
+ * How the sub's timeline maps onto the dub's, found by aligning the two
+ * encodes' segment boundaries (see {@link alignTimelines}). `null` when either
+ * is not HLS, a playlist cannot be read, or the encodes do not align.
+ */
+async function timelineShifts(sub: ProviderVideo[], dub: ProviderVideo[]) {
+	const subVideo = sub.find((video) => video.format === "hls");
+	const dubVideo = dub.find((video) => video.format === "hls");
+	if (!subVideo || !dubVideo) {
+		return null;
+	}
+
+	try {
+		const [from, onto] = await Promise.all([
+			segmentStarts(subVideo.url, subVideo.headers),
+			segmentStarts(dubVideo.url, dubVideo.headers),
+		]);
+		return alignTimelines(from, onto);
+	} catch (cause) {
+		if (cause instanceof StreamUpstreamError) {
+			return null;
+		}
+		throw cause;
+	}
+}
+
+/**
+ * The sub's WebVTT subtitles moved onto the dub's timeline by `shifts`, and
+ * the dub's own signs and captions, which are timed to it already. The sub's
+ * are left out when the encodes do not align.
  */
 async function subtitlesForDub(
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
 	streamUrl: (token: string) => string,
+	shifts: TimelineShift[] | null,
 ) {
 	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
-	const retimed = await retimedSubtitles(sub, dub, streamUrl, subKinds);
+	const retimed = shifts
+		? toPlaybackMedia(sub, streamUrl, subKinds, shifts).subtitles.filter(
+				(track) => track.format === "vtt",
+			)
+		: [];
 
 	// Signs and captions exist only on the dub, timed to it as they are. Its
 	// dialogue can be the sub's, timed to the sub, so only retiming serves that.
@@ -399,35 +436,37 @@ async function subtitlesForDub(
 	return withDefault([...retimed, ...own].sort(compareSubtitles));
 }
 
-async function retimedSubtitles(
-	sub: ProviderVideo[],
-	dub: ProviderVideo[],
-	streamUrl: (token: string) => string,
-	kinds: Map<string, SubtitleKind | null>,
+/**
+ * The dub's opening and ending on its own timeline.
+ *
+ * A provider that gives the dub exactly the sub's spans has not timed them to
+ * the dub, so they sit as far off as the dub's encode is from the sub's, which
+ * can be a whole second. Those move by `shifts`; spans that differ from the
+ * sub's were timed to the dub and stay.
+ */
+function skipSegmentsForDub(
+	sub: SkipSegment[],
+	dub: SkipSegment[],
+	shifts: TimelineShift[] | null,
 ) {
-	const subVideo = sub.find((video) => video.format === "hls");
-	const dubVideo = dub.find((video) => video.format === "hls");
-	if (!subVideo || !dubVideo) {
-		return [];
+	const shared =
+		sub.length === dub.length &&
+		sub.every((segment, index) => {
+			const other = dub[index];
+			return (
+				segment.kind === other?.kind && segment.start === other.start && segment.end === other.end
+			);
+		});
+	if (!shifts || !shared) {
+		return dub;
 	}
 
-	try {
-		const [from, onto] = await Promise.all([
-			segmentStarts(subVideo.url, subVideo.headers),
-			segmentStarts(dubVideo.url, dubVideo.headers),
-		]);
-		const shifts = alignTimelines(from, onto);
-		return shifts
-			? toPlaybackMedia(sub, streamUrl, kinds, shifts).subtitles.filter(
-					(track) => track.format === "vtt",
-				)
-			: [];
-	} catch (cause) {
-		if (cause instanceof StreamUpstreamError) {
-			return [];
-		}
-		throw cause;
-	}
+	const moved = (time: number) => Math.max(0, Math.round(shiftTime(shifts, time) * 1_000) / 1_000);
+	return sub.map((segment) => ({
+		kind: segment.kind,
+		start: moved(segment.start),
+		end: moved(segment.end),
+	}));
 }
 
 function toPlaybackMedia(

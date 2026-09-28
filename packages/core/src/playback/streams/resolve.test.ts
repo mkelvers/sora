@@ -270,6 +270,77 @@ describe("resolvePlayback", () => {
 		]);
 	});
 
+	describe("a dub given the sub's skip segments", () => {
+		const spans = [
+			{
+				kind: "opening" as const,
+				start: 213,
+				end: 312,
+			},
+			{
+				kind: "ending" as const,
+				start: 1328,
+				end: 1418,
+			},
+		];
+
+		async function dubbedSkipSegments(dubOffset: number | null, dubSpans = spans) {
+			useProviders([
+				{
+					id: "anikoto",
+					locale: "en",
+					languages: ["sub", "dub"],
+					skipSegments: {
+						dub: dubSpans,
+						sub: spans,
+					},
+				},
+			]);
+			offered = [dub(), sub()];
+			const subTimeline = boundaries(1);
+			timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
+			timelines.set(
+				"https://anikoto.example/dub.m3u8",
+				dubOffset === null ? boundaries(2) : subTimeline.map((time) => time + dubOffset),
+			);
+
+			const [dubbed, subbed] = (await resolvePlayback(request, options)).media;
+			return [dubbed?.skipSegments, subbed?.skipSegments];
+		}
+
+		test("moves them onto the dub's timeline by how far its encode is from the sub's", async () => {
+			const [dubbed, subbed] = await dubbedSkipSegments(-1);
+			expect(dubbed).toEqual([
+				{
+					kind: "opening",
+					start: 212,
+					end: 311,
+				},
+				{
+					kind: "ending",
+					start: 1327,
+					end: 1417,
+				},
+			]);
+			expect(subbed).toEqual(spans);
+		});
+
+		test("leaves spans that differ from the sub's, since they were timed to the dub", async () => {
+			const own = [
+				{
+					kind: "opening" as const,
+					start: 214,
+					end: 313,
+				},
+			];
+			expect((await dubbedSkipSegments(-1, own))[0]).toEqual(own);
+		});
+
+		test("leaves them when the encodes do not align", async () => {
+			expect((await dubbedSkipSegments(null))[0]).toEqual(spans);
+		});
+	});
+
 	test("gives no skip segments for a stream whose player reports none", async () => {
 		useProviders([
 			{
