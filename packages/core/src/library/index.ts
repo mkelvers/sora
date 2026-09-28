@@ -16,27 +16,33 @@ export { AniListUserNameSchema, importAniListList, type ImportSummary } from "./
 export { dismissFromContinueWatching, getContinueWatching } from "./progress/continue-watching";
 export { getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
 export {
-  clearProgress,
-  forgetEpisode,
-  getProgress,
-  markWatched,
-  ProgressUpdateSchema,
-  recordProgress,
-  type ProgressUpdate
+	clearProgress,
+	forgetEpisode,
+	getProgress,
+	markWatched,
+	ProgressUpdateSchema,
+	recordProgress,
+	type ProgressUpdate,
 } from "./progress/progress";
-export type { ContinueWatchingItem, EpisodeProgress, SeasonCompletion, TitleProgress, WatchStatus } from "./progress/resume";
+export type {
+	ContinueWatchingItem,
+	EpisodeProgress,
+	SeasonCompletion,
+	TitleProgress,
+	WatchStatus,
+} from "./progress/resume";
 export { getRecommendations } from "./recommendations/recommendations";
 export {
-  addToWatchlist,
-  getLibraryTitle,
-  getWatchlist,
-  removeFromWatchlist,
-  setDropped,
-  WatchStatusSchema,
-  type CurrentSeason,
-  type LibraryTitle,
-  type NamedSeason,
-  type TitleState,
-  type Watchlist,
-  type WatchlistItem
+	addToWatchlist,
+	getLibraryTitle,
+	getWatchlist,
+	removeFromWatchlist,
+	setDropped,
+	WatchStatusSchema,
+	type CurrentSeason,
+	type LibraryTitle,
+	type NamedSeason,
+	type TitleState,
+	type Watchlist,
+	type WatchlistItem,
 } from "./watchlist/watchlist";
