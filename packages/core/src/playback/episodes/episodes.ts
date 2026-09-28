@@ -18,13 +18,13 @@ export type ProviderUnit = ProviderEpisode;
  * was added, is fetched again rather than served.
  */
 const ProviderUnitsSchema = z.array(
-  z.object({
-    id: z.string(),
-    number: z.number(),
-    title: z.string(),
-    languages: z.array(z.enum(["sub", "dub", "raw"])).nullable(),
-    isFiller: z.boolean().nullable(),
-  })
+	z.object({
+		id: z.string(),
+		number: z.number(),
+		title: z.string(),
+		languages: z.array(z.enum(["sub", "dub", "raw"])).nullable(),
+		isFiller: z.boolean().nullable(),
+	}),
 );
 
 /**
@@ -36,31 +36,36 @@ const ProviderUnitsSchema = z.array(
  *
  * @throws when the provider itself fails; callers decide whether to fall back.
  */
-export async function getProviderUnits(anime: Anime, provider: StreamProvider): Promise<ProviderUnit[]> {
-  const [stored] = await db
-    .select({
-      units: providerEpisodes.units,
-    })
-    .from(providerEpisodes)
-    .where(and(eq(providerEpisodes.anilistId, anime.id), eq(providerEpisodes.provider, provider.id)))
-    .limit(1);
+export async function getProviderUnits(
+	anime: Anime,
+	provider: StreamProvider,
+): Promise<ProviderUnit[]> {
+	const [stored] = await db
+		.select({
+			units: providerEpisodes.units,
+		})
+		.from(providerEpisodes)
+		.where(
+			and(eq(providerEpisodes.anilistId, anime.id), eq(providerEpisodes.provider, provider.id)),
+		)
+		.limit(1);
 
-  const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
-  if (units?.success) {
-    return units.data;
-  }
+	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+	if (units?.success) {
+		return units.data;
+	}
 
-  return refreshProviderUnits(anime, provider, {
-    retryUnmatched: false,
-  });
+	return refreshProviderUnits(anime, provider, {
+		retryUnmatched: false,
+	});
 }
 
 /** What is stored about one provider's episodes of one anime. */
 export interface StoredUnits {
-  anilistId: number;
-  provider: string;
-  /** The provider's episode list, empty when the provider does not carry the anime. */
-  units: ProviderUnit[];
+	anilistId: number;
+	provider: string;
+	/** The provider's episode list, empty when the provider does not carry the anime. */
+	units: ProviderUnit[];
 }
 
 /**
@@ -69,40 +74,40 @@ export interface StoredUnits {
  * its stored list is outdated; {@link getProviderUnits} fills it in.
  */
 export async function getStoredUnits(anilistIds: readonly number[]): Promise<StoredUnits[]> {
-  if (anilistIds.length === 0) {
-    return [];
-  }
+	if (anilistIds.length === 0) {
+		return [];
+	}
 
-  const ids = [...new Set(anilistIds)];
-  const [listed, unmatched] = await Promise.all([
-    db.select().from(providerEpisodes).where(inArray(providerEpisodes.anilistId, ids)),
-    db
-      .select({
-        anilistId: providerMapping.anilistId,
-        provider: providerMapping.provider,
-      })
-      .from(providerMapping)
-      .where(and(inArray(providerMapping.anilistId, ids), isNull(providerMapping.providerMediaId)))
-  ]);
+	const ids = [...new Set(anilistIds)];
+	const [listed, unmatched] = await Promise.all([
+		db.select().from(providerEpisodes).where(inArray(providerEpisodes.anilistId, ids)),
+		db
+			.select({
+				anilistId: providerMapping.anilistId,
+				provider: providerMapping.provider,
+			})
+			.from(providerMapping)
+			.where(and(inArray(providerMapping.anilistId, ids), isNull(providerMapping.providerMediaId))),
+	]);
 
-  return [
-    ...listed.flatMap((row) => {
-      const units = ProviderUnitsSchema.safeParse(row.units);
-      return units.success
-        ? [
-            {
-              anilistId: row.anilistId,
-              provider: row.provider,
-              units: units.data,
-            }
-          ]
-        : [];
-    }),
-    ...unmatched.map((row) => ({
-      ...row,
-      units: [],
-    }))
-  ];
+	return [
+		...listed.flatMap((row) => {
+			const units = ProviderUnitsSchema.safeParse(row.units);
+			return units.success
+				? [
+						{
+							anilistId: row.anilistId,
+							provider: row.provider,
+							units: units.data,
+						},
+					]
+				: [];
+		}),
+		...unmatched.map((row) => ({
+			...row,
+			units: [],
+		})),
+	];
 }
 
 /**
@@ -117,56 +122,51 @@ export async function getStoredUnits(anilistIds: readonly number[]): Promise<Sto
  * @throws when the provider itself fails.
  */
 export async function refreshProviderUnits(
-  anime: Anime,
-  provider: StreamProvider,
-  options: {
-    retryUnmatched: boolean;
-  }
+	anime: Anime,
+	provider: StreamProvider,
+	options: {
+		retryUnmatched: boolean;
+	},
 ): Promise<ProviderUnit[]> {
-  const media = await getProviderMedia(anime, provider, options);
-  if (!media) {
-    return [];
-  }
+	const media = await getProviderMedia(anime, provider, options);
+	if (!media) {
+		return [];
+	}
 
-  const {
-    mediaId,
-    episodeOffset,
-  } = media;
-  const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
-    // A part filed under its prequel's series keeps only its own episodes,
-    // numbered from 1; a later part may follow them in the same series.
-    .filter(
-      (unit) =>
-        episodeOffset === 0 ||
-        (unit.number > episodeOffset && (anime.episodes === null || unit.number <= episodeOffset + anime.episodes))
-    )
-    .map((unit) => ({
-      id: unit.id,
-      number: unit.number - episodeOffset,
-      title: unit.title,
-      languages: unit.languages,
-      isFiller: unit.isFiller,
-    }))
-    .sort((left, right) => left.number - right.number);
+	const { mediaId, episodeOffset } = media;
+	const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
+		// A part filed under its prequel's series keeps only its own episodes,
+		// numbered from 1; a later part may follow them in the same series.
+		.filter(
+			(unit) =>
+				episodeOffset === 0 ||
+				(unit.number > episodeOffset &&
+					(anime.episodes === null || unit.number <= episodeOffset + anime.episodes)),
+		)
+		.map((unit) => ({
+			id: unit.id,
+			number: unit.number - episodeOffset,
+			title: unit.title,
+			languages: unit.languages,
+			isFiller: unit.isFiller,
+		}))
+		.sort((left, right) => left.number - right.number);
 
-  const values = {
-    units,
-    fetchedAt: new Date(),
-  };
-  await db
-    .insert(providerEpisodes)
-    .values({
-      anilistId: anime.id,
-      provider: provider.id,
-      ...values,
-    })
-    .onConflictDoUpdate({
-      target: [
-        providerEpisodes.anilistId,
-        providerEpisodes.provider
-      ],
-      set: values,
-    });
+	const values = {
+		units,
+		fetchedAt: new Date(),
+	};
+	await db
+		.insert(providerEpisodes)
+		.values({
+			anilistId: anime.id,
+			provider: provider.id,
+			...values,
+		})
+		.onConflictDoUpdate({
+			target: [providerEpisodes.anilistId, providerEpisodes.provider],
+			set: values,
+		});
 
-  return units;
+	return units;
 }
