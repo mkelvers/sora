@@ -5,7 +5,7 @@
  * the OpenAPI document cannot drift from what the handlers return.
  */
 import { z } from "@hono/zod-openapi";
-import type { Profile } from "@sora/core/auth";
+import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatchingItem,
@@ -409,6 +409,18 @@ export const PlaybackMetaSchema = z
 	})
 	.openapi("PlaybackMeta");
 
+export const ProfileAvatarSchema = z
+	.object({
+		style: z.enum(["sprouts", "critters"]).openapi({
+			description: "The animated DiceBear style the avatar is drawn in.",
+		}),
+		seed: z.string().trim().min(1).max(64).openapi({
+			description: "The DiceBear seed: the same style and seed always draw the same avatar.",
+			example: "7HTQ2LMXB",
+		}),
+	})
+	.openapi("ProfileAvatar") satisfies z.ZodType<SnakeCased<ProfileAvatar>>;
+
 export const ProfileSchema = z
 	.object({
 		id: z.string().openapi({
@@ -421,10 +433,7 @@ export const ProfileSchema = z
 			description: "A CSS color for the profile's tile.",
 			example: "#4f7cff",
 		}),
-		avatar: z.string().openapi({
-			description: "The seed of the profile's avatar, in DiceBear's `critters` style.",
-			example: "7HTQ2LMXB",
-		}),
+		avatar: ProfileAvatarSchema,
 		created_at: z.string(),
 	})
 	.openapi("Profile") satisfies z.ZodType<SnakeCased<Profile>>;
@@ -439,8 +448,8 @@ export const ProfileInputSchema = z
 			.openapi({
 				description: "A hex color such as `#4f7cff`; picked from a palette when omitted.",
 			}),
-		avatar: z.string().trim().min(1).max(64).optional().openapi({
-			description: "A DiceBear seed for the avatar; the profile's ID when omitted.",
+		avatar: ProfileAvatarSchema.optional().openapi({
+			description: "A sprout seeded with the profile's ID when omitted.",
 		}),
 	})
 	.openapi("ProfileInput", {

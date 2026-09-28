@@ -27,6 +27,7 @@ import type {
 	SeriesProgressSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
+	ProfileAvatarSchema,
 	ProfileSchema,
 	ScheduledEpisodeSchema,
 	SeasonEpisodeSchema,
@@ -48,6 +49,7 @@ export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
+export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;
 export type EpisodeProgress = z.infer<typeof EpisodeProgressSchema>;
 export type SeasonProgress = z.infer<typeof SeasonProgressSchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
