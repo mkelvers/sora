@@ -1,4 +1,4 @@
-import type { Profile, SoraClient } from '@sora/sdk';
+import type { Profile, SoraClient } from "@sora/sdk";
 
 declare global {
 	namespace App {
@@ -12,4 +12,4 @@ declare global {
 	}
 }
 
-export { };
+export {};
