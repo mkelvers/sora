@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 import { timestamptz } from "./columns";
 
@@ -8,6 +8,9 @@ import { timestamptz } from "./columns";
  * it. Better Auth calls the account its `user`, and a sign-in method its
  * `account`; these tables are prefixed so neither reads as Sora's own.
  */
+
+/** The animated DiceBear styles a profile's avatar may be drawn in. */
+export const avatarStyle = pgEnum("avatar_style", ["sprouts", "critters"]);
 
 /** A Sora account: one e-mail and password, shared by its profiles. */
 export const authUser = pgTable("auth_user", {
@@ -96,8 +99,10 @@ export const profile = pgTable(
 		name: text("name").notNull(),
 		/** A CSS color for the profile's tile, such as `#4f7cff`. */
 		color: text("color").notNull(),
-		/** The seed of the profile's DiceBear avatar; new profiles start with their own ID. */
-		avatar: text("avatar").notNull(),
+		/** The DiceBear style of the profile's avatar. */
+		avatarStyle: avatarStyle("avatar_style").notNull(),
+		/** The seed of the profile's avatar; new profiles start with their own ID. */
+		avatarSeed: text("avatar_seed").notNull(),
 		createdAt: timestamptz("created_at").notNull().defaultNow(),
 	},
 	(table) => [index("profile_user_idx").on(table.userId, table.createdAt)],

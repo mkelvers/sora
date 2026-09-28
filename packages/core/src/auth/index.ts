@@ -17,6 +17,8 @@ export {
 	listProfiles,
 	ProfileInputSchema,
 	updateProfile,
+	type AvatarStyle,
 	type Profile,
+	type ProfileAvatar,
 	type ProfileInput,
 } from "./profiles";

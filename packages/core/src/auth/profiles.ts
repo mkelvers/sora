@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "../database/client";
 import {
+	avatarStyle,
 	continueWatchingDismissal,
 	libraryEntry,
 	libraryImport,
@@ -20,10 +21,18 @@ export interface Profile {
 	name: string;
 	/** A CSS color for the profile's tile. */
 	color: string;
-	/** The seed of the profile's avatar: DiceBear's "critters" style, drawn by clients. */
-	avatar: string;
+	/** The profile's avatar, drawn by clients. */
+	avatar: ProfileAvatar;
 	/** ISO 8601 timestamp. */
 	createdAt: string;
+}
+
+export type AvatarStyle = (typeof avatarStyle.enumValues)[number];
+
+/** A DiceBear avatar: the same style and seed always draw the same picture. */
+export interface ProfileAvatar {
+	style: AvatarStyle;
+	seed: string;
 }
 
 /** Tile colors, handed out in turn to new profiles. */
@@ -44,7 +53,12 @@ export const ProfileInputSchema = z.object({
 		.string()
 		.regex(/^#[0-9a-f]{6}$/i)
 		.optional(),
-	avatar: z.string().trim().min(1).max(64).optional(),
+	avatar: z
+		.object({
+			style: z.enum(avatarStyle.enumValues),
+			seed: z.string().trim().min(1).max(64),
+		})
+		.optional(),
 });
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;
@@ -79,7 +93,8 @@ export async function getProfile(userId: string, profileId: string): Promise<Pro
 
 /**
  * Adds a profile to an account; there is no limit. Without a color, the
- * next one from the palette is used.
+ * next one from the palette is used; without an avatar, a sprout seeded
+ * with the profile's ID.
  *
  * @throws {@link InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
@@ -100,7 +115,8 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
 			userId,
 			name,
 			color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
-			avatar: avatar ?? id,
+			avatarStyle: avatar?.style ?? "sprouts",
+			avatarSeed: avatar?.seed ?? id,
 		})
 		.returning();
 
@@ -118,10 +134,16 @@ export async function updateProfile(
 	profileId: string,
 	input: Partial<ProfileInput>,
 ): Promise<Profile> {
-	const changes = parse(ProfileInputSchema.partial(), input);
+	const { avatar, ...changes } = parse(ProfileInputSchema.partial(), input);
 	const [row] = await db
 		.update(profile)
-		.set(changes)
+		.set({
+			...changes,
+			...(avatar && {
+				avatarStyle: avatar.style,
+				avatarSeed: avatar.seed,
+			}),
+		})
 		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
 		.returning();
 	if (!row) {
@@ -179,7 +201,10 @@ function toProfile(row: typeof profile.$inferSelect): Profile {
 		id: row.id,
 		name: row.name,
 		color: row.color,
-		avatar: row.avatar,
+		avatar: {
+			style: row.avatarStyle,
+			seed: row.avatarSeed,
+		},
 		createdAt: row.createdAt.toISOString(),
 	};
 }
