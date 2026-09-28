@@ -77,14 +77,26 @@
 			return null;
 		}
 
-		return `Episode ${series.next_episode.number} airs ${airing.toLocaleDateString("en-US", {
-			weekday: "long",
-			month: "short",
+		const day = airing.toLocaleDateString("en-GB", {
 			day: "numeric",
-		})} at ${airing.toLocaleTimeString("en-US", {
-			hour: "numeric",
-			minute: "2-digit",
-		})}`;
+			month: "long",
+		});
+		const { season_id, number } = series.next_episode;
+		if (number > 1) {
+			return `Next episode airs ${day} at ${airing.toLocaleTimeString("en-GB", {
+				hour: "2-digit",
+				minute: "2-digit",
+			})}`;
+		}
+
+		const where = series.seasons.find((other) => other.id === season_id);
+		if (where && where.kind !== "season") {
+			return `${where.title} starting ${day}`;
+		}
+
+		return series.seasons.find((other) => other.kind === "season")?.id === season_id
+			? `Premieres ${day}`
+			: `New season starting ${day}`;
 	});
 
 	const item =
@@ -106,17 +118,14 @@
 		<h1 class="sr-only">{series.title}</h1>
 
 		{#if series.backdrop_url}
-			<div class="absolute inset-0 overflow-hidden">
-				<ProgressiveImage
-					src={series.backdrop_url}
-					alt=""
-					class="absolute inset-x-0 top-0 z-0 h-dvh w-full"
-					imageClass="object-[45%_0%]"
-					displaySize="original"
-					loading="eager"
-					fetchpriority="high"
-				/>
-			</div>
+			<ProgressiveImage
+				src={series.backdrop_url}
+				alt=""
+				class="absolute inset-0 z-0"
+				displaySize="original"
+				loading="eager"
+				fetchpriority="high"
+			/>
 		{/if}
 
 		<div
@@ -167,7 +176,7 @@
 			</div>
 
 			{#if next}
-				<p class="mt-7 text-base text-foreground sm:mt-8">{next}</p>
+				<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">{next}</p>
 			{/if}
 
 			<p
