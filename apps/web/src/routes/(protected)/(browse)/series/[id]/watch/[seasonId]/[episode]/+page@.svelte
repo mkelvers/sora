@@ -61,6 +61,7 @@
 	{start}
 	onprogress={(position, duration) =>
 		saveProgress({
+			seriesId: series.id,
 			seasonId: season.id,
 			episode: episode.number,
 			position,
