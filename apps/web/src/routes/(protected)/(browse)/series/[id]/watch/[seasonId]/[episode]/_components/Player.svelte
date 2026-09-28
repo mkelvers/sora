@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Spinner from "$lib/components/ui/Spinner.svelte";
-	import { tmdbImage } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
-	import { CaretLeftIcon } from "phosphor-svelte";
+	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
 
 	import { Player } from "../watch.svelte";
@@ -22,8 +20,6 @@
 		title: string;
 		series: string;
 		season?: string;
-		logo: string | null;
-		overview: string | null;
 		start: number;
 		onprogress: (position: number, duration: number) => Promise<void>;
 		onnearend: () => void;
@@ -41,8 +37,6 @@
 		title,
 		series,
 		season,
-		logo,
-		overview,
 		start,
 		onprogress,
 		onnearend,
@@ -121,7 +115,11 @@
 
 	const failure = $derived(problem ?? player.failure);
 	const loading = $derived(!failure && (!versions || player.buffering));
-	const hidden = $derived(player.idle && !player.paused);
+	const icon =
+		"inline-grid size-10 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white focus-visible:ring-0";
+	const pill =
+		"bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] hover:bg-white";
+
 	const segment = $derived(
 		media?.skip_segments.find((segment) => {
 			return player.time >= segment.start && player.time < segment.end;
@@ -132,12 +130,14 @@
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
 
 <div
-	bind:this={player.root}
 	class={[
-		"group fixed inset-0 size-full overflow-hidden bg-black text-white select-none",
-		player.idle && !player.paused && "cursor-none",
+		"grid h-dvh grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden bg-black text-white *:[grid-area:1/1]",
+		player.idle && !player.paused && "idle cursor-none",
+		loading &&
+			"after:pointer-events-none after:size-12 after:animate-[spin_800ms_linear_infinite] after:place-self-center after:rounded-full after:border-3 after:border-white/20 after:border-t-white after:content-[''] after:[grid-area:1/1]",
 	]}
 	aria-busy={loading}
+	bind:this={player.root}
 >
 	<video
 		bind:paused={player.paused}
@@ -148,7 +148,7 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full bg-black object-cover"
+		class="size-full object-cover"
 		crossorigin="anonymous"
 		autoplay
 		playsinline
@@ -170,134 +170,77 @@
 		{/each}
 	</video>
 
-	<div
-		class={[
-			"pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-linear-to-b from-black/90 via-black/50 to-transparent p-5 transition-opacity duration-300 sm:p-7 lg:p-9",
-			hidden && "opacity-0",
-		]}
-	>
-		<a
-			href={back}
-			aria-label="Back to {series}"
-			class="pointer-events-auto grid size-10 place-items-center text-white/90 drop-shadow transition-[color,opacity,transform] duration-150 hover:text-white hover:opacity-75 active:scale-90"
-		>
-			<CaretLeftIcon size="2rem" weight="bold" />
-		</a>
-
-		<div class="absolute inset-x-0 mx-auto max-w-[60vw] text-center">
-			<p class="truncate text-sm font-bold tracking-wide drop-shadow sm:text-base">{series}</p>
-			<p class="mt-0.5 truncate text-xs font-medium text-white/75 drop-shadow sm:text-sm">
-				{season ? `${season} · ${title}` : title}
-			</p>
-		</div>
-
-		<div class="size-11" aria-hidden="true"></div>
-	</div>
-
-	<div
-		class={[
-			"pointer-events-none absolute inset-y-0 left-0 z-10 w-full max-w-3xl bg-linear-to-r from-black/75 via-black/40 via-70% to-transparent transition-opacity duration-300 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl",
-			player.paused && !failure ? "opacity-100" : "opacity-0",
-		]}
-	></div>
-
-	{#if !failure}
-		<div
-			class={[
-				"pointer-events-none absolute inset-y-0 left-8 z-20 flex max-w-xl flex-col items-start justify-center transition-opacity duration-300 sm:left-14 sm:max-w-2xl lg:left-20 lg:max-w-3xl",
-				player.paused && !loading ? "opacity-100" : "opacity-0",
-			]}
-		>
-			{#if logo}
-				<img
-					src={tmdbImage(logo, "w500")}
-					alt={series}
-					class="mb-4 h-[clamp(3rem,4.5vw,6rem)] max-w-[70vw] object-contain object-left drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)] sm:max-w-sm md:max-w-md lg:max-w-lg"
-				/>
-			{:else}
-				<p
-					class="mb-3 text-3xl font-black tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-4xl md:text-5xl"
-				>
-					{series}
-				</p>
-			{/if}
-
-			<h1
-				class="text-2xl font-extrabold tracking-tight drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] sm:text-3xl md:text-4xl"
+	{#if failure}
+		<div class="grid justify-items-center gap-4 place-self-center px-4 text-center" role="alert">
+			<p class="text-[#e6e6e6]">{failure}</p>
+			<Button
+				class={pill}
+				onclick={() => {
+					player.failure = undefined;
+					onretry();
+				}}
 			>
-				{title}
-			</h1>
-
-			{#if overview}
-				<p
-					class="mt-4 line-clamp-4 max-w-xl text-sm leading-relaxed text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] sm:line-clamp-5 sm:max-w-2xl sm:text-base md:text-lg lg:max-w-3xl"
-				>
-					{overview}
-				</p>
-			{/if}
+				Try again
+			</Button>
 		</div>
 	{/if}
 
-	{#if player.cues.length}
+	<div
+		class="pointer-events-none z-1 mx-4 mb-21 flex flex-col items-center gap-4 self-end transition-[margin] duration-200 in-[.idle:not(:has(:popover-open))]:mb-[6vh]"
+	>
+		{#if segment}
+			<Button
+				class={[
+					pill,
+					"pointer-events-auto self-end shadow-[0_2px_12px_rgb(0_0_0/0.6)] transition-colors duration-120",
+				]}
+				onclick={() => (player.time = segment.end)}
+			>
+				{segment.kind === "opening" ? "Skip intro" : "Skip credits"}
+			</Button>
+		{/if}
+
 		<div
-			class={[
-				"pointer-events-none absolute inset-x-6 z-10 flex flex-col items-center gap-1 text-center text-[clamp(1.125rem,2.6vw,2.5rem)] leading-snug font-semibold whitespace-pre-line transition-[bottom] duration-200",
-				hidden ? "bottom-[6vh]" : "bottom-32",
-			]}
+			class="text-center text-[clamp(18px,2.6vw,40px)] leading-[1.25] font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]"
 		>
 			{#each player.cues as cue (cue)}
-				<p
-					class="m-0 px-2 py-0.5 subtitle-outline"
-					{@attach (element) => element.replaceChildren(cue.getCueAsHTML())}
-				></p>
+				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
 			{/each}
 		</div>
-	{/if}
+	</div>
 
-	{#if failure}
-		<div
-			role="alert"
-			class="absolute inset-0 z-20 grid place-items-center bg-black px-6 text-center"
-		>
-			<div>
-				<p class="text-base font-bold">{failure}</p>
-				<Button
-					class="mt-5 min-h-11 border border-white/60 px-5 text-sm font-bold transition-[border-color,transform] duration-150 hover:border-white active:scale-[0.97]"
-					onclick={() => {
-						player.failure = undefined;
-						onretry();
-					}}
-				>
-					Try again
-				</Button>
-			</div>
+	<header
+		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 [text-shadow:0_1px_4px_rgb(0_0_0/0.8)] in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
+	>
+		<a class={icon} href={back} aria-label="Back to {series}">
+			<ArrowLeftIcon size="1.5rem" weight="bold" />
+		</a>
+		<div>
+			<h1 class="text-xl font-normal">{title}</h1>
+			<p class="mt-0.5 flex items-center gap-2 text-sm text-[#ddd]">
+				<span>{series}</span>
+				{#if season}
+					<span
+						class="before:mr-2 before:inline-block before:size-1 before:rotate-45 before:bg-current before:align-middle before:content-['']"
+					>
+						{season}
+					</span>
+				{/if}
+			</p>
 		</div>
-	{:else if loading}
-		<div
-			role="status"
-			aria-label="Loading video"
-			class="pointer-events-none absolute inset-0 grid place-items-center bg-black/40"
-		>
-			<Spinner size="2.5rem" />
-		</div>
-	{/if}
+	</header>
 
-	{#if segment && !failure}
-		<Button
-			class="absolute right-4 bottom-28 z-30 min-h-11 bg-white/95 px-5 text-sm font-bold text-black shadow-[0_3px_14px_rgba(0,0,0,0.3)] transition-[background-color,scale] duration-200 hover:bg-white active:scale-[0.97] sm:right-6 sm:bottom-32"
-			onclick={() => (player.time = segment.end)}
-		>
-			{segment.kind === "opening" ? "Skip intro" : "Skip credits"}
-		</Button>
-	{/if}
-
-	<Controls {player} {previous} {next} {hidden}>
-		<Settings
-			media={versions ?? []}
-			subtitles={media?.subtitles ?? []}
-			bind:speed={player.speed}
-			bind:subtitle
-			bind:audio={() => audio, (value) => (preferred = value)}
-		/>
-	</Controls>
+	<footer
+		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
+	>
+		<Controls {player} {previous} {next}>
+			<Settings
+				media={versions ?? []}
+				subtitles={media?.subtitles ?? []}
+				bind:speed={player.speed}
+				bind:subtitle
+				bind:audio={() => audio, (value) => (preferred = value)}
+			/>
+		</Controls>
+	</footer>
 </div>
