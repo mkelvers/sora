@@ -29,23 +29,23 @@ stores each new episode as soon as a provider carries it.
 import { SoraClient } from "@sora/sdk";
 
 const sora = new SoraClient({
-  baseUrl: "http://localhost:3000"
+	baseUrl: "http://localhost:3000",
 });
 
 const [result] = await sora.search("Frieren");
 
 const series = await sora.series(result.id, {
-  params: {
-    episodes: true
-  }
+	params: {
+		episodes: true,
+	},
 });
 
 const season = series.seasons[0];
 const episode = season.episodes[0];
 
 const media = await sora.playback({
-  seasonId: season.id,
-  number: episode.number
+	seasonId: season.id,
+	number: episode.number,
 });
 ```
 
@@ -54,18 +54,18 @@ client fails type-checking here, before it ships.
 
 ## Apps
 
-| App                                  | What it does                                                          |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| [`@sora/api`](apps/api)              | HTTP API under `/v1`, with an OpenAPI document and `/health`          |
-| [`@sora/scheduler`](apps/scheduler)  | Follows airing anime and stores new episodes once a provider has them |
-| [`web`](apps/web)                    | SvelteKit web app                                                     |
+| App                                 | What it does                                                          |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| [`@sora/api`](apps/api)             | HTTP API under `/v1`, with an OpenAPI document and `/health`          |
+| [`@sora/scheduler`](apps/scheduler) | Follows airing anime and stores new episodes once a provider has them |
+| [`web`](apps/web)                   | SvelteKit web app                                                     |
 
 ## Packages
 
-| Package                         | What it does                                                 |
-| ------------------------------- | ------------------------------------------------------------ |
-| [`@sora/core`](packages/core)   | Catalog, playback providers, database schema, and migrations |
-| [`@sora/sdk`](packages/sdk)     | Typed client for the API                                     |
+| Package                       | What it does                                                 |
+| ----------------------------- | ------------------------------------------------------------ |
+| [`@sora/core`](packages/core) | Catalog, playback providers, database schema, and migrations |
+| [`@sora/sdk`](packages/sdk)   | Typed client for the API                                     |
 
 ## Getting started
 
