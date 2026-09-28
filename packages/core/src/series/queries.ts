@@ -57,7 +57,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
             airingAt: row.nextEpisodeAiringAt.toISOString(),
           }
         : null,
-    seasons: (listed.get(row.id) ?? []).map(({ season }) => season),
+    seasons: listedOnly(listed.get(row.id)),
     related,
   };
 }
@@ -509,6 +509,15 @@ async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], 
   );
 }
 
+/**
+ * The seasons a series lists: those with an episode to show. A season whose
+ * every episode is left out, such as extras AniKoto does not carry, is not
+ * listed at all; it can still be loaded by its ID.
+ */
+function listedOnly(listed: Awaited<ReturnType<typeof listedSeasons>> = []) {
+  return listed.flatMap(({ season }) => (season.episodeCount > 0 ? [season] : []));
+}
+
 /** Related titles that are stored, in display order. Titles still queued for storing are left out. */
 async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
   const rows = await db
@@ -591,7 +600,7 @@ async function cardsFrom(
         entries.flatMap((entry) => (entry.seriesId === row.id ? (languages.get(entry.anilistId) ?? []) : []))
       );
       const anchor = anime.get(row.anchorAnilistId);
-      const all = (listed.get(row.id) ?? []).map(({ season }) => season);
+      const all = listedOnly(listed.get(row.id));
       const seasons = all.filter((season) => season.kind === "season");
       return [
         row.id,
