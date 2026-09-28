@@ -90,22 +90,26 @@
 
 	const popover = new Popover({
 		onOpenChange: () => (submenu = undefined),
+		closeOnOutsideClick: (element) => !(element instanceof Element) || element.isConnected,
 		floatingConfig: {
 			computePosition: {
 				placement: "top-end",
 			},
-			offset: 12,
+			offset: 8,
 		},
 	});
 </script>
 
-<div class="relative">
+<div>
 	<Button
 		{...popover.trigger}
-		class="grid size-11 cursor-pointer place-items-center transition-[opacity,transform] duration-150 hover:opacity-75 active:scale-90 sm:size-9"
+		class={[
+			"size-10 rounded-full p-0 text-[#ddd] transition-[background-color,color,rotate] duration-[120ms,120ms,200ms] hover:bg-white/10 hover:text-white",
+			popover.open && "rotate-30 bg-white/10 text-white",
+		]}
 		aria-label="Settings"
 	>
-		<GearSixIcon size="1.5rem" weight="bold" />
+		<GearSixIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	<div
@@ -113,7 +117,7 @@
 		bind:this={content}
 		role="menu"
 		aria-label={open?.label ?? "Settings"}
-		class="inset-auto m-0 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel text-sm text-watch-secondary shadow-lg open:flex"
+		class="inset-auto m-0 max-h-[min(60vh,440px)] min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] open:flex"
 		onpointermove={(event) => {
 			const item = (event.target as HTMLElement).closest<HTMLElement>("button");
 			if (item && item !== document.activeElement) {
@@ -125,17 +129,17 @@
 	>
 		{#if open}
 			<Button
-				class="flex min-h-11 w-full items-center justify-start gap-2 border-b border-white/10 px-3 font-bold text-watch-primary focus:bg-white/5 focus:outline-none"
+				class="w-full justify-start border-b border-white/8 px-4 py-2.5 pl-2.5 text-left text-sm font-medium font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
 				onclick={() => (submenu = undefined)}
 			>
-				<CaretLeftIcon size="1.1rem" weight="bold" />
+				<CaretLeftIcon size="1.25rem" />
 				{open.label}
 			</Button>
 			{#each open.options as option (option.value)}
 				<Button
 					role="menuitemradio"
 					aria-checked={option.value === open.value}
-					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 focus:bg-white/5 focus:text-watch-primary focus:outline-none"
+					class="w-full justify-start px-4 py-2.5 text-left text-sm font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
 					onclick={() => {
 						open.select(option.value);
 						submenu = undefined;
@@ -148,14 +152,14 @@
 			{#each menus as menu (menu.label)}
 				<Button
 					role="menuitem"
-					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 focus:bg-white/5 focus:text-watch-primary focus:outline-none"
+					class="w-full justify-start px-4 py-2.5 text-left text-sm font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
 					onclick={() => (submenu = menu.label)}
 				>
 					{menu.label}
-					<span class="ml-auto text-watch-muted">
+					<span class="ml-auto text-[#999]">
 						{menu.options.find((option) => option.value === menu.value)?.label}
 					</span>
-					<CaretRightIcon size="1rem" weight="bold" />
+					<CaretRightIcon size="1.25rem" />
 				</Button>
 			{/each}
 		{/if}
