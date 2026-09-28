@@ -212,6 +212,36 @@ describe("layoutShowSeasons", () => {
 		expect(layout.filter((season) => season.kind === "ova")).toHaveLength(1);
 	});
 
+	test("lays out an unlisted sequel that has yet to air with its announced premiere", () => {
+		// Black Clover's second season: AniList announces episode 1 before TMDB lists it.
+		const layout = layoutShowSeasons({
+			show,
+			members: [
+				seasonOne,
+				seasonTwo,
+				seasonTwoPartTwo,
+				{
+					...member(
+						anime(5, "Tensura Season 3", {
+							status: "NOT_YET_RELEASED",
+							nextEpisode: {
+								number: 1,
+								airingAt: "2026-10-03T00:00:00.000Z",
+							},
+						}),
+						[],
+						[3],
+					),
+					isUnlistedSeason: true,
+				},
+			],
+		});
+
+		const regular = layout.filter((season) => season.kind === "season");
+		expect(regular.map((season) => season.title)).toEqual(["Season 1", "Season 2", "Season 3"]);
+		expect(outline(regular[2]!)).toEqual(["5#1"]);
+	});
+
 	test("merges an unlisted later part into the unlisted season it continues", () => {
 		const layout = layoutShowSeasons({
 			show,

@@ -360,6 +360,9 @@ export function layoutStandaloneSeason(anime: AnimeCard, number: number): Series
  * The entry's episodes in AniList order, including ones TMDB does not list.
  * Each counts towards the TMDB season of its nearest listed neighbour, so an
  * "episode 0" filed under specials stays with the season it opens.
+ *
+ * An unlisted season also has its announced next episode, so a season that
+ * has yet to air is laid out and its premiere has an episode to point to.
  */
 function rowsOf(
 	member: SeasonMember,
@@ -371,7 +374,12 @@ function rowsOf(
 	>,
 ): Row[] {
 	const links = new Map(member.links.map((link) => [link.anilistEpisode, link]));
-	const count = Math.max(episodeCount(member), ...member.links.map((link) => link.anilistEpisode));
+	const announced = member.isUnlistedSeason ? (member.anime.nextEpisode?.number ?? 0) : 0;
+	const count = Math.max(
+		episodeCount(member),
+		announced,
+		...member.links.map((link) => link.anilistEpisode),
+	);
 
 	const rows: Row[] = Array.from(
 		{
