@@ -6,13 +6,15 @@
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 
+	import type { PageProps } from "./$types";
 	import ContinueWatching from "./_components/ContinueWatching.svelte";
 	import Hero from "./_components/Hero.svelte";
-	import { getContinueWatching, getFeatured, getRecommendations, getTrending } from "./home.remote";
+	import { getContinueWatching } from "./home.remote";
 
-	const [featured, continuing, recommended, trending] = $derived(
-		await Promise.all([getFeatured(), getContinueWatching(), getRecommendations(), getTrending()]),
-	);
+	let { data }: PageProps = $props();
+
+	const continuing = $derived(await getContinueWatching());
+	const { featured, recommended, trending } = $derived(data);
 	const resumes = $derived(new Map(continuing.map((item) => [item.series.id, item])));
 	const rows = $derived([
 		{
