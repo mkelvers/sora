@@ -1,17 +1,16 @@
 <script lang="ts">
-	import Filters from "./_components/Filters.svelte";
-	import Images from "./_components/Images.svelte";
-	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { cn } from "$lib/utils";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import { Artwork } from "./artwork.svelte";
+	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
+
 	import { getSeries } from "../series.remote";
 	import type { PageProps } from "./$types";
+	import Filters from "./_components/Filters.svelte";
+	import Images from "./_components/Images.svelte";
+	import { Artwork } from "./artwork.svelte";
 
-	let {
-		params,
-	}: PageProps = $props();
+	let { params }: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
 	const artwork = new Artwork();
@@ -65,7 +64,9 @@
 							aria-checked={artwork.type === option.value}
 							class={cn(
 								"inline-flex h-12 cursor-pointer items-center border-b-2 text-sm font-medium transition-colors hover:text-foreground",
-								artwork.type === option.value ? "border-accent text-foreground" : "border-transparent text-muted",
+								artwork.type === option.value
+									? "border-accent text-foreground"
+									: "border-transparent text-muted",
 							)}
 							onclick={() => (artwork.type = option.value)}
 						>
@@ -95,7 +96,9 @@
 						<ul
 							class={cn(
 								"grid gap-x-5 gap-y-8",
-								artwork.type === "poster" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+								artwork.type === "poster"
+									? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"
+									: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
 							)}
 							aria-busy="true"
 							aria-label="Loading images"
