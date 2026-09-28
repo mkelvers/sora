@@ -1,70 +1,52 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
-	import Button from "./Button.svelte";
 	import { cn } from "$lib/utils";
+	import { Popover } from "melt/builders";
+	import type { Snippet } from "svelte";
+
+	import Button from "./Button.svelte";
 
 	type Props = {
 		children: Snippet;
 		trigger: Snippet;
-		id: string;
 		label?: string;
 		alignment?: "left" | "right";
 		className?: string;
 	};
 
-	let {
-		alignment = "right",
-		children,
-		className,
-		id,
-		label,
-		trigger,
-	}: Props = $props();
+	let { alignment = "right", children, className, label, trigger }: Props = $props();
+
+	const popover = new Popover({
+		floatingConfig: () => ({
+			computePosition: {
+				placement: alignment === "left" ? "bottom-start" : "bottom-end",
+			},
+			offset: 0,
+		}),
+	});
 </script>
 
 <div class="dropdown-root group relative">
 	<Button
-		class="dropdown-trigger cursor-pointer p-2 uppercase tracking-wide hover:bg-dropdown hover:text-white group-has-[.dropdown-menu:popover-open]:bg-dropdown group-has-[.dropdown-menu:popover-open]:text-white text-[#8c8c8c]"
+		{...popover.trigger}
+		class="dropdown-trigger cursor-pointer p-2 tracking-wide text-[#8c8c8c] uppercase group-has-[.dropdown-menu:popover-open]:bg-dropdown group-has-[.dropdown-menu:popover-open]:text-white hover:bg-dropdown hover:text-white"
 		variant="ghost"
 		aria-label={label}
-		popovertarget={id}
 	>
 		{@render trigger()}
 	</Button>
 
 	<div
-		{id}
-		popover
-		data-alignment={alignment}
+		{...popover.content}
 		class={cn(
-			"dropdown-menu open:flex z-10 w-56 flex-col gap-1 overflow-hidden bg-dropdown shadow-lg *:px-5 *:py-3 *:text-[#8c8c8c] [&>button]:w-full [&>button]:cursor-pointer [&>button]:justify-start [&>button:hover]:bg-dropdown-hover text-[0.875rem]",
+			"dropdown-menu inset-auto z-10 m-0 w-56 flex-col gap-1 overflow-hidden bg-dropdown text-[0.875rem] shadow-lg *:px-5 *:py-3 *:text-[#8c8c8c] open:flex [&>button]:w-full [&>button]:cursor-pointer [&>button]:justify-start [&>button:hover]:bg-dropdown-hover",
 			className,
 		)}
+		onclick={(event) => {
+			if ((event.target as HTMLElement).closest("a, button")) {
+				popover.open = false;
+			}
+		}}
 	>
 		{@render children()}
 	</div>
 </div>
-
-<style>
-	.dropdown-root {
-		anchor-scope: --dropdown-trigger;
-	}
-
-	:global(.dropdown-trigger) {
-		anchor-name: --dropdown-trigger;
-	}
-
-	.dropdown-menu {
-		position-anchor: --dropdown-trigger;
-		inset: auto;
-		top: anchor(bottom);
-	}
-
-	.dropdown-menu[data-alignment="left"] {
-		left: anchor(left);
-	}
-
-	.dropdown-menu[data-alignment="right"] {
-		right: anchor(right);
-	}
-</style>
