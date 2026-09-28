@@ -1,73 +1,78 @@
 <script lang="ts">
-    import { enhance } from '$app/forms';
-    import { untrack } from 'svelte';
-    import AuthInput from '../_components/AuthInput.svelte';
-    import StatusBanner from '$lib/components/StatusBanner.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import type { PageProps } from './$types';
+	import { enhance } from "$app/forms";
+	import StatusBanner from "$lib/components/StatusBanner.svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import { untrack } from "svelte";
 
-    let { form }: PageProps = $props();
+	import AuthInput from "../_components/AuthInput.svelte";
+	import type { PageProps } from "./$types";
 
-    let email = $state(untrack(() => form?.email ?? ''));
-    let password = $state('');
-    let pending = $state(false);
-    let dismissed = $state(false);
+	let { form }: PageProps = $props();
+
+	let email = $state(untrack(() => form?.email ?? ""));
+	let password = $state("");
+	let pending = $state(false);
+	let dismissed = $state(false);
 </script>
 
 <svelte:head>
-    <title>Sign in · Sora</title>
-    <meta name="description" content="Sign in to Sora" />
-    <meta name="robots" content="noindex" />
+	<title>Sign in · Sora</title>
+	<meta name="description" content="Sign in to Sora" />
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<StatusBanner message={dismissed ? '' : (form?.message ?? '')} tone="error" ondismiss={() => (dismissed = true)} />
+<StatusBanner
+	message={dismissed ? "" : (form?.message ?? "")}
+	tone="error"
+	ondismiss={() => (dismissed = true)}
+/>
 
 <form
-    class="w-full max-w-104"
-    method="POST"
-    aria-busy={pending}
-    use:enhance={() => {
-        pending = true;
-        dismissed = false;
-        return async ({ update }) => {
-            await update({ reset: false });
-            password = '';
-            pending = false;
-        };
-    }}
+	class="w-full max-w-104"
+	method="POST"
+	aria-busy={pending}
+	use:enhance={() => {
+		pending = true;
+		dismissed = false;
+		return async ({ update }) => {
+			await update({ reset: false });
+			password = "";
+			pending = false;
+		};
+	}}
 >
-    <h1 class="text-center text-3xl font-normal">Sign in</h1>
+	<h1 class="text-center text-3xl font-normal">Sign in</h1>
 
-    <div class="mt-16 space-y-6">
-        <AuthInput
-            name="email"
-            label="E-mail"
-            type="email"
-            autocomplete="email"
-            autocapitalize="none"
-            spellcheck={false}
-            constraints={{
-                required: true,
-            }}
-            bind:value={email}
-        />
-        <AuthInput
-            name="password"
-            label="Password"
-            type="password"
-            autocomplete="current-password"
-            constraints={{
-                required: true,
-            }}
-            bind:value={password}
-        />
-    </div>
+	<div class="mt-16 space-y-6">
+		<AuthInput
+			name="email"
+			label="E-mail"
+			type="email"
+			autocomplete="email"
+			autocapitalize="none"
+			spellcheck={false}
+			constraints={{
+				required: true,
+			}}
+			bind:value={email}
+		/>
+		<AuthInput
+			name="password"
+			label="Password"
+			type="password"
+			autocomplete="current-password"
+			constraints={{
+				required: true,
+			}}
+			bind:value={password}
+		/>
+	</div>
 
-    <Button
-        class="mt-10 min-h-11 w-full px-4 text-xs font-bold uppercase active:scale-[0.97]"
-        type="submit"
-        disabled={pending}
-    >
-        {pending ? 'Signing in…' : 'Sign in'}
-    </Button>
+	<Button
+		class="mt-10 min-h-11 w-full px-4 text-xs font-bold uppercase active:scale-[0.97]"
+		type="submit"
+		disabled={pending}
+	>
+		{pending ? "Signing in…" : "Sign in"}
+	</Button>
 </form>
