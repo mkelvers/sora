@@ -11,12 +11,12 @@
  */
 export { auth, getSession, type Session } from "./auth";
 export {
-  createProfile,
-  deleteProfile,
-  getProfile,
-  listProfiles,
-  ProfileInputSchema,
-  updateProfile,
-  type Profile,
-  type ProfileInput
+	createProfile,
+	deleteProfile,
+	getProfile,
+	listProfiles,
+	ProfileInputSchema,
+	updateProfile,
+	type Profile,
+	type ProfileInput,
 } from "./profiles";

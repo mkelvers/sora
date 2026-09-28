@@ -20,41 +20,41 @@ import { createProfile } from "./profiles";
  * A new account starts with one profile, named after the account.
  */
 export const auth = betterAuth({
-  baseURL: config.authUrl,
-  basePath: "/v1/auth",
-  secret: config.authSecret,
-  trustedOrigins: config.authTrustedOrigins,
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      user: authUser,
-      session: authSession,
-      account: authAccount,
-      verification: authVerification,
-    },
-  }),
-  emailAndPassword: {
-    enabled: true,
-    disableSignUp: true,
-    minPasswordLength: 8,
-  },
-  session: {
-    // Long-lived, as TVs and phones stay signed in; renewed daily while used.
-    expiresIn: (90 * day) / 1_000,
-    updateAge: day / 1_000,
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          await createProfile(user.id, {
-            name: user.name,
-          });
-        },
-      },
-    },
-  },
-  plugins: [bearer()],
+	baseURL: config.authUrl,
+	basePath: "/v1/auth",
+	secret: config.authSecret,
+	trustedOrigins: config.authTrustedOrigins,
+	database: drizzleAdapter(db, {
+		provider: "pg",
+		schema: {
+			user: authUser,
+			session: authSession,
+			account: authAccount,
+			verification: authVerification,
+		},
+	}),
+	emailAndPassword: {
+		enabled: true,
+		disableSignUp: true,
+		minPasswordLength: 8,
+	},
+	session: {
+		// Long-lived, as TVs and phones stay signed in; renewed daily while used.
+		expiresIn: (90 * day) / 1_000,
+		updateAge: day / 1_000,
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					await createProfile(user.id, {
+						name: user.name,
+					});
+				},
+			},
+		},
+	},
+	plugins: [bearer()],
 });
 
 /** A signed-in account and its session, as {@link getSession} returns it. */
@@ -62,7 +62,7 @@ export type Session = typeof auth.$Infer.Session;
 
 /** The session a request's cookie or bearer token belongs to, or `null`. */
 export function getSession(headers: Headers): Promise<Session | null> {
-  return auth.api.getSession({
-    headers,
-  });
+	return auth.api.getSession({
+		headers,
+	});
 }
