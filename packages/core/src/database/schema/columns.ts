@@ -2,9 +2,9 @@ import { customType, timestamp } from "drizzle-orm/pg-core";
 
 /** A `timestamp with time zone` column; every timestamp in the schema uses one. */
 export const timestamptz = (name: string) =>
-  timestamp(name, {
-    withTimezone: true,
-  });
+	timestamp(name, {
+		withTimezone: true,
+	});
 
 /**
  * A `jsonb` column; use this instead of drizzle's own.
@@ -15,10 +15,10 @@ export const timestamptz = (name: string) =>
  * and arrays itself, so values are passed through unchanged.
  */
 export const jsonb = customType<{
-  data: unknown;
-  driverData: unknown;
+	data: unknown;
+	driverData: unknown;
 }>({
-  dataType: () => "jsonb",
-  toDriver: (value) => value,
-  fromDriver: (value) => value,
+	dataType: () => "jsonb",
+	toDriver: (value) => value,
+	fromDriver: (value) => value,
 });

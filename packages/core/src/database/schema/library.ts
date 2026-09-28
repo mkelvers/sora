@@ -1,4 +1,12 @@
-import { boolean, doublePrecision, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import {
+	boolean,
+	doublePrecision,
+	index,
+	integer,
+	pgTable,
+	primaryKey,
+	text,
+} from "drizzle-orm/pg-core";
 
 import { timestamptz } from "./columns";
 import { series } from "./series";
@@ -12,28 +20,25 @@ import { series } from "./series";
  * series store moves the entries of the one that disappears.
  */
 export const watchlistEntry = pgTable(
-  "watchlist_entry",
-  {
-    userId: text("user_id").notNull(),
-    seriesId: text("series_id")
-      .notNull()
-      .references(() => series.id, {
-        onDelete: "cascade",
-      }),
-    /** When the user marked the title dropped, or `null` while they have not. */
-    droppedAt: timestamptz("dropped_at"),
-    createdAt: timestamptz("created_at").notNull().defaultNow(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({
-      columns: [
-        table.userId,
-        table.seriesId
-      ],
-    }),
-    index("watchlist_entry_user_updated_idx").on(table.userId, table.updatedAt)
-  ]
+	"watchlist_entry",
+	{
+		userId: text("user_id").notNull(),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		/** When the user marked the title dropped, or `null` while they have not. */
+		droppedAt: timestamptz("dropped_at"),
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.seriesId],
+		}),
+		index("watchlist_entry_user_updated_idx").on(table.userId, table.updatedAt),
+	],
 );
 
 /**
@@ -42,21 +47,18 @@ export const watchlistEntry = pgTable(
  * `resolveImportedEntries`.
  */
 export const watchlistImport = pgTable(
-  "watchlist_import",
-  {
-    userId: text("user_id").notNull(),
-    anilistId: integer("anilist_id").notNull(),
-    droppedAt: timestamptz("dropped_at"),
-    createdAt: timestamptz("created_at").notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({
-      columns: [
-        table.userId,
-        table.anilistId
-      ],
-    })
-  ]
+	"watchlist_import",
+	{
+		userId: text("user_id").notNull(),
+		anilistId: integer("anilist_id").notNull(),
+		droppedAt: timestamptz("dropped_at"),
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.anilistId],
+		}),
+	],
 );
 
 /**
@@ -66,24 +68,21 @@ export const watchlistImport = pgTable(
  * Follows its series through merges like {@link watchlistEntry}.
  */
 export const continueWatchingDismissal = pgTable(
-  "continue_watching_dismissal",
-  {
-    userId: text("user_id").notNull(),
-    seriesId: text("series_id")
-      .notNull()
-      .references(() => series.id, {
-        onDelete: "cascade",
-      }),
-    dismissedAt: timestamptz("dismissed_at").notNull(),
-  },
-  (table) => [
-    primaryKey({
-      columns: [
-        table.userId,
-        table.seriesId
-      ],
-    })
-  ]
+	"continue_watching_dismissal",
+	{
+		userId: text("user_id").notNull(),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		dismissedAt: timestamptz("dismissed_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.seriesId],
+		}),
+	],
 );
 
 /**
@@ -96,26 +95,22 @@ export const continueWatchingDismissal = pgTable(
  * behind it leaves the season unfinished again.
  */
 export const playbackProgress = pgTable(
-  "playback_progress",
-  {
-    userId: text("user_id").notNull(),
-    anilistId: integer("anilist_id").notNull(),
-    episode: doublePrecision("episode").notNull(),
-    positionSeconds: doublePrecision("position_seconds").notNull(),
-    durationSeconds: doublePrecision("duration_seconds").notNull(),
-    completed: boolean("completed").notNull(),
-    /** Client-side time of the event; later events win across devices. */
-    eventAt: timestamptz("event_at").notNull(),
-    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({
-      columns: [
-        table.userId,
-        table.anilistId,
-        table.episode
-      ],
-    }),
-    index("playback_progress_user_event_idx").on(table.userId, table.eventAt)
-  ]
+	"playback_progress",
+	{
+		userId: text("user_id").notNull(),
+		anilistId: integer("anilist_id").notNull(),
+		episode: doublePrecision("episode").notNull(),
+		positionSeconds: doublePrecision("position_seconds").notNull(),
+		durationSeconds: doublePrecision("duration_seconds").notNull(),
+		completed: boolean("completed").notNull(),
+		/** Client-side time of the event; later events win across devices. */
+		eventAt: timestamptz("event_at").notNull(),
+		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.anilistId, table.episode],
+		}),
+		index("playback_progress_user_event_idx").on(table.userId, table.eventAt),
+	],
 );
