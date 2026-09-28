@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { BookmarkSimpleIcon, CaretLeftIcon, CaretRightIcon, PlayIcon } from 'phosphor-svelte';
-	import type { SeriesCard } from '@sora/sdk';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Carousel from '$lib/components/ui/Carousel.svelte';
-	import ProgressiveImage from '$lib/components/ui/ProgressiveImage.svelte';
-	import { audioLabel, cn, tmdbImage } from '$lib/utils';
-	import { getListed, setListed } from '$lib/watchlist.remote';
+	import Button from "$lib/components/ui/Button.svelte";
+	import Carousel from "$lib/components/ui/Carousel.svelte";
+	import ProgressiveImage from "$lib/components/ui/ProgressiveImage.svelte";
+	import { audioLabel, cn, tmdbImage } from "$lib/utils";
+	import { getListed, setListed } from "$lib/watchlist.remote";
+	import type { SeriesCard } from "@sora/sdk";
+	import { BookmarkSimpleIcon, CaretLeftIcon, CaretRightIcon, PlayIcon } from "phosphor-svelte";
+	import { prefersReducedMotion } from "svelte/motion";
 
 	let {
 		featured,
@@ -24,7 +24,7 @@
 {#if featured.length}
 	<Carousel
 		autoplay={15_000}
-		class="relative h-[min(100svh,32rem)] touch-pan-y overflow-hidden bg-black select-none sm:h-[min(100svh,42rem)] sm:min-h-180 sm:max-h-192 xl:h-[calc(100svh-3.5rem)] xl:max-h-none"
+		class="relative h-[min(100svh,32rem)] touch-pan-y overflow-hidden bg-black select-none sm:h-[min(100svh,42rem)] sm:max-h-192 sm:min-h-180 xl:h-[calc(100svh-3.5rem)] xl:max-h-none"
 	>
 		{#snippet children({ active: current, previous, paused, cycle, select })}
 			{@const series = featured[current]!}
@@ -34,12 +34,12 @@
 					<div class="relative h-full min-w-0 flex-[0_0_100%]">
 						<article
 							class={cn(
-								'home-hero-slide absolute inset-0 grid grid-cols-1 grid-rows-1 overflow-hidden transition-opacity duration-500 ease-out motion-reduce:transition-none',
+								"home-hero-slide absolute inset-0 grid grid-cols-1 grid-rows-1 overflow-hidden transition-opacity duration-500 ease-out motion-reduce:transition-none",
 								index === current
-									? 'opacity-100'
+									? "opacity-100"
 									: index === previous
-										? 'pointer-events-none opacity-0'
-										: 'pointer-events-none hidden opacity-0'
+										? "pointer-events-none opacity-0"
+										: "pointer-events-none hidden opacity-0",
 							)}
 							aria-roledescription="slide"
 							aria-label="{slide.title}, {index + 1} of {featured.length}"
@@ -58,8 +58,8 @@
 										class="col-start-1 row-start-1"
 										imageClass="object-top"
 										displaySize="original"
-										previewLoading={index === current ? 'eager' : 'lazy'}
-										fetchpriority={index === current ? 'high' : 'low'}
+										previewLoading={index === current ? "eager" : "lazy"}
+										fetchpriority={index === current ? "high" : "low"}
 										onready={() => (ready.backdrops = new Set(ready.backdrops).add(slide.id))}
 									/>
 								{/if}
@@ -69,13 +69,17 @@
 				{/each}
 			</div>
 
-			<article class="home-hero-slide absolute inset-0 grid grid-cols-1 grid-rows-1 overflow-hidden">
+			<article
+				class="home-hero-slide absolute inset-0 grid grid-cols-1 grid-rows-1 overflow-hidden"
+			>
 				<div
-					class="pointer-events-none z-30 col-start-1 row-start-1 min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem_-_100svh,9rem)] xl:self-center xl:pb-0"
+					class="pointer-events-none z-30 col-start-1 row-start-1 min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem-100svh,9rem)] xl:self-center xl:pb-0"
 				>
 					<div class="relative">
 						<div class="px-5 sm:px-10 lg:px-16">
-							<div class="relative h-24 w-[min(100%,20rem)] sm:h-32 sm:w-[min(100%,32rem)] lg:h-64 xl:h-auto xl:w-fit">
+							<div
+								class="relative h-24 w-[min(100%,20rem)] sm:h-32 sm:w-[min(100%,32rem)] lg:h-64 xl:h-auto xl:w-fit"
+							>
 								<a
 									href="/series/{series.id}"
 									class="pointer-events-auto relative z-10 flex h-full w-full items-center justify-center px-10 sm:items-end sm:justify-start xl:block xl:h-auto xl:w-fit xl:px-0"
@@ -84,16 +88,18 @@
 									{#each featured as slide, index (slide.id)}
 										{#if slide.logo_url && (index === current || index === previous)}
 											<img
-												src={tmdbImage(slide.logo_url, 'w500')}
-												alt={index === current ? slide.title : ''}
+												src={tmdbImage(slide.logo_url, "w500")}
+												alt={index === current ? slide.title : ""}
 												aria-hidden={index !== current}
 												decoding="async"
 												class={cn(
-													'max-h-24 max-w-[calc(100%-5rem)] object-contain object-center transition-opacity duration-300 sm:max-h-32 sm:max-w-sm sm:object-left lg:max-h-64 lg:max-w-lg',
-													index === current ? 'block' : 'absolute inset-0',
-													index === current && ready.backdrops.has(slide.id) && ready.logos.has(slide.id)
-														? 'opacity-100'
-														: 'opacity-0'
+													"max-h-24 max-w-[calc(100%-5rem)] object-contain object-center transition-opacity duration-300 sm:max-h-32 sm:max-w-sm sm:object-left lg:max-h-64 lg:max-w-lg",
+													index === current ? "block" : "absolute inset-0",
+													index === current &&
+														ready.backdrops.has(slide.id) &&
+														ready.logos.has(slide.id)
+														? "opacity-100"
+														: "opacity-0",
 												)}
 												onload={() => (ready.logos = new Set(ready.logos).add(slide.id))}
 											/>
@@ -131,7 +137,7 @@
 							</span>
 						{/if}
 						{#if series.genres.length}
-							<span class="metadata-tag">{series.genres.slice(0, 4).join(', ')}</span>
+							<span class="metadata-tag">{series.genres.slice(0, 4).join(", ")}</span>
 						{/if}
 					</p>
 
@@ -144,7 +150,7 @@
 					{/if}
 
 					<div
-						class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center sm:px-10 lg:mt-7 lg:px-16 lg:text-sm"
+						class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-16 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
 					>
 						{#if series.start_season_id}
 							<a
@@ -152,13 +158,13 @@
 								class="inline-flex h-10 items-center gap-2 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
 							>
 								<PlayIcon size="1.2rem" weight="bold" />
-								{series.kind === 'movie' ? 'Play' : 'Start watching E1'}
+								{series.kind === "movie" ? "Play" : "Start watching E1"}
 							</a>
 						{/if}
 						<button
 							type="button"
 							class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-							aria-label={listed ? 'Remove from Watchlist' : 'Add to Watchlist'}
+							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 							aria-pressed={listed}
 							onclick={() =>
 								setListed({
@@ -166,21 +172,23 @@
 									listed: !listed,
 								}).updates(
 									listing.withOverride((ids) =>
-										listed ? ids.filter((id) => id !== series.id) : [...ids, series.id]
-									)
+										listed ? ids.filter((id) => id !== series.id) : [...ids, series.id],
+									),
 								)}
 						>
-							<BookmarkSimpleIcon size="1.35rem" weight={listed ? 'fill' : 'bold'} />
+							<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
 						</button>
 					</div>
 
 					{#if featured.length > 1}
-						<div class="pointer-events-auto relative z-30 mt-8 flex items-center justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-14 lg:px-16">
+						<div
+							class="pointer-events-auto relative z-30 mt-8 flex items-center justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-14 lg:px-16"
+						>
 							{#each featured as item, index (item.id)}
 								<Button
 									class={cn(
-										'group relative grid h-8 place-items-center transition-[width] duration-300 ease-out motion-reduce:transition-none',
-										index === current ? 'w-12' : 'w-6'
+										"group relative grid h-8 place-items-center transition-[width] duration-300 ease-out motion-reduce:transition-none",
+										index === current ? "w-12" : "w-6",
 									)}
 									aria-label={item.title}
 									aria-pressed={index === current}
@@ -188,17 +196,17 @@
 								>
 									<span
 										class={cn(
-											'relative block h-2 overflow-hidden bg-white/40 transition-[width,background-color] duration-300 ease-out group-hover:bg-accent/60',
-											index === current ? 'w-12' : 'w-6'
+											"relative block h-2 overflow-hidden bg-white/40 transition-[width,background-color] duration-300 ease-out group-hover:bg-accent/60",
+											index === current ? "w-12" : "w-6",
 										)}
 									>
 										{#if index === current}
 											{#key cycle}
 												<span
 													class={cn(
-														'absolute inset-y-0 left-0 bg-accent',
-														prefersReducedMotion.current ? 'w-full' : 'hero-progress',
-														paused && '[animation-play-state:paused]'
+														"absolute inset-y-0 left-0 bg-accent",
+														prefersReducedMotion.current ? "w-full" : "hero-progress",
+														paused && "[animation-play-state:paused]",
 													)}
 												></span>
 											{/key}

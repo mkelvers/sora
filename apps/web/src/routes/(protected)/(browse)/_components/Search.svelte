@@ -1,14 +1,15 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
-	import { afterNavigate, goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { MagnifyingGlassIcon } from 'phosphor-svelte';
-	import Skeleton from '$lib/components/snippets/Skeleton.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { cn } from '$lib/utils';
-	import Suggestions from './Suggestions.svelte';
+	import { afterNavigate, goto } from "$app/navigation";
+	import { page } from "$app/state";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import { cn } from "$lib/utils";
+	import { MagnifyingGlassIcon } from "phosphor-svelte";
+	import { tick, untrack } from "svelte";
 
-	const searchRoute = '/(protected)/(browse)/search';
+	import Suggestions from "./Suggestions.svelte";
+
+	const searchRoute = "/(protected)/(browse)/search";
 
 	const onSearch = $derived(page.route.id === searchRoute);
 
@@ -17,8 +18,8 @@
 	let panel = $state<HTMLDivElement>();
 
 	let open = $state(page.route.id === searchRoute);
-	let text = $state(page.route.id === searchRoute ? (page.url.searchParams.get('q') ?? '') : '');
-	let term = $state('');
+	let text = $state(page.route.id === searchRoute ? (page.url.searchParams.get("q") ?? "") : "");
+	let term = $state("");
 	let focused = $state(false);
 	let dismissed = $state(false);
 	let active = $state(-1);
@@ -31,7 +32,7 @@
 		const timer = setTimeout(() => {
 			if (!onSearch) {
 				term = value;
-			} else if (value && value !== page.url.searchParams.get('q')) {
+			} else if (value && value !== page.url.searchParams.get("q")) {
 				goto(`/search?q=${encodeURIComponent(value)}`, {
 					replaceState: true,
 					keepFocus: true,
@@ -56,14 +57,14 @@
 
 		if (to?.route.id !== searchRoute) {
 			open = false;
-			text = '';
-			term = '';
+			text = "";
+			term = "";
 			input?.blur();
 			return;
 		}
 
-		if (type !== 'goto') {
-			text = to.url.searchParams.get('q') ?? '';
+		if (type !== "goto") {
+			text = to.url.searchParams.get("q") ?? "";
 		}
 
 		open = true;
@@ -104,7 +105,7 @@
 	function navigate(event: KeyboardEvent) {
 		const options = panel?.querySelectorAll<HTMLElement>('[role="option"]');
 
-		if (event.key === 'Escape') {
+		if (event.key === "Escape") {
 			if (shown) {
 				dismissed = true;
 				active = -1;
@@ -114,7 +115,7 @@
 			return;
 		}
 
-		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!shown) {
 				dismissed = false;
 				return;
@@ -125,13 +126,13 @@
 			}
 
 			event.preventDefault();
-			const step = event.key === 'ArrowDown' ? 1 : -1;
+			const step = event.key === "ArrowDown" ? 1 : -1;
 			const count = options.length + 1;
 			active = ((active + 1 + step + count) % count) - 1;
 			return;
 		}
 
-		if (event.key === 'Enter' && shown && active >= 0 && options?.[active]) {
+		if (event.key === "Enter" && shown && active >= 0 && options?.[active]) {
 			event.preventDefault();
 			options[active].click();
 		}
@@ -154,12 +155,12 @@
 		const target = event.target as HTMLElement;
 
 		if (
-			event.key !== '/' ||
+			event.key !== "/" ||
 			event.metaKey ||
 			event.ctrlKey ||
 			event.altKey ||
 			target.isContentEditable ||
-			['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+			["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
 		) {
 			return;
 		}
@@ -182,8 +183,8 @@
 >
 	<div
 		class={cn(
-			'flex w-0 items-center overflow-hidden bg-header-hover transition-[width] duration-260 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none',
-			open && 'w-[min(22.5rem,calc(100vw-9rem))]'
+			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width] duration-260 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
+			open && "w-[min(22.5rem,calc(100vw-9rem))]",
 		)}
 		inert={!open}
 	>
@@ -212,8 +213,8 @@
 
 	<Button
 		class={cn(
-			'h-full w-12 text-muted hover:bg-header-hover hover:text-foreground focus-visible:ring-inset sm:w-14',
-			open && 'bg-header-hover text-foreground'
+			"h-full w-12 text-muted hover:bg-header-hover hover:text-foreground focus-visible:ring-inset sm:w-14",
+			open && "bg-header-hover text-foreground",
 		)}
 		aria-label="Search"
 		aria-expanded={open}
@@ -226,7 +227,7 @@
 		<div
 			bind:this={panel}
 			id="search-suggestions"
-			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-[0_12px_32px_rgb(0_0_0/0.5)] outline-none transition-[opacity,translate] duration-140 starting:-translate-y-1 starting:opacity-0"
+			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-[0_12px_32px_rgb(0_0_0/0.5)] transition-[opacity,translate] duration-140 outline-none starting:-translate-y-1 starting:opacity-0"
 			role="listbox"
 			aria-label="Suggestions"
 			tabindex="-1"

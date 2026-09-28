@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { CaretRightIcon } from 'phosphor-svelte';
-	import { cn, describeCard, tmdbImage, tmdbSrcset } from '$lib/utils';
-	import { searchSeries } from '../search/search.remote';
+	import { cn, describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { CaretRightIcon } from "phosphor-svelte";
+
+	import { searchSeries } from "../search/search.remote";
 
 	let {
 		term,
@@ -20,7 +21,7 @@
 			q: term,
 			page: 1,
 			perPage: 6,
-		})
+		}),
 	);
 
 	$effect(() => {
@@ -35,14 +36,20 @@
 					page: 1,
 					perPage: 6,
 				}).refresh(),
-			3000
+			3000,
 		);
 
 		return () => clearTimeout(timer);
 	});
 </script>
 
-<div class={cn('absolute inset-x-0 top-0 h-0.5 overflow-hidden', (typing || $effect.pending() > 0) && 'busy')} aria-hidden="true"></div>
+<div
+	class={cn(
+		"absolute inset-x-0 top-0 h-0.5 overflow-hidden",
+		(typing || $effect.pending() > 0) && "busy",
+	)}
+	aria-hidden="true"
+></div>
 
 {#each found.results as card, index (card.id)}
 	<a
@@ -56,7 +63,7 @@
 		<span class="aspect-2/3 w-10 flex-none overflow-hidden bg-surface">
 			{#if card.poster_url}
 				<img
-					src={tmdbImage(card.poster_url, 'w92')}
+					src={tmdbImage(card.poster_url, "w92")}
 					srcset={tmdbSrcset(card.poster_url, {
 						w92: 92,
 						w185: 185,
@@ -99,7 +106,7 @@
 
 <style>
 	.busy::after {
-		content: '';
+		content: "";
 		display: block;
 		width: 40%;
 		height: 100%;
