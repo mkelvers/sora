@@ -32,9 +32,7 @@
 </svelte:head>
 
 <main class="bg-canvas text-foreground">
-	{#if season}
-		<Hero {series} progress={viewing.progress} library={viewing.library} />
-	{/if}
+	<Hero {series} progress={viewing.progress} library={viewing.library} />
 
 	<Details {series} />
 
@@ -79,6 +77,13 @@
 					{season}
 					progress={viewing.progress}
 				/>
+			</section>
+		{:else}
+			<section
+				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
+			>
+				<h2 class="text-xl font-bold">Check Back Soon!</h2>
+				<p class="mt-2 text-sm text-subtle">In the meantime, feel free to take a look around.</p>
 			</section>
 		{/if}
 	</div>
