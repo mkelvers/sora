@@ -20,9 +20,9 @@
 		checkpoint: EpisodeProgress | undefined;
 	} = $props();
 
-	const watched = $derived(!!checkpoint?.completed);
+	const watched = $derived(!!checkpoint?.watched);
 	const played = $derived(
-		checkpoint && !checkpoint.completed && checkpoint.position_seconds > 0
+		checkpoint && !checkpoint.watched && checkpoint.position_seconds > 0
 			? checkpoint.position_seconds / checkpoint.duration_seconds
 			: 0,
 	);
@@ -68,18 +68,12 @@
 						imageClass={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
-				{#if episode.runtime_minutes}
+				{#if watched || episode.runtime_minutes}
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
-						{episode.runtime_minutes}m
+						{watched ? "Watched" : `${episode.runtime_minutes}m`}
 					</span>
-				{/if}
-				{#if watched}
-					<span
-						class="absolute top-2 left-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white uppercase"
-						>Watched</span
-					>
 				{/if}
 				{#if played}
 					<span class="absolute inset-x-0 bottom-0 h-1 bg-black/60">
