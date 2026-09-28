@@ -1,13 +1,11 @@
-import { command, getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { z } from 'zod';
+import { command, getRequestEvent, query } from "$app/server";
+import { error } from "@sveltejs/kit";
+import { z } from "zod";
 
 export const getListed = query(async () => {
-	const {
-		viewer,
-	} = getRequestEvent().locals;
+	const { viewer } = getRequestEvent().locals;
 	if (!viewer?.profile) {
-		error(403, 'Choose a profile first');
+		error(403, "Choose a profile first");
 	}
 
 	const items = await viewer.sora.watchlist(viewer.profile.id);
@@ -20,11 +18,9 @@ export const setListed = command(
 		listed: z.boolean(),
 	}),
 	async ({ seriesId, listed }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
+		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
+			error(403, "Choose a profile first");
 		}
 
 		if (listed) {
@@ -34,5 +30,5 @@ export const setListed = command(
 		}
 
 		await getListed().refresh();
-	}
+	},
 );
