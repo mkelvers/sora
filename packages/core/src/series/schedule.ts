@@ -11,12 +11,12 @@ import { storedSeriesIds } from "./store";
 
 /** One episode broadcast in the release calendar. */
 export interface ScheduledEpisode {
-  series: SeriesCard;
-  seasonId: string;
-  /** Position within the season, from 1. */
-  episode: number;
-  /** ISO 8601 timestamp. */
-  airingAt: string;
+	series: SeriesCard;
+	seasonId: string;
+	/** Position within the season, from 1. */
+	episode: number;
+	/** ISO 8601 timestamp. */
+	airingAt: string;
 }
 
 /**
@@ -33,33 +33,34 @@ export interface ScheduledEpisode {
  * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
  */
 export async function getAiringSchedule(from: Date, until: Date): Promise<ScheduledEpisode[]> {
-  const broadcasts = await fetchAiringSchedule(from, until);
-  const anilistIds = [...new Set(broadcasts.map((broadcast) => broadcast.anilistId))];
+	const broadcasts = await fetchAiringSchedule(from, until);
+	const anilistIds = [...new Set(broadcasts.map((broadcast) => broadcast.anilistId))];
 
-  const stored = await storedSeriesIds(anilistIds);
-  for (const anilistId of anilistIds.filter((id) => !stored.has(id))) {
-    await scheduleSeriesStore(anilistId, "backfill");
-  }
+	const stored = await storedSeriesIds(anilistIds);
+	for (const anilistId of anilistIds.filter((id) => !stored.has(id))) {
+		await scheduleSeriesStore(anilistId, "backfill");
+	}
 
-  const placed = await findSeasonEpisodes(broadcasts, {
-    placeUnlisted: true,
-  });
-  const seriesIds = [...new Set([...placed.values()].map((ref) => ref.seriesId))];
-  const rows = seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
-  const cards = await toSeriesCards(rows);
+	const placed = await findSeasonEpisodes(broadcasts, {
+		placeUnlisted: true,
+	});
+	const seriesIds = [...new Set([...placed.values()].map((ref) => ref.seriesId))];
+	const rows =
+		seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
+	const cards = await toSeriesCards(rows);
 
-  return broadcasts.flatMap((broadcast) => {
-    const ref = placed.get(anilistEpisodeKey(broadcast.anilistId, broadcast.episode));
-    const card = ref ? cards.get(ref.seriesId) : undefined;
-    return ref && card
-      ? [
-          {
-            series: card,
-            seasonId: ref.seasonId,
-            episode: ref.number,
-            airingAt: broadcast.airingAt,
-          }
-        ]
-      : [];
-  });
+	return broadcasts.flatMap((broadcast) => {
+		const ref = placed.get(anilistEpisodeKey(broadcast.anilistId, broadcast.episode));
+		const card = ref ? cards.get(ref.seriesId) : undefined;
+		return ref && card
+			? [
+					{
+						series: card,
+						seasonId: ref.seasonId,
+						episode: ref.number,
+						airingAt: broadcast.airingAt,
+					},
+				]
+			: [];
+	});
 }
