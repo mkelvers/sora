@@ -3,40 +3,40 @@
 # not needed. Each page costs 103 of the 500 query complexity AniList allows
 # a request, so four fit.
 query AnimeDetails(
-  $ids0: [Int!]!
-  $ids1: [Int!]!
-  $ids2: [Int!]!
-  $ids3: [Int!]!
-  $with1: Boolean!
-  $with2: Boolean!
-  $with3: Boolean!
+	$ids0: [Int!]!
+	$ids1: [Int!]!
+	$ids2: [Int!]!
+	$ids3: [Int!]!
+	$with1: Boolean!
+	$with2: Boolean!
+	$with3: Boolean!
 ) {
-  page0: Page(page: 1, perPage: 50) {
-    media(id_in: $ids0, type: ANIME) {
-      ...AnimeDetails
-    }
-  }
-  page1: Page(page: 1, perPage: 50) @include(if: $with1) {
-    media(id_in: $ids1, type: ANIME) {
-      ...AnimeDetails
-    }
-  }
-  page2: Page(page: 1, perPage: 50) @include(if: $with2) {
-    media(id_in: $ids2, type: ANIME) {
-      ...AnimeDetails
-    }
-  }
-  page3: Page(page: 1, perPage: 50) @include(if: $with3) {
-    media(id_in: $ids3, type: ANIME) {
-      ...AnimeDetails
-    }
-  }
+	page0: Page(page: 1, perPage: 50) {
+		media(id_in: $ids0, type: ANIME) {
+			...AnimeDetails
+		}
+	}
+	page1: Page(page: 1, perPage: 50) @include(if: $with1) {
+		media(id_in: $ids1, type: ANIME) {
+			...AnimeDetails
+		}
+	}
+	page2: Page(page: 1, perPage: 50) @include(if: $with2) {
+		media(id_in: $ids2, type: ANIME) {
+			...AnimeDetails
+		}
+	}
+	page3: Page(page: 1, perPage: 50) @include(if: $with3) {
+		media(id_in: $ids3, type: ANIME) {
+			...AnimeDetails
+		}
+	}
 }
 
 query AnimeCards($ids: [Int!]!, $perPage: Int!) {
-  Page(page: 1, perPage: $perPage) {
-    media(id_in: $ids, type: ANIME) {
-      ...AnimeCard
-    }
-  }
+	Page(page: 1, perPage: $perPage) {
+		media(id_in: $ids, type: ANIME) {
+			...AnimeCard
+		}
+	}
 }

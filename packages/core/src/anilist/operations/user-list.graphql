@@ -1,18 +1,18 @@
 # One user's anime list, every status, for importing it. Only public lists
 # can be read without signing in as the user.
 query UserAnimeList($userName: String!) {
-  MediaListCollection(userName: $userName, type: ANIME) {
-    lists {
-      entries {
-        mediaId
-        status
-        progress
-        updatedAt
-        media {
-          episodes
-          duration
-        }
-      }
-    }
-  }
+	MediaListCollection(userName: $userName, type: ANIME) {
+		lists {
+			entries {
+				mediaId
+				status
+				progress
+				updatedAt
+				media {
+					episodes
+					duration
+				}
+			}
+		}
+	}
 }
