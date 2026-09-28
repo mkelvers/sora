@@ -12,21 +12,21 @@ import { SdkStreamProvider } from "./sdk";
  * apply across all requests from this process.
  */
 const providerHttp = new HttpClient({
-  timeoutMs: 20_000,
-  rateLimits: {
-    // AniKoto's API allows 60 requests a minute per IP.
-    "anikotoapi.site": {
-      capacity: 55,
-      intervalMs: 60_000,
-    },
-  },
+	timeoutMs: 20_000,
+	rateLimits: {
+		// AniKoto's API allows 60 requests a minute per IP.
+		"anikotoapi.site": {
+			capacity: 55,
+			intervalMs: 60_000,
+		},
+	},
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
 const mappingClient = new MappingClient(providerHttp, {
-  // Anify's API redirects to itself, so every lookup spent about 15s failing
-  // before the mapping fell through to the other sources.
-  disableAnify: true,
+	// Anify's API redirects to itself, so every lookup spent about 15s failing
+	// before the mapping fell through to the other sources.
+	disableAnify: true,
 });
 
 /**
@@ -37,25 +37,26 @@ const mappingClient = new MappingClient(providerHttp, {
 export const servedLocale = "en";
 
 /** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
-export function isServedSubtitle(track: {
-  language: string;
-  label: string;
-}) {
-  const language = track.language.trim().toLowerCase();
-  return /^en(?:-|_|$)/.test(language) || language.startsWith("english") || /^english\b/i.test(track.label.trim());
+export function isServedSubtitle(track: { language: string; label: string }) {
+	const language = track.language.trim().toLowerCase();
+	return (
+		/^en(?:-|_|$)/.test(language) ||
+		language.startsWith("english") ||
+		/^english\b/i.test(track.label.trim())
+	);
 }
 
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
 export const aniKoto = recordingCalls(
-  new AniKotoStreamProvider(providerHttp, {
-    locale: "en",
-    listsLanguages: true,
-  })
+	new AniKotoStreamProvider(providerHttp, {
+		locale: "en",
+		listsLanguages: true,
+	}),
 );
 
 /** The series AniKoto changed most recently; see {@link readRecentAniKotoChanges}. */
 export function readAniKotoChanges() {
-  return readRecentAniKotoChanges(providerHttp);
+	return readRecentAniKotoChanges(providerHttp);
 }
 
 /**
@@ -66,21 +67,21 @@ export function readAniKotoChanges() {
  * call is recorded in `provider_calls` to show when one has broken.
  */
 export const streamProviders: readonly StreamProvider[] = [
-  aniKoto,
-  ...[
-    new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
-      locale: "en",
-      listsLanguages: true,
-    }),
-    // MegaPlay's lists are made up from AniList's episode count and claim sub
-    // and dub for every episode.
-    new MegaPlayStreamProvider(providerHttp, mappingClient, {
-      locale: "en",
-      listsLanguages: false,
-    }),
-    new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
-      locale: "en",
-      listsLanguages: true,
-    })
-  ].map((provider) => recordingCalls(provider))
+	aniKoto,
+	...[
+		new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
+			locale: "en",
+			listsLanguages: true,
+		}),
+		// MegaPlay's lists are made up from AniList's episode count and claim sub
+		// and dub for every episode.
+		new MegaPlayStreamProvider(providerHttp, mappingClient, {
+			locale: "en",
+			listsLanguages: false,
+		}),
+		new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
+			locale: "en",
+			listsLanguages: true,
+		}),
+	].map((provider) => recordingCalls(provider)),
 ];
