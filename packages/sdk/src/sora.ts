@@ -782,7 +782,8 @@ export class SoraClient {
 	/**
 	 * Lists every backdrop, poster, and logo TMDB has for a title, in every
 	 * language, plus each season's posters; best first. Pass one's `url` to
-	 * {@link updateArtwork} to choose it.
+	 * {@link updateArtwork} to choose it. They are fetched from TMDB once and
+	 * kept; {@link refreshImages} fetches them again.
 	 */
 	async images<const TOptions extends RequestOptions<ImagesParams> = {}>(
 		seriesId: string,
@@ -799,6 +800,27 @@ export class SoraClient {
 						type: params?.type?.join(","),
 						language: params?.language?.map((code) => code ?? "none").join(","),
 						sort: params?.sort,
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Fetches a title's images from TMDB again, past every cache, so artwork
+	 * added there since can be chosen. Resolves to all of them, best first.
+	 */
+	async refreshImages<const TOptions extends RequestOptions = {}>(
+		seriesId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, SeriesImage[], CountMeta>> {
+		const body: Envelope<SeriesImage[], CountMeta> = await read(
+			this.#api.series[":series_id"].images.refresh.$post(
+				{
+					param: {
+						series_id: seriesId,
 					},
 				},
 				init(options),
