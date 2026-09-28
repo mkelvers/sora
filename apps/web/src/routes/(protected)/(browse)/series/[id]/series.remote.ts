@@ -1,8 +1,8 @@
-import { command, getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { z } from 'zod';
-import { sora } from '$lib/server/sora';
-import { getListed } from '$lib/watchlist.remote';
+import { command, getRequestEvent, query } from "$app/server";
+import { sora } from "$lib/server/sora";
+import { getListed } from "$lib/watchlist.remote";
+import { error } from "@sveltejs/kit";
+import { z } from "zod";
 
 export const getSeries = query(z.string(), (id) => sora.series(id));
 
@@ -11,15 +11,13 @@ export const getEpisodes = query(
 		seriesId: z.string(),
 		seasonId: z.string(),
 	}),
-	(season) => sora.episodes(season)
+	(season) => sora.episodes(season),
 );
 
 export const getViewing = query(z.string(), async (seriesId) => {
-	const {
-		viewer,
-	} = getRequestEvent().locals;
+	const { viewer } = getRequestEvent().locals;
 	if (!viewer?.profile) {
-		error(403, 'Choose a profile first');
+		error(403, "Choose a profile first");
 	}
 
 	const [resume, progress, library] = await Promise.all([
@@ -29,7 +27,7 @@ export const getViewing = query(z.string(), async (seriesId) => {
 			},
 		}),
 		viewer.sora.progress(viewer.profile.id, seriesId),
-		viewer.sora.watchlistEntry(viewer.profile.id, seriesId)
+		viewer.sora.watchlistEntry(viewer.profile.id, seriesId),
 	]);
 
 	return {
@@ -46,11 +44,9 @@ export const markAllWatched = command(
 		watched: z.boolean(),
 	}),
 	async ({ seriesId, seasonId, watched }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
+		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
+			error(403, "Choose a profile first");
 		}
 
 		await viewer.sora.markWatched(viewer.profile.id, seriesId, {
@@ -58,7 +54,7 @@ export const markAllWatched = command(
 			watched,
 		});
 		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
-	}
+	},
 );
 
 export const setDropped = command(
@@ -67,24 +63,20 @@ export const setDropped = command(
 		dropped: z.boolean(),
 	}),
 	async ({ seriesId, dropped }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
+		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
+			error(403, "Choose a profile first");
 		}
 
 		await viewer.sora.setDropped(viewer.profile.id, seriesId, dropped);
 		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
-	}
+	},
 );
 
 export const clearProgress = command(z.string(), async (seriesId) => {
-	const {
-		viewer,
-	} = getRequestEvent().locals;
+	const { viewer } = getRequestEvent().locals;
 	if (!viewer?.profile) {
-		error(403, 'Choose a profile first');
+		error(403, "Choose a profile first");
 	}
 
 	await viewer.sora.clearProgress(viewer.profile.id, seriesId);
