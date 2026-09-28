@@ -28,6 +28,17 @@
 	const listing = getListed();
 	const listed = $derived(listing.current?.includes(series.id) ?? library.status !== null);
 
+	function toggleListed() {
+		setListed({
+			seriesId: series.id,
+			listed: !listed,
+		}).updates(
+			listing.withOverride((ids) =>
+				listed ? ids.filter((id) => id !== series.id) : [...ids, series.id],
+			),
+		);
+	}
+
 	const statuses: [LibraryStatus, string][] = [
 		["watching", "Watching"],
 		["planning", "Plan to Watch"],
@@ -77,9 +88,9 @@
 			return null;
 		}
 
-		const day = airing.toLocaleDateString("en-GB", {
-			day: "numeric",
+		const day = airing.toLocaleDateString("en-US", {
 			month: "long",
+			day: "numeric",
 		});
 		const { season_id, number } = series.next_episode;
 		if (number > 1) {
@@ -94,8 +105,9 @@
 			return `${where.title} starting ${day}`;
 		}
 
-		return series.seasons.find((other) => other.kind === "season")?.id === season_id
-			? `Premieres ${day}`
+		const first = series.seasons.find((other) => other.kind === "season");
+		return !first || first.id === season_id
+			? `Series premiere starts ${day}`
 			: `New season starting ${day}`;
 	});
 
@@ -118,14 +130,21 @@
 		<h1 class="sr-only">{series.title}</h1>
 
 		{#if series.backdrop_url}
-			<ProgressiveImage
-				src={series.backdrop_url}
-				alt=""
-				class="absolute inset-0 z-0"
-				displaySize="original"
-				loading="eager"
-				fetchpriority="high"
-			/>
+			<div
+				class="absolute inset-0 z-0 overflow-hidden"
+				style:background-image={series.backdrop_edges &&
+					`linear-gradient(to right, ${series.backdrop_edges.left}, ${series.backdrop_edges.right})`}
+			>
+				<ProgressiveImage
+					src={series.backdrop_url}
+					alt=""
+					class="series-hero-backdrop absolute inset-y-0 left-1/2 aspect-video h-full w-auto max-w-full -translate-x-1/2"
+					imageClass="object-contain max-sm:object-cover"
+					displaySize="original"
+					loading="eager"
+					fetchpriority="high"
+				/>
+			</div>
 		{/if}
 
 		<div
@@ -138,17 +157,19 @@
 				{/snippet}
 				{#snippet children()}
 					<div role="menu" aria-label="More">
-						<Button
-							role="menuitem"
-							class={item}
-							onclick={() =>
-								markAllWatched({
-									seriesId: series.id,
-									watched: !progress.caught_up,
-								})}
-						>
-							Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
-						</Button>
+						{#if series.seasons.length}
+							<Button
+								role="menuitem"
+								class={item}
+								onclick={() =>
+									markAllWatched({
+										seriesId: series.id,
+										watched: !progress.caught_up,
+									})}
+							>
+								Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
+							</Button>
+						{/if}
 
 						<a role="menuitem" href="/series/{series.id}/media" class={item}>View Media Options</a>
 					</div>
@@ -241,28 +262,32 @@
 					</a>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
-					{#snippet children(trigger)}
-						<button
-							{...trigger}
-							type="button"
-							class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
-							aria-label={listed ? "Remove from Library" : "Add to Library"}
-							aria-pressed={listed}
-							onclick={() =>
-								setListed({
-									seriesId: series.id,
-									listed: !listed,
-								}).updates(
-									listing.withOverride((ids) =>
-										listed ? ids.filter((id) => id !== series.id) : [...ids, series.id],
-									),
-								)}
-						>
-							<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
-						</button>
-					{/snippet}
-				</Tooltip>
+				{#if play}
+					<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
+						{#snippet children(trigger)}
+							<button
+								{...trigger}
+								type="button"
+								class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
+								aria-label={listed ? "Remove from Library" : "Add to Library"}
+								aria-pressed={listed}
+								onclick={toggleListed}
+							>
+								<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
+							</button>
+						{/snippet}
+					</Tooltip>
+				{:else}
+					<button
+						type="button"
+						class="flex h-10 cursor-pointer items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 sm:px-6"
+						aria-pressed={listed}
+						onclick={toggleListed}
+					>
+						<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
+						{listed ? "On Watchlist" : "Add to Watchlist"}
+					</button>
+				{/if}
 
 				<Tooltip text="Manage Status">
 					{#snippet children(trigger)}
