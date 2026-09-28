@@ -6,7 +6,10 @@ import type {
 	HistoryItem,
 	HistoryMeta,
 	ImportSummary,
-	LibraryTitle,
+	LibraryEntry,
+	LibraryItem,
+	LibraryMeta,
+	LibraryStatus,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -24,9 +27,6 @@ import type {
 	SeriesWithEpisodes,
 	TitleProgress,
 	TitleProgressMeta,
-	WatchlistItem,
-	WatchlistMeta,
-	WatchStatus,
 } from "@sora/api";
 import type { BrowseQuery } from "@sora/core/catalog";
 import { hc, type ClientResponse } from "hono/client";
@@ -99,10 +99,10 @@ export interface ContinueWatchingParams {
 	series_id?: string[];
 }
 
-/** Filters for {@link SoraClient.watchlist}. */
-export interface WatchlistParams {
-	/** Only titles in this status. */
-	status?: WatchStatus;
+/** Filters for {@link SoraClient.library}. */
+export interface LibraryParams {
+	/** Only titles with this status. */
+	status?: LibraryStatus;
 }
 
 /** Paging for {@link SoraClient.history}. */
@@ -117,6 +117,8 @@ export interface HistoryParams {
 export interface MarkWatched {
 	/** Only this season; every season in watch order when omitted. */
 	season_id?: string;
+	/** Only this episode of `season_id`. */
+	episode?: number;
 	watched: boolean;
 }
 
@@ -127,8 +129,6 @@ export interface ProgressUpdate {
 	episode: number;
 	position_seconds: number;
 	duration_seconds: number;
-	/** Marks the episode watched or unwatched; derived from the position when omitted. */
-	completed?: boolean;
 	/** When the player was at this position; later events win. @defaultValue now */
 	event_at?: Date;
 }
@@ -319,7 +319,7 @@ export class SoraClient {
 		return body.results;
 	}
 
-	/** Deletes a profile with its progress and watchlist. */
+	/** Deletes a profile with its library, progress, and history. */
 	async deleteProfile(profileId: string, options?: RequestOptions): Promise<void> {
 		await send(
 			this.#api.profiles[":profile_id"].$delete(
@@ -379,8 +379,9 @@ export class SoraClient {
 	}
 
 	/**
-	 * A profile's progress through a title: the seasons it has watched to the
-	 * end, and its saved position in every episode it has played.
+	 * A profile's progress through a title: the state of every episode it
+	 * played or marked watched, and what is derived from them, such as each
+	 * season's progress, whether it is caught up, and where to continue.
 	 */
 	async progress<const TOptions extends RequestOptions = {}>(
 		profileId: string,
@@ -404,6 +405,8 @@ export class SoraClient {
 	/**
 	 * Saves a playback position. Report it every few seconds while playing, and
 	 * on pause and exit; an older position than the saved one changes nothing.
+	 * Only playback goes into the history; to mark episodes watched without
+	 * playing them, use {@link SoraClient.markWatched}.
 	 */
 	async recordProgress(
 		profileId: string,
@@ -448,7 +451,11 @@ export class SoraClient {
 		);
 	}
 
-	/** Marks every released episode of a season, or of a whole title, watched or unwatched. */
+	/**
+	 * Marks an episode, a season's released episodes, or a whole title's,
+	 * watched or unwatched. It leaves the history and the library status
+	 * alone; set `completed` with {@link SoraClient.setLibraryStatus}.
+	 */
 	async markWatched(
 		profileId: string,
 		seriesId: string,
@@ -469,7 +476,7 @@ export class SoraClient {
 		);
 	}
 
-	/** Forgets a profile's progress through a title, to start it over. */
+	/** Forgets a profile's episode progress through a title, to start it over; its status and history stay. */
 	async clearProgress(
 		profileId: string,
 		seriesId: string,
@@ -489,15 +496,16 @@ export class SoraClient {
 	}
 
 	/**
-	 * A profile's watchlist, most recently active first, with how far it is
-	 * through each title. `meta.counts` has how many titles are in each status.
+	 * A profile's library, most recently active first, with the status of
+	 * each title and its progress. `meta.counts` has how many titles have
+	 * each status.
 	 */
-	async watchlist<const TOptions extends RequestOptions<WatchlistParams> = {}>(
+	async library<const TOptions extends RequestOptions<LibraryParams> = {}>(
 		profileId: string,
 		options?: TOptions,
-	): Promise<Returned<TOptions, WatchlistItem[], WatchlistMeta>> {
-		const body: Envelope<WatchlistItem[], WatchlistMeta> = await read(
-			this.#api.profiles[":profile_id"].watchlist.$get(
+	): Promise<Returned<TOptions, LibraryItem[], LibraryMeta>> {
+		const body: Envelope<LibraryItem[], LibraryMeta> = await read(
+			this.#api.profiles[":profile_id"].library.$get(
 				{
 					param: {
 						profile_id: profileId,
@@ -512,14 +520,14 @@ export class SoraClient {
 		return unwrap(body, options);
 	}
 
-	/** Whether a title is on a profile's watchlist, and how far the profile is through it. */
-	async watchlistEntry(
+	/** The status a profile gave a title, `null` when it is not in the library. */
+	async libraryEntry(
 		profileId: string,
 		seriesId: string,
 		options?: RequestOptions,
-	): Promise<LibraryTitle> {
+	): Promise<LibraryEntry> {
 		const body = await read(
-			this.#api.profiles[":profile_id"].watchlist[":series_id"].$get(
+			this.#api.profiles[":profile_id"].library[":series_id"].$get(
 				{
 					param: {
 						profile_id: profileId,
@@ -532,14 +540,10 @@ export class SoraClient {
 		return body.results;
 	}
 
-	/** Puts a title on a profile's watchlist. */
-	async addToWatchlist(
-		profileId: string,
-		seriesId: string,
-		options?: RequestOptions,
-	): Promise<void> {
+	/** Puts a title in a profile's library as `planning`; a title already there keeps its status. */
+	async addToLibrary(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
 		await send(
-			this.#api.profiles[":profile_id"].watchlist[":series_id"].$put(
+			this.#api.profiles[":profile_id"].library[":series_id"].$put(
 				{
 					param: {
 						profile_id: profileId,
@@ -551,22 +555,22 @@ export class SoraClient {
 		);
 	}
 
-	/** Marks a title dropped, listing it if needed, or takes that back. */
-	async setDropped(
+	/** Sets a title's library status, adding it to the library if needed. Its episodes do not change. */
+	async setLibraryStatus(
 		profileId: string,
 		seriesId: string,
-		dropped: boolean,
+		status: LibraryStatus,
 		options?: RequestOptions,
 	): Promise<void> {
 		await send(
-			this.#api.profiles[":profile_id"].watchlist[":series_id"].$patch(
+			this.#api.profiles[":profile_id"].library[":series_id"].$patch(
 				{
 					param: {
 						profile_id: profileId,
 						series_id: seriesId,
 					},
 					json: {
-						dropped,
+						status,
 					},
 				},
 				init(options),
@@ -574,14 +578,14 @@ export class SoraClient {
 		);
 	}
 
-	/** Takes a title off a profile's watchlist; its history stays. */
-	async removeFromWatchlist(
+	/** Takes a title out of a profile's library; its progress and history stay. */
+	async removeFromLibrary(
 		profileId: string,
 		seriesId: string,
 		options?: RequestOptions,
 	): Promise<void> {
 		await send(
-			this.#api.profiles[":profile_id"].watchlist[":series_id"].$delete(
+			this.#api.profiles[":profile_id"].library[":series_id"].$delete(
 				{
 					param: {
 						profile_id: profileId,
@@ -615,7 +619,7 @@ export class SoraClient {
 		return unwrap(body, options);
 	}
 
-	/** Removes an episode from a profile's history, as if it was never played. */
+	/** Removes an episode from a profile's history; whether it is watched stays as it is. */
 	async forgetEpisode(
 		profileId: string,
 		episode: EpisodeRef,
@@ -636,8 +640,9 @@ export class SoraClient {
 	}
 
 	/**
-	 * Imports a public AniList anime list into a profile: every entry is
-	 * listed, and what it records as watched becomes the profile's history.
+	 * Imports a public AniList anime list into a profile: every entry goes
+	 * into the library with its status, and the episodes it records are
+	 * marked watched.
 	 *
 	 * @throws {@link SoraError} with code `ANILIST_LIST_NOT_FOUND` when AniList
 	 *   has no public anime list under the name.
