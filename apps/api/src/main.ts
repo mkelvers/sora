@@ -17,10 +17,12 @@ import { healthRoutes } from "./health";
 import { v1Routes } from "./v1";
 
 const app = new Hono()
-  .route("/v1", v1Routes)
-  .route("/health", healthRoutes())
-  .notFound((c) => sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`))
-  .onError(onError);
+	.route("/v1", v1Routes)
+	.route("/health", healthRoutes())
+	.notFound((c) =>
+		sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`),
+	)
+	.onError(onError);
 
 /** The API's type, from which `@sora/sdk`'s client derives every route. */
 export type AppType = typeof app;
@@ -31,19 +33,19 @@ export type { Problem } from "./openapi/schemas";
 export type * from "./models";
 
 const server = Bun.serve({
-  port: Number(process.env.PORT ?? 3000),
-  fetch: app.fetch,
-  // Resolving playback and laying out a new title can take several seconds
-  // before the first byte, well past Bun's default of 10.
-  idleTimeout: 120,
+	port: Number(process.env.PORT ?? 3000),
+	fetch: app.fetch,
+	// Resolving playback and laying out a new title can take several seconds
+	// before the first byte, well past Bun's default of 10.
+	idleTimeout: 120,
 });
 
 console.log(`Sora API listening on ${server.url}`);
 
 async function shutdown() {
-  await server.stop();
-  await closeDatabase();
-  process.exit(0);
+	await server.stop();
+	await closeDatabase();
+	process.exit(0);
 }
 
 process.on("SIGINT", shutdown);
