@@ -8,7 +8,6 @@
 	import type { LibraryEntry, LibraryStatus, Series, TitleProgress } from "@sora/sdk";
 	import {
 		BookmarkSimpleIcon,
-		CheckIcon,
 		DotsThreeVerticalIcon,
 		ListChecksIcon,
 		PlayIcon,
@@ -89,7 +88,7 @@
 	});
 
 	const item =
-		"flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted hover:bg-panel-hover hover:text-foreground focus:bg-panel-hover focus:text-foreground focus:outline-none";
+		"flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none";
 </script>
 
 {#snippet star(tone: string)}
@@ -272,7 +271,7 @@
 											<Button
 												role="menuitemradio"
 												aria-checked={library.status === status}
-												class={cn(item, library.status === status && "text-foreground")}
+												class={item}
 												onclick={() =>
 													setStatus({
 														seriesId: series.id,
@@ -280,9 +279,6 @@
 													})}
 											>
 												{label}
-												{#if library.status === status}
-													<CheckIcon size="1rem" weight="bold" class="ml-auto" />
-												{/if}
 											</Button>
 										{/each}
 									</div>

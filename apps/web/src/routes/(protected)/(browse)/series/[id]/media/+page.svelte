@@ -44,15 +44,15 @@
 <main
 	class="min-h-[calc(100dvh-3.5rem)] bg-canvas px-5 pt-8 pb-16 text-foreground sm:px-10 sm:pt-10 lg:px-16"
 >
-	<header>
+	<header class="flex items-center gap-2">
 		<a
 			href="/series/{series.id}"
-			class="inline-flex max-w-full items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-foreground"
+			class="-ml-2 grid size-10 shrink-0 place-items-center text-muted transition-colors hover:text-foreground"
+			aria-label="Back to {series.title}"
 		>
-			<CaretLeftIcon size="1rem" weight="bold" class="shrink-0" />
-			<span class="truncate">{series.title}</span>
+			<CaretLeftIcon size="1.5rem" weight="bold" />
 		</a>
-		<h1 class="mt-2 text-3xl font-bold">Media</h1>
+		<h1 class="text-3xl font-bold">Media</h1>
 	</header>
 
 	<div class="mt-6 flex items-center gap-6 border-b border-border">

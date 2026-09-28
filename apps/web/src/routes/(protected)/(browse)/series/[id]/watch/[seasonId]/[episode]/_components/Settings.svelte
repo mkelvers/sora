@@ -2,7 +2,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { Popover } from "melt/builders";
-	import { CaretLeftIcon, CaretRightIcon, CheckIcon, GearSixIcon } from "phosphor-svelte";
+	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
+	import { tick } from "svelte";
 
 	type Props = {
 		media: PlaybackMedia[];
@@ -79,6 +80,14 @@
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
 
+	let content = $state<HTMLElement>();
+
+	$effect(() => {
+		if (open) {
+			tick().then(() => content?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus());
+		}
+	});
+
 	const popover = new Popover({
 		onOpenChange: () => (submenu = undefined),
 		floatingConfig: {
@@ -101,13 +110,22 @@
 
 	<div
 		{...popover.content}
+		bind:this={content}
 		role="menu"
 		aria-label={open?.label ?? "Settings"}
-		class="inset-auto m-0 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel py-2 text-sm text-watch-secondary shadow-lg open:flex"
+		class="inset-auto m-0 max-h-[min(60vh,28rem)] w-72 flex-col overflow-y-auto bg-player-panel text-sm text-watch-secondary shadow-lg open:flex"
+		onpointermove={(event) => {
+			const item = (event.target as HTMLElement).closest<HTMLElement>("button");
+			if (item && item !== document.activeElement) {
+				item.focus({
+					preventScroll: true,
+				});
+			}
+		}}
 	>
 		{#if open}
 			<Button
-				class="flex min-h-11 w-full items-center justify-start gap-2 border-b border-white/10 px-3 font-bold text-watch-primary hover:bg-white/5"
+				class="flex min-h-11 w-full items-center justify-start gap-2 border-b border-white/10 px-3 font-bold text-watch-primary focus:bg-white/5 focus:outline-none"
 				onclick={() => (submenu = undefined)}
 			>
 				<CaretLeftIcon size="1.1rem" weight="bold" />
@@ -117,17 +135,12 @@
 				<Button
 					role="menuitemradio"
 					aria-checked={option.value === open.value}
-					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 hover:bg-white/5 hover:text-watch-primary aria-checked:text-watch-primary"
+					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 focus:bg-white/5 focus:text-watch-primary focus:outline-none"
 					onclick={() => {
 						open.select(option.value);
 						submenu = undefined;
 					}}
 				>
-					<span class="grid w-4 place-items-center text-accent">
-						{#if option.value === open.value}
-							<CheckIcon size="1rem" weight="bold" />
-						{/if}
-					</span>
 					{option.label}
 				</Button>
 			{/each}
@@ -135,7 +148,7 @@
 			{#each menus as menu (menu.label)}
 				<Button
 					role="menuitem"
-					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 hover:bg-white/5 hover:text-watch-primary"
+					class="flex min-h-11 w-full items-center justify-start gap-3 px-4 focus:bg-white/5 focus:text-watch-primary focus:outline-none"
 					onclick={() => (submenu = menu.label)}
 				>
 					{menu.label}

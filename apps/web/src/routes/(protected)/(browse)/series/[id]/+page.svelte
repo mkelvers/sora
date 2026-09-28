@@ -57,7 +57,7 @@
 							{#snippet children()}
 								<Button
 									role="menuitem"
-									class="font-normal hover:text-foreground"
+									class="font-normal focus:text-foreground"
 									onclick={() =>
 										markAllWatched({
 											seriesId: series.id,

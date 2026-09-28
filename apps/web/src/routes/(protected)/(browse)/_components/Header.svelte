@@ -22,7 +22,7 @@
 	const link =
 		"inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground sm:w-14";
 	const item =
-		"flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors hover:bg-header hover:text-foreground focus-visible:bg-header focus-visible:text-foreground focus-visible:outline-none";
+		"flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none";
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
@@ -43,7 +43,7 @@
 						<div role="dialog" aria-label="Account">
 							<a
 								href="/profiles/{profile.id}"
-								class="flex min-h-14 items-center gap-3 px-5 py-2 transition-colors hover:bg-header"
+								class="flex min-h-14 items-center gap-3 px-5 py-2 transition-colors focus:bg-header focus:outline-none"
 							>
 								<Avatar seed={profile.avatar} class="size-9" />
 								<span class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
