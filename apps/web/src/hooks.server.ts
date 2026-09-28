@@ -1,7 +1,7 @@
-import { error, type Handle, type HandleServerError } from '@sveltejs/kit';
-import { SoraClient, SoraError } from '@sora/sdk';
-import { env } from '$env/dynamic/private';
-import { profileCookie, sessionCookie } from '$lib/server/sora';
+import { env } from "$env/dynamic/private";
+import { profileCookie, sessionCookie } from "$lib/server/sora";
+import { SoraClient, SoraError } from "@sora/sdk";
+import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
@@ -28,9 +28,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			if (profile) {
 				event.cookies.set(profileCookie, profile.id, {
-					path: '/',
+					path: "/",
 					httpOnly: true,
-					sameSite: 'lax',
+					sameSite: "lax",
 					maxAge: 60 * 60,
 				});
 			}
@@ -39,16 +39,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 				throw cause;
 			}
 			event.cookies.delete(sessionCookie, {
-				path: '/',
+				path: "/",
 			});
 			event.cookies.delete(profileCookie, {
-				path: '/',
+				path: "/",
 			});
 		}
 	}
 
 	if (event.isRemoteRequest && !event.locals.viewer) {
-		error(401, 'Not signed in');
+		error(401, "Not signed in");
 	}
 
 	return resolve(event);
