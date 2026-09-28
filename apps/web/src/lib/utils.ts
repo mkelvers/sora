@@ -22,9 +22,7 @@ export function audioLabel(audio: SeriesCard["audio"] | null | undefined) {
 }
 
 export function formatClock(seconds: number) {
-	if (!Number.isFinite(seconds)) {
-		seconds = 0;
-	}
+	seconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 
 	const pad = (value: number) => String(value).padStart(2, "0");
 
