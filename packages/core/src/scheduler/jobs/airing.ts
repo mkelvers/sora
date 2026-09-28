@@ -9,13 +9,19 @@ import { AnimeNotFoundError } from "../../errors";
 import { refreshProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
 import { minute } from "../../time";
+import {
+	airingCheckPriority,
+	scheduleAiringCheck,
+	scheduleAniKotoPoll,
+	scheduleStoredSeriesRefresh,
+	trackAiringTask,
+} from "../queue";
 import { planNextCheck, type AiringState } from "./airing-plan";
-import { airingCheckPriority, scheduleAiringCheck, scheduleAniKotoPoll, scheduleStoredSeriesRefresh, trackAiringTask } from "../queue";
 
 const TrackAiringPayloadSchema = z.object({
-  anilistId: z.number().int().positive(),
-  awaitedEpisode: z.number().nullable(),
-  attempt: z.number().int().nonnegative(),
+	anilistId: z.number().int().positive(),
+	awaitedEpisode: z.number().nullable(),
+	attempt: z.number().int().nonnegative(),
 });
 
 /**
@@ -30,60 +36,60 @@ const TrackAiringPayloadSchema = z.object({
  * AniList outage is handled.
  */
 export const trackAiring: Task = async (rawPayload, helpers) => {
-  const payload = TrackAiringPayloadSchema.parse(rawPayload);
+	const payload = TrackAiringPayloadSchema.parse(rawPayload);
 
-  let anime: Anime;
-  try {
-    anime = await refreshAnime(payload.anilistId);
-  } catch (error) {
-    if (error instanceof AnimeNotFoundError) {
-      helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
-      return;
-    }
+	let anime: Anime;
+	try {
+		anime = await refreshAnime(payload.anilistId);
+	} catch (error) {
+		if (error instanceof AnimeNotFoundError) {
+			helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+			return;
+		}
 
-    throw error;
-  }
+		throw error;
+	}
 
-  await scheduleStoredSeriesRefresh(anime.id);
+	await scheduleStoredSeriesRefresh(anime.id);
 
-  const plan = planNextCheck(
-    {
-      status: anime.status,
-      nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
-      latestAiredEpisode: await latestAiredEpisode(anime),
-      latestReleasedEpisode: await refreshReleasedEpisodes(anime, helpers.logger),
-      startDate: anime.startDate,
-    },
-    payload,
-    new Date()
-  );
+	const plan = planNextCheck(
+		{
+			status: anime.status,
+			nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
+			latestAiredEpisode: await latestAiredEpisode(anime),
+			latestReleasedEpisode: await refreshReleasedEpisodes(anime, helpers.logger),
+			startDate: anime.startDate,
+		},
+		payload,
+		new Date(),
+	);
 
-  if (plan.done) {
-    helpers.logger.info(`Anime ${anime.id} has finished airing; no longer tracking it`);
-    return;
-  }
+	if (plan.done) {
+		helpers.logger.info(`Anime ${anime.id} has finished airing; no longer tracking it`);
+		return;
+	}
 
-  // A newly aired episode is watched for on AniKoto every minute or so,
-  // between the tracker's own checks.
-  if (plan.awaitedEpisode !== null && plan.attempt === 0) {
-    await scheduleAniKotoPoll(
-      {
-        anilistId: anime.id,
-        episode: plan.awaitedEpisode,
-        attempt: 0,
-      },
-      new Date(Date.now() + minute)
-    );
-  }
+	// A newly aired episode is watched for on AniKoto every minute or so,
+	// between the tracker's own checks.
+	if (plan.awaitedEpisode !== null && plan.attempt === 0) {
+		await scheduleAniKotoPoll(
+			{
+				anilistId: anime.id,
+				episode: plan.awaitedEpisode,
+				attempt: 0,
+			},
+			new Date(Date.now() + minute),
+		);
+	}
 
-  await scheduleAiringCheck(
-    {
-      anilistId: anime.id,
-      awaitedEpisode: plan.awaitedEpisode,
-      attempt: plan.attempt,
-    },
-    plan.runAt
-  );
+	await scheduleAiringCheck(
+		{
+			anilistId: anime.id,
+			awaitedEpisode: plan.awaitedEpisode,
+			attempt: plan.attempt,
+		},
+		plan.runAt,
+	);
 };
 
 /**
@@ -96,23 +102,23 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
  * list episodes before they air. A failing provider is logged and skipped.
  */
 async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
-  let latest: number | null = null;
+	let latest: number | null = null;
 
-  for (const provider of streamProviders) {
-    try {
-      const units = await refreshProviderUnits(anime, provider, {
-        retryUnmatched: true,
-      });
-      const last = units.at(-1);
-      if (latest === null && last) {
-        latest = last.number;
-      }
-    } catch (error) {
-      logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${String(error)}`);
-    }
-  }
+	for (const provider of streamProviders) {
+		try {
+			const units = await refreshProviderUnits(anime, provider, {
+				retryUnmatched: true,
+			});
+			const last = units.at(-1);
+			if (latest === null && last) {
+				latest = last.number;
+			}
+		} catch (error) {
+			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${String(error)}`);
+		}
+	}
 
-  return latest;
+	return latest;
 }
 
 /**
@@ -123,11 +129,12 @@ async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]
  * it moved has not reached providers yet.
  */
 async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAiredEpisode"]> {
-  const fromNext = anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
-  const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
-  const scheduled = (await fetchLatestAiring(anime.id))?.episode ?? null;
-  const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
-  return known.length > 0 ? Math.max(...known) : null;
+	const fromNext =
+		anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
+	const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
+	const scheduled = (await fetchLatestAiring(anime.id))?.episode ?? null;
+	const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
+	return known.length > 0 ? Math.max(...known) : null;
 }
 
 /** The graphile-worker task that restarts tracking for airing anime that lost their check. */
@@ -141,7 +148,7 @@ export const reviveAiringChecksTask = "revive-airing-checks";
  * Runs periodically as a safety net; normally each check schedules the next.
  */
 export const reviveAiringChecks: Task = async (_payload, helpers) => {
-  const revived = await db.execute(sql`
+	const revived = await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},
       payload => json_build_object('anilistId', anime.anilist_id, 'awaitedEpisode', null, 'attempt', 0),
@@ -159,7 +166,7 @@ export const reviveAiringChecks: Task = async (_payload, helpers) => {
       )
   `);
 
-  if (revived.length > 0) {
-    helpers.logger.info(`Revived airing checks for ${revived.length} anime`);
-  }
+	if (revived.length > 0) {
+		helpers.logger.info(`Revived airing checks for ${revived.length} anime`);
+	}
 };
