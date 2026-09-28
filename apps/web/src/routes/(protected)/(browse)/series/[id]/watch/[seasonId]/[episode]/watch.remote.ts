@@ -34,12 +34,18 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, epi
 	const checkpoint = progress.episodes.find(
 		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode,
 	);
+	const { next } = progress;
 
 	return {
 		series,
 		season,
 		episode: found,
-		start: checkpoint && !checkpoint.completed ? checkpoint.position_seconds : 0,
+		start:
+			next?.season_id === seasonId && next.episode === episode
+				? next.position_seconds
+				: checkpoint && !checkpoint.watched
+					? checkpoint.position_seconds
+					: 0,
 	};
 });
 
