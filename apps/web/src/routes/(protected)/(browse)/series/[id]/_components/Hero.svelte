@@ -142,8 +142,7 @@
 							Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
 						</Button>
 
-						<a role="menuitem" href="/series/{series.id}/artwork" class={item}>View Media Options</a
-						>
+						<a role="menuitem" href="/series/{series.id}/media" class={item}>View Media Options</a>
 					</div>
 				{/snippet}
 			</Dropdown>

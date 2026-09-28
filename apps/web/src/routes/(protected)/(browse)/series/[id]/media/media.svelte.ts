@@ -1,9 +1,9 @@
 import type { SeriesImage } from "@sora/sdk";
 
 import { getSeries } from "../series.remote";
-import { setArtwork } from "./artwork.remote";
+import { setArtwork } from "./media.remote";
 
-export class Artwork {
+export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
 	sort = $state<"votes" | "quality">("votes");
 	languages = $state<string[]>([]);

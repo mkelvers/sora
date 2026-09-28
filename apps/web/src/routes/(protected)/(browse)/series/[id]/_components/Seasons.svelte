@@ -36,7 +36,7 @@
 	<div
 		{...select.content}
 		aria-label="Seasons"
-		class="inset-auto m-0 max-h-[min(60vh,24rem)] w-[min(21rem,calc(100vw-2rem))] [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] flex-col overflow-y-auto bg-dropdown py-2 shadow-2xl shadow-black/60 outline-none open:flex"
+		class="inset-auto m-0 max-h-[min(60vh,24rem)] w-[min(21rem,calc(100vw-2rem))] [scrollbar-width:thin] [scrollbar-color:var(--color-border)_transparent] flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex"
 	>
 		{#each seasons as other (other.id)}
 			<div

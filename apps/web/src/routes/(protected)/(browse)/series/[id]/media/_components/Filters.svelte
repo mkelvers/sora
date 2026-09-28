@@ -3,17 +3,17 @@
 	import { cn } from "$lib/utils";
 	import { languages as languageNames } from "$lib/utils";
 	import { Select } from "melt/builders";
-	import { CaretDownIcon, CheckIcon } from "phosphor-svelte";
+	import { CaretDownIcon } from "phosphor-svelte";
 
-	import { getImages } from "../artwork.remote";
-	import type { Artwork } from "../artwork.svelte";
+	import { getImages } from "../media.remote";
+	import type { Media } from "../media.svelte";
 
 	type Props = {
 		seriesId: string;
-		artwork: Artwork;
+		media: Media;
 	};
 
-	let { seriesId, artwork }: Props = $props();
+	let { seriesId, media }: Props = $props();
 
 	type Menu = {
 		label: string;
@@ -24,9 +24,7 @@
 		}[];
 	};
 
-	const images = $derived(
-		(await getImages(seriesId)).filter((image) => image.type === artwork.type),
-	);
+	const images = $derived((await getImages(seriesId)).filter((image) => image.type === media.type));
 
 	const languages = $derived.by(() => {
 		const groups = Map.groupBy(images, (image) => image.language ?? "none");
@@ -62,14 +60,14 @@
 	};
 
 	const sort = new Select<string>({
-		value: () => artwork.sort,
-		onValueChange: (value) => (artwork.sort = value as Artwork["sort"]),
+		value: () => media.sort,
+		onValueChange: (value) => (media.sort = value as Media["sort"]),
 		floatingConfig,
 	});
 
 	const source = new Select<string>({
-		value: () => artwork.source,
-		onValueChange: (value) => (artwork.source = value ?? "all"),
+		value: () => media.source,
+		onValueChange: (value) => (media.source = value ?? "all"),
 		floatingConfig,
 	});
 
@@ -116,39 +114,34 @@
 	});
 
 	function toggle(code: string) {
-		artwork.languages = artwork.languages.includes(code)
-			? artwork.languages.filter((language) => language !== code)
-			: [...artwork.languages, code];
+		media.languages = media.languages.includes(code)
+			? media.languages.filter((language) => language !== code)
+			: [...media.languages, code];
 	}
 </script>
 
 {#each menus as menu (menu.label)}
 	<section>
-		<h2 class="mb-2 text-xs font-bold text-foreground uppercase">{menu.label}</h2>
+		<h2 class="mb-3 text-xs font-bold tracking-wide text-subtle uppercase">{menu.label}</h2>
 		<button
 			{...menu.select.trigger}
 			type="button"
-			class="flex w-full cursor-pointer items-center justify-between gap-2 border border-border p-2 px-3 text-[0.875rem] font-medium text-foreground outline-none hover:bg-dropdown focus-visible:ring-1 focus-visible:ring-white/30"
+			class="flex h-10 w-full cursor-pointer items-center justify-between gap-2 border border-border px-3 text-sm font-medium text-foreground transition-colors outline-none hover:border-border-strong focus-visible:ring-1 focus-visible:ring-white/30 aria-expanded:border-border-strong"
 		>
 			{menu.options.find((option) => option.value === menu.select.value)?.label}
-			<CaretDownIcon size="0.9rem" weight="fill" />
+			<CaretDownIcon size="0.9rem" weight="fill" class="shrink-0 text-muted" />
 		</button>
 
 		<div
 			{...menu.select.content}
 			aria-label={menu.label}
-			class="inset-auto m-0 flex-col bg-dropdown shadow-lg outline-none open:flex"
+			class="inset-auto m-0 max-h-[min(60vh,24rem)] flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex"
 		>
 			{#each menu.options as option (option.value)}
 				<div
 					{...menu.select.getOption(option.value, option.label)}
-					class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-muted hover:text-foreground aria-selected:text-foreground data-highlighted:bg-panel-hover"
+					class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-dropdown-foreground hover:text-foreground aria-selected:bg-dropdown-hover aria-selected:text-foreground data-highlighted:bg-dropdown-hover"
 				>
-					<span class="grid w-4 place-items-center text-accent">
-						{#if option.value === menu.select.value}
-							<CheckIcon size="0.9rem" weight="bold" />
-						{/if}
-					</span>
 					{option.label}
 				</div>
 			{/each}
@@ -158,30 +151,27 @@
 
 {#if languages.length > 1}
 	<section>
-		<h2 class="mb-2 text-xs font-bold text-foreground uppercase">Language</h2>
+		<h2 class="mb-2 text-xs font-bold tracking-wide text-subtle uppercase">Language</h2>
 		<div class="grid" role="group" aria-label="Language">
 			{#each [{ code: "", count: images.length }, ...languages] as language (language.code)}
 				{@const pressed = language.code
-					? artwork.languages.includes(language.code)
-					: artwork.languages.length === 0}
+					? media.languages.includes(language.code)
+					: media.languages.length === 0}
 				<Button
 					aria-pressed={pressed}
 					class={cn(
-						"flex min-h-10 items-center justify-start gap-3 px-2 text-left text-sm text-muted hover:bg-surface hover:text-foreground",
-						pressed && "text-foreground",
+						"flex h-9 min-w-0 items-center justify-start gap-3 px-2 text-left text-sm font-normal text-dropdown-foreground hover:bg-panel-hover hover:text-foreground",
+						pressed && "bg-panel-hover text-foreground",
 					)}
-					onclick={() => (language.code ? toggle(language.code) : (artwork.languages = []))}
+					onclick={() => (language.code ? toggle(language.code) : (media.languages = []))}
 				>
-					<span class="grid w-4 place-items-center text-accent">
-						{#if pressed}
-							<CheckIcon size="0.9rem" weight="bold" />
-						{/if}
+					<span class="min-w-0 truncate">
+						{language.code === ""
+							? "All"
+							: language.code === "none"
+								? "Textless"
+								: languageNames.of(language.code)}
 					</span>
-					{language.code === ""
-						? "All"
-						: language.code === "none"
-							? "Textless"
-							: languageNames.of(language.code)}
 					<span class="ml-auto text-xs text-subtle tabular-nums">{language.count}</span>
 				</Button>
 			{/each}
