@@ -1,7 +1,7 @@
-import { getRequestEvent, query } from '$app/server';
-import { error } from '@sveltejs/kit';
-import { z } from 'zod';
-import { sora } from '$lib/server/sora';
+import { getRequestEvent, query } from "$app/server";
+import { sora } from "$lib/server/sora";
+import { error } from "@sveltejs/kit";
+import { z } from "zod";
 
 export const searchSeries = query(
 	z.object({
@@ -10,11 +10,9 @@ export const searchSeries = query(
 		perPage: z.number().int().min(1).max(50).default(24),
 	}),
 	async ({ q, page, perPage }) => {
-		const {
-			viewer,
-		} = getRequestEvent().locals;
+		const { viewer } = getRequestEvent().locals;
 		if (!viewer?.profile) {
-			error(403, 'Choose a profile first');
+			error(403, "Choose a profile first");
 		}
 
 		const found = await sora.search(q, {
@@ -38,5 +36,5 @@ export const searchSeries = query(
 			...found,
 			resumes: Object.fromEntries(resumes.map((resume) => [resume.series.id, resume])),
 		};
-	}
+	},
 );
