@@ -125,27 +125,20 @@
 
 <section>
 	<figure
-		class="series-hero relative z-30 grid h-[calc(100dvh-10rem)] max-h-192 min-h-120 grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150 lg:h-[calc(100dvh-17rem)] lg:max-h-300 lg:min-h-175"
+		class="series-hero relative z-30 grid aspect-video max-h-[85svh] min-h-120 w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150"
 	>
 		<h1 class="sr-only">{series.title}</h1>
 
 		{#if series.backdrop_url}
-			<div
-				class="series-hero-frame absolute inset-0 z-0 overflow-hidden"
-				style:--edge-image="url({tmdbImage(series.backdrop_url, 'w300')})"
-				style:background-image={series.backdrop_edges &&
-					`linear-gradient(to right, ${series.backdrop_edges.left}, ${series.backdrop_edges.right})`}
-			>
-				<ProgressiveImage
-					src={series.backdrop_url}
-					alt=""
-					class="series-hero-backdrop absolute inset-y-0 left-1/2 z-10 aspect-video h-full w-auto max-w-full -translate-x-1/2"
-					imageClass="object-contain max-sm:object-cover"
-					displaySize="original"
-					loading="eager"
-					fetchpriority="high"
-				/>
-			</div>
+			<ProgressiveImage
+				src={series.backdrop_url}
+				alt=""
+				class="absolute inset-0 z-0"
+				imageClass="object-[50%_35%]"
+				displaySize="original"
+				loading="eager"
+				fetchpriority="high"
+			/>
 		{/if}
 
 		<div

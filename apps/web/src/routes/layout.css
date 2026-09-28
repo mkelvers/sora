@@ -213,54 +213,22 @@
 
 	.series-hero {
 		&::before {
-			background-image: linear-gradient(
-				to right,
-				var(--theme-hero-scrim-inline-start),
-				transparent 38%
-			);
+			background-image:
+				radial-gradient(ellipse at 0% 0%, rgb(0 0 0 / 0.5), transparent 45%),
+				radial-gradient(ellipse at 0% 50%, rgb(0 0 0 / 0.4), transparent 38%),
+				radial-gradient(ellipse at 100% 0%, rgb(0 0 0 / 0.45), transparent 38%),
+				radial-gradient(ellipse at 100% 100%, rgb(0 0 0 / 0.45), transparent 38%),
+				linear-gradient(to left, rgb(0 0 0 / 0.4), transparent 14%),
+				linear-gradient(to right, var(--theme-hero-scrim-inline-start), transparent 38%);
 		}
 
 		&::after {
 			background-image: linear-gradient(
 				to top,
 				var(--theme-hero-scrim-bottom) 0%,
-				var(--theme-hero-scrim-bottom-soft) 10%,
-				transparent 42%
+				var(--theme-hero-scrim-bottom-soft) 9%,
+				transparent 34%
 			);
-		}
-	}
-
-	.series-hero-backdrop {
-		mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
-	}
-
-	.series-hero-frame {
-		&::before,
-		&::after {
-			content: "";
-			position: absolute;
-			inset-block: -10%;
-			width: 55%;
-			background-image: var(--edge-image);
-			background-repeat: no-repeat;
-			background-size: 600% 100%;
-			filter: blur(40px);
-		}
-
-		&::before {
-			left: -5%;
-			background-position: left;
-			mask-image:
-				radial-gradient(ellipse 100% 55% at 100% 30%, black 40%, transparent 75%),
-				radial-gradient(ellipse 85% 50% at 100% 72%, black 35%, transparent 75%);
-		}
-
-		&::after {
-			right: -5%;
-			background-position: right;
-			mask-image:
-				radial-gradient(ellipse 100% 55% at 0% 30%, black 40%, transparent 75%),
-				radial-gradient(ellipse 85% 50% at 0% 72%, black 35%, transparent 75%);
 		}
 	}
 
@@ -281,17 +249,6 @@
 					rgb(0 0 0 / 0.76) 38%,
 					transparent 82%
 				);
-			}
-		}
-
-		.series-hero-backdrop {
-			mask-image: none;
-		}
-
-		.series-hero-frame {
-			&::before,
-			&::after {
-				content: none;
 			}
 		}
 
