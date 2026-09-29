@@ -41,18 +41,19 @@
 							class="group relative basis-[calc((100vw-3.75rem)/1.35)] last:mr-3 min-[30em]:basis-[calc((100vw-4.75rem)/2.1)] min-[35.5em]:basis-[calc((100vw-5.75rem)/2.7)] sm:basis-[calc((100vw-8.75rem)/3.25)] sm:last:mr-8 lg:basis-[calc((100vw-20.375rem)/4.25)] lg:last:mr-18 2xl:basis-[calc((100vw-22.25rem)/5.25)]"
 						>
 							<div
-								class="min-w-0 p-2 transition-colors group-focus-within:bg-surface group-hover:bg-surface"
+								class="h-full min-w-0 p-2 transition-colors group-focus-within:bg-surface group-hover:bg-surface"
 							>
 								<a
 									href="/series/{item.series.id}/watch/{item.season_id}/{item.episode}"
-									class="block"
+									class="flex h-full flex-col"
 									aria-label="Continue watching {item.series.title}, episode {item.episode}"
 								>
 									<div class="relative aspect-video overflow-hidden bg-surface">
 										{#if item.series.backdrop_url}
 											<Image
 												src={tmdbImage(item.series.backdrop_url, "w780")}
-												srcset={tmdbSrcset(item.series.backdrop_url, { w342: 342, w780: 780 })}
+												srcset={tmdbSrcset(item.series.backdrop_url, { w780: 780, w1280: 1280 })}
+												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 35.5em) 37vw, (min-width: 30em) 47vw, 74vw"
 												alt=""
 											/>
 										{/if}
@@ -63,7 +64,7 @@
 										{/if}
 									</div>
 
-									<div class="flex min-h-24 flex-col pt-3">
+									<div class="flex min-h-24 flex-1 flex-col pt-3">
 										<h3 class="line-clamp-2 text-sm leading-snug font-semibold">
 											{item.series.title}
 										</h3>
@@ -80,7 +81,7 @@
 							</div>
 
 							<div
-								class="absolute right-2 bottom-2 z-10 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100"
+								class="absolute right-2 bottom-2 z-10 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
 							>
 								<Tooltip text="Remove">
 									{#snippet children(trigger)}
@@ -103,8 +104,8 @@
 						</Item>
 					{/each}
 				</Content>
-				<Previous />
-				<Next />
+				<Previous class="pointer-coarse:hidden" />
+				<Next class="pointer-coarse:hidden" />
 			{/snippet}
 		</Carousel>
 	</section>

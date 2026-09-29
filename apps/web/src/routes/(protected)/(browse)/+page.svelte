@@ -61,8 +61,8 @@
 								</Item>
 							{/each}
 						</Content>
-						<Previous />
-						<Next />
+						<Previous class="pointer-coarse:hidden" />
+						<Next class="pointer-coarse:hidden" />
 					{/snippet}
 				</Carousel>
 			</section>
