@@ -61,8 +61,29 @@ export class SdkStreamProvider implements StreamProvider {
 		return (await this.sdk.fetchContentUnits(`${this.id}:${mediaId}`)).map(toProviderEpisode);
 	}
 
+	/**
+	 * Resolves the stream `anime-sdk` hands out for `language`, keeping only
+	 * videos in that language. Some providers ignore the language they are
+	 * asked for and always serve one: AnimeParadise answers a dub request with
+	 * its Japanese-audio sub, which must not pass for a dub.
+	 *
+	 * @throws when no video is in `language`.
+	 */
 	async resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
-		return toProviderStream(await this.sdk.resolveStream(episodeId, language), []);
+		const resolved = await this.sdk.resolveStream(episodeId, language);
+		if (resolved.type !== "video") {
+			return toProviderStream(resolved, []);
+		}
+
+		return toProviderStream(
+			{
+				...resolved,
+				streams: resolved.streams.filter(
+					(stream) => stream.language === undefined || stream.language === language,
+				),
+			},
+			[],
+		);
 	}
 }
 
