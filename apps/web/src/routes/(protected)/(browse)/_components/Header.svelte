@@ -13,6 +13,7 @@
 		UsersIcon,
 	} from "phosphor-svelte";
 
+	import { profilesPage } from "../../profiles/profiles.svelte";
 	import Search from "./Search.svelte";
 
 	let {
@@ -79,7 +80,7 @@
 								</Button>
 							{/each}
 
-							<a href="/profiles?manage=1" class={item}>
+							<a href="/profiles" class={item} onclick={() => (profilesPage.managing = true)}>
 								<UsersIcon size="1.3rem" />
 								Manage profiles
 							</a>

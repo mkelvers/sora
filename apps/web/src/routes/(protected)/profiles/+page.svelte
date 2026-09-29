@@ -4,42 +4,32 @@
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import { CheckIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "phosphor-svelte";
+	import { PencilSimpleIcon, PlusIcon, TrashIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
+	import { profilesPage } from "./profiles.svelte";
 
 	let { data, form }: PageProps = $props();
 
 	let deleting = $state<string | null>(null);
-
-	const managing = $derived(page.url.searchParams.has("manage"));
-	const switchMode = $derived.by(() => {
-		const params = new URLSearchParams(page.url.search);
-		if (managing) {
-			params.delete("manage");
-		} else {
-			params.set("manage", "1");
-		}
-		return params.size > 0 ? `/profiles?${params}` : "/profiles";
-	});
 </script>
 
 <svelte:head>
-	<title>Sora — {managing ? "Manage profiles" : "Who's watching?"}</title>
+	<title>Sora — {profilesPage.managing ? "Manage profiles" : "Who's watching?"}</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />
 
 <div class="flex w-full max-w-5xl flex-col items-center gap-12">
 	<h1 class="text-center text-3xl font-normal">
-		{managing ? "Manage profiles" : "Who's watching?"}
+		{profilesPage.managing ? "Manage profiles" : "Who's watching?"}
 	</h1>
 
 	<form
 		method="POST"
-		action="?/{managing ? 'delete' : 'select'}{page.url.search.replace('?', '&')}"
+		action="?/{profilesPage.managing ? 'delete' : 'select'}{page.url.search.replace('?', '&')}"
 		use:enhance={({ submitter }) => {
-			if (managing && submitter instanceof HTMLButtonElement) {
+			if (profilesPage.managing && submitter instanceof HTMLButtonElement) {
 				deleting = submitter.value;
 			}
 			return async ({ update }) => {
@@ -51,7 +41,7 @@
 		<ul class="flex flex-wrap justify-center gap-x-8 gap-y-10">
 			{#each data.profiles as profile (profile.id)}
 				<li class="relative">
-					{#if managing}
+					{#if profilesPage.managing}
 						<a
 							class="group flex w-32 flex-col items-center gap-3 sm:w-36"
 							href="/profiles/{profile.id}{page.url.search}"
@@ -103,7 +93,7 @@
 				</li>
 			{/each}
 
-			{#if !managing}
+			{#if !profilesPage.managing}
 				<li>
 					<a
 						class="group flex w-32 flex-col items-center gap-3 sm:w-36"
@@ -122,25 +112,26 @@
 	</form>
 
 	<div class="flex flex-wrap items-center justify-center gap-3">
-		<a
-			class="inline-flex min-h-10 items-center gap-2 border-2 px-5 text-xs font-bold uppercase transition-colors {managing
-				? 'border-accent bg-accent text-on-accent hover:brightness-110'
-				: 'border-border-strong text-muted hover:border-foreground hover:text-foreground'}"
-			href={switchMode}
-		>
-			{#if managing}
-				<CheckIcon size="1rem" weight="bold" aria-hidden="true" />
+		{#if profilesPage.managing}
+			<Button
+				class="min-h-11 bg-foreground px-8 font-semibold text-canvas hover:bg-foreground/85"
+				onclick={() => (profilesPage.managing = false)}
+			>
 				Done
-			{:else}
-				<PencilSimpleIcon size="1rem" weight="bold" aria-hidden="true" />
+			</Button>
+		{:else}
+			<Button
+				class="min-h-11 border border-border-strong px-6 text-foreground hover:border-foreground hover:bg-foreground/5"
+				onclick={() => (profilesPage.managing = true)}
+			>
 				Manage profiles
-			{/if}
-		</a>
+			</Button>
+		{/if}
 
 		<form method="POST" action="/logout">
 			<Button
 				type="submit"
-				class="min-h-10 px-5 text-xs font-bold text-muted uppercase hover:text-foreground"
+				class="min-h-11 px-6 text-muted hover:bg-foreground/8 hover:text-foreground"
 			>
 				Sign out
 			</Button>
