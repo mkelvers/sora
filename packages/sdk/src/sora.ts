@@ -613,7 +613,7 @@ export class SoraClient {
 	/**
 	 * What came out for the titles in a profile's library, newest first: new
 	 * seasons, films, and OVAs, and new episodes of seasons that were out.
-	 * `meta.unread` counts those that came out since they were last seen.
+	 * `meta.unread` counts those not marked read.
 	 */
 	async notifications<const TOptions extends RequestOptions<NotificationsParams> = {}>(
 		profileId: string,
@@ -636,8 +636,8 @@ export class SoraClient {
 	}
 
 	/**
-	 * Marks a profile's notifications read up to `seenAt`: pass the
-	 * `released_at` of the newest one shown, so one that came out meanwhile
+	 * Marks all of a profile's notifications read up to `seenAt`: pass the
+	 * `released_at` of the newest one, so one that came out meanwhile
 	 * stays unread.
 	 */
 	async markNotificationsSeen(
@@ -653,6 +653,25 @@ export class SoraClient {
 					},
 					json: {
 						seen_at: seenAt,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Marks one of a profile's notifications read. */
+	async markNotificationRead(
+		profileId: string,
+		notificationId: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications[":notification_id"].read.$put(
+				{
+					param: {
+						profile_id: profileId,
+						notification_id: notificationId,
 					},
 				},
 				init(options),
