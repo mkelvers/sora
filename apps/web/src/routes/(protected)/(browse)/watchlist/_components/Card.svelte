@@ -41,7 +41,8 @@
 			{#if image}
 				<Image
 					src={tmdbImage(image, "w780")}
-					srcset={tmdbSrcset(image, { w342: 342, w780: 780 })}
+					srcset={tmdbSrcset(image, { w780: 780, w1280: 1280 })}
+					sizes="(min-width: 80rem) 19rem, (min-width: 64rem) 24vw, (min-width: 30em) 48vw, 100vw"
 					alt=""
 				/>
 			{/if}

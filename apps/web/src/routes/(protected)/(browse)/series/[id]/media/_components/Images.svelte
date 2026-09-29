@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import { cn, languages, tmdbImage } from "$lib/utils";
+	import { cn, languages, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { Series } from "@sora/sdk";
 	import { HeartIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
@@ -20,10 +20,30 @@
 	const shown = $derived(media.apply(images));
 	const current = $derived(series[`${media.type}_url`]?.split("/").at(-1));
 
-	const thumbnailSizes = {
-		poster: "w500",
-		backdrop: "w1280",
-		logo: "w500",
+	const thumbnails = {
+		poster: {
+			srcset: {
+				w342: 342,
+				w500: 500,
+				w780: 780,
+			},
+			sizes:
+				"(min-width: 80rem) 12vw, (min-width: 64rem) 16vw, (min-width: 48rem) 22vw, (min-width: 40rem) 30vw, 45vw",
+		},
+		backdrop: {
+			srcset: {
+				w780: 780,
+				w1280: 1280,
+			},
+			sizes: "(min-width: 80rem) 25vw, (min-width: 64rem) 35vw, (min-width: 40rem) 45vw, 90vw",
+		},
+		logo: {
+			srcset: {
+				w300: 300,
+				w500: 500,
+			},
+			sizes: "(min-width: 80rem) 25vw, (min-width: 64rem) 35vw, (min-width: 40rem) 45vw, 90vw",
+		},
 	};
 </script>
 
@@ -76,7 +96,9 @@
 	{#each shown as image (image.url)}
 		{#snippet preview()}
 			<img
-				src={tmdbImage(image.url, thumbnailSizes[media.type])}
+				src={tmdbImage(image.url, "w500")}
+				srcset={tmdbSrcset(image.url, thumbnails[media.type].srcset)}
+				sizes={thumbnails[media.type].sizes}
 				alt=""
 				loading="lazy"
 				decoding="async"
