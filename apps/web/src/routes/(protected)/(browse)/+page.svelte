@@ -50,7 +50,13 @@
 					{row.title}
 				</h2>
 
-				<Carousel class="min-w-0" options={{ slidesToScroll: "auto", duration: 20 }}>
+				<Carousel
+					class="min-w-0"
+					options={{
+						slidesToScroll: "auto",
+						duration: 20,
+					}}
+				>
 					{#snippet children()}
 						<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-20 hero:gap-6">
 							{#each row.cards as card (card.id)}

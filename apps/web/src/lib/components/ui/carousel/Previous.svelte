@@ -20,7 +20,7 @@
 			"pointer-events-auto z-40 col-start-1 row-start-1 grid h-20 place-items-center self-center justify-self-start px-6 text-white drop-shadow-lg transition-colors duration-150 hover:text-[#8c8c8c]",
 			className,
 		)}
-		aria-label="Previous"
+		aria-label="Previous slides"
 		onclick={() => carousel.api?.scrollPrev()}
 	>
 		<CaretLeftIcon size="1.9rem" weight="bold" />

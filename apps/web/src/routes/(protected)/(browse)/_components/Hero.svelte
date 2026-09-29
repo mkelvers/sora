@@ -21,7 +21,6 @@
 	} = $props();
 
 	const listing = getListed();
-
 	const delay = 10_000;
 
 	let held = $state(-1);
@@ -29,7 +28,7 @@
 
 {#if featured.length}
 	<Carousel
-		class="mb-[calc(var(--hero-bleed)*-1)] h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(52vw+var(--hero-bleed))] sm:min-h-[calc(22rem+var(--hero-bleed))] sm:[--hero-bleed:4rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:min-h-0"
+		class="-mb-(--hero-bleed) h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(52vw+var(--hero-bleed))] sm:min-h-[calc(22rem+var(--hero-bleed))] sm:[--hero-bleed:4rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:min-h-0"
 		options={{
 			loop: true,
 		}}
@@ -62,7 +61,7 @@
 										original: 3840,
 									})}
 									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) calc(92vw + 7rem), 57rem"
-									alt=""
+									alt="Backdrop from {slide.title}"
 									class="object-top"
 									loading={index === carousel.active ? "eager" : "lazy"}
 									fetchpriority={index === carousel.active ? "high" : "low"}
@@ -90,11 +89,12 @@
 					{@const near = [0, 1, featured.length - 1].includes(
 						(index - carousel.active + featured.length) % featured.length,
 					)}
-					<div
+					<article
 						class={cn(
 							"col-start-1 row-start-1 min-w-0 transition-opacity duration-500 motion-reduce:transition-none",
 							index !== carousel.active && "opacity-0",
 						)}
+						aria-label={slide.title}
 						aria-hidden={index !== carousel.active}
 						inert={index !== carousel.active}
 					>
@@ -107,9 +107,9 @@
 							{#if slide.logo_url && near}
 								<img
 									src={tmdbImage(slide.logo_url, "w500")}
-									alt=""
+									alt="{slide.title} logo"
 									decoding="async"
-									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-left-bottom xl:max-h-[calc(16rem*var(--logo-scale))] xl:max-w-[calc(32rem*var(--logo-scale))] short:max-h-[calc(5rem*var(--logo-scale))]"
+									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-bottom-left xl:max-h-[calc(16rem*var(--logo-scale))] xl:max-w-[calc(32rem*var(--logo-scale))] short:max-h-[calc(5rem*var(--logo-scale))]"
 									style:--logo-scale={slide.logo_scale}
 								/>
 							{/if}
@@ -143,7 +143,11 @@
 									class="inline-flex h-10 items-center gap-2 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
 								>
 									<PlayIcon size="1.2rem" weight="bold" />
-									{slide.kind === "movie" ? "Play" : "Start watching E1"}
+									{#if slide.kind === "movie"}
+										Play
+									{:else}
+										Start watching E1
+									{/if}
 								</a>
 							{/if}
 							<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
@@ -169,12 +173,14 @@
 								{/snippet}
 							</Tooltip>
 						</div>
-					</div>
+					</article>
 				{/each}
 
 				{#if featured.length > 1}
 					<div
 						class="col-start-1 row-start-2 mt-6 flex justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-20"
+						role="group"
+						aria-label="Choose a featured series"
 					>
 						{#each featured as item, index (item.id)}
 							<Button
@@ -182,7 +188,7 @@
 									"group pointer-events-auto h-8 transition-[width] duration-300 ease-out motion-reduce:transition-none",
 									index === carousel.active ? "w-12" : "w-6",
 								)}
-								aria-label={item.title}
+								aria-label="Show {item.title}"
 								aria-pressed={index === carousel.active}
 								onclick={() => {
 									carousel.select(index);
