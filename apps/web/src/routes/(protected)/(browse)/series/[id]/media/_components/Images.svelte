@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import { cn, languages, tmdbImage } from "$lib/utils";
 	import type { Series } from "@sora/sdk";
-	import { CheckIcon, HeartIcon } from "phosphor-svelte";
+	import { HeartIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
 	import { getImages } from "../media.remote";
@@ -45,15 +45,6 @@
 			)}
 		>
 			{@render preview()}
-			{#if chosen}
-				<span
-					class="absolute top-2 right-2 grid size-7 place-items-center bg-accent text-on-accent"
-					role="img"
-					aria-label="Current"
-				>
-					<CheckIcon size="1rem" weight="bold" />
-				</span>
-			{/if}
 		</span>
 		<span class="grid gap-1">
 			{@render details()}
