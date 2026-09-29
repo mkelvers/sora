@@ -3,7 +3,6 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Select from "$lib/components/ui/Select.svelte";
-	import { tmdbImage } from "$lib/utils";
 	import { DotsThreeVerticalIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
 
@@ -38,18 +37,9 @@
 
 <svelte:head>
 	<title>{series.title} · Sora</title>
-	{#if series.overview}
-		<meta name="description" content={series.overview} />
-		<meta property="og:description" content={series.overview} />
-	{/if}
-	<meta property="og:title" content={series.title} />
-	<meta property="og:type" content="video.tv_show" />
-	{#if series.backdrop_url}
-		<meta property="og:image" content={tmdbImage(series.backdrop_url, "w1280")} />
-	{/if}
 </svelte:head>
 
-<main class="bg-canvas text-foreground">
+<div class="bg-canvas text-foreground">
 	<Hero {series} progress={viewing.progress} library={viewing.library} />
 
 	<Details {series} />
@@ -120,4 +110,4 @@
 			</section>
 		{/if}
 	</div>
-</main>
+</div>

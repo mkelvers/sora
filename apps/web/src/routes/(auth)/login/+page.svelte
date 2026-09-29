@@ -19,7 +19,6 @@
 <svelte:head>
 	<title>Sign in · Sora</title>
 	<meta name="description" content="Sign in to Sora" />
-	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <StatusBanner
