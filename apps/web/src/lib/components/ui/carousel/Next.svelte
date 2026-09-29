@@ -13,12 +13,12 @@
 {#if carousel.canNext}
 	<Button
 		class={cn(
-			"pointer-events-auto z-30 col-start-1 row-start-1 grid size-12 place-items-center self-center justify-self-end text-white drop-shadow-lg transition-transform hover:scale-110 active:scale-90",
+			"pointer-events-auto z-40 col-start-1 row-start-1 grid h-20 place-items-center self-center justify-self-end px-6 text-white drop-shadow-lg transition-colors duration-150 hover:text-[#8c8c8c]",
 			className,
 		)}
 		aria-label="Next"
 		onclick={() => carousel.api?.scrollNext()}
 	>
-		<CaretRightIcon size="1.65rem" weight="bold" />
+		<CaretRightIcon size="1.9rem" weight="bold" />
 	</Button>
 {/if}
