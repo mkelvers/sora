@@ -6,7 +6,8 @@
 	import { audioLabel, cn } from "$lib/utils";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
-	import Card from "./_components/Card.svelte";
+	import HistoryCard from "./_components/HistoryCard.svelte";
+	import WatchlistCard from "./_components/WatchlistCard.svelte";
 	import { forgetEpisode, getHistory, getWatchlist, removeFromWatchlist } from "./watchlist.remote";
 
 	const tabs = [
@@ -72,25 +73,8 @@
 		{:else if tab === "watchlist"}
 			<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">
 				{#if watchlist.current}
-					{#each watchlist.current as { series, progress } (series.id)}
-						<li>
-							<Card
-								href="/series/{series.id}"
-								image={series.backdrop_url}
-								title={series.title}
-								detail={progress.next
-									? `${progress.next.position_seconds > 0 ? "Continue watching" : "Start watching"}: E${progress.next.episode}`
-									: undefined}
-								footer={audioLabel(series.audio) ?? undefined}
-								remove="Remove {series.title} from your watchlist"
-								onremove={() =>
-									removeFromWatchlist(series.id).updates(
-										watchlist.withOverride((current) =>
-											current.filter((other) => other.series.id !== series.id),
-										),
-									)}
-							/>
-						</li>
+					{#each watchlist.current as entry (entry.series.id)}
+						<li><WatchlistCard {entry} /></li>
 					{/each}
 				{:else}
 					{#each { length: 8 }, index (index)}
@@ -110,36 +94,7 @@
 			<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">
 				{#if history.current}
 					{#each history.current as item (`${item.season_id}:${item.episode}`)}
-						<li>
-							<Card
-								href="/series/{item.series.id}/watch/{item.season_id}/{item.episode}"
-								image={item.episode_still_url ?? item.series.backdrop_url}
-								eyebrow={item.series.title}
-								badge={item.watched ? "Watched" : "Ongoing"}
-								hoverBadge={item.duration_seconds > 0
-									? `${Math.round(item.duration_seconds / 60)}m`
-									: undefined}
-								title="E{item.episode}{item.episode_title ? ` - ${item.episode_title}` : ''}"
-								footer={new Date(item.played_at).toLocaleDateString("en-US", {
-									month: "short",
-									day: "numeric",
-									year: "numeric",
-								})}
-								remove="Remove E{item.episode} of {item.series.title} from your history"
-								onremove={() =>
-									forgetEpisode({
-										seasonId: item.season_id,
-										number: item.episode,
-									}).updates(
-										history.withOverride((current) =>
-											current.filter(
-												(other) =>
-													other.season_id !== item.season_id || other.episode !== item.episode,
-											),
-										),
-									)}
-							/>
-						</li>
+						<li><HistoryCard {item} /></li>
 					{/each}
 				{:else}
 					{#each { length: 8 }, index (index)}
