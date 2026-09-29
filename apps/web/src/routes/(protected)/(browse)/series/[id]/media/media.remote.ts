@@ -20,11 +20,11 @@ export const setArtwork = command(
 	z.object({
 		seriesId: z.string(),
 		type: z.enum(["poster", "backdrop", "logo"]),
-		url: z.url(),
+		url: z.union([z.url(), z.literal(false)]),
 	}),
 	async ({ seriesId, type, url }) => {
 		const series = await sora.updateArtwork(seriesId, {
-			[`${type}_url`]: url.replace("/original/", `/${savedSizes[type]}/`),
+			[`${type}_url`]: url && url.replace("/original/", `/${savedSizes[type]}/`),
 		});
 
 		getSeries(seriesId).set(series);

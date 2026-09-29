@@ -42,7 +42,7 @@ export class Media {
 		return result;
 	}
 
-	choose = async (seriesId: string, url: string) => {
+	choose = async (seriesId: string, url: string | false) => {
 		try {
 			await setArtwork({
 				seriesId,
@@ -51,7 +51,7 @@ export class Media {
 			}).updates(
 				getSeries(seriesId).withOverride((current) => ({
 					...current,
-					[`${this.type}_url`]: url,
+					[`${this.type}_url`]: url || null,
 				})),
 			);
 			this.error = undefined;
