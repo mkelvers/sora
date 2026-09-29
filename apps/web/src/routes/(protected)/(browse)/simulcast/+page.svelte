@@ -42,7 +42,7 @@
 				label="Choose simulcast season, {label(data.selected)} selected"
 			>
 				{#snippet trigger()}
-					<CaretDownIcon size="1rem" weight="bold" />
+					<CaretDownIcon size="0.875rem" weight="fill" />
 					{label(data.selected)}
 				{/snippet}
 

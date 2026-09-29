@@ -44,7 +44,7 @@
 						{:else}
 							Past Notifications
 						{/if}
-						<CaretDownIcon size="1rem" weight="bold" />
+						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 					{#snippet children()}
 						<div role="menu" aria-label="Show notifications">
