@@ -13,12 +13,9 @@ import { BrowseQuerySchema } from "@sora/core/catalog";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
-	AniListImportSchema,
 	ContinueWatchingItemSchema,
 	HistoryItemSchema,
 	HistoryMetaSchema,
-	ImportSummarySchema,
-	LibraryChangeSchema,
 	LibraryEntrySchema,
 	LibraryItemSchema,
 	LibraryMetaSchema,
@@ -770,7 +767,7 @@ export const getLibrary = createRoute({
 	tags: ["Profiles"],
 	summary: "The profile's library",
 	description:
-		"Every title in the library, most recently active first, with the status the profile gave it and its progress through it. The status is stored; the progress is read from what the profile watched.",
+		"Every title in the library, most recently active first, with its status and the profile's progress through it. The status follows the progress; see `LibraryStatus`.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -793,7 +790,7 @@ export const getLibraryEntry = createRoute({
 	path: "/profiles/{profile_id}/library/{series_id}",
 	tags: ["Profiles"],
 	summary: "A title's place in the profile's library",
-	description: "The status the profile gave the title, or null when it is not in the library.",
+	description: "The title's status, or null when it is not in the library.",
 	security: signedIn,
 	request: {
 		params: ProfileSeriesParams,
@@ -826,36 +823,6 @@ export const addToLibrary = createRoute({
 	},
 });
 
-export const updateLibraryEntry = createRoute({
-	operationId: "updateLibraryEntry",
-	method: "patch",
-	path: "/profiles/{profile_id}/library/{series_id}",
-	tags: ["Profiles"],
-	summary: "Set a title's status",
-	description:
-		"Sets the title's library status, adding it to the library if needed. No episode changes: a title can be `completed` with episodes left, or `watching` while caught up.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: LibraryChangeSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		204: {
-			description: "Changed.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-		422: problem("The body is invalid."),
-	},
-});
-
 export const removeFromLibrary = createRoute({
 	operationId: "removeFromLibrary",
 	method: "delete",
@@ -884,7 +851,7 @@ export const getHistory = createRoute({
 	tags: ["Profiles"],
 	summary: "The episodes the profile played",
 	description:
-		"One item per episode, most recently played first, a page at a time. Only playback appears here: episodes marked watched or imported do not.",
+		"One item per episode, most recently played first, a page at a time. Only playback appears here: episodes marked watched do not.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -926,36 +893,5 @@ export const forgetEpisode = createRoute({
 		},
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or no such season or episode."),
-	},
-});
-
-export const importAniList = createRoute({
-	operationId: "importAniList",
-	method: "post",
-	path: "/profiles/{profile_id}/imports/anilist",
-	tags: ["Profiles"],
-	summary: "Import an AniList list",
-	description:
-		"Imports a public AniList anime list: every entry goes into the library with its AniList status (current, rewatching, and paused as `watching`), and the episodes it records are marked watched, without entering the history. Completed and rewatching entries count every episode, watching, paused, and dropped ones their progress, and planned ones none. A title made of several entries takes their status when they agree, and `watching` otherwise; a title already in the library keeps its status. Titles Sora has not prepared yet join the library once they are. Importing again brings over what changed; progress made on Sora since is kept.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: AniListImportSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		200: json(envelopeOf(ImportSummarySchema, EmptyMetaSchema), "What was imported."),
-		401: problem("Not signed in."),
-		404: problem(
-			"The account has no such profile, or AniList has no public anime list under the name.",
-		),
-		422: problem("The body is invalid."),
-		503: problem("AniList is unavailable."),
 	},
 });

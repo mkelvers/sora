@@ -5,7 +5,6 @@ import type {
 	Envelope,
 	HistoryItem,
 	HistoryMeta,
-	ImportSummary,
 	LibraryEntry,
 	LibraryItem,
 	LibraryMeta,
@@ -454,8 +453,8 @@ export class SoraClient {
 
 	/**
 	 * Marks an episode, a season's released episodes, or a whole title's,
-	 * watched or unwatched. It leaves the history and the library status
-	 * alone; set `completed` with {@link SoraClient.setLibraryStatus}.
+	 * watched or unwatched. It leaves the history alone; the title's library
+	 * status follows, as it does for playback.
 	 */
 	async markWatched(
 		profileId: string,
@@ -477,7 +476,7 @@ export class SoraClient {
 		);
 	}
 
-	/** Forgets a profile's episode progress through a title, to start it over; its status and history stay. */
+	/** Forgets a profile's episode progress through a title, to start it over; its history stays. */
 	async clearProgress(
 		profileId: string,
 		seriesId: string,
@@ -521,7 +520,7 @@ export class SoraClient {
 		return unwrap(body, options);
 	}
 
-	/** The status a profile gave a title, `null` when it is not in the library. */
+	/** A title's library status for a profile, `null` when it is not in the library. */
 	async libraryEntry(
 		profileId: string,
 		seriesId: string,
@@ -549,29 +548,6 @@ export class SoraClient {
 					param: {
 						profile_id: profileId,
 						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Sets a title's library status, adding it to the library if needed. Its episodes do not change. */
-	async setLibraryStatus(
-		profileId: string,
-		seriesId: string,
-		status: LibraryStatus,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].library[":series_id"].$patch(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-					json: {
-						status,
 					},
 				},
 				init(options),
@@ -638,35 +614,6 @@ export class SoraClient {
 				init(options),
 			),
 		);
-	}
-
-	/**
-	 * Imports a public AniList anime list into a profile: every entry goes
-	 * into the library with its status, and the episodes it records are
-	 * marked watched.
-	 *
-	 * @throws {@link SoraError} with code `ANILIST_LIST_NOT_FOUND` when AniList
-	 *   has no public anime list under the name.
-	 */
-	async importAniList(
-		profileId: string,
-		userName: string,
-		options?: RequestOptions,
-	): Promise<ImportSummary> {
-		const body = await read(
-			this.#api.profiles[":profile_id"].imports.anilist.$post(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					json: {
-						user_name: userName,
-					},
-				},
-				init(options),
-			),
-		);
-		return body.results;
 	}
 
 	/** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */

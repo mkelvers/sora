@@ -11,7 +11,6 @@ import type {
 	ContinueWatchingItem,
 	EpisodeProgress,
 	HistoryItem,
-	ImportSummary,
 	LibraryEntry,
 	LibraryItem,
 	NamedSeason,
@@ -525,6 +524,10 @@ const seriesProgressFields = {
 		description:
 			"Whether every released episode in watch order is watched. Unlike a `completed` status, a new episode or season takes it back.",
 	}),
+	finished: z.boolean().openapi({
+		description:
+			"Whether the profile is caught up and no season in watch order is still airing. A season only announced, with no released episode, does not hold it back.",
+	}),
 	next: z
 		.object({
 			season_id: z.string(),
@@ -590,10 +593,10 @@ export const ProgressUpdateSchema = z
 	});
 
 export const LibraryStatusSchema = z
-	.enum(["planning", "watching", "completed", "dropped"])
+	.enum(["planning", "watching", "completed"])
 	.openapi("LibraryStatus", {
 		description:
-			"The profile's relationship to a whole title, which only it sets: playing a `planning` title is the one thing that changes it, to `watching`. It is not read from progress, so a `completed` title stays completed when a new season comes out; see `caught_up` for that.",
+			"Where the profile is with a whole title, which follows what it does: `planning` once added, `watching` once started, and `completed` once progress is `finished`. A season that comes out after leaves a `completed` title completed until the profile plays or marks that season.",
 	});
 
 export const LibraryItemSchema = z
@@ -628,23 +631,12 @@ export const LibraryMetaSchema = z
 				planning: z.number().int().nonnegative(),
 				watching: z.number().int().nonnegative(),
 				completed: z.number().int().nonnegative(),
-				dropped: z.number().int().nonnegative(),
 			})
 			.openapi({
 				description: "How many titles have each status, whatever `status` filters.",
 			}),
-		preparing: z.number().int().nonnegative().openapi({
-			description:
-				"Imported titles Sora is still preparing, which join the library once they are. Ask again later to include them.",
-		}),
 	})
 	.openapi("LibraryMeta");
-
-export const LibraryChangeSchema = z
-	.object({
-		status: LibraryStatusSchema,
-	})
-	.openapi("LibraryChange");
 
 export const MarkWatchedSchema = z
 	.object({
@@ -692,27 +684,3 @@ export const HistoryMetaSchema = z
 		}),
 	})
 	.openapi("HistoryMeta");
-
-export const AniListImportSchema = z
-	.object({
-		user_name: z.string().openapi({
-			description: "The AniList user whose public anime list to import.",
-			example: "Josh",
-		}),
-	})
-	.openapi("AniListImport");
-
-export const ImportSummarySchema = z
-	.object({
-		entries: z.number().int().openapi({
-			description: "Entries on the list.",
-		}),
-		episodes: z.number().int().openapi({
-			description: "Episodes recorded as watched.",
-		}),
-		preparing: z.number().int().openapi({
-			description:
-				"Entries whose titles Sora is still preparing; they join the library once they are.",
-		}),
-	})
-	.openapi("ImportSummary") satisfies z.ZodType<SnakeCased<ImportSummary>>;

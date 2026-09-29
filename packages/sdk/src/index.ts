@@ -31,7 +31,6 @@ export type {
 	CountMeta,
 	HistoryItem,
 	HistoryMeta,
-	ImportSummary,
 	LibraryEntry,
 	LibraryItem,
 	LibraryMeta,

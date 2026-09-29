@@ -20,11 +20,9 @@ import {
 	getLibraryEntry,
 	getProgress,
 	getRecommendations,
-	importAniListList,
 	markWatched,
 	recordProgress,
 	removeFromLibrary,
-	setLibraryStatus,
 } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
@@ -512,7 +510,6 @@ export const v1Routes = v1
 				meta: {
 					count: library.items.length,
 					counts: library.counts,
-					preparing: library.preparing,
 				},
 				results: snakeCased(library.items),
 			},
@@ -537,13 +534,6 @@ export const v1Routes = v1
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await addToLibrary(profile.id, series_id);
-		return c.body(null, 204);
-	})
-
-	.openapi(route.updateLibraryEntry, async (c) => {
-		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await setLibraryStatus(profile.id, series_id, c.req.valid("json").status);
 		return c.body(null, 204);
 	})
 
@@ -580,18 +570,6 @@ export const v1Routes = v1
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await forgetEpisode(profile.id, season_id, episode);
 		return c.body(null, 204);
-	})
-
-	.openapi(route.importAniList, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const summary = await importAniListList(profile.id, c.req.valid("json").user_name);
-		return c.json(
-			{
-				meta: {},
-				results: snakeCased(summary),
-			},
-			200,
-		);
 	});
 
 v1.doc31("/openapi.json", {

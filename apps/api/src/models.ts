@@ -17,7 +17,6 @@ import type {
 import type {
 	ContinueWatchingItemSchema,
 	HistoryItemSchema,
-	ImportSummarySchema,
 	LibraryEntrySchema,
 	LibraryItemSchema,
 	LibraryStatusSchema,
@@ -60,7 +59,6 @@ export type NamedSeason = z.infer<typeof NamedSeasonSchema>;
 export type LibraryItem = z.infer<typeof LibraryItemSchema>;
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
 export type HistoryItem = z.infer<typeof HistoryItemSchema>;
-export type ImportSummary = z.infer<typeof ImportSummarySchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
