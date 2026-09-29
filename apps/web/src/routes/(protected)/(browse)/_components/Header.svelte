@@ -154,10 +154,7 @@
 				<li>
 					<a
 						href={section.href}
-						class={cn(
-							"inline-flex h-full items-center px-4 text-sm font-medium text-muted transition-colors hover:bg-header-hover hover:text-foreground",
-							page.url.pathname === section.href && "text-foreground",
-						)}
+						class="inline-flex h-full items-center px-4 text-sm font-medium text-muted transition-colors hover:bg-header-hover hover:text-foreground"
 						aria-current={page.url.pathname === section.href ? "page" : undefined}
 					>
 						{section.label}
@@ -174,7 +171,6 @@
 					href={destination.href}
 					class={cn(
 						"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
-						page.url.pathname === destination.href && "bg-header-hover text-foreground",
 						destination.new &&
 							"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
 					)}
