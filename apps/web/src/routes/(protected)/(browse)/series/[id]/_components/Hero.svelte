@@ -137,9 +137,9 @@
 	{/if}
 
 	<div
-		class="z-30 col-start-1 row-start-1 mt-3 mr-3 self-start justify-self-end leading-none font-bold sm:mt-5 sm:mr-8 lg:mr-12 [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:text-white"
+		class="z-30 col-start-1 row-start-1 mt-3 mr-3 self-start justify-self-end sm:mt-5 sm:mr-8 lg:mr-12"
 	>
-		<Dropdown class="w-64 *:p-0">
+		<Dropdown class="w-64">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 				<span class="max-sm:sr-only">More</span>
@@ -149,7 +149,7 @@
 					{#if series.seasons.length}
 						<Button
 							role="menuitem"
-							class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
+							variant="item"
 							onclick={() =>
 								markAllWatched({
 									seriesId: series.id,
@@ -160,13 +160,9 @@
 						</Button>
 					{/if}
 
-					<a
-						role="menuitem"
-						href="/series/{series.id}/media"
-						class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
-					>
+					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
 						View Media Options
-					</a>
+					</Button>
 				</div>
 			{/snippet}
 		</Dropdown>
@@ -255,36 +251,31 @@
 			</div>
 		{/if}
 
-		<div
-			class="mt-6 flex items-center gap-3 text-xs font-bold text-accent sm:mt-7 sm:text-sm lg:mt-8 lg:gap-4"
-		>
+		<div class="mt-6 flex items-center gap-3 sm:mt-7 lg:mt-8 lg:gap-4">
 			{#if play}
-				<a
-					href={play.href}
-					class="flex h-10 min-w-0 items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 max-sm:flex-1 max-sm:justify-center sm:px-6"
-				>
-					<PlayIcon size="1.55em" weight="bold" class="shrink-0" />
+				<Button href={play.href} variant="primary" class="min-w-0 max-sm:flex-1">
+					<PlayIcon size="1.55em" weight="bold" />
 					<span class="truncate">{play.label}</span>
-				</a>
+				</Button>
 
 				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 					{#snippet children(trigger)}
-						<button
+						<Button
 							{...trigger}
-							type="button"
-							class="grid size-10 shrink-0 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
+							variant="outline"
+							class="w-11 px-0"
 							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={toggleListed}
 						>
 							<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
-						</button>
+						</Button>
 					{/snippet}
 				</Tooltip>
 			{:else}
-				<button
-					type="button"
-					class="flex h-10 cursor-pointer items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 max-sm:flex-1 max-sm:justify-center sm:px-6"
+				<Button
+					variant="primary"
+					class="max-sm:flex-1"
 					aria-pressed={listed}
 					onclick={toggleListed}
 				>
@@ -294,7 +285,7 @@
 					{:else}
 						Add to Watchlist
 					{/if}
-				</button>
+				</Button>
 			{/if}
 		</div>
 	</div>

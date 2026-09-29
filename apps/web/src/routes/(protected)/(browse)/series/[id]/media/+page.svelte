@@ -91,7 +91,8 @@
 		</nav>
 		{#if arranging}
 			<Button
-				class="ml-auto gap-2 text-xs font-bold tracking-wide text-dropdown-foreground uppercase hover:text-foreground"
+				variant="ghost"
+				class="ml-auto"
 				disabled={!placed}
 				onclick={() =>
 					media.place(series.id, {
@@ -105,7 +106,8 @@
 			</Button>
 		{:else}
 			<Button
-				class="ml-auto gap-2 text-xs font-bold tracking-wide text-dropdown-foreground uppercase hover:text-foreground"
+				variant="ghost"
+				class="ml-auto"
 				disabled={media.refreshing}
 				onclick={() => media.refresh(series.id)}
 			>

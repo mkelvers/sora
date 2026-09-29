@@ -61,25 +61,27 @@
 					{#if series.seasons.length > 1}
 						<Seasons seasons={series.seasons} bind:season />
 					{/if}
-					<div class="ml-auto text-sm font-bold [&_.dropdown-trigger]:gap-1">
+					<div class="ml-auto">
 						<Dropdown class="w-64">
 							{#snippet trigger()}
 								<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 								Options
 							{/snippet}
 							{#snippet children()}
-								<Button
-									role="menuitem"
-									class="font-normal focus:text-foreground"
-									onclick={() =>
-										markAllWatched({
-											seriesId: series.id,
-											seasonId: season.id,
-											watched: !seasonWatched,
-										})}
-								>
-									Mark Season as {seasonWatched ? "Unwatched" : "Watched"}
-								</Button>
+								<div role="menu" aria-label="Season options">
+									<Button
+										role="menuitem"
+										variant="item"
+										onclick={() =>
+											markAllWatched({
+												seriesId: series.id,
+												seasonId: season.id,
+												watched: !seasonWatched,
+											})}
+									>
+										Mark Season as {seasonWatched ? "Unwatched" : "Watched"}
+									</Button>
+								</div>
 							{/snippet}
 						</Dropdown>
 					</div>

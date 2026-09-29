@@ -153,7 +153,7 @@
 	<div
 		class="absolute -right-2 -bottom-2 z-20 [&_.dropdown-trigger]:bg-transparent! [&_.dropdown-trigger]:hover:text-white"
 	>
-		<Dropdown label="Episode options" class="w-48 *:p-0">
+		<Dropdown label="Episode options" class="w-48">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 			{/snippet}
@@ -161,7 +161,7 @@
 				<div role="menu" aria-label="Episode options">
 					<Button
 						role="menuitem"
-						class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
+						variant="item"
 						onclick={() =>
 							markAllWatched({
 								seriesId,

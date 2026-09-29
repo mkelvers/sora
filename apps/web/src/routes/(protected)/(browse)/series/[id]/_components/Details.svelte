@@ -62,7 +62,8 @@
 
 		{#if overflowing}
 			<Button
-				class="min-h-11 text-xs font-semibold text-accent uppercase"
+				variant="ghost"
+				class="-mx-2"
 				aria-expanded={expanded}
 				aria-controls="series-details"
 				onclick={() => (expanded = !expanded)}

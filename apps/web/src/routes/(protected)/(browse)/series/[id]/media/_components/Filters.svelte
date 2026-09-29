@@ -159,18 +159,18 @@
 					: media.languages.length === 0}
 				<Button
 					aria-pressed={pressed}
-					class={cn(
-						"flex h-9 min-w-0 items-center justify-start gap-3 px-2 text-left text-sm font-normal text-dropdown-foreground hover:bg-panel-hover hover:text-foreground",
-						pressed && "bg-panel-hover text-foreground",
-					)}
+					variant="item"
+					class={cn("min-h-9 gap-3 px-2 py-0", pressed && "bg-white/8 text-foreground")}
 					onclick={() => (language.code ? toggle(language.code) : (media.languages = []))}
 				>
 					<span class="min-w-0 truncate">
-						{language.code === ""
-							? "All"
-							: language.code === "none"
-								? "Textless"
-								: languageNames.of(language.code)}
+						{#if language.code === ""}
+							All
+						{:else if language.code === "none"}
+							Textless
+						{:else}
+							{languageNames.of(language.code)}
+						{/if}
 					</span>
 					<span class="ml-auto text-xs text-subtle tabular-nums">{language.count}</span>
 				</Button>

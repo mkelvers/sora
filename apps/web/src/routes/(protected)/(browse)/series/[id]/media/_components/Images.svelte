@@ -47,8 +47,9 @@
 </script>
 
 {#snippet tile(chosen: boolean, url: string | false, preview: Snippet, details: Snippet)}
-	<Button
-		class="group grid min-w-0 cursor-pointer content-start justify-stretch gap-3 text-left whitespace-normal"
+	<button
+		type="button"
+		class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch gap-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 		aria-pressed={chosen}
 		onclick={() => media.choose(series.id, url)}
 	>
@@ -67,7 +68,7 @@
 		<span class="grid gap-1">
 			{@render details()}
 		</span>
-	</Button>
+	</button>
 {/snippet}
 
 <ul
