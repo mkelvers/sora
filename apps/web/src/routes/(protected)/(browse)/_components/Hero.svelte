@@ -29,7 +29,7 @@
 
 {#if featured.length}
 	<Carousel
-		class="mb-[calc(var(--hero-bleed)*-1)] h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(min(100svh,42rem)+var(--hero-bleed))] sm:max-h-[calc(48rem+var(--hero-bleed))] sm:min-h-[calc(45rem+var(--hero-bleed))] sm:[--hero-bleed:6rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:max-h-none xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:max-h-none short:min-h-0"
+		class="mb-[calc(var(--hero-bleed)*-1)] h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(52vw+var(--hero-bleed))] sm:min-h-[calc(22rem+var(--hero-bleed))] sm:[--hero-bleed:4rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:min-h-0"
 		options={{ loop: true }}
 		plugins={[Fade()]}
 	>
@@ -59,7 +59,7 @@
 										w1280: 1280,
 										original: 3840,
 									})}
-									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) 91rem, 57rem"
+									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) calc(92vw + 7rem), 57rem"
 									alt=""
 									class="object-top"
 									loading={index === carousel.active ? "eager" : "lazy"}
@@ -71,15 +71,11 @@
 				{/each}
 			</Content>
 
-			<Previous
-				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid pointer-coarse:hidden"
-			/>
-			<Next
-				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid pointer-coarse:hidden"
-			/>
+			<Previous class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
+			<Next class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
 
 			<div
-				class="pointer-events-none z-30 col-start-1 row-start-1 mb-(--hero-bleed) grid min-w-0 self-end pb-8 sm:pb-80 lg:pb-24 xl:mb-[calc(clamp(0rem,58rem-100svh,9rem)+var(--hero-bleed))] xl:self-center xl:pb-0 short:pb-8"
+				class="pointer-events-none z-30 col-start-1 row-start-1 mb-(--hero-bleed) grid min-w-0 self-end pb-8 sm:self-center sm:pb-0 xl:mb-[calc(clamp(0rem,58rem-100svh,9rem)+var(--hero-bleed))]"
 				style:--hero-delay="{delay}ms"
 				{@attach () => carousel.autoplay(delay)}
 			>
@@ -98,7 +94,7 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:h-64 lg:px-20 xl:w-fit short:h-20"
+							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
 							aria-label={slide.title}
 							tabindex="-1"
 						>
@@ -107,7 +103,7 @@
 									src={tmdbImage(slide.logo_url, "w500")}
 									alt=""
 									decoding="async"
-									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-left-bottom lg:max-h-[calc(16rem*var(--logo-scale))] lg:max-w-[calc(32rem*var(--logo-scale))] short:max-h-[calc(5rem*var(--logo-scale))]"
+									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-left-bottom xl:max-h-[calc(16rem*var(--logo-scale))] xl:max-w-[calc(32rem*var(--logo-scale))] short:max-h-[calc(5rem*var(--logo-scale))]"
 									style:--logo-scale={slide.logo_scale}
 								/>
 							{/if}
@@ -127,7 +123,7 @@
 						</p>
 
 						<p
-							class="mt-2 hidden h-18 max-w-[min(100%,38rem)] px-5 text-sm leading-6 font-normal text-pretty text-[#bbb] antialiased sm:line-clamp-3 sm:px-10 lg:mt-3 lg:line-clamp-4 lg:h-28 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base lg:leading-7 short:hidden"
+							class="mt-2 hidden h-18 max-w-[min(100%,38rem)] px-5 text-sm leading-6 font-normal text-pretty text-[#bbb] antialiased sm:px-10 lg:mt-3 lg:h-28 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
 						>
 							{slide.overview}
 						</p>
