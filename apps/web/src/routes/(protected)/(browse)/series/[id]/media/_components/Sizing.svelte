@@ -117,7 +117,7 @@
 	}
 
 	function hit(event: PointerEvent, logo: DOMRect) {
-		const reach = 10;
+		const reach = event.pointerType === "touch" ? 24 : 10;
 		const corner = corners.find(
 			(corner) =>
 				Math.abs(event.clientX - (corner.x < 0 ? logo.left : logo.right)) <= reach &&
@@ -292,7 +292,12 @@
 				}}
 			>
 				{#each corners as corner (corner.class)}
-					<span class={cn("absolute size-3 border border-black/40 bg-white", corner.class)}></span>
+					<span
+						class={cn(
+							"absolute size-3 border border-black/40 bg-white pointer-coarse:size-4",
+							corner.class,
+						)}
+					></span>
 				{/each}
 			</button>
 		{/if}

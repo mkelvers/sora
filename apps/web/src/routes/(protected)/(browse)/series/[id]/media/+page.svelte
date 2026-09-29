@@ -66,9 +66,9 @@
 		<h1 class="text-3xl font-bold">Media</h1>
 	</header>
 
-	<div class="mt-6 flex items-center gap-6 border-b border-border">
+	<div class="mt-6 flex items-center gap-4 border-b border-border sm:gap-6">
 		<nav class="min-w-0" aria-label="Type">
-			<ul class="-mb-px flex gap-8" role="radiogroup">
+			<ul class="-mb-px flex gap-5 sm:gap-8" role="radiogroup">
 				{#each types as option (option.value)}
 					{@const checked = media.type === option.value}
 					<li>
@@ -105,7 +105,7 @@
 					})}
 			>
 				<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
-				Reset
+				<span class="max-sm:sr-only">Reset</span>
 			</Button>
 		{:else}
 			<Button
@@ -118,7 +118,7 @@
 					weight="bold"
 					class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
 				/>
-				{media.refreshing ? "Refreshing" : "Refresh"}
+				<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
 			</Button>
 		{/if}
 	</div>
