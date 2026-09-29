@@ -18,6 +18,11 @@ export const providerHttp = new HttpClient({
 			capacity: 55,
 			intervalMs: 60_000,
 		},
+		// AnimeSchedule's API allows 120 requests a minute per IP and app.
+		"animeschedule.net": {
+			capacity: 100,
+			intervalMs: 60_000,
+		},
 	},
 });
 

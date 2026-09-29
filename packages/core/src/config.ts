@@ -10,6 +10,8 @@ const EnvironmentSchema = z.object({
 	STREAM_SIGNING_SECRET: z.string().min(32),
 	/** TMDB API read access token (v4 bearer token), used to group anime into series. */
 	TMDB_READ_ACCESS_TOKEN: z.string().min(1),
+	/** AnimeSchedule application token, used to learn when dubs come out. */
+	ANIME_SCHEDULE_API_KEY: z.string().min(1),
 	/** Secret for signing session tokens. Changing it signs every device out. */
 	AUTH_SECRET: z.string().min(32),
 	/** The API's public origin, which Better Auth builds its URLs from. */
@@ -44,6 +46,7 @@ export const config = (() => {
 		databaseUrl: environment.DATABASE_URL,
 		streamSigningSecret: environment.STREAM_SIGNING_SECRET,
 		tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
+		animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 		authSecret: environment.AUTH_SECRET,
 		authUrl: environment.AUTH_URL,
 		authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,

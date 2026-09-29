@@ -119,3 +119,19 @@ export const providerCalls = pgTable(
 		index("provider_calls_hour_idx").on(table.hour),
 	],
 );
+
+/**
+ * Which AniList entry each AnimeSchedule show is, as AnimeSchedule links
+ * it, so its dubs can be looked for on AniKoto as they come out. `null`
+ * when it links no AniList entry; such a show is looked up again after a
+ * week.
+ *
+ * The scheduler fills it in as shows appear in AnimeSchedule's timetable;
+ * see `syncDubSchedule`.
+ */
+export const animeScheduleShow = pgTable("anime_schedule_show", {
+	/** The show's path on AnimeSchedule, such as `yomi-no-tsugai`. */
+	route: text("route").primaryKey(),
+	anilistId: integer("anilist_id"),
+	resolvedAt: timestamptz("resolved_at").notNull(),
+});

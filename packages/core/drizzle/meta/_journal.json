@@ -260,6 +260,13 @@
       "when": 1790699127090,
       "tag": "0036_notification_read",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790711539106,
+      "tag": "0037_anime_schedule_show",
+      "breakpoints": true
     }
   ]
 }
