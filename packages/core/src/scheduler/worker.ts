@@ -14,7 +14,13 @@ import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./j
 import { lookUpEpisodes } from "./jobs/episodes";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { recordReleasesJob, recordReleasesTask } from "./jobs/notifications";
-import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
+import {
+	pollAniKoto,
+	watchAniKotoDubs,
+	watchAniKotoDubsTask,
+	watchAniKotoReleases,
+	watchAniKotoReleasesTask,
+} from "./jobs/releases";
 import {
 	backfillSeries,
 	backfillSeriesTask,
@@ -53,9 +59,9 @@ const waitedOnTasks: Record<string, Task> = {
 /**
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, watches AniKoto for new
- * episodes every minute, records what came out for series in libraries,
- * which notifications are read from, looks stored titles up on
- * providers, keeps stored series current as seasons air and new ones are
+ * episodes every minute and for new dubs every two minutes, records what
+ * came out for series in libraries, which notifications are read from,
+ * looks stored titles up on providers, keeps stored series current as seasons air and new ones are
  * announced, mirrors the provider catalogues titles are matched against,
  * keeps the search index current while storing the most popular titles ahead
  * of any search, keeps the hints that match titles to TMDB current, and
@@ -77,7 +83,6 @@ export async function startScheduler(): Promise<Scheduler> {
 			[trackAiringTask]: trackAiring,
 			[reviveAiringChecksTask]: reviveAiringChecks,
 			[storeSeriesTask]: storeSeriesJob,
-			[lookUpEpisodesTask]: lookUpEpisodes,
 			...waitedOnTasks,
 			[discoverSeriesEntriesTask]: discoverSeriesEntries,
 			[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
@@ -121,18 +126,36 @@ export async function startScheduler(): Promise<Scheduler> {
 		taskList: prioritized(waitedOnTasks),
 	});
 
-	// New episodes must show up within minutes of AniKoto carrying them, so
-	// the looks on AniKoto have workers of their own too. Each costs one
-	// AniKoto request, and the lists they fetch rarely wait on AniList.
+	// Episode lookups ask stream providers, not AniList, so they have workers
+	// of their own rather than queueing behind layouts waiting on AniList,
+	// which can number in the thousands. Episodes and their languages are
+	// unknown until an entry is looked up. A few at a time keep AniKoto's API
+	// within its limit alongside the release watchers.
+	const lookups = await run({
+		connectionString: config.databaseUrl,
+		concurrency: 4,
+		maxPoolSize: 4,
+		taskList: prioritized({
+			[lookUpEpisodesTask]: lookUpEpisodes,
+		}),
+	});
+
+	// New episodes and dubs must show up within minutes of AniKoto carrying
+	// them, so the looks on AniKoto have workers of their own too. Each costs
+	// one AniKoto request, and the lists they fetch rarely wait on AniList.
 	const releases = await run({
 		connectionString: config.databaseUrl,
 		concurrency: 4,
 		maxPoolSize: 4,
 		taskList: prioritized({
 			[watchAniKotoReleasesTask]: watchAniKotoReleases,
+			[watchAniKotoDubsTask]: watchAniKotoDubs,
 			[pollAniKotoTask]: pollAniKoto,
 		}),
-		crontab: `* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
+		crontab: [
+			`* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
+			`*/2 * * * * ${watchAniKotoDubsTask} ?priority=-1`,
+		].join("\n"),
 	});
 
 	// Notifications read only the database and must follow a release within
@@ -151,11 +174,18 @@ export async function startScheduler(): Promise<Scheduler> {
 		promise: Promise.all([
 			main.promise,
 			waitedOn.promise,
+			lookups.promise,
 			releases.promise,
 			notifications.promise,
 		]).then(() => undefined),
 		stop: async () => {
-			await Promise.all([main.stop(), waitedOn.stop(), releases.stop(), notifications.stop()]);
+			await Promise.all([
+				main.stop(),
+				waitedOn.stop(),
+				lookups.stop(),
+				releases.stop(),
+				notifications.stop(),
+			]);
 		},
 	};
 }
