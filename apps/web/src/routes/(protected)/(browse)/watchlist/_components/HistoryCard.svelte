@@ -85,7 +85,8 @@
 			{#snippet children(trigger)}
 				<Button
 					{...trigger}
-					class="grid size-8 shrink-0 place-items-center text-muted transition-[color,transform] duration-150 hover:text-status-error active:scale-90"
+					variant="icon"
+					class="hover:text-status-error"
 					aria-label="Remove E{item.episode} of {item.series.title} from your history"
 					onclick={() =>
 						forgetEpisode({

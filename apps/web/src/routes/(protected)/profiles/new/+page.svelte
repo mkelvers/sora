@@ -48,11 +48,7 @@
 	/>
 
 	<div class="mt-10 flex gap-3">
-		<Button
-			type="submit"
-			class="min-h-11 flex-1 bg-accent px-4 text-xs font-bold text-on-accent uppercase hover:brightness-110"
-			disabled={pending}
-		>
+		<Button type="submit" variant="primary" class="flex-1" disabled={pending}>
 			{#if pending}
 				Adding…
 			{:else}

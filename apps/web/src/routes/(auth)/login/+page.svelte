@@ -70,11 +70,7 @@
 		/>
 	</div>
 
-	<Button
-		class="mt-10 min-h-11 w-full px-4 text-xs font-bold uppercase active:scale-[0.97]"
-		type="submit"
-		disabled={pending}
-	>
+	<Button variant="primary" class="mt-10 w-full" type="submit" disabled={pending}>
 		{#if pending}
 			Signing in…
 		{:else}

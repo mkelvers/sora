@@ -99,22 +99,13 @@
 	</fieldset>
 
 	<div class="mt-10 flex gap-3">
-		<Button
-			type="submit"
-			class="min-h-11 flex-1 bg-accent px-4 text-xs font-bold text-on-accent uppercase hover:brightness-110"
-			disabled={pending}
-		>
+		<Button type="submit" variant="primary" class="flex-1" disabled={pending}>
 			{#if pending}
 				Saving…
 			{:else}
 				Save
 			{/if}
 		</Button>
-		<a
-			class="inline-flex min-h-11 flex-1 items-center justify-center border-2 border-border-strong px-4 text-xs font-bold text-muted uppercase hover:border-foreground hover:text-foreground"
-			href="/profiles{page.url.search}"
-		>
-			Cancel
-		</a>
+		<Button href="/profiles{page.url.search}" variant="outline" class="flex-1">Cancel</Button>
 	</div>
 </form>

@@ -59,8 +59,7 @@
 		{#if type === "password" && value}
 			<Button
 				variant="ghost"
-				class="absolute inset-y-0 right-0 min-w-12 pt-8 text-xs font-semibold text-muted uppercase transition-[color,transform] hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:scale-[0.97]"
-				type="button"
+				class="absolute inset-y-0 right-0 min-w-12 pt-8 focus-visible:-outline-offset-2"
 				aria-label={visible ? "Hide" : "Show"}
 				aria-pressed={visible}
 				onclick={() => (visible = !visible)}

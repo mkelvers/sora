@@ -73,7 +73,8 @@
 								name="profile"
 								value={profile.id}
 								disabled={deleting !== null}
-								class="absolute top-2 right-2 size-9 bg-canvas/80 text-status-error hover:bg-status-error hover:text-foreground"
+								variant="icon"
+								class="absolute top-2 right-2 bg-canvas/80 text-status-error hover:bg-status-error hover:text-foreground"
 								aria-label="Delete {profile.name}"
 							>
 								<TrashIcon size="1.1rem" aria-hidden="true" />
@@ -119,28 +120,15 @@
 
 	<div class="flex flex-wrap items-center justify-center gap-3">
 		{#if profilesPage.managing}
-			<Button
-				class="min-h-11 bg-foreground px-8 font-semibold text-canvas hover:bg-foreground/85"
-				onclick={() => (profilesPage.managing = false)}
-			>
-				Done
-			</Button>
+			<Button variant="primary" onclick={() => (profilesPage.managing = false)}>Done</Button>
 		{:else}
-			<Button
-				class="min-h-11 border border-border-strong px-6 text-foreground hover:border-foreground hover:bg-foreground/5"
-				onclick={() => (profilesPage.managing = true)}
-			>
+			<Button variant="outline" onclick={() => (profilesPage.managing = true)}>
 				Manage profiles
 			</Button>
 		{/if}
 
 		<form method="POST" action="/logout">
-			<Button
-				type="submit"
-				class="min-h-11 px-6 text-muted hover:bg-foreground/8 hover:text-foreground"
-			>
-				Sign out
-			</Button>
+			<Button type="submit" variant="ghost" class="min-h-11 px-5">Sign out</Button>
 		</form>
 	</div>
 </div>
