@@ -44,6 +44,13 @@ export const markNotificationsSeen = command(z.string(), async (seenAt) => {
 	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
 });
 
+export const markNotificationRead = command(z.string(), async (id) => {
+	const viewer = remoteViewer();
+
+	await viewer.sora.markNotificationRead(viewer.profile.id, id);
+	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
+});
+
 export const dismissNotification = command(z.string(), async (id) => {
 	const viewer = remoteViewer();
 
