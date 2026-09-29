@@ -1,4 +1,6 @@
 <script lang="ts">
+	import emptyNotifications from "$lib/assets/illustrations/empty-notifications.webp";
+	import EmptyState from "$lib/components/EmptyState.svelte";
 	import { untrack } from "svelte";
 
 	import { getNotifications, markNotificationsSeen } from "../home.remote";
@@ -21,9 +23,19 @@
 <main class="mx-auto w-full max-w-5xl px-5 py-10 sm:px-10">
 	<h1 class="mb-8 text-center text-2xl font-bold">Notification Center</h1>
 
-	<div class="flex flex-col gap-4">
-		{#each items as item (item.id)}
-			<Notification {item} unread={unread.has(item.id)} />
-		{/each}
-	</div>
+	{#if items.length}
+		<div class="flex flex-col gap-4">
+			{#each items as item (item.id)}
+				<Notification {item} unread={unread.has(item.id)} />
+			{/each}
+		</div>
+	{:else}
+		<EmptyState
+			image={emptyNotifications}
+			width={720}
+			height={703}
+			title="All quiet for now."
+			hint="We'll ring the bell when new episodes arrive."
+		/>
+	{/if}
 </main>
