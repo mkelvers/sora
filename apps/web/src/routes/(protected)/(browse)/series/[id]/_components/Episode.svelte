@@ -33,22 +33,32 @@
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const heading = $derived(`E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`);
 	const audio = $derived(audioLabel(episode.audio));
-	const released = $derived(
-		episode.aired_at
-			? new Date(episode.aired_at).toLocaleDateString("en-US", {
+	const released = $derived.by(() => {
+		if (episode.aired_at) {
+			return {
+				iso: episode.aired_at,
+				label: new Date(episode.aired_at).toLocaleDateString("en-US", {
 					month: "short",
 					day: "numeric",
 					year: "numeric",
-				})
-			: episode.air_date
-				? new Date(episode.air_date).toLocaleDateString("en-US", {
-						month: "short",
-						day: "numeric",
-						year: "numeric",
-						timeZone: "UTC",
-					})
-				: null,
-	);
+				}),
+			};
+		}
+
+		if (episode.air_date) {
+			return {
+				iso: episode.air_date,
+				label: new Date(episode.air_date).toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+					year: "numeric",
+					timeZone: "UTC",
+				}),
+			};
+		}
+
+		return null;
+	});
 	const image = $derived(episode.still_url ?? backdrop);
 </script>
 
@@ -70,7 +80,7 @@
 							w780: 780,
 						})}
 						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
-						alt=""
+						alt="Still from episode {episode.number} of {title}"
 						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
@@ -78,13 +88,19 @@
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
-						{watched ? "Watched" : `${episode.runtime_minutes}m`}
+						{#if watched}
+							Watched
+						{:else}
+							{episode.runtime_minutes}m
+						{/if}
 					</span>
 				{/if}
 				{#if played}
-					<span class="absolute inset-x-0 bottom-0 h-1 bg-black/60">
-						<span class="block h-full bg-accent" style:width="{played * 100}%"></span>
-					</span>
+					<progress
+						class="absolute inset-x-0 bottom-0 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+						value={played}
+						aria-label="{Math.round(played * 100)}% watched"
+					></progress>
 				{/if}
 			</div>
 
@@ -105,11 +121,11 @@
 			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 		>
 			<p class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase">{title}</p>
-			<h3 class="mt-2 text-[0.9375rem] leading-snug font-bold text-foreground">{heading}</h3>
+			<p class="mt-2 text-[0.9375rem] leading-snug font-bold text-foreground">{heading}</p>
 			{#if released}
 				<p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
 					<CalendarBlankIcon size="1rem" />
-					{released}
+					<time datetime={released.iso}>{released.label}</time>
 				</p>
 			{/if}
 			{#if episode.overview}
@@ -122,7 +138,13 @@
 					class="mt-auto flex h-10 shrink-0 items-center gap-2 text-sm font-bold text-accent uppercase"
 				>
 					<PlayIcon size="1.25rem" weight="bold" />
-					{watched ? "Watch again" : played ? "Resume" : "Play"} E{episode.number}
+					{#if watched}
+						Watch again E{episode.number}
+					{:else if played}
+						Resume E{episode.number}
+					{:else}
+						Play E{episode.number}
+					{/if}
 				</span>
 			{/if}
 		</div>
