@@ -669,10 +669,14 @@ export const HistoryItemSchema = z
 		season_title: z.string(),
 		episode: z.number().int(),
 		episode_title: z.string().nullable(),
+		episode_still_url: z.string().nullable(),
 		position_seconds: z.number().openapi({
 			description: "How far its latest playback got.",
 		}),
 		duration_seconds: z.number(),
+		watched: z.boolean().openapi({
+			description: "Whether the episode is watched now, by playing it to the end or marking it.",
+		}),
 		played_at: z.string().openapi({
 			description: "When the episode was last played, as an ISO 8601 timestamp.",
 		}),

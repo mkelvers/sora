@@ -1,7 +1,13 @@
 import { and, desc, eq, lt, or, type SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { playbackHistory, series, seriesEpisode, seriesSeason } from "../../database/schema";
+import {
+	playbackHistory,
+	playbackProgress,
+	series,
+	seriesEpisode,
+	seriesSeason,
+} from "../../database/schema";
 import { InvalidInputError } from "../../errors";
 import { locateEpisode } from "../../series/episodes";
 import type { SeriesCard } from "../../series/models";
@@ -19,9 +25,13 @@ export interface HistoryItem {
 	/** Position within the season, from 1. */
 	episode: number;
 	episodeTitle: string | null;
+	/** The episode's still image, or `null` when TMDB has none. */
+	episodeStillUrl: string | null;
 	/** How far its latest playback got. */
 	positionSeconds: number;
 	durationSeconds: number;
+	/** Whether the episode is watched now, by playing it to the end or marking it. */
+	watched: boolean;
 	/** ISO 8601 timestamp of when it was last played. */
 	playedAt: string;
 }
@@ -57,6 +67,8 @@ export async function getHistory(
 			seasonTitle: seriesSeason.title,
 			episode: seriesEpisode.number,
 			episodeTitle: seriesEpisode.title,
+			episodeStillUrl: seriesEpisode.stillUrl,
+			watched: playbackProgress.watched,
 		})
 		.from(playbackHistory)
 		.innerJoin(
@@ -68,6 +80,14 @@ export async function getHistory(
 		)
 		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
 		.innerJoin(series, eq(series.id, seriesSeason.seriesId))
+		.leftJoin(
+			playbackProgress,
+			and(
+				eq(playbackProgress.userId, playbackHistory.userId),
+				eq(playbackProgress.anilistId, playbackHistory.anilistId),
+				eq(playbackProgress.episode, playbackHistory.episode),
+			),
+		)
 		.where(
 			and(eq(playbackHistory.userId, userId), options.after ? after(options.after) : undefined),
 		)
@@ -95,8 +115,10 @@ export async function getHistory(
 							seasonTitle: row.seasonTitle,
 							episode: row.episode,
 							episodeTitle: row.episodeTitle,
+							episodeStillUrl: row.episodeStillUrl,
 							positionSeconds: row.history.positionSeconds,
 							durationSeconds: row.history.durationSeconds,
+							watched: row.watched ?? false,
 							playedAt: row.history.playedAt.toISOString(),
 						},
 					]
