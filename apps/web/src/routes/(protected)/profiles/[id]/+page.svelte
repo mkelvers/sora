@@ -99,13 +99,7 @@
 	</fieldset>
 
 	<div class="mt-10 flex gap-3">
-		<Button type="submit" variant="primary" class="flex-1" disabled={pending}>
-			{#if pending}
-				Saving…
-			{:else}
-				Save
-			{/if}
-		</Button>
+		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Save</Button>
 		<Button href="/profiles{page.url.search}" variant="outline" class="flex-1">Cancel</Button>
 	</div>
 </form>

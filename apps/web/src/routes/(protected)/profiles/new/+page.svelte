@@ -48,18 +48,7 @@
 	/>
 
 	<div class="mt-10 flex gap-3">
-		<Button type="submit" variant="primary" class="flex-1" disabled={pending}>
-			{#if pending}
-				Adding…
-			{:else}
-				Add profile
-			{/if}
-		</Button>
-		<a
-			class="inline-flex min-h-11 flex-1 items-center justify-center border-2 border-border-strong px-4 text-xs font-bold text-muted uppercase hover:border-foreground hover:text-foreground"
-			href="/profiles{page.url.search}"
-		>
-			Cancel
-		</a>
+		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Add profile</Button>
+		<Button href="/profiles{page.url.search}" variant="outline" class="flex-1">Cancel</Button>
 	</div>
 </form>

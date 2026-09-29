@@ -70,11 +70,5 @@
 		/>
 	</div>
 
-	<Button variant="primary" class="mt-10 w-full" type="submit" disabled={pending}>
-		{#if pending}
-			Signing in…
-		{:else}
-			Sign in
-		{/if}
-	</Button>
+	<Button variant="primary" class="mt-10 w-full" type="submit" loading={pending}>Sign in</Button>
 </form>
