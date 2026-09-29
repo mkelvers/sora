@@ -160,7 +160,7 @@
 				<Button
 					aria-pressed={pressed}
 					variant="item"
-					class={cn("min-h-9 gap-3 px-2 py-0", pressed && "bg-white/8 text-foreground")}
+					class="min-h-9 gap-3 px-2 py-0"
 					onclick={() => (language.code ? toggle(language.code) : (media.languages = []))}
 				>
 					<span class="min-w-0 truncate">

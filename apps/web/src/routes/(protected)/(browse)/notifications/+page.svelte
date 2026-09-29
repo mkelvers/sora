@@ -52,7 +52,6 @@
 								role="menuitemradio"
 								aria-checked={view === "new"}
 								variant="item"
-								class="aria-checked:text-foreground"
 								onclick={() => (view = "new")}
 							>
 								New Notifications
@@ -61,7 +60,6 @@
 								role="menuitemradio"
 								aria-checked={view === "past"}
 								variant="item"
-								class="aria-checked:text-foreground"
 								onclick={() => (view = "past")}
 							>
 								Past Notifications

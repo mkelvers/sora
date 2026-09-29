@@ -212,7 +212,7 @@
 	<header
 		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 [text-shadow:0_1px_4px_rgb(0_0_0/0.8)] in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Button href={back} variant="icon" class="size-10" aria-label="Back to {series}">
+		<Button href={back} variant="icon" size="lg" aria-label="Back to {series}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
 		<div class="min-w-0">

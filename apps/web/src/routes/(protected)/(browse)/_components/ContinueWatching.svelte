@@ -101,7 +101,8 @@
 									<Button
 										{...trigger}
 										variant="icon"
-										class="absolute right-2 bottom-2 z-10 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error pointer-fine:opacity-0"
+										tone="danger"
+										class="absolute right-2 bottom-2 z-10 group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
 										aria-label="Remove {item.series.title} from Continue Watching"
 										onclick={() =>
 											dismiss(item.series.id).updates(

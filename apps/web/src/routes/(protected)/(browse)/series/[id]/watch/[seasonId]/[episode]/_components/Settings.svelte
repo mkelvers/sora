@@ -109,7 +109,8 @@
 <Button
 	{...popover.trigger}
 	variant="icon"
-	class={cn("transition-[color,rotate] sm:size-10", popover.open && "rotate-30 text-foreground")}
+	size="lg"
+	class={cn("transition-[color,rotate]", popover.open && "rotate-30 text-foreground")}
 	aria-label="Settings"
 >
 	<GearSixIcon size="1.5rem" weight="fill" />
@@ -146,7 +147,6 @@
 				role="menuitemradio"
 				aria-checked={option.value === open.value}
 				variant="item"
-				class="aria-checked:text-foreground"
 				onclick={() => {
 					open.select(option.value);
 					submenu = undefined;

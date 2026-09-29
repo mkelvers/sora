@@ -156,7 +156,7 @@
 									<Button
 										{...trigger}
 										variant="outline"
-										class="w-11 px-0"
+										size="square"
 										aria-label={listed ? "Remove from Library" : "Add to Library"}
 										aria-pressed={listed}
 										onclick={() =>

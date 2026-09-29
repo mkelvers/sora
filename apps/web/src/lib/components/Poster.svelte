@@ -158,7 +158,7 @@
 								{...trigger}
 								href={play.href}
 								variant="icon"
-								class="text-accent hover:text-accent hover:brightness-125"
+								tone="accent"
 								aria-label={play.label}
 							>
 								<PlayIcon size="1.55rem" weight="bold" />
@@ -172,7 +172,7 @@
 						<Button
 							{...trigger}
 							variant="icon"
-							class="text-accent hover:text-accent hover:brightness-125"
+							tone="accent"
 							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={() =>

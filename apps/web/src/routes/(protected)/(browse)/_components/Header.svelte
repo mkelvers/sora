@@ -98,7 +98,6 @@
 									variant="item"
 									class={cn(
 										"text-[0.9375rem]",
-										page.url.pathname === destination.href && "font-semibold text-foreground",
 										destination.new &&
 											"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
 									)}

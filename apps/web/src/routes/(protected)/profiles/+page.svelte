@@ -74,6 +74,7 @@
 								value={profile.id}
 								disabled={deleting !== null}
 								variant="icon"
+								tone="danger"
 								class="absolute top-2 right-2 bg-canvas/80 text-status-error hover:bg-status-error hover:text-foreground"
 								aria-label="Delete {profile.name}"
 							>

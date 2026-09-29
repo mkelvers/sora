@@ -86,7 +86,7 @@
 				<Button
 					{...trigger}
 					variant="icon"
-					class="hover:text-status-error"
+					tone="danger"
 					aria-label="Remove E{item.episode} of {item.series.title} from your history"
 					onclick={() =>
 						forgetEpisode({

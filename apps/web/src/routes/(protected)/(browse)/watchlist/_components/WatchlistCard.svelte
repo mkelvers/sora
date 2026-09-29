@@ -59,7 +59,7 @@
 				<Button
 					{...trigger}
 					variant="icon"
-					class="hover:text-status-error"
+					tone="danger"
 					aria-label="Remove {series.title} from your watchlist"
 					onclick={() =>
 						removeFromWatchlist(series.id).updates(

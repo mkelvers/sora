@@ -211,7 +211,7 @@
 			{#if series.genres.length}
 				<span class="metadata-tag">
 					{#each series.genres as genre (genre)}
-						<span class="not-last:after:content-[',']">
+						<span class="not-last:after:content-[',_']">
 							<span class="underline underline-offset-2">{genre}</span>
 						</span>
 					{/each}
@@ -263,7 +263,7 @@
 						<Button
 							{...trigger}
 							variant="outline"
-							class="w-11 px-0"
+							size="square"
 							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={toggleListed}

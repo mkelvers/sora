@@ -130,7 +130,8 @@
 			<Button
 				{...trigger}
 				variant="icon"
-				class="absolute right-1 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+				tone="danger"
+				class="absolute right-1 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
 				aria-label="Delete notification about {item.series.title}"
 				onclick={() => dismissNotification(item.id)}
 			>
