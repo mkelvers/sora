@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>{q ? `${q} · Search` : "Search"}</title>
+	<title>{q ? `${q} · Search` : "Search"} · Sora</title>
 </svelte:head>
 
 <main

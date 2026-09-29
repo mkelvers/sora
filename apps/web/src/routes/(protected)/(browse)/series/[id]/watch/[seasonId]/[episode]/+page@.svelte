@@ -44,7 +44,7 @@
 </script>
 
 <svelte:head>
-	<title>{title} · {series.title}</title>
+	<title>{title} · {series.title} · Sora</title>
 </svelte:head>
 
 <Player

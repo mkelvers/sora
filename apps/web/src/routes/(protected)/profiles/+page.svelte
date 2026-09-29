@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<title>Sora — {profilesPage.managing ? "Manage profiles" : "Who's watching?"}</title>
+	<title>{profilesPage.managing ? "Manage profiles" : "Who's watching?"} · Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />

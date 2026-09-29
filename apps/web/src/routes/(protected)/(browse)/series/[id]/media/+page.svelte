@@ -40,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>Media · {series.title}</title>
+	<title>Media · {series.title} · Sora</title>
 </svelte:head>
 
 <main

@@ -27,7 +27,7 @@
 </script>
 
 <svelte:head>
-	<title>{tab === "history" ? "History" : "Watchlist"}</title>
+	<title>{tab === "history" ? "History" : "Watchlist"} · Sora</title>
 </svelte:head>
 
 <main
