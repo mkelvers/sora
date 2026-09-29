@@ -118,6 +118,7 @@
 		</div>
 
 		<div
+			aria-hidden="true"
 			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 		>
 			<p class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase">{title}</p>
