@@ -393,6 +393,27 @@ export class SoraClient {
 	}
 
 	/**
+	 * Titles to feature on a profile's home page, mostly new and well liked,
+	 * then the best rated and popular hits. They change every hour.
+	 */
+	async featured<const TOptions extends RequestOptions = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, SeriesCard[], CountMeta>> {
+		const body: Envelope<SeriesCard[], CountMeta> = await read(
+			this.#api.profiles[":profile_id"].featured.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
 	 * A profile's progress through a title: the state of every episode it
 	 * played or marked watched, and what is derived from them, such as each
 	 * season's progress, whether it is caught up, and where to continue.
