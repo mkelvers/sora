@@ -235,21 +235,20 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 				20 * nameSimilarity;
 
 			if (score >= minimumShowScore && (!best || score > best.score)) {
-				const leading =
-					skippedLeadingEpisodes(startOffset) > 0
-						? leadingSpecial(candidate.show.episodes, start)
-						: null;
-				const firstAnilistEpisode = skippedLeadingEpisodes(startOffset) + 1;
+				const leading = isRegular
+					? leadingEpisode(candidate.show.episodes, picked, subject, startOffset)
+					: null;
+				const firstAnilistEpisode = leading ? 2 : 1;
 				best = {
 					mediaType: "tv",
 					tmdbId: candidate.show.id,
 					episodes: [
-						...(isRegular && leading
+						...(leading?.special
 							? [
 									{
 										anilistEpisode: 1,
-										seasonNumber: leading.season_number,
-										episodeNumber: leading.episode_number,
+										seasonNumber: leading.special.season_number,
+										episodeNumber: leading.special.episode_number,
 									},
 								]
 							: []),
@@ -773,12 +772,42 @@ function endScore(end: number | null, lastAirDay: number | null) {
 }
 
 /**
- * When TMDB's first matching episode airs about a week after AniList's start,
- * AniList counts an extra leading episode (often an "episode 0" that TMDB
- * files under specials), so AniList's second episode is TMDB's first.
+ * An extra leading episode AniList counts before TMDB's first matching one,
+ * such as an "episode 0" that TMDB files under specials, making AniList's
+ * second episode TMDB's first.
+ *
+ * TMDB's run starting about a week after AniList's is not enough on its own,
+ * since TMDB's premiere date is sometimes just a later broadcast of the same
+ * first episode (Overgeared). The extra episode must also show: TMDB lists it
+ * as a special on AniList's start date, or AniList counts exactly one episode
+ * more than TMDB's run.
+ *
+ * @returns The leading episode, with its TMDB special when TMDB lists one, or
+ *   `null` when AniList's first episode is TMDB's first.
  */
-function skippedLeadingEpisodes(startOffset: number | null) {
-	return startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays ? 1 : 0;
+function leadingEpisode(
+	episodes: readonly TmdbEpisode[],
+	picked: readonly TmdbEpisode[],
+	subject: MatchSubject,
+	startOffset: number | null,
+): { special: TmdbEpisode | null } | null {
+	const startsLater = startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays;
+	if (!startsLater) {
+		return null;
+	}
+
+	const special = leadingSpecial(episodes, dayNumber(subject.startDate));
+	if (special) {
+		return {
+			special,
+		};
+	}
+
+	return subject.episodes !== null && picked.length === subject.episodes - 1
+		? {
+				special: null,
+			}
+		: null;
 }
 
 /**

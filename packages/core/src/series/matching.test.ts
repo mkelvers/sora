@@ -321,6 +321,33 @@ describe("placeInShow", () => {
 		expect(range(placement)?.at(-1)).toBe("13:S2E12");
 	});
 
+	test("offsets episodes when AniList counts one episode more than TMDB's run", () => {
+		const placement = placeInShow(
+			subject({
+				startDate: "2023-07-03",
+				endDate: "2023-09-25",
+				episodes: 13,
+			}),
+			show(weekly(2, "2023-07-10", 12)),
+		);
+
+		expect(range(placement)?.[0]).toBe("2:S2E1");
+		expect(range(placement)?.at(-1)).toBe("13:S2E12");
+	});
+
+	test("does not offset episodes when TMDB premieres days later with no sign of an episode 0", () => {
+		// Overgeared: AniList airs episode 1 on 2026-09-27, TMDB dates it 2026-10-02.
+		const placement = placeInShow(
+			subject({
+				startDate: "2026-09-27",
+				episodes: null,
+			}),
+			show(weekly(1, "2026-10-02", 6)),
+		);
+
+		expect(range(placement)?.[0]).toBe("1:S1E1");
+	});
+
 	test("continues into specials released after the broadcast run", () => {
 		// Bakemonogatari: 12 broadcast episodes, the last 3 released online later.
 		const episodes = [
