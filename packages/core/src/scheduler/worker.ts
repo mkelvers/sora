@@ -60,8 +60,8 @@ const waitedOnTasks: Record<string, Task> = {
  * which notifications are read from, looks stored titles up on providers,
  * keeps stored series current as seasons air and new ones are announced,
  * mirrors the provider catalogues titles are matched against, keeps the
- * search index current while storing the most popular titles ahead of any
- * search, keeps the hints that match titles to TMDB current, and warns
+ * search index current while storing the most popular titles, and this
+ * season's and the next's, ahead of any search or browse, keeps the hints that match titles to TMDB current, and warns
  * about providers that stop working.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
