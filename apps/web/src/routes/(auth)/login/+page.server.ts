@@ -6,8 +6,13 @@ import { z } from "zod";
 import type { Actions, PageServerLoad } from "./$types";
 
 const Credentials = z.object({
-	email: z.string().trim().toLowerCase().pipe(z.email()),
-	password: z.string().min(1),
+	email: z
+		.string()
+		.trim()
+		.toLowerCase()
+		.min(1, "Enter your e-mail.")
+		.pipe(z.email("Enter a valid e-mail address.")),
+	password: z.string().min(1, "Enter your password."),
 });
 
 export const load: PageServerLoad = ({ locals, url }) => {
@@ -22,13 +27,18 @@ export const actions: Actions = {
 		const email = String(form.get("email") ?? "");
 		const credentials = Credentials.safeParse({
 			email,
-			password: form.get("password"),
+			password: form.get("password") ?? "",
 		});
 
 		if (!credentials.success) {
+			const { fieldErrors } = z.flattenError(credentials.error);
+
 			return fail(400, {
 				email,
-				message: "Enter your e-mail and password.",
+				errors: {
+					email: fieldErrors.email?.[0],
+					password: fieldErrors.password?.[0],
+				},
 			});
 		}
 
