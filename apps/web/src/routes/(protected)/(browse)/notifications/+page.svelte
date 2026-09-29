@@ -37,7 +37,7 @@
 			<div
 				class="text-base font-bold [&_.dropdown-trigger]:gap-2 [&_.dropdown-trigger]:px-0 [&_.dropdown-trigger]:normal-case [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent! [&_.dropdown-trigger]:hover:bg-transparent!"
 			>
-				<Dropdown alignment="left" class="*:p-0">
+				<Dropdown alignment="left">
 					{#snippet trigger()}
 						{#if view === "new"}
 							New Notifications
@@ -51,7 +51,8 @@
 							<Button
 								role="menuitemradio"
 								aria-checked={view === "new"}
-								class="flex w-full items-center justify-start px-5 py-3 text-left text-sm font-normal text-muted focus:bg-dropdown-hover focus:text-foreground focus:outline-none aria-checked:text-foreground"
+								variant="item"
+								class="aria-checked:text-foreground"
 								onclick={() => (view = "new")}
 							>
 								New Notifications
@@ -59,7 +60,8 @@
 							<Button
 								role="menuitemradio"
 								aria-checked={view === "past"}
-								class="flex w-full items-center justify-start px-5 py-3 text-left text-sm font-normal text-muted focus:bg-dropdown-hover focus:text-foreground focus:outline-none aria-checked:text-foreground"
+								variant="item"
+								class="aria-checked:text-foreground"
 								onclick={() => (view = "past")}
 							>
 								Past Notifications
@@ -70,10 +72,7 @@
 			</div>
 
 			{#if view === "new" && unread.length}
-				<Button
-					class="min-h-11 gap-2 px-3 text-muted hover:text-foreground"
-					onclick={() => markNotificationsSeen(unread[0]!.released_at)}
-				>
+				<Button variant="ghost" onclick={() => markNotificationsSeen(unread[0]!.released_at)}>
 					<ChecksIcon size="1.125rem" />
 					Mark all as read
 				</Button>

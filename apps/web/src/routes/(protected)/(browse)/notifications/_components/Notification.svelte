@@ -114,7 +114,8 @@
 			{#snippet children(trigger)}
 				<Button
 					{...trigger}
-					class="absolute right-12 bottom-1 grid size-11 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-foreground active:scale-90 sm:top-3 sm:right-14 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+					variant="icon"
+					class="absolute right-12 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-14 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
 					aria-label="Mark notification about {item.series.title} as read"
 					onclick={() => markNotificationRead(item.id)}
 				>
@@ -128,7 +129,8 @@
 		{#snippet children(trigger)}
 			<Button
 				{...trigger}
-				class="absolute right-1 bottom-1 grid size-11 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error active:scale-90 sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+				variant="icon"
+				class="absolute right-1 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
 				aria-label="Delete notification about {item.series.title}"
 				onclick={() => dismissNotification(item.id)}
 			>
