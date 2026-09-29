@@ -17,6 +17,9 @@
  *   watched is not playback and does not appear there.
  * - Continue watching is derived from episode progress alone.
  *
+ * Notifications, what came out for series in a user's library, are read
+ * from releases the scheduler records (see `recordReleases`).
+ *
  * @packageDocumentation
  */
 export {
@@ -30,6 +33,14 @@ export {
 	type LibraryItem,
 	type LibraryStatus,
 } from "./entries/entries";
+export {
+	dismissNotification,
+	getNotifications,
+	markNotificationsSeen,
+	type Notification,
+	type Notifications,
+} from "./notifications/notifications";
+export { recordReleases } from "./notifications/releases";
 export { dismissFromContinueWatching, getContinueWatching } from "./progress/continue-watching";
 export { forgetEpisode, getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
 export {
