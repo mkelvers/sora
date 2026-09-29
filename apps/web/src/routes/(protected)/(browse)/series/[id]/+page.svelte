@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import { tmdbImage } from "$lib/utils";
 	import { DotsThreeVerticalIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
@@ -10,7 +11,6 @@
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
 	import Hero from "./_components/Hero.svelte";
-	import Seasons from "./_components/Seasons.svelte";
 	import { getSeries, getViewing, markAllWatched } from "./series.remote";
 
 	let { params }: PageProps = $props();
@@ -23,6 +23,13 @@
 		const wanted = page.state.seasonId ?? untrack(() => viewing.progress.next)?.season_id;
 		return series.seasons.find((season) => season.id === wanted) ?? series.seasons[0];
 	});
+	const seasonOptions = $derived(
+		series.seasons.map((other) => ({
+			value: other.id,
+			label: other.title,
+			detail: other.episode_count === 1 ? "1 Episode" : `${other.episode_count} Episodes`,
+		})),
+	);
 	const seasonWatched = $derived.by(() => {
 		const standing = viewing.progress.seasons.find((other) => other.season_id === season?.id);
 		return !!standing && standing.watched_episodes === standing.released_episodes;
@@ -59,7 +66,15 @@
 						{/if}
 					</h2>
 					{#if series.seasons.length > 1}
-						<Seasons seasons={series.seasons} bind:season />
+						<Select
+							variant="heading"
+							label="Season"
+							options={seasonOptions}
+							bind:value={
+								() => season.id,
+								(id) => (season = series.seasons.find((other) => other.id === id) ?? season)
+							}
+						/>
 					{/if}
 					<div class="ml-auto">
 						<Dropdown class="w-64">
