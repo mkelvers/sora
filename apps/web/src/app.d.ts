@@ -9,6 +9,10 @@ declare global {
 				profile: Profile | null;
 			} | null;
 		}
+
+		interface PageState {
+			seasonId?: string;
+		}
 	}
 }
 

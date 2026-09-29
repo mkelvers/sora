@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from "$app/state";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import { DotsThreeVerticalIcon } from "phosphor-svelte";
@@ -18,8 +19,8 @@
 	const series = $derived(await seriesQuery);
 	const viewing = $derived(await viewingQuery);
 	let season = $derived.by(() => {
-		const next = untrack(() => viewing.progress.next);
-		return series.seasons.find((season) => season.id === next?.season_id) ?? series.seasons[0];
+		const wanted = page.state.seasonId ?? untrack(() => viewing.progress.next)?.season_id;
+		return series.seasons.find((season) => season.id === wanted) ?? series.seasons[0];
 	});
 	const seasonWatched = $derived.by(() => {
 		const standing = viewing.progress.seasons.find((other) => other.season_id === season?.id);
