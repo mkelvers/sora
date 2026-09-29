@@ -5,9 +5,9 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { Notification } from "@sora/sdk";
-	import { CaretRightIcon, TrashIcon } from "phosphor-svelte";
+	import { CaretRightIcon, CheckIcon, TrashIcon } from "phosphor-svelte";
 
-	import { dismissNotification } from "../../home.remote";
+	import { dismissNotification, markNotificationRead } from "../../home.remote";
 
 	let {
 		item,
@@ -33,22 +33,29 @@
 				return `A new OVA just dropped: ${season}. A little extra time with ${title}.`;
 			}
 
-			return count > 1
-				? `${title} is back! ${season} has started, and ${count} episodes are waiting for you.`
-				: `${title} is back! ${season} has started with its first episode.`;
+			if (count > 1) {
+				return `${title} is back! ${season} has started, and ${count} episodes are waiting for you.`;
+			}
+
+			return `${title} is back! ${season} has started with its first episode.`;
+		}
+
+		if (count === 1 && item.episode_title) {
+			return `Episode ${item.last_episode} of ${season} is out: “${item.episode_title}”. Settle in and catch up.`;
 		}
 
 		if (count === 1) {
-			return item.episode_title
-				? `Episode ${item.last_episode} of ${season} is out: “${item.episode_title}”. Settle in and catch up.`
-				: `Episode ${item.last_episode} of ${season} is out. Settle in and catch up.`;
+			return `Episode ${item.last_episode} of ${season} is out. Settle in and catch up.`;
 		}
 
 		return `${count} new episodes of ${season} are out, ${item.first_episode} through ${item.last_episode}. Plenty to dig into.`;
 	});
 </script>
 
-<article class="group relative transition-colors focus-within:bg-surface hover:bg-surface">
+<article
+	class="group relative transition-colors focus-within:bg-white/5 hover:bg-white/5"
+	aria-labelledby="notification-{item.id}"
+>
 	<a
 		href="/series/{item.series.id}"
 		onclick={(event) => {
@@ -69,7 +76,7 @@
 			class={cn(
 				"relative aspect-video w-full shrink-0 bg-surface sm:aspect-4/3 sm:w-[40%] sm:max-w-96",
 				unread &&
-					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-status-error after:ring-2 after:ring-black/40",
+					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-status-error",
 			)}
 		>
 			{#if image}
@@ -86,20 +93,36 @@
 			{/if}
 		</div>
 
-		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-14 sm:pb-0">
-			<h2 class="text-lg leading-snug font-bold sm:text-xl">
+		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-24 sm:pb-0">
+			<h2 id="notification-{item.id}" class="text-lg leading-snug font-bold sm:text-xl">
 				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
 			</h2>
 			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{detail}</p>
 			<p
 				class="mt-1 inline-flex min-h-11 items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:min-h-0 sm:text-sm"
+				aria-hidden="true"
 			>
 				View now
 				<CaretRightIcon size="0.9rem" weight="bold" />
 			</p>
 		</div>
 	</a>
+
+	{#if unread}
+		<Tooltip text="Mark as read">
+			{#snippet children(trigger)}
+				<Button
+					{...trigger}
+					class="absolute right-12 bottom-1 grid size-11 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-foreground active:scale-90 sm:top-3 sm:right-14 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+					aria-label="Mark notification about {item.series.title} as read"
+					onclick={() => markNotificationRead(item.id)}
+				>
+					<CheckIcon size="1.125rem" />
+				</Button>
+			{/snippet}
+		</Tooltip>
+	{/if}
 
 	<Tooltip text="Delete">
 		{#snippet children(trigger)}
