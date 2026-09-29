@@ -50,8 +50,9 @@
 	</div>
 
 	<Button
+		variant="icon"
 		class={cn(
-			"h-full w-12 text-muted hover:bg-header-hover hover:text-foreground focus-visible:ring-inset max-sm:hidden sm:w-14",
+			"h-full w-12 hover:bg-header-hover focus-visible:-outline-offset-2 active:scale-100 max-sm:hidden sm:w-14",
 			search.open && "bg-header-hover text-foreground",
 		)}
 		aria-label="Search"

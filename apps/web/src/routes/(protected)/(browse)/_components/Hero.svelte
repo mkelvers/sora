@@ -135,12 +135,13 @@
 						</p>
 
 						<div
-							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-20 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
+							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 sm:px-10 lg:mt-7 lg:px-20"
 						>
 							{#if slide.start_season_id}
-								<a
+								<Button
 									href="/series/{slide.id}/watch/{slide.start_season_id}/1"
-									class="inline-flex h-10 items-center gap-2 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
+									variant="primary"
+									class="max-sm:flex-1"
 								>
 									<PlayIcon size="1.2rem" weight="bold" />
 									{#if slide.kind === "movie"}
@@ -148,14 +149,14 @@
 									{:else}
 										Start watching E1
 									{/if}
-								</a>
+								</Button>
 							{/if}
 							<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 								{#snippet children(trigger)}
-									<button
+									<Button
 										{...trigger}
-										type="button"
-										class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
+										variant="outline"
+										class="w-11 px-0"
 										aria-label={listed ? "Remove from Library" : "Add to Library"}
 										aria-pressed={listed}
 										onclick={() =>
@@ -169,7 +170,7 @@
 											)}
 									>
 										<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
-									</button>
+									</Button>
 								{/snippet}
 							</Tooltip>
 						</div>
@@ -183,9 +184,10 @@
 						aria-label="Choose a featured series"
 					>
 						{#each featured as item, index (item.id)}
-							<Button
+							<button
+								type="button"
 								class={cn(
-									"group pointer-events-auto h-8 transition-[width] duration-300 ease-out motion-reduce:transition-none",
+									"group pointer-events-auto h-8 cursor-pointer transition-[width] duration-300 ease-out outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none",
 									index === carousel.active ? "w-12" : "w-6",
 								)}
 								aria-label="Show {item.title}"
@@ -212,7 +214,7 @@
 										{/key}
 									{/if}
 								</span>
-							</Button>
+							</button>
 						{/each}
 					</div>
 				{/if}

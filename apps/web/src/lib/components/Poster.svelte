@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
@@ -149,28 +150,29 @@
 				{/if}
 			</div>
 
-			<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3 text-accent">
+			<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
 				{#if play}
 					<Tooltip text={play.label}>
 						{#snippet children(trigger)}
-							<a
+							<Button
 								{...trigger}
 								href={play.href}
-								class="grid size-9 place-items-center transition-[opacity,transform] duration-150 hover:opacity-80 active:scale-90"
+								variant="icon"
+								class="text-accent hover:text-accent hover:brightness-125"
 								aria-label={play.label}
 							>
 								<PlayIcon size="1.55rem" weight="bold" />
-							</a>
+							</Button>
 						{/snippet}
 					</Tooltip>
 				{/if}
 
 				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 					{#snippet children(trigger)}
-						<button
+						<Button
 							{...trigger}
-							type="button"
-							class="grid size-9 cursor-pointer place-items-center transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
+							variant="icon"
+							class="text-accent hover:text-accent hover:brightness-125"
 							aria-label={listed ? "Remove from Library" : "Add to Library"}
 							aria-pressed={listed}
 							onclick={() =>
@@ -184,7 +186,7 @@
 								)}
 						>
 							<BookmarkSimpleIcon size="1.55rem" weight={listed ? "fill" : "bold"} />
-						</button>
+						</Button>
 					{/snippet}
 				</Tooltip>
 			</div>

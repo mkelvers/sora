@@ -38,9 +38,8 @@
 	>
 		<p class="text-center">{message}</p>
 		<Button
-			variant="ghost"
-			class="absolute inset-y-0 right-0 grid w-12 place-items-center transition-[background-color,transform] duration-150 hover:bg-black/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-status active:scale-90"
-			type="button"
+			variant="icon"
+			class="absolute inset-y-0 right-0 h-auto w-12 text-current hover:bg-black/10 hover:text-current focus-visible:-outline-offset-2 focus-visible:outline-on-status"
 			aria-label="Dismiss"
 			onclick={ondismiss}
 		>

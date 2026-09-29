@@ -37,9 +37,7 @@
 					{#snippet failed(_, reset)}
 						<li class="col-span-full flex items-center gap-4 text-muted">
 							<p>These results couldn’t be loaded.</p>
-							<Button variant="ghost" class="px-3.5 py-2 text-foreground" onclick={reset}>
-								Try again
-							</Button>
+							<Button variant="ghost" onclick={reset}>Try again</Button>
 						</li>
 					{/snippet}
 				</svelte:boundary>

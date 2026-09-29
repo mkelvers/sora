@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Button from "$lib/components/ui/Button.svelte";
+
 	interface Props {
 		image: string;
 		alt: string;
@@ -18,10 +20,5 @@
 	<img src={image} {alt} {width} {height} class="w-80" />
 	<p class="mt-8 text-muted">{title}</p>
 	<p class="text-muted">{hint}</p>
-	<a
-		href="/"
-		class="mt-6 inline-flex min-h-11 items-center bg-accent px-5 text-xs font-bold text-on-accent uppercase hover:brightness-110"
-	>
-		Go to home feed
-	</a>
+	<Button href="/" variant="primary" class="mt-6">Go to home feed</Button>
 </section>

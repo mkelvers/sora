@@ -16,8 +16,9 @@
 
 {#if carousel.canNext}
 	<Button
+		variant="icon"
 		class={cn(
-			"pointer-events-auto z-40 col-start-1 row-start-1 grid h-20 place-items-center self-center justify-self-end px-6 text-white drop-shadow-lg transition-colors duration-150 hover:text-[#8c8c8c]",
+			"pointer-events-auto z-40 col-start-1 row-start-1 h-20 w-auto self-center justify-self-end px-6 text-white drop-shadow-lg hover:text-white/70",
 			className,
 		)}
 		aria-label="Next slides"
