@@ -14,6 +14,7 @@
 	} from "phosphor-svelte";
 
 	import { profilesPage } from "../../profiles/profiles.svelte";
+	import Notifications from "./Notifications.svelte";
 	import Search from "./Search.svelte";
 
 	let {
@@ -44,6 +45,8 @@
 			>
 				<BookmarkSimpleIcon size="1.5rem" />
 			</a>
+
+			<Notifications class={link} />
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
