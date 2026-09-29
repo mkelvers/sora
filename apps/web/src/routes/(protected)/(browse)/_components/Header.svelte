@@ -11,6 +11,7 @@
 		BookmarkSimpleIcon,
 		CaretDownIcon,
 		HouseSimpleIcon,
+		InfoIcon,
 		ListIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
@@ -196,6 +197,11 @@
 							>
 								<UsersIcon size="1.3rem" />
 								Manage profiles
+							</Button>
+
+							<Button role="menuitem" href="/about" variant="item" class="gap-3">
+								<InfoIcon size="1.3rem" />
+								About
 							</Button>
 
 							<Button role="menuitem" type="submit" form="sign-out" variant="item" class="gap-3">

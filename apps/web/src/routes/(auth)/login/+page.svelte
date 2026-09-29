@@ -79,4 +79,10 @@
 	</div>
 
 	<Button variant="primary" class="mt-10 w-full" type="submit" loading={pending}>Sign in</Button>
+
+	<p class="mt-8 text-center text-sm">
+		<Button variant="link" href="/about" class="text-muted hover:text-foreground">
+			About Sora
+		</Button>
+	</p>
 </form>
