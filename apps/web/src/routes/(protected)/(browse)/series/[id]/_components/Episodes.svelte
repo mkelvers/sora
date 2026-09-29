@@ -40,7 +40,7 @@
 {#if episodes.current}
 	{#if episodes.current.length}
 		<ol
-			class="grid grid-cols-1 gap-x-3 gap-y-8 sm:grid-cols-2 sm:gap-x-4 md:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-6 hero:grid-cols-7"
+			class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 2xl:grid-cols-6 hero:grid-cols-7"
 		>
 			{#each episodes.current as episode (episode.number)}
 				<Episode
@@ -59,14 +59,14 @@
 	{/if}
 {:else}
 	<ol
-		class="grid grid-cols-1 gap-x-3 gap-y-8 sm:grid-cols-2 sm:gap-x-4 md:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-6 hero:grid-cols-7"
+		class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 2xl:grid-cols-6 hero:grid-cols-7"
 		aria-busy="true"
 		aria-label="Loading episodes"
 	>
 		{#each { length: Math.min(season.episode_count, 10) }, index (index)}
-			<li class="min-h-56">
-				<Skeleton class="aspect-video" />
-				<Skeleton class="mt-3 h-3 w-3/4" />
+			<li class="grid grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 sm:block sm:min-h-56">
+				<Skeleton class="row-span-3 aspect-video" />
+				<Skeleton class="h-3 w-3/4 sm:mt-3" />
 				<Skeleton class="mt-2 h-4 w-2/5" />
 				<Skeleton class="mt-3 h-3 w-1/3" />
 			</li>

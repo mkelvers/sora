@@ -52,20 +52,21 @@
 	const image = $derived(episode.still_url ?? backdrop);
 </script>
 
-<li class="group relative isolate flex min-h-56 min-w-0 flex-col focus-within:z-10 hover:z-10">
+<li class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10 sm:min-h-56">
 	<svelte:element
 		this={playable ? "a" : "div"}
 		href={playable ? `/series/${seriesId}/watch/${seasonId}/${episode.number}` : undefined}
 		class="flex min-w-0 flex-1 flex-col focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 	>
 		<div
-			class="flex flex-1 flex-col transition-opacity duration-150 group-hover:opacity-0 group-has-focus-visible:opacity-0"
+			class="grid flex-1 grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 transition-opacity duration-150 sm:flex sm:flex-col sm:group-hover:opacity-0 sm:group-has-focus-visible:opacity-0"
 		>
-			<div class="relative aspect-video overflow-hidden bg-surface">
+			<div class="relative row-span-3 aspect-video self-start overflow-hidden bg-surface">
 				{#if image}
 					<Image
 						src={tmdbImage(image, "w780")}
-						srcset={tmdbSrcset(image, { w342: 342, w780: 780 })}
+						srcset={tmdbSrcset(image, { w500: 500, w780: 780 })}
+						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
 						alt=""
 						class={cn("brightness-75", watched && "opacity-60")}
 					/>
@@ -84,9 +85,13 @@
 				{/if}
 			</div>
 
-			<p class="mt-3.5 line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase">{title}</p>
-			<h3 class="mt-1.5 pr-8 text-[0.9375rem] leading-snug font-bold text-foreground">{heading}</h3>
-			<p class="mt-2 text-sm text-muted">
+			<p class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase sm:mt-3.5">
+				{title}
+			</p>
+			<h3 class="mt-1 pr-8 text-[0.9375rem] leading-snug font-bold text-foreground sm:mt-1.5">
+				{heading}
+			</h3>
+			<p class="mt-1 pr-8 text-sm text-muted sm:mt-2 sm:pr-0">
 				{[audio, episode.filler && "Filler", episode.extra && "Extra"]
 					.filter((part) => !!part)
 					.join(" · ")}
@@ -94,7 +99,7 @@
 		</div>
 
 		<div
-			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
+			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 		>
 			<p class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase">{title}</p>
 			<h3 class="mt-2 text-[0.9375rem] leading-snug font-bold text-foreground">{heading}</h3>
