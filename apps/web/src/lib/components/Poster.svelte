@@ -89,6 +89,12 @@
 						{card.title}
 					</span>
 				{/if}
+				{#if listed}
+					<span class="absolute top-0 right-2 text-accent drop-shadow-md">
+						<BookmarkSimpleIcon size="2rem" weight="fill" aria-hidden="true" />
+						<span class="sr-only">On your Library</span>
+					</span>
+				{/if}
 			</div>
 			<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold">{card.title}</h3>
 			{#if meta}
