@@ -15,6 +15,7 @@
 					ghost:
 						"min-h-9 justify-center px-2 text-xs font-bold tracking-wide text-muted uppercase hover:bg-white/8 hover:text-foreground aria-pressed:bg-white/8 aria-pressed:text-foreground",
 					icon: "size-9 justify-center text-muted hover:text-foreground active:scale-90",
+					link: "text-accent underline-offset-4 hover:underline",
 					item: "min-h-11 w-full justify-start px-5 py-3 text-left text-sm text-muted hover:bg-white/8 hover:text-foreground focus:bg-white/8 focus:text-foreground aria-checked:text-foreground aria-pressed:bg-white/8 aria-pressed:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
 				},
 				tone: {
