@@ -1,4 +1,4 @@
-import { and, desc, eq, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, gte, notExists, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -15,6 +15,15 @@ const SyncSearchIndexPayloadSchema = z
 
 /** Backfill layouts {@link backfillSeries} keeps queued; more than half an hour of AniList's rate limit lays out. */
 const backfillBatchSize = 200;
+
+/**
+ * How popular on AniList an entry must be for {@link backfillSeries} to store
+ * its series ahead of any search. A less popular title is laid out when a
+ * search first finds it instead, within seconds, ahead of all other work;
+ * storing every one of them ahead of time would take AniList's requests for
+ * days.
+ */
+const backfillMinimumPopularity = 1000;
 
 /** The graphile-worker task that keeps the search index current. */
 export const syncSearchIndexTask = "sync-search-index";
@@ -40,7 +49,8 @@ export const backfillSeriesTask = "backfill-series";
 /**
  * Queues the most popular indexed entries whose series is not stored yet,
  * so searches find titles already laid out instead of laying them out while
- * someone waits.
+ * someone waits. Only entries at least {@link backfillMinimumPopularity}
+ * popular are stored this way.
  *
  * Entries that already have a store job, waiting or failed for good, are
  * left alone, so an entry that cannot be laid out does not hold up the
@@ -72,6 +82,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 		.where(
 			and(
 				eq(animeSearch.isAdult, false),
+				gte(animeSearch.popularity, backfillMinimumPopularity),
 				sql`${animeSearch.format} is distinct from 'MUSIC'`,
 				notExists(
 					db.select().from(seriesEntry).where(eq(seriesEntry.anilistId, animeSearch.anilistId)),
