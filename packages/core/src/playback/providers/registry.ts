@@ -1,7 +1,6 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
-import { AniKotoStreamProvider, fetchAniKotoEpisodeList } from "./anikoto";
-import { readRecentAniKotoChanges } from "./anikoto-catalog";
+import { AniKotoStreamProvider } from "./anikoto";
 import { recordingCalls } from "./calls";
 import { MegaPlayStreamProvider } from "./megaplay";
 import type { StreamProvider } from "./provider";
@@ -11,7 +10,7 @@ import { SdkStreamProvider } from "./sdk";
  * Shared HTTP client for every scraper, so per-host rate limits and retries
  * apply across all requests from this process.
  */
-const providerHttp = new HttpClient({
+export const providerHttp = new HttpClient({
 	timeoutMs: 20_000,
 	rateLimits: {
 		// AniKoto's API allows 60 requests a minute per IP.
@@ -53,16 +52,6 @@ export const aniKoto = recordingCalls(
 		listsLanguages: true,
 	}),
 );
-
-/** The series AniKoto changed most recently; see {@link readRecentAniKotoChanges}. */
-export function readAniKotoChanges() {
-	return readRecentAniKotoChanges(providerHttp);
-}
-
-/** Which languages each episode of an AniKoto series has; see {@link fetchAniKotoEpisodeList}. */
-export function readAniKotoEpisodeList(anikotoId: string) {
-	return fetchAniKotoEpisodeList(providerHttp, anikotoId);
-}
 
 /**
  * Every anime stream provider, in the order playback tries them.

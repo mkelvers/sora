@@ -16,11 +16,9 @@ import {
 	refreshProviderUnits,
 	type ProviderUnit,
 } from "../../playback/episodes/episodes";
-import {
-	aniKoto,
-	readAniKotoChanges,
-	readAniKotoEpisodeList,
-} from "../../playback/providers/registry";
+import { fetchAniKotoEpisodeList } from "../../playback/providers/anikoto";
+import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
+import { aniKoto, providerHttp } from "../../playback/providers/registry";
 import { day, minute } from "../../time";
 import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
 
@@ -73,11 +71,11 @@ export const watchAniKotoReleasesTask = "watch-anikoto-releases";
  * or not AniList has a schedule for it.
  *
  * Reads the series AniKoto changed most recently (see
- * {@link readAniKotoChanges}): one request a minute of the 60 AniKoto
+ * {@link readRecentAniKotoChanges}): one request a minute of the 60 AniKoto
  * allows.
  */
 export const watchAniKotoReleases: Task = async (_payload, helpers) => {
-	const changes = await readAniKotoChanges();
+	const changes = await readRecentAniKotoChanges(providerHttp);
 	const changedAt = new Map(changes.map((change) => [String(change.anikotoId), change.updatedAt]));
 	const mapped = changes.length
 		? await db
@@ -226,7 +224,7 @@ export const watchAniKotoDubs: Task = async (_payload, helpers) => {
 
 		let listed;
 		try {
-			listed = await readAniKotoEpisodeList(anikotoId);
+			listed = await fetchAniKotoEpisodeList(providerHttp, anikotoId);
 		} catch (error) {
 			helpers.logger.warn(`AniKoto failed for series ${anikotoId}: ${String(error)}`);
 			continue;
