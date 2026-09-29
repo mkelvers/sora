@@ -48,7 +48,7 @@
 	});
 </script>
 
-<div class="group relative transition-colors focus-within:bg-surface hover:bg-surface">
+<article class="group relative transition-colors focus-within:bg-surface hover:bg-surface">
 	<a
 		href="/series/{item.series.id}"
 		onclick={(event) => {
@@ -80,7 +80,7 @@
 						w1280: 1280,
 					})}
 					sizes="(min-width: 60rem) 24rem, (min-width: 40rem) 40vw, 100vw"
-					alt=""
+					alt="Backdrop from {item.series.title}"
 					loading="lazy"
 				/>
 			{/if}
@@ -113,4 +113,4 @@
 			</Button>
 		{/snippet}
 	</Tooltip>
-</div>
+</article>
