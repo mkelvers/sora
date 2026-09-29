@@ -157,6 +157,12 @@ export interface ArtworkChanges {
 	poster_url?: string | false | null;
 	backdrop_url?: string | false | null;
 	logo_url?: string | false | null;
+	/** How large to draw the logo, relative to its usual size: 1 is as usual, from 0.5 to 2. */
+	logo_scale?: number;
+	/** How far right to move the logo on the series page, in widths of its hero, from -1 to 1. */
+	logo_offset_x?: number;
+	/** How far down to move the logo on the series page, in widths of its hero, from -1 to 1. */
+	logo_offset_y?: number;
 }
 
 /** A season, under the title it belongs to. */
