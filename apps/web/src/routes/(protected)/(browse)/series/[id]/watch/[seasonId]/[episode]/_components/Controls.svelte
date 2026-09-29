@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import { cn, formatClock } from "$lib/utils";
+	import { formatClock } from "$lib/utils";
 	import {
 		CornersInIcon,
 		CornersOutIcon,
@@ -40,7 +40,7 @@
 	style:--loaded={player.loaded}
 />
 
-<div class="flex flex-wrap items-center gap-1">
+<div class="flex flex-wrap items-center gap-1" role="group" aria-label="Playback controls">
 	{#if previous}
 		<a
 			class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
@@ -89,17 +89,15 @@
 		</a>
 	{/if}
 
-	<span
+	<p
 		class="mr-auto ml-3 text-sm text-[#ddd] tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
+		aria-label="{formatClock(player.time)} of {formatClock(player.duration)}"
 	>
 		{formatClock(player.time)} / {formatClock(player.duration)}
-	</span>
+	</p>
 
 	<Button
-		class={cn(
-			"inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10",
-			"max-sm:ml-auto",
-		)}
+		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:ml-auto sm:size-10"
 		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
 	>
@@ -111,10 +109,7 @@
 	</Button>
 
 	<input
-		class={cn(
-			"my-2 h-1 cursor-pointer appearance-none bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white",
-			"mr-3 w-22 max-sm:hidden pointer-coarse:hidden",
-		)}
+		class="my-2 mr-3 h-1 w-22 cursor-pointer appearance-none bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:hidden pointer-coarse:hidden [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
 		type="range"
 		min="0"
 		max="1"
