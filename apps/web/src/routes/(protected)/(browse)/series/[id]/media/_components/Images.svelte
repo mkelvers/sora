@@ -18,7 +18,6 @@
 
 	const images = $derived(await getImages(series.id));
 	const shown = $derived(media.apply(images));
-	const hasType = $derived(images.some((image) => image.type === media.type));
 	const current = $derived(series[`${media.type}_url`]?.split("/").at(-1));
 
 	const thumbnailSizes = {
@@ -107,9 +106,5 @@
 			</span>
 		{/snippet}
 		{@render tile(current === image.url.split("/").at(-1), image.url, preview, details)}
-	{:else}
-		<p class="col-span-full py-16 text-sm text-muted">
-			{hasType ? "Nothing matches these filters." : "TMDB has none for this title."}
-		</p>
 	{/each}
 </div>
