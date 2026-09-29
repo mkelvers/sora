@@ -17,7 +17,7 @@ export type FranchiseEntry = FranchiseEntryFragment;
  * `CHARACTER` (crossovers), `ADAPTATION`, and `SOURCE` lead outside it and
  * are never followed.
  */
-const franchiseRelations = new Set<MediaRelation>([
+export const franchiseRelations = new Set<MediaRelation>([
 	"SEQUEL",
 	"PREQUEL",
 	"PARENT",
@@ -148,19 +148,11 @@ function remember(id: number, entry: FranchiseEntry | null) {
 	}
 }
 
-const sequenceRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
+/** The entry's direct sequels and prequels. */
+export const sequenceRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
 
-/** IDs of related anime in the same franchise; see {@link franchiseRelations}. */
-export function relatedIds(entry: FranchiseEntry) {
-	return idsRelatedBy(entry, franchiseRelations);
-}
-
-/** IDs of the entry's direct sequels and prequels. */
-export function sequenceIds(entry: FranchiseEntry) {
-	return idsRelatedBy(entry, sequenceRelations);
-}
-
-function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) {
+/** IDs of the anime the entry is related to by one of `relations`. */
+export function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) {
 	return (entry.relations?.edges ?? []).flatMap((edge) =>
 		edge?.node?.type === "ANIME" && edge.relationType && relations.has(edge.relationType)
 			? [edge.node.id]

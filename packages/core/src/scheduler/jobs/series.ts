@@ -10,12 +10,13 @@ import {
 	animeSearch,
 	providerEpisodes,
 	series,
+	seriesEntry,
 	seriesEpisode,
 	seriesSeason,
 } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
-import { relatedIds } from "../../series/entries";
+import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { day, hour } from "../../time";
 import { getShow, tmdbImageUrl, type TmdbShow } from "../../tmdb/resources";
@@ -32,9 +33,27 @@ const StoreSeriesPayloadSchema = z.object({
  * of a stored series, and while an entry of a stored series airs. Throwing
  * lets graphile-worker retry with backoff, which is how an AniList or TMDB
  * outage is handled.
+ *
+ * Nothing is done when the entry's series was laid out after the job was
+ * last queued: that layout already has what the job was queued for. A
+ * layout stores a whole franchise, so the entries queued for its other
+ * titles, as backfill and related titles often are, cost no AniList request.
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 	const { anilistId } = StoreSeriesPayloadSchema.parse(rawPayload);
+	const [laidOut] = await db
+		.select({
+			seriesId: series.id,
+		})
+		.from(seriesEntry)
+		.innerJoin(series, eq(series.id, seriesEntry.seriesId))
+		.where(and(eq(seriesEntry.anilistId, anilistId), gte(series.laidOutAt, helpers.job.updated_at)))
+		.limit(1);
+	if (laidOut) {
+		helpers.logger.info(`Series ${laidOut.seriesId} of anime ${anilistId} is already laid out`);
+		return;
+	}
+
 	try {
 		const seriesId = await storeSeries(anilistId);
 		helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
@@ -101,7 +120,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 		);
 		const stored = await storedSeriesIds([
 			...entries.map((entry) => entry.id),
-			...entries.flatMap((entry) => relatedIds(entry)),
+			...entries.flatMap((entry) => idsRelatedBy(entry, franchiseRelations)),
 		]);
 
 		for (const entry of entries) {
@@ -111,7 +130,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 			const isWanted =
 				entry.status === "RELEASING" ||
 				premieresSoon ||
-				relatedIds(entry).some((id) => stored.has(id));
+				idsRelatedBy(entry, franchiseRelations).some((id) => stored.has(id));
 			if (!stored.has(entry.id) && isWanted) {
 				await scheduleSeriesStore(entry.id, "backfill");
 				queued += 1;

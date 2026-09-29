@@ -4,7 +4,13 @@ import { fuzzyDate } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { AnimeNotFoundError } from "../errors";
 import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
-import { loadEntries, relatedIds, sequenceIds, type FranchiseEntry } from "./entries";
+import {
+	franchiseRelations,
+	idsRelatedBy,
+	loadEntries,
+	sequenceRelations,
+	type FranchiseEntry,
+} from "./entries";
 import { entriesMappedTo, mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
 import {
 	layoutShowSeasons,
@@ -228,7 +234,7 @@ async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry
 				continue;
 			}
 
-			for (const id of isMember ? relatedIds(mapped.entry) : sequenceIds(mapped.entry)) {
+			for (const id of idsRelatedBy(mapped.entry, isMember ? franchiseRelations : sequenceRelations)) {
 				if (!visited.has(id) && visited.size < franchiseEntryLimit) {
 					visited.add(id);
 					next.set(id, hops + 1);
@@ -291,7 +297,7 @@ async function seriesKeyOf(
 	const own = ownSeriesKey(entry, mapping);
 	const isUnlistedSeason = mapping.tmdbId === null && isSeasonFormat(entry);
 	const isSeparateRelease = mapping.mediaType !== "tv" && !isSeasonFormat(entry);
-	const [prequelId] = prequelIdsOf(entry);
+	const [prequelId] = relatedAnimeIds(entry, "PREQUEL");
 	if (
 		!(isUnlistedSeason || isSeparateRelease) ||
 		prequelId === undefined ||
@@ -301,7 +307,7 @@ async function seriesKeyOf(
 	}
 
 	const prequel = (await loadEntries([prequelId])).get(prequelId);
-	if (!prequel || summaryIdsOf(prequel).includes(entry.id)) {
+	if (!prequel || relatedAnimeIds(prequel, "SUMMARY").includes(entry.id)) {
 		return own;
 	}
 
@@ -344,7 +350,7 @@ async function layoutSeasons(
 	if (kind === "tv" || kind === "shorts") {
 		const show = await getShow(id);
 		if (show) {
-			const recapIds = new Set(members.flatMap(({ entry }) => summaryIdsOf(entry)));
+			const recapIds = new Set(members.flatMap(({ entry }) => relatedAnimeIds(entry, "SUMMARY")));
 			return layoutShowSeasons({
 				show,
 				members: await Promise.all(members.map((member) => toSeasonMember(member, recapIds))),
@@ -390,7 +396,7 @@ async function toSeasonMember(
 ): Promise<SeasonMember> {
 	return {
 		anime: card,
-		prequelIds: prequelIdsOf(entry),
+		prequelIds: relatedAnimeIds(entry, "PREQUEL"),
 		links: mappedEpisodes(mapping),
 		isRecap: recapIds.has(entry.id),
 		film:
@@ -399,15 +405,6 @@ async function toSeasonMember(
 				: null,
 		isUnlistedSeason: mapping.tmdbId === null && isSeasonFormat(entry),
 	};
-}
-
-function prequelIdsOf(entry: FranchiseEntry) {
-	return relatedAnimeIds(entry, "PREQUEL");
-}
-
-/** IDs of the recaps AniList lists as summaries of the entry. */
-function summaryIdsOf(entry: FranchiseEntry) {
-	return relatedAnimeIds(entry, "SUMMARY");
 }
 
 function relatedAnimeIds(entry: FranchiseEntry, relation: MediaRelation) {
