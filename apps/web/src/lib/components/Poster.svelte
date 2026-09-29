@@ -50,7 +50,7 @@
 
 <article
 	class={cn(
-		"group relative isolate min-w-0 text-foreground focus-within:z-10 hover:z-10",
+		"group relative isolate min-w-0 text-foreground has-focus-visible:z-10 hover:z-10",
 		className,
 	)}
 >
@@ -70,7 +70,7 @@
 	{:else}
 		<a
 			href="/series/{card.id}"
-			class="block transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+			class="block transition-opacity duration-150 group-has-focus-visible:opacity-0 group-hover:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 		>
 			<div class="relative aspect-2/3 overflow-hidden bg-surface">
 				{#if card.poster_url}
@@ -90,8 +90,15 @@
 					</span>
 				{/if}
 				{#if listed}
-					<span class="absolute top-0 right-2 text-accent drop-shadow-md">
-						<BookmarkSimpleIcon size="2rem" weight="fill" aria-hidden="true" />
+					<span
+						class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+					>
+						<BookmarkSimpleIcon
+							class="absolute top-0.5 right-1"
+							size="1rem"
+							weight="fill"
+							aria-hidden="true"
+						/>
 						<span class="sr-only">On your Library</span>
 					</span>
 				{/if}
@@ -107,7 +114,7 @@
 
 		{#if card.poster_url}
 			<div
-				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-has-focus-visible:opacity-100 group-hover:opacity-100"
 				aria-hidden="true"
 			>
 				<Image
@@ -124,7 +131,7 @@
 		{/if}
 
 		<div
-			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-has-focus-visible:opacity-100 group-hover:opacity-100"
 		>
 			<div aria-hidden="true">
 				<h3 class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
