@@ -34,8 +34,8 @@
 <main
 	class="min-h-[calc(100dvh-3.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground"
 >
-	<h1 class="flex items-center justify-center gap-3 text-4xl font-bold">
-		<BookmarkSimpleIcon size="2.25rem" weight="bold" />
+	<h1 class="flex items-center justify-center gap-3 text-4xl font-semibold">
+		<BookmarkSimpleIcon size="2.25rem" />
 		My Lists
 	</h1>
 
