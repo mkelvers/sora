@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { series, seriesImage } from "../database/schema";
+import { noArtwork, series, seriesImage } from "../database/schema";
 import { SeriesNotFoundError } from "../errors";
 import { day } from "../time";
 import {
@@ -49,13 +49,19 @@ export interface SeriesImageQuery {
 }
 
 /**
- * Artwork to choose for a series. A URL replaces the laid-out image, `null`
- * goes back to it, and an omitted field is left as it is.
+ * Artwork to choose for a series. A URL replaces the laid-out image, `false`
+ * shows none, `null` goes back to the laid-out one, and an omitted field is
+ * left as it is.
  */
 export interface ArtworkChanges {
-	posterUrl?: string | null;
-	backdropUrl?: string | null;
-	logoUrl?: string | null;
+	posterUrl?: string | false | null;
+	backdropUrl?: string | false | null;
+	logoUrl?: string | false | null;
+}
+
+/** Stores `false`, no artwork, as {@link noArtwork}. */
+function toOverride(change: string | false | null | undefined) {
+	return change === false ? noArtwork : change;
 }
 
 /**
@@ -67,9 +73,9 @@ export interface ArtworkChanges {
  */
 export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges): Promise<Series> {
 	const values = {
-		posterUrlOverride: changes.posterUrl,
-		backdropUrlOverride: changes.backdropUrl,
-		logoUrlOverride: changes.logoUrl,
+		posterUrlOverride: toOverride(changes.posterUrl),
+		backdropUrlOverride: toOverride(changes.backdropUrl),
+		logoUrlOverride: toOverride(changes.logoUrl),
 	};
 
 	// Drizzle skips undefined fields, and refuses an update with none left.

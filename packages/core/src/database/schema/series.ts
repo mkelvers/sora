@@ -60,6 +60,9 @@ export const tmdbHint = pgTable("tmdb_hint", {
 
 export const seriesKind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
 
+/** An artwork override meaning the series shows no image of that kind. */
+export const noArtwork = "";
+
 /**
  * One title as clients see it: a whole show with its seasons and OVAs, a
  * film, or an entry TMDB does not list.
@@ -82,8 +85,8 @@ export const series = pgTable("series", {
 	logoUrl: text("logo_url"),
 	/**
 	 * Artwork someone chose in place of the laid-out poster, backdrop, or
-	 * logo; null keeps the laid-out one. Laying the series out again never
-	 * writes these, so a choice outlives it.
+	 * logo; {@link noArtwork} for none at all, null keeps the laid-out one.
+	 * Laying the series out again never writes these, so a choice outlives it.
 	 */
 	posterUrlOverride: text("poster_url_override"),
 	backdropUrlOverride: text("backdrop_url_override"),

@@ -2,7 +2,7 @@ import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
-import { imageEdge, series } from "../database/schema";
+import { imageEdge, noArtwork, series } from "../database/schema";
 
 /** An image's average colour down its left and right edges, each `#rrggbb`. */
 export interface ImageEdges {
@@ -16,10 +16,10 @@ const edgeColumns = 2;
 /** The width images are measured at; TMDB serves this size directly. */
 const measuredWidth = 92;
 
-/** The series' backdrop as readers see it: the chosen one, else the laid-out one. */
+/** The series' backdrop as readers see it: the chosen one, none when that was chosen, else the laid-out one. */
 export const effectiveBackdrop = sql<
 	string | null
->`coalesce(${series.backdropUrlOverride}, ${series.backdropUrl})`;
+>`nullif(coalesce(${series.backdropUrlOverride}, ${series.backdropUrl}), ${noArtwork})`;
 
 /**
  * Measures the edges of a series' backdrop as readers see it, unless they

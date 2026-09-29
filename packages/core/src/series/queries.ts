@@ -14,6 +14,7 @@ import {
 	anime as animeTable,
 	animeSearch,
 	imageEdge,
+	noArtwork,
 	series,
 	seriesEntry,
 	seriesEpisode,
@@ -589,6 +590,11 @@ async function relatedOf(seriesId: string): Promise<SeriesCard[]> {
 	return [...cards.values()];
 }
 
+/** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
+function effectiveArtwork(override: string | null, laidOut: string | null) {
+	return override === noArtwork ? null : (override ?? laidOut);
+}
+
 /** Builds a card from a stored series row, with any artwork chosen over the laid-out one. */
 function toSeriesCard(
 	row: typeof series.$inferSelect,
@@ -601,9 +607,9 @@ function toSeriesCard(
 		id: row.id,
 		kind: row.kind,
 		title: row.title,
-		posterUrl: row.posterUrlOverride ?? row.posterUrl,
-		backdropUrl: row.backdropUrlOverride ?? row.backdropUrl,
-		logoUrl: row.logoUrlOverride ?? row.logoUrl,
+		posterUrl: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+		backdropUrl: effectiveArtwork(row.backdropUrlOverride, row.backdropUrl),
+		logoUrl: effectiveArtwork(row.logoUrlOverride, row.logoUrl),
 		year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
 		status: row.status,
 		audio,
