@@ -10,6 +10,7 @@
  */
 import { createRoute, z } from "@hono/zod-openapi";
 import { BrowseQuerySchema } from "@sora/core/catalog";
+import { logoPlacement } from "@sora/core/series";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
@@ -266,6 +267,12 @@ const ArtworkUrl = z
 	.nullable()
 	.optional();
 
+const LogoOffset = z
+	.number()
+	.min(logoPlacement.offset.min)
+	.max(logoPlacement.offset.max)
+	.optional();
+
 export const updateArtwork = createRoute({
 	operationId: "updateArtwork",
 	method: "patch",
@@ -273,7 +280,7 @@ export const updateArtwork = createRoute({
 	tags: ["Series"],
 	summary: "Change a series' artwork",
 	description:
-		"Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `false` shows none, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
+		"Chooses the title's poster, backdrop, or logo, and where and how large the logo is drawn, for everyone. An HTTPS URL replaces the image, `false` shows none, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
@@ -287,6 +294,20 @@ export const updateArtwork = createRoute({
 							poster_url: ArtworkUrl,
 							backdrop_url: ArtworkUrl,
 							logo_url: ArtworkUrl,
+							logo_scale: z
+								.number()
+								.min(logoPlacement.scale.min)
+								.max(logoPlacement.scale.max)
+								.optional()
+								.openapi({
+									description: `How large to draw the logo, relative to its usual size: 1 is as usual, from ${logoPlacement.scale.min} to ${logoPlacement.scale.max}.`,
+								}),
+							logo_offset_x: LogoOffset.openapi({
+								description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
+							}),
+							logo_offset_y: LogoOffset.openapi({
+								description: `How far down to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
+							}),
 						})
 						.strict()
 						.openapi("ArtworkChanges", {

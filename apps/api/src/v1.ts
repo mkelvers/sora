@@ -243,11 +243,15 @@ export const v1Routes = v1
 	})
 
 	.openapi(route.updateArtwork, async (c) => {
-		const { poster_url, backdrop_url, logo_url } = c.req.valid("json");
+		const { poster_url, backdrop_url, logo_url, logo_scale, logo_offset_x, logo_offset_y } =
+			c.req.valid("json");
 		const series = await setSeriesArtwork(c.req.valid("param").series_id, {
 			posterUrl: poster_url,
 			backdropUrl: backdrop_url,
 			logoUrl: logo_url,
+			logoScale: logo_scale,
+			logoOffsetX: logo_offset_x,
+			logoOffsetY: logo_offset_y,
 		});
 		return c.json(
 			{

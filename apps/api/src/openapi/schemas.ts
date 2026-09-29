@@ -152,6 +152,20 @@ export const SeriesCardSchema = z
 		poster_url: z.string().nullable(),
 		backdrop_url: z.string().nullable(),
 		logo_url: z.string().nullable(),
+		logo_scale: z.number().openapi({
+			description: "How large to draw the logo, relative to its usual size: 1 is as usual.",
+			example: 1,
+		}),
+		logo_offset_x: z.number().openapi({
+			description:
+				"How far right to move the logo from its usual place on the series page, in widths of its hero.",
+			example: 0,
+		}),
+		logo_offset_y: z.number().openapi({
+			description:
+				"How far down to move the logo from its usual place on the series page, in widths of its hero.",
+			example: 0,
+		}),
 		year: z.number().int().nullable().openapi({
 			example: 2018,
 		}),
