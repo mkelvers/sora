@@ -102,6 +102,7 @@
 					<h2 class="mb-8 text-center text-2xl font-bold">Are you sure you spelled that right?</h2>
 					<EmptyState
 						image={emptySearch}
+						alt="Sora's mascot squinting at a poster card next to a tipped-over box"
 						width={720}
 						height={663}
 						title="We couldn't find anything for “{q}”."

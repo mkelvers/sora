@@ -51,6 +51,7 @@
 				<h1 class="mb-8 text-center text-2xl font-bold">Find something to watch</h1>
 				<EmptyState
 					image={search}
+					alt="Sora's mascot peering through a magnifying glass"
 					width={692}
 					height={720}
 					title="Search for any anime by its title."

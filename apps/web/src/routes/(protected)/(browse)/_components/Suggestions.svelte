@@ -69,7 +69,7 @@
 						w185: 185,
 					})}
 					sizes="40px"
-					alt=""
+					alt="Poster for {card.title}"
 					decoding="async"
 					class="size-full object-cover"
 				/>

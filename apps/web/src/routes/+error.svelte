@@ -13,12 +13,17 @@
 <main class="grid min-h-dvh place-items-center bg-canvas px-5 py-10 text-foreground">
 	<div class="w-full max-w-5xl">
 		<h1 class="mb-8 text-center text-2xl font-bold">
-			{missing ? "We couldn't find this page" : "Well, that didn't go as planned"}
+			{#if missing}
+				We couldn't find this page
+			{:else}
+				Well, that didn't go as planned
+			{/if}
 		</h1>
 
 		{#if missing}
 			<EmptyState
 				image={lost}
+				alt="Sora's mascot, lost and confused, holding a map upside down"
 				width={701}
 				height={720}
 				title="This page wandered off."
@@ -27,6 +32,7 @@
 		{:else}
 			<EmptyState
 				image={lost}
+				alt="Sora's mascot, lost and confused, holding a map upside down"
 				width={701}
 				height={720}
 				title="Something went wrong on our end."

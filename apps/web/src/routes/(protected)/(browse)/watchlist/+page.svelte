@@ -65,6 +65,7 @@
 		{#if tab === "watchlist" && watchlist.current?.length === 0}
 			<EmptyState
 				image={emptyWatchlist}
+				alt="Sora's mascot carrying a stack of poster cards to an empty box"
 				width={720}
 				height={700}
 				title="Your watchlist is looking a little empty."
@@ -85,6 +86,7 @@
 		{:else if history.current?.length === 0}
 			<EmptyState
 				image={emptyHistory}
+				alt="Sora's mascot on a floor cushion with cheeks full of popcorn"
 				width={690}
 				height={720}
 				title="Nothing watched yet."
