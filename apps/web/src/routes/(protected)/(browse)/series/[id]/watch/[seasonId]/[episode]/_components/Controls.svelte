@@ -42,17 +42,14 @@
 
 <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Playback controls">
 	{#if previous}
-		<a
-			class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
-			href={previous}
-			aria-label="Previous episode"
-		>
+		<Button href={previous} variant="icon" class="sm:size-10" aria-label="Previous episode">
 			<SkipBackIcon size="1.5rem" weight="fill" />
-		</a>
+		</Button>
 	{/if}
 
 	<Button
-		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		variant="icon"
+		class="sm:size-10"
 		aria-label="Rewind 10 seconds"
 		onclick={() => (player.time -= 10)}
 	>
@@ -60,7 +57,8 @@
 	</Button>
 
 	<Button
-		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		variant="icon"
+		class="sm:size-10"
 		aria-label={player.paused ? "Play" : "Pause"}
 		onclick={() => (player.paused = !player.paused)}
 	>
@@ -72,7 +70,8 @@
 	</Button>
 
 	<Button
-		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		variant="icon"
+		class="sm:size-10"
 		aria-label="Forward 10 seconds"
 		onclick={() => (player.time += 10)}
 	>
@@ -80,13 +79,9 @@
 	</Button>
 
 	{#if next}
-		<a
-			class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
-			href={next}
-			aria-label="Next episode"
-		>
+		<Button href={next} variant="icon" class="sm:size-10" aria-label="Next episode">
 			<SkipForwardIcon size="1.5rem" weight="fill" />
-		</a>
+		</Button>
 	{/if}
 
 	<p
@@ -97,7 +92,8 @@
 	</p>
 
 	<Button
-		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:ml-auto sm:size-10"
+		variant="icon"
+		class="max-sm:ml-auto sm:size-10"
 		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
 	>
@@ -122,7 +118,8 @@
 	{@render children?.()}
 
 	<Button
-		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		variant="icon"
+		class="sm:size-10"
 		aria-label={player.fullscreen ? "Exit fullscreen" : "Fullscreen"}
 		onclick={player.toggleFullscreen}
 	>

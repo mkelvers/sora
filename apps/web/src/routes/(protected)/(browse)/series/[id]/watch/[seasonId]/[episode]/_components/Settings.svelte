@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
+	import { cn } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
@@ -107,10 +108,8 @@
 
 <Button
 	{...popover.trigger}
-	class={[
-		"size-9 rounded-full p-0 text-[#ddd] transition-[background-color,color,rotate] duration-[120ms,120ms,200ms] hover:bg-white/10 hover:text-white sm:size-10",
-		popover.open && "rotate-30 bg-white/10 text-white",
-	]}
+	variant="icon"
+	class={cn("transition-[color,rotate] sm:size-10", popover.open && "rotate-30 text-foreground")}
 	aria-label="Settings"
 >
 	<GearSixIcon size="1.5rem" weight="fill" />
@@ -133,7 +132,8 @@
 >
 	{#if open}
 		<Button
-			class="w-full justify-start border-b border-white/8 px-4 py-2.5 pl-2.5 text-left text-sm font-medium font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
+			variant="item"
+			class="border-b border-white/8 pl-2.5 text-foreground"
 			role="menuitem"
 			aria-label="Back to settings"
 			onclick={() => (submenu = undefined)}
@@ -145,7 +145,8 @@
 			<Button
 				role="menuitemradio"
 				aria-checked={option.value === open.value}
-				class="w-full justify-start px-4 py-2.5 text-left text-sm font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
+				variant="item"
+				class="aria-checked:text-foreground"
 				onclick={() => {
 					open.select(option.value);
 					submenu = undefined;
@@ -156,11 +157,7 @@
 		{/each}
 	{:else}
 		{#each menus as menu (menu.label)}
-			<Button
-				role="menuitem"
-				class="w-full justify-start px-4 py-2.5 text-left text-sm font-normal focus:bg-white/8 focus:text-white focus:outline-none focus-visible:ring-0"
-				onclick={() => (submenu = menu.label)}
-			>
+			<Button role="menuitem" variant="item" onclick={() => (submenu = menu.label)}>
 				{menu.label}
 				<span class="ml-auto text-[#999]">
 					{menu.options.find((option) => option.value === menu.value)?.label}
