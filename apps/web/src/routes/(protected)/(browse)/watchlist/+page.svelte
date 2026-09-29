@@ -51,7 +51,7 @@
 					"-mb-0.5 cursor-pointer border-b-2 px-10 py-5 text-sm font-semibold tracking-wide uppercase transition-colors hover:bg-surface hover:text-foreground",
 					tab === id
 						? "border-accent text-foreground"
-						: "border-transparent text-muted hover:-mb-[5px] hover:border-border hover:pb-[calc(1.25rem+3px)]",
+						: "border-transparent text-muted hover:-mb-1.25 hover:border-border hover:pb-5.75",
 				)}
 			>
 				{label}
