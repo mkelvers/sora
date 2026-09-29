@@ -1,0 +1,6 @@
+CREATE TABLE "notification_read" (
+	"user_id" text NOT NULL,
+	"notification_id" text NOT NULL,
+	"read_at" timestamp with time zone NOT NULL,
+	CONSTRAINT "notification_read_user_id_notification_id_pk" PRIMARY KEY("user_id","notification_id")
+);

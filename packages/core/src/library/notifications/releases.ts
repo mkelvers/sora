@@ -5,6 +5,7 @@ import {
 	episodeRelease,
 	libraryEntry,
 	notificationDismissal,
+	notificationRead,
 	releaseWatch,
 	seriesEntry,
 	seriesEpisode,
@@ -185,7 +186,7 @@ export function planReleases(
 
 /**
  * Stops watching series no library holds, and forgets what was recorded for
- * them. Deleted notifications old enough to no longer be listed go too.
+ * them. Deleted and read notifications old enough to no longer be listed go too.
  */
 async function forgetUnwatched(now: Date) {
 	const listed = db
@@ -200,6 +201,9 @@ async function forgetUnwatched(now: Date) {
 			.where(
 				lt(notificationDismissal.dismissedAt, new Date(now.getTime() - notificationLifetimeMs)),
 			);
+		await tx
+			.delete(notificationRead)
+			.where(lt(notificationRead.readAt, new Date(now.getTime() - notificationLifetimeMs)));
 		await tx.delete(releaseWatch).where(notInArray(releaseWatch.seriesId, listed));
 		await tx.delete(episodeRelease).where(
 			notExists(

@@ -181,6 +181,24 @@ export const notificationSeen = pgTable("notification_seen", {
 });
 
 /**
+ * A notification a user marked read, by its ID (see `Notification.id`).
+ * Rows older than a notification is listed are pruned.
+ */
+export const notificationRead = pgTable(
+	"notification_read",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		readAt: timestamptz("read_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);
+
+/**
  * A notification a user deleted, by its ID (see `Notification.id`). It
  * stays hidden; rows older than a notification is listed are pruned.
  */

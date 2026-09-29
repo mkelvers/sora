@@ -7,6 +7,7 @@ import {
 	continueWatchingDismissal,
 	libraryEntry,
 	notificationDismissal,
+	notificationRead,
 	notificationSeen,
 	playbackHistory,
 	playbackProgress,
@@ -183,6 +184,7 @@ export async function deleteProfile(userId: string, profileId: string) {
 			.where(eq(continueWatchingDismissal.userId, profileId));
 		await tx.delete(notificationSeen).where(eq(notificationSeen.userId, profileId));
 		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
+		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});
 }

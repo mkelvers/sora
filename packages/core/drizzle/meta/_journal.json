@@ -253,6 +253,13 @@
       "when": 1790653339109,
       "tag": "0035_notification_dismissal",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790699127090,
+      "tag": "0036_notification_read",
+      "breakpoints": true
     }
   ]
 }
