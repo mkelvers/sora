@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
+	import { cn, moveMenuFocus } from "$lib/utils";
 	import { Popover } from "melt/builders";
 	import type { Snippet } from "svelte";
 
@@ -52,6 +52,7 @@
 				});
 			}
 		}}
+		onkeydown={moveMenuFocus}
 		onclick={(event) => {
 			if ((event.target as HTMLElement).closest("a, button")) {
 				popover.open = false;

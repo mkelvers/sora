@@ -146,15 +146,19 @@
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
 			>
-				<Dropdown class="w-[min(21rem,calc(100vw-1rem))] bg-header-hover">
+				<Dropdown
+					class="w-[min(21rem,calc(100vw-1rem))] bg-header-hover"
+					label="Account menu for {profile.name}"
+				>
 					{#snippet trigger()}
 						<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-8" />
 						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
 					{#snippet children()}
-						<div role="dialog" aria-label="Account">
+						<div role="menu" aria-label="Account">
 							<Button
+								role="menuitem"
 								href="/profiles/{profile.id}"
 								variant="item"
 								class="min-h-14 gap-3 py-2"
@@ -169,6 +173,7 @@
 
 							{#each others as other (other.id)}
 								<Button
+									role="menuitem"
 									type="submit"
 									form="switch-profile"
 									name="profile"
@@ -183,6 +188,7 @@
 							{/each}
 
 							<Button
+								role="menuitem"
 								href="/profiles"
 								variant="item"
 								class="gap-3"
@@ -192,7 +198,7 @@
 								Manage profiles
 							</Button>
 
-							<Button type="submit" form="sign-out" variant="item" class="gap-3">
+							<Button role="menuitem" type="submit" form="sign-out" variant="item" class="gap-3">
 								<SignOutIcon size="1.3rem" />
 								Sign out
 							</Button>

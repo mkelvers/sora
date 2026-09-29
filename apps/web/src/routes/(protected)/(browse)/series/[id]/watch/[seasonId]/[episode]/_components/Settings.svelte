@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import { cn } from "$lib/utils";
+	import { cn, moveMenuFocus } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
@@ -122,6 +122,7 @@
 	role="menu"
 	aria-label={open?.label ?? "Settings"}
 	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] open:flex"
+	onkeydown={moveMenuFocus}
 	onpointermove={(event) => {
 		const item = (event.target as HTMLElement).closest<HTMLElement>("button");
 		if (item && item !== document.activeElement) {

@@ -68,3 +68,24 @@ export function describeCard(card: SeriesCard) {
 		.filter((part) => !!part)
 		.join(" · ");
 }
+
+const menuKeys: Record<string, (index: number, count: number) => number> = {
+	ArrowDown: (index, count) => (index + 1) % count,
+	ArrowUp: (index, count) => (index - 1 + count) % count,
+	Home: () => 0,
+	End: (_, count) => count - 1,
+};
+
+export function moveMenuFocus(event: KeyboardEvent & { currentTarget: HTMLElement }) {
+	const step = menuKeys[event.key];
+	const items = [
+		...event.currentTarget.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)"),
+	];
+	if (!step || !items.length) {
+		return;
+	}
+
+	event.preventDefault();
+	const index = items.indexOf(document.activeElement as HTMLElement);
+	items[step(index, items.length)]?.focus();
+}
