@@ -71,7 +71,7 @@
 		<div
 			class="grid flex-1 grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 transition-opacity duration-150 sm:flex sm:flex-col sm:group-hover:opacity-0 sm:group-has-focus-visible:opacity-0"
 		>
-			<div class="relative row-span-3 aspect-video self-start overflow-hidden bg-surface">
+			<div class="relative row-span-3 aspect-video w-full self-start overflow-hidden bg-surface">
 				{#if image}
 					<Image
 						src={tmdbImage(image, "w780")}
