@@ -98,9 +98,6 @@
 			? `Series premiere starts ${day}`
 			: `New season starting ${day}`;
 	});
-
-	const item =
-		"flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none";
 </script>
 
 {#snippet star(tone: string)}
@@ -144,7 +141,7 @@
 						{#if series.seasons.length}
 							<Button
 								role="menuitem"
-								class={item}
+								class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
 								onclick={() =>
 									markAllWatched({
 										seriesId: series.id,
@@ -155,7 +152,12 @@
 							</Button>
 						{/if}
 
-						<a role="menuitem" href="/series/{series.id}/media" class={item}>View Media Options</a>
+						<a
+							role="menuitem"
+							href="/series/{series.id}/media"
+							class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
+							>View Media Options</a
+						>
 					</div>
 				{/snippet}
 			</Dropdown>

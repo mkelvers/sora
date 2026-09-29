@@ -37,12 +37,6 @@
 			label: "Logos",
 		},
 	] as const;
-
-	const grids = {
-		poster: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6",
-		backdrop: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
-		logo: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
-	};
 </script>
 
 <svelte:head>
@@ -186,7 +180,12 @@
 				<svelte:boundary>
 					{#snippet pending()}
 						<ul
-							class={cn("grid gap-x-5 gap-y-7", grids[media.type])}
+							class={cn(
+								"grid gap-x-5 gap-y-7",
+								media.type === "poster"
+									? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+									: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+							)}
 							aria-busy="true"
 							aria-label="Loading images"
 						>
@@ -200,7 +199,7 @@
 						</ul>
 					{/snippet}
 
-					<Images {series} {media} grid={grids[media.type]} />
+					<Images {series} {media} />
 				</svelte:boundary>
 			</section>
 		</div>

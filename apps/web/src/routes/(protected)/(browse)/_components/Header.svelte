@@ -33,7 +33,6 @@
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
 	const unreadQuery = getUnreadNotifications();
 	const unread = $derived(unreadQuery.current ?? 0);
-	const dot = "after:absolute after:size-2 after:rounded-full after:bg-status-error after:ring-2";
 
 	const destinations = $derived([
 		{
@@ -70,11 +69,6 @@
 			document.removeEventListener("visibilitychange", check);
 		};
 	});
-
-	const link =
-		"inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground sm:w-14";
-	const item =
-		"flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none";
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
@@ -133,11 +127,11 @@
 				<a
 					href={destination.href}
 					class={cn(
-						link,
+						"inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground sm:w-14",
 						"relative max-sm:hidden",
 						page.url.pathname === destination.href && "bg-header-hover text-foreground",
 						destination.new && [
-							dot,
+							"after:absolute after:size-2 after:rounded-full after:bg-status-error after:ring-2",
 							"after:top-3.5 after:right-3 after:ring-header sm:after:right-4",
 						],
 					)}
@@ -178,19 +172,30 @@
 									form="switch-profile"
 									name="profile"
 									value={other.id}
-									class={item}
+									class="flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none"
 								>
 									<Avatar avatar={other.avatar} class="size-7" />
 									{other.name}
 								</Button>
 							{/each}
 
-							<a href="/profiles" class={item} onclick={() => (profilesPage.managing = true)}>
+							<a
+								href="/profiles"
+								class="flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none"
+								onclick={() => (profilesPage.managing = true)}
+							>
 								<UsersIcon size="1.3rem" />
 								Manage profiles
 							</a>
 
-							<Button type="submit" form="sign-out" class={cn(item, "min-h-14")}>
+							<Button
+								type="submit"
+								form="sign-out"
+								class={cn(
+									"flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none",
+									"min-h-14",
+								)}
+							>
 								<SignOutIcon size="1.3rem" />
 								Sign out
 							</Button>

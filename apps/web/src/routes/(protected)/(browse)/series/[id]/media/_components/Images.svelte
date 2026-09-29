@@ -11,10 +11,9 @@
 	type Props = {
 		series: Series;
 		media: Media;
-		grid: string;
 	};
 
-	let { series, media, grid }: Props = $props();
+	let { series, media }: Props = $props();
 
 	const images = $derived(await getImages(series.id));
 	const shown = $derived(media.apply(images));
@@ -71,7 +70,14 @@
 	</Button>
 {/snippet}
 
-<div class={cn("grid gap-x-5 gap-y-7", grid)}>
+<div
+	class={cn(
+		"grid gap-x-5 gap-y-7",
+		media.type === "poster"
+			? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+			: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+	)}
+>
 	{#if media.type !== "poster"}
 		{#snippet preview()}
 			{#if media.type === "logo"}

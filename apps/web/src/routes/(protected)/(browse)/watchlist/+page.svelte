@@ -20,8 +20,6 @@
 		},
 	] as const;
 
-	const grid = "grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4";
-
 	let tab = $state<(typeof tabs)[number]["id"]>("watchlist");
 	const watchlist = getWatchlist();
 	const history = getHistory();
@@ -72,7 +70,7 @@
 				hint="Let's fill it up with something to watch."
 			/>
 		{:else if tab === "watchlist"}
-			<ul class={grid}>
+			<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">
 				{#if watchlist.current}
 					{#each watchlist.current as { series, progress } (series.id)}
 						<li>
@@ -109,7 +107,7 @@
 				hint="Start an episode and it'll show up here."
 			/>
 		{:else}
-			<ul class={grid}>
+			<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">
 				{#if history.current}
 					{#each history.current as item (`${item.season_id}:${item.episode}`)}
 						<li>
