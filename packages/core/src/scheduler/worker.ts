@@ -38,6 +38,7 @@ import {
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
 	pollAniKotoTask,
+	seriesStorePriority,
 	storeSeriesNowTask,
 	storeSeriesTask,
 	trackAiringTask,
@@ -133,13 +134,23 @@ export async function startScheduler(): Promise<Scheduler> {
 	// request or two and spends most of its time waiting on the other sites,
 	// so twelve at a time stay well within AniKoto's 60 a minute, and the
 	// release watchers wait behind at most a dozen of them.
+	//
+	// A lookup whose anime is not stored yet loads it from AniList, and those
+	// loads share requests, a couple of hundred to each. So they are asked
+	// for no later than current layouts, rather than at a backfill lookup's
+	// own priority, where they waited behind every layout queued and held up
+	// the pool while costing AniList next to nothing.
 	const lookups = await run({
 		connectionString: config.databaseUrl,
 		concurrency: 12,
 		maxPoolSize: 12,
-		taskList: prioritized({
-			[lookUpEpisodesTask]: lookUpEpisodes,
-		}),
+		taskList: {
+			[lookUpEpisodesTask]: (payload, helpers) =>
+				aniListPriority.run(
+					Math.min(helpers.job.priority, seriesStorePriority("current")),
+					async () => lookUpEpisodes(payload, helpers),
+				),
+		},
 	});
 
 	// New episodes and dubs must show up within minutes of AniKoto carrying
