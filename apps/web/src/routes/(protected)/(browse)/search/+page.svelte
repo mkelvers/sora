@@ -20,7 +20,7 @@
 		<h1 class="sr-only">Search results for {q}</h1>
 
 		<ul
-			class="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-4 md:gap-x-9 md:gap-y-12 wide:grid-cols-6 hero:grid-cols-7"
+			class="grid grid-cols-2 gap-x-4 gap-y-8 min-[30em]:grid-cols-3 md:grid-cols-4 md:gap-x-9 md:gap-y-12 xl:grid-cols-5 wide:grid-cols-6 hero:grid-cols-7"
 		>
 			{#each { length: count }, index (index)}
 				<svelte:boundary>
