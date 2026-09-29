@@ -3,10 +3,14 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
-import { fetchLatestAiring, refreshAnime } from "../../catalog/queries/anime";
+import { fetchLatestAiring, getAnime, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { AnimeNotFoundError } from "../../errors";
-import { refreshProviderUnits } from "../../playback/episodes/episodes";
+import {
+	getStoredUnits,
+	refreshProviderUnits,
+	type StoredUnits,
+} from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
 import { minute } from "../../time";
 import {
@@ -28,8 +32,11 @@ const TrackAiringPayloadSchema = z.object({
  * Follows one anime while it airs.
  *
  * Each run fetches the anime from AniList again, asks every provider for its
- * episode list, stores both, queues its stored series to be laid out again,
- * and schedules the next run with {@link planNextCheck}. The final run schedules nothing, and the anime is
+ * episode list, and stores both. When either changed what a layout reads,
+ * its stored series is queued to be laid out again; most runs, such as the
+ * retries while an episode is awaited, change nothing, and a layout costs
+ * AniList requests every other job waits on. The next run is scheduled with
+ * {@link planNextCheck}. The final run schedules nothing, and the anime is
  * never fetched again.
  *
  * Throwing lets graphile-worker retry the run with backoff, which is how an
@@ -38,8 +45,10 @@ const TrackAiringPayloadSchema = z.object({
 export const trackAiring: Task = async (rawPayload, helpers) => {
 	const payload = TrackAiringPayloadSchema.parse(rawPayload);
 
+	let before: Anime;
 	let anime: Anime;
 	try {
+		before = await getAnime(payload.anilistId);
 		anime = await refreshAnime(payload.anilistId);
 	} catch (error) {
 		if (error instanceof AnimeNotFoundError) {
@@ -50,14 +59,21 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		throw error;
 	}
 
-	await scheduleStoredSeriesRefresh(anime.id);
+	const releasedBefore = latestReleased(await getStoredUnits([anime.id]));
+	const latestReleasedEpisode = await refreshReleasedEpisodes(anime, helpers.logger);
+	if (
+		latestReleasedEpisode !== releasedBefore ||
+		JSON.stringify(layoutInputs(anime)) !== JSON.stringify(layoutInputs(before))
+	) {
+		await scheduleStoredSeriesRefresh(anime.id);
+	}
 
 	const plan = planNextCheck(
 		{
 			status: anime.status,
 			nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
 			latestAiredEpisode: await latestAiredEpisode(anime),
-			latestReleasedEpisode: await refreshReleasedEpisodes(anime, helpers.logger),
+			latestReleasedEpisode,
 			startDate: anime.startDate,
 		},
 		payload,
@@ -91,6 +107,36 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		plan.runAt,
 	);
 };
+
+/**
+ * What a layout reads of an anime: everything but its score, popularity,
+ * tags, and recommendations, which change daily and which cards read from
+ * the stored anime itself.
+ */
+function layoutInputs({
+	score: _score,
+	popularity: _popularity,
+	tags: _tags,
+	recommendations: _recommendations,
+	...inputs
+}: Anime) {
+	return inputs;
+}
+
+/**
+ * The latest episode of the first provider in priority order with any
+ * episodes among `stored`, as {@link refreshReleasedEpisodes} returns it.
+ */
+function latestReleased(stored: readonly StoredUnits[]) {
+	for (const provider of streamProviders) {
+		const last = stored.find((entry) => entry.provider === provider.id)?.units.at(-1);
+		if (last) {
+			return last.number;
+		}
+	}
+
+	return null;
+}
 
 /**
  * Re-fetches every provider's episode list and returns the latest episode of
