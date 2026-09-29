@@ -33,7 +33,7 @@
 			hint="We'll ring the bell when new episodes arrive."
 		/>
 	{:else}
-		<div class="mb-6 flex min-h-12 items-center justify-between gap-4 border-b border-muted/30">
+		<div class="mb-6 flex min-h-12 items-center justify-between gap-4 border-b border-muted">
 			<div
 				class="text-base font-bold [&_.dropdown-trigger]:gap-2 [&_.dropdown-trigger]:px-0 [&_.dropdown-trigger]:normal-case [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent! [&_.dropdown-trigger]:hover:bg-transparent!"
 			>
