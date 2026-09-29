@@ -30,3 +30,21 @@ export const setArtwork = command(
 		getSeries(seriesId).set(series);
 	},
 );
+
+export const setLogoPlacement = command(
+	z.object({
+		seriesId: z.string(),
+		scale: z.number().min(0.5).max(2),
+		x: z.number().min(-1).max(1),
+		y: z.number().min(-1).max(1),
+	}),
+	async ({ seriesId, scale, x, y }) => {
+		const series = await sora.updateArtwork(seriesId, {
+			logo_scale: scale,
+			logo_offset_x: x,
+			logo_offset_y: y,
+		});
+
+		getSeries(seriesId).set(series);
+	},
+);

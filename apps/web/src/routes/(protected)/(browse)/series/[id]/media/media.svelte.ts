@@ -1,7 +1,7 @@
 import type { SeriesImage } from "@sora/sdk";
 
 import { getSeries } from "../series.remote";
-import { refreshImages, setArtwork } from "./media.remote";
+import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
 
 export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
@@ -57,6 +57,25 @@ export class Media {
 			this.error = undefined;
 		} catch {
 			this.error = "That image couldn’t be saved.";
+		}
+	};
+
+	place = async (seriesId: string, placement: { scale: number; x: number; y: number }) => {
+		try {
+			await setLogoPlacement({
+				seriesId,
+				...placement,
+			}).updates(
+				getSeries(seriesId).withOverride((current) => ({
+					...current,
+					logo_scale: placement.scale,
+					logo_offset_x: placement.x,
+					logo_offset_y: placement.y,
+				})),
+			);
+			this.error = undefined;
+		} catch {
+			this.error = "That placement couldn’t be saved.";
 		}
 	};
 
