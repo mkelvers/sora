@@ -17,6 +17,7 @@ export {
 	type NotificationsParams,
 	type ProfileInput,
 	type ProgressUpdate,
+	type ReleasesParams,
 	type RequestOptions,
 	type Returned,
 	type ScheduleParams,
@@ -28,6 +29,7 @@ export {
 	type SoraClientOptions,
 } from "./sora";
 export type {
+	AnimeSeason,
 	ContinueWatchingItem,
 	CountMeta,
 	HistoryItem,
@@ -47,6 +49,7 @@ export type {
 	PreparingTitle,
 	Profile,
 	ProfileAvatar,
+	Release,
 	ScheduledEpisode,
 	ScheduleMeta,
 	Season,
@@ -54,6 +57,7 @@ export type {
 	SeasonEpisodesMeta,
 	SeasonMeta,
 	SeasonProgress,
+	SeasonsMeta,
 	SeasonWithEpisodes,
 	Series,
 	SeriesCard,

@@ -1,4 +1,5 @@
 import type {
+	AnimeSeason,
 	AppType,
 	ContinueWatchingItem,
 	CountMeta,
@@ -16,8 +17,10 @@ import type {
 	PlaybackMeta,
 	Profile,
 	ProfileAvatar,
+	Release,
 	ScheduledEpisode,
 	ScheduleMeta,
+	SeasonsMeta,
 	Season,
 	SeasonEpisode,
 	SeasonEpisodesMeta,
@@ -44,6 +47,8 @@ export interface BrowseParams {
 	format?: BrowseQuery["format"];
 	status?: BrowseQuery["status"];
 	genres?: string[];
+	/** Only titles that can be watched with this audio; a page can then hold fewer cards than `per_page`. */
+	audio?: BrowseQuery["audio"];
 	page?: number;
 	per_page?: number;
 }
@@ -65,6 +70,14 @@ export interface ScheduleParams {
 	from?: Date;
 	/** @defaultValue 7 days after `from` */
 	until?: Date;
+}
+
+/** Filters and paging for {@link SoraClient.releases}, applied to the AniList entry each latest episode belongs to. */
+export interface ReleasesParams {
+	format?: BrowseQuery["format"];
+	audio?: BrowseQuery["audio"];
+	page?: number;
+	per_page?: number;
 }
 
 /** An account's credentials for {@link SoraClient.signIn}. */
@@ -1000,6 +1013,43 @@ export class SoraClient {
 		return unwrap(body, options);
 	}
 
+	/**
+	 * The titles with an episode out in the last 30 days, each with its latest
+	 * episode that can be watched, the latest first. A new episode of a show
+	 * counts, not only a new title.
+	 */
+	async releases<const TOptions extends RequestOptions<ReleasesParams> = {}>(
+		options?: TOptions,
+	): Promise<Returned<TOptions, Release[], PageMeta>> {
+		const body: Envelope<Release[], PageMeta> = await read(
+			this.#api.releases.$get(
+				{
+					query: {
+						format: options?.params?.format?.join(","),
+						audio: options?.params?.audio,
+						page: options?.params?.page?.toString(),
+						per_page: options?.params?.per_page?.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Every season some anime started in, the latest first, up to next
+	 * season. `meta.current` is the season airing now.
+	 */
+	async seasons<const TOptions extends RequestOptions = {}>(
+		options?: TOptions,
+	): Promise<Returned<TOptions, AnimeSeason[], SeasonsMeta>> {
+		const body: Envelope<AnimeSeason[], SeasonsMeta> = await read(
+			this.#api.seasons.$get(undefined, init(options)),
+		);
+		return unwrap(body, options);
+	}
+
 	/** Episodes airing in a window of up to 14 days, in broadcast order. Defaults to the next 7 days. */
 	async schedule<const TOptions extends RequestOptions<ScheduleParams> = {}>(
 		options?: TOptions,
@@ -1028,6 +1078,7 @@ function browseQuery(params: BrowseParams = {}) {
 		format: params.format?.join(","),
 		status: params.status,
 		genres: params.genres?.join(","),
+		audio: params.audio,
 		page: params.page?.toString(),
 		per_page: params.per_page?.toString(),
 	};
