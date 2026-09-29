@@ -394,7 +394,7 @@ export class SoraClient {
 
 	/**
 	 * Titles to feature on a profile's home page, mostly new and well liked,
-	 * then the best rated and popular hits. They change every hour.
+	 * then the best rated and popular hits. They change every Monday.
 	 */
 	async featured<const TOptions extends RequestOptions = {}>(
 		profileId: string,

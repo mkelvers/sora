@@ -660,7 +660,7 @@ export const getFeatured = createRoute({
 	tags: ["Profiles"],
 	summary: "Titles to feature",
 	description:
-		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They change every hour, and each profile goes through them in its own order. Titles the profile has played or put in its library are left out, as are long-running ones, those without a backdrop and logo, and those nothing streams.",
+		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They are picked every Monday at 06:00 UTC, in each profile's own order, and kept all week; none is featured two weeks in a row. Titles the profile has played or put in its library are left out, as are long-running ones, those without a backdrop and logo, and those nothing streams.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
