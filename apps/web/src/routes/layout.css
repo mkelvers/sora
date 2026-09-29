@@ -13,8 +13,8 @@
 	--theme-subtle: oklch(0.57 0.008 285);
 	--theme-border: oklch(0.35 0.008 285);
 	--theme-border-strong: oklch(0.5 0.008 285);
-	--theme-accent: #0a5cff;
-	--theme-on-accent: #fff;
+	--theme-accent: #39a1ff;
+	--theme-on-accent: #000;
 	--theme-status-error: #f04427;
 	--theme-status-success: #2ca66f;
 	--theme-on-status: oklch(0.13 0.01 48);
@@ -188,10 +188,13 @@
 			background-image:
 				linear-gradient(
 					to right,
-					var(--theme-canvas) 0%,
-					rgb(0 0 0 / 0.55) 15%,
-					rgb(0 0 0 / 0.25) 35%,
-					transparent 55%
+					rgb(0 0 0 / 0.84) 0%,
+					rgb(0 0 0 / 0.72) 12%,
+					rgb(0 0 0 / 0.56) 25%,
+					rgb(0 0 0 / 0.37) 38%,
+					rgb(0 0 0 / 0.18) 52%,
+					rgb(0 0 0 / 0.06) 62%,
+					transparent 72%
 				),
 				linear-gradient(to left, rgb(0 0 0 / 0.18), transparent 12%);
 		}
