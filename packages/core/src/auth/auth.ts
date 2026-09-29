@@ -56,13 +56,3 @@ export const auth = betterAuth({
 	},
 	plugins: [bearer()],
 });
-
-/** A signed-in account and its session, as {@link getSession} returns it. */
-export type Session = typeof auth.$Infer.Session;
-
-/** The session a request's cookie or bearer token belongs to, or `null`. */
-export function getSession(headers: Headers): Promise<Session | null> {
-	return auth.api.getSession({
-		headers,
-	});
-}

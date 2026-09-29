@@ -4,7 +4,6 @@ import {
 	createProfile,
 	deleteProfile,
 	getProfile,
-	getSession,
 	listProfiles,
 	updateProfile,
 } from "@sora/core/auth";
@@ -72,7 +71,9 @@ v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
 
 /** Answers 401 unless the request carries a session, as a bearer token or cookie. */
 const signedIn = createMiddleware<V1Env>(async (c, next) => {
-	const session = await getSession(c.req.raw.headers);
+	const session = await auth.api.getSession({
+		headers: c.req.raw.headers,
+	});
 	if (!session) {
 		return sendProblem(c, 401, "UNAUTHORIZED", "Sign in to use this endpoint");
 	}

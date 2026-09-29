@@ -9,7 +9,7 @@
  *
  * @packageDocumentation
  */
-export { auth, getSession, type Session } from "./auth";
+export { auth } from "./auth";
 export {
 	createProfile,
 	deleteProfile,
