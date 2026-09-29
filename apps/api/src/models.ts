@@ -9,6 +9,7 @@ import type {
 	getHistory,
 	getSchedule,
 	getSeason,
+	listSeasons,
 	getSeries,
 	getLibrary,
 	getNotifications,
@@ -30,6 +31,8 @@ import type {
 	PlaybackMetaSchema,
 	ProfileAvatarSchema,
 	ProfileSchema,
+	AnimeSeasonSchema,
+	ReleaseSchema,
 	ScheduledEpisodeSchema,
 	SeasonEpisodeSchema,
 	SeasonSchema,
@@ -46,6 +49,8 @@ export type SeriesImage = z.infer<typeof SeriesImageSchema>;
 export type Season = z.infer<typeof SeasonSchema>;
 export type SeasonEpisode = z.infer<typeof SeasonEpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
+export type Release = z.infer<typeof ReleaseSchema>;
+export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
 export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
@@ -95,6 +100,7 @@ export type SeriesMeta = SuccessBody<typeof getSeries>["meta"];
 export type SeasonMeta = SuccessBody<typeof getSeason>["meta"];
 export type SeasonEpisodesMeta = SuccessBody<typeof listSeasonEpisodes>["meta"];
 export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
+export type SeasonsMeta = SuccessBody<typeof listSeasons>["meta"];
 export type TitleProgressMeta = SuccessBody<typeof getSeriesProgress>["meta"];
 export type LibraryMeta = SuccessBody<typeof getLibrary>["meta"];
 export type HistoryMeta = SuccessBody<typeof getHistory>["meta"];

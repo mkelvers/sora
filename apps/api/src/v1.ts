@@ -7,7 +7,7 @@ import {
 	listProfiles,
 	updateProfile,
 } from "@sora/core/auth";
-import { getGenres } from "@sora/core/catalog";
+import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
 	addToLibrary,
 	clearProgress,
@@ -33,6 +33,7 @@ import {
 	browseSeries,
 	getAdjacentEpisodes,
 	getAiringSchedule,
+	getLatestReleases,
 	getSeason,
 	getSeasonEpisodes,
 	getSeasonSeriesId,
@@ -332,6 +333,37 @@ export const v1Routes = v1
 					count: episodes.length,
 				},
 				results: snakeCased(episodes),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listReleases, async (c) => {
+		const { per_page, ...filters } = c.req.valid("query");
+		const page = await getLatestReleases({
+			...filters,
+			perPage: per_page,
+		});
+		c.header("Cache-Control", "public, max-age=60");
+		return c.json(
+			{
+				meta: pageMeta(c.req.url, page),
+				results: snakeCased(page.items),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listSeasons, async (c) => {
+		const seasons = await listSeasons();
+		c.header("Cache-Control", "public, max-age=3600");
+		return c.json(
+			{
+				meta: {
+					count: seasons.length,
+					current: currentSeason(),
+				},
+				results: seasons,
 			},
 			200,
 		);

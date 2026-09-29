@@ -6,7 +6,7 @@
  */
 import { z } from "@hono/zod-openapi";
 import type { Profile, ProfileAvatar } from "@sora/core/auth";
-import type { AnimeTag } from "@sora/core/catalog";
+import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatchingItem,
 	EpisodeProgress,
@@ -21,6 +21,7 @@ import type {
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
+	Release,
 	ScheduledEpisode,
 	Season,
 	SeasonEpisode,
@@ -323,6 +324,33 @@ export const ScheduledEpisodeSchema = z
 		airing_at: z.string(),
 	})
 	.openapi("ScheduledEpisode") satisfies z.ZodType<SnakeCased<ScheduledEpisode>>;
+
+export const AnimeSeasonSchema = z
+	.object({
+		season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]),
+		year: z.number().int().openapi({
+			example: 2026,
+		}),
+	})
+	.openapi("AnimeSeason") satisfies z.ZodType<SnakeCased<AnimeSeason>>;
+
+export const ReleaseSchema = z
+	.object({
+		series: SeriesCardSchema,
+		season_id: z.string(),
+		season_title: z.string().openapi({
+			example: "Season 2",
+		}),
+		episode: z.number().int().openapi({
+			description: "Position within the season, from 1.",
+		}),
+		released_at: z.string().openapi({
+			description:
+				"When the episode came out: when it aired, or its air date's midnight UTC when AniList has no airing time.",
+			example: "2026-09-27T15:00:00.000Z",
+		}),
+	})
+	.openapi("Release") satisfies z.ZodType<SnakeCased<Release>>;
 
 const LocaleSchema = z.string().min(1).openapi({
 	description: "BCP 47 language tag.",

@@ -35,6 +35,8 @@ import {
 	ProfileInputSchema,
 	ProfileSchema,
 	ProgressUpdateSchema,
+	AnimeSeasonSchema,
+	ReleaseSchema,
 	ScheduledEpisodeSchema,
 	SeasonSchema,
 	SeasonEpisodeSchema,
@@ -424,6 +426,55 @@ export const getSchedule = createRoute({
 			"Scheduled episodes, and the window they air in.",
 		),
 		422: problem("The window is invalid or longer than 14 days."),
+	},
+});
+
+export const listReleases = createRoute({
+	operationId: "listReleases",
+	method: "get",
+	path: "/releases",
+	tags: ["Series"],
+	summary: "Newly added episodes",
+	description:
+		"The titles with an episode out in the last 30 days, each with its latest episode that can be watched, the latest first. A new episode of a show counts, not only a new title; an episode that has aired but cannot be played yet is left out until it can. `format` and `audio` apply to the AniList entry the latest episode belongs to.",
+	request: {
+		query: z
+			.object({
+				format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
+				audio: browse.audio,
+				page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
+				per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
+			})
+			.strict(),
+	},
+	responses: {
+		200: json(
+			envelopeOf(z.array(ReleaseSchema), PageMetaSchema),
+			"One page of each title's latest episode, the latest first.",
+		),
+	},
+});
+
+export const listSeasons = createRoute({
+	operationId: "listSeasons",
+	method: "get",
+	path: "/seasons",
+	tags: ["Series"],
+	summary: "List anime seasons",
+	description:
+		"Every season some anime started in, the latest first, up to next season, whose titles are announced by now. Pass one to `browseSeries` as `season` and `season_year`.",
+	responses: {
+		200: json(
+			envelopeOf(
+				z.array(AnimeSeasonSchema),
+				CountMetaSchema.extend({
+					current: AnimeSeasonSchema.openapi({
+						description: "The season airing now.",
+					}),
+				}),
+			),
+			"The seasons, and the one airing now.",
+		),
 	},
 });
 
