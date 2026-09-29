@@ -90,23 +90,25 @@
 				{/snippet}
 
 				{#snippet children()}
-					<div class="flex flex-col">
+					<ul class="flex flex-col">
 						{#each destinations as destination (destination.href)}
-							<a
-								href={destination.href}
-								class={cn(
-									"flex min-h-12 items-center px-6 text-[0.9375rem] text-foreground/80 transition-colors focus:bg-header focus:text-foreground focus:outline-none",
-									page.url.pathname === destination.href && "font-semibold text-foreground",
-									destination.new &&
-										"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
-								)}
-								aria-current={page.url.pathname === destination.href ? "page" : undefined}
-							>
-								{destination.label}
-								{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
-							</a>
+							<li>
+								<a
+									href={destination.href}
+									class={cn(
+										"flex min-h-12 items-center px-6 text-[0.9375rem] text-foreground/80 transition-colors focus:bg-header focus:text-foreground focus:outline-none",
+										page.url.pathname === destination.href && "font-semibold text-foreground",
+										destination.new &&
+											"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
+									)}
+									aria-current={page.url.pathname === destination.href ? "page" : undefined}
+								>
+									{destination.label}
+									{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
+								</a>
+							</li>
 						{/each}
-					</div>
+					</ul>
 				{/snippet}
 			</Dropdown>
 		</div>
@@ -117,7 +119,7 @@
 			aria-label="Home"
 			aria-current={page.url.pathname === "/" ? "page" : undefined}
 		>
-			<img src={logo} alt="" class="size-11" />
+			<img src={logo} alt="Sora logo" class="size-11" />
 		</a>
 
 		<div class="flex h-full items-center">
@@ -127,13 +129,10 @@
 				<a
 					href={destination.href}
 					class={cn(
-						"inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground sm:w-14",
-						"relative max-sm:hidden",
+						"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
 						page.url.pathname === destination.href && "bg-header-hover text-foreground",
-						destination.new && [
-							"after:absolute after:size-2 after:rounded-full after:bg-status-error after:ring-2",
-							"after:top-3.5 after:right-3 after:ring-header sm:after:right-4",
-						],
+						destination.new &&
+							"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
 					)}
 					aria-label={destination.new
 						? `${destination.label}, new notifications`
@@ -149,7 +148,7 @@
 			>
 				<Dropdown class="w-[min(21rem,calc(100vw-1rem))] bg-header-hover *:p-0">
 					{#snippet trigger()}
-						<Avatar avatar={profile.avatar} class="size-8" />
+						<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-8" />
 						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
@@ -157,9 +156,10 @@
 						<div role="dialog" aria-label="Account">
 							<a
 								href="/profiles/{profile.id}"
+								aria-label="Edit profile {profile.name}"
 								class="flex min-h-14 items-center gap-3 px-5 py-2 transition-colors focus:bg-header focus:outline-none"
 							>
-								<Avatar avatar={profile.avatar} class="size-9" />
+								<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-9" />
 								<span class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
 									{profile.name}
 								</span>
@@ -172,9 +172,10 @@
 									form="switch-profile"
 									name="profile"
 									value={other.id}
+									aria-label="Switch to {other.name}"
 									class="flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none"
 								>
-									<Avatar avatar={other.avatar} class="size-7" />
+									<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
 									{other.name}
 								</Button>
 							{/each}
@@ -191,10 +192,7 @@
 							<Button
 								type="submit"
 								form="sign-out"
-								class={cn(
-									"flex min-h-12 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none",
-									"min-h-14",
-								)}
+								class="flex min-h-14 w-full items-center justify-start gap-3 px-5 text-left text-sm text-muted transition-colors focus:bg-header focus:text-foreground focus:outline-none"
 							>
 								<SignOutIcon size="1.3rem" />
 								Sign out
