@@ -1,3 +1,33 @@
+<script lang="ts" module>
+	import { cva, type VariantProps } from "class-variance-authority";
+
+	const trigger = cva(
+		"dropdown-trigger group-has-[.dropdown-menu:popover-open]:bg-white/8 group-has-[.dropdown-menu:popover-open]:text-foreground",
+		{
+			variants: {
+				variant: {
+					menu: "",
+					toolbar:
+						"h-10 gap-2 px-3 text-sm font-medium tracking-normal group-has-[.dropdown-menu:popover-open]:bg-dropdown hover:bg-dropdown",
+				},
+			},
+		},
+	);
+
+	const menu = cva(
+		"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
+		{
+			variants: {
+				variant: {
+					menu: "",
+					toolbar:
+						"[&_:is(a,button):focus:not(:hover)]:bg-transparent [&_:is(a,button):focus:not(:hover):not([aria-checked=true])]:text-muted",
+				},
+			},
+		},
+	);
+</script>
+
 <script lang="ts">
 	import { cn, moveMenuFocus } from "$lib/utils";
 	import { Popover } from "melt/builders";
@@ -10,10 +40,18 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
+		variant?: NonNullable<VariantProps<typeof trigger>["variant"]>;
 		class?: string;
 	};
 
-	let { alignment = "right", children, class: className, label, trigger }: Props = $props();
+	let {
+		alignment = "right",
+		variant = "menu",
+		children,
+		class: className,
+		label,
+		trigger: triggerContent,
+	}: Props = $props();
 
 	const popover = new Popover({
 		focus: {
@@ -32,16 +70,20 @@
 	<Button
 		{...popover.trigger}
 		variant="ghost"
-		class="dropdown-trigger group-has-[.dropdown-menu:popover-open]:bg-white/8 group-has-[.dropdown-menu:popover-open]:text-foreground"
+		class={trigger({
+			variant,
+		})}
 		aria-label={label}
 	>
-		{@render trigger()}
+		{@render triggerContent()}
 	</Button>
 
 	<div
 		{...popover.content}
 		class={cn(
-			"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
+			menu({
+				variant,
+			}),
 			className,
 		)}
 		onpointermove={(event) => {
