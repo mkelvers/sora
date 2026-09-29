@@ -113,7 +113,7 @@
 
 <section>
 	<figure
-		class="series-hero relative z-30 grid aspect-video max-h-[85svh] min-h-120 w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150"
+		class="series-hero @container relative z-30 grid aspect-video max-h-[85svh] min-h-120 w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150"
 	>
 		<h1 class="sr-only">{series.title}</h1>
 
@@ -167,7 +167,11 @@
 						src={tmdbImage(series.logo_url, "w500")}
 						alt=""
 						aria-hidden="true"
-						class="h-[clamp(5rem,8vw,11.5rem)] max-w-[65vw] object-contain object-left sm:max-w-md lg:max-w-lg"
+						data-hero-logo
+						class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @min-[64rem]:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
+						style:--logo-scale={series.logo_scale}
+						style:--logo-x={series.logo_offset_x}
+						style:--logo-y={series.logo_offset_y}
 					/>
 				{:else}
 					<p

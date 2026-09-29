@@ -102,7 +102,8 @@
 									src={tmdbImage(slide.logo_url, "w500")}
 									alt=""
 									decoding="async"
-									class="max-h-24 max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-32 sm:max-w-sm sm:object-left-bottom lg:max-h-64 lg:max-w-lg"
+									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-left-bottom lg:max-h-[calc(16rem*var(--logo-scale))] lg:max-w-[calc(32rem*var(--logo-scale))]"
+									style:--logo-scale={slide.logo_scale}
 								/>
 							{/if}
 						</a>
