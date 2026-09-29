@@ -56,8 +56,6 @@
 				/>
 			{/each}
 		</ol>
-	{:else}
-		<p class="py-10 text-muted">No episodes yet.</p>
 	{/if}
 {:else}
 	<ol
