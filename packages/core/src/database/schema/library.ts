@@ -133,3 +133,67 @@ export const playbackHistory = pgTable(
 		index("playback_history_user_played_idx").on(table.userId, table.playedAt),
 	],
 );
+
+/**
+ * A series in someone's library that Sora watches for new episodes, and
+ * since when. Episodes already out when watching started are no news.
+ *
+ * Rows go when no library holds the series any more, so a series added
+ * again is watched afresh; see `recordReleases`.
+ */
+export const releaseWatch = pgTable("release_watch", {
+	seriesId: text("series_id")
+		.primaryKey()
+		.references(() => series.id, {
+			onDelete: "cascade",
+		}),
+	since: timestamptz("since").notNull(),
+});
+
+/**
+ * An AniList episode of a watched series (see {@link releaseWatch}) that
+ * seasons list, and when Sora first saw it listed. Notifications are read
+ * from these: episodes of one season seen at the same moment make one.
+ *
+ * Keyed by AniList episode like {@link playbackProgress}, so a release is
+ * not seen again when its series is laid out again or merged.
+ */
+export const episodeRelease = pgTable(
+	"episode_release",
+	{
+		anilistId: integer("anilist_id").notNull(),
+		anilistEpisode: integer("anilist_episode").notNull(),
+		releasedAt: timestamptz("released_at").notNull(),
+		/** Whether it came out while its series was watched, rather than being out already. */
+		news: boolean("news").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.anilistId, table.anilistEpisode],
+		}),
+	],
+);
+
+/** When a user last saw their notifications; those released later are unread. */
+export const notificationSeen = pgTable("notification_seen", {
+	userId: text("user_id").primaryKey(),
+	seenAt: timestamptz("seen_at").notNull(),
+});
+
+/**
+ * A notification a user deleted, by its ID (see `Notification.id`). It
+ * stays hidden; rows older than a notification is listed are pruned.
+ */
+export const notificationDismissal = pgTable(
+	"notification_dismissal",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		dismissedAt: timestamptz("dismissed_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);

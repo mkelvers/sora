@@ -239,6 +239,20 @@
       "when": 1790648439443,
       "tag": "0033_series_logo_offset",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790651083308,
+      "tag": "0034_release_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790653339109,
+      "tag": "0035_notification_dismissal",
+      "breakpoints": true
     }
   ]
 }
