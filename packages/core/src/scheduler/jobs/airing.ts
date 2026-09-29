@@ -85,16 +85,17 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	// A newly aired episode is watched for on AniKoto every minute or so,
+	// A newly aired episode is watched for on AniKoto from five minutes on,
 	// between the tracker's own checks.
 	if (plan.awaitedEpisode !== null && plan.attempt === 0) {
 		await scheduleAniKotoPoll(
 			{
 				anilistId: anime.id,
 				episode: plan.awaitedEpisode,
+				language: "sub",
 				attempt: 0,
 			},
-			new Date(Date.now() + minute),
+			new Date(Date.now() + 5 * minute),
 		);
 	}
 

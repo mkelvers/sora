@@ -10,17 +10,12 @@ import {
 	pruneProviderCallsTask,
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
+import { syncDubSchedule, syncDubScheduleTask } from "./jobs/dubs";
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { recordReleasesJob, recordReleasesTask } from "./jobs/notifications";
-import {
-	pollAniKoto,
-	watchAniKotoDubs,
-	watchAniKotoDubsTask,
-	watchAniKotoReleases,
-	watchAniKotoReleasesTask,
-} from "./jobs/releases";
+import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
 import {
 	backfillSeries,
 	backfillSeriesTask,
@@ -60,13 +55,14 @@ const waitedOnTasks: Record<string, Task> = {
 /**
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, watches AniKoto for new
- * episodes every minute and for new dubs every two minutes, records what
- * came out for series in libraries, which notifications are read from,
- * looks stored titles up on providers, keeps stored series current as seasons air and new ones are
- * announced, mirrors the provider catalogues titles are matched against,
- * keeps the search index current while storing the most popular titles ahead
- * of any search, keeps the hints that match titles to TMDB current, and
- * warns about providers that stop working.
+ * episodes as they air, for dubs as AnimeSchedule expects them, and for the
+ * rest every half hour, records what came out for series in libraries,
+ * which notifications are read from, looks stored titles up on providers,
+ * keeps stored series current as seasons air and new ones are announced,
+ * mirrors the provider catalogues titles are matched against, keeps the
+ * search index current while storing the most popular titles ahead of any
+ * search, keeps the hints that match titles to TMDB current, and warns
+ * about providers that stop working.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
  * of them. Stop it with `stop()`; by default it also stops on SIGINT and
@@ -153,21 +149,22 @@ export async function startScheduler(): Promise<Scheduler> {
 		},
 	});
 
-	// New episodes and dubs must show up within minutes of AniKoto carrying
-	// them, so the looks on AniKoto have workers of their own too. Each costs
-	// one AniKoto request, and the lists they fetch rarely wait on AniList.
+	// New episodes must show up within minutes of AniKoto carrying them, so
+	// the looks on AniKoto as they air have workers of their own too. Looks
+	// at the same time share one AniKoto request, and the lists they fetch
+	// rarely wait on AniList.
 	const releases = await run({
 		connectionString: config.databaseUrl,
 		concurrency: 4,
 		maxPoolSize: 4,
 		taskList: prioritized({
 			[watchAniKotoReleasesTask]: watchAniKotoReleases,
-			[watchAniKotoDubsTask]: watchAniKotoDubs,
 			[pollAniKotoTask]: pollAniKoto,
+			[syncDubScheduleTask]: syncDubSchedule,
 		}),
 		crontab: [
-			`* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
-			`*/2 * * * * ${watchAniKotoDubsTask} ?priority=-1`,
+			`*/30 * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
+			`0 0 * * * ${syncDubScheduleTask} ?id=dub-schedule&fill=1d&priority=-1`,
 		].join("\n"),
 	});
 

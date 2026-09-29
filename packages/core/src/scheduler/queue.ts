@@ -82,14 +82,17 @@ export interface PollAniKotoPayload {
 	anilistId: number;
 	/** The aired episode AniKoto does not carry yet. */
 	episode: number;
+	/** `dub` when watching for the episode's dub rather than the episode itself. */
+	language: "sub" | "dub";
 	/** How many looks have already not found it. */
 	attempt: number;
 }
 
 /**
- * Schedules the next look on AniKoto for an aired episode, replacing any
- * pending one for the anime. Runs at {@link airingCheckPriority}, since a
- * viewer may be waiting on the episode.
+ * Schedules the next look on AniKoto for an aired episode, or its dub,
+ * replacing any pending one for the anime in that language. Runs at
+ * {@link airingCheckPriority}, since a viewer may be waiting on the
+ * episode.
  */
 export async function scheduleAniKotoPoll(payload: PollAniKotoPayload, runAt: Date) {
 	await db.execute(sql`
@@ -98,10 +101,11 @@ export async function scheduleAniKotoPoll(payload: PollAniKotoPayload, runAt: Da
       payload => json_build_object(
         'anilistId', ${payload.anilistId}::int,
         'episode', ${payload.episode}::float8,
+        'language', ${payload.language}::text,
         'attempt', ${payload.attempt}::int
       ),
       run_at => ${runAt.toISOString()}::timestamptz,
-      job_key => ${`anikoto-poll:${payload.anilistId}`},
+      job_key => ${`anikoto-poll:${payload.anilistId}${payload.language === "dub" ? ":dub" : ""}`},
       job_key_mode => 'replace',
       priority => ${airingCheckPriority}::int
     )

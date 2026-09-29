@@ -22,7 +22,7 @@ const EpisodeListResponseSchema = z.object({
 const languageOrder = ["sub", "dub"] as const satisfies readonly ContentLanguage[];
 
 /** One episode of AniKoto's episode list. */
-export interface ListedEpisode {
+interface ListedEpisode {
 	languages: ContentLanguage[];
 	isFiller: boolean;
 }
@@ -125,13 +125,12 @@ export class AniKotoStreamProvider implements StreamProvider {
  * Reads AniKoto's episode list, as its watch page loads it. Each episode's
  * link carries `data-sub` and `data-dub` flags, which the watch page's
  * language switch follows, and a `filler` class on filler episodes.
- *
- * It is served by AniKoto's site rather than its rate-limited API.
+
  *
  * @returns Each listed episode's languages and filler flag, by number.
  * @throws when the list cannot be read or lists no episodes.
  */
-export async function fetchAniKotoEpisodeList(
+async function fetchAniKotoEpisodeList(
 	http: HttpClient,
 	mediaId: string,
 ): Promise<Map<number, ListedEpisode>> {

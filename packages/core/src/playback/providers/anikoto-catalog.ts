@@ -6,7 +6,7 @@ import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema";
-import { day } from "../../time";
+import { hour } from "../../time";
 
 const apiUrl = "https://anikotoapi.site";
 const siteUrl = "https://anikototv.to";
@@ -20,9 +20,10 @@ const continuationDepth = 3;
 /**
  * An incremental sync re-reads series changed this long before the newest
  * one stored, so a series AniKoto updated while a sync was paging through
- * its catalogue is not skipped.
+ * its catalogue is not skipped. Paging takes seconds, and AniKoto changes
+ * about 50 series a day, so this rarely costs a second page.
  */
-const syncOverlapMs = day;
+const syncOverlapMs = 2 * hour;
 
 /** An ID field AniKoto sends as a number, a numeric string, or an empty string. */
 const OptionalIdSchema = z
@@ -160,9 +161,15 @@ export interface AniKotoChange {
 	updatedAt: Date;
 }
 
+/** Catalogue pages {@link readRecentAniKotoChanges} reads at most, 20 series each. */
+const recentPageLimit = 5;
+
 /**
- * Reads the series AniKoto changed most recently, newest first: the first
- * page of its catalogue listing. Adding an episode changes its series,
+ * Reads the series AniKoto changed since `since`, newest first, from the
+ * start of its catalogue listing: page after page until one reaches back
+ * past `since`, up to {@link recentPageLimit}. AniKoto changes about 50
+ * series a day, so one page usually covers hours, but it adds new series
+ * in bursts of dozens. Adding an episode or a dub changes its series,
  * though the series' timestamp may trail the episode's by a few minutes.
  *
  * The series are stored in the mirror too, so a series that just premiered
@@ -170,17 +177,32 @@ export interface AniKotoChange {
  *
  * @throws when AniKoto's API fails.
  */
-export async function readRecentAniKotoChanges(http: HttpClient): Promise<AniKotoChange[]> {
-	const response = await http.get(`${apiUrl}/recent-anime?page=1`);
-	const rows = CatalogPageSchema.parse(await response.json()).data.flatMap(
-		(item) => parseCatalogSeries(item) ?? [],
-	);
-	await upsert(rows);
-	return rows.map((row) => ({
-		anikotoId: row.anikotoId,
-		anilistId: row.anilistId ?? null,
-		updatedAt: row.updatedAt,
-	}));
+export async function readRecentAniKotoChanges(
+	http: HttpClient,
+	since: Date,
+): Promise<AniKotoChange[]> {
+	const changes: AniKotoChange[] = [];
+	for (let page = 1; page <= recentPageLimit; page += 1) {
+		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
+		const rows = CatalogPageSchema.parse(await response.json()).data.flatMap(
+			(item) => parseCatalogSeries(item) ?? [],
+		);
+		await upsert(rows);
+		changes.push(
+			...rows.map((row) => ({
+				anikotoId: row.anikotoId,
+				anilistId: row.anilistId ?? null,
+				updatedAt: row.updatedAt,
+			})),
+		);
+
+		const oldest = rows.at(-1);
+		if (!oldest || oldest.updatedAt < since) {
+			break;
+		}
+	}
+
+	return changes;
 }
 
 /**
