@@ -13,6 +13,7 @@ import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs"
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
+import { recordReleasesJob, recordReleasesTask } from "./jobs/notifications";
 import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
 import {
 	backfillSeries,
@@ -52,7 +53,8 @@ const waitedOnTasks: Record<string, Task> = {
 /**
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, watches AniKoto for new
- * episodes every minute, looks stored titles up on
+ * episodes every minute, records what came out for series in libraries,
+ * which notifications are read from, looks stored titles up on
  * providers, keeps stored series current as seasons air and new ones are
  * announced, mirrors the provider catalogues titles are matched against,
  * keeps the search index current while storing the most popular titles ahead
@@ -74,8 +76,6 @@ export async function startScheduler(): Promise<Scheduler> {
 		taskList: prioritized({
 			[trackAiringTask]: trackAiring,
 			[reviveAiringChecksTask]: reviveAiringChecks,
-			[pollAniKotoTask]: pollAniKoto,
-			[watchAniKotoReleasesTask]: watchAniKotoReleases,
 			[storeSeriesTask]: storeSeriesJob,
 			[lookUpEpisodesTask]: lookUpEpisodes,
 			...waitedOnTasks,
@@ -91,7 +91,6 @@ export async function startScheduler(): Promise<Scheduler> {
 		}),
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
-			`* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
 			`30 4 * * * ${discoverSeriesEntriesTask}`,
 			`0 */6 * * * ${refreshEpisodeDetailsTask}`,
 			// Catalogue upkeep runs ahead of queued layouts, which can number in the
@@ -122,10 +121,41 @@ export async function startScheduler(): Promise<Scheduler> {
 		taskList: prioritized(waitedOnTasks),
 	});
 
+	// New episodes must show up within minutes of AniKoto carrying them, so
+	// the looks on AniKoto have workers of their own too. Each costs one
+	// AniKoto request, and the lists they fetch rarely wait on AniList.
+	const releases = await run({
+		connectionString: config.databaseUrl,
+		concurrency: 4,
+		maxPoolSize: 4,
+		taskList: prioritized({
+			[watchAniKotoReleasesTask]: watchAniKotoReleases,
+			[pollAniKotoTask]: pollAniKoto,
+		}),
+		crontab: `* * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
+	});
+
+	// Notifications read only the database and must follow a release within
+	// a minute, so they never wait for a slot behind jobs held up on AniList.
+	const notifications = await run({
+		connectionString: config.databaseUrl,
+		concurrency: 1,
+		maxPoolSize: 2,
+		taskList: {
+			[recordReleasesTask]: recordReleasesJob,
+		},
+		crontab: `* * * * * ${recordReleasesTask}`,
+	});
+
 	return {
-		promise: Promise.all([main.promise, waitedOn.promise]).then(() => undefined),
+		promise: Promise.all([
+			main.promise,
+			waitedOn.promise,
+			releases.promise,
+			notifications.promise,
+		]).then(() => undefined),
 		stop: async () => {
-			await Promise.all([main.stop(), waitedOn.stop()]);
+			await Promise.all([main.stop(), waitedOn.stop(), releases.stop(), notifications.stop()]);
 		},
 	};
 }
