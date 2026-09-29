@@ -46,7 +46,7 @@
 						<Item
 							class="group relative basis-[calc((100vw-3.75rem)/1.35)] last:mr-3 min-[30em]:basis-[calc((100vw-4.75rem)/2.1)] min-[35.5em]:basis-[calc((100vw-5.75rem)/2.7)] sm:basis-[calc((100vw-8.75rem)/3.25)] sm:last:mr-8 lg:basis-[calc((100vw-20.375rem)/4.25)] lg:last:mr-18 2xl:basis-[calc((100vw-22.25rem)/5.25)]"
 						>
-							<div
+							<article
 								class="h-full min-w-0 p-2 transition-colors group-focus-within:bg-surface group-hover:bg-surface"
 							>
 								<a
@@ -63,13 +63,16 @@
 													w1280: 1280,
 												})}
 												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 35.5em) 37vw, (min-width: 30em) 47vw, 74vw"
-												alt=""
+												alt="Backdrop from {item.series.title}"
 											/>
 										{/if}
 										{#if progress > 0}
-											<div class="absolute inset-x-0 bottom-0 z-10 h-1 bg-black/60">
-												<div class="h-full bg-accent" style:width="{progress}%"></div>
-											</div>
+											<progress
+												class="absolute inset-x-0 bottom-0 z-10 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+												value={progress}
+												max="100"
+												aria-label="{Math.round(progress)}% watched"
+											></progress>
 										{/if}
 									</div>
 
@@ -78,7 +81,11 @@
 											{item.series.title}
 										</h3>
 										<p class="mt-1.5 text-sm text-muted">
-											{item.position_seconds > 0 ? "Continue with" : "Up next:"} E{item.episode}
+											{#if item.position_seconds > 0}
+												Continue with E{item.episode}
+											{:else}
+												Up next: E{item.episode}
+											{/if}
 										</p>
 										{#if item.series.audio.length}
 											<p class="mt-auto pt-5 text-sm text-muted">
@@ -87,29 +94,25 @@
 										{/if}
 									</div>
 								</a>
-							</div>
+							</article>
 
-							<div
-								class="absolute right-2 bottom-2 z-10 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
-							>
-								<Tooltip text="Remove">
-									{#snippet children(trigger)}
-										<Button
-											{...trigger}
-											class="grid size-8 place-items-center text-muted transition-[color,transform] duration-150 hover:text-status-error active:scale-90"
-											aria-label="Remove {item.series.title} from Continue Watching"
-											onclick={() =>
-												dismiss(item.series.id).updates(
-													getContinueWatching().withOverride((current) =>
-														current.filter((other) => other.series.id !== item.series.id),
-													),
-												)}
-										>
-											<TrashIcon size="1.125rem" />
-										</Button>
-									{/snippet}
-								</Tooltip>
-							</div>
+							<Tooltip text="Remove">
+								{#snippet children(trigger)}
+									<Button
+										{...trigger}
+										class="absolute right-2 bottom-2 z-10 grid size-8 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error active:scale-90 pointer-fine:opacity-0"
+										aria-label="Remove {item.series.title} from Continue Watching"
+										onclick={() =>
+											dismiss(item.series.id).updates(
+												getContinueWatching().withOverride((current) =>
+													current.filter((other) => other.series.id !== item.series.id),
+												),
+											)}
+									>
+										<TrashIcon size="1.125rem" />
+									</Button>
+								{/snippet}
+							</Tooltip>
 						</Item>
 					{/each}
 				</Content>
