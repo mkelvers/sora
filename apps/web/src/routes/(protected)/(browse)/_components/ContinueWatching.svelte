@@ -104,8 +104,8 @@
 						</Item>
 					{/each}
 				</Content>
-				<Previous class="pointer-coarse:hidden" />
-				<Next class="pointer-coarse:hidden" />
+				<Previous class="max-sm:hidden" />
+				<Next class="max-sm:hidden" />
 			{/snippet}
 		</Carousel>
 	</section>
