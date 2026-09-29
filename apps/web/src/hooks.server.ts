@@ -75,7 +75,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		error(403, "Choose a profile first");
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+	response.headers.set("X-Robots-Tag", "noindex, nofollow");
+
+	return response;
 };
 
 export const handleError: HandleServerError = ({ error }) => {

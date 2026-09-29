@@ -1,4 +1,5 @@
-# Arc is an authentication-gated application. Search engines must not crawl
-# private pages or mistake this file for an access-control mechanism.
+# Sora is an authentication-gated application. Every response carries
+# `X-Robots-Tag: noindex, nofollow`, so crawlers may fetch pages only to learn
+# that they must stay out of search results. This file is not access control.
 User-agent: *
-Disallow: /
+Allow: /
