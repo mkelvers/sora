@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import search from "$lib/assets/illustrations/search.webp";
+	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 
@@ -14,7 +16,7 @@
 </svelte:head>
 
 <main
-	class="min-h-[calc(100dvh-3.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground"
+	class="min-h-[calc(100dvh-6.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
 >
 	{#if q}
 		<h1 class="sr-only">Search results for {q}</h1>
@@ -44,9 +46,17 @@
 			{/each}
 		</ul>
 	{:else}
-		<div class="grid min-h-[50vh] place-content-center gap-2 text-center">
-			<h1 class="text-2xl font-semibold">Find something to watch</h1>
-			<p class="text-muted">Search by title in English, romaji, or Japanese.</p>
+		<div class="grid min-h-[calc(100dvh-14rem)] place-items-center sm:min-h-[calc(100dvh-11rem)]">
+			<div class="w-full max-w-5xl">
+				<h1 class="mb-8 text-center text-2xl font-bold">Find something to watch</h1>
+				<EmptyState
+					image={search}
+					width={692}
+					height={720}
+					title="Search for any anime by its title."
+					hint="Your results will show up right here."
+				/>
+			</div>
 		</div>
 	{/if}
 </main>
