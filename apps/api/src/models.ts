@@ -11,6 +11,7 @@ import type {
 	getSeason,
 	getSeries,
 	getLibrary,
+	getNotifications,
 	getSeriesProgress,
 	listSeasonEpisodes,
 } from "./openapi/routes";
@@ -21,6 +22,7 @@ import type {
 	LibraryItemSchema,
 	LibraryStatusSchema,
 	NamedSeasonSchema,
+	NotificationSchema,
 	EpisodeProgressSchema,
 	SeasonProgressSchema,
 	SeriesProgressSchema,
@@ -59,6 +61,7 @@ export type NamedSeason = z.infer<typeof NamedSeasonSchema>;
 export type LibraryItem = z.infer<typeof LibraryItemSchema>;
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
 export type HistoryItem = z.infer<typeof HistoryItemSchema>;
+export type Notification = z.infer<typeof NotificationSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
@@ -95,6 +98,7 @@ export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
 export type TitleProgressMeta = SuccessBody<typeof getSeriesProgress>["meta"];
 export type LibraryMeta = SuccessBody<typeof getLibrary>["meta"];
 export type HistoryMeta = SuccessBody<typeof getHistory>["meta"];
+export type NotificationsMeta = SuccessBody<typeof getNotifications>["meta"];
 
 /** The body of every successful JSON response. */
 export interface Envelope<TResults, TMeta> {

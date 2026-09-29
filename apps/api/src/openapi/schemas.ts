@@ -14,6 +14,7 @@ import type {
 	LibraryEntry,
 	LibraryItem,
 	NamedSeason,
+	Notification,
 	SeasonProgress,
 	SeriesProgress,
 	TitleProgress,
@@ -651,6 +652,70 @@ export const LibraryMetaSchema = z
 			}),
 	})
 	.openapi("LibraryMeta");
+
+export const NotificationSchema = z
+	.object({
+		id: z.string().openapi({
+			description: "Stable for as long as the notification is listed.",
+			example: "EWBMBNIV4:1790651185224",
+		}),
+		kind: z.enum(["season", "episodes"]).openapi({
+			description:
+				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes.",
+		}),
+		series: SeriesCardSchema,
+		season: z.object({
+			id: z.string(),
+			kind: z.enum(["season", "ova", "movie"]),
+			number: z.number().int(),
+			title: z.string().openapi({
+				example: "Season 2",
+			}),
+		}),
+		first_episode: z.number().int().openapi({
+			description: "The first episode that came out, from 1 within the season.",
+		}),
+		last_episode: z.number().int().openapi({
+			description: "The last episode that came out; the same as `first_episode` when one did.",
+		}),
+		episode_title: z.string().nullable().openapi({
+			description: "The title of `last_episode`.",
+		}),
+		still_url: z.string().nullable().openapi({
+			description:
+				"A still of the season's first episode for a new season, and of `last_episode` otherwise.",
+		}),
+		released_at: z.string().openapi({
+			description: "When it came out on Sora, as an ISO 8601 timestamp.",
+		}),
+		unread: z.boolean().openapi({
+			description: "Whether it came out after the profile last saw its notifications.",
+		}),
+	})
+	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
+
+export const NotificationsMetaSchema = z
+	.object({
+		count: z.number().int().nonnegative(),
+		unread: z.number().int().nonnegative().openapi({
+			description:
+				"How many of the profile's notifications are unread, including those past `limit`.",
+		}),
+	})
+	.openapi("NotificationsMeta");
+
+export const NotificationsSeenSchema = z
+	.object({
+		seen_at: z.iso
+			.datetime({
+				offset: true,
+			})
+			.openapi({
+				description:
+					"The `released_at` of the newest notification shown, so one that came out meanwhile stays unread.",
+			}),
+	})
+	.openapi("NotificationsSeen");
 
 export const MarkWatchedSchema = z
 	.object({
