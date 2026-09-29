@@ -63,11 +63,11 @@
 				},
 			});
 		}}
-		class="flex items-start gap-5 pr-14 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:gap-8"
+		class="flex flex-col gap-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:flex-row sm:items-start sm:gap-8"
 	>
 		<div
 			class={cn(
-				"relative aspect-4/3 w-[40%] max-w-96 shrink-0 bg-surface",
+				"relative aspect-video w-full shrink-0 bg-surface sm:aspect-4/3 sm:w-[40%] sm:max-w-96",
 				unread &&
 					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-status-error after:ring-2 after:ring-black/40",
 			)}
@@ -75,22 +75,22 @@
 			{#if image}
 				<Image
 					src={tmdbImage(image, "w780")}
-					srcset={tmdbSrcset(image, { w300: 300, w780: 780 })}
-					sizes="(min-width: 60rem) 24rem, 40vw"
+					srcset={tmdbSrcset(image, { w780: 780, w1280: 1280 })}
+					sizes="(min-width: 60rem) 24rem, (min-width: 40rem) 40vw, 100vw"
 					alt=""
 					loading="lazy"
 				/>
 			{/if}
 		</div>
 
-		<div class="min-w-0 pt-4 sm:pt-6">
+		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-14 sm:pb-0">
 			<h2 class="text-lg leading-snug font-bold sm:text-xl">
 				{#if unread}<span class="sr-only">New: </span>{/if}
 				{item.series.title}
 			</h2>
 			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{detail}</p>
 			<p
-				class="mt-3 inline-flex items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:text-sm"
+				class="mt-1 inline-flex min-h-11 items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:min-h-0 sm:text-sm"
 			>
 				View now
 				<CaretRightIcon size="0.9rem" weight="bold" />
@@ -102,7 +102,7 @@
 		{#snippet children(trigger)}
 			<Button
 				{...trigger}
-				class="absolute top-3 right-3 grid size-9 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error active:scale-90 pointer-fine:opacity-0"
+				class="absolute right-1 bottom-1 grid size-11 place-items-center text-muted transition-[color,opacity,transform] duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-status-error active:scale-90 sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
 				aria-label="Delete notification about {item.series.title}"
 				onclick={() => dismissNotification(item.id)}
 			>
