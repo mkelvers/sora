@@ -27,24 +27,6 @@ export const getViewing = query(z.string(), async (seriesId) => {
 	};
 });
 
-export const setStatus = command(
-	z.object({
-		seriesId: z.string(),
-		status: z.enum(["planning", "watching", "completed", "dropped"]).nullable(),
-	}),
-	async ({ seriesId, status }) => {
-		const viewer = remoteViewer();
-
-		if (status) {
-			await viewer.sora.setLibraryStatus(viewer.profile.id, seriesId, status);
-		} else {
-			await viewer.sora.removeFromLibrary(viewer.profile.id, seriesId);
-		}
-
-		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
-	},
-);
-
 export const markAllWatched = command(
 	z.object({
 		seriesId: z.string(),

@@ -5,15 +5,10 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { LibraryEntry, LibraryStatus, Series, TitleProgress } from "@sora/sdk";
-	import {
-		BookmarkSimpleIcon,
-		DotsThreeVerticalIcon,
-		ListChecksIcon,
-		PlayIcon,
-	} from "phosphor-svelte";
+	import type { LibraryEntry, Series, TitleProgress } from "@sora/sdk";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
-	import { markAllWatched, setStatus } from "../series.remote";
+	import { markAllWatched } from "../series.remote";
 
 	let {
 		series,
@@ -38,13 +33,6 @@
 			),
 		);
 	}
-
-	const statuses: [LibraryStatus, string][] = [
-		["watching", "Watching"],
-		["planning", "Plan to Watch"],
-		["completed", "Completed"],
-		["dropped", "Dropped"],
-	];
 
 	const play = $derived.by(() => {
 		const { next, new_season } = progress;
@@ -283,39 +271,6 @@
 						{listed ? "On Watchlist" : "Add to Watchlist"}
 					</button>
 				{/if}
-
-				<Tooltip text="Manage Status">
-					{#snippet children(trigger)}
-						<div
-							{...trigger}
-							class="[&_.dropdown-trigger]:grid [&_.dropdown-trigger]:size-10 [&_.dropdown-trigger]:place-items-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:[font-size:inherit] [&_.dropdown-trigger]:text-accent [&_.dropdown-trigger]:transition-[filter] [&_.dropdown-trigger]:duration-150 [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:text-accent [&_.dropdown-trigger]:hover:bg-transparent [&_.dropdown-trigger]:hover:brightness-120"
-						>
-							<Dropdown alignment="left" label="Manage Status" class="w-56 *:p-0">
-								{#snippet trigger()}
-									<ListChecksIcon size="1.8em" weight="bold" />
-								{/snippet}
-								{#snippet children()}
-									<div role="menu" aria-label="Status">
-										{#each statuses as [status, label] (status)}
-											<Button
-												role="menuitemradio"
-												aria-checked={library.status === status}
-												class={item}
-												onclick={() =>
-													setStatus({
-														seriesId: series.id,
-														status,
-													})}
-											>
-												{label}
-											</Button>
-										{/each}
-									</div>
-								{/snippet}
-							</Dropdown>
-						</div>
-					{/snippet}
-				</Tooltip>
 			</div>
 		</div>
 	</figure>
