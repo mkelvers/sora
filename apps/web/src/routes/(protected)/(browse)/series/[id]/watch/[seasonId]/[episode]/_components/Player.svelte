@@ -203,7 +203,7 @@
 
 		<div
 			aria-hidden="true"
-			class="text-center text-[clamp(18px,2.6vw,40px)] leading-[1.25] font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]"
+			class="text-center text-[clamp(18px,2.6vw,40px)] leading-tight font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]"
 		>
 			{#each player.cues as cue (cue)}
 				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>

@@ -84,9 +84,11 @@
 
 	<p
 		class="mr-auto ml-3 text-sm text-[#ddd] tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
-		aria-label="{formatClock(player.time)} of {formatClock(player.duration)}"
 	>
-		{formatClock(player.time)} / {formatClock(player.duration)}
+		{formatClock(player.time)}
+		<span aria-hidden="true">/</span>
+		<span class="sr-only">of</span>
+		{formatClock(player.duration)}
 	</p>
 
 	<Button
