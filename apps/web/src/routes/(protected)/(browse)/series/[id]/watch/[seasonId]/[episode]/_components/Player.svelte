@@ -47,6 +47,7 @@
 
 	let reported = -1;
 	let nearing = false;
+	let skipped = new Set<string>();
 	let current = untrack(() => id);
 
 	$effect.pre(() => {
@@ -57,6 +58,7 @@
 		current = id;
 		reported = -1;
 		nearing = false;
+		skipped = new Set();
 		player.load(start);
 	});
 
@@ -123,6 +125,20 @@
 	);
 
 	$effect(() => player.remember());
+
+	$effect(() => {
+		if (!player.autoSkip || !segment) {
+			return;
+		}
+
+		const key = `${segment.start}:${segment.end}`;
+		if (skipped.has(key)) {
+			return;
+		}
+
+		skipped.add(key);
+		player.time = segment.end;
+	});
 </script>
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
@@ -187,7 +203,7 @@
 	<div
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
 	>
-		{#if segment}
+		{#if segment && !player.autoSkip}
 			<Button
 				variant="primary"
 				class="pointer-events-auto self-end shadow-[0_2px_12px_rgb(0_0_0/0.6)]"
@@ -240,6 +256,7 @@
 				media={versions ?? []}
 				subtitles={media?.subtitles ?? []}
 				bind:speed={player.speed}
+				bind:skip={player.autoSkip}
 				bind:subtitle
 				bind:audio={() => audio, (value) => (preferred = value)}
 			/>

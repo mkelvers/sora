@@ -12,6 +12,7 @@
 		subtitles: PlaybackMedia["subtitles"];
 		subtitle: string | undefined;
 		speed: number;
+		skip: boolean;
 	};
 
 	let {
@@ -20,6 +21,7 @@
 		subtitles,
 		subtitle = $bindable(),
 		speed = $bindable(),
+		skip = $bindable(),
 	}: Props = $props();
 
 	type Menu = {
@@ -78,6 +80,22 @@
 				label: rate === 1 ? "Normal" : `${rate}x`,
 			})),
 			select: (value) => (speed = Number(value)),
+		});
+
+		menus.push({
+			label: "Skip intro & credits",
+			value: skip ? "auto" : "off",
+			options: [
+				{
+					value: "off",
+					label: "Off",
+				},
+				{
+					value: "auto",
+					label: "Auto",
+				},
+			],
+			select: (value) => (skip = value === "auto"),
 		});
 
 		return menus;
