@@ -148,7 +148,7 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-cover"
+		class="size-full object-contain [@media(min-aspect-ratio:3/2)_and_(max-aspect-ratio:16/9)]:object-cover"
 		crossorigin="anonymous"
 		autoplay
 		playsinline
@@ -186,7 +186,7 @@
 	{/if}
 
 	<div
-		class="pointer-events-none z-1 mx-4 mb-21 flex flex-col items-center gap-4 self-end transition-[margin] duration-200 in-[.idle:not(:has(:popover-open))]:mb-[6vh]"
+		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
 	>
 		{#if segment}
 			<Button
@@ -215,8 +215,8 @@
 		<a class={icon} href={back} aria-label="Back to {series}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</a>
-		<div>
-			<h1 class="text-xl font-normal">{title}</h1>
+		<div class="min-w-0">
+			<h1 class="text-lg font-normal sm:text-xl">{title}</h1>
 			<p class="mt-0.5 flex items-center gap-2 text-sm text-[#ddd]">
 				<span>{series}</span>
 				{#if season}

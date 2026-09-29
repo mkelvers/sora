@@ -27,7 +27,7 @@
 	let { player, previous, next, children }: Props = $props();
 
 	const icon =
-		"inline-grid size-10 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white focus-visible:ring-0";
+		"inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white focus-visible:ring-0 sm:size-10";
 	const range =
 		"my-2 h-1 cursor-pointer appearance-none [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white";
 </script>
@@ -78,12 +78,14 @@
 		</a>
 	{/if}
 
-	<span class="mr-auto ml-3 text-sm text-[#ddd] tabular-nums">
+	<span
+		class="mr-auto ml-3 text-sm text-[#ddd] tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
+	>
 		{formatClock(player.time)} / {formatClock(player.duration)}
 	</span>
 
 	<Button
-		class={icon}
+		class={[icon, "max-sm:ml-auto"]}
 		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
 	>
@@ -95,7 +97,7 @@
 	</Button>
 
 	<input
-		class={[range, "mr-3 w-22"]}
+		class={[range, "mr-3 w-22 max-sm:hidden pointer-coarse:hidden"]}
 		type="range"
 		min="0"
 		max="1"

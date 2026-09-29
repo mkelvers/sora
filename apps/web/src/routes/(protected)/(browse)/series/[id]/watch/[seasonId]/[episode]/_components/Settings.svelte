@@ -109,7 +109,7 @@
 	<Button
 		{...popover.trigger}
 		class={[
-			"size-10 rounded-full p-0 text-[#ddd] transition-[background-color,color,rotate] duration-[120ms,120ms,200ms] hover:bg-white/10 hover:text-white",
+			"size-9 rounded-full p-0 text-[#ddd] transition-[background-color,color,rotate] duration-[120ms,120ms,200ms] hover:bg-white/10 hover:text-white sm:size-10",
 			popover.open && "rotate-30 bg-white/10 text-white",
 		]}
 		aria-label="Settings"
