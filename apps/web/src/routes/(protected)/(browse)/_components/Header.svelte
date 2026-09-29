@@ -35,6 +35,21 @@
 	const unreadQuery = getUnreadNotifications();
 	const unread = $derived(unreadQuery.current ?? 0);
 
+	const sections = [
+		{
+			href: "/new",
+			label: "New",
+		},
+		{
+			href: "/popular",
+			label: "Popular",
+		},
+		{
+			href: "/simulcast",
+			label: "Simulcast",
+		},
+	];
+
 	const destinations = $derived([
 		{
 			href: "/",
@@ -56,6 +71,15 @@
 		},
 	]);
 
+	const menu = $derived([
+		destinations[0],
+		...sections.map((section) => ({
+			...section,
+			new: false,
+		})),
+		...destinations.slice(1),
+	]);
+
 	$effect(() => {
 		const check = () => {
 			if (document.visibilityState === "visible") {
@@ -73,7 +97,7 @@
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
-	<nav class="flex h-full items-center justify-end" aria-label="Primary">
+	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div
 			class={cn(
 				"h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
@@ -92,7 +116,7 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{#each destinations as destination (destination.href)}
+						{#each menu as destination (destination.href)}
 							<li>
 								<Button
 									href={destination.href}
@@ -116,12 +140,31 @@
 
 		<a
 			href="/"
-			class="mr-auto inline-flex h-full items-center px-1 sm:px-3"
+			class="inline-flex h-full items-center px-1 max-[60rem]:group-has-[[role=search]>div:not([inert])]/nav:mr-auto max-sm:mr-auto sm:px-3"
 			aria-label="Home"
 			aria-current={page.url.pathname === "/" ? "page" : undefined}
 		>
 			<img src={logo} alt="Sora logo" class="size-11" />
 		</a>
+
+		<ul
+			class="mr-auto flex h-full max-[60rem]:group-has-[[role=search]>div:not([inert])]/nav:hidden max-sm:hidden"
+		>
+			{#each sections as section (section.href)}
+				<li>
+					<a
+						href={section.href}
+						class={cn(
+							"inline-flex h-full items-center px-4 text-sm font-medium text-muted transition-colors hover:bg-header-hover hover:text-foreground",
+							page.url.pathname === section.href && "text-foreground",
+						)}
+						aria-current={page.url.pathname === section.href ? "page" : undefined}
+					>
+						{section.label}
+					</a>
+				</li>
+			{/each}
+		</ul>
 
 		<div class="flex h-full items-center">
 			<Search />
@@ -199,7 +242,12 @@
 								Manage profiles
 							</Button>
 
-							<Button role="menuitem" href="/about" variant="item" class="gap-3">
+							<Button
+								role="menuitem"
+								href="/about"
+								variant="item"
+								class="gap-3 border-t border-border"
+							>
 								<InfoIcon size="1.3rem" />
 								About
 							</Button>
