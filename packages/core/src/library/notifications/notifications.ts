@@ -12,6 +12,7 @@ import {
 	seriesEpisode,
 	seriesSeason,
 } from "../../database/schema";
+import { effectiveStill } from "../../series/edges";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
 import type { SeasonKind } from "../../series/seasons";
@@ -170,7 +171,7 @@ export async function getNotifications(
 				seasonTitle: seriesSeason.title,
 				number: seriesEpisode.number,
 				title: seriesEpisode.title,
-				stillUrl: seriesEpisode.stillUrl,
+				stillUrl: effectiveStill,
 				releasedAt: episodeRelease.releasedAt,
 				watched: sql<boolean>`coalesce(${playbackProgress.watched}, false)`,
 			})
@@ -183,6 +184,7 @@ export async function getNotifications(
 				),
 			)
 			.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+			.innerJoin(series, eq(series.id, seriesSeason.seriesId))
 			.innerJoin(
 				libraryEntry,
 				and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesSeason.seriesId)),

@@ -24,7 +24,7 @@ import {
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { scheduleSeriesStore } from "../scheduler/queue";
-import { effectiveBackdrop } from "./edges";
+import { effectiveBackdrop, effectiveStill } from "./edges";
 import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episodes";
 import type {
 	ContentLanguage,
@@ -249,6 +249,19 @@ export async function getSeasonEpisodes(
 		throw new SeasonNotFoundError(seasonId);
 	}
 
+	const stills = new Map(
+		(
+			await db
+				.select({
+					number: seriesEpisode.number,
+					stillUrl: effectiveStill,
+				})
+				.from(seriesEpisode)
+				.innerJoin(series, eq(series.id, seriesId))
+				.where(eq(seriesEpisode.seasonId, seasonId))
+		).map((row) => [row.number, row.stillUrl]),
+	);
+
 	const listings = await findEpisodeListings(
 		listed.episodes.flatMap((row) =>
 			row.anilistId !== null && row.anilistEpisode !== null
@@ -274,7 +287,7 @@ export async function getSeasonEpisodes(
 			airDate: row.airDate,
 			airedAt: row.airedAt?.toISOString() ?? null,
 			runtimeMinutes: row.runtimeMinutes,
-			stillUrl: row.stillUrl,
+			stillUrl: stills.get(row.number) ?? null,
 			// An extra no provider streams has no audio, and no provider to call it filler.
 			audio: listing === null ? [] : (listing?.languages ?? null),
 			filler: listing?.isFiller ?? false,

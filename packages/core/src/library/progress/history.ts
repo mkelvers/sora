@@ -9,6 +9,7 @@ import {
 	seriesSeason,
 } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
+import { effectiveStill } from "../../series/edges";
 import { locateEpisode } from "../../series/episodes";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
@@ -67,7 +68,7 @@ export async function getHistory(
 			seasonTitle: seriesSeason.title,
 			episode: seriesEpisode.number,
 			episodeTitle: seriesEpisode.title,
-			episodeStillUrl: seriesEpisode.stillUrl,
+			episodeStillUrl: effectiveStill,
 			watched: playbackProgress.watched,
 		})
 		.from(playbackHistory)

@@ -2,7 +2,7 @@ import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
-import { imageEdge, noArtwork, series } from "../database/schema";
+import { imageEdge, noArtwork, series, seriesEpisode } from "../database/schema";
 
 /** An image's average colour down its left and right edges, each `#rrggbb`. */
 export interface ImageEdges {
@@ -20,6 +20,15 @@ const measuredWidth = 92;
 export const effectiveBackdrop = sql<
 	string | null
 >`nullif(coalesce(${series.backdropUrlOverride}, ${series.backdropUrl}), ${noArtwork})`;
+
+/**
+ * An episode's still as readers see it: a film's episode shows its series'
+ * {@link effectiveBackdrop} rather than TMDB's own, and any other keeps its
+ * stored one. Needs the episode's series joined.
+ */
+export const effectiveStill = sql<
+	string | null
+>`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else ${seriesEpisode.stillUrl} end`;
 
 /**
  * Measures the edges of a series' backdrop as readers see it, unless they
