@@ -81,7 +81,7 @@
 
 				{#snippet pending()}
 					{#each { length: 4 }, index (index)}
-						<div class="flex items-center gap-3.5 px-4 py-2">
+						<div class="flex items-center gap-3.5 px-4 py-2" aria-hidden="true">
 							<Skeleton class="aspect-2/3 w-10" />
 							<div class="grid flex-1 gap-2">
 								<Skeleton class="h-3.5 w-[70%]" />
