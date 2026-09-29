@@ -29,7 +29,6 @@ export class Player {
 	volume = $state(1);
 	muted = $state(false);
 	speed = $state(1);
-	autoSkip = $state(false);
 	readyState = $state(0);
 	failure = $state<string>();
 	idle = $state(false);
@@ -60,14 +59,12 @@ export class Player {
 		this.volume = preferences.get("volume", z.number().check(z.minimum(0), z.maximum(1)), 1);
 		this.muted = preferences.get("muted", z.boolean(), false);
 		this.speed = preferences.get("speed", z.number().check(z.positive()), 1);
-		this.autoSkip = preferences.get("auto-skip", z.boolean(), false);
 	}
 
 	remember = () => {
 		preferences.set("volume", this.volume);
 		preferences.set("muted", this.muted);
 		preferences.set("speed", this.speed);
-		preferences.set("auto-skip", this.autoSkip);
 	};
 
 	get fullscreen() {

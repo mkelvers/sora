@@ -47,7 +47,6 @@
 
 	let reported = -1;
 	let nearing = false;
-	let skipped = new Set<string>();
 	let current = untrack(() => id);
 
 	$effect.pre(() => {
@@ -58,7 +57,6 @@
 		current = id;
 		reported = -1;
 		nearing = false;
-		skipped = new Set();
 		player.load(start);
 	});
 
@@ -125,20 +123,6 @@
 	);
 
 	$effect(() => player.remember());
-
-	$effect(() => {
-		if (!player.autoSkip || !segment) {
-			return;
-		}
-
-		const key = `${segment.start}:${segment.end}`;
-		if (skipped.has(key)) {
-			return;
-		}
-
-		skipped.add(key);
-		player.time = segment.end;
-	});
 </script>
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
@@ -163,7 +147,7 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-contain [@media(min-aspect-ratio:3/2)_and_(max-aspect-ratio:16/9)]:object-cover"
+		class="size-full object-contain [@media(min-aspect-ratio:3/2)_and_(max-aspect-ratio:2/1)]:object-cover"
 		crossorigin="anonymous"
 		autoplay
 		playsinline
@@ -189,7 +173,7 @@
 		<div class="grid justify-items-center gap-4 place-self-center px-4 text-center" role="alert">
 			<p class="text-[#e6e6e6]">{failure}</p>
 			<Button
-				variant="primary"
+				variant="light"
 				onclick={() => {
 					player.failure = undefined;
 					onretry();
@@ -203,9 +187,9 @@
 	<div
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
 	>
-		{#if segment && !player.autoSkip}
+		{#if segment}
 			<Button
-				variant="primary"
+				variant="light"
 				class="pointer-events-auto self-end shadow-[0_2px_12px_rgb(0_0_0/0.6)]"
 				onclick={() => (player.time = segment.end)}
 			>
@@ -256,7 +240,6 @@
 				media={versions ?? []}
 				subtitles={media?.subtitles ?? []}
 				bind:speed={player.speed}
-				bind:skip={player.autoSkip}
 				bind:subtitle
 				bind:audio={() => audio, (value) => (preferred = value)}
 			/>
