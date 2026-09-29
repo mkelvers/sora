@@ -7,7 +7,7 @@
 <main
 	id="main-content"
 	tabindex="-1"
-	class="flex min-h-dvh justify-center bg-canvas px-5 pt-34 text-foreground sm:px-10 sm:pt-54"
+	class="grid min-h-dvh place-items-center bg-canvas px-5 py-16 text-foreground sm:px-10"
 >
 	{@render children()}
 </main>
