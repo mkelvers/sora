@@ -8,11 +8,35 @@
 				variant: {
 					field:
 						"h-10 w-full justify-between border border-border px-3 text-sm font-medium hover:border-border-strong aria-expanded:border-border-strong",
-					heading: "py-2 text-lg font-bold",
+					heading:
+						"py-2 text-lg font-bold hover:text-accent-secondary aria-expanded:text-accent-secondary",
 				},
 			},
 		},
 	);
+
+	const content = cva(
+		"inset-auto m-0 max-h-[min(60vh,24rem)] scrollbar-thin [scrollbar-color:var(--color-border)_transparent] flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex",
+		{
+			variants: {
+				variant: {
+					field: "min-w-(--melt-invoker-width)",
+					heading: "w-[min(20rem,calc(100vw-2rem))]",
+				},
+			},
+		},
+	);
+
+	const item = cva("flex w-full cursor-pointer items-center gap-6 px-5 text-left", {
+		variants: {
+			variant: {
+				field:
+					"min-h-11 py-3 text-sm text-muted aria-selected:text-foreground data-highlighted:bg-white/8 data-highlighted:text-foreground",
+				heading:
+					"min-h-11 py-2.5 text-base text-dropdown-foreground hover:bg-dropdown-hover aria-selected:text-foreground data-highlighted:text-foreground",
+			},
+		},
+	});
 </script>
 
 <script lang="ts" generics="T extends string">
@@ -77,12 +101,16 @@
 <div
 	{...select.content}
 	aria-label={label}
-	class="inset-auto m-0 max-h-[min(60vh,24rem)] min-w-(--melt-invoker-width) scrollbar-thin [scrollbar-color:var(--color-border)_transparent] flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex"
+	class={content({
+		variant,
+	})}
 >
 	{#each options as option (option.value)}
 		<div
 			{...select.getOption(option.value, option.label)}
-			class="flex min-h-11 w-full cursor-pointer items-center gap-6 px-5 py-3 text-left text-sm text-muted aria-selected:text-foreground data-highlighted:bg-white/8 data-highlighted:text-foreground"
+			class={item({
+				variant,
+			})}
 		>
 			<span class="truncate">{option.label}</span>
 			{#if option.detail}
