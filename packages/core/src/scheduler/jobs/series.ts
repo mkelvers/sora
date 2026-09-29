@@ -163,7 +163,7 @@ export const refreshEpisodeDetailsTask = "refresh-episode-details";
  * - one AniKoto carries that TMDB does not list yet, which a season does not
  *   list until TMDB does (see `isEpisodeShown`), however long that takes.
  *   Listing it changes the layout, so the series is queued to be laid out
- *   again.
+ *   again once TMDB lists episodes it did not list before.
  * - one that aired within {@link detailsWindowMs} and still has no title
  *   other than TMDB's "Episode N", no overview, or no still, going by when
  *   AniList says it aired when it knows. Tracking an anime stops once its
@@ -229,11 +229,17 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 	for (const { seriesId, key, anilistId, needsLayout } of stale) {
 		const showId = /^tv:(\d+)$/.exec(key)?.[1];
 		let show: TmdbShow | null = null;
+		let isListingChanged = true;
 		if (showId) {
 			try {
+				// The copy stored at the last run, which fetches it anew every time.
+				const before = await getShow(Number(showId), {
+					maxAgeMs: 365 * day,
+				});
 				show = await getShow(Number(showId), {
 					maxAgeMs: 0,
 				});
+				isListingChanged = !before || !show || episodeKeys(before) !== episodeKeys(show);
 			} catch (error) {
 				helpers.logger.warn(`TMDB failed for show ${showId}: ${String(error)}`);
 			}
@@ -243,8 +249,11 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 			updated += await copyEpisodeDetails(seriesId, show);
 		}
 
-		// A film's details, and those of a show TMDB could not serve, only come with a layout.
-		if (needsLayout || !show) {
+		// A film's details, and those of a show TMDB could not serve, only come
+		// with a layout. An episode TMDB does not list only does once TMDB lists
+		// more: some never line up with TMDB's numbering, and laying them out
+		// again every run changed nothing.
+		if ((needsLayout && isListingChanged) || !show) {
 			await scheduleStoredSeriesRefresh(anilistId);
 			queued += 1;
 		}
@@ -254,6 +263,14 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 		`Filled in ${updated} episodes from TMDB and queued ${queued} of ${stale.length} series with episodes missing TMDB details`,
 	);
 };
+
+/** Which episodes TMDB lists for a show, by season and number. */
+function episodeKeys(show: TmdbShow) {
+	return show.episodes
+		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
+		.sort()
+		.join(",");
+}
 
 /**
  * Copies TMDB's current details onto a stored series' episodes, as a layout
