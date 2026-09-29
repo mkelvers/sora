@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
 import {
@@ -315,25 +315,7 @@ export async function searchAnime(
 		return [];
 	}
 
-	const conditions: SQL[] = [eq(animeSearch.isAdult, false)];
-	if (filters.format) {
-		conditions.push(inArray(animeSearch.format, filters.format));
-	} else {
-		// Music videos are not titles to watch; they are found only when asked for.
-		conditions.push(sql`${animeSearch.format} is distinct from 'MUSIC'`);
-	}
-	if (filters.status) {
-		conditions.push(eq(animeSearch.status, filters.status));
-	}
-	if (filters.season) {
-		conditions.push(eq(animeSearch.season, filters.season));
-	}
-	if (filters.seasonYear) {
-		conditions.push(eq(animeSearch.seasonYear, filters.seasonYear));
-	}
-	if (filters.genres?.length) {
-		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::jsonb`);
-	}
+	const conditions = indexConditions(filters);
 
 	const isShort = normalized.length < trigramLength;
 	const candidates = await db.transaction(async (tx) => {
@@ -365,6 +347,61 @@ export async function searchAnime(
 	return filters.sort
 		? [...matches].sort(sortOrders[filters.sort])
 		: rankCandidates(query, matches);
+}
+
+/**
+ * The index rows the browse filters allow. Adult entries never are, and
+ * music videos only when `format` asks for them.
+ */
+function indexConditions(filters: Omit<BrowseQuery, "search" | "page" | "perPage">) {
+	const conditions: SQL[] = [eq(animeSearch.isAdult, false)];
+	if (filters.format) {
+		conditions.push(inArray(animeSearch.format, filters.format));
+	} else {
+		// Music videos are not titles to watch; they are found only when asked for.
+		conditions.push(sql`${animeSearch.format} is distinct from 'MUSIC'`);
+	}
+	if (filters.status) {
+		conditions.push(eq(animeSearch.status, filters.status));
+	}
+	if (filters.season) {
+		conditions.push(eq(animeSearch.season, filters.season));
+	}
+	if (filters.seasonYear) {
+		conditions.push(eq(animeSearch.seasonYear, filters.seasonYear));
+	}
+	if (filters.genres?.length) {
+		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::jsonb`);
+	}
+	return conditions;
+}
+
+/** How {@link browseIndex} orders each `sort`, the entry's ID last so pages stay put. */
+const indexOrders: Record<NonNullable<BrowseQuery["sort"]>, SQL[]> = {
+	trending: [desc(animeSearch.trending), desc(animeSearch.popularity)],
+	popular: [desc(animeSearch.popularity)],
+	score: [sql`${animeSearch.averageScore} desc nulls last`, desc(animeSearch.popularity)],
+	newest: [sql`${animeSearch.startDate} desc nulls last`, desc(animeSearch.popularity)],
+	title: [sql`${animeSearch.romaji} asc nulls last`],
+};
+
+/**
+ * Lists the first `limit` AniList entries of the index, ordered by `sort`
+ * (trending when omitted) and filtered like {@link searchAnime}, and by
+ * `where` when given. Reads only the database, so browsing never waits on
+ * AniList or its rate limit.
+ */
+export async function browseIndex(
+	filters: Omit<BrowseQuery, "search" | "page" | "perPage">,
+	limit: number,
+	where?: SQL,
+) {
+	return db
+		.select()
+		.from(animeSearch)
+		.where(and(...indexConditions(filters), where))
+		.orderBy(...indexOrders[filters.sort ?? "trending"], asc(animeSearch.anilistId))
+		.limit(limit);
 }
 
 /** The fewest characters the trigram index can find a query by. */

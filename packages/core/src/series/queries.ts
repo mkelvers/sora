@@ -9,13 +9,15 @@ import {
 	type BrowseQuery,
 	type Page,
 } from "../catalog/queries/browse";
-import { hasSearchIndex, searchAnime } from "../catalog/queries/search";
+import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { db } from "../database/client";
 import {
 	anime as animeTable,
+	anikotoSeries,
 	animeSearch,
 	imageEdge,
 	noArtwork,
+	providerMapping,
 	series,
 	seriesEntry,
 	seriesEpisode,
@@ -24,6 +26,7 @@ import {
 } from "../database/schema";
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
+import { aniKoto } from "../playback/providers/registry";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { day } from "../time";
 import { effectiveBackdrop, effectiveStill } from "./edges";
@@ -300,13 +303,29 @@ export async function getSeasonEpisodes(
 }
 
 /**
+ * Index entries read per title a browse page wants: a title's seasons, films,
+ * and specials are separate entries that make one card.
+ */
+const indexEntriesPerSeries = 3;
+
+/**
+ * Whether AniKoto, which decides what can be watched, carries an index
+ * entry: its catalogue names the entry, or the entry was matched to it.
+ */
+export const carriedByAniKoto = sql`(exists (select 1 from ${anikotoSeries} where ${anikotoSeries.anilistId} = ${animeSearch.anilistId}) or exists (select 1 from ${providerMapping} where ${providerMapping.provider} = ${aniKoto.id} and ${providerMapping.providerMediaId} is not null and ${providerMapping.anilistId} = ${animeSearch.anilistId}))`;
+
+/**
  * Searches and filters the catalog, returning one card per title: a search
  * for a show finds the show once, not each of its seasons.
  *
- * A text search is answered from the local search index (see
- * {@link searchAnime}), ranked by how well titles match and how popular they
- * are. Browsing without one follows AniList's page of entries, so a page can
- * hold fewer cards than `perPage` when several entries belong to one title.
+ * Both are answered from the local search index, AniList's catalogue
+ * mirrored, so they never wait on AniList or its rate limit. A text search
+ * is ranked by how well titles match and how popular they are (see
+ * {@link searchAnime}). Browsing without one orders the entries by `sort`
+ * and lists only those AniKoto carries, since only they can be watched (see
+ * {@link browseIndex}). Until the index has been filled once, browsing
+ * follows AniList's page of entries instead, so a page can hold fewer cards
+ * than `perPage` when several entries belong to one title.
  *
  * Reads only stored titles, so a search never waits on AniList or TMDB. An
  * entry whose title is not stored yet is queued for the scheduler and left
@@ -316,7 +335,8 @@ export async function getSeasonEpisodes(
  * them at once rather than a page that comes back short.
  *
  * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
- * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed.
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed
+ *   before the index is filled.
  */
 export async function browseSeries(query: BrowseQuery): Promise<
 	Page<SeriesCard> & {
@@ -333,8 +353,11 @@ export async function browseSeries(query: BrowseQuery): Promise<
 	const { search, page, perPage, audio, ...filters } = parsed.data;
 	const heard = (cards: SeriesCard[]) =>
 		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
-	if (search !== undefined && (await hasSearchIndex())) {
-		const found = await searchAnime(search, filters);
+	if (await hasSearchIndex()) {
+		const found =
+			search === undefined
+				? await browseIndex(filters, (page * perPage + 1) * indexEntriesPerSeries, carriedByAniKoto)
+				: await searchAnime(search, filters);
 		const ranked = found.map((entry) => entry.anilistId);
 		const pageStart = (page - 1) * perPage;
 		// One series more than the page holds tells whether another page follows.
