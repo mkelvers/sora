@@ -172,7 +172,7 @@
 				{:else}
 					<p
 						aria-hidden="true"
-						class="max-w-3xl text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl"
+						class="max-w-2xl text-2xl leading-tight font-bold text-white sm:text-3xl lg:text-4xl"
 					>
 						{series.title}
 					</p>
