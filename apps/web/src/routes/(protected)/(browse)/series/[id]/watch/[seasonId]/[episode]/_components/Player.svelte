@@ -147,7 +147,7 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-contain [@media(min-aspect-ratio:3/2)_and_(max-aspect-ratio:2/1)]:object-cover"
+		class="size-full object-contain"
 		crossorigin="anonymous"
 		autoplay
 		playsinline
