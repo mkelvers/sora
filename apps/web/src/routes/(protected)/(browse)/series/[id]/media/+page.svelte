@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { cn } from "$lib/utils";
 	import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
 
@@ -52,158 +53,143 @@
 	)}
 >
 	<header class="flex items-center gap-2">
-		<a
+		<Button
 			href="/series/{series.id}"
-			class="-ml-2 grid size-10 shrink-0 place-items-center text-muted transition-colors hover:text-foreground"
+			variant="icon"
+			size="lg"
+			class="-ml-2"
 			aria-label="Back to {series.title}"
 		>
 			<CaretLeftIcon size="1.5rem" weight="bold" />
-		</a>
+		</Button>
 		<h1 class="text-3xl font-bold">Media</h1>
 	</header>
 
-	<div class="mt-6 flex items-center gap-4 border-b border-border sm:gap-6">
-		<nav class="min-w-0" aria-label="Type">
-			<ul class="-mb-px flex gap-5 sm:gap-8" role="radiogroup">
-				{#each types as option (option.value)}
-					{@const checked = media.type === option.value}
-					<li>
-						<button
-							type="button"
-							role="radio"
-							aria-checked={checked}
-							class={cn(
-								"inline-flex h-12 cursor-pointer items-center border-b-2 text-sm font-bold tracking-wide uppercase transition-colors hover:text-foreground",
-								checked
-									? "border-accent text-foreground"
-									: "border-transparent text-dropdown-foreground",
-							)}
-							onclick={() => {
-								sizing = false;
-								media.type = option.value;
-							}}
-						>
-							{option.label}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</nav>
-		{#if arranging}
-			<Button
-				variant="ghost"
-				class="ml-auto"
-				disabled={!placed}
-				onclick={() =>
-					media.place(series.id, {
-						scale: 1,
-						x: 0,
-						y: 0,
-					})}
-			>
-				<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
-				<span class="max-sm:sr-only">Reset</span>
-			</Button>
-		{:else}
-			<Button
-				variant="ghost"
-				class="ml-auto"
-				disabled={media.refreshing}
-				onclick={() => media.refresh(series.id)}
-			>
-				<ArrowsClockwiseIcon
-					size="1rem"
-					weight="bold"
-					class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
-				/>
-				<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
-			</Button>
-		{/if}
-	</div>
+	<Tabs
+		items={types}
+		bind:value={
+			() => media.type,
+			(type) => {
+				sizing = false;
+				media.type = type;
+			}
+		}
+		label="Image type"
+		class="mt-6"
+		panelClass={arranging ? "flex min-h-0 flex-1 flex-col" : undefined}
+	>
+		{#snippet actions()}
+			{#if arranging}
+				<Button
+					variant="ghost"
+					class="ml-auto"
+					disabled={!placed}
+					onclick={() =>
+						media.place(series.id, {
+							scale: 1,
+							x: 0,
+							y: 0,
+						})}
+				>
+					<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
+					<span class="max-sm:sr-only">Reset</span>
+				</Button>
+			{:else}
+				<Button
+					variant="ghost"
+					class="ml-auto"
+					disabled={media.refreshing}
+					onclick={() => media.refresh(series.id)}
+				>
+					<ArrowsClockwiseIcon
+						size="1rem"
+						weight="bold"
+						class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
+					/>
+					<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
+				</Button>
+			{/if}
+		{/snippet}
 
-	{#if media.type === "logo" && series.logo_url}
-		<nav class="mt-4" aria-label="Logos">
-			<ul class="flex gap-1" role="radiogroup">
-				{#each [{ sizing: false, label: "All logos" }, { sizing: true, label: "Sizing" }] as option (option.label)}
-					<li>
-						<button
-							type="button"
-							role="radio"
-							aria-checked={sizing === option.sizing}
-							class={cn(
-								"inline-flex h-9 cursor-pointer items-center px-3 text-xs font-bold tracking-wide uppercase transition-colors hover:text-foreground",
-								sizing === option.sizing
-									? "bg-panel-hover text-foreground"
-									: "text-dropdown-foreground",
-							)}
-							onclick={() => (sizing = option.sizing)}
-						>
-							{option.label}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</nav>
-	{/if}
-
-	{#if arranging}
-		<section class="mt-6 flex min-h-0 flex-1 flex-col" aria-label="Logo sizing">
-			{#if media.error}
-				<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
+		{#snippet children()}
+			{#if media.type === "logo" && series.logo_url}
+				<nav class="mt-4" aria-label="Logos">
+					<ul class="flex gap-1">
+						{#each [{ sizing: false, label: "All logos" }, { sizing: true, label: "Sizing" }] as option (option.label)}
+							<li>
+								<Button
+									variant="ghost"
+									aria-pressed={sizing === option.sizing}
+									onclick={() => (sizing = option.sizing)}
+								>
+									{option.label}
+								</Button>
+							</li>
+						{/each}
+					</ul>
+				</nav>
 			{/if}
 
-			<div class="@container-[size] min-h-0 flex-1">
-				<svelte:boundary>
-					{#snippet pending()}
-						<Skeleton class="mx-auto aspect-video w-[min(100cqw,calc(100cqh*16/9))]" />
-					{/snippet}
+			{#if arranging}
+				<section class="mt-6 flex min-h-0 flex-1 flex-col" aria-label="Logo sizing">
+					{#if media.error}
+						<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
+					{/if}
 
-					<Sizing {series} {media} />
-				</svelte:boundary>
-			</div>
-		</section>
-	{:else}
-		<div class="mt-8 grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
-			<aside
-				class="grid content-start gap-7 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:[scrollbar-width:thin] lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
-			>
-				<svelte:boundary>
-					{#snippet pending()}{/snippet}
+					<div class="@container-[size] min-h-0 flex-1">
+						<svelte:boundary>
+							{#snippet pending()}
+								<Skeleton class="mx-auto aspect-video w-[min(100cqw,calc(100cqh*16/9))]" />
+							{/snippet}
 
-					<Filters seriesId={series.id} {media} />
-				</svelte:boundary>
-			</aside>
+							<Sizing {series} {media} />
+						</svelte:boundary>
+					</div>
+				</section>
+			{:else}
+				<div class="mt-8 grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
+					<aside
+						class="grid content-start gap-7 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:[scrollbar-width:thin] lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
+					>
+						<svelte:boundary>
+							{#snippet pending()}{/snippet}
 
-			<section aria-label="Choose {media.type}">
-				{#if media.error}
-					<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
-				{/if}
+							<Filters seriesId={series.id} {media} />
+						</svelte:boundary>
+					</aside>
 
-				<svelte:boundary>
-					{#snippet pending()}
-						<ul
-							class={cn(
-								"grid gap-x-5 gap-y-7",
-								media.type === "poster"
-									? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
-									: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
-							)}
-							aria-busy="true"
-							aria-label="Loading images"
-						>
-							{#each { length: 12 }, index (index)}
-								<li>
-									<Skeleton class={media.type === "poster" ? "aspect-2/3" : "aspect-video"} />
-									<Skeleton class="mt-3 h-3 w-1/2" />
-									<Skeleton class="mt-2 h-3 w-2/3" />
-								</li>
-							{/each}
-						</ul>
-					{/snippet}
+					<section aria-label="Choose {media.type}">
+						{#if media.error}
+							<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
+						{/if}
 
-					<Images {series} {media} />
-				</svelte:boundary>
-			</section>
-		</div>
-	{/if}
+						<svelte:boundary>
+							{#snippet pending()}
+								<ul
+									class={cn(
+										"grid gap-x-5 gap-y-7",
+										media.type === "poster"
+											? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+											: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+									)}
+									aria-busy="true"
+									aria-label="Loading images"
+								>
+									{#each { length: 12 }, index (index)}
+										<li>
+											<Skeleton class={media.type === "poster" ? "aspect-2/3" : "aspect-video"} />
+											<Skeleton class="mt-3 h-3 w-1/2" />
+											<Skeleton class="mt-2 h-3 w-2/3" />
+										</li>
+									{/each}
+								</ul>
+							{/snippet}
+
+							<Images {series} {media} />
+						</svelte:boundary>
+					</section>
+				</div>
+			{/if}
+		{/snippet}
+	</Tabs>
 </main>
