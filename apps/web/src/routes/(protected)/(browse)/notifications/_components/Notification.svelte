@@ -63,7 +63,7 @@
 				},
 			});
 		}}
-		class="flex items-start gap-5 p-1.5 pr-14 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:gap-8"
+		class="flex items-start gap-5 pr-14 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:gap-8"
 	>
 		<div
 			class={cn(
