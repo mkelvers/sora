@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
+	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
+	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
 	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
 
@@ -84,15 +86,30 @@
 	</li>
 {:else}
 	{#if page === 1}
-		<li class={["col-span-full py-16 text-center", stale && "opacity-50"]}>
-			{#if found.meta.preparing}
+		{#if found.meta.preparing}
+			<li class={["col-span-full py-16 text-center", stale && "opacity-50"]}>
 				<p class="text-xl font-bold">Looking further for “{q}”…</p>
 				<p class="mt-2 text-muted">Some matching titles are still being prepared.</p>
-			{:else}
-				<p class="text-xl font-bold">No titles match “{q}”</p>
-				<p class="mt-2 text-muted">Check the spelling, or try the English or Japanese title.</p>
-			{/if}
-		</li>
+			</li>
+		{:else}
+			<li
+				class={[
+					"col-span-full grid min-h-[calc(100dvh-14rem)] place-items-center sm:min-h-[calc(100dvh-11rem)]",
+					stale && "opacity-50",
+				]}
+			>
+				<div class="w-full max-w-5xl">
+					<h2 class="mb-8 text-center text-2xl font-bold">Are you sure you spelled that right?</h2>
+					<EmptyState
+						image={emptySearch}
+						width={720}
+						height={663}
+						title="We couldn't find anything for “{q}”."
+						hint="Maybe it goes by its English or Japanese title?"
+					/>
+				</div>
+			</li>
+		{/if}
 	{/if}
 {/each}
 
