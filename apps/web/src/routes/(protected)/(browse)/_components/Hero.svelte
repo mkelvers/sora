@@ -6,10 +6,10 @@
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
-	import Autoplay from "embla-carousel-autoplay";
 	import Fade from "embla-carousel-fade";
 	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
@@ -22,21 +22,16 @@
 
 	const listing = getListed();
 
+	const delay = 10_000;
+
 	let held = $state(-1);
 </script>
 
 {#if featured.length}
 	<Carousel
-		class="h-[min(100svh,32rem)] touch-pan-y overflow-hidden bg-black select-none sm:h-[min(100svh,42rem)] sm:max-h-192 sm:min-h-180 xl:h-[calc(100svh-3.5rem)] xl:max-h-none"
+		class="h-[min(100svh,32rem)] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none sm:h-[min(100svh,42rem)] sm:max-h-192 sm:min-h-180 xl:h-[calc(100svh-3.5rem)] xl:max-h-none"
 		options={{ loop: true }}
-		plugins={[
-			Fade(),
-			Autoplay({
-				delay: 15_000,
-				stopOnFocusIn: false,
-				stopOnInteraction: false,
-			}),
-		]}
+		plugins={[Fade()]}
 	>
 		{#snippet children(carousel)}
 			<Content>
@@ -75,11 +70,13 @@
 				{/each}
 			</Content>
 
-			<Previous class="hidden sm:grid" />
-			<Next class="hidden sm:grid" />
+			<Previous class="mb-(--hero-overlap) hidden sm:grid" />
+			<Next class="mb-(--hero-overlap) hidden sm:grid" />
 
 			<div
 				class="pointer-events-none z-30 col-start-1 row-start-1 grid min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem-100svh,9rem)] xl:self-center xl:pb-0"
+				style:--hero-delay="{delay}ms"
+				{@attach () => carousel.autoplay(delay)}
 			>
 				{#each featured as slide, index (slide.id)}
 					{@const listed = !!listing.current?.includes(slide.id)}
@@ -96,7 +93,7 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:h-64 lg:px-16 xl:w-fit"
+							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:h-64 lg:px-20 xl:w-fit"
 							aria-label={slide.title}
 							tabindex="-1"
 						>
@@ -105,13 +102,13 @@
 									src={tmdbImage(slide.logo_url, "w500")}
 									alt=""
 									decoding="async"
-									class="max-h-24 max-w-full object-contain object-bottom sm:max-h-32 sm:max-w-sm sm:object-left-bottom lg:max-h-64 lg:max-w-lg"
+									class="max-h-24 max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-32 sm:max-w-sm sm:object-left-bottom lg:max-h-64 lg:max-w-lg"
 								/>
 							{/if}
 						</a>
 
 						<p
-							class="mt-5 flex h-4 max-w-[min(100%,36rem)] items-center justify-center px-5 text-xs whitespace-nowrap text-white/60 sm:justify-start sm:px-10 lg:mt-9 lg:h-5 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-sm"
+							class="mt-5 flex h-5 max-w-[min(100%,36rem)] items-center justify-center px-5 text-xs font-normal whitespace-nowrap text-[#8c8c8c] antialiased sm:h-6 sm:justify-start sm:px-10 sm:text-sm lg:mt-9 lg:h-7 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base"
 						>
 							{#if slide.audio.length}
 								<span class="metadata-tag shrink-0">{audioLabel(slide.audio)}</span>
@@ -124,13 +121,13 @@
 						</p>
 
 						<p
-							class="mt-2 hidden h-15 max-w-[min(100%,36rem)] px-5 text-xs leading-5 text-muted sm:line-clamp-3 sm:px-10 lg:mt-3 lg:line-clamp-4 lg:h-24 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-base lg:leading-6"
+							class="mt-2 hidden h-18 max-w-[min(100%,38rem)] px-5 text-sm leading-6 font-normal text-pretty text-[#bbb] antialiased sm:line-clamp-3 sm:px-10 lg:mt-3 lg:line-clamp-4 lg:h-28 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base lg:leading-7"
 						>
 							{slide.overview}
 						</p>
 
 						<div
-							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-16 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
+							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-20 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
 						>
 							{#if slide.start_season_id}
 								<a
@@ -141,30 +138,35 @@
 									{slide.kind === "movie" ? "Play" : "Start watching E1"}
 								</a>
 							{/if}
-							<button
-								type="button"
-								class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-								aria-label={listed ? "Remove from Library" : "Add to Library"}
-								aria-pressed={listed}
-								onclick={() =>
-									setListed({
-										seriesId: slide.id,
-										listed: !listed,
-									}).updates(
-										listing.withOverride((ids) =>
-											listed ? ids.filter((id) => id !== slide.id) : [...ids, slide.id],
-										),
-									)}
-							>
-								<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
-							</button>
+							<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
+								{#snippet children(trigger)}
+									<button
+										{...trigger}
+										type="button"
+										class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
+										aria-label={listed ? "Remove from Library" : "Add to Library"}
+										aria-pressed={listed}
+										onclick={() =>
+											setListed({
+												seriesId: slide.id,
+												listed: !listed,
+											}).updates(
+												listing.withOverride((ids) =>
+													listed ? ids.filter((id) => id !== slide.id) : [...ids, slide.id],
+												),
+											)}
+									>
+										<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
+									</button>
+								{/snippet}
+							</Tooltip>
 						</div>
 					</div>
 				{/each}
 
 				{#if featured.length > 1}
 					<div
-						class="col-start-1 row-start-2 mt-6 flex justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-16"
+						class="col-start-1 row-start-2 mt-6 flex justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-20"
 					>
 						{#each featured as item, index (item.id)}
 							<Button
@@ -207,7 +209,7 @@
 
 <style>
 	.hero-progress {
-		animation: hero-progress 15s linear forwards;
+		animation: hero-progress var(--hero-delay) linear forwards;
 	}
 
 	@keyframes hero-progress {

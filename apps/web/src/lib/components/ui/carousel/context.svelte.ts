@@ -1,6 +1,5 @@
 import type { EmblaCarouselType, EmblaOptionsType, EmblaPluginType } from "embla-carousel";
-import type { AutoplayType } from "embla-carousel-autoplay";
-import { getContext, setContext } from "svelte";
+import { getContext, setContext, untrack } from "svelte";
 import { prefersReducedMotion } from "svelte/motion";
 
 export class CarouselState {
@@ -8,8 +7,10 @@ export class CarouselState {
 	active = $state(0);
 	canPrevious = $state(false);
 	canNext = $state(false);
-	paused = $state(false);
+	paused = $state(true);
 	cycle = $state(0);
+
+	#restart?: () => void;
 
 	constructor(
 		readonly options: () => EmblaOptionsType,
@@ -23,11 +24,6 @@ export class CarouselState {
 
 		this.api = api;
 
-		const autoplay = api.plugins().autoplay as AutoplayType | undefined;
-		if (prefersReducedMotion.current || api.scrollSnapList().length < 2) {
-			autoplay?.stop();
-		}
-
 		const sync = () => {
 			this.active = api.selectedScrollSnap();
 			this.canPrevious = api.canScrollPrev();
@@ -35,18 +31,77 @@ export class CarouselState {
 		};
 
 		api.on("init", sync).on("reInit", sync).on("select", sync);
-		api.on("select", () => autoplay?.reset());
-		api.on("autoplay:play", () => (this.paused = false));
-		api.on("autoplay:stop", () => (this.paused = true));
-		api.on("autoplay:timerset", () => this.cycle++);
-
-		this.paused = !autoplay?.isPlaying();
 		sync();
 	}
 
+	autoplay(delay: number) {
+		const api = this.api;
+		if (!api || prefersReducedMotion.current) {
+			return;
+		}
+
+		return untrack(() => {
+			if (api.scrollSnapList().length < 2) {
+				return;
+			}
+
+			let remaining = delay;
+			let started = 0;
+			let timer: ReturnType<typeof setTimeout> | undefined;
+
+			const pause = () => {
+				if (timer === undefined) {
+					return;
+				}
+
+				clearTimeout(timer);
+				timer = undefined;
+				remaining -= performance.now() - started;
+				this.paused = true;
+			};
+
+			const resume = () => {
+				if (timer !== undefined || document.hidden) {
+					return;
+				}
+
+				started = performance.now();
+				timer = setTimeout(() => api.scrollNext(), remaining);
+				this.paused = false;
+			};
+
+			const restart = () => {
+				clearTimeout(timer);
+				timer = undefined;
+				remaining = delay;
+				this.cycle++;
+				resume();
+			};
+
+			const visibility = () => (document.hidden ? pause() : resume());
+
+			api.on("select", restart).on("pointerDown", pause).on("pointerUp", resume);
+			document.addEventListener("visibilitychange", visibility);
+			this.#restart = restart;
+			restart();
+
+			return () => {
+				clearTimeout(timer);
+				api.off("select", restart).off("pointerDown", pause).off("pointerUp", resume);
+				document.removeEventListener("visibilitychange", visibility);
+				this.#restart = undefined;
+				this.paused = true;
+			};
+		});
+	}
+
 	select(index: number) {
+		if (index === this.active) {
+			this.#restart?.();
+			return;
+		}
+
 		this.api?.scrollTo(index);
-		(this.api?.plugins().autoplay as AutoplayType | undefined)?.reset();
 	}
 }
 
