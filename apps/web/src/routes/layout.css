@@ -29,7 +29,7 @@
 	--theme-watch-secondary: oklch(0.74 0.004 285);
 	--theme-watch-muted: oklch(0.63 0.004 285);
 	--theme-player-panel: oklch(0.18 0.012 285);
-	--theme-input-accent: #2abdbb;
+	--theme-accent-secondary: #2abdbb;
 	--theme-tooltip: #414141;
 	--theme-tooltip-foreground: #ececec;
 	--theme-episode-action: #213944;
@@ -73,7 +73,7 @@
 	--color-watch-secondary: var(--theme-watch-secondary);
 	--color-watch-muted: var(--theme-watch-muted);
 	--color-player-panel: var(--theme-player-panel);
-	--color-input-accent: var(--theme-input-accent);
+	--color-accent-secondary: var(--theme-accent-secondary);
 	--color-tooltip: var(--theme-tooltip);
 	--color-tooltip-foreground: var(--theme-tooltip-foreground);
 	--color-episode-action: var(--theme-episode-action);
@@ -148,7 +148,7 @@
 	}
 
 	:where(input[type="checkbox"], input[type="radio"], input[type="range"]) {
-		accent-color: var(--theme-input-accent);
+		accent-color: var(--theme-accent-secondary);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
