@@ -17,7 +17,7 @@
 	const { series, progress } = $derived(entry);
 </script>
 
-<div
+<article
 	class="group flex h-full flex-col p-2 transition-colors focus-within:bg-surface hover:bg-surface"
 >
 	<a
@@ -33,7 +33,7 @@
 						w1280: 1280,
 					})}
 					sizes="(min-width: 80rem) 19rem, (min-width: 64rem) 24vw, (min-width: 30em) 48vw, 100vw"
-					alt=""
+					alt="Backdrop from {series.title}"
 				/>
 			{/if}
 		</div>
@@ -72,4 +72,4 @@
 			{/snippet}
 		</Tooltip>
 	</div>
-</div>
+</article>

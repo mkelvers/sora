@@ -17,7 +17,7 @@
 	const image = $derived(item.episode_still_url ?? item.series.backdrop_url);
 </script>
 
-<div
+<article
 	class="group flex h-full flex-col p-2 transition-colors focus-within:bg-surface hover:bg-surface"
 >
 	<a
@@ -33,7 +33,7 @@
 						w1280: 1280,
 					})}
 					sizes="(min-width: 80rem) 19rem, (min-width: 64rem) 24vw, (min-width: 30em) 48vw, 100vw"
-					alt=""
+					alt="Still from episode {item.episode} of {item.series.title}"
 				/>
 			{/if}
 			<span
@@ -41,13 +41,21 @@
 			>
 				{#if item.duration_seconds > 0}
 					<span class="group-focus-within:hidden group-hover:hidden">
-						{item.watched ? "Watched" : "Ongoing"}
+						{#if item.watched}
+							Watched
+						{:else}
+							Ongoing
+						{/if}
 					</span>
 					<span class="hidden group-focus-within:inline group-hover:inline">
 						{Math.round(item.duration_seconds / 60)}m
 					</span>
 				{:else}
-					{item.watched ? "Watched" : "Ongoing"}
+					{#if item.watched}
+						Watched
+					{:else}
+						Ongoing
+					{/if}
 				{/if}
 			</span>
 		</div>
@@ -66,13 +74,13 @@
 	</a>
 
 	<div class="mt-auto flex items-center justify-between gap-3 pt-3">
-		<p class="text-sm text-muted">
+		<time class="text-sm text-muted" datetime={item.played_at}>
 			{new Date(item.played_at).toLocaleDateString("en-US", {
 				month: "short",
 				day: "numeric",
 				year: "numeric",
 			})}
-		</p>
+		</time>
 		<Tooltip text="Remove">
 			{#snippet children(trigger)}
 				<Button
@@ -96,4 +104,4 @@
 			{/snippet}
 		</Tooltip>
 	</div>
-</div>
+</article>
