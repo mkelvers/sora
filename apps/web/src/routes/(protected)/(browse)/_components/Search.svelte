@@ -6,6 +6,7 @@
 	import { cn } from "$lib/utils";
 	import { MagnifyingGlassIcon } from "phosphor-svelte";
 	import { tick, untrack } from "svelte";
+	import { MediaQuery } from "svelte/reactivity";
 
 	import Suggestions from "./Suggestions.svelte";
 
@@ -25,7 +26,9 @@
 	let active = $state(-1);
 	let retry: (() => void) | undefined;
 
-	const shown = $derived(open && focused && !dismissed && !onSearch && !!term && !!text.trim());
+	const mobile = new MediaQuery("max-width: 39.99rem", false);
+	const expanded = $derived(open || mobile.current);
+	const shown = $derived(expanded && focused && !dismissed && !onSearch && !!term && !!text.trim());
 
 	$effect(() => {
 		const value = text.trim();
@@ -174,7 +177,7 @@
 
 <form
 	bind:this={form}
-	class="relative flex h-full"
+	class="relative flex h-full max-sm:absolute max-sm:inset-x-0 max-sm:top-[calc(3.5rem-1px)] max-sm:h-[calc(3rem+1px)] max-sm:bg-header-hover"
 	role="search"
 	action="/search"
 	onsubmit={submit}
@@ -183,11 +186,12 @@
 >
 	<div
 		class={cn(
-			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width] duration-260 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
-			open && "w-[min(22.5rem,calc(100vw-9rem))]",
+			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width,flex-grow] duration-260 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
+			expanded && "max-sm:w-full sm:w-[min(22.5rem,calc(100vw-9rem))]",
 		)}
-		inert={!open}
+		inert={!expanded}
 	>
+		<MagnifyingGlassIcon size="1.25rem" class="ml-4 shrink-0 text-muted sm:hidden" />
 		<input
 			bind:this={input}
 			bind:value={text}
@@ -207,13 +211,13 @@
 				active = -1;
 			}}
 			onkeydown={navigate}
-			class="h-full min-w-0 flex-1 bg-transparent pr-3 pl-5 text-sm text-foreground outline-none placeholder:text-subtle"
+			class="h-full min-w-0 flex-1 bg-transparent pr-3 pl-5 text-sm text-foreground outline-none placeholder:text-subtle max-sm:pl-3 max-sm:text-base"
 		/>
 	</div>
 
 	<Button
 		class={cn(
-			"h-full w-12 text-muted hover:bg-header-hover hover:text-foreground focus-visible:ring-inset sm:w-14",
+			"h-full w-12 text-muted hover:bg-header-hover hover:text-foreground focus-visible:ring-inset max-sm:hidden sm:w-14",
 			open && "bg-header-hover text-foreground",
 		)}
 		aria-label="Search"
@@ -227,7 +231,7 @@
 		<div
 			bind:this={panel}
 			id="search-suggestions"
-			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-[0_12px_32px_rgb(0_0_0/0.5)] transition-[opacity,translate] duration-140 outline-none starting:-translate-y-1 starting:opacity-0"
+			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-[0_12px_32px_rgb(0_0_0/0.5)] transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
 			role="listbox"
 			aria-label="Suggestions"
 			tabindex="-1"

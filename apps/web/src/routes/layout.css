@@ -175,6 +175,12 @@
 	input {
 		touch-action: manipulation;
 	}
+
+	@variant max-sm {
+		html:has(#search-suggestions, .mobile-menu:popover-open) {
+			overflow: hidden;
+		}
+	}
 }
 
 @layer components {
