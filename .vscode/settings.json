@@ -13,9 +13,8 @@
 	"[svelte]": {
 		"editor.defaultFormatter": "oxc.oxc-vscode"
 	},
+	"tailwindCSS.classFunctions": ["cva", "cn", "cx", "clsx", "twMerge"],
+	"tailwindCSS.experimental.configFile": "apps/web/src/routes/layout.css",
 	"oxc.enable": true,
-	"oxc.fmt.configPath": ".oxfmtrc.json",
-	"prettier.enable": false,
-	"eslint.enable": false,
-	"biome.enabled": false
+	"oxc.fmt.configPath": ".oxfmtrc.json"
 }
