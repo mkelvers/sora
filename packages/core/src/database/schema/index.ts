@@ -14,4 +14,5 @@ export * from "./auth";
 export * from "./catalog";
 export * from "./library";
 export * from "./playback";
+export * from "./scheduler";
 export * from "./series";

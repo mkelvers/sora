@@ -29,6 +29,7 @@ import {
 	refreshEpisodeDetailsTask,
 	storeSeriesJob,
 } from "./jobs/series";
+import { watchPools } from "./pools";
 import {
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
@@ -69,7 +70,10 @@ const waitedOnTasks: Record<string, Task> = {
  * SIGTERM.
  */
 export async function startScheduler(): Promise<Scheduler> {
+	// Pools that stop without shutting down keep their jobs locked; see watchPools.
+	const pools = watchPools();
 	const main = await run({
+		events: pools.events,
 		connectionString: config.databaseUrl,
 		// Long jobs, such as a full catalogue sync or an airing check waiting
 		// out a provider's rate limit, must not take every slot from a layout a
@@ -116,6 +120,7 @@ export async function startScheduler(): Promise<Scheduler> {
 	// and share AniList requests, rather than a few at a time each paying
 	// their own; they spend most of their time waiting on AniList and TMDB.
 	const waitedOn = await run({
+		events: pools.events,
 		connectionString: config.databaseUrl,
 		concurrency: 24,
 		// graphile-worker opens connections as jobs need them, up to this.
@@ -137,6 +142,7 @@ export async function startScheduler(): Promise<Scheduler> {
 	// own priority, where they waited behind every layout queued and held up
 	// the pool while costing AniList next to nothing.
 	const lookups = await run({
+		events: pools.events,
 		connectionString: config.databaseUrl,
 		concurrency: 12,
 		maxPoolSize: 12,
@@ -154,6 +160,7 @@ export async function startScheduler(): Promise<Scheduler> {
 	// at the same time share one AniKoto request, and the lists they fetch
 	// rarely wait on AniList.
 	const releases = await run({
+		events: pools.events,
 		connectionString: config.databaseUrl,
 		concurrency: 4,
 		maxPoolSize: 4,
@@ -171,6 +178,7 @@ export async function startScheduler(): Promise<Scheduler> {
 	// Notifications read only the database and must follow a release within
 	// a minute, so they never wait for a slot behind jobs held up on AniList.
 	const notifications = await run({
+		events: pools.events,
 		connectionString: config.databaseUrl,
 		concurrency: 1,
 		maxPoolSize: 2,
@@ -196,6 +204,7 @@ export async function startScheduler(): Promise<Scheduler> {
 				releases.stop(),
 				notifications.stop(),
 			]);
+			await pools.stop();
 		},
 	};
 }
