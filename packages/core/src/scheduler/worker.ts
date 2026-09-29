@@ -129,12 +129,14 @@ export async function startScheduler(): Promise<Scheduler> {
 	// Episode lookups ask stream providers, not AniList, so they have workers
 	// of their own rather than queueing behind layouts waiting on AniList,
 	// which can number in the thousands. Episodes and their languages are
-	// unknown until an entry is looked up. A few at a time keep AniKoto's API
-	// within its limit alongside the release watchers.
+	// unknown until an entry is looked up. A lookup costs AniKoto's API a
+	// request or two and spends most of its time waiting on the other sites,
+	// so twelve at a time stay well within AniKoto's 60 a minute, and the
+	// release watchers wait behind at most a dozen of them.
 	const lookups = await run({
 		connectionString: config.databaseUrl,
-		concurrency: 4,
-		maxPoolSize: 4,
+		concurrency: 12,
+		maxPoolSize: 12,
 		taskList: prioritized({
 			[lookUpEpisodesTask]: lookUpEpisodes,
 		}),
