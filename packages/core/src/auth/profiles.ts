@@ -5,6 +5,7 @@ import { db } from "../database/client";
 import {
 	avatarStyle,
 	continueWatchingDismissal,
+	featuredPick,
 	libraryEntry,
 	notificationDismissal,
 	notificationRead,
@@ -185,6 +186,7 @@ export async function deleteProfile(userId: string, profileId: string) {
 		await tx.delete(notificationSeen).where(eq(notificationSeen.userId, profileId));
 		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
 		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
+		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});
 }

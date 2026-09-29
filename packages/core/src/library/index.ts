@@ -1,6 +1,6 @@
 /**
  * Per-user library: library statuses, episode progress, playback history,
- * continue watching, and recommendations.
+ * continue watching, recommendations, and featured titles.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling. Titles
@@ -42,6 +42,7 @@ export {
 	type Notifications,
 } from "./notifications/notifications";
 export { recordReleases } from "./notifications/releases";
+export { getFeatured } from "./featured/featured";
 export { dismissFromContinueWatching, getContinueWatching } from "./progress/continue-watching";
 export { forgetEpisode, getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
 export {

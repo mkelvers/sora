@@ -100,7 +100,7 @@ export async function getRecommendations(userId: string, limit = 20): Promise<Se
 }
 
 /** What a profile did with each title it has played or listed, keyed by series ID. */
-async function titleActivity(userId: string): Promise<Map<string, TitleActivity>> {
+export async function titleActivity(userId: string): Promise<Map<string, TitleActivity>> {
 	const [played, listed] = await Promise.all([
 		db
 			.select({

@@ -267,6 +267,13 @@
       "when": 1790711539106,
       "tag": "0037_anime_schedule_show",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790713979703,
+      "tag": "0038_featured_pick",
+      "breakpoints": true
     }
   ]
 }

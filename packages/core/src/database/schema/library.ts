@@ -75,6 +75,30 @@ export const continueWatchingDismissal = pgTable(
 );
 
 /**
+ * A title featured on one user's home page for one rotation (see
+ * `rotationOf`), in `position` order. Kept for the rotation before as well,
+ * so the next never features the same titles again.
+ */
+export const featuredPick = pgTable(
+	"featured_pick",
+	{
+		userId: text("user_id").notNull(),
+		rotation: integer("rotation").notNull(),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		position: integer("position").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.rotation, table.seriesId],
+		}),
+	],
+);
+
+/**
  * One episode's state for one user: whether they watched it, and where
  * playback of it stands. Every derived view of a series (season progress,
  * caught up, what to watch next) is read from these rows.
