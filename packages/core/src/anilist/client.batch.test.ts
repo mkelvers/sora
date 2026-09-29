@@ -14,7 +14,7 @@ mock.module("../database/client", () => ({
 	db: chain,
 }));
 
-const { anilist, loadMediaById, withAniListPriority } = await import("./client");
+const { anilist, loadMediaById, aniListPriority } = await import("./client");
 
 type Pages = Record<string, number[] | number | boolean>;
 
@@ -165,12 +165,12 @@ test("sends the IDs asked for at once in one request", async () => {
 
 test("gathers the IDs asked for while a request waits its turn", async () => {
 	const load = loader(1);
-	await withAniListPriority(background, () => load([10]));
+	await aniListPriority.run(background, () => load([10]));
 
 	// Asked for one after another while the next background request waits out its spacing.
-	const later = [withAniListPriority(background, () => load([11]))];
+	const later = [aniListPriority.run(background, () => load([11]))];
 	await Bun.sleep(20);
-	later.push(withAniListPriority(background, () => load([12])));
+	later.push(aniListPriority.run(background, () => load([12])));
 	await Promise.all(later);
 
 	expect(sent.map((variables) => variables.ids0)).toEqual([[10], [11, 12]]);
@@ -210,8 +210,8 @@ test("sends a batch a viewer joins ahead of background work queued before it", a
 			}
 		>;
 
-	await withAniListPriority(background, () => load([20]));
-	const queuedBefore = withAniListPriority(background, () =>
+	await aniListPriority.run(background, () => load([20]));
+	const queuedBefore = aniListPriority.run(background, () =>
 		anilist(
 			other,
 			{
@@ -223,7 +223,7 @@ test("sends a batch a viewer joins ahead of background work queued before it", a
 		),
 	);
 	await Bun.sleep(5);
-	const shared = withAniListPriority(background, () => load([22]));
+	const shared = aniListPriority.run(background, () => load([22]));
 	// The same ID, asked for by a search while the background batch still waits its turn.
 	const viewer = load([22]);
 

@@ -1,6 +1,6 @@
 import { run, type Task, type TaskList } from "graphile-worker";
 
-import { withAniListPriority } from "../anilist/client";
+import { aniListPriority } from "../anilist/client";
 import { config } from "../config";
 import { reviveAiringChecks, reviveAiringChecksTask, trackAiring } from "./jobs/airing";
 import {
@@ -190,13 +190,13 @@ export async function startScheduler(): Promise<Scheduler> {
 	};
 }
 
-/** Runs each task with its AniList requests queued at its job's priority; see {@link withAniListPriority}. */
+/** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
 function prioritized(tasks: Record<string, Task>): TaskList {
 	return Object.fromEntries(
 		Object.entries(tasks).map(([name, task]): [string, Task] => [
 			name,
 			(payload, helpers) =>
-				withAniListPriority(helpers.job.priority, async () => task(payload, helpers)),
+				aniListPriority.run(helpers.job.priority, async () => task(payload, helpers)),
 		]),
 	);
 }

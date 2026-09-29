@@ -36,7 +36,7 @@ const viewerReserve = 10;
 /**
  * The most urgent priority of background work. Requests at a more urgent
  * priority, or made outside any, are made for a viewer who is waiting on
- * them; see {@link withAniListPriority}.
+ * them; see {@link aniListPriority}.
  */
 export const viewerWaitingPriority = -2;
 
@@ -92,24 +92,20 @@ interface QueuedRequest {
 const waiting: QueuedRequest[] = [];
 let isDraining = false;
 
-const priorityContext = new AsyncLocalStorage<number>();
-
 /**
- * Runs `work` with the AniList requests it makes queued at `priority`,
- * lower numbers first, as graphile-worker orders jobs.
+ * The priority AniList requests made within `aniListPriority.run(priority,
+ * work)` are queued at, lower numbers first, as graphile-worker orders jobs.
  *
  * Requests made outside any priority go first of all: they are made while
  * serving someone, whereas the scheduler runs each job under the job's own
  * priority. A job a viewer is waiting on then gets AniList's limited
  * requests ahead of a catalogue sync that makes hundreds.
  */
-export function withAniListPriority<T>(priority: number, work: () => Promise<T>): Promise<T> {
-	return priorityContext.run(priority, work);
-}
+export const aniListPriority = new AsyncLocalStorage<number>();
 
-/** The priority requests made here are queued at; see {@link withAniListPriority}. */
+/** The priority requests made here are queued at; see {@link aniListPriority}. */
 function currentAniListPriority() {
-	return priorityContext.getStore() ?? Number.NEGATIVE_INFINITY;
+	return aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY;
 }
 
 /**
@@ -201,7 +197,7 @@ async function fetchAndStore<TResult>(
 
 /**
  * Serializes upstream calls, sending the most urgent waiting one next; see
- * {@link withAniListPriority}, as soon as {@link waitToSend} allows.
+ * {@link aniListPriority}, as soon as {@link waitToSend} allows.
  */
 function rateLimited<T>(key: string, task: () => Promise<T>): Promise<T> {
 	return new Promise<T>((resolve, reject) => {

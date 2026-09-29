@@ -14,7 +14,7 @@ mock.module("../database/client", () => ({
 	db: chain,
 }));
 
-const { anilist, viewerWaitingPriority, withAniListPriority } = await import("./client");
+const { anilist, viewerWaitingPriority, aniListPriority } = await import("./client");
 
 /** The `id` variable of each request AniList received, in the order they were sent. */
 const sent: number[] = [];
@@ -71,11 +71,11 @@ const fetchMedia = (id: number) =>
 const background = 10;
 
 test("sends a request a viewer joins ahead of background work queued before it", async () => {
-	const first = withAniListPriority(background, () => fetchMedia(1));
-	const second = withAniListPriority(background, () => fetchMedia(2));
-	const shared = withAniListPriority(background, () => fetchMedia(3));
+	const first = aniListPriority.run(background, () => fetchMedia(1));
+	const second = aniListPriority.run(background, () => fetchMedia(2));
+	const shared = aniListPriority.run(background, () => fetchMedia(3));
 	// The same request, asked for by a search while the background copy still waits its turn.
-	const viewer = withAniListPriority(viewerWaitingPriority, () => fetchMedia(3));
+	const viewer = aniListPriority.run(viewerWaitingPriority, () => fetchMedia(3));
 
 	await Promise.all([first, second, shared, viewer]);
 
@@ -86,8 +86,8 @@ test("spaces background requests to the limit AniList reports, not the normal on
 	sent.length = 0;
 	sentAt.length = 0;
 
-	await withAniListPriority(background, () => fetchMedia(4));
-	await withAniListPriority(background, () => fetchMedia(5));
+	await aniListPriority.run(background, () => fetchMedia(4));
+	await aniListPriority.run(background, () => fetchMedia(5));
 
 	// Each response says 30 a minute: 2.1 s apart, where the normal 90 would allow 767 ms.
 	expect((sentAt[1] ?? 0) - (sentAt[0] ?? 0)).toBeGreaterThanOrEqual(2_000);
