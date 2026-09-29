@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { EpisodeProgress, SeasonEpisode } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
@@ -12,6 +12,7 @@
 		seriesId,
 		seasonId,
 		title,
+		movie,
 		backdrop,
 		episode,
 		checkpoint,
@@ -19,6 +20,7 @@
 		seriesId: string;
 		seasonId: string;
 		title: string;
+		movie: boolean;
 		backdrop: string | null;
 		episode: SeasonEpisode;
 		checkpoint: EpisodeProgress | undefined;
@@ -31,7 +33,12 @@
 			: 0,
 	);
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
-	const heading = $derived(`E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`);
+	const heading = $derived(
+		movie
+			? (episode.title ?? title)
+			: `E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`,
+	);
+	const label = $derived(movie ? "" : ` E${episode.number}`);
 	const audio = $derived(audioLabel(episode.audio));
 	const released = $derived.by(() => {
 		if (episode.aired_at) {
@@ -90,8 +97,8 @@
 					>
 						{#if watched}
 							Watched
-						{:else}
-							{episode.runtime_minutes}m
+						{:else if episode.runtime_minutes}
+							{formatDuration(episode.runtime_minutes)}
 						{/if}
 					</span>
 				{/if}
@@ -140,11 +147,11 @@
 				>
 					<PlayIcon size="1.25rem" weight="bold" />
 					{#if watched}
-						Watch again E{episode.number}
+						Watch again{label}
 					{:else if played}
-						Resume E{episode.number}
+						Resume{label}
 					{:else}
-						Play E{episode.number}
+						Play{label}
 					{/if}
 				</span>
 			{/if}

@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { HistoryItem } from "@sora/sdk";
 	import { TrashIcon } from "phosphor-svelte";
 
@@ -48,7 +48,7 @@
 						{/if}
 					</span>
 					<span class="hidden group-focus-within:inline group-hover:inline">
-						{Math.round(item.duration_seconds / 60)}m
+						{formatDuration(item.duration_seconds / 60)}
 					</span>
 				{:else}
 					{#if item.watched}
@@ -65,9 +65,13 @@
 				{item.series.title}
 			</p>
 			<h3 class="mt-1.5 text-sm leading-snug font-bold">
-				E{item.episode}
-				{#if item.episode_title}
-					- {item.episode_title}
+				{#if item.series.kind === "movie"}
+					{item.episode_title ?? item.series.title}
+				{:else}
+					E{item.episode}
+					{#if item.episode_title}
+						- {item.episode_title}
+					{/if}
 				{/if}
 			</h3>
 		</div>
@@ -87,7 +91,9 @@
 					{...trigger}
 					variant="icon"
 					tone="danger"
-					aria-label="Remove E{item.episode} of {item.series.title} from your history"
+					aria-label={item.series.kind === "movie"
+						? `Remove ${item.series.title} from your history`
+						: `Remove E${item.episode} of ${item.series.title} from your history`}
 					onclick={() =>
 						forgetEpisode({
 							seasonId: item.season_id,
