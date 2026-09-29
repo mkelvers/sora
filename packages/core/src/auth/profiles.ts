@@ -6,7 +6,6 @@ import {
 	avatarStyle,
 	continueWatchingDismissal,
 	libraryEntry,
-	libraryImport,
 	playbackHistory,
 	playbackProgress,
 	profile,
@@ -177,7 +176,6 @@ export async function deleteProfile(userId: string, profileId: string) {
 		await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
 		await tx.delete(playbackHistory).where(eq(playbackHistory.userId, profileId));
 		await tx.delete(libraryEntry).where(eq(libraryEntry.userId, profileId));
-		await tx.delete(libraryImport).where(eq(libraryImport.userId, profileId));
 		await tx
 			.delete(continueWatchingDismissal)
 			.where(eq(continueWatchingDismissal.userId, profileId));

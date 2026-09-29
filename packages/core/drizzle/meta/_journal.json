@@ -218,6 +218,13 @@
       "when": 1790626001184,
       "tag": "0030_profile_avatar_style",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790643366665,
+      "tag": "0031_automatic_library_status",
+      "breakpoints": true
     }
   ]
 }

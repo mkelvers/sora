@@ -304,4 +304,41 @@ describe("seriesProgress", () => {
 		});
 		expect(unstartedSeason(later, watchedSeason("s1", 2))).toBe("s2");
 	});
+
+	test("is finished once caught up and no season in watch order is airing", () => {
+		expect(
+			seriesProgress(frieren, [...watchedSeason("s2", 3), ...watchedSeason("s1", 3)], titles)
+				.finished,
+		).toBe(true);
+	});
+
+	test("is not finished while caught up on a season still airing", () => {
+		const airing = [
+			...season("s1", 2),
+			...season("s2", 2).map((episode) => ({
+				...episode,
+				isFinale: false,
+			})),
+		];
+
+		expect(
+			seriesProgress(airing, [...watchedSeason("s2", 2), ...watchedSeason("s1", 2)], titles),
+		).toMatchObject({
+			caughtUp: true,
+			finished: false,
+		});
+	});
+
+	test("is finished while a season is only announced", () => {
+		const announced = [
+			...season("s1", 2),
+			...season("s2", 2).map((episode) => ({
+				...episode,
+				isReleased: false,
+				isFinale: false,
+			})),
+		];
+
+		expect(seriesProgress(announced, watchedSeason("s1", 2), titles).finished).toBe(true);
+	});
 });

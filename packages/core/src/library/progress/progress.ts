@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../../database/client";
 import {
 	continueWatchingDismissal,
+	libraryEntry,
 	playbackHistory,
 	playbackProgress,
 	seriesEntry,
@@ -12,7 +13,7 @@ import {
 import { EpisodeNotFoundError, InvalidInputError, SeasonNotFoundError } from "../../errors";
 import { locateEpisode } from "../../series/episodes";
 import { assertSeriesExists } from "../../series/queries";
-import { markStarted } from "../entries/entries";
+import { settleStatus } from "../entries/entries";
 import { completionRatio, seriesProgress, type TitleProgress } from "./resume";
 import { loadCheckpoints, loadTitles } from "./titles";
 
@@ -57,10 +58,9 @@ export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
  * episode again keeps it watched. The playback also goes into the user's
  * history.
  *
- * Playing a title puts it in the library as `watching`, starts it if it was
- * `planning` (see {@link markStarted}), and brings it back to "continue
- * watching" if it was dismissed from there. Any other status is the user's
- * to change.
+ * Playing a title puts it in the library, settles its status (see
+ * {@link settleStatus}), and brings it back to "continue watching" if it
+ * was dismissed from there.
  *
  * @throws {@link InvalidInputError} when the update fails validation.
  * @throws {@link SeasonNotFoundError} when the season does not exist.
@@ -83,13 +83,14 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
 	}
 
 	const located = await locateEpisode(input.seasonId, input.episode);
+	const watched = input.positionSeconds >= input.durationSeconds * completionRatio;
 	const written = await writeCheckpoints(userId, [
 		{
 			anilistId: located.anilistId,
 			episode: located.anilistEpisode,
 			positionSeconds: input.positionSeconds,
 			durationSeconds: input.durationSeconds,
-			watched: input.positionSeconds >= input.durationSeconds * completionRatio,
+			watched,
 			eventAt,
 		},
 	]);
@@ -118,7 +119,11 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
 			},
 			setWhere: sql`${playbackHistory.playedAt} < excluded.played_at`,
 		});
-	await markStarted(userId, located.seriesId);
+	// Settling reads the whole title, so it is skipped while nothing can
+	// change: a `watching` title only moves on when an episode is finished.
+	if (watched || (await statusOf(userId, located.seriesId)) !== "watching") {
+		await settleStatus(userId, located.seriesId, [input.seasonId]);
+	}
 	await db
 		.delete(continueWatchingDismissal)
 		.where(
@@ -151,11 +156,10 @@ export type MarkWatchedTarget = z.input<typeof MarkWatchedSchema>;
  * episode of a title in watch order, watched or unwatched.
  *
  * This changes episode state only: it is not playback, so it leaves the
- * user's history alone, and it never sets a library status such as
- * `completed`. Marking watched does start a `planning` title, as playing
- * it would (see {@link markStarted}), and wins over any saved playback of
- * the episodes, however recent. Marking unwatched forgets the episodes'
- * state, position included.
+ * user's history alone. It settles the title's status as playing would
+ * (see {@link settleStatus}), and marking watched wins over any saved
+ * playback of the episodes, however recent. Marking unwatched forgets the
+ * episodes' state, position included.
  *
  * @throws {@link InvalidInputError} when the target fails validation.
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
@@ -210,6 +214,7 @@ export async function markWatched(userId: string, target: MarkWatchedTarget, wat
 	const order = new Map(
 		marked.map((candidate, index) => [`${candidate.seasonId}:${candidate.number}`, index]),
 	);
+	const touched = [...new Set(marked.map((candidate) => candidate.seasonId))];
 	const episodes = rows
 		.filter((row) => row.anilistId !== null && order.has(`${row.seasonId}:${row.number}`))
 		.sort(
@@ -234,6 +239,7 @@ export async function markWatched(userId: string, target: MarkWatchedTarget, wat
 					),
 				),
 			);
+		await settleStatus(userId, seriesId, touched);
 		return;
 	}
 
@@ -256,7 +262,7 @@ export async function markWatched(userId: string, target: MarkWatchedTarget, wat
 			overwrite: true,
 		},
 	);
-	await markStarted(userId, seriesId);
+	await settleStatus(userId, seriesId, touched);
 }
 
 /**
@@ -293,8 +299,8 @@ export async function getProgress(userId: string, seriesId: string): Promise<Tit
 }
 
 /**
- * Forgets every episode state of a title, for example to start it over. Its
- * library status and the user's history of it stay as they are.
+ * Forgets every episode state of a title, for example to start it over.
+ * The user's history of it stays, and its status settles to match.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
@@ -310,6 +316,19 @@ export async function clearProgress(userId: string, seriesId: string) {
 	await db
 		.delete(playbackProgress)
 		.where(and(eq(playbackProgress.userId, userId), inArray(playbackProgress.anilistId, entries)));
+	await settleStatus(userId, seriesId, []);
+}
+
+/** A series' status in a user's library, or `null` when it is not in it. */
+async function statusOf(userId: string, seriesId: string) {
+	const [entry] = await db
+		.select({
+			status: libraryEntry.status,
+		})
+		.from(libraryEntry)
+		.where(and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesId)))
+		.limit(1);
+	return entry?.status ?? null;
 }
 
 /** One checkpoint to write; see {@link writeCheckpoints}. */

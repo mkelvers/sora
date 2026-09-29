@@ -1,15 +1,11 @@
 import { popularityWeight } from "../../catalog/queries/search";
 import type { LibraryStatus } from "../entries/entries";
 
-/**
- * The status a profile gave a title counts toward taste. A dropped title
- * counts against what it is like.
- */
+/** A title's library status counts toward taste. */
 const statusWeights: Record<LibraryStatus, number> = {
 	completed: 2,
 	watching: 1.5,
 	planning: 0.5,
-	dropped: -1.5,
 };
 
 /** Days after which a title counts half as much toward taste. */
@@ -33,13 +29,9 @@ export interface TitleActivity {
 
 /**
  * How strongly a title says what a profile likes: more for finished and
- * much-watched titles, less as it recedes, and negative for a dropped one.
+ * much-watched titles, less as it recedes.
  */
 export function titleWeight(activity: TitleActivity, now: Date): number {
-	if (activity.status === "dropped") {
-		return statusWeights.dropped;
-	}
-
 	const ageDays = Math.max(0, now.getTime() - activity.lastActiveAt.getTime()) / 86_400_000;
 	const recency = Math.max(minimumRecency, 0.5 ** (ageDays / halfLifeDays));
 	const listed =

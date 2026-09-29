@@ -13,19 +13,15 @@ import { timestamptz } from "./columns";
 import { series } from "./series";
 
 /**
- * A user's relationship to a whole series, which only they can state:
- * `planning`, `watching`, `completed`, or `dropped`. It says
- * nothing about how far they are; that is read from {@link playbackProgress}.
+ * Where a user is with a whole series: `planning`, `watching`, or
+ * `completed`. It follows their progress (see `settleStatus`) but is
+ * stored, since a series stays `completed` when a season comes out after.
+ * How far they are is read from {@link playbackProgress}.
  */
-export const libraryStatus = pgEnum("library_status", [
-	"planning",
-	"watching",
-	"completed",
-	"dropped",
-]);
+export const libraryStatus = pgEnum("library_status", ["planning", "watching", "completed"]);
 
 /**
- * One series in one user's library, with the status they gave it. How far
+ * One series in one user's library, with its status. How far
  * they are through it is not stored here but read from their progress, so
  * it stays true as the series gains seasons.
  *
@@ -51,26 +47,6 @@ export const libraryEntry = pgTable(
 			columns: [table.userId, table.seriesId],
 		}),
 		index("library_entry_user_updated_idx").on(table.userId, table.updatedAt),
-	],
-);
-
-/**
- * An AniList entry imported into a user's library before its series was
- * stored. It becomes a {@link libraryEntry} once the series is; see
- * `resolveImportedEntries`.
- */
-export const libraryImport = pgTable(
-	"library_import",
-	{
-		userId: text("user_id").notNull(),
-		anilistId: integer("anilist_id").notNull(),
-		status: libraryStatus("status").notNull(),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.userId, table.anilistId],
-		}),
 	],
 );
 
@@ -135,8 +111,8 @@ export const playbackProgress = pgTable(
 
 /**
  * When a user last actually played each episode: their history. Only
- * playback writes it; marking an episode watched or unwatched, importing a
- * list, or clearing progress leave it as it is.
+ * playback writes it; marking an episode watched or unwatched or clearing
+ * progress leave it as it is.
  */
 export const playbackHistory = pgTable(
 	"playback_history",

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { favoriteGenres, rankCandidates, tasteOf, titleWeight } from "./taste";
+import { rankCandidates, tasteOf, titleWeight } from "./taste";
 
 const now = new Date("2026-09-26T12:00:00Z");
 const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000);
@@ -57,19 +57,6 @@ describe("titleWeight", () => {
 			),
 		).toBeCloseTo(fresh / 4);
 	});
-
-	test("counts a dropped title against taste", () => {
-		expect(
-			titleWeight(
-				{
-					status: "dropped",
-					episodesPlayed: 12,
-					lastActiveAt: now,
-				},
-				now,
-			),
-		).toBeLessThan(0);
-	});
 });
 
 describe("rankCandidates", () => {
@@ -114,26 +101,5 @@ describe("rankCandidates", () => {
 			candidate(3, ["Action", "Fantasy"]),
 		]);
 		expect(ranked.map((entry) => entry.anilistId)).toEqual([3, 2]);
-	});
-
-	test("lets dropped titles pull their genres down", () => {
-		const taste = tasteOf([
-			{
-				weight: 1,
-				genres: ["Action"],
-				recommended: [],
-			},
-			{
-				weight: 1,
-				genres: ["Sports"],
-				recommended: [],
-			},
-			{
-				weight: -1.5,
-				genres: ["Sports"],
-				recommended: [],
-			},
-		]);
-		expect(favoriteGenres(taste, 3)).toEqual(["Action"]);
 	});
 });

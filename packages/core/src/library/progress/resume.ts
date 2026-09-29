@@ -54,6 +54,12 @@ export interface SeriesProgress {
 	 * `completed` library status, a new episode or season takes it back.
 	 */
 	caughtUp: boolean;
+	/**
+	 * Whether the user is caught up and no season in watch order is still
+	 * airing, so nothing more is coming that they could watch. A season only
+	 * announced, with no released episode yet, does not hold it back.
+	 */
+	finished: boolean;
 	/** Where to pick the title back up; see {@link continuePoint}. */
 	next: ContinuePoint | null;
 	/**
@@ -222,6 +228,8 @@ export function seriesProgress(
 
 	const inWatchOrder = released.filter((episode) => episode.inWatchOrder);
 	const watchedEpisodes = inWatchOrder.filter(watched).length;
+	const caughtUp = inWatchOrder.length > 0 && watchedEpisodes === inWatchOrder.length;
+	const ordered = new Set(inWatchOrder.map((episode) => episode.seasonId));
 	const next = continuePoint(episodes, progress);
 	const unstarted = next ? null : unstartedSeason(episodes, progress);
 
@@ -229,7 +237,9 @@ export function seriesProgress(
 		seasons,
 		watchedEpisodes,
 		releasedEpisodes: inWatchOrder.length,
-		caughtUp: inWatchOrder.length > 0 && watchedEpisodes === inWatchOrder.length,
+		caughtUp,
+		finished:
+			caughtUp && seasons.every((season) => !ordered.has(season.seasonId) || season.completed),
 		next,
 		newSeason: unstarted ? named(unstarted) : null,
 		lastWatchedAt: progress[0]?.eventAt ?? null,

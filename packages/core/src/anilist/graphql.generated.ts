@@ -26,21 +26,6 @@ export type MediaFormat =
   /** Anime which are under 15 minutes in length and broadcast on television */
   | 'TV_SHORT';
 
-/** Media list watching/reading status enum. */
-export type MediaListStatus =
-  /** Finished watching/reading */
-  | 'COMPLETED'
-  /** Currently watching/reading */
-  | 'CURRENT'
-  /** Stopped watching/reading before completing */
-  | 'DROPPED'
-  /** Paused watching/reading */
-  | 'PAUSED'
-  /** Planning to watch/read */
-  | 'PLANNING'
-  /** Re-watching/reading */
-  | 'REPEATING';
-
 /** Type of relation media has to its parent. */
 export type MediaRelation =
   /** An adaption of this media into a different format */
@@ -279,13 +264,6 @@ export type SearchIndexPageQueryVariables = Exact<{
 
 
 export type SearchIndexPageQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ id: number, synonyms: Array<string | null> | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, genres: Array<string | null> | null, popularity: number | null, trending: number | null, averageScore: number | null, isAdult: boolean | null, updatedAt: number | null, title: { romaji: string | null, english: string | null, native: string | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, stats: { scoreDistribution: Array<{ amount: number | null } | null> | null } | null } | null> | null } | null };
-
-export type UserAnimeListQueryVariables = Exact<{
-  userName: string;
-}>;
-
-
-export type UserAnimeListQuery = { MediaListCollection: { lists: Array<{ entries: Array<{ mediaId: number, status: MediaListStatus | null, progress: number | null, updatedAt: number | null, media: { episodes: number | null, duration: number | null } | null } | null> | null } | null> | null } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -984,21 +962,3 @@ export const SearchIndexPageDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SearchIndexPageQuery, SearchIndexPageQueryVariables>;
-export const UserAnimeListDocument = new TypedDocumentString(`
-    query UserAnimeList($userName: String!) {
-  MediaListCollection(userName: $userName, type: ANIME) {
-    lists {
-      entries {
-        mediaId
-        status
-        progress
-        updatedAt
-        media {
-          episodes
-          duration
-        }
-      }
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<UserAnimeListQuery, UserAnimeListQueryVariables>;

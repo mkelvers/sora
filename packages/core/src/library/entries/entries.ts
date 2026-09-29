@@ -1,22 +1,25 @@
-import { and, count, eq, lt, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
-import { libraryEntry, libraryImport } from "../../database/schema";
+import { libraryEntry } from "../../database/schema";
 import type { SeriesCard } from "../../series/models";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
-import { day } from "../../time";
 import { seriesProgress, type SeriesProgress } from "../progress/resume";
 import { loadCheckpoints, loadTitles } from "../progress/titles";
+import { statusFor } from "./status";
 
 /**
- * A user's relationship to a whole series, which only they set, apart from
- * a `planning` series becoming `watching` once they start it (see
- * {@link markStarted}). It is never read from progress: a `completed`
- * series stays completed when a new season comes out, and one they are
- * caught up on stays `watching` until they say otherwise.
+ * Where a user is with a whole series. The user never sets it; it follows
+ * what they do (see `statusFor`):
+ *
+ * - `planning`: they added it to their library and have not started it.
+ * - `watching`: they started it, and it is not {@link SeriesProgress.finished}.
+ * - `completed`: they watched everything that has come out, and nothing is
+ *   still airing. A season released afterwards leaves it completed until
+ *   they start that season.
  */
-export const LibraryStatusSchema = z.enum(["planning", "watching", "completed", "dropped"]);
+export const LibraryStatusSchema = z.enum(["planning", "watching", "completed"]);
 
 export type LibraryStatus = z.infer<typeof LibraryStatusSchema>;
 
@@ -35,13 +38,11 @@ export interface LibraryItem {
 export interface Library {
 	items: LibraryItem[];
 	counts: Record<LibraryStatus, number>;
-	/** Imported titles still being prepared, which join the library once they are. */
-	preparing: number;
 }
 
 /** A series' place in a user's library. */
 export interface LibraryEntry {
-	/** The status the user gave the series, or `null` when it is not in their library. */
+	/** The series' status, or `null` when it is not in their library. */
 	status: LibraryStatus | null;
 	/** ISO 8601 timestamp, or `null` when not in the library. */
 	addedAt: string | null;
@@ -59,16 +60,7 @@ export async function getLibrary(
 		status?: LibraryStatus;
 	} = {},
 ): Promise<Library> {
-	await resolveImportedEntries(userId);
-	const [entries, [pending]] = await Promise.all([
-		db.select().from(libraryEntry).where(eq(libraryEntry.userId, userId)),
-		db
-			.select({
-				count: count(),
-			})
-			.from(libraryImport)
-			.where(eq(libraryImport.userId, userId)),
-	]);
+	const entries = await db.select().from(libraryEntry).where(eq(libraryEntry.userId, userId));
 
 	const seriesIds = entries.map((entry) => entry.seriesId);
 	const [titles, checkpoints] = await Promise.all([
@@ -77,32 +69,31 @@ export async function getLibrary(
 	]);
 	const cards = await toSeriesCards([...titles.series.values()]);
 
-	const items = entries
-		.flatMap((entry): LibraryItem[] => {
-			const card = cards.get(entry.seriesId);
-			return card
-				? [
-						{
-							series: card,
-							status: entry.status,
-							addedAt: entry.createdAt.toISOString(),
-							updatedAt: entry.updatedAt.toISOString(),
-							progress: seriesProgress(
-								titles.episodes(entry.seriesId),
-								checkpoints.get(entry.seriesId) ?? [],
-								titles.seasonTitles,
-							),
-						},
-					]
-				: [];
-		})
-		.sort((left, right) => activeAt(right).localeCompare(activeAt(left)));
+	const items = entries.flatMap((entry): LibraryItem[] => {
+		const card = cards.get(entry.seriesId);
+		return card
+			? [
+					{
+						series: card,
+						status: entry.status,
+						addedAt: entry.createdAt.toISOString(),
+						updatedAt: entry.updatedAt.toISOString(),
+						progress: seriesProgress(
+							titles.episodes(entry.seriesId),
+							checkpoints.get(entry.seriesId) ?? [],
+							titles.seasonTitles,
+						),
+					},
+				]
+			: [];
+	});
+	await settleStale(userId, items);
+	items.sort((left, right) => activeAt(right).localeCompare(activeAt(left)));
 
 	const counts: Record<LibraryStatus, number> = {
 		planning: 0,
 		watching: 0,
 		completed: 0,
-		dropped: 0,
 	};
 	for (const item of items) {
 		counts[item.status] += 1;
@@ -111,7 +102,6 @@ export async function getLibrary(
 	return {
 		items: filter.status ? items.filter((item) => item.status === filter.status) : items,
 		counts,
-		preparing: pending?.count ?? 0,
 	};
 }
 
@@ -127,11 +117,36 @@ export async function getLibraryEntry(userId: string, seriesId: string): Promise
 		.from(libraryEntry)
 		.where(and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesId)))
 		.limit(1);
+	if (!entry) {
+		return {
+			status: null,
+			addedAt: null,
+			updatedAt: null,
+		};
+	}
+
+	const [titles, checkpoints] = await Promise.all([
+		loadTitles([seriesId]),
+		loadCheckpoints(userId, [seriesId]),
+	]);
+	const item = {
+		series: {
+			id: seriesId,
+		},
+		status: entry.status,
+		updatedAt: entry.updatedAt.toISOString(),
+		progress: seriesProgress(
+			titles.episodes(seriesId),
+			checkpoints.get(seriesId) ?? [],
+			titles.seasonTitles,
+		),
+	};
+	await settleStale(userId, [item]);
 
 	return {
-		status: entry?.status ?? null,
-		addedAt: entry?.createdAt.toISOString() ?? null,
-		updatedAt: entry?.updatedAt.toISOString() ?? null,
+		status: item.status,
+		addedAt: entry.createdAt.toISOString(),
+		updatedAt: item.updatedAt,
 	};
 }
 
@@ -154,34 +169,6 @@ export async function addToLibrary(userId: string, seriesId: string) {
 }
 
 /**
- * Sets the status of a series, putting it in the library if it is not.
- * Nothing about its episodes changes.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function setLibraryStatus(userId: string, seriesId: string, status: LibraryStatus) {
-	await assertSeriesExists(seriesId);
-	const now = new Date();
-	await db
-		.insert(libraryEntry)
-		.values({
-			userId,
-			seriesId,
-			status,
-			createdAt: now,
-			updatedAt: now,
-		})
-		.onConflictDoUpdate({
-			target: [libraryEntry.userId, libraryEntry.seriesId],
-			set: {
-				status,
-				updatedAt: now,
-			},
-			setWhere: sql`${libraryEntry.status} <> excluded.status`,
-		});
-}
-
-/**
  * Removes a series from the library. Its episode states and history stay.
  *
  * @returns Whether the series was in the library.
@@ -198,74 +185,91 @@ export async function removeFromLibrary(userId: string, seriesId: string): Promi
 }
 
 /**
- * Records that a user started watching a series: it joins their library as
- * `watching`, or moves there from `planning`. `completed` and
- * `dropped` are left to the user.
+ * Brings a series' status in line with the user's progress after they
+ * played or marked episodes of the `touched` seasons (see `statusFor`).
+ * Playing a series puts it in the library; marking episodes of one not in it
+ * unwatched does not.
  */
-export async function markStarted(userId: string, seriesId: string) {
+export async function settleStatus(userId: string, seriesId: string, touched: readonly string[]) {
+	const [[entry], titles, checkpoints] = await Promise.all([
+		db
+			.select({
+				status: libraryEntry.status,
+			})
+			.from(libraryEntry)
+			.where(and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesId)))
+			.limit(1),
+		loadTitles([seriesId]),
+		loadCheckpoints(userId, [seriesId]),
+	]);
+	const current = entry?.status ?? null;
+	const status = statusFor(
+		current,
+		seriesProgress(titles.episodes(seriesId), checkpoints.get(seriesId) ?? [], titles.seasonTitles),
+		touched,
+	);
+	if (status === null || status === current) {
+		return;
+	}
+
 	const now = new Date();
 	await db
 		.insert(libraryEntry)
 		.values({
 			userId,
 			seriesId,
-			status: "watching",
+			status,
 			createdAt: now,
 			updatedAt: now,
 		})
 		.onConflictDoUpdate({
 			target: [libraryEntry.userId, libraryEntry.seriesId],
 			set: {
-				status: "watching",
+				status,
 				updatedAt: now,
 			},
-			setWhere: eq(libraryEntry.status, "planning"),
 		});
 }
 
 /**
- * Imported entries still waiting for their series after this long are
- * given up on: the entry could not be laid out, such as adult media.
+ * Stores the status items' progress calls for when it moved on without the
+ * user doing anything, such as a season they finished watching since
+ * finishing airing, and updates the items to match.
  */
-const importPatienceMs = day;
+async function settleStale(
+	userId: string,
+	items: {
+		series: Pick<SeriesCard, "id">;
+		status: LibraryStatus;
+		updatedAt: string;
+		progress: SeriesProgress;
+	}[],
+) {
+	const now = new Date();
+	const changed = new Map<LibraryStatus, string[]>();
+	for (const item of items) {
+		const status = statusFor(item.status, item.progress, []) ?? item.status;
+		if (status !== item.status) {
+			item.status = status;
+			item.updatedAt = now.toISOString();
+			changed.set(status, [...(changed.get(status) ?? []), item.series.id]);
+		}
+	}
 
-/**
- * Moves the imported entries whose series are stored by now into the
- * library. A series imported through one entry takes its status; one
- * imported through several takes their status when they agree, and
- * `watching` otherwise. A series already in the library keeps its status. Entries
- * still waiting after {@link importPatienceMs} are given up on.
- */
-export async function resolveImportedEntries(userId: string) {
-	await db
-		.delete(libraryImport)
-		.where(
-			and(
-				eq(libraryImport.userId, userId),
-				lt(libraryImport.createdAt, new Date(Date.now() - importPatienceMs)),
-			),
-		);
-	await db.execute(sql`
-    with resolved as (
-      delete from library_import as imported
-      using series_entry as entry
-      where imported.user_id = ${userId} and entry.anilist_id = imported.anilist_id
-      returning entry.series_id, imported.status, imported.created_at
-    )
-    insert into library_entry (user_id, series_id, status, created_at, updated_at)
-    select ${userId}, series_id,
-      case
-        when count(distinct status) = 1 then min(status)
-        else 'watching'::library_status
-      end,
-      min(created_at), now()
-    from resolved
-    group by series_id
-    on conflict (user_id, series_id) do nothing
-  `);
+	await Promise.all(
+		[...changed].map(([status, seriesIds]) =>
+			db
+				.update(libraryEntry)
+				.set({
+					status,
+					updatedAt: now,
+				})
+				.where(and(eq(libraryEntry.userId, userId), inArray(libraryEntry.seriesId, seriesIds))),
+		),
+	);
 }
 
-/** When a user last did anything with a series in their library: watched it or changed its status. */
+/** When a user last did anything with a series in their library: watched it or its status changed. */
 function activeAt(item: LibraryItem) {
 	const watchedAt = item.progress.lastWatchedAt;
 	return watchedAt !== null && watchedAt > item.updatedAt ? watchedAt : item.updatedAt;

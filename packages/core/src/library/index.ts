@@ -1,6 +1,6 @@
 /**
  * Per-user library: library statuses, episode progress, playback history,
- * continue watching, imports, and recommendations.
+ * continue watching, and recommendations.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
  * The core trusts it, so callers must authenticate before calling. Titles
@@ -8,8 +8,8 @@
  *
  * Four things are kept apart:
  *
- * - A series' library status is the user's stated relationship to it, and
- *   only they change it, apart from starting a `planning` series.
+ * - A series' library status follows what the user does: adding it,
+ *   starting it, and watching everything that has come out.
  * - Episode progress is whether each episode is watched, and where playback
  *   of it stands. Season progress, whether the user is caught up, and what
  *   to watch next are derived from it, never stored.
@@ -25,13 +25,11 @@ export {
 	getLibraryEntry,
 	LibraryStatusSchema,
 	removeFromLibrary,
-	setLibraryStatus,
 	type Library,
 	type LibraryEntry,
 	type LibraryItem,
 	type LibraryStatus,
 } from "./entries/entries";
-export { AniListUserNameSchema, importAniListList, type ImportSummary } from "./import/anilist";
 export { dismissFromContinueWatching, getContinueWatching } from "./progress/continue-watching";
 export { forgetEpisode, getHistory, type HistoryItem, type HistoryPage } from "./progress/history";
 export {

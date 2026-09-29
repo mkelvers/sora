@@ -11,7 +11,6 @@ export type CoreErrorCode =
 	| "SEASON_NOT_FOUND"
 	| "EPISODE_NOT_FOUND"
 	| "PROFILE_NOT_FOUND"
-	| "ANILIST_LIST_NOT_FOUND"
 	| "LAST_PROFILE"
 	| "PLAYBACK_UNAVAILABLE"
 	| "UPSTREAM_UNAVAILABLE"
@@ -81,16 +80,6 @@ export class ProfileNotFoundError extends CoreError {
 	constructor(profileId: string) {
 		super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
 		this.profileId = profileId;
-	}
-}
-
-/** AniList has no public anime list under the user name: it does not exist, or the user keeps their list private. */
-export class AniListListNotFoundError extends CoreError {
-	readonly userName: string;
-
-	constructor(userName: string) {
-		super("ANILIST_LIST_NOT_FOUND", `AniList has no public anime list for ${userName}`);
-		this.userName = userName;
 	}
 }
 
