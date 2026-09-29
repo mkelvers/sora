@@ -689,7 +689,7 @@ export const NotificationSchema = z
 			description: "When it came out on Sora, as an ISO 8601 timestamp.",
 		}),
 		unread: z.boolean().openapi({
-			description: "Whether it came out after the profile last saw its notifications.",
+			description: "Whether the profile has not marked it read.",
 		}),
 	})
 	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
@@ -712,7 +712,7 @@ export const NotificationsSeenSchema = z
 			})
 			.openapi({
 				description:
-					"The `released_at` of the newest notification shown, so one that came out meanwhile stays unread.",
+					"The `released_at` of the newest notification to mark read, so one that came out meanwhile stays unread.",
 			}),
 	})
 	.openapi("NotificationsSeen");

@@ -22,6 +22,7 @@ import {
 	getNotifications,
 	getProgress,
 	getRecommendations,
+	markNotificationRead,
 	markNotificationsSeen,
 	markWatched,
 	recordProgress,
@@ -571,6 +572,13 @@ export const v1Routes = v1
 	.openapi(route.markNotificationsSeen, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		await markNotificationsSeen(profile.id, new Date(c.req.valid("json").seen_at));
+		return c.body(null, 204);
+	})
+
+	.openapi(route.markNotificationRead, async (c) => {
+		const { profile_id, notification_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await markNotificationRead(profile.id, notification_id);
 		return c.body(null, 204);
 	})
 

@@ -904,9 +904,9 @@ export const markNotificationsSeen = createRoute({
 	method: "put",
 	path: "/profiles/{profile_id}/notifications/seen",
 	tags: ["Profiles"],
-	summary: "Mark notifications seen",
+	summary: "Mark all notifications read",
 	description:
-		"Marks every notification released at or before `seen_at` read. It never moves back, nor past now.",
+		"Marks every notification released at or before `seen_at` read, whatever it was marked before. It never moves back, nor past now.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -926,6 +926,38 @@ export const markNotificationsSeen = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
+	},
+});
+
+export const markNotificationRead = createRoute({
+	operationId: "markNotificationRead",
+	method: "put",
+	path: "/profiles/{profile_id}/notifications/{notification_id}/read",
+	tags: ["Profiles"],
+	summary: "Mark a notification read",
+	description: "Marks one of the profile's notifications read.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			notification_id: z
+				.string()
+				.min(1)
+				.openapi({
+					param: {
+						name: "notification_id",
+						in: "path",
+					},
+					description: "The notification's `id`.",
+					example: "EWBMBNIV4:1790651185224",
+				}),
+		}),
+	},
+	responses: {
+		204: {
+			description: "Marked, or was not listed.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
 	},
 });
 
