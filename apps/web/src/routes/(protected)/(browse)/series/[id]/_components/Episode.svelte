@@ -52,9 +52,7 @@
 	const image = $derived(episode.still_url ?? backdrop);
 </script>
 
-<li
-	class="group relative isolate flex min-h-56 min-w-0 flex-col focus-within:z-10 hover:z-10"
->
+<li class="group relative isolate flex min-h-56 min-w-0 flex-col focus-within:z-10 hover:z-10">
 	<svelte:element
 		this={playable ? "a" : "div"}
 		href={playable ? `/series/${seriesId}/watch/${seasonId}/${episode.number}` : undefined}
@@ -107,7 +105,9 @@
 				</p>
 			{/if}
 			{#if episode.overview}
-				<p class="mt-2 line-clamp-5 text-[0.8125rem] leading-snug text-foreground">{episode.overview}</p>
+				<p class="mt-2 line-clamp-5 text-[0.8125rem] leading-snug text-foreground">
+					{episode.overview}
+				</p>
 			{/if}
 			{#if playable}
 				<span
