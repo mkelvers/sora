@@ -208,8 +208,13 @@
 			background-image: linear-gradient(
 				to top,
 				var(--theme-canvas) 0%,
-				rgb(0 0 0 / 0.4) 12%,
-				transparent 32%
+				rgb(0 0 0 / 0.94) calc((var(--hero-bleed) + 22%) * 0.15),
+				rgb(0 0 0 / 0.82) calc((var(--hero-bleed) + 22%) * 0.3),
+				rgb(0 0 0 / 0.64) calc((var(--hero-bleed) + 22%) * 0.45),
+				rgb(0 0 0 / 0.44) calc((var(--hero-bleed) + 22%) * 0.6),
+				rgb(0 0 0 / 0.24) calc((var(--hero-bleed) + 22%) * 0.75),
+				rgb(0 0 0 / 0.08) calc((var(--hero-bleed) + 22%) * 0.9),
+				transparent calc(var(--hero-bleed) + 22%)
 			);
 		}
 	}

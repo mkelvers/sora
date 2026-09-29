@@ -29,7 +29,7 @@
 
 {#if featured.length}
 	<Carousel
-		class="h-[min(100svh,32rem)] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none sm:h-[min(100svh,42rem)] sm:max-h-192 sm:min-h-180 xl:h-[calc(100svh-3.5rem)] xl:max-h-none"
+		class="mb-[calc(var(--hero-bleed)*-1)] h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(min(100svh,42rem)+var(--hero-bleed))] sm:max-h-[calc(48rem+var(--hero-bleed))] sm:min-h-[calc(45rem+var(--hero-bleed))] sm:[--hero-bleed:6rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:max-h-none xl:[--hero-bleed:10rem]"
 		options={{ loop: true }}
 		plugins={[Fade()]}
 	>
@@ -70,11 +70,11 @@
 				{/each}
 			</Content>
 
-			<Previous class="mb-(--hero-overlap) hidden sm:grid" />
-			<Next class="mb-(--hero-overlap) hidden sm:grid" />
+			<Previous class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
+			<Next class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
 
 			<div
-				class="pointer-events-none z-30 col-start-1 row-start-1 grid min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem-100svh,9rem)] xl:self-center xl:pb-0"
+				class="pointer-events-none z-30 col-start-1 row-start-1 mb-(--hero-bleed) grid min-w-0 self-end pb-8 sm:pb-80 xl:mb-[calc(clamp(0rem,58rem-100svh,9rem)+var(--hero-bleed))] xl:self-center xl:pb-0"
 				style:--hero-delay="{delay}ms"
 				{@attach () => carousel.autoplay(delay)}
 			>
