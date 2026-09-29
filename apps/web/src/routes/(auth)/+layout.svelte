@@ -1,6 +1,4 @@
 <script lang="ts">
-	import Footer from "$lib/components/Footer.svelte";
-
 	import type { LayoutProps } from "./$types";
 
 	let { children }: LayoutProps = $props();
@@ -13,5 +11,3 @@
 >
 	{@render children()}
 </main>
-
-<Footer />
