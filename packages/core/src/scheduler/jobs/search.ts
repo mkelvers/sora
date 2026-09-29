@@ -5,7 +5,7 @@ import { z } from "zod";
 import { syncSearchIndex } from "../../catalog/queries/search";
 import { db } from "../../database/client";
 import { animeSearch, seriesEntry } from "../../database/schema";
-import { scheduleSeriesStore } from "../queue";
+import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
 	.object({
@@ -13,7 +13,7 @@ const SyncSearchIndexPayloadSchema = z
 	})
 	.nullish();
 
-/** Entries {@link backfillSeries} queues per run; about what half an hour of AniList's rate limit lays out. */
+/** Backfill layouts {@link backfillSeries} keeps queued; more than half an hour of AniList's rate limit lays out. */
 const backfillBatchSize = 200;
 
 /** The graphile-worker task that keeps the search index current. */
@@ -45,8 +45,25 @@ export const backfillSeriesTask = "backfill-series";
  * Entries that already have a store job, waiting or failed for good, are
  * left alone, so an entry that cannot be laid out does not hold up the
  * rest. Runs every half hour until the whole catalogue is stored.
+ *
+ * Only tops the backfill queue up to {@link backfillBatchSize}, counting
+ * related titles and new entries queued there too. Layouts wait on AniList,
+ * so a full batch every run outgrew what AniList lays out and piled up
+ * thousands of layouts that stay queued for days.
  */
 export const backfillSeries: Task = async (_payload, helpers) => {
+	const [{ queued } = { queued: 0 }] = await db.execute<{ queued: number }>(sql`
+    select count(*)::int as queued
+    from graphile_worker.jobs
+    where task_identifier = ${storeSeriesTask}
+      and priority >= ${seriesStorePriority("backfill")}
+      and attempts < max_attempts
+  `);
+	const room = backfillBatchSize - queued;
+	if (room <= 0) {
+		return;
+	}
+
 	const rows = await db
 		.select({
 			anilistId: animeSearch.anilistId,
@@ -63,7 +80,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 			),
 		)
 		.orderBy(desc(animeSearch.popularity))
-		.limit(backfillBatchSize);
+		.limit(room);
 
 	for (const row of rows) {
 		await scheduleSeriesStore(row.anilistId, "backfill");
