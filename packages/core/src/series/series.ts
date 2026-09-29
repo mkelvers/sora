@@ -234,7 +234,10 @@ async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry
 				continue;
 			}
 
-			for (const id of idsRelatedBy(mapped.entry, isMember ? franchiseRelations : sequenceRelations)) {
+			for (const id of idsRelatedBy(
+				mapped.entry,
+				isMember ? franchiseRelations : sequenceRelations,
+			)) {
 				if (!visited.has(id) && visited.size < franchiseEntryLimit) {
 					visited.add(id);
 					next.set(id, hops + 1);
