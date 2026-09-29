@@ -11,51 +11,21 @@
 					outline:
 						"h-11 justify-center border-2 border-accent px-5 text-xs font-bold tracking-wide text-accent uppercase hover:brightness-110 active:scale-[0.97] sm:text-sm",
 					ghost:
-						"min-h-9 justify-center px-2 text-xs font-bold tracking-wide text-muted uppercase hover:bg-white/8 hover:text-foreground aria-pressed:text-foreground",
+						"min-h-9 justify-center px-2 text-xs font-bold tracking-wide text-muted uppercase hover:bg-white/8 hover:text-foreground aria-pressed:bg-white/8 aria-pressed:text-foreground",
 					icon: "size-9 justify-center text-muted hover:text-foreground active:scale-90",
 					item: "min-h-11 w-full justify-start px-5 py-3 text-left text-sm text-muted hover:bg-white/8 hover:text-foreground focus:bg-white/8 focus:text-foreground aria-checked:text-foreground aria-pressed:bg-white/8 aria-pressed:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
 				},
 				tone: {
-					neutral: "",
-					accent: "",
-					danger: "",
+					accent: "text-accent hover:text-accent hover:brightness-125",
+					danger: "hover:text-status-error",
 				},
 				size: {
-					md: "",
-					lg: "",
-					square: "",
+					lg: "size-10",
+					square: "w-11 px-0",
 				},
 				loading: {
 					true: "before:size-3.5 before:animate-spin before:border-2 before:border-current before:border-t-transparent before:content-[''] disabled:opacity-100",
-					false: "",
 				},
-			},
-			compoundVariants: [
-				{
-					variant: "icon",
-					tone: "accent",
-					class: "text-accent hover:text-accent hover:brightness-125",
-				},
-				{
-					variant: "icon",
-					tone: "danger",
-					class: "hover:text-status-error",
-				},
-				{
-					variant: "icon",
-					size: "lg",
-					class: "size-10",
-				},
-				{
-					variant: ["primary", "outline"],
-					size: "square",
-					class: "w-11 px-0",
-				},
-			],
-			defaultVariants: {
-				tone: "neutral",
-				size: "md",
-				loading: false,
 			},
 		},
 	);
