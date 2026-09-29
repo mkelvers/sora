@@ -4,11 +4,13 @@
 
 	let {
 		src,
+		alt,
 		class: className,
 		onready,
 		...rest
-	}: Omit<HTMLImgAttributes, "src" | "onload"> & {
+	}: Omit<HTMLImgAttributes, "src" | "alt" | "onload"> & {
 		src: string;
+		alt: string;
 		onready?: () => void;
 	} = $props();
 
@@ -22,24 +24,19 @@
 	);
 </script>
 
-<div class="relative size-full overflow-hidden bg-surface">
-	{#if preview !== src}
-		<img
-			src={preview}
-			alt=""
-			class={cn(
-				"size-full scale-110 object-cover blur-xl transition-opacity duration-300",
-				className,
-				loaded && "opacity-0",
-			)}
-			loading={rest.loading}
-			decoding="async"
-			aria-hidden="true"
-		/>
-	{/if}
+<picture
+	class={cn(
+		"relative block size-full overflow-hidden bg-surface",
+		preview !== src &&
+			"before:absolute before:inset-0 before:scale-110 before:bg-(image:--preview) before:bg-cover before:bg-center before:blur-xl before:transition-opacity before:duration-300",
+		loaded && "before:opacity-0",
+	)}
+	style:--preview="url({preview})"
+>
 	<img
 		{...rest}
 		{src}
+		{alt}
 		class={cn(
 			"absolute inset-0 size-full object-cover transition-opacity duration-300",
 			className,
@@ -51,4 +48,4 @@
 			onready?.();
 		}}
 	/>
-</div>
+</picture>
