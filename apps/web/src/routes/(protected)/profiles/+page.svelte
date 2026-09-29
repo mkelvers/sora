@@ -22,7 +22,11 @@
 
 <div class="flex w-full max-w-5xl flex-col items-center gap-12">
 	<h1 class="text-center text-3xl font-normal">
-		{profilesPage.managing ? "Manage profiles" : "Who's watching?"}
+		{#if profilesPage.managing}
+			Manage profiles
+		{:else}
+			Who's watching?
+		{/if}
 	</h1>
 
 	<form
@@ -50,6 +54,7 @@
 							<span class="relative grid size-32 place-items-center sm:size-36">
 								<Avatar
 									avatar={profile.avatar}
+									alt="Avatar of {profile.name}"
 									class="size-full opacity-40 transition-opacity group-hover:opacity-60"
 								/>
 								<PencilSimpleIcon
@@ -83,6 +88,7 @@
 						>
 							<Avatar
 								avatar={profile.avatar}
+								alt="Avatar of {profile.name}"
 								class="size-32 outline-2 outline-offset-4 outline-transparent transition-[outline-color] group-hover:outline-foreground group-focus-visible:outline-foreground sm:size-36"
 							/>
 							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground">
