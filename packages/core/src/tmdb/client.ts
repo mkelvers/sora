@@ -31,6 +31,13 @@ export interface TmdbRequestOptions {
 	 * milliseconds.
 	 */
 	maxAgeMs: number;
+	/**
+	 * Whether the response is kept as a snapshot. A request that never
+	 * repeats, such as one carrying a nonce, should not be.
+	 *
+	 * @defaultValue true
+	 */
+	store?: boolean;
 }
 
 let nextRequestAt = 0;
@@ -67,7 +74,10 @@ export async function tmdb<TSchema extends z.ZodType>(
 	}
 
 	const key = createHash("sha256").update(url.toString()).digest("hex");
-	const [snapshot] = await db.select().from(tmdbSnapshot).where(eq(tmdbSnapshot.key, key)).limit(1);
+	const [snapshot] =
+		options.store === false
+			? []
+			: await db.select().from(tmdbSnapshot).where(eq(tmdbSnapshot.key, key)).limit(1);
 
 	const cached = snapshot ? schema.safeParse(snapshot.data) : null;
 	if (snapshot && cached?.success && snapshot.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
@@ -108,11 +118,11 @@ export async function tmdb<TSchema extends z.ZodType>(
 	return parsed.data;
 }
 
-/** Fetches one resource and stores it as a snapshot. A 404 is returned as `null` and not stored. */
+/** Fetches one resource and stores it as a snapshot unless told not to. A 404 is returned as `null` and not stored. */
 async function fetchAndStore(key: string, path: string, url: URL, options: TmdbRequestOptions) {
 	const data = await execute(url);
-	if (data === null) {
-		return null;
+	if (data === null || options.store === false) {
+		return data;
 	}
 
 	const fetchedAt = new Date();

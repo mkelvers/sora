@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { z } from "zod";
 
 import { day, hour } from "../time";
@@ -123,10 +125,6 @@ const AllImagesSchema = z.object({
 	backdrops: z.array(ImageSchema).default([]),
 	posters: z.array(ImageSchema).default([]),
 	logos: z.array(ImageSchema).default([]),
-});
-
-const SeasonImagesSchema = z.object({
-	posters: z.array(ImageSchema).default([]),
 });
 
 /** One image of a show, film, or season, in its original size. */
@@ -364,6 +362,8 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
  * Loads every backdrop, poster, and logo of a show or film, in every
  * language: without `include_image_language`, TMDB filters none out.
  *
+ * With `maxAgeMs: 0`, TMDB's own cache is bypassed too; see {@link loadImages}.
+ *
  * @returns The images, or `null` when TMDB does not know the ID.
  */
 export function getImages(
@@ -374,12 +374,13 @@ export function getImages(
 		maxAgeMs?: number;
 	} = {},
 ): Promise<TmdbImages | null> {
-	return tmdb(`/${mediaType}/${id}/images`, {}, AllImagesSchema, {
-		maxAgeMs: options.maxAgeMs ?? day,
-	});
+	return loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
 }
 
-/** Loads a show season's posters, in every language. Empty when TMDB does not know the season. */
+/**
+ * Loads a show season's posters, in every language. Empty when TMDB does not
+ * know the season. With `maxAgeMs: 0`, TMDB's own cache is bypassed too.
+ */
 export async function getSeasonPosters(
 	showId: number,
 	seasonNumber: number,
@@ -388,10 +389,71 @@ export async function getSeasonPosters(
 		maxAgeMs?: number;
 	} = {},
 ): Promise<TmdbImage[]> {
-	const images = await tmdb(`/tv/${showId}/season/${seasonNumber}/images`, {}, SeasonImagesSchema, {
-		maxAgeMs: options.maxAgeMs ?? day,
-	});
+	const images = await loadImages(
+		`/tv/${showId}/season/${seasonNumber}/images`,
+		options.maxAgeMs ?? day,
+	);
 	return images?.posters ?? [];
+}
+
+/** TMDB honours this many languages of an `include_image_language` list, counting `null`. */
+const languagesPerImageRequest = 5;
+
+/**
+ * Loads an `/images` resource. With `maxAgeMs: 0` it is asked for again past
+ * TMDB's own cache, which serves the same answer for hours and ignores
+ * parameters it does not know, but not a language list it has not seen: each
+ * language the cached answer has is asked for again, a few per request with
+ * `null` and a nonce. An image in a language the title had none in yet is
+ * still missed until that cache expires.
+ */
+async function loadImages(path: string, maxAgeMs: number): Promise<TmdbImages | null> {
+	const cached = await tmdb(path, {}, AllImagesSchema, {
+		maxAgeMs,
+	});
+	if (!cached || maxAgeMs > 0) {
+		return cached;
+	}
+
+	const languages = [
+		...new Set(
+			[...cached.backdrops, ...cached.posters, ...cached.logos].flatMap(
+				(image) => image.iso_639_1 ?? [],
+			),
+		),
+	];
+	const perRequest = languagesPerImageRequest - 1;
+	const batches = Array.from(
+		{
+			length: Math.max(1, Math.ceil(languages.length / perRequest)),
+		},
+		(_, index) => languages.slice(index * perRequest, (index + 1) * perRequest),
+	);
+	const answers = await Promise.all(
+		batches.map((batch) =>
+			tmdb(
+				path,
+				{
+					include_image_language: ["null", ...batch, randomUUID()].join(","),
+				},
+				AllImagesSchema,
+				{
+					maxAgeMs: 0,
+					store: false,
+				},
+			),
+		),
+	);
+
+	// Every batch has the textless images; keep each image once.
+	const unique = (images: TmdbImage[]) => [
+		...new Map(images.map((image) => [image.file_path, image])).values(),
+	];
+	return {
+		backdrops: unique(answers.flatMap((answer) => answer?.backdrops ?? [])),
+		posters: unique(answers.flatMap((answer) => answer?.posters ?? [])),
+		logos: unique(answers.flatMap((answer) => answer?.logos ?? [])),
+	};
 }
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
