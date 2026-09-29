@@ -163,6 +163,24 @@ describe("groupNotifications", () => {
 		]);
 	});
 
+	test("marks one read that the user marked read by itself", () => {
+		const episodes = [...released("s1", 5, 5, monday), ...released("s1", 6, 6, tuesday)];
+		const [newest] = groupNotifications(episodes, new Map([["s1", baseline]]), null);
+
+		const notifications = groupNotifications(
+			episodes,
+			new Map([["s1", baseline]]),
+			null,
+			new Set(),
+			new Set([newest!.id]),
+		);
+
+		expect(notifications.map((item) => [item.lastEpisode, item.unread])).toEqual([
+			[6, false],
+			[5, true],
+		]);
+	});
+
 	test("orders notifications of different series newest first", () => {
 		const notifications = groupNotifications(
 			[

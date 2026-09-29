@@ -36,6 +36,7 @@ export {
 export {
 	dismissNotification,
 	getNotifications,
+	markNotificationRead,
 	markNotificationsSeen,
 	type Notification,
 	type Notifications,

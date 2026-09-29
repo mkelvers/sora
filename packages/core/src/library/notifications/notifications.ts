@@ -5,6 +5,7 @@ import {
 	episodeRelease,
 	libraryEntry,
 	notificationDismissal,
+	notificationRead,
 	notificationSeen,
 	playbackProgress,
 	series,
@@ -50,7 +51,7 @@ export interface Notification {
 	stillUrl: string | null;
 	/** ISO 8601 timestamp of when it came out on Sora. */
 	releasedAt: string;
-	/** Whether it came out after the user last saw their notifications. */
+	/** Whether the user has not marked it read. */
 	unread: boolean;
 }
 
@@ -94,14 +95,16 @@ export type NotificationGroup = Omit<Notification, "series"> & {
  *
  * @param firstReleases - When each season first had an episode recorded,
  *   whether that was news or already out when its series was first watched.
- * @param seenAt - When the user last saw their notifications, or `null` if never.
+ * @param seenAt - Up to when the user marked all their notifications read, or `null` if never.
  * @param dismissed - The IDs of the notifications the user deleted.
+ * @param read - The IDs of the notifications the user marked read one by one.
  */
 export function groupNotifications(
 	episodes: readonly ReleasedEpisode[],
 	firstReleases: ReadonlyMap<string, Date>,
 	seenAt: Date | null,
 	dismissed: ReadonlySet<string> = new Set(),
+	read: ReadonlySet<string> = new Set(),
 ): NotificationGroup[] {
 	const groups = new Map<string, ReleasedEpisode[]>();
 	for (const episode of episodes) {
@@ -132,7 +135,7 @@ export function groupNotifications(
 				episodeTitle: last.title,
 				stillUrl: isNewSeason ? first.stillUrl : last.stillUrl,
 				releasedAt: first.releasedAt.toISOString(),
-				unread: seenAt === null || first.releasedAt > seenAt,
+				unread: !read.has(id) && (seenAt === null || first.releasedAt > seenAt),
 			};
 		})
 		.toSorted(
@@ -147,7 +150,7 @@ export function groupNotifications(
  * per moment, released after the series was added (see `recordReleases`
  * and {@link groupNotifications}). Series taken out of the library drop
  * out, as do notifications the user acted on by watching an episode, and
- * those they deleted.
+ * those they deleted. Each is `unread` until the user marks it read.
  */
 export async function getNotifications(
 	userId: string,
@@ -157,7 +160,7 @@ export async function getNotifications(
 	now = new Date(),
 ): Promise<Notifications> {
 	const since = new Date(now.getTime() - notificationLifetimeMs);
-	const [episodes, [seen], dismissals] = await Promise.all([
+	const [episodes, [seen], dismissals, reads] = await Promise.all([
 		db
 			.select({
 				seriesId: seriesSeason.seriesId,
@@ -212,6 +215,12 @@ export async function getNotifications(
 			})
 			.from(notificationDismissal)
 			.where(eq(notificationDismissal.userId, userId)),
+		db
+			.select({
+				notificationId: notificationRead.notificationId,
+			})
+			.from(notificationRead)
+			.where(eq(notificationRead.userId, userId)),
 	]);
 
 	const seasonIds = [...new Set(episodes.map((episode) => episode.seasonId))];
@@ -238,6 +247,7 @@ export async function getNotifications(
 		new Map(firstReleases.flatMap((row) => (row.at ? [[row.seasonId, row.at]] : []))),
 		seen?.seenAt ?? null,
 		new Set(dismissals.map((row) => row.notificationId)),
+		new Set(reads.map((row) => row.notificationId)),
 	);
 	const groups = all.slice(0, options.limit ?? 30);
 
@@ -265,7 +275,7 @@ export async function getNotifications(
 }
 
 /**
- * Marks a user's notifications seen up to `seenAt`: those released by then
+ * Marks all of a user's notifications read up to `seenAt`: those released by then
  * are no longer unread. Pass the `releasedAt` of the newest notification
  * shown, so one that came out meanwhile stays unread. It never moves back,
  * nor past now.
@@ -285,6 +295,23 @@ export async function markNotificationsSeen(userId: string, seenAt: Date) {
 				seenAt: sql`greatest(${notificationSeen.seenAt}, excluded.seen_at)`,
 			},
 		});
+}
+
+/**
+ * Marks one of a user's notifications read. Marking one that is not listed,
+ * or already read, changes nothing.
+ *
+ * @param notificationId - A `Notification.id`.
+ */
+export async function markNotificationRead(userId: string, notificationId: string) {
+	await db
+		.insert(notificationRead)
+		.values({
+			userId,
+			notificationId,
+			readAt: new Date(),
+		})
+		.onConflictDoNothing();
 }
 
 /**
