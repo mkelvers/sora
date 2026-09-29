@@ -1,5 +1,5 @@
 import type { EmblaCarouselType, EmblaOptionsType, EmblaPluginType } from "embla-carousel";
-import { getContext, setContext, untrack } from "svelte";
+import { createContext, untrack } from "svelte";
 import { prefersReducedMotion } from "svelte/motion";
 
 export class CarouselState {
@@ -105,12 +105,4 @@ export class CarouselState {
 	}
 }
 
-const key = Symbol("carousel");
-
-export function setCarousel(state: CarouselState) {
-	return setContext(key, state);
-}
-
-export function getCarousel() {
-	return getContext<CarouselState>(key);
-}
+export const [getCarousel, setCarousel] = createContext<CarouselState>();
