@@ -84,10 +84,6 @@
 									)}
 							/>
 						</li>
-					{:else}
-						<li class="col-span-full py-16 text-center text-muted">
-							Titles you add to your watchlist show up here.
-						</li>
 					{/each}
 				{:else}
 					{#each { length: 8 }, index (index)}
@@ -128,10 +124,6 @@
 										),
 									)}
 							/>
-						</li>
-					{:else}
-						<li class="col-span-full py-16 text-center text-muted">
-							Episodes you watch show up here.
 						</li>
 					{/each}
 				{:else}
