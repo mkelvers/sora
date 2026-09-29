@@ -13,6 +13,7 @@
  */
 export {
 	listSeriesImages,
+	logoPlacement,
 	refreshSeriesImages,
 	setSeriesArtwork,
 	type ArtworkChanges,

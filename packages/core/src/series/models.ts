@@ -27,6 +27,12 @@ export interface SeriesCard {
 	backdropUrl: string | null;
 	/** TMDB's English or textless logo, drawn over the backdrop. */
 	logoUrl: string | null;
+	/** How large to draw the logo, relative to its usual size: 1 is as usual. */
+	logoScale: number;
+	/** How far right to move the logo from its usual place, in widths of the series page's hero. */
+	logoOffsetX: number;
+	/** How far down to move the logo from its usual place, in widths of the series page's hero. */
+	logoOffsetY: number;
 	/** Year of the first release. */
 	year: number | null;
 	/** Airing while any season airs; see `seriesStatus`. */

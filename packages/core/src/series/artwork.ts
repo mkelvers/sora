@@ -57,7 +57,25 @@ export interface ArtworkChanges {
 	posterUrl?: string | false | null;
 	backdropUrl?: string | false | null;
 	logoUrl?: string | false | null;
+	/** How large to draw the logo, within {@link logoPlacement}`.scale`; 1 is as usual. */
+	logoScale?: number;
+	/** How far right to move the logo, in hero widths, within {@link logoPlacement}`.offset`. */
+	logoOffsetX?: number;
+	/** How far down to move the logo, in hero widths, within {@link logoPlacement}`.offset`. */
+	logoOffsetY?: number;
 }
+
+/** The ranges the logo's size and offsets in {@link ArtworkChanges} may be chosen in. */
+export const logoPlacement = {
+	scale: {
+		min: 0.5,
+		max: 2,
+	},
+	offset: {
+		min: -1,
+		max: 1,
+	},
+} as const;
 
 /** Stores `false`, no artwork, as {@link noArtwork}. */
 function toOverride(change: string | false | null | undefined) {
@@ -76,6 +94,9 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 		posterUrlOverride: toOverride(changes.posterUrl),
 		backdropUrlOverride: toOverride(changes.backdropUrl),
 		logoUrlOverride: toOverride(changes.logoUrl),
+		logoScale: changes.logoScale,
+		logoOffsetX: changes.logoOffsetX,
+		logoOffsetY: changes.logoOffsetY,
 	};
 
 	// Drizzle skips undefined fields, and refuses an update with none left.

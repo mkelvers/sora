@@ -91,6 +91,14 @@ export const series = pgTable("series", {
 	posterUrlOverride: text("poster_url_override"),
 	backdropUrlOverride: text("backdrop_url_override"),
 	logoUrlOverride: text("logo_url_override"),
+	/**
+	 * Where and how large the logo is drawn on the series page, someone's
+	 * choice like the overrides: its size relative to the usual one, and how
+	 * far it is moved from its usual place, in widths of the page's hero.
+	 */
+	logoScale: doublePrecision("logo_scale").notNull().default(1),
+	logoOffsetX: doublePrecision("logo_offset_x").notNull().default(0),
+	logoOffsetY: doublePrecision("logo_offset_y").notNull().default(0),
 	/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
 	startDate: text("start_date"),
 	/** The series as a whole: airing while any of its entries airs. */

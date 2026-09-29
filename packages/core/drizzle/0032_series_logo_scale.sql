@@ -1,0 +1,1 @@
+ALTER TABLE "series" ADD COLUMN "logo_scale" double precision DEFAULT 1 NOT NULL;
