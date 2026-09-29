@@ -21,6 +21,8 @@
 	} = $props();
 
 	const listing = getListed();
+
+	let held = $state(-1);
 </script>
 
 {#if featured.length}
@@ -31,8 +33,7 @@
 			Fade(),
 			Autoplay({
 				delay: 15_000,
-				stopOnMouseEnter: true,
-				stopOnFocusIn: true,
+				stopOnFocusIn: false,
 				stopOnInteraction: false,
 			}),
 		]}
@@ -40,7 +41,6 @@
 		{#snippet children(carousel)}
 			<Content>
 				{#each featured as slide, index (slide.id)}
-					{@const listed = !!listing.current?.includes(slide.id)}
 					{@const near = [0, 1, featured.length - 1].includes(
 						(index - carousel.active + featured.length) % featured.length,
 					)}
@@ -71,76 +71,6 @@
 								/>
 							{/if}
 						</a>
-
-						<div
-							class="pointer-events-none z-30 col-start-1 row-start-1 min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem-100svh,9rem)] xl:self-center xl:pb-0"
-						>
-							<a
-								href="/series/{slide.id}"
-								class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-center justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:h-64 lg:px-16 xl:h-auto xl:w-fit"
-								aria-label={slide.title}
-								tabindex="-1"
-							>
-								{#if slide.logo_url && near}
-									<img
-										src={tmdbImage(slide.logo_url, "w500")}
-										alt=""
-										decoding="async"
-										class="max-h-24 max-w-full object-contain object-center sm:max-h-32 sm:max-w-sm sm:object-left lg:max-h-64 lg:max-w-lg"
-									/>
-								{/if}
-							</a>
-
-							<p
-								class="mt-5 flex max-w-[min(100%,36rem)] flex-wrap items-center justify-center gap-y-1 px-5 text-xs text-white/60 sm:justify-start sm:px-10 lg:mt-9 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-sm"
-							>
-								{#if slide.audio.length}
-									<span class="metadata-tag">{audioLabel(slide.audio)}</span>
-								{/if}
-								{#if slide.genres.length}
-									<span class="metadata-tag">{slide.genres.slice(0, 4).join(", ")}</span>
-								{/if}
-							</p>
-
-							{#if slide.overview}
-								<p
-									class="mt-2 hidden max-w-[min(100%,36rem)] px-5 text-xs leading-5 text-muted sm:block sm:px-10 lg:mt-3 lg:line-clamp-4 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-base lg:leading-6"
-								>
-									{slide.overview}
-								</p>
-							{/if}
-
-							<div
-								class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-16 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
-							>
-								{#if slide.start_season_id}
-									<a
-										href="/series/{slide.id}/watch/{slide.start_season_id}/1"
-										class="inline-flex h-10 items-center gap-2 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
-									>
-										<PlayIcon size="1.2rem" weight="bold" />
-										{slide.kind === "movie" ? "Play" : "Start watching E1"}
-									</a>
-								{/if}
-								<button
-									type="button"
-									class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
-									aria-label={listed ? "Remove from Library" : "Add to Library"}
-									aria-pressed={listed}
-									onclick={() =>
-										setListed({
-											seriesId: slide.id,
-											listed: !listed,
-										}).updates(
-											listing.withOverride((ids) =>
-												listed ? ids.filter((id) => id !== slide.id) : [...ids, slide.id],
-											),
-										)}
-								>
-									<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
-								</button>
-							</div>
-						</div>
 					</Item>
 				{/each}
 			</Content>
@@ -148,39 +78,129 @@
 			<Previous class="hidden sm:grid" />
 			<Next class="hidden sm:grid" />
 
-			{#if featured.length > 1}
-				<div
-					class="pointer-events-none z-30 col-start-1 row-start-1 flex items-end justify-center gap-2 px-5 pb-6 sm:justify-start sm:px-10 lg:px-16 lg:pb-10"
-				>
-					{#each featured as item, index (item.id)}
-						<Button
-							class={cn(
-								"group pointer-events-auto grid h-8 place-items-center transition-[width] duration-300 ease-out motion-reduce:transition-none",
-								index === carousel.active ? "w-12" : "w-6",
-							)}
-							aria-label={item.title}
-							aria-pressed={index === carousel.active}
-							onclick={() => carousel.select(index)}
+			<div
+				class="pointer-events-none z-30 col-start-1 row-start-1 grid min-w-0 self-end pb-8 sm:pb-80 xl:mb-[clamp(0rem,58rem-100svh,9rem)] xl:self-center xl:pb-0"
+			>
+				{#each featured as slide, index (slide.id)}
+					{@const listed = !!listing.current?.includes(slide.id)}
+					{@const near = [0, 1, featured.length - 1].includes(
+						(index - carousel.active + featured.length) % featured.length,
+					)}
+					<div
+						class={cn(
+							"col-start-1 row-start-1 min-w-0 transition-opacity duration-500 motion-reduce:transition-none",
+							index !== carousel.active && "opacity-0",
+						)}
+						aria-hidden={index !== carousel.active}
+						inert={index !== carousel.active}
+					>
+						<a
+							href="/series/{slide.id}"
+							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:h-64 lg:px-16 xl:w-fit"
+							aria-label={slide.title}
+							tabindex="-1"
 						>
-							<span
-								class="relative block h-2 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60"
+							{#if slide.logo_url && near}
+								<img
+									src={tmdbImage(slide.logo_url, "w500")}
+									alt=""
+									decoding="async"
+									class="max-h-24 max-w-full object-contain object-bottom sm:max-h-32 sm:max-w-sm sm:object-left-bottom lg:max-h-64 lg:max-w-lg"
+								/>
+							{/if}
+						</a>
+
+						<p
+							class="mt-5 flex h-4 max-w-[min(100%,36rem)] items-center justify-center px-5 text-xs whitespace-nowrap text-white/60 sm:justify-start sm:px-10 lg:mt-9 lg:h-5 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-sm"
+						>
+							{#if slide.audio.length}
+								<span class="metadata-tag shrink-0">{audioLabel(slide.audio)}</span>
+							{/if}
+							{#if slide.genres.length}
+								<span class="metadata-tag min-w-0 truncate"
+									>{slide.genres.slice(0, 4).join(", ")}</span
+								>
+							{/if}
+						</p>
+
+						<p
+							class="mt-2 hidden h-15 max-w-[min(100%,36rem)] px-5 text-xs leading-5 text-muted sm:line-clamp-3 sm:px-10 lg:mt-3 lg:line-clamp-4 lg:h-24 lg:max-w-[min(100%,50rem)] lg:px-16 lg:text-base lg:leading-6"
+						>
+							{slide.overview}
+						</p>
+
+						<div
+							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 text-xs font-bold text-accent sm:px-10 lg:mt-7 lg:px-16 lg:text-sm max-sm:[&>a]:flex-1 max-sm:[&>a]:justify-center"
+						>
+							{#if slide.start_season_id}
+								<a
+									href="/series/{slide.id}/watch/{slide.start_season_id}/1"
+									class="inline-flex h-10 items-center gap-2 bg-accent px-4 text-on-accent uppercase transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.97]"
+								>
+									<PlayIcon size="1.2rem" weight="bold" />
+									{slide.kind === "movie" ? "Play" : "Start watching E1"}
+								</a>
+							{/if}
+							<button
+								type="button"
+								class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter,transform] duration-150 hover:brightness-110 active:scale-90"
+								aria-label={listed ? "Remove from Library" : "Add to Library"}
+								aria-pressed={listed}
+								onclick={() =>
+									setListed({
+										seriesId: slide.id,
+										listed: !listed,
+									}).updates(
+										listing.withOverride((ids) =>
+											listed ? ids.filter((id) => id !== slide.id) : [...ids, slide.id],
+										),
+									)}
 							>
-								{#if index === carousel.active}
-									{#key carousel.cycle}
-										<span
-											class={cn(
-												"absolute inset-y-0 left-0 bg-accent",
-												prefersReducedMotion.current ? "w-full" : "hero-progress",
-												carousel.paused && "[animation-play-state:paused]",
-											)}
-										></span>
-									{/key}
-								{/if}
-							</span>
-						</Button>
-					{/each}
-				</div>
-			{/if}
+								<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
+							</button>
+						</div>
+					</div>
+				{/each}
+
+				{#if featured.length > 1}
+					<div
+						class="col-start-1 row-start-2 mt-6 flex justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-16"
+					>
+						{#each featured as item, index (item.id)}
+							<Button
+								class={cn(
+									"group pointer-events-auto h-8 transition-[width] duration-300 ease-out motion-reduce:transition-none",
+									index === carousel.active ? "w-12" : "w-6",
+								)}
+								aria-label={item.title}
+								aria-pressed={index === carousel.active}
+								onclick={() => {
+									carousel.select(index);
+									held = carousel.cycle;
+								}}
+							>
+								<span
+									class="relative block h-2 w-full overflow-hidden rounded-full bg-white/40 transition-colors duration-300 group-hover:bg-accent/60"
+								>
+									{#if index === carousel.active}
+										{#key carousel.cycle}
+											<span
+												class={cn(
+													"absolute inset-y-0 left-0 bg-accent",
+													prefersReducedMotion.current || held === carousel.cycle
+														? "w-full"
+														: "hero-progress",
+													carousel.paused && "[animation-play-state:paused]",
+												)}
+											></span>
+										{/key}
+									{/if}
+								</span>
+							</Button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{/snippet}
 	</Carousel>
 {/if}
