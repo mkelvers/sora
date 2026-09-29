@@ -9,6 +9,8 @@ import type {
 	LibraryItem,
 	LibraryMeta,
 	LibraryStatus,
+	Notification,
+	NotificationsMeta,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -97,6 +99,12 @@ export interface ProfileInput {
 export interface ContinueWatchingParams {
 	/** Only these titles, such as a title's page or a page of search results: at most one entry each. */
 	series_id?: string[];
+}
+
+/** Paging for {@link SoraClient.notifications}. */
+export interface NotificationsParams {
+	/** At most this many notifications; 30 when omitted. */
+	limit?: number;
 }
 
 /** Filters for {@link SoraClient.library}. */
@@ -600,6 +608,75 @@ export class SoraClient {
 			),
 		);
 		return unwrap(body, options);
+	}
+
+	/**
+	 * What came out for the titles in a profile's library, newest first: new
+	 * seasons, films, and OVAs, and new episodes of seasons that were out.
+	 * `meta.unread` counts those that came out since they were last seen.
+	 */
+	async notifications<const TOptions extends RequestOptions<NotificationsParams> = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, Notification[], NotificationsMeta>> {
+		const body: Envelope<Notification[], NotificationsMeta> = await read(
+			this.#api.profiles[":profile_id"].notifications.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					query: {
+						limit: options?.params?.limit?.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Marks a profile's notifications read up to `seenAt`: pass the
+	 * `released_at` of the newest one shown, so one that came out meanwhile
+	 * stays unread.
+	 */
+	async markNotificationsSeen(
+		profileId: string,
+		seenAt: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications.seen.$put(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					json: {
+						seen_at: seenAt,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Deletes one of a profile's notifications for good. */
+	async dismissNotification(
+		profileId: string,
+		notificationId: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications[":notification_id"].$delete(
+				{
+					param: {
+						profile_id: profileId,
+						notification_id: notificationId,
+					},
+				},
+				init(options),
+			),
+		);
 	}
 
 	/** Removes an episode from a profile's history; whether it is watched stays as it is. */
