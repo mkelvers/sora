@@ -1,6 +1,6 @@
 import { AllmangaProvider, AnimeParadiseProvider, HttpClient, MappingClient } from "anime-sdk";
 
-import { AniKotoStreamProvider } from "./anikoto";
+import { AniKotoStreamProvider, fetchAniKotoEpisodeList } from "./anikoto";
 import { readRecentAniKotoChanges } from "./anikoto-catalog";
 import { recordingCalls } from "./calls";
 import { MegaPlayStreamProvider } from "./megaplay";
@@ -57,6 +57,11 @@ export const aniKoto = recordingCalls(
 /** The series AniKoto changed most recently; see {@link readRecentAniKotoChanges}. */
 export function readAniKotoChanges() {
 	return readRecentAniKotoChanges(providerHttp);
+}
+
+/** Which languages each episode of an AniKoto series has; see {@link fetchAniKotoEpisodeList}. */
+export function readAniKotoEpisodeList(anikotoId: string) {
+	return fetchAniKotoEpisodeList(providerHttp, anikotoId);
 }
 
 /**

@@ -22,7 +22,7 @@ const EpisodeListResponseSchema = z.object({
 const languageOrder = ["sub", "dub"] as const satisfies readonly ContentLanguage[];
 
 /** One episode of AniKoto's episode list. */
-interface ListedEpisode {
+export interface ListedEpisode {
 	languages: ContentLanguage[];
 	isFiller: boolean;
 }
@@ -79,7 +79,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
 		const [units, listed] = await Promise.all([
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
-			this.fetchEpisodeList(mediaId).catch(() => null),
+			fetchAniKotoEpisodeList(this.http, mediaId).catch(() => null),
 		]);
 
 		return units.map((unit) => {
@@ -119,47 +119,49 @@ export class AniKotoStreamProvider implements StreamProvider {
 		const { pages, stored } = await syncAniKotoCatalog(this.http, options);
 		return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
 	}
+}
 
-	/**
-	 * Reads AniKoto's episode list, as its watch page loads it. Each episode's
-	 * link carries `data-sub` and `data-dub` flags, which the watch page's
-	 * language switch follows, and a `filler` class on filler episodes.
-	 *
-	 * @returns Each listed episode's languages and filler flag, by number.
-	 * @throws when the list cannot be read or lists no episodes.
-	 */
-	private async fetchEpisodeList(mediaId: string): Promise<Map<number, ListedEpisode>> {
-		const response = await this.http.get(
-			`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`,
-			{
-				headers: {
-					"X-Requested-With": "XMLHttpRequest",
-				},
-			},
-		);
-		const { result } = EpisodeListResponseSchema.parse(await response.json());
+/**
+ * Reads AniKoto's episode list, as its watch page loads it. Each episode's
+ * link carries `data-sub` and `data-dub` flags, which the watch page's
+ * language switch follows, and a `filler` class on filler episodes.
+ *
+ * It is served by AniKoto's site rather than its rate-limited API.
+ *
+ * @returns Each listed episode's languages and filler flag, by number.
+ * @throws when the list cannot be read or lists no episodes.
+ */
+export async function fetchAniKotoEpisodeList(
+	http: HttpClient,
+	mediaId: string,
+): Promise<Map<number, ListedEpisode>> {
+	const response = await http.get(`${siteUrl}/ajax/episode/list/${encodeURIComponent(mediaId)}`, {
+		headers: {
+			"X-Requested-With": "XMLHttpRequest",
+		},
+	});
+	const { result } = EpisodeListResponseSchema.parse(await response.json());
 
-		const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/g) ?? [];
-		if (links.length === 0) {
-			throw new Error("AniKoto's episode list has no episodes");
-		}
-
-		const episodes = new Map<number, ListedEpisode>();
-		for (const link of links) {
-			const number = Number(/\bdata-num="([^"]*)"/.exec(link)?.[1]);
-			if (!Number.isFinite(number)) {
-				continue;
-			}
-
-			const classes = /\bclass="([^"]*)"/.exec(link)?.[1]?.split(/\s+/) ?? [];
-			episodes.set(number, {
-				languages: languageOrder.filter((language) =>
-					new RegExp(`\\bdata-${language}="1"`).test(link),
-				),
-				isFiller: classes.includes("filler"),
-			});
-		}
-
-		return episodes;
+	const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/g) ?? [];
+	if (links.length === 0) {
+		throw new Error("AniKoto's episode list has no episodes");
 	}
+
+	const episodes = new Map<number, ListedEpisode>();
+	for (const link of links) {
+		const number = Number(/\bdata-num="([^"]*)"/.exec(link)?.[1]);
+		if (!Number.isFinite(number)) {
+			continue;
+		}
+
+		const classes = /\bclass="([^"]*)"/.exec(link)?.[1]?.split(/\s+/) ?? [];
+		episodes.set(number, {
+			languages: languageOrder.filter((language) =>
+				new RegExp(`\\bdata-${language}="1"`).test(link),
+			),
+			isFiller: classes.includes("filler"),
+		});
+	}
+
+	return episodes;
 }
