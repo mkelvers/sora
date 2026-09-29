@@ -5,7 +5,11 @@
 
 	import { getCarousel } from "./context.svelte";
 
-	let { class: className }: { class?: string } = $props();
+	let {
+		class: className,
+	}: {
+		class?: string;
+	} = $props();
 
 	const carousel = getCarousel();
 </script>

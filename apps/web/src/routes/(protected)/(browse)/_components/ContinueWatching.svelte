@@ -29,7 +29,13 @@
 			Continue Watching
 		</h2>
 
-		<Carousel class="min-w-0" options={{ slidesToScroll: "auto", duration: 20 }}>
+		<Carousel
+			class="min-w-0"
+			options={{
+				slidesToScroll: "auto",
+				duration: 20,
+			}}
+		>
 			{#snippet children()}
 				<Content class="gap-3 pb-4 pl-3 sm:gap-4 sm:pl-8 lg:gap-7.5 lg:pl-18">
 					{#each items as item (item.series.id)}
@@ -52,7 +58,10 @@
 										{#if item.series.backdrop_url}
 											<Image
 												src={tmdbImage(item.series.backdrop_url, "w780")}
-												srcset={tmdbSrcset(item.series.backdrop_url, { w780: 780, w1280: 1280 })}
+												srcset={tmdbSrcset(item.series.backdrop_url, {
+													w780: 780,
+													w1280: 1280,
+												})}
 												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 35.5em) 37vw, (min-width: 30em) 47vw, 74vw"
 												alt=""
 											/>

@@ -4,7 +4,13 @@ import { SoraClient, SoraError, type Profile } from "@sora/sdk";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 
 const remoteProfilesTtl = 5 * 60_000;
-const knownProfiles = new Map<string, { profiles: Profile[]; at: number }>();
+const knownProfiles = new Map<
+	string,
+	{
+		profiles: Profile[];
+		at: number;
+	}
+>();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;

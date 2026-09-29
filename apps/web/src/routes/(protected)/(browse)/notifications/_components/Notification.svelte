@@ -75,7 +75,10 @@
 			{#if image}
 				<Image
 					src={tmdbImage(image, "w780")}
-					srcset={tmdbSrcset(image, { w780: 780, w1280: 1280 })}
+					srcset={tmdbSrcset(image, {
+						w780: 780,
+						w1280: 1280,
+					})}
 					sizes="(min-width: 60rem) 24rem, (min-width: 40rem) 40vw, 100vw"
 					alt=""
 					loading="lazy"
@@ -85,7 +88,7 @@
 
 		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-14 sm:pb-0">
 			<h2 class="text-lg leading-snug font-bold sm:text-xl">
-				{#if unread}<span class="sr-only">New: </span>{/if}
+				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
 			</h2>
 			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{detail}</p>

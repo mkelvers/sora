@@ -30,7 +30,9 @@
 {#if featured.length}
 	<Carousel
 		class="mb-[calc(var(--hero-bleed)*-1)] h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(52vw+var(--hero-bleed))] sm:min-h-[calc(22rem+var(--hero-bleed))] sm:[--hero-bleed:4rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:min-h-0"
-		options={{ loop: true }}
+		options={{
+			loop: true,
+		}}
 		plugins={[Fade()]}
 	>
 		{#snippet children(carousel)}
@@ -120,9 +122,9 @@
 								<span class="metadata-tag shrink-0">{audioLabel(slide.audio)}</span>
 							{/if}
 							{#if slide.genres.length}
-								<span class="metadata-tag min-w-0 truncate"
-									>{slide.genres.slice(0, 4).join(", ")}</span
-								>
+								<span class="metadata-tag min-w-0 truncate">
+									{slide.genres.slice(0, 4).join(", ")}
+								</span>
 							{/if}
 						</p>
 

@@ -6,6 +6,7 @@
 	"semi": true,
 	"trailingComma": "all",
 	"objectWrap": "preserve",
+	"htmlWhitespaceSensitivity": "ignore",
 	"sortImports": {},
 	"sortTailwindcss": {
 		"stylesheet": "./apps/web/src/routes/layout.css",

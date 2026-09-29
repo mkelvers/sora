@@ -40,7 +40,9 @@
 	use:enhance={() => {
 		pending = true;
 		return async ({ update }) => {
-			await update({ reset: false });
+			await update({
+				reset: false,
+			});
 			pending = false;
 		};
 	}}

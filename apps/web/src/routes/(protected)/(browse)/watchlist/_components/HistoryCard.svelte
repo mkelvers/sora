@@ -28,7 +28,10 @@
 			{#if image}
 				<Image
 					src={tmdbImage(image, "w780")}
-					srcset={tmdbSrcset(image, { w780: 780, w1280: 1280 })}
+					srcset={tmdbSrcset(image, {
+						w780: 780,
+						w1280: 1280,
+					})}
 					sizes="(min-width: 80rem) 19rem, (min-width: 64rem) 24vw, (min-width: 30em) 48vw, 100vw"
 					alt=""
 				/>
@@ -54,7 +57,10 @@
 				{item.series.title}
 			</p>
 			<h3 class="mt-1.5 text-sm leading-snug font-bold">
-				E{item.episode}{item.episode_title ? ` - ${item.episode_title}` : ""}
+				E{item.episode}
+				{#if item.episode_title}
+					- {item.episode_title}
+				{/if}
 			</h3>
 		</div>
 	</a>

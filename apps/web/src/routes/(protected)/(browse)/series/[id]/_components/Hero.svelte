@@ -6,7 +6,7 @@
 	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { LibraryEntry, Series, TitleProgress } from "@sora/sdk";
-	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
 	import { markAllWatched } from "../series.remote";
 
@@ -37,10 +37,12 @@
 	const play = $derived.by(() => {
 		const { next, new_season } = progress;
 		if (next) {
+			const verb = next.position_seconds > 0 ? "Continue with" : "Start with";
 			const where = series.seasons.find((other) => other.id === next.season_id);
+			const season = series.seasons.length > 1 && where ? `${where.title} ` : "";
 			return {
 				href: `/series/${series.id}/watch/${next.season_id}/${next.episode}`,
-				label: `${next.position_seconds > 0 ? "Continue with" : "Start with"} ${series.seasons.length > 1 && where ? `${where.title} ` : ""}E${next.episode}`,
+				label: `${verb} ${season}E${next.episode}`,
 			};
 		}
 
@@ -52,16 +54,29 @@
 		}
 
 		const first = series.seasons.find((other) => other.in_watch_order) ?? series.seasons[0];
-		return (
-			first && {
-				href: `/series/${series.id}/watch/${first.id}/1`,
-				label: progress.caught_up
-					? "Watch again"
-					: series.kind === "movie"
-						? "Play"
-						: "Start watching E1",
-			}
-		);
+		if (!first) {
+			return null;
+		}
+
+		const href = `/series/${series.id}/watch/${first.id}/1`;
+		if (progress.caught_up) {
+			return {
+				href,
+				label: "Watch again",
+			};
+		}
+
+		if (series.kind === "movie") {
+			return {
+				href,
+				label: "Play",
+			};
+		}
+
+		return {
+			href,
+			label: "Start watching E1",
+		};
 	});
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
@@ -100,14 +115,6 @@
 	});
 </script>
 
-{#snippet star(tone: string)}
-	<svg class={cn("size-6 max-w-none", tone)} viewBox="0 0 24 24" stroke-linejoin="miter">
-		<path
-			d="M12 2.5l2.94 6.08 6.56.95-4.75 4.63 1.12 6.54L12 17.6l-5.87 3.1 1.12-6.54L2.5 9.53l6.56-.95z"
-		></path>
-	</svg>
-{/snippet}
-
 <section>
 	<figure
 		class="series-hero @container relative z-30 grid w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:aspect-video sm:max-h-[85svh] sm:min-h-150 short:min-h-[calc(100svh-3.5rem)]"
@@ -118,7 +125,11 @@
 			<div class="absolute inset-x-0 top-0 z-0 aspect-4/3 sm:bottom-0 sm:aspect-auto">
 				<Image
 					src={tmdbImage(series.backdrop_url, "original")}
-					srcset={tmdbSrcset(series.backdrop_url, { w780: 780, w1280: 1280, original: 3840 })}
+					srcset={tmdbSrcset(series.backdrop_url, {
+						w780: 780,
+						w1280: 1280,
+						original: 3840,
+					})}
 					sizes="(min-width: 66.75rem) 100vw, (min-width: 40rem) 67rem, 134vw"
 					alt=""
 					class="object-[50%_35%]"
@@ -156,8 +167,9 @@
 							role="menuitem"
 							href="/series/{series.id}/media"
 							class="flex w-full items-center justify-start gap-3 px-5 py-3 text-left text-sm font-normal whitespace-nowrap text-muted focus:bg-panel-hover focus:text-foreground focus:outline-none"
-							>View Media Options</a
 						>
+							View Media Options
+						</a>
 					</div>
 				{/snippet}
 			</Dropdown>
@@ -205,9 +217,11 @@
 				{/if}
 				{#if series.genres.length}
 					<span class="metadata-tag">
-						{#each series.genres as genre, index (genre)}{#if index > 0},{" "}{/if}<span
-								class="underline underline-offset-2">{genre}</span
-							>{/each}
+						{#each series.genres as genre (genre)}
+							<span class="not-last:after:content-[',']">
+								<span class="underline underline-offset-2">{genre}</span>
+							</span>
+						{/each}
 					</span>
 				{/if}
 			</p>
@@ -219,12 +233,12 @@
 					<span class="flex items-center gap-0.5" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
 							<span class="relative size-6 shrink-0">
-								{@render star("fill-none stroke-[#bbb] stroke-[1.5]")}
+								<StarIcon size="1.5rem" class="text-[#bbb]" />
 								<span
 									class="absolute inset-y-0 left-0 overflow-hidden"
 									style:width="{Math.min(Math.max(rating - index, 0), 1) * 100}%"
 								>
-									{@render star("fill-[#bbb] stroke-[#bbb] stroke-[1.5]")}
+									<StarIcon size="1.5rem" weight="fill" class="max-w-none text-[#bbb]" />
 								</span>
 							</span>
 						{/each}
@@ -233,11 +247,12 @@
 					<span class="font-medium text-[#bbb]">
 						<span class="max-sm:sr-only">Average rating:</span>
 						<strong class="text-foreground">
-							{rating.toFixed(1)}{series.score_count
-								? ` (${new Intl.NumberFormat("en-US", {
-										notation: "compact",
-									}).format(series.score_count)})`
-								: ""}
+							{rating.toFixed(1)}
+							{#if series.score_count}
+								({series.score_count.toLocaleString("en-US", {
+									notation: "compact",
+								})})
+							{/if}
 						</strong>
 					</span>
 				</div>
@@ -254,9 +269,7 @@
 						<PlayIcon size="1.55em" weight="bold" class="shrink-0" />
 						<span class="truncate">{play.label}</span>
 					</a>
-				{/if}
 
-				{#if play}
 					<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
 						{#snippet children(trigger)}
 							<button

@@ -65,7 +65,10 @@
 				{#if image}
 					<Image
 						src={tmdbImage(image, "w780")}
-						srcset={tmdbSrcset(image, { w500: 500, w780: 780 })}
+						srcset={tmdbSrcset(image, {
+							w500: 500,
+							w780: 780,
+						})}
 						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
 						alt=""
 						class={cn("brightness-75", watched && "opacity-60")}

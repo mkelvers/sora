@@ -13,7 +13,8 @@
 <div class="flex flex-col items-center border-2 border-dotted border-muted px-5 py-14 text-center">
 	<img src={image} alt="" {width} {height} class="w-80" />
 	<p class="mt-8 text-muted">
-		{title}<br />
+		{title}
+		<br />
 		{hint}
 	</p>
 	<a

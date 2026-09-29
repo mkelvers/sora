@@ -58,9 +58,9 @@
 									aria-hidden="true"
 								/>
 							</span>
-							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground"
-								>{profile.name}</span
-							>
+							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground">
+								{profile.name}
+							</span>
 						</a>
 						{#if data.profiles.length > 1}
 							<Button
@@ -85,9 +85,9 @@
 								avatar={profile.avatar}
 								class="size-32 outline-2 outline-offset-4 outline-transparent transition-[outline-color] group-hover:outline-foreground group-focus-visible:outline-foreground sm:size-36"
 							/>
-							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground"
-								>{profile.name}</span
-							>
+							<span class="max-w-full truncate text-sm text-muted group-hover:text-foreground">
+								{profile.name}
+							</span>
 						</button>
 					{/if}
 				</li>

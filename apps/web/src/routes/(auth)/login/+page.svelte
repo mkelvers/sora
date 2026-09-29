@@ -35,7 +35,9 @@
 		pending = true;
 		dismissed = false;
 		return async ({ update }) => {
-			await update({ reset: false });
+			await update({
+				reset: false,
+			});
 			password = "";
 			pending = false;
 		};

@@ -76,7 +76,11 @@
 					{#if card.poster_url}
 						<Image
 							src={tmdbImage(card.poster_url, "w500")}
-							srcset={tmdbSrcset(card.poster_url, { w342: 342, w500: 500, w780: 780 })}
+							srcset={tmdbSrcset(card.poster_url, {
+								w342: 342,
+								w500: 500,
+								w780: 780,
+							})}
 							sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 64rem) 20vw, (min-width: 48rem) 25vw, (min-width: 30em) 33vw, 50vw"
 							alt=""
 						/>
@@ -100,7 +104,11 @@
 			>
 				<Image
 					src={tmdbImage(card.poster_url, "w500")}
-					srcset={tmdbSrcset(card.poster_url, { w342: 342, w500: 500, w780: 780 })}
+					srcset={tmdbSrcset(card.poster_url, {
+						w342: 342,
+						w500: 500,
+						w780: 780,
+					})}
 					sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 64rem) 20vw, (min-width: 48rem) 25vw, (min-width: 30em) 33vw, 50vw"
 					alt=""
 				/>

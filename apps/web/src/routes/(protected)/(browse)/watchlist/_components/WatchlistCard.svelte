@@ -28,7 +28,10 @@
 			{#if series.backdrop_url}
 				<Image
 					src={tmdbImage(series.backdrop_url, "w780")}
-					srcset={tmdbSrcset(series.backdrop_url, { w780: 780, w1280: 1280 })}
+					srcset={tmdbSrcset(series.backdrop_url, {
+						w780: 780,
+						w1280: 1280,
+					})}
 					sizes="(min-width: 80rem) 19rem, (min-width: 64rem) 24vw, (min-width: 30em) 48vw, 100vw"
 					alt=""
 				/>
@@ -39,8 +42,11 @@
 			<h3 class="text-sm leading-snug font-bold">{series.title}</h3>
 			{#if progress.next}
 				<p class="mt-1.5 text-sm text-muted">
-					{progress.next.position_seconds > 0 ? "Continue watching" : "Start watching"}: E{progress
-						.next.episode}
+					{#if progress.next.position_seconds > 0}
+						Continue watching: E{progress.next.episode}
+					{:else}
+						Start watching: E{progress.next.episode}
+					{/if}
 				</p>
 			{/if}
 		</div>

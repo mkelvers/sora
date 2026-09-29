@@ -60,7 +60,14 @@ export class Media {
 		}
 	};
 
-	place = async (seriesId: string, placement: { scale: number; x: number; y: number }) => {
+	place = async (
+		seriesId: string,
+		placement: {
+			scale: number;
+			x: number;
+			y: number;
+		},
+	) => {
 		try {
 			await setLogoPlacement({
 				seriesId,
