@@ -1,6 +1,7 @@
 <script lang="ts">
 	import emptyHistory from "$lib/assets/illustrations/empty-history.webp";
 	import emptyWatchlist from "$lib/assets/illustrations/empty-watchlist.webp";
+	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { audioLabel, cn } from "$lib/utils";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
@@ -25,24 +26,6 @@
 	const watchlist = getWatchlist();
 	const history = getHistory();
 </script>
-
-{#snippet empty(image: string, height: number, title: string, hint: string)}
-	<div
-		class="flex flex-col items-center border-2 border-dotted border-muted px-5 py-14 text-center"
-	>
-		<img src={image} alt="" width="720" {height} class="w-80" />
-		<p class="mt-8 text-muted">
-			{title}<br />
-			{hint}
-		</p>
-		<a
-			href="/"
-			class="mt-6 inline-flex min-h-11 items-center bg-accent px-5 text-xs font-bold text-on-accent uppercase hover:brightness-110"
-		>
-			Go to home feed
-		</a>
-	</div>
-{/snippet}
 
 <svelte:head>
 	<title>{tab === "history" ? "History" : "Watchlist"}</title>
@@ -81,12 +64,13 @@
 
 	<div class="mx-auto max-w-7xl">
 		{#if tab === "watchlist" && watchlist.current?.length === 0}
-			{@render empty(
-				emptyWatchlist,
-				700,
-				"Your watchlist is looking a little empty.",
-				"Let's fill it up with something to watch.",
-			)}
+			<EmptyState
+				image={emptyWatchlist}
+				width={720}
+				height={700}
+				title="Your watchlist is looking a little empty."
+				hint="Let's fill it up with something to watch."
+			/>
 		{:else if tab === "watchlist"}
 			<ul class={grid}>
 				{#if watchlist.current}
@@ -117,12 +101,13 @@
 				{/if}
 			</ul>
 		{:else if history.current?.length === 0}
-			{@render empty(
-				emptyHistory,
-				716,
-				"Nothing watched yet.",
-				"Start an episode and it'll show up here.",
-			)}
+			<EmptyState
+				image={emptyHistory}
+				width={690}
+				height={720}
+				title="Nothing watched yet."
+				hint="Start an episode and it'll show up here."
+			/>
 		{:else}
 			<ul class={grid}>
 				{#if history.current}
