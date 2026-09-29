@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { cn } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
@@ -115,10 +116,6 @@
 
 	const failure = $derived(problem ?? player.failure);
 	const loading = $derived(!failure && (!versions || player.buffering));
-	const icon =
-		"inline-grid size-10 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white focus-visible:ring-0";
-	const pill =
-		"bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] hover:bg-white";
 
 	const segment = $derived(
 		media?.skip_segments.find((segment) => {
@@ -174,7 +171,7 @@
 		<div class="grid justify-items-center gap-4 place-self-center px-4 text-center" role="alert">
 			<p class="text-[#e6e6e6]">{failure}</p>
 			<Button
-				class={pill}
+				class="bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] hover:bg-white"
 				onclick={() => {
 					player.failure = undefined;
 					onretry();
@@ -190,10 +187,10 @@
 	>
 		{#if segment}
 			<Button
-				class={[
-					pill,
+				class={cn(
+					"bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] hover:bg-white",
 					"pointer-events-auto self-end shadow-[0_2px_12px_rgb(0_0_0/0.6)] transition-colors duration-120",
-				]}
+				)}
 				onclick={() => (player.time = segment.end)}
 			>
 				{segment.kind === "opening" ? "Skip intro" : "Skip credits"}
@@ -212,7 +209,11 @@
 	<header
 		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 [text-shadow:0_1px_4px_rgb(0_0_0/0.8)] in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<a class={icon} href={back} aria-label="Back to {series}">
+		<a
+			class="inline-grid size-10 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+			href={back}
+			aria-label="Back to {series}"
+		>
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</a>
 		<div class="min-w-0">

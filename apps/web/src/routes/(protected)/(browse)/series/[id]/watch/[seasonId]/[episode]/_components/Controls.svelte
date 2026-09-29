@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import { formatClock } from "$lib/utils";
+	import { cn, formatClock } from "$lib/utils";
 	import {
 		CornersInIcon,
 		CornersOutIcon,
@@ -25,15 +25,10 @@
 	};
 
 	let { player, previous, next, children }: Props = $props();
-
-	const icon =
-		"inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white focus-visible:ring-0 sm:size-10";
-	const range =
-		"my-2 h-1 cursor-pointer appearance-none [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white";
 </script>
 
 <input
-	class={range}
+	class="my-2 h-1 cursor-pointer appearance-none bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
 	type="range"
 	min="0"
 	max={player.duration || 0}
@@ -47,17 +42,25 @@
 
 <div class="flex flex-wrap items-center gap-1">
 	{#if previous}
-		<a class={icon} href={previous} aria-label="Previous episode">
+		<a
+			class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+			href={previous}
+			aria-label="Previous episode"
+		>
 			<SkipBackIcon size="1.5rem" weight="fill" />
 		</a>
 	{/if}
 
-	<Button class={icon} aria-label="Rewind 10 seconds" onclick={() => (player.time -= 10)}>
+	<Button
+		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		aria-label="Rewind 10 seconds"
+		onclick={() => (player.time -= 10)}
+	>
 		<RewindIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	<Button
-		class={icon}
+		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
 		aria-label={player.paused ? "Play" : "Pause"}
 		onclick={() => (player.paused = !player.paused)}
 	>
@@ -68,12 +71,20 @@
 		{/if}
 	</Button>
 
-	<Button class={icon} aria-label="Forward 10 seconds" onclick={() => (player.time += 10)}>
+	<Button
+		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+		aria-label="Forward 10 seconds"
+		onclick={() => (player.time += 10)}
+	>
 		<FastForwardIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	{#if next}
-		<a class={icon} href={next} aria-label="Next episode">
+		<a
+			class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
+			href={next}
+			aria-label="Next episode"
+		>
 			<SkipForwardIcon size="1.5rem" weight="fill" />
 		</a>
 	{/if}
@@ -85,7 +96,10 @@
 	</span>
 
 	<Button
-		class={[icon, "max-sm:ml-auto"]}
+		class={cn(
+			"inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10",
+			"max-sm:ml-auto",
+		)}
 		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
 	>
@@ -97,7 +111,10 @@
 	</Button>
 
 	<input
-		class={[range, "mr-3 w-22 max-sm:hidden pointer-coarse:hidden"]}
+		class={cn(
+			"my-2 h-1 cursor-pointer appearance-none bg-[linear-gradient(to_right,#fff_var(--played-end),rgb(255_255_255/0.4)_var(--played-end)_var(--loaded-end),rgb(255_255_255/0.2)_var(--loaded-end))] [--loaded-end:calc(var(--loaded,var(--played))*100%)] [--played-end:calc(var(--played)*100%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white",
+			"mr-3 w-22 max-sm:hidden pointer-coarse:hidden",
+		)}
 		type="range"
 		min="0"
 		max="1"
@@ -110,7 +127,7 @@
 	{@render children?.()}
 
 	<Button
-		class={icon}
+		class="inline-grid size-9 place-items-center rounded-full text-[#ddd] transition-colors duration-120 hover:bg-white/10 hover:text-white focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:size-10"
 		aria-label={player.fullscreen ? "Exit fullscreen" : "Fullscreen"}
 		onclick={player.toggleFullscreen}
 	>
