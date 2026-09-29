@@ -71,8 +71,12 @@
 				{/each}
 			</Content>
 
-			<Previous class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
-			<Next class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
+			<Previous
+				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden hover:text-white/70 sm:grid"
+			/>
+			<Next
+				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden hover:text-white/70 sm:grid"
+			/>
 
 			<div
 				class="pointer-events-none z-30 col-start-1 row-start-1 mb-(--hero-bleed) grid min-w-0 self-end pb-8 sm:self-center sm:pb-0 xl:mb-[calc(clamp(0rem,58rem-100svh,9rem)+var(--hero-bleed))]"
