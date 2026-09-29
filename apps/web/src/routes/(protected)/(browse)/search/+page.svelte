@@ -15,7 +15,7 @@
 	<title>{q ? `${q} · Search` : "Search"} · Sora</title>
 </svelte:head>
 
-<main
+<div
 	class="min-h-[calc(100dvh-6.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
 >
 	{#if q}
@@ -58,4 +58,4 @@
 			</div>
 		</div>
 	{/if}
-</main>
+</div>

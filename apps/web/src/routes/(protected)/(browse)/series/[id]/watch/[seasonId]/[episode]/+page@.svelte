@@ -47,32 +47,34 @@
 	<title>{title} · {series.title} · Sora</title>
 </svelte:head>
 
-<Player
-	id={key}
-	media={playback.current?.media}
-	problem={playback.current?.problem}
-	onretry={() => playback.refresh()}
-	back="/series/{series.id}"
-	previous={previous && `/series/${series.id}/watch/${previous.season_id}/${previous.episode}`}
-	next={next && `/series/${series.id}/watch/${next.season_id}/${next.episode}`}
-	title="{episode.number}. {title}"
-	series={series.title}
-	season={series.seasons.length > 1 ? season.title : undefined}
-	{start}
-	onprogress={(position, duration) =>
-		saveProgress({
-			seriesId: series.id,
-			seasonId: season.id,
-			episode: episode.number,
-			position,
-			duration,
-		}).catch(() => {})}
-	onnearend={() => (nearing = key)}
-	onended={() =>
-		goto(
-			following
-				? `/series/${series.id}/watch/${following.season_id}/${following.episode}`
-				: `/series/${series.id}`,
-			{ replaceState: true, noScroll: true, keepFocus: !!following },
-		)}
-/>
+<main id="main-content" tabindex="-1">
+	<Player
+		id={key}
+		media={playback.current?.media}
+		problem={playback.current?.problem}
+		onretry={() => playback.refresh()}
+		back="/series/{series.id}"
+		previous={previous && `/series/${series.id}/watch/${previous.season_id}/${previous.episode}`}
+		next={next && `/series/${series.id}/watch/${next.season_id}/${next.episode}`}
+		title="{episode.number}. {title}"
+		series={series.title}
+		season={series.seasons.length > 1 ? season.title : undefined}
+		{start}
+		onprogress={(position, duration) =>
+			saveProgress({
+				seriesId: series.id,
+				seasonId: season.id,
+				episode: episode.number,
+				position,
+				duration,
+			}).catch(() => {})}
+		onnearend={() => (nearing = key)}
+		onended={() =>
+			goto(
+				following
+					? `/series/${series.id}/watch/${following.season_id}/${following.episode}`
+					: `/series/${series.id}`,
+				{ replaceState: true, noScroll: true, keepFocus: !!following },
+			)}
+	/>
+</main>

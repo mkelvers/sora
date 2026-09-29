@@ -44,7 +44,7 @@
 	<title>Media · {series.title} · Sora</title>
 </svelte:head>
 
-<main
+<div
 	class={cn(
 		"bg-canvas px-5 pt-8 text-foreground sm:px-10 sm:pt-10 lg:px-16",
 		arranging
@@ -192,4 +192,4 @@
 			{/if}
 		{/snippet}
 	</Tabs>
-</main>
+</div>

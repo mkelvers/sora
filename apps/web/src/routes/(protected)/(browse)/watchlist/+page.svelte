@@ -19,7 +19,7 @@
 	<title>{tab === "history" ? "History" : "Watchlist"} · Sora</title>
 </svelte:head>
 
-<main
+<div
 	class="min-h-[calc(100dvh-6.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-10 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
 >
 	<h1 class="flex items-center justify-center gap-3 text-4xl font-semibold">
@@ -90,4 +90,4 @@
 			</div>
 		{/snippet}
 	</Tabs>
-</main>
+</div>

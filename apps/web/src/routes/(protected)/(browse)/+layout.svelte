@@ -8,6 +8,6 @@
 	<Header profile={data.viewer.profile} profiles={data.viewer.profiles} />
 {/if}
 
-<div id="main-content" class="pt-26 sm:pt-14" tabindex="-1">
+<main id="main-content" class="pt-26 sm:pt-14" tabindex="-1">
 	{@render children()}
-</div>
+</main>

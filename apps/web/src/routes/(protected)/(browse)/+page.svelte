@@ -34,7 +34,7 @@
 	<title>Sora</title>
 </svelte:head>
 
-<main class="min-h-dvh bg-canvas text-foreground">
+<div class="min-h-dvh bg-canvas text-foreground">
 	<h1 class="sr-only">Home</h1>
 	<div
 		class="grid grid-cols-1 grid-rows-[auto] xl:not-has-[>_.continue-watching-section]:-mb-36 xl:not-has-[>_.continue-watching-section]:[--hero-overlap:9rem] wide:has-[>_.continue-watching-section]:grid-rows-[auto_15rem] wide:has-[>_.continue-watching-section]:pb-8 wide:has-[>_.continue-watching-section]:[--hero-overlap:5rem] hero:has-[>_.continue-watching-section]:grid-rows-[auto_16rem] hero:has-[>_.continue-watching-section]:pb-12 [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
@@ -45,13 +45,14 @@
 
 	{#each rows as row (row.id)}
 		{#if row.cards.length}
-			<section class="relative z-20 pb-10 sm:pb-12 lg:pb-16" aria-labelledby={row.id}>
+			<div class="relative z-20 pb-10 sm:pb-12 lg:pb-16">
 				<h2 id={row.id} class="mb-5 px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
 					{row.title}
 				</h2>
 
 				<Carousel
 					class="min-w-0"
+					aria-labelledby={row.id}
 					options={{
 						slidesToScroll: "auto",
 						duration: 20,
@@ -71,7 +72,7 @@
 						<Next class="max-sm:hidden" />
 					{/snippet}
 				</Carousel>
-			</section>
+			</div>
 		{/if}
 	{/each}
-</main>
+</div>

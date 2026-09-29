@@ -10,7 +10,11 @@
 	<title>{missing ? "Page Not Found" : "Something Went Wrong"} · Sora</title>
 </svelte:head>
 
-<main class="grid min-h-dvh place-items-center bg-canvas px-5 py-10 text-foreground">
+<main
+	id="main-content"
+	tabindex="-1"
+	class="grid min-h-dvh place-items-center bg-canvas px-5 py-10 text-foreground"
+>
 	<div class="w-full max-w-5xl">
 		<h1 class="mb-8 text-center text-2xl font-bold">
 			{#if missing}

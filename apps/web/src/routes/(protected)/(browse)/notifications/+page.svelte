@@ -20,7 +20,7 @@
 	<title>Notifications · Sora</title>
 </svelte:head>
 
-<main class="mx-auto w-full max-w-7xl px-5 py-10 sm:px-10">
+<div class="mx-auto w-full max-w-7xl px-5 py-10 sm:px-10">
 	<h1 class="mb-8 text-center text-2xl font-bold">Notification Center</h1>
 
 	{#if !items.length}
@@ -108,4 +108,4 @@
 			{/if}
 		{/if}
 	{/if}
-</main>
+</div>
