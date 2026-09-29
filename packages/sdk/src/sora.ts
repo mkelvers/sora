@@ -150,13 +150,13 @@ export interface ImagesParams {
 
 /**
  * Artwork to choose for a title with {@link SoraClient.updateArtwork}. An
- * HTTPS URL replaces the image, `null` goes back to the one Sora chose, and
- * an omitted field stays as it is.
+ * HTTPS URL replaces the image, `false` shows none, `null` goes back to the
+ * one Sora chose, and an omitted field stays as it is.
  */
 export interface ArtworkChanges {
-	poster_url?: string | null;
-	backdrop_url?: string | null;
-	logo_url?: string | null;
+	poster_url?: string | false | null;
+	backdrop_url?: string | false | null;
+	logo_url?: string | false | null;
 }
 
 /** A season, under the title it belongs to. */

@@ -255,10 +255,14 @@ export const refreshImages = createRoute({
 
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
 const ArtworkUrl = z
-	.url({
-		protocol: /^https$/,
-	})
-	.max(2_048)
+	.union([
+		z
+			.url({
+				protocol: /^https$/,
+			})
+			.max(2_048),
+		z.literal(false),
+	])
 	.nullable()
 	.optional();
 
@@ -269,7 +273,7 @@ export const updateArtwork = createRoute({
 	tags: ["Series"],
 	summary: "Change a series' artwork",
 	description:
-		"Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
+		"Chooses the title's poster, backdrop, or logo for everyone. An HTTPS URL replaces the image, `false` shows none, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
