@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import { EyeIcon, EyeSlashIcon } from "phosphor-svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
 
 	let {
@@ -58,16 +59,16 @@
 		</label>
 		{#if type === "password" && value}
 			<Button
-				variant="ghost"
-				class="absolute inset-y-0 right-0 min-w-12 pt-8 focus-visible:-outline-offset-2"
-				aria-label={visible ? "Hide" : "Show"}
+				variant="icon"
+				class="absolute right-0 bottom-1"
+				aria-label="Show password"
 				aria-pressed={visible}
 				onclick={() => (visible = !visible)}
 			>
 				{#if visible}
-					Hide
+					<EyeSlashIcon size="1.25rem" />
 				{:else}
-					Show
+					<EyeIcon size="1.25rem" />
 				{/if}
 			</Button>
 		{/if}
