@@ -46,16 +46,16 @@
 	{#each rows as row (row.id)}
 		{#if row.cards.length}
 			<section class="relative z-20 pb-10 sm:pb-12 lg:pb-16" aria-labelledby={row.id}>
-				<h2 id={row.id} class="mb-5 px-4 text-xl font-bold sm:px-10 sm:text-2xl lg:px-16">
+				<h2 id={row.id} class="mb-5 px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-16">
 					{row.title}
 				</h2>
 
 				<Carousel class="min-w-0" options={{ slidesToScroll: "auto" }}>
 					{#snippet children()}
-						<Content class="gap-3 pt-2 pb-4 pl-4 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16 hero:gap-6">
+						<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16 hero:gap-6">
 							{#each row.cards as card (card.id)}
 								<Item
-									class="basis-[calc((100vw-2.75rem)/2)] last:mr-4 min-[30em]:basis-[calc((100vw-4rem)/3)] min-[35.5em]:basis-[calc((100vw-4.75rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-17.375rem)/5)] lg:last:mr-16 2xl:basis-[calc((100vw-19.25rem)/6)] hero:basis-[calc((100vw-16.875rem)/7)]"
+									class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 min-[30em]:basis-[calc((100vw-4.5rem)/3)] min-[35.5em]:basis-[calc((100vw-5.25rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-17.375rem)/5)] lg:last:mr-16 2xl:basis-[calc((100vw-19.25rem)/6)] hero:basis-[calc((100vw-16.875rem)/7)]"
 								>
 									<Poster {card} resume={resumes.get(card.id)} />
 								</Item>
