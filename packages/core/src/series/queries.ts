@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
+import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
@@ -24,11 +25,13 @@ import {
 import { InvalidInputError, SeasonNotFoundError, SeriesNotFoundError } from "../errors";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { scheduleSeriesStore } from "../scheduler/queue";
+import { day } from "../time";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episodes";
 import type {
 	ContentLanguage,
 	PreparingTitle,
+	Release,
 	Season,
 	SeasonEpisode,
 	Series,
@@ -327,7 +330,9 @@ export async function browseSeries(query: BrowseQuery): Promise<
 		});
 	}
 
-	const { search, page, perPage, ...filters } = parsed.data;
+	const { search, page, perPage, audio, ...filters } = parsed.data;
+	const heard = (cards: SeriesCard[]) =>
+		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
 	if (search !== undefined && (await hasSearchIndex())) {
 		const found = await searchAnime(search, filters);
 		const ranked = found.map((entry) => entry.anilistId);
@@ -341,22 +346,25 @@ export async function browseSeries(query: BrowseQuery): Promise<
 		const ordered = seriesInOrder(ranked, seriesIds);
 		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
 		return {
-			items: await cardsOf(ordered.slice(pageStart, page * perPage)),
+			items: heard(await cardsOf(ordered.slice(pageStart, page * perPage))),
 			page,
 			perPage,
 			hasNextPage: ordered.length > page * perPage,
 			isPreparing: missing.length > 0,
-			preparing: preparingOn(missing, pageStart, perPage, (anilistId) => {
-				const entry = indexed.get(anilistId);
-				return (
-					entry && {
-						title: entry.english ?? entry.romaji ?? entry.native,
-						format: toAnimeFormat(entry.format),
-						year:
-							entry.seasonYear ?? (entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
-					}
-				);
-			}),
+			preparing: audio
+				? []
+				: preparingOn(missing, pageStart, perPage, (anilistId) => {
+						const entry = indexed.get(anilistId);
+						return (
+							entry && {
+								title: entry.english ?? entry.romaji ?? entry.native,
+								format: toAnimeFormat(entry.format),
+								year:
+									entry.seasonYear ??
+									(entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
+							}
+						);
+					}),
 		};
 	}
 
@@ -369,21 +377,23 @@ export async function browseSeries(query: BrowseQuery): Promise<
 	});
 	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
 	return {
-		items: await cardsOf(seriesInOrder(anilistIds, seriesIds)),
+		items: heard(await cardsOf(seriesInOrder(anilistIds, seriesIds))),
 		page: found.page,
 		perPage: found.perPage,
 		hasNextPage: found.hasNextPage,
 		isPreparing: missing.length > 0,
-		preparing: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
-			const anime = cards.get(anilistId);
-			return (
-				anime && {
-					title: anime.title.display,
-					format: anime.format,
-					year: anime.seasonYear,
-				}
-			);
-		}),
+		preparing: audio
+			? []
+			: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
+					const anime = cards.get(anilistId);
+					return (
+						anime && {
+							title: anime.title.display,
+							format: anime.format,
+							year: anime.seasonYear,
+						}
+					);
+				}),
 	};
 }
 
@@ -629,6 +639,160 @@ function toSeriesCard(
 		year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
 		status: row.status,
 		audio,
+	};
+}
+
+/** How far back {@link getLatestReleases} looks. */
+const releaseWindowMs = 30 * day;
+
+/**
+ * When an episode came out: when it aired, or its air date's midnight UTC
+ * when AniList has no airing time.
+ */
+const releasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+
+/** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
+export const ReleasesQuerySchema = BrowseQuerySchema.pick({
+	format: true,
+	audio: true,
+	page: true,
+	perPage: true,
+});
+
+export type ReleasesQuery = z.input<typeof ReleasesQuerySchema>;
+
+/**
+ * The titles with an episode out in the last 30 days, each with its latest
+ * episode that can be watched, the latest first.
+ *
+ * An episode counts once its season lists it (see {@link isEpisodeShown}),
+ * so an episode that has aired but that AniKoto does not carry yet is left
+ * out until it does. Extras only TMDB lists never count. `format` and
+ * `audio` apply to the AniList entry the latest episode belongs to, such as
+ * a film, or a season that is dubbed. Reads only the database.
+ *
+ * @throws {@link InvalidInputError} when the query fails {@link ReleasesQuerySchema}.
+ */
+export async function getLatestReleases(
+	query: ReleasesQuery,
+	now = new Date(),
+): Promise<Page<Release>> {
+	const parsed = ReleasesQuerySchema.safeParse(query);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid releases query", {
+			cause: parsed.error,
+		});
+	}
+
+	const { format, audio, page, perPage } = parsed.data;
+	const since = new Date(now.getTime() - releaseWindowMs);
+	const candidates = await db
+		.selectDistinct({
+			seriesId: seriesSeason.seriesId,
+		})
+		.from(seriesEpisode)
+		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+		.where(and(isNotNull(seriesEpisode.anilistId), gte(releasedAt, since), lte(releasedAt, now)));
+	const rows =
+		candidates.length > 0
+			? await db
+					.select()
+					.from(series)
+					.where(
+						inArray(
+							series.id,
+							candidates.map((candidate) => candidate.seriesId),
+						),
+					)
+			: [];
+	const listed = await listedSeasonsOf(rows);
+
+	const latest = rows.flatMap((row) => {
+		let found:
+			| {
+					seriesId: string;
+					anilistId: number;
+					seasonId: string;
+					seasonTitle: string;
+					episode: number;
+					releasedAt: string;
+			  }
+			| undefined;
+		for (const { season, episodes } of listed.get(row.id) ?? []) {
+			for (const episode of episodes) {
+				const at =
+					episode.airedAt ??
+					(episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`));
+				if (
+					episode.anilistId !== null &&
+					at !== null &&
+					at >= since &&
+					at <= now &&
+					(!found || at.toISOString() >= found.releasedAt)
+				) {
+					found = {
+						seriesId: row.id,
+						anilistId: episode.anilistId,
+						seasonId: season.id,
+						seasonTitle: season.title,
+						episode: episode.number,
+						releasedAt: at.toISOString(),
+					};
+				}
+			}
+		}
+		return found ? [found] : [];
+	});
+
+	const anilistIds = [...new Set(latest.map((release) => release.anilistId))];
+	const [formats, languages] = await Promise.all([
+		format && anilistIds.length > 0
+			? db
+					.select({
+						anilistId: animeSearch.anilistId,
+						format: animeSearch.format,
+					})
+					.from(animeSearch)
+					.where(inArray(animeSearch.anilistId, anilistIds))
+			: [],
+		audio ? findAnimeLanguages(anilistIds) : new Map<number, ContentLanguage[]>(),
+	]);
+	const formatOf = new Map(formats.map((row) => [row.anilistId, row.format]));
+	const matching = latest
+		.filter(
+			(release) =>
+				(!format || format.some((wanted) => wanted === formatOf.get(release.anilistId))) &&
+				(!audio || !!languages.get(release.anilistId)?.includes(audio)),
+		)
+		.toSorted(
+			(left, right) =>
+				right.releasedAt.localeCompare(left.releasedAt) ||
+				left.seriesId.localeCompare(right.seriesId),
+		);
+
+	const shown = matching.slice((page - 1) * perPage, page * perPage);
+	const shownIds = new Set(shown.map((release) => release.seriesId));
+	const cards = await cardsFrom(
+		rows.filter((row) => shownIds.has(row.id)),
+		listed,
+	);
+
+	return {
+		items: shown.flatMap(({ seriesId, anilistId: _, ...release }) => {
+			const card = cards.get(seriesId);
+			return card
+				? [
+						{
+							series: card,
+							...release,
+						},
+					]
+				: [];
+		}),
+		page,
+		perPage,
+		hasNextPage: matching.length > page * perPage,
+		isPreparing: false,
 	};
 }
 

@@ -22,15 +22,18 @@ export {
 	type SeriesImageQuery,
 } from "./artwork";
 export type { ImageEdges } from "./edges";
-export type { PreparingTitle, Season, SeasonEpisode, Series, SeriesCard } from "./models";
+export type { PreparingTitle, Release, Season, SeasonEpisode, Series, SeriesCard } from "./models";
 export {
 	browseSeries,
 	getAdjacentEpisodes,
+	getLatestReleases,
 	getSeason,
 	getSeasonEpisodes,
 	getSeasonSeriesId,
 	getSeries,
+	ReleasesQuerySchema,
 	type EpisodeAddress,
+	type ReleasesQuery,
 } from "./queries";
 export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
 export type { SeasonKind } from "./seasons";

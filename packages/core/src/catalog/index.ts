@@ -10,4 +10,12 @@
  * @packageDocumentation
  */
 export type { AnimeStatus, AnimeTag } from "./models/anime";
-export { BrowseQuerySchema, getGenres, type BrowseQuery, type Page } from "./queries/browse";
+export {
+	BrowseQuerySchema,
+	currentSeason,
+	getGenres,
+	listSeasons,
+	type AnimeSeason,
+	type BrowseQuery,
+	type Page,
+} from "./queries/browse";

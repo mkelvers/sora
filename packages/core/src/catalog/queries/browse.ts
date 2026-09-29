@@ -1,3 +1,4 @@
+import { and, eq, isNotNull, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { anilist } from "../../anilist/client";
@@ -6,6 +7,8 @@ import {
 	GenresDocument,
 	type MediaSort,
 } from "../../anilist/graphql.generated";
+import { db } from "../../database/client";
+import { animeSearch } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
 import { day, hour, minute } from "../../time";
 import { toAnimeCard, type AnimeCard } from "../models/anime";
@@ -34,6 +37,12 @@ export const BrowseQuerySchema = z.object({
 	format: z.array(z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"])).optional(),
 	status: z.enum(["RELEASING", "FINISHED", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]).optional(),
 	genres: z.array(z.string().min(1)).max(10).optional(),
+	/**
+	 * Only titles that can be watched with this audio. Applied to the titles
+	 * found, after AniList pages them, so a page can hold fewer cards than
+	 * `perPage`; titles still being prepared are left out.
+	 */
+	audio: z.enum(["sub", "dub"]).optional(),
 	page: z.number().int().positive().max(500).default(1),
 	perPage: z.number().int().positive().max(50).default(24),
 });
@@ -116,4 +125,71 @@ export async function getGenres(): Promise<string[]> {
 	return (GenreCollection ?? []).filter(
 		(genre): genre is string => genre !== null && genre !== "Hentai",
 	);
+}
+
+/** An anime season: the quarter of a year in which a title started airing, as AniList counts them. */
+export interface AnimeSeason {
+	season: NonNullable<BrowseQuery["season"]>;
+	year: number;
+}
+
+const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;
+
+/** The season `now` falls in: winter is January to March, and so on. Counted in UTC. */
+export function currentSeason(now = new Date()): AnimeSeason {
+	return {
+		season: seasonOrder[Math.floor(now.getUTCMonth() / 3)]!,
+		year: now.getUTCFullYear(),
+	};
+}
+
+/**
+ * Every season some anime started in, the latest first, up to the season
+ * after `now`'s, whose titles are announced by then. Adult media is never
+ * served, so seasons with only adult media are left out. Reads only the
+ * search index.
+ */
+export async function listSeasons(now = new Date()): Promise<AnimeSeason[]> {
+	const current = currentSeason(now);
+	const next =
+		current.season === "FALL"
+			? {
+					season: "WINTER" as const,
+					year: current.year + 1,
+				}
+			: {
+					season: seasonOrder[seasonOrder.indexOf(current.season) + 1]!,
+					year: current.year,
+				};
+	const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
+
+	const rows = await db
+		.selectDistinct({
+			season: animeSearch.season,
+			year: animeSearch.seasonYear,
+		})
+		.from(animeSearch)
+		.where(
+			and(
+				eq(animeSearch.isAdult, false),
+				isNotNull(animeSearch.season),
+				isNotNull(animeSearch.seasonYear),
+				lte(animeSearch.seasonYear, next.year),
+			),
+		);
+
+	return rows
+		.flatMap((row): AnimeSeason[] => {
+			const season = seasonOrder.find((name) => name === row.season);
+			return season && row.year !== null
+				? [
+						{
+							season,
+							year: row.year,
+						},
+					]
+				: [];
+		})
+		.filter((season) => position(season) <= position(next))
+		.toSorted((left, right) => position(right) - position(left));
 }

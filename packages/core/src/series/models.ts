@@ -61,6 +61,21 @@ export interface SeriesCard {
 }
 
 /**
+ * A title's latest episode that can be watched, for a list of what was added
+ * lately: a new episode of a show counts, not only a new title.
+ */
+export interface Release {
+	series: SeriesCard;
+	seasonId: string;
+	/** The season's title, such as "Season 2"; see {@link Season.title}. */
+	seasonTitle: string;
+	/** Position within the season, from 1. */
+	episode: number;
+	/** When the episode came out, as an ISO 8601 timestamp: when it aired, or its air date's midnight UTC when AniList has no airing time. */
+	releasedAt: string;
+}
+
+/**
  * A title a search or browse found that is not stored yet. It is being
  * prepared in the background and appears as a {@link SeriesCard} once it is;
  * until then only what the search index knows about it can be shown.
