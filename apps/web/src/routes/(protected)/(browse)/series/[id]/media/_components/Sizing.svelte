@@ -69,7 +69,7 @@
 
 	function elements() {
 		return {
-			hero: stage!.querySelector("figure")!,
+			hero: stage!.querySelector<HTMLElement>(".series-hero")!,
 			logo: stage!.querySelector<HTMLImageElement>("[data-hero-logo]")!,
 		};
 	}
@@ -244,7 +244,7 @@
 	<div
 		{@attach track}
 		class={cn(
-			"relative isolate touch-none select-none [&_figure]:max-h-none [&_figure]:min-h-auto",
+			"relative isolate touch-none select-none [&_.series-hero]:max-h-none [&_.series-hero]:min-h-auto",
 			drag && !drag.corner && "cursor-grabbing",
 			!drag && target === "logo" && "cursor-grab",
 			(drag?.corner ? drag.corner.x === drag.corner.y : target === "nwse") && "cursor-nwse-resize",

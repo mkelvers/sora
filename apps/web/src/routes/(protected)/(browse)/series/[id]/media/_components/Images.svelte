@@ -70,7 +70,8 @@
 	</Button>
 {/snippet}
 
-<div
+<ul
+	aria-label="Available {media.type}s"
 	class={cn(
 		"grid gap-x-5 gap-y-7",
 		media.type === "poster"
@@ -89,14 +90,15 @@
 			{/if}
 		{/snippet}
 		{#snippet details()}
-			<span class="truncate text-sm font-medium text-foreground">
-				{media.type === "logo" ? "No logo" : "No backdrop"}
-			</span>
-			<span class="text-xs text-subtle">
-				{media.type === "logo" ? "Shows the title instead" : "Leaves the page plain"}
-			</span>
+			{#if media.type === "logo"}
+				<span class="truncate text-sm font-medium text-foreground">No logo</span>
+				<span class="text-xs text-subtle">Shows the title instead</span>
+			{:else}
+				<span class="truncate text-sm font-medium text-foreground">No backdrop</span>
+				<span class="text-xs text-subtle">Leaves the page plain</span>
+			{/if}
 		{/snippet}
-		{@render tile(series[`${media.type}_url`] === null, false, preview, details)}
+		<li>{@render tile(series[`${media.type}_url`] === null, false, preview, details)}</li>
 	{/if}
 
 	{#each shown as image (image.url)}
@@ -105,7 +107,7 @@
 				src={tmdbImage(image.url, "w500")}
 				srcset={tmdbSrcset(image.url, thumbnails[media.type].srcset)}
 				sizes={thumbnails[media.type].sizes}
-				alt=""
+				alt="{series.title} {media.type}"
 				loading="lazy"
 				decoding="async"
 				class={cn(
@@ -118,13 +120,21 @@
 		{/snippet}
 		{#snippet details()}
 			<span class="truncate text-sm font-medium text-foreground">
-				{image.language ? languages.of(image.language) : "Textless"}
+				{#if image.language}
+					{languages.of(image.language)}
+				{:else}
+					Textless
+				{/if}
 			</span>
 			<span class="flex flex-wrap items-center text-xs text-subtle tabular-nums">
 				<span class="metadata-tag">{image.width}×{image.height}</span>
 				{#if image.season_number !== null}
 					<span class="metadata-tag">
-						{image.season_number === 0 ? "Specials" : `Season ${image.season_number}`}
+						{#if image.season_number === 0}
+							Specials
+						{:else}
+							Season {image.season_number}
+						{/if}
 					</span>
 				{/if}
 				<span class="metadata-tag inline-flex items-center gap-1">
@@ -133,6 +143,6 @@
 				</span>
 			</span>
 		{/snippet}
-		{@render tile(current === image.url.split("/").at(-1), image.url, preview, details)}
+		<li>{@render tile(current === image.url.split("/").at(-1), image.url, preview, details)}</li>
 	{/each}
-</div>
+</ul>
