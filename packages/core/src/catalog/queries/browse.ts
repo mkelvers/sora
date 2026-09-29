@@ -143,6 +143,19 @@ export function currentSeason(now = new Date()): AnimeSeason {
 	};
 }
 
+/** The season after `season`. */
+export function nextSeason(season: AnimeSeason): AnimeSeason {
+	return season.season === "FALL"
+		? {
+				season: "WINTER",
+				year: season.year + 1,
+			}
+		: {
+				season: seasonOrder[seasonOrder.indexOf(season.season) + 1]!,
+				year: season.year,
+			};
+}
+
 /**
  * Every season some anime started in, the latest first, up to the season
  * after `now`'s, whose titles are announced by then. Adult media is never
@@ -150,17 +163,7 @@ export function currentSeason(now = new Date()): AnimeSeason {
  * search index.
  */
 export async function listSeasons(now = new Date()): Promise<AnimeSeason[]> {
-	const current = currentSeason(now);
-	const next =
-		current.season === "FALL"
-			? {
-					season: "WINTER" as const,
-					year: current.year + 1,
-				}
-			: {
-					season: seasonOrder[seasonOrder.indexOf(current.season) + 1]!,
-					year: current.year,
-				};
+	const next = nextSeason(currentSeason(now));
 	const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
 
 	const rows = await db

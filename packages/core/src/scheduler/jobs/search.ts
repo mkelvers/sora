@@ -1,10 +1,12 @@
-import { and, desc, eq, gte, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, gte, notExists, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
+import { currentSeason, nextSeason } from "../../catalog/queries/browse";
 import { syncSearchIndex } from "../../catalog/queries/search";
 import { db } from "../../database/client";
 import { animeSearch, seriesEntry } from "../../database/schema";
+import { carriedByAniKoto } from "../../series/queries";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
@@ -50,7 +52,8 @@ export const backfillSeriesTask = "backfill-series";
  * Queues the most popular indexed entries whose series is not stored yet,
  * so searches find titles already laid out instead of laying them out while
  * someone waits. Only entries at least {@link backfillMinimumPopularity}
- * popular are stored this way.
+ * popular are stored this way, besides this season's and the next's (see
+ * {@link queueSeasons}).
  *
  * Entries that already have a store job, waiting or failed for good, are
  * left alone, so an entry that cannot be laid out does not hold up the
@@ -62,6 +65,8 @@ export const backfillSeriesTask = "backfill-series";
  * thousands of layouts that stay queued for days.
  */
 export const backfillSeries: Task = async (_payload, helpers) => {
+	await queueSeasons(helpers);
+
 	const [{ queued } = { queued: 0 }] = await db.execute<{ queued: number }>(sql`
     select count(*)::int as queued
     from graphile_worker.jobs
@@ -101,3 +106,49 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 		helpers.logger.info(`Queued ${rows.length} popular entries to store their series`);
 	}
 };
+
+/**
+ * Queues the entries of this season and the next that AniKoto carries and
+ * whose series is not stored yet, however popular they are, so a season's
+ * simulcasts are laid out before anyone browses it. Announced titles are
+ * rarely popular yet, so {@link backfillSeries} would not reach them.
+ *
+ * Not held to {@link backfillBatchSize}: two seasons are a few hundred
+ * entries, queued once, and popular backfill must not keep them waiting.
+ * Queued as backfill, so they never delay new episodes or a viewer.
+ */
+async function queueSeasons(helpers: Parameters<Task>[1]) {
+	const current = currentSeason();
+	const rows = await db
+		.select({
+			anilistId: animeSearch.anilistId,
+		})
+		.from(animeSearch)
+		.where(
+			and(
+				eq(animeSearch.isAdult, false),
+				sql`${animeSearch.format} is distinct from 'MUSIC'`,
+				or(
+					...[current, nextSeason(current)].map((season) =>
+						and(eq(animeSearch.season, season.season), eq(animeSearch.seasonYear, season.year)),
+					),
+				),
+				carriedByAniKoto,
+				notExists(
+					db.select().from(seriesEntry).where(eq(seriesEntry.anilistId, animeSearch.anilistId)),
+				),
+				sql`not exists (select 1 from graphile_worker.jobs where jobs.key = 'series:' || ${animeSearch.anilistId})`,
+			),
+		)
+		.orderBy(desc(animeSearch.popularity));
+
+	for (const row of rows) {
+		await scheduleSeriesStore(row.anilistId, "backfill");
+	}
+
+	if (rows.length > 0) {
+		helpers.logger.info(
+			`Queued ${rows.length} entries of this season and the next to store their series`,
+		);
+	}
+}

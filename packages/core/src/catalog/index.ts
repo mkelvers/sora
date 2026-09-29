@@ -15,6 +15,7 @@ export {
 	currentSeason,
 	getGenres,
 	listSeasons,
+	nextSeason,
 	type AnimeSeason,
 	type BrowseQuery,
 	type Page,
