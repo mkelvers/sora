@@ -29,10 +29,11 @@
 <script lang="ts">
 	type Props = {
 		avatar: ProfileAvatar;
+		alt: string;
 		class?: string;
 	};
 
-	let { avatar, class: className }: Props = $props();
+	let { avatar, alt, class: className }: Props = $props();
 
 	const src = $derived.by(() => {
 		const options = {
@@ -63,6 +64,6 @@
 <img
 	class={cn("block aspect-square w-full object-cover", className)}
 	{src}
-	alt=""
+	{alt}
 	draggable="false"
 />
