@@ -6,15 +6,18 @@
 	import { cn } from "$lib/utils";
 	import type { Profile } from "@sora/sdk";
 	import {
+		BellSimpleIcon,
 		BookmarkSimpleIcon,
 		CaretDownIcon,
+		HouseSimpleIcon,
+		ListIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
 		UsersIcon,
 	} from "phosphor-svelte";
 
 	import { profilesPage } from "../../profiles/profiles.svelte";
-	import Notifications from "./Notifications.svelte";
+	import { getUnreadNotifications } from "../home.remote";
 	import Search from "./Search.svelte";
 
 	let {
@@ -27,6 +30,46 @@
 
 	const others = $derived(profiles.filter((other) => other.id !== profile.id));
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
+	const unreadQuery = getUnreadNotifications();
+	const unread = $derived(unreadQuery.current ?? 0);
+	const dot = "after:absolute after:size-2 after:rounded-full after:bg-status-error after:ring-2";
+
+	const destinations = $derived([
+		{
+			href: "/",
+			label: "Home",
+			icon: HouseSimpleIcon,
+			new: false,
+		},
+		{
+			href: "/watchlist",
+			label: "Watchlist",
+			icon: BookmarkSimpleIcon,
+			new: false,
+		},
+		{
+			href: "/notifications",
+			label: "Notifications",
+			icon: BellSimpleIcon,
+			new: unread > 0,
+		},
+	]);
+
+	$effect(() => {
+		const check = () => {
+			if (document.visibilityState === "visible") {
+				unreadQuery.refresh();
+			}
+		};
+		const timer = setInterval(check, 30_000);
+		document.addEventListener("visibilitychange", check);
+
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener("visibilitychange", check);
+		};
+	});
+
 	const link =
 		"inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground sm:w-14";
 	const item =
@@ -34,19 +77,81 @@
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
-	<nav class="flex h-full items-center justify-end pl-3 md:pl-6" aria-label="Primary">
+	<nav class="flex h-full items-center justify-end" aria-label="Primary">
+		<div
+			class={cn(
+				"mr-auto h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
+				unread > 0 &&
+					"[&_.dropdown-trigger]:after:absolute [&_.dropdown-trigger]:after:top-3.5 [&_.dropdown-trigger]:after:right-2.5 [&_.dropdown-trigger]:after:size-2 [&_.dropdown-trigger]:after:rounded-full [&_.dropdown-trigger]:after:bg-status-error [&_.dropdown-trigger]:after:ring-2 [&_.dropdown-trigger]:after:ring-header",
+			)}
+		>
+			<Dropdown
+				alignment="left"
+				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 bg-header-hover *:p-0"
+				label={unread > 0 ? "Menu, new notifications" : "Menu"}
+			>
+				{#snippet trigger()}
+					<ListIcon size="1.5rem" />
+				{/snippet}
+
+				{#snippet children()}
+					<div class="flex flex-col">
+						{#each destinations as destination (destination.href)}
+							<a
+								href={destination.href}
+								class={cn(
+									"flex min-h-12 items-center px-6 text-[0.9375rem] text-foreground/80 transition-colors focus:bg-header focus:text-foreground focus:outline-none",
+									page.url.pathname === destination.href && "font-semibold text-foreground",
+									destination.new &&
+										"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
+								)}
+								aria-current={page.url.pathname === destination.href ? "page" : undefined}
+							>
+								{destination.label}
+								{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
+							</a>
+						{/each}
+					</div>
+				{/snippet}
+			</Dropdown>
+		</div>
+
+		<a
+			href="/"
+			class={cn(
+				link,
+				"mr-auto max-sm:hidden",
+				page.url.pathname === "/" && "bg-header-hover text-foreground",
+			)}
+			aria-label="Home"
+			aria-current={page.url.pathname === "/" ? "page" : undefined}
+		>
+			<HouseSimpleIcon size="1.5rem" />
+		</a>
+
 		<div class="flex h-full items-center">
 			<Search />
 
-			<a
-				href="/watchlist"
-				class={cn(link, page.url.pathname === "/watchlist" && "bg-header-hover text-foreground")}
-				aria-label="Watchlist"
-			>
-				<BookmarkSimpleIcon size="1.5rem" />
-			</a>
-
-			<Notifications class={link} />
+			{#each destinations.filter((destination) => destination.href !== "/") as destination (destination.href)}
+				<a
+					href={destination.href}
+					class={cn(
+						link,
+						"relative max-sm:hidden",
+						page.url.pathname === destination.href && "bg-header-hover text-foreground",
+						destination.new && [
+							dot,
+							"after:top-3.5 after:right-3 after:ring-header sm:after:right-4",
+						],
+					)}
+					aria-label={destination.new
+						? `${destination.label}, new notifications`
+						: destination.label}
+					aria-current={page.url.pathname === destination.href ? "page" : undefined}
+				>
+					<destination.icon size="1.5rem" />
+				</a>
+			{/each}
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
