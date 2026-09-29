@@ -20,7 +20,7 @@
 		},
 	] as const;
 
-	const grid = "grid grid-cols-1 gap-x-4 gap-y-6 min-[30em]:grid-cols-2 lg:grid-cols-4";
+	const grid = "grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4";
 
 	let tab = $state<(typeof tabs)[number]["id"]>("watchlist");
 	const watchlist = getWatchlist();
@@ -32,7 +32,7 @@
 </svelte:head>
 
 <main
-	class="min-h-[calc(100dvh-3.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground"
+	class="min-h-[calc(100dvh-6.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-10 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
 >
 	<h1 class="flex items-center justify-center gap-3 text-4xl font-semibold">
 		<BookmarkSimpleIcon size="2.25rem" />

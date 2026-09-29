@@ -52,7 +52,9 @@
 <main
 	class={cn(
 		"bg-canvas px-5 pt-8 text-foreground sm:px-10 sm:pt-10 lg:px-16",
-		arranging ? "flex h-[calc(100dvh-3.5rem)] flex-col pb-8" : "min-h-[calc(100dvh-3.5rem)] pb-16",
+		arranging
+			? "flex h-[calc(100dvh-6.5rem)] flex-col pb-8 sm:h-[calc(100dvh-3.5rem)]"
+			: "min-h-[calc(100dvh-6.5rem)] pb-16 sm:min-h-[calc(100dvh-3.5rem)]",
 	)}
 >
 	<header class="flex items-center gap-2">
