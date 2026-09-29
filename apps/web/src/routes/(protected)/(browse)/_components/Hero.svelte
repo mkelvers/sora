@@ -145,11 +145,7 @@
 									class="max-sm:flex-1"
 								>
 									<PlayIcon size="1.2rem" weight="bold" />
-									{#if slide.kind === "movie"}
-										Play
-									{:else}
-										Start watching E1
-									{/if}
+									{slide.kind === "movie" ? "Start watching" : "Start watching E1"}
 								</Button>
 							{/if}
 							<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>

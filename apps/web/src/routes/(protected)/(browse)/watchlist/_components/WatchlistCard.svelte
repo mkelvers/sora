@@ -43,9 +43,9 @@
 			{#if progress.next}
 				<p class="mt-1.5 text-sm text-muted">
 					{#if progress.next.position_seconds > 0}
-						Continue watching: E{progress.next.episode}
+						Continue watching{series.kind === "movie" ? "" : `: E${progress.next.episode}`}
 					{:else}
-						Start watching: E{progress.next.episode}
+						Start watching{series.kind === "movie" ? "" : `: E${progress.next.episode}`}
 					{/if}
 				</p>
 			{/if}

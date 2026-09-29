@@ -95,6 +95,7 @@
 				<Episodes
 					seriesId={series.id}
 					title={series.title}
+					movie={series.kind === "movie"}
 					backdrop={series.backdrop_url}
 					{season}
 					progress={viewing.progress}

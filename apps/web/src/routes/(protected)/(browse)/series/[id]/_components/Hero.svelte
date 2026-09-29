@@ -66,16 +66,9 @@
 			};
 		}
 
-		if (series.kind === "movie") {
-			return {
-				href,
-				label: "Play",
-			};
-		}
-
 		return {
 			href,
-			label: "Start watching E1",
+			label: series.kind === "movie" ? "Start watching" : "Start watching E1",
 		};
 	});
 

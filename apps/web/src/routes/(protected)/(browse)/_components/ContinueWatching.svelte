@@ -52,7 +52,9 @@
 								<a
 									href="/series/{item.series.id}/watch/{item.season_id}/{item.episode}"
 									class="flex h-full flex-col"
-									aria-label="Continue watching {item.series.title}, episode {item.episode}"
+									aria-label={item.series.kind === "movie"
+										? `Continue watching ${item.series.title}`
+										: `Continue watching ${item.series.title}, episode ${item.episode}`}
 								>
 									<div class="relative aspect-video overflow-hidden bg-surface">
 										{#if item.series.backdrop_url}
@@ -82,9 +84,9 @@
 										</h3>
 										<p class="mt-1.5 text-sm text-muted">
 											{#if item.position_seconds > 0}
-												Continue with E{item.episode}
+												Continue with{item.series.kind === "movie" ? "" : ` E${item.episode}`}
 											{:else}
-												Up next: E{item.episode}
+												{item.series.kind === "movie" ? "Up next" : `Up next: E${item.episode}`}
 											{/if}
 										</p>
 										{#if item.series.audio.length}

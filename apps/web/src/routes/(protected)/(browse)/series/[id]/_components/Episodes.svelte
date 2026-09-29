@@ -8,12 +8,14 @@
 	let {
 		seriesId,
 		title,
+		movie,
 		backdrop,
 		season,
 		progress,
 	}: {
 		seriesId: string;
 		title: string;
+		movie: boolean;
 		backdrop: string | null;
 		season: Season;
 		progress: TitleProgress;
@@ -47,6 +49,7 @@
 					{seriesId}
 					seasonId={season.id}
 					{title}
+					{movie}
 					{backdrop}
 					{episode}
 					checkpoint={progress.episodes.find(
