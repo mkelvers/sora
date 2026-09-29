@@ -63,7 +63,7 @@
 		{#if tab === "watchlist"}
 			<ul class={grid}>
 				{#if watchlist.current}
-					{#each watchlist.current as { series, status, progress } (series.id)}
+					{#each watchlist.current as { series, progress } (series.id)}
 						<li>
 							<Card
 								href="/series/{series.id}"
@@ -71,9 +71,7 @@
 								title={series.title}
 								detail={progress.next
 									? `${progress.next.position_seconds > 0 ? "Continue watching" : "Start watching"}: E${progress.next.episode}`
-									: status === "completed"
-										? "Watch again"
-										: undefined}
+									: undefined}
 								footer={audioLabel(series.audio) ?? undefined}
 								remove="Remove {series.title} from your watchlist"
 								onremove={() =>
