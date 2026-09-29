@@ -225,7 +225,7 @@ export async function scheduleStoredSeriesRefresh(
 }
 
 /** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
-function keptPriority(jobKey: string, priority: number) {
+function keptPriority(jobKey: string | SQL, priority: number) {
 	return sql`least(
     ${priority}::int,
     coalesce(
@@ -256,24 +256,39 @@ export const lookUpEpisodesTask = "look-up-episodes";
 export const lookUpEpisodesNowTask = "look-up-episodes-now";
 
 /**
- * Queues looking an AniList entry up on every stream provider and storing
+ * Queues looking AniList entries up on every stream provider and storing
  * their episode lists, so episode listings can be read from the database.
  *
  * A job already waiting for the same entry keeps its place, and keeps its
  * priority when that is higher. Priorities are those of
  * {@link scheduleSeriesStore}: `waiting` when someone is viewing the entry's
- * episodes, `backfill` when its series was just stored.
+ * episodes, `current` when its card is shown, `backfill` when its series was
+ * just stored.
  */
-export async function scheduleEpisodeLookup(anilistId: number, priority: SeriesStorePriority) {
-	const jobKey = `episodes:${anilistId}`;
-	const kept = keptPriority(jobKey, seriesStorePriorities[priority]);
+export async function scheduleEpisodeLookups(
+	anilistIds: readonly number[],
+	priority: SeriesStorePriority,
+) {
+	if (anilistIds.length === 0) {
+		return;
+	}
+
+	const ids = sql`array[${sql.join(
+		[...new Set(anilistIds)].map((id) => sql`${id}`),
+		sql`, `,
+	)}]::int[]`;
+	const kept = keptPriority(sql`'episodes:' || listed.anilist_id`, seriesStorePriorities[priority]);
 	await db.execute(sql`
     select graphile_worker.add_job(
-      identifier => ${taskAt(kept, lookUpEpisodesTask, lookUpEpisodesNowTask)},
-      payload => json_build_object('anilistId', ${anilistId}::int),
-      job_key => ${jobKey},
+      identifier => ${taskAt(sql`entry.priority`, lookUpEpisodesTask, lookUpEpisodesNowTask)},
+      payload => json_build_object('anilistId', entry.anilist_id),
+      job_key => 'episodes:' || entry.anilist_id,
       job_key_mode => 'preserve_run_at',
-      priority => ${kept}
+      priority => entry.priority
     )
+    from (
+      select listed.anilist_id, ${kept} as priority
+      from unnest(${ids}) as listed(anilist_id)
+    ) as entry
   `);
 }

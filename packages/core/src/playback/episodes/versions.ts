@@ -1,5 +1,5 @@
 import { getAnime } from "../../catalog/queries/anime";
-import { scheduleEpisodeLookup } from "../../scheduler/queue";
+import { scheduleEpisodeLookups } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
 import type { ContentLanguage } from "../../series/models";
 import type { StreamProvider } from "../providers/provider";
@@ -154,8 +154,9 @@ export async function findEpisodeListings(
  * The languages any episode of each anime can be watched in, dub before sub
  * before raw, from the providers' stored episode lists.
  *
- * Reads only the database and queues nothing: an anime no provider has been
- * looked up for yet has no languages until the scheduler has run.
+ * Reads only the database. An anime some provider has not been looked up
+ * for yet is queued for the scheduler ahead of its backfill, since its card
+ * is being shown; until then it has only the languages already looked up.
  */
 export async function findAnimeLanguages(
 	anilistIds: readonly number[],
@@ -163,11 +164,16 @@ export async function findAnimeLanguages(
 	const sources = listingSources();
 	const ids = [...new Set(anilistIds)];
 	const stored = await getStoredUnits(ids);
+	const listed = ids.map((anilistId) => ({
+		anilistId,
+		...listingsOf(anilistId, stored, sources),
+	}));
+	await scheduleEpisodeLookups(
+		listed.filter(({ pending }) => pending).map(({ anilistId }) => anilistId),
+		"current",
+	);
 	return new Map(
-		ids.map((anilistId) => [
-			anilistId,
-			languagesOf(versionsOffered(listingsOf(anilistId, stored, sources).listings)),
-		]),
+		listed.map(({ anilistId, listings }) => [anilistId, languagesOf(versionsOffered(listings))]),
 	);
 }
 
@@ -209,10 +215,9 @@ async function readAnimeListings(
 
 	const byId = new Map(ids.map((anilistId) => [anilistId, listingsOf(anilistId, stored, sources)]));
 
-	await Promise.all(
-		[...byId].flatMap(([anilistId, listed]) =>
-			listed.pending ? [scheduleEpisodeLookup(anilistId, "waiting")] : [],
-		),
+	await scheduleEpisodeLookups(
+		[...byId].flatMap(([anilistId, listed]) => (listed.pending ? [anilistId] : [])),
+		"waiting",
 	);
 	return byId;
 }

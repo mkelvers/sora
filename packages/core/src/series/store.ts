@@ -14,7 +14,7 @@ import {
 } from "../database/schema";
 import { newId } from "../ids";
 import {
-	scheduleEpisodeLookup,
+	scheduleEpisodeLookups,
 	scheduleSeriesStore,
 	startTrackingAiring,
 } from "../scheduler/queue";
@@ -81,9 +81,7 @@ export async function storeSeries(anilistId: number): Promise<string> {
 	}
 
 	// Episode listings read providers' episode lists from the database only.
-	for (const id of built.anilistIds) {
-		await scheduleEpisodeLookup(id, "backfill");
-	}
+	await scheduleEpisodeLookups(built.anilistIds, "backfill");
 
 	const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
 	const storedRelated = await storedSeriesIds(relatedIds);

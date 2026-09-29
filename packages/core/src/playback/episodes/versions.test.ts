@@ -45,8 +45,8 @@ mock.module("../../series/episodes", () => ({
 	anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
 }));
 mock.module("../../scheduler/queue", () => ({
-	scheduleEpisodeLookup: async (anilistId: number) => {
-		queuedLookups.push(anilistId);
+	scheduleEpisodeLookups: async (anilistIds: readonly number[]) => {
+		queuedLookups.push(...anilistIds);
 	},
 }));
 mock.module("../../catalog/queries/anime", () => ({
@@ -86,8 +86,14 @@ mock.module("../providers/registry", () => ({
 	streamProviders,
 }));
 
-const { fillerOf, findEpisodeListings, getEpisodeVersions, languagesOf, versionsOffered } =
-	await import("./versions");
+const {
+	fillerOf,
+	findAnimeLanguages,
+	findEpisodeListings,
+	getEpisodeVersions,
+	languagesOf,
+	versionsOffered,
+} = await import("./versions");
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
 async function findEpisodeLanguages(...args: Parameters<typeof findEpisodeListings>) {
@@ -520,5 +526,24 @@ describe("findEpisodeLanguages", () => {
 
 		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
 		expect(queuedLookups).toEqual([]);
+	});
+});
+
+describe("findAnimeLanguages", () => {
+	test("lists the languages of the providers looked up so far, and queues the rest", async () => {
+		useProviders([
+			{
+				...provider("anikoto", "en", []),
+				units: (anilistId) => (anilistId === 1 ? [unit(1, ["sub", "dub"])] : undefined),
+			},
+			provider("allmanga", "en", [unit(1, ["sub"])]),
+		]);
+
+		expect(Object.fromEntries(await findAnimeLanguages([1, 2]))).toEqual({
+			1: ["dub", "sub"],
+			2: ["sub"],
+		});
+		expect(asks).toBe(0);
+		expect(queuedLookups).toEqual([2]);
 	});
 });
