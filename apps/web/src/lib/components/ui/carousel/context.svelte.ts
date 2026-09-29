@@ -35,6 +35,7 @@ export class CarouselState {
 		};
 
 		api.on("init", sync).on("reInit", sync).on("select", sync);
+		api.on("select", () => autoplay?.reset());
 		api.on("autoplay:play", () => (this.paused = false));
 		api.on("autoplay:stop", () => (this.paused = true));
 		api.on("autoplay:timerset", () => this.cycle++);
@@ -45,6 +46,7 @@ export class CarouselState {
 
 	select(index: number) {
 		this.api?.scrollTo(index);
+		(this.api?.plugins().autoplay as AutoplayType | undefined)?.reset();
 	}
 }
 
