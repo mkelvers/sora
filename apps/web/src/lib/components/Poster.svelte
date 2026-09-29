@@ -50,7 +50,7 @@
 
 <article
 	class={cn(
-		"group relative isolate min-w-0 text-foreground has-focus-visible:z-10 hover:z-10",
+		"group relative isolate min-w-0 text-foreground hover:z-10 has-focus-visible:z-10",
 		className,
 	)}
 >
@@ -70,7 +70,7 @@
 	{:else}
 		<a
 			href="/series/{card.id}"
-			class="block transition-opacity duration-150 group-has-focus-visible:opacity-0 group-hover:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+			class="block transition-opacity duration-150 group-hover:opacity-0 group-has-focus-visible:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 		>
 			<div class="relative aspect-2/3 overflow-hidden bg-surface">
 				{#if card.poster_url}
@@ -114,7 +114,7 @@
 
 		{#if card.poster_url}
 			<div
-				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-has-focus-visible:opacity-100 group-hover:opacity-100"
+				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
 				aria-hidden="true"
 			>
 				<Image
@@ -131,7 +131,7 @@
 		{/if}
 
 		<div
-			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-has-focus-visible:opacity-100 group-hover:opacity-100"
+			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
 		>
 			<div aria-hidden="true">
 				<h3 class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
