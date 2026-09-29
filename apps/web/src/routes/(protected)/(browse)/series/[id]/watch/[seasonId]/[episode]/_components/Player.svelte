@@ -121,6 +121,8 @@
 			return player.time >= segment.start && player.time < segment.end;
 		}),
 	);
+
+	$effect(() => player.remember());
 </script>
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />

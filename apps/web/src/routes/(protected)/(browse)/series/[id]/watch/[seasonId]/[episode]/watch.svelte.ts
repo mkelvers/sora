@@ -1,9 +1,11 @@
+import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import type Hls from "hls.js";
 import { untrack } from "svelte";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
+import * as z from "zod/mini";
 
 type Source = PlaybackMedia["sources"][number];
 
@@ -11,6 +13,8 @@ type Range = {
 	start: number;
 	end: number;
 };
+
+const preferences = new Preferences("player");
 
 const subscribeFullscreen = createSubscriber((update) => {
 	on(document, "fullscreenchange", update);
@@ -51,7 +55,17 @@ export class Player {
 	constructor(start: number) {
 		this.time = start;
 		this.#resume = start;
+
+		this.volume = preferences.get("volume", z.number().check(z.minimum(0), z.maximum(1)), 1);
+		this.muted = preferences.get("muted", z.boolean(), false);
+		this.speed = preferences.get("speed", z.number().check(z.positive()), 1);
 	}
+
+	remember = () => {
+		preferences.set("volume", this.volume);
+		preferences.set("muted", this.muted);
+		preferences.set("speed", this.speed);
+	};
 
 	get fullscreen() {
 		subscribeFullscreen();
@@ -80,6 +94,17 @@ export class Player {
 		}
 	};
 
+	nudgeVolume = (step: number) => {
+		this.volume = Math.round(Math.min(Math.max(this.volume + step, 0), 1) * 100) / 100;
+		this.muted = this.volume === 0;
+	};
+
+	seekTo = (fraction: number) => {
+		if (this.duration > 0) {
+			this.time = this.duration * fraction;
+		}
+	};
+
 	onpointerdown = () => {
 		this.#dismissing = document.querySelector(":popover-open") !== null;
 	};
@@ -104,14 +129,20 @@ export class Player {
 			return;
 		}
 
-		const action = {
-			" ": () => (this.paused = !this.paused),
-			k: () => (this.paused = !this.paused),
-			ArrowLeft: () => (this.time -= 10),
-			ArrowRight: () => (this.time += 10),
-			m: () => (this.muted = !this.muted),
-			f: this.toggleFullscreen,
-		}[event.key];
+		const action =
+			{
+				" ": () => (this.paused = !this.paused),
+				k: () => (this.paused = !this.paused),
+				ArrowLeft: () => (this.time -= 10),
+				ArrowRight: () => (this.time += 10),
+				j: () => (this.time -= 10),
+				l: () => (this.time += 10),
+				ArrowUp: () => this.nudgeVolume(0.1),
+				ArrowDown: () => this.nudgeVolume(-0.1),
+				m: () => (this.muted = !this.muted),
+				f: this.toggleFullscreen,
+			}[event.key] ??
+			(/^[0-9]$/.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
 
 		if (action) {
 			event.preventDefault();
