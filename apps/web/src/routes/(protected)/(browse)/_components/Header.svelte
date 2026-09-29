@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import logo from "$lib/assets/logo.png";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
@@ -80,7 +81,7 @@
 	<nav class="flex h-full items-center justify-end" aria-label="Primary">
 		<div
 			class={cn(
-				"mr-auto h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
+				"h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
 				unread > 0 &&
 					"[&_.dropdown-trigger]:after:absolute [&_.dropdown-trigger]:after:top-3.5 [&_.dropdown-trigger]:after:right-2.5 [&_.dropdown-trigger]:after:size-2 [&_.dropdown-trigger]:after:rounded-full [&_.dropdown-trigger]:after:bg-status-error [&_.dropdown-trigger]:after:ring-2 [&_.dropdown-trigger]:after:ring-header",
 			)}
@@ -118,15 +119,11 @@
 
 		<a
 			href="/"
-			class={cn(
-				link,
-				"mr-auto max-sm:hidden",
-				page.url.pathname === "/" && "bg-header-hover text-foreground",
-			)}
+			class="mr-auto inline-flex h-full items-center px-1 sm:px-3"
 			aria-label="Home"
 			aria-current={page.url.pathname === "/" ? "page" : undefined}
 		>
-			<HouseSimpleIcon size="1.5rem" />
+			<img src={logo} alt="" class="size-11" />
 		</a>
 
 		<div class="flex h-full items-center">
