@@ -1,6 +1,8 @@
 @import "@fontsource-variable/dm-sans/wght.css";
 @import "tailwindcss";
 
+@custom-variant short (@media (min-width: 40rem) and (max-height: 32rem));
+
 :root {
 	color-scheme: dark;
 
@@ -41,7 +43,6 @@
 	--tooltip-foreground: var(--theme-tooltip-foreground);
 
 	--theme-hero-scrim-inline-start: rgb(0 0 0 / 0.58);
-	--theme-hero-scrim-top: rgb(0 0 0 / 0.1);
 	--theme-hero-scrim-bottom: rgb(0 0 0 / 1);
 	--theme-hero-scrim-bottom-soft: rgb(0 0 0 / 0.72);
 }
@@ -268,17 +269,15 @@
 
 		.series-hero {
 			&::before {
-				background-image:
-					linear-gradient(to bottom, var(--theme-hero-scrim-top), transparent 24%),
-					linear-gradient(to right, var(--theme-hero-scrim-inline-start), transparent 70%);
+				background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.5), transparent 6rem);
 			}
 
 			&::after {
 				background-image: linear-gradient(
-					to top,
-					var(--theme-hero-scrim-bottom) 0%,
-					var(--theme-hero-scrim-bottom-soft) 55%,
-					transparent 88%
+					to bottom,
+					transparent calc(75vw - 10rem),
+					rgb(0 0 0 / 0.72) calc(75vw - 3rem),
+					var(--theme-canvas) 75vw
 				);
 			}
 		}

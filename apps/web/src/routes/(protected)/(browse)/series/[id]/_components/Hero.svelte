@@ -113,15 +113,16 @@
 
 <section>
 	<figure
-		class="series-hero @container relative z-30 grid aspect-video max-h-[85svh] min-h-120 w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:min-h-150"
+		class="series-hero @container relative z-30 grid w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:aspect-video sm:max-h-[85svh] sm:min-h-150 short:min-h-[calc(100svh-3.5rem)]"
 	>
 		<h1 class="sr-only">{series.title}</h1>
 
 		{#if series.backdrop_url}
-			<div class="absolute inset-0 z-0">
+			<div class="absolute inset-x-0 top-0 z-0 aspect-4/3 sm:bottom-0 sm:aspect-auto">
 				<Image
 					src={tmdbImage(series.backdrop_url, "original")}
 					srcset={tmdbSrcset(series.backdrop_url, { w780: 780, w1280: 1280, original: 3840 })}
+					sizes="(min-width: 66.75rem) 100vw, (min-width: 40rem) 67rem, 134vw"
 					alt=""
 					class="object-[50%_35%]"
 					loading="eager"
@@ -136,7 +137,7 @@
 			<Dropdown class="w-64 *:p-0">
 				{#snippet trigger()}
 					<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
-					<span>More</span>
+					<span class="max-sm:sr-only">More</span>
 				{/snippet}
 				{#snippet children()}
 					<div role="menu" aria-label="More">
@@ -160,15 +161,17 @@
 			</Dropdown>
 		</div>
 
-		<div class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pb-10 sm:px-10 lg:px-16 lg:pb-9">
-			<div class="w-fit">
+		<div
+			class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pt-[calc(75vw-3rem)] pb-6 text-center sm:px-10 sm:pt-0 sm:pb-10 sm:text-left lg:px-16 lg:pb-9"
+		>
+			<div class="mx-auto w-fit sm:mx-0">
 				{#if series.logo_url}
 					<img
 						src={tmdbImage(series.logo_url, "w500")}
 						alt=""
 						aria-hidden="true"
 						data-hero-logo
-						class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @min-[64rem]:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
+						class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-center max-sm:translate-none sm:object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @min-[64rem]:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
 						style:--logo-scale={series.logo_scale}
 						style:--logo-x={series.logo_offset_x}
 						style:--logo-y={series.logo_offset_y}
@@ -189,8 +192,8 @@
 
 			<p
 				class={cn(
-					"flex flex-wrap items-center gap-y-1 text-sm text-muted",
-					next ? "mt-5 lg:mt-7" : "mt-8 sm:mt-10 lg:mt-11",
+					"flex flex-wrap items-center justify-center gap-y-1 text-sm text-muted sm:justify-start",
+					next ? "mt-5 lg:mt-7" : "mt-5 sm:mt-10 lg:mt-11",
 				)}
 			>
 				{#if series.audio.length}
@@ -208,7 +211,9 @@
 			</p>
 
 			{#if series.score !== null}
-				<div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm lg:gap-2.5">
+				<div
+					class="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm sm:justify-start lg:gap-2.5"
+				>
 					<span class="flex items-center gap-0.5" aria-hidden="true">
 						{#each { length: 5 }, index (index)}
 							<span class="relative size-6 shrink-0">
@@ -224,7 +229,7 @@
 					</span>
 					<span class="hidden text-border-strong sm:inline" aria-hidden="true">|</span>
 					<span class="font-medium text-[#bbb]">
-						Average rating:
+						<span class="max-sm:sr-only">Average rating:</span>
 						<strong class="text-foreground">
 							{rating.toFixed(1)}{series.score_count
 								? ` (${new Intl.NumberFormat("en-US", {
@@ -237,15 +242,15 @@
 			{/if}
 
 			<div
-				class="mt-7 flex items-center gap-3 text-xs font-bold text-accent max-sm:flex-wrap sm:text-sm lg:mt-8 lg:gap-4"
+				class="mt-6 flex items-center gap-3 text-xs font-bold text-accent sm:mt-7 sm:text-sm lg:mt-8 lg:gap-4"
 			>
 				{#if play}
 					<a
 						href={play.href}
-						class="flex h-10 items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 sm:px-6"
+						class="flex h-10 min-w-0 items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 max-sm:flex-1 max-sm:justify-center sm:px-6"
 					>
-						<PlayIcon size="1.55em" weight="bold" />
-						{play.label}
+						<PlayIcon size="1.55em" weight="bold" class="shrink-0" />
+						<span class="truncate">{play.label}</span>
 					</a>
 				{/if}
 
@@ -255,7 +260,7 @@
 							<button
 								{...trigger}
 								type="button"
-								class="grid size-10 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
+								class="grid size-10 shrink-0 cursor-pointer place-items-center border-2 border-accent transition-[filter] duration-150 hover:brightness-120"
 								aria-label={listed ? "Remove from Library" : "Add to Library"}
 								aria-pressed={listed}
 								onclick={toggleListed}
@@ -267,7 +272,7 @@
 				{:else}
 					<button
 						type="button"
-						class="flex h-10 cursor-pointer items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 sm:px-6"
+						class="flex h-10 cursor-pointer items-center gap-2.5 bg-accent px-4 text-on-accent uppercase transition-[filter] duration-150 hover:brightness-120 max-sm:flex-1 max-sm:justify-center sm:px-6"
 						aria-pressed={listed}
 						onclick={toggleListed}
 					>
