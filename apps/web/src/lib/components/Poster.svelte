@@ -133,7 +133,7 @@
 		<div
 			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
 		>
-			<div aria-hidden="true">
+			<div class="min-h-0 flex-1 overflow-hidden mask-b-from-80%" aria-hidden="true">
 				<h3 class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
 				{#if card.score !== null}
 					<p class="mt-3 flex items-center gap-1 text-sm text-muted">
@@ -141,23 +141,18 @@
 						<StarIcon size="1em" weight="fill" />
 					</p>
 				{/if}
-				<p class="mt-3 text-xs font-semibold text-muted">
+				<p class="mt-3 flex flex-col gap-0.5 text-xs font-semibold text-muted">
 					{#if card.kind === "movie"}
 						Movie
 					{:else}
-						{[
-							card.season_count > 0 &&
-								`${card.season_count} ${card.season_count === 1 ? "Season" : "Seasons"}`,
-							card.episode_count > 0 &&
-								`${card.episode_count} ${card.episode_count === 1 ? "Episode" : "Episodes"}`,
-						]
-							.filter((part) => !!part)
-							.join(" · ")}
+						{#if card.season_count > 0}
+							<span>{card.season_count} {card.season_count === 1 ? "Season" : "Seasons"}</span>
+						{/if}
+						{#if card.episode_count > 0}
+							<span>{card.episode_count} {card.episode_count === 1 ? "Episode" : "Episodes"}</span>
+						{/if}
 					{/if}
 				</p>
-				{#if card.genres.length}
-					<p class="mt-2 line-clamp-1 text-xs text-muted">{card.genres.slice(0, 3).join(" · ")}</p>
-				{/if}
 				{#if card.overview}
 					<p class="mt-3 line-clamp-6 text-xs leading-relaxed text-muted">{card.overview}</p>
 				{/if}
