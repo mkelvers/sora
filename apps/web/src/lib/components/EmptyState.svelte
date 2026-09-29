@@ -14,7 +14,6 @@
 </script>
 
 <section
-	aria-label={title}
 	class="flex flex-col items-center border-2 border-dotted border-muted px-5 py-14 text-center"
 >
 	<img src={image} {alt} {width} {height} class="w-80" />
