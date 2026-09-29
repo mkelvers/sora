@@ -91,6 +91,13 @@
 						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
+				{#if episode.filler}
+					<span
+						class="absolute top-0 right-0 size-7 after:absolute after:inset-0 after:bg-yellow-400 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+					>
+						<span class="sr-only">Filler episode</span>
+					</span>
+				{/if}
 				{#if watched || episode.runtime_minutes}
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
@@ -118,9 +125,7 @@
 				{heading}
 			</h3>
 			<p class="mt-1 pr-8 text-sm text-muted sm:mt-2 sm:pr-0">
-				{[audio, episode.filler && "Filler", episode.extra && "Extra"]
-					.filter((part) => !!part)
-					.join(" · ")}
+				{[audio, episode.extra && "Extra"].filter((part) => !!part).join(" · ")}
 			</p>
 		</div>
 
