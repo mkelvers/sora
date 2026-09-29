@@ -21,9 +21,8 @@
 </script>
 
 {#if items.length}
-	<section
+	<div
 		class="continue-watching-section relative z-20 col-start-1 row-start-2 row-end-3 min-w-0 self-end wide:row-start-1 wide:row-end-3"
-		aria-labelledby="continue-watching"
 	>
 		<h2 id="continue-watching" class="mb-5 px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
 			Continue Watching
@@ -31,6 +30,7 @@
 
 		<Carousel
 			class="min-w-0"
+			aria-labelledby="continue-watching"
 			options={{
 				slidesToScroll: "auto",
 				duration: 20,
@@ -122,5 +122,5 @@
 				<Next class="max-sm:hidden" />
 			{/snippet}
 		</Carousel>
-	</section>
+	</div>
 {/if}

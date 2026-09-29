@@ -29,6 +29,7 @@
 {#if featured.length}
 	<Carousel
 		class="-mb-(--hero-bleed) h-[calc(min(100svh,32rem)+var(--hero-bleed))] touch-pan-y grid-rows-1 overflow-hidden bg-black select-none [--hero-bleed:0rem] sm:h-[calc(52vw+var(--hero-bleed))] sm:min-h-[calc(22rem+var(--hero-bleed))] sm:[--hero-bleed:4rem] xl:h-[calc(100svh-3.5rem+var(--hero-bleed))] xl:[--hero-bleed:10rem] short:h-[calc(100svh-3.5rem+var(--hero-bleed))] short:min-h-0"
+		aria-label="Featured series"
 		options={{
 			loop: true,
 		}}
