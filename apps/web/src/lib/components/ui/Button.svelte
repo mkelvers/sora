@@ -10,6 +10,8 @@
 						"h-11 justify-center bg-accent px-5 text-xs font-bold tracking-wide text-on-accent uppercase hover:brightness-110 active:scale-[0.97] sm:text-sm",
 					outline:
 						"h-11 justify-center border-2 border-accent px-5 text-xs font-bold tracking-wide text-accent uppercase hover:brightness-110 active:scale-[0.97] sm:text-sm",
+					light:
+						"justify-center bg-white/90 px-4.5 py-2.5 font-medium text-[#101010] hover:bg-white active:scale-[0.97]",
 					ghost:
 						"min-h-9 justify-center px-2 text-xs font-bold tracking-wide text-muted uppercase hover:bg-white/8 hover:text-foreground aria-pressed:bg-white/8 aria-pressed:text-foreground",
 					icon: "size-9 justify-center text-muted hover:text-foreground active:scale-90",
