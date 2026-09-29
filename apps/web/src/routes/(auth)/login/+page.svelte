@@ -75,6 +75,10 @@
 		type="submit"
 		disabled={pending}
 	>
-		{pending ? "Signing in…" : "Sign in"}
+		{#if pending}
+			Signing in…
+		{:else}
+			Sign in
+		{/if}
 	</Button>
 </form>

@@ -289,7 +289,11 @@
 					onclick={toggleListed}
 				>
 					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
-					{listed ? "On Watchlist" : "Add to Watchlist"}
+					{#if listed}
+						On Watchlist
+					{:else}
+						Add to Watchlist
+					{/if}
 				</button>
 			{/if}
 		</div>

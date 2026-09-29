@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
-	import { cn } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
@@ -126,7 +125,8 @@
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
 
-<div
+<section
+	aria-label="Video player"
 	class={[
 		"grid h-dvh grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden bg-black text-white *:[grid-area:1/1]",
 		player.idle && !player.paused && "idle cursor-none",
@@ -187,17 +187,19 @@
 	>
 		{#if segment}
 			<Button
-				class={cn(
-					"bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] hover:bg-white",
-					"pointer-events-auto self-end shadow-[0_2px_12px_rgb(0_0_0/0.6)] transition-colors duration-120",
-				)}
+				class="pointer-events-auto self-end bg-white/90 px-4.5 py-2.5 text-[length:inherit] font-medium text-[#101010] shadow-[0_2px_12px_rgb(0_0_0/0.6)] transition-colors duration-120 hover:bg-white"
 				onclick={() => (player.time = segment.end)}
 			>
-				{segment.kind === "opening" ? "Skip intro" : "Skip credits"}
+				{#if segment.kind === "opening"}
+					Skip intro
+				{:else}
+					Skip credits
+				{/if}
 			</Button>
 		{/if}
 
 		<div
+			aria-hidden="true"
 			class="text-center text-[clamp(18px,2.6vw,40px)] leading-[1.25] font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]"
 		>
 			{#each player.cues as cue (cue)}
@@ -219,7 +221,7 @@
 		<div class="min-w-0">
 			<h1 class="text-lg font-normal sm:text-xl">{title}</h1>
 			<p class="mt-0.5 flex items-center gap-2 text-sm text-[#ddd]">
-				<span>{series}</span>
+				{series}
 				{#if season}
 					<span
 						class="before:mr-2 before:inline-block before:size-1 before:rotate-45 before:bg-current before:align-middle before:content-['']"
@@ -244,4 +246,4 @@
 			/>
 		</Controls>
 	</footer>
-</div>
+</section>

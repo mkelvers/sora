@@ -65,7 +65,11 @@
 				aria-pressed={visible}
 				onclick={() => (visible = !visible)}
 			>
-				{visible ? "Hide" : "Show"}
+				{#if visible}
+					Hide
+				{:else}
+					Show
+				{/if}
 			</Button>
 		{/if}
 	</div>

@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Sora — Add profile</title>
+	<title>Add profile · Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />
@@ -53,7 +53,11 @@
 			class="min-h-11 flex-1 bg-accent px-4 text-xs font-bold text-on-accent uppercase hover:brightness-110"
 			disabled={pending}
 		>
-			{pending ? "Adding…" : "Add profile"}
+			{#if pending}
+				Adding…
+			{:else}
+				Add profile
+			{/if}
 		</Button>
 		<a
 			class="inline-flex min-h-11 flex-1 items-center justify-center border-2 border-border-strong px-4 text-xs font-bold text-muted uppercase hover:border-foreground hover:text-foreground"
