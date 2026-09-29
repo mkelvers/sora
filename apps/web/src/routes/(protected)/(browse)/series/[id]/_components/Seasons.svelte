@@ -27,6 +27,7 @@
 	<button
 		{...select.trigger}
 		type="button"
+		aria-label="Season: {season.title}"
 		class="flex max-w-full cursor-pointer items-center gap-2 py-2 text-lg font-bold text-foreground outline-none focus-visible:ring-1 focus-visible:ring-white/30"
 	>
 		<CaretDownIcon size="1.1rem" weight="fill" class="shrink-0" />
@@ -45,8 +46,11 @@
 			>
 				<span class="truncate">{other.title}</span>
 				<span class="ml-auto shrink-0 text-xs tabular-nums">
-					{other.episode_count}
-					{other.episode_count === 1 ? "Episode" : "Episodes"}
+					{#if other.episode_count === 1}
+						1 Episode
+					{:else}
+						{other.episode_count} Episodes
+					{/if}
 				</span>
 			</div>
 		{/each}

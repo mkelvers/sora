@@ -44,6 +44,7 @@
 			<section
 				bind:this={details}
 				id="series-details"
+				aria-label="Synopsis"
 				inert={overflowing && !expanded}
 				class={cn(
 					"grid max-w-432 min-w-0 grid-cols-1 gap-8 overflow-hidden text-xs leading-5 text-muted md:grid-cols-2 md:gap-12 lg:gap-28 lg:text-sm lg:leading-6",
@@ -66,7 +67,11 @@
 				aria-controls="series-details"
 				onclick={() => (expanded = !expanded)}
 			>
-				{expanded ? "Fewer details" : "More details"}
+				{#if expanded}
+					Fewer details
+				{:else}
+					More details
+				{/if}
 			</Button>
 		{/if}
 	</div>

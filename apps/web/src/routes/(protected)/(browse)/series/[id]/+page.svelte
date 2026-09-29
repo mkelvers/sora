@@ -42,7 +42,11 @@
 			<section class="py-7 sm:pb-12 lg:pb-16" aria-labelledby="episodes">
 				<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
 					<h2 id="episodes" class={series.seasons.length > 1 ? "sr-only" : "text-lg font-bold"}>
-						{series.seasons.length > 1 ? "Episodes" : series.title}
+						{#if series.seasons.length > 1}
+							Episodes
+						{:else}
+							{series.title}
+						{/if}
 					</h2>
 					{#if series.seasons.length > 1}
 						<Seasons seasons={series.seasons} bind:season />
@@ -51,7 +55,7 @@
 						<Dropdown class="w-64">
 							{#snippet trigger()}
 								<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
-								<span>Options</span>
+								Options
 							{/snippet}
 							{#snippet children()}
 								<Button
@@ -82,8 +86,9 @@
 		{:else}
 			<section
 				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
+				aria-labelledby="check-back"
 			>
-				<h2 class="text-xl font-bold">Check Back Soon!</h2>
+				<h2 id="check-back" class="text-xl font-bold">Check Back Soon!</h2>
 				<p class="mt-2 text-sm text-subtle">In the meantime, feel free to take a look around.</p>
 			</section>
 		{/if}
