@@ -15,6 +15,7 @@ import {
 	dismissNotification,
 	forgetEpisode,
 	getContinueWatching,
+	getFeatured,
 	getHistory,
 	getLibrary,
 	getLibraryEntry,
@@ -440,6 +441,20 @@ export const v1Routes = v1
 	.openapi(route.getRecommendations, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const titles = await getRecommendations(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: titles.length,
+				},
+				results: snakeCased(titles),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getFeatured, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const titles = await getFeatured(profile.id);
 		return c.json(
 			{
 				meta: {

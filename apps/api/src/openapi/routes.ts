@@ -653,6 +653,25 @@ export const getRecommendations = createRoute({
 	},
 });
 
+export const getFeatured = createRoute({
+	operationId: "getFeatured",
+	method: "get",
+	path: "/profiles/{profile_id}/featured",
+	tags: ["Profiles"],
+	summary: "Titles to feature",
+	description:
+		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They change every hour, and each profile goes through them in its own order. Titles the profile has played or put in its library are left out, as are long-running ones, those without a backdrop and logo, and those nothing streams.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
 export const getSeriesProgress = createRoute({
 	operationId: "getSeriesProgress",
 	method: "get",
