@@ -67,40 +67,41 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0">
-			<a
-				href="/series/{card.id}"
-				class="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-			>
-				<div class="relative aspect-2/3 overflow-hidden bg-surface">
-					{#if card.poster_url}
-						<Image
-							src={tmdbImage(card.poster_url, "w500")}
-							srcset={tmdbSrcset(card.poster_url, {
-								w342: 342,
-								w500: 500,
-								w780: 780,
-							})}
-							sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 64rem) 20vw, (min-width: 48rem) 25vw, (min-width: 30em) 33vw, 50vw"
-							alt=""
-						/>
-					{:else}
-						<span class="grid size-full items-end p-4 text-sm text-subtle">{card.title}</span>
-					{/if}
-				</div>
-				<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold">{card.title}</h3>
-				{#if meta}
-					<p class="mt-1.5 text-sm text-muted">{meta}</p>
+		<a
+			href="/series/{card.id}"
+			class="block transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+		>
+			<div class="relative aspect-2/3 overflow-hidden bg-surface">
+				{#if card.poster_url}
+					<Image
+						src={tmdbImage(card.poster_url, "w500")}
+						srcset={tmdbSrcset(card.poster_url, {
+							w342: 342,
+							w500: 500,
+							w780: 780,
+						})}
+						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 64rem) 20vw, (min-width: 48rem) 25vw, (min-width: 30em) 33vw, 50vw"
+						alt="Poster for {card.title}"
+					/>
+				{:else}
+					<span class="grid size-full items-end p-4 text-sm text-subtle" aria-hidden="true">
+						{card.title}
+					</span>
 				{/if}
-				{#if audio}
-					<p class="mt-1.5 text-sm text-muted">{audio}</p>
-				{/if}
-			</a>
-		</div>
+			</div>
+			<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold">{card.title}</h3>
+			{#if meta}
+				<p class="mt-1.5 text-sm text-muted">{meta}</p>
+			{/if}
+			{#if audio}
+				<p class="mt-1.5 text-sm text-muted">{audio}</p>
+			{/if}
+		</a>
 
 		{#if card.poster_url}
 			<div
 				class="pointer-events-none absolute -inset-2 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+				aria-hidden="true"
 			>
 				<Image
 					src={tmdbImage(card.poster_url, "w500")}
@@ -110,7 +111,7 @@
 						w780: 780,
 					})}
 					sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 64rem) 20vw, (min-width: 48rem) 25vw, (min-width: 30em) 33vw, 50vw"
-					alt=""
+					alt="Poster for {card.title}"
 				/>
 			</div>
 		{/if}
@@ -122,7 +123,7 @@
 				<h3 class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
 				{#if card.score !== null}
 					<p class="mt-3 flex items-center gap-1 text-sm text-muted">
-						<span>{(card.score / 10).toFixed(1)}</span>
+						{(card.score / 10).toFixed(1)}
 						<StarIcon size="1em" weight="fill" />
 					</p>
 				{/if}
