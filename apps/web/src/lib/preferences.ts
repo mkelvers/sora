@@ -9,9 +9,12 @@ export class Preferences {
 
 	get<T>(key: string, schema: z.core.$ZodType<T>, fallback: T): T {
 		try {
-			const stored = schema.safeParse(JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"));
+			const stored = z.safeParse(
+				schema,
+				JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
+			);
 
-			return stored.success ? (stored.data as T) : fallback;
+			return stored.success ? stored.data : fallback;
 		} catch {
 			return fallback;
 		}
