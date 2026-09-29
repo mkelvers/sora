@@ -5,7 +5,13 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import { cn } from "$lib/utils";
 	import type { Profile } from "@sora/sdk";
-	import { CaretDownIcon, PencilSimpleIcon, SignOutIcon, UsersIcon } from "phosphor-svelte";
+	import {
+		BookmarkSimpleIcon,
+		CaretDownIcon,
+		PencilSimpleIcon,
+		SignOutIcon,
+		UsersIcon,
+	} from "phosphor-svelte";
 
 	import Search from "./Search.svelte";
 
@@ -29,6 +35,14 @@
 	<nav class="flex h-full items-center justify-end pl-3 md:pl-6" aria-label="Primary">
 		<div class="flex h-full items-center">
 			<Search />
+
+			<a
+				href="/watchlist"
+				class={cn(link, page.url.pathname === "/watchlist" && "bg-header-hover text-foreground")}
+				aria-label="Watchlist"
+			>
+				<BookmarkSimpleIcon size="1.5rem" />
+			</a>
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
