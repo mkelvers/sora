@@ -1,4 +1,6 @@
 <script lang="ts">
+	import emptyCalendar from "$lib/assets/illustrations/empty-calendar.webp";
+	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
@@ -44,6 +46,29 @@
 		range.formatRange(noon(data.days[0].date), noon(data.days[data.days.length - 1].date)),
 	);
 
+	const emptyWeek = $derived(data.days.every((day) => !day.episodes.length));
+
+	const emptyCopy = (date: string) => {
+		if (emptyWeek && data.ahead) {
+			return {
+				title: "The schedule for this week isn't out yet.",
+				hint: "Check back closer to the week.",
+			};
+		}
+
+		if (emptyWeek) {
+			return {
+				title: "There's no schedule for this week.",
+				hint: "Try another week.",
+			};
+		}
+
+		return {
+			title: `Nothing airs on ${longDay.format(noon(date)).split(",")[0]}.`,
+			hint: "Pick another day to see what's coming out.",
+		};
+	};
+
 	let selected = $derived(data.days.find((day) => day.today)?.date ?? data.days[0].date);
 
 	const tabs = new Tabs<string>({
@@ -56,11 +81,72 @@
 		for (const episode of day.episodes) {
 			slots.set(episode.airing_at, [...(slots.get(episode.airing_at) ?? []), episode]);
 		}
-		return [...slots].map(([at, episodes]) => ({
-			at,
-			aired: Date.parse(at) <= data.now,
-			episodes,
-		}));
+		return [...slots].map(([at, episodes]) => {
+			const titles = new Map<string, typeof episodes>();
+			for (const episode of episodes) {
+				titles.set(episode.series.id, [...(titles.get(episode.series.id) ?? []), episode]);
+			}
+			return {
+				at,
+				aired: Date.parse(at) <= data.now,
+				releases: [...titles].flatMap(([seriesId, versions]) => {
+					const rows: {
+						types: ("sub" | "dub")[];
+						count: number;
+						numbers: string;
+					}[] = [];
+					for (const airType of ["sub", "dub"] as const) {
+						const numbered = versions
+							.filter((version) => version.air_type === airType)
+							.toSorted(
+								(left, right) =>
+									left.season_id.localeCompare(right.season_id) || left.episode - right.episode,
+							);
+						const runs: {
+							seasonId: string;
+							first: number;
+							last: number;
+						}[] = [];
+						for (const version of numbered) {
+							const run = runs.at(-1);
+							if (run?.seasonId === version.season_id && run.last === version.episode - 1) {
+								run.last = version.episode;
+							} else {
+								runs.push({
+									seasonId: version.season_id,
+									first: version.episode,
+									last: version.episode,
+								});
+							}
+						}
+						if (!runs.length) {
+							continue;
+						}
+
+						const numbers = runs
+							.map((run) => (run.first === run.last ? run.first : `${run.first}–${run.last}`))
+							.join(", ");
+						const same = rows.find((row) => row.numbers === numbers);
+						if (same) {
+							same.types.push(airType);
+						} else {
+							rows.push({
+								types: [airType],
+								count: numbered.length,
+								numbers,
+							});
+						}
+					}
+
+					return rows.map((row) => ({
+						key: `${seriesId}:${row.types.join()}`,
+						series: versions[0].series,
+						episodes: `${row.count === 1 ? "Episode" : "Episodes"} ${row.numbers}`,
+						language: audioLabel(row.types),
+					}));
+				}),
+			};
+		});
 	};
 </script>
 
@@ -136,14 +222,13 @@
 									</time>
 
 									<ul class="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-										{#each slot.episodes as episode (`${episode.series.id}:${episode.season_id}:${episode.episode}`)}
-											{@const image = episode.series.backdrop_url ?? episode.series.poster_url}
-											{@const audio = audioLabel(episode.series.audio)}
+										{#each slot.releases as release (release.key)}
+											{@const image = release.series.backdrop_url ?? release.series.poster_url}
 											<li
 												class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10"
 											>
 												<a
-													href="/series/{episode.series.id}"
+													href="/series/{release.series.id}"
 													class="flex min-w-0 flex-1 flex-col focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 												>
 													<div
@@ -160,7 +245,7 @@
 																		w780: 780,
 																	})}
 																	sizes="(min-width: 64rem) 22vw, (min-width: 40rem) 40vw, 40vw"
-																	alt="Backdrop of {episode.series.title}"
+																	alt="Backdrop of {release.series.title}"
 																	class="brightness-75"
 																/>
 															{/if}
@@ -168,12 +253,10 @@
 														<h3
 															class="line-clamp-2 text-[0.9375rem] leading-snug font-bold sm:mt-3.5"
 														>
-															{episode.series.title}
+															{release.series.title}
 														</h3>
 														<p class="mt-1 text-sm text-muted">
-															{[`Episode ${episode.episode}`, audio]
-																.filter((part) => !!part)
-																.join(" · ")}
+															{release.episodes} · {release.language}
 														</p>
 													</div>
 
@@ -184,22 +267,23 @@
 														<p
 															class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase"
 														>
-															{episode.series.title}
+															{release.series.title}
 														</p>
 														<p class="mt-2 text-[0.9375rem] leading-snug font-bold text-foreground">
-															Episode {episode.episode}
+															{release.episodes}
 														</p>
+														<p class="text-sm text-muted">{release.language}</p>
 														<p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
 															<ClockIcon size="1rem" />
 															{longDay.format(noon(day.date)).split(",")[0]} · {clock.format(
 																new Date(slot.at),
 															)}
 														</p>
-														{#if episode.series.overview}
+														{#if release.series.overview}
 															<p
 																class="mt-2 line-clamp-4 text-[0.8125rem] leading-snug text-foreground"
 															>
-																{episode.series.overview}
+																{release.series.overview}
 															</p>
 														{/if}
 														<span
@@ -217,9 +301,15 @@
 							{/each}
 						</ol>
 					{:else}
-						<p class="py-20 text-center text-muted">
-							Nothing airs on {longDay.format(noon(day.date)).split(",")[0]}.
-						</p>
+						<div class="pt-8">
+							<EmptyState
+								image={emptyCalendar}
+								alt="Sora's mascot sitting by a desk calendar, frowning at a blank page she tore off"
+								width={720}
+								height={690}
+								{...emptyCopy(day.date)}
+							/>
+						</div>
 					{/if}
 				{/if}
 			</section>

@@ -25,6 +25,9 @@ export const load: PageServerLoad = async ({ cookies, depends, url }) => {
 	const today = Temporal.Now.plainDateISO(timeZone);
 	const current = mondayOf(today);
 
+	const href = (date: Temporal.PlainDate) =>
+		date.equals(current) ? "/calendar" : `/calendar?week=${date}`;
+
 	let monday = current;
 	const week = url.searchParams.get("week");
 	if (week !== null) {
@@ -36,11 +39,8 @@ export const load: PageServerLoad = async ({ cookies, depends, url }) => {
 		if (monday.year < 2000 || monday.year > 2100) {
 			error(404, "That week is not available");
 		}
-		if (monday.equals(current)) {
-			redirect(307, "/calendar");
-		}
-		if (monday.toString() !== week) {
-			redirect(307, `/calendar?week=${monday}`);
+		if (monday.equals(current) || monday.toString() !== week) {
+			redirect(307, href(monday));
 		}
 	}
 
@@ -78,12 +78,16 @@ export const load: PageServerLoad = async ({ cookies, depends, url }) => {
 		},
 	);
 
-	const href = (date: Temporal.PlainDate) =>
-		date.equals(current) ? "/calendar" : `/calendar?week=${date}`;
-
 	return {
 		timeZone,
 		now: Date.now(),
+		ahead:
+			Temporal.PlainDate.compare(
+				monday,
+				current.add({
+					days: 7,
+				}),
+			) > 0,
 		days,
 		previous: href(
 			monday.subtract({
