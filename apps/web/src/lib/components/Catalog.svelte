@@ -1,5 +1,6 @@
 <script lang="ts">
 	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
+	import preparing from "$lib/assets/illustrations/preparing.webp";
 	import { getCatalogPage, type CatalogRequest } from "$lib/catalog.remote";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
@@ -154,7 +155,14 @@
 
 		{#if !items.length && !hasNextPage}
 			{#if pages.some((page) => page.preparing)}
-				<p class="py-16 text-center text-muted">Getting these titles ready…</p>
+				<EmptyState
+					image={preparing}
+					alt="Sora's mascot hurrying along with a wobbling stack of poster cards, one sliding off the top"
+					width={720}
+					height={709}
+					title="We're getting these titles ready."
+					hint="They'll show up here as soon as they're done."
+				/>
 			{:else}
 				<EmptyState
 					image={emptySearch}
