@@ -27,6 +27,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 
+# local agent tools
+.claude
+
 # IntelliJ based IDEs
 .idea
 
