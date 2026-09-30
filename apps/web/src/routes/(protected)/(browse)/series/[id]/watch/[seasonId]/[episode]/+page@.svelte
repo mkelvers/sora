@@ -51,8 +51,6 @@
 	<Player
 		id={key}
 		media={playback.current?.media}
-		problem={playback.current?.problem}
-		onretry={() => playback.refresh()}
 		back="/series/{series.id}"
 		previous={previous && `/series/${series.id}/watch/${previous.season_id}/${previous.episode}`}
 		next={next && `/series/${series.id}/watch/${next.season_id}/${next.episode}`}

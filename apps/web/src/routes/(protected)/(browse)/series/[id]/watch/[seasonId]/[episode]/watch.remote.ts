@@ -93,7 +93,6 @@ export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) =
 
 		return {
 			media: results,
-			problem: null,
 			next: address(meta.next),
 			previous: address(meta.previous),
 		};
@@ -101,7 +100,6 @@ export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) =
 		if (cause instanceof SoraError) {
 			return {
 				media: [],
-				problem: cause.message,
 				next: null,
 				previous: null,
 			};

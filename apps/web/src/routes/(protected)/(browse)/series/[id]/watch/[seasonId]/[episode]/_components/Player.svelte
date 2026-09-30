@@ -12,8 +12,6 @@
 	type Props = {
 		id: string;
 		media: PlaybackMedia[] | undefined;
-		problem: string | null | undefined;
-		onretry: () => void;
 		back: string;
 		previous?: string;
 		next?: string;
@@ -29,8 +27,6 @@
 	let {
 		id,
 		media: versions,
-		problem,
-		onretry,
 		back,
 		previous,
 		next,
@@ -113,8 +109,7 @@
 	const media = $derived(versions?.find((version) => version.audio === audio));
 	let subtitle = $derived(media?.subtitles.find((track) => track.default)?.url);
 
-	const failure = $derived(problem ?? player.failure);
-	const loading = $derived(!failure && (!versions || player.buffering));
+	const loading = $derived(!versions || (media !== undefined && player.buffering));
 
 	const segment = $derived(
 		media?.skip_segments.find((segment) => {
@@ -154,7 +149,6 @@
 		onpointerdown={player.onpointerdown}
 		onclick={player.onclick}
 		ondblclick={player.toggleFullscreen}
-		onerror={() => (player.failure ??= "The video could not be played.")}
 		onended={end}
 		{@attach player.stream(media?.sources[0])}
 	>
@@ -168,21 +162,6 @@
 			/>
 		{/each}
 	</video>
-
-	{#if failure}
-		<div class="grid justify-items-center gap-4 place-self-center px-4 text-center" role="alert">
-			<p class="text-[#e6e6e6]">{failure}</p>
-			<Button
-				variant="light"
-				onclick={() => {
-					player.failure = undefined;
-					onretry();
-				}}
-			>
-				Try again
-			</Button>
-		</div>
-	{/if}
 
 	<div
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"

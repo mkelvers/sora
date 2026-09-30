@@ -1,7 +1,6 @@
 import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import type Hls from "hls.js";
-import { untrack } from "svelte";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
@@ -30,7 +29,6 @@ export class Player {
 	muted = $state(false);
 	speed = $state(1);
 	readyState = $state(0);
-	failure = $state<string>();
 	idle = $state(false);
 	cues = $state<VTTCue[]>([]);
 
@@ -51,6 +49,8 @@ export class Player {
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#dismissing = false;
 	#resume: number | undefined;
+	#reloads = $state(0);
+	#reloaded = -Infinity;
 
 	constructor(start: number) {
 		this.time = start;
@@ -76,7 +76,6 @@ export class Player {
 		this.#resume = start;
 		this.paused = false;
 		this.duration = 0;
-		this.failure = undefined;
 		this.cues = [];
 	};
 
@@ -154,23 +153,18 @@ export class Player {
 	stream =
 		(source: Source | undefined): Attachment<HTMLVideoElement> =>
 		(video) => {
+			void this.#reloads;
 			if (!source) {
 				return;
 			}
 
-			const start = this.#resume ?? untrack(() => this.time);
+			const start = this.#resume ?? 0;
 			this.#resume = undefined;
-			this.failure = undefined;
 
 			let hls: Hls | undefined;
 			let detached = false;
 
 			const direct = () => {
-				if (source.format === "hls" && !video.canPlayType("application/vnd.apple.mpegurl")) {
-					this.failure = "This browser cannot play HLS streams.";
-					return;
-				}
-
 				video.src = source.url;
 				video.currentTime = start;
 			};
@@ -208,11 +202,10 @@ export class Player {
 								instance.recoverMediaError();
 								return;
 							}
-
-							this.failure =
-								data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR
-									? "This stream is not a valid HLS playlist."
-									: "The stream stopped loading.";
+							if (performance.now() - this.#reloaded > 30_000) {
+								this.#reloaded = performance.now();
+								this.#reloads++;
+							}
 						});
 						instance.loadSource(source.url);
 						instance.attachMedia(video);
@@ -220,7 +213,7 @@ export class Player {
 					})
 					.catch(() => {
 						if (!detached) {
-							this.failure = "The player could not be loaded.";
+							direct();
 						}
 					});
 			} else {
@@ -228,6 +221,7 @@ export class Player {
 			}
 
 			return () => {
+				this.#resume ??= video.currentTime || start;
 				detached = true;
 				hls?.destroy();
 				video.removeAttribute("src");
