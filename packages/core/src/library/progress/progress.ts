@@ -13,7 +13,7 @@ import {
 import { EpisodeNotFoundError, InvalidInputError, SeasonNotFoundError } from "../../errors";
 import { locateEpisode } from "../../series/episodes";
 import { assertSeriesExists } from "../../series/queries";
-import { settleStatus } from "../entries/entries";
+import { pickUpTitle, settleStatus } from "../entries/entries";
 import { completionRatio, seriesProgress, type TitleProgress } from "./resume";
 import { loadCheckpoints, loadTitles } from "./titles";
 
@@ -21,7 +21,7 @@ import { loadCheckpoints, loadTitles } from "./titles";
 const allowedClockSkewMs = 5 * 60_000;
 
 /** Length assumed for an episode marked watched without playing it, when its runtime is unknown. */
-const defaultEpisodeSeconds = 24 * 60;
+export const defaultEpisodeSeconds = 24 * 60;
 
 /** A playback checkpoint reported by a client. */
 export const ProgressUpdateSchema = z
@@ -59,7 +59,7 @@ export type ProgressUpdate = z.input<typeof ProgressUpdateSchema>;
  * history.
  *
  * Playing a title puts it in the library, settles its status (see
- * {@link settleStatus}), and brings it back to "continue watching" if it
+ * {@link settleStatus}) or picks it back up when it was dropped, and brings it back to "continue watching" if it
  * was dismissed from there.
  *
  * @throws {@link InvalidInputError} when the update fails validation.
@@ -121,7 +121,10 @@ export async function recordProgress(userId: string, update: ProgressUpdate) {
 		});
 	// Settling reads the whole title, so it is skipped while nothing can
 	// change: a `watching` title only moves on when an episode is finished.
-	if (watched || (await statusOf(userId, located.seriesId)) !== "watching") {
+	const status = await statusOf(userId, located.seriesId);
+	if (status === "dropped") {
+		await pickUpTitle(userId, located.seriesId);
+	} else if (watched || status !== "watching") {
 		await settleStatus(userId, located.seriesId, [input.seasonId]);
 	}
 	await db

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../database/client";
@@ -15,11 +15,15 @@ import { statusFor } from "./status";
  *
  * - `planning`: they added it to their library and have not started it.
  * - `watching`: they started it, and it is not {@link SeriesProgress.finished}.
- * - `completed`: they watched everything that has come out, and nothing is
- *   still airing. A season released afterwards leaves it completed until
- *   they start that season.
+ * - `completed`: they finished every main season they started, none of
+ *   which is still airing. Films, OVAs, and seasons they have not started
+ *   never hold it back; starting such a season makes it `watching` again.
+ * - `dropped`: they gave up on it. The only status they set themselves; it
+ *   keeps what they watched but leaves the series out of notifications and
+ *   "continue watching", and counts it against their taste. Playing it
+ *   again picks it back up.
  */
-export const LibraryStatusSchema = z.enum(["planning", "watching", "completed"]);
+export const LibraryStatusSchema = z.enum(["planning", "watching", "completed", "dropped"]);
 
 export type LibraryStatus = z.infer<typeof LibraryStatusSchema>;
 
@@ -94,6 +98,7 @@ export async function getLibrary(
 		planning: 0,
 		watching: 0,
 		completed: 0,
+		dropped: 0,
 	};
 	for (const item of items) {
 		counts[item.status] += 1;
@@ -182,6 +187,74 @@ export async function removeFromLibrary(userId: string, seriesId: string): Promi
 		});
 
 	return removed.length > 0;
+}
+
+/**
+ * Drops a series: the user gave up on it. What they watched stays, and the
+ * series stays in the library as `dropped`, out of notifications and
+ * "continue watching". A series not in the library is put in it dropped.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export async function dropTitle(userId: string, seriesId: string) {
+	await assertSeriesExists(seriesId);
+	const now = new Date();
+	await db
+		.insert(libraryEntry)
+		.values({
+			userId,
+			seriesId,
+			status: "dropped",
+			createdAt: now,
+			updatedAt: now,
+		})
+		.onConflictDoUpdate({
+			target: [libraryEntry.userId, libraryEntry.seriesId],
+			set: {
+				status: "dropped",
+				updatedAt: now,
+			},
+			setWhere: ne(libraryEntry.status, "dropped"),
+		});
+}
+
+/**
+ * Picks a dropped series back up: its status follows the user's progress
+ * again (see `statusFor`). A series not dropped is left as it is.
+ */
+export async function pickUpTitle(userId: string, seriesId: string) {
+	const [[entry], titles, checkpoints] = await Promise.all([
+		db
+			.select({
+				status: libraryEntry.status,
+			})
+			.from(libraryEntry)
+			.where(and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesId)))
+			.limit(1),
+		loadTitles([seriesId]),
+		loadCheckpoints(userId, [seriesId]),
+	]);
+	if (entry?.status !== "dropped") {
+		return;
+	}
+
+	const status =
+		statusFor(
+			"planning",
+			seriesProgress(
+				titles.episodes(seriesId),
+				checkpoints.get(seriesId) ?? [],
+				titles.seasonTitles,
+			),
+			[],
+		) ?? "planning";
+	await db
+		.update(libraryEntry)
+		.set({
+			status,
+			updatedAt: new Date(),
+		})
+		.where(and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesId)));
 }
 
 /**

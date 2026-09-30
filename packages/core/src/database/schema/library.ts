@@ -14,11 +14,17 @@ import { series } from "./series";
 
 /**
  * Where a user is with a whole series: `planning`, `watching`, or
- * `completed`. It follows their progress (see `settleStatus`) but is
- * stored, since a series stays `completed` when a season comes out after.
- * How far they are is read from {@link playbackProgress}.
+ * `completed`, which follow their progress (see `settleStatus`), or
+ * `dropped`, which only they set. It is stored, since a series stays
+ * `completed` when a season comes out after. How far they are is read
+ * from {@link playbackProgress}.
  */
-export const libraryStatus = pgEnum("library_status", ["planning", "watching", "completed"]);
+export const libraryStatus = pgEnum("library_status", [
+	"planning",
+	"watching",
+	"completed",
+	"dropped",
+]);
 
 /**
  * One series in one user's library, with its status. How far
@@ -47,6 +53,30 @@ export const libraryEntry = pgTable(
 			columns: [table.userId, table.seriesId],
 		}),
 		index("library_entry_user_updated_idx").on(table.userId, table.updatedAt),
+	],
+);
+
+/**
+ * One entry of a watchlist a user imported, keyed by AniList entry, until
+ * it is applied: at once when its series is stored, or else when the
+ * series is, which removes the row. See `importArcWatchlist`.
+ */
+export const libraryImport = pgTable(
+	"library_import",
+	{
+		userId: text("user_id").notNull(),
+		anilistId: integer("anilist_id").notNull(),
+		/** What the watchlist said; `completed` marks the entry's episodes watched. */
+		status: libraryStatus("status").notNull(),
+		addedAt: timestamptz("added_at").notNull(),
+		/** When the entry last changed in the watchlist, such as when it was completed. */
+		updatedAt: timestamptz("updated_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.anilistId],
+		}),
+		index("library_import_anilist_idx").on(table.anilistId),
 	],
 );
 

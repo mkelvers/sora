@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, min, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, min, ne, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import {
@@ -187,7 +187,11 @@ export async function getNotifications(
 			.innerJoin(series, eq(series.id, seriesSeason.seriesId))
 			.innerJoin(
 				libraryEntry,
-				and(eq(libraryEntry.userId, userId), eq(libraryEntry.seriesId, seriesSeason.seriesId)),
+				and(
+					eq(libraryEntry.userId, userId),
+					eq(libraryEntry.seriesId, seriesSeason.seriesId),
+					ne(libraryEntry.status, "dropped"),
+				),
 			)
 			.leftJoin(
 				playbackProgress,

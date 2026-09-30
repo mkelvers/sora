@@ -7,8 +7,11 @@ import type { LibraryStatus } from "./entries";
  *
  * - {@link SeriesProgress.finished} progress makes it `completed`.
  * - A `completed` series stays completed until the user plays or marks a
- *   season they have not completed, such as one released since; replaying
- *   what they finished does not reopen it.
+ *   main season they have not completed, such as one released since.
+ *   Replaying what they finished, or playing a film or OVA, does not
+ *   reopen it.
+ * - A `dropped` series stays dropped; only picking it back up (see
+ *   `pickUpTitle`) or playing it ends that.
  * - Otherwise it is `watching` once any episode has a checkpoint, and
  *   `planning` while none has, such as after starting it over.
  *
@@ -19,6 +22,10 @@ export function statusFor(
 	progress: SeriesProgress,
 	touched: readonly string[],
 ): LibraryStatus | null {
+	if (current === "dropped") {
+		return "dropped";
+	}
+
 	if (progress.lastWatchedAt === null) {
 		return current && "planning";
 	}

@@ -25,15 +25,23 @@
  */
 export {
 	addToLibrary,
+	dropTitle,
 	getLibrary,
 	getLibraryEntry,
 	LibraryStatusSchema,
+	pickUpTitle,
 	removeFromLibrary,
 	type Library,
 	type LibraryEntry,
 	type LibraryItem,
 	type LibraryStatus,
 } from "./entries/entries";
+export {
+	ArcWatchlistSchema,
+	importArcWatchlist,
+	type ArcWatchlist,
+	type WatchlistImport,
+} from "./entries/import";
 export {
 	dismissNotification,
 	getNotifications,

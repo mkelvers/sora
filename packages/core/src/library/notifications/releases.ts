@@ -1,4 +1,4 @@
-import { eq, inArray, lt, notExists, notInArray, sql } from "drizzle-orm";
+import { eq, inArray, lt, ne, notExists, notInArray, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import {
@@ -24,7 +24,7 @@ import { notificationLifetimeMs } from "./notifications";
  * that come out together make one notification. A series seen for the first
  * time is watched from then on; what it already listed is no news.
  *
- * Series no library holds any more are no longer watched, and what was
+ * Series no library holds any more, or only as dropped, are no longer watched, and what was
  * recorded for them goes, so one added again is watched afresh.
  *
  * @returns How many episodes came out since the last run.
@@ -36,7 +36,8 @@ export async function recordReleases(now = new Date()): Promise<number> {
 		.selectDistinct({
 			seriesId: libraryEntry.seriesId,
 		})
-		.from(libraryEntry);
+		.from(libraryEntry)
+		.where(ne(libraryEntry.status, "dropped"));
 	const seriesIds = listed.map((row) => row.seriesId);
 	if (seriesIds.length === 0) {
 		return 0;
@@ -193,7 +194,8 @@ async function forgetUnwatched(now: Date) {
 		.select({
 			seriesId: libraryEntry.seriesId,
 		})
-		.from(libraryEntry);
+		.from(libraryEntry)
+		.where(ne(libraryEntry.status, "dropped"));
 
 	await db.transaction(async (tx) => {
 		await tx

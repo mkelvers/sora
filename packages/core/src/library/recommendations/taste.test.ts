@@ -57,6 +57,19 @@ describe("titleWeight", () => {
 			),
 		).toBeCloseTo(fresh / 4);
 	});
+
+	test("counts a dropped title against taste, however much of it was played", () => {
+		expect(
+			titleWeight(
+				{
+					status: "dropped",
+					episodesPlayed: 12,
+					lastActiveAt: now,
+				},
+				now,
+			),
+		).toBeLessThan(0);
+	});
 });
 
 describe("rankCandidates", () => {

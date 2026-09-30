@@ -1,0 +1,1 @@
+ALTER TYPE "public"."library_status" ADD VALUE 'dropped';

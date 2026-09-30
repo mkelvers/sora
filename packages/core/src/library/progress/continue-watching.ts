@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { continueWatchingDismissal } from "../../database/schema";
+import { continueWatchingDismissal, libraryEntry } from "../../database/schema";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { continuePoint, type ContinueWatchingItem } from "./resume";
 import { loadCheckpoints, loadTitles } from "./titles";
@@ -11,9 +11,11 @@ import { loadCheckpoints, loadTitles } from "./titles";
  * most recent first.
  *
  * The row is read from episode progress alone; library status is not a
- * way into it. Titles with nothing left to continue are left out (see
- * {@link continuePoint}), as are titles the user dismissed from the row and
- * has not played since.
+ * way into it. Only a season the user started is continued: a title whose
+ * next episode starts a season is left out, as that season is offered
+ * rather than pushed. Titles with nothing left to continue are left out
+ * (see {@link continuePoint}), as are dropped titles and titles the user
+ * dismissed from the row and has not played since.
  */
 export async function getContinueWatching(
 	userId: string,
@@ -29,14 +31,18 @@ export async function getContinueWatching(
 	}
 
 	const limit = options.limit ?? only?.length ?? 20;
-	const [checkpoints, dismissed] = await Promise.all([
+	const [checkpoints, dismissed, dropped] = await Promise.all([
 		loadCheckpoints(userId, only),
 		dismissedTitles(userId, only),
+		droppedTitles(userId, only),
 	]);
 
 	// Over-fetch, because some titles drop out once their episodes are known.
 	const candidates = [...checkpoints]
 		.filter(([seriesId, progress]) => {
+			if (dropped.has(seriesId)) {
+				return false;
+			}
 			const dismissedAt = dismissed.get(seriesId);
 			return dismissedAt === undefined || dismissedAt < progress[0]!.eventAt;
 		})
@@ -52,7 +58,8 @@ export async function getContinueWatching(
 		.flatMap(([seriesId, progress]): ContinueWatchingItem[] => {
 			const card = cards.get(seriesId);
 			const point = card ? continuePoint(titles.episodes(seriesId), progress) : null;
-			return card && point
+			const started = progress.some((checkpoint) => checkpoint.seasonId === point?.seasonId);
+			return card && point && started
 				? [
 						{
 							series: card,
@@ -102,4 +109,21 @@ async function dismissedTitles(userId: string, seriesIds: readonly string[] | un
 		);
 
 	return new Map(rows.map((row) => [row.seriesId, row.dismissedAt.toISOString()]));
+}
+
+/** The titles a user dropped, among `only` when given. */
+async function droppedTitles(userId: string, only?: readonly string[]): Promise<Set<string>> {
+	const rows = await db
+		.select({
+			seriesId: libraryEntry.seriesId,
+		})
+		.from(libraryEntry)
+		.where(
+			and(
+				eq(libraryEntry.userId, userId),
+				eq(libraryEntry.status, "dropped"),
+				only ? inArray(libraryEntry.seriesId, [...only]) : undefined,
+			),
+		);
+	return new Set(rows.map((row) => row.seriesId));
 }
