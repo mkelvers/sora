@@ -13,6 +13,7 @@ import {
 	playbackHistory,
 	playbackProgress,
 	profile,
+	recommendationPick,
 } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
@@ -187,6 +188,7 @@ export async function deleteProfile(userId: string, profileId: string) {
 		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
 		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
+		await tx.delete(recommendationPick).where(eq(recommendationPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});
 }

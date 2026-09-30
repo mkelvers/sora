@@ -99,6 +99,31 @@ export const featuredPick = pgTable(
 );
 
 /**
+ * A title recommended to one user for one rotation (see `rotationOf`), in
+ * `position` order, best fit first. Worked out on the first visit of the
+ * rotation and kept for it, so the home page does not rank taste on every
+ * load.
+ */
+export const recommendationPick = pgTable(
+	"recommendation_pick",
+	{
+		userId: text("user_id").notNull(),
+		rotation: integer("rotation").notNull(),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		position: integer("position").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.rotation, table.seriesId],
+		}),
+	],
+);
+
+/**
  * One episode's state for one user: whether they watched it, and where
  * playback of it stands. Every derived view of a series (season progress,
  * caught up, what to watch next) is read from these rows.

@@ -692,7 +692,7 @@ export const getRecommendations = createRoute({
 	tags: ["Profiles"],
 	summary: "Titles the profile may like",
 	description:
-		"Titles the profile has not played or put in its library, best fit first, from AniList users' recommendations for what it has played and has in its library and the genres those share, weighed by how well liked each title is. Completed and much-watched titles count most, recent ones more than old ones, and dropped titles count against what they are like. Empty for a profile with no history.",
+		"Titles the profile has not played or put in its library, best fit first, from AniList users' recommendations for what it has played and has in its library and the genres those share, weighed by how well liked each title is. Completed and much-watched titles count most, recent ones more than old ones, and dropped titles count against what they are like. They are ranked on the first request of each week (Monday 06:00 UTC, as featured titles) and kept all week; a title the profile plays or lists meanwhile gives its place to the next one ranked. Empty for a profile with no history.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,

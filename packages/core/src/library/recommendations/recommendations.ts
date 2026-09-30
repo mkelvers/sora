@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, max, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, max, ne, sql, type SQL } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import {
@@ -8,11 +8,13 @@ import {
 	series,
 	seriesEntry,
 	libraryEntry,
+	recommendationPick,
 	seriesRelated,
 } from "../../database/schema";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
+import { rotationOf } from "../featured/rotation";
 import {
 	favoriteGenres,
 	rankCandidates,
@@ -31,6 +33,9 @@ const genreCandidateLimit = 300;
 /** How popular a title found by genre alone must be, in AniList users, to be worth suggesting. */
 const genreCandidatePopularity = 10_000;
 
+/** Titles ranked beyond those shown, to take the place of any the profile plays or lists during the rotation. */
+const sparePicks = 20;
+
 /** Formats worth recommending: shows and films, not music videos, specials, or OVAs. */
 const recommendedFormats = ["TV", "ONA", "MOVIE"] as const;
 
@@ -42,16 +47,77 @@ const recommendedFormats = ["TV", "ONA", "MOVIE"] as const;
  * the genres they share; see {@link rankCandidates}. Titles already played or
  * listed are left out, as are their spin-offs and films, which their own
  * pages list, and so are titles not stored yet: those are queued
- * for the scheduler, so a later call finds them. A profile with no history
- * gets none.
+ * for the scheduler, so a later rotation finds them. A profile with no
+ * history gets none.
+ *
+ * They are ranked once a rotation, the week the featured titles are kept
+ * for (see `rotationOf`), on the profile's first visit, and kept: ranking
+ * reads the AniList entry of every title the profile has played or listed,
+ * too much for each load. A title the profile plays or lists meanwhile gives
+ * its place to a spare ranked with the rest.
  */
-export async function getRecommendations(userId: string, limit = 20): Promise<SeriesCard[]> {
-	const activity = await titleActivity(userId);
+export async function getRecommendations(
+	userId: string,
+	limit = 20,
+	now = new Date(),
+): Promise<SeriesCard[]> {
+	const rotation = rotationOf(now);
+	const [activity, picks] = await Promise.all([
+		titleActivity(userId),
+		db
+			.select({
+				seriesId: recommendationPick.seriesId,
+			})
+			.from(recommendationPick)
+			.where(and(eq(recommendationPick.userId, userId), eq(recommendationPick.rotation, rotation)))
+			.orderBy(asc(recommendationPick.position)),
+	]);
 	if (activity.size === 0) {
 		return [];
 	}
 
-	const now = new Date();
+	let picked = picks.map((pick) => pick.seriesId);
+	if (picked.length === 0) {
+		picked = await rank(activity, limit + sparePicks, now);
+		if (picked.length > 0) {
+			await db
+				.insert(recommendationPick)
+				.values(
+					picked.map((seriesId, position) => ({
+						userId,
+						rotation,
+						seriesId,
+						position,
+					})),
+				)
+				.onConflictDoNothing();
+			await db
+				.delete(recommendationPick)
+				.where(
+					and(eq(recommendationPick.userId, userId), lt(recommendationPick.rotation, rotation)),
+				);
+		}
+	}
+
+	const shown = picked.filter((id) => !activity.has(id)).slice(0, limit);
+	if (shown.length === 0) {
+		return [];
+	}
+
+	const rows = await db.select().from(series).where(inArray(series.id, shown));
+	const cards = await toSeriesCards(rows);
+	return shown.flatMap((id) => cards.get(id) ?? []);
+}
+
+/**
+ * Ranks up to `limit` stored titles for a profile's taste, best fit first,
+ * and queues the best-ranked titles not stored yet for the scheduler.
+ */
+async function rank(
+	activity: ReadonlyMap<string, TitleActivity>,
+	limit: number,
+	now: Date,
+): Promise<string[]> {
 	const weights = new Map(
 		[...activity].map(([seriesId, title]) => [seriesId, titleWeight(title, now)]),
 	);
@@ -90,13 +156,7 @@ export async function getRecommendations(userId: string, limit = 20): Promise<Se
 		await scheduleSeriesStore(anilistId, "backfill");
 	}
 
-	if (picked.length === 0) {
-		return [];
-	}
-
-	const rows = await db.select().from(series).where(inArray(series.id, picked));
-	const cards = await toSeriesCards(rows);
-	return picked.flatMap((id) => cards.get(id) ?? []);
+	return picked;
 }
 
 /** What a profile did with each title it has played or listed, keyed by series ID. */
