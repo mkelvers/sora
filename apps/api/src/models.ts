@@ -17,6 +17,7 @@ import type {
 	listSeasonEpisodes,
 } from "./openapi/routes";
 import type {
+	ArcWatchlistSchema,
 	ContinueWatchingItemSchema,
 	HistoryItemSchema,
 	LibraryEntrySchema,
@@ -42,6 +43,7 @@ import type {
 	SeriesSchema,
 	SkipSegmentSchema,
 	TitleProgressSchema,
+	WatchlistImportSchema,
 } from "./openapi/schemas";
 
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
@@ -68,6 +70,8 @@ export type NamedSeason = z.infer<typeof NamedSeasonSchema>;
 export type LibraryItem = z.infer<typeof LibraryItemSchema>;
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
 export type HistoryItem = z.infer<typeof HistoryItemSchema>;
+export type ArcWatchlist = z.input<typeof ArcWatchlistSchema>;
+export type WatchlistImport = z.infer<typeof WatchlistImportSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;

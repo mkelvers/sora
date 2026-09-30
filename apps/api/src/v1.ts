@@ -13,6 +13,7 @@ import {
 	clearProgress,
 	dismissFromContinueWatching,
 	dismissNotification,
+	dropTitle,
 	forgetEpisode,
 	getContinueWatching,
 	getFeatured,
@@ -23,9 +24,11 @@ import {
 	getPlaybackPreferences,
 	getProgress,
 	getRecommendations,
+	importArcWatchlist,
 	markNotificationRead,
 	markNotificationsSeen,
 	markWatched,
+	pickUpTitle,
 	recordProgress,
 	removeFromLibrary,
 	updatePlaybackPreferences,
@@ -629,6 +632,32 @@ export const v1Routes = v1
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await removeFromLibrary(profile.id, series_id);
 		return c.body(null, 204);
+	})
+
+	.openapi(route.dropTitle, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await dropTitle(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.pickUpTitle, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await pickUpTitle(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.importWatchlist, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const imported = await importArcWatchlist(profile.id, c.req.valid("json"));
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(imported),
+			},
+			200,
+		);
 	})
 
 	.openapi(route.getNotifications, async (c) => {

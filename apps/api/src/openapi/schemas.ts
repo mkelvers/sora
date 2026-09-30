@@ -8,6 +8,7 @@ import { z } from "@hono/zod-openapi";
 import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
 import type {
+	ArcWatchlist,
 	ContinueWatchingItem,
 	EpisodeProgress,
 	HistoryItem,
@@ -20,6 +21,7 @@ import type {
 	SeriesProgress,
 	SubtitleChoice,
 	TitleProgress,
+	WatchlistImport,
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
@@ -628,7 +630,7 @@ const seriesProgressFields = {
 	}),
 	finished: z.boolean().openapi({
 		description:
-			"Whether the profile is caught up and no season in watch order is still airing. A season only announced, with no released episode, does not hold it back.",
+			"Whether the profile finished every main season it started, and started one. Films, OVAs, and specials never hold it back, and neither does a season it has not started; a title of films alone counts its films. A season still airing is not finished.",
 	}),
 	next: z
 		.object({
@@ -642,11 +644,15 @@ const seriesProgressFields = {
 		.nullable()
 		.openapi({
 			description:
-				"Where to pick the title back up, as continue watching would, or null when there is nothing to continue.",
+				"Where to pick the title back up, or null when there is nothing to continue. When that starts a season, it starts `unwatched_season` instead, so a main season the profile skipped comes before the ones after it.",
 		}),
 	new_season: NamedSeasonSchema.nullable().openapi({
 		description:
 			"A season the profile has not started that it can watch, such as one released since, offered once there is nothing to continue; otherwise null.",
+	}),
+	unwatched_season: NamedSeasonSchema.nullable().openapi({
+		description:
+			"The first main season with a released episode that the profile has not started, wherever it falls, once it started the title: one released since, or one it skipped. Films, OVAs, and specials are never it, except in a title of films alone. Otherwise null.",
 	}),
 	last_watched_at: z.string().nullable().openapi({
 		description: "When an episode was last played or marked, as an ISO 8601 timestamp.",
@@ -695,10 +701,10 @@ export const ProgressUpdateSchema = z
 	});
 
 export const LibraryStatusSchema = z
-	.enum(["planning", "watching", "completed"])
+	.enum(["planning", "watching", "completed", "dropped"])
 	.openapi("LibraryStatus", {
 		description:
-			"Where the profile is with a whole title, which follows what it does: `planning` once added, `watching` once started, and `completed` once progress is `finished`. A season that comes out after leaves a `completed` title completed until the profile plays or marks that season.",
+			"Where the profile is with a whole title, which follows what it does: `planning` once added, `watching` once started, and `completed` once progress is `finished`, which only counts the main seasons it started. A season it has not started never holds a title back: a `completed` title stays completed until the profile plays or marks a main season it has not finished. `dropped` is the one status the profile sets itself, to give up on a title: it keeps its progress but is left out of notifications and continue watching, and counts against recommendations. Playing it again picks it back up.",
 	});
 
 export const LibraryItemSchema = z
@@ -733,6 +739,7 @@ export const LibraryMetaSchema = z
 				planning: z.number().int().nonnegative(),
 				watching: z.number().int().nonnegative(),
 				completed: z.number().int().nonnegative(),
+				dropped: z.number().int().nonnegative(),
 			})
 			.openapi({
 				description: "How many titles have each status, whatever `status` filters.",
@@ -819,6 +826,40 @@ export const MarkWatchedSchema = z
 		path: ["season_id"],
 	})
 	.openapi("MarkWatched");
+
+export const ArcWatchlistSchema = z
+	.object({
+		schema_version: z.literal("1.0"),
+		entries: z
+			.array(
+				z.object({
+					anilist_id: z.number().int().positive(),
+					status: z.enum(["plan_to_watch", "watching", "completed"]),
+					added_at: z.iso.datetime(),
+					updated_at: z.iso.datetime().openapi({
+						description: "When the entry last changed, such as when it was completed.",
+					}),
+				}),
+			)
+			.max(10_000),
+	})
+	.openapi("ArcWatchlist", {
+		description: "A watchlist exported from Arc, as Arc writes it.",
+	}) satisfies z.ZodType<ArcWatchlist>;
+
+export const WatchlistImportSchema = z
+	.object({
+		imported: z.number().int().nonnegative().openapi({
+			description: "Entries now in the library.",
+		}),
+		waiting: z.number().int().nonnegative().openapi({
+			description: "Entries whose title is being prepared; they are added once it is.",
+		}),
+		not_found: z.number().int().nonnegative().openapi({
+			description: "Entries AniList does not have, and adult ones.",
+		}),
+	})
+	.openapi("WatchlistImport") satisfies z.ZodType<SnakeCased<WatchlistImport>>;
 
 export const HistoryItemSchema = z
 	.object({

@@ -14,6 +14,7 @@ import { logoPlacement } from "@sora/core/series";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
+	ArcWatchlistSchema,
 	ContinueWatchingItemSchema,
 	HistoryItemSchema,
 	HistoryMetaSchema,
@@ -48,6 +49,7 @@ import {
 	SeriesImageSchema,
 	SeriesSchema,
 	TitleProgressSchema,
+	WatchlistImportSchema,
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -669,7 +671,7 @@ export const getContinueWatching = createRoute({
 	tags: ["Profiles"],
 	summary: "Titles to pick back up",
 	description:
-		"One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. It is read from episode progress; library status is not a way into it. The next season only follows when it was already out as the last one was finished; a season released later is not pushed here. Titles with nothing to continue, and titles dropped or dismissed from the row and not played since, are left out.",
+		"One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. It is read from episode progress; library status is not a way into it. Only a season the profile started is continued: a title whose next episode would start a season is left out, as that season is offered rather than pushed. Titles with nothing to continue, dropped titles, and titles dismissed from the row and not played since are left out.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -991,6 +993,76 @@ export const removeFromLibrary = createRoute({
 		},
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
+	},
+});
+
+export const dropTitle = createRoute({
+	operationId: "dropTitle",
+	method: "put",
+	path: "/profiles/{profile_id}/library/{series_id}/dropped",
+	tags: ["Profiles"],
+	summary: "Drop a title",
+	description:
+		"Gives up on the title: it stays in the library as `dropped`, with what the profile watched of it, but is left out of notifications and continue watching, and counts against recommendations. A title not in the library is put in it dropped. Playing it again, or picking it back up, ends that.",
+	security: signedIn,
+	request: {
+		params: ProfileSeriesParams,
+	},
+	responses: {
+		204: {
+			description: "Dropped, or was already.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or no such title."),
+	},
+});
+
+export const pickUpTitle = createRoute({
+	operationId: "pickUpTitle",
+	method: "delete",
+	path: "/profiles/{profile_id}/library/{series_id}/dropped",
+	tags: ["Profiles"],
+	summary: "Pick a dropped title back up",
+	description:
+		"Ends dropping the title: its status follows the profile's progress again. A title not dropped is left as it is.",
+	security: signedIn,
+	request: {
+		params: ProfileSeriesParams,
+	},
+	responses: {
+		204: {
+			description: "Picked back up, or was not dropped.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const importWatchlist = createRoute({
+	operationId: "importWatchlist",
+	method: "post",
+	path: "/profiles/{profile_id}/library/import",
+	tags: ["Profiles"],
+	summary: "Import a watchlist from Arc",
+	description:
+		"Adds the titles of a watchlist exported from Arc to the library, keeping when each was added. Statuses are not copied but follow from progress: every episode of a completed entry that had aired when it was completed is marked watched, dated then, and the status settles from that. Arc does not say how far a watching entry got, so it is added as `planning`. Nothing goes into history, newer progress in Sora wins, and titles already in the library keep when they were added. Entries whose title is not prepared yet are added once it is. Importing the same file again changes nothing.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+		body: {
+			required: true,
+			content: {
+				"application/json": {
+					schema: ArcWatchlistSchema,
+				},
+			},
+		},
+	},
+	responses: {
+		200: json(envelopeOf(WatchlistImportSchema, EmptyMetaSchema), "What was imported."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+		422: problem("The body is not an Arc watchlist."),
 	},
 });
 
