@@ -1,8 +1,7 @@
 import { command, query } from "$app/server";
 import { sora } from "$lib/server/sora";
+import { getSeries } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import { z } from "zod";
-
-import { getSeries } from "../series.remote";
 
 export const getImages = query(z.string(), (seriesId) => sora.images(seriesId));
 

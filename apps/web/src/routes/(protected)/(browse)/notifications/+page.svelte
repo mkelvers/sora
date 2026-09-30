@@ -3,9 +3,12 @@
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import {
+		getNotifications,
+		markNotificationsSeen,
+	} from "$routes/(protected)/(browse)/home.remote";
 	import { CaretDownIcon, ChecksIcon } from "phosphor-svelte";
 
-	import { getNotifications, markNotificationsSeen } from "../home.remote";
 	import Notification from "./_components/Notification.svelte";
 
 	const items = $derived(await getNotifications());

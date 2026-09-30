@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { Player } from "$routes/(protected)/(browse)/series/[id]/watch/[seasonId]/[episode]/watch.svelte";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
 
-	import { Player } from "../watch.svelte";
 	import Controls from "./Controls.svelte";
 	import Settings from "./Settings.svelte";
 

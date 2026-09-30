@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import { getEpisodes } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Season, TitleProgress } from "@sora/sdk";
 
-	import { getEpisodes } from "../series.remote";
 	import Episode from "./Episode.svelte";
 
 	let {

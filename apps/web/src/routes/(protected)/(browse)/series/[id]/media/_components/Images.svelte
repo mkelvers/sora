@@ -1,12 +1,11 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import { cn, languages, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { getImages } from "$routes/(protected)/(browse)/series/[id]/media/media.remote";
+	import type { Media } from "$routes/(protected)/(browse)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
 	import { HeartIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
-
-	import { getImages } from "../media.remote";
-	import type { Media } from "../media.svelte";
 
 	type Props = {
 		series: Series;

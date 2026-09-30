@@ -3,9 +3,9 @@
 	import logo from "$lib/assets/logo.png";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import AuthInput from "$routes/(auth)/_components/AuthInput.svelte";
 	import { untrack } from "svelte";
 
-	import AuthInput from "../_components/AuthInput.svelte";
 	import type { PageProps } from "./$types";
 
 	let { form }: PageProps = $props();

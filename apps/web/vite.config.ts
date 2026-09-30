@@ -32,6 +32,9 @@ export default defineConfig({
 				remoteFunctions: true,
 			},
 			adapter: adapter(),
+			alias: {
+				$routes: "src/routes",
+			},
 		}),
 		sveltePhosphorOptimize(),
 	],

@@ -4,10 +4,12 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import {
+		dismissNotification,
+		markNotificationRead,
+	} from "$routes/(protected)/(browse)/home.remote";
 	import type { Notification } from "@sora/sdk";
 	import { CaretRightIcon, CheckIcon, TrashIcon } from "phosphor-svelte";
-
-	import { dismissNotification, markNotificationRead } from "../../home.remote";
 
 	let {
 		item,

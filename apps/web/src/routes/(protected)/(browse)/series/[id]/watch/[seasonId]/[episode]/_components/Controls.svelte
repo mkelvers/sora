@@ -2,6 +2,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Slider from "$lib/components/ui/Slider.svelte";
 	import { formatClock } from "$lib/utils";
+	import type { Player } from "$routes/(protected)/(browse)/series/[id]/watch/[seasonId]/[episode]/watch.svelte";
 	import {
 		CornersInIcon,
 		CornersOutIcon,
@@ -15,8 +16,6 @@
 		SpeakerSlashIcon,
 	} from "phosphor-svelte";
 	import type { Snippet } from "svelte";
-
-	import type { Player } from "../watch.svelte";
 
 	type Props = {
 		player: Player;

@@ -3,9 +3,9 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { cn } from "$lib/utils";
+	import { getSeries } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
 
-	import { getSeries } from "../series.remote";
 	import type { PageProps } from "./$types";
 	import Filters from "./_components/Filters.svelte";
 	import Images from "./_components/Images.svelte";

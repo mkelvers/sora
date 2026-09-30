@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { cn, describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { searchSeries } from "$routes/(protected)/(browse)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
-
-	import { searchSeries } from "../search/search.remote";
 
 	let {
 		term,

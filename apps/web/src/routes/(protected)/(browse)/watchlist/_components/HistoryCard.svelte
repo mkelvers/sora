@@ -3,10 +3,12 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import {
+		forgetEpisode,
+		getHistory,
+	} from "$routes/(protected)/(browse)/watchlist/watchlist.remote";
 	import type { HistoryItem } from "@sora/sdk";
 	import { TrashIcon } from "phosphor-svelte";
-
-	import { forgetEpisode, getHistory } from "../watchlist.remote";
 
 	let {
 		item,

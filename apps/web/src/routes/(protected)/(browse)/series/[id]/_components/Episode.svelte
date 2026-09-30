@@ -3,10 +3,9 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { markAllWatched } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { EpisodeProgress, SeasonEpisode } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
-
-	import { markAllWatched } from "../series.remote";
 
 	let {
 		seriesId,

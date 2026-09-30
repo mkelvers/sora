@@ -2,9 +2,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Select from "$lib/components/ui/Select.svelte";
 	import { languages as languageNames } from "$lib/utils";
-
-	import { getImages } from "../media.remote";
-	import type { Media } from "../media.svelte";
+	import { getImages } from "$routes/(protected)/(browse)/series/[id]/media/media.remote";
+	import type { Media } from "$routes/(protected)/(browse)/series/[id]/media/media.svelte";
 
 	type Props = {
 		seriesId: string;

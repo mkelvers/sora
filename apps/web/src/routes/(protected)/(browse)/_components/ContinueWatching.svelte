@@ -8,10 +8,9 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { dismiss, getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
 	import type { ContinueWatchingItem } from "@sora/sdk";
 	import { TrashIcon } from "phosphor-svelte";
-
-	import { dismiss, getContinueWatching } from "../home.remote";
 
 	let {
 		items,

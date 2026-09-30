@@ -1,6 +1,6 @@
+import { getSeries } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import type { SeriesImage } from "@sora/sdk";
 
-import { getSeries } from "../series.remote";
 import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
 
 export class Media {

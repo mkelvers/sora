@@ -3,10 +3,12 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import {
+		getWatchlist,
+		removeFromWatchlist,
+	} from "$routes/(protected)/(browse)/watchlist/watchlist.remote";
 	import type { LibraryItem } from "@sora/sdk";
 	import { TrashIcon } from "phosphor-svelte";
-
-	import { getWatchlist, removeFromWatchlist } from "../watchlist.remote";
 
 	let {
 		entry,
