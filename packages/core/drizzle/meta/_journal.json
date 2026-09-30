@@ -288,6 +288,13 @@
       "when": 1790732477208,
       "tag": "0040_recommendation_pick",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790740725516,
+      "tag": "0041_anime_schedule_release",
+      "breakpoints": true
     }
   ]
 }

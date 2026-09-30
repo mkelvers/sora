@@ -1,10 +1,10 @@
 import type { HttpClient } from "anime-sdk";
-import { inArray } from "drizzle-orm";
+import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { animeScheduleShow } from "../database/schema";
+import { animeScheduleRelease, animeScheduleShow, type AirType } from "../database/schema";
 import { day } from "../time";
 
 const apiUrl = "https://animeschedule.net/api/v3";
@@ -17,11 +17,55 @@ const headers = {
 /** One release in AnimeSchedule's timetable, as far as it is read. */
 const TimetableEntrySchema = z.object({
 	route: z.string().min(1),
-	episodeNumber: z.number(),
+	airType: z.enum(["raw", "sub", "dub"]),
+	episodeNumber: z.number().int().positive(),
+	/** How many episodes before `episodeNumber` come out with it, as in a double-episode premiere. */
+	subtractedEpisodeNumber: z.number().int().nonnegative().optional(),
 	episodeDate: z.iso.datetime({
 		offset: true,
 	}),
+	airingStatus: z.string(),
+	/** Set, as `Delayed` or `Break`, while the episode is held back; see {@link isHeldBack}. */
+	delayedText: z.string().optional(),
+	/** When the hold starts and ends; `0001-01-01T00:00:00Z` when not known. */
+	delayedFrom: z.iso
+		.datetime({
+			offset: true,
+		})
+		.optional(),
+	delayedUntil: z.iso
+		.datetime({
+			offset: true,
+		})
+		.optional(),
 });
+
+/** A date AnimeSchedule sends for one it does not know. */
+const unknownDate = "0001-01-01T00:00:00Z";
+
+/**
+ * Whether an entry is held back rather than coming out when listed. The
+ * timetable keeps a delayed episode in each week until it airs, marked
+ * `delayed-air` in the week it was due and only by `delayedText` in the
+ * weeks between, so a listed time within the hold is not when it airs.
+ */
+function isHeldBack(entry: z.infer<typeof TimetableEntrySchema>) {
+	if (entry.airingStatus === "delayed-air") {
+		return true;
+	}
+	if (!entry.delayedText) {
+		return false;
+	}
+
+	const airsAt = Date.parse(entry.episodeDate);
+	const from =
+		entry.delayedFrom && entry.delayedFrom !== unknownDate ? Date.parse(entry.delayedFrom) : null;
+	const until =
+		entry.delayedUntil && entry.delayedUntil !== unknownDate
+			? Date.parse(entry.delayedUntil)
+			: null;
+	return (from === null || airsAt >= from) && (until === null || airsAt < until);
+}
 
 /** One show, as far as it is read: its links elsewhere, such as `anilist.co/anime/195600/…`. */
 const AnimeSchema = z.object({
@@ -35,33 +79,37 @@ const AnimeSchema = z.object({
 /** How long a show that links no AniList entry waits before it is looked up again. */
 const unlinkedShowLifetimeMs = 7 * day;
 
-/** One dubbed episode in AnimeSchedule's timetable. */
-export interface DubRelease {
+/** One episode in AnimeSchedule's timetable. */
+export interface TimetableRelease {
 	/** The show's path on AnimeSchedule; see {@link resolveAnimeScheduleShows}. */
 	route: string;
+	airType: AirType;
 	/** The episode, numbered as the AniList entry numbers it. */
 	episode: number;
 	airsAt: Date;
 }
 
 /**
- * Reads the dubbed episodes AnimeSchedule's timetable lists for one ISO
- * week, Monday to Sunday: one request, about 35 KB. Times are in UTC.
+ * Reads every episode AnimeSchedule's timetable lists for one ISO week,
+ * Monday to Sunday, raw, subbed, and dubbed: one request, about 130 KB.
+ * Times are in UTC. An entry for several episodes at once, such as a
+ * double-episode premiere, is listed as each of them.
  *
- * An entry that does not match {@link TimetableEntrySchema} is left out
- * rather than failing the rest.
+ * A delayed episode is left out until the week it airs; see
+ * {@link isHeldBack}. An entry that does not match
+ * {@link TimetableEntrySchema} is left out rather than failing the rest.
  *
  * @throws when AnimeSchedule cannot be read.
  */
-export async function fetchDubReleases(
+export async function fetchTimetable(
 	http: HttpClient,
 	week: {
 		year: number;
 		week: number;
 	},
-): Promise<DubRelease[]> {
+): Promise<TimetableRelease[]> {
 	const response = await http.get(
-		`${apiUrl}/timetables/dub?year=${week.year}&week=${week.week}&tz=UTC`,
+		`${apiUrl}/timetables/all?year=${week.year}&week=${week.week}&tz=UTC`,
 		{
 			headers,
 		},
@@ -72,16 +120,95 @@ export async function fetchDubReleases(
 		.parse(await response.json())
 		.flatMap((item) => {
 			const entry = TimetableEntrySchema.safeParse(item);
-			return entry.success
-				? [
-						{
-							route: entry.data.route,
-							episode: entry.data.episodeNumber,
-							airsAt: new Date(entry.data.episodeDate),
-						},
-					]
-				: [];
+			if (!entry.success || isHeldBack(entry.data)) {
+				return [];
+			}
+
+			const last = entry.data.episodeNumber;
+			const first = Math.max(1, last - (entry.data.subtractedEpisodeNumber ?? 0));
+			return Array.from(
+				{
+					length: last - first + 1,
+				},
+				(_, index) => ({
+					route: entry.data.route,
+					airType: entry.data.airType,
+					episode: first + index,
+					airsAt: new Date(entry.data.episodeDate),
+				}),
+			);
 		});
+}
+
+/** The weeks {@link syncTimetables} keeps, counted from this week. */
+const syncedWeeks = [-1, 0, 1];
+
+/**
+ * Stores AnimeSchedule's timetable from last week to next week in
+ * {@link animeScheduleRelease}, replacing what each week held, and links
+ * shows it has not seen before to their AniList entries; see
+ * {@link resolveAnimeScheduleShows}.
+ *
+ * Asks AnimeSchedule's API three times, plus once for each new show.
+ *
+ * @returns The AniList entries of the stored episodes.
+ * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
+ */
+export async function syncTimetables(http: HttpClient, now = new Date()): Promise<number[]> {
+	const thisMonday = mondayOf(now);
+	const anilistIds = new Set<number>();
+
+	for (const offset of syncedWeeks) {
+		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
+		const nextMonday = new Date(monday.getTime() + 7 * day);
+		const releases = [
+			...new Map(
+				(await fetchTimetable(http, isoWeek(monday))).map((release) => [
+					`${release.route}:${release.airType}:${release.episode}`,
+					release,
+				]),
+			).values(),
+		];
+		const shows = await resolveAnimeScheduleShows(
+			http,
+			releases.map((release) => release.route),
+		);
+
+		await db.transaction(async (tx) => {
+			await tx
+				.delete(animeScheduleRelease)
+				.where(
+					and(
+						gte(animeScheduleRelease.airsAt, monday),
+						lt(animeScheduleRelease.airsAt, nextMonday),
+					),
+				);
+			if (releases.length > 0) {
+				await tx
+					.insert(animeScheduleRelease)
+					.values(releases)
+					.onConflictDoUpdate({
+						target: [
+							animeScheduleRelease.route,
+							animeScheduleRelease.airType,
+							animeScheduleRelease.episode,
+						],
+						set: {
+							airsAt: sql`excluded.airs_at`,
+						},
+					});
+			}
+		});
+
+		for (const release of releases) {
+			const anilistId = shows.get(release.route);
+			if (anilistId) {
+				anilistIds.add(anilistId);
+			}
+		}
+	}
+
+	return [...anilistIds];
 }
 
 /**
@@ -146,6 +273,12 @@ export async function resolveAnimeScheduleShows(
 	}
 
 	return resolved;
+}
+
+/** The start of the ISO week `date` falls in: Monday, midnight UTC. */
+function mondayOf(date: Date) {
+	const midnight = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+	return new Date(midnight - ((date.getUTCDay() + 6) % 7) * day);
 }
 
 /** The ISO week `date` falls in, in UTC: weeks start on Monday, and week 1 holds the year's first Thursday. */

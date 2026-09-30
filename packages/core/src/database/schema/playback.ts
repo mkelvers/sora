@@ -122,12 +122,12 @@ export const providerCalls = pgTable(
 
 /**
  * Which AniList entry each AnimeSchedule show is, as AnimeSchedule links
- * it, so its dubs can be looked for on AniKoto as they come out. `null`
- * when it links no AniList entry; such a show is looked up again after a
- * week.
+ * it, so its episodes can be placed in the release calendar and its dubs
+ * looked for on AniKoto as they come out. `null` when it links no AniList
+ * entry; such a show is looked up again after a week.
  *
  * The scheduler fills it in as shows appear in AnimeSchedule's timetable;
- * see `syncDubSchedule`.
+ * see `syncTimetables`.
  */
 export const animeScheduleShow = pgTable("anime_schedule_show", {
 	/** The show's path on AnimeSchedule, such as `yomi-no-tsugai`. */
@@ -135,3 +135,32 @@ export const animeScheduleShow = pgTable("anime_schedule_show", {
 	anilistId: integer("anilist_id"),
 	resolvedAt: timestamptz("resolved_at").notNull(),
 });
+
+/** How an episode in AnimeSchedule's timetable comes out. */
+export type AirType = "raw" | "sub" | "dub";
+
+/**
+ * AnimeSchedule's timetable: when each episode of a show airs in Japan
+ * (`raw`), streams with English subtitles (`sub`), and comes out dubbed in
+ * English (`dub`). Episodes are numbered as the show's AniList entry
+ * numbers them; see {@link animeScheduleShow} for the entry.
+ *
+ * The scheduler keeps last week to next week as AnimeSchedule lists them,
+ * leaving out delayed episodes; see `syncTimetables`. Earlier weeks stay as
+ * they were last listed.
+ */
+export const animeScheduleRelease = pgTable(
+	"anime_schedule_release",
+	{
+		route: text("route").notNull(),
+		airType: text("air_type").$type<AirType>().notNull(),
+		episode: integer("episode").notNull(),
+		airsAt: timestamptz("airs_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.route, table.airType, table.episode],
+		}),
+		index("anime_schedule_release_airs_at_idx").on(table.airsAt),
+	],
+);
