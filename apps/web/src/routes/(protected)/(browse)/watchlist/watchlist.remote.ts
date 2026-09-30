@@ -1,6 +1,7 @@
 import { command, query } from "$app/server";
 import { getListed } from "$lib/library.remote";
 import { remoteViewer } from "$lib/server/sora";
+import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
 import { z } from "zod";
 
 export const getWatchlist = query(async () => {
@@ -35,6 +36,10 @@ export const forgetEpisode = command(
 		const viewer = remoteViewer();
 
 		await viewer.sora.forgetEpisode(viewer.profile.id, episode);
-		await getHistory().refresh();
+		await Promise.all([
+			getHistory().refresh(),
+			getWatchlist().refresh(),
+			getContinueWatching().refresh(),
+		]);
 	},
 );
