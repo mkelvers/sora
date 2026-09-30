@@ -10,7 +10,7 @@
 		},
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".svelte-kit/output/**"]
+			"outputs": [".svelte-kit/output/**", "build/**"]
 		},
 		"check": {},
 		"test": {
