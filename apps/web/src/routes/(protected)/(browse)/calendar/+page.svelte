@@ -1,3 +1,9 @@
+<script lang="ts" module>
+	const shown = $state({
+		weeks: 0,
+	});
+</script>
+
 <script lang="ts">
 	import emptyCalendar from "$lib/assets/illustrations/empty-calendar.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
@@ -8,8 +14,16 @@
 	import { CaretLeftIcon, CaretRightIcon, ClockIcon, InfoIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
+	import { getCalendar } from "./calendar.remote";
 
 	let { data }: PageProps = $props();
+
+	const calendar = $derived(
+		await getCalendar({
+			timeZone: data.timeZone,
+			weeks: shown.weeks,
+		}),
+	);
 
 	const noon = (date: string) => new Date(`${date}T12:00:00Z`);
 
@@ -43,13 +57,16 @@
 	);
 
 	const week = $derived(
-		range.formatRange(noon(data.days[0].date), noon(data.days[data.days.length - 1].date)),
+		range.formatRange(
+			noon(calendar.days[0].date),
+			noon(calendar.days[calendar.days.length - 1].date),
+		),
 	);
 
-	const emptyWeek = $derived(data.days.every((day) => !day.episodes.length));
+	const emptyWeek = $derived(calendar.days.every((day) => !day.episodes.length));
 
 	const emptyCopy = (date: string) => {
-		if (emptyWeek && data.ahead) {
+		if (emptyWeek && calendar.ahead) {
 			return {
 				title: "The schedule for this week isn't out yet.",
 				hint: "Check back closer to the week.",
@@ -69,14 +86,14 @@
 		};
 	};
 
-	let selected = $derived(data.days.find((day) => day.today)?.date ?? data.days[0].date);
+	let selected = $derived(calendar.days.find((day) => day.today)?.date ?? calendar.days[0].date);
 
 	const tabs = new Tabs<string>({
 		value: () => selected,
 		onValueChange: (next) => (selected = next),
 	});
 
-	const slotsOf = (day: (typeof data.days)[number]) => {
+	const slotsOf = (day: (typeof calendar.days)[number]) => {
 		const slots = new Map<string, typeof day.episodes>();
 		for (const episode of day.episodes) {
 			slots.set(episode.airing_at, [...(slots.get(episode.airing_at) ?? []), episode]);
@@ -88,7 +105,7 @@
 			}
 			return {
 				at,
-				aired: Date.parse(at) <= data.now,
+				aired: Date.parse(at) <= calendar.now,
 				releases: [...titles].flatMap(([seriesId, versions]) => {
 					const rows: {
 						types: ("sub" | "dub")[];
@@ -162,18 +179,18 @@
 			<h1 id="calendar-title" class="text-xl font-bold sm:text-2xl">Release Calendar</h1>
 
 			<nav class="flex items-center gap-1 max-sm:-mx-2" aria-label="Weeks">
-				<Button href={data.previous} variant="icon" aria-label="Previous week">
+				<Button onclick={() => (shown.weeks -= 1)} variant="icon" aria-label="Previous week">
 					<CaretLeftIcon size="1.25rem" weight="bold" />
 				</Button>
 				<p class="min-w-40 text-center text-sm font-semibold tabular-nums">{week}</p>
-				<Button href={data.next} variant="icon" aria-label="Next week">
+				<Button onclick={() => (shown.weeks += 1)} variant="icon" aria-label="Next week">
 					<CaretRightIcon size="1.25rem" weight="bold" />
 				</Button>
 			</nav>
 		</div>
 
 		<div {...tabs.triggerList} aria-label="Days" class="grid grid-cols-7 border-b border-border">
-			{#each data.days as day (day.date)}
+			{#each calendar.days as day (day.date)}
 				<button
 					{...tabs.getTrigger(day.date)}
 					type="button"
@@ -198,7 +215,7 @@
 			{/each}
 		</div>
 
-		{#each data.days as day (day.date)}
+		{#each calendar.days as day (day.date)}
 			<section
 				{...tabs.getContent(day.date)}
 				aria-label={longDay.format(noon(day.date))}
@@ -213,7 +230,7 @@
 									<li
 										class="flex items-center gap-4 text-sm font-semibold text-muted tabular-nums after:h-px after:flex-1 after:bg-border-strong sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6"
 									>
-										Now · {clock.format(data.now)}
+										Now · {clock.format(calendar.now)}
 									</li>
 								{/if}
 								<li class="grid gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6">
