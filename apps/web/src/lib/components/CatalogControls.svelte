@@ -1,22 +1,20 @@
+<script lang="ts" module>
+	export const catalogFilters = $state<{
+		audio?: "sub" | "dub";
+		format?: "TV" | "MOVIE";
+	}>({});
+</script>
+
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import { cn } from "$lib/utils";
 	import { CircleIcon, FunnelIcon, ListBulletsIcon, RadioButtonIcon } from "phosphor-svelte";
 
-	type Filters = {
-		audio?: "sub" | "dub";
-		format?: "TV" | "MOVIE";
-	};
-
 	let {
 		kind,
-		genre,
-		filters,
 	}: {
-		kind: "new" | "popular";
-		genre?: string;
-		filters: Filters;
+		kind?: "new" | "popular";
 	} = $props();
 
 	const sorts = [
@@ -69,24 +67,12 @@
 		},
 	] as const;
 
-	const selectedSort = $derived(sorts.find((sort) => sort.kind === kind)!);
-	const filtered = $derived(!!filters.audio || !!filters.format);
-
-	const href = (target: "new" | "popular", patch: Filters = {}) => {
-		const next = {
-			...filters,
-			...patch,
-		};
-		const query = new URLSearchParams(
-			Object.entries(next).flatMap(([key, value]) => (value ? [[key, value]] : [])),
-		).toString();
-		const path = genre ? `/genres/${genre}` : `/${target}`;
-		return query ? `${path}?${query}` : path;
-	};
+	const selectedSort = $derived(sorts.find((sort) => sort.kind === kind));
+	const filtered = $derived(!!catalogFilters.audio || !!catalogFilters.format);
 </script>
 
 <div class="flex items-center gap-1">
-	{#if !genre}
+	{#if selectedSort}
 		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {selectedSort.label} selected">
 			{#snippet trigger()}
 				<ListBulletsIcon size="1.2rem" weight="bold" />
@@ -99,7 +85,7 @@
 						<Button
 							role="menuitemradio"
 							aria-checked={sort.kind === kind}
-							href={href(sort.kind)}
+							href="/{sort.kind}"
 							variant="item"
 						>
 							{sort.label}
@@ -124,13 +110,14 @@
 							{group.label}
 						</p>
 						{#each group.options as option (option.label)}
-							{@const checked = filters[group.id] === option.value}
+							{@const checked = catalogFilters[group.id] === option.value}
 							<Button
 								role="menuitemradio"
 								aria-checked={checked}
-								href={href(kind, {
-									[group.id]: option.value,
-								})}
+								onclick={() =>
+									Object.assign(catalogFilters, {
+										[group.id]: option.value,
+									})}
 								variant="item"
 								class="gap-2.5"
 							>
