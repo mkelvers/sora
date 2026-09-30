@@ -83,6 +83,7 @@
 				{/if}
 				{#if listed}
 					<span
+						data-listed
 						class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
 					>
 						<BookmarkSimpleIcon

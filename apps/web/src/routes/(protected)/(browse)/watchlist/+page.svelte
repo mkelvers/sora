@@ -2,12 +2,12 @@
 	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
 	import emptyWatchlist from "$lib/assets/illustrations/empty-watchlist.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
+	import Poster from "$lib/components/Poster.svelte";
 	import ResetFilters from "$lib/components/ResetFilters.svelte";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import { getListed } from "$lib/library.remote";
 	import type { LibraryItem, LibraryStatus } from "@sora/sdk";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
-	import WatchlistCard from "./_components/WatchlistCard.svelte";
 	import WatchlistControls, {
 		sorts,
 		statuses,
@@ -16,6 +16,7 @@
 	import { getWatchlist } from "./watchlist.remote";
 
 	const watchlist = getWatchlist();
+	const listing = getListed();
 
 	let sort = $state<WatchlistSort>("recent");
 	let status = $state<LibraryStatus>();
@@ -40,6 +41,10 @@
 			title: "No finished shows here yet.",
 			hint: "Every series you see through to the end lands here.",
 		},
+		dropped: {
+			title: "Nothing dropped. Everything's still in the running.",
+			hint: "Shows you give up on land here, out of your way.",
+		},
 	};
 
 	const compare: Record<typeof sort, ((left: LibraryItem, right: LibraryItem) => number) | null> = {
@@ -49,7 +54,11 @@
 	};
 
 	const shown = $derived.by(() => {
-		const entries = (watchlist.current ?? []).filter((entry) => !status || entry.status === status);
+		const entries = (watchlist.current ?? []).filter(
+			(entry) =>
+				(status ? entry.status === status : entry.status !== "dropped") &&
+				(!listing.current || listing.current.includes(entry.series.id)),
+		);
 		const order = compare[sort];
 		return order ? entries.toSorted(order) : entries;
 	});
@@ -100,14 +109,46 @@
 					hint={emptyFilter[status].hint}
 				/>
 			{:else}
-				<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">
+				<ul
+					class="grid grid-cols-2 items-start gap-x-3 gap-y-8 pb-10 **:data-listed:hidden sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
+				>
 					{#if watchlist.current}
 						{#each shown as entry (entry.series.id)}
-							<li><WatchlistCard {entry} /></li>
+							{@const completed = entry.status === "completed"}
+							{@const unwatched = completed ? entry.progress.unwatched_season : null}
+							{@const next = unwatched
+								? {
+										season_id: unwatched.season_id,
+										episode: 1,
+										position_seconds: 0,
+										duration_seconds: null,
+									}
+								: entry.progress.next}
+							{@const more = unwatched !== null}
+							<li class="relative [&_a>h3]:line-clamp-none [&_h3]:min-h-0">
+								<Poster
+									card={entry.series}
+									resume={next && {
+										series: entry.series,
+										...next,
+										last_watched_at: entry.progress.last_watched_at ?? entry.updated_at,
+									}}
+									meta={next && !completed
+										? `${next.position_seconds > 0 ? "Continue" : "Start"}${entry.series.kind === "movie" ? "" : ` E${next.episode}`}`
+										: undefined}
+								/>
+								{#if more}
+									<span
+										class="pointer-events-none absolute top-0 right-0 size-7 after:absolute after:inset-0 after:bg-accent after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+									>
+										<span class="sr-only">More to watch</span>
+									</span>
+								{/if}
+							</li>
 						{/each}
 					{:else}
-						{#each { length: 8 }, index (index)}
-							<li class="p-2"><Skeleton class="aspect-video w-full" /></li>
+						{#each { length: 12 }, index (index)}
+							<li><Poster /></li>
 						{/each}
 					{/if}
 				</ul>

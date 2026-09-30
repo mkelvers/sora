@@ -29,6 +29,10 @@
 			value: "completed",
 			label: "Completed",
 		},
+		{
+			value: "dropped",
+			label: "Dropped",
+		},
 	] as const satisfies readonly {
 		value: LibraryStatus;
 		label: string;
