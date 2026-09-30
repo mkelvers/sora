@@ -55,6 +55,14 @@
 		},
 	];
 
+	const categories = [
+		...sections,
+		{
+			href: "/calendar",
+			label: "Release Calendar",
+		},
+	];
+
 	const destinations = $derived([
 		{
 			href: "/",
@@ -130,7 +138,7 @@
 				{#snippet children()}
 					<ul class="flex flex-col">
 						{@render menuItem(destinations[0])}
-						{#each sections as section (section.href)}
+						{#each categories as section (section.href)}
 							{@render menuItem({
 								...section,
 								new: false,
@@ -216,12 +224,12 @@
 
 					{#snippet children()}
 						<ul class="w-56 shrink-0 border-r border-border">
-							{#each sections as section (section.href)}
+							{#each categories as section (section.href)}
 								<li>
 									<Button
 										href={section.href}
 										variant="item"
-										class="text-[0.9375rem]"
+										class="text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
 										aria-current={page.url.pathname === section.href ? "page" : undefined}
 									>
 										{section.label}
