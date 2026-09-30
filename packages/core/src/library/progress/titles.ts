@@ -94,6 +94,7 @@ export async function loadTitles(seriesIds: readonly string[]): Promise<LoadedTi
 				const isLast = row.anilistId !== null && lastPlayable.get(row.seasonId) === row.number;
 				return {
 					seasonId: row.seasonId,
+					seasonKind: row.seasonKind,
 					inWatchOrder: row.inWatchOrder,
 					number: row.number,
 					isExtra: row.anilistId === null,

@@ -8,6 +8,10 @@ import {
 	type TitleEpisode,
 } from "./resume";
 
+/** The kind of a test season, from its ID: `film…` and `ova…` ones are extras to the main seasons. */
+const kindOf = (seasonId: string): TitleEpisode["seasonKind"] =>
+	seasonId.startsWith("film") ? "movie" : seasonId.startsWith("ova") ? "ova" : "season";
+
 /** A finished season of `count` released episodes, released at `releasedAt` when given. */
 function season(
 	seasonId: string,
@@ -21,6 +25,7 @@ function season(
 		},
 		(_, index) => ({
 			seasonId,
+			seasonKind: kindOf(seasonId),
 			inWatchOrder,
 			number: index + 1,
 			isExtra: false,
@@ -112,6 +117,7 @@ describe("continuePoint", () => {
 			...season("s1", 2),
 			{
 				seasonId: "s1",
+				seasonKind: "season" as const,
 				inWatchOrder: true,
 				number: 3,
 				isExtra: true,
@@ -340,5 +346,103 @@ describe("seriesProgress", () => {
 		];
 
 		expect(seriesProgress(announced, watchedSeason("s1", 2), titles).finished).toBe(true);
+	});
+
+	test("is finished with a season it has not started", () => {
+		const unstarted = [...season("s1", 2), ...season("s2", 2)];
+
+		expect(seriesProgress(unstarted, watchedSeason("s1", 2), titles)).toMatchObject({
+			caughtUp: false,
+			finished: true,
+			next: {
+				seasonId: "s2",
+				episode: 1,
+			},
+		});
+	});
+
+	test("is finished while its films are not watched", () => {
+		const withFilm = [...season("s1", 2), ...season("film1", 1), ...season("s2", 2)];
+
+		expect(
+			seriesProgress(withFilm, [...watchedSeason("s2", 2), ...watchedSeason("s1", 2)], titles)
+				.finished,
+		).toBe(true);
+	});
+
+	test("is not finished before anything is started", () => {
+		expect(seriesProgress(frieren, [], titles).finished).toBe(false);
+	});
+
+	test("counts the films of a title that has only films", () => {
+		const films = [...season("film1", 1), ...season("film2", 1)];
+
+		expect(seriesProgress(films, watchedSeason("film1", 1), titles).finished).toBe(true);
+		expect(seriesProgress(films, [checkpoint("film1", 1, 300, false)], titles).finished).toBe(
+			false,
+		);
+	});
+
+	test("marks a main season it skipped as unwatched", () => {
+		const skipped = [...season("s1", 2), ...season("s2", 2), ...season("s3", 2)];
+		const progress = seriesProgress(
+			skipped,
+			[...watchedSeason("s3", 2), ...watchedSeason("s1", 2)],
+			titles,
+		);
+
+		expect(progress).toMatchObject({
+			finished: true,
+			next: null,
+			unwatchedSeason: {
+				seasonId: "s2",
+				title: "Season 2",
+			},
+		});
+	});
+
+	test("never marks a film or OVA as unwatched", () => {
+		const withExtras = [...season("s1", 2), ...season("film1", 1), ...season("ova1", 1)];
+
+		expect(seriesProgress(withExtras, watchedSeason("s1", 2), titles).unwatchedSeason).toBeNull();
+	});
+
+	test("marks nothing unwatched before anything is started", () => {
+		expect(seriesProgress(frieren, [], titles).unwatchedSeason).toBeNull();
+	});
+
+	test("starts a skipped main season before the next one", () => {
+		const skipped = [
+			...season("s1", 2),
+			...season("s2", 2),
+			...season("s3", 2),
+			...season("s4", 2),
+		];
+
+		expect(
+			seriesProgress(skipped, [...watchedSeason("s3", 2), ...watchedSeason("s1", 2)], titles).next,
+		).toMatchObject({
+			seasonId: "s2",
+			episode: 1,
+			positionSeconds: 0,
+		});
+	});
+
+	test("starts a skipped main season before a film", () => {
+		const withFilm = [...season("s1", 2), ...season("film1", 1), ...season("s2", 2)];
+
+		expect(seriesProgress(withFilm, watchedSeason("s1", 2), titles).next).toMatchObject({
+			seasonId: "s2",
+			episode: 1,
+		});
+	});
+
+	test("keeps going within a season it started", () => {
+		const skipped = [...season("s1", 3), ...season("s2", 2)];
+
+		expect(seriesProgress(skipped, [checkpoint("s1", 1, 1440, true)], titles).next).toMatchObject({
+			seasonId: "s1",
+			episode: 2,
+		});
 	});
 });

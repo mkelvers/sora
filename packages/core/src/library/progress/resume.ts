@@ -55,12 +55,19 @@ export interface SeriesProgress {
 	 */
 	caughtUp: boolean;
 	/**
-	 * Whether the user is caught up and no season in watch order is still
-	 * airing, so nothing more is coming that they could watch. A season only
-	 * announced, with no released episode yet, does not hold it back.
+	 * Whether the user finished every main season they started, and started
+	 * one. Films, OVAs, and specials never hold it back, and neither does a
+	 * season they have not started (see {@link unwatchedSeason}); a title of
+	 * films alone counts its films. A season
+	 * still airing is not finished, so neither is a title they are keeping
+	 * up with.
 	 */
 	finished: boolean;
-	/** Where to pick the title back up; see {@link continuePoint}. */
+	/**
+	 * Where to pick the title back up; see {@link continuePoint}. When that
+	 * starts a season, it starts {@link unwatchedSeason} instead, so a main
+	 * season the user skipped comes before the ones after it.
+	 */
 	next: ContinuePoint | null;
 	/**
 	 * A season the user has not started that they can watch, offered once
@@ -68,6 +75,13 @@ export interface SeriesProgress {
 	 * {@link unstartedSeason}.
 	 */
 	newSeason: NamedSeason | null;
+	/**
+	 * The first main season with a released episode that the user has not
+	 * started, wherever it falls, once they started the title: one released
+	 * since, or one they skipped. Films, OVAs, and specials are never it,
+	 * except in a title of films alone. `null` when there is none.
+	 */
+	unwatchedSeason: NamedSeason | null;
 	/** ISO 8601 timestamp of the latest change to an episode's state, or `null`. */
 	lastWatchedAt: string | null;
 }
@@ -95,6 +109,8 @@ export interface ContinueWatchingItem {
 /** One episode of a title, as the resume rules see it. */
 export interface TitleEpisode {
 	seasonId: string;
+	/** A main season, or a film or OVA; only main seasons decide whether a title is {@link SeriesProgress.finished}. */
+	seasonKind: "season" | "ova" | "movie";
 	/** See `SeriesSeason.inWatchOrder`. */
 	inWatchOrder: boolean;
 	/** Position within the season, from 1. */
@@ -229,8 +245,31 @@ export function seriesProgress(
 	const inWatchOrder = released.filter((episode) => episode.inWatchOrder);
 	const watchedEpisodes = inWatchOrder.filter(watched).length;
 	const caughtUp = inWatchOrder.length > 0 && watchedEpisodes === inWatchOrder.length;
-	const ordered = new Set(inWatchOrder.map((episode) => episode.seasonId));
-	const next = continuePoint(episodes, progress);
+	const main = released.filter((episode) => episode.seasonKind === "season");
+	const counted = new Set(
+		(main.length > 0 ? main : inWatchOrder).map((episode) => episode.seasonId),
+	);
+	const started = new Set(
+		[...counted].filter((seasonId) =>
+			progress.some((checkpoint) => checkpoint.seasonId === seasonId),
+		),
+	);
+	const unwatched =
+		started.size > 0 ? [...counted].find((seasonId) => !started.has(seasonId)) : undefined;
+	const point = continuePoint(episodes, progress);
+	// Starting a new season starts the earliest main season not started, so a skipped one comes first.
+	const skippedTo =
+		point && unwatched && !progress.some((checkpoint) => checkpoint.seasonId === point.seasonId)
+			? released.find((episode) => episode.seasonId === unwatched)
+			: undefined;
+	const next: ContinuePoint | null = skippedTo
+		? {
+				seasonId: skippedTo.seasonId,
+				episode: skippedTo.number,
+				positionSeconds: 0,
+				durationSeconds: null,
+			}
+		: point;
 	const unstarted = next ? null : unstartedSeason(episodes, progress);
 
 	return {
@@ -239,9 +278,11 @@ export function seriesProgress(
 		releasedEpisodes: inWatchOrder.length,
 		caughtUp,
 		finished:
-			caughtUp && seasons.every((season) => !ordered.has(season.seasonId) || season.completed),
+			started.size > 0 &&
+			seasons.every((season) => !started.has(season.seasonId) || season.completed),
 		next,
 		newSeason: unstarted ? named(unstarted) : null,
+		unwatchedSeason: unwatched ? named(unwatched) : null,
 		lastWatchedAt: progress[0]?.eventAt ?? null,
 	};
 }
