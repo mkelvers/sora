@@ -98,6 +98,7 @@
 						: `Remove E${item.episode} of ${item.series.title} from your history`}
 					onclick={() =>
 						forgetEpisode({
+							seriesId: item.series.id,
 							seasonId: item.season_id,
 							number: item.episode,
 						}).updates(

@@ -2,6 +2,7 @@ import { command, query } from "$app/server";
 import { getListed } from "$lib/library.remote";
 import { remoteViewer } from "$lib/server/sora";
 import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
+import { getProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import { z } from "zod";
 
 export const getWatchlist = query(async () => {
@@ -29,15 +30,20 @@ export const removeFromWatchlist = command(z.string(), async (seriesId) => {
 
 export const forgetEpisode = command(
 	z.object({
+		seriesId: z.string(),
 		seasonId: z.string(),
 		number: z.number().int(),
 	}),
-	async (episode) => {
+	async ({ seriesId, seasonId, number }) => {
 		const viewer = remoteViewer();
 
-		await viewer.sora.forgetEpisode(viewer.profile.id, episode);
+		await viewer.sora.forgetEpisode(viewer.profile.id, {
+			seasonId,
+			number,
+		});
 		await Promise.all([
 			getHistory().refresh(),
+			getProgress(seriesId).refresh(),
 			getWatchlist().refresh(),
 			getContinueWatching().refresh(),
 		]);
