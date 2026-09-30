@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import logo from "$lib/assets/logo.png";
+	import tmdbLogo from "$lib/assets/tmdb.svg";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import AuthInput from "$routes/(auth)/_components/AuthInput.svelte";
@@ -80,9 +81,8 @@
 
 	<Button variant="primary" class="mt-10 w-full" type="submit" loading={pending}>Sign in</Button>
 
-	<p class="mt-8 text-center text-sm">
-		<Button variant="link" href="/about" class="text-muted hover:text-foreground">
-			About Sora
-		</Button>
+	<p class="mt-16 flex flex-col items-center gap-3 text-center text-xs text-muted">
+		<img src={tmdbLogo} alt="The Movie Database (TMDB) logo" class="h-3" />
+		This product uses the TMDB API but is not endorsed or certified by TMDB.
 	</p>
 </form>

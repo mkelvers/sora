@@ -94,3 +94,14 @@ The API's OpenAPI document is served at
 bun run check   # type-check every package
 bun run test    # run every package's tests
 ```
+
+## Credits
+
+Sora doesn't make its own anime data or host any video.
+
+- [AniList](https://anilist.co): titles, descriptions, genres, cover art, scores,
+  how entries relate, and airing schedules.
+- [The Movie Database (TMDB)](https://www.themoviedb.org): seasons, episode
+  details, backdrops, and logos. This product uses the TMDB API but is not
+  endorsed or certified by TMDB.
+- [AnimeSchedule.net](https://animeschedule.net): when English dubs come out.

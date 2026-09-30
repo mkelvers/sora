@@ -14,7 +14,6 @@
 		BookmarkSimpleIcon,
 		CaretDownIcon,
 		HouseSimpleIcon,
-		InfoIcon,
 		ListIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
@@ -341,15 +340,11 @@
 
 							<Button
 								role="menuitem"
-								href="/about"
+								type="submit"
+								form="sign-out"
 								variant="item"
 								class="gap-3 border-t border-border"
 							>
-								<InfoIcon size="1.3rem" />
-								About
-							</Button>
-
-							<Button role="menuitem" type="submit" form="sign-out" variant="item" class="gap-3">
 								<SignOutIcon size="1.3rem" />
 								Sign out
 							</Button>
