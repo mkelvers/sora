@@ -13,7 +13,8 @@
 
 	let { data }: PageProps = $props();
 
-	const continuing = $derived(await getContinueWatching());
+	const continuingQuery = getContinueWatching();
+	const continuing = $derived(continuingQuery.current ?? []);
 	const { featured, recommended, trending } = $derived(data);
 	const resumes = $derived(new Map(continuing.map((item) => [item.series.id, item])));
 	const rows = $derived([
