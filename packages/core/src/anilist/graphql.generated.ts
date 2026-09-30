@@ -232,15 +232,6 @@ export type NewEntriesQueryVariables = Exact<{
 
 export type NewEntriesQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
 
-export type AiringScheduleQueryVariables = Exact<{
-  page: number;
-  from: number;
-  until: number;
-}>;
-
-
-export type AiringScheduleQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, airingSchedules: Array<{ id: number, episode: number, airingAt: number, media: { id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null };
-
 export type EpisodeAiringsQueryVariables = Exact<{
   ids: Array<number> | number;
   page: number;
@@ -855,51 +846,6 @@ fragment FranchiseEntry on Media {
     }
   }
 }`) as unknown as TypedDocumentString<NewEntriesQuery, NewEntriesQueryVariables>;
-export const AiringScheduleDocument = new TypedDocumentString(`
-    query AiringSchedule($page: Int!, $from: Int!, $until: Int!) {
-  Page(page: $page, perPage: 50) {
-    pageInfo {
-      hasNextPage
-    }
-    airingSchedules(airingAt_greater: $from, airingAt_lesser: $until, sort: [TIME]) {
-      id
-      episode
-      airingAt
-      media {
-        ...AnimeCard
-      }
-    }
-  }
-}
-    fragment AnimeCard on Media {
-  id
-  idMal
-  title {
-    romaji
-    english
-    native
-  }
-  coverImage {
-    extraLarge
-    large
-    color
-  }
-  bannerImage
-  format
-  status
-  season
-  seasonYear
-  episodes
-  duration
-  averageScore
-  popularity
-  genres
-  isAdult
-  nextAiringEpisode {
-    airingAt
-    episode
-  }
-}`) as unknown as TypedDocumentString<AiringScheduleQuery, AiringScheduleQueryVariables>;
 export const EpisodeAiringsDocument = new TypedDocumentString(`
     query EpisodeAirings($ids: [Int!]!, $page: Int!) {
   Page(page: $page, perPage: 50) {
