@@ -306,7 +306,7 @@ async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
 
 /**
  * Replaces a series' seasons and episodes, keeping season IDs, each episode
- * with when AniList's airing schedule says it aired (see
+ * with when AniList's airing schedule says it airs (see
  * {@link fetchEpisodeAirings}). Returns the seasons with their IDs.
  */
 async function writeSeasons(

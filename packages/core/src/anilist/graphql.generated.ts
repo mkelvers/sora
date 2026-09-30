@@ -852,7 +852,7 @@ export const EpisodeAiringsDocument = new TypedDocumentString(`
     pageInfo {
       hasNextPage
     }
-    airingSchedules(mediaId_in: $ids, notYetAired: false, sort: [MEDIA_ID, EPISODE]) {
+    airingSchedules(mediaId_in: $ids, sort: [MEDIA_ID, EPISODE]) {
       mediaId
       episode
       airingAt

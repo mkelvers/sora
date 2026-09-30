@@ -1,11 +1,11 @@
-# The aired episodes of the given entries with when each aired, by entry and
-# episode.
+# The scheduled episodes of the given entries, aired or not, with when each
+# airs, by entry and episode.
 query EpisodeAirings($ids: [Int!]!, $page: Int!) {
 	Page(page: $page, perPage: 50) {
 		pageInfo {
 			hasNextPage
 		}
-		airingSchedules(mediaId_in: $ids, notYetAired: false, sort: [MEDIA_ID, EPISODE]) {
+		airingSchedules(mediaId_in: $ids, sort: [MEDIA_ID, EPISODE]) {
 			mediaId
 			episode
 			airingAt

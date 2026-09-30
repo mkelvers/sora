@@ -15,9 +15,12 @@ export interface AiringBroadcast {
 const airingsBatchSize = 50;
 
 /**
- * When each aired episode of the given AniList entries aired, as AniList's
- * airing schedule records it: the moment of broadcast, which a TMDB air
- * date in Japan's calendar can place a day late.
+ * When each scheduled episode of the given AniList entries airs or aired, as
+ * AniList's airing schedule records it: the moment of broadcast, which a
+ * TMDB air date in Japan's calendar can place a day late.
+ *
+ * Episodes yet to air are included, so a snapshot fetched just before a
+ * broadcast still dates the episode it covers.
  *
  * Entries AniList has no schedule for, as for most older anime, have no
  * episodes in the result.
