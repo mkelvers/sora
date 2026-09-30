@@ -1,15 +1,10 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
-import {
-	fetchDubReleases,
-	isoWeek,
-	resolveAnimeScheduleShows,
-} from "../../animeschedule/timetable";
 import { db } from "../../database/client";
-import { seriesEntry } from "../../database/schema";
+import { animeScheduleRelease, animeScheduleShow, seriesEntry } from "../../database/schema";
 import { getStoredUnits } from "../../playback/episodes/episodes";
-import { aniKoto, providerHttp } from "../../playback/providers/registry";
+import { aniKoto } from "../../playback/providers/registry";
 import { hour, minute } from "../../time";
 import { scheduleAniKotoPoll } from "../queue";
 
@@ -32,28 +27,30 @@ export const syncDubScheduleTask = "sync-dub-schedule";
  * dub shows up within minutes of AniKoto carrying it. AniList has no dub
  * schedule.
  *
- * Runs daily, and asks AnimeSchedule's API for its timetable once, or
- * twice when the day ahead reaches into next week, plus once for each show
- * it has not seen before; see {@link resolveAnimeScheduleShows}. Only dubs
- * of stored series that AniKoto does not carry yet are looked for.
+ * Runs daily on AnimeSchedule's timetable as `syncTimetables` stores it,
+ * without asking AnimeSchedule itself. Only dubs of stored series that
+ * AniKoto does not carry yet are looked for.
  */
 export const syncDubSchedule: Task = async (_payload, helpers) => {
 	const now = new Date();
 	const until = new Date(now.getTime() + scheduleAheadMs);
-	const weeks = new Map(
-		[isoWeek(now), isoWeek(until)].map((week) => [`${week.year}-${week.week}`, week]),
-	);
-	const releases = (
-		await Promise.all([...weeks.values()].map((week) => fetchDubReleases(providerHttp, week)))
-	)
-		.flat()
-		.filter((release) => release.airsAt > now && release.airsAt <= until);
-
-	const shows = await resolveAnimeScheduleShows(
-		providerHttp,
-		releases.map((release) => release.route),
-	);
-	const ids = releases.flatMap((release) => shows.get(release.route) ?? []);
+	const releases = await db
+		.select({
+			anilistId: animeScheduleShow.anilistId,
+			episode: animeScheduleRelease.episode,
+			airsAt: animeScheduleRelease.airsAt,
+		})
+		.from(animeScheduleRelease)
+		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
+		.where(
+			and(
+				eq(animeScheduleRelease.airType, "dub"),
+				gt(animeScheduleRelease.airsAt, now),
+				lte(animeScheduleRelease.airsAt, until),
+				isNotNull(animeScheduleShow.anilistId),
+			),
+		);
+	const ids = releases.flatMap((release) => release.anilistId ?? []);
 	const [stored, units] = await Promise.all([
 		ids.length > 0
 			? db
@@ -69,7 +66,7 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 
 	let scheduled = 0;
 	for (const release of releases) {
-		const anilistId = shows.get(release.route);
+		const { anilistId } = release;
 		if (!anilistId || !storedIds.has(anilistId)) {
 			continue;
 		}

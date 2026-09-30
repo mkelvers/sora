@@ -29,6 +29,7 @@ import {
 	refreshEpisodeDetailsTask,
 	storeSeriesJob,
 } from "./jobs/series";
+import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
 import { watchPools } from "./pools";
 import {
 	lookUpEpisodesNowTask,
@@ -94,6 +95,7 @@ export async function startScheduler(): Promise<Scheduler> {
 			[backfillSeriesTask]: backfillSeries,
 			[syncTmdbHintsTask]: syncTmdbHintsJob,
 			[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
+			[syncTimetablesTask]: syncTimetablesJob,
 		}),
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
@@ -110,6 +112,7 @@ export async function startScheduler(): Promise<Scheduler> {
 			`10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
 			`35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`,
 			`55 * * * * ${storeMissingBackdropEdgesTask} ?fill=1h&priority=-1`,
+			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
 		].join("\n"),
 	});
 
