@@ -16,8 +16,7 @@
 
 ## What is Sora?
 
-Sora is an anime streaming and tracking platform. Every Sora app, on web, mobile,
-and TV, talks to one server.
+Sora is an anime streaming and tracking platform: a web app backed by one server.
 
 At its core is the _Sora API_, a versioned HTTP API for browsing, searching, and
 watching anime. It resolves playback across several stream providers and falls
