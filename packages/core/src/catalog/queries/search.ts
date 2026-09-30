@@ -371,7 +371,7 @@ function indexConditions(filters: Omit<BrowseQuery, "search" | "page" | "perPage
 		conditions.push(eq(animeSearch.seasonYear, filters.seasonYear));
 	}
 	if (filters.genres?.length) {
-		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::jsonb`);
+		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::text::jsonb`);
 	}
 	return conditions;
 }
