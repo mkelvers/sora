@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
+	import Hero from "$routes/(protected)/(browse)/series/[id]/_components/Hero.svelte";
+	import type { Media } from "$routes/(protected)/(browse)/series/[id]/media/media.svelte";
+	import { getProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Series } from "@sora/sdk";
-
-	import Hero from "../../_components/Hero.svelte";
-	import { getViewing } from "../../series.remote";
-	import type { Media } from "../media.svelte";
 
 	type Props = {
 		series: Series;
@@ -13,7 +12,7 @@
 
 	let { series, media }: Props = $props();
 
-	const viewing = $derived(await getViewing(series.id));
+	const progress = $derived(await getProgress(series.id));
 
 	let scale = $derived(series.logo_scale);
 	let x = $derived(series.logo_offset_x);
@@ -269,8 +268,7 @@
 					logo_offset_x: x,
 					logo_offset_y: y,
 				}}
-				progress={viewing.progress}
-				library={viewing.library}
+				{progress}
 			/>
 		</div>
 

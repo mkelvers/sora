@@ -13,18 +13,10 @@ export const getEpisodes = query(
 	(season) => sora.episodes(season),
 );
 
-export const getViewing = query(z.string(), async (seriesId) => {
+export const getProgress = query(z.string(), (seriesId) => {
 	const viewer = remoteViewer();
 
-	const [progress, library] = await Promise.all([
-		viewer.sora.progress(viewer.profile.id, seriesId),
-		viewer.sora.libraryEntry(viewer.profile.id, seriesId),
-	]);
-
-	return {
-		progress,
-		library,
-	};
+	return viewer.sora.progress(viewer.profile.id, seriesId);
 });
 
 export const markAllWatched = command(
@@ -42,6 +34,6 @@ export const markAllWatched = command(
 			episode,
 			watched,
 		});
-		await Promise.all([getViewing(seriesId).refresh(), getListed().refresh()]);
+		await Promise.all([getProgress(seriesId).refresh(), getListed().refresh()]);
 	},
 );

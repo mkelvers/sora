@@ -10,16 +10,16 @@
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
 	import Hero from "./_components/Hero.svelte";
-	import { getSeries, getViewing, markAllWatched } from "./series.remote";
+	import { getProgress, getSeries, markAllWatched } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
 	const seriesQuery = $derived(getSeries(params.id));
-	const viewingQuery = $derived(getViewing(params.id));
+	const progressQuery = $derived(getProgress(params.id));
 	const series = $derived(await seriesQuery);
-	const viewing = $derived(await viewingQuery);
+	const progress = $derived(await progressQuery);
 	let season = $derived.by(() => {
-		const wanted = page.state.seasonId ?? untrack(() => viewing.progress.next)?.season_id;
+		const wanted = page.state.seasonId ?? untrack(() => progress.next)?.season_id;
 		return series.seasons.find((season) => season.id === wanted) ?? series.seasons[0];
 	});
 	const seasonOptions = $derived(
@@ -30,7 +30,7 @@
 		})),
 	);
 	const seasonWatched = $derived.by(() => {
-		const standing = viewing.progress.seasons.find((other) => other.season_id === season?.id);
+		const standing = progress.seasons.find((other) => other.season_id === season?.id);
 		return !!standing && standing.watched_episodes === standing.released_episodes;
 	});
 </script>
@@ -40,7 +40,7 @@
 </svelte:head>
 
 <div class="bg-canvas text-foreground">
-	<Hero {series} progress={viewing.progress} library={viewing.library} />
+	<Hero {series} {progress} />
 
 	<Details {series} />
 
@@ -98,7 +98,7 @@
 					movie={series.kind === "movie"}
 					backdrop={series.backdrop_url}
 					{season}
-					progress={viewing.progress}
+					{progress}
 				/>
 			</section>
 		{:else}

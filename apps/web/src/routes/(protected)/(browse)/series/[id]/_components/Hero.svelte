@@ -4,24 +4,21 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
-	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { LibraryEntry, Series, TitleProgress } from "@sora/sdk";
+	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { markAllWatched } from "$routes/(protected)/(browse)/series/[id]/series.remote";
+	import type { Series, TitleProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
-
-	import { markAllWatched } from "../series.remote";
 
 	let {
 		series,
 		progress,
-		library,
 	}: {
 		series: Series;
 		progress: TitleProgress;
-		library: LibraryEntry;
 	} = $props();
 
 	const listing = getListed();
-	const listed = $derived(listing.current?.includes(series.id) ?? library.status !== null);
+	const listed = $derived(!!listing.current?.includes(series.id));
 
 	function toggleListed() {
 		setListed({
@@ -205,7 +202,12 @@
 				<span class="metadata-tag">
 					{#each series.genres as genre (genre)}
 						<span class="not-last:after:content-[',_']">
-							<span class="underline underline-offset-2">{genre}</span>
+							<a
+								href="/genres/{genreSlug(genre)}"
+								class="underline underline-offset-2 transition-colors hover:text-foreground"
+							>
+								{genre}
+							</a>
 						</span>
 					{/each}
 				</span>

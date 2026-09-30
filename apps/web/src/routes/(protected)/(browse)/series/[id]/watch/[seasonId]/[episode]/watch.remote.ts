@@ -1,11 +1,10 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
+import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
+import { getProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
-
-import { getContinueWatching } from "../../../../../home.remote";
-import { getViewing } from "../../../series.remote";
 
 const EpisodeAddress = z.object({
 	seriesId: z.string(),
@@ -66,7 +65,7 @@ export const saveProgress = command(
 			position_seconds: Math.min(position, duration),
 			duration_seconds: duration,
 		});
-		await Promise.all([getViewing(seriesId).refresh(), getContinueWatching().refresh()]);
+		await Promise.all([getProgress(seriesId).refresh(), getContinueWatching().refresh()]);
 	},
 );
 
