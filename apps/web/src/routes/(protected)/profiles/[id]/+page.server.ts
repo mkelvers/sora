@@ -1,4 +1,4 @@
-import { SoraError } from "@sora/sdk";
+import { SoraError, type ArcWatchlist } from "@sora/sdk";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -44,7 +44,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, locals, params, url }) => {
+	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
 		const changes = Changes.safeParse({
@@ -69,5 +69,38 @@ export const actions: Actions = {
 		}
 
 		redirect(303, `/profiles${url.search}`);
+	},
+	import: async ({ request, locals, params }) => {
+		const file = (await request.formData()).get("watchlist");
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, {
+				message: "Choose an Arc watchlist export to import.",
+			});
+		}
+
+		let watchlist: unknown;
+		try {
+			watchlist = JSON.parse(await file.text());
+		} catch {
+			return fail(400, {
+				message: "That file isn't an Arc watchlist export.",
+			});
+		}
+
+		try {
+			return {
+				imported: await locals.viewer!.sora.importWatchlist(params.id, watchlist as ArcWatchlist),
+			};
+		} catch (cause) {
+			if (cause instanceof SoraError && cause.status === 404) {
+				error(404, "No such profile");
+			}
+			if (cause instanceof SoraError && cause.status === 422) {
+				return fail(400, {
+					message: "That file isn't an Arc watchlist export.",
+				});
+			}
+			throw cause;
+		}
 	},
 };
