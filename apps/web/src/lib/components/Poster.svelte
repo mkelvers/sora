@@ -11,13 +11,11 @@
 	let {
 		card,
 		resume = null,
-		title = card?.title,
 		meta,
 		class: className,
 	}: {
 		card?: SeriesCard;
 		resume?: ContinueWatchingItem | null;
-		title?: string;
 		meta?: string;
 		class?: string;
 	} = $props();
@@ -59,13 +57,7 @@
 			<div class="relative aspect-2/3 overflow-hidden bg-surface">
 				<Skeleton class="size-full" />
 			</div>
-			{#if title}
-				<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold text-muted">
-					{title}
-				</h3>
-			{:else}
-				<Skeleton class="mt-3 h-4 w-4/5" />
-			{/if}
+			<Skeleton class="mt-3 h-4 w-4/5" />
 		</div>
 	{:else}
 		<a

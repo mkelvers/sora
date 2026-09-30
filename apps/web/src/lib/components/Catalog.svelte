@@ -141,15 +141,11 @@
 				>
 					{#each section.items as item (item.key)}
 						<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">
-							{#if item.preparing}
-								<Poster title={item.preparing.title} />
-							{:else if item.card}
-								<Poster
-									card={item.card}
-									resume={resumes[item.card.id]}
-									meta={item.release && released(item.release.released_at)}
-								/>
-							{/if}
+							<Poster
+								card={item.card}
+								resume={resumes[item.card.id]}
+								meta={item.release && released(item.release.released_at)}
+							/>
 						</li>
 					{/each}
 				</ul>
