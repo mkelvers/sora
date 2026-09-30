@@ -2,6 +2,7 @@ import { sora } from "$lib/server/sora";
 import { error } from "@sveltejs/kit";
 
 import type { PageServerLoad } from "./$types";
+import { getContinueWatching } from "./home.remote";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { viewer } = locals;
@@ -18,6 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			},
 		}),
 		viewer.sora.recommendations(viewer.profile.id),
+		getContinueWatching(),
 	]);
 
 	return {
