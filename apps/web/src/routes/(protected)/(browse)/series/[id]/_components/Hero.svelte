@@ -11,7 +11,13 @@
 		setDropped,
 	} from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Series, TitleProgress } from "@sora/sdk";
-	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import {
+		BookmarkSimpleIcon,
+		DotsThreeVerticalIcon,
+		PlayIcon,
+		StarIcon,
+		ThumbsDownIcon,
+	} from "phosphor-svelte";
 
 	let {
 		series,
@@ -35,6 +41,14 @@
 				listed ? ids.filter((id) => id !== series.id) : [...ids, series.id],
 			),
 		);
+	}
+
+	function toggleDropped() {
+		const drop = !dropped;
+		setDropped({
+			seriesId: series.id,
+			dropped: drop,
+		}).updates(getLibraryStatus(series.id).withOverride(() => (drop ? "dropped" : "planning")));
 	}
 
 	function episodeLabel(seasonId: string, episode: number) {
@@ -170,18 +184,6 @@
 						</Button>
 					{/if}
 
-					<Button
-						role="menuitem"
-						variant="item"
-						onclick={() =>
-							setDropped({
-								seriesId: series.id,
-								dropped: !dropped,
-							}).updates(status.withOverride(() => (dropped ? "planning" : "dropped")))}
-					>
-						{dropped ? "Pick Series Back Up" : "Drop Series"}
-					</Button>
-
 					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
 						View Media Options
 					</Button>
@@ -314,6 +316,21 @@
 					{/if}
 				</Button>
 			{/if}
+
+			<Tooltip text={dropped ? "Pick Series Back Up" : "Drop Series"}>
+				{#snippet children(trigger)}
+					<Button
+						{...trigger}
+						variant="outline"
+						size="square"
+						aria-label={dropped ? "Pick Series Back Up" : "Drop Series"}
+						aria-pressed={dropped}
+						onclick={toggleDropped}
+					>
+						<ThumbsDownIcon size="1.65em" weight={dropped ? "fill" : "bold"} />
+					</Button>
+				{/snippet}
+			</Tooltip>
 		</div>
 	</div>
 </header>

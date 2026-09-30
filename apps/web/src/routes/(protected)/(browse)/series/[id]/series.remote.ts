@@ -1,6 +1,8 @@
 import { command, query } from "$app/server";
 import { getListed } from "$lib/library.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
+import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
+import { getWatchlist } from "$routes/(protected)/(browse)/watchlist/watchlist.remote";
 import { z } from "zod";
 
 export const getSeries = query(z.string(), (id) => sora.series(id));
@@ -38,7 +40,12 @@ export const setDropped = command(
 		} else {
 			await viewer.sora.pickUpTitle(viewer.profile.id, seriesId);
 		}
-		await Promise.all([getLibraryStatus(seriesId).refresh(), getListed().refresh()]);
+		await Promise.all([
+			getLibraryStatus(seriesId).refresh(),
+			getListed().refresh(),
+			getWatchlist().refresh(),
+			getContinueWatching().refresh(),
+		]);
 	},
 );
 
@@ -61,6 +68,8 @@ export const markAllWatched = command(
 			getProgress(seriesId).refresh(),
 			getLibraryStatus(seriesId).refresh(),
 			getListed().refresh(),
+			getWatchlist().refresh(),
+			getContinueWatching().refresh(),
 		]);
 	},
 );
