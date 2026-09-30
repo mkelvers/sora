@@ -1,6 +1,6 @@
 import { query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import type { PreparingTitle, SeriesCard } from "@sora/sdk";
+import type { SeriesCard } from "@sora/sdk";
 import { z } from "zod";
 
 const filters = {
@@ -14,22 +14,14 @@ const formats = {
 	MOVIE: ["MOVIE"],
 } as const;
 
-export type CatalogItem =
-	| {
-			key: string;
-			card: SeriesCard;
-			release?: {
-				episode: number;
-				released_at: string;
-			};
-			preparing?: never;
-	  }
-	| {
-			key: string;
-			preparing: PreparingTitle;
-			card?: never;
-			release?: never;
-	  };
+export type CatalogItem = {
+	key: string;
+	card: SeriesCard;
+	release?: {
+		episode: number;
+		released_at: string;
+	};
+};
 
 const request = z.discriminatedUnion("kind", [
 	z.object({
@@ -46,11 +38,18 @@ const request = z.discriminatedUnion("kind", [
 		year: z.number().int().min(1940).max(2100),
 		page: z.number().int().positive().max(500),
 	}),
+	z.object({
+		kind: z.literal("genre"),
+		genre: z.string().min(1).max(100),
+		...filters,
+	}),
 ]);
 
 type WithoutPage<TRequest> = TRequest extends unknown ? Omit<TRequest, "page"> : never;
 
 export type CatalogRequest = WithoutPage<z.input<typeof request>>;
+
+export const getGenres = query(async () => sora.genres());
 
 export const getCatalogPage = query(request, async (input) => {
 	const viewer = remoteViewer();
@@ -69,9 +68,10 @@ export const getCatalogPage = query(request, async (input) => {
 				})
 			: await sora.browse({
 					params:
-						input.kind === "popular"
+						input.kind === "popular" || input.kind === "genre"
 							? {
 									sort: "popular",
+									genres: input.kind === "genre" ? [input.genre] : undefined,
 									audio: input.audio,
 									format: input.format && [...formats[input.format]],
 									page: input.page,
@@ -103,16 +103,7 @@ export const getCatalogPage = query(request, async (input) => {
 					card: result,
 				},
 	);
-	for (const preparing of found.meta.preparing_titles.toSorted(
-		(left, right) => left.position - right.position,
-	)) {
-		items.splice(Math.min(preparing.position, items.length), 0, {
-			key: `anilist:${preparing.anilist_id}`,
-			preparing,
-		});
-	}
-
-	const seriesIds = items.flatMap((item) => (item.card ? [item.card.id] : []));
+	const seriesIds = items.map((item) => item.card.id);
 	const resumes =
 		seriesIds.length > 0
 			? await viewer.sora.continueWatching(viewer.profile.id, {

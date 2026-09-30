@@ -49,6 +49,10 @@ export function formatDuration(minutes: number) {
 	return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+export function genreSlug(genre: string) {
+	return genre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
 const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
 
 export function tmdbImage(url: string, size: string) {

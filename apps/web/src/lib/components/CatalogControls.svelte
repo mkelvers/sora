@@ -11,9 +11,11 @@
 
 	let {
 		kind,
+		genre,
 		filters,
 	}: {
 		kind: "new" | "popular";
+		genre?: string;
 		filters: Filters;
 	} = $props();
 
@@ -78,32 +80,35 @@
 		const query = new URLSearchParams(
 			Object.entries(next).flatMap(([key, value]) => (value ? [[key, value]] : [])),
 		).toString();
-		return query ? `/${target}?${query}` : `/${target}`;
+		const path = genre ? `/genres/${genre}` : `/${target}`;
+		return query ? `${path}?${query}` : path;
 	};
 </script>
 
 <div class="flex items-center gap-1">
-	<Dropdown variant="toolbar" class="w-52" label="Sort anime, {selectedSort.label} selected">
-		{#snippet trigger()}
-			<ListBulletsIcon size="1.2rem" weight="bold" />
-			<span class="max-sm:hidden">{selectedSort.label}</span>
-		{/snippet}
+	{#if !genre}
+		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {selectedSort.label} selected">
+			{#snippet trigger()}
+				<ListBulletsIcon size="1.2rem" weight="bold" />
+				<span class="max-sm:hidden">{selectedSort.label}</span>
+			{/snippet}
 
-		{#snippet children()}
-			<div role="menu" aria-label="Sort anime">
-				{#each sorts as sort (sort.kind)}
-					<Button
-						role="menuitemradio"
-						aria-checked={sort.kind === kind}
-						href={href(sort.kind)}
-						variant="item"
-					>
-						{sort.label}
-					</Button>
-				{/each}
-			</div>
-		{/snippet}
-	</Dropdown>
+			{#snippet children()}
+				<div role="menu" aria-label="Sort anime">
+					{#each sorts as sort (sort.kind)}
+						<Button
+							role="menuitemradio"
+							aria-checked={sort.kind === kind}
+							href={href(sort.kind)}
+							variant="item"
+						>
+							{sort.label}
+						</Button>
+					{/each}
+				</div>
+			{/snippet}
+		</Dropdown>
+	{/if}
 
 	<Dropdown variant="toolbar" class="w-60" label="Filter anime">
 		{#snippet trigger()}

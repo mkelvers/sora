@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import logo from "$lib/assets/logo.png";
+	import { getGenres } from "$lib/catalog.remote";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import { cn } from "$lib/utils";
+	import { cn, genreSlug } from "$lib/utils";
+	import { getUnreadNotifications } from "$routes/(protected)/(browse)/home.remote";
+	import { profilesPage } from "$routes/(protected)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
 		BellSimpleIcon,
@@ -18,8 +21,6 @@
 		UsersIcon,
 	} from "phosphor-svelte";
 
-	import { profilesPage } from "../../profiles/profiles.svelte";
-	import { getUnreadNotifications } from "../home.remote";
 	import Search from "./Search.svelte";
 
 	let {
@@ -34,6 +35,10 @@
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
 	const unreadQuery = getUnreadNotifications();
 	const unread = $derived(unreadQuery.current ?? 0);
+	const genresQuery = getGenres();
+	const genres = $derived(genresQuery.current ?? []);
+
+	let categoriesOpen = $state(false);
 
 	const sections = [
 		{
@@ -71,15 +76,6 @@
 		},
 	]);
 
-	const menu = $derived([
-		destinations[0],
-		...sections.map((section) => ({
-			...section,
-			new: false,
-		})),
-		...destinations.slice(1),
-	]);
-
 	$effect(() => {
 		const check = () => {
 			if (document.visibilityState === "visible") {
@@ -96,6 +92,23 @@
 	});
 </script>
 
+{#snippet menuItem(destination: { href: string; label: string; new: boolean })}
+	<li>
+		<Button
+			href={destination.href}
+			variant="item"
+			class={cn(
+				"text-[0.9375rem]",
+				destination.new && "after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
+			)}
+			aria-current={page.url.pathname === destination.href ? "page" : undefined}
+		>
+			{destination.label}
+			{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
+		</Button>
+	</li>
+{/snippet}
+
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div
@@ -107,7 +120,7 @@
 		>
 			<Dropdown
 				alignment="left"
-				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 bg-header-hover"
+				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 overflow-y-auto bg-header-hover"
 				label={unread > 0 ? "Menu, new notifications" : "Menu"}
 			>
 				{#snippet trigger()}
@@ -116,22 +129,49 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{#each menu as destination (destination.href)}
-							<li>
-								<Button
-									href={destination.href}
-									variant="item"
-									class={cn(
-										"text-[0.9375rem]",
-										destination.new &&
-											"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
-									)}
-									aria-current={page.url.pathname === destination.href ? "page" : undefined}
-								>
-									{destination.label}
-									{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
-								</Button>
-							</li>
+						{@render menuItem(destinations[0])}
+						{#each sections as section (section.href)}
+							{@render menuItem({
+								...section,
+								new: false,
+							})}
+						{/each}
+						<li>
+							<Button
+								variant="item"
+								class="justify-between text-[0.9375rem] aria-expanded:text-foreground"
+								aria-expanded={categoriesOpen}
+								aria-controls="menu-genres"
+								onclick={(event: MouseEvent) => {
+									event.stopPropagation();
+									categoriesOpen = !categoriesOpen;
+								}}
+							>
+								Categories
+								<CaretDownIcon
+									size="1.1rem"
+									class={cn("transition-transform", categoriesOpen && "rotate-180")}
+								/>
+							</Button>
+							{#if categoriesOpen}
+								<ul id="menu-genres" class="bg-white/4">
+									{#each genres as genre (genre)}
+										<li>
+											<Button
+												href="/genres/{genreSlug(genre)}"
+												variant="item"
+												class="pl-9 text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
+												aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
+											>
+												{genre}
+											</Button>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</li>
+						{#each destinations.slice(1) as destination (destination.href)}
+							{@render menuItem(destination)}
 						{/each}
 					</ul>
 				{/snippet}
@@ -151,7 +191,7 @@
 			class="mr-auto flex h-full max-[60rem]:group-has-[[role=search]>div:not([inert])]/nav:hidden max-sm:hidden"
 		>
 			{#each sections as section (section.href)}
-				<li>
+				<li class="max-lg:hidden">
 					<a
 						href={section.href}
 						class="inline-flex h-full items-center px-4 text-sm font-medium text-muted transition-colors hover:bg-header-hover hover:text-foreground"
@@ -161,6 +201,61 @@
 					</a>
 				</li>
 			{/each}
+			<li
+				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:px-4 [&_.dropdown-trigger]:text-sm [&_.dropdown-trigger]:font-medium [&_.dropdown-trigger]:tracking-normal [&_.dropdown-trigger]:normal-case [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
+			>
+				<Dropdown
+					alignment="left"
+					class="w-[min(48rem,calc(100vw-2rem))] bg-header-hover open:flex-row"
+				>
+					{#snippet trigger()}
+						Categories
+						<CaretDownIcon
+							size="1rem"
+							class="transition-transform group-has-[.dropdown-menu:popover-open]:rotate-180"
+						/>
+					{/snippet}
+
+					{#snippet children()}
+						<ul class="w-56 shrink-0 border-r border-border">
+							{#each sections as section (section.href)}
+								<li>
+									<Button
+										href={section.href}
+										variant="item"
+										class="text-[0.9375rem]"
+										aria-current={page.url.pathname === section.href ? "page" : undefined}
+									>
+										{section.label}
+									</Button>
+								</li>
+							{/each}
+						</ul>
+						<section class="min-w-0 flex-1" aria-labelledby="header-genres">
+							<h2
+								id="header-genres"
+								class="px-5 pt-4 pb-2 text-xs font-bold tracking-wide text-muted uppercase"
+							>
+								Genres
+							</h2>
+							<ul class="grid grid-cols-2 lg:grid-cols-3">
+								{#each genres as genre (genre)}
+									<li>
+										<Button
+											href="/genres/{genreSlug(genre)}"
+											variant="item"
+											class="text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
+											aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
+										>
+											{genre}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						</section>
+					{/snippet}
+				</Dropdown>
+			</li>
 		</ul>
 
 		<div class="flex h-full items-center">

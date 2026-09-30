@@ -1,9 +1,11 @@
 <script lang="ts">
 	let {
 		kind,
+		genre,
 		filters,
 	}: {
 		kind: "new" | "popular";
+		genre?: string;
 		filters: {
 			audio?: "sub" | "dub";
 			format?: "TV" | "MOVIE";
@@ -29,7 +31,7 @@
 
 {#if filters.audio || filters.format}
 	<a
-		href="/{kind}"
+		href={genre ? `/genres/${genre}` : `/${kind}`}
 		class="group mt-1 inline-flex gap-1 text-sm"
 		aria-label="Reset filters: {applied}"
 	>

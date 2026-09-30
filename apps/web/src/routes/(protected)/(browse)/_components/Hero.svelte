@@ -8,7 +8,7 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
-	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
 	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
@@ -124,7 +124,14 @@
 							{/if}
 							{#if slide.genres.length}
 								<span class="metadata-tag min-w-0 truncate">
-									{slide.genres.slice(0, 4).join(", ")}
+									{#each slide.genres.slice(0, 4) as genre (genre)}
+										<a
+											href="/genres/{genreSlug(genre)}"
+											class="pointer-events-auto transition-colors not-last:after:content-[',_'] hover:text-foreground"
+										>
+											{genre}
+										</a>
+									{/each}
 								</span>
 							{/if}
 						</p>
