@@ -134,7 +134,6 @@
 	bind:this={player.root}
 >
 	<video
-		bind:paused={player.paused}
 		bind:currentTime={player.time}
 		bind:duration={player.duration}
 		bind:buffered={player.buffered}
@@ -149,8 +148,11 @@
 		onpointerdown={player.onpointerdown}
 		onclick={player.onclick}
 		ondblclick={player.toggleFullscreen}
+		onplay={() => (player.paused = false)}
+		onpause={() => (player.paused = true)}
 		onended={end}
 		{@attach player.stream(media?.sources[0])}
+		{@attach player.playback}
 	>
 		{#each media?.subtitles ?? [] as track (track.url)}
 			<track

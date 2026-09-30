@@ -161,6 +161,22 @@ export class Player {
 		}
 	};
 
+	playback: Attachment<HTMLVideoElement> = (video) => {
+		if (this.paused === video.paused) {
+			return;
+		}
+		if (this.paused) {
+			video.pause();
+			return;
+		}
+
+		video.play().catch((error: unknown) => {
+			if (!(error instanceof DOMException && error.name === "AbortError")) {
+				this.paused = true;
+			}
+		});
+	};
+
 	stream =
 		(source: Source | undefined): Attachment<HTMLVideoElement> =>
 		(video) => {
