@@ -16,6 +16,22 @@ export function isDisguisedSegment(head: Uint8Array) {
 }
 
 /**
+ * Whether a segment is an image and nothing else: what blocked hosts send
+ * in its place, in the format its extension names, as opposed to a
+ * disguised transport stream.
+ */
+export function isBareImage<Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) {
+	if (isDisguisedSegment(bytes)) {
+		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
+	}
+
+	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+	const webp = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+	const gif = ascii(0, 4) === "GIF8";
+	return webp || gif;
+}
+
+/**
  * Removes a prepended image from a disguised MPEG-TS segment.
  *
  * A PNG is cut at its `IEND` chunk. Anything else is cut at the first

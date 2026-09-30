@@ -2,7 +2,8 @@ import { isIP } from "node:net";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
 import { second } from "../../time";
-import type { StreamTarget } from "./token";
+import { isBareImage } from "./segment";
+import type { StreamTarget, StreamTargetKind } from "./token";
 
 const upstreamTimeoutMs = 15 * second;
 
@@ -11,6 +12,8 @@ const segmentTimeoutMs = 45 * second;
 
 /** How long a host may go without answering before the next candidate also starts. */
 const hedgeDelayMs = 1.5 * second;
+
+/** How long a host that answered may take to send a segment before the next candidate also starts. */
 const segmentHedgeMs = 12 * second;
 const maximumRedirects = 5;
 
@@ -84,10 +87,11 @@ export interface UpstreamBytes {
  * Fetches a target's whole body, moving on to its mirrors when a host fails
  * or stalls.
  *
- * Hosts sometimes send their headers and then never the body, which only
- * reading it shows. The next candidate starts once the previous one fails, or
- * after a while without an answer, and the first to finish wins, so a stalled
- * host costs a few seconds instead of the whole timeout.
+ * Hosts sometimes never answer, or send their headers and then never the
+ * body, which only reading it shows. The next candidate starts once the
+ * previous one fails, or after a while without headers or, once they came,
+ * without the whole body, and the first to finish wins, so a stalled host
+ * costs a few seconds instead of the whole timeout.
  *
  * @throws {@link StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
@@ -99,7 +103,7 @@ export async function fetchUpstreamBytes(
 	const candidates = [target.url, ...target.mirrors];
 	const headers = new Headers(target.headers);
 	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
-	const hedgeMs = target.kind === "segment" ? segmentHedgeMs : hedgeDelayMs;
+	const bodyHedgeMs = target.kind === "segment" ? segmentHedgeMs : hedgeDelayMs;
 	const losers = new AbortController();
 	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
 
@@ -118,9 +122,17 @@ export async function fetchUpstreamBytes(
 
 			const candidate = candidates[launched]!;
 			launched += 1;
-			hedge = setTimeout(launch, hedgeMs);
+			const position = launched;
+			hedge = setTimeout(launch, hedgeDelayMs);
 
-			attempt(candidate, headers, timeoutMs, cancelled).then(
+			const answered = () => {
+				if (!settled && position === launched) {
+					clearTimeout(hedge);
+					hedge = setTimeout(launch, bodyHedgeMs);
+				}
+			};
+
+			attempt(candidate, target.kind, headers, timeoutMs, cancelled, answered).then(
 				(result) => {
 					if (settled) {
 						return;
@@ -161,22 +173,42 @@ export async function fetchUpstreamBytes(
 
 async function attempt(
 	url: string,
+	kind: StreamTargetKind,
 	headers: Headers,
 	timeoutMs: number,
 	signal: AbortSignal,
+	answered: () => void,
 ): Promise<UpstreamBytes> {
 	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
+	answered();
+
+	let bytes: Uint8Array<ArrayBuffer>;
 	try {
-		return {
-			bytes: new Uint8Array(await upstream.response.arrayBuffer()),
-			headers: upstream.response.headers,
-			url: upstream.url,
-		};
+		bytes = new Uint8Array(await upstream.response.arrayBuffer());
 	} catch (cause) {
 		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
 			cause,
 		});
 	}
+
+	// Stalling hosts sometimes close the connection instead, which reads as an empty body.
+	if (bytes.byteLength === 0) {
+		throw new StreamUpstreamError(`Upstream ${new URL(url).host} sent nothing`, null);
+	}
+
+	// Blocked hosts answer with an image of their own, often through a redirect.
+	if (kind === "segment" && isBareImage(bytes)) {
+		throw new StreamUpstreamError(
+			`Upstream ${new URL(url).host} sent an image, not a segment`,
+			null,
+		);
+	}
+
+	return {
+		bytes,
+		headers: upstream.response.headers,
+		url: upstream.url,
+	};
 }
 
 /**
