@@ -19,6 +19,29 @@ export const getProgress = query(z.string(), (seriesId) => {
 	return viewer.sora.progress(viewer.profile.id, seriesId);
 });
 
+export const getLibraryStatus = query(z.string(), async (seriesId) => {
+	const viewer = remoteViewer();
+
+	return (await viewer.sora.libraryEntry(viewer.profile.id, seriesId)).status;
+});
+
+export const setDropped = command(
+	z.object({
+		seriesId: z.string(),
+		dropped: z.boolean(),
+	}),
+	async ({ seriesId, dropped }) => {
+		const viewer = remoteViewer();
+
+		if (dropped) {
+			await viewer.sora.dropTitle(viewer.profile.id, seriesId);
+		} else {
+			await viewer.sora.pickUpTitle(viewer.profile.id, seriesId);
+		}
+		await Promise.all([getLibraryStatus(seriesId).refresh(), getListed().refresh()]);
+	},
+);
+
 export const markAllWatched = command(
 	z.object({
 		seriesId: z.string(),
@@ -34,6 +57,10 @@ export const markAllWatched = command(
 			episode,
 			watched,
 		});
-		await Promise.all([getProgress(seriesId).refresh(), getListed().refresh()]);
+		await Promise.all([
+			getProgress(seriesId).refresh(),
+			getLibraryStatus(seriesId).refresh(),
+			getListed().refresh(),
+		]);
 	},
 );

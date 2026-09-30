@@ -5,7 +5,11 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { markAllWatched } from "$routes/(protected)/(browse)/series/[id]/series.remote";
+	import {
+		getLibraryStatus,
+		markAllWatched,
+		setDropped,
+	} from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Series, TitleProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -18,6 +22,8 @@
 	} = $props();
 
 	const listing = getListed();
+	const status = $derived(getLibraryStatus(series.id));
+	const dropped = $derived(status.current === "dropped");
 	const listed = $derived(!!listing.current?.includes(series.id));
 
 	function toggleListed() {
@@ -163,6 +169,18 @@
 							Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
 						</Button>
 					{/if}
+
+					<Button
+						role="menuitem"
+						variant="item"
+						onclick={() =>
+							setDropped({
+								seriesId: series.id,
+								dropped: !dropped,
+							}).updates(status.withOverride(() => (dropped ? "planning" : "dropped")))}
+					>
+						{dropped ? "Pick Series Back Up" : "Drop Series"}
+					</Button>
 
 					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
 						View Media Options
