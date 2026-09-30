@@ -4,7 +4,6 @@ import type Hls from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
-import * as z from "zod/mini";
 
 type Source = PlaybackMedia["sources"][number];
 
@@ -56,9 +55,21 @@ export class Player {
 		this.time = start;
 		this.#resume = start;
 
-		this.volume = preferences.get("volume", z.number().check(z.minimum(0), z.maximum(1)), 1);
-		this.muted = preferences.get("muted", z.boolean(), false);
-		this.speed = preferences.get("speed", z.number().check(z.positive()), 1);
+		this.volume = preferences.get(
+			"volume",
+			(value): value is number => typeof value === "number" && value >= 0 && value <= 1,
+			1,
+		);
+		this.muted = preferences.get(
+			"muted",
+			(value): value is boolean => typeof value === "boolean",
+			false,
+		);
+		this.speed = preferences.get(
+			"speed",
+			(value): value is number => typeof value === "number" && value > 0,
+			1,
+		);
 	}
 
 	remember = () => {

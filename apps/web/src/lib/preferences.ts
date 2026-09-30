@@ -1,5 +1,3 @@
-import * as z from "zod/mini";
-
 export class Preferences {
 	#namespace: string;
 
@@ -7,14 +5,11 @@ export class Preferences {
 		this.#namespace = namespace;
 	}
 
-	get<T>(key: string, schema: z.core.$ZodType<T>, fallback: T): T {
+	get<T>(key: string, accepts: (value: unknown) => value is T, fallback: T): T {
 		try {
-			const stored = z.safeParse(
-				schema,
-				JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
-			);
+			const stored: unknown = JSON.parse(localStorage.getItem(this.#key(key)) ?? "null");
 
-			return stored.success ? stored.data : fallback;
+			return accepts(stored) ? stored : fallback;
 		} catch {
 			return fallback;
 		}
