@@ -149,7 +149,8 @@
 							>
 								Categories
 								<CaretDownIcon
-									size="1.1rem"
+									size="1rem"
+									weight="fill"
 									class={cn("transition-transform", categoriesOpen && "rotate-180")}
 								/>
 							</Button>
@@ -210,10 +211,7 @@
 				>
 					{#snippet trigger()}
 						Categories
-						<CaretDownIcon
-							size="1rem"
-							class="transition-transform group-has-[.dropdown-menu:popover-open]:rotate-180"
-						/>
+						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
 					{#snippet children()}
