@@ -1,6 +1,7 @@
 import type {
 	AnimeSeason,
 	AppType,
+	ArcWatchlist,
 	ContinueWatchingItem,
 	CountMeta,
 	Envelope,
@@ -33,6 +34,7 @@ import type {
 	SeriesWithEpisodes,
 	TitleProgress,
 	TitleProgressMeta,
+	WatchlistImport,
 } from "@sora/api";
 import type { BrowseQuery } from "@sora/core/catalog";
 import { hc, type ClientResponse } from "hono/client";
@@ -651,6 +653,63 @@ export class SoraClient {
 				init(options),
 			),
 		);
+	}
+
+	/**
+	 * Drops a title for a profile: it stays in the library as `dropped`, with
+	 * its progress, but out of notifications and continue watching.
+	 */
+	async dropTitle(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].library[":series_id"].dropped.$put(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Picks a dropped title back up; its status follows the profile's progress again. */
+	async pickUpTitle(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].library[":series_id"].dropped.$delete(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Imports a watchlist exported from Arc into a profile's library. Completed
+	 * entries have their episodes marked watched, so their status follows;
+	 * entries whose title is not prepared yet are added once it is.
+	 */
+	async importWatchlist(
+		profileId: string,
+		watchlist: ArcWatchlist,
+		options?: RequestOptions,
+	): Promise<WatchlistImport> {
+		const body = await read(
+			this.#api.profiles[":profile_id"].library.import.$post(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					json: watchlist,
+				},
+				init(options),
+			),
+		);
+		return body.results;
 	}
 
 	/** Takes a title out of a profile's library; its progress and history stay. */

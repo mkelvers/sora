@@ -31,6 +31,7 @@ export {
 } from "./sora";
 export type {
 	AnimeSeason,
+	ArcWatchlist,
 	ContinueWatchingItem,
 	CountMeta,
 	HistoryItem,
@@ -70,4 +71,5 @@ export type {
 	SkipSegment,
 	TitleProgress,
 	TitleProgressMeta,
+	WatchlistImport,
 } from "@sora/api";
