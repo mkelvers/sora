@@ -13,7 +13,7 @@ const endpoint = "https://api.themoviedb.org/3";
 /**
  * Minimum spacing between the starts of upstream requests from this process.
  *
- * TMDB allows roughly 50 requests per second per IP. Requests may overlap;
+ * TMDB allows roughly 40 requests per second per IP. Requests may overlap;
  * only their start times are spaced, which keeps a franchise lookup that
  * needs dozens of calls fast without bursting past the limit.
  */
