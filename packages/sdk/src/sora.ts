@@ -15,6 +15,7 @@ import type {
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
+	PlaybackPreferences,
 	Profile,
 	ProfileAvatar,
 	Release,
@@ -106,6 +107,14 @@ export interface ProfileInput {
 	color?: string;
 	/** A sprout seeded with the profile's ID when omitted. */
 	avatar?: ProfileAvatar;
+}
+
+/** Changes for {@link SoraClient.updatePlaybackPreferences}; only what is given changes. */
+export interface PlaybackPreferencesUpdate {
+	audio?: PlaybackPreferences["audio"];
+	/** The subtitles of the audio given; the other audio's stay as they are. */
+	subtitles?: PlaybackPreferences["subtitles"];
+	auto_skip?: boolean;
 }
 
 /** Filters for {@link SoraClient.continueWatching}. */
@@ -448,6 +457,47 @@ export class SoraClient {
 			),
 		);
 		return unwrap(body, options);
+	}
+
+	/**
+	 * How a profile likes episodes to play: the audio, subtitles, and skipping
+	 * it last picked in a player.
+	 */
+	async playbackPreferences(
+		profileId: string,
+		options?: RequestOptions,
+	): Promise<PlaybackPreferences> {
+		const body = await read(
+			this.#api.profiles[":profile_id"]["playback-preferences"].$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return body.results;
+	}
+
+	/** Remembers what a profile picked in a player, and returns its preferences as they now stand. */
+	async updatePlaybackPreferences(
+		profileId: string,
+		changes: PlaybackPreferencesUpdate,
+		options?: RequestOptions,
+	): Promise<PlaybackPreferences> {
+		const body = await read(
+			this.#api.profiles[":profile_id"]["playback-preferences"].$patch(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					json: changes,
+				},
+				init(options),
+			),
+		);
+		return body.results;
 	}
 
 	/**
