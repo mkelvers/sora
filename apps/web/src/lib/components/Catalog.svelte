@@ -16,7 +16,10 @@
 	}: {
 		request: CatalogRequest;
 		title: string;
-		empty: string;
+		empty: {
+			title: string;
+			hint: string;
+		};
 		controls: Snippet;
 		summary?: Snippet;
 	} = $props();
@@ -169,8 +172,8 @@
 					alt="Sora's mascot squinting at a poster card next to a tipped-over box"
 					width={720}
 					height={663}
-					title={empty}
-					hint="Try another filter or check back later."
+					title={empty.title}
+					hint={empty.hint}
 				/>
 			{/if}
 		{/if}

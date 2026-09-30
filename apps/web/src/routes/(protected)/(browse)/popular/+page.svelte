@@ -11,7 +11,10 @@
 {#key `${catalogFilters.audio}:${catalogFilters.format}`}
 	<Catalog
 		title="Most Popular Anime"
-		empty="No anime are available yet."
+		empty={{
+			title: "The spotlight's empty right now.",
+			hint: "Loosen a filter and see who steps up.",
+		}}
 		request={{
 			kind: "popular",
 			...catalogFilters,

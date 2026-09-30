@@ -15,7 +15,10 @@
 {#key `${data.genre}:${catalogFilters.audio}:${catalogFilters.format}`}
 	<Catalog
 		title="{data.genre} Anime"
-		empty="No {data.genre} anime are available yet."
+		empty={{
+			title: `No ${data.genre} anime to show just yet.`,
+			hint: "Loosen a filter and see what turns up.",
+		}}
 		request={{
 			kind: "genre",
 			genre: data.genre,

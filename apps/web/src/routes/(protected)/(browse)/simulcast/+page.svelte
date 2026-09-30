@@ -36,7 +36,10 @@
 {#key key(selected)}
 	<Catalog
 		title="Simulcast Season"
-		empty="We couldn’t find any releases for {label(selected)}."
+		empty={{
+			title: `${label(selected)} came up empty.`,
+			hint: "Try another season, there's plenty more airing.",
+		}}
 		request={{
 			kind: "simulcast",
 			season: selected.season,

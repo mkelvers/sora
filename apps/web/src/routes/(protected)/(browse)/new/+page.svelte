@@ -11,7 +11,10 @@
 {#key `${catalogFilters.audio}:${catalogFilters.format}`}
 	<Catalog
 		title="Newly Added Anime"
-		empty="No anime were added in the last 30 days."
+		empty={{
+			title: "Nothing fresh in the last 30 days.",
+			hint: "New arrivals land here the moment they're added.",
+		}}
 		request={{
 			kind: "new",
 			...catalogFilters,
