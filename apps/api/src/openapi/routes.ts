@@ -1098,7 +1098,7 @@ export const forgetEpisode = createRoute({
 	tags: ["Profiles"],
 	summary: "Remove an episode from history",
 	description:
-		"Takes the episode out of the profile's history. Whether it is watched, and where playback of it stands, stay as they are.",
+		"Takes the episode out of the profile's history, and forgets its state with it: where playback of it stands, and whether it is watched. The title's library status settles to match.",
 	security: signedIn,
 	request: {
 		params: ProfileParams.extend({

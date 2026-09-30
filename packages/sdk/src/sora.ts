@@ -732,7 +732,7 @@ export class SoraClient {
 		);
 	}
 
-	/** Removes an episode from a profile's history; whether it is watched stays as it is. */
+	/** Removes an episode from a profile's history, and forgets its position and whether it is watched. */
 	async forgetEpisode(
 		profileId: string,
 		episode: EpisodeRef,
