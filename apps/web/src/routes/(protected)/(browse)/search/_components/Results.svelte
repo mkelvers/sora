@@ -3,9 +3,7 @@
 	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
-	import type { PreparingTitle, SeriesCard } from "@sora/sdk";
-
-	import { searchSeries } from "../search.remote";
+	import { searchSeries } from "$routes/(protected)/(browse)/search/search.remote";
 
 	let {
 		q,
@@ -28,35 +26,6 @@
 	);
 	const stale = $derived(navigating.to?.url.pathname === "/search");
 
-	const items = $derived.by(() => {
-		const merged: (
-			| {
-					key: string;
-					card: SeriesCard;
-					preparing?: never;
-			  }
-			| {
-					key: string;
-					preparing: PreparingTitle;
-					card?: never;
-			  }
-		)[] = found.results.map((card) => ({
-			key: card.id,
-			card,
-		}));
-
-		for (const preparing of found.meta.preparing_titles.toSorted(
-			(left, right) => left.position - right.position,
-		)) {
-			merged.splice(Math.min(preparing.position, merged.length), 0, {
-				key: `anilist:${preparing.anilist_id}`,
-				preparing,
-			});
-		}
-
-		return merged;
-	});
-
 	$effect(() => {
 		if (!found.meta.preparing) {
 			return;
@@ -76,13 +45,9 @@
 	});
 </script>
 
-{#each items as { key, card, preparing } (key)}
+{#each found.results as card (card.id)}
 	<li class={["transition-opacity", stale && "opacity-50"]}>
-		{#if preparing}
-			<Poster title={preparing.title} />
-		{:else if card}
-			<Poster {card} resume={found.resumes[card.id]} />
-		{/if}
+		<Poster {card} resume={found.resumes[card.id]} />
 	</li>
 {:else}
 	{#if page === 1}
