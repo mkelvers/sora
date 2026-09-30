@@ -11,6 +11,7 @@ import {
 	notificationRead,
 	notificationSeen,
 	playbackHistory,
+	playbackPreference,
 	playbackProgress,
 	profile,
 	recommendationPick,
@@ -158,7 +159,7 @@ export async function updateProfile(
 }
 
 /**
- * Deletes a profile with its library, progress, and history.
+ * Deletes a profile with its library, progress, history, and preferences.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  * @throws {@link LastProfileError} when it is the account's only profile.
@@ -180,6 +181,7 @@ export async function deleteProfile(userId: string, profileId: string) {
 
 		await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
 		await tx.delete(playbackHistory).where(eq(playbackHistory.userId, profileId));
+		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
 		await tx.delete(libraryEntry).where(eq(libraryEntry.userId, profileId));
 		await tx
 			.delete(continueWatchingDismissal)

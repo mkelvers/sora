@@ -9,7 +9,7 @@ import {
 	text,
 } from "drizzle-orm/pg-core";
 
-import { timestamptz } from "./columns";
+import { jsonb, timestamptz } from "./columns";
 import { series } from "./series";
 
 /**
@@ -264,3 +264,23 @@ export const notificationDismissal = pgTable(
 		}),
 	],
 );
+
+/**
+ * How one user likes episodes to play, remembered from what they pick in
+ * the player. A user without a row plays everything the default way; see
+ * `getPlaybackPreferences`.
+ */
+export const playbackPreference = pgTable("playback_preference", {
+	userId: text("user_id").primaryKey(),
+	/** `sub`, `dub`, or `raw`; `null` plays the first version an episode has. */
+	audio: text("audio"),
+	/**
+	 * The subtitles picked for each audio, keyed by `sub` or `dub`: a track's
+	 * language and kind, or `null` for none. An audio missing here shows its
+	 * default track.
+	 */
+	subtitles: jsonb("subtitles").$type<unknown>().notNull().default({}),
+	/** Whether openings and endings are skipped without asking. */
+	autoSkip: boolean("auto_skip").notNull().default(false),
+	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+});

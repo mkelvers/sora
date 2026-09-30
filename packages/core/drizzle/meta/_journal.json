@@ -295,6 +295,20 @@
       "when": 1790740725516,
       "tag": "0041_anime_schedule_release",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790791982322,
+      "tag": "0042_playback_preference",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790791986293,
+      "tag": "0043_forget_orphaned_progress",
+      "breakpoints": true
     }
   ]
 }
