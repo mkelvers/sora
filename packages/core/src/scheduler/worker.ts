@@ -100,7 +100,8 @@ export async function startScheduler(): Promise<Scheduler> {
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
 			`30 4 * * * ${discoverSeriesEntriesTask}`,
-			`0 */6 * * * ${refreshEpisodeDetailsTask}`,
+			// Half past, so a run never lands on the hour when most episodes air.
+			`30 * * * * ${refreshEpisodeDetailsTask}`,
 			// Catalogue upkeep runs ahead of queued layouts, which can number in the
 			// hundreds; the first run after a start catches up on what changed.
 			`15 * * * * ${syncProviderCatalogsTask} ?id=provider-catalogs-changes&fill=1h&priority=-1`,
