@@ -141,7 +141,7 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-contain"
+		class="size-full object-cover"
 		crossorigin="anonymous"
 		autoplay
 		playsinline
