@@ -2,7 +2,6 @@
 	import { invalidate } from "$app/navigation";
 	import lost from "$lib/assets/illustrations/lost.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
 	import { timeZoneCookie } from "$lib/utils";
 
 	import Header from "./_components/Header.svelte";
@@ -26,12 +25,12 @@
 	<svelte:boundary>
 		{@render children()}
 
-		{#snippet failed(_, reset)}
+		{#snippet failed()}
 			<section
 				class="grid min-h-[calc(100dvh-6.5rem)] place-items-center bg-canvas px-5 py-10 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
 				aria-labelledby="page-failed"
 			>
-				<div class="flex w-full max-w-5xl flex-col items-center">
+				<div class="w-full max-w-5xl">
 					<h1 id="page-failed" class="mb-8 text-center text-2xl font-bold">
 						Well, that didn't go as planned
 					</h1>
@@ -43,7 +42,6 @@
 						title="This page couldn't be loaded."
 						hint="Give it a moment and try again."
 					/>
-					<Button variant="outline" class="mt-6" onclick={reset}>Try again</Button>
 				</div>
 			</section>
 		{/snippet}
