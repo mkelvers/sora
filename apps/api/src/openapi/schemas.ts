@@ -321,6 +321,10 @@ export const ScheduledEpisodeSchema = z
 		series: SeriesCardSchema,
 		season_id: z.string(),
 		episode: z.number().int(),
+		air_type: z.enum(["sub", "dub"]).openapi({
+			description:
+				"Whether it comes out with English subtitles (`sub`) or dubbed in English (`dub`).",
+		}),
 		airing_at: z.string(),
 	})
 	.openapi("ScheduledEpisode") satisfies z.ZodType<SnakeCased<ScheduledEpisode>>;

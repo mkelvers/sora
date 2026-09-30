@@ -399,7 +399,7 @@ export const getSchedule = createRoute({
 	tags: ["Series"],
 	summary: "Release schedule",
 	description:
-		"Episodes airing in a window of up to 14 days, in broadcast order. Defaults to the next 7 days.",
+		"Episodes coming out in a window of up to 14 days, in order, as AnimeSchedule's timetable has them: each once subbed and once dubbed, as it comes out. A raw broadcast counts as subbed, timed by the official subbed stream where there is one. Last week to next week are kept current. Defaults to the next 7 days.",
 	request: {
 		query: z.object({
 			from: z.iso
