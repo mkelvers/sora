@@ -1,11 +1,21 @@
 <script lang="ts">
+	import { invalidate } from "$app/navigation";
 	import lost from "$lib/assets/illustrations/lost.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { timeZoneCookie } from "$lib/utils";
 
 	import Header from "./_components/Header.svelte";
 
 	let { data, children } = $props();
+
+	$effect(() => {
+		const zone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+		if (!document.cookie.split("; ").includes(`${timeZoneCookie}=${zone}`)) {
+			document.cookie = `${timeZoneCookie}=${zone}; path=/; max-age=31536000; samesite=lax`;
+			invalidate("sora:time-zone");
+		}
+	});
 </script>
 
 {#if data.viewer?.profile}

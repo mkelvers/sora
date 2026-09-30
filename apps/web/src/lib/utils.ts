@@ -49,6 +49,8 @@ export function formatDuration(minutes: number) {
 	return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+export const timeZoneCookie = "sora_tz";
+
 export function genreSlug(genre: string) {
 	return genre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
