@@ -13,6 +13,7 @@ import { effectiveStill } from "../../series/edges";
 import { locateEpisode } from "../../series/episodes";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
+import { settleStatus } from "../entries/entries";
 
 /**
  * One episode a user played, as their history lists it. Only playback puts
@@ -158,8 +159,9 @@ function after(cursor: string): SQL | undefined {
 }
 
 /**
- * Takes one episode out of the user's history. Whether it is watched, and
- * where playback of it stands, stay as they are.
+ * Takes one episode out of the user's history, and forgets its state with
+ * it: where playback of it stands, and whether it is watched. The title's
+ * status settles to match (see {@link settleStatus}).
  *
  * @returns Whether it was in their history.
  * @throws {@link SeasonNotFoundError} when the season does not exist.
@@ -184,6 +186,16 @@ export async function forgetEpisode(
 		.returning({
 			episode: playbackHistory.episode,
 		});
+	await db
+		.delete(playbackProgress)
+		.where(
+			and(
+				eq(playbackProgress.userId, userId),
+				eq(playbackProgress.anilistId, located.anilistId),
+				eq(playbackProgress.episode, located.anilistEpisode),
+			),
+		);
+	await settleStatus(userId, located.seriesId, []);
 
 	return removed.length > 0;
 }
