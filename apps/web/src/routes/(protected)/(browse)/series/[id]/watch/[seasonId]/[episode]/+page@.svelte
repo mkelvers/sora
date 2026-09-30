@@ -3,7 +3,13 @@
 
 	import type { PageProps } from "./$types";
 	import Player from "./_components/Player.svelte";
-	import { getEpisode, getPlayback, saveProgress } from "./watch.remote";
+	import {
+		getEpisode,
+		getPlayback,
+		getPlaybackPreferences,
+		savePlaybackPreferences,
+		saveProgress,
+	} from "./watch.remote";
 
 	let { params }: PageProps = $props();
 
@@ -13,6 +19,7 @@
 		episode: params.episode,
 	});
 	const { series, season, episode, start } = $derived(await getEpisode(address));
+	const preferences = $derived(await getPlaybackPreferences());
 
 	const playback = $derived(getPlayback(address));
 	const next = $derived(playback.current?.next ?? undefined);
@@ -58,6 +65,20 @@
 		series={series.title}
 		season={series.seasons.length > 1 ? season.title : undefined}
 		{start}
+		{preferences}
+		onpreferences={(changes) =>
+			savePlaybackPreferences(changes)
+				.updates(
+					getPlaybackPreferences().withOverride((current) => ({
+						...current,
+						...changes,
+						subtitles: {
+							...current.subtitles,
+							...changes.subtitles,
+						},
+					})),
+				)
+				.catch(() => {})}
 		onprogress={(position, duration) =>
 			saveProgress({
 				seriesId: series.id,

@@ -106,3 +106,36 @@ export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) =
 		throw cause;
 	}
 });
+
+export const getPlaybackPreferences = query(async () => {
+	const viewer = remoteViewer();
+
+	return viewer.sora.playbackPreferences(viewer.profile.id);
+});
+
+const SubtitleChoice = z
+	.object({
+		language: z.string(),
+		kind: z.enum(["dialogue", "signs", "captions"]).nullable(),
+	})
+	.nullable();
+
+export const savePlaybackPreferences = command(
+	z.object({
+		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
+		subtitles: z
+			.object({
+				sub: SubtitleChoice.optional(),
+				dub: SubtitleChoice.optional(),
+			})
+			.optional(),
+		auto_skip: z.boolean().optional(),
+	}),
+	async (changes) => {
+		const viewer = remoteViewer();
+
+		getPlaybackPreferences().set(
+			await viewer.sora.updatePlaybackPreferences(viewer.profile.id, changes),
+		);
+	},
+);

@@ -2,7 +2,7 @@
 	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { Player } from "$routes/(protected)/(browse)/series/[id]/watch/[seasonId]/[episode]/watch.svelte";
-	import type { PlaybackMedia } from "@sora/sdk";
+	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
 	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { untrack } from "svelte";
 
@@ -19,6 +19,8 @@
 		series: string;
 		season?: string;
 		start: number;
+		preferences: PlaybackPreferences;
+		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 		onprogress: (position: number, duration: number) => Promise<void>;
 		onnearend: () => void;
 		onended: () => void;
@@ -34,6 +36,8 @@
 		series,
 		season,
 		start,
+		preferences,
+		onpreferences,
 		onprogress,
 		onnearend,
 		onended,
@@ -43,6 +47,7 @@
 
 	let reported = -1;
 	let nearing = false;
+	let skipped = new Set<number>();
 	let current = untrack(() => id);
 
 	$effect.pre(() => {
@@ -53,6 +58,7 @@
 		current = id;
 		reported = -1;
 		nearing = false;
+		skipped = new Set();
 		player.load(start);
 	});
 
@@ -102,12 +108,46 @@
 		};
 	});
 
-	let preferred = $state<PlaybackMedia["audio"]>();
 	const audio = $derived(
-		versions?.find((version) => version.audio === preferred)?.audio ?? versions?.[0]?.audio,
+		versions?.find((version) => version.audio === preferences.audio)?.audio ?? versions?.[0]?.audio,
 	);
 	const media = $derived(versions?.find((version) => version.audio === audio));
-	let subtitle = $derived(media?.subtitles.find((track) => track.default)?.url);
+	const subtitle = $derived.by(() => {
+		if (!media || media.audio === "raw") {
+			return undefined;
+		}
+
+		const choice = preferences.subtitles[media.audio];
+		if (choice === null) {
+			return undefined;
+		}
+
+		const tracks = media.subtitles;
+		const picked =
+			choice &&
+			(tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
+				tracks.find((track) => track.language === choice.language));
+
+		return (picked ?? tracks.find((track) => track.default))?.url;
+	});
+
+	function pickSubtitle(url: string | undefined) {
+		if (!media || media.audio === "raw") {
+			return;
+		}
+
+		const track = media.subtitles.find((track) => track.url === url);
+		onpreferences({
+			subtitles: {
+				[media.audio]: track
+					? {
+							language: track.language,
+							kind: track.kind,
+						}
+					: null,
+			},
+		});
+	}
 
 	const loading = $derived(!versions || (media !== undefined && player.buffering));
 
@@ -116,6 +156,15 @@
 			return player.time >= segment.start && player.time < segment.end;
 		}),
 	);
+
+	$effect(() => {
+		if (!preferences.auto_skip || !segment || skipped.has(segment.start)) {
+			return;
+		}
+
+		skipped.add(segment.start);
+		player.time = segment.end;
+	});
 
 	$effect(() => player.remember());
 </script>
@@ -221,8 +270,21 @@
 				media={versions ?? []}
 				subtitles={media?.subtitles ?? []}
 				bind:speed={player.speed}
-				bind:subtitle
-				bind:audio={() => audio, (value) => (preferred = value)}
+				bind:subtitle={() => subtitle, pickSubtitle}
+				bind:audio={
+					() => audio,
+					(value) =>
+						onpreferences({
+							audio: value,
+						})
+				}
+				bind:autoskip={
+					() => preferences.auto_skip,
+					(value) =>
+						onpreferences({
+							auto_skip: value,
+						})
+				}
 			/>
 		</Controls>
 	</footer>

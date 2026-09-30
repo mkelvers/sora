@@ -97,7 +97,9 @@ const menuKeys: Record<string, (index: number, count: number) => number> = {
 export function moveMenuFocus(event: KeyboardEvent & { currentTarget: HTMLElement }) {
 	const step = menuKeys[event.key];
 	const items = [
-		...event.currentTarget.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)"),
+		...event.currentTarget.querySelectorAll<HTMLElement>(
+			"a[href], button:not(:disabled), input:not(:disabled)",
+		),
 	];
 	if (!step || !items.length) {
 		return;

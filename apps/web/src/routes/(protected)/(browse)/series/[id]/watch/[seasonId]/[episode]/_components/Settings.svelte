@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
+	import Switch from "$lib/components/ui/Switch.svelte";
 	import { cn, moveMenuFocus } from "$lib/utils";
 	import type { PlaybackMedia } from "@sora/sdk";
 	import { Popover } from "melt/builders";
@@ -12,6 +13,7 @@
 		subtitles: PlaybackMedia["subtitles"];
 		subtitle: string | undefined;
 		speed: number;
+		autoskip: boolean;
 	};
 
 	let {
@@ -20,6 +22,7 @@
 		subtitles,
 		subtitle = $bindable(),
 		speed = $bindable(),
+		autoskip = $bindable(),
 	}: Props = $props();
 
 	type Menu = {
@@ -121,10 +124,11 @@
 	bind:this={content}
 	role="menu"
 	aria-label={open?.label ?? "Settings"}
-	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] open:flex"
+	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] select-none open:flex"
 	onkeydown={moveMenuFocus}
 	onpointermove={(event) => {
-		const item = (event.target as HTMLElement).closest<HTMLElement>("button");
+		const target = (event.target as HTMLElement).closest<HTMLElement>("button, label");
+		const item = target instanceof HTMLLabelElement ? target.control : target;
 		if (item && item !== document.activeElement) {
 			item.focus({
 				preventScroll: true,
@@ -157,6 +161,13 @@
 			</Button>
 		{/each}
 	{:else}
+		<Switch
+			role="menuitemcheckbox"
+			class="min-h-11 w-full px-5 py-3 text-sm text-muted hover:bg-white/8 hover:text-foreground has-checked:text-foreground has-focus-visible:bg-white/8 has-focus-visible:text-foreground"
+			bind:checked={autoskip}
+		>
+			Auto skip
+		</Switch>
 		{#each menus as menu (menu.label)}
 			<Button role="menuitem" variant="item" onclick={() => (submenu = menu.label)}>
 				{menu.label}
