@@ -20,6 +20,7 @@ import {
 	getLibrary,
 	getLibraryEntry,
 	getNotifications,
+	getPlaybackPreferences,
 	getProgress,
 	getRecommendations,
 	markNotificationRead,
@@ -27,6 +28,7 @@ import {
 	markWatched,
 	recordProgress,
 	removeFromLibrary,
+	updatePlaybackPreferences,
 } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
@@ -508,6 +510,35 @@ export const v1Routes = v1
 					series_id,
 				},
 				results: snakeCased(progress),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getPlaybackPreferences, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const preferences = await getPlaybackPreferences(profile.id);
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(preferences),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.updatePlaybackPreferences, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const update = c.req.valid("json");
+		const preferences = await updatePlaybackPreferences(profile.id, {
+			audio: update.audio,
+			subtitles: update.subtitles,
+			autoSkip: update.auto_skip,
+		});
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(preferences),
 			},
 			200,
 		);

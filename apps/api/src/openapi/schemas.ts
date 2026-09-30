@@ -15,8 +15,10 @@ import type {
 	LibraryItem,
 	NamedSeason,
 	Notification,
+	PlaybackPreferences,
 	SeasonProgress,
 	SeriesProgress,
+	SubtitleChoice,
 	TitleProgress,
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
@@ -505,6 +507,59 @@ export const ProfileInputSchema = z
 	.openapi("ProfileInput", {
 		example: {
 			name: "Maja",
+		},
+	});
+
+const SubtitleChoiceSchema = z
+	.object({
+		language: z.string().min(1).max(35).openapi({
+			description: "BCP 47 language tag of the track.",
+			example: "en",
+		}),
+		kind: z.enum(["dialogue", "signs", "captions"]).nullable().openapi({
+			description: "What the track carries; `null` when that is not clear.",
+		}),
+	})
+	.openapi("SubtitleChoice", {
+		description:
+			"A subtitle track to pick again: the first with this language and kind, else the first with this language.",
+	}) satisfies z.ZodType<SnakeCased<SubtitleChoice>>;
+
+const SubtitlePreferencesSchema = z
+	.object({
+		sub: SubtitleChoiceSchema.nullable().optional(),
+		dub: SubtitleChoiceSchema.nullable().optional(),
+	})
+	.openapi("SubtitlePreferences", {
+		description:
+			"The subtitles picked for a sub and for a dub: a track to pick again, or `null` for none. An audio left out shows its default track.",
+	});
+
+export const PlaybackPreferencesSchema = z
+	.object({
+		audio: z.enum(["sub", "dub", "raw"]).nullable().openapi({
+			description: "The version to play when an episode has it; `null` for the first it has.",
+		}),
+		subtitles: SubtitlePreferencesSchema,
+		auto_skip: z.boolean().openapi({
+			description: "Whether openings and endings are skipped without asking.",
+		}),
+	})
+	.openapi("PlaybackPreferences") satisfies z.ZodType<SnakeCased<PlaybackPreferences>>;
+
+export const PlaybackPreferencesUpdateSchema = z
+	.object({
+		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
+		subtitles: SubtitlePreferencesSchema.optional().openapi({
+			description: "Changes the subtitles of the audio given, leaving the other's as they are.",
+		}),
+		auto_skip: z.boolean().optional(),
+	})
+	.openapi("PlaybackPreferencesUpdate", {
+		example: {
+			subtitles: {
+				dub: null,
+			},
 		},
 	});
 

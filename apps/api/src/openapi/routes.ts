@@ -30,6 +30,8 @@ import {
 	json,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
+	PlaybackPreferencesSchema,
+	PlaybackPreferencesUpdateSchema,
 	problem,
 	ProfileIdParam,
 	ProfileInputSchema,
@@ -778,6 +780,56 @@ export const recordProgress = createRoute({
 		},
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, season, or episode."),
+		422: problem("The body is invalid."),
+	},
+});
+
+export const getPlaybackPreferences = createRoute({
+	operationId: "getPlaybackPreferences",
+	method: "get",
+	path: "/profiles/{profile_id}/playback-preferences",
+	tags: ["Profiles"],
+	summary: "How the profile likes episodes to play",
+	description:
+		"The audio, subtitles, and skipping the profile last picked in a player, so every episode on every device plays the same way. The defaults until it picks anything: the first version an episode has, its default subtitles, and no auto-skip.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(PlaybackPreferencesSchema, EmptyMetaSchema), "The preferences."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const updatePlaybackPreferences = createRoute({
+	operationId: "updatePlaybackPreferences",
+	method: "patch",
+	path: "/profiles/{profile_id}/playback-preferences",
+	tags: ["Profiles"],
+	summary: "Remember what the profile picked in a player",
+	description:
+		"Changes only what is given. Subtitles change per audio: picking the dub's leaves the sub's as they are.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+		body: {
+			required: true,
+			content: {
+				"application/json": {
+					schema: PlaybackPreferencesUpdateSchema,
+				},
+			},
+		},
+	},
+	responses: {
+		200: json(
+			envelopeOf(PlaybackPreferencesSchema, EmptyMetaSchema),
+			"The preferences as they now stand.",
+		),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
 	},
 });
