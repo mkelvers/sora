@@ -62,8 +62,7 @@
 
 		{#if overflowing}
 			<Button
-				variant="ghost"
-				class="-mx-2"
+				variant="text"
 				aria-expanded={expanded}
 				aria-controls="series-details"
 				onclick={() => (expanded = !expanded)}
