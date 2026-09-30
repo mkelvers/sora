@@ -31,22 +31,36 @@
 		);
 	}
 
+	function episodeLabel(seasonId: string, episode: number) {
+		const season = series.seasons.find((other) => other.id === seasonId);
+		if (!season || series.seasons.length === 1) {
+			return `E${episode}`;
+		}
+
+		if (season.kind === "season") {
+			return `S${season.number} E${episode}`;
+		}
+
+		const name = season.kind === "ova" ? "OVA" : "Movie";
+		const numbered = series.seasons.filter((other) => other.kind === season.kind).length > 1;
+		const tag = numbered ? `${name} ${season.number}` : name;
+		return season.kind === "movie" ? tag : `${tag} E${episode}`;
+	}
+
 	const play = $derived.by(() => {
 		const { next, new_season } = progress;
 		if (next) {
 			const verb = next.position_seconds > 0 ? "Continue with" : "Start with";
-			const where = series.seasons.find((other) => other.id === next.season_id);
-			const season = series.seasons.length > 1 && where ? `${where.title} ` : "";
 			return {
 				href: `/series/${series.id}/watch/${next.season_id}/${next.episode}`,
-				label: `${verb} ${season}E${next.episode}`,
+				label: `${verb} ${episodeLabel(next.season_id, next.episode)}`,
 			};
 		}
 
 		if (new_season) {
 			return {
 				href: `/series/${series.id}/watch/${new_season.season_id}/1`,
-				label: `Start ${new_season.title} E1`,
+				label: `Start ${episodeLabel(new_season.season_id, 1)}`,
 			};
 		}
 
