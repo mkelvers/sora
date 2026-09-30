@@ -90,12 +90,15 @@ export class Search {
 	toggle = () => {
 		if (!this.open) {
 			this.reveal();
-		} else if (this.text.trim()) {
-			this.form?.requestSubmit();
-		} else if (this.onSearch) {
-			this.input?.focus();
 		} else {
+			clearTimeout(this.timer);
 			this.open = false;
+			this.input?.blur();
+
+			if (!this.onSearch) {
+				this.text = "";
+				this.term = "";
+			}
 		}
 	};
 
