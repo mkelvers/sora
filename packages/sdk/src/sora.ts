@@ -1,6 +1,7 @@
 import type {
 	AnimeSeason,
 	AppType,
+	ContinueWatching,
 	CountMeta,
 	Envelope,
 	PageMeta,
@@ -9,6 +10,7 @@ import type {
 	PlaybackPreferences,
 	Profile,
 	ProfileAvatar,
+	Progress,
 	Release,
 	ScheduledEpisode,
 	ScheduleMeta,
@@ -21,6 +23,7 @@ import type {
 	SeriesCard,
 	SeriesImage,
 	SeriesMeta,
+	SeriesProgress,
 	SeriesWithEpisodes,
 	UpcomingSeries,
 } from "@sora/api";
@@ -105,6 +108,20 @@ export interface PlaybackPreferencesUpdate {
 	/** The subtitles of the audio given; the other audio's stay as they are. */
 	subtitles?: PlaybackPreferences["subtitles"];
 	auto_skip?: boolean;
+}
+
+/** Where a profile stopped in an episode, for {@link SoraClient.saveProgress}. */
+export interface ProgressInput {
+	/** Whole seconds from the start. */
+	position_seconds: number;
+	/** How long the episode runs, in whole seconds. */
+	duration_seconds: number;
+	/**
+	 * Whether the episode is over at that point: it played to the end, or
+	 * only its credits are left. The player judges, since it knows where the
+	 * credits are (see `PlaybackMedia.skip_segments`).
+	 */
+	finished: boolean;
 }
 
 /** Filters and sorting for {@link SoraClient.images}. */
@@ -373,6 +390,124 @@ export class SoraClient {
 			),
 		);
 		return body.results;
+	}
+
+	/**
+	 * How far a profile is into an episode, to resume it from there; `null`
+	 * when the profile never played it. Play a `finished` one from the start.
+	 */
+	async progress(
+		profileId: string,
+		episode: EpisodeRef,
+		options?: RequestOptions,
+	): Promise<Progress | null> {
+		const body = await read(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].episodes[":episode"].progress.$get(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: episode.seasonId,
+						episode: episode.number.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+		return body.results;
+	}
+
+	/**
+	 * Remembers where a profile stopped in an episode, and returns its
+	 * progress as it now stands. Call it every few seconds while the episode
+	 * plays, and when it is paused, left, or ends.
+	 */
+	async saveProgress(
+		profileId: string,
+		episode: EpisodeRef,
+		progress: ProgressInput,
+		options?: RequestOptions,
+	): Promise<Progress> {
+		const body = await read(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].episodes[":episode"].progress.$put(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: episode.seasonId,
+						episode: episode.number.toString(),
+					},
+					json: progress,
+				},
+				init(options),
+			),
+		);
+		return body.results;
+	}
+
+	/**
+	 * How far a profile is through a show: its progress in every episode it
+	 * played, to mark them in an episode list, and the episode to play next.
+	 */
+	async seriesProgress(
+		profileId: string,
+		seriesId: string,
+		options?: RequestOptions,
+	): Promise<SeriesProgress> {
+		const body = await read(
+			this.#api.profiles[":profile_id"].series[":series_id"].progress.$get(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+		return body.results;
+	}
+
+	/**
+	 * Forgets a profile's progress in every episode of a show, which takes
+	 * the show out of {@link continueWatching}.
+	 */
+	async removeProgress(
+		profileId: string,
+		seriesId: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].series[":series_id"].progress.$delete(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * The shows a profile is in the middle of, the most recently played
+	 * first, each with the episode to play next: the one it stopped in, or
+	 * the one after the last it finished.
+	 */
+	async continueWatching<const TOptions extends RequestOptions = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, ContinueWatching[], CountMeta>> {
+		const body: Envelope<ContinueWatching[], CountMeta> = await read(
+			this.#api.profiles[":profile_id"]["continue-watching"].$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
 	}
 
 	/** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */
