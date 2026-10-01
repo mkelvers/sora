@@ -1,4 +1,5 @@
 import { command } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer } from "$lib/server/sora";
 import { getHistory, getShows } from "$lib/shows.remote";
 import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
@@ -24,6 +25,8 @@ export const forgetEpisode = command(
 			getSeriesProgress(seriesId).refresh(),
 			getShows().refresh(),
 			getContinueWatching().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );

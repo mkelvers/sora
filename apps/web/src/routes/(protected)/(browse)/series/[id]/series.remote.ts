@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
 import { getHistory, getShows } from "$lib/shows.remote";
 import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
@@ -40,6 +41,8 @@ export const markSeason = command(
 			getShows().refresh(),
 			getContinueWatching().refresh(),
 			getHistory(undefined).refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );
@@ -69,6 +72,8 @@ export const markEpisode = command(
 			getShows().refresh(),
 			getContinueWatching().refresh(),
 			getHistory(undefined).refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );

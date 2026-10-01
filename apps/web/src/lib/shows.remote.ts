@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer } from "$lib/server/sora";
 import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
 import { z } from "zod";
@@ -50,6 +51,8 @@ export const setDropped = command(
 			getDropped().refresh(),
 			getShows().refresh(),
 			getContinueWatching().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );
@@ -68,6 +71,11 @@ export const setListed = command(
 			await viewer.sora.removeShow(viewer.profile.id, seriesId);
 		}
 
-		await Promise.all([getShows().refresh(), getContinueWatching().refresh()]);
+		await Promise.all([
+			getShows().refresh(),
+			getContinueWatching().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
+		]);
 	},
 );
