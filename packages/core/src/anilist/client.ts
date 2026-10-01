@@ -521,7 +521,8 @@ function limiterState(): LimiterState {
  */
 export function waitToSend(priority: number, now: number, state: LimiterState) {
 	const isViewerWaiting = priority <= viewerWaitingPriority;
-	const spacing = isViewerWaiting ? viewerSpacingMs : spacingFor(state.limit);
+	// Background requests spread the per-minute limit evenly, with a margin for jitter.
+	const spacing = isViewerWaiting ? viewerSpacingMs : Math.ceil(minuteMs / state.limit) + 100;
 	const floor = isViewerWaiting ? 0 : viewerReserve;
 	const recent = state.recentSends.filter((sentAt) => sentAt > now - minuteMs);
 	const lastSentAt = recent.at(-1) ?? Number.NEGATIVE_INFINITY;
@@ -576,11 +577,6 @@ function followRateLimit(response: Response) {
 	) {
 		budget = followBudget(budget, remaining, Date.now());
 	}
-}
-
-/** Spacing between background requests: the per-minute limit spread evenly, with a margin for jitter. */
-function spacingFor(limit: number) {
-	return Math.ceil(60_000 / limit) + 100;
 }
 
 async function execute(query: string, variables: unknown) {
