@@ -5,6 +5,7 @@
 	import Item from "$lib/components/ui/carousel/Item.svelte";
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
+	import { getDropped } from "$lib/shows.remote";
 
 	import type { PageProps } from "./$types";
 	import ContinueWatching from "./_components/ContinueWatching.svelte";
@@ -16,6 +17,13 @@
 	const continuing = $derived(getContinueWatching().current ?? []);
 
 	const { featured, trending, upcoming } = $derived(data);
+	const dropped = getDropped();
+	const unwanted = $derived(
+		new Set([
+			...(dropped.current?.series_ids ?? []),
+			...(dropped.current?.related_series_ids ?? []),
+		]),
+	);
 	const rows = $derived([
 		{
 			id: "trending",
@@ -52,7 +60,7 @@
 	</div>
 
 	{#each rows as row (row.id)}
-		{#if row.cards.length}
+		{#if row.cards.some((card) => !unwanted.has(card.id))}
 			<div class="relative z-20 pb-10 sm:pb-12 lg:pb-16">
 				<h2 id={row.id} class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
 					{row.title}
@@ -71,7 +79,7 @@
 				>
 					{#snippet children()}
 						<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-20 hero:gap-6">
-							{#each row.cards as card (card.id)}
+							{#each row.cards.filter((card) => !unwanted.has(card.id)) as card (card.id)}
 								<Item
 									class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 min-[30em]:basis-[calc((100vw-4.5rem)/3)] min-[35.5em]:basis-[calc((100vw-5.25rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 md:basis-[calc((100vw-9.75rem)/5)] lg:basis-[calc((100vw-19.375rem)/5)] lg:last:mr-20 2xl:basis-[calc((100vw-21.25rem)/6)] hero:basis-[calc((100vw-18.875rem)/7)]"
 								>
