@@ -337,6 +337,20 @@
       "when": 1790828420787,
       "tag": "0047_episode_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790844000483,
+      "tag": "0048_shows_and_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790844438460,
+      "tag": "0049_dismiss_mark_drop",
+      "breakpoints": true
     }
   ]
 }
