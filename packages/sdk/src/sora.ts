@@ -1,18 +1,8 @@
 import type {
 	AnimeSeason,
 	AppType,
-	ArcWatchlist,
-	ContinueWatchingItem,
 	CountMeta,
 	Envelope,
-	HistoryItem,
-	HistoryMeta,
-	LibraryEntry,
-	LibraryItem,
-	LibraryMeta,
-	LibraryStatus,
-	Notification,
-	NotificationsMeta,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -32,9 +22,7 @@ import type {
 	SeriesImage,
 	SeriesMeta,
 	SeriesWithEpisodes,
-	TitleProgress,
-	TitleProgressMeta,
-	WatchlistImport,
+	UpcomingSeries,
 } from "@sora/api";
 import type { BrowseQuery } from "@sora/core/catalog";
 import { hc, type ClientResponse } from "hono/client";
@@ -117,52 +105,6 @@ export interface PlaybackPreferencesUpdate {
 	/** The subtitles of the audio given; the other audio's stay as they are. */
 	subtitles?: PlaybackPreferences["subtitles"];
 	auto_skip?: boolean;
-}
-
-/** Filters for {@link SoraClient.continueWatching}. */
-export interface ContinueWatchingParams {
-	/** Only these titles, such as a title's page or a page of search results: at most one entry each. */
-	series_id?: string[];
-}
-
-/** Paging for {@link SoraClient.notifications}. */
-export interface NotificationsParams {
-	/** At most this many notifications; 30 when omitted. */
-	limit?: number;
-}
-
-/** Filters for {@link SoraClient.library}. */
-export interface LibraryParams {
-	/** Only titles with this status. */
-	status?: LibraryStatus;
-}
-
-/** Paging for {@link SoraClient.history}. */
-export interface HistoryParams {
-	/** Where the page starts: the `after` query parameter of the previous page's `meta.next`. */
-	after?: string;
-	/** @defaultValue 50 */
-	limit?: number;
-}
-
-/** What {@link SoraClient.markWatched} marks. */
-export interface MarkWatched {
-	/** Only this season; every season in watch order when omitted. */
-	season_id?: string;
-	/** Only this episode of `season_id`. */
-	episode?: number;
-	watched: boolean;
-}
-
-/** A playback position for {@link SoraClient.recordProgress}. */
-export interface ProgressUpdate {
-	season_id: string;
-	/** Position within the season, from 1. */
-	episode: number;
-	position_seconds: number;
-	duration_seconds: number;
-	/** When the player was at this position; later events win. @defaultValue now */
-	event_at?: Date;
 }
 
 /** Filters and sorting for {@link SoraClient.images}. */
@@ -357,7 +299,7 @@ export class SoraClient {
 		return body.results;
 	}
 
-	/** Deletes a profile with its library, progress, and history. */
+	/** Deletes a profile and what Sora keeps for it. */
 	async deleteProfile(profileId: string, options?: RequestOptions): Promise<void> {
 		await send(
 			this.#api.profiles[":profile_id"].$delete(
@@ -369,51 +311,6 @@ export class SoraClient {
 				init(options),
 			),
 		);
-	}
-
-	/**
-	 * The titles a profile is part-way through, most recent first, each with the
-	 * episode and position to resume.
-	 */
-	async continueWatching<const TOptions extends RequestOptions<ContinueWatchingParams> = {}>(
-		profileId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, ContinueWatchingItem[], CountMeta>> {
-		const body: Envelope<ContinueWatchingItem[], CountMeta> = await read(
-			this.#api.profiles[":profile_id"]["continue-watching"].$get(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					query: {
-						series_id: options?.params?.series_id?.join(","),
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
-	}
-
-	/**
-	 * Titles a profile has not seen that it may like, best fit first, from
-	 * what it has played and listed. Empty for a profile with no history.
-	 */
-	async recommendations<const TOptions extends RequestOptions = {}>(
-		profileId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, SeriesCard[], CountMeta>> {
-		const body: Envelope<SeriesCard[], CountMeta> = await read(
-			this.#api.profiles[":profile_id"].recommendations.$get(
-				{
-					param: {
-						profile_id: profileId,
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
 	}
 
 	/**
@@ -429,30 +326,6 @@ export class SoraClient {
 				{
 					param: {
 						profile_id: profileId,
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
-	}
-
-	/**
-	 * A profile's progress through a title: the state of every episode it
-	 * played or marked watched, and what is derived from them, such as each
-	 * season's progress, whether it is caught up, and where to continue.
-	 */
-	async progress<const TOptions extends RequestOptions = {}>(
-		profileId: string,
-		seriesId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, TitleProgress, TitleProgressMeta>> {
-		const body: Envelope<TitleProgress, TitleProgressMeta> = await read(
-			this.#api.profiles[":profile_id"].progress[":series_id"].$get(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
 					},
 				},
 				init(options),
@@ -500,365 +373,6 @@ export class SoraClient {
 			),
 		);
 		return body.results;
-	}
-
-	/**
-	 * Saves a playback position. Report it every few seconds while playing, and
-	 * on pause and exit; an older position than the saved one changes nothing.
-	 * Only playback goes into the history; to mark episodes watched without
-	 * playing them, use {@link SoraClient.markWatched}.
-	 */
-	async recordProgress(
-		profileId: string,
-		update: ProgressUpdate,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].progress.$put(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					json: {
-						...update,
-						event_at: (update.event_at ?? new Date()).toISOString(),
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/**
-	 * Removes a title from a profile's continue watching until it plays the
-	 * title again. Nothing else about the title changes.
-	 */
-	async dismissContinueWatching(
-		profileId: string,
-		seriesId: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"]["continue-watching"][":series_id"].$delete(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/**
-	 * Marks an episode, a season's released episodes, or a whole title's,
-	 * watched or unwatched. It leaves the history alone; the title's library
-	 * status follows, as it does for playback.
-	 */
-	async markWatched(
-		profileId: string,
-		seriesId: string,
-		marked: MarkWatched,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].progress[":series_id"].watched.$put(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-					json: marked,
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Forgets a profile's episode progress through a title, to start it over; its history stays. */
-	async clearProgress(
-		profileId: string,
-		seriesId: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].progress[":series_id"].$delete(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/**
-	 * A profile's library, most recently active first, with the status of
-	 * each title and its progress. `meta.counts` has how many titles have
-	 * each status.
-	 */
-	async library<const TOptions extends RequestOptions<LibraryParams> = {}>(
-		profileId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, LibraryItem[], LibraryMeta>> {
-		const body: Envelope<LibraryItem[], LibraryMeta> = await read(
-			this.#api.profiles[":profile_id"].library.$get(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					query: {
-						status: options?.params?.status,
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
-	}
-
-	/** A title's library status for a profile, `null` when it is not in the library. */
-	async libraryEntry(
-		profileId: string,
-		seriesId: string,
-		options?: RequestOptions,
-	): Promise<LibraryEntry> {
-		const body = await read(
-			this.#api.profiles[":profile_id"].library[":series_id"].$get(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-		return body.results;
-	}
-
-	/** Puts a title in a profile's library as `planning`; a title already there keeps its status. */
-	async addToLibrary(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].library[":series_id"].$put(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/**
-	 * Drops a title for a profile: it stays in the library as `dropped`, with
-	 * its progress, but out of notifications and continue watching.
-	 */
-	async dropTitle(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].library[":series_id"].dropped.$put(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Picks a dropped title back up; its status follows the profile's progress again. */
-	async pickUpTitle(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].library[":series_id"].dropped.$delete(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/**
-	 * Imports a watchlist exported from Arc into a profile's library. Completed
-	 * entries have their episodes marked watched, so their status follows;
-	 * entries whose title is not prepared yet are added once it is.
-	 */
-	async importWatchlist(
-		profileId: string,
-		watchlist: ArcWatchlist,
-		options?: RequestOptions,
-	): Promise<WatchlistImport> {
-		const body = await read(
-			this.#api.profiles[":profile_id"].library.import.$post(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					json: watchlist,
-				},
-				init(options),
-			),
-		);
-		return body.results;
-	}
-
-	/** Takes a title out of a profile's library; its progress and history stay. */
-	async removeFromLibrary(
-		profileId: string,
-		seriesId: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].library[":series_id"].$delete(
-				{
-					param: {
-						profile_id: profileId,
-						series_id: seriesId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** The episodes a profile played, most recent first, a page at a time. */
-	async history<const TOptions extends RequestOptions<HistoryParams> = {}>(
-		profileId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, HistoryItem[], HistoryMeta>> {
-		const body: Envelope<HistoryItem[], HistoryMeta> = await read(
-			this.#api.profiles[":profile_id"].history.$get(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					query: {
-						after: options?.params?.after,
-						limit: options?.params?.limit?.toString(),
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
-	}
-
-	/**
-	 * What came out for the titles in a profile's library, newest first: new
-	 * seasons, films, and OVAs, and new episodes of seasons that were out.
-	 * `meta.unread` counts those not marked read.
-	 */
-	async notifications<const TOptions extends RequestOptions<NotificationsParams> = {}>(
-		profileId: string,
-		options?: TOptions,
-	): Promise<Returned<TOptions, Notification[], NotificationsMeta>> {
-		const body: Envelope<Notification[], NotificationsMeta> = await read(
-			this.#api.profiles[":profile_id"].notifications.$get(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					query: {
-						limit: options?.params?.limit?.toString(),
-					},
-				},
-				init(options),
-			),
-		);
-		return unwrap(body, options);
-	}
-
-	/**
-	 * Marks all of a profile's notifications read up to `seenAt`: pass the
-	 * `released_at` of the newest one, so one that came out meanwhile
-	 * stays unread.
-	 */
-	async markNotificationsSeen(
-		profileId: string,
-		seenAt: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].notifications.seen.$put(
-				{
-					param: {
-						profile_id: profileId,
-					},
-					json: {
-						seen_at: seenAt,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Marks one of a profile's notifications read. */
-	async markNotificationRead(
-		profileId: string,
-		notificationId: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].notifications[":notification_id"].read.$put(
-				{
-					param: {
-						profile_id: profileId,
-						notification_id: notificationId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Deletes one of a profile's notifications for good. */
-	async dismissNotification(
-		profileId: string,
-		notificationId: string,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].notifications[":notification_id"].$delete(
-				{
-					param: {
-						profile_id: profileId,
-						notification_id: notificationId,
-					},
-				},
-				init(options),
-			),
-		);
-	}
-
-	/** Removes an episode from a profile's history, and forgets its position and whether it is watched. */
-	async forgetEpisode(
-		profileId: string,
-		episode: EpisodeRef,
-		options?: RequestOptions,
-	): Promise<void> {
-		await send(
-			this.#api.profiles[":profile_id"].history[":season_id"][":episode"].$delete(
-				{
-					param: {
-						profile_id: profileId,
-						season_id: episode.seasonId,
-						episode: episode.number.toString(),
-					},
-				},
-				init(options),
-			),
-		);
 	}
 
 	/** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */
@@ -1108,6 +622,20 @@ export class SoraClient {
 				},
 				init(options),
 			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Titles with a season, film, or OVA starting within 30 days, on a day
+	 * that is known: `returning` ones, with something out already, then new
+	 * titles, a dozen of each kind at most, the most anticipated first.
+	 */
+	async upcoming<const TOptions extends RequestOptions = {}>(
+		options?: TOptions,
+	): Promise<Returned<TOptions, UpcomingSeries[], CountMeta>> {
+		const body: Envelope<UpcomingSeries[], CountMeta> = await read(
+			this.#api.upcoming.$get(undefined, init(options)),
 		);
 		return unwrap(body, options);
 	}
