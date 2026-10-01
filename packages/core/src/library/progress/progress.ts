@@ -15,7 +15,6 @@ import {
 import { EpisodeNotFoundError, InvalidInputError } from "../../errors";
 import type { SeriesCard } from "../../series/models";
 import {
-	adjacentEpisodes,
 	assertSeriesExists,
 	getPlayableSeasons,
 	getSeasonSeriesId,
@@ -24,6 +23,8 @@ import {
 	type PlayableSeason,
 } from "../../series/queries";
 import type { SeasonKind } from "../../series/seasons";
+import { countedSeasons } from "../shows/status";
+import { nextEpisode, type LastEpisode } from "./next";
 
 /** How far a user is into one episode. */
 export interface Progress {
@@ -50,6 +51,8 @@ export interface NextEpisode {
 	/** The season's title, such as "Season 2"; see `Season.title`. */
 	seasonTitle: string;
 	seasonKind: SeasonKind;
+	/** The season's position among the show's seasons of the same kind, from 1. */
+	seasonNumber: number;
 	/** Position within the season, from 1. */
 	episode: number;
 	/** Where to resume the episode, in seconds; 0 for one not started. */
@@ -99,7 +102,8 @@ export interface SeriesProgress {
 	/**
 	 * The first episode of the part that comes after, when `next` is `null`
 	 * because the show does not go on into that part by itself: a season
-	 * still airing, a film, an OVA, or a special. The user starts it to go on.
+	 * still airing, one that came out after the user finished the one before
+	 * it, a film, an OVA, or a special. The user starts it to go on.
 	 */
 	offered: NextEpisode | null;
 }
@@ -262,9 +266,7 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 		season.episodes.every((episode) => seen.has(`${season.id}:${episode}`));
 	const isCompleted = (season: PlayableSeason) => !season.airing && isWatched(season);
 
-	const story = out.filter((season) => season.inWatchOrder);
-	const regular = story.filter((season) => season.kind === "season");
-	const counted = regular.length > 0 ? regular : story.length > 0 ? story : out;
+	const counted = countedSeasons(out);
 
 	return {
 		episodes: rows.map((row) => toProgress(row.progress)),
@@ -283,11 +285,12 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
  *
  * A show is judged by the episode the user played last, or marked watched
  * since. While that episode is unfinished, it is the one to play. Once it
- * is finished, the episode after it is (see `getAdjacentEpisodes`), from
- * where the user left it if they started it before. A show with no episode
- * after it is left out until one comes out; so is one whose next season is
- * still airing, or whose next part is a film, an OVA, or a special, until
- * the user starts that themselves.
+ * is finished, the episode after it is (see `nextEpisode`), from where the
+ * user left it if they started it before. A show with no episode after it
+ * is left out until one comes out; so is one whose next season is still
+ * airing or came out after the user finished the one before it, or whose
+ * next part is a film, an OVA, or a special, until the user starts that
+ * themselves.
  *
  * Only series in the user's Shows are listed (see `removeShow`), less the
  * ones they dropped (see `dropShow`) and the ones whose card they took out
@@ -547,17 +550,14 @@ export async function getNextEpisodes(userId: string) {
 
 /**
  * What comes next in each show, keyed by series ID, given the episode the
- * user last had to do with in it. `next` is that episode while it is
- * unfinished, else the one after it (see `adjacentEpisodes`), with the
- * progress the user has in that one. `offered` is the episode the show
- * stops before instead, when it does. A show whose season is no longer
- * listed is left out.
+ * user last had to do with in it: `next` and `offered` as `nextEpisode`
+ * tells them, each with the progress the user has in that episode. A show
+ * whose season is no longer listed is left out.
  */
 async function nextEpisodes(
 	userId: string,
-	played: readonly (EpisodeAddress & {
+	played: readonly (LastEpisode & {
 		seriesId: string;
-		finished: boolean;
 	})[],
 ): Promise<
 	Map<
@@ -571,12 +571,7 @@ async function nextEpisodes(
 	const seasons = await getPlayableSeasons(played.map((last) => last.seriesId));
 	const found = played.flatMap((last) => {
 		const listed = seasons.get(last.seriesId) ?? [];
-		const adjacent = last.finished
-			? adjacentEpisodes(listed, last.seasonId, last.episode)
-			: {
-					next: last,
-					offered: null,
-				};
+		const adjacent = nextEpisode(listed, last);
 		return adjacent
 			? [
 					{
@@ -626,6 +621,7 @@ async function nextEpisodes(
 			seasonId: season.id,
 			seasonTitle: season.title,
 			seasonKind: season.kind,
+			seasonNumber: season.number,
 			episode: address.episode,
 			positionSeconds: unfinished?.positionSeconds ?? 0,
 			durationSeconds: unfinished?.durationSeconds ?? null,
