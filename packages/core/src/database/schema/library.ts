@@ -1,7 +1,7 @@
-import { boolean, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 import { jsonb, timestamptz } from "./columns";
-import { series } from "./series";
+import { series, seriesSeason } from "./series";
 
 /**
  * A title featured on one user's home page for one rotation (see
@@ -46,3 +46,36 @@ export const playbackPreference = pgTable("playback_preference", {
 	autoSkip: boolean("auto_skip").notNull().default(false),
 	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * How far one user is into one episode: where they stopped, of how long it
+ * runs. Written while the episode plays; see `saveProgress`.
+ *
+ * An episode is addressed as clients address it, by season and number, so
+ * progress goes with a season that is laid out away.
+ */
+export const episodeProgress = pgTable(
+	"episode_progress",
+	{
+		userId: text("user_id").notNull(),
+		seasonId: text("season_id")
+			.notNull()
+			.references(() => seriesSeason.id, {
+				onDelete: "cascade",
+			}),
+		/** Position within the season, from 1. */
+		episode: integer("episode").notNull(),
+		positionSeconds: integer("position_seconds").notNull(),
+		durationSeconds: integer("duration_seconds").notNull(),
+		/** Whether the user stopped where the episode is over; see `Progress.finished`. */
+		finished: boolean("finished").notNull(),
+		/** When the user last played the episode. */
+		watchedAt: timestamptz("watched_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.seasonId, table.episode],
+		}),
+		index("episode_progress_watched_at_idx").on(table.userId, table.watchedAt),
+	],
+);

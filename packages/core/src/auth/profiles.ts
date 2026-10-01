@@ -2,7 +2,13 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { avatarStyle, featuredPick, playbackPreference, profile } from "../database/schema";
+import {
+	avatarStyle,
+	episodeProgress,
+	featuredPick,
+	playbackPreference,
+	profile,
+} from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
 
@@ -146,7 +152,7 @@ export async function updateProfile(
 }
 
 /**
- * Deletes a profile with its library, progress, history, and preferences.
+ * Deletes a profile with its progress, preferences, and featured titles.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  * @throws {@link LastProfileError} when it is the account's only profile.
@@ -166,6 +172,7 @@ export async function deleteProfile(userId: string, profileId: string) {
 			throw new LastProfileError(profileId);
 		}
 
+		await tx.delete(episodeProgress).where(eq(episodeProgress.userId, profileId));
 		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
