@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Button from "$lib/components/ui/Button.svelte";
+
 	let {
 		applied,
 		onreset,
@@ -8,9 +10,9 @@
 	} = $props();
 </script>
 
-<button
-	type="button"
-	class="group mt-1 inline-flex cursor-pointer gap-1 text-sm"
+<Button
+	variant="link"
+	class="group mt-1 gap-1 text-sm text-inherit no-underline hover:no-underline"
 	aria-label="Reset filters: {applied}"
 	onclick={onreset}
 >
@@ -18,4 +20,4 @@
 		Reset Filters:
 	</span>
 	<span class="text-muted group-hover:line-through">{applied}</span>
-</button>
+</Button>
