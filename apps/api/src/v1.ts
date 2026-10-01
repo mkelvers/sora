@@ -677,13 +677,17 @@ export const v1Routes = v1
 			after: query.after,
 			limit: query.limit,
 		});
-		const next = new URL(c.req.url);
-		next.searchParams.set("after", page.next ?? "");
+		let next: string | null = null;
+		if (page.next !== null) {
+			const url = new URL(c.req.url);
+			url.searchParams.set("after", page.next);
+			next = `${url.pathname}${url.search}`;
+		}
 		return c.json(
 			{
 				meta: {
 					count: page.items.length,
-					next: page.next === null ? null : `${next.pathname}${next.search}`,
+					next,
 				},
 				results: snakeCased(page.items),
 			},
