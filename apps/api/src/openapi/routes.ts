@@ -14,18 +14,6 @@ import { logoPlacement } from "@sora/core/series";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
-	ArcWatchlistSchema,
-	ContinueWatchingItemSchema,
-	HistoryItemSchema,
-	HistoryMetaSchema,
-	LibraryEntrySchema,
-	LibraryItemSchema,
-	LibraryMetaSchema,
-	LibraryStatusSchema,
-	MarkWatchedSchema,
-	NotificationSchema,
-	NotificationsMetaSchema,
-	NotificationsSeenSchema,
 	EpisodeNumberParam,
 	ImageTypeSchema,
 	json,
@@ -37,7 +25,6 @@ import {
 	ProfileIdParam,
 	ProfileInputSchema,
 	ProfileSchema,
-	ProgressUpdateSchema,
 	AnimeSeasonSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
@@ -48,8 +35,7 @@ import {
 	SeriesIdParam,
 	SeriesImageSchema,
 	SeriesSchema,
-	TitleProgressSchema,
-	WatchlistImportSchema,
+	UpcomingSeriesSchema,
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -482,6 +468,19 @@ export const listSeasons = createRoute({
 	},
 });
 
+export const listUpcoming = createRoute({
+	operationId: "listUpcoming",
+	method: "get",
+	path: "/upcoming",
+	tags: ["Series"],
+	summary: "Titles with something starting soon",
+	description:
+		"Titles with a season, film, or OVA starting within 30 days from today, on a day that is known; what is only announced, or dated to a month or year, is never listed. `returning` titles come first, then new titles, each kind the most anticipated first and at most 12. A title is returning when it has something out already; a title with nothing out that is related to one that has, such as a sequel listed as a show of its own, gives its place to the one already out, which is the one to catch up on.",
+	responses: {
+		200: json(envelopeOf(z.array(UpcomingSeriesSchema), CountMetaSchema), "The titles."),
+	},
+});
+
 export const getPlayback = createRoute({
 	operationId: "getPlayback",
 	method: "get",
@@ -649,7 +648,7 @@ export const deleteProfile = createRoute({
 	path: "/profiles/{profile_id}",
 	tags: ["Profiles"],
 	summary: "Delete a profile",
-	description: "Deletes the profile with its library, progress, and history.",
+	description: "Deletes the profile and what Sora keeps for it.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -664,50 +663,6 @@ export const deleteProfile = createRoute({
 	},
 });
 
-export const getContinueWatching = createRoute({
-	operationId: "getContinueWatching",
-	method: "get",
-	path: "/profiles/{profile_id}/continue-watching",
-	tags: ["Profiles"],
-	summary: "Titles to pick back up",
-	description:
-		"One entry per recently played title, most recent first, with the episode and position to resume: an unfinished episode where it stopped, or the next episode from the start. It is read from episode progress; library status is not a way into it. Only a season the profile started is continued: a title whose next episode would start a season is left out, as that season is offered rather than pushed. Titles with nothing to continue, dropped titles, and titles dismissed from the row and not played since are left out.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		query: z.object({
-			series_id: commaSeparated(z.array(z.string()).min(1).max(50), "GYZJ43JMR,U06QF6S1R").openapi({
-				description:
-					"Only these titles, such as a title's page or a page of search results: at most one entry each, none for a title with nothing to resume.",
-			}),
-		}),
-	},
-	responses: {
-		200: json(envelopeOf(z.array(ContinueWatchingItemSchema), CountMetaSchema), "The titles."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const getRecommendations = createRoute({
-	operationId: "getRecommendations",
-	method: "get",
-	path: "/profiles/{profile_id}/recommendations",
-	tags: ["Profiles"],
-	summary: "Titles the profile may like",
-	description:
-		"Titles the profile has not played or put in its library, best fit first, from AniList users' recommendations for what it has played and has in its library and the genres those share, weighed by how well liked each title is. Completed and much-watched titles count most, recent ones more than old ones, and dropped titles count against what they are like. They are ranked on the first request of each week (Monday 06:00 UTC, as featured titles) and kept all week; a title the profile plays or lists meanwhile gives its place to the next one ranked. Empty for a profile with no history.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-	},
-	responses: {
-		200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
 export const getFeatured = createRoute({
 	operationId: "getFeatured",
 	method: "get",
@@ -715,7 +670,7 @@ export const getFeatured = createRoute({
 	tags: ["Profiles"],
 	summary: "Titles to feature",
 	description:
-		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They are picked every Monday at 06:00 UTC, in each profile's own order, and kept all week; none is featured two weeks in a row. Titles the profile has played or put in its library are left out, as are long-running ones, those without a backdrop and logo, and those nothing streams.",
+		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They are picked every Monday at 06:00 UTC, in each profile's own order, and kept all week; none is featured two weeks in a row. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -724,65 +679,6 @@ export const getFeatured = createRoute({
 		200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
-	},
-});
-
-export const getSeriesProgress = createRoute({
-	operationId: "getSeriesProgress",
-	method: "get",
-	path: "/profiles/{profile_id}/progress/{series_id}",
-	tags: ["Profiles"],
-	summary: "A title's progress",
-	description:
-		"The state of every episode of the title the profile played or marked watched, in title order, and what is derived from them: each season's progress, whether the profile is caught up, and where to continue. Nothing here is a library status.",
-	security: signedIn,
-	request: {
-		params: ProfileParams.extend({
-			series_id: SeriesIdParam,
-		}),
-	},
-	responses: {
-		200: json(
-			envelopeOf(
-				TitleProgressSchema,
-				z.object({
-					series_id: z.string(),
-				}),
-			),
-			"The progress.",
-		),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const recordProgress = createRoute({
-	operationId: "recordProgress",
-	method: "put",
-	path: "/profiles/{profile_id}/progress",
-	tags: ["Profiles"],
-	summary: "Save a playback position",
-	description:
-		"Players report their position every few seconds while playing, and on pause and exit. An older `event_at` than the one saved changes nothing. Playing past 90% marks the episode watched, and playing a watched episode again keeps it watched. Playback goes into the profile's history, puts the title in its library as `watching` (moving it there from `planning`; any other status stays), and lifts a dismissal from continue watching.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: ProgressUpdateSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		204: {
-			description: "Saved.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, season, or episode."),
-		422: problem("The body is invalid."),
 	},
 });
 
@@ -833,408 +729,5 @@ export const updatePlaybackPreferences = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
-	},
-});
-
-const ProfileSeriesParams = ProfileParams.extend({
-	series_id: SeriesIdParam,
-});
-
-export const dismissContinueWatching = createRoute({
-	operationId: "dismissContinueWatching",
-	method: "delete",
-	path: "/profiles/{profile_id}/continue-watching/{series_id}",
-	tags: ["Profiles"],
-	summary: "Remove a title from continue watching",
-	description:
-		"Hides the title from continue watching until the profile plays it again. Its progress and library status stay as they are.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Dismissed.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const markWatched = createRoute({
-	operationId: "markWatched",
-	method: "put",
-	path: "/profiles/{profile_id}/progress/{series_id}/watched",
-	tags: ["Profiles"],
-	summary: "Mark an episode, season, or title watched",
-	description:
-		"Marks one episode, every released episode of a season, or every released episode in watch order, watched or unwatched. This is not playback: history stays as it is, and no library status such as `completed` is set, which is its own change. Marking watched does move a `planning` title to `watching`. Marking unwatched forgets the episodes' progress.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: MarkWatchedSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		204: {
-			description: "Marked.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title, season, or episode."),
-		422: problem("The body is invalid."),
-	},
-});
-
-export const clearProgress = createRoute({
-	operationId: "clearProgress",
-	method: "delete",
-	path: "/profiles/{profile_id}/progress/{series_id}",
-	tags: ["Profiles"],
-	summary: "Forget a title's progress",
-	description:
-		"Forgets the state of every episode of the title, to start it over. Its library status and the profile's history of it stay as they are.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Forgotten.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const getLibrary = createRoute({
-	operationId: "getLibrary",
-	method: "get",
-	path: "/profiles/{profile_id}/library",
-	tags: ["Profiles"],
-	summary: "The profile's library",
-	description:
-		"Every title in the library, most recently active first, with its status and the profile's progress through it. The status follows the progress; see `LibraryStatus`.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		query: z.object({
-			status: LibraryStatusSchema.optional().openapi({
-				description: "Only titles with this status.",
-			}),
-		}),
-	},
-	responses: {
-		200: json(envelopeOf(z.array(LibraryItemSchema), LibraryMetaSchema), "The titles."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const getLibraryEntry = createRoute({
-	operationId: "getLibraryEntry",
-	method: "get",
-	path: "/profiles/{profile_id}/library/{series_id}",
-	tags: ["Profiles"],
-	summary: "A title's place in the profile's library",
-	description: "The title's status, or null when it is not in the library.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		200: json(envelopeOf(LibraryEntrySchema, EmptyMetaSchema), "The title's place."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const addToLibrary = createRoute({
-	operationId: "addToLibrary",
-	method: "put",
-	path: "/profiles/{profile_id}/library/{series_id}",
-	tags: ["Profiles"],
-	summary: "Add a title to the library",
-	description:
-		"Puts the title in the library as `planning`. A title already in it keeps its status.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Added, or was already there.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const removeFromLibrary = createRoute({
-	operationId: "removeFromLibrary",
-	method: "delete",
-	path: "/profiles/{profile_id}/library/{series_id}",
-	tags: ["Profiles"],
-	summary: "Remove a title from the library",
-	description:
-		"Takes the title out of the library. What the profile watched of it, and its history, stay.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Removed, or was not in the library.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const dropTitle = createRoute({
-	operationId: "dropTitle",
-	method: "put",
-	path: "/profiles/{profile_id}/library/{series_id}/dropped",
-	tags: ["Profiles"],
-	summary: "Drop a title",
-	description:
-		"Gives up on the title: it stays in the library as `dropped`, with what the profile watched of it, but is left out of notifications and continue watching, and counts against recommendations. A title not in the library is put in it dropped. Playing it again, or picking it back up, ends that.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Dropped, or was already.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such title."),
-	},
-});
-
-export const pickUpTitle = createRoute({
-	operationId: "pickUpTitle",
-	method: "delete",
-	path: "/profiles/{profile_id}/library/{series_id}/dropped",
-	tags: ["Profiles"],
-	summary: "Pick a dropped title back up",
-	description:
-		"Ends dropping the title: its status follows the profile's progress again. A title not dropped is left as it is.",
-	security: signedIn,
-	request: {
-		params: ProfileSeriesParams,
-	},
-	responses: {
-		204: {
-			description: "Picked back up, or was not dropped.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const importWatchlist = createRoute({
-	operationId: "importWatchlist",
-	method: "post",
-	path: "/profiles/{profile_id}/library/import",
-	tags: ["Profiles"],
-	summary: "Import a watchlist from Arc",
-	description:
-		"Adds the titles of a watchlist exported from Arc to the library, keeping when each was added. Statuses are not copied but follow from progress: every episode of a completed entry that had aired when it was completed is marked watched, dated then, and the status settles from that. Arc does not say how far a watching entry got, so it is added as `planning`. Nothing goes into history, newer progress in Sora wins, and titles already in the library keep when they were added. Entries whose title is not prepared yet are added once it is. Importing the same file again changes nothing.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: ArcWatchlistSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		200: json(envelopeOf(WatchlistImportSchema, EmptyMetaSchema), "What was imported."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-		422: problem("The body is not an Arc watchlist."),
-	},
-});
-
-export const getNotifications = createRoute({
-	operationId: "getNotifications",
-	method: "get",
-	path: "/profiles/{profile_id}/notifications",
-	tags: ["Profiles"],
-	summary: "What came out for the profile's library",
-	description:
-		"What came out in the last 30 days for titles in the library, whatever their status, newest first: a new season, film, or OVA, or new episodes of a season that was out already. Episodes of one season that come out together make one notification. Only what came out after the title was added is listed; titles taken out of the library drop out, and so does a notification once the profile watches one of its episodes.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		query: z.object({
-			limit: z.coerce.number().int().min(1).max(100).optional().openapi({
-				description: "At most this many notifications; 30 when omitted.",
-			}),
-		}),
-	},
-	responses: {
-		200: json(
-			envelopeOf(z.array(NotificationSchema), NotificationsMetaSchema),
-			"The notifications.",
-		),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const markNotificationsSeen = createRoute({
-	operationId: "markNotificationsSeen",
-	method: "put",
-	path: "/profiles/{profile_id}/notifications/seen",
-	tags: ["Profiles"],
-	summary: "Mark all notifications read",
-	description:
-		"Marks every notification released at or before `seen_at` read, whatever it was marked before. It never moves back, nor past now.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		body: {
-			required: true,
-			content: {
-				"application/json": {
-					schema: NotificationsSeenSchema,
-				},
-			},
-		},
-	},
-	responses: {
-		204: {
-			description: "Marked.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-		422: problem("The body is invalid."),
-	},
-});
-
-export const markNotificationRead = createRoute({
-	operationId: "markNotificationRead",
-	method: "put",
-	path: "/profiles/{profile_id}/notifications/{notification_id}/read",
-	tags: ["Profiles"],
-	summary: "Mark a notification read",
-	description: "Marks one of the profile's notifications read.",
-	security: signedIn,
-	request: {
-		params: ProfileParams.extend({
-			notification_id: z
-				.string()
-				.min(1)
-				.openapi({
-					param: {
-						name: "notification_id",
-						in: "path",
-					},
-					description: "The notification's `id`.",
-					example: "EWBMBNIV4:1790651185224",
-				}),
-		}),
-	},
-	responses: {
-		204: {
-			description: "Marked, or was not listed.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const dismissNotification = createRoute({
-	operationId: "dismissNotification",
-	method: "delete",
-	path: "/profiles/{profile_id}/notifications/{notification_id}",
-	tags: ["Profiles"],
-	summary: "Delete a notification",
-	description: "Takes the notification out of the profile's notifications for good.",
-	security: signedIn,
-	request: {
-		params: ProfileParams.extend({
-			notification_id: z
-				.string()
-				.min(1)
-				.openapi({
-					param: {
-						name: "notification_id",
-						in: "path",
-					},
-					description: "The notification's `id`.",
-					example: "EWBMBNIV4:1790651185224",
-				}),
-		}),
-	},
-	responses: {
-		204: {
-			description: "Deleted, or was not listed.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-	},
-});
-
-export const getHistory = createRoute({
-	operationId: "getHistory",
-	method: "get",
-	path: "/profiles/{profile_id}/history",
-	tags: ["Profiles"],
-	summary: "The episodes the profile played",
-	description:
-		"One item per episode, most recently played first, a page at a time. Only playback appears here: episodes marked watched do not.",
-	security: signedIn,
-	request: {
-		params: ProfileParams,
-		query: z.object({
-			after: z.string().optional().openapi({
-				description: "Where the page starts: taken from the previous page's `next`.",
-			}),
-			limit: z.coerce.number().int().min(1).max(200).optional().openapi({
-				description: "Items per page; 50 when omitted.",
-			}),
-		}),
-	},
-	responses: {
-		200: json(envelopeOf(z.array(HistoryItemSchema), HistoryMetaSchema), "The page."),
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile."),
-		422: problem("`after` is not from a previous page."),
-	},
-});
-
-export const forgetEpisode = createRoute({
-	operationId: "forgetEpisode",
-	method: "delete",
-	path: "/profiles/{profile_id}/history/{season_id}/{episode}",
-	tags: ["Profiles"],
-	summary: "Remove an episode from history",
-	description:
-		"Takes the episode out of the profile's history, and forgets its state with it: where playback of it stands, and whether it is watched. The title's library status settles to match.",
-	security: signedIn,
-	request: {
-		params: ProfileParams.extend({
-			season_id: SeasonIdParam,
-			episode: EpisodeNumberParam,
-		}),
-	},
-	responses: {
-		204: {
-			description: "Removed, or was not in the history.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or no such season or episode."),
 	},
 });

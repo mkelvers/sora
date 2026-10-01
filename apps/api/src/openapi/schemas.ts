@@ -7,22 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
-import type {
-	ArcWatchlist,
-	ContinueWatchingItem,
-	EpisodeProgress,
-	HistoryItem,
-	LibraryEntry,
-	LibraryItem,
-	NamedSeason,
-	Notification,
-	PlaybackPreferences,
-	SeasonProgress,
-	SeriesProgress,
-	SubtitleChoice,
-	TitleProgress,
-	WatchlistImport,
-} from "@sora/core/library";
+import type { PlaybackPreferences, SubtitleChoice } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
 	Release,
@@ -32,6 +17,7 @@ import type {
 	Series,
 	SeriesCard,
 	SeriesImage,
+	UpcomingSeries,
 } from "@sora/core/series";
 
 import type { SnakeCased } from "./envelope";
@@ -289,6 +275,20 @@ export const SeriesImageSchema = z
 		}),
 	})
 	.openapi("SeriesImage") satisfies z.ZodType<SnakeCased<SeriesImage>>;
+
+export const UpcomingSeriesSchema = z
+	.object({
+		series: SeriesCardSchema,
+		start_date: z.string().openapi({
+			description: "When it starts, as `YYYY-MM-DD`.",
+			example: "2026-10-03",
+		}),
+		returning: z.boolean().openapi({
+			description:
+				"Whether the title already has something out, so what starts is a new season, film, or OVA of it, or of a title related to it, rather than a new title.",
+		}),
+	})
+	.openapi("UpcomingSeries") satisfies z.ZodType<SnakeCased<UpcomingSeries>>;
 
 export const SeasonEpisodeSchema = z
 	.object({
@@ -564,330 +564,3 @@ export const PlaybackPreferencesUpdateSchema = z
 			},
 		},
 	});
-
-export const EpisodeProgressSchema = z
-	.object({
-		season_id: z.string(),
-		episode: z.number().int(),
-		position_seconds: z.number(),
-		duration_seconds: z.number(),
-		watched: z.boolean().openapi({
-			description:
-				"Whether the episode is watched: played to the end or marked. Playing it again does not take that back.",
-		}),
-		event_at: z.string(),
-	})
-	.openapi("EpisodeProgress") satisfies z.ZodType<SnakeCased<EpisodeProgress>>;
-
-export const ContinueWatchingItemSchema = z
-	.object({
-		series: SeriesCardSchema,
-		season_id: z.string(),
-		episode: z.number().int(),
-		position_seconds: z.number().openapi({
-			description: "Where to seek to; 0 when starting the next episode.",
-		}),
-		duration_seconds: z.number().nullable().openapi({
-			description: "The episode's length, or null when it has not been played yet.",
-		}),
-		last_watched_at: z.string(),
-	})
-	.openapi("ContinueWatchingItem") satisfies z.ZodType<SnakeCased<ContinueWatchingItem>>;
-
-export const NamedSeasonSchema = z
-	.object({
-		season_id: z.string(),
-		title: z.string().openapi({
-			example: "Season 2",
-		}),
-	})
-	.openapi("NamedSeason") satisfies z.ZodType<SnakeCased<NamedSeason>>;
-
-export const SeasonProgressSchema = NamedSeasonSchema.extend({
-	watched_episodes: z.number().int(),
-	released_episodes: z.number().int().openapi({
-		description: "Released episodes of the season, extras aside.",
-	}),
-	completed: z.boolean().openapi({
-		description:
-			"Whether the season has finished airing and every episode of it is watched. It says nothing about the title's library status.",
-	}),
-}).openapi("SeasonProgress") satisfies z.ZodType<SnakeCased<SeasonProgress>>;
-
-const seriesProgressFields = {
-	seasons: z.array(SeasonProgressSchema).openapi({
-		description: "Every season with a released episode, in title order.",
-	}),
-	watched_episodes: z.number().int().openapi({
-		description: "Released episodes in watch order watched, extras aside.",
-	}),
-	released_episodes: z.number().int().openapi({
-		description: "Released episodes in watch order, extras aside.",
-	}),
-	caught_up: z.boolean().openapi({
-		description:
-			"Whether every released episode in watch order is watched. Unlike a `completed` status, a new episode or season takes it back.",
-	}),
-	finished: z.boolean().openapi({
-		description:
-			"Whether the profile finished every main season it started, and started one. Films, OVAs, and specials never hold it back, and neither does a season it has not started; a title of films alone counts its films. A season still airing is not finished.",
-	}),
-	next: z
-		.object({
-			season_id: z.string(),
-			episode: z.number().int(),
-			position_seconds: z.number().openapi({
-				description: "Where to seek to; 0 when starting the episode.",
-			}),
-			duration_seconds: z.number().nullable(),
-		})
-		.nullable()
-		.openapi({
-			description:
-				"Where to pick the title back up, or null when there is nothing to continue. When that starts a season, it starts `unwatched_season` instead, so a main season the profile skipped comes before the ones after it.",
-		}),
-	new_season: NamedSeasonSchema.nullable().openapi({
-		description:
-			"A season the profile has not started that it can watch, such as one released since, offered once there is nothing to continue; otherwise null.",
-	}),
-	unwatched_season: NamedSeasonSchema.nullable().openapi({
-		description:
-			"The first main season with a released episode that the profile has not started, wherever it falls, once it started the title: one released since, or one it skipped. Films, OVAs, and specials are never it, except in a title of films alone. Otherwise null.",
-	}),
-	last_watched_at: z.string().nullable().openapi({
-		description: "When an episode was last played or marked, as an ISO 8601 timestamp.",
-	}),
-};
-
-export const SeriesProgressSchema = z
-	.object(seriesProgressFields)
-	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
-
-export const TitleProgressSchema = z
-	.object({
-		...seriesProgressFields,
-		episodes: z.array(EpisodeProgressSchema).openapi({
-			description: "The state of every episode played or marked watched, in title order.",
-		}),
-	})
-	.openapi("TitleProgress") satisfies z.ZodType<SnakeCased<TitleProgress>>;
-
-export const ProgressUpdateSchema = z
-	.object({
-		season_id: z.string().min(1),
-		episode: z.number().int().positive(),
-		position_seconds: z.number().nonnegative(),
-		duration_seconds: z
-			.number()
-			.positive()
-			.max(24 * 60 * 60),
-		event_at: z.iso
-			.datetime({
-				offset: true,
-			})
-			.openapi({
-				description:
-					"When the player was at this position. Later events win, so an old checkpoint from an offline device cannot overwrite newer progress.",
-			}),
-	})
-	.openapi("ProgressUpdate", {
-		example: {
-			season_id: "G6NQ5DWZ6",
-			episode: 3,
-			position_seconds: 512.4,
-			duration_seconds: 1420,
-			event_at: "2026-09-26T19:04:11.000Z",
-		},
-	});
-
-export const LibraryStatusSchema = z
-	.enum(["planning", "watching", "completed", "dropped"])
-	.openapi("LibraryStatus", {
-		description:
-			"Where the profile is with a whole title, which follows what it does: `planning` once added, `watching` once started, and `completed` once progress is `finished`, which only counts the main seasons it started. A season it has not started never holds a title back: a `completed` title stays completed until the profile plays or marks a main season it has not finished. `dropped` is the one status the profile sets itself, to give up on a title: it keeps its progress but is left out of notifications and continue watching, and counts against recommendations. Playing it again picks it back up.",
-	});
-
-export const LibraryItemSchema = z
-	.object({
-		series: SeriesCardSchema,
-		status: LibraryStatusSchema,
-		added_at: z.string(),
-		updated_at: z.string().openapi({
-			description: "When the status last changed.",
-		}),
-		progress: SeriesProgressSchema,
-	})
-	.openapi("LibraryItem") satisfies z.ZodType<SnakeCased<LibraryItem>>;
-
-export const LibraryEntrySchema = z
-	.object({
-		status: LibraryStatusSchema.nullable().openapi({
-			description: "The title's status, or null when it is not in the library.",
-		}),
-		added_at: z.string().nullable(),
-		updated_at: z.string().nullable().openapi({
-			description: "When the status last changed.",
-		}),
-	})
-	.openapi("LibraryEntry") satisfies z.ZodType<SnakeCased<LibraryEntry>>;
-
-export const LibraryMetaSchema = z
-	.object({
-		count: z.number().int().nonnegative(),
-		counts: z
-			.object({
-				planning: z.number().int().nonnegative(),
-				watching: z.number().int().nonnegative(),
-				completed: z.number().int().nonnegative(),
-				dropped: z.number().int().nonnegative(),
-			})
-			.openapi({
-				description: "How many titles have each status, whatever `status` filters.",
-			}),
-	})
-	.openapi("LibraryMeta");
-
-export const NotificationSchema = z
-	.object({
-		id: z.string().openapi({
-			description: "Stable for as long as the notification is listed.",
-			example: "EWBMBNIV4:1790651185224",
-		}),
-		kind: z.enum(["season", "episodes"]).openapi({
-			description:
-				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes.",
-		}),
-		series: SeriesCardSchema,
-		season: z.object({
-			id: z.string(),
-			kind: z.enum(["season", "ova", "movie"]),
-			number: z.number().int(),
-			title: z.string().openapi({
-				example: "Season 2",
-			}),
-		}),
-		first_episode: z.number().int().openapi({
-			description: "The first episode that came out, from 1 within the season.",
-		}),
-		last_episode: z.number().int().openapi({
-			description: "The last episode that came out; the same as `first_episode` when one did.",
-		}),
-		episode_title: z.string().nullable().openapi({
-			description: "The title of `last_episode`.",
-		}),
-		still_url: z.string().nullable().openapi({
-			description:
-				"A still of the season's first episode for a new season, and of `last_episode` otherwise.",
-		}),
-		released_at: z.string().openapi({
-			description: "When it came out on Sora, as an ISO 8601 timestamp.",
-		}),
-		unread: z.boolean().openapi({
-			description: "Whether the profile has not marked it read.",
-		}),
-	})
-	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
-
-export const NotificationsMetaSchema = z
-	.object({
-		count: z.number().int().nonnegative(),
-		unread: z.number().int().nonnegative().openapi({
-			description:
-				"How many of the profile's notifications are unread, including those past `limit`.",
-		}),
-	})
-	.openapi("NotificationsMeta");
-
-export const NotificationsSeenSchema = z
-	.object({
-		seen_at: z.iso
-			.datetime({
-				offset: true,
-			})
-			.openapi({
-				description:
-					"The `released_at` of the newest notification to mark read, so one that came out meanwhile stays unread.",
-			}),
-	})
-	.openapi("NotificationsSeen");
-
-export const MarkWatchedSchema = z
-	.object({
-		season_id: z.string().min(1).optional().openapi({
-			description: "Only this season; every season in watch order when omitted.",
-		}),
-		episode: z.number().int().positive().optional().openapi({
-			description: "Only this episode of `season_id`.",
-		}),
-		watched: z.boolean(),
-	})
-	.refine((body) => body.episode === undefined || body.season_id !== undefined, {
-		message: "An episode needs its season",
-		path: ["season_id"],
-	})
-	.openapi("MarkWatched");
-
-export const ArcWatchlistSchema = z
-	.object({
-		schema_version: z.literal("1.0"),
-		entries: z
-			.array(
-				z.object({
-					anilist_id: z.number().int().positive(),
-					status: z.enum(["plan_to_watch", "watching", "completed"]),
-					added_at: z.iso.datetime(),
-					updated_at: z.iso.datetime().openapi({
-						description: "When the entry last changed, such as when it was completed.",
-					}),
-				}),
-			)
-			.max(10_000),
-	})
-	.openapi("ArcWatchlist", {
-		description: "A watchlist exported from Arc, as Arc writes it.",
-	}) satisfies z.ZodType<ArcWatchlist>;
-
-export const WatchlistImportSchema = z
-	.object({
-		imported: z.number().int().nonnegative().openapi({
-			description: "Entries now in the library.",
-		}),
-		waiting: z.number().int().nonnegative().openapi({
-			description: "Entries whose title is being prepared; they are added once it is.",
-		}),
-		not_found: z.number().int().nonnegative().openapi({
-			description: "Entries AniList does not have, and adult ones.",
-		}),
-	})
-	.openapi("WatchlistImport") satisfies z.ZodType<SnakeCased<WatchlistImport>>;
-
-export const HistoryItemSchema = z
-	.object({
-		series: SeriesCardSchema,
-		season_id: z.string(),
-		season_title: z.string(),
-		episode: z.number().int(),
-		episode_title: z.string().nullable(),
-		episode_still_url: z.string().nullable(),
-		position_seconds: z.number().openapi({
-			description: "How far its latest playback got.",
-		}),
-		duration_seconds: z.number(),
-		watched: z.boolean().openapi({
-			description: "Whether the episode is watched now, by playing it to the end or marking it.",
-		}),
-		played_at: z.string().openapi({
-			description: "When the episode was last played, as an ISO 8601 timestamp.",
-		}),
-	})
-	.openapi("HistoryItem") satisfies z.ZodType<SnakeCased<HistoryItem>>;
-
-export const HistoryMetaSchema = z
-	.object({
-		count: z.number().int().nonnegative(),
-		next: z.string().nullable().openapi({
-			description: "The next page's URL, or null on the last page.",
-			example: "/v1/profiles/7HTQ2LMXB/history?after=2026-09-26T19:04:11.000Z_154587_12",
-		}),
-	})
-	.openapi("HistoryMeta");
