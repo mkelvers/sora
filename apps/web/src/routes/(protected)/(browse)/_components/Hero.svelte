@@ -6,12 +6,10 @@
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
-	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
+	import { PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
 
 	let {
@@ -20,7 +18,6 @@
 		featured: SeriesCard[];
 	} = $props();
 
-	const listing = getListed();
 	const delay = 10_000;
 
 	let held = $state(-1);
@@ -86,7 +83,6 @@
 				{@attach () => carousel.autoplay(delay)}
 			>
 				{#each featured as slide, index (slide.id)}
-					{@const listed = !!listing.current?.includes(slide.id)}
 					{@const near = [0, 1, featured.length - 1].includes(
 						(index - carousel.active + featured.length) % featured.length,
 					)}
@@ -155,28 +151,6 @@
 									{slide.kind === "movie" ? "Start watching" : "Start watching E1"}
 								</Button>
 							{/if}
-							<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
-								{#snippet children(trigger)}
-									<Button
-										{...trigger}
-										variant="outline"
-										size="square"
-										aria-label={listed ? "Remove from Library" : "Add to Library"}
-										aria-pressed={listed}
-										onclick={() =>
-											setListed({
-												seriesId: slide.id,
-												listed: !listed,
-											}).updates(
-												listing.withOverride((ids) =>
-													listed ? ids.filter((id) => id !== slide.id) : [...ids, slide.id],
-												),
-											)}
-									>
-										<BookmarkSimpleIcon size="1.35rem" weight={listed ? "fill" : "bold"} />
-									</Button>
-								{/snippet}
-							</Tooltip>
 						</div>
 					</article>
 				{/each}

@@ -6,14 +6,10 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import { cn, genreSlug } from "$lib/utils";
-	import { getUnreadNotifications } from "$routes/(protected)/(browse)/home.remote";
 	import { profilesPage } from "$routes/(protected)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
-		BellSimpleIcon,
-		BookmarkSimpleIcon,
 		CaretDownIcon,
-		HouseSimpleIcon,
 		ListIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
@@ -32,8 +28,6 @@
 
 	const others = $derived(profiles.filter((other) => other.id !== profile.id));
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
-	const unreadQuery = getUnreadNotifications();
-	const unread = $derived(unreadQuery.current ?? 0);
 	const genresQuery = getGenres();
 	const genres = $derived(genresQuery.current ?? []);
 
@@ -61,74 +55,17 @@
 			label: "Release Calendar",
 		},
 	];
-
-	const destinations = $derived([
-		{
-			href: "/",
-			label: "Home",
-			icon: HouseSimpleIcon,
-			new: false,
-		},
-		{
-			href: "/watchlist",
-			label: "Watchlist",
-			icon: BookmarkSimpleIcon,
-			new: false,
-		},
-		{
-			href: "/notifications",
-			label: "Notifications",
-			icon: BellSimpleIcon,
-			new: unread > 0,
-		},
-	]);
-
-	$effect(() => {
-		const check = () => {
-			if (document.visibilityState === "visible") {
-				unreadQuery.refresh();
-			}
-		};
-		const timer = setInterval(check, 30_000);
-		document.addEventListener("visibilitychange", check);
-
-		return () => {
-			clearInterval(timer);
-			document.removeEventListener("visibilitychange", check);
-		};
-	});
 </script>
-
-{#snippet menuItem(destination: { href: string; label: string; new: boolean })}
-	<li>
-		<Button
-			href={destination.href}
-			variant="item"
-			class={cn(
-				"text-[0.9375rem]",
-				destination.new && "after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
-			)}
-			aria-current={page.url.pathname === destination.href ? "page" : undefined}
-		>
-			{destination.label}
-			{#if destination.new}<span class="sr-only">, new notifications</span>{/if}
-		</Button>
-	</li>
-{/snippet}
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div
-			class={cn(
-				"h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
-				unread > 0 &&
-					"[&_.dropdown-trigger]:after:absolute [&_.dropdown-trigger]:after:top-3.5 [&_.dropdown-trigger]:after:right-2.5 [&_.dropdown-trigger]:after:size-2 [&_.dropdown-trigger]:after:rounded-full [&_.dropdown-trigger]:after:bg-status-error [&_.dropdown-trigger]:after:ring-2 [&_.dropdown-trigger]:after:ring-header",
-			)}
+			class="h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground"
 		>
 			<Dropdown
 				alignment="left"
 				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 overflow-y-auto bg-header-hover"
-				label={unread > 0 ? "Menu, new notifications" : "Menu"}
+				label="Menu"
 			>
 				{#snippet trigger()}
 					<ListIcon size="1.5rem" />
@@ -136,12 +73,17 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{@render menuItem(destinations[0])}
-						{#each categories as section (section.href)}
-							{@render menuItem({
-								...section,
-								new: false,
-							})}
+						{#each [{ href: "/", label: "Home" }, ...categories] as section (section.href)}
+							<li>
+								<Button
+									href={section.href}
+									variant="item"
+									class="text-[0.9375rem]"
+									aria-current={page.url.pathname === section.href ? "page" : undefined}
+								>
+									{section.label}
+								</Button>
+							</li>
 						{/each}
 						<li>
 							<Button
@@ -178,9 +120,6 @@
 								</ul>
 							{/if}
 						</li>
-						{#each destinations.slice(1) as destination (destination.href)}
-							{@render menuItem(destination)}
-						{/each}
 					</ul>
 				{/snippet}
 			</Dropdown>
@@ -265,23 +204,6 @@
 
 		<div class="flex h-full items-center">
 			<Search />
-
-			{#each destinations.filter((destination) => destination.href !== "/") as destination (destination.href)}
-				<a
-					href={destination.href}
-					class={cn(
-						"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
-						destination.new &&
-							"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
-					)}
-					aria-label={destination.new
-						? `${destination.label}, new notifications`
-						: destination.label}
-					aria-current={page.url.pathname === destination.href ? "page" : undefined}
-				>
-					<destination.icon size="1.5rem" />
-				</a>
-			{/each}
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"

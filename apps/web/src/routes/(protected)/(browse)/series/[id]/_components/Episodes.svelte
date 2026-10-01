@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { getEpisodes } from "$routes/(protected)/(browse)/series/[id]/series.remote";
-	import type { Season, TitleProgress } from "@sora/sdk";
+	import type { Season } from "@sora/sdk";
 
 	import Episode from "./Episode.svelte";
 
@@ -11,14 +11,12 @@
 		movie,
 		backdrop,
 		season,
-		progress,
 	}: {
 		seriesId: string;
 		title: string;
 		movie: boolean;
 		backdrop: string | null;
 		season: Season;
-		progress: TitleProgress;
 	} = $props();
 
 	const episodes = $derived(
@@ -45,18 +43,7 @@
 			class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 2xl:grid-cols-6 hero:grid-cols-7"
 		>
 			{#each episodes.current as episode (episode.number)}
-				<Episode
-					{seriesId}
-					seasonId={season.id}
-					{title}
-					{movie}
-					{backdrop}
-					{episode}
-					checkpoint={progress.episodes.find(
-						(checkpoint) =>
-							checkpoint.season_id === season.id && checkpoint.episode === episode.number,
-					)}
-				/>
+				<Episode {seriesId} seasonId={season.id} {title} {movie} {backdrop} {episode} />
 			{/each}
 		</ol>
 	{/if}

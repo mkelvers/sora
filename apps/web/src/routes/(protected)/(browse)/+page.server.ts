@@ -2,7 +2,6 @@ import { sora } from "$lib/server/sora";
 import { error } from "@sveltejs/kit";
 
 import type { PageServerLoad } from "./$types";
-import { getContinueWatching } from "./home.remote";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { viewer } = locals;
@@ -10,7 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		error(403, "Choose a profile first");
 	}
 
-	const [featured, trending, recommended] = await Promise.all([
+	const [featured, trending, upcoming] = await Promise.all([
 		viewer.sora.featured(viewer.profile.id),
 		sora.browse({
 			params: {
@@ -18,13 +17,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 				per_page: 20,
 			},
 		}),
-		viewer.sora.recommendations(viewer.profile.id),
-		getContinueWatching(),
+		sora.upcoming(),
 	]);
 
 	return {
 		featured,
 		trending,
-		recommended,
+		upcoming,
 	};
 };

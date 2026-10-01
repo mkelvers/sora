@@ -46,7 +46,6 @@
 			.flatMap((page) => page.items)
 			.filter((item) => !seen.has(item.key) && !!seen.add(item.key));
 	});
-	const resumes = $derived(Object.assign({}, ...pages.map((page) => page.resumes)));
 	const hasNextPage = $derived(pages.at(-1)?.hasNextPage ?? false);
 	const loadedAt = $derived(Date.parse(pages[0].loadedAt));
 
@@ -145,11 +144,7 @@
 				>
 					{#each section.items as item (item.key)}
 						<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">
-							<Poster
-								card={item.card}
-								resume={resumes[item.card.id]}
-								meta={item.release && released(item.release.released_at)}
-							/>
+							<Poster card={item.card} meta={item.release && released(item.release.released_at)} />
 						</li>
 					{/each}
 				</ul>

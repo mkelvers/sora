@@ -21,11 +21,10 @@ export const searchSeries = query(
 					preparing: false,
 					preparing_titles: [],
 				},
-				resumes: {},
 			};
 		}
 
-		const viewer = remoteViewer();
+		remoteViewer();
 
 		const found = await sora.search(q, {
 			params: {
@@ -35,18 +34,6 @@ export const searchSeries = query(
 			meta: true,
 		});
 
-		const resumes =
-			found.results.length > 0
-				? await viewer.sora.continueWatching(viewer.profile.id, {
-						params: {
-							series_id: found.results.map((card) => card.id),
-						},
-					})
-				: [];
-
-		return {
-			...found,
-			resumes: Object.fromEntries(resumes.map((resume) => [resume.series.id, resume])),
-		};
+		return found;
 	},
 );

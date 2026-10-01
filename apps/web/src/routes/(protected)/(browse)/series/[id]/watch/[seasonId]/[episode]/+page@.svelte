@@ -8,7 +8,6 @@
 		getPlayback,
 		getPlaybackPreferences,
 		savePlaybackPreferences,
-		saveProgress,
 	} from "./watch.remote";
 
 	let { params }: PageProps = $props();
@@ -18,7 +17,7 @@
 		seasonId: params.seasonId,
 		episode: params.episode,
 	});
-	const { series, season, episode, start } = $derived(await getEpisode(address));
+	const { series, season, episode } = $derived(await getEpisode(address));
 	const preferences = $derived(await getPlaybackPreferences());
 
 	const playback = $derived(getPlayback(address));
@@ -64,7 +63,6 @@
 		title="{episode.number}. {title}"
 		series={series.title}
 		season={series.seasons.length > 1 ? season.title : undefined}
-		{start}
 		{preferences}
 		onpreferences={(changes) =>
 			savePlaybackPreferences(changes)
@@ -79,14 +77,6 @@
 					})),
 				)
 				.catch(() => {})}
-		onprogress={(position, duration) =>
-			saveProgress({
-				seriesId: series.id,
-				seasonId: season.id,
-				episode: episode.number,
-				position,
-				duration,
-			}).catch(() => {})}
 		onnearend={() => (nearing = key)}
 		onended={() =>
 			goto(

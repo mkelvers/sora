@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { beforeNavigate } from "$app/navigation";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { Player } from "$routes/(protected)/(browse)/series/[id]/watch/[seasonId]/[episode]/watch.svelte";
 	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
@@ -18,10 +17,8 @@
 		title: string;
 		series: string;
 		season?: string;
-		start: number;
 		preferences: PlaybackPreferences;
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
-		onprogress: (position: number, duration: number) => Promise<void>;
 		onnearend: () => void;
 		onended: () => void;
 	};
@@ -35,17 +32,14 @@
 		title,
 		series,
 		season,
-		start,
 		preferences,
 		onpreferences,
-		onprogress,
 		onnearend,
 		onended,
 	}: Props = $props();
 
-	const player = new Player(untrack(() => start));
+	const player = new Player(0);
 
-	let reported = -1;
 	let nearing = false;
 	let skipped = new Set<number>();
 	let current = untrack(() => id);
@@ -56,10 +50,9 @@
 		}
 
 		current = id;
-		reported = -1;
 		nearing = false;
 		skipped = new Set();
-		player.load(start);
+		player.load(0);
 	});
 
 	$effect(() => {
@@ -69,43 +62,6 @@
 
 		nearing = true;
 		untrack(onnearend);
-	});
-
-	beforeNavigate(report);
-
-	async function end() {
-		const duration = player.duration;
-		if (Number.isFinite(duration) && duration > 0) {
-			reported = Math.floor(duration);
-			await onprogress(duration, duration);
-		}
-
-		onended();
-	}
-
-	function report() {
-		const position = Math.floor(player.time);
-		if (!Number.isFinite(player.duration) || player.duration <= 0) {
-			return;
-		}
-		if (position <= 0 || position === reported) {
-			return;
-		}
-
-		reported = position;
-		onprogress(position, player.duration);
-	}
-
-	$effect(() => {
-		if (player.paused) {
-			return;
-		}
-
-		const interval = setInterval(report, 10_000);
-		return () => {
-			clearInterval(interval);
-			report();
-		};
 	});
 
 	const audio = $derived(
@@ -169,7 +125,7 @@
 	$effect(() => player.remember());
 </script>
 
-<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} onpagehide={report} />
+<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
 
 <section
 	aria-label="Video player"
@@ -199,7 +155,7 @@
 		ondblclick={player.toggleFullscreen}
 		onplay={() => (player.paused = false)}
 		onpause={() => (player.paused = true)}
-		onended={end}
+		{onended}
 		{@attach player.stream(media?.sources[0])}
 		{@attach player.playback}
 	>

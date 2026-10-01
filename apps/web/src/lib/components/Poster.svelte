@@ -3,47 +3,30 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { ContinueWatchingItem, SeriesCard } from "@sora/sdk";
-	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import type { SeriesCard } from "@sora/sdk";
+	import { PlayIcon, StarIcon } from "phosphor-svelte";
 
 	let {
 		card,
-		resume = null,
 		meta,
 		class: className,
 	}: {
 		card?: SeriesCard;
-		resume?: ContinueWatchingItem | null;
 		meta?: string;
 		class?: string;
 	} = $props();
 
-	const listing = getListed();
-	const listed = $derived(!!card && !!listing.current?.includes(card.id));
-
 	const audio = $derived(audioLabel(card?.audio));
 
-	const play = $derived.by(() => {
-		if (!card) {
-			return null;
-		}
-
-		if (resume) {
-			return {
-				href: `/series/${card.id}/watch/${resume.season_id}/${resume.episode}`,
-				label: `${resume.position_seconds > 0 ? "Resume" : "Play"} E${resume.episode}`,
-			};
-		}
-
-		return (
-			card.start_season_id && {
-				href: `/series/${card.id}/watch/${card.start_season_id}/1`,
-				label: card.kind === "movie" ? "Play" : "Play E1",
-			}
-		);
-	});
+	const play = $derived(
+		card?.start_season_id
+			? {
+					href: `/series/${card.id}/watch/${card.start_season_id}/1`,
+					label: card.kind === "movie" ? "Play" : "Play E1",
+				}
+			: null,
+	);
 </script>
 
 <article
@@ -79,20 +62,6 @@
 				{:else}
 					<span class="grid size-full items-end p-4 text-sm text-subtle" aria-hidden="true">
 						{card.title}
-					</span>
-				{/if}
-				{#if listed}
-					<span
-						data-listed
-						class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
-					>
-						<BookmarkSimpleIcon
-							class="absolute top-0.5 right-1"
-							size="1rem"
-							weight="fill"
-							aria-hidden="true"
-						/>
-						<span class="sr-only">On your Library</span>
 					</span>
 				{/if}
 			</div>
@@ -151,8 +120,8 @@
 				{/if}
 			</div>
 
-			<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
-				{#if play}
+			{#if play}
+				<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
 					<Tooltip text={play.label}>
 						{#snippet children(trigger)}
 							<Button
@@ -166,31 +135,8 @@
 							</Button>
 						{/snippet}
 					</Tooltip>
-				{/if}
-
-				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
-					{#snippet children(trigger)}
-						<Button
-							{...trigger}
-							variant="icon"
-							tone="accent"
-							aria-label={listed ? "Remove from Library" : "Add to Library"}
-							aria-pressed={listed}
-							onclick={() =>
-								setListed({
-									seriesId: card.id,
-									listed: !listed,
-								}).updates(
-									listing.withOverride((ids) =>
-										listed ? ids.filter((id) => id !== card.id) : [...ids, card.id],
-									),
-								)}
-						>
-							<BookmarkSimpleIcon size="1.55rem" weight={listed ? "fill" : "bold"} />
-						</Button>
-					{/snippet}
-				</Tooltip>
-			</div>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </article>

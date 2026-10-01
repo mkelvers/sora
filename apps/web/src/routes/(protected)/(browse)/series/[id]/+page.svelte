@@ -1,27 +1,19 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Select from "$lib/components/ui/Select.svelte";
-	import { DotsThreeVerticalIcon } from "phosphor-svelte";
-	import { untrack } from "svelte";
 
 	import type { PageProps } from "./$types";
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
 	import Hero from "./_components/Hero.svelte";
-	import { getProgress, getSeries, markAllWatched } from "./series.remote";
+	import { getSeries } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
-	const seriesQuery = $derived(getSeries(params.id));
-	const progressQuery = $derived(getProgress(params.id));
-	const series = $derived(await seriesQuery);
-	const progress = $derived(await progressQuery);
-	let season = $derived.by(() => {
-		const wanted = page.state.seasonId ?? untrack(() => progress.next)?.season_id;
-		return series.seasons.find((season) => season.id === wanted) ?? series.seasons[0];
-	});
+	const series = $derived(await getSeries(params.id));
+	let season = $derived(
+		series.seasons.find((season) => season.id === page.state.seasonId) ?? series.seasons[0],
+	);
 	const seasonOptions = $derived(
 		series.seasons.map((other) => ({
 			value: other.id,
@@ -29,10 +21,6 @@
 			detail: other.episode_count === 1 ? "1 Episode" : `${other.episode_count} Episodes`,
 		})),
 	);
-	const seasonWatched = $derived.by(() => {
-		const standing = progress.seasons.find((other) => other.season_id === season?.id);
-		return !!standing && standing.watched_episodes === standing.released_episodes;
-	});
 </script>
 
 <svelte:head>
@@ -40,7 +28,7 @@
 </svelte:head>
 
 <div class="bg-canvas text-foreground">
-	<Hero {series} {progress} />
+	<Hero {series} />
 
 	<Details {series} />
 
@@ -66,30 +54,6 @@
 							}
 						/>
 					{/if}
-					<div class="ml-auto">
-						<Dropdown class="w-64">
-							{#snippet trigger()}
-								<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
-								Options
-							{/snippet}
-							{#snippet children()}
-								<div role="menu" aria-label="Season options">
-									<Button
-										role="menuitem"
-										variant="item"
-										onclick={() =>
-											markAllWatched({
-												seriesId: series.id,
-												seasonId: season.id,
-												watched: !seasonWatched,
-											})}
-									>
-										Mark Season as {seasonWatched ? "Unwatched" : "Watched"}
-									</Button>
-								</div>
-							{/snippet}
-						</Dropdown>
-					</div>
 				</div>
 
 				<Episodes
@@ -98,7 +62,6 @@
 					movie={series.kind === "movie"}
 					backdrop={series.backdrop_url}
 					{season}
-					{progress}
 				/>
 			</section>
 		{:else}

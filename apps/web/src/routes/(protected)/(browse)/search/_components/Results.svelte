@@ -48,7 +48,7 @@
 
 {#each found.results as card (card.id)}
 	<li class={["transition-opacity", stale && "opacity-50"]}>
-		<Poster {card} resume={found.resumes[card.id]} />
+		<Poster {card} />
 	</li>
 {:else}
 	{#if page === 1}

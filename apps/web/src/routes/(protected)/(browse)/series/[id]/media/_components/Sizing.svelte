@@ -2,7 +2,6 @@
 	import { cn } from "$lib/utils";
 	import Hero from "$routes/(protected)/(browse)/series/[id]/_components/Hero.svelte";
 	import type { Media } from "$routes/(protected)/(browse)/series/[id]/media/media.svelte";
-	import { getProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Series } from "@sora/sdk";
 
 	type Props = {
@@ -11,8 +10,6 @@
 	};
 
 	let { series, media }: Props = $props();
-
-	const progress = $derived(await getProgress(series.id));
 
 	let scale = $derived(series.logo_scale);
 	let x = $derived(series.logo_offset_x);
@@ -268,7 +265,6 @@
 					logo_offset_x: x,
 					logo_offset_y: y,
 				}}
-				{progress}
 			/>
 		</div>
 

@@ -52,7 +52,7 @@ export type CatalogRequest = WithoutPage<z.input<typeof request>>;
 export const getGenres = query(async () => sora.genres());
 
 export const getCatalogPage = query(request, async (input) => {
-	const viewer = remoteViewer();
+	remoteViewer();
 	const loadedAt = new Date().toISOString();
 
 	const found =
@@ -103,21 +103,11 @@ export const getCatalogPage = query(request, async (input) => {
 					card: result,
 				},
 	);
-	const seriesIds = items.map((item) => item.card.id);
-	const resumes =
-		seriesIds.length > 0
-			? await viewer.sora.continueWatching(viewer.profile.id, {
-					params: {
-						series_id: seriesIds,
-					},
-				})
-			: [];
 
 	return {
 		items,
 		hasNextPage: found.meta.has_next_page,
 		preparing: found.meta.preparing,
 		loadedAt,
-		resumes: Object.fromEntries(resumes.map((resume) => [resume.series.id, resume])),
 	};
 });

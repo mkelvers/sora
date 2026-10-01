@@ -2,105 +2,24 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { getListed, setListed } from "$lib/library.remote";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import {
-		getLibraryStatus,
-		markAllWatched,
-		setDropped,
-	} from "$routes/(protected)/(browse)/series/[id]/series.remote";
-	import type { Series, TitleProgress } from "@sora/sdk";
-	import {
-		BookmarkSimpleIcon,
-		DotsThreeVerticalIcon,
-		PlayIcon,
-		StarIcon,
-		ThumbsDownIcon,
-	} from "phosphor-svelte";
+	import type { Series } from "@sora/sdk";
+	import { DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
 	let {
 		series,
-		progress,
 	}: {
 		series: Series;
-		progress: TitleProgress;
 	} = $props();
 
-	const listing = getListed();
-	const status = $derived(getLibraryStatus(series.id));
-	const dropped = $derived(status.current === "dropped");
-	const listed = $derived(!!listing.current?.includes(series.id));
-
-	function toggleListed() {
-		setListed({
-			seriesId: series.id,
-			listed: !listed,
-		}).updates(
-			listing.withOverride((ids) =>
-				listed ? ids.filter((id) => id !== series.id) : [...ids, series.id],
-			),
-		);
-	}
-
-	function toggleDropped() {
-		const drop = !dropped;
-		setDropped({
-			seriesId: series.id,
-			dropped: drop,
-		}).updates(getLibraryStatus(series.id).withOverride(() => (drop ? "dropped" : "planning")));
-	}
-
-	function episodeLabel(seasonId: string, episode: number) {
-		const season = series.seasons.find((other) => other.id === seasonId);
-		if (!season || series.seasons.length === 1) {
-			return `E${episode}`;
-		}
-
-		if (season.kind === "season") {
-			return `S${season.number} E${episode}`;
-		}
-
-		const name = season.kind === "ova" ? "OVA" : "Movie";
-		const numbered = series.seasons.filter((other) => other.kind === season.kind).length > 1;
-		const tag = numbered ? `${name} ${season.number}` : name;
-		return season.kind === "movie" ? tag : `${tag} E${episode}`;
-	}
-
 	const play = $derived.by(() => {
-		const { next, new_season } = progress;
-		if (next) {
-			const verb = next.position_seconds > 0 ? "Continue with" : "Start with";
-			return {
-				href: `/series/${series.id}/watch/${next.season_id}/${next.episode}`,
-				label: `${verb} ${episodeLabel(next.season_id, next.episode)}`,
-			};
-		}
-
-		if (new_season) {
-			return {
-				href: `/series/${series.id}/watch/${new_season.season_id}/1`,
-				label: `Start ${episodeLabel(new_season.season_id, 1)}`,
-			};
-		}
-
 		const first = series.seasons.find((other) => other.in_watch_order) ?? series.seasons[0];
-		if (!first) {
-			return null;
-		}
-
-		const href = `/series/${series.id}/watch/${first.id}/1`;
-		if (progress.caught_up) {
-			return {
-				href,
-				label: "Watch again",
-			};
-		}
-
-		return {
-			href,
-			label: series.kind === "movie" ? "Start watching" : "Start watching E1",
-		};
+		return first
+			? {
+					href: `/series/${series.id}/watch/${first.id}/1`,
+					label: series.kind === "movie" ? "Start watching" : "Start watching E1",
+				}
+			: null;
 	});
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
@@ -170,20 +89,6 @@
 			{/snippet}
 			{#snippet children()}
 				<div role="menu" aria-label="More">
-					{#if series.seasons.length}
-						<Button
-							role="menuitem"
-							variant="item"
-							onclick={() =>
-								markAllWatched({
-									seriesId: series.id,
-									watched: !progress.caught_up,
-								})}
-						>
-							Mark Series as {progress.caught_up ? "Unwatched" : "Watched"}
-						</Button>
-					{/if}
-
 					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
 						View Media Options
 					</Button>
@@ -286,51 +191,7 @@
 					<PlayIcon size="1.55em" weight="bold" />
 					<span class="truncate">{play.label}</span>
 				</Button>
-
-				<Tooltip text={listed ? "Remove from Library" : "Add to Library"}>
-					{#snippet children(trigger)}
-						<Button
-							{...trigger}
-							variant="outline"
-							size="square"
-							aria-label={listed ? "Remove from Library" : "Add to Library"}
-							aria-pressed={listed}
-							onclick={toggleListed}
-						>
-							<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
-						</Button>
-					{/snippet}
-				</Tooltip>
-			{:else}
-				<Button
-					variant="primary"
-					class="max-sm:flex-1"
-					aria-pressed={listed}
-					onclick={toggleListed}
-				>
-					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
-					{#if listed}
-						On Watchlist
-					{:else}
-						Add to Watchlist
-					{/if}
-				</Button>
 			{/if}
-
-			<Tooltip text={dropped ? "Pick Series Back Up" : "Drop Series"}>
-				{#snippet children(trigger)}
-					<Button
-						{...trigger}
-						variant="outline"
-						size="square"
-						aria-label={dropped ? "Pick Series Back Up" : "Drop Series"}
-						aria-pressed={dropped}
-						onclick={toggleDropped}
-					>
-						<ThumbsDownIcon size="1.65em" weight={dropped ? "fill" : "bold"} />
-					</Button>
-				{/snippet}
-			</Tooltip>
 		</div>
 	</div>
 </header>

@@ -1,7 +1,5 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
-import { getProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
@@ -13,15 +11,12 @@ const EpisodeAddress = z.object({
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, episode }) => {
-	const viewer = remoteViewer();
-
-	const [series, episodes, progress] = await Promise.all([
+	const [series, episodes] = await Promise.all([
 		sora.series(seriesId),
 		sora.episodes({
 			seriesId,
 			seasonId,
 		}),
-		viewer.sora.progress(viewer.profile.id, seriesId),
 	]);
 	const season = series.seasons.find((season) => season.id === seasonId);
 	const found = episodes.find((candidate) => candidate.number === episode);
@@ -30,44 +25,12 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, seasonId, epi
 		error(404, "Episode not found");
 	}
 
-	const checkpoint = progress.episodes.find(
-		(checkpoint) => checkpoint.season_id === seasonId && checkpoint.episode === episode,
-	);
-	const { next } = progress;
-
 	return {
 		series,
 		season,
 		episode: found,
-		start:
-			next?.season_id === seasonId && next.episode === episode
-				? next.position_seconds
-				: checkpoint && !checkpoint.watched
-					? checkpoint.position_seconds
-					: 0,
 	};
 });
-
-export const saveProgress = command(
-	z.object({
-		seriesId: z.string(),
-		seasonId: z.string(),
-		episode: z.number().int().positive(),
-		position: z.number().nonnegative(),
-		duration: z.number().positive(),
-	}),
-	async ({ seriesId, seasonId, episode, position, duration }) => {
-		const viewer = remoteViewer();
-
-		await viewer.sora.recordProgress(viewer.profile.id, {
-			season_id: seasonId,
-			episode,
-			position_seconds: Math.min(position, duration),
-			duration_seconds: duration,
-		});
-		await Promise.all([getProgress(seriesId).refresh(), getContinueWatching().refresh()]);
-	},
-);
 
 export const getPlayback = query(EpisodeAddress, async ({ seasonId, episode }) => {
 	try {
