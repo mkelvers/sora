@@ -179,3 +179,41 @@ export const droppedSeries = pgTable(
 		}),
 	],
 );
+
+/**
+ * A notification one user marked read, by its ID (see `Notification.id`).
+ * Rows older than a notification is listed go when the user next marks one;
+ * see `markNotificationsRead`.
+ */
+export const notificationRead = pgTable(
+	"notification_read",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		readAt: timestamptz("read_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);
+
+/**
+ * A notification one user deleted, by its ID (see `Notification.id`). It is
+ * never listed again. Rows older than a notification is listed go when the
+ * user next deletes one; see `dismissNotification`.
+ */
+export const notificationDismissal = pgTable(
+	"notification_dismissal",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		dismissedAt: timestamptz("dismissed_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);
