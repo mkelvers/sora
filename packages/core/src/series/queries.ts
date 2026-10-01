@@ -790,9 +790,9 @@ const releaseWindowMs = 30 * day;
 
 /**
  * When an episode came out: when it aired, or its air date's midnight UTC
- * when AniList has no airing time.
+ * when AniList has no airing time. `null` for an episode with neither.
  */
-const releasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
 export const ReleasesQuerySchema = BrowseQuerySchema.pick({
@@ -835,7 +835,13 @@ export async function getLatestReleases(
 		})
 		.from(seriesEpisode)
 		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-		.where(and(isNotNull(seriesEpisode.anilistId), gte(releasedAt, since), lte(releasedAt, now)));
+		.where(
+			and(
+				isNotNull(seriesEpisode.anilistId),
+				gte(episodeReleasedAt, since),
+				lte(episodeReleasedAt, now),
+			),
+		);
 	const rows =
 		candidates.length > 0
 			? await db
