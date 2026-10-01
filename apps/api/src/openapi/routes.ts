@@ -823,7 +823,7 @@ export const listContinueWatching = createRoute({
 	tags: ["Profiles"],
 	summary: "Shows the profile is in the middle of",
 	description:
-		"The shows the profile is in the middle of, the most recently played first, each with the episode to play next. A show is judged by the episode played last: while it is unfinished it is the one to play, and once it is finished the episode after it is, into the next season in watch order. A show with no episode after it is left out until one comes out. Only the 30 most recently played shows are looked at.",
+		"The shows the profile is in the middle of, the most recently played first, each with the episode to play next. A show is judged by the episode played last: while it is unfinished it is the one to play, and once it is finished the episode after it is, into the next season in watch order. A show with no episode after it is left out until one comes out; so is one whose next season is still airing or came out after the profile finished the one before it, or whose next part is a film, an OVA, or a special, until the profile starts that itself. Only the 30 most recently played shows are looked at.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -842,7 +842,7 @@ export const listShows = createRoute({
 	tags: ["Profiles"],
 	summary: "The profile's Shows",
 	description:
-		"The series the profile saved to watch later, and the ones it started watching, the most recently active first. A series is listed once however many of its seasons the profile watched. Dropped series are among them, marked as such.",
+		"The series the profile saved to watch later, and the ones it started watching, the most recently active first. A series is listed once however many of its seasons the profile watched. Each has a `status` telling where the profile is with it; dropped series are among them, with the status `dropped`.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
@@ -907,7 +907,7 @@ export const getHistory = createRoute({
 	tags: ["Profiles"],
 	summary: "The episodes the profile watched",
 	description:
-		"One item per episode, the most recently finished first, a page at a time. An episode is listed at when the profile first finished it: playing it again neither lists it again nor moves it up. An episode marked watched is listed at when it was marked.",
+		"The episodes the profile played or marked watched, one item per episode, the most recent first, a page at a time. An episode it played part of is listed at when it last played it, and moves up each time. Once finished, it is listed at when the profile first finished it: playing it again neither lists it again nor moves it up. An episode marked watched is listed at when it was marked.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,

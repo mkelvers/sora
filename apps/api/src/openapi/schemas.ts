@@ -623,6 +623,9 @@ const nextEpisode = {
 		example: "Season 2",
 	}),
 	season_kind: z.enum(["season", "ova", "movie"]),
+	season_number: z.number().int().openapi({
+		description: "The season's position among the show's seasons of the same kind, from 1.",
+	}),
 	episode: z.number().int().openapi({
 		description: "Position within the season, from 1.",
 	}),
@@ -681,7 +684,7 @@ export const SeriesProgressSchema = z
 		}),
 		offered: NextEpisodeSchema.nullable().openapi({
 			description:
-				"The first episode of the part that comes after, when `next` is null because the show does not go on into that part by itself: a season still airing, a film, an OVA, or a special. The profile starts it to go on.",
+				"The first episode of the part that comes after, when `next` is null because the show does not go on into that part by itself: a season still airing, one that came out after the profile finished the one before it, a film, an OVA, or a special. The profile starts it to go on.",
 		}),
 	})
 	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
@@ -693,18 +696,22 @@ export const ShowSchema = z
 			description: "When the series entered the profile's Shows, as an ISO 8601 timestamp.",
 			example: "2026-10-01T18:00:00.000Z",
 		}),
-		started: z.boolean().openapi({
+		status: z.enum(["planned", "watching", "completed", "dropped"]).openapi({
 			description:
-				"Whether the profile played or watched an episode of the series. Opening its page does not start it.",
-		}),
-		dropped: z.boolean().openapi({
-			description: "Whether the profile dropped the series; see `dropShow`.",
+				"Where the profile is with the series. `planned`: saved, with nothing played or watched yet. `watching`: a season it started is not complete, which being caught up with one still airing is too, or the season after was already out when it finished. `completed`: it finished every season it started, with no season after them that was out by then; one that came out since is `offered`, and changes nothing until the profile starts it. `dropped`: given up on; see `dropShow`. Show the status as it is, rather than working it out again from `next`, `offered`, or the counts.",
 		}),
 		next: NextEpisodeSchema.nullable().openapi({
 			description: "The episode to play next, as `SeriesProgress.next` tells it.",
 		}),
 		offered: NextEpisodeSchema.nullable().openapi({
-			description: "The episode the series stops before, as `SeriesProgress.offered` tells it.",
+			description:
+				"The episode the series stops before, as `SeriesProgress.offered` tells it. On a `completed` series, it is the part that came out since, or that the profile never started.",
+		}),
+		episode_count: z.number().int().nonnegative().openapi({
+			description: "How many episodes of the series can be played, in all of its seasons.",
+		}),
+		watched_count: z.number().int().nonnegative().openapi({
+			description: "How many of those episodes the profile watched.",
 		}),
 		active_at: z.string().openapi({
 			description:
@@ -727,13 +734,21 @@ export const HistoryItemSchema = z
 		}),
 		episode_title: z.string().nullable(),
 		episode_still_url: z.string().nullable(),
+		watched: z.boolean().openapi({
+			description:
+				"Whether the profile watched the episode: finished it at some point, or marked it. One it only played part of is not watched.",
+		}),
+		position_seconds: z.number().int().nullable().openapi({
+			description:
+				"Where the profile stopped when it last played the episode, in seconds from the start; null for one it marked watched and never played.",
+		}),
 		duration_seconds: z.number().int().nullable().openapi({
 			description:
 				"How long the episode ran when the profile last played it, in seconds; null for one it marked watched and never played.",
 		}),
-		finished_at: z.string().openapi({
+		listed_at: z.string().openapi({
 			description:
-				"When the profile first finished the episode, or marked it watched, as an ISO 8601 timestamp.",
+				"When the episode took its place in the history, as an ISO 8601 timestamp: when the profile first finished or marked it, or, for one not watched yet, when it last played it.",
 			example: "2026-10-01T18:00:00.000Z",
 		}),
 	})

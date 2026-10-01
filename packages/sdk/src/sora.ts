@@ -641,8 +641,9 @@ export class SoraClient {
 	 * The shows a profile is in the middle of, the most recently played
 	 * first, each with the episode to play next: the one it stopped in, or
 	 * the one after the last it finished. A show is left out while its next
-	 * season is still airing or its next part is a film, an OVA, or a
-	 * special, until the profile starts that itself.
+	 * season is still airing or came out after the profile finished the one
+	 * before it, or its next part is a film, an OVA, or a special, until the
+	 * profile starts that itself.
 	 */
 	async continueWatching<const TOptions extends RequestOptions = {}>(
 		profileId: string,
@@ -663,7 +664,10 @@ export class SoraClient {
 
 	/**
 	 * A profile's Shows, the most recently active first: the series it saved
-	 * to watch later, and the ones it started watching.
+	 * to watch later, and the ones it started watching. Each has a `status`
+	 * (`planned`, `watching`, `completed`, or `dropped`) that tells where the
+	 * profile is with it; show it as it is, rather than working it out again
+	 * from `next` and `offered`.
 	 */
 	async shows<const TOptions extends RequestOptions = {}>(
 		profileId: string,
@@ -720,9 +724,10 @@ export class SoraClient {
 	}
 
 	/**
-	 * The episodes a profile finished or marked watched, the most recent
-	 * first, a page at a time. Each is listed once, at when it was first
-	 * finished or marked.
+	 * The episodes a profile played or marked watched, the most recent
+	 * first, a page at a time. Each is listed once: at when it was first
+	 * finished or marked, or, while only part of it was played, at when it
+	 * was last played.
 	 */
 	async history<const TOptions extends RequestOptions<HistoryParams> = {}>(
 		profileId: string,
