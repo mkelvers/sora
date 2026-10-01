@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
@@ -40,6 +40,7 @@ import type {
 	Series,
 	SeriesCard,
 } from "./models";
+import type { SeasonKind } from "./seasons";
 import { storedSeriesIds } from "./store";
 
 /**
@@ -171,17 +172,152 @@ export interface EpisodeAddress {
 	episode: number;
 }
 
+/** A season of a series as playback moves through it; see {@link getPlayableSeasons}. */
+export interface PlayableSeason {
+	id: string;
+	kind: SeasonKind;
+	/** The season's title, such as "Season 2"; see `Season.title`. */
+	title: string;
+	/** Whether the season is part of the story in watch order; see `Season.inWatchOrder`. */
+	inWatchOrder: boolean;
+	/**
+	 * Whether the season is still coming out: some AniList entry its episodes
+	 * are from has not finished.
+	 */
+	airing: boolean;
+	/** The numbers of the episodes that can be played, in order. */
+	episodes: number[];
+}
+
+/** The episodes around one; see {@link adjacentEpisodes}. */
+export interface AdjacentEpisodes {
+	previous: EpisodeAddress | null;
+	next: EpisodeAddress | null;
+	/**
+	 * The first episode of the part that comes after, when `next` is `null`
+	 * because playback does not go on into that part by itself. A viewer who
+	 * wants to go on starts here.
+	 */
+	offered: EpisodeAddress | null;
+}
+
+/**
+ * The seasons of each series in display order, keyed by series ID, with the
+ * episodes of each that can be played: those it lists (see
+ * {@link isEpisodeShown}), less extras only TMDB lists. An ID that does not
+ * identify a series has no entry.
+ */
+export async function getPlayableSeasons(
+	seriesIds: readonly string[],
+): Promise<Map<string, PlayableSeason[]>> {
+	if (seriesIds.length === 0) {
+		return new Map();
+	}
+
+	const listed = await listedSeasonsOf(
+		await db
+			.select()
+			.from(series)
+			.where(inArray(series.id, [...seriesIds])),
+	);
+	const seasonIds = [...listed.values()].flatMap((seasons) =>
+		seasons.map(({ season }) => season.id),
+	);
+	const airing = new Set(
+		seasonIds.length > 0
+			? (
+					await db
+						.selectDistinct({
+							seasonId: seriesEpisode.seasonId,
+						})
+						.from(seriesEpisode)
+						.innerJoin(animeTable, eq(animeTable.anilistId, seriesEpisode.anilistId))
+						.where(
+							and(
+								inArray(seriesEpisode.seasonId, seasonIds),
+								notInArray(animeTable.status, ["FINISHED", "CANCELLED"]),
+							),
+						)
+				).map((row) => row.seasonId)
+			: [],
+	);
+
+	return new Map(
+		[...listed].map(([seriesId, seasons]) => [
+			seriesId,
+			seasons.map(({ season, episodes }) => ({
+				id: season.id,
+				kind: season.kind,
+				title: season.title,
+				inWatchOrder: season.inWatchOrder,
+				airing: airing.has(season.id),
+				episodes: episodes.flatMap((row) => (row.anilistId === null ? [] : [row.number])),
+			})),
+		]),
+	);
+}
+
 /**
  * The playable episodes before and after one, for moving through a title in
- * order.
+ * order, given the title's seasons.
  *
  * After a season's last episode comes the first of the next season in watch
- * order, so a show plays on into its next season and the films between its
- * seasons, but not into its extras, which only play on among themselves;
- * before a season's first comes the last of the previous one. Only the
- * episodes seasons list count (see {@link isEpisodeShown}), less extras only
- * TMDB lists, which cannot be played; so `next` is never an episode AniKoto
- * does not carry yet. Each is `null` at either end.
+ * order, but only when that is a regular season that has finished coming
+ * out. A show does not play on into a season still airing, nor into a film,
+ * an OVA, or a special: `next` is `null` there and `offered` is that
+ * episode, for the viewer to start themselves. Once they do, it plays on
+ * like any other.
+ *
+ * Before a season's first episode comes the last of the previous season in
+ * watch order, whatever it is; extras are only before and after one another.
+ * `next` is never an episode AniKoto does not carry yet. Each is `null` at
+ * either end.
+ *
+ * @returns `null` when `seasonId` is not among the seasons.
+ */
+export function adjacentEpisodes(
+	seasons: readonly PlayableSeason[],
+	seasonId: string,
+	episode: number,
+): AdjacentEpisodes | null {
+	const season = seasons.find((candidate) => candidate.id === seasonId);
+	if (!season) {
+		return null;
+	}
+
+	const alike = seasons.filter((candidate) => candidate.inWatchOrder === season.inWatchOrder);
+	const at = alike.indexOf(season);
+	const playable = alike.flatMap((candidate, index) =>
+		candidate.episodes.map((number) => ({
+			index,
+			season: candidate,
+			address: {
+				seasonId: candidate.id,
+				episode: number,
+			},
+		})),
+	);
+
+	const before = playable.findLast(
+		(other) => other.index < at || (other.index === at && other.address.episode < episode),
+	);
+	const after = playable.find(
+		(other) => other.index > at || (other.index === at && other.address.episode > episode),
+	);
+	const isHeldBack =
+		after !== undefined &&
+		after.index !== at &&
+		(after.season.kind !== "season" || after.season.airing);
+
+	return {
+		previous: before?.address ?? null,
+		next: isHeldBack ? null : (after?.address ?? null),
+		offered: isHeldBack ? after.address : null,
+	};
+}
+
+/**
+ * {@link adjacentEpisodes} of an episode of a stored series.
  *
  * @throws {@link SeasonNotFoundError} when the season does not exist, or
  *   does not belong to the series.
@@ -190,44 +326,14 @@ export async function getAdjacentEpisodes(
 	seriesId: string,
 	seasonId: string,
 	episode: number,
-): Promise<{
-	previous: EpisodeAddress | null;
-	next: EpisodeAddress | null;
-}> {
-	const seasons = await listedSeasons(seriesId);
-	const season = seasons.find((candidate) => candidate.season.id === seasonId)?.season;
-	if (!season) {
+): Promise<AdjacentEpisodes> {
+	const seasons = (await getPlayableSeasons([seriesId])).get(seriesId) ?? [];
+	const adjacent = adjacentEpisodes(seasons, seasonId, episode);
+	if (!adjacent) {
 		throw new SeasonNotFoundError(seasonId);
 	}
 
-	const alike = seasons.filter(
-		(candidate) => candidate.season.inWatchOrder === season.inWatchOrder,
-	);
-	const position = new Map(alike.map((candidate, index) => [candidate.season.id, index]));
-	const playable = alike.flatMap((candidate) =>
-		candidate.episodes.flatMap((row) =>
-			row.anilistId === null
-				? []
-				: [
-						{
-							seasonId: row.seasonId,
-							episode: row.number,
-						},
-					],
-		),
-	);
-
-	const isAfter = (address: EpisodeAddress) =>
-		(position.get(address.seasonId) ?? 0) - (position.get(seasonId) ?? 0) > 0 ||
-		(address.seasonId === seasonId && address.episode > episode);
-	const isBefore = (address: EpisodeAddress) =>
-		(position.get(address.seasonId) ?? 0) - (position.get(seasonId) ?? 0) < 0 ||
-		(address.seasonId === seasonId && address.episode < episode);
-
-	return {
-		previous: playable.findLast(isBefore) ?? null,
-		next: playable.find(isAfter) ?? null,
-	};
+	return adjacent;
 }
 
 /**
