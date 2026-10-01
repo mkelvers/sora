@@ -45,3 +45,4 @@ export {
 	type Dropped,
 	type Show,
 } from "./shows/shows";
+export type { ShowStatus } from "./shows/status";

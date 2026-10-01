@@ -12,8 +12,9 @@ import {
 	watchedEpisode,
 } from "../../database/schema";
 import type { SeriesCard } from "../../series/models";
-import { assertSeriesExists, toSeriesCards } from "../../series/queries";
+import { assertSeriesExists, getPlayableSeasons, toSeriesCards } from "../../series/queries";
 import { getNextEpisodes, type NextEpisode } from "../progress/progress";
+import { statusOf, type ShowStatus } from "./status";
 
 /** A series in a user's Shows: one they saved to watch later, or started watching. */
 export interface Show {
@@ -21,16 +22,25 @@ export interface Show {
 	/** When the series entered the user's Shows, as an ISO 8601 timestamp. */
 	addedAt: string;
 	/**
-	 * Whether the user played or watched an episode of the series. Opening
-	 * its page does not start it.
+	 * Where the user is with the series; see {@link ShowStatus}. Opening its
+	 * page starts nothing, and a completed series stays completed when a new
+	 * season comes out, which is `offered` instead. Clients show the status
+	 * as it is and do not work it out again from `next`, `offered`, or the
+	 * counts.
 	 */
-	started: boolean;
-	/** Whether the user dropped the series; see {@link dropShow}. */
-	dropped: boolean;
+	status: ShowStatus;
 	/** The episode to play next, as `SeriesProgress.next` tells it. */
 	next: NextEpisode | null;
-	/** The episode the series stops before, as `SeriesProgress.offered` tells it. */
+	/**
+	 * The episode the series stops before, as `SeriesProgress.offered` tells
+	 * it. On a `completed` series, it is the part that came out since, or
+	 * that the user never started.
+	 */
 	offered: NextEpisode | null;
+	/** How many episodes of the series can be played, in all of its seasons. */
+	episodeCount: number;
+	/** How many of those episodes the user watched. */
+	watchedCount: number;
 	/**
 	 * When the user last had to do with the series: played an episode of it,
 	 * or, before that, added it. An ISO 8601 timestamp.
@@ -41,7 +51,8 @@ export interface Show {
 /**
  * Lists a user's Shows, the most recently active first: the series they
  * saved, and the ones they started watching, each once however many of its
- * seasons they watched. Dropped series are among them, marked as such.
+ * seasons they watched. Dropped series are among them, with the status
+ * `dropped`.
  */
 export async function getShows(userId: string): Promise<Show[]> {
 	const playedAt = sql<Date | null>`(
@@ -51,19 +62,11 @@ export async function getShows(userId: string): Promise<Show[]> {
 		where ${episodeProgress.userId} = ${profileShow.userId}
 			and ${seriesSeason.seriesId} = ${profileShow.seriesId}
 	)`.mapWith(profileShow.addedAt);
-	const hasWatched = sql<boolean>`exists (
-		select 1
-		from ${watchedEpisode}
-		inner join ${seriesSeason} on ${seriesSeason.id} = ${watchedEpisode.seasonId}
-		where ${watchedEpisode.userId} = ${profileShow.userId}
-			and ${seriesSeason.seriesId} = ${profileShow.seriesId}
-	)`;
 	const rows = await db
 		.select({
 			series,
 			addedAt: profileShow.addedAt,
 			playedAt,
-			hasWatched,
 			droppedAt: droppedSeries.droppedAt,
 		})
 		.from(profileShow)
@@ -78,22 +81,64 @@ export async function getShows(userId: string): Promise<Show[]> {
 		.where(eq(profileShow.userId, userId))
 		.orderBy(desc(sql`coalesce(${playedAt}, ${profileShow.addedAt})`));
 
-	const [cards, upNext] = await Promise.all([
+	const [cards, upNext, seasons, played, watched] = await Promise.all([
 		toSeriesCards(rows.map((row) => row.series)),
 		getNextEpisodes(userId),
+		getPlayableSeasons(rows.map((row) => row.series.id)),
+		db
+			.selectDistinct({
+				seasonId: episodeProgress.seasonId,
+			})
+			.from(episodeProgress)
+			.where(eq(episodeProgress.userId, userId)),
+		db
+			.select({
+				seasonId: watchedEpisode.seasonId,
+				episode: watchedEpisode.episode,
+				finishedAt: watchedEpisode.finishedAt,
+			})
+			.from(watchedEpisode)
+			.where(eq(watchedEpisode.userId, userId)),
+	]);
+	const watchedKeys = new Map(
+		watched.map((row) => [`${row.seasonId}:${row.episode}`, row.finishedAt]),
+	);
+	const activeSeasonIds = new Set([
+		...played.map((row) => row.seasonId),
+		...watched.map((row) => row.seasonId),
 	]);
 
 	return rows.flatMap((row): Show[] => {
 		const card = cards.get(row.series.id);
+		const listed = seasons.get(row.series.id) ?? [];
+		const next = upNext.get(row.series.id)?.next ?? null;
 		return card
 			? [
 					{
 						series: card,
 						addedAt: row.addedAt.toISOString(),
-						started: row.playedAt !== null || row.hasWatched,
-						dropped: row.droppedAt !== null,
-						next: upNext.get(row.series.id)?.next ?? null,
+						status:
+							row.droppedAt !== null
+								? "dropped"
+								: statusOf(listed, {
+										seasonIds: new Set(
+											listed
+												.filter((season) => activeSeasonIds.has(season.id))
+												.map((season) => season.id),
+										),
+										watched: watchedKeys,
+										next,
+									}),
+						next,
 						offered: upNext.get(row.series.id)?.offered ?? null,
+						episodeCount: listed.reduce((total, season) => total + season.episodes.length, 0),
+						watchedCount: listed.reduce(
+							(total, season) =>
+								total +
+								season.episodes.filter((episode) => watchedKeys.has(`${season.id}:${episode}`))
+									.length,
+							0,
+						),
 						activeAt: (row.playedAt ?? row.addedAt).toISOString(),
 					},
 				]
