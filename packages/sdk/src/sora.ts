@@ -7,6 +7,8 @@ import type {
 	Envelope,
 	HistoryItem,
 	HistoryMeta,
+	Notification,
+	NotificationsMeta,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -133,6 +135,12 @@ export interface HistoryParams {
 	/** Where the page starts: the `after` query parameter of the previous page's `meta.next`. */
 	after?: string;
 	/** @defaultValue 50 */
+	limit?: number;
+}
+
+/** Paging for {@link SoraClient.notifications}. */
+export interface NotificationsParams {
+	/** @defaultValue 30 */
 	limit?: number;
 }
 
@@ -748,6 +756,75 @@ export class SoraClient {
 			),
 		);
 		return unwrap(body, options);
+	}
+
+	/**
+	 * What came out in the last 30 days for the series in a profile's Shows,
+	 * newest first: new seasons, films, and OVAs, and new episodes of seasons
+	 * that were out. Only what came out after a series entered Shows is
+	 * listed. `meta.unread` counts those not marked read, past `limit` too.
+	 */
+	async notifications<const TOptions extends RequestOptions<NotificationsParams> = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, Notification[], NotificationsMeta>> {
+		const body: Envelope<Notification[], NotificationsMeta> = await read(
+			this.#api.profiles[":profile_id"].notifications.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					query: {
+						limit: options?.params?.limit?.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Marks some of a profile's notifications read, by their `id`. Pass the
+	 * ones the profile was shown, so one that came out meanwhile stays unread.
+	 */
+	async markNotificationsRead(
+		profileId: string,
+		notificationIds: string[],
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications.read.$put(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					json: {
+						ids: notificationIds,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Deletes one of a profile's notifications for good. */
+	async dismissNotification(
+		profileId: string,
+		notificationId: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications[":notification_id"].$delete(
+				{
+					param: {
+						profile_id: profileId,
+						notification_id: notificationId,
+					},
+				},
+				init(options),
+			),
+		);
 	}
 
 	/** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */

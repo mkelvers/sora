@@ -18,6 +18,9 @@ import {
 	DroppedSchema,
 	HistoryItemSchema,
 	HistoryMetaSchema,
+	NotificationSchema,
+	NotificationsMetaSchema,
+	NotificationsReadSchema,
 	EpisodeNumberParam,
 	ImageTypeSchema,
 	json,
@@ -1097,6 +1100,95 @@ export const unmarkEpisode = createRoute({
 	responses: {
 		204: {
 			description: "Forgotten, or was not watched.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const getNotifications = createRoute({
+	operationId: "getNotifications",
+	method: "get",
+	path: "/profiles/{profile_id}/notifications",
+	tags: ["Profiles"],
+	summary: "What came out for the profile's Shows",
+	description:
+		"What came out in the last 30 days for the series in the profile's Shows, newest first: a new season, film, or OVA, or new episodes of a season that was out already. Episodes of one season that come out together make one notification. Only what came out after the series entered Shows is listed. A series taken out of Shows drops out, as does a dropped one, and so does a notification once the profile watches one of its episodes.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+		query: z.object({
+			limit: z.coerce.number().int().min(1).max(100).optional().openapi({
+				description: "At most this many notifications; 30 when omitted.",
+			}),
+		}),
+	},
+	responses: {
+		200: json(
+			envelopeOf(z.array(NotificationSchema), NotificationsMetaSchema),
+			"The notifications.",
+		),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const markNotificationsRead = createRoute({
+	operationId: "markNotificationsRead",
+	method: "put",
+	path: "/profiles/{profile_id}/notifications/read",
+	tags: ["Profiles"],
+	summary: "Mark notifications read",
+	description:
+		"Marks the given notifications read. One that is not listed, or already read, is left as it is.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+		body: {
+			required: true,
+			content: {
+				"application/json": {
+					schema: NotificationsReadSchema,
+				},
+			},
+		},
+	},
+	responses: {
+		204: {
+			description: "Marked.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+		422: problem("The body is invalid."),
+	},
+});
+
+export const dismissNotification = createRoute({
+	operationId: "dismissNotification",
+	method: "delete",
+	path: "/profiles/{profile_id}/notifications/{notification_id}",
+	tags: ["Profiles"],
+	summary: "Delete a notification",
+	description: "Takes the notification out of the profile's notifications for good.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			notification_id: z
+				.string()
+				.min(1)
+				.openapi({
+					param: {
+						name: "notification_id",
+						in: "path",
+					},
+					description: "The notification's `id`.",
+					example: "EWBMBNIV4:13",
+				}),
+		}),
+	},
+	responses: {
+		204: {
+			description: "Deleted, or was not listed.",
 		},
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),

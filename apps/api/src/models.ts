@@ -18,6 +18,8 @@ import type {
 	HistoryItemSchema,
 	HistoryMetaSchema,
 	NextEpisodeSchema,
+	NotificationSchema,
+	NotificationsMetaSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
 	PlaybackPreferencesSchema,
@@ -58,6 +60,8 @@ export type Show = z.infer<typeof ShowSchema>;
 export type Dropped = z.infer<typeof DroppedSchema>;
 export type HistoryItem = z.infer<typeof HistoryItemSchema>;
 export type HistoryMeta = z.infer<typeof HistoryMetaSchema>;
+export type Notification = z.infer<typeof NotificationSchema>;
+export type NotificationsMeta = z.infer<typeof NotificationsMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;

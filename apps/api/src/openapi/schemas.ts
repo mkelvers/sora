@@ -12,6 +12,7 @@ import type {
 	Dropped,
 	HistoryItem,
 	NextEpisode,
+	Notification,
 	PlaybackPreferences,
 	Progress,
 	SeriesProgress,
@@ -775,3 +776,70 @@ export const DroppedSchema = z
 		}),
 	})
 	.openapi("Dropped") satisfies z.ZodType<SnakeCased<Dropped>>;
+
+export const NotificationSchema = z
+	.object({
+		id: z.string().openapi({
+			description: "Stable for as long as the notification is listed.",
+			example: "EWBMBNIV4:13",
+		}),
+		kind: z.enum(["season", "episodes"]).openapi({
+			description:
+				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes.",
+		}),
+		series: SeriesCardSchema,
+		season: z.object({
+			id: z.string(),
+			kind: z.enum(["season", "ova", "movie"]),
+			number: z.number().int().openapi({
+				description: "Position among the series' seasons of the same kind, from 1.",
+			}),
+			title: z.string().openapi({
+				example: "Season 2",
+			}),
+		}),
+		first_episode: z.number().int().openapi({
+			description: "The first episode that came out, from 1 within the season.",
+		}),
+		last_episode: z.number().int().openapi({
+			description: "The last episode that came out; the same as `first_episode` when one did.",
+		}),
+		episode_title: z.string().nullable().openapi({
+			description: "The title of `last_episode`.",
+		}),
+		still_url: z.string().nullable().openapi({
+			description:
+				"A still of the season's first episode for a new season, and of `last_episode` otherwise.",
+		}),
+		released_at: z.string().openapi({
+			description: "When it came out, as an ISO 8601 timestamp.",
+		}),
+		unread: z.boolean().openapi({
+			description: "Whether the profile has not marked it read.",
+		}),
+	})
+	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
+
+export const NotificationsMetaSchema = z
+	.object({
+		count: z.number().int().nonnegative(),
+		unread: z.number().int().nonnegative().openapi({
+			description:
+				"How many of the profile's notifications are unread, including those past `limit`.",
+		}),
+	})
+	.openapi("NotificationsMeta");
+
+export const NotificationsReadSchema = z
+	.object({
+		ids: z
+			.array(z.string().min(1))
+			.min(1)
+			.max(100)
+			.openapi({
+				description:
+					"The `id` of each notification to mark read: the ones the profile was shown, so one that came out meanwhile stays unread.",
+				example: ["EWBMBNIV4:13"],
+			}),
+	})
+	.openapi("NotificationsRead");

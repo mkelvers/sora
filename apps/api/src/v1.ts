@@ -11,16 +11,19 @@ import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
 	addShow,
 	dismissContinueWatching,
+	dismissNotification,
 	dropShow,
 	getContinueWatching,
 	getDropped,
 	getFeatured,
 	getHistory,
+	getNotifications,
 	getPlaybackPreferences,
 	getProgress,
 	getSeriesProgress,
 	getShows,
 	markEpisode,
+	markNotificationsRead,
 	markSeason,
 	removeShow,
 	saveProgress,
@@ -686,6 +689,36 @@ export const v1Routes = v1
 			},
 			200,
 		);
+	})
+
+	.openapi(route.getNotifications, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const notifications = await getNotifications(profile.id, {
+			limit: c.req.valid("query").limit,
+		});
+		return c.json(
+			{
+				meta: {
+					count: notifications.items.length,
+					unread: notifications.unread,
+				},
+				results: snakeCased(notifications.items),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.markNotificationsRead, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		await markNotificationsRead(profile.id, c.req.valid("json").ids);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.dismissNotification, async (c) => {
+		const { profile_id, notification_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await dismissNotification(profile.id, notification_id);
+		return c.body(null, 204);
 	});
 
 v1.doc31("/openapi.json", {
