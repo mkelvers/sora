@@ -27,15 +27,19 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 
 	const providers = () => {
 		if (!cached || Date.now() - cached.at >= cacheMs) {
-			cached = {
+			const entry: NonNullable<typeof cached> = {
 				at: Date.now(),
 				providers: load().catch((error: unknown) => {
 					console.warn(`Could not read provider health: ${String(error)}`);
-					// Not cached: the next probe tries again.
-					cached = null;
+					// Not cached: the next probe tries again, unless a later
+					// request already replaced this entry with a fresher one.
+					if (cached === entry) {
+						cached = null;
+					}
 					return null;
 				}),
 			};
+			cached = entry;
 		}
 		return cached.providers;
 	};
