@@ -2,9 +2,12 @@ import type { EmblaCarouselType, EmblaOptionsType, EmblaPluginType } from "embla
 import { createContext, untrack } from "svelte";
 import { prefersReducedMotion } from "svelte/motion";
 
+export type CarouselOptions = Omit<EmblaOptionsType, "watchDrag" | "watchFocus">;
+
 export class CarouselState {
 	api = $state<EmblaCarouselType>();
 	active = $state(0);
+	scrollable = $state(false);
 	canPrevious = $state(false);
 	canNext = $state(false);
 	paused = $state(true);
@@ -13,7 +16,7 @@ export class CarouselState {
 	#restart?: () => void;
 
 	constructor(
-		readonly options: () => EmblaOptionsType,
+		readonly options: () => CarouselOptions,
 		readonly plugins: () => EmblaPluginType[],
 	) {}
 
@@ -26,12 +29,28 @@ export class CarouselState {
 
 		const sync = () => {
 			this.active = api.selectedScrollSnap();
-			this.canPrevious = api.canScrollPrev();
-			this.canNext = api.canScrollNext();
+			this.canPrevious = this.scrollable && api.canScrollPrev();
+			this.canNext = this.scrollable && api.canScrollNext();
 		};
 
-		api.on("init", sync).on("reInit", sync).on("select", sync);
-		sync();
+		const measure = () => {
+			const { axis, containerRect, slideRects } = api.internalEngine();
+			const last = slideRects.at(-1);
+
+			this.scrollable =
+				!!last &&
+				Math.abs(last[axis.endEdge] - containerRect[axis.startEdge]) >
+					axis.measureSize(containerRect) + 2;
+
+			if (!this.scrollable && api.selectedScrollSnap() > 0) {
+				api.scrollTo(0, true);
+			}
+
+			sync();
+		};
+
+		api.on("init", measure).on("reInit", measure).on("select", sync);
+		measure();
 	}
 
 	autoplay(delay: number) {

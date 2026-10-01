@@ -20,7 +20,11 @@
 	class="col-start-1 row-start-1 h-full min-w-0 overflow-hidden"
 	onemblaInit={(event) => carousel.attach(event.detail)}
 	use:useEmblaCarousel={{
-		options: carousel.options(),
+		options: {
+			...carousel.options(),
+			watchDrag: () => carousel.scrollable,
+			watchFocus: () => carousel.scrollable,
+		},
 		plugins: carousel.plugins(),
 	}}
 >

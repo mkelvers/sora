@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
-	import type { EmblaOptionsType, EmblaPluginType } from "embla-carousel";
+	import type { EmblaPluginType } from "embla-carousel";
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 
-	import { CarouselState, setCarousel } from "./context.svelte";
+	import { type CarouselOptions, CarouselState, setCarousel } from "./context.svelte";
 
 	let {
 		children,
@@ -14,7 +14,7 @@
 		...rest
 	}: Omit<HTMLAttributes<HTMLElement>, "children"> & {
 		children: Snippet<[CarouselState]>;
-		options?: EmblaOptionsType;
+		options?: CarouselOptions;
 		plugins?: EmblaPluginType[];
 	} = $props();
 

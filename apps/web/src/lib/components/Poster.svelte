@@ -96,7 +96,7 @@
 					</span>
 				{/if}
 			</div>
-			<h3 class="mt-3 line-clamp-2 min-h-10 text-sm leading-snug font-semibold">{card.title}</h3>
+			<h3 class="mt-3 line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
 			{#if meta}
 				<p class="mt-1.5 text-sm text-muted">{meta}</p>
 			{/if}
