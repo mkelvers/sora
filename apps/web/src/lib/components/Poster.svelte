@@ -3,9 +3,10 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import { getShows, setListed } from "$lib/shows.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
-	import { PlayIcon, StarIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
 	let {
 		card,
@@ -17,16 +18,70 @@
 		class?: string;
 	} = $props();
 
+	const shows = getShows();
+	const show = $derived(card && shows.current?.find((other) => other.series.id === card.id));
+	const listed = $derived(!!show);
+
 	const audio = $derived(audioLabel(card?.audio));
 
-	const play = $derived(
-		card?.start_season_id
+	function toggleListed() {
+		if (!card) {
+			return;
+		}
+
+		const series = card;
+		const add = !listed;
+		const added = new Date().toISOString();
+		setListed({
+			seriesId: series.id,
+			listed: add,
+		}).updates(
+			getShows().withOverride((current) =>
+				add
+					? [
+							{
+								series,
+								added_at: added,
+								active_at: added,
+								started: false,
+								dropped: false,
+								next: null,
+								offered: null,
+							},
+							...current,
+						]
+					: current.filter((other) => other.series.id !== series.id),
+			),
+		);
+	}
+
+	const play = $derived.by(() => {
+		if (!card) {
+			return null;
+		}
+
+		const resume = show?.next ?? show?.offered;
+		if (resume) {
+			const verb = resume.position_seconds > 0 ? "Resume" : "Play";
+			const season = card.season_count > 1 ? `${resume.season_title} ` : "";
+			return {
+				href: `/series/${card.id}/watch/${resume.season_id}/${resume.episode}`,
+				label:
+					card.kind === "movie"
+						? verb
+						: resume.season_kind === "movie"
+							? `${verb} ${resume.season_title}`
+							: `${verb} ${season}E${resume.episode}`,
+			};
+		}
+
+		return card.start_season_id
 			? {
 					href: `/series/${card.id}/watch/${card.start_season_id}/1`,
 					label: card.kind === "movie" ? "Play" : "Play E1",
 				}
-			: null,
-	);
+			: null;
+	});
 </script>
 
 <article
@@ -62,6 +117,20 @@
 				{:else}
 					<span class="grid size-full items-end p-4 text-sm text-subtle" aria-hidden="true">
 						{card.title}
+					</span>
+				{/if}
+				{#if listed}
+					<span
+						data-listed
+						class="absolute top-0 right-0 isolate size-10 text-accent after:absolute after:inset-0 after:-z-10 after:bg-black/80 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+					>
+						<BookmarkSimpleIcon
+							class="absolute top-0.5 right-1"
+							size="1rem"
+							weight="fill"
+							aria-hidden="true"
+						/>
+						<span class="sr-only">In your Shows</span>
 					</span>
 				{/if}
 			</div>
@@ -120,8 +189,8 @@
 				{/if}
 			</div>
 
-			{#if play}
-				<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
+			<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
+				{#if play}
 					<Tooltip text={play.label}>
 						{#snippet children(trigger)}
 							<Button
@@ -135,8 +204,23 @@
 							</Button>
 						{/snippet}
 					</Tooltip>
-				</div>
-			{/if}
+				{/if}
+
+				<Tooltip text={listed ? "Remove from Shows" : "Add to Shows"}>
+					{#snippet children(trigger)}
+						<Button
+							{...trigger}
+							variant="icon"
+							tone="accent"
+							aria-label={listed ? "Remove from Shows" : "Add to Shows"}
+							aria-pressed={listed}
+							onclick={toggleListed}
+						>
+							<BookmarkSimpleIcon size="1.55rem" weight={listed ? "fill" : "bold"} />
+						</Button>
+					{/snippet}
+				</Tooltip>
+			</div>
 		</div>
 	{/if}
 </article>
