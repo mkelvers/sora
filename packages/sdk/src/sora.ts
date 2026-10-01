@@ -284,8 +284,16 @@ export class SoraClient {
 	 * @throws {@link SoraError} with code `INVALID_EMAIL_OR_PASSWORD` when the
 	 *   credentials are wrong.
 	 */
-	signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
-		return this.#auth("sign-in/email", credentials, options);
+	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
+		const payload = await this.#auth("sign-in/email", credentials, options);
+		return {
+			token: payload?.token ?? "",
+			account: {
+				id: payload?.user?.id ?? "",
+				name: payload?.user?.name ?? "",
+				email: payload?.user?.email ?? "",
+			},
+		};
 	}
 
 	/** Ends the session this client's token belongs to. */
@@ -827,8 +835,18 @@ export class SoraClient {
 		);
 	}
 
-	/** Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope. */
-	async #auth(path: string, body: object, options: RequestOptions | undefined): Promise<Session> {
+	/**
+	 * Calls one of Better Auth's endpoints under `/v1/auth`, which answer
+	 * outside the `{ meta, results }` envelope, and returns its payload.
+	 */
+	async #auth(
+		path: string,
+		body: object,
+		options: RequestOptions | undefined,
+	): Promise<{
+		token?: string;
+		user?: Session["account"];
+	} | null> {
 		const response = await (this.#options.fetch ?? fetch)(
 			`${this.#options.baseUrl}/v1/auth/${path}`,
 			{
@@ -864,14 +882,7 @@ export class SoraClient {
 			);
 		}
 
-		return {
-			token: payload?.token ?? "",
-			account: {
-				id: payload?.user?.id ?? "",
-				name: payload?.user?.name ?? "",
-				email: payload?.user?.email ?? "",
-			},
-		};
+		return payload;
 	}
 
 	/**
@@ -1215,5 +1226,11 @@ async function read<TResponse extends ClientResponse<unknown, number, string>>(
 		throw await SoraError.from(response);
 	}
 
-	return (await response.json()) as SuccessBody<TResponse>;
+	return (await response.json().catch(() => {
+		throw new SoraError("The API answered with a malformed body", {
+			status: response.status,
+			code: "HTTP_ERROR",
+			retryAfterSeconds: null,
+		});
+	})) as SuccessBody<TResponse>;
 }

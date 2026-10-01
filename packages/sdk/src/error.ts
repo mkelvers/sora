@@ -44,9 +44,17 @@ export class SoraError extends Error {
 		// The API answers every failure with a problem; anything else came from
 		// in front of it, such as a proxy.
 		const problem = response.headers.get("Content-Type")?.startsWith("application/problem+json")
-			? ((await response.json()) as Problem)
+			? ((await response.json().catch(() => null)) as Problem | null)
 			: null;
-		const retryAfter = Number(response.headers.get("Retry-After"));
+		const retryAfterHeader = response.headers.get("Retry-After");
+		const retryAfterSeconds = Number(retryAfterHeader);
+		const retryAfterDate = retryAfterHeader ? new Date(retryAfterHeader) : null;
+		const retryAfter =
+			retryAfterSeconds > 0
+				? retryAfterSeconds
+				: retryAfterDate && !Number.isNaN(retryAfterDate.getTime())
+					? Math.max(0, Math.round((retryAfterDate.getTime() - Date.now()) / 1000))
+					: null;
 
 		return new SoraError(
 			problem?.detail ?? `The API answered ${response.status} ${response.statusText}`,
@@ -54,7 +62,7 @@ export class SoraError extends Error {
 				status: response.status,
 				code: problem?.code ?? "HTTP_ERROR",
 				errors: problem?.errors,
-				retryAfterSeconds: retryAfter > 0 ? retryAfter : null,
+				retryAfterSeconds: retryAfter,
 			},
 		);
 	}
