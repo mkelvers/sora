@@ -8,7 +8,10 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { getContinueWatching, removeProgress } from "$routes/(protected)/(browse)/home.remote";
+	import {
+		dismissContinueWatching,
+		getContinueWatching,
+	} from "$routes/(protected)/(browse)/home.remote";
 	import type { ContinueWatching } from "@sora/sdk";
 	import { TrashIcon } from "phosphor-svelte";
 
@@ -38,7 +41,7 @@
 	}
 
 	function remove(seriesId: string) {
-		return removeProgress(seriesId).updates(
+		return dismissContinueWatching(seriesId).updates(
 			getContinueWatching().withOverride((current) =>
 				current.filter((other) => other.series.id !== seriesId),
 			),

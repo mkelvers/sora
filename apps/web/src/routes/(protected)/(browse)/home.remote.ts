@@ -8,9 +8,9 @@ export const getContinueWatching = query(async () => {
 	return viewer.sora.continueWatching(viewer.profile.id);
 });
 
-export const removeProgress = command(z.string(), async (seriesId) => {
+export const dismissContinueWatching = command(z.string(), async (seriesId) => {
 	const viewer = remoteViewer();
 
-	await viewer.sora.removeProgress(viewer.profile.id, seriesId);
+	await viewer.sora.dismissContinueWatching(viewer.profile.id, seriesId);
 	await getContinueWatching().refresh();
 });
