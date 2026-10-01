@@ -84,21 +84,6 @@ export async function resolveMapping(entry: FranchiseEntry): Promise<TmdbMapping
 	return pending;
 }
 
-/**
- * Resolves a predecessor from inside another resolution.
- *
- * Unlike {@link resolveMapping}, this never waits on a resolution already in
- * flight. Two concurrent resolutions whose relations form a cycle (an OVA's
- * parent listing the OVA as its prequel) would otherwise wait on each other
- * forever; `resolving` stops the recursion instead.
- */
-async function resolveNested(
-	entry: FranchiseEntry,
-	resolving: ReadonlySet<number>,
-): Promise<TmdbMapping> {
-	return (await freshMapping(entry)) ?? match(entry, new Set([...resolving, entry.id]));
-}
-
 async function freshMapping(entry: FranchiseEntry) {
 	const [stored] = await db
 		.select()
@@ -165,6 +150,11 @@ interface Predecessor {
 /**
  * Resolves the entry's prequels and parents. Entries already being resolved
  * further up the chain are skipped, which breaks relation cycles.
+ *
+ * Unlike {@link resolveMapping}, this never waits on a resolution already in
+ * flight. Two concurrent resolutions whose relations form a cycle (an OVA's
+ * parent listing the OVA as its prequel) would otherwise wait on each other
+ * forever; `resolving` stops the recursion instead.
  */
 async function predecessorMappings(
 	entry: FranchiseEntry,
@@ -194,7 +184,9 @@ async function predecessorMappings(
 		if (predecessor) {
 			predecessors.push({
 				relation: edge.relation,
-				mapping: await resolveNested(predecessor, resolving),
+				mapping:
+					(await freshMapping(predecessor)) ??
+					(await match(predecessor, new Set([...resolving, predecessor.id]))),
 			});
 		}
 	}
