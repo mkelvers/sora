@@ -5,6 +5,7 @@ import { animeSearch, featuredPick, noArtwork, series, seriesEntry } from "../..
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
+import { getDropped } from "../shows/shows";
 import {
 	arrange,
 	dateBefore,
@@ -37,7 +38,8 @@ const lowestThreshold = {
  *
  * They are picked once a week, on Monday morning (see `rotationStart`), in
  * each profile's own order, and kept for the week: a title that can no
- * longer be shown gives its place to another. No title is featured two
+ * longer be shown gives its place to another, as does one the profile
+ * dropped or one related to it (see `getDropped`). No title is featured two
  * weeks in a row.
  *
  * Reads only the database: candidates come from the search index.
@@ -59,10 +61,13 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 		)
 		.orderBy(asc(featuredPick.position));
 
+	const dropped = await getDropped(userId);
+	const unwanted = new Set([...dropped.seriesIds, ...dropped.relatedSeriesIds]);
+
 	const current = picks.filter((pick) => pick.rotation === rotation);
 	const kept = current.map((pick) => pick.seriesId);
 	const keptCards = await cardsOf(kept);
-	const shown = kept.filter((id) => isShowable(keptCards.get(id)));
+	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
 	const wanted = featuredPattern.length - shown.length;
 	if (wanted <= 0) {
 		return shown.slice(0, featuredPattern.length).flatMap((id) => keptCards.get(id) ?? []);
@@ -72,7 +77,7 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 		userId,
 		rotation,
 		now,
-		new Set(picks.map((pick) => pick.seriesId)),
+		new Set([...picks.map((pick) => pick.seriesId), ...unwanted]),
 	);
 	const added = picked.slice(0, wanted);
 	if (added.length > 0) {
