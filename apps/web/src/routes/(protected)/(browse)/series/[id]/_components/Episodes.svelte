@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import { getEpisodes } from "$routes/(protected)/(browse)/series/[id]/series.remote";
-	import type { Progress, Season } from "@sora/sdk";
+	import type { Season, SeriesProgress } from "@sora/sdk";
 
 	import Episode from "./Episode.svelte";
 
@@ -18,12 +18,19 @@
 		movie: boolean;
 		backdrop: string | null;
 		season: Season;
-		progress: Progress[];
+		progress: SeriesProgress;
 	} = $props();
 
-	const watched = $derived(
+	const played = $derived(
 		new Map(
-			progress.flatMap((entry) => (entry.season_id === season.id ? [[entry.episode, entry]] : [])),
+			progress.episodes.flatMap((entry) =>
+				entry.season_id === season.id ? [[entry.episode, entry]] : [],
+			),
+		),
+	);
+	const watched = $derived(
+		new Set(
+			progress.watched.flatMap((entry) => (entry.season_id === season.id ? [entry.episode] : [])),
 		),
 	);
 
@@ -58,7 +65,8 @@
 					{movie}
 					{backdrop}
 					{episode}
-					progress={watched.get(episode.number)}
+					progress={played.get(episode.number)}
+					watched={watched.has(episode.number)}
 				/>
 			{/each}
 		</ol>

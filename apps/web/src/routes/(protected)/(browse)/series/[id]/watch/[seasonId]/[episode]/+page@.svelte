@@ -27,17 +27,15 @@
 	const next = $derived(playback.current?.next ?? undefined);
 	const previous = $derived(playback.current?.previous ?? undefined);
 
-	const following = $derived(next?.season_id === season.id ? next : undefined);
-
 	const key = $derived(`${season.id}/${episode.number}`);
 	let nearing = $state<string>();
 
 	const upcoming = $derived(
-		nearing === key && following
+		nearing === key && next
 			? {
 					seriesId: series.id,
-					seasonId: following.season_id,
-					episode: String(following.episode),
+					seasonId: next.season_id,
+					episode: String(next.episode),
 				}
 			: undefined,
 	);
@@ -94,10 +92,10 @@
 		onnearend={() => (nearing = key)}
 		onended={() =>
 			goto(
-				following
-					? `/series/${series.id}/watch/${following.season_id}/${following.episode}`
+				next
+					? `/series/${series.id}/watch/${next.season_id}/${next.episode}`
 					: `/series/${series.id}`,
-				{ replaceState: true, noScroll: true, keepFocus: !!following },
+				{ replaceState: true, noScroll: true, keepFocus: !!next },
 			)}
 	/>
 </main>

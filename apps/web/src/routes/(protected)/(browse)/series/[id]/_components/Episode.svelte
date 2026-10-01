@@ -1,8 +1,11 @@
 <script lang="ts">
+	import Button from "$lib/components/ui/Button.svelte";
+	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { markEpisode } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 	import type { Progress, SeasonEpisode } from "@sora/sdk";
-	import { CalendarBlankIcon, PlayIcon } from "phosphor-svelte";
+	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
 		seriesId,
@@ -12,6 +15,7 @@
 		backdrop,
 		episode,
 		progress,
+		watched,
 	}: {
 		seriesId: string;
 		seasonId: string;
@@ -19,17 +23,15 @@
 		movie: boolean;
 		backdrop: string | null;
 		episode: SeasonEpisode;
-		progress?: Progress;
+		progress: Progress | undefined;
+		watched: boolean;
 	} = $props();
 
-	const watched = $derived(
-		!progress
-			? 0
-			: progress.finished
-				? 100
-				: Math.min(100, (progress.position_seconds / progress.duration_seconds) * 100),
+	const played = $derived(
+		progress && !watched && !progress.finished && progress.position_seconds > 0
+			? progress.position_seconds / progress.duration_seconds
+			: 0,
 	);
-
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const heading = $derived(
 		movie
@@ -86,7 +88,7 @@
 						})}
 						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
 						alt="Still from episode {episode.number} of {title}"
-						class="brightness-75"
+						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
 				{#if episode.filler}
@@ -96,19 +98,22 @@
 						<span class="sr-only">Filler episode</span>
 					</span>
 				{/if}
-				{#if episode.runtime_minutes}
+				{#if watched || episode.runtime_minutes}
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
-						{formatDuration(episode.runtime_minutes)}
+						{#if watched}
+							Watched
+						{:else if episode.runtime_minutes}
+							{formatDuration(episode.runtime_minutes)}
+						{/if}
 					</span>
 				{/if}
-				{#if watched > 0}
+				{#if played}
 					<progress
-						class="absolute inset-x-0 bottom-0 z-10 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
-						value={watched}
-						max="100"
-						aria-label="{Math.round(watched)}% watched"
+						class="absolute inset-x-0 bottom-0 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+						value={played}
+						aria-label="{Math.round(played * 100)}% watched"
 					></progress>
 				{/if}
 			</div>
@@ -146,9 +151,42 @@
 					class="mt-auto flex h-10 shrink-0 items-center gap-2 text-sm font-bold text-accent uppercase"
 				>
 					<PlayIcon size="1.25rem" weight="bold" />
-					Play{label}
+					{#if watched}
+						Watch again{label}
+					{:else if played}
+						Resume{label}
+					{:else}
+						Play{label}
+					{/if}
 				</span>
 			{/if}
 		</div>
 	</svelte:element>
+
+	<div
+		class="absolute -right-2 -bottom-2 z-20 [&_.dropdown-trigger]:bg-transparent! [&_.dropdown-trigger]:hover:text-white"
+	>
+		<Dropdown label="Episode options" class="w-48">
+			{#snippet trigger()}
+				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
+			{/snippet}
+			{#snippet children()}
+				<div role="menu" aria-label="Episode options">
+					<Button
+						role="menuitem"
+						variant="item"
+						onclick={() =>
+							markEpisode({
+								seriesId,
+								seasonId,
+								episode: episode.number,
+								watched: !watched,
+							})}
+					>
+						Mark as {watched ? "Unwatched" : "Watched"}
+					</Button>
+				</div>
+			{/snippet}
+		</Dropdown>
+	</div>
 </li>

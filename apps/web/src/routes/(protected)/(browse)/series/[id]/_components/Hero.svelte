@@ -2,45 +2,127 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import { getDropped, getShows, setDropped, setListed } from "$lib/shows.remote";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { NextEpisode, Series } from "@sora/sdk";
-	import { DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import type { NextEpisode, Series, SeriesProgress } from "@sora/sdk";
+	import {
+		BookmarkSimpleIcon,
+		DotsThreeVerticalIcon,
+		PlayIcon,
+		StarIcon,
+		ThumbsDownIcon,
+	} from "phosphor-svelte";
 
 	let {
 		series,
-		next: resume,
+		progress,
 	}: {
 		series: Series;
-		next?: NextEpisode | null;
+		progress?: SeriesProgress;
 	} = $props();
 
+	const shows = getShows();
+	const listed = $derived(!!shows.current?.some((show) => show.series.id === series.id));
+
+	const droppedQuery = getDropped();
+	const dropped = $derived(!!droppedQuery.current?.series_ids.includes(series.id));
+
+	function toggleDropped() {
+		const drop = !dropped;
+		const seriesId = series.id;
+		setDropped({
+			seriesId,
+			dropped: drop,
+		}).updates(
+			getDropped().withOverride((current) => ({
+				...current,
+				series_ids: drop
+					? [...current.series_ids, seriesId]
+					: current.series_ids.filter((id) => id !== seriesId),
+			})),
+		);
+	}
+
+	function toggleListed() {
+		const add = !listed;
+		const added = new Date().toISOString();
+		setListed({
+			seriesId: series.id,
+			listed: add,
+		}).updates(
+			getShows().withOverride((current) =>
+				add
+					? [
+							{
+								series,
+								added_at: added,
+								active_at: added,
+								started: false,
+								dropped: false,
+								next: null,
+								offered: null,
+							},
+							...current,
+						]
+					: current.filter((show) => show.series.id !== series.id),
+			),
+		);
+	}
+
+	function place(episode: NextEpisode) {
+		if (series.kind === "movie") {
+			return "";
+		}
+
+		if (episode.season_kind === "movie") {
+			return ` ${episode.season_title}`;
+		}
+
+		const season = series.seasons.find((other) => other.id === episode.season_id);
+		if (episode.season_kind === "ova" || !season) {
+			return ` ${episode.season_title} E${episode.episode}`;
+		}
+
+		return series.seasons.filter((other) => other.kind === "season").length > 1
+			? ` S${season.number} E${episode.episode}`
+			: ` E${episode.episode}`;
+	}
+
 	const play = $derived.by(() => {
+		const resume = progress?.next;
+		const offered = progress?.offered;
 		if (resume) {
-			const season = series.seasons.find((other) => other.id === resume.season_id);
-			const seasons = series.seasons.filter((other) => other.kind === "season");
-			const place =
-				series.kind === "movie"
-					? ""
-					: resume.season_kind === "movie"
-						? ` ${resume.season_title}`
-						: resume.season_kind === "ova" || !season
-							? ` ${resume.season_title} E${resume.episode}`
-							: seasons.length > 1
-								? ` S${season.number} E${resume.episode}`
-								: ` E${resume.episode}`;
 			return {
 				href: `/series/${series.id}/watch/${resume.season_id}/${resume.episode}`,
-				label: `Continue watching${place}`,
+				label: `Continue watching${place(resume)}`,
+			};
+		}
+
+		if (offered) {
+			return {
+				href: `/series/${series.id}/watch/${offered.season_id}/${offered.episode}`,
+				label: `Start watching${place(offered)}`,
 			};
 		}
 
 		const first = series.seasons.find((other) => other.in_watch_order) ?? series.seasons[0];
-		return first
-			? {
-					href: `/series/${series.id}/watch/${first.id}/1`,
-					label: series.kind === "movie" ? "Start watching" : "Start watching E1",
-				}
-			: null;
+		if (!first) {
+			return null;
+		}
+
+		const href = `/series/${series.id}/watch/${first.id}/1`;
+		if (progress?.episodes.length || progress?.watched.length) {
+			return {
+				href,
+				label: "Watch again",
+			};
+		}
+
+		return {
+			href,
+			label: series.kind === "movie" ? "Start watching" : "Start watching E1",
+		};
 	});
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
@@ -212,7 +294,51 @@
 					<PlayIcon size="1.55em" weight="bold" />
 					<span class="truncate">{play.label}</span>
 				</Button>
+
+				<Tooltip text={listed ? "Remove from Shows" : "Add to Shows"}>
+					{#snippet children(trigger)}
+						<Button
+							{...trigger}
+							variant="outline"
+							size="square"
+							aria-label={listed ? "Remove from Shows" : "Add to Shows"}
+							aria-pressed={listed}
+							onclick={toggleListed}
+						>
+							<BookmarkSimpleIcon size="1.65em" weight={listed ? "fill" : "bold"} />
+						</Button>
+					{/snippet}
+				</Tooltip>
+			{:else}
+				<Button
+					variant="primary"
+					class="max-sm:flex-1"
+					aria-pressed={listed}
+					onclick={toggleListed}
+				>
+					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
+					{#if listed}
+						In Shows
+					{:else}
+						Add to Shows
+					{/if}
+				</Button>
 			{/if}
+
+			<Tooltip text={dropped ? "Pick Series Back Up" : "Drop Series"}>
+				{#snippet children(trigger)}
+					<Button
+						{...trigger}
+						variant="outline"
+						size="square"
+						aria-label={dropped ? "Pick Series Back Up" : "Drop Series"}
+						aria-pressed={dropped}
+						onclick={toggleDropped}
+					>
+						<ThumbsDownIcon size="1.65em" weight={dropped ? "fill" : "bold"} />
+					</Button>
+				{/snippet}
+			</Tooltip>
 		</div>
 	</div>
 </header>
