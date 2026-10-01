@@ -13,11 +13,14 @@ import type {
 	listSeasonEpisodes,
 } from "./openapi/routes";
 import type {
+	ContinueWatchingSchema,
+	NextEpisodeSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
 	PlaybackPreferencesSchema,
 	ProfileAvatarSchema,
 	ProfileSchema,
+	ProgressSchema,
 	AnimeSeasonSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
@@ -25,6 +28,7 @@ import type {
 	SeasonSchema,
 	SeriesCardSchema,
 	SeriesImageSchema,
+	SeriesProgressSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
 	SkipSegmentSchema,
@@ -42,6 +46,10 @@ export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
 export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
 export type PlaybackPreferences = z.infer<typeof PlaybackPreferencesSchema>;
+export type Progress = z.infer<typeof ProgressSchema>;
+export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
+export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
+export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;

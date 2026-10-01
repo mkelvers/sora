@@ -8,7 +8,16 @@ import {
 	updateProfile,
 } from "@sora/core/auth";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
-import { getFeatured, getPlaybackPreferences, updatePlaybackPreferences } from "@sora/core/library";
+import {
+	getContinueWatching,
+	getFeatured,
+	getPlaybackPreferences,
+	getProgress,
+	getSeriesProgress,
+	removeProgress,
+	saveProgress,
+	updatePlaybackPreferences,
+} from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
 	browseSeries,
@@ -488,6 +497,81 @@ export const v1Routes = v1
 			{
 				meta: {},
 				results: snakeCased(preferences),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getProgress, async (c) => {
+		const { profile_id, season_id, episode } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		const progress = await getProgress(profile.id, {
+			seasonId: season_id,
+			episode,
+		});
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(progress),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.saveProgress, async (c) => {
+		const { profile_id, season_id, episode } = c.req.valid("param");
+		const { position_seconds, duration_seconds, finished } = c.req.valid("json");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		const progress = await saveProgress(
+			profile.id,
+			{
+				seasonId: season_id,
+				episode,
+			},
+			{
+				positionSeconds: position_seconds,
+				durationSeconds: duration_seconds,
+				finished,
+			},
+		);
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(progress),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getSeriesProgress, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		const progress = await getSeriesProgress(profile.id, series_id);
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(progress),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.removeProgress, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await removeProgress(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.listContinueWatching, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const shows = await getContinueWatching(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: shows.length,
+				},
+				results: snakeCased(shows),
 			},
 			200,
 		);

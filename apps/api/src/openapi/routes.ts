@@ -14,6 +14,7 @@ import { logoPlacement } from "@sora/core/series";
 
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
+	ContinueWatchingSchema,
 	EpisodeNumberParam,
 	ImageTypeSchema,
 	json,
@@ -25,6 +26,8 @@ import {
 	ProfileIdParam,
 	ProfileInputSchema,
 	ProfileSchema,
+	ProgressInputSchema,
+	ProgressSchema,
 	AnimeSeasonSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
@@ -34,6 +37,7 @@ import {
 	SeriesCardSchema,
 	SeriesIdParam,
 	SeriesImageSchema,
+	SeriesProgressSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
 } from "./schemas";
@@ -729,5 +733,123 @@ export const updatePlaybackPreferences = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
+	},
+});
+
+/** An episode, addressed by its season, under the profile whose progress it is. */
+const ProfileEpisodeParams = ProfileParams.extend({
+	season_id: SeasonIdParam,
+	episode: EpisodeNumberParam,
+});
+
+export const getProgress = createRoute({
+	operationId: "getProgress",
+	method: "get",
+	path: "/profiles/{profile_id}/seasons/{season_id}/episodes/{episode}/progress",
+	tags: ["Profiles"],
+	summary: "How far the profile is into an episode",
+	description:
+		"Where the profile stopped in the episode, to resume it from there, or null when the profile never played it.",
+	security: signedIn,
+	request: {
+		params: ProfileEpisodeParams,
+	},
+	responses: {
+		200: json(envelopeOf(ProgressSchema.nullable(), EmptyMetaSchema), "The progress."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const saveProgress = createRoute({
+	operationId: "saveProgress",
+	method: "put",
+	path: "/profiles/{profile_id}/seasons/{season_id}/episodes/{episode}/progress",
+	tags: ["Profiles"],
+	summary: "Remember where the profile stopped in an episode",
+	description:
+		"Replaces what was remembered for the episode. A player sends it every few seconds while the episode plays, and when it is paused, left, or ends, and says each time whether the episode is over at that point.",
+	security: signedIn,
+	request: {
+		params: ProfileEpisodeParams,
+		body: {
+			required: true,
+			content: {
+				"application/json": {
+					schema: ProgressInputSchema,
+				},
+			},
+		},
+	},
+	responses: {
+		200: json(envelopeOf(ProgressSchema, EmptyMetaSchema), "The progress as it now stands."),
+		401: problem("Not signed in."),
+		404: problem(
+			"The account has no such profile, or the season has no such episode that can be played.",
+		),
+		422: problem("The body is invalid."),
+	},
+});
+
+export const getSeriesProgress = createRoute({
+	operationId: "getSeriesProgress",
+	method: "get",
+	path: "/profiles/{profile_id}/series/{series_id}/progress",
+	tags: ["Profiles"],
+	summary: "How far the profile is through a show",
+	description:
+		"The profile's progress in every episode of the show it played, to mark them in an episode list, and the episode to play next.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		200: json(envelopeOf(SeriesProgressSchema, EmptyMetaSchema), "The progress."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the series does not exist."),
+	},
+});
+
+export const removeProgress = createRoute({
+	operationId: "removeProgress",
+	method: "delete",
+	path: "/profiles/{profile_id}/series/{series_id}/progress",
+	tags: ["Profiles"],
+	summary: "Forget the profile's progress in a show",
+	description:
+		"Forgets the profile's progress in every episode of the show, which takes the show out of `listContinueWatching`.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "Forgotten.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the series does not exist."),
+	},
+});
+
+export const listContinueWatching = createRoute({
+	operationId: "listContinueWatching",
+	method: "get",
+	path: "/profiles/{profile_id}/continue-watching",
+	tags: ["Profiles"],
+	summary: "Shows the profile is in the middle of",
+	description:
+		"The shows the profile is in the middle of, the most recently played first, each with the episode to play next. A show is judged by the episode played last: while it is unfinished it is the one to play, and once it is finished the episode after it is, into the next season in watch order. A show with no episode after it is left out until one comes out. Only the 30 most recently played shows are looked at.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(z.array(ContinueWatchingSchema), CountMetaSchema), "The shows."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
 	},
 });

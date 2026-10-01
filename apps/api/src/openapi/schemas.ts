@@ -7,7 +7,14 @@
 import { z } from "@hono/zod-openapi";
 import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
-import type { PlaybackPreferences, SubtitleChoice } from "@sora/core/library";
+import type {
+	ContinueWatching,
+	NextEpisode,
+	PlaybackPreferences,
+	Progress,
+	SeriesProgress,
+	SubtitleChoice,
+} from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
 	Release,
@@ -564,3 +571,86 @@ export const PlaybackPreferencesUpdateSchema = z
 			},
 		},
 	});
+
+export const ProgressSchema = z
+	.object({
+		season_id: z.string(),
+		episode: z.number().int().openapi({
+			description: "Position within the season, from 1.",
+		}),
+		position_seconds: z.number().int().openapi({
+			description: "Where the profile stopped, in seconds from the start.",
+			example: 754,
+		}),
+		duration_seconds: z.number().int().openapi({
+			description: "How long the episode runs, in seconds.",
+			example: 1420,
+		}),
+		finished: z.boolean().openapi({
+			description:
+				"Whether the profile stopped where the episode is over, as the player it watched in judged: it played to the end, or only its credits were left. Play a finished episode from the start.",
+		}),
+		watched_at: z.string().openapi({
+			description: "When the profile last played the episode, as an ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+	})
+	.openapi("Progress") satisfies z.ZodType<SnakeCased<Progress>>;
+
+export const ProgressInputSchema = z
+	.object({
+		position_seconds: z.number().int().nonnegative(),
+		duration_seconds: z.number().int().positive(),
+		finished: z.boolean().openapi({
+			description:
+				"Whether the episode is over where the profile stopped: it played to the end, or only its credits are left. The player judges, since it knows where the credits are.",
+		}),
+	})
+	.openapi("ProgressInput", {
+		example: {
+			position_seconds: 754,
+			duration_seconds: 1420,
+			finished: false,
+		},
+	});
+
+const nextEpisode = {
+	season_id: z.string(),
+	season_title: z.string().openapi({
+		example: "Season 2",
+	}),
+	season_kind: z.enum(["season", "ova", "movie"]),
+	episode: z.number().int().openapi({
+		description: "Position within the season, from 1.",
+	}),
+	position_seconds: z.number().int().openapi({
+		description: "Where to resume the episode, in seconds; 0 for one not started.",
+	}),
+	duration_seconds: z.number().int().nullable().openapi({
+		description: "How long the episode runs, in seconds; null for one not started.",
+	}),
+};
+
+export const NextEpisodeSchema = z.object(nextEpisode).openapi("NextEpisode") satisfies z.ZodType<
+	SnakeCased<NextEpisode>
+>;
+
+export const ContinueWatchingSchema = z
+	.object({
+		series: SeriesCardSchema,
+		...nextEpisode,
+	})
+	.openapi("ContinueWatching") satisfies z.ZodType<SnakeCased<ContinueWatching>>;
+
+export const SeriesProgressSchema = z
+	.object({
+		episodes: z.array(ProgressSchema).openapi({
+			description:
+				"The progress in every episode of the show the profile played, the most recently played first.",
+		}),
+		next: NextEpisodeSchema.nullable().openapi({
+			description:
+				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the show, or finished the last episode that is out.",
+		}),
+	})
+	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
