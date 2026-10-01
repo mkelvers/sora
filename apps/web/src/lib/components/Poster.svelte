@@ -3,7 +3,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { getShows, setListed } from "$lib/shows.remote";
+	import { toggleListed as toggleShowListed } from "$lib/shows";
+	import { getShows } from "$lib/shows.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
@@ -29,31 +30,7 @@
 			return;
 		}
 
-		const series = card;
-		const add = !listed;
-		const added = new Date().toISOString();
-		setListed({
-			seriesId: series.id,
-			listed: add,
-		}).updates(
-			getShows().withOverride((current) =>
-				add
-					? [
-							{
-								series,
-								added_at: added,
-								active_at: added,
-								status: "planned" as const,
-								next: null,
-								offered: null,
-								episode_count: series.episode_count,
-								watched_count: 0,
-							},
-							...current,
-						]
-					: current.filter((other) => other.series.id !== series.id),
-			),
-		);
+		toggleShowListed(card, listed);
 	}
 
 	const play = $derived.by(() => {

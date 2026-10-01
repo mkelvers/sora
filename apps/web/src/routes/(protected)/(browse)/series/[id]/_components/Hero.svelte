@@ -3,7 +3,8 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { getDropped, getShows, setDropped, setListed } from "$lib/shows.remote";
+	import { toggleListed as toggleShowListed } from "$lib/shows";
+	import { getDropped, getShows, setDropped } from "$lib/shows.remote";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { NextEpisode, Series, SeriesProgress } from "@sora/sdk";
 	import {
@@ -45,30 +46,7 @@
 	}
 
 	function toggleListed() {
-		const add = !listed;
-		const added = new Date().toISOString();
-		setListed({
-			seriesId: series.id,
-			listed: add,
-		}).updates(
-			getShows().withOverride((current) =>
-				add
-					? [
-							{
-								series,
-								added_at: added,
-								active_at: added,
-								status: "planned" as const,
-								next: null,
-								offered: null,
-								episode_count: series.episode_count,
-								watched_count: 0,
-							},
-							...current,
-						]
-					: current.filter((show) => show.series.id !== series.id),
-			),
-		);
+		toggleShowListed(series, listed);
 	}
 
 	function place(episode: NextEpisode) {
