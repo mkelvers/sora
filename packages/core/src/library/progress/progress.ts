@@ -144,21 +144,7 @@ export async function saveProgress(
 		});
 	}
 
-	const [playable] = await db
-		.select({
-			number: seriesEpisode.number,
-			seriesId: seriesSeason.seriesId,
-		})
-		.from(seriesEpisode)
-		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-		.where(
-			and(
-				eq(seriesEpisode.seasonId, address.seasonId),
-				eq(seriesEpisode.number, address.episode),
-				isNotNull(seriesEpisode.anilistId),
-			),
-		)
-		.limit(1);
+	const playable = await playableEpisodeSeries(address);
 	if (!playable) {
 		throw new EpisodeNotFoundError(address.seasonId, address.episode);
 	}
@@ -256,7 +242,7 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 			.from(watchedEpisode)
 			.innerJoin(seriesSeason, eq(seriesSeason.id, watchedEpisode.seasonId))
 			.where(and(eq(watchedEpisode.userId, userId), eq(seriesSeason.seriesId, seriesId))),
-		lastEpisodes(userId, eq(seriesSeason.seriesId, seriesId)),
+		lastEpisodes(userId, () => eq(seriesSeason.seriesId, seriesId)),
 	]);
 	const upNext = last ? (await nextEpisodes(userId, [last])).get(seriesId) : undefined;
 
@@ -300,19 +286,20 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 export async function getContinueWatching(userId: string): Promise<ContinueWatching[]> {
 	const played = await lastEpisodes(
 		userId,
-		and(
-			sql`exists (
-				select 1 from ${profileShow}
-				where ${profileShow.userId} = ${userId}
-					and ${profileShow.seriesId} = ${seriesSeason.seriesId}
-					and (${profileShow.dismissedAt} is null or ${profileShow.dismissedAt} < "events"."at")
-			)`,
-			sql`not exists (
-				select 1 from ${droppedSeries}
-				where ${droppedSeries.userId} = ${userId}
-					and ${droppedSeries.seriesId} = ${seriesSeason.seriesId}
-			)`,
-		),
+		(events) =>
+			and(
+				sql`exists (
+					select 1 from ${profileShow}
+					where ${profileShow.userId} = ${userId}
+						and ${profileShow.seriesId} = ${seriesSeason.seriesId}
+						and (${profileShow.dismissedAt} is null or ${profileShow.dismissedAt} < ${events.at})
+				)`,
+				sql`not exists (
+					select 1 from ${droppedSeries}
+					where ${droppedSeries.userId} = ${userId}
+						and ${droppedSeries.seriesId} = ${seriesSeason.seriesId}
+				)`,
+			),
 		recentShows,
 	);
 
@@ -371,20 +358,7 @@ export async function dismissContinueWatching(userId: string, seriesId: string) 
  *   that can be played.
  */
 export async function markEpisode(userId: string, address: EpisodeAddress) {
-	const [playable] = await db
-		.select({
-			seriesId: seriesSeason.seriesId,
-		})
-		.from(seriesEpisode)
-		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-		.where(
-			and(
-				eq(seriesEpisode.seasonId, address.seasonId),
-				eq(seriesEpisode.number, address.episode),
-				isNotNull(seriesEpisode.anilistId),
-			),
-		)
-		.limit(1);
+	const playable = await playableEpisodeSeries(address);
 	if (!playable) {
 		throw new EpisodeNotFoundError(address.seasonId, address.episode);
 	}
@@ -493,16 +467,8 @@ export async function unmarkSeason(userId: string, seasonId: string) {
 	});
 }
 
-/**
- * The episode a user last had to do with in each show, the most recent
- * show first: the one they played last, or the last one of a season they
- * marked watched since, which counts as finished.
- *
- * @param where - Narrows the shows; may refer to `seriesSeason` and to the
- *   time of the episode as `"events"."at"`.
- */
-async function lastEpisodes(userId: string, where: SQL | undefined, limit?: number) {
-	const events = unionAll(
+function episodeEvents(userId: string) {
+	return unionAll(
 		db
 			.select({
 				seasonId: episodeProgress.seasonId,
@@ -522,6 +488,24 @@ async function lastEpisodes(userId: string, where: SQL | undefined, limit?: numb
 			.from(watchedEpisode)
 			.where(and(eq(watchedEpisode.userId, userId), eq(watchedEpisode.marked, true))),
 	).as("events");
+}
+
+type EpisodeEvents = ReturnType<typeof episodeEvents>;
+
+/**
+ * The episode a user last had to do with in each show, the most recent
+ * show first: the one they played last, or the last one of a season they
+ * marked watched since, which counts as finished.
+ *
+ * @param where - Narrows the shows from the event's `seriesSeason` and its
+ *   own columns, such as its time (`events.at`).
+ */
+async function lastEpisodes(
+	userId: string,
+	where: (events: EpisodeEvents) => SQL | undefined,
+	limit?: number,
+) {
+	const events = episodeEvents(userId);
 	const latest = db
 		.selectDistinctOn([seriesSeason.seriesId], {
 			seriesId: seriesSeason.seriesId,
@@ -532,7 +516,7 @@ async function lastEpisodes(userId: string, where: SQL | undefined, limit?: numb
 		})
 		.from(events)
 		.innerJoin(seriesSeason, eq(seriesSeason.id, events.seasonId))
-		.where(where)
+		.where(where(events))
 		.orderBy(seriesSeason.seriesId, desc(events.at), desc(events.episode))
 		.as("latest");
 	const query = db.select().from(latest).orderBy(desc(latest.at));
@@ -545,7 +529,7 @@ async function lastEpisodes(userId: string, where: SQL | undefined, limit?: numb
  * {@link getContinueWatching} and `getShows` tell it; see {@link nextEpisodes}.
  */
 export async function getNextEpisodes(userId: string) {
-	return nextEpisodes(userId, await lastEpisodes(userId, undefined));
+	return nextEpisodes(userId, await lastEpisodes(userId, () => undefined));
 }
 
 /**
@@ -637,6 +621,28 @@ async function nextEpisodes(
 			},
 		]),
 	);
+}
+
+/** The series an episode belongs to, or `null` when it cannot be played. */
+async function playableEpisodeSeries(
+	address: EpisodeAddress,
+): Promise<{ seriesId: string } | null> {
+	const [playable] = await db
+		.select({
+			seriesId: seriesSeason.seriesId,
+		})
+		.from(seriesEpisode)
+		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
+		.where(
+			and(
+				eq(seriesEpisode.seasonId, address.seasonId),
+				eq(seriesEpisode.number, address.episode),
+				isNotNull(seriesEpisode.anilistId),
+			),
+		)
+		.limit(1);
+
+	return playable ?? null;
 }
 
 function toProgress(row: typeof episodeProgress.$inferSelect): Progress {
