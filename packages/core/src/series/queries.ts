@@ -176,6 +176,8 @@ export interface EpisodeAddress {
 export interface PlayableSeason {
 	id: string;
 	kind: SeasonKind;
+	/** Position among the series' seasons of the same kind, from 1. */
+	number: number;
 	/** The season's title, such as "Season 2"; see `Season.title`. */
 	title: string;
 	/** Whether the season is part of the story in watch order; see `Season.inWatchOrder`. */
@@ -187,6 +189,11 @@ export interface PlayableSeason {
 	airing: boolean;
 	/** The numbers of the episodes that can be played, in order. */
 	episodes: number[];
+	/**
+	 * When the latest of those episodes came out, or `null` when none of
+	 * them has a known date.
+	 */
+	releasedAt: Date | null;
 }
 
 /** The episodes around one; see {@link adjacentEpisodes}. */
@@ -245,14 +252,26 @@ export async function getPlayableSeasons(
 	return new Map(
 		[...listed].map(([seriesId, seasons]) => [
 			seriesId,
-			seasons.map(({ season, episodes }) => ({
-				id: season.id,
-				kind: season.kind,
-				title: season.title,
-				inWatchOrder: season.inWatchOrder,
-				airing: airing.has(season.id),
-				episodes: episodes.flatMap((row) => (row.anilistId === null ? [] : [row.number])),
-			})),
+			seasons.map(({ season, episodes }) => {
+				const playable = episodes.filter((row) => row.anilistId !== null);
+				const released = playable.flatMap((row) =>
+					row.airedAt
+						? [row.airedAt.getTime()]
+						: row.airDate
+							? [Date.parse(`${row.airDate}T00:00:00Z`)]
+							: [],
+				);
+				return {
+					id: season.id,
+					kind: season.kind,
+					number: season.number,
+					title: season.title,
+					inWatchOrder: season.inWatchOrder,
+					airing: airing.has(season.id),
+					episodes: playable.map((row) => row.number),
+					releasedAt: released.length > 0 ? new Date(Math.max(...released)) : null,
+				};
+			}),
 		]),
 	);
 }
