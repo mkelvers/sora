@@ -7,7 +7,9 @@
 		getEpisode,
 		getPlayback,
 		getPlaybackPreferences,
+		getProgress,
 		savePlaybackPreferences,
+		saveProgress,
 	} from "./watch.remote";
 
 	let { params }: PageProps = $props();
@@ -19,6 +21,7 @@
 	});
 	const { series, season, episode } = $derived(await getEpisode(address));
 	const preferences = $derived(await getPlaybackPreferences());
+	const progress = $derived(await getProgress(address));
 
 	const playback = $derived(getPlayback(address));
 	const next = $derived(playback.current?.next ?? undefined);
@@ -38,7 +41,9 @@
 				}
 			: undefined,
 	);
-	const preload = $derived(upcoming && [getEpisode(upcoming), getPlayback(upcoming)]);
+	const preload = $derived(
+		upcoming && [getEpisode(upcoming), getPlayback(upcoming), getProgress(upcoming)],
+	);
 
 	$effect(() => {
 		for (const query of preload ?? []) {
@@ -64,6 +69,15 @@
 		series={series.title}
 		season={series.seasons.length > 1 ? season.title : undefined}
 		{preferences}
+		start={progress && !progress.finished ? progress.position_seconds : 0}
+		onprogress={(position, duration, finished) =>
+			saveProgress({
+				seasonId: season.id,
+				episode: episode.number,
+				position_seconds: Math.floor(position),
+				duration_seconds: Math.floor(duration),
+				finished,
+			}).catch(() => {})}
 		onpreferences={(changes) =>
 			savePlaybackPreferences(changes)
 				.updates(

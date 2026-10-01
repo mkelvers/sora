@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { SeasonEpisode } from "@sora/sdk";
+	import type { Progress, SeasonEpisode } from "@sora/sdk";
 	import { CalendarBlankIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
@@ -11,6 +11,7 @@
 		movie,
 		backdrop,
 		episode,
+		progress,
 	}: {
 		seriesId: string;
 		seasonId: string;
@@ -18,7 +19,16 @@
 		movie: boolean;
 		backdrop: string | null;
 		episode: SeasonEpisode;
+		progress?: Progress;
 	} = $props();
+
+	const watched = $derived(
+		!progress
+			? 0
+			: progress.finished
+				? 100
+				: Math.min(100, (progress.position_seconds / progress.duration_seconds) * 100),
+	);
 
 	const playable = $derived(!episode.extra && episode.audio?.length !== 0);
 	const heading = $derived(
@@ -92,6 +102,14 @@
 					>
 						{formatDuration(episode.runtime_minutes)}
 					</span>
+				{/if}
+				{#if watched > 0}
+					<progress
+						class="absolute inset-x-0 bottom-0 z-10 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+						value={watched}
+						max="100"
+						aria-label="{Math.round(watched)}% watched"
+					></progress>
 				{/if}
 			</div>
 

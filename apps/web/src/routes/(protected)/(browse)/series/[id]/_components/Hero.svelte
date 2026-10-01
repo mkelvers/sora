@@ -3,16 +3,37 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import type { Series } from "@sora/sdk";
+	import type { NextEpisode, Series } from "@sora/sdk";
 	import { DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
 	let {
 		series,
+		next: resume,
 	}: {
 		series: Series;
+		next?: NextEpisode | null;
 	} = $props();
 
 	const play = $derived.by(() => {
+		if (resume) {
+			const season = series.seasons.find((other) => other.id === resume.season_id);
+			const seasons = series.seasons.filter((other) => other.kind === "season");
+			const place =
+				series.kind === "movie"
+					? ""
+					: resume.season_kind === "movie"
+						? ` ${resume.season_title}`
+						: resume.season_kind === "ova" || !season
+							? ` ${resume.season_title} E${resume.episode}`
+							: seasons.length > 1
+								? ` S${season.number} E${resume.episode}`
+								: ` E${resume.episode}`;
+			return {
+				href: `/series/${series.id}/watch/${resume.season_id}/${resume.episode}`,
+				label: `Continue watching${place}`,
+			};
+		}
+
 		const first = series.seasons.find((other) => other.in_watch_order) ?? series.seasons[0];
 		return first
 			? {

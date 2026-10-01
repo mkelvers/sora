@@ -6,11 +6,12 @@
 	import Details from "./_components/Details.svelte";
 	import Episodes from "./_components/Episodes.svelte";
 	import Hero from "./_components/Hero.svelte";
-	import { getSeries } from "./series.remote";
+	import { getSeries, getSeriesProgress } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
+	const progress = $derived(await getSeriesProgress(params.id));
 	let season = $derived(
 		series.seasons.find((season) => season.id === page.state.seasonId) ?? series.seasons[0],
 	);
@@ -28,7 +29,7 @@
 </svelte:head>
 
 <div class="bg-canvas text-foreground">
-	<Hero {series} />
+	<Hero {series} next={progress.next} />
 
 	<Details {series} />
 
@@ -62,6 +63,7 @@
 					movie={series.kind === "movie"}
 					backdrop={series.backdrop_url}
 					{season}
+					progress={progress.episodes}
 				/>
 			</section>
 		{:else}

@@ -3,7 +3,7 @@
 	import { Player } from "$routes/(protected)/(browse)/series/[id]/watch/[seasonId]/[episode]/watch.svelte";
 	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
 	import { ArrowLeftIcon } from "phosphor-svelte";
-	import { untrack } from "svelte";
+	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./Controls.svelte";
 	import Settings from "./Settings.svelte";
@@ -18,6 +18,8 @@
 		series: string;
 		season?: string;
 		preferences: PlaybackPreferences;
+		start: number;
+		onprogress: (position: number, duration: number, finished: boolean) => void;
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 		onnearend: () => void;
 		onended: () => void;
@@ -33,12 +35,14 @@
 		series,
 		season,
 		preferences,
+		start,
+		onprogress,
 		onpreferences,
 		onnearend,
 		onended,
 	}: Props = $props();
 
-	const player = new Player(0);
+	const player = new Player(untrack(() => start));
 
 	let nearing = false;
 	let skipped = new Set<number>();
@@ -52,7 +56,7 @@
 		current = id;
 		nearing = false;
 		skipped = new Set();
-		player.load(0);
+		player.load(start);
 	});
 
 	$effect(() => {
@@ -63,6 +67,27 @@
 		nearing = true;
 		untrack(onnearend);
 	});
+
+	function report(ended = false) {
+		if (!(player.duration >= 1) || player.time <= 0) {
+			return;
+		}
+
+		const watched = segment?.kind === "ending" ? segment.end : player.time;
+		onprogress(player.time, player.duration, ended || player.duration - watched <= 60);
+	}
+
+	$effect(() => {
+		const timer = setInterval(() => {
+			if (!player.paused && !player.buffering) {
+				report();
+			}
+		}, 10_000);
+
+		return () => clearInterval(timer);
+	});
+
+	onDestroy(() => report());
 
 	const audio = $derived(
 		versions?.find((version) => version.audio === preferences.audio)?.audio ?? versions?.[0]?.audio,
@@ -126,6 +151,13 @@
 </script>
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
+<svelte:document
+	onvisibilitychange={() => {
+		if (document.hidden) {
+			report();
+		}
+	}}
+/>
 
 <section
 	aria-label="Video player"
@@ -154,8 +186,14 @@
 		onclick={player.onclick}
 		ondblclick={player.toggleFullscreen}
 		onplay={() => (player.paused = false)}
-		onpause={() => (player.paused = true)}
-		{onended}
+		onpause={() => {
+			player.paused = true;
+			report();
+		}}
+		onended={() => {
+			report(true);
+			onended();
+		}}
 		{@attach player.stream(media?.sources[0])}
 		{@attach player.playback}
 	>

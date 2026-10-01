@@ -76,6 +76,37 @@ export const getPlaybackPreferences = query(async () => {
 	return viewer.sora.playbackPreferences(viewer.profile.id);
 });
 
+export const getProgress = query(EpisodeAddress, async ({ seasonId, episode }) => {
+	const viewer = remoteViewer();
+
+	return viewer.sora.progress(viewer.profile.id, {
+		seasonId,
+		number: episode,
+	});
+});
+
+export const saveProgress = command(
+	z.object({
+		seasonId: z.string(),
+		episode: z.number().int().positive(),
+		position_seconds: z.number().int().nonnegative(),
+		duration_seconds: z.number().int().positive(),
+		finished: z.boolean(),
+	}),
+	async ({ seasonId, episode, ...progress }) => {
+		const viewer = remoteViewer();
+
+		await viewer.sora.saveProgress(
+			viewer.profile.id,
+			{
+				seasonId,
+				number: episode,
+			},
+			progress,
+		);
+	},
+);
+
 const SubtitleChoice = z
 	.object({
 		language: z.string(),

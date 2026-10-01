@@ -7,9 +7,13 @@
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 
 	import type { PageProps } from "./$types";
+	import ContinueWatching from "./_components/ContinueWatching.svelte";
 	import Hero from "./_components/Hero.svelte";
+	import { getContinueWatching } from "./home.remote";
 
 	let { data }: PageProps = $props();
+
+	const continuing = $derived(getContinueWatching().current ?? []);
 
 	const { featured, trending, upcoming } = $derived(data);
 	const rows = $derived([
@@ -41,9 +45,10 @@
 <div class="min-h-dvh bg-canvas text-foreground">
 	<h1 class="sr-only">Home</h1>
 	<div
-		class="grid grid-cols-1 grid-rows-[auto] xl:-mb-36 xl:[--hero-overlap:9rem] [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
+		class="grid grid-cols-1 grid-rows-[auto] xl:not-has-[>_.continue-watching-section]:-mb-36 xl:not-has-[>_.continue-watching-section]:[--hero-overlap:9rem] wide:has-[>_.continue-watching-section]:grid-rows-[auto_15rem] wide:has-[>_.continue-watching-section]:pb-8 wide:has-[>_.continue-watching-section]:[--hero-overlap:5rem] hero:has-[>_.continue-watching-section]:grid-rows-[auto_16rem] hero:has-[>_.continue-watching-section]:pb-12 [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
 	>
 		<Hero {featured} />
+		<ContinueWatching items={continuing} />
 	</div>
 
 	{#each rows as row (row.id)}
