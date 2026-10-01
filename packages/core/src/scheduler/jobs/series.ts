@@ -8,7 +8,6 @@ import { fuzzyDate } from "../../catalog/models/text";
 import { db } from "../../database/client";
 import {
 	animeSearch,
-	libraryImport,
 	providerEpisodes,
 	series,
 	seriesEntry,
@@ -16,7 +15,6 @@ import {
 	seriesSeason,
 } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
-import { applyLibraryImports } from "../../library/entries/import";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { storedSeriesIds, storeSeries } from "../../series/store";
@@ -40,9 +38,6 @@ const StoreSeriesPayloadSchema = z.object({
  * last queued: that layout already has what the job was queued for. A
  * layout stores a whole franchise, so the entries queued for its other
  * titles, as backfill and related titles often are, cost no AniList request.
- *
- * Either way, watchlist entries imported for the entry before its series
- * was stored are applied (see `applyLibraryImports`).
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 	const { anilistId } = StoreSeriesPayloadSchema.parse(rawPayload);
@@ -56,25 +51,18 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 		.limit(1);
 	if (laidOut) {
 		helpers.logger.info(`Series ${laidOut.seriesId} of anime ${anilistId} is already laid out`);
-		await applyLibraryImports({
-			anilistIds: [anilistId],
-		});
 		return;
 	}
 
 	try {
 		const seriesId = await storeSeries(anilistId);
 		helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
-		await applyLibraryImports({
-			anilistIds: [anilistId],
-		});
 	} catch (error) {
 		if (error instanceof AnimeNotFoundError) {
 			// Searches queue every entry they find that is not stored, so an entry
 			// left in the index would be queued again by each one. A sync puts it
 			// back should AniList serve it again.
 			await db.delete(animeSearch).where(eq(animeSearch.anilistId, anilistId));
-			await db.delete(libraryImport).where(eq(libraryImport.anilistId, anilistId));
 			helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
 			return;
 		}

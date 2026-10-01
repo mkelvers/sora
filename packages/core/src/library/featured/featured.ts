@@ -5,7 +5,6 @@ import { animeSearch, featuredPick, noArtwork, series, seriesEntry } from "../..
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
-import { titleActivity } from "../recommendations/recommendations";
 import {
 	arrange,
 	dateBefore,
@@ -37,34 +36,31 @@ const lowestThreshold = {
  * {@link featuredPattern}).
  *
  * They are picked once a week, on Monday morning (see `rotationStart`), in
- * each profile's own order, and kept for the week: a title the profile
- * plays or lists meanwhile, or that can no longer be shown, gives its place
- * to another. No title is featured two weeks in a row.
+ * each profile's own order, and kept for the week: a title that can no
+ * longer be shown gives its place to another. No title is featured two
+ * weeks in a row.
  *
- * Reads only the database: candidates come from the search index. Titles
- * the profile has played or listed are left out, as are long-running ones
- * such as Detective Conan, those without a backdrop and logo to draw, and
+ * Reads only the database: candidates come from the search index.
+ * Long-running titles such as Detective Conan are left out, as are those
+ * without a backdrop and logo to draw, and
  * those nothing streams. Candidates not stored yet are queued for the
  * scheduler, a few with each pick, so later picks find them.
  */
 export async function getFeatured(userId: string, now = new Date()): Promise<SeriesCard[]> {
 	const rotation = rotationOf(now);
-	const [activity, picks] = await Promise.all([
-		titleActivity(userId),
-		db
-			.select()
-			.from(featuredPick)
-			.where(
-				and(
-					eq(featuredPick.userId, userId),
-					inArray(featuredPick.rotation, [rotation - 1, rotation]),
-				),
-			)
-			.orderBy(asc(featuredPick.position)),
-	]);
+	const picks = await db
+		.select()
+		.from(featuredPick)
+		.where(
+			and(
+				eq(featuredPick.userId, userId),
+				inArray(featuredPick.rotation, [rotation - 1, rotation]),
+			),
+		)
+		.orderBy(asc(featuredPick.position));
 
 	const current = picks.filter((pick) => pick.rotation === rotation);
-	const kept = current.map((pick) => pick.seriesId).filter((id) => !activity.has(id));
+	const kept = current.map((pick) => pick.seriesId);
 	const keptCards = await cardsOf(kept);
 	const shown = kept.filter((id) => isShowable(keptCards.get(id)));
 	const wanted = featuredPattern.length - shown.length;
@@ -76,7 +72,7 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 		userId,
 		rotation,
 		now,
-		new Set([...activity.keys(), ...picks.map((pick) => pick.seriesId)]),
+		new Set(picks.map((pick) => pick.seriesId)),
 	);
 	const added = picked.slice(0, wanted);
 	if (added.length > 0) {

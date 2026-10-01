@@ -38,3 +38,4 @@ export {
 export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
 export type { SeasonKind } from "./seasons";
 export type { SeriesKind } from "./series";
+export { getUpcomingSeries, type UpcomingSeries } from "./upcoming";

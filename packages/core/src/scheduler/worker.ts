@@ -14,7 +14,6 @@ import { syncDubSchedule, syncDubScheduleTask } from "./jobs/dubs";
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
-import { recordReleasesJob, recordReleasesTask } from "./jobs/notifications";
 import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
 import {
 	backfillSeries,
@@ -58,8 +57,7 @@ const waitedOnTasks: Record<string, Task> = {
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, watches AniKoto for new
  * episodes as they air, for dubs as AnimeSchedule expects them, and for the
- * rest every half hour, records what came out for series in libraries,
- * which notifications are read from, looks stored titles up on providers,
+ * rest every half hour, looks stored titles up on providers,
  * keeps stored series current as seasons air and new ones are announced,
  * mirrors the provider catalogues titles are matched against, keeps the
  * search index current while storing the most popular titles, and this
@@ -179,35 +177,12 @@ export async function startScheduler(): Promise<Scheduler> {
 		].join("\n"),
 	});
 
-	// Notifications read only the database and must follow a release within
-	// a minute, so they never wait for a slot behind jobs held up on AniList.
-	const notifications = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
-		concurrency: 1,
-		maxPoolSize: 2,
-		taskList: {
-			[recordReleasesTask]: recordReleasesJob,
-		},
-		crontab: `* * * * * ${recordReleasesTask}`,
-	});
-
 	return {
-		promise: Promise.all([
-			main.promise,
-			waitedOn.promise,
-			lookups.promise,
-			releases.promise,
-			notifications.promise,
-		]).then(() => undefined),
+		promise: Promise.all([main.promise, waitedOn.promise, lookups.promise, releases.promise]).then(
+			() => undefined,
+		),
 		stop: async () => {
-			await Promise.all([
-				main.stop(),
-				waitedOn.stop(),
-				lookups.stop(),
-				releases.stop(),
-				notifications.stop(),
-			]);
+			await Promise.all([main.stop(), waitedOn.stop(), lookups.stop(), releases.stop()]);
 			await pools.stop();
 		},
 	};

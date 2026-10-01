@@ -2,21 +2,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import {
-	avatarStyle,
-	continueWatchingDismissal,
-	featuredPick,
-	libraryEntry,
-	libraryImport,
-	notificationDismissal,
-	notificationRead,
-	notificationSeen,
-	playbackHistory,
-	playbackPreference,
-	playbackProgress,
-	profile,
-	recommendationPick,
-} from "../database/schema";
+import { avatarStyle, featuredPick, playbackPreference, profile } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
 
@@ -180,19 +166,8 @@ export async function deleteProfile(userId: string, profileId: string) {
 			throw new LastProfileError(profileId);
 		}
 
-		await tx.delete(playbackProgress).where(eq(playbackProgress.userId, profileId));
-		await tx.delete(playbackHistory).where(eq(playbackHistory.userId, profileId));
 		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
-		await tx.delete(libraryEntry).where(eq(libraryEntry.userId, profileId));
-		await tx.delete(libraryImport).where(eq(libraryImport.userId, profileId));
-		await tx
-			.delete(continueWatchingDismissal)
-			.where(eq(continueWatchingDismissal.userId, profileId));
-		await tx.delete(notificationSeen).where(eq(notificationSeen.userId, profileId));
-		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
-		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
-		await tx.delete(recommendationPick).where(eq(recommendationPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});
 }

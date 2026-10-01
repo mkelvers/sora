@@ -4,8 +4,6 @@ import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import {
-	continueWatchingDismissal,
-	libraryEntry,
 	series,
 	seriesEntry,
 	seriesEpisode,
@@ -132,11 +130,6 @@ async function writeSeries(
 					)
 			: [];
 	if (emptied.length > 0) {
-		await mergeLibraries(
-			tx,
-			emptied.map((row) => row.id),
-			seriesId,
-		);
 		await tx.delete(series).where(
 			inArray(
 				series.id,
@@ -200,67 +193,6 @@ async function writeSeries(
 	}
 
 	return seriesId;
-}
-
-/**
- * Moves library entries of merged-away series to the series that absorbed
- * them. A user who already has the absorbing series keeps that entry; a
- * user who had several merged-away series keeps the most recently changed
- * one. Dismissals from "continue watching" move the same way.
- */
-async function mergeLibraries(
-	tx: Transaction,
-	fromSeriesIds: readonly string[],
-	toSeriesId: string,
-) {
-	const from = sql.join(
-		fromSeriesIds.map((id) => sql`${id}`),
-		sql`, `,
-	);
-
-	await tx.execute(sql`
-    delete from library_entry as moving
-    where moving.series_id in (${from})
-      and exists (
-        select 1 from library_entry as other
-        where other.user_id = moving.user_id
-          and (
-            other.series_id = ${toSeriesId}
-            or (
-              other.series_id in (${from})
-              and (other.updated_at, other.series_id) > (moving.updated_at, moving.series_id)
-            )
-          )
-      )
-  `);
-	await tx
-		.update(libraryEntry)
-		.set({
-			seriesId: toSeriesId,
-		})
-		.where(inArray(libraryEntry.seriesId, [...fromSeriesIds]));
-
-	await tx.execute(sql`
-    delete from continue_watching_dismissal as moving
-    where moving.series_id in (${from})
-      and exists (
-        select 1 from continue_watching_dismissal as other
-        where other.user_id = moving.user_id
-          and (
-            other.series_id = ${toSeriesId}
-            or (
-              other.series_id in (${from})
-              and (other.dismissed_at, other.series_id) > (moving.dismissed_at, moving.series_id)
-            )
-          )
-      )
-  `);
-	await tx
-		.update(continueWatchingDismissal)
-		.set({
-			seriesId: toSeriesId,
-		})
-		.where(inArray(continueWatchingDismissal.seriesId, [...fromSeriesIds]));
 }
 
 /**
