@@ -135,12 +135,12 @@ export async function assertSeriesExists(seriesId: string) {
  *   does not belong to the series.
  */
 export async function getSeason(seriesId: string, seasonId: string): Promise<Season> {
-	const [season] = await seasonsOf(seriesId, seasonId);
-	if (!season) {
+	const [listed] = await listedSeasons(seriesId, seasonId);
+	if (!listed) {
 		throw new SeasonNotFoundError(seasonId);
 	}
 
-	return season;
+	return listed.season;
 }
 
 /**
@@ -531,11 +531,6 @@ async function seriesIdsFor(
 		seriesIds: found,
 		missing,
 	};
-}
-
-/** A series' seasons in display order, or only `seasonId` among them when given. */
-async function seasonsOf(seriesId: string, seasonId?: string): Promise<Season[]> {
-	return (await listedSeasons(seriesId, seasonId)).map(({ season }) => season);
 }
 
 /**
