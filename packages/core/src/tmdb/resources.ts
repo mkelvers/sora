@@ -36,6 +36,7 @@ const MovieSearchSchema = z.object({
 });
 
 const EpisodeSchema = z.object({
+	id: z.number().int(),
 	season_number: z.number().int(),
 	episode_number: z.number().int(),
 	name: OptionalText,
@@ -50,6 +51,31 @@ const EpisodeSchema = z.object({
 
 const SeasonSchema = z.object({
 	episodes: z.array(EpisodeSchema),
+});
+
+const EpisodeChangesSchema = z.object({
+	changes: z.array(
+		z.object({
+			key: z.string(),
+			items: z.array(
+				z.object({
+					action: z.string(),
+					/** `YYYY-MM-DD HH:MM:SS UTC`. */
+					time: z.string(),
+					iso_639_1: OptionalText,
+					// A deletion has no value, an addition no original one.
+					value: z.unknown().optional(),
+					original_value: z.unknown().optional(),
+				}),
+			),
+		}),
+	),
+});
+
+const ChangedImageSchema = z.object({
+	backdrop: z.object({
+		file_path: z.string(),
+	}),
 });
 
 const ShowFields = {
@@ -176,6 +202,23 @@ const searchLifetimeMs = day;
 /** Show structure is refreshed often enough to pick up newly listed episodes. */
 const showLifetimeMs = 12 * hour;
 
+/**
+ * How long around its air date an episode's missing details are read from
+ * its change log. They are mostly written within hours of the broadcast, and
+ * TMDB serves a show without them for up to eight hours more. Later ones
+ * wait for the show: the change log costs a request per such episode.
+ */
+const editsWindowMs = 2 * day;
+
+/** A newer change log is asked for at least this often, whatever the show's lifetime. */
+const editsLifetimeMs = hour;
+
+/** The longest span TMDB serves a change log for. */
+const changeLogSpanMs = 14 * day;
+
+/** The title TMDB gives an episode nobody has named. */
+const unnamedEpisode = /^episode \d+$/i;
+
 /** Searches TMDB TV shows by title. Returns the first page, best matches first. */
 export async function searchShows(query: string): Promise<TmdbShowResult[]> {
 	const result = await tmdb(
@@ -218,6 +261,13 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
  * Seasons are fetched through `append_to_response`, so a show with fewer
  * than 20 seasons costs one request. TMDB silently omits seasons that do not
  * exist, which lets the first request ask for seasons 0–19 blind.
+ *
+ * TMDB keeps what it has served of a show, season, or episode for up to eight
+ * hours, whatever the request's parameters, so details written since are
+ * missing from it. An episode airing now that lacks a title, overview, or
+ * still takes them from its change log, which TMDB keeps for ten minutes
+ * (see {@link withRecentEdits}). Every reader of a show gets them this way:
+ * a layout stores an episode's details just as the scheduler's refresh does.
  *
  * @returns The show, or `null` when TMDB does not know the ID.
  */
@@ -283,7 +333,78 @@ export async function getShow(
 			name: season.name,
 			posterPath: season.poster_path,
 		})),
-		episodes,
+		episodes: await Promise.all(
+			episodes.map((episode) =>
+				withRecentEdits(episode, Math.min(options.maxAgeMs ?? showLifetimeMs, editsLifetimeMs)),
+			),
+		),
+	};
+}
+
+/**
+ * Fills in the title, overview, runtime, and still an episode lacks from the
+ * English edits in its change log, when it airs within {@link editsWindowMs}
+ * of today. TMDB's air date is in the airing country's calendar, which can
+ * be a day ahead of UTC.
+ *
+ * A change log TMDB fails to serve leaves the episode as it is: the show is
+ * still worth having, and the next read asks again.
+ */
+async function withRecentEdits(episode: TmdbEpisode, maxAgeMs: number): Promise<TmdbEpisode> {
+	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
+	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
+	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
+	if (
+		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
+		episode.air_date === null ||
+		episode.air_date < since ||
+		episode.air_date > until
+	) {
+		return episode;
+	}
+
+	const log = await tmdb(
+		`/tv/episode/${episode.id}/changes`,
+		{
+			start_date: new Date(Date.now() + day - changeLogSpanMs).toISOString().slice(0, 10),
+			end_date: until,
+		},
+		EpisodeChangesSchema,
+		{
+			maxAgeMs,
+		},
+	).catch(() => null);
+	if (!log) {
+		return episode;
+	}
+
+	const edits = (key: string) =>
+		(log.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
+			left.time.localeCompare(right.time),
+		);
+	const text = (key: string) => {
+		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
+		return typeof value === "string" && value !== "" ? value : null;
+	};
+	// A runtime is filed under the language of whoever wrote it.
+	const runtime = edits("runtime").at(-1)?.value;
+	const stills = new Set<string>();
+	for (const edit of edits("images")) {
+		const added = ChangedImageSchema.safeParse(edit.value);
+		const removed = ChangedImageSchema.safeParse(edit.original_value);
+		if (edit.action === "deleted" && removed.success) {
+			stills.delete(removed.data.backdrop.file_path);
+		} else if (added.success) {
+			stills.add(added.data.backdrop.file_path);
+		}
+	}
+
+	return {
+		...episode,
+		name: (isUnnamed ? text("name") : null) ?? episode.name,
+		overview: episode.overview ?? text("overview"),
+		runtime: episode.runtime ?? (typeof runtime === "number" && runtime > 0 ? runtime : null),
+		still_path: episode.still_path ?? [...stills].at(0) ?? null,
 	};
 }
 

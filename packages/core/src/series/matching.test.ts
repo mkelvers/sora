@@ -26,6 +26,7 @@ function weekly(
 			length: count,
 		},
 		(_, index) => ({
+			id: season * 10_000 + first + index,
 			season_number: season,
 			episode_number: first + index,
 			name: null,
@@ -39,6 +40,7 @@ function weekly(
 
 function special(episode: number, airDate: string, runtime: number): TmdbEpisode {
 	return {
+		id: episode,
 		season_number: 0,
 		episode_number: episode,
 		name: null,

@@ -47,6 +47,7 @@ function episode(
 	runtime = 24,
 ): TmdbEpisode {
 	return {
+		id: season * 10_000 + number,
 		season_number: season,
 		episode_number: number,
 		name,
