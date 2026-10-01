@@ -5,10 +5,12 @@
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import { getUnreadNotifications } from "$lib/notifications.remote";
 	import { cn, genreSlug } from "$lib/utils";
 	import { profilesPage } from "$routes/(protected)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
+		BellSimpleIcon,
 		BookmarkSimpleIcon,
 		CaretDownIcon,
 		ListIcon,
@@ -29,6 +31,8 @@
 
 	const others = $derived(profiles.filter((other) => other.id !== profile.id));
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
+	const unreadQuery = getUnreadNotifications();
+	const unread = $derived(unreadQuery.current ?? 0);
 	const genresQuery = getGenres();
 	const genres = $derived(genresQuery.current ?? []);
 
@@ -56,17 +60,36 @@
 			label: "Release Calendar",
 		},
 	];
+
+	$effect(() => {
+		const check = () => {
+			if (document.visibilityState === "visible") {
+				unreadQuery.refresh();
+			}
+		};
+		const timer = setInterval(check, 30_000);
+		document.addEventListener("visibilitychange", check);
+
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener("visibilitychange", check);
+		};
+	});
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div
-			class="h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground"
+			class={cn(
+				"h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:relative [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground",
+				unread > 0 &&
+					"[&_.dropdown-trigger]:after:absolute [&_.dropdown-trigger]:after:top-3.5 [&_.dropdown-trigger]:after:right-2.5 [&_.dropdown-trigger]:after:size-2 [&_.dropdown-trigger]:after:rounded-full [&_.dropdown-trigger]:after:bg-status-error [&_.dropdown-trigger]:after:ring-2 [&_.dropdown-trigger]:after:ring-header",
+			)}
 		>
 			<Dropdown
 				alignment="left"
 				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 overflow-y-auto bg-header-hover"
-				label="Menu"
+				label={unread > 0 ? "Menu, new notifications" : "Menu"}
 			>
 				{#snippet trigger()}
 					<ListIcon size="1.5rem" />
@@ -86,6 +109,21 @@
 								</Button>
 							</li>
 						{/each}
+						<li>
+							<Button
+								href="/notifications"
+								variant="item"
+								class={cn(
+									"text-[0.9375rem]",
+									unread > 0 &&
+										"after:ml-2.5 after:size-2 after:rounded-full after:bg-status-error",
+								)}
+								aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+							>
+								Notifications
+								{#if unread > 0}<span class="sr-only">, new notifications</span>{/if}
+							</Button>
+						</li>
 						<li>
 							<Button
 								variant="item"
@@ -213,6 +251,19 @@
 				aria-current={page.url.pathname === "/shows" ? "page" : undefined}
 			>
 				<BookmarkSimpleIcon size="1.5rem" />
+			</a>
+
+			<a
+				href="/notifications"
+				class={cn(
+					"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
+					unread > 0 &&
+						"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
+				)}
+				aria-label={unread > 0 ? "Notifications, new notifications" : "Notifications"}
+				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+			>
+				<BellSimpleIcon size="1.5rem" />
 			</a>
 
 			<div
