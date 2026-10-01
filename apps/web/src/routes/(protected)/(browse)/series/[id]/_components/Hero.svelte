@@ -58,10 +58,11 @@
 								series,
 								added_at: added,
 								active_at: added,
-								started: false,
-								dropped: false,
+								status: "planned" as const,
 								next: null,
 								offered: null,
+								episode_count: series.episode_count,
+								watched_count: 0,
 							},
 							...current,
 						]

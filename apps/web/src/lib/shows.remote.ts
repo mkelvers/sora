@@ -9,6 +9,23 @@ export const getShows = query(async () => {
 	return viewer.sora.shows(viewer.profile.id);
 });
 
+export const getHistory = query(z.string().optional(), async (after) => {
+	const viewer = remoteViewer();
+
+	const { results, meta } = await viewer.sora.history(viewer.profile.id, {
+		params: {
+			after,
+			limit: 48,
+		},
+		meta: true,
+	});
+
+	return {
+		items: results,
+		next: meta.next && new URL(meta.next, "http://sora").searchParams.get("after"),
+	};
+});
+
 export const getDropped = query(async () => {
 	const viewer = remoteViewer();
 

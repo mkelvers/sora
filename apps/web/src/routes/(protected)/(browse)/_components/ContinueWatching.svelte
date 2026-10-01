@@ -26,6 +26,20 @@
 			return "";
 		}
 
+		if (item.season_kind === "movie") {
+			return item.season_title;
+		}
+
+		return item.season_kind === "season"
+			? `S${item.season_number} E${item.episode}`
+			: `${item.season_title} E${item.episode}`;
+	}
+
+	function spoken(item: ContinueWatching) {
+		if (item.series.kind === "movie") {
+			return "";
+		}
+
 		return item.season_kind === "movie"
 			? item.season_title
 			: `${item.season_title}, Episode ${item.episode}`;
@@ -81,7 +95,7 @@
 								<a
 									href="/series/{item.series.id}/watch/{item.season_id}/{item.episode}"
 									class="flex h-full flex-col"
-									aria-label={["Continue watching " + item.series.title, place(item)]
+									aria-label={["Continue watching " + item.series.title, spoken(item)]
 										.filter((part) => !!part)
 										.join(", ")}
 								>

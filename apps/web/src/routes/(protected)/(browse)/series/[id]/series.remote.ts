@@ -1,6 +1,6 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getShows } from "$lib/shows.remote";
+import { getHistory, getShows } from "$lib/shows.remote";
 import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
 import { z } from "zod";
 
@@ -39,6 +39,7 @@ export const markSeason = command(
 			getSeriesProgress(seriesId).refresh(),
 			getShows().refresh(),
 			getContinueWatching().refresh(),
+			getHistory(undefined).refresh(),
 		]);
 	},
 );
@@ -67,6 +68,7 @@ export const markEpisode = command(
 			getSeriesProgress(seriesId).refresh(),
 			getShows().refresh(),
 			getContinueWatching().refresh(),
+			getHistory(undefined).refresh(),
 		]);
 	},
 );

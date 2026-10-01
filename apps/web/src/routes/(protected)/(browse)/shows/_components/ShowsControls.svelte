@@ -1,4 +1,6 @@
 <script lang="ts" module>
+	import type { Show } from "@sora/sdk";
+
 	export const sorts = [
 		{
 			value: "recent",
@@ -16,14 +18,25 @@
 
 	export const filters = [
 		{
-			value: "unstarted",
+			value: "watching",
+			label: "Watching",
+		},
+		{
+			value: "planned",
 			label: "Not Started",
+		},
+		{
+			value: "completed",
+			label: "Completed",
 		},
 		{
 			value: "dropped",
 			label: "Dropped",
 		},
-	] as const;
+	] as const satisfies {
+		value: Show["status"];
+		label: string;
+	}[];
 
 	export type ShowsSort = (typeof sorts)[number]["value"];
 	export type ShowsFilter = (typeof filters)[number]["value"];

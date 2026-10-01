@@ -4,7 +4,7 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import type { HistoryItem } from "@sora/sdk";
-	import { TrashIcon } from "phosphor-svelte";
+	import { PlayIcon, TrashIcon } from "phosphor-svelte";
 
 	let {
 		item,
@@ -15,6 +15,11 @@
 	} = $props();
 
 	const image = $derived(item.episode_still_url ?? item.series.backdrop_url);
+	const left = $derived(
+		!item.watched && item.duration_seconds !== null && item.position_seconds !== null
+			? item.duration_seconds - item.position_seconds
+			: null,
+	);
 </script>
 
 <article
@@ -39,7 +44,9 @@
 			<span
 				class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 			>
-				{#if item.duration_seconds}
+				{#if left !== null}
+					{formatDuration(Math.max(1, left / 60))} left
+				{:else if item.duration_seconds}
 					<span class="group-focus-within:hidden group-hover:hidden">Watched</span>
 					<span class="hidden group-focus-within:inline group-hover:inline">
 						{formatDuration(item.duration_seconds / 60)}
@@ -48,6 +55,21 @@
 					Watched
 				{/if}
 			</span>
+			{#if left !== null && item.duration_seconds}
+				<PlayIcon
+					class="absolute inset-0 m-auto text-white opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+					size="2.5rem"
+					weight="fill"
+					aria-hidden="true"
+				/>
+				<progress
+					class="absolute inset-x-0 bottom-0 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+					value={(item.duration_seconds - left) / item.duration_seconds}
+					aria-label="{Math.round(
+						((item.duration_seconds - left) / item.duration_seconds) * 100,
+					)}% watched"
+				></progress>
+			{/if}
 		</div>
 
 		<div class="pt-3">
@@ -68,8 +90,8 @@
 	</a>
 
 	<div class="mt-auto flex items-center justify-between gap-3 pt-3">
-		<time class="text-sm text-muted" datetime={item.finished_at}>
-			{new Date(item.finished_at).toLocaleDateString("en-US", {
+		<time class="text-sm text-muted" datetime={item.listed_at}>
+			{new Date(item.listed_at).toLocaleDateString("en-US", {
 				month: "short",
 				day: "numeric",
 				year: "numeric",

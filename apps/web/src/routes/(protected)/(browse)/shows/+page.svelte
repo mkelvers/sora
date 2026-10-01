@@ -8,7 +8,7 @@
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
-	import { getShows } from "$lib/shows.remote";
+	import { getHistory, getShows } from "$lib/shows.remote";
 	import type { HistoryItem, Show } from "@sora/sdk";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
@@ -19,7 +19,7 @@
 		type ShowsFilter,
 		type ShowsSort,
 	} from "./_components/ShowsControls.svelte";
-	import { forgetEpisode, getHistory } from "./shows.remote";
+	import { forgetEpisode } from "./shows.remote";
 
 	let tab = $state<"shows" | "history">("shows");
 	const shows = getShows();
@@ -60,9 +60,17 @@
 			hint: string;
 		}
 	> = {
-		unstarted: {
+		watching: {
+			title: "Nothing on the go right now.",
+			hint: "Start an episode and the show lands here.",
+		},
+		planned: {
 			title: "Nothing lined up to watch next.",
 			hint: "Add a few shows you've been meaning to start.",
+		},
+		completed: {
+			title: "Nothing finished yet.",
+			hint: "Shows you watch to the end land here.",
 		},
 		dropped: {
 			title: "Nothing dropped. Everything's still in the running.",
@@ -77,9 +85,8 @@
 	};
 
 	const shown = $derived.by(() => {
-		const entries = (shows.current ?? []).filter(
-			(show) =>
-				show.dropped === (filter === "dropped") && (filter !== "unstarted" || !show.started),
+		const entries = (shows.current ?? []).filter((show) =>
+			filter ? show.status === filter : show.status !== "dropped",
 		);
 		const order = compare[sort];
 		return order ? entries.toSorted(order) : entries;
@@ -170,7 +177,7 @@
 						width={690}
 						height={720}
 						title="Nothing watched yet."
-						hint="Finish an episode and it'll show up here."
+						hint="Play an episode and it'll show up here."
 					/>
 				{:else}
 					<ul class="grid grid-cols-1 gap-x-4 gap-y-6 pb-10 min-[30em]:grid-cols-2 lg:grid-cols-4">

@@ -98,12 +98,16 @@
 						<span class="sr-only">Filler episode</span>
 					</span>
 				{/if}
-				{#if watched || episode.runtime_minutes}
+				{#if watched || played || episode.runtime_minutes}
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
 						{#if watched}
 							Watched
+						{:else if progress && played}
+							{formatDuration(
+								Math.max(1, (progress.duration_seconds - progress.position_seconds) / 60),
+							)} left
 						{:else if episode.runtime_minutes}
 							{formatDuration(episode.runtime_minutes)}
 						{/if}
