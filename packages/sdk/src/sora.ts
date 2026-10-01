@@ -3,7 +3,10 @@ import type {
 	AppType,
 	ContinueWatching,
 	CountMeta,
+	Dropped,
 	Envelope,
+	HistoryItem,
+	HistoryMeta,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -25,6 +28,7 @@ import type {
 	SeriesMeta,
 	SeriesProgress,
 	SeriesWithEpisodes,
+	Show,
 	UpcomingSeries,
 } from "@sora/api";
 import type { BrowseQuery } from "@sora/core/catalog";
@@ -122,6 +126,14 @@ export interface ProgressInput {
 	 * credits are (see `PlaybackMedia.skip_segments`).
 	 */
 	finished: boolean;
+}
+
+/** Paging for {@link SoraClient.history}. */
+export interface HistoryParams {
+	/** Where the page starts: the `after` query parameter of the previous page's `meta.next`. */
+	after?: string;
+	/** @defaultValue 50 */
+	limit?: number;
 }
 
 /** Filters and sorting for {@link SoraClient.images}. */
@@ -467,16 +479,153 @@ export class SoraClient {
 	}
 
 	/**
-	 * Forgets a profile's progress in every episode of a show, which takes
-	 * the show out of {@link continueWatching}.
+	 * Takes a show's card out of {@link continueWatching}. Its progress and
+	 * history stay, and so does the show in the profile's Shows; playing or
+	 * marking an episode of it brings the card back.
 	 */
-	async removeProgress(
+	async dismissContinueWatching(
 		profileId: string,
 		seriesId: string,
 		options?: RequestOptions,
 	): Promise<void> {
 		await send(
-			this.#api.profiles[":profile_id"].series[":series_id"].progress.$delete(
+			this.#api.profiles[":profile_id"]["continue-watching"][":series_id"].$delete(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Marks an episode as watched without playing it, and saves its series to
+	 * the profile's Shows. It enters {@link history} at the time of marking.
+	 */
+	async markEpisode(
+		profileId: string,
+		episode: EpisodeRef,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].episodes[":episode"].watched.$put(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: episode.seasonId,
+						episode: episode.number.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Makes an episode unwatched: takes it out of the profile's
+	 * {@link history}, and forgets where the profile stopped in it.
+	 */
+	async unmarkEpisode(
+		profileId: string,
+		episode: EpisodeRef,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].episodes[":episode"].watched.$delete(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: episode.seasonId,
+						episode: episode.number.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Marks every episode of a season that can be played as watched, without
+	 * playing them, and saves the series to the profile's Shows. They enter
+	 * {@link history} at the time of marking.
+	 */
+	async markSeason(profileId: string, seasonId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].watched.$put(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: seasonId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Makes a season unwatched: forgets which of its episodes the profile
+	 * watched, finished or marked, and where it stopped in them.
+	 */
+	async unmarkSeason(profileId: string, seasonId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].seasons[":season_id"].watched.$delete(
+				{
+					param: {
+						profile_id: profileId,
+						season_id: seasonId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * The series a profile dropped, and the stored series related to them,
+	 * to leave both out of what is suggested to the profile.
+	 */
+	async dropped(profileId: string, options?: RequestOptions): Promise<Dropped> {
+		const body = await read(
+			this.#api.profiles[":profile_id"].dropped.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return body.results;
+	}
+
+	/**
+	 * Drops a whole series for a profile, and saves it to its Shows. Its
+	 * progress and history stay; it leaves {@link continueWatching}, and it
+	 * and the series related to it are no longer featured. Only
+	 * {@link undropShow} ends a drop.
+	 */
+	async dropShow(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].dropped[":series_id"].$put(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Ends a profile's drop of a series. */
+	async undropShow(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].dropped[":series_id"].$delete(
 				{
 					param: {
 						profile_id: profileId,
@@ -491,7 +640,9 @@ export class SoraClient {
 	/**
 	 * The shows a profile is in the middle of, the most recently played
 	 * first, each with the episode to play next: the one it stopped in, or
-	 * the one after the last it finished.
+	 * the one after the last it finished. A show is left out while its next
+	 * season is still airing or its next part is a film, an OVA, or a
+	 * special, until the profile starts that itself.
 	 */
 	async continueWatching<const TOptions extends RequestOptions = {}>(
 		profileId: string,
@@ -502,6 +653,90 @@ export class SoraClient {
 				{
 					param: {
 						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * A profile's Shows, the most recently active first: the series it saved
+	 * to watch later, and the ones it started watching.
+	 */
+	async shows<const TOptions extends RequestOptions = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, Show[], CountMeta>> {
+		const body: Envelope<Show[], CountMeta> = await read(
+			this.#api.profiles[":profile_id"].shows.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Saves a series to a profile's Shows; one already there stays as it is.
+	 * Playing an episode of a series saves it too.
+	 */
+	async addShow(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].shows[":series_id"].$put(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * Takes a series out of a profile's Shows and out of
+	 * {@link continueWatching}. Its progress and history stay, so playing an
+	 * episode of it brings it back where the profile left off.
+	 */
+	async removeShow(profileId: string, seriesId: string, options?: RequestOptions): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].shows[":series_id"].$delete(
+				{
+					param: {
+						profile_id: profileId,
+						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * The episodes a profile finished or marked watched, the most recent
+	 * first, a page at a time. Each is listed once, at when it was first
+	 * finished or marked.
+	 */
+	async history<const TOptions extends RequestOptions<HistoryParams> = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, HistoryItem[], HistoryMeta>> {
+		const body: Envelope<HistoryItem[], HistoryMeta> = await read(
+			this.#api.profiles[":profile_id"].history.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					query: {
+						after: options?.params?.after,
+						limit: options?.params?.limit?.toString(),
 					},
 				},
 				init(options),
