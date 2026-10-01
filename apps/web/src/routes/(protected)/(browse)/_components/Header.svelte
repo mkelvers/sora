@@ -9,6 +9,7 @@
 	import { profilesPage } from "$routes/(protected)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
+		BookmarkSimpleIcon,
 		CaretDownIcon,
 		ListIcon,
 		PencilSimpleIcon,
@@ -73,7 +74,7 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{#each [{ href: "/", label: "Home" }, ...categories] as section (section.href)}
+						{#each [{ href: "/", label: "Home" }, ...categories, { href: "/shows", label: "Shows" }] as section (section.href)}
 							<li>
 								<Button
 									href={section.href}
@@ -204,6 +205,15 @@
 
 		<div class="flex h-full items-center">
 			<Search />
+
+			<a
+				href="/shows"
+				class="relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14"
+				aria-label="Shows"
+				aria-current={page.url.pathname === "/shows" ? "page" : undefined}
+			>
+				<BookmarkSimpleIcon size="1.5rem" />
+			</a>
 
 			<div
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
