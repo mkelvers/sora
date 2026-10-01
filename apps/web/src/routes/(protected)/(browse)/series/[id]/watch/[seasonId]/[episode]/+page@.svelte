@@ -68,13 +68,15 @@
 		season={series.seasons.length > 1 ? season.title : undefined}
 		{preferences}
 		start={progress && !progress.finished ? progress.position_seconds : 0}
-		onprogress={(position, duration, finished) =>
+		onprogress={(position, duration, finished, leaving) =>
 			saveProgress({
+				seriesId: series.id,
 				seasonId: season.id,
 				episode: episode.number,
 				position_seconds: Math.floor(position),
 				duration_seconds: Math.floor(duration),
 				finished,
+				leaving,
 			}).catch(() => {})}
 		onpreferences={(changes) =>
 			savePlaybackPreferences(changes)

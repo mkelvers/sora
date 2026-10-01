@@ -1,5 +1,8 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
+import { getHistory, getShows } from "$lib/shows.remote";
+import { getContinueWatching } from "$routes/(protected)/(browse)/home.remote";
+import { getSeriesProgress } from "$routes/(protected)/(browse)/series/[id]/series.remote";
 import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
@@ -87,13 +90,15 @@ export const getProgress = query(EpisodeAddress, async ({ seasonId, episode }) =
 
 export const saveProgress = command(
 	z.object({
+		seriesId: z.string(),
 		seasonId: z.string(),
 		episode: z.number().int().positive(),
 		position_seconds: z.number().int().nonnegative(),
 		duration_seconds: z.number().int().positive(),
 		finished: z.boolean(),
+		leaving: z.boolean(),
 	}),
-	async ({ seasonId, episode, ...progress }) => {
+	async ({ seriesId, seasonId, episode, leaving, ...progress }) => {
 		const viewer = remoteViewer();
 
 		await viewer.sora.saveProgress(
@@ -104,6 +109,15 @@ export const saveProgress = command(
 			},
 			progress,
 		);
+
+		if (leaving) {
+			await Promise.all([
+				getSeriesProgress(seriesId).refresh(),
+				getContinueWatching().refresh(),
+				getShows().refresh(),
+				getHistory(undefined).refresh(),
+			]);
+		}
 	},
 );
 

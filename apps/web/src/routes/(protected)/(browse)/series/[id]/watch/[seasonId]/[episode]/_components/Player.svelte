@@ -19,7 +19,7 @@
 		season?: string;
 		preferences: PlaybackPreferences;
 		start: number;
-		onprogress: (position: number, duration: number, finished: boolean) => void;
+		onprogress: (position: number, duration: number, finished: boolean, leaving: boolean) => void;
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 		onnearend: () => void;
 		onended: () => void;
@@ -68,13 +68,13 @@
 		untrack(onnearend);
 	});
 
-	function report(ended = false) {
+	function report(ended = false, leaving = false) {
 		if (!(player.duration >= 1) || player.time <= 0) {
 			return;
 		}
 
 		const watched = segment?.kind === "ending" ? segment.end : player.time;
-		onprogress(player.time, player.duration, ended || player.duration - watched <= 60);
+		onprogress(player.time, player.duration, ended || player.duration - watched <= 60, leaving);
 	}
 
 	$effect(() => {
@@ -87,7 +87,7 @@
 		return () => clearInterval(timer);
 	});
 
-	onDestroy(() => report());
+	onDestroy(() => report(false, true));
 
 	const audio = $derived(
 		versions?.find((version) => version.audio === preferences.audio)?.audio ?? versions?.[0]?.audio,
