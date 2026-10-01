@@ -15,6 +15,9 @@ import { logoPlacement } from "@sora/core/series";
 import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
 	ContinueWatchingSchema,
+	DroppedSchema,
+	HistoryItemSchema,
+	HistoryMetaSchema,
 	EpisodeNumberParam,
 	ImageTypeSchema,
 	json,
@@ -38,6 +41,7 @@ import {
 	SeriesIdParam,
 	SeriesImageSchema,
 	SeriesProgressSchema,
+	ShowSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
 } from "./schemas";
@@ -812,29 +816,6 @@ export const getSeriesProgress = createRoute({
 	},
 });
 
-export const removeProgress = createRoute({
-	operationId: "removeProgress",
-	method: "delete",
-	path: "/profiles/{profile_id}/series/{series_id}/progress",
-	tags: ["Profiles"],
-	summary: "Forget the profile's progress in a show",
-	description:
-		"Forgets the profile's progress in every episode of the show, which takes the show out of `listContinueWatching`.",
-	security: signedIn,
-	request: {
-		params: ProfileParams.extend({
-			series_id: SeriesIdParam,
-		}),
-	},
-	responses: {
-		204: {
-			description: "Forgotten.",
-		},
-		401: problem("Not signed in."),
-		404: problem("The account has no such profile, or the series does not exist."),
-	},
-});
-
 export const listContinueWatching = createRoute({
 	operationId: "listContinueWatching",
 	method: "get",
@@ -849,6 +830,274 @@ export const listContinueWatching = createRoute({
 	},
 	responses: {
 		200: json(envelopeOf(z.array(ContinueWatchingSchema), CountMetaSchema), "The shows."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const listShows = createRoute({
+	operationId: "listShows",
+	method: "get",
+	path: "/profiles/{profile_id}/shows",
+	tags: ["Profiles"],
+	summary: "The profile's Shows",
+	description:
+		"The series the profile saved to watch later, and the ones it started watching, the most recently active first. A series is listed once however many of its seasons the profile watched. Dropped series are among them, marked as such.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(z.array(ShowSchema), CountMetaSchema), "The shows."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const addShow = createRoute({
+	operationId: "addShow",
+	method: "put",
+	path: "/profiles/{profile_id}/shows/{series_id}",
+	tags: ["Profiles"],
+	summary: "Save a series to the profile's Shows",
+	description:
+		"A series already there stays as it is. Playing an episode of a series saves it too, so this is only needed for one to watch later.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "Saved, or was there already.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the series does not exist."),
+	},
+});
+
+export const removeShow = createRoute({
+	operationId: "removeShow",
+	method: "delete",
+	path: "/profiles/{profile_id}/shows/{series_id}",
+	tags: ["Profiles"],
+	summary: "Take a series out of the profile's Shows",
+	description:
+		"Takes the series out of the profile's Shows, and with it out of `listContinueWatching`. The profile's progress and history in it stay, so playing an episode of it brings it back where the profile left off.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "Taken out, or was not there.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const getHistory = createRoute({
+	operationId: "getHistory",
+	method: "get",
+	path: "/profiles/{profile_id}/history",
+	tags: ["Profiles"],
+	summary: "The episodes the profile watched",
+	description:
+		"One item per episode, the most recently finished first, a page at a time. An episode is listed at when the profile first finished it: playing it again neither lists it again nor moves it up. An episode marked watched is listed at when it was marked.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+		query: z.object({
+			after: z.string().optional().openapi({
+				description: "Where the page starts: taken from the previous page's `next`.",
+			}),
+			limit: z.coerce.number().int().min(1).max(200).optional().openapi({
+				description: "Items per page; 50 when omitted.",
+			}),
+		}),
+	},
+	responses: {
+		200: json(envelopeOf(z.array(HistoryItemSchema), HistoryMetaSchema), "The page."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+		422: problem("`after` is not from a previous page."),
+	},
+});
+
+export const dismissContinueWatching = createRoute({
+	operationId: "dismissContinueWatching",
+	method: "delete",
+	path: "/profiles/{profile_id}/continue-watching/{series_id}",
+	tags: ["Profiles"],
+	summary: "Take a show's card out of Continue Watching",
+	description:
+		"Takes the show out of `listContinueWatching`. The profile's progress and history in it stay, and so does the show in its Shows; playing or marking an episode of it brings it back.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "Taken out, or was not listed.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+/** A season, under the profile that watched it. */
+const ProfileSeasonParams = ProfileParams.extend({
+	season_id: SeasonIdParam,
+});
+
+export const markSeason = createRoute({
+	operationId: "markSeason",
+	method: "put",
+	path: "/profiles/{profile_id}/seasons/{season_id}/watched",
+	tags: ["Profiles"],
+	summary: "Mark a season watched",
+	description:
+		"Marks every episode of the season that can be played as watched, without playing them, and saves the series to the profile's Shows. Episodes the profile finished stay as they are. The marked episodes enter `getHistory` at the time of marking.",
+	security: signedIn,
+	request: {
+		params: ProfileSeasonParams,
+	},
+	responses: {
+		204: {
+			description: "Marked.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the season does not exist."),
+	},
+});
+
+export const unmarkSeason = createRoute({
+	operationId: "unmarkSeason",
+	method: "delete",
+	path: "/profiles/{profile_id}/seasons/{season_id}/watched",
+	tags: ["Profiles"],
+	summary: "Make a season unwatched",
+	description:
+		"Forgets which episodes of the season the profile watched, finished or marked, and where it stopped in them, which takes them out of its history.",
+	security: signedIn,
+	request: {
+		params: ProfileSeasonParams,
+	},
+	responses: {
+		204: {
+			description: "Forgotten.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the season does not exist."),
+	},
+});
+
+export const getDropped = createRoute({
+	operationId: "getDropped",
+	method: "get",
+	path: "/profiles/{profile_id}/dropped",
+	tags: ["Profiles"],
+	summary: "The series the profile dropped",
+	description:
+		"The IDs of the series the profile dropped, and of the stored series related to them, to leave both out of what is suggested to the profile.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(DroppedSchema, EmptyMetaSchema), "The series."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const dropShow = createRoute({
+	operationId: "dropShow",
+	method: "put",
+	path: "/profiles/{profile_id}/dropped/{series_id}",
+	tags: ["Profiles"],
+	summary: "Drop a series",
+	description:
+		"Drops the whole series for the profile, and saves it to its Shows so it can be found there. Its progress and history stay. The series leaves `listContinueWatching`, and it and the series related to it are no longer featured. Only `undropShow` ends a drop: new episodes do not, and neither does playing one.",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "Dropped, or was already.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the series does not exist."),
+	},
+});
+
+export const undropShow = createRoute({
+	operationId: "undropShow",
+	method: "delete",
+	path: "/profiles/{profile_id}/dropped/{series_id}",
+	tags: ["Profiles"],
+	summary: "End the drop of a series",
+	security: signedIn,
+	request: {
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
+	},
+	responses: {
+		204: {
+			description: "No longer dropped, or was not.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const markEpisode = createRoute({
+	operationId: "markEpisode",
+	method: "put",
+	path: "/profiles/{profile_id}/seasons/{season_id}/episodes/{episode}/watched",
+	tags: ["Profiles"],
+	summary: "Mark an episode watched",
+	description:
+		"Marks the episode as watched without playing it, and saves its series to the profile's Shows. An episode the profile finished stays as it is. The episode enters `getHistory` at the time of marking.",
+	security: signedIn,
+	request: {
+		params: ProfileEpisodeParams,
+	},
+	responses: {
+		204: {
+			description: "Marked.",
+		},
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile, or the season has no such playable episode."),
+	},
+});
+
+export const unmarkEpisode = createRoute({
+	operationId: "unmarkEpisode",
+	method: "delete",
+	path: "/profiles/{profile_id}/seasons/{season_id}/episodes/{episode}/watched",
+	tags: ["Profiles"],
+	summary: "Make an episode unwatched",
+	description:
+		"Takes the episode out of the profile's history, and forgets where it stopped in it.",
+	security: signedIn,
+	request: {
+		params: ProfileEpisodeParams,
+	},
+	responses: {
+		204: {
+			description: "Forgotten, or was not watched.",
+		},
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},

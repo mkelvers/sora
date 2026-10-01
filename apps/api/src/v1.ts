@@ -9,13 +9,24 @@ import {
 } from "@sora/core/auth";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
+	addShow,
+	dismissContinueWatching,
+	dropShow,
 	getContinueWatching,
+	getDropped,
 	getFeatured,
+	getHistory,
 	getPlaybackPreferences,
 	getProgress,
 	getSeriesProgress,
-	removeProgress,
+	getShows,
+	markEpisode,
+	markSeason,
+	removeShow,
 	saveProgress,
+	undropShow,
+	unmarkEpisode,
+	unmarkSeason,
 	updatePlaybackPreferences,
 } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
@@ -547,10 +558,70 @@ export const v1Routes = v1
 		);
 	})
 
-	.openapi(route.removeProgress, async (c) => {
+	.openapi(route.dismissContinueWatching, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeProgress(profile.id, series_id);
+		await dismissContinueWatching(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.markSeason, async (c) => {
+		const { profile_id, season_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await markSeason(profile.id, season_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.unmarkSeason, async (c) => {
+		const { profile_id, season_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await unmarkSeason(profile.id, season_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.markEpisode, async (c) => {
+		const { profile_id, season_id, episode } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await markEpisode(profile.id, {
+			seasonId: season_id,
+			episode,
+		});
+		return c.body(null, 204);
+	})
+
+	.openapi(route.unmarkEpisode, async (c) => {
+		const { profile_id, season_id, episode } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await unmarkEpisode(profile.id, {
+			seasonId: season_id,
+			episode,
+		});
+		return c.body(null, 204);
+	})
+
+	.openapi(route.getDropped, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const dropped = await getDropped(profile.id);
+		return c.json(
+			{
+				meta: {},
+				results: snakeCased(dropped),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.dropShow, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await dropShow(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.undropShow, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await undropShow(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
@@ -563,6 +634,55 @@ export const v1Routes = v1
 					count: shows.length,
 				},
 				results: snakeCased(shows),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listShows, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const shows = await getShows(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: shows.length,
+				},
+				results: snakeCased(shows),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.addShow, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await addShow(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.removeShow, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await removeShow(profile.id, series_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.getHistory, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const query = c.req.valid("query");
+		const page = await getHistory(profile.id, {
+			after: query.after,
+			limit: query.limit,
+		});
+		const next = new URL(c.req.url);
+		next.searchParams.set("after", page.next ?? "");
+		return c.json(
+			{
+				meta: {
+					count: page.items.length,
+					next: page.next === null ? null : `${next.pathname}${next.search}`,
+				},
+				results: snakeCased(page.items),
 			},
 			200,
 		);

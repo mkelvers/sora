@@ -9,10 +9,13 @@ import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatching,
+	Dropped,
+	HistoryItem,
 	NextEpisode,
 	PlaybackPreferences,
 	Progress,
 	SeriesProgress,
+	Show,
 	SubtitleChoice,
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
@@ -648,9 +651,112 @@ export const SeriesProgressSchema = z
 			description:
 				"The progress in every episode of the show the profile played, the most recently played first.",
 		}),
+		watched: z
+			.array(
+				z.object({
+					season_id: z.string(),
+					episode: z.number().int().openapi({
+						description: "Position within the season, from 1.",
+					}),
+				}),
+			)
+			.openapi({
+				description:
+					"The episodes of the show the profile watched, in no particular order: the ones it finished at some point, and the ones it marked. One stays here while its progress is unfinished again from playing it a second time.",
+			}),
+		watched_seasons: z.array(z.string()).openapi({
+			description: "The IDs of the seasons whose every episode that can be played is in `watched`.",
+		}),
+		completed_seasons: z.array(z.string()).openapi({
+			description:
+				"The IDs of the seasons the profile completed: the ones in `watched_seasons` that have finished coming out. A season still airing is never complete.",
+		}),
+		completed: z.boolean().openapi({
+			description:
+				"Whether the profile completed the show: every regular season of its story that has an episode out is in `completed_seasons`. Films, OVAs, and specials do not count, unless the show has no regular season; nor does a season announced with nothing out yet. A new season starting to air makes a completed show incomplete again.",
+		}),
 		next: NextEpisodeSchema.nullable().openapi({
 			description:
-				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the show, or finished the last episode that is out.",
+				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the show, or nothing comes after the last one it finished.",
+		}),
+		offered: NextEpisodeSchema.nullable().openapi({
+			description:
+				"The first episode of the part that comes after, when `next` is null because the show does not go on into that part by itself: a season still airing, a film, an OVA, or a special. The profile starts it to go on.",
 		}),
 	})
 	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
+
+export const ShowSchema = z
+	.object({
+		series: SeriesCardSchema,
+		added_at: z.string().openapi({
+			description: "When the series entered the profile's Shows, as an ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+		started: z.boolean().openapi({
+			description:
+				"Whether the profile played or watched an episode of the series. Opening its page does not start it.",
+		}),
+		dropped: z.boolean().openapi({
+			description: "Whether the profile dropped the series; see `dropShow`.",
+		}),
+		next: NextEpisodeSchema.nullable().openapi({
+			description: "The episode to play next, as `SeriesProgress.next` tells it.",
+		}),
+		offered: NextEpisodeSchema.nullable().openapi({
+			description: "The episode the series stops before, as `SeriesProgress.offered` tells it.",
+		}),
+		active_at: z.string().openapi({
+			description:
+				"When the profile last had to do with the series: played an episode of it, or, before that, added it. An ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+	})
+	.openapi("Show") satisfies z.ZodType<SnakeCased<Show>>;
+
+export const HistoryItemSchema = z
+	.object({
+		series: SeriesCardSchema,
+		season_id: z.string(),
+		season_title: z.string().openapi({
+			example: "Season 2",
+		}),
+		season_kind: z.enum(["season", "ova", "movie"]),
+		episode: z.number().int().openapi({
+			description: "Position within the season, from 1.",
+		}),
+		episode_title: z.string().nullable(),
+		episode_still_url: z.string().nullable(),
+		duration_seconds: z.number().int().nullable().openapi({
+			description:
+				"How long the episode ran when the profile last played it, in seconds; null for one it marked watched and never played.",
+		}),
+		finished_at: z.string().openapi({
+			description:
+				"When the profile first finished the episode, or marked it watched, as an ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+	})
+	.openapi("HistoryItem") satisfies z.ZodType<SnakeCased<HistoryItem>>;
+
+export const HistoryMetaSchema = z
+	.object({
+		count: z.number().int().nonnegative(),
+		next: z.string().nullable().openapi({
+			description: "The next page's URL, or null on the last page.",
+			example: "/v1/profiles/7HTQ2LMXB/history?after=2026-10-01T18:00:00.000Z_EWBMBNIV4_12",
+		}),
+	})
+	.openapi("HistoryMeta");
+
+export const DroppedSchema = z
+	.object({
+		series_ids: z.array(z.string()).openapi({
+			description: "The series the profile dropped.",
+		}),
+		related_series_ids: z.array(z.string()).openapi({
+			description:
+				"The stored series related to a dropped one, such as its spin-offs and the sequels listed as shows of their own. They are not dropped, but leave them out of what is suggested to the profile all the same.",
+		}),
+	})
+	.openapi("Dropped") satisfies z.ZodType<SnakeCased<Dropped>>;

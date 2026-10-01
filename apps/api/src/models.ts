@@ -14,6 +14,9 @@ import type {
 } from "./openapi/routes";
 import type {
 	ContinueWatchingSchema,
+	DroppedSchema,
+	HistoryItemSchema,
+	HistoryMetaSchema,
 	NextEpisodeSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
@@ -29,6 +32,7 @@ import type {
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesProgressSchema,
+	ShowSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
 	SkipSegmentSchema,
@@ -50,6 +54,10 @@ export type Progress = z.infer<typeof ProgressSchema>;
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
+export type Show = z.infer<typeof ShowSchema>;
+export type Dropped = z.infer<typeof DroppedSchema>;
+export type HistoryItem = z.infer<typeof HistoryItemSchema>;
+export type HistoryMeta = z.infer<typeof HistoryMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;
