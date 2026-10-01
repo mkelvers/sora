@@ -85,20 +85,10 @@ v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 	description: "The session token from `POST /v1/auth/sign-in/email`.",
 });
 
-/** A playback's URL under its title, relative to the API's origin. */
-function playbackPath(seriesId: string, { seasonId, episode }: EpisodeAddress) {
-	return `/v1/series/${seriesId}/seasons/${seasonId}/episodes/${episode}/playback`;
-}
-
-/** A playback's URL under its season alone, relative to the API's origin. */
-function seasonPlaybackPath({ seasonId, episode }: EpisodeAddress) {
-	return `/v1/seasons/${seasonId}/episodes/${episode}/playback`;
-}
-
 /**
  * Resolves an episode's playback and the episodes either side, as both
  * playback routes answer it; `pathOf` spells the neighbours' URLs in the
- * route's own form.
+ * route's own form, relative to the API's origin.
  */
 async function playbackBody(
 	requestUrl: string,
@@ -384,7 +374,8 @@ export const v1Routes = v1
 				seasonId: season_id,
 				episode,
 			},
-			(address) => playbackPath(series_id, address),
+			({ seasonId, episode }) =>
+				`/v1/series/${series_id}/seasons/${seasonId}/episodes/${episode}/playback`,
 		);
 		// Stream URLs expire; a cached playback would hand out dead ones.
 		c.header("Cache-Control", "no-store");
@@ -401,7 +392,7 @@ export const v1Routes = v1
 				seasonId: season_id,
 				episode,
 			},
-			seasonPlaybackPath,
+			({ seasonId, episode }) => `/v1/seasons/${seasonId}/episodes/${episode}/playback`,
 		);
 		// Stream URLs expire; a cached playback would hand out dead ones.
 		c.header("Cache-Control", "no-store");

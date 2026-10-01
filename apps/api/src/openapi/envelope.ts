@@ -20,15 +20,10 @@ export type SnakeCased<TValue> = TValue extends readonly (infer TItem)[]
 			}
 		: TValue;
 
-/** Spells a camelCase name in snake_case at runtime; see {@link SnakeCase}. */
-function snakeCase(name: string) {
-	return name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-}
-
 /**
- * Renames every field of a core model, at every depth, to snake_case. The
- * core's models are plain JSON: objects, arrays, strings, numbers, booleans,
- * and nulls.
+ * Renames every field of a core model, at every depth, to snake_case (see
+ * {@link SnakeCase}). The core's models are plain JSON: objects, arrays,
+ * strings, numbers, booleans, and nulls.
  */
 export function snakeCased<TValue>(value: TValue): SnakeCased<TValue> {
 	if (Array.isArray(value)) {
@@ -37,7 +32,10 @@ export function snakeCased<TValue>(value: TValue): SnakeCased<TValue> {
 
 	if (value !== null && typeof value === "object") {
 		return Object.fromEntries(
-			Object.entries(value).map(([name, field]) => [snakeCase(name), snakeCased(field)]),
+			Object.entries(value).map(([name, field]) => [
+				name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
+				snakeCased(field),
+			]),
 		) as SnakeCased<TValue>;
 	}
 
