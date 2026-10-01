@@ -8,7 +8,8 @@
 
 	import Notification from "./_components/Notification.svelte";
 
-	const items = $derived(await getNotifications());
+	const itemsQuery = getNotifications();
+	const items = $derived(itemsQuery.current ?? []);
 	const unread = $derived(items.filter((item) => item.unread));
 	const read = $derived(items.filter((item) => !item.unread));
 
