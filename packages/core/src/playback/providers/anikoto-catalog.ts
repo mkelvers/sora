@@ -6,6 +6,7 @@ import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema";
+import { AnimeNotFoundError } from "../../errors";
 import { hour } from "../../time";
 
 const apiUrl = "https://anikotoapi.site";
@@ -335,12 +336,24 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
 		depth === 0 ||
 		anime.status === "NOT_YET_RELEASED" ||
 		!prequel?.episodes ||
+		// Adult anime are not served, so a part never continues one.
+		prequel.isAdult ||
 		formatAgreement(anime.format, prequel.format) === null
 	) {
 		return null;
 	}
 
-	const prequelAnime = await getAnime(prequel.id);
+	let prequelAnime;
+	try {
+		prequelAnime = await getAnime(prequel.id);
+	} catch (error) {
+		// A prequel AniList has since removed or marked adult.
+		if (error instanceof AnimeNotFoundError) {
+			return null;
+		}
+
+		throw error;
+	}
 	const series =
 		(await matchStoredSeries(prequelAnime)) ?? (await continuedSeries(prequelAnime, depth - 1));
 	if (!series) {
