@@ -4,10 +4,15 @@ import { z } from "zod";
 import { db } from "../database/client";
 import {
 	avatarStyle,
+	droppedSeries,
 	episodeProgress,
 	featuredPick,
+	notificationDismissal,
+	notificationRead,
 	playbackPreference,
 	profile,
+	profileShow,
+	watchedEpisode,
 } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
@@ -152,7 +157,8 @@ export async function updateProfile(
 }
 
 /**
- * Deletes a profile with its progress, preferences, and featured titles.
+ * Deletes a profile with its Shows, progress, history, drops, notification
+ * marks, preferences, and featured titles.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  * @throws {@link LastProfileError} when it is the account's only profile.
@@ -173,6 +179,11 @@ export async function deleteProfile(userId: string, profileId: string) {
 		}
 
 		await tx.delete(episodeProgress).where(eq(episodeProgress.userId, profileId));
+		await tx.delete(watchedEpisode).where(eq(watchedEpisode.userId, profileId));
+		await tx.delete(profileShow).where(eq(profileShow.userId, profileId));
+		await tx.delete(droppedSeries).where(eq(droppedSeries.userId, profileId));
+		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
+		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
 		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
