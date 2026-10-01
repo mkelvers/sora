@@ -330,7 +330,7 @@ export async function searchAnime(
 					...conditions,
 					isShort
 						? sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`
-						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${escapeLike(normalized)}%`})`,
+						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replace(/[\\%_]/g, (character) => `\\${character}`)}%`})`,
 				),
 			)
 			.orderBy(
@@ -436,10 +436,6 @@ export function shortQueryPattern(query: string) {
  * a title that merely shares some letters with the query does not.
  */
 const minimumMatch = 0.5;
-
-function escapeLike(text: string) {
-	return text.replace(/[\\%_]/g, (character) => `\\${character}`);
-}
 
 type IndexedRow = typeof animeSearch.$inferSelect;
 
