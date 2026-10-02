@@ -55,6 +55,7 @@ function released(
 			stillUrl: `still-${from + index}`,
 			releasedAt,
 			watched: false,
+			dubbed: false,
 			...overrides,
 		}),
 	);
@@ -216,5 +217,68 @@ describe("groupNotifications", () => {
 		const [after] = groupNotifications(released("s1", 5, 5, tuesday), seasons(season("s1")));
 
 		expect(after?.id).toBe(before!.id);
+	});
+
+	test("makes one notification of the episodes of a season dubbed together", () => {
+		const [notification, ...rest] = groupNotifications(
+			released("s1", 1, 3, monday, {
+				dubbed: true,
+			}),
+			seasons(season("s1")),
+		);
+
+		expect(rest).toEqual([]);
+		expect(notification).toMatchObject({
+			id: "s1:1:dub",
+			kind: "dub",
+			firstEpisode: 1,
+			lastEpisode: 3,
+			stillUrl: "still-3",
+			releasedAt: monday.toISOString(),
+		});
+	});
+
+	test("keeps a dub apart from the episodes that came out at the same moment", () => {
+		const notifications = groupNotifications(
+			[
+				...released("s1", 5, 5, monday),
+				...released("s1", 2, 2, monday, {
+					dubbed: true,
+				}),
+			],
+			seasons(season("s1")),
+		);
+
+		expect(notifications.map((item) => [item.id, item.kind]).toSorted()).toEqual([
+			["s1:2:dub", "dub"],
+			["s1:5", "episodes"],
+		]);
+	});
+
+	test("keeps a dub of episodes the user watched, until they delete it", () => {
+		const dubbed = released("s1", 4, 4, monday, {
+			dubbed: true,
+			watched: true,
+		});
+
+		expect(groupNotifications(dubbed, seasons(season("s1"))).map((item) => item.id)).toEqual([
+			"s1:4:dub",
+		]);
+		expect(groupNotifications(dubbed, seasons(season("s1")), new Set(["s1:4:dub"]))).toEqual([]);
+	});
+
+	test("leaves out the dub of an episode that cannot be played", () => {
+		expect(
+			groupNotifications(
+				released("s1", 5, 5, monday, {
+					dubbed: true,
+				}),
+				seasons(
+					season("s1", {
+						episodes: [1, 2, 3, 4],
+					}),
+				),
+			),
+		).toEqual([]);
 	});
 });

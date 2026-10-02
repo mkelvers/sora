@@ -3,6 +3,7 @@ import { and, eq, gt, inArray, isNotNull, lt, lte, notExists, sql } from "drizzl
 import { db } from "../../database/client";
 import {
 	droppedSeries,
+	episodeDub,
 	notificationDismissal,
 	notificationRead,
 	profileShow,
@@ -24,16 +25,18 @@ import { day } from "../../time";
 
 /**
  * Something that came out for a series in a user's Shows: a new season,
- * film, or OVA, or new episodes of a season that was out already.
+ * film, or OVA, new episodes of a season that was out already, or the
+ * English dub of episodes that were.
  */
 export interface Notification {
 	/** Stable for as long as the notification is listed. */
 	id: string;
 	/**
 	 * `season` when the season came out, with its first episodes or as a
-	 * film; `episodes` when a season that was out already gained episodes.
+	 * film; `episodes` when a season that was out already gained episodes;
+	 * `dub` when episodes that were out already were dubbed in English.
 	 */
-	kind: "season" | "episodes";
+	kind: "season" | "episodes" | "dub";
 	series: SeriesCard;
 	season: {
 		id: string;
@@ -43,9 +46,9 @@ export interface Notification {
 		/** Such as "Season 2" or the film's title. */
 		title: string;
 	};
-	/** The first episode that came out, from 1 within the season. */
+	/** The first episode that came out, or was dubbed, from 1 within the season. */
 	firstEpisode: number;
-	/** The last episode that came out; the same as `firstEpisode` when one did. */
+	/** The last such episode; the same as `firstEpisode` when there was one. */
 	lastEpisode: number;
 	/** The title of `lastEpisode`, or `null` when TMDB has none. */
 	episodeTitle: string | null;
@@ -69,7 +72,10 @@ export interface Notifications {
 /** How long a notification is listed after it came out. */
 const notificationLifetimeMs = 30 * day;
 
-/** One episode that came out for a series in a user's Shows, as {@link groupNotifications} reads it. */
+/**
+ * One episode that came out, or was dubbed, for a series in a user's Shows,
+ * as {@link groupNotifications} reads it.
+ */
 export interface ReleasedEpisode {
 	seriesId: string;
 	seasonId: string;
@@ -77,9 +83,12 @@ export interface ReleasedEpisode {
 	number: number;
 	title: string | null;
 	stillUrl: string | null;
+	/** When the episode came out, or its dub when `dubbed`. */
 	releasedAt: Date;
 	/** Whether the user watched it. */
 	watched: boolean;
+	/** Whether it is the episode's English dub that came out, not the episode. */
+	dubbed: boolean;
 }
 
 /** A notification before its series' card is attached. */
@@ -89,16 +98,19 @@ export type NotificationGroup = Omit<Notification, "series"> & {
 
 /**
  * Groups released episodes into notifications, newest first: the episodes
- * of one season that came out at the same moment make one.
+ * of one season that came out at the same moment make one, and so do those
+ * dubbed at the same moment.
  *
  * Only episodes that can be played count, so one that aired but that
  * AniKoto does not carry yet makes no notification until it does. A group
  * is a new `season` when it starts with the season's first playable
  * episode, and new `episodes` otherwise. One the user watched any episode
- * of is acted on and left out, as is one the user deleted.
+ * of is acted on and left out, as is one the user deleted. A `dub` stays
+ * when its episodes are watched, since a dub is news of episodes that were
+ * out already.
  *
  * A notification's ID is its season and first episode, so it stays the same
- * when the time the episode came out is corrected.
+ * when the time the episode came out is corrected; a dub's ends in `:dub`.
  *
  * @param seasons - The seasons the episodes belong to, by season ID. An
  *   episode of a season missing here is left out.
@@ -114,7 +126,7 @@ export function groupNotifications(
 	const moments = new Map<string, ReleasedEpisode[]>();
 	for (const episode of episodes) {
 		if (seasons.get(episode.seasonId)?.episodes.includes(episode.number)) {
-			const moment = `${episode.seasonId}:${episode.releasedAt.getTime()}`;
+			const moment = `${episode.seasonId}:${episode.releasedAt.getTime()}:${episode.dubbed}`;
 			moments.set(moment, [...(moments.get(moment) ?? []), episode]);
 		}
 	}
@@ -125,16 +137,16 @@ export function groupNotifications(
 			const first = sorted[0]!;
 			const last = sorted.at(-1)!;
 			const season = seasons.get(first.seasonId)!;
-			const id = `${season.id}:${first.number}`;
-			if (dismissed.has(id) || group.some((episode) => episode.watched)) {
+			const id = `${season.id}:${first.number}${first.dubbed ? ":dub" : ""}`;
+			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
 				return [];
 			}
 
-			const isNewSeason = season.episodes[0] === first.number;
+			const isNewSeason = !first.dubbed && season.episodes[0] === first.number;
 			return [
 				{
 					id,
-					kind: isNewSeason ? "season" : "episodes",
+					kind: first.dubbed ? "dub" : isNewSeason ? "season" : "episodes",
 					seriesId: first.seriesId,
 					season: {
 						id: season.id,
@@ -164,9 +176,10 @@ export function groupNotifications(
  *
  * Nothing is recorded as episodes come out: an episode counts from when it
  * aired (see {@link episodeReleasedAt}), the same time that decides whether
- * a season is offered or played next. Only what came out after the series
- * entered Shows is listed, so saving a series never brings up what it
- * already had. A series taken out of Shows drops out, as does a dropped
+ * a season is offered or played next. A dub counts from when AniKoto was
+ * first seen to carry it (see `episodeDub`), since nothing schedules every
+ * dub. Only what came out after the series entered Shows is listed, so
+ * saving a series never brings up what it already had. A series taken out of Shows drops out, as does a dropped
  * one, and a notification goes once the user watches one of its episodes
  * or deletes it. Each is `unread` until the user marks it read.
  *
@@ -181,21 +194,34 @@ export async function getNotifications(
 	now = new Date(),
 ): Promise<Notifications> {
 	const since = new Date(now.getTime() - notificationLifetimeMs);
-	const [episodes, dismissals, reads] = await Promise.all([
-		db
+	const released = (dubbed: boolean) => {
+		const releasedAt = dubbed ? sql<Date>`${episodeDub.releasedAt}` : episodeReleasedAt;
+		const episodes = db
 			.select({
 				seriesId: seriesSeason.seriesId,
 				seasonId: seriesSeason.id,
 				number: seriesEpisode.number,
 				title: seriesEpisode.title,
 				stillUrl: effectiveStill,
-				releasedAt: sql<Date>`${episodeReleasedAt}`.mapWith(seriesEpisode.airedAt),
+				releasedAt: sql<Date>`${releasedAt}`.mapWith(seriesEpisode.airedAt),
 				watched: sql<boolean>`${watchedEpisode.userId} is not null`,
 			})
 			.from(profileShow)
 			.innerJoin(series, eq(series.id, profileShow.seriesId))
 			.innerJoin(seriesSeason, eq(seriesSeason.seriesId, series.id))
-			.innerJoin(seriesEpisode, eq(seriesEpisode.seasonId, seriesSeason.id))
+			.innerJoin(seriesEpisode, eq(seriesEpisode.seasonId, seriesSeason.id));
+
+		return (
+			dubbed
+				? episodes.innerJoin(
+						episodeDub,
+						and(
+							eq(episodeDub.anilistId, seriesEpisode.anilistId),
+							eq(episodeDub.episode, seriesEpisode.anilistEpisode),
+						),
+					)
+				: episodes
+		)
 			.leftJoin(
 				watchedEpisode,
 				and(
@@ -221,11 +247,15 @@ export async function getNotifications(
 							),
 					),
 					isNotNull(seriesEpisode.anilistId),
-					gt(episodeReleasedAt, since),
-					gt(episodeReleasedAt, profileShow.addedAt),
-					lte(episodeReleasedAt, now),
+					gt(releasedAt, since),
+					gt(releasedAt, profileShow.addedAt),
+					lte(releasedAt, now),
 				),
-			),
+			);
+	};
+	const [aired, dubs, dismissals, reads] = await Promise.all([
+		released(false),
+		released(true),
 		db
 			.select({
 				notificationId: notificationDismissal.notificationId,
@@ -239,6 +269,16 @@ export async function getNotifications(
 			.from(notificationRead)
 			.where(eq(notificationRead.userId, userId)),
 	]);
+	const episodes = [
+		...aired.map((row) => ({
+			...row,
+			dubbed: false,
+		})),
+		...dubs.map((row) => ({
+			...row,
+			dubbed: true,
+		})),
+	];
 	if (episodes.length === 0) {
 		return {
 			items: [],

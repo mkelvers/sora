@@ -23,6 +23,18 @@
 		const season = item.season.title;
 		const count = item.last_episode - item.first_episode + 1;
 
+		if (item.kind === "dub") {
+			if (item.season.kind !== "season") {
+				return `${season} is now dubbed in English. Ready whenever you are.`;
+			}
+
+			if (count === 1) {
+				return `Episode ${item.last_episode} of ${season} is now dubbed in English.`;
+			}
+
+			return `${count} episodes of ${season} are now dubbed in English, ${item.first_episode} through ${item.last_episode}.`;
+		}
+
 		if (item.kind === "season") {
 			if (item.season.kind === "movie") {
 				return `${season} has arrived. A new chapter of ${title} is here, ready whenever you are.`;

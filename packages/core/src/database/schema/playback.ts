@@ -53,6 +53,37 @@ export const providerEpisodes = pgTable(
 );
 
 /**
+ * The episodes AniKoto streams dubbed in English, by AniList entry and
+ * episode, and when each dub came out. AniKoto says only which episodes are
+ * dubbed, and no schedule covers every dub, so the moment a dub is first
+ * seen on an episode AniKoto already carried is recorded as it happens; see
+ * `refreshProviderUnits`.
+ *
+ * Every dubbed episode has a row, so a dub AniKoto's list drops for a while
+ * is not taken for a new one when it is back.
+ */
+export const episodeDub = pgTable(
+	"episode_dub",
+	{
+		anilistId: integer("anilist_id").notNull(),
+		/** The episode as its AniList entry numbers it. */
+		episode: integer("episode").notNull(),
+		/**
+		 * When the dub came out, or `null` for one nobody saw come out: AniKoto
+		 * carried it when its list was first stored, or added it together with
+		 * the episode.
+		 */
+		releasedAt: timestamptz("released_at"),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.anilistId, table.episode],
+		}),
+		index("episode_dub_released_at_idx").on(table.releasedAt),
+	],
+);
+
+/**
  * AniKoto's catalogue, mirrored so an anime can be matched to its AniKoto
  * series by ID instead of by title. AniKoto records the AniList ID of about
  * half its series and the MyAnimeList ID of nearly all of them.

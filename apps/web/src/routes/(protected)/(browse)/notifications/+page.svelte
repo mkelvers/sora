@@ -15,6 +15,21 @@
 
 	let view = $state<"new" | "past">("new");
 	const shown = $derived(view === "new" ? unread : read);
+
+	$effect(() => {
+		const check = () => {
+			if (document.visibilityState === "visible") {
+				itemsQuery.refresh();
+			}
+		};
+		const timer = setInterval(check, 30_000);
+		document.addEventListener("visibilitychange", check);
+
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener("visibilitychange", check);
+		};
+	});
 </script>
 
 <svelte:head>
@@ -31,7 +46,7 @@
 			width={720}
 			height={703}
 			title="All quiet for now."
-			hint="We'll ring the bell when new episodes arrive."
+			hint="We'll ring the bell when new episodes and dubs arrive."
 		/>
 	{:else}
 		<div class="mb-6 flex min-h-12 items-center justify-between gap-4 border-b border-muted">
@@ -98,7 +113,7 @@
 					width={720}
 					height={703}
 					title="You're all caught up."
-					hint="New episodes and seasons of your shows will appear here."
+					hint="New episodes, seasons and dubs of your shows will appear here."
 				/>
 			{:else}
 				<EmptyState

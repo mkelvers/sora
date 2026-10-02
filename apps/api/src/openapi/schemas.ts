@@ -783,9 +783,9 @@ export const NotificationSchema = z
 			description: "Stable for as long as the notification is listed.",
 			example: "EWBMBNIV4:13",
 		}),
-		kind: z.enum(["season", "episodes"]).openapi({
+		kind: z.enum(["season", "episodes", "dub"]).openapi({
 			description:
-				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes.",
+				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
 		}),
 		series: SeriesCardSchema,
 		season: z.object({
@@ -799,10 +799,10 @@ export const NotificationSchema = z
 			}),
 		}),
 		first_episode: z.number().int().openapi({
-			description: "The first episode that came out, from 1 within the season.",
+			description: "The first episode that came out, or was dubbed, from 1 within the season.",
 		}),
 		last_episode: z.number().int().openapi({
-			description: "The last episode that came out; the same as `first_episode` when one did.",
+			description: "The last such episode; the same as `first_episode` when there was one.",
 		}),
 		episode_title: z.string().nullable().openapi({
 			description: "The title of `last_episode`.",

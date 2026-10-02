@@ -3,8 +3,9 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
-import { providerEpisodes, providerMapping } from "../../database/schema";
+import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
+import { aniKoto } from "../providers/registry";
 import { getProviderMedia } from "./mapping";
 
 /**
@@ -156,6 +157,10 @@ export async function refreshProviderUnits(
 		units,
 		fetchedAt: new Date(),
 	};
+	if (provider.id === aniKoto.id) {
+		await recordDubs(anime.id, units, values.fetchedAt);
+	}
+
 	await db
 		.insert(providerEpisodes)
 		.values({
@@ -169,4 +174,57 @@ export async function refreshProviderUnits(
 		});
 
 	return units;
+}
+
+/**
+ * Records the dubs in AniKoto's episode list of an anime that are not
+ * recorded yet, before the list replaces the stored one.
+ *
+ * A dub that appeared on an episode the stored list already had came out
+ * now. One nobody saw come out has no time: the list is the first stored
+ * for the anime, or the dub arrived together with its episode, which the
+ * episode coming out already tells.
+ */
+async function recordDubs(anilistId: number, units: readonly ProviderUnit[], now: Date) {
+	const dubbed = units.filter(
+		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
+	);
+	if (dubbed.length === 0) {
+		return;
+	}
+
+	const [recorded, [stored]] = await Promise.all([
+		db
+			.select({
+				episode: episodeDub.episode,
+			})
+			.from(episodeDub)
+			.where(eq(episodeDub.anilistId, anilistId)),
+		db
+			.select({
+				units: providerEpisodes.units,
+			})
+			.from(providerEpisodes)
+			.where(
+				and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, aniKoto.id)),
+			)
+			.limit(1),
+	]);
+	const known = new Set(recorded.map((row) => row.episode));
+	const previous = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+	const carried = new Set(previous?.success ? previous.data.map((unit) => unit.number) : []);
+
+	const fresh = dubbed.filter((unit) => !known.has(unit.number));
+	if (fresh.length > 0) {
+		await db
+			.insert(episodeDub)
+			.values(
+				fresh.map((unit) => ({
+					anilistId,
+					episode: unit.number,
+					releasedAt: carried.has(unit.number) ? now : null,
+				})),
+			)
+			.onConflictDoNothing();
+	}
 }
