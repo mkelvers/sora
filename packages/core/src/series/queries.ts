@@ -14,6 +14,8 @@ import { db } from "../database/client";
 import {
 	anime as animeTable,
 	anikotoSeries,
+	animeScheduleRelease,
+	animeScheduleShow,
 	animeSearch,
 	imageEdge,
 	noArtwork,
@@ -30,7 +32,13 @@ import { aniKoto } from "../playback/providers/registry";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { day } from "../time";
 import { effectiveBackdrop, effectiveStill } from "./edges";
-import { anilistEpisodeKey, isEpisodeShown, loadAniKotoEpisodes } from "./episodes";
+import {
+	anilistEpisodeKey,
+	expectedRelease,
+	isEpisodeAwaited,
+	isEpisodeShown,
+	loadAniKotoEpisodes,
+} from "./episodes";
 import type {
 	ContentLanguage,
 	PreparingTitle,
@@ -86,6 +94,9 @@ export async function getSeries(seriesId: string): Promise<Series> {
 
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
+	const overdue = await overdueEpisode(
+		(listed.get(row.id) ?? []).flatMap((season) => season.awaited),
+	);
 	return {
 		...cards.get(row.id)!,
 		startDate: row.startDate,
@@ -93,8 +104,11 @@ export async function getSeries(seriesId: string): Promise<Series> {
 		tags: anchor.tags,
 		studios: anchor.studios,
 		scoreCount: indexed?.scoreCount ?? null,
+		// An aired episode still to come out is next until it is listed, ahead of
+		// the one AniList announces after it.
 		nextEpisode:
-			isNextEpisodeAhead &&
+			overdue ??
+			(isNextEpisodeAhead &&
 			row.nextEpisodeSeasonId !== null &&
 			row.nextEpisodeNumber !== null &&
 			row.nextEpisodeAiringAt
@@ -103,11 +117,82 @@ export async function getSeries(seriesId: string): Promise<Series> {
 						number: row.nextEpisodeNumber,
 						airingAt: row.nextEpisodeAiringAt.toISOString(),
 					}
-				: null,
+				: null),
 		backdropEdges: found.edges,
 		seasons: listedOnly(listed.get(row.id)),
 		related,
 	};
+}
+
+/**
+ * The first of the awaited episodes (see {@link isEpisodeAwaited}) still
+ * expected to come out, with when it is expected (see
+ * {@link expectedRelease}), or `null` when none is.
+ */
+async function overdueEpisode(
+	awaited: readonly (typeof seriesEpisode.$inferSelect)[],
+	now = new Date(),
+): Promise<Series["nextEpisode"]> {
+	if (awaited.length === 0) {
+		return null;
+	}
+
+	const scheduled = await db
+		.select({
+			anilistId: animeScheduleShow.anilistId,
+			episode: animeScheduleRelease.episode,
+			airType: animeScheduleRelease.airType,
+			airsAt: animeScheduleRelease.airsAt,
+		})
+		.from(animeScheduleRelease)
+		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
+		.where(
+			and(
+				inArray(animeScheduleShow.anilistId, [
+					...new Set(awaited.flatMap((row) => row.anilistId ?? [])),
+				]),
+				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
+			),
+		);
+	// A subbed stream's time counts over the broadcast's.
+	const scheduledAt = new Map<string, Date>();
+	for (const release of scheduled.toSorted(
+		(left, right) => Number(left.airType === "sub") - Number(right.airType === "sub"),
+	)) {
+		if (release.anilistId !== null) {
+			scheduledAt.set(anilistEpisodeKey(release.anilistId, release.episode), release.airsAt);
+		}
+	}
+
+	const [first] = awaited
+		.flatMap((row) => {
+			const expected =
+				row.anilistId !== null && row.anilistEpisode !== null && row.airedAt
+					? expectedRelease(
+							row.airedAt,
+							scheduledAt.get(anilistEpisodeKey(row.anilistId, row.anilistEpisode)) ?? null,
+							now,
+						)
+					: null;
+			return expected
+				? [
+						{
+							seasonId: row.seasonId,
+							number: row.number,
+							expected,
+						},
+					]
+				: [];
+		})
+		.toSorted((left, right) => left.expected.getTime() - right.expected.getTime());
+
+	return first
+		? {
+				seasonId: first.seasonId,
+				number: first.number,
+				airingAt: first.expected.toISOString(),
+			}
+		: null;
 }
 
 /**
@@ -715,16 +800,16 @@ async function listedSeasonsOf(titles: readonly (typeof series.$inferSelect)[], 
 			seasons
 				.filter((season) => season.seriesId === title.id)
 				.map(({ seriesId: _, ...season }) => {
-					const episodes = rows.filter(
-						(row) =>
-							row.seasonId === season.id && isEpisodeShown(title, season, row, onAniKoto, now),
-					);
+					const all = rows.filter((row) => row.seasonId === season.id);
+					const episodes = all.filter((row) => isEpisodeShown(title, season, row, onAniKoto, now));
 					return {
 						season: {
 							...season,
 							episodeCount: episodes.length,
 						},
 						episodes,
+						/** The episodes that aired but are still to come out; see {@link isEpisodeAwaited}. */
+						awaited: all.filter((row) => isEpisodeAwaited(title, season, row, onAniKoto, now)),
 					};
 				}),
 		]),

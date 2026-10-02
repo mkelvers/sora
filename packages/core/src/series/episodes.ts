@@ -5,6 +5,7 @@ import { seriesEpisode, seriesSeason } from "../database/schema";
 import { EpisodeNotFoundError, SeasonNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
+import { hour } from "../time";
 import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
 
@@ -291,4 +292,65 @@ export function isEpisodeShown(
 	const hasDetails =
 		episode.tmdbEpisodeNumber !== null || season.kind === "movie" || title.kind !== "tv";
 	return hasDetails && isEpisodeAvailable(title, episode, onAniKoto, now);
+}
+
+/**
+ * How long after an episode is expected it is still waited for. AniKoto has
+ * most subs within about an hour of when they are expected, and those of
+ * long-running shows hours later; one it does not have by then stops
+ * counting as coming.
+ */
+const releaseGraceMs = 12 * hour;
+
+/**
+ * Whether an episode has aired but is still to come out: AniList says it
+ * aired, its season does not list it yet (see {@link isEpisodeShown}), and
+ * it is the one AniKoto gets next, being its entry's first or following an
+ * episode AniKoto carries.
+ *
+ * That last part leaves out an episode AniKoto skipped while carrying later
+ * ones, and the episodes of an entry it has never carried any of. How long
+ * the episode stays awaited is up to {@link expectedRelease}.
+ */
+export function isEpisodeAwaited(
+	title: ReleaseSchedule & {
+		kind: SeriesKind;
+	},
+	season: {
+		kind: SeasonKind;
+	},
+	episode: EpisodeListingRow,
+	onAniKoto: AniKotoEpisodes,
+	now = new Date(),
+) {
+	if (episode.anilistId === null || episode.anilistEpisode === null || episode.airedAt === null) {
+		return false;
+	}
+
+	const isNextOnAniKoto =
+		episode.anilistEpisode === 1 ||
+		onAniKoto.carried.has(anilistEpisodeKey(episode.anilistId, episode.anilistEpisode - 1));
+
+	return (
+		episode.airedAt <= now &&
+		isNextOnAniKoto &&
+		!isEpisodeShown(title, season, episode, onAniKoto, now)
+	);
+}
+
+/**
+ * When an awaited episode (see {@link isEpisodeAwaited}) is expected to
+ * come out: the later of AniList's broadcast time and AnimeSchedule's time
+ * for it, which is its subbed stream where there is one and its broadcast
+ * otherwise. AnimeSchedule's is later for a stream that follows the
+ * broadcast, and for an episode that was put off.
+ *
+ * @param scheduledAt - AnimeSchedule's time, or `null` when its timetable
+ *   does not have the episode.
+ * @returns `null` once that time is more than 12 hours ago: the episode did
+ *   not come out around when it was expected, and no longer counts as coming.
+ */
+export function expectedRelease(airedAt: Date, scheduledAt: Date | null, now = new Date()) {
+	const expected = scheduledAt && scheduledAt > airedAt ? scheduledAt : airedAt;
+	return now.getTime() < expected.getTime() + releaseGraceMs ? expected : null;
 }

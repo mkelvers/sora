@@ -112,9 +112,7 @@
 		}
 
 		const airing = new Date(series.next_episode.airing_at);
-		if (airing <= new Date()) {
-			return null;
-		}
+		const aired = airing <= new Date();
 
 		const day = airing.toLocaleDateString("en-US", {
 			month: "long",
@@ -122,21 +120,26 @@
 		});
 		const { season_id, number } = series.next_episode;
 		if (number > 1) {
-			return `Next episode airs ${day} at ${airing.toLocaleTimeString("en-GB", {
+			const time = airing.toLocaleTimeString("en-GB", {
 				hour: "2-digit",
 				minute: "2-digit",
-			})}`;
+			});
+			return aired
+				? `Next episode aired ${day} at ${time}, available soon`
+				: `Next episode airs ${day} at ${time}`;
 		}
 
 		const where = series.seasons.find((other) => other.id === season_id);
 		if (where && where.kind !== "season") {
-			return `${where.title} starting ${day}`;
+			return aired ? `${where.title} available soon` : `${where.title} starting ${day}`;
 		}
 
 		const first = series.seasons.find((other) => other.kind === "season");
-		return !first || first.id === season_id
-			? `Series premiere starts ${day}`
-			: `New season starting ${day}`;
+		if (!first || first.id === season_id) {
+			return aired ? "Series premiere available soon" : `Series premiere starts ${day}`;
+		}
+
+		return aired ? "New season available soon" : `New season starting ${day}`;
 	});
 </script>
 

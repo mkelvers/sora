@@ -9,8 +9,14 @@ mock.module("../playback/providers/registry", () => ({
 	},
 }));
 
-const { anilistEpisodeKey, isEpisodeAvailable, isEpisodeReleased, isEpisodeShown } =
-	await import("./episodes");
+const {
+	anilistEpisodeKey,
+	isEpisodeAvailable,
+	expectedRelease,
+	isEpisodeAwaited,
+	isEpisodeReleased,
+	isEpisodeShown,
+} = await import("./episodes");
 
 const now = new Date("2026-09-27T16:00:00Z");
 
@@ -200,5 +206,94 @@ describe("isEpisodeShown", () => {
 				now,
 			),
 		).toBe(true);
+	});
+});
+
+describe("isEpisodeAwaited", () => {
+	test("is an aired episode that follows the latest AniKoto carries", () => {
+		expect(isEpisodeAwaited(title, season, episode, onAniKoto(13), now)).toBe(true);
+	});
+
+	test("is a premiere AniKoto does not carry yet", () => {
+		expect(
+			isEpisodeAwaited(
+				title,
+				season,
+				{
+					...episode,
+					number: 1,
+					anilistEpisode: 1,
+				},
+				onAniKoto(),
+				now,
+			),
+		).toBe(true);
+	});
+
+	test("is an episode AniKoto carries until TMDB lists it", () => {
+		expect(
+			isEpisodeAwaited(
+				title,
+				season,
+				{
+					...episode,
+					tmdbEpisodeNumber: null,
+				},
+				onAniKoto(13, 14),
+				now,
+			),
+		).toBe(true);
+	});
+
+	test("is not an episode its season lists, nor one still to air", () => {
+		expect(isEpisodeAwaited(title, season, episode, onAniKoto(13, 14), now)).toBe(false);
+		expect(
+			isEpisodeAwaited(title, season, episode, onAniKoto(13), new Date("2026-09-27T14:59:00Z")),
+		).toBe(false);
+	});
+
+	test("is not an episode AniKoto skipped, nor one of an entry it carries none of", () => {
+		expect(isEpisodeAwaited(title, season, episode, onAniKoto(12, 15), now)).toBe(false);
+		expect(isEpisodeAwaited(title, season, episode, onAniKoto(), now)).toBe(false);
+	});
+
+	test("is not an episode AniList has no broadcast time for", () => {
+		expect(
+			isEpisodeAwaited(
+				title,
+				season,
+				{
+					...episode,
+					airedAt: null,
+				},
+				onAniKoto(13),
+				now,
+			),
+		).toBe(false);
+	});
+});
+
+describe("expectedRelease", () => {
+	const airedAt = new Date("2026-09-27T15:00:00Z");
+
+	test("is AniList's broadcast time when AnimeSchedule has none, or an earlier one", () => {
+		expect(expectedRelease(airedAt, null, now)).toEqual(airedAt);
+		expect(expectedRelease(airedAt, new Date("2026-09-27T14:30:00Z"), now)).toEqual(airedAt);
+	});
+
+	test("is AnimeSchedule's time when its stream follows the broadcast", () => {
+		const streamedAt = new Date("2026-09-27T16:30:00Z");
+		expect(expectedRelease(airedAt, streamedAt, now)).toEqual(streamedAt);
+	});
+
+	test("stops 12 hours after the episode was expected", () => {
+		expect(expectedRelease(airedAt, null, new Date("2026-09-28T02:59:00Z"))).toEqual(airedAt);
+		expect(expectedRelease(airedAt, null, new Date("2026-09-28T03:00:00Z"))).toBeNull();
+	});
+
+	test("goes on for an episode AnimeSchedule lists as put off", () => {
+		const putOffTo = new Date("2026-10-04T15:00:00Z");
+		expect(expectedRelease(airedAt, putOffTo, new Date("2026-09-30T00:00:00Z"))).toEqual(putOffTo);
+		expect(expectedRelease(airedAt, putOffTo, new Date("2026-10-05T03:00:00Z"))).toBeNull();
 	});
 });

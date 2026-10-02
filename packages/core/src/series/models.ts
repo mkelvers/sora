@@ -105,12 +105,21 @@ export interface Series extends SeriesCard {
 	studios: string[];
 	/** How many AniList users have scored the first season, behind `score`; `null` until the search index has it. */
 	scoreCount: number | null;
-	/** The next episode to air, or `null` when none is announced. */
+	/**
+	 * The next episode to come out: one that aired but that its season does
+	 * not list yet because AniKoto does not carry it, for as long as it is
+	 * still expected (see `isEpisodeAwaited` and `expectedRelease`), else the
+	 * next to air. `null` when there is neither.
+	 */
 	nextEpisode: {
 		seasonId: string;
 		/** Position within the season, from 1. */
 		number: number;
-		/** ISO 8601 timestamp. */
+		/**
+		 * ISO 8601 timestamp of when it airs. For one that aired and is still to
+		 * come out, when it is expected: in the past, unless its subbed stream
+		 * or a put-off broadcast is still ahead.
+		 */
 		airingAt: string;
 	} | null;
 	/**
