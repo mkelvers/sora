@@ -55,7 +55,7 @@
 {#if episodes.current}
 	{#if episodes.current.length}
 		<ol
-			class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 2xl:grid-cols-6 hero:grid-cols-7"
+			class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 hero:grid-cols-7"
 		>
 			{#each episodes.current as episode (episode.number)}
 				<Episode
@@ -73,7 +73,7 @@
 	{/if}
 {:else}
 	<ol
-		class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 2xl:grid-cols-6 hero:grid-cols-7"
+		class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 hero:grid-cols-7"
 		aria-busy="true"
 		aria-label="Loading episodes"
 	>
