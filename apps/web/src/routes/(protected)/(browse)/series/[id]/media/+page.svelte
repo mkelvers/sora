@@ -4,7 +4,12 @@
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { cn } from "$lib/utils";
 	import { getSeries } from "$routes/(protected)/(browse)/series/[id]/series.remote";
-	import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
+	import {
+		ArrowCounterClockwiseIcon,
+		ArrowsClockwiseIcon,
+		CaretLeftIcon,
+		ResizeIcon,
+	} from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
 	import Filters from "./_components/Filters.svelte";
@@ -79,64 +84,49 @@
 		panelClass={arranging ? "flex min-h-0 flex-1 flex-col" : undefined}
 	>
 		{#snippet actions()}
-			{#if arranging}
-				<Button
-					variant="ghost"
-					class="ml-auto"
-					disabled={!placed}
-					onclick={() =>
-						media.place(series.id, {
-							scale: 1,
-							x: 0,
-							y: 0,
-						})}
-				>
-					<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
-					<span class="max-sm:sr-only">Reset</span>
-				</Button>
-			{:else}
-				<Button
-					variant="ghost"
-					class="ml-auto"
-					disabled={media.refreshing}
-					onclick={() => media.refresh(series.id)}
-				>
-					<ArrowsClockwiseIcon
-						size="1rem"
-						weight="bold"
-						class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
-					/>
-					<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
-				</Button>
-			{/if}
+			<Button
+				variant="ghost"
+				class="ml-auto"
+				disabled={media.refreshing}
+				onclick={() => media.refresh(series.id)}
+			>
+				<ArrowsClockwiseIcon
+					size="1rem"
+					weight="bold"
+					class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
+				/>
+				<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
+			</Button>
 		{/snippet}
 
 		{#snippet children()}
-			{#if media.type === "logo" && series.logo_url}
-				<nav class="mt-4" aria-label="Logos">
-					<ul class="flex gap-1">
-						{#each [{ sizing: false, label: "All logos" }, { sizing: true, label: "Sizing" }] as option (option.label)}
-							<li>
-								<Button
-									variant="ghost"
-									aria-pressed={sizing === option.sizing}
-									onclick={() => (sizing = option.sizing)}
-								>
-									{option.label}
-								</Button>
-							</li>
-						{/each}
-					</ul>
-				</nav>
-			{/if}
-
 			{#if arranging}
-				<section class="mt-6 flex min-h-0 flex-1 flex-col" aria-label="Logo sizing">
+				<section class="flex min-h-0 flex-1 flex-col" aria-label="Logo size and position">
+					<div class="mt-4 flex items-center justify-between gap-4">
+						<Button variant="ghost" onclick={() => (sizing = false)}>
+							<CaretLeftIcon size="1rem" weight="bold" />
+							All logos
+						</Button>
+						<Button
+							variant="ghost"
+							disabled={!placed}
+							onclick={() =>
+								media.place(series.id, {
+									scale: 1,
+									x: 0,
+									y: 0,
+								})}
+						>
+							<ArrowCounterClockwiseIcon size="1rem" weight="bold" />
+							Reset
+						</Button>
+					</div>
+
 					{#if media.error}
-						<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
+						<p class="mt-4 text-sm text-status-error" role="alert">{media.error}</p>
 					{/if}
 
-					<div class="@container-[size] min-h-0 flex-1">
+					<div class="@container-[size] mt-4 min-h-0 flex-1">
 						<svelte:boundary>
 							{#snippet pending()}
 								<Skeleton class="mx-auto aspect-video w-[min(100cqw,calc(100cqh*16/9))]" />
@@ -147,10 +137,17 @@
 					</div>
 				</section>
 			{:else}
-				<div class="mt-8 grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14">
+				<div class="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
 					<aside
-						class="grid content-start gap-7 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:[scrollbar-width:thin] lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
+						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:[scrollbar-width:thin] lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
 					>
+						{#if media.type === "logo" && series.logo_url}
+							<Button variant="ghost" class="justify-self-start" onclick={() => (sizing = true)}>
+								<ResizeIcon size="1rem" weight="bold" />
+								Size and position
+							</Button>
+						{/if}
+
 						<svelte:boundary>
 							{#snippet pending()}{/snippet}
 
@@ -167,7 +164,7 @@
 							{#snippet pending()}
 								<ul
 									class={cn(
-										"grid gap-x-5 gap-y-7",
+										"grid gap-x-5 gap-y-6",
 										media.type === "poster"
 											? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
 											: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -178,8 +175,7 @@
 									{#each { length: 12 }, index (index)}
 										<li>
 											<Skeleton class={media.type === "poster" ? "aspect-2/3" : "aspect-video"} />
-											<Skeleton class="mt-3 h-3 w-1/2" />
-											<Skeleton class="mt-2 h-3 w-2/3" />
+											<Skeleton class="mt-2.5 h-3 w-1/2" />
 										</li>
 									{/each}
 								</ul>

@@ -4,7 +4,6 @@
 	import { getImages } from "$routes/(protected)/(browse)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(protected)/(browse)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
-	import { HeartIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
 	type Props = {
@@ -48,7 +47,7 @@
 {#snippet tile(chosen: boolean, url: string | false, preview: Snippet, details: Snippet)}
 	<button
 		type="button"
-		class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch gap-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+		class="group grid w-full min-w-0 cursor-pointer content-start justify-stretch gap-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 		aria-pressed={chosen}
 		onclick={() => media.choose(series.id, url)}
 	>
@@ -64,7 +63,12 @@
 		>
 			{@render preview()}
 		</span>
-		<span class="grid gap-1">
+		<span
+			class={cn(
+				"flex flex-wrap items-center text-xs tabular-nums transition-colors",
+				chosen ? "text-foreground" : "text-subtle group-hover:text-muted",
+			)}
+		>
 			{@render details()}
 		</span>
 	</button>
@@ -73,7 +77,7 @@
 <ul
 	aria-label="Available {media.type}s"
 	class={cn(
-		"grid gap-x-5 gap-y-7",
+		"grid gap-x-5 gap-y-6",
 		media.type === "poster"
 			? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
 			: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -91,11 +95,9 @@
 		{/snippet}
 		{#snippet details()}
 			{#if media.type === "logo"}
-				<span class="truncate text-sm font-medium text-foreground">No logo</span>
-				<span class="text-xs text-subtle">Shows the title instead</span>
+				No logo
 			{:else}
-				<span class="truncate text-sm font-medium text-foreground">No backdrop</span>
-				<span class="text-xs text-subtle">Leaves the page plain</span>
+				No backdrop
 			{/if}
 		{/snippet}
 		<li>{@render tile(series[`${media.type}_url`] === null, false, preview, details)}</li>
@@ -119,29 +121,14 @@
 			/>
 		{/snippet}
 		{#snippet details()}
-			<span class="truncate text-sm font-medium text-foreground">
+			<span class="metadata-tag">
 				{#if image.language}
 					{languages.of(image.language)}
 				{:else}
 					Textless
 				{/if}
 			</span>
-			<span class="flex flex-wrap items-center text-xs text-subtle tabular-nums">
-				<span class="metadata-tag">{image.width}×{image.height}</span>
-				{#if image.season_number !== null}
-					<span class="metadata-tag">
-						{#if image.season_number === 0}
-							Specials
-						{:else}
-							Season {image.season_number}
-						{/if}
-					</span>
-				{/if}
-				<span class="metadata-tag inline-flex items-center gap-1">
-					<HeartIcon size="0.75rem" weight="fill" />
-					{image.vote_average.toFixed(1)}
-				</span>
-			</span>
+			<span class="metadata-tag">{image.width}×{image.height}</span>
 		{/snippet}
 		<li>{@render tile(current === image.url.split("/").at(-1), image.url, preview, details)}</li>
 	{/each}

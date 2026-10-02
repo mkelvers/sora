@@ -5,9 +5,7 @@ import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
 
 export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
-	sort = $state<"votes" | "quality">("votes");
 	languages = $state<string[]>([]);
-	source = $state("all");
 	refreshing = $state(false);
 	error = $state<string>();
 
@@ -18,7 +16,6 @@ export class Media {
 	set type(value) {
 		this.#type = value;
 		this.languages = [];
-		this.source = "all";
 	}
 
 	apply(images: SeriesImage[]) {
@@ -28,13 +25,7 @@ export class Media {
 			result = result.filter((image) => this.languages.includes(image.language ?? "none"));
 		}
 
-		if (this.source === "series") {
-			result = result.filter((image) => image.season_number === null);
-		} else if (this.source !== "all") {
-			result = result.filter((image) => image.season_number === Number(this.source));
-		}
-
-		if (this.sort === "quality") {
+		if (this.type !== "logo") {
 			const area = (image: SeriesImage) => image.width * image.height;
 			result = result.toSorted((a, b) => area(b) - area(a));
 		}
