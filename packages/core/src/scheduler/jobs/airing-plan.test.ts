@@ -42,7 +42,7 @@ describe("planNextCheck", () => {
 		});
 	});
 
-	test("retries soon after a broadcast when no provider has the episode yet", () => {
+	test("retries soon after a broadcast when AniKoto does not carry the episode yet", () => {
 		const plan = planNextCheck(
 			state({
 				nextAiringAt: new Date("2026-09-30T08:00:00Z"),

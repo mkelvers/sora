@@ -20,7 +20,7 @@ export const airingCheckPriority = -1;
  */
 export interface TrackAiringPayload {
 	anilistId: number;
-	/** The aired episode no provider has released yet, or `null` when caught up. */
+	/** The aired episode AniKoto does not carry yet, or `null` when caught up. */
 	awaitedEpisode: number | null;
 	/** How many checks have already failed to find `awaitedEpisode`. */
 	attempt: number;

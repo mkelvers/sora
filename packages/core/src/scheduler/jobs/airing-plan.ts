@@ -6,9 +6,12 @@ export interface AiringState {
 	status: AnimeStatus | null;
 	/** When AniList expects the next episode, if it has announced one. */
 	nextAiringAt: Date | null;
-	/** The latest episode AniList says has aired, or `null` when none has. */
+	/**
+	 * The latest episode AniList says has aired, or `null` when none has, or
+	 * when AniKoto does not carry the anime, so there is none to wait for.
+	 */
 	latestAiredEpisode: number | null;
-	/** The latest episode in the list viewers see, or `null` when no provider has any. */
+	/** The latest episode AniKoto carries, or `null` when it carries none. */
 	latestReleasedEpisode: number | null;
 	/** AniList's start date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, in Japan time. */
 	startDate: string | null;
@@ -33,9 +36,9 @@ export type AiringPlan =
 	  };
 
 /**
- * Waits between checks for an episode that has aired but that no provider
- * carries yet. Providers usually post subs within hours, sometimes a day
- * later; the last delay repeats.
+ * Waits between checks for an episode that has aired but that AniKoto does
+ * not carry yet. It usually has subs within hours, sometimes a day later;
+ * the last delay repeats.
  */
 const releaseRetryDelaysMs = [
 	15 * minute,
@@ -70,7 +73,7 @@ const japanOffsetMs = 9 * hour;
  *
  * The next check is the earliest of:
  *
- * - a retry, when an aired episode is missing from every provider;
+ * - a retry, when AniKoto does not carry an aired episode yet;
  * - the next broadcast AniList has announced;
  * - for an anime that has not premiered and has a start date but no airing
  *   time, the start of premiere day, then every 20 minutes through that day;

@@ -1,17 +1,14 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { fetchLatestAiring, getAnime, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
+import { providerMapping } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
-import {
-	getStoredUnits,
-	refreshProviderUnits,
-	type StoredUnits,
-} from "../../playback/episodes/episodes";
-import { streamProviders } from "../../playback/providers/registry";
+import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
+import { aniKoto, streamProviders } from "../../playback/providers/registry";
 import { minute } from "../../time";
 import {
 	airingCheckPriority,
@@ -59,10 +56,11 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		throw error;
 	}
 
-	const releasedBefore = latestReleased(await getStoredUnits([anime.id]));
-	const latestReleasedEpisode = await refreshReleasedEpisodes(anime, helpers.logger);
+	const releasedBefore = (await readAniKotoEpisodes(anime.id)).latest;
+	await refreshProviderEpisodes(anime, helpers.logger);
+	const onAniKoto = await readAniKotoEpisodes(anime.id);
 	if (
-		latestReleasedEpisode !== releasedBefore ||
+		onAniKoto.latest !== releasedBefore ||
 		JSON.stringify(layoutInputs(anime)) !== JSON.stringify(layoutInputs(before))
 	) {
 		await scheduleStoredSeriesRefresh(anime.id);
@@ -72,8 +70,10 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		{
 			status: anime.status,
 			nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
-			latestAiredEpisode: await latestAiredEpisode(anime),
-			latestReleasedEpisode,
+			// An anime AniKoto does not carry has no episode to wait for; the
+			// half-hourly look picks it up once AniKoto adds it.
+			latestAiredEpisode: onAniKoto.carried ? await latestAiredEpisode(anime) : null,
+			latestReleasedEpisode: onAniKoto.latest,
 			startDate: anime.startDate,
 		},
 		payload,
@@ -125,47 +125,51 @@ function layoutInputs({
 }
 
 /**
- * The latest episode of the first provider in priority order with any
- * episodes among `stored`, as {@link refreshReleasedEpisodes} returns it.
+ * Reads what AniKoto has of an anime from its stored mapping and episode
+ * list, without asking AniKoto.
+ *
+ * Seasons list only the episodes AniKoto carries (see `isEpisodeAvailable`),
+ * so its list alone says whether an aired episode is out. Other providers'
+ * lists do not count: MegaPlay's are made up from AniList's episode count,
+ * and list a whole season before it premieres.
  */
-function latestReleased(stored: readonly StoredUnits[]) {
-	for (const provider of streamProviders) {
-		const last = stored.find((entry) => entry.provider === provider.id)?.units.at(-1);
-		if (last) {
-			return last.number;
-		}
-	}
+async function readAniKotoEpisodes(anilistId: number) {
+	const [[mapping], stored] = await Promise.all([
+		db
+			.select({
+				anikotoId: providerMapping.providerMediaId,
+			})
+			.from(providerMapping)
+			.where(
+				and(eq(providerMapping.anilistId, anilistId), eq(providerMapping.provider, aniKoto.id)),
+			)
+			.limit(1),
+		getStoredUnits([anilistId]),
+	]);
 
-	return null;
+	return {
+		/** Whether AniKoto has the anime in its catalogue, with episodes or not yet. */
+		carried: Boolean(mapping?.anikotoId),
+		/** The latest episode AniKoto carries, or `null` when it carries none. */
+		latest: stored.find((entry) => entry.provider === aniKoto.id)?.units.at(-1)?.number ?? null,
+	};
 }
 
 /**
- * Re-fetches every provider's episode list and returns the latest episode of
- * the first provider in priority order with any episodes, the one playback
- * tries first.
- *
- * Every provider is refreshed, not just that one, because playback falls
- * back through all of them. Other providers' lists do not count, since some
- * list episodes before they air. A failing provider is logged and skipped.
+ * Re-fetches every provider's episode list and stores it. Every provider is
+ * refreshed, not just AniKoto, because playback falls back through all of
+ * them. A failing provider is logged and skipped, and keeps its stored list.
  */
-async function refreshReleasedEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
-	let latest: number | null = null;
-
+async function refreshProviderEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
 	for (const provider of streamProviders) {
 		try {
-			const units = await refreshProviderUnits(anime, provider, {
+			await refreshProviderUnits(anime, provider, {
 				retryUnmatched: true,
 			});
-			const last = units.at(-1);
-			if (latest === null && last) {
-				latest = last.number;
-			}
 		} catch (error) {
 			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${String(error)}`);
 		}
 	}
-
-	return latest;
 }
 
 /**
