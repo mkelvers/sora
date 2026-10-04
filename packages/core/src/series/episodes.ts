@@ -89,9 +89,26 @@ export interface EpisodeListingRow {
 }
 
 /**
+ * When an episode came out, in a query: when it aired, or the start of its
+ * air date when AniList has no airing time. See {@link releasedAtOf} for an
+ * episode already loaded.
+ */
+export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+
+/**
+ * When an episode came out, as {@link episodeReleasedAt} says, or `null`
+ * when it has neither an airing time nor an air date.
+ */
+export function releasedAtOf(episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) {
+	return (
+		episode.airedAt ?? (episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`))
+	);
+}
+
+/**
  * Whether an episode has been released: it is not at or past the series'
- * announced next episode, and has aired. When it aired is AniList's airing
- * time when known, and otherwise TMDB's air date.
+ * announced next episode, and has aired (see {@link releasedAtOf}); one with
+ * no date at all counts as aired.
  */
 export function isEpisodeReleased(
 	title: ReleaseSchedule,
@@ -103,11 +120,9 @@ export function isEpisodeReleased(
 		title.nextEpisodeAiringAt > now &&
 		title.nextEpisodeNumber !== null &&
 		episode.number >= title.nextEpisodeNumber;
-	const hasAired = episode.airedAt
-		? episode.airedAt <= now
-		: episode.airDate === null || episode.airDate <= now.toISOString().slice(0, 10);
+	const releasedAt = releasedAtOf(episode);
 
-	return !isAtOrAfterNext && hasAired;
+	return !isAtOrAfterNext && (releasedAt === null || releasedAt <= now);
 }
 
 /** The episodes AniKoto's stored lists carry; see {@link loadAniKotoEpisodes}. */
@@ -123,9 +138,8 @@ export interface AniKotoEpisodes {
  * its stored episode lists, without asking AniKoto.
  */
 export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promise<AniKotoEpisodes> {
-	const stored = (await getStoredUnits(anilistIds)).filter(
-		(entry) => entry.provider === aniKoto.id,
-	);
+	const storedUnits = await getStoredUnits(anilistIds);
+	const stored = storedUnits.filter((entry) => entry.provider === aniKoto.id);
 	return {
 		carried: new Set(
 			stored.flatMap((entry) =>

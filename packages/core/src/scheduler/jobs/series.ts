@@ -17,6 +17,7 @@ import {
 import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
+import { episodeReleasedAt } from "../../series/episodes";
 import { expireMapping } from "../../series/mapping";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { day, hour, minute } from "../../time";
@@ -58,7 +59,7 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const { data: seriesId, error } = await attempt(storeSeries(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(storeSeries(anilistId), AnimeNotFoundError);
 	if (error) {
 		// Searches queue every entry they find that is not stored, so an entry
 		// left in the index would be queued again by each one. A sync puts it
@@ -67,7 +68,7 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
 		return;
 	}
-	helpers.logger.info(`Stored series ${seriesId} for anime ${anilistId}`);
+	helpers.logger.info(`Stored series ${data} for anime ${anilistId}`);
 };
 
 /** AniList pages are capped at 50 entries. */
@@ -173,11 +174,8 @@ const onAniKoto = sql`exists (
       and (unit ->> 'number')::numeric = ${seriesEpisode.number}
   )`;
 
-/** When a stored episode aired: AniList's broadcast time, or the start of TMDB's air date. */
-const airedAt = sql`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
-
 /** Whether a stored episode aired within the time TMDB's change log of it is read for. */
-const airedLately = sql`${airedAt} between now() - make_interval(secs => ${editsWindowMs / 1_000}) and now()`;
+const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs => ${editsWindowMs / 1_000}) and now()`;
 
 /** Whether a stored episode has no title, or only TMDB's "Episode N". */
 const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} ~* '^episode [0-9]+$')`;
@@ -231,7 +229,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
       substring(${series.key} from '[0-9]+$')::int as show_id,
       ${seriesEpisode.tmdbSeasonNumber} as season_number,
       ${seriesEpisode.tmdbEpisodeNumber} as episode_number,
-      (extract(epoch from now() - ${airedAt}) * 1000)::float8 as missing_for_ms
+      (extract(epoch from now() - ${episodeReleasedAt}) * 1000)::float8 as missing_for_ms
     from ${seriesEpisode}
     inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
     left join lateral (
@@ -376,9 +374,9 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
       ${series.key} as key,
       ${series.anilistId} as anilist_id,
       bool_or(${unlisted}) as is_unlisted,
-      (extract(epoch from now() - max(${airedAt}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
+      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${unlisted})) * 1000)::float8 as unlisted_for_ms,
       bool_or(${lacksDetails}) as lacks_details,
-      (extract(epoch from now() - max(${airedAt}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
+      (extract(epoch from now() - max(${episodeReleasedAt}) filter (where ${lacksDetails})) * 1000)::float8 as lacking_for_ms,
       (extract(epoch from now() - ${series.laidOutAt}) * 1000)::float8 as laid_out_for_ms
     from ${seriesEpisode}
     inner join ${series} on ${series.id} = ${seriesEpisode.seriesId}
