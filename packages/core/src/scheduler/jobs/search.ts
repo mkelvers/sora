@@ -5,8 +5,8 @@ import { z } from "zod";
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
 import { syncSearchIndex } from "../../catalog/queries/search";
 import { db } from "../../database/client";
-import { animeSearch, seriesEntry } from "../../database/schema";
-import { carriedByAniKoto } from "../../series/queries";
+import { animeSearch, series } from "../../database/schema";
+import { carriedByAniKoto } from "../../series/episodes";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
@@ -89,9 +89,7 @@ export const backfillSeries: Task = async (_payload, helpers) => {
 				eq(animeSearch.isAdult, false),
 				gte(animeSearch.popularity, backfillMinimumPopularity),
 				sql`${animeSearch.format} is distinct from 'MUSIC'`,
-				notExists(
-					db.select().from(seriesEntry).where(eq(seriesEntry.anilistId, animeSearch.anilistId)),
-				),
+				notExists(db.select().from(series).where(eq(series.anilistId, animeSearch.anilistId))),
 				sql`not exists (select 1 from graphile_worker.jobs where jobs.key = 'series:' || ${animeSearch.anilistId})`,
 			),
 		)
@@ -134,9 +132,7 @@ async function queueSeasons(helpers: Parameters<Task>[1]) {
 					),
 				),
 				carriedByAniKoto,
-				notExists(
-					db.select().from(seriesEntry).where(eq(seriesEntry.anilistId, animeSearch.anilistId)),
-				),
+				notExists(db.select().from(series).where(eq(series.anilistId, animeSearch.anilistId))),
 				sql`not exists (select 1 from graphile_worker.jobs where jobs.key = 'series:' || ${animeSearch.anilistId})`,
 			),
 		)

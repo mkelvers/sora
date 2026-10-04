@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 
+import { attempt } from "@sora/attempt";
 import { inArray, lt, sql } from "drizzle-orm";
 import { consoleLogFactory, Logger, type WorkerEvents } from "graphile-worker";
 
@@ -54,8 +55,11 @@ export function watchPools(): PoolWatch {
 
 	let running = Promise.resolve();
 	const tick = () => {
-		running = running.then(beat).catch((error: unknown) => {
-			logger.warn(`Could not mark scheduler pools alive: ${String(error)}`);
+		running = running.then(async () => {
+			const { error } = await attempt(beat);
+			if (error) {
+				logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
+			}
 		});
 	};
 

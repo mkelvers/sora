@@ -151,10 +151,12 @@ export async function anilist<TResult, TVariables>(
 	}
 
 	const request = (async () => {
-		const { data, error } = await attempt(fetchAndStore<TResult>(key, query, variables));
-		inFlight.delete(key);
+		const { data, error } = await attempt(
+			fetchAndStore<TResult>(key, query, variables),
+			UpstreamUnavailableError,
+		).finally(() => inFlight.delete(key));
 		if (error) {
-			if (stored && error instanceof UpstreamUnavailableError) {
+			if (stored) {
 				return stored.data as TResult;
 			}
 			throw error;

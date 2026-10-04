@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -22,30 +23,23 @@ const LookUpEpisodesPayloadSchema = z.object({
 export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
 	const { anilistId } = LookUpEpisodesPayloadSchema.parse(rawPayload);
 
-	let anime;
-	try {
-		anime = await getAnime(anilistId);
-	} catch (error) {
-		if (error instanceof AnimeNotFoundError) {
-			helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
-			return;
-		}
-
-		throw error;
+	const { data: anime, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	if (error) {
+		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
+		return;
 	}
 
 	const failed = (
 		await Promise.all(
 			streamProviders.map(async (provider) => {
-				try {
-					await getProviderUnits(anime, provider);
-					return [];
-				} catch (error) {
+				const { error } = await attempt(getProviderUnits(anime, provider));
+				if (error) {
 					helpers.logger.warn(
-						`Provider ${provider.id} failed for anime ${anilistId}: ${String(error)}`,
+						`Provider ${provider.id} failed for anime ${anilistId}: ${error.message}`,
 					);
 					return [provider.id];
 				}
+				return [];
 			}),
 		)
 	).flat();

@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -29,16 +30,17 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 			continue;
 		}
 
-		try {
-			helpers.logger.info(
-				await provider.syncCatalog({
-					full: payload?.full === true,
-				}),
-			);
-		} catch (error) {
-			helpers.logger.warn(`Provider ${provider.id} failed to sync its catalogue: ${String(error)}`);
+		const { data: summary, error } = await attempt(
+			provider.syncCatalog({
+				full: payload?.full === true,
+			}),
+		);
+		if (error) {
+			helpers.logger.warn(`Provider ${provider.id} failed to sync its catalogue: ${error.message}`);
 			failed.push(provider.id);
+			continue;
 		}
+		helpers.logger.info(summary);
 	}
 
 	if (failed.length > 0) {

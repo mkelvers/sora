@@ -2,7 +2,7 @@ import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
-import { animeScheduleRelease, animeScheduleShow, seriesEntry } from "../../database/schema";
+import { animeScheduleRelease, animeScheduleShow, series } from "../../database/schema";
 import { getStoredUnits } from "../../playback/episodes/episodes";
 import { aniKoto } from "../../playback/providers/registry";
 import { hour, minute } from "../../time";
@@ -54,11 +54,11 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 	const [stored, units] = await Promise.all([
 		ids.length > 0
 			? db
-					.selectDistinct({
-						anilistId: seriesEntry.anilistId,
+					.select({
+						anilistId: series.anilistId,
 					})
-					.from(seriesEntry)
-					.where(inArray(seriesEntry.anilistId, ids))
+					.from(series)
+					.where(inArray(series.anilistId, ids))
 			: [],
 		getStoredUnits(ids),
 	]);

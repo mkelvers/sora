@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { and, eq, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -42,18 +43,22 @@ const TrackAiringPayloadSchema = z.object({
 export const trackAiring: Task = async (rawPayload, helpers) => {
 	const payload = TrackAiringPayloadSchema.parse(rawPayload);
 
-	let before: Anime;
-	let anime: Anime;
-	try {
-		before = await getAnime(payload.anilistId);
-		anime = await refreshAnime(payload.anilistId);
-	} catch (error) {
-		if (error instanceof AnimeNotFoundError) {
-			helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
-			return;
-		}
+	const { data: before, error: missing } = await attempt(
+		getAnime(payload.anilistId),
+		AnimeNotFoundError,
+	);
+	if (missing) {
+		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+		return;
+	}
 
-		throw error;
+	const { data: anime, error: gone } = await attempt(
+		refreshAnime(payload.anilistId),
+		AnimeNotFoundError,
+	);
+	if (gone) {
+		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+		return;
 	}
 
 	const releasedBefore = (await readAniKotoEpisodes(anime.id)).latest;
@@ -162,12 +167,13 @@ async function readAniKotoEpisodes(anilistId: number) {
  */
 async function refreshProviderEpisodes(anime: Anime, logger: Parameters<Task>[1]["logger"]) {
 	for (const provider of streamProviders) {
-		try {
-			await refreshProviderUnits(anime, provider, {
+		const { error } = await attempt(
+			refreshProviderUnits(anime, provider, {
 				retryUnmatched: true,
-			});
-		} catch (error) {
-			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${String(error)}`);
+			}),
+		);
+		if (error) {
+			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${error.message}`);
 		}
 	}
 }
