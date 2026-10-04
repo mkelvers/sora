@@ -15,6 +15,31 @@
 	let x = $derived(series.logo_offset_x);
 	let y = $derived(series.logo_offset_y);
 
+	const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+	const corners = [
+		{
+			x: -1,
+			y: -1,
+		},
+		{
+			x: 1,
+			y: -1,
+		},
+		{
+			x: -1,
+			y: 1,
+		},
+		{
+			x: 1,
+			y: 1,
+		},
+	];
+	type Handle = (typeof corners)[number] | "logo";
+
+	const unit = (value: number) => clamp(value, -1, 1);
+	const zoomed = (value: number) => clamp(Math.round(value * 100) / 100, 0.5, 2);
+
 	let stage: HTMLElement | undefined;
 	let box = $state<{
 		left: number;
@@ -22,11 +47,9 @@
 		width: number;
 		height: number;
 	}>();
+	let hovered = $state<Handle>();
 	let drag = $state<{
-		corner?: {
-			x: number;
-			y: number;
-		};
+		handle: Handle;
 		pointerX: number;
 		pointerY: number;
 		scale: number;
@@ -36,32 +59,18 @@
 		logo: DOMRect;
 	}>();
 
-	const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-	let target = $state<"logo" | "nwse" | "nesw">();
-
-	const corners = [
-		{
-			x: -1,
-			y: -1,
-			class: "-top-1.5 -left-1.5",
-		},
-		{
-			x: 1,
-			y: -1,
-			class: "-top-1.5 -right-1.5",
-		},
-		{
-			x: -1,
-			y: 1,
-			class: "-bottom-1.5 -left-1.5",
-		},
-		{
-			x: 1,
-			y: 1,
-			class: "-right-1.5 -bottom-1.5",
-		},
-	];
+	const handle = $derived(drag?.handle ?? hovered);
+	const cursor = $derived(
+		handle === "logo"
+			? drag
+				? "cursor-grabbing"
+				: "cursor-grab"
+			: handle
+				? handle.x === handle.y
+					? "cursor-nwse-resize"
+					: "cursor-nesw-resize"
+				: undefined,
+	);
 
 	function elements() {
 		return {
@@ -105,30 +114,26 @@
 	}
 
 	function save() {
-		media.place(series.id, {
+		media.place({
 			scale,
 			x,
 			y,
 		});
 	}
 
-	function hit(event: PointerEvent, logo: DOMRect) {
+	function hit(event: PointerEvent, logo: DOMRect): Handle | undefined {
 		const reach = event.pointerType === "touch" ? 24 : 10;
 		const corner = corners.find(
 			(corner) =>
 				Math.abs(event.clientX - (corner.x < 0 ? logo.left : logo.right)) <= reach &&
 				Math.abs(event.clientY - (corner.y < 0 ? logo.top : logo.bottom)) <= reach,
 		);
-		if (corner) {
-			return corner;
-		}
-
 		const inside =
 			event.clientX >= logo.left &&
 			event.clientX <= logo.right &&
 			event.clientY >= logo.top &&
 			event.clientY <= logo.bottom;
-		return inside ? "logo" : undefined;
+		return corner ?? (inside ? "logo" : undefined);
 	}
 
 	function start(event: PointerEvent) {
@@ -147,7 +152,7 @@
 		event.preventDefault();
 		stage!.setPointerCapture(event.pointerId);
 		drag = {
-			corner: found === "logo" ? undefined : found,
+			handle: found,
 			pointerX: event.clientX,
 			pointerY: event.clientY,
 			scale,
@@ -161,13 +166,12 @@
 	function move(event: PointerEvent) {
 		if (!drag) {
 			measure();
-			const found = hit(event, elements().logo.getBoundingClientRect());
-			target = found === "logo" || !found ? found : found.x === found.y ? "nwse" : "nesw";
+			hovered = hit(event, elements().logo.getBoundingClientRect());
 			return;
 		}
 
-		const { corner, hero, logo } = drag;
-		if (!corner) {
+		const { handle, hero, logo } = drag;
+		if (handle === "logo") {
 			const dx = clamp(
 				event.clientX - drag.pointerX,
 				Math.min(0, hero.left - logo.left),
@@ -178,24 +182,22 @@
 				Math.min(0, hero.top - logo.top),
 				Math.max(0, hero.bottom - logo.bottom),
 			);
-			x = clamp(drag.x + dx / hero.width, -1, 1);
-			y = clamp(drag.y + dy / hero.width, -1, 1);
+			x = unit(drag.x + dx / hero.width);
+			y = unit(drag.y + dy / hero.width);
 			return;
 		}
 
-		const anchorX = corner.x > 0 ? logo.left : logo.right;
-		const anchorY = corner.y > 0 ? logo.top : logo.bottom;
+		const anchorX = handle.x > 0 ? logo.left : logo.right;
+		const anchorY = handle.y > 0 ? logo.top : logo.bottom;
 		const along =
-			((event.clientX - anchorX) * corner.x * logo.width +
-				(event.clientY - anchorY) * corner.y * logo.height) /
+			((event.clientX - anchorX) * handle.x * logo.width +
+				(event.clientY - anchorY) * handle.y * logo.height) /
 			(logo.width ** 2 + logo.height ** 2);
-		scale = clamp(Math.round(drag.scale * along * 100) / 100, 0.5, 2);
+		scale = zoomed(drag.scale * along);
 
 		const factor = scale / drag.scale;
-		const dx = corner.x < 0 ? logo.width * (1 - factor) : 0;
-		const dy = corner.y > 0 ? logo.height * (factor - 1) : 0;
-		x = clamp(drag.x + dx / hero.width, -1, 1);
-		y = clamp(drag.y + dy / hero.width, -1, 1);
+		x = unit(drag.x + (handle.x < 0 ? logo.width * (1 - factor) : 0) / hero.width);
+		y = unit(drag.y + (handle.y > 0 ? logo.height * (factor - 1) : 0) / hero.width);
 	}
 
 	function end() {
@@ -205,33 +207,32 @@
 		}
 	}
 
-	const arrows: Record<string, [number, number]> = {
+	const moves: Record<string, [number, number]> = {
 		ArrowLeft: [-1, 0],
 		ArrowRight: [1, 0],
 		ArrowUp: [0, -1],
 		ArrowDown: [0, 1],
 	};
-
-	const keys = ["+", "=", "-", ...Object.keys(arrows)];
+	const zooms: Record<string, number> = {
+		"+": 1,
+		"=": 1,
+		"-": -1,
+	};
 
 	function nudge(event: KeyboardEvent) {
-		const arrow = arrows[event.key];
-		const grow = {
-			"+": 1,
-			"=": 1,
-			"-": -1,
-		}[event.key];
-		if (!arrow && !grow) {
+		const direction = moves[event.key];
+		const zoom = zooms[event.key];
+		if (!direction && !zoom) {
 			return;
 		}
 
 		event.preventDefault();
-		if (arrow) {
+		if (direction) {
 			const step = event.shiftKey ? 0.02 : 0.005;
-			x = clamp(x + arrow[0] * step, -1, 1);
-			y = clamp(y + arrow[1] * step, -1, 1);
-		} else if (grow) {
-			scale = clamp(Math.round((scale + grow * 0.05) * 100) / 100, 0.5, 2);
+			x = unit(x + direction[0] * step);
+			y = unit(y + direction[1] * step);
+		} else {
+			scale = zoomed(scale + zoom * 0.05);
 		}
 	}
 </script>
@@ -241,10 +242,7 @@
 		{@attach track}
 		class={cn(
 			"relative isolate touch-none select-none [&_.series-hero]:max-h-none [&_.series-hero]:min-h-auto",
-			drag && !drag.corner && "cursor-grabbing",
-			!drag && target === "logo" && "cursor-grab",
-			(drag?.corner ? drag.corner.x === drag.corner.y : target === "nwse") && "cursor-nwse-resize",
-			(drag?.corner ? drag.corner.x !== drag.corner.y : target === "nesw") && "cursor-nesw-resize",
+			cursor,
 		)}
 		role="presentation"
 		onpointerdown={start}
@@ -253,7 +251,7 @@
 		onpointercancel={end}
 		onpointerleave={() => {
 			if (!drag) {
-				target = undefined;
+				hovered = undefined;
 			}
 		}}
 	>
@@ -279,7 +277,7 @@
 				style:height="{box.height}px"
 				onkeydown={nudge}
 				onkeyup={(event) => {
-					if (keys.includes(event.key)) {
+					if (event.key in moves || event.key in zooms) {
 						save();
 					}
 				}}

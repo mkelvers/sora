@@ -20,7 +20,7 @@
 	let { params }: PageProps = $props();
 
 	const series = $derived(await getSeries(params.id));
-	const media = new Media();
+	const media = new Media(() => params.id);
 
 	let sizing = $state(false);
 
@@ -86,7 +86,7 @@
 				variant="ghost"
 				class="ml-auto"
 				disabled={media.refreshing}
-				onclick={() => media.refresh(series.id)}
+				onclick={() => media.refresh()}
 			>
 				<ArrowsClockwiseIcon
 					size="1rem"
@@ -109,7 +109,7 @@
 							variant="ghost"
 							disabled={!placed}
 							onclick={() =>
-								media.place(series.id, {
+								media.place({
 									scale: 1,
 									x: 0,
 									y: 0,

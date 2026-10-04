@@ -10,6 +10,8 @@ export class Media {
 	refreshing = $state(false);
 	error = $state<string>();
 
+	constructor(private id: () => string) {}
+
 	get type() {
 		return this.#type;
 	}
@@ -20,64 +22,64 @@ export class Media {
 	}
 
 	apply(images: SeriesImage[]) {
-		let result = images.filter((image) => image.type === this.type);
+		const shown = images.filter(
+			(image) =>
+				image.type === this.type &&
+				(!this.languages.length || this.languages.includes(image.language ?? "none")),
+		);
 
-		if (this.languages.length > 0) {
-			result = result.filter((image) => this.languages.includes(image.language ?? "none"));
-		}
-
-		if (this.type !== "logo") {
-			const area = (image: SeriesImage) => image.width * image.height;
-			result = result.toSorted((a, b) => area(b) - area(a));
-		}
-
-		return result;
+		return this.type === "logo"
+			? shown
+			: shown.toSorted((a, b) => b.width * b.height - a.width * a.height);
 	}
 
-	choose = async (seriesId: string, url: string | false) => {
-		const { error } = await attempt(
+	toggle(language: string) {
+		this.languages = this.languages.includes(language)
+			? this.languages.filter((other) => other !== language)
+			: [...this.languages, language];
+	}
+
+	choose(url: string | false) {
+		return this.#save(
 			setArtwork({
-				seriesId,
+				seriesId: this.id(),
 				type: this.type,
 				url,
 			}).updates(
-				getSeries(seriesId).withOverride((current) => ({
+				getSeries(this.id()).withOverride((current) => ({
 					...current,
 					[`${this.type}_url`]: url || null,
 				})),
 			),
+			"That image couldn’t be saved.",
 		);
-		this.error = error ? "That image couldn’t be saved." : undefined;
-	};
+	}
 
-	place = async (
-		seriesId: string,
-		placement: {
-			scale: number;
-			x: number;
-			y: number;
-		},
-	) => {
-		const { error } = await attempt(
+	place(placement: { scale: number; x: number; y: number }) {
+		return this.#save(
 			setLogoPlacement({
-				seriesId,
+				seriesId: this.id(),
 				...placement,
 			}).updates(
-				getSeries(seriesId).withOverride((current) => ({
+				getSeries(this.id()).withOverride((current) => ({
 					...current,
 					logo_scale: placement.scale,
 					logo_offset_x: placement.x,
 					logo_offset_y: placement.y,
 				})),
 			),
+			"That placement couldn’t be saved.",
 		);
-		this.error = error ? "That placement couldn’t be saved." : undefined;
-	};
+	}
 
-	refresh = async (seriesId: string) => {
+	async refresh() {
 		this.refreshing = true;
-		const { error } = await attempt(refreshImages(seriesId));
+		await this.#save(refreshImages(this.id()), "TMDB couldn’t be reached. Try again in a moment.");
 		this.refreshing = false;
-		this.error = error ? "TMDB couldn’t be reached. Try again in a moment." : undefined;
-	};
+	}
+
+	async #save(work: Promise<unknown>, failure: string) {
+		const { error } = await attempt(work);
+		this.error = error ? failure : undefined;
+	}
 }
