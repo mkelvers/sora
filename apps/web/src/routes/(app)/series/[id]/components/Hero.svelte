@@ -3,7 +3,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { setStatus } from "$lib/watchlist";
 	import { getWatchlist } from "$lib/watchlist.remote";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
@@ -157,7 +157,7 @@
 					{#each series.genres as genre (genre)}
 						<span class="not-last:after:content-[',_']">
 							<a
-								href="/genres/{genreSlug(genre)}"
+								href="/genres/{genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"
 								class="underline underline-offset-2 transition-colors hover:text-foreground"
 							>
 								{genre}
