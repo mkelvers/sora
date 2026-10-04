@@ -140,9 +140,9 @@ describe("summarizeHealth", () => {
 		);
 
 		expect(health).toMatchObject({
-			lastOkAt: "2026-09-25T14:00:00.000Z",
-			lastError: "MegaPlay has no dub source for this episode",
-			lastErrorAt: "2026-09-25T16:20:00.000Z",
+			last_ok_at: "2026-09-25T14:00:00.000Z",
+			last_error: "MegaPlay has no dub source for this episode",
+			last_error_at: "2026-09-25T16:20:00.000Z",
 		});
 	});
 
@@ -171,7 +171,7 @@ describe("summarizeHealth", () => {
 				ok: 3,
 				empty: 0,
 				failed: 1,
-				averageMs: 250,
+				average_ms: 250,
 			},
 		]);
 	});

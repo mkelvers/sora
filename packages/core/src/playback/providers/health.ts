@@ -37,7 +37,7 @@ export interface OperationSummary {
 	empty: number;
 	failed: number;
 	/** Mean duration of a call. */
-	averageMs: number;
+	average_ms: number;
 }
 
 /** How a stream provider has been doing, from the calls made to it. */
@@ -48,11 +48,11 @@ export interface ProviderHealth {
 	 * Start of the latest hour with a successful call, as an ISO 8601
 	 * timestamp, or `null` when none is on record. Records go back a month.
 	 */
-	lastOkAt: string | null;
+	last_ok_at: string | null;
 	/** The latest failed call's error, or `null` when none is on record. */
-	lastError: string | null;
+	last_error: string | null;
 	/** When the latest failed call started, as an ISO 8601 timestamp. */
-	lastErrorAt: string | null;
+	last_error_at: string | null;
 	/** Calls in the last day, by operation. Operations without calls are left out. */
 	operations: OperationSummary[];
 }
@@ -159,9 +159,9 @@ export function summarizeHealth(
 		return {
 			provider,
 			status,
-			lastOkAt: lastOk?.toISOString() ?? null,
-			lastError: lastError?.lastError ?? null,
-			lastErrorAt: lastErrorAt?.toISOString() ?? null,
+			last_ok_at: lastOk?.toISOString() ?? null,
+			last_error: lastError?.lastError ?? null,
+			last_error_at: lastErrorAt?.toISOString() ?? null,
 			operations: own
 				.filter((row) => row.ok + row.empty + row.failed > 0)
 				.map((row) => {
@@ -171,7 +171,7 @@ export function summarizeHealth(
 						ok: row.ok,
 						empty: row.empty,
 						failed: row.failed,
-						averageMs: Math.round(row.durationMs / calls),
+						average_ms: Math.round(row.durationMs / calls),
 					};
 				})
 				.sort((left, right) => left.operation.localeCompare(right.operation)),
