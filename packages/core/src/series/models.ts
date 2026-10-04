@@ -1,6 +1,6 @@
 import type { AnimeFormat, AnimeStatus, AnimeTag } from "../catalog/models/anime";
 import type { ImageEdges } from "./edges";
-import type { SeasonKind } from "./seasons";
+import type { FranchisePart } from "./franchise";
 import type { SeriesKind } from "./series";
 
 /**
@@ -10,7 +10,8 @@ import type { SeriesKind } from "./series";
 export type ContentLanguage = "sub" | "dub" | "raw";
 
 /**
- * A title for lists, grids, and search results.
+ * A title for lists, grids, and search results: one AniList entry, such as
+ * a season of a show, a film, or an OVA.
  *
  * @remarks
  * Like every series model, this is a plain JSON-safe value and carries only
@@ -20,10 +21,13 @@ export interface SeriesCard {
 	/** Sora's series ID, such as `GYZJ43JMR`. */
 	id: string;
 	kind: SeriesKind;
-	/** The title of the first season, or of the film. */
+	/** What AniList lists the entry as, such as a TV season, a film, or an OVA. */
+	format: AnimeFormat | null;
+	/** AniList's title of the entry, which names its season: "Frieren: Beyond Journey's End Season 2". */
 	title: string;
-	/** TMDB's artwork for the whole title, or AniList's when TMDB has none. */
+	/** AniList's cover of the entry. */
 	posterUrl: string | null;
+	/** TMDB's backdrop of the show or film, or AniList's banner when TMDB has none. */
 	backdropUrl: string | null;
 	/** TMDB's English or textless logo, drawn over the backdrop. */
 	logoUrl: string | null;
@@ -35,7 +39,6 @@ export interface SeriesCard {
 	logoOffsetY: number;
 	/** Year of the first release. */
 	year: number | null;
-	/** Airing while any season airs; see `seriesStatus`. */
 	status: AnimeStatus | null;
 	/**
 	 * The audio any of its episodes can be watched with, dub before sub before
@@ -43,21 +46,14 @@ export interface SeriesCard {
 	 * looked up yet.
 	 */
 	audio: ContentLanguage[];
-	/** TMDB's synopsis of the title, or AniList's of the first season when TMDB has none. */
+	/** TMDB's synopsis where it describes the entry, or AniList's. */
 	overview: string | null;
-	/** AniList's weighted score of the first season, 0–100. */
+	/** AniList's weighted score, 0–100. */
 	score: number | null;
-	/** AniList's genres of the first season. */
+	/** AniList's genres. */
 	genres: string[];
-	/** How many regular seasons it has, OVAs and films left out. A film has none. */
-	seasonCount: number;
-	/** How many episodes its regular seasons list, as their season pages list them. */
+	/** How many episodes it lists, as its page lists them. */
 	episodeCount: number;
-	/**
-	 * The season watching starts at: the first in watch order, or the first
-	 * season when none is. `null` for a title with no seasons laid out.
-	 */
-	startSeasonId: string | null;
 }
 
 /**
@@ -66,10 +62,7 @@ export interface SeriesCard {
  */
 export interface Release {
 	series: SeriesCard;
-	seasonId: string;
-	/** The season's title, such as "Season 2"; see {@link Season.title}. */
-	seasonTitle: string;
-	/** Position within the season, from 1. */
+	/** The episode's number in the series, from 1. */
 	episode: number;
 	/** When the episode came out, as an ISO 8601 timestamp: when it aired, or its air date's midnight UTC when AniList has no airing time. */
 	releasedAt: string;
@@ -90,20 +83,14 @@ export interface PreparingTitle {
 	position: number;
 }
 
-/**
- * Everything needed for a title's page.
- *
- * Details belong to the title, not to its seasons: synopsis and artwork come
- * from TMDB, and genres, tags, studios, and score from the first season.
- * Only the episodes differ between seasons; see `getSeasonEpisodes`.
- */
+/** Everything needed for a title's page, except its episodes; see `getSeriesEpisodes`. */
 export interface Series extends SeriesCard {
 	/** First release: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as precise as AniList knows it. */
 	startDate: string | null;
 	genres: string[];
 	tags: AnimeTag[];
 	studios: string[];
-	/** How many AniList users have scored the first season, behind `score`; `null` until the search index has it. */
+	/** How many AniList users have scored it, behind `score`; `null` until the search index has it. */
 	scoreCount: number | null;
 	/**
 	 * The next episode to come out: one that aired but that its season does
@@ -112,8 +99,7 @@ export interface Series extends SeriesCard {
 	 * next to air. `null` when there is neither.
 	 */
 	nextEpisode: {
-		seasonId: string;
-		/** Position within the season, from 1. */
+		/** The episode's number in the series, from 1. */
 		number: number;
 		/**
 		 * ISO 8601 timestamp of when it airs. For one that aired and is still to
@@ -128,33 +114,17 @@ export interface Series extends SeriesCard {
 	 * or until it is measured.
 	 */
 	backdropEdges: ImageEdges | null;
-	/** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
-	seasons: Season[];
-	/** Other titles from the franchise: films, spin-offs, and shorts. */
-	related: SeriesCard[];
-}
-
-/** One season of a title, as listed in its season picker. */
-export interface Season {
-	/** Sora's season ID, such as `G6NQ5DWZ6`. */
-	id: string;
-	kind: SeasonKind;
-	/** Position among the title's seasons of the same kind, from 1. */
-	number: number;
-	/** TMDB's name for the season ("Mugen Train Arc") or "Season N"; for an OVA or film, what its title adds to the show's ("Visions of Coleus") or "OVA Season N" / "Movie N". */
-	title: string;
 	/**
-	 * Whether the season is part of the story in watch order: regular seasons
-	 * and the films and OVAs between them. Extras, such as side-story OVAs and
-	 * recaps, are not.
+	 * Every title of its franchise that is out, this one included, as AniList
+	 * relates them: its seasons first, then its films, OVAs, and spin-offs (see
+	 * `franchiseParts`). Just this one when it has no other.
 	 */
-	inWatchOrder: boolean;
-	episodeCount: number;
+	franchise: FranchisePart[];
 }
 
-/** One episode of a season. */
-export interface SeasonEpisode {
-	/** Position within the season, from 1. */
+/** One episode of a title. */
+export interface Episode {
+	/** The episode's number in the series, from 1. */
 	number: number;
 	title: string | null;
 	overview: string | null;
@@ -180,6 +150,4 @@ export interface SeasonEpisode {
 	 * the anime fall behind it. `false` when no provider says it is.
 	 */
 	filler: boolean;
-	/** An extra only TMDB lists, such as a recap special. No provider streams it. */
-	extra: boolean;
 }
