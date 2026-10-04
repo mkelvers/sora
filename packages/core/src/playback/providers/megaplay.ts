@@ -3,8 +3,9 @@ import { createDecipheriv } from "node:crypto";
 import { labelToBcp47, MegaPlayProvider, type HttpClient, type MappingClient } from "anime-sdk";
 import { z } from "zod";
 
-import type { ContentLanguage } from "../../series/models";
-import type { ProviderStream, SkipSegment } from "./provider";
+import type { SkipSegment } from "../../models/playback";
+import type { ContentLanguage } from "../../models/series";
+import type { ProviderStream } from "./provider";
 import { rawEpisodeId, SdkStreamProvider, type ProviderTraits } from "./sdk";
 
 /**

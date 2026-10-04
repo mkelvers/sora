@@ -3,7 +3,7 @@ import { AnikotoProvider, type HttpClient } from "anime-sdk";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
-import type { ContentLanguage } from "../../series/models";
+import type { ContentLanguage } from "../../models/series";
 import { findAniKotoSeries, syncAniKotoCatalog } from "./anikoto-catalog";
 import { resolveMegaPlayEmbed } from "./megaplay";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
@@ -78,7 +78,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 	 * flag.
 	 */
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
-		const [units, { data: listed, error }] = await Promise.all([
+		const [units, { data, error }] = await Promise.all([
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
 			attempt(fetchAniKotoEpisodeList(this.http, mediaId)),
 		]);
@@ -88,7 +88,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 
 		return units.map((unit) => {
 			const episode = toProviderEpisode(unit);
-			const entry = listed?.get(unit.number);
+			const entry = data?.get(unit.number);
 			if (!entry) {
 				return {
 					...episode,

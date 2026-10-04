@@ -7,14 +7,9 @@ import type {
 } from "anime-sdk";
 
 import type { Anime } from "../../catalog/models/anime";
-import type { ContentLanguage } from "../../series/models";
-import type {
-	ProviderEpisode,
-	ProviderMatch,
-	ProviderStream,
-	SkipSegment,
-	StreamProvider,
-} from "./provider";
+import type { SkipSegment } from "../../models/playback";
+import type { ContentLanguage } from "../../models/series";
+import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
 
 /** What a provider serves, which `anime-sdk` does not describe. */
 export interface ProviderTraits {
@@ -58,7 +53,9 @@ export class SdkStreamProvider implements StreamProvider {
 	}
 
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
-		return (await this.sdk.fetchContentUnits(`${this.id}:${mediaId}`)).map(toProviderEpisode);
+		const units = await this.sdk.fetchContentUnits(`${this.id}:${mediaId}`);
+
+		return units.map(toProviderEpisode);
 	}
 
 	/**

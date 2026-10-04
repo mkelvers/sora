@@ -13,13 +13,9 @@ export {
 	PlaybackRequestSchema,
 	resolvePlayback,
 	type Playback,
-	type PlaybackMedia,
 	type PlaybackOptions,
 	type PlaybackRequest,
-	type PlaybackSource,
-	type PlaybackSubtitle,
 } from "./streams/resolve";
-export type { SkipSegment } from "./providers/provider";
 export type { EpisodeVersion } from "./episodes/versions";
 export {
 	failingAfterCalls,

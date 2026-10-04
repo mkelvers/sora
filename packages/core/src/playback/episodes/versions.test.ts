@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { ContentLanguage } from "../../series/models";
+import type { ContentLanguage } from "../../models/series";
 import type { ProviderUnit } from "./episodes";
 import type { ListedUnit } from "./versions";
 
@@ -416,7 +416,8 @@ describe("findEpisodeListings", () => {
 	test("does not know whether an episode is filler while it is unknown", async () => {
 		useProviders([notLookedUp("anikoto", "en")]);
 
-		expect((await findEpisodeListings(firstEpisode)).get("1:1")).toEqual({
+		const listings = await findEpisodeListings(firstEpisode);
+		expect(listings.get("1:1")).toEqual({
 			languages: null,
 			isFiller: null,
 		});
@@ -480,7 +481,8 @@ describe("findEpisodeLanguages", () => {
 			notLookedUp("allmanga", "en", [unit(1, ["dub"])]),
 		]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toBeNull();
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toBeNull();
 		expect(asks).toBe(0);
 		expect(queuedLookups).toEqual([1]);
 	});
@@ -491,7 +493,8 @@ describe("findEpisodeLanguages", () => {
 			notLookedUp("allmanga", "en", [unit(1, ["dub"])]),
 		]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toEqual(["sub"]);
 		expect(asks).toBe(0);
 		expect(queuedLookups).toEqual([1]);
 	});
@@ -499,19 +502,22 @@ describe("findEpisodeLanguages", () => {
 	test("uses the providers looked up so far when another has not been", async () => {
 		useProviders([provider("anikoto", "en", [unit(1, ["sub"])]), notLookedUp("slow", "en")]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toEqual(["sub"]);
 	});
 
 	test("marks an episode unknown, not unwatchable, when only a provider not looked up yet might list it", async () => {
 		useProviders([provider("anikoto", "en", []), notLookedUp("slow", "en")]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toBeNull();
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toBeNull();
 	});
 
 	test("knows an episode is unwatchable once every provider is looked up without listing it", async () => {
 		useProviders([provider("anikoto", "en", []), provider("allmanga", "en", [])]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual([]);
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toEqual([]);
 		expect(queuedLookups).toEqual([]);
 	});
 
@@ -524,7 +530,8 @@ describe("findEpisodeLanguages", () => {
 			},
 		]);
 
-		expect((await findEpisodeLanguages(firstEpisode)).get("1:1")).toEqual(["sub"]);
+		const languages = await findEpisodeLanguages(firstEpisode);
+		expect(languages.get("1:1")).toEqual(["sub"]);
 		expect(queuedLookups).toEqual([]);
 	});
 });

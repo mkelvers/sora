@@ -1,5 +1,6 @@
 import type { Anime } from "../../catalog/models/anime";
-import type { ContentLanguage } from "../../series/models";
+import type { SkipSegment } from "../../models/playback";
+import type { ContentLanguage } from "../../models/series";
 
 /** Where an anime is in a provider's catalogue. */
 export interface ProviderMatch {
@@ -27,13 +28,6 @@ export interface ProviderEpisode {
 	languages: ContentLanguage[] | null;
 	/** Whether the episode is filler, or `null` when the provider does not say. */
 	isFiller: boolean | null;
-}
-
-/** A skippable span of a stream, in seconds from its start. */
-export interface SkipSegment {
-	kind: "opening" | "ending";
-	start: number;
-	end: number;
 }
 
 export type StreamQuality = "1080p" | "720p" | "480p" | "360p" | "auto";

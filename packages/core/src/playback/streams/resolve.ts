@@ -8,81 +8,18 @@ import {
 	PlaybackUnavailableError,
 	type ProviderAttempt,
 } from "../../errors";
+import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
+import type { ContentLanguage } from "../../models/series";
 import { locateEpisode } from "../../series/episodes";
-import type { ContentLanguage } from "../../series/models";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
-import type {
-	ProviderVideo,
-	SkipSegment,
-	StreamProvider,
-	StreamQuality,
-} from "../providers/provider";
+import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { alignTimelines, shiftTime, type TimelineShift } from "./align";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
-
-/** One way to play an episode. */
-export interface PlaybackSource {
-	/** The stream through the proxy, ready for a player to fetch. */
-	url: string;
-	format: "hls" | "mp4";
-	quality: StreamQuality;
-}
-
-export interface PlaybackSubtitle {
-	/** The subtitle file through the proxy, ready for a player to fetch. */
-	url: string;
-	/** BCP 47 language tag, for example `en` or `pt-BR`. */
-	language: string;
-	label: string;
-	format: "vtt" | "srt" | "ass" | null;
-	/**
-	 * What the track carries, worked out from its name and its cues: dialogue,
-	 * signs (text shown on screen, and forced subtitles), or captions (dialogue
-	 * with descriptions of sound). `null` when that is not clear.
-	 */
-	kind: SubtitleKind | null;
-	/** Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. */
-	default: boolean;
-}
-
-/** One version of an episode, such as its dub, ready to play. */
-export interface PlaybackMedia {
-	/** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
-	audio: ContentLanguage;
-	/** The audio's name, for an audio menu, such as `Dub`. */
-	label: string;
-	/**
-	 * BCP 47 language of the dub's audio or of the sub's subtitles. `null` for
-	 * raw.
-	 */
-	locale: string | null;
-	/** The provider that serves this version. */
-	provider: string;
-	/**
-	 * Whether the subtitles are burned into the picture rather than served as
-	 * tracks: a sub whose `subtitles` is empty. Always `false` for dub and raw.
-	 */
-	hardsub: boolean;
-	/** Ordered best first. */
-	sources: PlaybackSource[];
-	/**
-	 * Every subtitle track of a sub, English first. A hardsub may still carry
-	 * tracks in other languages. A dub carries the sub's WebVTT tracks, retimed
-	 * to its encode, when the two align. Always empty for raw.
-	 */
-	subtitles: PlaybackSubtitle[];
-	/**
-	 * Opening and ending, in playback order, timed against these sources: a
-	 * dub can be cut differently from its sub. Empty when the provider's player
-	 * reports none.
-	 */
-	skipSegments: SkipSegment[];
-}
 
 /** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
@@ -207,9 +144,9 @@ export async function resolvePlayback(
 	if (sub?.version && sub.videos && dub?.version && dub.videos) {
 		const shifts = await timelineShifts(sub.videos, dub.videos);
 		dub.version.subtitles = await subtitlesForDub(sub.videos, dub.videos, streamUrl, shifts);
-		dub.version.skipSegments = skipSegmentsForDub(
-			sub.version.skipSegments,
-			dub.version.skipSegments,
+		dub.version.skip_segments = skipSegmentsForDub(
+			sub.version.skip_segments,
+			dub.version.skip_segments,
 			shifts,
 		);
 	}
@@ -322,7 +259,7 @@ async function resolveVersion(
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
 			// resolvePlayback retimes them to the dub's once both are resolved.
 			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
-			skipSegments: stream.skipSegments,
+			skip_segments: stream.skipSegments,
 		};
 
 		// A sub without English tracks has them burned in. Later providers may
@@ -575,9 +512,9 @@ const languageNames = new Intl.DisplayNames(["en"], {
  * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
  */
 function languageName(tag: string) {
-	const { data: name, error } = attempt(() => languageNames.of(tag), RangeError);
+	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
 	if (error) {
 		return null;
 	}
-	return name && name !== tag ? name : null;
+	return data && data !== tag ? data : null;
 }

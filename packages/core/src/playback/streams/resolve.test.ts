@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
-import type { ContentLanguage } from "../../series/models";
+import type { SkipSegment } from "../../models/playback";
+import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
-import type { ProviderStream, SkipSegment } from "../providers/provider";
+import type { ProviderStream } from "../providers/provider";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -262,7 +263,7 @@ describe("resolvePlayback", () => {
 		offered = [dub(), sub()];
 
 		const playback = await resolvePlayback(request, options);
-		expect(playback.media.map((media) => [media.audio, media.skipSegments[0]?.start])).toEqual([
+		expect(playback.media.map((media) => [media.audio, media.skip_segments[0]?.start])).toEqual([
 			["dub", 154],
 			["sub", 138],
 		]);
@@ -302,8 +303,9 @@ describe("resolvePlayback", () => {
 				dubOffset === null ? boundaries(2) : subTimeline.map((time) => time + dubOffset),
 			);
 
-			const [dubbed, subbed] = (await resolvePlayback(request, options)).media;
-			return [dubbed?.skipSegments, subbed?.skipSegments];
+			const playback = await resolvePlayback(request, options);
+			const [dubbed, subbed] = playback.media;
+			return [dubbed?.skip_segments, subbed?.skip_segments];
 		}
 
 		test("moves them onto the dub's timeline by how far its encode is from the sub's", async () => {
@@ -331,11 +333,15 @@ describe("resolvePlayback", () => {
 					end: 313,
 				},
 			];
-			expect((await dubbedSkipSegments(-1, own))[0]).toEqual(own);
+			const segments = await dubbedSkipSegments(-1, own);
+
+			expect(segments[0]).toEqual(own);
 		});
 
 		test("leaves them when the encodes do not align", async () => {
-			expect((await dubbedSkipSegments(null))[0]).toEqual(spans);
+			const segments = await dubbedSkipSegments(null);
+
+			expect(segments[0]).toEqual(spans);
 		});
 	});
 
@@ -349,7 +355,8 @@ describe("resolvePlayback", () => {
 		]);
 		offered = [sub()];
 
-		expect((await resolvePlayback(request, options)).media[0]?.skipSegments).toEqual([]);
+		const playback = await resolvePlayback(request, options);
+		expect(playback.media[0]?.skip_segments).toEqual([]);
 	});
 
 	test("hands out proxy URLs a player can fetch as is", async () => {
@@ -362,7 +369,8 @@ describe("resolvePlayback", () => {
 		]);
 		offered = [sub()];
 
-		const [version] = (await resolvePlayback(request, options)).media;
+		const playback = await resolvePlayback(request, options);
+		const [version] = playback.media;
 		expect(version?.sources.map((source) => source.url)).toEqual([
 			`https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/sub.m3u8")}`,
 		]);
@@ -587,7 +595,8 @@ describe("resolvePlayback", () => {
 		offered = [sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
-		expect((await resolvePlayback(request, options)).media[0]?.hardsub).toBe(false);
+		const playback = await resolvePlayback(request, options);
+		expect(playback.media[0]?.hardsub).toBe(false);
 	});
 
 	test("skips a sub whose English subtitles cannot be fetched", async () => {
@@ -625,7 +634,8 @@ describe("resolvePlayback", () => {
 			subTimeline.map((time) => time + 2),
 		);
 
-		const [dubbed] = (await resolvePlayback(request, options)).media;
+		const playback = await resolvePlayback(request, options);
+		const [dubbed] = playback.media;
 		expect(dubbed?.audio).toBe("dub");
 		expect(dubbed?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
 			'https://sora.example/v1/streams/token:https://anikoto.example/en.vtt@[{"from":0,"offset":2}]',
@@ -655,7 +665,8 @@ describe("resolvePlayback", () => {
 			subTimeline.map((time) => time + 2),
 		);
 
-		const [dubbed, subbed] = (await resolvePlayback(request, options)).media;
+		const playback = await resolvePlayback(request, options);
+		const [dubbed, subbed] = playback.media;
 		expect(dubbed?.subtitles.map((track) => [track.kind, track.default])).toEqual([
 			[null, true],
 			["signs", false],
@@ -676,7 +687,8 @@ describe("resolvePlayback", () => {
 		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
 		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
 
-		expect((await resolvePlayback(request, options)).media[0]?.subtitles).toEqual([]);
+		const playback = await resolvePlayback(request, options);
+		expect(playback.media[0]?.subtitles).toEqual([]);
 	});
 
 	test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {

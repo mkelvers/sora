@@ -3,9 +3,9 @@ import { attempt } from "@sora/shared";
 import { getAnime } from "../../catalog/queries/anime";
 import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
+import type { ContentLanguage } from "../../models/series";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
-import type { ContentLanguage } from "../../series/models";
 import type { StreamProvider } from "../providers/provider";
 import { servedLocale, streamProviders } from "../providers/registry";
 import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
@@ -268,18 +268,14 @@ const lookupsInFlight = new InFlight<number, StoredUnits[]>();
  */
 function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promise<StoredUnits[]> {
 	return lookupsInFlight.run(anilistId, async () => {
-		const { data: anime, error } = await attempt(
-			getAnime(anilistId),
-			AnimeNotFoundError,
-			UpstreamUnavailableError,
-		);
-		if (error) {
+		const anime = await attempt(getAnime(anilistId), AnimeNotFoundError, UpstreamUnavailableError);
+		if (anime.error) {
 			return [];
 		}
 
 		const found = await Promise.all(
 			sources.map(async (provider) => {
-				const { data: units, error } = await attempt(getProviderUnits(anime, provider));
+				const { data, error } = await attempt(getProviderUnits(anime.data, provider));
 				if (error) {
 					console.warn(
 						`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
@@ -290,7 +286,7 @@ function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promi
 					{
 						anilistId,
 						provider: provider.id,
-						units,
+						units: data,
 					},
 				];
 			}),
