@@ -2,7 +2,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, cn, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
 	import type { Episode, Progress, Series } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
@@ -16,6 +16,14 @@
 		episode: Episode;
 		progress?: Progress;
 	} = $props();
+
+	function duration(minutes: number) {
+		const total = Math.round(minutes);
+		const hours = Math.floor(total / 60);
+		const rest = total % 60;
+
+		return hours === 0 ? `${rest}m` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+	}
 
 	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
@@ -71,11 +79,9 @@
 						{#if watched}
 							Watched
 						{:else if progress && played}
-							{formatDuration(
-								Math.max(1, (progress.duration_seconds - progress.position_seconds) / 60),
-							)} left
+							{duration(Math.max(1, (progress.duration_seconds - progress.position_seconds) / 60))} left
 						{:else if episode.runtime_minutes}
-							{formatDuration(episode.runtime_minutes)}
+							{duration(episode.runtime_minutes)}
 						{/if}
 					</span>
 				{/if}

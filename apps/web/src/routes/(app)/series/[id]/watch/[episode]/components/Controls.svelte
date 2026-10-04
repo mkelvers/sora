@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Slider from "$lib/components/ui/Slider.svelte";
-	import { formatClock } from "$lib/utils";
 	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
 	import {
 		CornersInIcon,
@@ -25,6 +24,16 @@
 	};
 
 	let { player, previous, next, children }: Props = $props();
+
+	function clock(seconds: number) {
+		const total = Math.floor(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
+		const hours = Math.floor(total / 3600);
+		const pad = (value: number) => String(value).padStart(2, "0");
+
+		return hours
+			? `${hours}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`
+			: `${Math.floor(total / 60)}:${pad(total % 60)}`;
+	}
 </script>
 
 <Slider
@@ -34,7 +43,7 @@
 	fill={player.played}
 	buffered={player.loaded}
 	aria-label="Seek"
-	aria-valuetext="{formatClock(player.time)} of {formatClock(player.duration)}"
+	aria-valuetext="{clock(player.time)} of {clock(player.duration)}"
 />
 
 <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Playback controls">
@@ -84,10 +93,10 @@
 	<p
 		class="mr-auto ml-3 text-sm text-foreground/90 tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
 	>
-		{formatClock(player.time)}
+		{clock(player.time)}
 		<span aria-hidden="true">/</span>
 		<span class="sr-only">of</span>
-		{formatClock(player.duration)}
+		{clock(player.duration)}
 	</p>
 
 	<Button
