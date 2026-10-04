@@ -156,15 +156,17 @@ const syncedWeeks = [-1, 0, 1];
  * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
 export async function syncTimetables(http: HttpClient, now = new Date()): Promise<number[]> {
-	const thisMonday = mondayOf(now);
+	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
 
 	for (const offset of syncedWeeks) {
 		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
 		const nextMonday = new Date(monday.getTime() + 7 * day);
+		const timetable = await fetchTimetable(http, isoWeek(monday));
 		const releases = [
 			...new Map(
-				(await fetchTimetable(http, isoWeek(monday))).map((release) => [
+				timetable.map((release) => [
 					`${release.route}:${release.airType}:${release.episode}`,
 					release,
 				]),
@@ -283,12 +285,6 @@ export async function resolveAnimeScheduleShows(
 	}
 
 	return resolved;
-}
-
-/** The start of the ISO week `date` falls in: Monday, midnight UTC. */
-function mondayOf(date: Date) {
-	const midnight = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-	return new Date(midnight - ((date.getUTCDay() + 6) % 7) * day);
 }
 
 /** The ISO week `date` falls in, in UTC: weeks start on Monday, and week 1 holds the year's first Thursday. */
