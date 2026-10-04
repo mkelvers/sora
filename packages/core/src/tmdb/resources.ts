@@ -440,7 +440,7 @@ export async function withEdits(
 	}
 
 	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
-	const { data: log, error } = await attempt(
+	const { data, error } = await attempt(
 		tmdb(
 			`/tv/episode/${episode.id}/changes`,
 			{
@@ -452,12 +452,12 @@ export async function withEdits(
 		),
 		UpstreamUnavailableError,
 	);
-	if (error || !log) {
+	if (error || !data) {
 		return episode;
 	}
 
 	const edits = (key: string) =>
-		(log.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
+		(data.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
 			left.time.localeCompare(right.time),
 		);
 	const text = (key: string) => {

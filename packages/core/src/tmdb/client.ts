@@ -144,7 +144,7 @@ async function execute(url: URL): Promise<unknown> {
 	for (let tries = 0; ; tries += 1) {
 		await nextSlot();
 
-		const { data: response, error: unreachable } = await attempt(
+		const response = await attempt(
 			fetch(url, {
 				headers: {
 					Accept: "application/json",
@@ -153,15 +153,15 @@ async function execute(url: URL): Promise<unknown> {
 				signal: AbortSignal.timeout(requestTimeoutMs),
 			}),
 		);
-		if (unreachable) {
+		if (response.error) {
 			throw new UpstreamUnavailableError("TMDB could not be reached", {
 				retryAfterMs: null,
-				cause: unreachable,
+				cause: response.error,
 			});
 		}
 
-		if (response.status === 429) {
-			const retryAfterMs = retryAfter(response) ?? 2_000;
+		if (response.data.status === 429) {
+			const retryAfterMs = retryAfter(response.data) ?? 2_000;
 			// Pause every request from this process, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
 			if (tries < rateLimitRetries) {
@@ -173,27 +173,30 @@ async function execute(url: URL): Promise<unknown> {
 			});
 		}
 
-		if (response.status === 404) {
+		if (response.data.status === 404) {
 			return null;
 		}
 
-		if (!response.ok) {
-			throw new UpstreamUnavailableError(`TMDB returned ${response.status} for ${url.pathname}`, {
-				retryAfterMs: retryAfter(response),
-			});
+		if (!response.data.ok) {
+			throw new UpstreamUnavailableError(
+				`TMDB returned ${response.data.status} for ${url.pathname}`,
+				{
+					retryAfterMs: retryAfter(response.data),
+				},
+			);
 		}
 
-		const { data: body, error: unreadable } = await attempt(response.json());
-		if (unreadable) {
+		const body = await attempt(response.data.json());
+		if (body.error) {
 			throw new UpstreamUnavailableError(
 				`TMDB returned a response for ${url.pathname} that is not JSON`,
 				{
 					retryAfterMs: null,
-					cause: unreadable,
+					cause: body.error,
 				},
 			);
 		}
-		return body;
+		return body.data;
 	}
 }
 
