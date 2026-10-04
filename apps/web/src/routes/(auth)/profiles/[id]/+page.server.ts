@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
@@ -59,13 +60,12 @@ export const actions: Actions = {
 			});
 		}
 
-		try {
-			await locals.viewer!.sora.updateProfile(params.id, changes.data);
-		} catch (cause) {
-			if (cause instanceof SoraError && cause.status === 404) {
-				error(404, "No such profile");
-			}
-			throw cause;
+		const updated = await attempt(locals.viewer!.sora.updateProfile(params.id, changes.data));
+		if (updated.error instanceof SoraError && updated.error.status === 404) {
+			error(404, "No such profile");
+		}
+		if (updated.error) {
+			throw updated.error;
 		}
 
 		redirect(303, `/profiles${url.search}`);

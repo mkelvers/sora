@@ -1,4 +1,5 @@
 import { profileCookie, sessionCookie } from "$lib/server/sora";
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { redirect } from "@sveltejs/kit";
 
@@ -12,11 +13,10 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 		path: "/",
 	});
 
-	try {
-		await locals.viewer?.sora.signOut();
-	} catch (cause) {
-		if (!(cause instanceof SoraError && cause.status === 401)) {
-			throw cause;
+	if (locals.viewer) {
+		const { error } = await attempt(locals.viewer.sora.signOut());
+		if (error && !(error instanceof SoraError && error.status === 401)) {
+			throw error;
 		}
 	}
 

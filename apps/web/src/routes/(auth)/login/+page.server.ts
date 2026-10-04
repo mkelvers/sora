@@ -1,4 +1,5 @@
 import { profileCookie, sessionCookie, sora } from "$lib/server/sora";
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
@@ -42,32 +43,32 @@ export const actions: Actions = {
 			});
 		}
 
-		try {
-			const session = await sora.signIn(credentials.data);
-			cookies.delete(profileCookie, {
-				path: "/",
+		const { data: session, error } = await attempt(sora.signIn(credentials.data));
+		if (error instanceof SoraError && error.code === "INVALID_EMAIL_OR_PASSWORD") {
+			return fail(400, {
+				email,
+				message: "Wrong e-mail or password.",
 			});
-			cookies.set(sessionCookie, session.token, {
-				path: "/",
-				httpOnly: true,
-				sameSite: "lax",
-				maxAge: 90 * 24 * 60 * 60,
-			});
-		} catch (cause) {
-			if (cause instanceof SoraError && cause.code === "INVALID_EMAIL_OR_PASSWORD") {
-				return fail(400, {
-					email,
-					message: "Wrong e-mail or password.",
-				});
-			}
-			if (cause instanceof SoraError && cause.status === 429) {
-				return fail(429, {
-					email,
-					message: "Too many attempts. Try again in a minute.",
-				});
-			}
-			throw cause;
 		}
+		if (error instanceof SoraError && error.status === 429) {
+			return fail(429, {
+				email,
+				message: "Too many attempts. Try again in a minute.",
+			});
+		}
+		if (error) {
+			throw error;
+		}
+
+		cookies.delete(profileCookie, {
+			path: "/",
+		});
+		cookies.set(sessionCookie, session.token, {
+			path: "/",
+			httpOnly: true,
+			sameSite: "lax",
+			maxAge: 90 * 24 * 60 * 60,
+		});
 
 		redirect(303, `/profiles${url.search}`);
 	},

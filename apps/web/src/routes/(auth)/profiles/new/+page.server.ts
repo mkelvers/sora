@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
@@ -18,18 +19,19 @@ export const actions: Actions = {
 			});
 		}
 
-		try {
-			await locals.viewer!.sora.createProfile({
+		const { error } = await attempt(
+			locals.viewer!.sora.createProfile({
 				name: parsed.data,
+			}),
+		);
+		if (error instanceof SoraError && error.status === 422) {
+			return fail(400, {
+				name,
+				message: "Give the profile a name of up to 40 characters.",
 			});
-		} catch (cause) {
-			if (cause instanceof SoraError && cause.status === 422) {
-				return fail(400, {
-					name,
-					message: "Give the profile a name of up to 40 characters.",
-				});
-			}
-			throw cause;
+		}
+		if (error) {
+			throw error;
 		}
 
 		redirect(303, `/profiles${url.search}`);

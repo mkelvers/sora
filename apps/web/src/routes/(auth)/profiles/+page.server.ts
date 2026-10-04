@@ -1,4 +1,5 @@
 import { profileCookie } from "$lib/server/sora";
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { error, fail, redirect } from "@sveltejs/kit";
 
@@ -33,18 +34,17 @@ export const actions: Actions = {
 	delete: async ({ request, locals, cookies }) => {
 		const id = String((await request.formData()).get("profile") ?? "");
 
-		try {
-			await locals.viewer!.sora.deleteProfile(id);
-		} catch (cause) {
-			if (cause instanceof SoraError && cause.code === "LAST_PROFILE") {
-				return fail(409, {
-					message: "An account keeps at least one profile.",
-				});
-			}
-			if (cause instanceof SoraError && cause.status === 404) {
-				error(404, "No such profile");
-			}
-			throw cause;
+		const deleted = await attempt(locals.viewer!.sora.deleteProfile(id));
+		if (deleted.error instanceof SoraError && deleted.error.code === "LAST_PROFILE") {
+			return fail(409, {
+				message: "An account keeps at least one profile.",
+			});
+		}
+		if (deleted.error instanceof SoraError && deleted.error.status === 404) {
+			error(404, "No such profile");
+		}
+		if (deleted.error) {
+			throw deleted.error;
 		}
 
 		if (locals.viewer!.profile?.id === id) {
