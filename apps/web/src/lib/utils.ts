@@ -6,10 +6,6 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-export const languages = new Intl.DisplayNames(["en"], {
-	type: "language",
-});
-
 export function audioLabel(audio: SeriesCard["audio"] | null | undefined) {
 	const sub = !!audio?.includes("sub");
 	const dub = !!audio?.includes("dub");
@@ -19,38 +15,6 @@ export function audioLabel(audio: SeriesCard["audio"] | null | undefined) {
 	}
 
 	return sub ? "Subtitled" : dub ? "Dubbed" : "";
-}
-
-export function slug(name: string) {
-	return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-}
-
-export function formatClock(seconds: number) {
-	seconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-
-	const pad = (value: number) => String(value).padStart(2, "0");
-
-	const hours = Math.floor(seconds / 3600);
-	const minutes = Math.floor((seconds % 3600) / 60);
-	const rest = pad(Math.floor(seconds % 60));
-
-	if (hours > 0) {
-		return `${hours}:${pad(minutes)}:${rest}`;
-	}
-
-	return `${minutes}:${rest}`;
-}
-
-export function formatDuration(minutes: number) {
-	const total = Math.round(minutes);
-	const hours = Math.floor(total / 60);
-	const rest = total % 60;
-
-	if (hours === 0) {
-		return `${rest}m`;
-	}
-
-	return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
 export function pollWhileVisible(refresh: () => void, intervalMs = 30_000) {
@@ -68,43 +32,33 @@ export function pollWhileVisible(refresh: () => void, intervalMs = 30_000) {
 	};
 }
 
-export const timeZoneCookie = "sora_tz";
-
 const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
 
-export function tmdbImage(url: string, size: string) {
+/** Every width TMDB serves, across its poster, backdrop, logo and still sizes. */
+export type TmdbSize =
+	| "w45"
+	| "w92"
+	| "w154"
+	| "w185"
+	| "w300"
+	| "w342"
+	| "w500"
+	| "w780"
+	| "w1280"
+	| "original";
+
+export function tmdbImage(url: string, size: TmdbSize) {
 	return url.replace(tmdbBucket, `$1${size}/`);
 }
 
-export function tmdbSrcset(url: string, sizes: Record<string, number>) {
+export function tmdbSrcset(url: string, sizes: Partial<Record<TmdbSize, number>>) {
 	if (!tmdbBucket.test(url)) {
 		return undefined;
 	}
 
 	return Object.entries(sizes)
-		.map(([size, width]) => `${tmdbImage(url, size)} ${width}w`)
+		.map(([size, width]) => `${tmdbImage(url, size as TmdbSize)} ${width}w`)
 		.join(", ");
-}
-
-const formats: Record<NonNullable<SeriesCard["format"]>, string> = {
-	TV: "Series",
-	TV_SHORT: "Short",
-	MOVIE: "Movie",
-	SPECIAL: "Special",
-	OVA: "OVA",
-	ONA: "ONA",
-	MUSIC: "Music",
-};
-
-const statuses: Partial<Record<NonNullable<SeriesCard["status"]>, string>> = {
-	RELEASING: "Airing",
-	NOT_YET_RELEASED: "Upcoming",
-};
-
-export function describeCard(card: SeriesCard) {
-	return [card.year, card.format && formats[card.format], card.status && statuses[card.status]]
-		.filter((part) => !!part)
-		.join(" · ");
 }
 
 const menuKeys: Record<string, (index: number, count: number) => number> = {
