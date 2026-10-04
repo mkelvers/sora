@@ -8,7 +8,6 @@
 export type CoreErrorCode =
 	| "ANIME_NOT_FOUND"
 	| "SERIES_NOT_FOUND"
-	| "SEASON_NOT_FOUND"
 	| "EPISODE_NOT_FOUND"
 	| "PROFILE_NOT_FOUND"
 	| "LAST_PROFILE"
@@ -53,23 +52,10 @@ export class SeriesNotFoundError extends CoreError {
 	}
 }
 
-/** The ID does not identify a stored season. */
-export class SeasonNotFoundError extends CoreError {
-	readonly seasonId: string;
-
-	constructor(seasonId: string) {
-		super("SEASON_NOT_FOUND", `Season ${seasonId} does not exist`);
-		this.seasonId = seasonId;
-	}
-}
-
-/**
- * The season has no such episode, or nothing can stream it: an extra only
- * TMDB lists, or an episode no provider carries.
- */
+/** The series has no such episode, or nothing can stream it. */
 export class EpisodeNotFoundError extends CoreError {
-	constructor(seasonId: string, episode: number) {
-		super("EPISODE_NOT_FOUND", `Season ${seasonId} has no playable episode ${episode}`);
+	constructor(seriesId: string, episode: number) {
+		super("EPISODE_NOT_FOUND", `Series ${seriesId} has no playable episode ${episode}`);
 	}
 }
 
@@ -102,8 +88,8 @@ export class LastProfileError extends CoreError {
 export class PlaybackUnavailableError extends CoreError {
 	readonly attempts: readonly ProviderAttempt[];
 
-	constructor(seasonId: string, episode: number, attempts: readonly ProviderAttempt[]) {
-		super("PLAYBACK_UNAVAILABLE", `No provider could play season ${seasonId} episode ${episode}`);
+	constructor(seriesId: string, episode: number, attempts: readonly ProviderAttempt[]) {
+		super("PLAYBACK_UNAVAILABLE", `No provider could play series ${seriesId} episode ${episode}`);
 		this.attempts = attempts;
 	}
 }

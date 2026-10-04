@@ -1,7 +1,17 @@
-import { boolean, index, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+	boolean,
+	check,
+	index,
+	integer,
+	pgEnum,
+	pgTable,
+	primaryKey,
+	text,
+} from "drizzle-orm/pg-core";
 
 import { jsonb, timestamptz } from "./columns";
-import { series, seriesSeason } from "./series";
+import { series } from "./series";
 
 /**
  * A title featured on one user's home page for one rotation (see
@@ -49,21 +59,20 @@ export const playbackPreference = pgTable("playback_preference", {
 
 /**
  * How far one user is into one episode: where they stopped, of how long it
- * runs. Written while the episode plays; see `saveProgress`.
- *
- * An episode is addressed as clients address it, by season and number, so
- * progress goes with a season that is laid out away.
+ * runs. Written while the episode plays; see `saveProgress`. A rewatch of a
+ * series (see `seriesState.rewatchStartedAt`) has rows of its own, so
+ * playing it never changes what the user watched before.
  */
 export const episodeProgress = pgTable(
 	"episode_progress",
 	{
 		userId: text("user_id").notNull(),
-		seasonId: text("season_id")
+		seriesId: text("series_id")
 			.notNull()
-			.references(() => seriesSeason.id, {
+			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		/** Position within the season, from 1. */
+		/** The episode's number in the series, from 1. */
 		episode: integer("episode").notNull(),
 		positionSeconds: integer("position_seconds").notNull(),
 		durationSeconds: integer("duration_seconds").notNull(),
@@ -71,69 +80,37 @@ export const episodeProgress = pgTable(
 		finished: boolean("finished").notNull(),
 		/** When the user last played the episode. */
 		watchedAt: timestamptz("watched_at").notNull().defaultNow(),
+		/**
+		 * Whether the row is from the rewatch the user is in the middle of
+		 * rather than from their first viewing. Ending the rewatch deletes it.
+		 */
+		rewatch: boolean("rewatch").notNull().default(false),
 	},
 	(table) => [
 		primaryKey({
-			columns: [table.userId, table.seasonId, table.episode],
+			columns: [table.userId, table.seriesId, table.episode, table.rewatch],
 		}),
 		index("episode_progress_watched_at_idx").on(table.userId, table.watchedAt),
 	],
 );
 
-/**
- * An episode one user watched: finished in a player, or marked watched
- * without playing it (see `markSeason`). A user's history is these rows,
- * the newest first; see `getHistory`.
- *
- * Written once, when `saveProgress` first hears the episode is over, and
- * never changed by playing the episode again, so stopping partway through a
- * rewatch leaves it watched.
- *
- * Addressed by season and number, as {@link episodeProgress} is.
- */
-export const watchedEpisode = pgTable(
-	"watched_episode",
-	{
-		userId: text("user_id").notNull(),
-		seasonId: text("season_id")
-			.notNull()
-			.references(() => seriesSeason.id, {
-				onDelete: "cascade",
-			}),
-		/** Position within the season, from 1. */
-		episode: integer("episode").notNull(),
-		/**
-		 * When the user first finished the episode, or marked it. Kept to the
-		 * millisecond, which is all a page's cursor can carry; see `getHistory`.
-		 */
-		finishedAt: timestamp("finished_at", {
-			withTimezone: true,
-			precision: 3,
-		})
-			.notNull()
-			.defaultNow(),
-		/**
-		 * Whether the user marked the episode watched rather than finished it.
-		 * A marked episode has no progress, so it is what tells where the user
-		 * is in the show; see `getContinueWatching`.
-		 */
-		marked: boolean("marked").notNull().default(false),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.userId, table.seasonId, table.episode],
-		}),
-		index("watched_episode_finished_at_idx").on(table.userId, table.finishedAt),
-	],
-);
+/** Where one user is with a series on their watchlist; see `WatchlistStatus`. */
+export const watchlistStatus = pgEnum("watchlist_status", [
+	"watching",
+	"plan_to_watch",
+	"completed",
+	"dropped",
+]);
 
 /**
- * A series in one user's Shows: one they saved to watch later, or started
- * watching. Playing an episode puts its series here; only the user takes
- * it out again, which keeps their progress and history. See `getShows`.
+ * What one user decided about one series, as against the episodes they
+ * played of it, which {@link episodeProgress} holds: whether it is on their
+ * watchlist and with what status, whether they are watching it again, and
+ * whether they took it out of Continue Watching. A row left with none of
+ * these is deleted; see `clearSeriesState`.
  */
-export const profileShow = pgTable(
-	"profile_show",
+export const seriesState = pgTable(
+	"series_state",
 	{
 		userId: text("user_id").notNull(),
 		seriesId: text("series_id")
@@ -141,11 +118,27 @@ export const profileShow = pgTable(
 			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		addedAt: timestamptz("added_at").notNull().defaultNow(),
 		/**
-		 * When the user took the series' card out of Continue Watching. The
-		 * card stays out until they play or mark an episode of it after this;
-		 * see `getContinueWatching`.
+		 * The series' status on the watchlist; `null` when it is not on it. The
+		 * user sets it; playing an episode moves it on as `statusAfterPlayback`
+		 * says. Taking the series off the watchlist keeps the user's progress.
+		 */
+		status: watchlistStatus("status"),
+		/** When the series was put on the watchlist; `null` when it is not on it. */
+		addedAt: timestamptz("added_at"),
+		/** When the status last changed; `null` when it is not on the watchlist. */
+		statusChangedAt: timestamptz("status_changed_at"),
+		/**
+		 * When the user started watching the series again from the start, after
+		 * finishing it. While it is set, their progress is the rewatch's own
+		 * (see `episodeProgress.rewatch`); finishing the last episode again, or
+		 * marking the series watched, clears it. See `startRewatch`.
+		 */
+		rewatchStartedAt: timestamptz("rewatch_started_at"),
+		/**
+		 * When the user took the series' card out of Continue Watching. The card
+		 * stays out until they play an episode after this; see
+		 * `dismissContinueWatching`.
 		 */
 		dismissedAt: timestamptz("dismissed_at"),
 	},
@@ -153,67 +146,10 @@ export const profileShow = pgTable(
 		primaryKey({
 			columns: [table.userId, table.seriesId],
 		}),
-	],
-);
-
-/**
- * A series one user dropped: all of it, never one season. A dropped series
- * keeps its progress and history, and is left out of Continue Watching and
- * of what Sora suggests, with the series related to it. Only the user ends
- * a drop; new episodes and playing one do not. See `dropShow`.
- */
-export const droppedSeries = pgTable(
-	"dropped_series",
-	{
-		userId: text("user_id").notNull(),
-		seriesId: text("series_id")
-			.notNull()
-			.references(() => series.id, {
-				onDelete: "cascade",
-			}),
-		droppedAt: timestamptz("dropped_at").notNull().defaultNow(),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.userId, table.seriesId],
-		}),
-	],
-);
-
-/**
- * A notification one user marked read, by its ID (see `Notification.id`).
- * Rows older than a notification is listed go when the user next marks one;
- * see `markNotificationsRead`.
- */
-export const notificationRead = pgTable(
-	"notification_read",
-	{
-		userId: text("user_id").notNull(),
-		notificationId: text("notification_id").notNull(),
-		readAt: timestamptz("read_at").notNull(),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.userId, table.notificationId],
-		}),
-	],
-);
-
-/**
- * A notification one user deleted, by its ID (see `Notification.id`). It is
- * never listed again. Rows older than a notification is listed go when the
- * user next deletes one; see `dismissNotification`.
- */
-export const notificationDismissal = pgTable(
-	"notification_dismissal",
-	{
-		userId: text("user_id").notNull(),
-		notificationId: text("notification_id").notNull(),
-		dismissedAt: timestamptz("dismissed_at").notNull(),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.userId, table.notificationId],
-		}),
+		index("series_state_status_changed_at_idx").on(table.userId, table.statusChangedAt),
+		check(
+			"series_state_watchlist_check",
+			sql`(${table.status} is null) = (${table.addedAt} is null) and (${table.status} is null) = (${table.statusChangedAt} is null)`,
+		),
 	],
 );
