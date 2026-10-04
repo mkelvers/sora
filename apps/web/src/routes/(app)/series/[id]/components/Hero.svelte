@@ -69,7 +69,7 @@
 				: `Next episode airs ${day} at ${time}`;
 		}
 
-		return aired ? "Premiere available soon" : `Premieres ${day}`;
+		return aired ? "Premiere available soon" : `Series premiere starts ${day}`;
 	});
 </script>
 
