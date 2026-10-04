@@ -56,6 +56,7 @@
 	const popover = new Popover({
 		focus: {
 			onOpen: (): string => `#${popover.ids.popover} [aria-checked="true"]`,
+			onClose: null,
 		},
 		floatingConfig: () => ({
 			computePosition: {
