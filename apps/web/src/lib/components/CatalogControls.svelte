@@ -181,7 +181,7 @@
 			variant="item"
 			href="/{sort.kind}"
 			aria-current={sort.kind === kind ? "true" : undefined}
-			class="aria-[current=true]:font-normal aria-[current=true]:text-foreground"
+			class="aria-current:font-normal aria-current:text-foreground"
 			onclick={() => (sortOpen = false)}
 		>
 			{sort.label}

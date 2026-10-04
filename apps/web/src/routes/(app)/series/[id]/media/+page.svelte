@@ -126,7 +126,7 @@
 						<p class="mt-4 text-sm text-status-error" role="alert">{media.error}</p>
 					{/if}
 
-					<div class="@container-[size] mt-4 min-h-0 flex-1">
+					<div class="@container-size mt-4 min-h-0 flex-1">
 						<svelte:boundary>
 							{#snippet pending()}
 								<Skeleton class="mx-auto aspect-video w-[min(100cqw,calc(100cqh*16/9))]" />
@@ -139,7 +139,7 @@
 			{:else}
 				<div class="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
 					<aside
-						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:[scrollbar-width:thin] lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
+						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
 					>
 						{#if media.type === "logo" && series.logo_url}
 							<Button variant="ghost" class="justify-self-start" onclick={() => (sizing = true)}>

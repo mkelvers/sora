@@ -119,7 +119,9 @@
 								{/each}
 							{:else}
 								{#each { length: 12 }, index (index)}
-									<li><Poster /></li>
+									<li>
+										<Poster />
+									</li>
 								{/each}
 							{/if}
 						</ul>
