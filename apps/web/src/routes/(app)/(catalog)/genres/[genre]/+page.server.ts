@@ -1,5 +1,5 @@
 import { sora } from "$lib/server/sora";
-import { slug } from "$lib/utils";
+import { slug } from "$routes/(app)/(catalog)/genres/slug";
 import { route } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 

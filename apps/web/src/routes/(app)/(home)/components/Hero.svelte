@@ -7,7 +7,8 @@
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { audioLabel, cn, slug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
@@ -201,7 +202,7 @@
 								{#key index === carousel.active ? carousel.cycle : -1}
 									<span
 										class={cn(
-											"relative block h-2 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
+											"relative block h-2 w-full overflow-hidden rounded-full bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
 											index === carousel.active &&
 												"after:absolute after:inset-y-0 after:left-0 after:bg-accent",
 											index === carousel.active &&

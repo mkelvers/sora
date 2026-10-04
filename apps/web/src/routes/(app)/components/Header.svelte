@@ -4,8 +4,9 @@
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import { cn, pollWhileVisible, slug } from "$lib/utils";
+	import { cn, pollWhileVisible } from "$lib/utils";
 	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
+	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";

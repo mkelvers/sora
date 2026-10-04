@@ -3,7 +3,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, cn, slug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series, SeriesProgress } from "@sora/sdk";
