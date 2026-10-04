@@ -272,8 +272,7 @@
 			<button
 				type="button"
 				aria-roledescription="logo"
-				aria-label="Logo, {Math.round(scale * 100)}%. Arrow keys move it, plus and minus resize it."
-				class="pointer-events-none absolute z-40 outline-1 outline-offset-0 outline-white/80 outline-dashed focus-visible:outline-2 focus-visible:outline-solid"
+				class="pointer-events-none absolute z-40 outline-1 outline-offset-0 outline-white/80 outline-dashed [--size:0.75rem] [background:linear-gradient(#fff,#fff)_top_left/var(--size)_var(--size)_no-repeat,linear-gradient(#fff,#fff)_top_right/var(--size)_var(--size)_no-repeat,linear-gradient(#fff,#fff)_bottom_left/var(--size)_var(--size)_no-repeat,linear-gradient(#fff,#fff)_bottom_right/var(--size)_var(--size)_no-repeat] focus-visible:outline-2 focus-visible:outline-solid pointer-coarse:[--size:1rem]"
 				style:left="{box.left}px"
 				style:top="{box.top}px"
 				style:width="{box.width}px"
@@ -285,14 +284,9 @@
 					}
 				}}
 			>
-				{#each corners as corner (corner.class)}
-					<span
-						class={cn(
-							"absolute size-3 border border-black/40 bg-white pointer-coarse:size-4",
-							corner.class,
-						)}
-					></span>
-				{/each}
+				<span class="sr-only">
+					Logo, {Math.round(scale * 100)}%. Arrow keys move it, plus and minus resize it.
+				</span>
 			</button>
 		{/if}
 	</div>
