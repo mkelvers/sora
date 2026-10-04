@@ -1,7 +1,7 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
+import { refreshStatus, refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
@@ -113,7 +113,7 @@ export const saveProgress = command(
 		if (leaving) {
 			await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
 		} else if (progress.finished) {
-			await refreshTracking();
+			await refreshStatus();
 		}
 	},
 );
