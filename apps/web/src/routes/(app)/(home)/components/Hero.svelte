@@ -22,7 +22,6 @@
 	} = $props();
 
 	const watchlist = getWatchlist();
-
 	const delay = 10_000;
 
 	let held = $state(-1);
