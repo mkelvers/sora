@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, describeCard, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
 
@@ -80,7 +80,7 @@
 		</span>
 		<span class="grid min-w-0 gap-0.75">
 			<span class="truncate text-sm font-medium text-foreground">{card.title}</span>
-			<span class="text-sm text-muted">{describeCard(card)}</span>
+			<span class="text-sm text-muted">{card.description}</span>
 		</span>
 	</a>
 {:else}
