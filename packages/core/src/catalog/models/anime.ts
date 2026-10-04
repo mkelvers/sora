@@ -7,7 +7,7 @@ import type {
 	MediaSource,
 	MediaStatus,
 } from "../../anilist/graphql.generated";
-import { fromUnixSeconds, fuzzyDate, plainText } from "./text";
+import { fromUnixSeconds, fuzzyDate, synopsis } from "./text";
 
 export type AnimeFormat = Exclude<MediaFormat, "MANGA" | "NOVEL" | "ONE_SHOT">;
 export type AnimeStatus = MediaStatus;
@@ -83,7 +83,7 @@ export interface AnimeTag {
 /** Everything needed to render an anime's detail screen. */
 export interface Anime extends AnimeCard {
 	synonyms: string[];
-	/** Plain-text synopsis with AniList markup and source notes removed. */
+	/** Plain-text synopsis cut down to its premise (see {@link synopsis}). */
 	description: string | null;
 	source: AnimeSource | null;
 	countryOfOrigin: string | null;
@@ -134,7 +134,7 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
 	return {
 		...toAnimeCard(media),
 		synonyms: present(media.synonyms),
-		description: media.description ? plainText(media.description) : null,
+		description: (media.description && synopsis(media.description)) || null,
 		source: media.source,
 		countryOfOrigin: media.countryOfOrigin,
 		startDate: media.startDate ? fuzzyDate(media.startDate) : null,
