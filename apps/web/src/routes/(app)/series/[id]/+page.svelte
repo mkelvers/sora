@@ -7,7 +7,6 @@
 	import { DotsThreeVerticalIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import Details from "./components/Details.svelte";
 	import Episodes from "./components/Episodes.svelte";
 	import Hero from "./components/Hero.svelte";
 	import { getSeries, getSeriesProgress, markSeries } from "./series.remote";
@@ -27,11 +26,9 @@
 			detail:
 				part.format === "MOVIE"
 					? "Movie"
-					: part.episode_count === 0
-						? "Coming Soon"
-						: part.episode_count === 1
-							? "1 Episode"
-							: `${part.episode_count} Episodes`,
+					: part.episode_count
+						? `${part.episode_count} ${part.episode_count === 1 ? "Episode" : "Episodes"}`
+						: "Coming Soon",
 		})),
 	);
 </script>
@@ -43,7 +40,16 @@
 <div class="bg-canvas text-foreground">
 	<Hero {series} {progress} />
 
-	<Details {series} />
+	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8">
+		{#if series.overview}
+			<section
+				aria-label="Synopsis"
+				class="max-w-3xl text-xs leading-5 text-foreground lg:text-sm lg:leading-6"
+			>
+				<p>{series.overview}</p>
+			</section>
+		{/if}
+	</div>
 
 	<div class="px-5 sm:px-10 lg:px-16">
 		{#if parts.length > 1 || series.episode_count > 0}
@@ -94,14 +100,7 @@
 					<h2 id="episodes" class="sr-only">Episodes</h2>
 				{/if}
 
-				<Episodes
-					seriesId={series.id}
-					title={series.title}
-					movie={series.format === "MOVIE"}
-					backdrop={series.backdrop_url}
-					count={series.episode_count}
-					progress={progress.episodes}
-				/>
+				<Episodes {series} progress={progress.episodes} />
 			</section>
 		{:else}
 			<section

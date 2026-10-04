@@ -4,73 +4,41 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, formatDuration, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
-	import type { Episode, Progress } from "@sora/sdk";
+	import type { Episode, Progress, Series } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
-		seriesId,
-		title,
-		movie,
-		backdrop,
+		series,
 		episode,
 		progress,
 	}: {
-		seriesId: string;
-		title: string;
-		movie: boolean;
-		backdrop: string | null;
+		series: Series;
 		episode: Episode;
 		progress?: Progress;
 	} = $props();
 
+	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
-
 	const played = $derived(
-		progress && !watched && !progress.finished && progress.position_seconds > 0
+		progress && !watched && progress.position_seconds > 0
 			? progress.position_seconds / progress.duration_seconds
 			: 0,
 	);
 	const playable = $derived(episode.audio?.length !== 0);
 	const heading = $derived(
 		movie
-			? (episode.title ?? title)
+			? (episode.title ?? series.title)
 			: `E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`,
 	);
-	const label = $derived(movie ? "" : ` E${episode.number}`);
-	const audio = $derived(audioLabel(episode.audio));
-	const released = $derived.by(() => {
-		if (episode.aired_at) {
-			return {
-				iso: episode.aired_at,
-				label: new Date(episode.aired_at).toLocaleDateString("en-US", {
-					month: "short",
-					day: "numeric",
-					year: "numeric",
-				}),
-			};
-		}
-
-		if (episode.air_date) {
-			return {
-				iso: episode.air_date,
-				label: new Date(episode.air_date).toLocaleDateString("en-US", {
-					month: "short",
-					day: "numeric",
-					year: "numeric",
-					timeZone: "UTC",
-				}),
-			};
-		}
-
-		return null;
-	});
-	const image = $derived(episode.still_url ?? backdrop);
+	const suffix = $derived(movie ? "" : ` E${episode.number}`);
+	const released = $derived(episode.aired_at ?? episode.air_date);
+	const image = $derived(episode.still_url ?? series.backdrop_url);
 </script>
 
 <li class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10 sm:min-h-56">
 	<svelte:element
 		this={playable ? "a" : "div"}
-		href={playable ? `/series/${seriesId}/watch/${episode.number}` : undefined}
+		href={playable ? `/series/${series.id}/watch/${episode.number}` : undefined}
 		class="flex min-w-0 flex-1 flex-col focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 	>
 		<div
@@ -85,7 +53,7 @@
 							w780: 780,
 						})}
 						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
-						alt="Still from episode {episode.number} of {title}"
+						alt="Still from episode {episode.number} of {series.title}"
 						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
@@ -123,13 +91,13 @@
 			</div>
 
 			<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase sm:mt-3.5">
-				{title}
+				{series.title}
 			</p>
 			<h3 class="mt-1 pr-8 text-base leading-snug font-bold text-foreground sm:mt-1.5">
 				{heading}
 			</h3>
 			<p class="mt-1 pr-8 text-sm text-muted sm:mt-2 sm:pr-0">
-				{audio}
+				{audioLabel(episode.audio)}
 			</p>
 		</div>
 
@@ -137,12 +105,19 @@
 			aria-hidden="true"
 			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 		>
-			<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase">{title}</p>
+			<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase">{series.title}</p>
 			<p class="mt-2 text-base leading-snug font-bold text-foreground">{heading}</p>
 			{#if released}
 				<p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
 					<CalendarBlankIcon size="1rem" />
-					<time datetime={released.iso}>{released.label}</time>
+					<time datetime={released}>
+						{new Date(released).toLocaleDateString("en-US", {
+							month: "short",
+							day: "numeric",
+							year: "numeric",
+							timeZone: episode.aired_at ? undefined : "UTC",
+						})}
+					</time>
 				</p>
 			{/if}
 			{#if episode.overview}
@@ -156,11 +131,11 @@
 				>
 					<PlayIcon size="1.25rem" weight="bold" />
 					{#if watched}
-						Watch again{label}
+						Watch again{suffix}
 					{:else if played}
-						Resume{label}
+						Resume{suffix}
 					{:else}
-						Play{label}
+						Play{suffix}
 					{/if}
 				</span>
 			{/if}
@@ -179,7 +154,7 @@
 						variant="item"
 						onclick={() =>
 							markEpisode({
-								seriesId,
+								seriesId: series.id,
 								episode: episode.number,
 								watched: !watched,
 							})}
