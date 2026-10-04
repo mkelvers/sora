@@ -8,31 +8,37 @@ import type {
 } from "../../anilist/graphql.generated";
 import { jsonb, timestamptz } from "./columns";
 
-/** Cached AniList GraphQL responses keyed by operation and variables. */
-export const anilistSnapshot = pgTable(
-	"anilist_snapshot",
-	{
-		key: text("key").primaryKey(),
-		operation: text("operation").notNull(),
-		data: jsonb("data").$type<unknown>().notNull(),
-		fetchedAt: timestamptz("fetched_at").notNull(),
-		expiresAt: timestamptz("expires_at").notNull(),
-	},
-	(table) => [index("anilist_snapshot_expires_idx").on(table.expiresAt)],
-);
+/**
+ * The last response AniList gave each request, keyed by operation and
+ * variables, kept for good.
+ *
+ * Every read says how old a response it accepts (`maxAgeMs`), an hour at
+ * most for anything that changes, so AniList's 30 to 90 requests a minute
+ * are not spent on asking the same thing twice. An older response is served
+ * only while AniList is down.
+ */
+export const anilistResponse = pgTable("anilist_response", {
+	key: text("key").primaryKey(),
+	operation: text("operation").notNull(),
+	data: jsonb("data").$type<unknown>().notNull(),
+	fetchedAt: timestamptz("fetched_at").notNull(),
+});
 
-/** Cached TMDB REST responses keyed by path and query. */
-export const tmdbSnapshot = pgTable(
-	"tmdb_snapshot",
-	{
-		key: text("key").primaryKey(),
-		path: text("path").notNull(),
-		data: jsonb("data").$type<unknown>().notNull(),
-		fetchedAt: timestamptz("fetched_at").notNull(),
-		expiresAt: timestamptz("expires_at").notNull(),
-	},
-	(table) => [index("tmdb_snapshot_expires_idx").on(table.expiresAt)],
-);
+/**
+ * The last response TMDB gave each request, keyed by path and query, kept
+ * for good.
+ *
+ * Every read says how old a response it accepts (`maxAgeMs`). Shows are the
+ * source the scheduler lays series out from, and it asks TMDB for one again
+ * only as `refreshEpisodeListings` decides, so a stored show may be months
+ * old; an older response of any kind is served while TMDB is down.
+ */
+export const tmdbResponse = pgTable("tmdb_response", {
+	key: text("key").primaryKey(),
+	path: text("path").notNull(),
+	data: jsonb("data").$type<unknown>().notNull(),
+	fetchedAt: timestamptz("fetched_at").notNull(),
+});
 
 /**
  * Every anime the catalog has served, stored permanently.
@@ -47,7 +53,7 @@ export const anime = pgTable(
 		anilistId: integer("anilist_id").primaryKey(),
 		/**
 		 * The `AnimeDetails` fragment exactly as AniList returned it. Written only
-		 * from codegen-typed responses, so, like `anilist_snapshot`, it is read
+		 * from codegen-typed responses, so, like `anilist_response`, it is read
 		 * back without re-validation.
 		 */
 		media: jsonb("media").$type<AnimeDetailsFragment>().notNull(),
