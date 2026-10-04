@@ -43,50 +43,45 @@ const TrackAiringPayloadSchema = z.object({
 export const trackAiring: Task = async (rawPayload, helpers) => {
 	const payload = TrackAiringPayloadSchema.parse(rawPayload);
 
-	const { data: before, error: missing } = await attempt(
-		getAnime(payload.anilistId),
-		AnimeNotFoundError,
-	);
-	if (missing) {
+	const before = await attempt(getAnime(payload.anilistId), AnimeNotFoundError);
+	if (before.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
 		return;
 	}
 
-	const { data: anime, error: gone } = await attempt(
-		refreshAnime(payload.anilistId),
-		AnimeNotFoundError,
-	);
-	if (gone) {
+	const anime = await attempt(refreshAnime(payload.anilistId), AnimeNotFoundError);
+	if (anime.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
 		return;
 	}
 
-	const releasedBefore = (await readAniKotoEpisodes(anime.id)).latest;
-	await refreshProviderEpisodes(anime, helpers.logger);
-	const onAniKoto = await readAniKotoEpisodes(anime.id);
+	const episodesBefore = await readAniKotoEpisodes(anime.data.id);
+	const releasedBefore = episodesBefore.latest;
+	await refreshProviderEpisodes(anime.data, helpers.logger);
+	const onAniKoto = await readAniKotoEpisodes(anime.data.id);
 	if (
 		onAniKoto.latest !== releasedBefore ||
-		JSON.stringify(layoutInputs(anime)) !== JSON.stringify(layoutInputs(before))
+		JSON.stringify(layoutInputs(anime.data)) !== JSON.stringify(layoutInputs(before.data))
 	) {
-		await scheduleStoredSeriesRefresh(anime.id);
+		await scheduleStoredSeriesRefresh(anime.data.id);
 	}
 
 	const plan = planNextCheck(
 		{
-			status: anime.status,
-			nextAiringAt: anime.nextEpisode ? new Date(anime.nextEpisode.airingAt) : null,
+			status: anime.data.status,
+			nextAiringAt: anime.data.nextEpisode ? new Date(anime.data.nextEpisode.airingAt) : null,
 			// An anime AniKoto does not carry has no episode to wait for; the
 			// half-hourly look picks it up once AniKoto adds it.
-			latestAiredEpisode: onAniKoto.carried ? await latestAiredEpisode(anime) : null,
+			latestAiredEpisode: onAniKoto.carried ? await latestAiredEpisode(anime.data) : null,
 			latestReleasedEpisode: onAniKoto.latest,
-			startDate: anime.startDate,
+			startDate: anime.data.startDate,
 		},
 		payload,
 		new Date(),
 	);
 
 	if (plan.done) {
-		helpers.logger.info(`Anime ${anime.id} has finished airing; no longer tracking it`);
+		helpers.logger.info(`Anime ${anime.data.id} has finished airing; no longer tracking it`);
 		return;
 	}
 
@@ -95,7 +90,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	if (plan.awaitedEpisode !== null && plan.attempt === 0) {
 		await scheduleAniKotoPoll(
 			{
-				anilistId: anime.id,
+				anilistId: anime.data.id,
 				episode: plan.awaitedEpisode,
 				language: "sub",
 				attempt: 0,
@@ -106,7 +101,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
 	await scheduleAiringCheck(
 		{
-			anilistId: anime.id,
+			anilistId: anime.data.id,
 			awaitedEpisode: plan.awaitedEpisode,
 			attempt: plan.attempt,
 		},
@@ -189,7 +184,8 @@ async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAire
 	const fromNext =
 		anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
 	const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
-	const scheduled = (await fetchLatestAiring(anime.id))?.episode ?? null;
+	const latestAiring = await fetchLatestAiring(anime.id);
+	const scheduled = latestAiring?.episode ?? null;
 	const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
 	return known.length > 0 ? Math.max(...known) : null;
 }
