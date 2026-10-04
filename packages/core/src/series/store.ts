@@ -1,15 +1,9 @@
-import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
-import {
-	series,
-	seriesEntry,
-	seriesEpisode,
-	seriesRelated,
-	seriesSeason,
-} from "../database/schema";
+import { animeSearch, series, seriesEpisode, seriesRelated } from "../database/schema";
 import { newId } from "../ids";
 import {
 	scheduleEpisodeLookups,
@@ -17,49 +11,49 @@ import {
 	startTrackingAiring,
 } from "../scheduler/queue";
 import { storeBackdropEdges } from "./edges";
-import { anilistEpisodeKey } from "./episodes";
-import { assignSeasonIds } from "./identity";
-import type { SeriesSeason } from "./seasons";
-import { buildSeries, type SeriesLayout } from "./series";
-
-type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+import { anilistEpisodeKey, carriedByAniKoto } from "./episodes";
+import { buildSeries } from "./series";
 
 /**
- * Serializes writes of laid-out series. Stores run from requests and
- * scheduler jobs at once, and two stores of one franchise must not both
- * decide which stored series and seasons their entries belong to.
+ * Serializes writes of one entry's series, with the entry's AniList ID.
+ * Stores run from requests and scheduler jobs at once, and two of one entry
+ * must not replace its episodes at the same time.
  */
 const storeLockKey = 0x5e71e5;
 
 /** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
 const episodeInsertBatch = 1_000;
 
-/** The Sora IDs of the stored series containing the given AniList entries, by AniList ID. */
+/** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
 export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
 	if (anilistIds.length === 0) {
 		return new Map();
 	}
 
 	const rows = await db
-		.select()
-		.from(seriesEntry)
-		.where(inArray(seriesEntry.anilistId, [...new Set(anilistIds)]));
+		.select({
+			id: series.id,
+			anilistId: series.anilistId,
+		})
+		.from(series)
+		.where(inArray(series.anilistId, [...new Set(anilistIds)]));
 
-	return new Map(rows.map((row) => [row.anilistId, row.seriesId]));
+	return new Map(rows.map((row) => [row.anilistId, row.id]));
 }
 
 /**
- * Lays out the series an AniList entry belongs to and stores it, replacing
- * the stored layout. Returns the series' Sora ID.
+ * Lays out an AniList entry as a series and stores it, replacing the stored
+ * layout. Returns the series' Sora ID, which the entry keeps for good.
  *
- * Stored IDs are kept. The series keeps its ID when it still contains its
- * anchor entry, or otherwise any of its entries; an entry TMDB grouped
- * elsewhere moves to that series. A stored series left without entries is
- * merged into this one, and its library entries move here. Seasons keep their IDs as
- * {@link assignSeasonIds} describes. Related titles that are not stored yet
- * are queued for the scheduler to store, entries that may still gain
- * episodes are handed to the airing scheduler, which lays the series out
- * again as they air, and every entry is queued to be looked up on
+ * When each episode aired is read from AniList's airing schedule (see
+ * {@link fetchEpisodeAirings}) the first time the entry is stored and while
+ * it may still gain episodes; after that the stored times are kept.
+ *
+ * Related entries that are not stored yet, and that can be watched or are
+ * yet to come out, are queued for the scheduler to store, so a franchise is
+ * stored title by title. An entry that may still
+ * gain episodes is handed to the airing scheduler, which lays the series
+ * out again as it airs, and the entry is queued to be looked up on
  * providers.
  *
  * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
@@ -68,293 +62,135 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  */
 export async function storeSeries(anilistId: number): Promise<string> {
 	const built = await buildSeries(anilistId);
-	const airings = await fetchEpisodeAirings(built.anilistIds);
-	const seriesId = await db.transaction((tx) => writeSeries(tx, built, airings));
+	const isStored = (await storedSeriesIds([anilistId])).has(anilistId);
+	const airings =
+		!isStored || built.mayGainEpisodes
+			? await fetchEpisodeAirings([anilistId])
+			: new Map<string, Date>();
+
+	const seriesId = await db.transaction(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey}, ${anilistId})`);
+
+		const values = {
+			key: built.key,
+			kind: built.kind,
+			title: built.title,
+			overview: built.overview,
+			posterUrl: built.posterUrl,
+			backdropUrl: built.backdropUrl,
+			logoUrl: built.logoUrl,
+			startDate: built.startDate,
+			status: built.status,
+			nextEpisodeNumber: built.nextAiring?.episode ?? null,
+			nextEpisodeAiringAt: built.nextAiring ? new Date(built.nextAiring.airingAt) : null,
+			laidOutAt: new Date(),
+		};
+		const [stored] = await tx
+			.insert(series)
+			.values({
+				id: newId(),
+				anilistId,
+				...values,
+			})
+			.onConflictDoUpdate({
+				target: series.anilistId,
+				set: values,
+			})
+			.returning({
+				id: series.id,
+			});
+		const id = stored!.id;
+
+		const airedBefore = new Map(
+			(
+				await tx
+					.select({
+						number: seriesEpisode.number,
+						airedAt: seriesEpisode.airedAt,
+					})
+					.from(seriesEpisode)
+					.where(eq(seriesEpisode.seriesId, id))
+			).map((row) => [row.number, row.airedAt]),
+		);
+		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
+		const episodes = built.episodes.map((episode) => ({
+			seriesId: id,
+			number: episode.number,
+			title: episode.title,
+			overview: episode.overview,
+			airDate: episode.airDate,
+			airedAt:
+				airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
+				airedBefore.get(episode.number) ??
+				null,
+			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
+			stillUrl: episode.stillUrl,
+			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
+			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
+		}));
+		for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
+			await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
+		}
+
+		await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, id));
+		if (built.related.length > 0) {
+			await tx
+				.insert(seriesRelated)
+				.values(
+					built.related.map((related, position) => ({
+						seriesId: id,
+						...related,
+						position,
+					})),
+				)
+				.onConflictDoNothing();
+		}
+
+		return id;
+	});
 	await storeBackdropEdges(seriesId);
 
-	// Readers take the series' details from its anchor entry, so it must be stored.
-	await getAnime(built.anchorAnilistId);
-	for (const id of built.airingIds) {
-		await startTrackingAiring(id);
+	// Readers take the series' details from its anime, so it must be stored.
+	await getAnime(anilistId);
+	if (built.mayGainEpisodes) {
+		await startTrackingAiring(anilistId);
 	}
 
 	// Episode listings read providers' episode lists from the database only.
-	await scheduleEpisodeLookups(built.anilistIds, "backfill");
+	await scheduleEpisodeLookups([anilistId], "backfill");
 
-	const relatedIds = built.related.flatMap((related) => related.anilistIds.slice(0, 1));
-	const storedRelated = await storedSeriesIds(relatedIds);
-	for (const id of relatedIds.filter((id) => !storedRelated.has(id))) {
+	for (const id of await relatedWorthStoring(built.related.map((related) => related.anilistId))) {
 		await scheduleSeriesStore(id, "backfill");
 	}
 
 	return seriesId;
 }
 
-async function writeSeries(
-	tx: Transaction,
-	built: SeriesLayout,
-	airings: ReadonlyMap<string, Date>,
-) {
-	await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey})`);
+/**
+ * The entries among `anilistIds` that are not stored yet and are worth
+ * storing as titles of a franchise: those AniKoto carries, which can be
+ * watched, and those airing or yet to come out, which will be. Storing every
+ * related entry would follow AniList's relations through specials and
+ * extras nothing streams.
+ */
+async function relatedWorthStoring(anilistIds: readonly number[]): Promise<number[]> {
+	if (anilistIds.length === 0) {
+		return [];
+	}
 
-	const seriesId = await chooseSeriesId(tx, built);
-	const owners = await tx
-		.selectDistinct({
-			seriesId: seriesEntry.seriesId,
+	const stored = await storedSeriesIds(anilistIds);
+	const rows = await db
+		.select({
+			anilistId: animeSearch.anilistId,
 		})
-		.from(seriesEntry)
+		.from(animeSearch)
 		.where(
-			or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)),
-		);
-
-	// Entries leave whichever series held them; a series left empty is merged
-	// into this one. Former owners exist only when this series was stored too.
-	await tx
-		.delete(seriesEntry)
-		.where(
-			or(inArray(seriesEntry.anilistId, built.anilistIds), eq(seriesEntry.seriesId, seriesId)),
-		);
-	const formerOwners = owners.map((owner) => owner.seriesId).filter((id) => id !== seriesId);
-	const emptied =
-		formerOwners.length > 0
-			? await tx
-					.select({
-						id: series.id,
-					})
-					.from(series)
-					.where(
-						and(
-							inArray(series.id, formerOwners),
-							sql`not exists (select 1 from ${seriesEntry} where ${seriesEntry.seriesId} = ${series.id})`,
-						),
-					)
-			: [];
-	if (emptied.length > 0) {
-		await tx.delete(series).where(
-			inArray(
-				series.id,
-				emptied.map((row) => row.id),
+			and(
+				inArray(animeSearch.anilistId, [...new Set(anilistIds)]),
+				not(animeSearch.isAdult),
+				sql`${animeSearch.format} is distinct from 'MUSIC'`,
+				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
 			),
 		);
-	}
-
-	const values = {
-		key: built.key,
-		kind: built.kind,
-		anchorAnilistId: built.anchorAnilistId,
-		title: built.title,
-		overview: built.overview,
-		posterUrl: built.posterUrl,
-		backdropUrl: built.backdropUrl,
-		logoUrl: built.logoUrl,
-		startDate: built.startDate,
-		status: built.status,
-		laidOutAt: new Date(),
-	};
-	await tx
-		.insert(series)
-		.values({
-			id: seriesId,
-			...values,
-		})
-		.onConflictDoUpdate({
-			target: series.id,
-			set: values,
-		});
-
-	await tx.insert(seriesEntry).values(
-		built.anilistIds.map((id) => ({
-			anilistId: id,
-			seriesId,
-		})),
-	);
-
-	const seasons = await writeSeasons(tx, seriesId, built, airings);
-	const next = nextEpisodeOf(seasons, built.nextAiring);
-	await tx
-		.update(series)
-		.set({
-			nextEpisodeSeasonId: next?.seasonId ?? null,
-			nextEpisodeNumber: next?.number ?? null,
-			nextEpisodeAiringAt: built.nextAiring && next ? new Date(built.nextAiring.airingAt) : null,
-		})
-		.where(eq(series.id, seriesId));
-
-	await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, seriesId));
-	const related = built.related.flatMap((summary, position) =>
-		summary.anilistIds.slice(0, 1).map((anilistId) => ({
-			seriesId,
-			anilistId,
-			position,
-		})),
-	);
-	if (related.length > 0) {
-		await tx.insert(seriesRelated).values(related);
-	}
-
-	return seriesId;
-}
-
-/**
- * The stored series this layout continues: the one holding its anchor entry,
- * else the one with its key, else the oldest one holding any of its entries.
- * A layout that continues none gets a new ID.
- */
-async function chooseSeriesId(tx: Transaction, built: SeriesLayout) {
-	const candidates = await tx
-		.select({
-			id: series.id,
-			key: series.key,
-			anchorHeld: sql<boolean>`exists (
-        select 1 from ${seriesEntry}
-        where ${seriesEntry.seriesId} = ${series.id} and ${seriesEntry.anilistId} = ${built.anchorAnilistId}
-      )`,
-			createdAt: series.createdAt,
-		})
-		.from(series)
-		.where(
-			or(
-				eq(series.key, built.key),
-				inArray(
-					series.id,
-					tx
-						.select({
-							id: seriesEntry.seriesId,
-						})
-						.from(seriesEntry)
-						.where(inArray(seriesEntry.anilistId, built.anilistIds)),
-				),
-			),
-		)
-		.orderBy(series.createdAt);
-
-	const chosen =
-		candidates.find((candidate) => candidate.anchorHeld) ??
-		candidates.find((candidate) => candidate.key === built.key) ??
-		candidates[0];
-
-	return chosen?.id ?? newId();
-}
-
-/**
- * Replaces a series' seasons and episodes, keeping season IDs, each episode
- * with when AniList's airing schedule says it airs (see
- * {@link fetchEpisodeAirings}). Returns the seasons with their IDs.
- */
-async function writeSeasons(
-	tx: Transaction,
-	seriesId: string,
-	built: SeriesLayout,
-	airings: ReadonlyMap<string, Date>,
-) {
-	const stored = await tx
-		.select({
-			id: seriesSeason.id,
-			kind: seriesSeason.kind,
-			number: seriesSeason.number,
-			anchorAnilistId: seriesSeason.anchorAnilistId,
-		})
-		.from(seriesSeason)
-		.where(eq(seriesSeason.seriesId, seriesId));
-
-	const seasons = assignSeasonIds(stored, built.seasons, newId);
-	const keptIds = seasons.map(({ id }) => id);
-
-	// Episodes are rewritten wholesale; they are identified by season and number.
-	await tx
-		.delete(seriesSeason)
-		.where(
-			keptIds.length > 0
-				? and(eq(seriesSeason.seriesId, seriesId), notInArray(seriesSeason.id, keptIds))
-				: eq(seriesSeason.seriesId, seriesId),
-		);
-	if (keptIds.length > 0) {
-		await tx.delete(seriesEpisode).where(inArray(seriesEpisode.seasonId, keptIds));
-	}
-
-	for (const [position, { season, id }] of seasons.entries()) {
-		const values = {
-			kind: season.kind,
-			number: season.number,
-			position,
-			title: season.title,
-			inWatchOrder: season.inWatchOrder,
-			anchorAnilistId: season.anime[0]?.id ?? null,
-		};
-		await tx
-			.insert(seriesSeason)
-			.values({
-				id,
-				seriesId,
-				...values,
-			})
-			.onConflictDoUpdate({
-				target: seriesSeason.id,
-				set: values,
-			});
-	}
-
-	const episodes = seasons.flatMap(({ season, id }) =>
-		season.episodes.map((episode) => ({
-			seasonId: id,
-			number: episode.number,
-			anilistId: episode.playback.anilistId,
-			anilistEpisode: episode.playback.episode,
-			title: episode.title,
-			overview: episode.overview,
-			airDate: episode.airDate,
-			airedAt:
-				airings.get(anilistEpisodeKey(episode.playback.anilistId, episode.playback.episode)) ??
-				null,
-			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
-			stillUrl: episode.stillUrl,
-			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
-			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
-		})),
-	);
-	for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
-		await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
-	}
-
-	return seasons;
-}
-
-/**
- * The season episode that plays AniList's next episode. While AniList does
- * not know an entry's episode count, its season lists only the aired
- * episodes, so the next one follows the latest listed one.
- */
-function nextEpisodeOf(
-	seasons: readonly {
-		season: SeriesSeason;
-		id: string;
-	}[],
-	nextAiring: SeriesLayout["nextAiring"],
-) {
-	if (!nextAiring) {
-		return null;
-	}
-
-	const plays = (episode: SeriesSeason["episodes"][number], number: number) =>
-		episode.playback.anilistId === nextAiring.anilistId && episode.playback.episode === number;
-
-	for (const { season, id } of seasons) {
-		const listed = season.episodes.find((episode) => plays(episode, nextAiring.episode));
-		if (listed) {
-			return {
-				seasonId: id,
-				number: listed.number,
-			};
-		}
-
-		const latest = season.episodes.find((episode) => plays(episode, nextAiring.episode - 1));
-		if (latest) {
-			return {
-				seasonId: id,
-				number: latest.number + 1,
-			};
-		}
-	}
-
-	return null;
+	return rows.map((row) => row.anilistId).filter((anilistId) => !stored.has(anilistId));
 }
