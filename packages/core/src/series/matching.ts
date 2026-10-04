@@ -243,20 +243,8 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 					mediaType: "tv",
 					tmdbId: candidate.show.id,
 					episodes: [
-						...(leading?.special
-							? [
-									{
-										anilistEpisode: 1,
-										seasonNumber: leading.special.season_number,
-										episodeNumber: leading.special.episode_number,
-									},
-								]
-							: []),
-						...picked.map((episode, offset) => ({
-							anilistEpisode: firstAnilistEpisode + offset,
-							seasonNumber: episode.season_number,
-							episodeNumber: episode.episode_number,
-						})),
+						...(leading?.special ? linkRun([leading.special]) : []),
+						...linkRun(picked, firstAnilistEpisode),
 					],
 					method:
 						startOffset !== null && Math.abs(startOffset) <= startWindowDays
@@ -325,11 +313,7 @@ function placeSpecialsByEnd(subject: MatchSubject, candidate: ShowCandidate): Pl
 	return {
 		mediaType: "tv",
 		tmdbId: candidate.show.id,
-		episodes: run.map((episode, offset) => ({
-			anilistEpisode: offset + 1,
-			seasonNumber: episode.season_number,
-			episodeNumber: episode.episode_number,
-		})),
+		episodes: linkRun(run),
 		method: "air-date",
 		score: minimumShowScore,
 	};
@@ -362,11 +346,7 @@ function placeByTitle(
 	return {
 		mediaType: "tv",
 		tmdbId: candidate.show.id,
-		episodes: track.map((episode, offset) => ({
-			anilistEpisode: offset + 1,
-			seasonNumber: episode.season_number,
-			episodeNumber: episode.episode_number,
-		})),
+		episodes: linkRun(track),
 		method: "title",
 		score: minimumShowScore,
 	};
@@ -413,11 +393,7 @@ function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): P
 	return {
 		mediaType: "tv",
 		tmdbId: candidate.show.id,
-		episodes: pick(track, index, subject, null, false).map((episode, offset) => ({
-			anilistEpisode: offset + 1,
-			seasonNumber: episode.season_number,
-			episodeNumber: episode.episode_number,
-		})),
+		episodes: linkRun(pick(track, index, subject, null, false)),
 		method: "title",
 		score: minimumShowScore,
 	};
@@ -452,12 +428,7 @@ export function placeAsMovie(
 
 	const movieTitles = [movie.title, movie.original_title];
 	const similarity = bestSimilarity(subject.titles, movieTitles);
-	const start = dayNumber(subject.startDate);
-	const release = dayNumber(movie.release_date);
-	const subjectYear = yearOf(subject.startDate);
-	const releaseYear = yearOf(movie.release_date);
-
-	const offset = start !== null && release !== null ? Math.abs(release - start) : null;
+	const offset = dayOffset(subject.startDate, movie.release_date);
 	if (offset !== null && offset <= 31 && similarity >= 0.35) {
 		return {
 			mediaType: "movie",
@@ -476,11 +447,10 @@ export function placeAsMovie(
 			sameNumbers: true,
 		},
 	);
-	const datesAgree =
-		offset !== null
-			? offset <= titleOnlyReleaseWindowDays
-			: subjectYear === null || releaseYear === null || subjectYear === releaseYear;
-	if (primarySimilarity >= 0.92 && datesAgree) {
+	if (
+		primarySimilarity >= 0.92 &&
+		datesAgree(subject.startDate, movie.release_date, titleOnlyReleaseWindowDays)
+	) {
 		return {
 			mediaType: "movie",
 			tmdbId: movie.id,
@@ -521,16 +491,7 @@ export function placeAfterInCollection(
 		return null;
 	}
 
-	const start = dayNumber(subject.startDate);
-	const release = dayNumber(next.release_date);
-	const subjectYear = yearOf(subject.startDate);
-	const releaseYear = yearOf(next.release_date);
-	const datesAgree =
-		start !== null && release !== null
-			? Math.abs(release - start) <= titleOnlyReleaseWindowDays
-			: subjectYear === null || releaseYear === null || subjectYear === releaseYear;
-
-	return datesAgree
+	return datesAgree(subject.startDate, next.release_date, titleOnlyReleaseWindowDays)
 		? {
 				mediaType: "movie",
 				tmdbId: next.id,
@@ -615,20 +576,16 @@ function isOwnShowStart(
 	start: number | null,
 	candidate: ShowCandidate,
 ) {
-	const firstAirDay = dayNumber(track[index]?.air_date ?? null);
 	return (
 		index === 0 &&
 		!candidate.isFranchiseShow &&
-		start !== null &&
-		firstAirDay !== null &&
-		Math.abs(firstAirDay - start) <= 1
+		withinDays(dayNumber(track[index]?.air_date ?? null), start, 1)
 	);
 }
 
 /** Whether an episode aired within the start window of `start`. */
 function airsNear(episode: TmdbEpisode | undefined, start: number | null) {
-	const airDay = dayNumber(episode?.air_date ?? null);
-	return airDay !== null && start !== null && Math.abs(airDay - start) <= startWindowDays;
+	return withinDays(dayNumber(episode?.air_date ?? null), start, startWindowDays);
 }
 
 /** Formats that run as a series of episodes and may be a regular TMDB season. */
@@ -655,11 +612,7 @@ function startIndexes(
 		let previousDay: number | null = null;
 		track.forEach((episode, index) => {
 			const airDay = dayNumber(episode.air_date);
-			if (
-				airDay !== null &&
-				airDay !== previousDay &&
-				Math.abs(airDay - start) <= startWindowDays
-			) {
+			if (airDay !== previousDay && withinDays(airDay, start, startWindowDays)) {
 				indexes.add(index);
 			}
 
@@ -740,12 +693,16 @@ function pick(
 
 /** The index right after `ref` in `track`, or `null` when `ref` is not on it. */
 function indexAfter(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
-	const index = track.findIndex(
+	const index = indexOfRef(track, ref);
+	return index === -1 ? null : index + 1;
+}
+
+/** The index of `ref` in `track`, or -1 when it is not on it. */
+function indexOfRef(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
+	return track.findIndex(
 		(episode) =>
 			episode.season_number === ref.seasonNumber && episode.episode_number === ref.episodeNumber,
 	);
-
-	return index === -1 ? null : index + 1;
 }
 
 /**
@@ -755,12 +712,7 @@ function indexAfter(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
  * precedes; it then occupies nothing before that entry.
  */
 function airsLater(track: readonly TmdbEpisode[], first: TmdbEpisodeRef, start: number | null) {
-	const episode = track.find(
-		(candidate) =>
-			candidate.season_number === first.seasonNumber &&
-			candidate.episode_number === first.episodeNumber,
-	);
-	const airDay = dayNumber(episode?.air_date ?? null);
+	const airDay = dayNumber(track[indexOfRef(track, first)]?.air_date ?? null);
 	return airDay !== null && start !== null && airDay - start > startWindowDays;
 }
 
@@ -907,11 +859,46 @@ function overflowSpecials(
  */
 function leadingSpecial(episodes: readonly TmdbEpisode[], start: number | null) {
 	return (
-		specialsTrack(episodes).find((episode) => {
-			const airDay = dayNumber(episode.air_date);
-			return start !== null && airDay !== null && Math.abs(airDay - start) <= 1;
-		}) ?? null
+		specialsTrack(episodes).find((episode) => withinDays(dayNumber(episode.air_date), start, 1)) ??
+		null
 	);
+}
+
+/** One AniList episode per TMDB episode of a run, numbered from `first`. */
+function linkRun(episodes: readonly TmdbEpisode[], first = 1): EpisodeLink[] {
+	return episodes.map((episode, offset) => ({
+		anilistEpisode: first + offset,
+		seasonNumber: episode.season_number,
+		episodeNumber: episode.episode_number,
+	}));
+}
+
+/** Whether both days are known and at most `days` apart. */
+function withinDays(day: number | null, other: number | null, days: number) {
+	return day !== null && other !== null && Math.abs(day - other) <= days;
+}
+
+/** How many days apart two dates are, or `null` unless both are full dates. */
+function dayOffset(left: string | null, right: string | null) {
+	const leftDay = dayNumber(left);
+	const rightDay = dayNumber(right);
+	return leftDay !== null && rightDay !== null ? Math.abs(leftDay - rightDay) : null;
+}
+
+/**
+ * Whether two dates agree: within `windowDays` when both are full dates,
+ * else in the same year when both years are known. A date with no year
+ * agrees with anything.
+ */
+function datesAgree(left: string | null, right: string | null, windowDays: number) {
+	const offset = dayOffset(left, right);
+	if (offset !== null) {
+		return offset <= windowDays;
+	}
+
+	const leftYear = yearOf(left);
+	const rightYear = yearOf(right);
+	return leftYear === null || rightYear === null || leftYear === rightYear;
 }
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */
