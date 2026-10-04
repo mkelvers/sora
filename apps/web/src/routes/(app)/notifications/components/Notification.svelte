@@ -11,50 +11,11 @@
 		item,
 		unread,
 	}: {
-		item: Notification;
+		item: Notification & {
+			detail: string;
+		};
 		unread: boolean;
 	} = $props();
-
-	const image = $derived(item.series.backdrop_url);
-
-	const detail = $derived.by(() => {
-		const count = item.last_episode - item.first_episode + 1;
-		const isFilm = item.series.format === "MOVIE";
-
-		if (item.kind === "dub") {
-			if (isFilm) {
-				return "It is now dubbed in English. Ready whenever you are.";
-			}
-
-			if (count === 1) {
-				return `Episode ${item.last_episode} is now dubbed in English.`;
-			}
-
-			return `${count} episodes are now dubbed in English, ${item.first_episode} through ${item.last_episode}.`;
-		}
-
-		if (item.kind === "premiere") {
-			if (isFilm) {
-				return "It has arrived, ready whenever you are.";
-			}
-
-			if (count > 1) {
-				return `It has started, and ${count} episodes are waiting for you.`;
-			}
-
-			return "It has started with its first episode.";
-		}
-
-		if (count === 1 && item.episode_title) {
-			return `Episode ${item.last_episode} is out: “${item.episode_title}”. Settle in and catch up.`;
-		}
-
-		if (count === 1) {
-			return `Episode ${item.last_episode} is out. Settle in and catch up.`;
-		}
-
-		return `${count} new episodes are out, ${item.first_episode} through ${item.last_episode}. Plenty to dig into.`;
-	});
 </script>
 
 <article
@@ -72,10 +33,10 @@
 					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:bg-status-error",
 			)}
 		>
-			{#if image}
+			{#if item.series.backdrop_url}
 				<Image
-					src={tmdbImage(image, "w780")}
-					srcset={tmdbSrcset(image, {
+					src={tmdbImage(item.series.backdrop_url, "w780")}
+					srcset={tmdbSrcset(item.series.backdrop_url, {
 						w780: 780,
 						w1280: 1280,
 					})}
@@ -90,7 +51,7 @@
 				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
 			</h2>
-			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{detail}</p>
+			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{item.detail}</p>
 			<p
 				class="mt-1 inline-flex min-h-11 items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:min-h-0 sm:text-sm"
 				aria-hidden="true"
