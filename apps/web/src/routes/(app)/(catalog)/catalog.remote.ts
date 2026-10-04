@@ -9,6 +9,12 @@ const filters = {
 	page: z.number().int().positive().max(500),
 };
 
+const day = 24 * 60 * 60 * 1000;
+
+const relativeTime = new Intl.RelativeTimeFormat("en", {
+	numeric: "always",
+});
+
 const formats = {
 	TV: ["TV", "TV_SHORT", "ONA"],
 	MOVIE: ["MOVIE"],
@@ -17,10 +23,8 @@ const formats = {
 export type CatalogItem = {
 	key: string;
 	card: SeriesCard;
-	release?: {
-		episode: number;
-		released_at: string;
-	};
+	meta?: string;
+	group?: string;
 };
 
 const request = z.discriminatedUnion("kind", [
@@ -53,7 +57,7 @@ export const getGenres = query(async () => sora.request(route.listGenres));
 
 export const getCatalogPage = query(request, async (input) => {
 	remoteViewer();
-	const loadedAt = new Date().toISOString();
+	const now = Date.now();
 
 	const found =
 		input.kind === "new"
@@ -86,26 +90,34 @@ export const getCatalogPage = query(request, async (input) => {
 								},
 				});
 
-	const items: CatalogItem[] = found.results.map((result) =>
-		"series" in result
-			? {
-					key: result.series.id,
-					card: result.series,
-					release: {
-						episode: result.episode,
-						released_at: result.released_at,
-					},
-				}
-			: {
-					key: result.id,
-					card: result,
-				},
-	);
+	const items: CatalogItem[] = found.results.map((result) => {
+		if (!("series" in result)) {
+			return {
+				key: result.id,
+				card: result,
+				group: input.kind === "popular" ? "Popular" : undefined,
+			};
+		}
+
+		const age = Math.max(0, now - Date.parse(result.released_at));
+		const minutes = Math.floor(age / 60_000);
+		const hours = Math.floor(minutes / 60);
+		return {
+			key: result.series.id,
+			card: result.series,
+			meta:
+				minutes < 60
+					? relativeTime.format(-Math.max(1, minutes), "minute")
+					: hours < 24
+						? relativeTime.format(-hours, "hour")
+						: relativeTime.format(-Math.floor(hours / 24), "day"),
+			group: age < day ? "Last 24 Hours" : age < 7 * day ? "This Past Week" : "Earlier",
+		};
+	});
 
 	return {
 		items,
 		hasNextPage: found.meta.has_next_page,
 		preparing: found.meta.preparing,
-		loadedAt,
 	};
 });

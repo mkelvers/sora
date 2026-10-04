@@ -46,61 +46,7 @@
 			.filter((item) => !seen.has(item.key) && !!seen.add(item.key));
 	});
 	const hasNextPage = $derived(pages.at(-1)?.hasNextPage ?? false);
-	const loadedAt = $derived(Date.parse(pages[0].loadedAt));
-
-	const day = 24 * 60 * 60 * 1000;
-	const sections = $derived.by(() => {
-		if (request.kind !== "new") {
-			return [
-				{
-					id: "catalog-results",
-					title: request.kind === "popular" ? "Popular" : title,
-					hidden: request.kind !== "popular",
-					items,
-				},
-			];
-		}
-
-		const age = (item: (typeof items)[number]) =>
-			Math.max(0, loadedAt - Date.parse(item.release?.released_at ?? pages[0].loadedAt));
-
-		return [
-			{
-				id: "last-24-hours",
-				title: "Last 24 Hours",
-				hidden: false,
-				items: items.filter((item) => age(item) < day),
-			},
-			{
-				id: "this-past-week",
-				title: "This Past Week",
-				hidden: false,
-				items: items.filter((item) => age(item) >= day && age(item) < 7 * day),
-			},
-			{
-				id: "earlier",
-				title: "Earlier",
-				hidden: false,
-				items: items.filter((item) => age(item) >= 7 * day),
-			},
-		].filter((section) => section.items.length);
-	});
-
-	const relativeTime = new Intl.RelativeTimeFormat("en", {
-		numeric: "always",
-	});
-
-	const released = (releasedAt: string) => {
-		const minutes = Math.floor(Math.max(0, loadedAt - Date.parse(releasedAt)) / 60_000);
-		if (minutes < 60) {
-			return relativeTime.format(-Math.max(1, minutes), "minute");
-		}
-
-		const hours = Math.floor(minutes / 60);
-		return hours < 24
-			? relativeTime.format(-hours, "hour")
-			: relativeTime.format(-Math.floor(hours / 24), "day");
-	};
+	const sections = $derived([...Map.groupBy(items, (item) => item.group)]);
 
 	$effect(() => {
 		const waiting = pages.flatMap((page, index) => (page.preparing ? [index + 1] : []));
@@ -133,17 +79,17 @@
 			{@render controls()}
 		</div>
 
-		{#each sections as section (section.id)}
-			<section class="mb-12" aria-labelledby={section.id}>
-				<h2 id={section.id} class={section.hidden ? "sr-only" : "mb-4 text-base font-bold"}>
-					{section.title}
+		{#each sections as [group, entries], index (group)}
+			<section class="mb-12" aria-labelledby="catalog-section-{index}">
+				<h2 id="catalog-section-{index}" class={group ? "mb-4 text-base font-bold" : "sr-only"}>
+					{group ?? title}
 				</h2>
 				<ul
 					class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
 				>
-					{#each section.items as item (item.key)}
+					{#each entries as item (item.key)}
 						<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">
-							<Poster card={item.card} meta={item.release && released(item.release.released_at)} />
+							<Poster card={item.card} meta={item.meta} />
 						</li>
 					{/each}
 				</ul>
