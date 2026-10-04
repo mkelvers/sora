@@ -13,7 +13,7 @@
 
 <img
 	class={cn("block aspect-square w-full object-cover", className)}
-	src="/avatars/{avatar.style}/{encodeURIComponent(avatar.seed)}.svg"
+	src="/api/avatars/{avatar.style}/{encodeURIComponent(avatar.seed)}.svg"
 	{alt}
 	draggable="false"
 />

@@ -3,9 +3,10 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { toggleListed as toggleShowListed } from "$lib/shows";
-	import { getShows } from "$lib/shows.remote";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { setStatus } from "$lib/watchlist";
+	import { getWatchlist } from "$lib/watchlist.remote";
+	import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -19,9 +20,11 @@
 		class?: string;
 	} = $props();
 
-	const shows = getShows();
-	const show = $derived(card && shows.current?.find((other) => other.series.id === card.id));
-	const listed = $derived(!!show);
+	const watchlist = getWatchlist();
+	const continueWatching = getContinueWatching();
+	const listed = $derived(
+		!!card && !!watchlist.current?.some((entry) => entry.series.id === card.id),
+	);
 
 	const audio = $derived(audioLabel(card?.audio));
 
@@ -30,7 +33,7 @@
 			return;
 		}
 
-		toggleShowListed(card, listed);
+		setStatus(card, listed ? null : "plan_to_watch");
 	}
 
 	const play = $derived.by(() => {
@@ -38,27 +41,26 @@
 			return null;
 		}
 
-		const resume = show?.next ?? show?.offered;
-		if (resume) {
-			const verb = resume.position_seconds > 0 ? "Resume" : "Play";
-			const season = card.season_count > 1 ? `${resume.season_title} ` : "";
+		if (!card.episode_count) {
 			return {
-				href: `/series/${card.id}/watch/${resume.season_id}/${resume.episode}`,
-				label:
-					card.kind === "movie"
-						? verb
-						: resume.season_kind === "movie"
-							? `${verb} ${resume.season_title}`
-							: `${verb} ${season}E${resume.episode}`,
+				href: `/series/${card.id}`,
+				label: "Play",
 			};
 		}
 
-		return card.start_season_id
-			? {
-					href: `/series/${card.id}/watch/${card.start_season_id}/1`,
-					label: card.kind === "movie" ? "Play" : "Play E1",
-				}
-			: null;
+		const resume = continueWatching.current?.find((other) => other.series.id === card.id);
+		if (resume) {
+			const verb = resume.position_seconds > 0 ? "Resume" : "Play";
+			return {
+				href: `/series/${card.id}/watch/${resume.episode}`,
+				label: card.format === "MOVIE" ? verb : `${verb} E${resume.episode}`,
+			};
+		}
+
+		return {
+			href: `/series/${card.id}/watch/1`,
+			label: card.format === "MOVIE" ? "Play" : "Play E1",
+		};
 	});
 </script>
 
@@ -108,7 +110,7 @@
 							weight="fill"
 							aria-hidden="true"
 						/>
-						<span class="sr-only">In your Shows</span>
+						<span class="sr-only">On your watchlist</span>
 					</span>
 				{/if}
 			</div>
@@ -151,15 +153,11 @@
 					</p>
 				{/if}
 				<p class="mt-3 flex flex-col gap-0.5 text-xs font-semibold text-muted">
-					{#if card.kind === "movie"}
+					{#if card.format === "MOVIE"}
 						Movie
-					{:else}
-						{#if card.season_count > 0}
-							<span>{card.season_count} {card.season_count === 1 ? "Season" : "Seasons"}</span>
-						{/if}
-						{#if card.episode_count > 0}
-							<span>{card.episode_count} {card.episode_count === 1 ? "Episode" : "Episodes"}</span>
-						{/if}
+					{:else if card.episode_count > 0}
+						{card.episode_count}
+						{card.episode_count === 1 ? "Episode" : "Episodes"}
 					{/if}
 				</p>
 				{#if card.overview}
@@ -184,13 +182,13 @@
 					</Tooltip>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from Shows" : "Add to Shows"}>
+				<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
 					{#snippet children(trigger)}
 						<Button
 							{...trigger}
 							variant="icon"
 							tone="accent"
-							aria-label={listed ? "Remove from Shows" : "Add to Shows"}
+							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 							aria-pressed={listed}
 							onclick={toggleListed}
 						>
