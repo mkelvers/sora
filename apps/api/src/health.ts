@@ -1,8 +1,6 @@
-import { attempt } from "@sora/shared";
 import { getProviderHealth, type ProviderHealth } from "@sora/core/playback";
+import { attempt } from "@sora/shared";
 import { Hono } from "hono";
-
-import { snakeCased } from "./openapi/envelope";
 
 /** Load balancers probe often; provider health is read at most this often per instance. */
 const cacheMs = 60_000;
@@ -29,9 +27,9 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 	const providers = () => {
 		if (!cached || Date.now() - cached.at >= cacheMs) {
 			const read = async () => {
-				const { data: health, error } = await attempt(load());
+				const { data, error } = await attempt(load());
 				if (!error) {
-					return health;
+					return data;
 				}
 
 				console.warn(`Could not read provider health: ${error.message}`);
@@ -55,8 +53,7 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 		const health = await providers();
 		return c.json({
 			status: "ok",
-			providers:
-				health && snakeCased(health.map(({ lastError: _lastError, ...provider }) => provider)),
+			providers: health?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,
 		});
 	});
 }

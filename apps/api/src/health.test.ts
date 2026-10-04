@@ -13,16 +13,16 @@ const { healthRoutes } = await import("./health");
 const anikoto: ProviderHealth = {
 	provider: "anikoto",
 	status: "failing",
-	lastOkAt: "2026-09-25T12:00:00.000Z",
-	lastError: "MegaPlay has no dub source for this episode",
-	lastErrorAt: "2026-09-25T16:20:00.000Z",
+	last_ok_at: "2026-09-25T12:00:00.000Z",
+	last_error: "MegaPlay has no dub source for this episode",
+	last_error_at: "2026-09-25T16:20:00.000Z",
 	operations: [
 		{
 			operation: "resolve_stream",
 			ok: 0,
 			empty: 0,
 			failed: 4,
-			averageMs: 250,
+			average_ms: 250,
 		},
 	],
 };
@@ -95,6 +95,8 @@ describe("/health", () => {
 				providers: null,
 			},
 		});
-		expect((await probe(routes)).body.providers).toHaveLength(1);
+		const result = await probe(routes);
+
+		expect(result.body.providers).toHaveLength(1);
 	});
 });
