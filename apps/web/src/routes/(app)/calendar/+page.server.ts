@@ -3,22 +3,15 @@ import { attempt } from "@sora/shared";
 
 import type { PageServerLoad } from "./$types";
 
-function zoneOf(value: string | undefined) {
-	if (!value) {
-		return "UTC";
-	}
-
-	const { data, error } = attempt(() => Temporal.Now.zonedDateTimeISO(value), RangeError);
-	if (error) {
-		return "UTC";
-	}
-	return data.timeZoneId;
-}
-
 export const load: PageServerLoad = async ({ cookies, depends }) => {
 	depends("sora:time-zone");
 
+	const { data } = attempt(
+		() => Temporal.Now.zonedDateTimeISO(cookies.get(timeZoneCookie) ?? "UTC"),
+		RangeError,
+	);
+
 	return {
-		timeZone: zoneOf(cookies.get(timeZoneCookie)),
+		timeZone: data?.timeZoneId ?? "UTC",
 	};
 };
