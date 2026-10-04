@@ -1,4 +1,5 @@
 import { Preferences } from "$lib/preferences";
+import { attempt } from "@sora/attempt";
 import type { PlaybackMedia } from "@sora/sdk";
 import type Hls from "hls.js";
 import type { Attachment } from "svelte/attachments";
@@ -170,12 +171,15 @@ export class Player {
 			return;
 		}
 
-		video.play().catch((error: unknown) => {
-			if (!(error instanceof DOMException && error.name === "AbortError")) {
-				this.paused = true;
-			}
-		});
+		void this.#play(video);
 	};
+
+	async #play(video: HTMLVideoElement) {
+		const { error } = await attempt(video.play());
+		if (error && !(error instanceof DOMException && error.name === "AbortError")) {
+			this.paused = true;
+		}
+	}
 
 	stream =
 		(source: Source | undefined): Attachment<HTMLVideoElement> =>
@@ -196,53 +200,48 @@ export class Player {
 				video.currentTime = start;
 			};
 
+			const streamHls = async () => {
+				const loaded = await attempt(import("hls.js"));
+				if (detached) {
+					return;
+				}
+				if (loaded.error || !loaded.data.default.isSupported()) {
+					direct();
+					return;
+				}
+
+				const Hls = loaded.data.default;
+				const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
+				const instance = new Hls({
+					startPosition: start,
+					maxBufferLength: 7200,
+					maxMaxBufferLength: 7200,
+					maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
+					backBufferLength: 60,
+				});
+				let recovered = 0;
+
+				instance.on(Hls.Events.ERROR, (_, data) => {
+					if (!data.fatal) {
+						return;
+					}
+					if (data.type === Hls.ErrorTypes.MEDIA_ERROR && performance.now() - recovered > 5000) {
+						recovered = performance.now();
+						instance.recoverMediaError();
+						return;
+					}
+					if (performance.now() - this.#reloaded > 30_000) {
+						this.#reloaded = performance.now();
+						this.#reloads++;
+					}
+				});
+				instance.loadSource(source.url);
+				instance.attachMedia(video);
+				hls = instance;
+			};
+
 			if (source.format === "hls") {
-				import("hls.js")
-					.then(({ default: Hls }) => {
-						if (detached) {
-							return;
-						}
-						if (!Hls.isSupported()) {
-							direct();
-							return;
-						}
-
-						const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
-						const instance = new Hls({
-							startPosition: start,
-							maxBufferLength: 7200,
-							maxMaxBufferLength: 7200,
-							maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
-							backBufferLength: 60,
-						});
-						let recovered = 0;
-
-						instance.on(Hls.Events.ERROR, (_, data) => {
-							if (!data.fatal) {
-								return;
-							}
-							if (
-								data.type === Hls.ErrorTypes.MEDIA_ERROR &&
-								performance.now() - recovered > 5000
-							) {
-								recovered = performance.now();
-								instance.recoverMediaError();
-								return;
-							}
-							if (performance.now() - this.#reloaded > 30_000) {
-								this.#reloaded = performance.now();
-								this.#reloads++;
-							}
-						});
-						instance.loadSource(source.url);
-						instance.attachMedia(video);
-						hls = instance;
-					})
-					.catch(() => {
-						if (!detached) {
-							direct();
-						}
-					});
+				void streamHls();
 			} else {
 				direct();
 			}

@@ -3,6 +3,7 @@ import { remoteViewer, sora } from "$lib/server/sora";
 import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
+import { attempt } from "@sora/attempt";
 import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
@@ -27,8 +28,8 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 });
 
 export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	try {
-		const { results, meta } = await sora.playback(
+	const playback = await attempt(
+		sora.playback(
 			{
 				seriesId,
 				number: episode,
@@ -36,27 +37,30 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 			{
 				meta: true,
 			},
-		);
-		const number = (path: string | null) => {
-			const match = path?.match(/\/episodes\/(\d+)\/playback$/);
-			return match ? Number(match[1]) : null;
-		};
-
+		),
+	);
+	if (playback.error instanceof SoraError) {
 		return {
-			media: results,
-			next: number(meta.next),
-			previous: number(meta.previous),
+			media: [],
+			next: null,
+			previous: null,
 		};
-	} catch (cause) {
-		if (cause instanceof SoraError) {
-			return {
-				media: [],
-				next: null,
-				previous: null,
-			};
-		}
-		throw cause;
 	}
+	if (playback.error) {
+		throw playback.error;
+	}
+
+	const { results, meta } = playback.data;
+	const number = (path: string | null) => {
+		const match = path?.match(/\/episodes\/(\d+)\/playback$/);
+		return match ? Number(match[1]) : null;
+	};
+
+	return {
+		media: results,
+		next: number(meta.next),
+		previous: number(meta.previous),
+	};
 });
 
 export const getPlaybackPreferences = query(async () => {

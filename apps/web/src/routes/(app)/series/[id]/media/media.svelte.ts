@@ -1,4 +1,5 @@
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+import { attempt } from "@sora/attempt";
 import type { SeriesImage } from "@sora/sdk";
 
 import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
@@ -34,8 +35,8 @@ export class Media {
 	}
 
 	choose = async (seriesId: string, url: string | false) => {
-		try {
-			await setArtwork({
+		const { error } = await attempt(() =>
+			setArtwork({
 				seriesId,
 				type: this.type,
 				url,
@@ -44,11 +45,9 @@ export class Media {
 					...current,
 					[`${this.type}_url`]: url || null,
 				})),
-			);
-			this.error = undefined;
-		} catch {
-			this.error = "That image couldn’t be saved.";
-		}
+			),
+		);
+		this.error = error ? "That image couldn’t be saved." : undefined;
 	};
 
 	place = async (
@@ -59,8 +58,8 @@ export class Media {
 			y: number;
 		},
 	) => {
-		try {
-			await setLogoPlacement({
+		const { error } = await attempt(() =>
+			setLogoPlacement({
 				seriesId,
 				...placement,
 			}).updates(
@@ -70,22 +69,15 @@ export class Media {
 					logo_offset_x: placement.x,
 					logo_offset_y: placement.y,
 				})),
-			);
-			this.error = undefined;
-		} catch {
-			this.error = "That placement couldn’t be saved.";
-		}
+			),
+		);
+		this.error = error ? "That placement couldn’t be saved." : undefined;
 	};
 
 	refresh = async (seriesId: string) => {
 		this.refreshing = true;
-		try {
-			await refreshImages(seriesId);
-			this.error = undefined;
-		} catch {
-			this.error = "TMDB couldn’t be reached. Try again in a moment.";
-		} finally {
-			this.refreshing = false;
-		}
+		const { error } = await attempt(refreshImages(seriesId));
+		this.refreshing = false;
+		this.error = error ? "TMDB couldn’t be reached. Try again in a moment." : undefined;
 	};
 }

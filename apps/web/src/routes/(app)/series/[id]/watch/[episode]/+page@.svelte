@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
+	import { attempt } from "@sora/attempt";
+	import type { PlaybackPreferencesUpdate } from "@sora/sdk";
 
 	import type { PageProps } from "./$types";
 	import Player from "./components/Player.svelte";
@@ -50,6 +52,36 @@
 	});
 
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
+
+	async function report(position: number, duration: number, finished: boolean, leaving: boolean) {
+		const { error } = await attempt(
+			saveProgress({
+				seriesId: series.id,
+				episode: episode.number,
+				position_seconds: Math.floor(position),
+				duration_seconds: Math.floor(duration),
+				finished,
+				leaving,
+			}),
+		);
+		failure = error ? "Your progress couldn’t be saved." : "";
+	}
+
+	async function remember(changes: PlaybackPreferencesUpdate) {
+		const { error } = await attempt(() =>
+			savePlaybackPreferences(changes).updates(
+				getPlaybackPreferences().withOverride((current) => ({
+					...current,
+					...changes,
+					subtitles: {
+						...current.subtitles,
+						...changes.subtitles,
+					},
+				})),
+			),
+		);
+		failure = error ? "Your player settings couldn’t be saved." : "";
+	}
 </script>
 
 <svelte:head>
@@ -69,34 +101,8 @@
 		series={series.title}
 		{preferences}
 		start={progress && !progress.finished ? progress.position_seconds : 0}
-		onprogress={(position, duration, finished, leaving) =>
-			saveProgress({
-				seriesId: series.id,
-				episode: episode.number,
-				position_seconds: Math.floor(position),
-				duration_seconds: Math.floor(duration),
-				finished,
-				leaving,
-			}).then(
-				() => (failure = ""),
-				() => (failure = "Your progress couldn’t be saved."),
-			)}
-		onpreferences={(changes) =>
-			savePlaybackPreferences(changes)
-				.updates(
-					getPlaybackPreferences().withOverride((current) => ({
-						...current,
-						...changes,
-						subtitles: {
-							...current.subtitles,
-							...changes.subtitles,
-						},
-					})),
-				)
-				.then(
-					() => (failure = ""),
-					() => (failure = "Your player settings couldn’t be saved."),
-				)}
+		onprogress={report}
+		onpreferences={remember}
 		onnearend={() => (nearing = key)}
 		onended={() =>
 			goto(next ? `/series/${series.id}/watch/${next}` : `/series/${series.id}`, {
