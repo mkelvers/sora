@@ -8,8 +8,8 @@ export class Preferences {
 	}
 
 	get<T>(key: string, accepts: (value: unknown) => value is T, fallback: T): T {
-		const { data: stored, error } = attempt(
-			(): unknown => JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
+		const { data: stored, error } = attempt((): unknown =>
+			JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
 		);
 		if (error instanceof DOMException || error instanceof SyntaxError) {
 			return fallback;

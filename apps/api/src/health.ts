@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { getProviderHealth, type ProviderHealth } from "@sora/core/playback";
 import { Hono } from "hono";
 
@@ -27,17 +28,23 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 
 	const providers = () => {
 		if (!cached || Date.now() - cached.at >= cacheMs) {
+			const read = async () => {
+				const { data: health, error } = await attempt(load);
+				if (!error) {
+					return health;
+				}
+
+				console.warn(`Could not read provider health: ${error.message}`);
+				// Not cached: the next probe tries again, unless a later
+				// request already replaced this entry with a fresher one.
+				if (cached === entry) {
+					cached = null;
+				}
+				return null;
+			};
 			const entry: NonNullable<typeof cached> = {
 				at: Date.now(),
-				providers: load().catch((error: unknown) => {
-					console.warn(`Could not read provider health: ${String(error)}`);
-					// Not cached: the next probe tries again, unless a later
-					// request already replaced this entry with a fresher one.
-					if (cached === entry) {
-						cached = null;
-					}
-					return null;
-				}),
+				providers: read(),
 			};
 			cached = entry;
 		}
