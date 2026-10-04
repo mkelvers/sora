@@ -82,7 +82,7 @@
 	{/if}
 
 	<p
-		class="mr-auto ml-3 text-sm text-[#ddd] tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
+		class="mr-auto ml-3 text-sm text-foreground/90 tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
 	>
 		{formatClock(player.time)}
 		<span aria-hidden="true">/</span>

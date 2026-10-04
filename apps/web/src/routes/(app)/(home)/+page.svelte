@@ -54,7 +54,7 @@
 <div class="min-h-dvh bg-canvas text-foreground">
 	<h1 class="sr-only">Home</h1>
 	<div
-		class="grid grid-cols-1 grid-rows-[auto] xl:not-has-[>_.continue-watching-section]:-mb-36 xl:not-has-[>_.continue-watching-section]:[--hero-overlap:9rem] wide:has-[>_.continue-watching-section]:grid-rows-[auto_15rem] wide:has-[>_.continue-watching-section]:pb-8 wide:has-[>_.continue-watching-section]:[--hero-overlap:5rem] hero:has-[>_.continue-watching-section]:grid-rows-[auto_16rem] hero:has-[>_.continue-watching-section]:pb-12 [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
+		class="grid grid-cols-1 xl:not-has-[>_.continue-watching-section]:-mb-36 xl:not-has-[>_.continue-watching-section]:[--hero-overlap:9rem] wide:has-[>_.continue-watching-section]:grid-rows-[auto_15rem] wide:has-[>_.continue-watching-section]:pb-8 wide:has-[>_.continue-watching-section]:[--hero-overlap:5rem] hero:has-[>_.continue-watching-section]:grid-rows-[auto_16rem] hero:has-[>_.continue-watching-section]:pb-12 [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
 	>
 		<Hero {featured} />
 		<ContinueWatching items={continuing} />
@@ -68,7 +68,7 @@
 					{row.title}
 				</h2>
 				{#if row.hint}
-					<p class="mt-1 px-5 text-sm text-[#8c8c8c] sm:px-10 sm:text-base lg:px-20">
+					<p class="mt-1 px-5 text-sm text-muted sm:px-10 sm:text-base lg:px-20">
 						{row.hint}
 					</p>
 				{/if}
@@ -85,7 +85,7 @@
 						<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-20 hero:gap-6">
 							{#each cards as card (card.id)}
 								<Item
-									class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 min-[30em]:basis-[calc((100vw-4.5rem)/3)] min-[35.5em]:basis-[calc((100vw-5.25rem)/4)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 md:basis-[calc((100vw-9.75rem)/5)] lg:basis-[calc((100vw-19.375rem)/5)] lg:last:mr-20 2xl:basis-[calc((100vw-21.25rem)/6)] hero:basis-[calc((100vw-18.875rem)/7)]"
+									class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 xs:basis-[calc((100vw-4.5rem)/3)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 md:basis-[calc((100vw-9.75rem)/5)] lg:basis-[calc((100vw-19.375rem)/5)] lg:last:mr-20 2xl:basis-[calc((100vw-21.25rem)/6)] hero:basis-[calc((100vw-18.875rem)/7)]"
 								>
 									<Poster {card} />
 								</Item>

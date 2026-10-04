@@ -1,9 +1,8 @@
 <script lang="ts">
-	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
-	import emptyWatchlist from "$lib/assets/illustrations/empty-watchlist.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
+	import { mascots } from "$lib/mascots";
 	import { statusLabels } from "$lib/watchlist";
 	import { getWatchlist } from "$lib/watchlist.remote";
 	import type { WatchlistEntry, WatchlistStatus } from "@sora/sdk";
@@ -71,9 +70,7 @@
 	<title>Watchlist · Sora</title>
 </svelte:head>
 
-<div
-	class="min-h-[calc(100dvh-6.5rem)] bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-10 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
->
+<div class="min-h-page bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-10 text-foreground">
 	<h1 class="flex items-center justify-center gap-3 text-4xl font-semibold">
 		<BookmarkSimpleIcon size="2.25rem" />
 		Watchlist
@@ -82,10 +79,7 @@
 	<div class="mx-auto mt-10 max-w-7xl">
 		{#if watchlist.current?.length === 0}
 			<EmptyState
-				image={emptyWatchlist}
-				alt="Sora's mascot carrying a stack of poster cards to an empty box"
-				width={720}
-				height={700}
+				mascot={mascots.emptyWatchlist}
 				title="Your watchlist is looking a little empty."
 				hint="Let's fill it up with something to watch."
 			/>
@@ -100,10 +94,7 @@
 				{#snippet children(current)}
 					{#if current !== "all" && watchlist.current && shown.length === 0}
 						<EmptyState
-							image={emptySearch}
-							alt="Sora's mascot squinting at a poster card next to a tipped-over box"
-							width={720}
-							height={663}
+							mascot={mascots.emptySearch}
 							title={empty[current].title}
 							hint={empty[current].hint}
 						/>

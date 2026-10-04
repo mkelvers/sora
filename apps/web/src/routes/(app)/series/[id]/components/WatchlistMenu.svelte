@@ -33,9 +33,9 @@
 				}
 			}}
 			onfocusout={anchor.onblur}
-			class="[&_.dropdown-trigger]:size-11 [&_.dropdown-trigger]:border-2 [&_.dropdown-trigger]:border-accent [&_.dropdown-trigger]:px-0 [&_.dropdown-trigger]:text-accent [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:bg-transparent [&_.dropdown-trigger]:group-has-[.dropdown-menu:popover-open]:text-accent [&_.dropdown-trigger]:hover:bg-transparent [&_.dropdown-trigger]:hover:text-accent [&_.dropdown-trigger]:hover:brightness-110 [&_.dropdown-trigger]:active:scale-[0.97]"
 		>
 			<Dropdown
+				variant="outline"
 				alignment="left"
 				class="w-56"
 				label={status ? `${statusLabels[status]}, change watchlist status` : "Add to Watchlist"}

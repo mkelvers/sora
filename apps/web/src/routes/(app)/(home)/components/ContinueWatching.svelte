@@ -64,7 +64,7 @@
 								? Math.min(100, (item.position_seconds / item.duration_seconds) * 100)
 								: 0}
 						<Item
-							class="group relative basis-[calc((100vw-3.75rem)/1.35)] last:mr-3 min-[30em]:basis-[calc((100vw-4.75rem)/2.1)] min-[35.5em]:basis-[calc((100vw-5.75rem)/2.7)] sm:basis-[calc((100vw-8.75rem)/3.25)] sm:last:mr-8 lg:basis-[calc((100vw-20.375rem)/4.25)] lg:last:mr-18 2xl:basis-[calc((100vw-22.25rem)/5.25)]"
+							class="group relative basis-[calc((100vw-3.75rem)/1.35)] last:mr-3 xs:basis-[calc((100vw-4.75rem)/2.1)] sm:basis-[calc((100vw-8.75rem)/3.25)] sm:last:mr-8 lg:basis-[calc((100vw-20.375rem)/4.25)] lg:last:mr-18 2xl:basis-[calc((100vw-22.25rem)/5.25)]"
 						>
 							<article
 								class="h-full min-w-0 p-2 transition-colors group-focus-within:bg-surface group-hover:bg-surface"
@@ -84,7 +84,7 @@
 													w780: 780,
 													w1280: 1280,
 												})}
-												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 35.5em) 37vw, (min-width: 30em) 47vw, 74vw"
+												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 30em) 47vw, 74vw"
 												alt="Backdrop from {item.series.title}"
 											/>
 										{/if}

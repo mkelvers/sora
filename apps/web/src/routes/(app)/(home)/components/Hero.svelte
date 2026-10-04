@@ -103,7 +103,7 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="pointer-events-auto flex h-24 w-[min(100%,20rem)] items-end justify-center px-10 sm:h-32 sm:w-[min(100%,32rem)] sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
+							class="pointer-events-auto flex h-24 w-full max-w-xs items-end justify-center px-10 sm:h-32 sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
 							aria-label={slide.title}
 							tabindex="-1"
 						>
@@ -119,7 +119,7 @@
 						</a>
 
 						<p
-							class="mt-5 flex h-5 max-w-[min(100%,36rem)] items-center justify-center px-5 text-xs font-normal whitespace-nowrap text-[#8c8c8c] antialiased sm:h-6 sm:justify-start sm:px-10 sm:text-sm lg:mt-9 lg:h-7 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base"
+							class="mt-5 flex h-5 max-w-full items-center justify-center px-5 text-xs font-normal whitespace-nowrap text-muted antialiased sm:h-6 sm:max-w-xl sm:justify-start sm:px-10 sm:text-sm lg:mt-9 lg:h-7 lg:max-w-3xl lg:px-20 lg:text-base"
 						>
 							{#if slide.audio.length}
 								<span class="metadata-tag shrink-0">{audioLabel(slide.audio)}</span>
@@ -139,7 +139,7 @@
 						</p>
 
 						<p
-							class="mt-2 hidden h-18 max-w-[min(100%,38rem)] px-5 text-sm leading-6 font-normal text-pretty text-[#bbb] antialiased sm:px-10 lg:mt-3 lg:h-28 lg:max-w-[min(100%,48rem)] lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
+							class="mt-2 hidden h-18 max-w-full px-5 text-sm leading-6 font-normal text-pretty text-muted antialiased sm:max-w-xl sm:px-10 lg:mt-3 lg:h-28 lg:max-w-3xl lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
 						>
 							{slide.overview}
 						</p>

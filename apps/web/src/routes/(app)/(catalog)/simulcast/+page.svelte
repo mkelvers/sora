@@ -92,7 +92,7 @@
 	</Catalog>
 {/key}
 
-<Sheet bind:open={seasonsOpen} id="season-list" title="Season List" closeLabel="Close season list">
+<Sheet bind:open={seasonsOpen} id="season-list" title="Season List">
 	{#each data.seasons as option (key(option))}
 		<Button
 			variant="item"

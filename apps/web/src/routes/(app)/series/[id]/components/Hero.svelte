@@ -127,7 +127,7 @@
 					src={tmdbImage(series.logo_url, "w500")}
 					alt={series.title}
 					data-hero-logo
-					class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-center max-sm:translate-none sm:object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @min-[64rem]:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
+					class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-center max-sm:translate-none sm:object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @5xl:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
 					style:--logo-scale={series.logo_scale}
 					style:--logo-x={series.logo_offset_x}
 					style:--logo-y={series.logo_offset_y}
@@ -138,7 +138,7 @@
 		</h1>
 
 		{#if next}
-			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">{next}</p>
+			<p class="mt-5 text-sm font-semibold text-amber-100 sm:mt-6 sm:text-base">{next}</p>
 		{/if}
 
 		<p
@@ -175,18 +175,18 @@
 				<span class="flex items-center gap-0.5" aria-hidden="true">
 					{#each { length: 5 }, index (index)}
 						<span class="relative size-6 shrink-0">
-							<StarIcon size="1.5rem" class="text-[#bbb]" />
+							<StarIcon size="1.5rem" class="text-muted" />
 							<span
 								class="absolute inset-y-0 left-0 overflow-hidden"
 								style:width="{Math.min(Math.max(rating - index, 0), 1) * 100}%"
 							>
-								<StarIcon size="1.5rem" weight="fill" class="max-w-none text-[#bbb]" />
+								<StarIcon size="1.5rem" weight="fill" class="max-w-none text-muted" />
 							</span>
 						</span>
 					{/each}
 				</span>
 				<span class="hidden text-border-strong sm:inline" aria-hidden="true">|</span>
-				<span class="font-medium text-[#bbb]">
+				<span class="font-medium text-muted">
 					<span class="max-sm:sr-only">Average rating:</span>
 					<strong class="text-foreground">
 						{rating.toFixed(1)}

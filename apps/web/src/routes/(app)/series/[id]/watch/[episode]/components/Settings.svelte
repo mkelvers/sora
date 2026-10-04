@@ -124,7 +124,7 @@
 	bind:this={content}
 	role="menu"
 	aria-label={open?.label ?? "Settings"}
-	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-[rgb(28_28_28/0.96)] text-sm text-[#e6e6e6] shadow-[0_8px_24px_rgb(0_0_0/0.5)] select-none open:flex"
+	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-neutral-900/95 text-sm text-foreground/90 shadow-xl select-none open:flex"
 	onkeydown={moveMenuFocus}
 	onpointermove={(event) => {
 		const target = (event.target as HTMLElement).closest<HTMLElement>("button, label");
@@ -171,7 +171,7 @@
 		{#each menus as menu (menu.label)}
 			<Button role="menuitem" variant="item" onclick={() => (submenu = menu.label)}>
 				{menu.label}
-				<span class="ml-auto text-[#999]">
+				<span class="ml-auto text-muted">
 					{menu.options.find((option) => option.value === menu.value)?.label}
 				</span>
 				<CaretRightIcon size="1.25rem" />

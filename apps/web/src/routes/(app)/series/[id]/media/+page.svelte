@@ -52,9 +52,7 @@
 <div
 	class={cn(
 		"bg-canvas px-5 pt-8 text-foreground sm:px-10 sm:pt-10 lg:px-16",
-		arranging
-			? "flex h-[calc(100dvh-6.5rem)] flex-col pb-8 sm:h-[calc(100dvh-3.5rem)]"
-			: "min-h-[calc(100dvh-6.5rem)] pb-16 sm:min-h-[calc(100dvh-3.5rem)]",
+		arranging ? "flex h-page flex-col pb-8" : "min-h-page pb-16",
 	)}
 >
 	<header class="flex items-center gap-2">
@@ -139,7 +137,7 @@
 			{:else}
 				<div class="mt-8 grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
 					<aside
-						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:[scrollbar-color:var(--color-border)_transparent] lg:self-start lg:overflow-y-auto"
+						class="-mx-2 grid content-start gap-6 lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:self-start lg:overflow-y-auto"
 					>
 						{#if media.type === "logo" && series.logo_url}
 							<Button variant="ghost" class="justify-self-start" onclick={() => (sizing = true)}>

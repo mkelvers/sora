@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import { attempt } from "@sora/attempt";
 	import type { PlaybackPreferencesUpdate } from "@sora/sdk";
@@ -104,11 +103,5 @@
 		onprogress={report}
 		onpreferences={remember}
 		onnearend={() => (nearing = key)}
-		onended={() =>
-			goto(next ? `/series/${series.id}/watch/${next}` : `/series/${series.id}`, {
-				replaceState: true,
-				noScroll: true,
-				keepFocus: !!next,
-			})}
 	/>
 </main>
