@@ -14,27 +14,9 @@ import {
 } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
-
-/** One viewer under an account. */
-export interface Profile {
-	/** Sora's profile ID, such as `GYZJ43JMR`. */
-	id: string;
-	name: string;
-	/** A CSS color for the profile's tile. */
-	color: string;
-	/** The profile's avatar, drawn by clients. */
-	avatar: ProfileAvatar;
-	/** ISO 8601 timestamp. */
-	createdAt: string;
-}
+import { ProfileInputSchema, type Profile, type ProfileInput } from "../models/profile";
 
 export type AvatarStyle = (typeof avatarStyle.enumValues)[number];
-
-/** A DiceBear avatar: the same style and seed always draw the same picture. */
-export interface ProfileAvatar {
-	style: AvatarStyle;
-	seed: string;
-}
 
 /** Tile colors, handed out in turn to new profiles. */
 const palette = [
@@ -47,22 +29,6 @@ const palette = [
 	"#e54666",
 	"#3e63dd",
 ];
-
-export const ProfileInputSchema = z.object({
-	name: z.string().trim().min(1).max(40),
-	color: z
-		.string()
-		.regex(/^#[0-9a-f]{6}$/i)
-		.optional(),
-	avatar: z
-		.object({
-			style: z.enum(avatarStyle.enumValues),
-			seed: z.string().trim().min(1).max(64),
-		})
-		.optional(),
-});
-
-export type ProfileInput = z.input<typeof ProfileInputSchema>;
 
 /** Lists an account's profiles, oldest first. */
 export async function listProfiles(userId: string): Promise<Profile[]> {
@@ -206,6 +172,6 @@ function toProfile(row: typeof profile.$inferSelect): Profile {
 			style: row.avatarStyle,
 			seed: row.avatarSeed,
 		},
-		createdAt: row.createdAt.toISOString(),
+		created_at: row.createdAt.toISOString(),
 	};
 }
