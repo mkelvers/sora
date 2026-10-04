@@ -18,12 +18,7 @@
 		items: ContinueWatching[];
 	} = $props();
 
-	function place(item: ContinueWatching) {
-		return item.series.format === "MOVIE" ? "" : `Episode ${item.episode}`;
-	}
-
-	function label(item: ContinueWatching) {
-		const where = place(item);
+	function label(item: ContinueWatching, where: string) {
 		if (item.position_seconds > 0) {
 			return where ? `Continue with ${where}` : "Continue watching";
 		}
@@ -59,6 +54,7 @@
 			{#snippet children()}
 				<Content class="gap-3 pb-4 pl-3 sm:gap-4 sm:pl-8 lg:gap-7.5 lg:pl-18">
 					{#each items as item (item.series.id)}
+						{@const where = item.series.format === "MOVIE" ? "" : `Episode ${item.episode}`}
 						{@const progress =
 							item.duration_seconds && item.position_seconds > 0
 								? Math.min(100, (item.position_seconds / item.duration_seconds) * 100)
@@ -72,7 +68,7 @@
 								<a
 									href="/series/{item.series.id}/watch/{item.episode}"
 									class="flex h-full flex-col"
-									aria-label={["Continue watching " + item.series.title, place(item)]
+									aria-label={["Continue watching " + item.series.title, where]
 										.filter((part) => !!part)
 										.join(", ")}
 								>
@@ -105,7 +101,7 @@
 											{item.series.title}
 										</h3>
 										<p class="mt-1.5 text-sm text-muted">
-											{label(item)}
+											{label(item, where)}
 										</p>
 										{#if item.series.audio.length}
 											<p class="mt-auto pt-5 text-sm text-muted">
