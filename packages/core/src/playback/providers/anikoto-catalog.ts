@@ -186,7 +186,8 @@ export async function readRecentAniKotoChanges(
 	const changes: AniKotoChange[] = [];
 	for (let page = 1; page <= recentPageLimit; page += 1) {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
-		const rows = CatalogPageSchema.parse(await response.json()).data.flatMap(
+		const body = await response.json();
+		const rows = CatalogPageSchema.parse(body).data.flatMap(
 			(item) => parseCatalogSeries(item) ?? [],
 		);
 		await upsert(rows);
@@ -345,12 +346,11 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
 	}
 
 	// A prequel AniList has since removed or marked adult.
-	const { data: prequelAnime, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
+	const { data, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
 	if (error) {
 		return null;
 	}
-	const series =
-		(await matchStoredSeries(prequelAnime)) ?? (await continuedSeries(prequelAnime, depth - 1));
+	const series = (await matchStoredSeries(data)) ?? (await continuedSeries(data, depth - 1));
 	if (!series) {
 		return null;
 	}
@@ -421,7 +421,9 @@ async function lookUpSeries(http: HttpClient, anime: Anime) {
 			`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
 		);
 		// AniKoto's default order ranks spin-offs above the main series.
-		for (const [, id] of (await response.text()).matchAll(/data-tip="(\d+)"/g)) {
+		const html = await response.text();
+
+		for (const [, id] of html.matchAll(/data-tip="(\d+)"/g)) {
 			found.add(Number(id));
 		}
 	}
@@ -443,9 +445,8 @@ async function lookUpSeries(http: HttpClient, anime: Anime) {
 	for (const id of [...found]
 		.filter((candidate) => !known.has(candidate))
 		.slice(0, lookupCandidateLimit)) {
-		const parsed = SeriesResponseSchema.safeParse(
-			await (await http.get(`${apiUrl}/series/${id}`)).json(),
-		);
+		const response = await http.get(`${apiUrl}/series/${id}`);
+		const parsed = SeriesResponseSchema.safeParse(await response.json());
 		const row = parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
 		if (row) {
 			rows.push(row);

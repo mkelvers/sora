@@ -54,7 +54,7 @@ export function recordingCalls(
 		const startedAt = new Date();
 		const started = performance.now();
 		const finish = async (outcome: CallOutcome, error: Error | null) => {
-			const { error: unrecorded } = await attempt(
+			const recorded = await attempt(
 				record({
 					provider: provider.id,
 					operation,
@@ -64,20 +64,20 @@ export function recordingCalls(
 					error: error ? errorMessage(error) : null,
 				}),
 			);
-			if (unrecorded) {
+			if (recorded.error) {
 				console.warn(
-					`Could not record a ${operation} call to ${provider.id}: ${unrecorded.message}`,
+					`Could not record a ${operation} call to ${provider.id}: ${recorded.error.message}`,
 				);
 			}
 		};
 
-		const { data: result, error } = await attempt(call());
+		const { data, error } = await attempt(call());
 		if (error) {
 			void finish("failed", error);
 			throw error;
 		}
-		void finish(isEmpty(result) ? "empty" : "ok", null);
-		return result;
+		void finish(isEmpty(data) ? "empty" : "ok", null);
+		return data;
 	}
 
 	const syncCatalog = provider.syncCatalog?.bind(provider);
