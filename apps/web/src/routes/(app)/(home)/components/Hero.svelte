@@ -152,21 +152,31 @@
 									<PlayIcon size="1.2rem" weight="bold" />
 									{slide.format === "MOVIE" ? "Start watching" : "Start watching E1"}
 								</Button>
+								<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
+									{#snippet children(trigger)}
+										<Button
+											{...trigger}
+											variant="outline"
+											size="square"
+											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+											aria-pressed={listed}
+											onclick={() => setStatus(slide, listed ? null : "plan_to_watch")}
+										>
+											<BookmarkSimpleIcon size="1.5rem" weight={listed ? "fill" : "bold"} />
+										</Button>
+									{/snippet}
+								</Tooltip>
+							{:else}
+								<Button
+									variant="primary"
+									class="max-sm:flex-1"
+									aria-pressed={listed}
+									onclick={() => setStatus(slide, listed ? null : "plan_to_watch")}
+								>
+									<BookmarkSimpleIcon size="1.2rem" weight={listed ? "fill" : "bold"} />
+									{listed ? "Remove from Watchlist" : "Add to Watchlist"}
+								</Button>
 							{/if}
-							<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
-								{#snippet children(trigger)}
-									<Button
-										{...trigger}
-										variant="outline"
-										size="square"
-										aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
-										aria-pressed={listed}
-										onclick={() => setStatus(slide, listed ? null : "plan_to_watch")}
-									>
-										<BookmarkSimpleIcon size="1.5rem" weight={listed ? "fill" : "bold"} />
-									</Button>
-								{/snippet}
-							</Tooltip>
 						</div>
 					</article>
 				{/each}
