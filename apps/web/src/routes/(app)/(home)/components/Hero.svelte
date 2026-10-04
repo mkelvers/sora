@@ -194,30 +194,30 @@
 									"group pointer-events-auto h-8 cursor-pointer transition-[width] duration-300 ease-out outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none",
 									index === carousel.active ? "w-12" : "w-6",
 								)}
-								aria-label="Show {item.title}"
 								aria-pressed={index === carousel.active}
 								onclick={() => {
 									carousel.select(index);
 									held = carousel.cycle;
 								}}
 							>
-								<span
-									class="relative block h-2 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60"
-								>
-									{#if index === carousel.active}
-										{#key carousel.cycle}
-											<span
-												class={cn(
-													"absolute inset-y-0 left-0 bg-accent",
-													prefersReducedMotion.current || held === carousel.cycle
-														? "w-full"
-														: "hero-progress",
-													carousel.paused && "[animation-play-state:paused]",
-												)}
-											></span>
-										{/key}
-									{/if}
-								</span>
+								{#key index === carousel.active ? carousel.cycle : -1}
+									<span
+										class={cn(
+											"relative block h-2 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
+											index === carousel.active &&
+												"after:absolute after:inset-y-0 after:left-0 after:bg-accent",
+											index === carousel.active &&
+												(prefersReducedMotion.current || held === carousel.cycle
+													? "after:w-full"
+													: "hero-progress"),
+											index === carousel.active &&
+												carousel.paused &&
+												"after:[animation-play-state:paused]",
+										)}
+									>
+										<span class="sr-only">Show {item.title}</span>
+									</span>
+								{/key}
 							</button>
 						{/each}
 					</div>
@@ -228,7 +228,7 @@
 {/if}
 
 <style>
-	.hero-progress {
+	.hero-progress::after {
 		animation: hero-progress var(--hero-delay) linear forwards;
 	}
 
