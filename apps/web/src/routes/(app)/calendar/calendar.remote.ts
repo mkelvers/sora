@@ -7,7 +7,7 @@ import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
-function releasesOf(versions: ScheduledEpisode[]) {
+function releases(versions: ScheduledEpisode[]) {
 	const rows: {
 		types: ("sub" | "dub")[];
 		count: number;
@@ -136,7 +136,7 @@ export const getCalendar = query(
 							aired,
 							now: isToday && !aired && (!previous || Date.parse(previous[0]) <= now),
 							releases: [...Map.groupBy(group, (episode) => episode.series.id).values()].flatMap(
-								releasesOf,
+								releases,
 							),
 						};
 					},
