@@ -114,7 +114,7 @@ async function storeImageEdges(url: string): Promise<boolean> {
 		return true;
 	}
 
-	const { data: edges, error } = await attempt(measureEdges(url));
+	const { data, error } = await attempt(measureEdges(url));
 	if (error) {
 		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
 		return false;
@@ -124,7 +124,7 @@ async function storeImageEdges(url: string): Promise<boolean> {
 		.insert(imageEdge)
 		.values({
 			url,
-			...edges,
+			...data,
 		})
 		.onConflictDoNothing();
 	return true;
