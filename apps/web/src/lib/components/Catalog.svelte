@@ -126,7 +126,7 @@
 	class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16"
 >
 	<section class="mx-auto w-full max-w-264" aria-labelledby="catalog-title">
-		<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<div class="mb-8 flex items-center justify-between gap-2 sm:gap-4">
 			<div class="flex flex-col items-start">
 				<h1 id="catalog-title" class="text-xl font-bold sm:text-2xl">{title}</h1>
 				{@render summary?.()}
