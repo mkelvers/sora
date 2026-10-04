@@ -4,9 +4,11 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { setStatus } from "$lib/watchlist";
+	import { getWatchlist } from "$lib/watchlist.remote";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series, SeriesProgress } from "@sora/sdk";
-	import { DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
 	import WatchlistMenu from "./WatchlistMenu.svelte";
 
@@ -17,6 +19,9 @@
 		series: Series;
 		progress?: SeriesProgress;
 	} = $props();
+
+	const watchlist = getWatchlist();
+	const listed = $derived(!!watchlist.current?.some((entry) => entry.series.id === series.id));
 
 	const play = $derived.by(() => {
 		const resume = progress?.next;
@@ -214,9 +219,18 @@
 					<PlayIcon size="1.55em" weight="bold" />
 					<span class="truncate">{play.label}</span>
 				</Button>
+				<WatchlistMenu {series} />
+			{:else}
+				<Button
+					variant="primary"
+					class="min-w-0 max-sm:flex-1"
+					aria-pressed={listed}
+					onclick={() => setStatus(series, listed ? null : "plan_to_watch")}
+				>
+					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
+					<span class="truncate">{listed ? "Remove from Watchlist" : "Add to Watchlist"}</span>
+				</Button>
 			{/if}
-
-			<WatchlistMenu {series} />
 		</div>
 	</div>
 </header>

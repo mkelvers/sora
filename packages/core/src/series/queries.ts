@@ -566,8 +566,10 @@ export function byStartDate(rows: readonly SeriesRow[]) {
 /**
  * The stored titles of a series' franchise (see {@link franchiseIds}), this
  * one included, as {@link franchiseParts} lists them: those with an episode
- * to watch. Titles yet to come out or still queued for storing, and music
- * videos, are left out, though the series itself is always listed. Whether
+ * to watch, and the seasons announced but yet to come out, which the page
+ * shows as coming soon. Other titles yet to come out, those still queued for
+ * storing, and music videos, are left out, though the series itself is always
+ * listed. Whether
  * a title has come out is told by its listed episodes, not by AniList's
  * status, which reads "not yet released" until its airing check runs, often
  * well after the first episode can be watched.
@@ -604,7 +606,12 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 			const card = cards.get(title.id);
 			const isListed =
 				title.id === row.id ||
-				(card !== undefined && card.format !== "MUSIC" && card.episodeCount > 0);
+				(card !== undefined &&
+					card.format !== "MUSIC" &&
+					(card.episodeCount > 0 ||
+						(title.status === "NOT_YET_RELEASED" &&
+							card.format !== null &&
+							["TV", "TV_SHORT", "ONA"].includes(card.format))));
 			return card && isListed
 				? [
 						{
