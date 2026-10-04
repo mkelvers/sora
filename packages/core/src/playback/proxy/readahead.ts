@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import type { StreamTarget } from "./token";

@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 

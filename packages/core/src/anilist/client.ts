@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 

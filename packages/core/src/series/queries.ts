@@ -490,7 +490,7 @@ async function listedEpisodes(seriesId: string) {
 }
 
 /** {@link listedEpisodes} of several series at once, keyed by series ID. */
-async function listedEpisodesOf(titles: readonly SeriesRow[]) {
+export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
 	const rows =
 		titles.length > 0
 			? await db
@@ -641,7 +641,7 @@ const releaseWindowMs = 30 * day;
  * When an episode came out: when it aired, or its air date's midnight UTC
  * when AniList has no airing time.
  */
-const releasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
+export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
 export const ReleasesQuerySchema = BrowseQuerySchema.pick({
@@ -682,7 +682,7 @@ export async function getLatestReleases(
 			seriesId: seriesEpisode.seriesId,
 		})
 		.from(seriesEpisode)
-		.where(and(gte(releasedAt, since), lte(releasedAt, now)));
+		.where(and(gte(episodeReleasedAt, since), lte(episodeReleasedAt, now)));
 	const rows =
 		candidates.length > 0
 			? await db

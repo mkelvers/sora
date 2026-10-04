@@ -16,7 +16,7 @@
     "@dicebear/core": "^10.7.0",
     "@dicebear/styles": "^10.6.0",
     "@fontsource-variable/dm-sans": "^5.3.0",
-    "@sora/attempt": "workspace:*",
+    "@sora/shared": "workspace:*",
     "@sora/sdk": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

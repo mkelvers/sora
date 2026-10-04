@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.6.3",
-    "@sora/attempt": "workspace:*",
+    "@sora/shared": "workspace:*",
     "@sora/core": "workspace:*",
     "hono": "^4.13.8",
     "zod": "^4.6.5"

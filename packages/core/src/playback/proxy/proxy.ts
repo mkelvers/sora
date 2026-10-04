@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 import { config } from "../../config";
 import { hour } from "../../time";

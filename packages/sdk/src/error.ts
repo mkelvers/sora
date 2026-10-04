@@ -1,5 +1,5 @@
 import type { Problem } from "@sora/api";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 /**
  * What a failed response may carry: the API's problem, or Better Auth's

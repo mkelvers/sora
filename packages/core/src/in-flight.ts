@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 /**
  * Work running per key, so concurrent callers asking for the same key share

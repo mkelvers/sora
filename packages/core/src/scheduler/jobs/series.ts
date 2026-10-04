@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";

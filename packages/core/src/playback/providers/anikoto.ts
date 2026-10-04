@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { AnikotoProvider, type HttpClient } from "anime-sdk";
 import { z } from "zod";
 

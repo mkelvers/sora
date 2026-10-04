@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { inArray, lt, sql } from "drizzle-orm";
 import { consoleLogFactory, Logger, type WorkerEvents } from "graphile-worker";
 

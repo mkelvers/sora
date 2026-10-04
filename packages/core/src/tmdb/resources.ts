@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";

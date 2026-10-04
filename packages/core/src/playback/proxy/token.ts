@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { z } from "zod";
 
 import { InvalidStreamTokenError } from "../../errors";

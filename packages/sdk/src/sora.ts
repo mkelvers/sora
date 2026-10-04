@@ -6,6 +6,8 @@ import type {
 	Envelope,
 	Episode,
 	EpisodesMeta,
+	Notification,
+	NotificationsMeta,
 	PageMeta,
 	PlaybackMedia,
 	PlaybackMeta,
@@ -63,6 +65,12 @@ export interface ScheduleParams {
 	from?: Date;
 	/** @defaultValue 7 days after `from` */
 	until?: Date;
+}
+
+/** Paging for {@link SoraClient.notifications}. */
+export interface NotificationsParams {
+	/** @defaultValue 30 */
+	limit?: number;
 }
 
 /** Filters and paging for {@link SoraClient.releases}, applied to the AniList entry each latest episode belongs to. */
@@ -693,6 +701,76 @@ export class SoraClient {
 					param: {
 						profile_id: profileId,
 						series_id: seriesId,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/**
+	 * What came out in the last 30 days for the titles on a profile's
+	 * watchlist, newest first: new episodes, English dubs, and the premiere
+	 * of a sequel of a title on it. Only what came out after a title was put
+	 * on the watchlist is listed. `meta.unread` counts those not marked read,
+	 * past `limit` too.
+	 */
+	async notifications<const TOptions extends RequestOptions<NotificationsParams> = {}>(
+		profileId: string,
+		options?: TOptions,
+	): Promise<Returned<TOptions, Notification[], NotificationsMeta>> {
+		const body: Envelope<Notification[], NotificationsMeta> = await read(
+			this.#api.profiles[":profile_id"].notifications.$get(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					query: {
+						limit: options?.params?.limit?.toString(),
+					},
+				},
+				init(options),
+			),
+		);
+		return unwrap(body, options);
+	}
+
+	/**
+	 * Marks some of a profile's notifications read, by their `id`. Pass the
+	 * ones the profile was shown, so one that came out meanwhile stays unread.
+	 */
+	async markNotificationsRead(
+		profileId: string,
+		notificationIds: string[],
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications.read.$put(
+				{
+					param: {
+						profile_id: profileId,
+					},
+					json: {
+						ids: notificationIds,
+					},
+				},
+				init(options),
+			),
+		);
+	}
+
+	/** Deletes one of a profile's notifications for good, by its `id`. */
+	async dismissNotification(
+		profileId: string,
+		notificationId: string,
+		options?: RequestOptions,
+	): Promise<void> {
+		await send(
+			this.#api.profiles[":profile_id"].notifications[":notification_id"].$delete(
+				{
+					param: {
+						profile_id: profileId,
+						notification_id: notificationId,
 					},
 				},
 				init(options),

@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { and, asc, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";

@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { getProviderHealth, type ProviderHealth } from "@sora/core/playback";
 import { Hono } from "hono";
 

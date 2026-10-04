@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";

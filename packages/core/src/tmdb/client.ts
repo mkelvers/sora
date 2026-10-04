@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 

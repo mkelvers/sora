@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { bestSimilarity, type HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";

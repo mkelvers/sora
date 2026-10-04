@@ -1,6 +1,6 @@
 import { isIP } from "node:net";
 
-import { attempt, type Attempt } from "@sora/attempt";
+import { attempt, type Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
 import { second } from "../../time";

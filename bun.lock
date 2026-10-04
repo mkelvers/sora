@@ -19,8 +19,8 @@
       "version": "0.0.1",
       "dependencies": {
         "@hono/zod-openapi": "^1.6.3",
-        "@sora/attempt": "workspace:*",
         "@sora/core": "workspace:*",
+        "@sora/shared": "workspace:*",
         "hono": "^4.13.8",
         "zod": "^4.6.5",
       },
@@ -42,8 +42,8 @@
         "@dicebear/core": "^10.7.0",
         "@dicebear/styles": "^10.6.0",
         "@fontsource-variable/dm-sans": "^5.3.0",
-        "@sora/attempt": "workspace:*",
         "@sora/sdk": "workspace:*",
+        "@sora/shared": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "embla-carousel": "^8.6.0",
@@ -67,19 +67,12 @@
         "vite": "^8.2.2",
       },
     },
-    "packages/attempt": {
-      "name": "@sora/attempt",
-      "version": "0.0.1",
-      "devDependencies": {
-        "@types/bun": "^1.4.2",
-      },
-    },
     "packages/core": {
       "name": "@sora/core",
       "version": "0.0.1",
       "dependencies": {
         "@graphql-typed-document-node/core": "^3.2.0",
-        "@sora/attempt": "workspace:*",
+        "@sora/shared": "workspace:*",
         "anime-sdk": "^1.1.0",
         "better-auth": "^1.7.6",
         "drizzle-orm": "^0.45.3",
@@ -100,12 +93,19 @@
       "name": "@sora/sdk",
       "version": "0.0.1",
       "dependencies": {
-        "@sora/attempt": "workspace:*",
+        "@sora/shared": "workspace:*",
         "hono": "^4.13.8",
       },
       "devDependencies": {
         "@sora/api": "workspace:*",
         "@sora/core": "workspace:*",
+        "@types/bun": "^1.4.2",
+      },
+    },
+    "packages/shared": {
+      "name": "@sora/shared",
+      "version": "0.0.1",
+      "devDependencies": {
         "@types/bun": "^1.4.2",
       },
     },
@@ -619,13 +619,13 @@
 
     "@sora/api": ["@sora/api@workspace:apps/api"],
 
-    "@sora/attempt": ["@sora/attempt@workspace:packages/attempt"],
-
     "@sora/core": ["@sora/core@workspace:packages/core"],
 
     "@sora/scheduler": ["@sora/scheduler@workspace:apps/scheduler"],
 
     "@sora/sdk": ["@sora/sdk@workspace:packages/sdk"],
+
+    "@sora/shared": ["@sora/shared@workspace:packages/shared"],
 
     "@sora/web": ["@sora/web@workspace:apps/web"],
 
