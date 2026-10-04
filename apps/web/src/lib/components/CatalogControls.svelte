@@ -68,12 +68,14 @@
 		},
 	] as const;
 
-	let sortOpen = $state(false);
-	let filterOpen = $state(false);
+	// Whether the "Sort By" sheet is open.
+	let sorting = $state(false);
+	// Whether the "Filter" sheet is open.
+	let filtering = $state(false);
 	const draft = $state<typeof catalogFilters>({});
 
 	$effect(() => {
-		if (filterOpen) {
+		if (filtering) {
 			Object.assign(draft, {
 				audio: catalogFilters.audio,
 				format: catalogFilters.format,
@@ -158,7 +160,7 @@
 			aria-label="Sort anime, {selectedSort.label} selected"
 			aria-haspopup="dialog"
 			aria-controls="sort-list"
-			onclick={() => (sortOpen = true)}
+			onclick={() => (sorting = true)}
 		>
 			<ListBulletsIcon size="1.2rem" weight="bold" />
 		</Button>
@@ -169,27 +171,27 @@
 		aria-label="Filter anime"
 		aria-haspopup="dialog"
 		aria-controls="filter-list"
-		onclick={() => (filterOpen = true)}
+		onclick={() => (filtering = true)}
 	>
 		<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
 	</Button>
 </div>
 
-<Sheet bind:open={sortOpen} id="sort-list" title="Sort By">
+<Sheet bind:open={sorting} id="sort-list" title="Sort By">
 	{#each sorts as sort (sort.kind)}
 		<Button
 			variant="item"
 			href="/{sort.kind}"
 			aria-current={sort.kind === kind ? "true" : undefined}
 			class="aria-current:font-normal aria-current:text-foreground"
-			onclick={() => (sortOpen = false)}
+			onclick={() => (sorting = false)}
 		>
 			{sort.label}
 		</Button>
 	{/each}
 </Sheet>
 
-<Sheet bind:open={filterOpen} id="filter-list" title="Filter">
+<Sheet bind:open={filtering} id="filter-list" title="Filter">
 	{#each groups as group (group.id)}
 		<div role="radiogroup" aria-labelledby="filter-sheet-{group.id}">
 			<p id="filter-sheet-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
@@ -224,7 +226,7 @@
 			class="w-full"
 			onclick={() => {
 				Object.assign(catalogFilters, draft);
-				filterOpen = false;
+				filtering = false;
 			}}
 		>
 			Update Filters

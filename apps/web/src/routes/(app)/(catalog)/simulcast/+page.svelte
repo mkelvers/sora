@@ -17,7 +17,8 @@
 
 	let { data }: PageProps = $props();
 
-	let seasonsOpen = $state(false);
+	// Whether the "Season List" sheet is open.
+	let seasons = $state(false);
 
 	const label = (option: AnimeSeason) =>
 		`${option.season.charAt(0)}${option.season.slice(1).toLowerCase()} ${option.year}`;
@@ -56,7 +57,7 @@
 				aria-label="Choose simulcast season, {label(selected)} selected"
 				aria-haspopup="dialog"
 				aria-controls="season-list"
-				onclick={() => (seasonsOpen = true)}
+				onclick={() => (seasons = true)}
 			>
 				<CaretDownIcon size="0.875rem" weight="fill" />
 				{label(selected)}
@@ -92,14 +93,14 @@
 	</Catalog>
 {/key}
 
-<Sheet bind:open={seasonsOpen} id="season-list" title="Season List">
+<Sheet bind:open={seasons} id="season-list" title="Season List">
 	{#each data.seasons as option (key(option))}
 		<Button
 			variant="item"
 			aria-current={same(option, selected) ? "true" : undefined}
 			class="aria-[current=true]:font-normal aria-[current=true]:text-foreground"
 			onclick={() => {
-				seasonsOpen = false;
+				seasons = false;
 				chosen.season = option;
 			}}
 		>

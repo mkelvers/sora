@@ -95,7 +95,8 @@
 
 	let selected = $derived(calendar.days.find((day) => day.today)?.date ?? calendar.days[0].date);
 
-	let daysOpen = $state(false);
+	// Whether the "Day List" sheet is open.
+	let days = $state(false);
 
 	const current = $derived(calendar.days.find((day) => day.date === selected) ?? calendar.days[0]);
 
@@ -222,7 +223,7 @@
 				aria-label="Choose day, {longDay.format(noon(current.date))} selected"
 				aria-haspopup="dialog"
 				aria-controls="day-list"
-				onclick={() => (daysOpen = true)}
+				onclick={() => (days = true)}
 			>
 				<CaretDownIcon size="0.875rem" weight="fill" />
 				{dayLabel(current)} · {longDay.format(noon(current.date)).split(", ")[1]}
@@ -374,14 +375,14 @@
 	</section>
 </div>
 
-<Sheet bind:open={daysOpen} id="day-list" title="Day List">
+<Sheet bind:open={days} id="day-list" title="Day List">
 	{#each calendar.days as day (day.date)}
 		<Button
 			variant="item"
 			class="justify-between aria-[current=true]:font-normal aria-[current=true]:text-foreground"
 			aria-current={day.date === selected ? "true" : undefined}
 			onclick={() => {
-				daysOpen = false;
+				days = false;
 				selected = day.date;
 			}}
 		>
