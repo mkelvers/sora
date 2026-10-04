@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "../database/client";
 import { tmdbHint, tmdbMapping } from "../database/schema";
+import { InFlight } from "../in-flight";
 import { day } from "../time";
 import {
 	getCollectionParts,
@@ -51,7 +52,7 @@ const searchedShowLimit = 4;
 /** Search results considered per query. */
 const resultsPerQuery = 5;
 
-const inFlight = new Map<number, Promise<TmdbMapping>>();
+const inFlight = new InFlight<number, TmdbMapping>();
 
 /**
  * Resolves where an AniList entry lives on TMDB, using the stored mapping
@@ -73,15 +74,7 @@ export async function resolveMapping(entry: FranchiseEntry): Promise<TmdbMapping
 		return stored;
 	}
 
-	let pending = inFlight.get(entry.id);
-	if (!pending) {
-		pending = match(entry, new Set([entry.id])).finally(() => {
-			inFlight.delete(entry.id);
-		});
-		inFlight.set(entry.id, pending);
-	}
-
-	return pending;
+	return inFlight.run(entry.id, () => match(entry, new Set([entry.id])));
 }
 
 async function freshMapping(entry: FranchiseEntry) {
