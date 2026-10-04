@@ -14,8 +14,8 @@ export const POST: RequestHandler = async ({ locals, cookies }) => {
 	});
 
 	if (locals.viewer) {
-		const { error } = await attempt(locals.viewer.sora.signOut());
-		if (error && !(error instanceof SoraError && error.status === 401)) {
+		const { error } = await attempt(locals.viewer.sora.signOut(), SoraError);
+		if (error && error.status !== 401) {
 			throw error;
 		}
 	}

@@ -43,14 +43,14 @@ export const actions: Actions = {
 			});
 		}
 
-		const { data: session, error } = await attempt(sora.signIn(credentials.data));
-		if (error instanceof SoraError && error.code === "INVALID_EMAIL_OR_PASSWORD") {
+		const { data: session, error } = await attempt(sora.signIn(credentials.data), SoraError);
+		if (error?.code === "INVALID_EMAIL_OR_PASSWORD") {
 			return fail(400, {
 				email,
 				message: "Wrong e-mail or password.",
 			});
 		}
-		if (error instanceof SoraError && error.status === 429) {
+		if (error?.status === 429) {
 			return fail(429, {
 				email,
 				message: "Too many attempts. Try again in a minute.",

@@ -212,16 +212,6 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
 	return [...anilistIds];
 }
 
-/** The AniList entry an AnimeSchedule show links, or `null` when it links none. */
-async function fetchShowAniListId(http: HttpClient, route: string): Promise<number | null> {
-	const response = await http.get(`${apiUrl}/anime/${encodeURIComponent(route)}`, {
-		headers,
-	});
-	const link = AnimeSchema.parse(await response.json()).websites?.aniList;
-	const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
-	return id ? Number(id) : null;
-}
-
 /**
  * The AniList entry of each AnimeSchedule show, as the show links it, or
  * `null` when it links none.
@@ -254,11 +244,26 @@ export async function resolveAnimeScheduleShows(
 	);
 
 	for (const route of unique.filter((route) => !resolved.has(route))) {
-		const { data: anilistId, error } = await attempt(fetchShowAniListId(http, route));
-		if (error) {
-			console.warn(`AnimeSchedule show ${route} could not be read: ${error.message}`);
+		const response = await attempt(
+			http.get(`${apiUrl}/anime/${encodeURIComponent(route)}`, {
+				headers,
+			}),
+		);
+		if (response.error) {
+			console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
 			continue;
 		}
+
+		const body = await attempt(response.data.json());
+		const show = AnimeSchema.safeParse(body.data);
+		if (!show.success) {
+			console.warn(`AnimeSchedule show ${route} could not be read`);
+			continue;
+		}
+
+		const link = show.data.websites?.aniList;
+		const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
+		const anilistId = id ? Number(id) : null;
 
 		const values = {
 			anilistId,

@@ -29,7 +29,7 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 	const providers = () => {
 		if (!cached || Date.now() - cached.at >= cacheMs) {
 			const read = async () => {
-				const { data: health, error } = await attempt(load);
+				const { data: health, error } = await attempt(load());
 				if (!error) {
 					return health;
 				}

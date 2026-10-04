@@ -34,13 +34,13 @@ export const actions: Actions = {
 	delete: async ({ request, locals, cookies }) => {
 		const id = String((await request.formData()).get("profile") ?? "");
 
-		const deleted = await attempt(locals.viewer!.sora.deleteProfile(id));
-		if (deleted.error instanceof SoraError && deleted.error.code === "LAST_PROFILE") {
+		const deleted = await attempt(locals.viewer!.sora.deleteProfile(id), SoraError);
+		if (deleted.error?.code === "LAST_PROFILE") {
 			return fail(409, {
 				message: "An account keeps at least one profile.",
 			});
 		}
-		if (deleted.error instanceof SoraError && deleted.error.status === 404) {
+		if (deleted.error?.status === 404) {
 			error(404, "No such profile");
 		}
 		if (deleted.error) {

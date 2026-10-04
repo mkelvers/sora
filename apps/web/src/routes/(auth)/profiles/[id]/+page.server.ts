@@ -60,8 +60,11 @@ export const actions: Actions = {
 			});
 		}
 
-		const updated = await attempt(locals.viewer!.sora.updateProfile(params.id, changes.data));
-		if (updated.error instanceof SoraError && updated.error.status === 404) {
+		const updated = await attempt(
+			locals.viewer!.sora.updateProfile(params.id, changes.data),
+			SoraError,
+		);
+		if (updated.error?.status === 404) {
 			error(404, "No such profile");
 		}
 		if (updated.error) {
