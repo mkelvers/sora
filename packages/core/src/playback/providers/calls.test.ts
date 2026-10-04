@@ -106,7 +106,7 @@ describe("recordingCalls", () => {
 			},
 		});
 
-		await provider.listEpisodes("1").catch(() => undefined);
+		await expect(provider.listEpisodes("1")).rejects.toThrow();
 
 		expect(calls[0]?.error?.length).toBe(500);
 	});

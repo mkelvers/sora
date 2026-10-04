@@ -56,7 +56,7 @@ export function watchPools(): PoolWatch {
 	let running = Promise.resolve();
 	const tick = () => {
 		running = running.then(async () => {
-			const { error } = await attempt(beat);
+			const { error } = await attempt(beat());
 			if (error) {
 				logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
 			}

@@ -1,10 +1,11 @@
+import { attempt } from "@sora/attempt";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { providerEpisodes, providerMapping, seriesEntry } from "../../database/schema";
+import { providerEpisodes, providerMapping, series } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import {
 	getStoredUnits,
@@ -20,7 +21,7 @@ import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
  * Fetches AniKoto's episode list of one stored AniList entry again, and
  * queues its series to be laid out again when AniKoto gained an episode.
  *
- * Seasons list the episodes AniKoto carries, so the list is what makes a
+ * A series lists the episodes AniKoto carries, so the list is what makes a
  * new episode show up; laying the series out again brings in what AniList
  * and TMDB know of it.
  *
@@ -29,15 +30,9 @@ import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
  * @throws when AniKoto fails.
  */
 async function refreshAniKotoEpisodes(anilistId: number): Promise<ProviderUnit[] | null> {
-	let anime;
-	try {
-		anime = await getAnime(anilistId);
-	} catch (error) {
-		if (error instanceof AnimeNotFoundError) {
-			return null;
-		}
-
-		throw error;
+	const { data: anime, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	if (error) {
+		return null;
 	}
 
 	const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
@@ -138,10 +133,10 @@ async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
 	const [stored, fetched, resolved] = await Promise.all([
 		db
 			.select({
-				anilistId: seriesEntry.anilistId,
+				anilistId: series.anilistId,
 			})
-			.from(seriesEntry)
-			.where(inArray(seriesEntry.anilistId, ids)),
+			.from(series)
+			.where(inArray(series.anilistId, ids)),
 		db
 			.select({
 				anilistId: providerEpisodes.anilistId,
@@ -170,14 +165,14 @@ async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
 			continue;
 		}
 
-		try {
-			const units = await refreshAniKotoEpisodes(anilistId);
-			logger.info(
-				`AniKoto changed anime ${anilistId}; it now carries ${units?.length ?? 0} episodes`,
-			);
-		} catch (error) {
-			logger.warn(`AniKoto failed for anime ${anilistId}: ${String(error)}`);
+		const { data: units, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+		if (error) {
+			logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
+			continue;
 		}
+		logger.info(
+			`AniKoto changed anime ${anilistId}; it now carries ${units?.length ?? 0} episodes`,
+		);
 	}
 }
 
@@ -227,7 +222,12 @@ const PollAniKotoPayloadSchema = z.object({
  * AniKoto fails counts as not finding the episode.
  */
 export const pollAniKoto: Task = async (rawPayload, helpers) => {
-	const { anilistId, episode, language, attempt } = PollAniKotoPayloadSchema.parse(rawPayload);
+	const {
+		anilistId,
+		episode,
+		language,
+		attempt: polls,
+	} = PollAniKotoPayloadSchema.parse(rawPayload);
 
 	const [mapping] = await db
 		.select({
@@ -237,14 +237,18 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		.where(and(eq(providerMapping.anilistId, anilistId), eq(providerMapping.provider, aniKoto.id)))
 		.limit(1);
 
-	try {
-		if (mapping?.anikotoId) {
-			await pickUpAniKotoChanges(helpers.logger);
-		} else if ((await refreshAniKotoEpisodes(anilistId)) === null) {
+	if (mapping?.anikotoId) {
+		const { error } = await attempt(pickUpAniKotoChanges(helpers.logger));
+		if (error) {
+			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
+		}
+	} else {
+		const { data: units, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+		if (error) {
+			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
+		} else if (units === null) {
 			return;
 		}
-	} catch (error) {
-		helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${String(error)}`);
 	}
 
 	const [stored] = (await getStoredUnits([anilistId])).filter(
@@ -259,14 +263,14 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const delay = aniKotoPollDelaysMs[attempt];
+	const delay = aniKotoPollDelaysMs[polls];
 	if (delay !== undefined) {
 		await scheduleAniKotoPoll(
 			{
 				anilistId,
 				episode,
 				language,
-				attempt: attempt + 1,
+				attempt: polls + 1,
 			},
 			new Date(Date.now() + delay),
 		);

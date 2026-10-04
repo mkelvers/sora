@@ -206,10 +206,10 @@ export async function scheduleSeriesStore(
 }
 
 /**
- * Queues laying out the series of an AniList entry again, if a stored series
- * contains it. Called as the entry airs, so new episodes, and TMDB listing a
- * season it did not list before, reach the stored series, and when what the
- * layout is derived from changed.
+ * Queues laying out the series of an AniList entry again, if it is stored.
+ * Called as the entry airs, so new episodes, and TMDB listing episodes it
+ * did not list before, reach the stored series, and when what the layout is
+ * derived from changed.
  */
 export async function scheduleStoredSeriesRefresh(
 	anilistId: number,
@@ -224,7 +224,7 @@ export async function scheduleStoredSeriesRefresh(
       job_key_mode => 'preserve_run_at',
       priority => ${kept}
     )
-    where exists (select 1 from series_entry where anilist_id = ${anilistId})
+    where exists (select 1 from series where anilist_id = ${anilistId})
   `);
 }
 

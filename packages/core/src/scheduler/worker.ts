@@ -10,6 +10,7 @@ import {
 	pruneProviderCallsTask,
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
+import { pruneDeadJobsJob, pruneDeadJobsTask } from "./jobs/dead-jobs";
 import { syncDubSchedule, syncDubScheduleTask } from "./jobs/dubs";
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
@@ -26,6 +27,8 @@ import {
 	discoverSeriesEntriesTask,
 	refreshEpisodeDetails,
 	refreshEpisodeDetailsTask,
+	refreshEpisodeListings,
+	refreshEpisodeListingsTask,
 	storeSeriesJob,
 } from "./jobs/series";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
@@ -62,7 +65,7 @@ const waitedOnTasks: Record<string, Task> = {
  * mirrors the provider catalogues titles are matched against, keeps the
  * search index current while storing the most popular titles, and this
  * season's and the next's, ahead of any search or browse, keeps the hints that match titles to TMDB current, and warns
- * about providers that stop working.
+ * about providers that stop working, and drops jobs that failed every attempt.
  *
  * Several schedulers may run at once; graphile-worker hands each job to one
  * of them. Stop it with `stop()`; by default it also stops on SIGINT and
@@ -86,8 +89,10 @@ export async function startScheduler(): Promise<Scheduler> {
 			...waitedOnTasks,
 			[discoverSeriesEntriesTask]: discoverSeriesEntries,
 			[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
+			[refreshEpisodeListingsTask]: refreshEpisodeListings,
 			[syncProviderCatalogsTask]: syncProviderCatalogs,
 			[pruneProviderCallsTask]: pruneProviderCallsJob,
+			[pruneDeadJobsTask]: pruneDeadJobsJob,
 			[checkProviderHealthTask]: checkProviderHealthJob,
 			[syncSearchIndexTask]: syncSearchIndexJob,
 			[backfillSeriesTask]: backfillSeries,
@@ -98,13 +103,16 @@ export async function startScheduler(): Promise<Scheduler> {
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
 			`30 4 * * * ${discoverSeriesEntriesTask}`,
+			// As far apart as `detailsRunEveryMs` says.
+			`*/12 * * * * ${refreshEpisodeDetailsTask}`,
 			// Half past, so a run never lands on the hour when most episodes air.
-			`30 * * * * ${refreshEpisodeDetailsTask}`,
+			`30 * * * * ${refreshEpisodeListingsTask}`,
 			// Catalogue upkeep runs ahead of queued layouts, which can number in the
 			// hundreds; the first run after a start catches up on what changed.
 			`15 * * * * ${syncProviderCatalogsTask} ?id=provider-catalogs-changes&fill=1h&priority=-1`,
 			`45 3 * * 0 ${syncProviderCatalogsTask} ?id=provider-catalogs-full&fill=1w&priority=-1 {full:true}`,
 			`50 4 * * * ${pruneProviderCallsTask} ?priority=-1`,
+			`55 4 * * * ${pruneDeadJobsTask} ?priority=-1`,
 			`25 * * * * ${checkProviderHealthTask}`,
 			`5 * * * * ${syncSearchIndexTask} ?id=search-index-changes&fill=1h&priority=-1`,
 			`20 2 * * 1 ${syncSearchIndexTask} ?id=search-index-full&fill=1w&priority=-1 {full:true}`,
