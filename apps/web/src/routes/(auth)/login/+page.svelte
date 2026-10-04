@@ -4,10 +4,10 @@
 	import tmdbLogo from "$lib/assets/tmdb.svg";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import AuthInput from "$routes/(auth)/_components/AuthInput.svelte";
 	import { untrack } from "svelte";
 
 	import type { PageProps } from "./$types";
+	import AuthInput from "./components/AuthInput.svelte";
 
 	let { form }: PageProps = $props();
 
