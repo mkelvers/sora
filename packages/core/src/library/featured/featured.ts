@@ -1,11 +1,11 @@
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { animeSearch, featuredPick, noArtwork, series, seriesEntry } from "../../database/schema";
+import { animeSearch, featuredPick, series, seriesState } from "../../database/schema";
 import { scheduleSeriesStore } from "../../scheduler/queue";
+import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
 import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
-import { getDropped } from "../shows/shows";
 import {
 	arrange,
 	dateBefore,
@@ -15,7 +15,6 @@ import {
 	rotationOf,
 	shelfOf,
 	shelfThresholds,
-	type FeaturedEntry,
 	type FeaturedShelf,
 } from "./rotation";
 
@@ -34,18 +33,19 @@ const lowestThreshold = {
 /**
  * Titles to feature on a profile's home page: new seasons and films that are
  * well liked, the best rated, and popular hits, mostly new ones (see
- * {@link featuredPattern}).
+ * {@link featuredPattern}). The seasons of one show share its backdrop and
+ * logo, so a show is featured through one of them: a new season as itself,
+ * and a show that is acclaimed or popular through its earliest such season.
  *
  * They are picked once a week, on Monday morning (see `rotationStart`), in
  * each profile's own order, and kept for the week: a title that can no
  * longer be shown gives its place to another, as does one the profile
- * dropped or one related to it (see `getDropped`). No title is featured two
+ * dropped from its watchlist. No title is featured two
  * weeks in a row.
  *
  * Reads only the database: candidates come from the search index.
  * Long-running titles such as Detective Conan are left out, as are those
- * without a backdrop and logo to draw, and
- * those nothing streams. Candidates not stored yet are queued for the
+ * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
  * scheduler, a few with each pick, so later picks find them.
  */
 export async function getFeatured(userId: string, now = new Date()): Promise<SeriesCard[]> {
@@ -61,8 +61,13 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 		)
 		.orderBy(asc(featuredPick.position));
 
-	const dropped = await getDropped(userId);
-	const unwanted = new Set([...dropped.seriesIds, ...dropped.relatedSeriesIds]);
+	const dropped = await db
+		.select({
+			seriesId: seriesState.seriesId,
+		})
+		.from(seriesState)
+		.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
+	const unwanted = new Set(dropped.map((row) => row.seriesId));
 
 	const current = picks.filter((pick) => pick.rotation === rotation);
 	const kept = current.map((pick) => pick.seriesId);
@@ -116,23 +121,22 @@ async function pickTitles(
 	now: Date,
 	excluded: ReadonlySet<string>,
 ) {
-	const [entries, longRunning] = await Promise.all([
+	const [entries, longRunning, featuredBefore] = await Promise.all([
 		db
 			.select({
 				anilistId: animeSearch.anilistId,
-				seriesId: seriesEntry.seriesId,
+				seriesId: series.id,
+				key: series.key,
 				startDate: animeSearch.startDate,
 				score: sql<number>`${animeSearch.averageScore}`,
 				popularity: animeSearch.popularity,
 				isDrawable: sql<boolean>`coalesce(
-					nullif(coalesce(${series.backdropUrlOverride}, ${series.backdropUrl}), ${noArtwork}) is not null
-					and nullif(coalesce(${series.logoUrlOverride}, ${series.logoUrl}), ${noArtwork}) is not null,
+					${effectiveBackdrop} is not null and ${effectiveLogo} is not null,
 					false
 				)`,
 			})
 			.from(animeSearch)
-			.leftJoin(seriesEntry, eq(seriesEntry.anilistId, animeSearch.anilistId))
-			.leftJoin(series, eq(series.id, seriesEntry.seriesId))
+			.leftJoin(series, eq(series.anilistId, animeSearch.anilistId))
 			.where(
 				and(
 					eq(animeSearch.isAdult, false),
@@ -144,16 +148,24 @@ async function pickTitles(
 			),
 		db
 			.selectDistinct({
-				seriesId: seriesEntry.seriesId,
+				key: series.key,
 			})
-			.from(seriesEntry)
-			.innerJoin(animeSearch, eq(animeSearch.anilistId, seriesEntry.anilistId))
+			.from(series)
+			.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
 			.where(
 				and(
 					eq(animeSearch.status, "RELEASING"),
 					lt(animeSearch.startDate, dateBefore(now, longRunningAfter)),
 				),
 			),
+		excluded.size > 0
+			? db
+					.select({
+						key: series.key,
+					})
+					.from(series)
+					.where(inArray(series.id, [...excluded]))
+			: [],
 	]);
 
 	const unstored = entries
@@ -164,11 +176,12 @@ async function pickTitles(
 		await scheduleSeriesStore(anilistId, "backfill");
 	}
 
-	const skipped = new Set([...excluded, ...longRunning.map((row) => row.seriesId)]);
-	const bySeries = new Map<string, FeaturedEntry[]>();
+	// The seasons of a show are matched to one TMDB title, which names the show.
+	const skipped = new Set([...longRunning, ...featuredBefore].map((row) => row.key));
+	const byShow = new Map<string, (typeof entries)[number][]>();
 	for (const entry of entries) {
-		if (entry.seriesId !== null && entry.isDrawable && !skipped.has(entry.seriesId)) {
-			bySeries.set(entry.seriesId, [...(bySeries.get(entry.seriesId) ?? []), entry]);
+		if (entry.key !== null && entry.isDrawable && !skipped.has(entry.key)) {
+			byShow.set(entry.key, [...(byShow.get(entry.key) ?? []), entry]);
 		}
 	}
 
@@ -177,10 +190,15 @@ async function pickTitles(
 		acclaimed: [],
 		popular: [],
 	};
-	for (const [seriesId, seriesEntries] of bySeries) {
-		const shelf = shelfOf(seriesEntries, now);
-		if (shelf) {
-			shelves[shelf].push(seriesId);
+	for (const seasons of byShow.values()) {
+		const shelf = shelfOf(seasons, now);
+		const inOrder = seasons.toSorted((left, right) =>
+			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
+		);
+		const reaching = inOrder.filter((season) => shelfOf([season], now) === shelf);
+		const featured = shelf === "fresh" ? reaching.at(-1) : reaching[0];
+		if (shelf && featured?.seriesId) {
+			shelves[shelf].push(featured.seriesId);
 		}
 	}
 
