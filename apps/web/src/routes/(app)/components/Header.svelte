@@ -79,10 +79,10 @@
 								<Button
 									href={section.href}
 									variant="item"
-									class="text-[0.9375rem]"
+									class="border-l-3 border-transparent px-4 text-[0.9375rem] aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
 									aria-current={page.url.pathname === section.href ? "page" : undefined}
 								>
-									{section.href === "/simulcast" ? "Simulcast season" : section.label}
+									{section.href === "/simulcast" ? "Simulcast Season" : section.label}
 								</Button>
 							</li>
 						{/each}
@@ -111,7 +111,7 @@
 											<Button
 												href="/genres/{genreSlug(genre)}"
 												variant="item"
-												class="pl-9 text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
+												class="border-l-3 border-transparent pl-9 text-[0.9375rem] aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
 												aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
 											>
 												{genre}
