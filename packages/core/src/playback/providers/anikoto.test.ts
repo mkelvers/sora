@@ -57,7 +57,9 @@ async function skipSegments(
 	episodeId: string,
 	language: "sub" | "dub",
 ) {
-	return (await provider.resolveStream(episodeId, language)).skipSegments;
+	const stream = await provider.resolveStream(episodeId, language);
+
+	return stream.skipSegments;
 }
 
 describe("AniKotoStreamProvider skip segments", () => {
@@ -171,9 +173,9 @@ describe("AniKotoStreamProvider skip segments", () => {
 			),
 		});
 
-		expect(
-			(await skipSegments(provider, "anikoto:1", "sub")).map((segment) => segment.kind),
-		).toEqual(["ending", "opening"]);
+		const segments = await skipSegments(provider, "anikoto:1", "sub");
+
+		expect(segments.map((segment) => segment.kind)).toEqual(["ending", "opening"]);
 	});
 
 	test("fails when MegaPlay has no source in that language", async () => {
