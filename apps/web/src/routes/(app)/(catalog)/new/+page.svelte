@@ -1,8 +1,7 @@
 <script lang="ts">
+	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
-	import CatalogControls, {
-		catalogFilters,
-	} from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
+	import CatalogControls from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
 	import CatalogReset from "$routes/(app)/(catalog)/components/CatalogReset.svelte";
 </script>
 
@@ -10,7 +9,7 @@
 	<title>Newly Added · Sora</title>
 </svelte:head>
 
-{#key `${catalogFilters.audio}:${catalogFilters.format}`}
+{#key `${filters.audio}:${filters.format}`}
 	<Catalog
 		title="Newly Added Anime"
 		empty={{
@@ -19,7 +18,7 @@
 		}}
 		request={{
 			kind: "new",
-			...catalogFilters,
+			...filters,
 		}}
 	>
 		{#snippet summary()}

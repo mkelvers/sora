@@ -1,8 +1,7 @@
 <script lang="ts">
+	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
-	import CatalogControls, {
-		catalogFilters,
-	} from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
+	import CatalogControls from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
 	import CatalogReset from "$routes/(app)/(catalog)/components/CatalogReset.svelte";
 
 	import type { PageProps } from "./$types";
@@ -14,7 +13,7 @@
 	<title>{data.genre} Anime · Sora</title>
 </svelte:head>
 
-{#key `${data.genre}:${catalogFilters.audio}:${catalogFilters.format}`}
+{#key `${data.genre}:${filters.audio}:${filters.format}`}
 	<Catalog
 		title="{data.genre} Anime"
 		empty={{
@@ -24,7 +23,7 @@
 		request={{
 			kind: "genre",
 			genre: data.genre,
-			...catalogFilters,
+			...filters,
 		}}
 	>
 		{#snippet summary()}

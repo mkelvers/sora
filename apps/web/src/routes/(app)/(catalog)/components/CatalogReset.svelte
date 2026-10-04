@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { catalogFilters } from "./CatalogControls.svelte";
+	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
+
 	import ResetFilters from "./ResetFilters.svelte";
 
 	const languages = {
@@ -12,19 +13,23 @@
 		MOVIE: "Movies",
 	};
 
-	const applied = $derived(
-		catalogFilters.audio && catalogFilters.format
-			? `${languages[catalogFilters.audio]} ${media[catalogFilters.format]}`
-			: `All ${catalogFilters.audio ? languages[catalogFilters.audio] : catalogFilters.format ? media[catalogFilters.format] : ""}`,
-	);
+	const applied = $derived.by(() => {
+		const labels = [
+			filters.audio && languages[filters.audio],
+			filters.format && media[filters.format],
+		]
+			.filter(Boolean)
+			.join(" ");
+		return filters.audio && filters.format ? labels : `All ${labels}`;
+	});
 </script>
 
-{#if catalogFilters.audio || catalogFilters.format}
+{#if filters.audio || filters.format}
 	<ResetFilters
 		{applied}
 		onreset={() => {
-			catalogFilters.audio = undefined;
-			catalogFilters.format = undefined;
+			filters.audio = undefined;
+			filters.format = undefined;
 		}}
 	/>
 {/if}

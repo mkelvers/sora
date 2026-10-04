@@ -1,15 +1,9 @@
-<script lang="ts" module>
-	export const catalogFilters = $state<{
-		audio?: "sub" | "dub";
-		format?: "TV" | "MOVIE";
-	}>({});
-</script>
-
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { cn } from "$lib/utils";
+	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import { CircleIcon, FunnelIcon, ListBulletsIcon, RadioButtonIcon } from "phosphor-svelte";
 
 	let {
@@ -72,27 +66,27 @@
 	let sorting = $state(false);
 	// Whether the "Filter" sheet is open.
 	let filtering = $state(false);
-	const draft = $state<typeof catalogFilters>({});
+	const draft = $state<typeof filters>({});
 
 	$effect(() => {
 		if (filtering) {
 			Object.assign(draft, {
-				audio: catalogFilters.audio,
-				format: catalogFilters.format,
+				audio: filters.audio,
+				format: filters.format,
 			});
 		}
 	});
 
-	const selectedSort = $derived(sorts.find((sort) => sort.kind === kind));
-	const filtered = $derived(!!catalogFilters.audio || !!catalogFilters.format);
+	const current = $derived(sorts.find((sort) => sort.kind === kind));
+	const filtered = $derived(!!filters.audio || !!filters.format);
 </script>
 
 <div class="flex items-center gap-1 max-sm:hidden">
-	{#if selectedSort}
-		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {selectedSort.label} selected">
+	{#if current}
+		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {current.label} selected">
 			{#snippet trigger()}
 				<ListBulletsIcon size="1.2rem" weight="bold" />
-				<span class="max-sm:hidden">{selectedSort.label}</span>
+				<span class="max-sm:hidden">{current.label}</span>
 			{/snippet}
 
 			{#snippet children()}
@@ -126,12 +120,12 @@
 							{group.label}
 						</p>
 						{#each group.options as option (option.label)}
-							{@const checked = catalogFilters[group.id] === option.value}
+							{@const checked = filters[group.id] === option.value}
 							<Button
 								role="menuitemradio"
 								aria-checked={checked}
 								onclick={() =>
-									Object.assign(catalogFilters, {
+									Object.assign(filters, {
 										[group.id]: option.value,
 									})}
 								variant="item"
@@ -153,11 +147,11 @@
 </div>
 
 <div class="flex items-center gap-1 sm:hidden">
-	{#if selectedSort}
+	{#if current}
 		<Button
 			variant="ghost"
 			class="size-11 px-0"
-			aria-label="Sort anime, {selectedSort.label} selected"
+			aria-label="Sort anime, {current.label} selected"
 			aria-haspopup="dialog"
 			aria-controls="sort-list"
 			onclick={() => (sorting = true)}
@@ -225,7 +219,7 @@
 			variant="outline"
 			class="w-full"
 			onclick={() => {
-				Object.assign(catalogFilters, draft);
+				Object.assign(filters, draft);
 				filtering = false;
 			}}
 		>
