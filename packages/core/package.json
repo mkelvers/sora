@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		"./auth": "./src/auth/index.ts",
+		"./contract": "./src/contract.ts",
 		"./catalog": "./src/catalog/index.ts",
 		"./playback": "./src/playback/index.ts",
 		"./library": "./src/library/index.ts",

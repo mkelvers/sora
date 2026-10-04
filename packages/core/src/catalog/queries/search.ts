@@ -11,7 +11,7 @@ import { db } from "../../database/client";
 import { animeSearch, catalogSync } from "../../database/schema";
 import { UpstreamUnavailableError } from "../../errors";
 import { day, hour, minute } from "../../time";
-import type { BrowseQuery } from "./browse";
+import type { BrowseQuery } from "./browse-query";
 
 /**
  * An incremental sync re-reads entries changed this long before the newest
