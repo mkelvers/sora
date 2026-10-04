@@ -276,21 +276,22 @@
 									<PencilSimpleIcon size="1.1rem" class="text-muted max-sm:size-6" />
 								</Button>
 
-								{#each others as other (other.id)}
-									<Button
-										role="menuitem"
-										type="submit"
-										form="switch-profile"
-										name="profile"
-										value={other.id}
-										aria-label="Switch to {other.name}"
-										variant="item"
-										class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
-									>
-										<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
-										{other.name}
-									</Button>
-								{/each}
+								<form class="contents" method="POST" action="/profiles?/select&redirect={here}">
+									{#each others as other (other.id)}
+										<Button
+											role="menuitem"
+											type="submit"
+											name="profile"
+											value={other.id}
+											aria-label="Switch to {other.name}"
+											variant="item"
+											class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
+										>
+											<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
+											{other.name}
+										</Button>
+									{/each}
+								</form>
 
 								<Button
 									role="menuitem"
@@ -328,24 +329,22 @@
 								</Button>
 							</div>
 
-							<Button
-								role="menuitem"
-								type="submit"
-								form="sign-out"
-								variant="item"
-								class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:min-h-14 max-sm:gap-4 max-sm:bg-header-hover max-sm:pt-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:text-base"
-							>
-								<SignOutIcon size="1.3rem" class="max-sm:size-6" />
-								<span class="sm:hidden">Log Out</span>
-								<span class="max-sm:hidden">Sign out</span>
-							</Button>
+							<form class="contents" method="POST" action="/logout">
+								<Button
+									role="menuitem"
+									type="submit"
+									variant="item"
+									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:min-h-14 max-sm:gap-4 max-sm:bg-header-hover max-sm:pt-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:text-base"
+								>
+									<SignOutIcon size="1.3rem" class="max-sm:size-6" />
+									<span class="sm:hidden">Log Out</span>
+									<span class="max-sm:hidden">Sign out</span>
+								</Button>
+							</form>
 						</div>
 					{/snippet}
 				</Dropdown>
 			</div>
 		</div>
 	</nav>
-
-	<form id="switch-profile" method="POST" action="/profiles?/select&redirect={here}" hidden></form>
-	<form id="sign-out" method="POST" action="/logout" hidden></form>
 </header>
