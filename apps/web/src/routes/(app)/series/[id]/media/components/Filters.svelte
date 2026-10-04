@@ -11,7 +11,8 @@
 
 	let { seriesId, media }: Props = $props();
 
-	const images = $derived((await getImages(seriesId)).filter((image) => image.type === media.type));
+	const allImages = $derived(await getImages(seriesId));
+	const images = $derived(allImages.filter((image) => image.type === media.type));
 
 	const languages = $derived.by(() => {
 		const groups = Map.groupBy(images, (image) => image.language ?? "none");
