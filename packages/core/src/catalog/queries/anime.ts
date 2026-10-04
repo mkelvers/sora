@@ -115,7 +115,7 @@ export function mayGainEpisodes(
  * Anime that are not stored are left out; nothing is fetched.
  *
  * The airing scheduler keeps stored anime current, so these are fresher
- * than cached AniList responses for anime that are still airing.
+ * than stored AniList responses for anime that are still airing.
  */
 export async function getStoredAnimeCards(ids: readonly number[]): Promise<Map<number, AnimeCard>> {
 	if (ids.length === 0) {

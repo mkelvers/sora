@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import { attempt } from "@sora/attempt";
 import { z } from "zod";
 
+import { UpstreamUnavailableError } from "../errors";
 import { day, hour } from "../time";
 import { tmdb } from "./client";
 
@@ -90,7 +92,13 @@ const ShowFields = {
 		z.object({
 			season_number: z.number().int(),
 			name: OptionalText,
+			overview: OptionalText,
 			poster_path: OptionalText,
+			episode_count: z
+				.number()
+				.int()
+				.nullish()
+				.transform((value) => value ?? 0),
 		}),
 	),
 };
@@ -186,35 +194,33 @@ export interface TmdbShow {
 	episodes: TmdbEpisode[];
 }
 
-/** A season's own name and artwork, such as "Mugen Train Arc". */
+/** A season's own name, synopsis, and artwork, such as "Mugen Train Arc". */
 interface TmdbSeason {
 	seasonNumber: number;
 	name: string | null;
+	overview: string | null;
 	posterPath: string | null;
 }
 
 /** TMDB caps `append_to_response` at 20 sub-requests. */
 const seasonsPerRequest = 20;
 
-/** Titles and air dates change rarely; searches are cached for a day. */
+/** Titles and air dates change rarely; a stored search is served for a day. */
 const searchLifetimeMs = day;
 
 /** Show structure is refreshed often enough to pick up newly listed episodes. */
 const showLifetimeMs = 12 * hour;
 
-/**
- * How long around its air date an episode's missing details are read from
- * its change log. They are mostly written within hours of the broadcast, and
- * TMDB serves a show without them for up to eight hours more. Later ones
- * wait for the show: the change log costs a request per such episode.
- */
-const editsWindowMs = 2 * day;
-
-/** A newer change log is asked for at least this often, whatever the show's lifetime. */
-const editsLifetimeMs = hour;
-
 /** The longest span TMDB serves a change log for. */
 const changeLogSpanMs = 14 * day;
+
+/**
+ * How long after its air date an episode's missing details are read from its
+ * change log: as long as one request's span reaches, counted from the day
+ * before the air date. Most are written within hours of the broadcast, the
+ * rest over the following days.
+ */
+export const editsWindowMs = changeLogSpanMs - 2 * day;
 
 /** The title TMDB gives an episode nobody has named. */
 const unnamedEpisode = /^episode \d+$/i;
@@ -264,17 +270,23 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
  *
  * TMDB keeps what it has served of a show, season, or episode for up to eight
  * hours, whatever the request's parameters, so details written since are
- * missing from it. An episode airing now that lacks a title, overview, or
- * still takes them from its change log, which TMDB keeps for ten minutes
- * (see {@link withRecentEdits}). Every reader of a show gets them this way:
- * a layout stores an episode's details just as the scheduler's refresh does.
+ * missing from it. A season is kept apart from the show it is appended to:
+ * the show can count a new season's episodes while the season still has
+ * none, as on the day it premieres. The episodes it counts and the season
+ * lacks are then loaded one by one (see {@link missingEpisodes}), which
+ * costs nothing while the two agree. An episode that aired lately and lacks a title, overview,
+ * or still takes them from its change log (see {@link withEdits}), as it was
+ * last stored: the scheduler's `refreshEpisodeDetails` keeps the change logs
+ * of the episodes worth asking about current, and a show read here costs no
+ * request for one already stored. Every reader of a show gets the details
+ * this way, so a layout stores what the scheduler found.
  *
  * @returns The show, or `null` when TMDB does not know the ID.
  */
 export async function getShow(
 	showId: number,
 	options: {
-		/** How old a cached copy may be; by default {@link showLifetimeMs}. */
+		/** How old a stored response may be; by default {@link showLifetimeMs}. */
 		maxAgeMs?: number;
 	} = {},
 ): Promise<TmdbShow | null> {
@@ -306,7 +318,13 @@ export async function getShow(
 
 		details ??= page;
 		for (const season of seasons) {
-			episodes.push(...(page[`season/${season}`]?.episodes ?? []));
+			const listed = page[`season/${season}`]?.episodes ?? [];
+			episodes.push(
+				...listed,
+				...(await missingEpisodes(showId, page.seasons, season, listed, {
+					maxAgeMs: options.maxAgeMs ?? showLifetimeMs,
+				})),
+			);
 		}
 
 		const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
@@ -331,26 +349,84 @@ export async function getShow(
 		seasons: details.seasons.map((season) => ({
 			seasonNumber: season.season_number,
 			name: season.name,
+			overview: season.overview,
 			posterPath: season.poster_path,
 		})),
 		episodes: await Promise.all(
 			episodes.map((episode) =>
-				withRecentEdits(episode, Math.min(options.maxAgeMs ?? showLifetimeMs, editsLifetimeMs)),
+				withEdits(episode, {
+					maxAgeMs: changeLogSpanMs,
+				}),
 			),
 		),
 	};
 }
 
 /**
+ * The episodes a show counts for `seasonNumber` past those its appended
+ * season lists, each loaded on its own, since TMDB keeps a single episode
+ * apart from its season too. They are taken to follow the last one listed,
+ * or to start at 1, as TMDB numbers a season's episodes; the first TMDB does
+ * not know ends them, so a season numbered otherwise costs one request.
+ */
+async function missingEpisodes(
+	showId: number,
+	seasons: readonly {
+		season_number: number;
+		episode_count: number;
+	}[],
+	seasonNumber: number,
+	listed: readonly TmdbEpisode[],
+	options: {
+		maxAgeMs: number;
+	},
+): Promise<TmdbEpisode[]> {
+	const counted =
+		seasons.find((season) => season.season_number === seasonNumber)?.episode_count ?? 0;
+	const after = Math.max(0, ...listed.map((episode) => episode.episode_number));
+	const found: TmdbEpisode[] = [];
+	for (let number = after + 1; listed.length + found.length < counted; number += 1) {
+		const episode = await tmdb(
+			`/tv/${showId}/season/${seasonNumber}/episode/${number}`,
+			{
+				language: "en-US",
+			},
+			EpisodeSchema,
+			options,
+		);
+		if (!episode) {
+			break;
+		}
+
+		found.push(episode);
+	}
+
+	return found;
+}
+
+/**
  * Fills in the title, overview, runtime, and still an episode lacks from the
- * English edits in its change log, when it airs within {@link editsWindowMs}
- * of today. TMDB's air date is in the airing country's calendar, which can
- * be a day ahead of UTC.
+ * English edits in its change log, when it aired within {@link editsWindowMs}.
+ * TMDB's air date is in the airing country's calendar, which can be a day
+ * ahead of UTC.
+ *
+ * TMDB keeps a change log for ten minutes, where it keeps the episode itself
+ * for hours. The log is asked for from the day before the air date on, for
+ * as long as TMDB serves one: the same request for as long as the episode is
+ * read, so one stored copy serves every reader, and `maxAgeMs` alone decides
+ * when TMDB is asked again. The range may end in the future, and has to end
+ * after today for today's edits to be in it.
  *
  * A change log TMDB fails to serve leaves the episode as it is: the show is
  * still worth having, and the next read asks again.
  */
-async function withRecentEdits(episode: TmdbEpisode, maxAgeMs: number): Promise<TmdbEpisode> {
+export async function withEdits(
+	episode: TmdbEpisode,
+	options: {
+		/** How old a stored copy of the change log may be. */
+		maxAgeMs: number;
+	},
+): Promise<TmdbEpisode> {
 	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
 	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
 	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
@@ -363,17 +439,24 @@ async function withRecentEdits(episode: TmdbEpisode, maxAgeMs: number): Promise<
 		return episode;
 	}
 
-	const log = await tmdb(
+	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
+	const { data: log, error } = await attempt(
+		tmdb(
 		`/tv/episode/${episode.id}/changes`,
 		{
-			start_date: new Date(Date.now() + day - changeLogSpanMs).toISOString().slice(0, 10),
-			end_date: until,
+			start_date: new Date(from).toISOString().slice(0, 10),
+			end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
 		},
 		EpisodeChangesSchema,
-		{
-			maxAgeMs,
-		},
-	).catch(() => null);
+			options,
+		),
+	);
+	if (error instanceof UpstreamUnavailableError) {
+		return episode;
+	}
+	if (error) {
+		throw error;
+	}
 	if (!log) {
 		return episode;
 	}
@@ -491,7 +574,7 @@ export function getImages(
 	mediaType: "tv" | "movie",
 	id: number,
 	options: {
-		/** How old a cached copy may be; a day by default. */
+		/** How old a stored response may be; a day by default. */
 		maxAgeMs?: number;
 	} = {},
 ): Promise<TmdbImages | null> {
@@ -506,7 +589,7 @@ export async function getSeasonPosters(
 	showId: number,
 	seasonNumber: number,
 	options: {
-		/** How old a cached copy may be; a day by default. */
+		/** How old a stored response may be; a day by default. */
 		maxAgeMs?: number;
 	} = {},
 ): Promise<TmdbImage[]> {

@@ -8,7 +8,7 @@ import { fuzzyDate } from "../catalog/models/text";
 import { hour } from "../time";
 import type { MatchSubject } from "./matching";
 
-/** An AniList entry as loaded for franchise grouping. */
+/** An AniList entry as loaded for laying out its series: what TMDB matching compares, and the entries it is related to. */
 export type FranchiseEntry = FranchiseEntryFragment;
 
 /**
@@ -40,7 +40,7 @@ const recentEntryLimit = 5_000;
  * Entries loaded recently by this process, by AniList ID.
  *
  * Walking a franchise and resolving each entry's prequels request the same
- * entries again and again. AniList responses by ID are not cached, so
+ * entries again and again. AniList responses by ID are not stored, so
  * without this each would cost an AniList request against a limit of 30–90
  * per minute.
  */
@@ -147,9 +147,6 @@ function remember(id: number, entry: FranchiseEntry | null) {
 		recentEntries.delete(oldest.value);
 	}
 }
-
-/** The entry's direct sequels and prequels. */
-export const sequenceRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
 
 /** IDs of the anime the entry is related to by one of `relations`. */
 export function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) {

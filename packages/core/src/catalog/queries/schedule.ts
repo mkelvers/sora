@@ -19,7 +19,7 @@ const airingsBatchSize = 50;
  * AniList's airing schedule records it: the moment of broadcast, which a
  * TMDB air date in Japan's calendar can place a day late.
  *
- * Episodes yet to air are included, so a snapshot fetched just before a
+ * Episodes yet to air are included, so a response fetched just before a
  * broadcast still dates the episode it covers.
  *
  * Entries AniList has no schedule for, as for most older anime, have no

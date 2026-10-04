@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { and, asc, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
@@ -57,7 +58,7 @@ const pagesPerWindow = 100;
  *
  * @returns How many pages were read and how many entries were stored.
  * @throws {@link UpstreamUnavailableError} when AniList fails; entries
- *   stored before the failure are kept, and a retry resumes from cached pages.
+ *   stored before the failure are kept, and a retry resumes from the stored pages.
  */
 export async function syncSearchIndex(options: { full: boolean }) {
 	const [
@@ -124,9 +125,9 @@ async function fetchIndexPage(
 	sort: MediaSort[],
 	popularityBelow: number | undefined,
 ) {
-	for (let attempt = 1; ; attempt += 1) {
-		try {
-			return await anilist(
+	for (let tries = 1; ; tries += 1) {
+		const { data, error } = await attempt(
+			anilist(
 				SearchIndexPageDocument,
 				{
 					page,
@@ -137,14 +138,16 @@ async function fetchIndexPage(
 					// Long enough for a failed sync to resume where it stopped.
 					maxAgeMs: hour,
 				},
-			);
-		} catch (error) {
-			if (!(error instanceof UpstreamUnavailableError) || attempt >= pageAttempts) {
-				throw error;
-			}
-
-			await Bun.sleep(error.retryAfterMs ?? minute);
+			),
+		);
+		if (!error) {
+			return data;
 		}
+		if (!(error instanceof UpstreamUnavailableError) || tries >= pageAttempts) {
+			throw error;
+		}
+
+		await Bun.sleep(error.retryAfterMs ?? minute);
 	}
 }
 
