@@ -1,14 +1,13 @@
 import { sora } from "$lib/server/sora";
+import { route } from "@sora/sdk";
 
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
-	const { results: seasons, meta } = await sora.seasons({
-		meta: true,
-	});
+	const listing = await sora.requestWithMeta(route.listSeasons);
 
 	return {
-		seasons,
-		current: meta.current,
+		seasons: listing.results,
+		current: listing.meta.current,
 	};
 };

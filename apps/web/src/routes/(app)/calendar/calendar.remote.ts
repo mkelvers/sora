@@ -1,14 +1,9 @@
 import { query } from "$app/server";
 import { sora } from "$lib/server/sora";
+import { route } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
-
-function mondayOf(date: Temporal.PlainDate) {
-	return date.subtract({
-		days: date.dayOfWeek - 1,
-	});
-}
 
 export const getCalendar = query(
 	z.object({
@@ -16,15 +11,14 @@ export const getCalendar = query(
 		weeks: z.number().int().min(-520).max(520),
 	}),
 	async ({ timeZone, weeks }) => {
-		const { data: today, error: invalid } = attempt(
-			() => Temporal.Now.plainDateISO(timeZone),
-			RangeError,
-		);
-		if (invalid) {
+		const today = attempt(() => Temporal.Now.plainDateISO(timeZone), RangeError);
+		if (today.error) {
 			error(400, "That time zone is not available");
 		}
 
-		const current = mondayOf(today);
+		const current = today.data.subtract({
+			days: today.data.dayOfWeek - 1,
+		});
 		const monday = current.add({
 			weeks,
 		});
@@ -35,10 +29,10 @@ export const getCalendar = query(
 				days: 7,
 			})
 			.toZonedDateTime(timeZone);
-		const episodes = await sora.schedule({
-			params: {
-				from: new Date(from.epochMilliseconds),
-				until: new Date(until.epochMilliseconds),
+		const episodes = await sora.request(route.getSchedule, {
+			query: {
+				from: new Date(from.epochMilliseconds).toISOString(),
+				until: new Date(until.epochMilliseconds).toISOString(),
 			},
 		});
 
@@ -52,7 +46,7 @@ export const getCalendar = query(
 				});
 				return {
 					date: date.toString(),
-					today: date.equals(today),
+					today: date.equals(today.data),
 					episodes: episodes.filter((episode) =>
 						Temporal.Instant.from(episode.airing_at)
 							.toZonedDateTimeISO(timeZone)

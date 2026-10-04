@@ -1,4 +1,5 @@
 import { sora } from "$lib/server/sora";
+import { route } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 
 import type { PageServerLoad } from "./$types";
@@ -11,14 +12,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const [featured, trending, upcoming] = await Promise.all([
-		viewer.sora.featured(viewer.profile.id),
-		sora.browse({
+		viewer.sora.request(route.getFeatured, {
 			params: {
+				profile_id: viewer.profile.id,
+			},
+		}),
+		sora.request(route.browseSeries, {
+			query: {
 				sort: "trending",
 				per_page: 20,
 			},
 		}),
-		sora.upcoming(),
+		sora.request(route.listUpcoming),
 		getContinueWatching(),
 	]);
 

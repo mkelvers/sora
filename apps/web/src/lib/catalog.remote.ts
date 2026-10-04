@@ -1,6 +1,6 @@
 import { query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import type { SeriesCard } from "@sora/sdk";
+import { route, type SeriesCard } from "@sora/sdk";
 import { z } from "zod";
 
 const filters = {
@@ -49,7 +49,7 @@ type WithoutPage<TRequest> = TRequest extends unknown ? Omit<TRequest, "page"> :
 
 export type CatalogRequest = WithoutPage<z.input<typeof request>>;
 
-export const getGenres = query(async () => sora.genres());
+export const getGenres = query(async () => sora.request(route.listGenres));
 
 export const getCatalogPage = query(request, async (input) => {
 	remoteViewer();
@@ -57,17 +57,16 @@ export const getCatalogPage = query(request, async (input) => {
 
 	const found =
 		input.kind === "new"
-			? await sora.releases({
-					params: {
+			? await sora.requestWithMeta(route.listReleases, {
+					query: {
 						audio: input.audio,
 						format: input.format && [...formats[input.format]],
 						page: input.page,
 						per_page: 36,
 					},
-					meta: true,
 				})
-			: await sora.browse({
-					params:
+			: await sora.requestWithMeta(route.browseSeries, {
+					query:
 						input.kind === "popular" || input.kind === "genre"
 							? {
 									sort: "popular",
@@ -85,7 +84,6 @@ export const getCatalogPage = query(request, async (input) => {
 									page: input.page,
 									per_page: 36,
 								},
-					meta: true,
 				});
 
 	const items: CatalogItem[] = found.results.map((result) =>
