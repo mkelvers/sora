@@ -1,140 +1,108 @@
+import { eq } from "drizzle-orm";
+
 import type { MediaRelation } from "../anilist/graphql.generated";
 import { toAnimeCard, type AnimeCard, type AnimeStatus } from "../catalog/models/anime";
-import { fuzzyDate } from "../catalog/models/text";
+import { fuzzyDate, placeholder, synopsis } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
+import { db } from "../database/client";
+import { series } from "../database/schema";
 import { AnimeNotFoundError } from "../errors";
-import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import {
-	franchiseRelations,
-	idsRelatedBy,
-	loadEntries,
-	sequenceRelations,
-	type FranchiseEntry,
-} from "./entries";
-import { entriesMappedTo, mappedEpisodes, resolveMapping, type TmdbMapping } from "./mapping";
-import {
-	layoutShowSeasons,
-	layoutStandaloneSeason,
-	type SeasonMember,
-	type SeriesSeason,
-} from "./seasons";
+	getLogoPath,
+	getMovie,
+	getShow,
+	tmdbImageUrl,
+	type TmdbMovie,
+	type TmdbShow,
+} from "../tmdb/resources";
+import { franchiseRelations, loadEntries, type FranchiseEntry } from "./entries";
+import { mappedEpisodes, resolveMapping } from "./mapping";
+import type { EpisodeLink } from "./matching";
 
 /**
- * Identifies a series:
+ * Identifies the TMDB title an AniList entry was matched to:
  *
- * - `tv:` a TMDB show;
- * - `shorts:` the short-form extras TMDB files under a show's specials, such
- *   as chibi shorts, split into a series of their own;
+ * - `tv:` a TMDB show, which every season of the show is matched to;
  * - `movie:` a TMDB film;
- * - `anilist:` an AniList entry that TMDB does not list.
+ * - `anilist:` the entry itself, when TMDB does not list it.
  */
-export type SeriesKey =
-	| `tv:${number}`
-	| `shorts:${number}`
-	| `movie:${number}`
-	| `anilist:${number}`;
+export type SeriesKey = `tv:${number}` | `movie:${number}` | `anilist:${number}`;
 
 /**
- * - `tv`: a show with seasons, or a series of shorts.
- * - `movie`: a film.
- * - `standalone`: an AniList entry TMDB does not list, shown on its own.
+ * - `tv`: an entry TMDB lists in a show, such as a season or an OVA.
+ * - `movie`: an entry TMDB lists as a film.
+ * - `standalone`: an entry TMDB does not list.
  */
 export type SeriesKind = "tv" | "movie" | "standalone";
 
-/** A laid-out series in brief, such as one of a franchise's related titles. */
-interface SeriesLayoutSummary {
-	key: SeriesKey;
-	kind: SeriesKind;
-	/** The title of the series' first release, such as season 1's. */
-	title: string;
-	/**
-	 * TMDB's artwork for a full series. In a summary, and for a series TMDB
-	 * does not list, the artwork of the latest released entry.
-	 */
-	posterUrl: string | null;
-	backdropUrl: string | null;
-	/** First air or release date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
-	startDate: string | null;
-	/** AniList entries known to belong to the series, oldest first. */
-	anilistIds: number[];
+/** One episode of a laid-out series. */
+export interface SeriesEpisode {
+	/** The episode's number in its AniList entry, from 1. */
+	number: number;
+	title: string | null;
+	overview: string | null;
+	/** `YYYY-MM-DD`. */
+	airDate: string | null;
+	runtimeMinutes: number | null;
+	stillUrl: string | null;
+	/** The TMDB episode this is, when TMDB lists it. */
+	tmdb: {
+		seasonNumber: number;
+		episodeNumber: number;
+	} | null;
 }
 
-/**
- * One title in the streaming-service sense, laid out from AniList and TMDB
- * and ready to be stored: a whole show with all of its seasons and OVAs, a
- * film, or a standalone entry.
- */
-export interface SeriesLayout extends SeriesLayoutSummary {
+/** An AniList entry laid out as a series from AniList and TMDB, ready to be stored. */
+export interface SeriesLayout {
+	anilistId: number;
+	key: SeriesKey;
+	kind: SeriesKind;
+	title: string;
+	/** TMDB's synopsis where it describes the entry, else AniList's. */
 	overview: string | null;
+	/** AniList's cover of the entry, which tells one season from another. */
+	posterUrl: string | null;
+	/** TMDB's backdrop of the show or film, or AniList's banner when TMDB has none. */
+	backdropUrl: string | null;
 	/** TMDB's English or textless logo; `null` when TMDB has none. */
 	logoUrl: string | null;
-	/** Seasons in watch order, films and OVAs between them included, then extra OVA seasons. A film has one. */
-	seasons: SeriesSeason[];
-	/** Other titles from the same franchise: films, spin-offs, shorts, and entries TMDB lists separately. */
-	related: SeriesLayoutSummary[];
-	/**
-	 * The first AniList entry of the first season, or of the first release
-	 * when there are no regular seasons. The stored series is tied to it.
-	 */
-	anchorAnilistId: number;
-	/** The series as a whole; see {@link seriesStatus}. */
+	/** First air or release date: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
+	startDate: string | null;
 	status: AnimeStatus | null;
-	/** The earliest announced upcoming episode of any of the series' entries. */
-	nextAiring: {
+	episodes: SeriesEpisode[];
+	/** The entries AniList relates the entry to inside its franchise, in AniList's order. */
+	related: {
 		anilistId: number;
+		relation: MediaRelation;
+	}[];
+	/** The entry's announced upcoming episode. */
+	nextAiring: {
 		episode: number;
 		/** ISO 8601 timestamp. */
 		airingAt: string;
 	} | null;
 	/**
-	 * Entries that may still gain episodes. The airing scheduler must follow
-	 * them, since its checks are what lay the series out again as they air.
+	 * Whether the entry may still gain episodes. The airing scheduler must
+	 * then follow it, since its checks are what lay the series out again as
+	 * it airs.
 	 */
-	airingIds: number[];
+	mayGainEpisodes: boolean;
 }
 
 /**
- * Entries shorter than this per episode, filed under a show's specials, are
- * shorts rather than OVAs: chibi theatres and two-minute web extras.
- */
-const shortEpisodeMinutes = 10;
-
-/**
- * Stops a franchise walk from wandering through sprawling franchises
- * (Gundam, Lupin) whose relation graphs span hundreds of entries.
- */
-const franchiseEntryLimit = 150;
-
-/** How many sequel or prequel steps the walk takes beyond the series' own entries. */
-const outsiderHops = 2;
-
-/** An AniList entry together with where it maps on TMDB and the series it belongs to. */
-interface MappedEntry {
-	entry: FranchiseEntry;
-	mapping: TmdbMapping;
-	key: SeriesKey;
-	/** The stored catalog card when there is one, since the airing scheduler keeps it current. */
-	card: AnimeCard;
-}
-
-/**
- * Lays out the series an anime belongs to, the way Crunchyroll and TMDB
- * present it.
+ * Lays out one AniList entry as a series.
  *
  * AniList lists each season, cour, film, and special of a franchise as its
- * own entry. Every entry is matched to TMDB, and the entries that land in
- * the same TMDB show become one series: later parts merge into the season
- * they continue, films and OVAs that continue the story sit between the
- * seasons in watch order, other multi-episode OVAs and recaps become extra
- * OVA seasons, and one-off specials sit inside the seasons by air date. A
- * sequel season TMDB does not list yet, and a film or OVA that continues a
- * show's story, join their prequel's series. Other films, spin-offs, and
- * shorts become related series. See `seasons.ts` for the layout rules.
+ * own entry, and so does Sora: an entry is a series, with the episodes
+ * AniList counts for it. The entry is matched to TMDB (see
+ * `resolveMapping`) only for what TMDB knows better: the backdrop and logo
+ * of the show or film, and each episode's title, synopsis, air date, and
+ * still. An entry TMDB does not list keeps AniList's artwork and bare
+ * episodes.
  *
- * This walks the franchise's AniList relations and matches each new entry,
- * which can take many upstream requests, so only the series store calls it;
- * readers use the stored layout. Matches are stored, so laying out a known
- * franchise again mostly reuses them.
+ * Reads AniList and TMDB, so only the series store calls it; readers use
+ * the stored layout. Matches are stored, so laying out a known entry again
+ * mostly reuses them.
  *
  * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
  *   belongs to adult media.
@@ -146,414 +114,200 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 		throw new AnimeNotFoundError(anilistId);
 	}
 
-	const [origin] = await mapEntries([entry]);
-	if (!origin) {
-		throw new TypeError("Mapping one entry yields one mapped entry");
-	}
-
-	const { members, outsiders } = await walkFranchise(origin, await sameTitleEntries(origin));
-
-	const related = new Map<SeriesKey, MappedEntry[]>();
-	for (const outsider of outsiders) {
-		related.set(outsider.key, [...(related.get(outsider.key) ?? []), outsider]);
-	}
-
-	const seasons = await layoutSeasons(origin.key, members);
-	const summary = summarize(origin.key, members, seasons);
-	const artwork = await tmdbArtwork(origin.key);
-	const now = new Date();
-	return {
-		...summary,
-		posterUrl: artwork.posterUrl ?? summary.posterUrl,
-		backdropUrl: artwork.backdropUrl ?? summary.backdropUrl,
-		logoUrl: artwork.logoUrl,
-		overview: await overviewOf(origin.key, members),
-		seasons,
-		related: [...related]
-			.map(([relatedKey, group]) => summarize(relatedKey, group, []))
-			.sort((left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999")),
-		anchorAnilistId: anchorOf(seasons, members),
-		status: seriesStatus(members.map(({ card }) => card.status)),
-		nextAiring: nextAiringOf(members),
-		airingIds: members
-			.filter(({ entry }) => mayGainEpisodes(entry, now))
-			.map(({ entry }) => entry.id),
-	};
-}
-
-/**
- * The other entries already mapped to the TMDB title `origin` belongs to,
- * that belong to its series too.
- *
- * Every entry in one TMDB title belongs to one series, but AniList does not
- * always relate them: a bonus short may name only the show as its parent,
- * not the film it came with. A layout that walked relations alone would
- * leave such an entry out, and laying that entry out would take the series
- * back without the first, so the two would take turns holding it.
- */
-async function sameTitleEntries(origin: MappedEntry): Promise<MappedEntry[]> {
-	const [kind, tmdbId] = parseKey(origin.key);
-	if (kind === "anilist") {
-		return [];
-	}
-
-	const ids = (await entriesMappedTo(kind === "movie" ? "movie" : "tv", tmdbId)).filter(
-		(id) => id !== origin.entry.id,
-	);
-	const mapped = await mapEntries([...(await loadEntries(ids)).values()]);
-	return mapped.filter((sibling) => sibling.key === origin.key);
-}
-
-/**
- * Walks the franchise outward from `origin` and the `siblings` known to
- * share its series, collecting the entries that belong to its series and
- * the neighbouring entries that do not.
- *
- * Members are expanded through every franchise relation. Other entries are
- * followed only along sequels and prequels, and at most
- * {@link outsiderHops} steps from the series, which finds film trilogies and
- * a season whose only link is a film without crossing the whole franchise.
- */
-async function walkFranchise(origin: MappedEntry, siblings: readonly MappedEntry[]) {
-	const members: MappedEntry[] = [];
-	const outsiders: MappedEntry[] = [];
-	const visited = new Set([origin.entry.id, ...siblings.map((sibling) => sibling.entry.id)]);
-	let layer = [origin, ...siblings].map((mapped) => ({
-		mapped,
-		hops: 0,
-	}));
-
-	while (layer.length > 0) {
-		const next = new Map<number, number>();
-		for (const { mapped, hops: previousHops } of layer) {
-			const isMember = mapped.key === origin.key;
-			(isMember ? members : outsiders).push(mapped);
-
-			const hops = isMember ? 0 : previousHops;
-			if (hops >= outsiderHops) {
-				continue;
-			}
-
-			for (const id of idsRelatedBy(
-				mapped.entry,
-				isMember ? franchiseRelations : sequenceRelations,
-			)) {
-				if (!visited.has(id) && visited.size < franchiseEntryLimit) {
-					visited.add(id);
-					next.set(id, hops + 1);
-				}
-			}
-		}
-
-		const mapped = await mapEntries([...(await loadEntries(next.keys())).values()]);
-		layer = mapped.map((item) => ({
-			mapped: item,
-			hops: next.get(item.entry.id) ?? outsiderHops,
-		}));
-	}
+	const mapping = await resolveMapping(entry);
+	const card = (await getStoredAnimeCards([anilistId])).get(anilistId) ?? toAnimeCard(entry);
+	const links = mappedEpisodes(mapping);
+	const show =
+		mapping.mediaType === "tv" && mapping.tmdbId !== null ? await getShow(mapping.tmdbId) : null;
+	const movie =
+		mapping.mediaType === "movie" && mapping.tmdbId !== null
+			? await getMovie(mapping.tmdbId)
+			: null;
+	// An entry whose TMDB title cannot be read is laid out as one TMDB does not list.
+	const key: SeriesKey = show
+		? `tv:${show.id}`
+		: movie
+			? `movie:${movie.id}`
+			: `anilist:${anilistId}`;
+	const [kind, tmdbId] = parseKey(key);
 
 	return {
-		members,
-		outsiders,
-	};
-}
-
-/** Resolves each entry's TMDB mapping and series, and picks its freshest card. */
-async function mapEntries(entries: readonly FranchiseEntry[]): Promise<MappedEntry[]> {
-	const stored = await getStoredAnimeCards(entries.map((entry) => entry.id));
-	return Promise.all(
-		entries.map(async (entry) => {
-			const mapping = await resolveMapping(entry);
-			return {
-				entry,
-				mapping,
-				key: await seriesKeyOf(entry, mapping, new Set()),
-				card: stored.get(entry.id) ?? toAnimeCard(entry),
-			};
-		}),
-	);
-}
-
-/**
- * The series an entry belongs to.
- *
- * Two kinds of entries join the series of their prequel rather than
- * becoming titles of their own:
- *
- * - A sequel season that TMDB does not list yet, which is common for a
- *   season that was just announced. It stays there once TMDB lists it, so
- *   its season keeps its ID. A season that follows a film-only franchise is
- *   its own show.
- * - A film or OVA that TMDB lists apart from its show but that continues the
- *   show's story, per AniList's prequel chain, such as the films between
- *   Rascal Does Not Dream of Bunny Girl Senpai's two seasons. Watching the
- *   show means watching them. A recap of its prequel stays a title of its
- *   own.
- *
- * @param visited - Entries already followed, which stops prequel cycles.
- */
-async function seriesKeyOf(
-	entry: FranchiseEntry,
-	mapping: TmdbMapping,
-	visited: ReadonlySet<number>,
-): Promise<SeriesKey> {
-	const own = ownSeriesKey(entry, mapping);
-	const isUnlistedSeason = mapping.tmdbId === null && isSeasonFormat(entry);
-	const isSeparateRelease = mapping.mediaType !== "tv" && !isSeasonFormat(entry);
-	const [prequelId] = relatedAnimeIds(entry, "PREQUEL");
-	if (
-		!(isUnlistedSeason || isSeparateRelease) ||
-		prequelId === undefined ||
-		visited.has(prequelId)
-	) {
-		return own;
-	}
-
-	const prequel = (await loadEntries([prequelId])).get(prequelId);
-	if (!prequel || relatedAnimeIds(prequel, "SUMMARY").includes(entry.id)) {
-		return own;
-	}
-
-	const inherited = await seriesKeyOf(
-		prequel,
-		await resolveMapping(prequel),
-		new Set([...visited, entry.id]),
-	);
-	const [kind] = parseKey(inherited);
-	if (isUnlistedSeason) {
-		return kind === "movie" ? own : inherited;
-	}
-
-	// Only a show continues through its films; a film sequel of a film stays in its own series.
-	return kind === "tv" || kind === "anilist" ? inherited : own;
-}
-
-/** The series an entry's own TMDB mapping puts it in. */
-function ownSeriesKey(entry: FranchiseEntry, mapping: TmdbMapping): SeriesKey {
-	if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
-		const isShort =
-			entry.duration !== null &&
-			entry.duration < shortEpisodeMinutes &&
-			mappedEpisodes(mapping).every((link) => link.seasonNumber === 0);
-		return isShort ? `shorts:${mapping.tmdbId}` : `tv:${mapping.tmdbId}`;
-	}
-
-	if (mapping.mediaType === "movie" && mapping.tmdbId !== null) {
-		return `movie:${mapping.tmdbId}`;
-	}
-
-	return `anilist:${entry.id}`;
-}
-
-async function layoutSeasons(
-	key: SeriesKey,
-	members: readonly MappedEntry[],
-): Promise<SeriesSeason[]> {
-	const [kind, id] = parseKey(key);
-	if (kind === "tv" || kind === "shorts") {
-		const show = await getShow(id);
-		if (show) {
-			const recapIds = new Set(members.flatMap(({ entry }) => relatedAnimeIds(entry, "SUMMARY")));
-			return layoutShowSeasons({
-				show,
-				members: await Promise.all(members.map((member) => toSeasonMember(member, recapIds))),
-				isShorts: kind === "shorts",
-			});
-		}
-	}
-
-	if (kind === "movie") {
-		const movie = await getMovie(id);
-		const anime = byStartDate(members).map(({ card }) => card);
-		return [
-			{
-				kind: "movie",
-				number: 1,
-				title: anime[0]?.title.display ?? movie?.title ?? "Movie",
-				anime,
-				inWatchOrder: true,
-				episodes: anime.map((card, index) => ({
-					number: index + 1,
-					title: index === 0 ? (movie?.title ?? card.title.display) : card.title.display,
-					overview: index === 0 ? (movie?.overview ?? null) : null,
-					airDate: index === 0 ? (movie?.release_date ?? null) : null,
-					runtimeMinutes:
-						index === 0 ? (movie?.runtime ?? card.durationMinutes) : card.durationMinutes,
-					stillUrl: index === 0 ? tmdbImageUrl(movie?.backdrop_path ?? null, "original") : null,
-					playback: {
-						anilistId: card.id,
-						episode: 1,
-					},
-					tmdb: null,
-				})),
-			},
-		];
-	}
-
-	return byStartDate(members).map(({ card }, index) => layoutStandaloneSeason(card, index + 1));
-}
-
-async function toSeasonMember(
-	{ entry, mapping, card }: MappedEntry,
-	recapIds: ReadonlySet<number>,
-): Promise<SeasonMember> {
-	return {
-		anime: card,
-		prequelIds: relatedAnimeIds(entry, "PREQUEL"),
-		links: mappedEpisodes(mapping),
-		isRecap: recapIds.has(entry.id),
-		film:
-			mapping.mediaType === "movie" && mapping.tmdbId !== null
-				? await getMovie(mapping.tmdbId)
-				: null,
-		isUnlistedSeason: mapping.tmdbId === null && isSeasonFormat(entry),
-	};
-}
-
-function relatedAnimeIds(entry: FranchiseEntry, relation: MediaRelation) {
-	return (entry.relations?.edges ?? []).flatMap((edge) =>
-		edge?.relationType === relation && edge.node?.type === "ANIME" ? [edge.node.id] : [],
-	);
-}
-
-/**
- * Describes a series: named after its first release (season 1, not the
- * latest season) and illustrated with the artwork of its latest released
- * season. Specials and OVAs only provide artwork when the series has no
- * regular seasons.
- */
-function summarize(
-	key: SeriesKey,
-	group: readonly MappedEntry[],
-	seasons: readonly SeriesSeason[],
-): SeriesLayoutSummary {
-	const chronological = byStartDate(group);
-	const first =
-		seasons.find((season) => season.kind === "season")?.anime[0] ?? cardOf(chronological[0]);
-	const released = chronological.filter(({ entry }) => entry.status !== "NOT_YET_RELEASED");
-	const releasedSeasons = released.filter(({ entry }) => isSeasonFormat(entry));
-	const latest = cardOf(releasedSeasons.at(-1) ?? released.at(-1) ?? chronological.at(-1));
-	const [kind] = parseKey(key);
-
-	return {
+		anilistId,
 		key,
-		kind: kind === "movie" ? "movie" : kind === "anilist" ? "standalone" : "tv",
-		title: first.title.display,
-		posterUrl: latest.coverUrl ?? first.coverUrl,
-		backdropUrl: latest.bannerUrl ?? first.bannerUrl,
-		startDate: startDateOf(chronological[0]?.entry),
-		anilistIds: chronological.map(({ entry }) => entry.id),
-	};
-}
-
-/**
- * The status of a series as a whole: airing while any entry airs, then on
- * hiatus while any entry is, then finished once any entry has finished. A
- * series that has only been announced is not yet released.
- *
- * A finished series with a newly announced season stays finished until
- * that season starts airing.
- */
-function seriesStatus(statuses: readonly (AnimeStatus | null)[]): AnimeStatus | null {
-	const order: AnimeStatus[] = ["RELEASING", "HIATUS", "FINISHED", "NOT_YET_RELEASED", "CANCELLED"];
-
-	return order.find((status) => statuses.includes(status)) ?? null;
-}
-
-/** See {@link SeriesLayout.nextAiring}. */
-function nextAiringOf(members: readonly MappedEntry[]): SeriesLayout["nextAiring"] {
-	const upcoming = members
-		.flatMap(({ card }) =>
-			card.nextEpisode
+		kind: kind === "anilist" ? "standalone" : kind,
+		title: card.title.display,
+		overview: overviewOf(links, show, movie) ?? (await anilistOverview(entry, links, show)),
+		posterUrl: card.coverUrl,
+		backdropUrl:
+			tmdbImageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ??
+			card.bannerUrl,
+		logoUrl: kind === "anilist" ? null : tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500"),
+		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
+		status: card.status,
+		episodes: layoutEpisodes(card, links, show, movie),
+		related: (entry.relations?.edges ?? []).flatMap((edge) =>
+			edge?.node?.type === "ANIME" && edge.relationType && franchiseRelations.has(edge.relationType)
 				? [
 						{
-							anilistId: card.id,
-							episode: card.nextEpisode.number,
-							airingAt: card.nextEpisode.airingAt,
+							anilistId: edge.node.id,
+							relation: edge.relationType,
 						},
 					]
 				: [],
-		)
-		.sort((left, right) => left.airingAt.localeCompare(right.airingAt));
-
-	return upcoming[0] ?? null;
-}
-
-/** See {@link SeriesLayout.anchorAnilistId}. */
-function anchorOf(seasons: readonly SeriesSeason[], members: readonly MappedEntry[]) {
-	const firstSeason = seasons.find((season) => season.kind === "season") ?? seasons[0];
-	return firstSeason?.anime[0]?.id ?? cardOf(byStartDate(members)[0]).id;
-}
-
-/** TMDB's poster, backdrop, and logo for a show or film. Shorts use their own entries' artwork. */
-async function tmdbArtwork(key: SeriesKey) {
-	const [kind, id] = parseKey(key);
-	if (kind === "tv") {
-		const show = await getShow(id);
-		return {
-			posterUrl: tmdbImageUrl(show?.posterPath ?? null, "w780"),
-			backdropUrl: tmdbImageUrl(show?.backdropPath ?? null, "original"),
-			logoUrl: show ? tmdbImageUrl(await getLogoPath("tv", id), "w500") : null,
-		};
-	}
-
-	if (kind === "movie") {
-		const movie = await getMovie(id);
-		return {
-			posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780"),
-			backdropUrl: tmdbImageUrl(movie?.backdrop_path ?? null, "original"),
-			logoUrl: movie ? tmdbImageUrl(await getLogoPath("movie", id), "w500") : null,
-		};
-	}
-
-	return {
-		posterUrl: null,
-		backdropUrl: null,
-		logoUrl: null,
+		),
+		nextAiring: card.nextEpisode && {
+			episode: card.nextEpisode.number,
+			airingAt: card.nextEpisode.airingAt,
+		},
+		mayGainEpisodes: mayGainEpisodes(entry, new Date()),
 	};
 }
 
-/** TMDB's synopsis for the series, or AniList's for its first entry when TMDB has none. */
-async function overviewOf(key: SeriesKey, members: readonly MappedEntry[]) {
-	const [kind, id] = parseKey(key);
-	let overview: string | null = null;
-	if (kind === "tv") {
-		overview = (await getShow(id))?.overview ?? null;
-	} else if (kind === "movie") {
-		overview = (await getMovie(id))?.overview ?? null;
-	}
-
-	const [first] = byStartDate(members);
-	return overview ?? (first ? (await getAnime(first.entry.id)).description : null);
+/**
+ * TMDB's synopsis where it describes the entry: a film's own, and a show's
+ * for the entry that opens the show. A later season, or a special, has only
+ * AniList's, since TMDB's synopsis of a show describes how it begins.
+ * Either is cut down to its premise (see {@link synopsis}).
+ */
+function overviewOf(links: readonly EpisodeLink[], show: TmdbShow | null, movie: TmdbMovie | null) {
+	const opensShow = links.some((link) => link.seasonNumber === 1 && link.episodeNumber === 1);
+	const overview = movie ? movie.overview : opensShow ? show?.overview : null;
+	return (overview && synopsis(overview)) || null;
 }
 
-/** Whether the entry is a season in its own right rather than a special, OVA, or film. */
-function isSeasonFormat(entry: FranchiseEntry) {
-	return entry.format === "TV" || entry.format === "TV_SHORT" || entry.format === "ONA";
+/**
+ * AniList's synopsis of the entry. One that only names the release, such as
+ * `Part 3 of Tensei Shitara Slime Datta Ken 4th Season.`, is swapped for
+ * TMDB's synopsis of the entry's season, else for the synopsis of how the
+ * story begins: TMDB's of the show, else that of the franchise's first
+ * release, found by AniList's prequels.
+ */
+async function anilistOverview(
+	entry: FranchiseEntry,
+	links: readonly EpisodeLink[],
+	show: TmdbShow | null,
+) {
+	const own = (await getAnime(entry.id)).description;
+	if (own && !placeholder.test(own)) {
+		return own;
+	}
+
+	const seasonNumber = links.find((link) => link.seasonNumber > 0)?.seasonNumber;
+	const season = show?.seasons.find((candidate) => candidate.seasonNumber === seasonNumber);
+	if (season?.overview) {
+		return synopsis(season.overview);
+	}
+
+	const first = await firstRelease(entry);
+	const [stored] =
+		first.id === entry.id
+			? []
+			: await db
+					.select({
+						overview: series.overview,
+					})
+					.from(series)
+					.where(eq(series.anilistId, first.id))
+					.limit(1);
+	const replacement =
+		(show?.overview && synopsis(show.overview)) ||
+		stored?.overview ||
+		(first.id === entry.id ? null : (await getAnime(first.id)).description);
+
+	return (replacement && !placeholder.test(replacement) ? replacement : null) ?? own;
+}
+
+/** The release a franchise starts with: the earliest prequel of the earliest prequel, and so on. */
+async function firstRelease(entry: FranchiseEntry) {
+	const visited = new Set([entry.id]);
+	let current = entry;
+	for (let depth = 0; depth < 12; depth += 1) {
+		const ids = (current.relations?.edges ?? []).flatMap((edge) =>
+			edge?.relationType === "PREQUEL" && edge.node?.type === "ANIME" && !visited.has(edge.node.id)
+				? [edge.node.id]
+				: [],
+		);
+		const prequels = [...(await loadEntries(ids)).values()];
+		const earliest = prequels.toSorted(
+			(left, right) => releaseOrder(left) - releaseOrder(right) || left.id - right.id,
+		)[0];
+		if (!earliest) {
+			return current;
+		}
+
+		visited.add(earliest.id);
+		current = earliest;
+	}
+
+	return current;
+}
+
+function releaseOrder(entry: FranchiseEntry) {
+	const date = entry.startDate;
+	return date?.year
+		? date.year * 10_000 + (date.month ?? 0) * 100 + (date.day ?? 0)
+		: Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * The entry's episodes, numbered as AniList numbers them, each with the
+ * details of the TMDB episode it was matched to. A film TMDB lists on its
+ * own has no episodes there; its details stand in for its first.
+ *
+ * Their count is AniList's total, or the episodes aired so far while that
+ * is unknown, and never fewer than were matched to TMDB or than one.
+ */
+export function layoutEpisodes(
+	card: Pick<AnimeCard, "episodes" | "nextEpisode" | "durationMinutes">,
+	links: readonly EpisodeLink[],
+	show: Pick<TmdbShow, "episodes"> | null,
+	movie: Pick<
+		TmdbMovie,
+		"title" | "overview" | "release_date" | "runtime" | "backdrop_path"
+	> | null,
+): SeriesEpisode[] {
+	const tmdbEpisodes = new Map(
+		(show?.episodes ?? []).map((episode) => [
+			`${episode.season_number}:${episode.episode_number}`,
+			episode,
+		]),
+	);
+	const linked = new Map(links.map((link) => [link.anilistEpisode, link]));
+	const count = Math.max(
+		card.episodes ?? (card.nextEpisode ? card.nextEpisode.number - 1 : links.length),
+		...links.map((link) => link.anilistEpisode),
+		1,
+	);
+
+	return Array.from(
+		{
+			length: count,
+		},
+		(_, index) => {
+			const number = index + 1;
+			const link = linked.get(number);
+			const tmdb = link
+				? (tmdbEpisodes.get(`${link.seasonNumber}:${link.episodeNumber}`) ?? null)
+				: null;
+			const film = number === 1 ? movie : null;
+			return {
+				number,
+				title: tmdb?.name ?? film?.title ?? null,
+				overview: tmdb?.overview ?? film?.overview ?? null,
+				airDate: tmdb?.air_date ?? film?.release_date ?? null,
+				runtimeMinutes: tmdb?.runtime ?? film?.runtime ?? card.durationMinutes,
+				stillUrl: tmdbImageUrl(tmdb?.still_path ?? film?.backdrop_path ?? null, "original"),
+				tmdb: tmdb && {
+					seasonNumber: tmdb.season_number,
+					episodeNumber: tmdb.episode_number,
+				},
+			};
+		},
+	);
 }
 
 /** A series key's kind and TMDB (or AniList) ID. */
 export function parseKey(key: SeriesKey) {
-	const [kind, id] = key.split(":") as ["tv" | "shorts" | "movie" | "anilist", string];
+	const [kind, id] = key.split(":") as ["tv" | "movie" | "anilist", string];
 	return [kind, Number(id)] as const;
-}
-
-function byStartDate(group: readonly MappedEntry[]) {
-	return [...group].sort(
-		(left, right) =>
-			(startDateOf(left.entry) ?? "9999").localeCompare(startDateOf(right.entry) ?? "9999") ||
-			left.entry.id - right.entry.id,
-	);
-}
-
-function cardOf(mapped: MappedEntry | undefined): AnimeCard {
-	if (!mapped) {
-		throw new TypeError("A series has at least one entry");
-	}
-
-	return mapped.card;
-}
-
-function startDateOf(entry: FranchiseEntry | undefined) {
-	return entry?.startDate ? fuzzyDate(entry.startDate) : null;
 }
