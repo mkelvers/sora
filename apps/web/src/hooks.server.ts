@@ -25,29 +25,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 			},
 		});
 
-		let known = knownProfiles.get(token);
+		const known = knownProfiles.get(token);
 		if (!event.isRemoteRequest || !known || Date.now() - known.at >= remoteProfilesTtl) {
-			const { data: profiles, error: failed } = await attempt(sora.profiles(), SoraError);
-			if (failed && failed.status !== 401) {
-				throw failed;
+			const { data: profiles, error: failure } = await attempt(sora.profiles(), SoraError);
+			if (failure && failure.status !== 401) {
+				throw failure;
 			}
 
-			if (failed) {
-				known = undefined;
-			} else {
-				if (knownProfiles.size > 500) {
-					knownProfiles.clear();
-				}
-				known = {
+			if (knownProfiles.size > 500) {
+				knownProfiles.clear();
+			}
+			if (profiles) {
+				knownProfiles.set(token, {
 					profiles,
 					at: Date.now(),
-				};
-				knownProfiles.set(token, known);
+				});
+			} else {
+				knownProfiles.delete(token);
 			}
 		}
 
-		if (known) {
-			const { profiles } = known;
+		const profiles = knownProfiles.get(token)?.profiles;
+		if (profiles) {
 			const chosen = event.cookies.get(profileCookie);
 			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
 
