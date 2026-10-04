@@ -2,6 +2,7 @@ import { attempt } from "@sora/attempt";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
+import { InFlight } from "../../in-flight";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
 import type { ContentLanguage } from "../../series/models";
@@ -258,7 +259,7 @@ function listingsOf(
  * First lookups in flight, keyed by AniList ID, so listings made while one
  * is running wait on it instead of starting another.
  */
-const lookupsInFlight = new Map<number, Promise<StoredUnits[]>>();
+const lookupsInFlight = new InFlight<number, StoredUnits[]>();
 
 /**
  * Looks an anime up on `sources` at once and stores their lists. Leaves out
@@ -266,12 +267,7 @@ const lookupsInFlight = new Map<number, Promise<StoredUnits[]>>();
  * loaded.
  */
 function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promise<StoredUnits[]> {
-	const running = lookupsInFlight.get(anilistId);
-	if (running) {
-		return running;
-	}
-
-	const lookup = (async () => {
+	return lookupsInFlight.run(anilistId, async () => {
 		const { data: anime, error } = await attempt(
 			getAnime(anilistId),
 			AnimeNotFoundError,
@@ -300,7 +296,5 @@ function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promi
 			}),
 		);
 		return found.flat();
-	})().finally(() => lookupsInFlight.delete(anilistId));
-	lookupsInFlight.set(anilistId, lookup);
-	return lookup;
+	});
 }
