@@ -7,7 +7,7 @@
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { audioLabel, cn, genreSlug, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { setStatus } from "$lib/watchlist";
 	import { getWatchlist } from "$lib/watchlist.remote";
 	import type { SeriesCard } from "@sora/sdk";
@@ -128,7 +128,7 @@
 								<span class="metadata-tag min-w-0 truncate">
 									{#each slide.genres.slice(0, 4) as genre (genre)}
 										<a
-											href="/genres/{genreSlug(genre)}"
+											href="/genres/{genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"
 											class="pointer-events-auto transition-colors not-last:after:content-[',_'] hover:text-foreground"
 										>
 											{genre}
@@ -202,7 +202,7 @@
 								}}
 							>
 								<span
-									class="relative block h-2 w-full overflow-hidden rounded-full bg-white/40 transition-colors duration-300 group-hover:bg-accent/60"
+									class="relative block h-2 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60"
 								>
 									{#if index === carousel.active}
 										{#key carousel.cycle}
