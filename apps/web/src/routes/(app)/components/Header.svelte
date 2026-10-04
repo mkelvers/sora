@@ -275,7 +275,7 @@
 								type="submit"
 								form="sign-out"
 								variant="item"
-								class="gap-3 border-t border-border"
+								class="gap-3"
 							>
 								<SignOutIcon size="1.3rem" />
 								Sign out
