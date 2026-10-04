@@ -1,7 +1,7 @@
 import { env } from "$env/dynamic/private";
 import { profileCookie, sessionCookie } from "$lib/server/sora";
+import { route, SoraClient, SoraError, type Profile } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { SoraClient, SoraError, type Profile } from "@sora/sdk";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 
 const remoteProfilesTtl = 5 * 60_000;
@@ -27,17 +27,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		const known = knownProfiles.get(token);
 		if (!event.isRemoteRequest || !known || Date.now() - known.at >= remoteProfilesTtl) {
-			const { data: profiles, error: failure } = await attempt(sora.profiles(), SoraError);
-			if (failure && failure.status !== 401) {
-				throw failure;
+			const { data, error } = await attempt(sora.request(route.listProfiles), SoraError);
+			if (error && error.status !== 401) {
+				throw error;
 			}
 
 			if (knownProfiles.size > 500) {
 				knownProfiles.clear();
 			}
-			if (profiles) {
+			if (data) {
 				knownProfiles.set(token, {
-					profiles,
+					profiles: data,
 					at: Date.now(),
 				});
 			} else {

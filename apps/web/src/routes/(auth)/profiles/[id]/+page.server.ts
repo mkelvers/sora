@@ -1,5 +1,5 @@
+import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { SoraError } from "@sora/sdk";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -61,7 +61,12 @@ export const actions: Actions = {
 		}
 
 		const updated = await attempt(
-			locals.viewer!.sora.updateProfile(params.id, changes.data),
+			locals.viewer!.sora.request(route.updateProfile, {
+				params: {
+					profile_id: params.id,
+				},
+				body: changes.data,
+			}),
 			SoraError,
 		);
 		if (updated.error?.status === 404) {

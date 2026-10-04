@@ -1,5 +1,5 @@
+import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { SoraError } from "@sora/sdk";
 import { fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -9,7 +9,8 @@ const Name = z.string().trim().min(1).max(40);
 
 export const actions: Actions = {
 	default: async ({ request, locals, url }) => {
-		const name = String((await request.formData()).get("name") ?? "");
+		const form = await request.formData();
+		const name = String(form.get("name") ?? "");
 		const parsed = Name.safeParse(name);
 
 		if (!parsed.success) {
@@ -20,8 +21,10 @@ export const actions: Actions = {
 		}
 
 		const { error } = await attempt(
-			locals.viewer!.sora.createProfile({
-				name: parsed.data,
+			locals.viewer!.sora.request(route.createProfile, {
+				body: {
+					name: parsed.data,
+				},
 			}),
 			SoraError,
 		);
