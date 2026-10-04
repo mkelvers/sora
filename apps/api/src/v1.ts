@@ -9,27 +9,20 @@ import {
 } from "@sora/core/auth";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
-	addShow,
 	dismissContinueWatching,
-	dismissNotification,
-	dropShow,
 	getContinueWatching,
-	getDropped,
 	getFeatured,
-	getHistory,
-	getNotifications,
 	getPlaybackPreferences,
 	getProgress,
 	getSeriesProgress,
-	getShows,
-	markEpisode,
-	markNotificationsRead,
-	markSeason,
-	removeShow,
+	getWatchlist,
+	markUnwatched,
+	markWatched,
+	removeFromWatchlist,
+	removeProgress,
 	saveProgress,
-	undropShow,
-	unmarkEpisode,
-	unmarkSeason,
+	setWatchlistStatus,
+	startRewatch,
 	updatePlaybackPreferences,
 } from "@sora/core/library";
 import { proxyStream, resolvePlayback } from "@sora/core/playback";
@@ -38,15 +31,12 @@ import {
 	getAdjacentEpisodes,
 	getAiringSchedule,
 	getLatestReleases,
-	getSeason,
-	getSeasonEpisodes,
-	getSeasonSeriesId,
 	getSeries,
+	getSeriesEpisodes,
 	getUpcomingSeries,
 	listSeriesImages,
 	refreshSeriesImages,
 	setSeriesArtwork,
-	type EpisodeAddress,
 } from "@sora/core/series";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
@@ -99,46 +89,9 @@ v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 	description: "The session token from `POST /v1/auth/sign-in/email`.",
 });
 
-/**
- * Resolves an episode's playback and the episodes either side, as both
- * playback routes answer it; `pathOf` spells the neighbours' URLs in the
- * route's own form, relative to the API's origin.
- */
-async function playbackBody(
-	requestUrl: string,
-	forwardedProto: string | undefined,
-	address: {
-		seriesId: string;
-		seasonId: string;
-		episode: number;
-	},
-	pathOf: (address: EpisodeAddress) => string,
-) {
-	// Absolute, so players on any origin can fetch it.
-	const streamBaseUrl = new URL("/v1/streams", requestUrl);
-	// Behind a TLS-terminating proxy the API itself is reached over HTTP.
-	const protocol = forwardedProto?.split(",")[0]?.trim();
-	if (protocol === "https" || protocol === "http") {
-		streamBaseUrl.protocol = protocol;
-	}
-
-	const [playback, adjacent] = await Promise.all([
-		resolvePlayback(address, {
-			streamBaseUrl: streamBaseUrl.href,
-		}),
-		getAdjacentEpisodes(address.seriesId, address.seasonId, address.episode),
-	]);
-	return {
-		meta: {
-			series_id: address.seriesId,
-			season_id: address.seasonId,
-			episode: address.episode,
-			expires_at: playback.expiresAt,
-			next: adjacent.next && pathOf(adjacent.next),
-			previous: adjacent.previous && pathOf(adjacent.previous),
-		},
-		results: snakeCased(playback.media),
-	};
+/** An episode's playback URL, relative to the API's origin. */
+function playbackPath(seriesId: string, episode: number) {
+	return `/v1/series/${seriesId}/episodes/${episode}/playback`;
 }
 
 export const v1Routes = v1
@@ -190,23 +143,18 @@ export const v1Routes = v1
 			);
 		}
 
-		const seasons = await Promise.all(
-			series.seasons.map(async (season) => ({
-				...season,
-				episodes: await getSeasonEpisodes(series.id, season.id),
-			})),
-		);
+		const episodes = await getSeriesEpisodes(series.id);
 		// Unknown audio is filled in once providers are looked up.
-		const isAudioPending = seasons.some((season) =>
-			season.episodes.some((episode) => episode.audio === null),
+		c.header(
+			"Cache-Control",
+			episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300",
 		);
-		c.header("Cache-Control", isAudioPending ? "no-store" : "public, max-age=300");
 		return c.json(
 			{
 				meta: {},
 				results: snakeCased({
 					...series,
-					seasons,
+					episodes,
 				}),
 			},
 			200,
@@ -264,24 +212,9 @@ export const v1Routes = v1
 		);
 	})
 
-	.openapi(route.getSeason, async (c) => {
-		const { series_id, season_id } = c.req.valid("param");
-		const season = await getSeason(series_id, season_id);
-		c.header("Cache-Control", "public, max-age=300");
-		return c.json(
-			{
-				meta: {
-					series_id,
-				},
-				results: snakeCased(season),
-			},
-			200,
-		);
-	})
-
-	.openapi(route.listSeasonEpisodes, async (c) => {
-		const { series_id, season_id } = c.req.valid("param");
-		const episodes = await getSeasonEpisodes(series_id, season_id);
+	.openapi(route.listEpisodes, async (c) => {
+		const { series_id } = c.req.valid("param");
+		const episodes = await getSeriesEpisodes(series_id);
 		// Unknown audio is filled in once providers are looked up.
 		c.header(
 			"Cache-Control",
@@ -291,7 +224,6 @@ export const v1Routes = v1
 			{
 				meta: {
 					series_id,
-					season_id,
 					count: episodes.length,
 				},
 				results: snakeCased(episodes),
@@ -379,38 +311,42 @@ export const v1Routes = v1
 	})
 
 	.openapi(route.getPlayback, async (c) => {
-		const { series_id, season_id, episode } = c.req.valid("param");
-		const body = await playbackBody(
-			c.req.url,
-			c.req.header("x-forwarded-proto"),
-			{
-				seriesId: series_id,
-				seasonId: season_id,
-				episode,
-			},
-			({ seasonId, episode }) =>
-				`/v1/series/${series_id}/seasons/${seasonId}/episodes/${episode}/playback`,
-		);
-		// Stream URLs expire; a cached playback would hand out dead ones.
-		c.header("Cache-Control", "no-store");
-		return c.json(body, 200);
-	})
+		const { series_id, episode } = c.req.valid("param");
+		// Absolute, so players on any origin can fetch it.
+		const streamBaseUrl = new URL("/v1/streams", c.req.url);
+		// Behind a TLS-terminating proxy the API itself is reached over HTTP.
+		const protocol = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim();
+		if (protocol === "https" || protocol === "http") {
+			streamBaseUrl.protocol = protocol;
+		}
 
-	.openapi(route.getEpisodePlayback, async (c) => {
-		const { season_id, episode } = c.req.valid("param");
-		const body = await playbackBody(
-			c.req.url,
-			c.req.header("x-forwarded-proto"),
-			{
-				seriesId: await getSeasonSeriesId(season_id),
-				seasonId: season_id,
-				episode,
-			},
-			({ seasonId, episode }) => `/v1/seasons/${seasonId}/episodes/${episode}/playback`,
-		);
+		const [playback, adjacent] = await Promise.all([
+			resolvePlayback(
+				{
+					seriesId: series_id,
+					episode,
+				},
+				{
+					streamBaseUrl: streamBaseUrl.href,
+				},
+			),
+			getAdjacentEpisodes(series_id, episode),
+		]);
 		// Stream URLs expire; a cached playback would hand out dead ones.
 		c.header("Cache-Control", "no-store");
-		return c.json(body, 200);
+		return c.json(
+			{
+				meta: {
+					series_id,
+					episode,
+					expires_at: playback.expiresAt,
+					next: adjacent.next === null ? null : playbackPath(series_id, adjacent.next),
+					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
+				},
+				results: snakeCased(playback.media),
+			},
+			200,
+		);
 	})
 
 	.openapi(route.getStream, (c) =>
@@ -508,10 +444,10 @@ export const v1Routes = v1
 	})
 
 	.openapi(route.getProgress, async (c) => {
-		const { profile_id, season_id, episode } = c.req.valid("param");
+		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await getProgress(profile.id, {
-			seasonId: season_id,
+			seriesId: series_id,
 			episode,
 		});
 		return c.json(
@@ -524,13 +460,13 @@ export const v1Routes = v1
 	})
 
 	.openapi(route.saveProgress, async (c) => {
-		const { profile_id, season_id, episode } = c.req.valid("param");
+		const { profile_id, series_id, episode } = c.req.valid("param");
 		const { position_seconds, duration_seconds, finished } = c.req.valid("json");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await saveProgress(
 			profile.id,
 			{
-				seasonId: season_id,
+				seriesId: series_id,
 				episode,
 			},
 			{
@@ -561,70 +497,41 @@ export const v1Routes = v1
 		);
 	})
 
-	.openapi(route.dismissContinueWatching, async (c) => {
+	.openapi(route.removeProgress, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await dismissContinueWatching(profile.id, series_id);
+		await removeProgress(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.markSeason, async (c) => {
-		const { profile_id, season_id } = c.req.valid("param");
+	.openapi(route.markSeriesWatched, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await markSeason(profile.id, season_id);
+		await markWatched(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.unmarkSeason, async (c) => {
-		const { profile_id, season_id } = c.req.valid("param");
+	.openapi(route.markEpisodeWatched, async (c) => {
+		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await unmarkSeason(profile.id, season_id);
+		await markWatched(profile.id, series_id, episode);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.markEpisode, async (c) => {
-		const { profile_id, season_id, episode } = c.req.valid("param");
+	.openapi(route.markEpisodeUnwatched, async (c) => {
+		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await markEpisode(profile.id, {
-			seasonId: season_id,
+		await markUnwatched(profile.id, {
+			seriesId: series_id,
 			episode,
 		});
 		return c.body(null, 204);
 	})
 
-	.openapi(route.unmarkEpisode, async (c) => {
-		const { profile_id, season_id, episode } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await unmarkEpisode(profile.id, {
-			seasonId: season_id,
-			episode,
-		});
-		return c.body(null, 204);
-	})
-
-	.openapi(route.getDropped, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const dropped = await getDropped(profile.id);
-		return c.json(
-			{
-				meta: {},
-				results: snakeCased(dropped),
-			},
-			200,
-		);
-	})
-
-	.openapi(route.dropShow, async (c) => {
+	.openapi(route.startRewatch, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await dropShow(profile.id, series_id);
-		return c.body(null, 204);
-	})
-
-	.openapi(route.undropShow, async (c) => {
-		const { profile_id, series_id } = c.req.valid("param");
-		const profile = await getProfile(c.get("accountId"), profile_id);
-		await undropShow(profile.id, series_id);
+		await startRewatch(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
@@ -642,86 +549,38 @@ export const v1Routes = v1
 		);
 	})
 
-	.openapi(route.listShows, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const shows = await getShows(profile.id);
-		return c.json(
-			{
-				meta: {
-					count: shows.length,
-				},
-				results: snakeCased(shows),
-			},
-			200,
-		);
-	})
-
-	.openapi(route.addShow, async (c) => {
+	.openapi(route.dismissContinueWatching, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await addShow(profile.id, series_id);
+		await dismissContinueWatching(profile.id, series_id);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.removeShow, async (c) => {
+	.openapi(route.listWatchlist, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const entries = await getWatchlist(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: entries.length,
+				},
+				results: snakeCased(entries),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.setWatchlistStatus, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await removeShow(profile.id, series_id);
+		await setWatchlistStatus(profile.id, series_id, c.req.valid("json").status);
 		return c.body(null, 204);
 	})
 
-	.openapi(route.getHistory, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const query = c.req.valid("query");
-		const page = await getHistory(profile.id, {
-			after: query.after,
-			limit: query.limit,
-		});
-		let next: string | null = null;
-		if (page.next !== null) {
-			const url = new URL(c.req.url);
-			url.searchParams.set("after", page.next);
-			next = `${url.pathname}${url.search}`;
-		}
-		return c.json(
-			{
-				meta: {
-					count: page.items.length,
-					next,
-				},
-				results: snakeCased(page.items),
-			},
-			200,
-		);
-	})
-
-	.openapi(route.getNotifications, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const notifications = await getNotifications(profile.id, {
-			limit: c.req.valid("query").limit,
-		});
-		return c.json(
-			{
-				meta: {
-					count: notifications.items.length,
-					unread: notifications.unread,
-				},
-				results: snakeCased(notifications.items),
-			},
-			200,
-		);
-	})
-
-	.openapi(route.markNotificationsRead, async (c) => {
-		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		await markNotificationsRead(profile.id, c.req.valid("json").ids);
-		return c.body(null, 204);
-	})
-
-	.openapi(route.dismissNotification, async (c) => {
-		const { profile_id, notification_id } = c.req.valid("param");
+	.openapi(route.removeFromWatchlist, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
-		await dismissNotification(profile.id, notification_id);
+		await removeFromWatchlist(profile.id, series_id);
 		return c.body(null, 204);
 	});
 
@@ -731,7 +590,7 @@ v1.doc31("/openapi.json", {
 		title: "Sora API",
 		version: "1",
 		description:
-			"Anime titles laid out like a streaming service: one title per show with its seasons, OVAs, and related films, addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
+			"Anime titles as AniList lists them: a show's seasons, films, and OVAs are each a title with its own episodes, found from one another as related titles, and addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
 	},
 	servers: [
 		{
