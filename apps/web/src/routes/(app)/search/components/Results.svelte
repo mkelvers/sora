@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
-	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
-	import preparing from "$lib/assets/illustrations/preparing.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
+	import { mascots } from "$lib/mascots";
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 
 	let {
@@ -53,38 +52,22 @@
 {:else}
 	{#if page === 1}
 		{#if found.meta.preparing}
-			<li
-				class={[
-					"col-span-full grid min-h-[calc(100dvh-14rem)] place-items-center sm:min-h-[calc(100dvh-11rem)]",
-					stale && "opacity-50",
-				]}
-			>
+			<li class={["col-span-full grid place-items-center", stale && "opacity-50"]}>
 				<div class="w-full max-w-5xl">
 					<h2 class="mb-8 text-center text-2xl font-bold">Looking further for “{q}”…</h2>
 					<EmptyState
-						image={preparing}
-						alt="Sora's mascot hurrying along with a wobbling stack of poster cards, one sliding off the top"
-						width={720}
-						height={709}
+						mascot={mascots.preparing}
 						title="Some matching titles are still being prepared."
 						hint="They'll show up here as soon as they're done."
 					/>
 				</div>
 			</li>
 		{:else}
-			<li
-				class={[
-					"col-span-full grid min-h-[calc(100dvh-14rem)] place-items-center sm:min-h-[calc(100dvh-11rem)]",
-					stale && "opacity-50",
-				]}
-			>
+			<li class={["col-span-full grid place-items-center", stale && "opacity-50"]}>
 				<div class="w-full max-w-5xl">
 					<h2 class="mb-8 text-center text-2xl font-bold">Are you sure you spelled that right?</h2>
 					<EmptyState
-						image={emptySearch}
-						alt="Sora's mascot squinting at a poster card next to a tipped-over box"
-						width={720}
-						height={663}
+						mascot={mascots.emptySearch}
 						title="We couldn't find anything for “{q}”."
 						hint="Maybe it goes by its English or Japanese title?"
 					/>

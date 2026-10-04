@@ -76,7 +76,7 @@
 		</span>
 		<span class="grid min-w-0 gap-0.75">
 			<span class="truncate text-sm font-medium text-foreground">{card.title}</span>
-			<span class="text-[13px] text-muted">{describeCard(card)}</span>
+			<span class="text-sm text-muted">{describeCard(card)}</span>
 		</span>
 	</a>
 {:else}

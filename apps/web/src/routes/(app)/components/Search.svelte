@@ -23,7 +23,7 @@
 >
 	<div
 		class={cn(
-			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width,flex-grow] duration-260 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
+			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width,flex-grow] duration-260 ease-out motion-reduce:transition-none",
 			search.expanded && "max-sm:w-full sm:w-[min(22.5rem,calc(100vw-9rem))]",
 		)}
 		inert={!search.expanded}
@@ -66,7 +66,7 @@
 		<div
 			bind:this={search.panel}
 			id="search-suggestions"
-			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-[0_12px_32px_rgb(0_0_0/0.5)] transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
+			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-xl transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
 			role="listbox"
 			aria-label="Suggestions"
 			tabindex="-1"
@@ -85,8 +85,8 @@
 						<div class="flex items-center gap-3.5 px-4 py-2" aria-hidden="true">
 							<Skeleton class="aspect-2/3 w-10" />
 							<div class="grid flex-1 gap-2">
-								<Skeleton class="h-3.5 w-[70%]" />
-								<Skeleton class="h-3 w-[30%]" />
+								<Skeleton class="h-3.5 w-7/10" />
+								<Skeleton class="h-3 w-3/10" />
 							</div>
 						</div>
 					{/each}

@@ -5,10 +5,10 @@
 </script>
 
 <script lang="ts">
-	import emptyCalendar from "$lib/assets/illustrations/empty-calendar.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import { mascots } from "$lib/mascots";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { Tabs } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, ClockIcon, InfoIcon } from "phosphor-svelte";
@@ -170,15 +170,40 @@
 	class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16"
 >
 	<section class="mx-auto w-full max-w-7xl" aria-labelledby="calendar-title">
-		<div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-			<h1 id="calendar-title" class="text-xl font-bold sm:text-2xl">Release Calendar</h1>
+		<div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex items-center justify-between gap-4">
+				<h1 id="calendar-title" class="text-2xl font-bold">Release Calendar</h1>
+				{#if shown.weeks !== 0}
+					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="sm:hidden">
+						This week
+					</Button>
+				{/if}
+			</div>
 
-			<nav class="flex items-center gap-1 max-sm:-mx-2" aria-label="Weeks">
-				<Button onclick={() => (shown.weeks -= 1)} variant="icon" aria-label="Previous week">
+			<nav
+				class="flex items-center justify-between gap-1 max-sm:bg-surface sm:justify-end"
+				aria-label="Weeks"
+			>
+				{#if shown.weeks !== 0}
+					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="mr-2 max-sm:hidden">
+						This week
+					</Button>
+				{/if}
+				<Button
+					onclick={() => (shown.weeks -= 1)}
+					variant="icon"
+					class="size-11 sm:size-9"
+					aria-label="Previous week"
+				>
 					<CaretLeftIcon size="1.25rem" weight="bold" />
 				</Button>
-				<p class="min-w-40 text-center text-sm font-semibold tabular-nums">{week}</p>
-				<Button onclick={() => (shown.weeks += 1)} variant="icon" aria-label="Next week">
+				<p class="text-center text-sm font-semibold tabular-nums sm:min-w-40">{week}</p>
+				<Button
+					onclick={() => (shown.weeks += 1)}
+					variant="icon"
+					class="size-11 sm:size-9"
+					aria-label="Next week"
+				>
 					<CaretRightIcon size="1.25rem" weight="bold" />
 				</Button>
 			</nav>
@@ -189,7 +214,7 @@
 				<button
 					{...tabs.getTrigger(day.date)}
 					type="button"
-					class="-mb-px flex cursor-pointer flex-col items-center gap-1 border-b-2 border-transparent pt-3 pb-3 text-muted transition-colors outline-none hover:bg-white/4 hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground"
+					class="-mb-px flex min-h-16 cursor-pointer flex-col items-center justify-center gap-0.5 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-white/4 hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground sm:min-h-20 sm:gap-1"
 					aria-label="{longDay.format(noon(day.date))}, {day.episodes.length} {day.episodes
 						.length === 1
 						? 'episode'
@@ -197,13 +222,19 @@
 				>
 					<span
 						class={cn(
-							"text-[0.6875rem] font-bold tracking-widest uppercase",
+							"text-[0.65rem] font-bold tracking-wider uppercase sm:text-xs sm:tracking-widest",
 							day.today && "text-accent",
 						)}
 					>
-						{day.today ? "Today" : weekday.format(noon(day.date))}
+						{weekday.format(noon(day.date))}
 					</span>
-					<span class="text-xl font-bold tabular-nums sm:text-2xl">
+					<span
+						class={cn(
+							"text-lg font-bold tabular-nums sm:text-2xl",
+							!day.episodes.length && "text-subtle",
+							day.today && "text-accent",
+						)}
+					>
 						{dayOfMonth.format(noon(day.date))}
 					</span>
 				</button>
@@ -219,7 +250,7 @@
 				{#if day.date === selected}
 					{@const slots = slotsOf(day)}
 					{#if slots.length}
-						<ol class="flex flex-col gap-10 pt-8">
+						<ol class="flex flex-col gap-8 pt-6 pb-10 sm:gap-10 sm:pt-8">
 							{#each slots as slot, index (slot.at)}
 								{#if day.today && !slot.aired && (index === 0 || slots[index - 1].aired)}
 									<li
@@ -229,11 +260,17 @@
 									</li>
 								{/if}
 								<li class="grid gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6">
-									<time datetime={slot.at} class="text-2xl font-bold tabular-nums">
+									<time
+										datetime={slot.at}
+										class={cn(
+											"flex items-center gap-4 text-xl font-bold tabular-nums after:h-px after:flex-1 after:bg-border sm:block sm:text-2xl sm:after:hidden",
+											slot.aired && day.today && "text-muted",
+										)}
+									>
 										{clock.format(new Date(slot.at))}
 									</time>
 
-									<ul class="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+									<ul class="grid gap-x-5 gap-y-5 sm:grid-cols-2 sm:gap-y-6 lg:grid-cols-3">
 										{#each slot.releases as release (release.key)}
 											{@const image = release.series.backdrop_url ?? release.series.poster_url}
 											<li
@@ -263,11 +300,11 @@
 															{/if}
 														</div>
 														<h3
-															class="line-clamp-2 text-[0.9375rem] leading-snug font-bold sm:mt-3.5"
+															class="line-clamp-2 text-sm leading-snug font-bold sm:mt-3.5 sm:text-base"
 														>
 															{release.series.title}
 														</h3>
-														<p class="mt-1 text-sm text-muted">
+														<p class="mt-1 text-xs text-muted sm:text-sm">
 															{release.episodes} · {release.language}
 														</p>
 													</div>
@@ -276,12 +313,10 @@
 														aria-hidden="true"
 														class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 													>
-														<p
-															class="line-clamp-1 text-[0.625rem] font-semibold text-subtle uppercase"
-														>
+														<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase">
 															{release.series.title}
 														</p>
-														<p class="mt-2 text-[0.9375rem] leading-snug font-bold text-foreground">
+														<p class="mt-2 text-base leading-snug font-bold text-foreground">
 															{release.episodes}
 														</p>
 														<p class="text-sm text-muted">{release.language}</p>
@@ -292,9 +327,7 @@
 															)}
 														</p>
 														{#if release.series.overview}
-															<p
-																class="mt-2 line-clamp-4 text-[0.8125rem] leading-snug text-foreground"
-															>
+															<p class="mt-2 line-clamp-4 text-sm leading-snug text-foreground">
 																{release.series.overview}
 															</p>
 														{/if}
@@ -314,13 +347,7 @@
 						</ol>
 					{:else}
 						<div class="pt-8">
-							<EmptyState
-								image={emptyCalendar}
-								alt="Sora's mascot sitting by a desk calendar, frowning at a blank page she tore off"
-								width={720}
-								height={690}
-								{...emptyCopy(day.date)}
-							/>
+							<EmptyState mascot={mascots.emptyCalendar} {...emptyCopy(day.date)} />
 						</div>
 					{/if}
 				{/if}

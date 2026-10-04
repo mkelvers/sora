@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import lost from "$lib/assets/illustrations/lost.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
+	import { mascots } from "$lib/mascots";
 
 	const missing = $derived(page.status === 404);
 </script>
@@ -26,19 +26,13 @@
 
 		{#if missing}
 			<EmptyState
-				image={lost}
-				alt="Sora's mascot, lost and confused, holding a map upside down"
-				width={701}
-				height={720}
+				mascot={mascots.lost}
 				title="This page wandered off."
 				hint="Let's get you back to something to watch."
 			/>
 		{:else}
 			<EmptyState
-				image={lost}
-				alt="Sora's mascot, lost and confused, holding a map upside down"
-				width={701}
-				height={720}
+				mascot={mascots.lost}
 				title="Something went wrong on our end."
 				hint="Give it a moment and try again."
 			/>

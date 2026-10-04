@@ -60,10 +60,9 @@
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
-		<div
-			class="h-full sm:hidden [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:w-12 [&_.dropdown-trigger]:justify-center [&_.dropdown-trigger]:p-0 [&_.dropdown-trigger]:text-muted [&_.dropdown-trigger]:hover:bg-header-hover [&_.dropdown-trigger]:hover:text-foreground has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:text-foreground"
-		>
+		<div class="h-full sm:hidden">
 			<Dropdown
+				variant="icon"
 				alignment="left"
 				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 overflow-y-auto bg-header-hover"
 				label="Menu"
@@ -79,7 +78,7 @@
 								<Button
 									href={section.href}
 									variant="item"
-									class="border-l-3 border-transparent px-4 text-[0.9375rem] aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
+									class="border-l-3 border-transparent px-4 text-base aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
 									aria-current={page.url.pathname === section.href ? "page" : undefined}
 								>
 									{section.href === "/simulcast" ? "Simulcast Season" : section.label}
@@ -89,7 +88,7 @@
 						<li>
 							<Button
 								variant="item"
-								class="justify-between text-[0.9375rem] aria-expanded:text-foreground"
+								class="justify-between text-base aria-expanded:text-foreground"
 								aria-expanded={categoriesOpen}
 								aria-controls="menu-genres"
 								onclick={(event: MouseEvent) => {
@@ -105,13 +104,13 @@
 								/>
 							</Button>
 							{#if categoriesOpen}
-								<ul id="menu-genres" class="bg-[rgba(65,65,65,.502)]">
+								<ul id="menu-genres" class="bg-tooltip/50">
 									{#each genres as genre (genre)}
 										<li>
 											<Button
 												href="/genres/{genreSlug(genre)}"
 												variant="item"
-												class="border-l-3 border-transparent pl-9 text-[0.9375rem] aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
+												class="border-l-3 border-transparent pl-9 text-base aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
 												aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
 											>
 												{genre}
@@ -149,10 +148,9 @@
 					</a>
 				</li>
 			{/each}
-			<li
-				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:px-4 [&_.dropdown-trigger]:text-sm [&_.dropdown-trigger]:font-medium [&_.dropdown-trigger]:tracking-normal [&_.dropdown-trigger]:normal-case [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
-			>
+			<li class="h-full">
 				<Dropdown
+					variant="link"
 					alignment="left"
 					class="w-[min(48rem,calc(100vw-2rem))] bg-header-hover open:flex-row"
 				>
@@ -168,7 +166,7 @@
 									<Button
 										href={section.href}
 										variant="item"
-										class="text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
+										class="text-base aria-[current=page]:font-normal aria-[current=page]:text-accent"
 										aria-current={page.url.pathname === section.href ? "page" : undefined}
 									>
 										{section.label}
@@ -189,7 +187,7 @@
 										<Button
 											href="/genres/{genreSlug(genre)}"
 											variant="item"
-											class="text-[0.9375rem] aria-[current=page]:font-normal aria-[current=page]:text-accent"
+											class="text-base aria-[current=page]:font-normal aria-[current=page]:text-accent"
 											aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
 										>
 											{genre}
@@ -215,10 +213,9 @@
 				<BookmarkSimpleIcon size="1.5rem" />
 			</a>
 
-			<div
-				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
-			>
+			<div class="h-full">
 				<Dropdown
+					variant="bar"
 					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-header-hover max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
 					label="Account menu for {profile.name}"
 				>

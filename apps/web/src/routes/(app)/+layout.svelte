@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import lost from "$lib/assets/illustrations/lost.webp";
 	import EmptyState from "$lib/components/EmptyState.svelte";
+	import { mascots } from "$lib/mascots";
 	import { timeZoneCookie } from "$lib/utils";
 
 	import Header from "./components/Header.svelte";
@@ -27,7 +27,7 @@
 
 		{#snippet failed()}
 			<section
-				class="grid min-h-[calc(100dvh-6.5rem)] place-items-center bg-canvas px-5 py-10 text-foreground sm:min-h-[calc(100dvh-3.5rem)]"
+				class="grid min-h-page place-items-center bg-canvas px-5 py-10 text-foreground"
 				aria-labelledby="page-failed"
 			>
 				<div class="w-full max-w-5xl">
@@ -35,10 +35,7 @@
 						Well, that didn't go as planned
 					</h1>
 					<EmptyState
-						image={lost}
-						alt="Sora's mascot, lost and confused, holding a map upside down"
-						width={701}
-						height={720}
+						mascot={mascots.lost}
 						title="This page couldn't be loaded."
 						hint="Give it a moment and try again."
 					/>
