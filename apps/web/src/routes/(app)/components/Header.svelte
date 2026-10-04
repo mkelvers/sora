@@ -74,7 +74,7 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{#each [{ href: "/", label: "Home" }, ...categories, { href: "/watchlist", label: "Watchlist" }] as section (section.href)}
+						{#each categories as section (section.href)}
 							<li>
 								<Button
 									href={section.href}
@@ -82,7 +82,7 @@
 									class="text-[0.9375rem]"
 									aria-current={page.url.pathname === section.href ? "page" : undefined}
 								>
-									{section.label}
+									{section.href === "/simulcast" ? "Simulcast season" : section.label}
 								</Button>
 							</li>
 						{/each}
@@ -105,7 +105,7 @@
 								/>
 							</Button>
 							{#if categoriesOpen}
-								<ul id="menu-genres" class="bg-white/4">
+								<ul id="menu-genres" class="bg-[rgba(65,65,65,.502)]">
 									{#each genres as genre (genre)}
 										<li>
 											<Button
@@ -219,7 +219,7 @@
 				class="h-full [&_.dropdown-root]:h-full [&_.dropdown-trigger]:h-full [&_.dropdown-trigger]:gap-1 [&_.dropdown-trigger]:px-3 [&_.dropdown-trigger]:hover:bg-header-hover has-[.dropdown-menu:popover-open]:[&_.dropdown-trigger]:bg-header-hover"
 			>
 				<Dropdown
-					class="w-[min(21rem,calc(100vw-1rem))] bg-header-hover"
+					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-header-hover max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
 					label="Account menu for {profile.name}"
 				>
 					{#snippet trigger()}
@@ -228,57 +228,82 @@
 					{/snippet}
 
 					{#snippet children()}
-						<div role="menu" aria-label="Account">
-							<Button
-								role="menuitem"
-								href="/profiles/{profile.id}"
-								variant="item"
-								class="min-h-14 gap-3 py-2"
-								aria-label="Edit profile {profile.name}"
+						<div
+							role="menu"
+							aria-label="Account"
+							class="max-sm:flex max-sm:min-h-0 max-sm:flex-1 max-sm:flex-col"
+						>
+							<div
+								class="max-sm:min-h-0 max-sm:flex-1 max-sm:overflow-y-auto max-sm:overscroll-contain"
 							>
-								<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-9" />
-								<span class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-									{profile.name}
-								</span>
-								<PencilSimpleIcon size="1.1rem" class="text-muted" />
-							</Button>
-
-							{#each others as other (other.id)}
 								<Button
 									role="menuitem"
-									type="submit"
-									form="switch-profile"
-									name="profile"
-									value={other.id}
-									aria-label="Switch to {other.name}"
+									href="/profiles/{profile.id}"
 									variant="item"
-									class="gap-3"
+									class="min-h-14 gap-3 py-2 max-sm:min-h-22 max-sm:gap-4 max-sm:py-4"
+									aria-label="Edit profile {profile.name}"
 								>
-									<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
-									{other.name}
+									<Avatar
+										avatar={profile.avatar}
+										alt="Avatar of {profile.name}"
+										class="size-9 max-sm:size-14"
+									/>
+									<span
+										class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground max-sm:text-lg"
+									>
+										{profile.name}
+									</span>
+									<PencilSimpleIcon size="1.1rem" class="text-muted max-sm:size-6" />
 								</Button>
-							{/each}
 
-							<Button
-								role="menuitem"
-								href="/profiles"
-								variant="item"
-								class="gap-3"
-								onclick={() => (profilesPage.managing = true)}
-							>
-								<UsersIcon size="1.3rem" />
-								Manage profiles
-							</Button>
+								{#each others as other (other.id)}
+									<Button
+										role="menuitem"
+										type="submit"
+										form="switch-profile"
+										name="profile"
+										value={other.id}
+										aria-label="Switch to {other.name}"
+										variant="item"
+										class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
+									>
+										<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
+										{other.name}
+									</Button>
+								{/each}
+
+								<Button
+									role="menuitem"
+									href="/profiles"
+									variant="item"
+									class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
+									onclick={() => (profilesPage.managing = true)}
+								>
+									<UsersIcon size="1.3rem" class="max-sm:size-6" />
+									Manage profiles
+								</Button>
+								<Button
+									role="menuitem"
+									href="/watchlist"
+									variant="item"
+									class="min-h-14 gap-4 py-4 text-base sm:hidden"
+									aria-current={page.url.pathname === "/watchlist" ? "page" : undefined}
+								>
+									<BookmarkSimpleIcon size="1.5rem" />
+									Watch List
+								</Button>
+							</div>
 
 							<Button
 								role="menuitem"
 								type="submit"
 								form="sign-out"
 								variant="item"
-								class="gap-3"
+								class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:min-h-14 max-sm:gap-4 max-sm:bg-header-hover max-sm:pt-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:text-base"
 							>
-								<SignOutIcon size="1.3rem" />
-								Sign out
+								<SignOutIcon size="1.3rem" class="max-sm:size-6" />
+								<span class="sm:hidden">Log Out</span>
+								<span class="max-sm:hidden">Sign out</span>
 							</Button>
 						</div>
 					{/snippet}
