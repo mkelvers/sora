@@ -1,8 +1,9 @@
+import { attempt } from "@sora/attempt";
 import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
-import { imageEdge, noArtwork, series, seriesEpisode } from "../database/schema";
+import { imageEdge, noArtwork, series, seriesEpisode, titleArtwork } from "../database/schema";
 
 /** An image's average colour down its left and right edges, each `#rrggbb`. */
 export interface ImageEdges {
@@ -16,10 +17,27 @@ const edgeColumns = 2;
 /** The width images are measured at; TMDB serves this size directly. */
 const measuredWidth = 92;
 
-/** The series' backdrop as readers see it: the chosen one, none when that was chosen, else the laid-out one. */
-export const effectiveBackdrop = sql<
-	string | null
->`nullif(coalesce(${series.backdropUrlOverride}, ${series.backdropUrl}), ${noArtwork})`;
+/**
+ * Joins a series to its {@link titleArtwork} row. Qualified by hand: Drizzle
+ * leaves columns bare in a single-table select, where `series.key` would bind
+ * to the subquery's own `key`.
+ */
+const artworkOfSeries = sql`${titleArtwork}.${sql.identifier(titleArtwork.key.name)} = ${series}.${sql.identifier(series.key.name)}`;
+
+/**
+ * The series' backdrop as readers see it: the one chosen for its TMDB title
+ * (see `titleArtwork`), none when that was chosen, else the laid-out one.
+ */
+export const effectiveBackdrop = sql<string | null>`nullif(coalesce(
+    (select ${titleArtwork.backdropUrlOverride} from ${titleArtwork} where ${artworkOfSeries}),
+    ${series.backdropUrl}
+  ), ${noArtwork})`;
+
+/** The series' logo as readers see it; see {@link effectiveBackdrop}. */
+export const effectiveLogo = sql<string | null>`nullif(coalesce(
+    (select ${titleArtwork.logoUrlOverride} from ${titleArtwork} where ${artworkOfSeries}),
+    ${series.logoUrl}
+  ), ${noArtwork})`;
 
 /**
  * An episode's still as readers see it: a film's episode shows its series'
@@ -96,8 +114,9 @@ async function storeImageEdges(url: string): Promise<boolean> {
 		return true;
 	}
 
-	const edges = await measureEdges(url).catch(() => null);
-	if (!edges) {
+	const { data: edges, error } = await attempt(measureEdges(url));
+	if (error) {
+		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
 		return false;
 	}
 

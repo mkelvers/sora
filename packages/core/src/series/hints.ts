@@ -1,18 +1,10 @@
+import { attempt } from "@sora/attempt";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
 import { tmdbHint } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
-
-/**
- * Fribb/anime-lists' merged list, minified. Its generator rebuilds it about
- * weekly from anime-offline-database, which links AniList to AniDB, and the
- * Anime-Lists project, which links AniDB to TMDB.
- */
-const listUrl = "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json";
-
-const downloadTimeoutMs = 60_000;
 
 /**
  * A list with fewer hints than this share of those stored is taken for a
@@ -157,32 +149,51 @@ export async function syncTmdbHints(): Promise<number[]> {
 	return [...changed.map(([anilistId]) => anilistId), ...removed];
 }
 
+/**
+ * Downloads Fribb/anime-lists' merged list, minified. Its generator rebuilds
+ * it about weekly from anime-offline-database, which links AniList to AniDB,
+ * and the Anime-Lists project, which links AniDB to TMDB.
+ */
 async function downloadHints() {
-	let list: unknown;
-	try {
-		const response = await fetch(listUrl, {
-			signal: AbortSignal.timeout(downloadTimeoutMs),
-		});
-		if (!response.ok) {
-			throw new Error(`GitHub answered ${response.status}`);
-		}
+	const { data: response, error: unreachable } = await attempt(
+		fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
+			signal: AbortSignal.timeout(60_000),
+		}),
+	);
+	if (unreachable) {
+		throw new UpstreamUnavailableError(
+			"GitHub could not be reached for the Fribb/anime-lists list",
+			{
+				retryAfterMs: null,
+				cause: unreachable,
+			},
+		);
+	}
+	if (!response.ok) {
+		throw new UpstreamUnavailableError(
+			`GitHub answered ${response.status} for the Fribb/anime-lists list`,
+			{
+				retryAfterMs: null,
+			},
+		);
+	}
 
-		list = await response.json();
-	} catch (error) {
-		throw new UpstreamUnavailableError("Downloading the Fribb/anime-lists list failed", {
+	const { data: list, error: unreadable } = await attempt(response.json());
+	if (unreadable) {
+		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
 			retryAfterMs: null,
-			cause: error,
+			cause: unreadable,
 		});
 	}
 
-	try {
-		return parseTmdbHints(list);
-	} catch (error) {
+	const { data: hints, error: malformed } = attempt(() => parseTmdbHints(list), TypeError);
+	if (malformed) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
 			retryAfterMs: null,
-			cause: error,
+			cause: malformed,
 		});
 	}
+	return hints;
 }
 
 function sameHint(left: TmdbHint | undefined, right: TmdbHint) {
