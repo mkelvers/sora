@@ -26,7 +26,7 @@
 
 	let {
 		id,
-		media: versions,
+		media,
 		back,
 		previous,
 		next,
@@ -70,7 +70,7 @@
 			return;
 		}
 
-		const credits = media?.skip_segments.find((candidate) => candidate.kind === "ending");
+		const credits = selected?.skip_segments.find((candidate) => candidate.kind === "ending");
 		onprogress(
 			player.time,
 			player.duration,
@@ -92,20 +92,20 @@
 	onDestroy(() => report(false, true));
 
 	const audio = $derived(
-		versions?.find((version) => version.audio === preferences.audio)?.audio ?? versions?.[0]?.audio,
+		media?.find((version) => version.audio === preferences.audio)?.audio ?? media?.[0]?.audio,
 	);
-	const media = $derived(versions?.find((version) => version.audio === audio));
+	const selected = $derived(media?.find((version) => version.audio === audio));
 	const subtitle = $derived.by(() => {
-		if (!media || media.audio === "raw") {
+		if (!selected || selected.audio === "raw") {
 			return undefined;
 		}
 
-		const choice = preferences.subtitles[media.audio];
+		const choice = preferences.subtitles[selected.audio];
 		if (choice === null) {
 			return undefined;
 		}
 
-		const tracks = media.subtitles;
+		const tracks = selected.subtitles;
 		const picked =
 			choice &&
 			(tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
@@ -115,14 +115,14 @@
 	});
 
 	function pickSubtitle(url: string | undefined) {
-		if (!media || media.audio === "raw") {
+		if (!selected || selected.audio === "raw") {
 			return;
 		}
 
-		const track = media.subtitles.find((track) => track.url === url);
+		const track = selected.subtitles.find((track) => track.url === url);
 		onpreferences({
 			subtitles: {
-				[media.audio]: track
+				[selected.audio]: track
 					? {
 							language: track.language,
 							kind: track.kind,
@@ -132,10 +132,10 @@
 		});
 	}
 
-	const loading = $derived(!versions || (media !== undefined && player.buffering));
+	const loading = $derived(!media || (selected !== undefined && player.buffering));
 
 	const segment = $derived(
-		media?.skip_segments.find((segment) => {
+		selected?.skip_segments.find((segment) => {
 			return player.time >= segment.start && player.time < segment.end;
 		}),
 	);
@@ -200,10 +200,10 @@
 				keepFocus: !!next,
 			});
 		}}
-		{@attach player.stream(media?.sources[0])}
+		{@attach player.stream(selected?.sources[0])}
 		{@attach player.playback}
 	>
-		{#each media?.subtitles ?? [] as track (track.url)}
+		{#each selected?.subtitles ?? [] as track (track.url)}
 			<track
 				kind="captions"
 				src={track.url}
@@ -258,8 +258,8 @@
 	>
 		<Controls {player} {previous} {next}>
 			<Settings
-				media={versions ?? []}
-				subtitles={media?.subtitles ?? []}
+				media={media ?? []}
+				subtitles={selected?.subtitles ?? []}
 				bind:speed={player.speed}
 				bind:subtitle={() => subtitle, pickSubtitle}
 				bind:audio={
