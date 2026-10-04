@@ -30,16 +30,15 @@ import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
  * @throws when AniKoto fails.
  */
 async function refreshAniKotoEpisodes(anilistId: number): Promise<ProviderUnit[] | null> {
-	const { data: anime, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
 	if (error) {
 		return null;
 	}
 
 	const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
-	const [stored] = (await getStoredUnits([anilistId])).filter(
-		(entry) => entry.provider === aniKoto.id,
-	);
-	const units = await refreshProviderUnits(anime, aniKoto, {
+	const storedUnits = await getStoredUnits([anilistId]);
+	const [stored] = storedUnits.filter((entry) => entry.provider === aniKoto.id);
+	const units = await refreshProviderUnits(data, aniKoto, {
 		retryUnmatched: true,
 	});
 	if (latest(units) > latest(stored?.units ?? [])) {
@@ -165,14 +164,12 @@ async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
 			continue;
 		}
 
-		const { data: units, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
 		if (error) {
 			logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
 			continue;
 		}
-		logger.info(
-			`AniKoto changed anime ${anilistId}; it now carries ${units?.length ?? 0} episodes`,
-		);
+		logger.info(`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`);
 	}
 }
 
@@ -222,12 +219,8 @@ const PollAniKotoPayloadSchema = z.object({
  * AniKoto fails counts as not finding the episode.
  */
 export const pollAniKoto: Task = async (rawPayload, helpers) => {
-	const {
-		anilistId,
-		episode,
-		language,
-		attempt: polls,
-	} = PollAniKotoPayloadSchema.parse(rawPayload);
+	const payload = PollAniKotoPayloadSchema.parse(rawPayload);
+	const { anilistId, episode, language } = payload;
 
 	const [mapping] = await db
 		.select({
@@ -243,17 +236,16 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
 		}
 	} else {
-		const { data: units, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
 		if (error) {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
-		} else if (units === null) {
+		} else if (data === null) {
 			return;
 		}
 	}
 
-	const [stored] = (await getStoredUnits([anilistId])).filter(
-		(entry) => entry.provider === aniKoto.id,
-	);
+	const storedUnits = await getStoredUnits([anilistId]);
+	const [stored] = storedUnits.filter((entry) => entry.provider === aniKoto.id);
 	if (
 		stored?.units.some(
 			(unit) => unit.number >= episode && (language === "sub" || unit.languages?.includes("dub")),
@@ -263,14 +255,14 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const delay = aniKotoPollDelaysMs[polls];
+	const delay = aniKotoPollDelaysMs[payload.attempt];
 	if (delay !== undefined) {
 		await scheduleAniKotoPoll(
 			{
 				anilistId,
 				episode,
 				language,
-				attempt: polls + 1,
+				attempt: payload.attempt + 1,
 			},
 			new Date(Date.now() + delay),
 		);

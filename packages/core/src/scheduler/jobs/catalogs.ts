@@ -30,7 +30,7 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 			continue;
 		}
 
-		const { data: summary, error } = await attempt(
+		const { data, error } = await attempt(
 			provider.syncCatalog({
 				full: payload?.full === true,
 			}),
@@ -40,7 +40,7 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 			failed.push(provider.id);
 			continue;
 		}
-		helpers.logger.info(summary);
+		helpers.logger.info(data);
 	}
 
 	if (failed.length > 0) {

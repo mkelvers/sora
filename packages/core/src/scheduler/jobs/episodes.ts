@@ -23,7 +23,7 @@ const LookUpEpisodesPayloadSchema = z.object({
 export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
 	const { anilistId } = LookUpEpisodesPayloadSchema.parse(rawPayload);
 
-	const { data: anime, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
 	if (error) {
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not looking up its episodes`);
 		return;
@@ -32,7 +32,7 @@ export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
 	const failed = (
 		await Promise.all(
 			streamProviders.map(async (provider) => {
-				const { error } = await attempt(getProviderUnits(anime, provider));
+				const { error } = await attempt(getProviderUnits(data, provider));
 				if (error) {
 					helpers.logger.warn(
 						`Provider ${provider.id} failed for anime ${anilistId}: ${error.message}`,
