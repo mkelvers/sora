@@ -4,8 +4,8 @@ import { remoteViewer, sora } from "$lib/server/sora";
 import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
+import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -15,7 +15,17 @@ const EpisodeAddress = z.object({
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	const [series, episodes] = await Promise.all([sora.series(seriesId), sora.episodes(seriesId)]);
+	const params = {
+		series_id: seriesId,
+	};
+	const [series, episodes] = await Promise.all([
+		sora.request(route.getSeries, {
+			params,
+		}),
+		sora.request(route.listEpisodes, {
+			params,
+		}),
+	]);
 	const found = episodes.find((candidate) => candidate.number === episode);
 
 	if (!found) {
@@ -30,15 +40,12 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 
 export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const playback = await attempt(
-		sora.playback(
-			{
-				seriesId,
-				number: episode,
+		sora.requestWithMeta(route.getPlayback, {
+			params: {
+				series_id: seriesId,
+				episode,
 			},
-			{
-				meta: true,
-			},
-		),
+		}),
 		SoraError,
 	);
 	if (playback.error) {
@@ -65,15 +72,22 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 export const getPlaybackPreferences = query(async () => {
 	const viewer = remoteViewer();
 
-	return viewer.sora.playbackPreferences(viewer.profile.id);
+	return viewer.sora.request(route.getPlaybackPreferences, {
+		params: {
+			profile_id: viewer.profile.id,
+		},
+	});
 });
 
 export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const viewer = remoteViewer();
 
-	return viewer.sora.progress(viewer.profile.id, {
-		seriesId,
-		number: episode,
+	return viewer.sora.request(route.getProgress, {
+		params: {
+			profile_id: viewer.profile.id,
+			series_id: seriesId,
+			episode,
+		},
 	});
 });
 
@@ -89,14 +103,14 @@ export const saveProgress = command(
 	async ({ seriesId, episode, leaving, ...progress }) => {
 		const viewer = remoteViewer();
 
-		await viewer.sora.saveProgress(
-			viewer.profile.id,
-			{
-				seriesId,
-				number: episode,
+		await viewer.sora.request(route.saveProgress, {
+			params: {
+				profile_id: viewer.profile.id,
+				series_id: seriesId,
+				episode,
 			},
-			progress,
-		);
+			body: progress,
+		});
 
 		if (leaving) {
 			await Promise.all([
@@ -138,7 +152,12 @@ export const savePlaybackPreferences = command(
 		const viewer = remoteViewer();
 
 		getPlaybackPreferences().set(
-			await viewer.sora.updatePlaybackPreferences(viewer.profile.id, changes),
+			await viewer.sora.request(route.updatePlaybackPreferences, {
+				params: {
+					profile_id: viewer.profile.id,
+				},
+				body: changes,
+			}),
 		);
 	},
 );

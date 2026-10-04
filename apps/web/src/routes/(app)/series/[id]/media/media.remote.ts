@@ -1,12 +1,25 @@
 import { command, query } from "$app/server";
 import { sora } from "$lib/server/sora";
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+import { route } from "@sora/sdk";
 import { z } from "zod";
 
-export const getImages = query(z.string(), (seriesId) => sora.images(seriesId));
+export const getImages = query(z.string(), (seriesId) =>
+	sora.request(route.listImages, {
+		params: {
+			series_id: seriesId,
+		},
+	}),
+);
 
 export const refreshImages = command(z.string(), async (seriesId) => {
-	getImages(seriesId).set(await sora.refreshImages(seriesId));
+	getImages(seriesId).set(
+		await sora.request(route.refreshImages, {
+			params: {
+				series_id: seriesId,
+			},
+		}),
+	);
 });
 
 const savedSizes = {
@@ -22,8 +35,13 @@ export const setArtwork = command(
 		url: z.union([z.url(), z.literal(false)]),
 	}),
 	async ({ seriesId, type, url }) => {
-		const series = await sora.updateArtwork(seriesId, {
-			[`${type}_url`]: url && url.replace("/original/", `/${savedSizes[type]}/`),
+		const series = await sora.request(route.updateArtwork, {
+			params: {
+				series_id: seriesId,
+			},
+			body: {
+				[`${type}_url`]: url && url.replace("/original/", `/${savedSizes[type]}/`),
+			},
 		});
 
 		getSeries(seriesId).set(series);
@@ -38,10 +56,15 @@ export const setLogoPlacement = command(
 		y: z.number().min(-1).max(1),
 	}),
 	async ({ seriesId, scale, x, y }) => {
-		const series = await sora.updateArtwork(seriesId, {
-			logo_scale: scale,
-			logo_offset_x: x,
-			logo_offset_y: y,
+		const series = await sora.request(route.updateArtwork, {
+			params: {
+				series_id: seriesId,
+			},
+			body: {
+				logo_scale: scale,
+				logo_offset_x: x,
+				logo_offset_y: y,
+			},
 		});
 
 		getSeries(seriesId).set(series);

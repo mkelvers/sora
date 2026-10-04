@@ -3,22 +3,45 @@ import { getNotifications, getUnreadNotifications } from "$lib/notifications.rem
 import { remoteViewer, sora } from "$lib/server/sora";
 import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
+import { route } from "@sora/sdk";
 import { z } from "zod";
 
-export const getSeries = query(z.string(), (id) => sora.series(id));
+export const getSeries = query(z.string(), (id) =>
+	sora.request(route.getSeries, {
+		params: {
+			series_id: id,
+		},
+	}),
+);
 
 export const getSeriesProgress = query(z.string(), (id) => {
 	const viewer = remoteViewer();
 
-	return viewer.sora.seriesProgress(viewer.profile.id, id);
+	return viewer.sora.request(route.getSeriesProgress, {
+		params: {
+			profile_id: viewer.profile.id,
+			series_id: id,
+		},
+	});
 });
 
-export const getEpisodes = query(z.string(), (id) => sora.episodes(id));
+export const getEpisodes = query(z.string(), (id) =>
+	sora.request(route.listEpisodes, {
+		params: {
+			series_id: id,
+		},
+	}),
+);
 
 export const startRewatch = command(z.string(), async (id) => {
 	const viewer = remoteViewer();
 
-	await viewer.sora.startRewatch(viewer.profile.id, id);
+	await viewer.sora.request(route.startRewatch, {
+		params: {
+			profile_id: viewer.profile.id,
+			series_id: id,
+		},
+	});
 	await getSeriesProgress(id).refresh();
 });
 
@@ -31,9 +54,19 @@ export const markSeries = command(
 		const viewer = remoteViewer();
 
 		if (watched) {
-			await viewer.sora.markSeriesWatched(viewer.profile.id, seriesId);
+			await viewer.sora.request(route.markSeriesWatched, {
+				params: {
+					profile_id: viewer.profile.id,
+					series_id: seriesId,
+				},
+			});
 		} else {
-			await viewer.sora.removeProgress(viewer.profile.id, seriesId);
+			await viewer.sora.request(route.removeProgress, {
+				params: {
+					profile_id: viewer.profile.id,
+					series_id: seriesId,
+				},
+			});
 		}
 
 		await Promise.all([
@@ -54,15 +87,20 @@ export const markEpisode = command(
 	}),
 	async ({ seriesId, episode, watched }) => {
 		const viewer = remoteViewer();
-		const address = {
-			seriesId,
-			number: episode,
+		const params = {
+			profile_id: viewer.profile.id,
+			series_id: seriesId,
+			episode,
 		};
 
 		if (watched) {
-			await viewer.sora.markEpisodeWatched(viewer.profile.id, address);
+			await viewer.sora.request(route.markEpisodeWatched, {
+				params,
+			});
 		} else {
-			await viewer.sora.markEpisodeUnwatched(viewer.profile.id, address);
+			await viewer.sora.request(route.markEpisodeUnwatched, {
+				params,
+			});
 		}
 
 		await Promise.all([
