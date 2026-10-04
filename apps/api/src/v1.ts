@@ -45,7 +45,7 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 
 import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
-import { pageMeta, snakeCased } from "./openapi/envelope";
+import { pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
 
 const day = 24 * 60 * 60 * 1_000;
@@ -109,7 +109,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
-				results: snakeCased(page.items),
+				results: page.items,
 			},
 			200,
 		);
@@ -127,7 +127,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
-				results: snakeCased(page.items),
+				results: page.items,
 			},
 			200,
 		);
@@ -140,7 +140,7 @@ export const v1Routes = v1
 			return c.json(
 				{
 					meta: {},
-					results: snakeCased(series),
+					results: series,
 				},
 				200,
 			);
@@ -155,10 +155,10 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased({
+				results: {
 					...series,
 					episodes,
-				}),
+				},
 			},
 			200,
 		);
@@ -176,7 +176,7 @@ export const v1Routes = v1
 				meta: {
 					count: images.length,
 				},
-				results: snakeCased(images),
+				results: images,
 			},
 			200,
 		);
@@ -189,27 +189,18 @@ export const v1Routes = v1
 				meta: {
 					count: images.length,
 				},
-				results: snakeCased(images),
+				results: images,
 			},
 			200,
 		);
 	})
 
 	.openapi(route.updateArtwork, async (c) => {
-		const { poster_url, backdrop_url, logo_url, logo_scale, logo_offset_x, logo_offset_y } =
-			c.req.valid("json");
-		const series = await setSeriesArtwork(c.req.valid("param").series_id, {
-			posterUrl: poster_url,
-			backdropUrl: backdrop_url,
-			logoUrl: logo_url,
-			logoScale: logo_scale,
-			logoOffsetX: logo_offset_x,
-			logoOffsetY: logo_offset_y,
-		});
+		const series = await setSeriesArtwork(c.req.valid("param").series_id, c.req.valid("json"));
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(series),
+				results: series,
 			},
 			200,
 		);
@@ -229,7 +220,7 @@ export const v1Routes = v1
 					series_id,
 					count: episodes.length,
 				},
-				results: snakeCased(episodes),
+				results: episodes,
 			},
 			200,
 		);
@@ -262,7 +253,7 @@ export const v1Routes = v1
 					until: until.toISOString(),
 					count: episodes.length,
 				},
-				results: snakeCased(episodes),
+				results: episodes,
 			},
 			200,
 		);
@@ -278,7 +269,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
-				results: snakeCased(page.items),
+				results: page.items,
 			},
 			200,
 		);
@@ -307,7 +298,7 @@ export const v1Routes = v1
 				meta: {
 					count: titles.length,
 				},
-				results: snakeCased(titles),
+				results: titles,
 			},
 			200,
 		);
@@ -346,7 +337,7 @@ export const v1Routes = v1
 					next: adjacent.next === null ? null : playbackPath(series_id, adjacent.next),
 					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
 				},
-				results: snakeCased(playback.media),
+				results: playback.media,
 			},
 			200,
 		);
@@ -366,7 +357,7 @@ export const v1Routes = v1
 				meta: {
 					count: profiles.length,
 				},
-				results: snakeCased(profiles),
+				results: profiles,
 			},
 			200,
 		);
@@ -377,7 +368,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(profile),
+				results: profile,
 			},
 			201,
 		);
@@ -392,7 +383,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(profile),
+				results: profile,
 			},
 			200,
 		);
@@ -411,7 +402,7 @@ export const v1Routes = v1
 				meta: {
 					count: titles.length,
 				},
-				results: snakeCased(titles),
+				results: titles,
 			},
 			200,
 		);
@@ -423,7 +414,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(preferences),
+				results: preferences,
 			},
 			200,
 		);
@@ -431,16 +422,11 @@ export const v1Routes = v1
 
 	.openapi(route.updatePlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
-		const update = c.req.valid("json");
-		const preferences = await updatePlaybackPreferences(profile.id, {
-			audio: update.audio,
-			subtitles: update.subtitles,
-			autoSkip: update.auto_skip,
-		});
+		const preferences = await updatePlaybackPreferences(profile.id, c.req.valid("json"));
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(preferences),
+				results: preferences,
 			},
 			200,
 		);
@@ -456,7 +442,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(progress),
+				results: progress,
 			},
 			200,
 		);
@@ -464,7 +450,6 @@ export const v1Routes = v1
 
 	.openapi(route.saveProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
-		const { position_seconds, duration_seconds, finished } = c.req.valid("json");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await saveProgress(
 			profile.id,
@@ -472,16 +457,12 @@ export const v1Routes = v1
 				seriesId: series_id,
 				episode,
 			},
-			{
-				positionSeconds: position_seconds,
-				durationSeconds: duration_seconds,
-				finished,
-			},
+			c.req.valid("json"),
 		);
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(progress),
+				results: progress,
 			},
 			200,
 		);
@@ -494,7 +475,7 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {},
-				results: snakeCased(progress),
+				results: progress,
 			},
 			200,
 		);
@@ -546,7 +527,7 @@ export const v1Routes = v1
 				meta: {
 					count: shows.length,
 				},
-				results: snakeCased(shows),
+				results: shows,
 			},
 			200,
 		);
@@ -567,7 +548,7 @@ export const v1Routes = v1
 				meta: {
 					count: entries.length,
 				},
-				results: snakeCased(entries),
+				results: entries,
 			},
 			200,
 		);
@@ -598,7 +579,7 @@ export const v1Routes = v1
 					count: notifications.items.length,
 					unread: notifications.unread,
 				},
-				results: snakeCased(notifications.items),
+				results: notifications.items,
 			},
 			200,
 		);

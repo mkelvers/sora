@@ -24,9 +24,6 @@ const app = new Hono()
 	)
 	.onError(onError);
 
-/** The API's type, from which `@sora/sdk`'s client derives every route. */
-export type AppType = typeof app;
-
 /** The body of every error response. */
 export type { Problem } from "./openapi/schemas";
 

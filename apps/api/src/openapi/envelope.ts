@@ -1,46 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import type { PreparingTitle } from "@sora/core/series";
-
-/**
- * A camelCase name in snake_case, as the API spells every JSON field and
- * query parameter: `hasNextPage` becomes `has_next_page`.
- */
-type SnakeCase<TName extends string> = TName extends `${infer THead}${infer TTail}`
-	? `${THead extends Lowercase<THead> ? THead : `_${Lowercase<THead>}`}${SnakeCase<TTail>}`
-	: TName;
-
-/** A core model with every field name, at every depth, in snake_case. */
-export type SnakeCased<TValue> = TValue extends readonly (infer TItem)[]
-	? SnakeCased<TItem>[]
-	: TValue extends object
-		? {
-				[TKey in keyof TValue as TKey extends string ? SnakeCase<TKey> : TKey]: SnakeCased<
-					TValue[TKey]
-				>;
-			}
-		: TValue;
-
-/**
- * Renames every field of a core model, at every depth, to snake_case (see
- * {@link SnakeCase}). The core's models are plain JSON: objects, arrays,
- * strings, numbers, booleans, and nulls.
- */
-export function snakeCased<TValue>(value: TValue): SnakeCased<TValue> {
-	if (Array.isArray(value)) {
-		return value.map(snakeCased) as SnakeCased<TValue>;
-	}
-
-	if (value !== null && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value).map(([name, field]) => [
-				name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
-				snakeCased(field),
-			]),
-		) as SnakeCased<TValue>;
-	}
-
-	return value as SnakeCased<TValue>;
-}
+import { PreparingTitleSchema, type PreparingTitle } from "@sora/core/contract";
 
 /**
  * The body of every successful JSON response: facts about the response, such
@@ -56,26 +15,6 @@ export function envelopeOf<TResults extends z.ZodType, TMeta extends z.ZodType>(
 		results,
 	});
 }
-
-/** A title a page found that is still being prepared; see `PageMeta.preparing_titles`. */
-export const PreparingTitleSchema = z
-	.object({
-		anilist_id: z.number().int().openapi({
-			example: 143653,
-		}),
-		title: z.string().openapi({
-			example: "Insomniacs After School",
-		}),
-		format: z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]).nullable(),
-		year: z.number().int().nullable().openapi({
-			example: 2023,
-		}),
-		position: z.number().int().nonnegative().openapi({
-			description:
-				"Where among the page's cards, from 0, the title is expected once it is prepared.",
-		}),
-	})
-	.openapi("PreparingTitle") satisfies z.ZodType<SnakeCased<PreparingTitle>>;
 
 /** Paging for a list that has more than one page. */
 export const PageMetaSchema = z
@@ -119,7 +58,7 @@ export function pageMeta(
 		perPage: number;
 		hasNextPage: boolean;
 		isPreparing: boolean;
-		preparing?: readonly PreparingTitle[];
+		preparing?: PreparingTitle[];
 	},
 ): z.infer<typeof PageMetaSchema> {
 	const pageUrl = (number: number) => {
@@ -135,12 +74,6 @@ export function pageMeta(
 		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
 		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
 		preparing: page.isPreparing,
-		preparing_titles: (page.preparing ?? []).map((title) => ({
-			anilist_id: title.anilistId,
-			title: title.title,
-			format: title.format,
-			year: title.year,
-			position: title.position,
-		})),
+		preparing_titles: page.preparing ?? [],
 	};
 }

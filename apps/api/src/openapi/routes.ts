@@ -9,40 +9,42 @@
  * within `/v1`.
  */
 import { createRoute, z } from "@hono/zod-openapi";
-import { BrowseQuerySchema } from "@sora/core/catalog";
-import { logoPlacement } from "@sora/core/series";
-
-import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
 import {
+	ArtworkChangesSchema,
+	BrowseQuerySchema,
+	AnimeSeasonSchema,
 	ContinueWatchingSchema,
-	EpisodeNumberParam,
 	EpisodeSchema,
 	ImageTypeSchema,
-	json,
+	NotificationSchema,
 	PlaybackMediaSchema,
-	PlaybackMetaSchema,
-	PlaybackPreferencesSchema,
 	PlaybackPreferencesUpdateSchema,
-	problem,
-	ProfileIdParam,
+	PlaybackPreferencesSchema,
 	ProfileInputSchema,
 	ProfileSchema,
 	ProgressInputSchema,
 	ProgressSchema,
-	AnimeSeasonSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
 	SeriesCardSchema,
-	SeriesIdParam,
 	SeriesImageSchema,
 	SeriesProgressSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
-	NotificationSchema,
-	NotificationsMetaSchema,
-	NotificationsReadSchema,
 	WatchlistEntrySchema,
 	WatchlistStatusSchema,
+} from "@sora/core/contract";
+
+import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
+import {
+	EpisodeNumberParam,
+	json,
+	NotificationsMetaSchema,
+	NotificationsReadSchema,
+	PlaybackMetaSchema,
+	problem,
+	ProfileIdParam,
+	SeriesIdParam,
 } from "./schemas";
 
 const { shape: browse } = BrowseQuerySchema;
@@ -252,25 +254,6 @@ export const refreshImages = createRoute({
 	},
 });
 
-/** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
-const ArtworkUrl = z
-	.union([
-		z
-			.url({
-				protocol: /^https$/,
-			})
-			.max(2_048),
-		z.literal(false),
-	])
-	.nullable()
-	.optional();
-
-const LogoOffset = z
-	.number()
-	.min(logoPlacement.offset.min)
-	.max(logoPlacement.offset.max)
-	.optional();
-
 export const updateArtwork = createRoute({
 	operationId: "updateArtwork",
 	method: "patch",
@@ -287,32 +270,7 @@ export const updateArtwork = createRoute({
 			required: true,
 			content: {
 				"application/json": {
-					schema: z
-						.object({
-							poster_url: ArtworkUrl,
-							backdrop_url: ArtworkUrl,
-							logo_url: ArtworkUrl,
-							logo_scale: z
-								.number()
-								.min(logoPlacement.scale.min)
-								.max(logoPlacement.scale.max)
-								.optional()
-								.openapi({
-									description: `How large to draw the logo, relative to its usual size: 1 is as usual, from ${logoPlacement.scale.min} to ${logoPlacement.scale.max}.`,
-								}),
-							logo_offset_x: LogoOffset.openapi({
-								description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
-							}),
-							logo_offset_y: LogoOffset.openapi({
-								description: `How far down to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
-							}),
-						})
-						.strict()
-						.openapi("ArtworkChanges", {
-							example: {
-								backdrop_url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
-							},
-						}),
+					schema: ArtworkChangesSchema,
 				},
 			},
 		},
