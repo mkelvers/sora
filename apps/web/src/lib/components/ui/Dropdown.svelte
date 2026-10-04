@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	import { cva, type VariantProps } from "class-variance-authority";
 
-	const trigger = cva(
+	const triggerVariants = cva(
 		"dropdown-trigger group-has-[.dropdown-menu:popover-open]:bg-white/8 group-has-[.dropdown-menu:popover-open]:text-foreground",
 		{
 			variants: {
@@ -65,7 +65,7 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
-		variant?: NonNullable<VariantProps<typeof trigger>["variant"]>;
+		variant?: NonNullable<VariantProps<typeof triggerVariants>["variant"]>;
 		class?: string;
 	};
 
@@ -75,7 +75,7 @@
 		children,
 		class: className,
 		label,
-		trigger: triggerContent,
+		trigger,
 	}: Props = $props();
 
 	const popover = new Popover({
@@ -100,12 +100,12 @@
 	<Button
 		{...popover.trigger}
 		variant="ghost"
-		class={trigger({
+		class={triggerVariants({
 			variant,
 		})}
 		aria-label={label}
 	>
-		{@render triggerContent()}
+		{@render trigger()}
 	</Button>
 
 	<div
