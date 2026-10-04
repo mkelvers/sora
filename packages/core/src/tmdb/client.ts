@@ -8,6 +8,7 @@ import { config } from "../config";
 import { db } from "../database/client";
 import { tmdbResponse } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
+import { InFlight } from "../in-flight";
 
 const endpoint = "https://api.themoviedb.org/3";
 
@@ -42,7 +43,7 @@ export interface TmdbRequestOptions {
 }
 
 let nextRequestAt = 0;
-const inFlight = new Map<string, Promise<unknown>>();
+const inFlight = new InFlight<string, unknown>();
 
 /**
  * Fetches a TMDB v3 resource with request coalescing and rate limiting,
@@ -86,17 +87,12 @@ export async function tmdb<TSchema extends z.ZodType>(
 		return kept.data;
 	}
 
-	let pending = inFlight.get(key);
-	if (!pending) {
-		pending = fetchAndStore(key, path, url, options).finally(() => {
-			inFlight.delete(key);
-		});
-		inFlight.set(key, pending);
-	}
-
-	const { data, error } = await attempt(pending);
+	const { data, error } = await attempt(
+		inFlight.run(key, () => fetchAndStore(key, path, url, options)),
+		UpstreamUnavailableError,
+	);
 	if (error) {
-		if (kept?.success && error instanceof UpstreamUnavailableError) {
+		if (kept?.success) {
 			return kept.data;
 		}
 		throw error;
