@@ -2,7 +2,6 @@
 	import { invalidate } from "$app/navigation";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import { mascots } from "$lib/mascots";
-	import { timeZoneCookie } from "$lib/utils";
 
 	import Header from "./components/Header.svelte";
 	import { Library, setLibrary } from "./library.svelte";
@@ -13,8 +12,8 @@
 
 	$effect(() => {
 		const zone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
-		if (!document.cookie.split("; ").includes(`${timeZoneCookie}=${zone}`)) {
-			document.cookie = `${timeZoneCookie}=${zone}; path=/; max-age=31536000; samesite=lax`;
+		if (!document.cookie.split("; ").includes(`sora_tz=${zone}`)) {
+			document.cookie = `sora_tz=${zone}; path=/; max-age=31536000; samesite=lax`;
 			invalidate("sora:time-zone");
 		}
 	});
