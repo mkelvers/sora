@@ -29,14 +29,11 @@
 		profiles: Profile[];
 	} = $props();
 
-	const others = $derived(profiles.filter((other) => other.id !== profile.id));
-	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
-	const unreadQuery = getUnreadNotifications();
-	const unread = $derived(unreadQuery.current ?? 0);
-	const genresQuery = getGenres();
-	const genres = $derived(genresQuery.current ?? []);
+	const unread = getUnreadNotifications();
+	const genres = getGenres();
 
-	let categoriesOpen = $state(false);
+	// Whether the "Categories" group in the mobile menu is expanded.
+	let categories = $state(false);
 
 	const sections = [
 		{
@@ -53,7 +50,7 @@
 		},
 	];
 
-	const categories = [
+	const links = [
 		...sections,
 		{
 			href: "/calendar",
@@ -61,7 +58,7 @@
 		},
 	];
 
-	$effect(() => pollWhileVisible(() => unreadQuery.refresh()));
+	$effect(() => pollWhileVisible(() => unread.refresh()));
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
@@ -79,7 +76,7 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
-						{#each categories as section (section.href)}
+						{#each links as section (section.href)}
 							<li>
 								<Button
 									href={section.href}
@@ -95,23 +92,23 @@
 							<Button
 								variant="item"
 								class="justify-between text-base aria-expanded:text-foreground"
-								aria-expanded={categoriesOpen}
+								aria-expanded={categories}
 								aria-controls="menu-genres"
 								onclick={(event: MouseEvent) => {
 									event.stopPropagation();
-									categoriesOpen = !categoriesOpen;
+									categories = !categories;
 								}}
 							>
 								Categories
 								<CaretDownIcon
 									size="1rem"
 									weight="fill"
-									class={cn("transition-transform", categoriesOpen && "rotate-180")}
+									class={cn("transition-transform", categories && "rotate-180")}
 								/>
 							</Button>
-							{#if categoriesOpen}
+							{#if categories}
 								<ul id="menu-genres" class="bg-tooltip/50">
-									{#each genres as genre (genre)}
+									{#each genres.current ?? [] as genre (genre)}
 										{@const slug = genre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
 										<li>
 											<Button
@@ -134,7 +131,7 @@
 
 		<a
 			href="/"
-			class="inline-flex h-full items-center px-1 max-[60rem]:group-has-[[role=search]>div:not([inert])]/nav:mr-auto max-sm:mr-auto sm:px-3"
+			class="inline-flex h-full items-center px-1 max-[60rem]:group-has-[[role=search]>button[aria-expanded=true]]/nav:mr-auto max-sm:mr-auto sm:px-3"
 			aria-label="Home"
 			aria-current={page.url.pathname === "/" ? "page" : undefined}
 		>
@@ -142,7 +139,7 @@
 		</a>
 
 		<ul
-			class="mr-auto flex h-full max-[60rem]:group-has-[[role=search]>div:not([inert])]/nav:hidden max-sm:hidden"
+			class="mr-auto flex h-full max-[60rem]:group-has-[[role=search]>button[aria-expanded=true]]/nav:hidden max-sm:hidden"
 		>
 			{#each sections as section (section.href)}
 				<li class="max-lg:hidden">
@@ -168,7 +165,7 @@
 
 					{#snippet children()}
 						<ul class="w-56 shrink-0 border-r border-border">
-							{#each categories as section (section.href)}
+							{#each links as section (section.href)}
 								<li>
 									<Button
 										href={section.href}
@@ -189,7 +186,7 @@
 								Genres
 							</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
-								{#each genres as genre (genre)}
+								{#each genres.current ?? [] as genre (genre)}
 									{@const slug = genre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
 									<li>
 										<Button
@@ -225,10 +222,10 @@
 				href="/notifications"
 				class={cn(
 					"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
-					unread > 0 &&
+					unread.current &&
 						"after:absolute after:top-3.5 after:right-3 after:size-2 after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
 				)}
-				aria-label={unread > 0 ? "Notifications, new notifications" : "Notifications"}
+				aria-label={unread.current ? "Notifications, new notifications" : "Notifications"}
 				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
 			>
 				<BellSimpleIcon size="1.5rem" />
@@ -238,7 +235,7 @@
 				<Dropdown
 					variant="bar"
 					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-header-hover max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
-					label={unread > 0
+					label={unread.current
 						? `Account menu for ${profile.name}, new notifications`
 						: `Account menu for ${profile.name}`}
 				>
@@ -276,8 +273,14 @@
 									<PencilSimpleIcon size="1.1rem" class="text-muted max-sm:size-6" />
 								</Button>
 
-								<form class="contents" method="POST" action="/profiles?/select&redirect={here}">
-									{#each others as other (other.id)}
+								<form
+									class="contents"
+									method="POST"
+									action="/profiles?/select&redirect={encodeURIComponent(
+										page.url.pathname + page.url.search,
+									)}"
+								>
+									{#each profiles.filter((other) => other.id !== profile.id) as other (other.id)}
 										<Button
 											role="menuitem"
 											type="submit"
@@ -319,13 +322,13 @@
 									variant="item"
 									class={cn(
 										"min-h-14 gap-4 py-4 text-base sm:hidden",
-										unread > 0 && "after:size-2 after:bg-status-error",
+										unread.current && "after:size-2 after:bg-status-error",
 									)}
 									aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
 								>
 									<BellSimpleIcon size="1.5rem" />
 									Notifications
-									{#if unread > 0}<span class="sr-only">, new notifications</span>{/if}
+									{#if unread.current}<span class="sr-only">, new notifications</span>{/if}
 								</Button>
 							</div>
 

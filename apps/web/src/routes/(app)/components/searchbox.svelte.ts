@@ -1,7 +1,6 @@
 import { afterNavigate, goto } from "$app/navigation";
 import { page } from "$app/state";
 import { tick } from "svelte";
-import { MediaQuery } from "svelte/reactivity";
 
 export class Search {
 	form = $state<HTMLFormElement>();
@@ -17,19 +16,12 @@ export class Search {
 	retry: (() => void) | undefined;
 
 	private timer: ReturnType<typeof setTimeout> | undefined;
-	private mobile = new MediaQuery("max-width: 39.99rem", false);
 
 	onSearch = $derived(page.url.pathname === "/search");
 	query = $derived(page.url.searchParams.get("q") ?? "");
-	expanded = $derived(this.open || this.mobile.current);
 	typing = $derived(this.text.trim() !== this.term);
 	shown = $derived(
-		this.expanded &&
-			this.focused &&
-			!this.dismissed &&
-			!this.onSearch &&
-			!!this.term &&
-			!!this.text.trim(),
+		this.focused && !this.dismissed && !this.onSearch && !!this.term && !!this.text.trim(),
 	);
 	activeId = $derived(this.shown && this.active >= 0 ? `search-option-${this.active}` : undefined);
 

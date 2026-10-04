@@ -23,10 +23,9 @@
 >
 	<div
 		class={cn(
-			"flex w-0 items-center overflow-hidden bg-header-hover transition-[width,flex-grow] duration-260 ease-out motion-reduce:transition-none",
-			search.expanded && "max-sm:w-full sm:w-[min(22.5rem,calc(100vw-9rem))]",
+			"flex items-center overflow-hidden bg-header-hover transition-[width,flex-grow,visibility] duration-260 ease-out motion-reduce:transition-none max-sm:visible max-sm:w-full",
+			search.open ? "sm:w-[min(22.5rem,calc(100vw-9rem))]" : "invisible w-0",
 		)}
-		inert={!search.expanded}
 	>
 		<MagnifyingGlassIcon size="1.25rem" class="ml-4 shrink-0 text-muted sm:hidden" />
 		<input
