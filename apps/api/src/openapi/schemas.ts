@@ -9,22 +9,19 @@ import type { Profile, ProfileAvatar } from "@sora/core/auth";
 import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatching,
-	Dropped,
-	HistoryItem,
 	NextEpisode,
-	Notification,
 	PlaybackPreferences,
 	Progress,
 	SeriesProgress,
-	Show,
 	SubtitleChoice,
+	WatchlistEntry,
+	WatchlistStatus,
 } from "@sora/core/library";
 import type { PlaybackMedia, SkipSegment } from "@sora/core/playback";
 import type {
+	Episode,
 	Release,
 	ScheduledEpisode,
-	Season,
-	SeasonEpisode,
 	Series,
 	SeriesCard,
 	SeriesImage,
@@ -107,15 +104,6 @@ export const SeriesIdParam = z.string().openapi({
 	example: "GYZJ43JMR",
 });
 
-export const SeasonIdParam = z.string().openapi({
-	param: {
-		name: "season_id",
-		in: "path",
-	},
-	description: "Sora season ID.",
-	example: "G6NQ5DWZ6",
-});
-
 export const ProfileIdParam = z.string().openapi({
 	param: {
 		name: "profile_id",
@@ -134,7 +122,7 @@ export const EpisodeNumberParam = z.coerce
 			name: "episode",
 			in: "path",
 		},
-		description: "Position within the season, from 1.",
+		description: "The episode's number in the series, from 1.",
 		example: 1,
 	});
 
@@ -143,17 +131,31 @@ const StatusSchema = z.enum(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CANCE
 /** Dubbed audio, the original audio with subtitles (sub), or the original audio alone (raw). */
 const LanguageSchema = z.enum(["dub", "sub", "raw"]);
 
+const FormatSchema = z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]);
+
 export const SeriesCardSchema = z
 	.object({
 		id: z.string().openapi({
 			example: "GYZJ43JMR",
 		}),
-		kind: z.enum(["tv", "movie", "standalone"]),
-		title: z.string().openapi({
-			example: "That Time I Got Reincarnated as a Slime",
+		kind: z.enum(["tv", "movie", "standalone"]).openapi({
+			description:
+				"How TMDB lists the entry: in a show (`tv`), as a film (`movie`), or not at all (`standalone`).",
 		}),
-		poster_url: z.string().nullable(),
-		backdrop_url: z.string().nullable(),
+		format: FormatSchema.nullable().openapi({
+			description: "What AniList lists the entry as, such as a TV season, a film, or an OVA.",
+		}),
+		title: z.string().openapi({
+			description: "AniList's title of the entry, which names its season.",
+			example: "That Time I Got Reincarnated as a Slime Season 2",
+		}),
+		poster_url: z.string().nullable().openapi({
+			description: "AniList's cover of the entry.",
+		}),
+		backdrop_url: z.string().nullable().openapi({
+			description:
+				"TMDB's backdrop of the show or film, which the seasons of a show share, or AniList's banner when TMDB has none.",
+		}),
 		logo_url: z.string().nullable(),
 		logo_scale: z.number().openapi({
 			description: "How large to draw the logo, relative to its usual size: 1 is as usual.",
@@ -170,7 +172,7 @@ export const SeriesCardSchema = z
 			example: 0,
 		}),
 		year: z.number().int().nullable().openapi({
-			example: 2018,
+			example: 2021,
 		}),
 		status: StatusSchema.nullable(),
 		audio: z.array(LanguageSchema).openapi({
@@ -179,20 +181,13 @@ export const SeriesCardSchema = z
 		}),
 		overview: z.string().nullable(),
 		score: z.number().nullable().openapi({
-			description: "AniList's weighted score of the first season, 0–100.",
+			description: "AniList's weighted score, 0–100.",
 		}),
 		genres: z.array(z.string()).openapi({
-			description: "AniList's genres of the first season.",
-		}),
-		season_count: z.number().int().openapi({
-			description: "How many regular seasons it has, OVAs and films left out. A film has none.",
+			description: "AniList's genres.",
 		}),
 		episode_count: z.number().int().openapi({
-			description: "How many episodes its regular seasons list.",
-		}),
-		start_season_id: z.string().nullable().openapi({
-			description:
-				"The season watching starts at: the first in watch order, or the first season when none is. Null for a title with no seasons laid out.",
+			description: "How many episodes it lists, as `listEpisodes` lists them.",
 		}),
 	})
 	.openapi("SeriesCard") satisfies z.ZodType<SnakeCased<SeriesCard>>;
@@ -202,24 +197,6 @@ const TagSchema = z.object({
 	rank: z.number().nullable(),
 	spoiler: z.boolean(),
 }) satisfies z.ZodType<SnakeCased<AnimeTag>>;
-
-export const SeasonSchema = z
-	.object({
-		id: z.string().openapi({
-			example: "G6NQ5DWZ6",
-		}),
-		kind: z.enum(["season", "ova", "movie"]),
-		number: z.number().int(),
-		title: z.string().openapi({
-			example: "Season 1",
-		}),
-		in_watch_order: z.boolean().openapi({
-			description:
-				"Whether the season is part of the story in watch order: regular seasons and the films and OVAs between them. Extras, such as side-story OVAs and recaps, are not.",
-		}),
-		episode_count: z.number().int(),
-	})
-	.openapi("Season") satisfies z.ZodType<SnakeCased<Season>>;
 
 export const SeriesSchema = SeriesCardSchema.extend({
 	start_date: z.string().nullable().openapi({
@@ -231,16 +208,18 @@ export const SeriesSchema = SeriesCardSchema.extend({
 	studios: z.array(z.string()),
 	score_count: z.number().int().nullable().openapi({
 		description:
-			"How many AniList users have scored the first season, behind `score`. Null until Sora's search index has it.",
+			"How many AniList users have scored it, behind `score`. Null until Sora's search index has it.",
 		example: 610640,
 	}),
 	next_episode: z
 		.object({
-			season_id: z.string(),
 			number: z.number().int(),
 			airing_at: z.string(),
 		})
-		.nullable(),
+		.nullable()
+		.openapi({
+			description: "The next episode to air, or null when none is announced.",
+		}),
 	backdrop_edges: z
 		.object({
 			left: z.string().openapi({
@@ -255,8 +234,25 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			description:
 				"The backdrop's average colour down its left and right edges, as `#rrggbb`, to fill the space beside it when it is shown whole. Null without a backdrop, or until Sora has measured it.",
 		}),
-	seasons: z.array(SeasonSchema),
-	related: z.array(SeriesCardSchema),
+	franchise: z
+		.array(
+			z.object({
+				series_id: z.string(),
+				title: z.string().openapi({
+					description:
+						"The title without the franchise's name, such as `Season 2`, `OAD`, or `Tears of the Azure Sea`; the first season is `Season 1`. A title not named after the franchise keeps its whole title.",
+					example: "Season 2",
+				}),
+				format: FormatSchema.nullable(),
+				episode_count: z.number().int().openapi({
+					description: "How many of its episodes can be watched.",
+				}),
+			}),
+		)
+		.openapi({
+			description:
+				"Every title of its franchise that is out, this one included, as AniList relates them: its seasons in release order, then its films, OVAs, and spin-offs. Just this one when it has no other.",
+		}),
 }).openapi("Series") satisfies z.ZodType<SnakeCased<Series>>;
 
 export const ImageTypeSchema = z.enum(["poster", "backdrop", "logo"]);
@@ -296,12 +292,12 @@ export const UpcomingSeriesSchema = z
 		}),
 		returning: z.boolean().openapi({
 			description:
-				"Whether the title already has something out, so what starts is a new season, film, or OVA of it, or of a title related to it, rather than a new title.",
+				"Whether what starts belongs to a franchise with something out already, such as a new season of a show, rather than being a new title. `series` is then the earliest title of the franchise that is out, the one to start catching up on.",
 		}),
 	})
 	.openapi("UpcomingSeries") satisfies z.ZodType<SnakeCased<UpcomingSeries>>;
 
-export const SeasonEpisodeSchema = z
+export const EpisodeSchema = z
 	.object({
 		number: z.number().int(),
 		title: z.string().nullable(),
@@ -319,23 +315,21 @@ export const SeasonEpisodeSchema = z
 		still_url: z.string().nullable(),
 		audio: z.array(LanguageSchema).nullable().openapi({
 			description:
-				"The audio the episode can be watched with, dub before sub before raw: dubbed, the original with subtitles, or the original alone. Empty when nothing streams it, and null only when Sora could not look it up on providers yet: list the season again shortly.",
+				"The audio the episode can be watched with, dub before sub before raw: dubbed, the original with subtitles, or the original alone. Empty when nothing streams it, and null only when Sora could not look it up on providers yet: list the episodes again shortly.",
 		}),
 		filler: z.boolean().openapi({
 			description:
 				"Whether the episode is filler: story the manga does not have. False when no provider says it is.",
 		}),
-		extra: z.boolean().openapi({
-			description: "An extra only TMDB lists, such as a recap special. It cannot be played.",
-		}),
 	})
-	.openapi("SeasonEpisode") satisfies z.ZodType<SnakeCased<SeasonEpisode>>;
+	.openapi("Episode") satisfies z.ZodType<SnakeCased<Episode>>;
 
 export const ScheduledEpisodeSchema = z
 	.object({
 		series: SeriesCardSchema,
-		season_id: z.string(),
-		episode: z.number().int(),
+		episode: z.number().int().openapi({
+			description: "The episode's number in the series, from 1.",
+		}),
 		air_type: z.enum(["sub", "dub"]).openapi({
 			description:
 				"Whether it comes out with English subtitles (`sub`) or dubbed in English (`dub`).",
@@ -356,12 +350,8 @@ export const AnimeSeasonSchema = z
 export const ReleaseSchema = z
 	.object({
 		series: SeriesCardSchema,
-		season_id: z.string(),
-		season_title: z.string().openapi({
-			example: "Season 2",
-		}),
 		episode: z.number().int().openapi({
-			description: "Position within the season, from 1.",
+			description: "The episode's number in the series, from 1.",
 		}),
 		released_at: z.string().openapi({
 			description:
@@ -456,7 +446,6 @@ export const PlaybackMediaSchema = z
 export const PlaybackMetaSchema = z
 	.object({
 		series_id: z.string(),
-		season_id: z.string(),
 		episode: z.number().int(),
 		expires_at: z.string().openapi({
 			description:
@@ -465,8 +454,8 @@ export const PlaybackMetaSchema = z
 		}),
 		next: z.string().nullable().openapi({
 			description:
-				"The next episode's playback URL, into the next season in watch order (or the next extra, from an extra) after a season's last episode, or null after the last one.",
-			example: "/v1/series/GYZJ43JMR/seasons/G6NQ5DWZ6/episodes/2/playback",
+				"The next episode's playback URL, or null after the last one the title lists: playing never runs on into another title, such as the next season.",
+			example: "/v1/series/GYZJ43JMR/episodes/2/playback",
 		}),
 		previous: z.string().nullable().openapi({
 			description: "The previous episode's playback URL, or null before the first one.",
@@ -578,9 +567,9 @@ export const PlaybackPreferencesUpdateSchema = z
 
 export const ProgressSchema = z
 	.object({
-		season_id: z.string(),
+		series_id: z.string(),
 		episode: z.number().int().openapi({
-			description: "Position within the season, from 1.",
+			description: "The episode's number in the series, from 1.",
 		}),
 		position_seconds: z.number().int().openapi({
 			description: "Where the profile stopped, in seconds from the start.",
@@ -592,7 +581,7 @@ export const ProgressSchema = z
 		}),
 		finished: z.boolean().openapi({
 			description:
-				"Whether the profile stopped where the episode is over, as the player it watched in judged: it played to the end, or only its credits were left. Play a finished episode from the start.",
+				"Whether the profile stopped where the episode is over, as the player it watched in judged: it played to the end, or stopped in or after its ending. Playing part of a finished episode again leaves it finished. Play a finished episode from the start.",
 		}),
 		watched_at: z.string().openapi({
 			description: "When the profile last played the episode, as an ISO 8601 timestamp.",
@@ -619,16 +608,8 @@ export const ProgressInputSchema = z
 	});
 
 const nextEpisode = {
-	season_id: z.string(),
-	season_title: z.string().openapi({
-		example: "Season 2",
-	}),
-	season_kind: z.enum(["season", "ova", "movie"]),
-	season_number: z.number().int().openapi({
-		description: "The season's position among the show's seasons of the same kind, from 1.",
-	}),
 	episode: z.number().int().openapi({
-		description: "Position within the season, from 1.",
+		description: "The episode's number in the series, from 1.",
 	}),
 	position_seconds: z.number().int().openapi({
 		description: "Where to resume the episode, in seconds; 0 for one not started.",
@@ -649,197 +630,42 @@ export const ContinueWatchingSchema = z
 	})
 	.openapi("ContinueWatching") satisfies z.ZodType<SnakeCased<ContinueWatching>>;
 
+export const WatchlistStatusSchema = z
+	.enum(["watching", "plan_to_watch", "completed", "dropped"])
+	.openapi("WatchlistStatus", {
+		description:
+			"Where the profile is with a title on its watchlist. The profile picks it, and playing an episode moves it on: finishing an episode of a listed title makes it `watching`, and finishing the finale of a title that has finished airing makes it `completed`, adding it when it was not listed. A `completed` title stays completed.",
+	}) satisfies z.ZodType<WatchlistStatus>;
+
+export const WatchlistEntrySchema = z
+	.object({
+		series: SeriesCardSchema,
+		status: WatchlistStatusSchema,
+		added_at: z.string().openapi({
+			description: "When the title was put on the watchlist, as an ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+		updated_at: z.string().openapi({
+			description: "When its status last changed, as an ISO 8601 timestamp.",
+			example: "2026-10-01T18:00:00.000Z",
+		}),
+	})
+	.openapi("WatchlistEntry") satisfies z.ZodType<SnakeCased<WatchlistEntry>>;
+
 export const SeriesProgressSchema = z
 	.object({
 		episodes: z.array(ProgressSchema).openapi({
 			description:
-				"The progress in every episode of the show the profile played, the most recently played first.",
-		}),
-		watched: z
-			.array(
-				z.object({
-					season_id: z.string(),
-					episode: z.number().int().openapi({
-						description: "Position within the season, from 1.",
-					}),
-				}),
-			)
-			.openapi({
-				description:
-					"The episodes of the show the profile watched, in no particular order: the ones it finished at some point, and the ones it marked. One stays here while its progress is unfinished again from playing it a second time.",
-			}),
-		watched_seasons: z.array(z.string()).openapi({
-			description: "The IDs of the seasons whose every episode that can be played is in `watched`.",
-		}),
-		completed_seasons: z.array(z.string()).openapi({
-			description:
-				"The IDs of the seasons the profile completed: the ones in `watched_seasons` that have finished coming out. A season still airing is never complete.",
-		}),
-		completed: z.boolean().openapi({
-			description:
-				"Whether the profile completed the show: every regular season of its story that has an episode out is in `completed_seasons`. Films, OVAs, and specials do not count, unless the show has no regular season; nor does a season announced with nothing out yet. A new season starting to air makes a completed show incomplete again.",
+				"The progress in every episode of the title the profile played, the most recently played first: in the rewatch it is in the middle of, if any, else in its first viewing.",
 		}),
 		next: NextEpisodeSchema.nullable().openapi({
 			description:
-				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the show, or nothing comes after the last one it finished.",
+				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the title, or finished the last episode that is out.",
 		}),
-		offered: NextEpisodeSchema.nullable().openapi({
+		rewatch_started_at: z.string().nullable().openapi({
 			description:
-				"The first episode of the part that comes after, when `next` is null because the show does not go on into that part by itself: a season still airing, one that came out after the profile finished the one before it, a film, an OVA, or a special. The profile starts it to go on.",
+				"When the profile started watching the title again from the start (see `startRewatch`), as an ISO 8601 timestamp; null when it is not.",
+			example: "2026-10-03T18:00:00.000Z",
 		}),
 	})
 	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
-
-export const ShowSchema = z
-	.object({
-		series: SeriesCardSchema,
-		added_at: z.string().openapi({
-			description: "When the series entered the profile's Shows, as an ISO 8601 timestamp.",
-			example: "2026-10-01T18:00:00.000Z",
-		}),
-		status: z.enum(["planned", "watching", "completed", "dropped"]).openapi({
-			description:
-				"Where the profile is with the series. `planned`: saved, with nothing played or watched yet. `watching`: a season it started is not complete, which being caught up with one still airing is too, or the season after was already out when it finished. `completed`: it finished every season it started, with no season after them that was out by then; one that came out since is `offered`, and changes nothing until the profile starts it. `dropped`: given up on; see `dropShow`. Show the status as it is, rather than working it out again from `next`, `offered`, or the counts.",
-		}),
-		next: NextEpisodeSchema.nullable().openapi({
-			description: "The episode to play next, as `SeriesProgress.next` tells it.",
-		}),
-		offered: NextEpisodeSchema.nullable().openapi({
-			description:
-				"The episode the series stops before, as `SeriesProgress.offered` tells it. On a `completed` series, it is the part that came out since, or that the profile never started.",
-		}),
-		episode_count: z.number().int().nonnegative().openapi({
-			description: "How many episodes of the series can be played, in all of its seasons.",
-		}),
-		watched_count: z.number().int().nonnegative().openapi({
-			description: "How many of those episodes the profile watched.",
-		}),
-		active_at: z.string().openapi({
-			description:
-				"When the profile last had to do with the series: played an episode of it, or, before that, added it. An ISO 8601 timestamp.",
-			example: "2026-10-01T18:00:00.000Z",
-		}),
-	})
-	.openapi("Show") satisfies z.ZodType<SnakeCased<Show>>;
-
-export const HistoryItemSchema = z
-	.object({
-		series: SeriesCardSchema,
-		season_id: z.string(),
-		season_title: z.string().openapi({
-			example: "Season 2",
-		}),
-		season_kind: z.enum(["season", "ova", "movie"]),
-		episode: z.number().int().openapi({
-			description: "Position within the season, from 1.",
-		}),
-		episode_title: z.string().nullable(),
-		episode_still_url: z.string().nullable(),
-		watched: z.boolean().openapi({
-			description:
-				"Whether the profile watched the episode: finished it at some point, or marked it. One it only played part of is not watched.",
-		}),
-		position_seconds: z.number().int().nullable().openapi({
-			description:
-				"Where the profile stopped when it last played the episode, in seconds from the start; null for one it marked watched and never played.",
-		}),
-		duration_seconds: z.number().int().nullable().openapi({
-			description:
-				"How long the episode ran when the profile last played it, in seconds; null for one it marked watched and never played.",
-		}),
-		listed_at: z.string().openapi({
-			description:
-				"When the episode took its place in the history, as an ISO 8601 timestamp: when the profile first finished or marked it, or, for one not watched yet, when it last played it.",
-			example: "2026-10-01T18:00:00.000Z",
-		}),
-	})
-	.openapi("HistoryItem") satisfies z.ZodType<SnakeCased<HistoryItem>>;
-
-export const HistoryMetaSchema = z
-	.object({
-		count: z.number().int().nonnegative(),
-		next: z.string().nullable().openapi({
-			description: "The next page's URL, or null on the last page.",
-			example: "/v1/profiles/7HTQ2LMXB/history?after=2026-10-01T18:00:00.000Z_EWBMBNIV4_12",
-		}),
-	})
-	.openapi("HistoryMeta");
-
-export const DroppedSchema = z
-	.object({
-		series_ids: z.array(z.string()).openapi({
-			description: "The series the profile dropped.",
-		}),
-		related_series_ids: z.array(z.string()).openapi({
-			description:
-				"The stored series related to a dropped one, such as its spin-offs and the sequels listed as shows of their own. They are not dropped, but leave them out of what is suggested to the profile all the same.",
-		}),
-	})
-	.openapi("Dropped") satisfies z.ZodType<SnakeCased<Dropped>>;
-
-export const NotificationSchema = z
-	.object({
-		id: z.string().openapi({
-			description: "Stable for as long as the notification is listed.",
-			example: "EWBMBNIV4:13",
-		}),
-		kind: z.enum(["season", "episodes", "dub"]).openapi({
-			description:
-				"`season` when the season came out, with its first episodes or as a film; `episodes` when a season that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
-		}),
-		series: SeriesCardSchema,
-		season: z.object({
-			id: z.string(),
-			kind: z.enum(["season", "ova", "movie"]),
-			number: z.number().int().openapi({
-				description: "Position among the series' seasons of the same kind, from 1.",
-			}),
-			title: z.string().openapi({
-				example: "Season 2",
-			}),
-		}),
-		first_episode: z.number().int().openapi({
-			description: "The first episode that came out, or was dubbed, from 1 within the season.",
-		}),
-		last_episode: z.number().int().openapi({
-			description: "The last such episode; the same as `first_episode` when there was one.",
-		}),
-		episode_title: z.string().nullable().openapi({
-			description: "The title of `last_episode`.",
-		}),
-		still_url: z.string().nullable().openapi({
-			description:
-				"A still of the season's first episode for a new season, and of `last_episode` otherwise.",
-		}),
-		released_at: z.string().openapi({
-			description: "When it came out, as an ISO 8601 timestamp.",
-		}),
-		unread: z.boolean().openapi({
-			description: "Whether the profile has not marked it read.",
-		}),
-	})
-	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
-
-export const NotificationsMetaSchema = z
-	.object({
-		count: z.number().int().nonnegative(),
-		unread: z.number().int().nonnegative().openapi({
-			description:
-				"How many of the profile's notifications are unread, including those past `limit`.",
-		}),
-	})
-	.openapi("NotificationsMeta");
-
-export const NotificationsReadSchema = z
-	.object({
-		ids: z
-			.array(z.string().min(1))
-			.min(1)
-			.max(100)
-			.openapi({
-				description:
-					"The `id` of each notification to mark read: the ones the profile was shown, so one that came out meanwhile stays unread.",
-				example: ["EWBMBNIV4:13"],
-			}),
-	})
-	.openapi("NotificationsRead");
