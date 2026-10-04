@@ -255,7 +255,8 @@ test("fails every caller of a request AniList fails, and asks again on the next 
 	const results = await Promise.allSettled([load([40]), load([41])]);
 
 	expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
-	expect((await load([40])).get(40)).toEqual({
+	const loaded = await load([40]);
+	expect(loaded.get(40)).toEqual({
 		id: 40,
 	});
 	expect(sent.map((variables) => variables.ids0)).toEqual([[40, 41], [40]]);

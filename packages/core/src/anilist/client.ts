@@ -570,7 +570,7 @@ function followRateLimit(response: Response) {
 }
 
 async function execute(query: string, variables: unknown) {
-	const { data: response, error: unreachable } = await attempt(
+	const response = await attempt(
 		fetch(endpoint, {
 			method: "POST",
 			headers: {
@@ -584,17 +584,17 @@ async function execute(query: string, variables: unknown) {
 			signal: AbortSignal.timeout(requestTimeoutMs),
 		}),
 	);
-	if (unreachable) {
+	if (response.error) {
 		throw new UpstreamUnavailableError("AniList could not be reached", {
 			retryAfterMs: null,
-			cause: unreachable,
+			cause: response.error,
 		});
 	}
 
-	followRateLimit(response);
+	followRateLimit(response.data);
 
-	if (response.status === 429) {
-		const retryAfterMs = retryAfter(response) ?? 60_000;
+	if (response.data.status === 429) {
+		const retryAfterMs = retryAfter(response.data) ?? 60_000;
 		// Pause every queued request, not just this one.
 		nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
 		budget = {
@@ -606,36 +606,39 @@ async function execute(query: string, variables: unknown) {
 		});
 	}
 
-	const { data: json, error: unreadable } = await attempt(response.json());
-	if (unreadable) {
+	const json = await attempt(response.data.json());
+	if (json.error) {
 		throw new UpstreamUnavailableError(
-			`AniList returned a ${response.status} response that is not JSON`,
+			`AniList returned a ${response.data.status} response that is not JSON`,
 			{
 				retryAfterMs: null,
-				cause: unreadable,
+				cause: json.error,
 			},
 		);
 	}
 
-	const body = EnvelopeSchema.safeParse(json);
+	const body = EnvelopeSchema.safeParse(json.data);
 	if (!body.success) {
-		throw new UpstreamUnavailableError(`AniList returned an invalid ${response.status} response`, {
-			retryAfterMs: null,
-			cause: body.error,
-		});
+		throw new UpstreamUnavailableError(
+			`AniList returned an invalid ${response.data.status} response`,
+			{
+				retryAfterMs: null,
+				cause: body.error,
+			},
+		);
 	}
 
 	// AniList reports a missing Media as a 404 GraphQL error with `data.Media: null`.
 	// That is a valid answer, not an outage, so it is returned as data.
 	const notFoundOnly = body.data.errors?.every((error) => error.status === 404) ?? false;
-	if (body.data.data && (response.ok || notFoundOnly)) {
+	if (body.data.data && (response.data.ok || notFoundOnly)) {
 		return body.data.data;
 	}
 
 	throw new UpstreamUnavailableError(
-		body.data.errors?.[0]?.message ?? `AniList returned ${response.status}`,
+		body.data.errors?.[0]?.message ?? `AniList returned ${response.data.status}`,
 		{
-			retryAfterMs: retryAfter(response),
+			retryAfterMs: retryAfter(response.data),
 		},
 	);
 }
