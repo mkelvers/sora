@@ -27,6 +27,5 @@
 	{...tooltip.content}
 	class="inset-auto m-0 min-h-11 w-max items-center overflow-visible bg-tooltip px-3 text-sm leading-none font-normal whitespace-nowrap text-tooltip-foreground transition-opacity duration-100 open:flex starting:opacity-0"
 >
-	<div {...tooltip.arrow} class="size-2.5"></div>
 	{text}
 </div>
