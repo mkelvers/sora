@@ -5,7 +5,6 @@
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
-	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -29,7 +28,7 @@
 			return;
 		}
 
-		setStatus(card, listed ? null : "plan_to_watch");
+		library.set(card, listed ? null : "plan_to_watch");
 	}
 
 	const play = $derived.by(() => {

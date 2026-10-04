@@ -1,20 +1,23 @@
 <script lang="ts" module>
+	import type { WatchlistEntry } from "@sora/sdk";
+
 	export const sorts = [
 		{
-			value: "updated",
 			label: "Last Updated",
+			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
+				right.updated_at.localeCompare(left.updated_at),
 		},
 		{
-			value: "added",
 			label: "Date Added",
+			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
+				right.added_at.localeCompare(left.added_at),
 		},
 		{
-			value: "title",
 			label: "Alphabetical",
+			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
+				left.series.title.localeCompare(right.series.title),
 		},
-	] as const;
-
-	export type WatchlistSort = (typeof sorts)[number]["value"];
+	];
 </script>
 
 <script lang="ts">
@@ -25,25 +28,23 @@
 	let {
 		sort = $bindable(),
 	}: {
-		sort: WatchlistSort;
+		sort: (typeof sorts)[number];
 	} = $props();
-
-	const selected = $derived(sorts.find((option) => option.value === sort) ?? sorts[0]);
 </script>
 
-<Dropdown variant="toolbar" class="w-52" label="Sort watchlist, {selected.label} selected">
+<Dropdown variant="toolbar" class="w-52" label="Sort watchlist, {sort.label} selected">
 	{#snippet trigger()}
 		<ListBulletsIcon size="1.2rem" weight="bold" />
-		<span class="max-sm:hidden">{selected.label}</span>
+		<span class="max-sm:hidden">{sort.label}</span>
 	{/snippet}
 
 	{#snippet children()}
 		<div role="menu" aria-label="Sort watchlist">
-			{#each sorts as option (option.value)}
+			{#each sorts as option (option.label)}
 				<Button
 					role="menuitemradio"
-					aria-checked={option.value === sort}
-					onclick={() => (sort = option.value)}
+					aria-checked={option === sort}
+					onclick={() => (sort = option)}
 					variant="item"
 				>
 					{option.label}
