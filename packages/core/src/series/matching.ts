@@ -271,8 +271,68 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 	return (
 		best ??
 		placeByTitle(subject, candidate, nameSimilarity) ??
-		placeSpecialByTitle(subject, candidate)
+		placeSpecialByTitle(subject, candidate) ??
+		placeSpecialsByEnd(subject, candidate)
 	);
+}
+
+/**
+ * Places a run of episodes among its franchise show's specials by where it
+ * ends when the start dates disagree, as they do by weeks when TMDB dates a
+ * web series from a later release: TONIKAWA's High School Days began on
+ * 2023-07-12 per AniList, and TMDB's four specials air from 2023-08-02.
+ * Both end on 2023-08-23.
+ *
+ * The episode count decides it: the specials of the subject's length that
+ * aired while it ran must be exactly as many as it has episodes, and the
+ * last must air on AniList's end date. Any other number leaves no telling
+ * which of them are the subject's.
+ */
+function placeSpecialsByEnd(subject: MatchSubject, candidate: ShowCandidate): Placement | null {
+	const start = dayNumber(subject.startDate);
+	const end = dayNumber(subject.endDate);
+	if (
+		!candidate.isFranchiseShow ||
+		subject.episodes === null ||
+		subject.episodes < 2 ||
+		start === null ||
+		end === null
+	) {
+		return null;
+	}
+
+	const run = specialsTrack(candidate.show.episodes).filter((episode) => {
+		const airDay = dayNumber(episode.air_date);
+		return (
+			airDay !== null &&
+			airDay >= start &&
+			airDay <= end + 1 &&
+			runtimesAgree(episode.runtime, subject.durationMinutes, specialsRuntimeTolerance)
+		);
+	});
+	const [first] = run;
+	const lastAirDay = dayNumber(run.at(-1)?.air_date ?? null);
+	const isWholeRun =
+		first !== undefined &&
+		run.length === subject.episodes &&
+		lastAirDay !== null &&
+		lastAirDay >= end - 1 &&
+		!airedBefore(first, subject.airsFrom);
+	if (!isWholeRun) {
+		return null;
+	}
+
+	return {
+		mediaType: "tv",
+		tmdbId: candidate.show.id,
+		episodes: run.map((episode, offset) => ({
+			anilistEpisode: offset + 1,
+			seasonNumber: episode.season_number,
+			episodeNumber: episode.episode_number,
+		})),
+		method: "air-date",
+		score: minimumShowScore,
+	};
 }
 
 /**

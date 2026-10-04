@@ -688,6 +688,90 @@ describe("placeInShow by special name", () => {
 	});
 });
 
+describe("placeInShow by the end of a run of specials", () => {
+	// TONIKAWA: AniList has High School Days from 2023-07-12, and TMDB files
+	// its four episodes under specials from 2023-08-02. Both end on 2023-08-23.
+	const tonikawa = (
+		specials: TmdbEpisode[],
+		overrides: Partial<ShowCandidate> = {},
+	): ShowCandidate => ({
+		show: {
+			id: 100049,
+			name: "TONIKAWA: Over The Moon For You",
+			originalName: "トニカクカワイイ",
+			episodes: [
+				...weekly(1, "2020-10-03", 12),
+				...weekly(2, "2023-04-08", 12),
+				special(14, "2021-08-18", 24),
+				special(15, "2022-11-22", 22),
+				...specials,
+			],
+		},
+		isFranchiseShow: true,
+		prequel: endingAt(2, 12),
+		...overrides,
+	});
+	const highSchoolDays = subject({
+		format: "ONA",
+		titles: ["TONIKAWA: Over The Moon For You ~High School Days~"],
+		startDate: "2023-07-12",
+		endDate: "2023-08-23",
+		episodes: 4,
+	});
+	const fromAugust = [
+		special(16, "2023-08-02", 24),
+		special(17, "2023-08-09", 24),
+		special(18, "2023-08-16", 24),
+		special(19, "2023-08-23", 24),
+	];
+
+	test("finds a run that starts weeks after AniList's start and ends on its end date", () => {
+		const placement = placeInShow(highSchoolDays, tonikawa(fromAugust));
+
+		expect(placement?.method).toBe("air-date");
+		expect(range(placement)).toEqual(["1:S0E16", "2:S0E17", "3:S0E18", "4:S0E19"]);
+	});
+
+	test("leaves out extras of another length released during the run", () => {
+		const placement = placeInShow(
+			highSchoolDays,
+			tonikawa([...fromAugust.slice(0, 2), special(20, "2023-08-12", 2), ...fromAugust.slice(2)]),
+		);
+
+		expect(range(placement)).toEqual(["1:S0E16", "2:S0E17", "3:S0E18", "4:S0E19"]);
+	});
+
+	test("rejects a run with more specials than the entry has episodes", () => {
+		expect(
+			placeInShow(highSchoolDays, tonikawa([special(20, "2023-07-26", 24), ...fromAugust])),
+		).toBeNull();
+	});
+
+	test("rejects a run that ends before AniList's end date", () => {
+		expect(
+			placeInShow(
+				{
+					...highSchoolDays,
+					endDate: "2023-09-13",
+				},
+				tonikawa(fromAugust),
+			),
+		).toBeNull();
+	});
+
+	test("only matches in the franchise's own show", () => {
+		expect(
+			placeInShow(
+				highSchoolDays,
+				tonikawa(fromAugust, {
+					isFranchiseShow: false,
+					prequel: null,
+				}),
+			),
+		).toBeNull();
+	});
+});
+
 describe("placeAsMovie", () => {
 	test("accepts a film released on the entry's start date", () => {
 		const placement = placeAsMovie(
