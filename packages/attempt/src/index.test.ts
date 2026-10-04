@@ -56,3 +56,8 @@ describe("attempt", () => {
 		expect(length).toBe(5);
 	});
 });
+
+test("takes asynchronous work only as a promise", () => {
+	// @ts-expect-error A function returning a promise is passed as the promise.
+	attempt(async () => 1);
+});

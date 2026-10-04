@@ -43,10 +43,11 @@ export function attempt<TData, TExpected extends ErrorClass[] = []>(
 ): Promise<Attempt<TData, Caught<TExpected>>>;
 /**
  * Calls synchronous `work`, such as `JSON.parse`, and returns its result as an
- * {@link Attempt} instead of throwing, as the promise form does.
+ * {@link Attempt} instead of throwing, as the promise form does. Asynchronous
+ * work is passed as its promise instead.
  */
 export function attempt<TData, TExpected extends ErrorClass[] = []>(
-	work: () => TData,
+	work: () => TData extends PromiseLike<unknown> ? never : TData,
 	...expected: TExpected
 ): Attempt<TData, Caught<TExpected>>;
 export function attempt<TData, TExpected extends ErrorClass[]>(
