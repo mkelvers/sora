@@ -2,89 +2,97 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Switch from "$lib/components/ui/Switch.svelte";
 	import { cn, moveMenuFocus } from "$lib/utils";
-	import type { PlaybackMedia } from "@sora/sdk";
+	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
+	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
 	import { tick } from "svelte";
 
-	type Props = {
-		media: PlaybackMedia[];
-		audio: PlaybackMedia["audio"] | undefined;
-		subtitles: PlaybackMedia["subtitles"];
-		subtitle: string | undefined;
-		speed: number;
-		autoskip: boolean;
-	};
-
 	let {
 		media,
-		audio = $bindable(),
-		subtitles,
-		subtitle = $bindable(),
-		speed = $bindable(),
-		autoskip = $bindable(),
-	}: Props = $props();
+		selected,
+		subtitle,
+		preferences,
+		player,
+		onpreferences,
+	}: {
+		media: PlaybackMedia[];
+		selected?: PlaybackMedia;
+		subtitle?: string;
+		preferences: PlaybackPreferences;
+		player: Player;
+		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
+	} = $props();
 
-	type Menu = {
-		label: string;
-		value: string;
-		options: {
-			value: string;
-			label: string;
-		}[];
-		select: (value: string) => void;
+	const kinds: Record<string, string> = {
+		signs: " (Signs)",
+		captions: " (Captions)",
 	};
 
-	const menus = $derived.by(() => {
-		const menus: Menu[] = [];
-
-		if (media.length > 0) {
-			menus.push({
-				label: "Audio",
-				value: audio ?? "",
-				options: media.map((version) => ({
-					value: version.audio,
-					label: version.label,
-				})),
-				select: (value) => (audio = value as PlaybackMedia["audio"]),
-			});
+	function pickSubtitle(url: string) {
+		if (!selected || selected.audio === "raw") {
+			return;
 		}
 
-		if (subtitles.length > 0) {
-			menus.push({
-				label: "Subtitles",
-				value: subtitle ?? "",
-				options: [
+		const track = selected.subtitles.find((track) => track.url === url);
+		onpreferences({
+			subtitles: {
+				[selected.audio]: track
+					? {
+							language: track.language,
+							kind: track.kind,
+						}
+					: null,
+			},
+		});
+	}
+
+	const menus = $derived([
+		...(media.length
+			? [
 					{
-						value: "",
-						label: "Off",
+						label: "Audio",
+						value: selected?.audio ?? "",
+						options: media.map((version) => ({
+							value: version.audio,
+							label: version.label,
+						})),
+						select: (value: string) =>
+							onpreferences({
+								audio: value as PlaybackMedia["audio"],
+							}),
 					},
-					...subtitles.map((track) => ({
-						value: track.url,
-						label:
-							track.kind === "signs"
-								? `${track.label} (Signs)`
-								: track.kind === "captions"
-									? `${track.label} (Captions)`
-									: track.label,
-					})),
-				],
-				select: (value) => (subtitle = value || undefined),
-			});
-		}
-
-		menus.push({
+				]
+			: []),
+		...(selected?.subtitles.length
+			? [
+					{
+						label: "Subtitles",
+						value: subtitle ?? "",
+						options: [
+							{
+								value: "",
+								label: "Off",
+							},
+							...selected.subtitles.map((track) => ({
+								value: track.url,
+								label: `${track.label}${kinds[track.kind ?? ""] ?? ""}`,
+							})),
+						],
+						select: pickSubtitle,
+					},
+				]
+			: []),
+		{
 			label: "Speed",
-			value: String(speed),
+			value: String(player.speed),
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
 				value: String(rate),
 				label: rate === 1 ? "Normal" : `${rate}x`,
 			})),
-			select: (value) => (speed = Number(value)),
-		});
-
-		return menus;
-	});
+			select: (value: string) => (player.speed = Number(value)),
+		},
+	]);
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
@@ -164,7 +172,13 @@
 		<Switch
 			role="menuitemcheckbox"
 			class="min-h-11 w-full px-5 py-3 text-sm text-muted hover:bg-white/8 hover:text-foreground has-checked:text-foreground has-focus-visible:bg-white/8 has-focus-visible:text-foreground"
-			bind:checked={autoskip}
+			bind:checked={
+				() => preferences.auto_skip,
+				(value) =>
+					onpreferences({
+						auto_skip: value,
+					})
+			}
 		>
 			Auto skip
 		</Switch>

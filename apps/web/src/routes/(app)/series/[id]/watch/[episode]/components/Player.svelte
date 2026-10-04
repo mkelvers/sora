@@ -1,82 +1,160 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import {
+		getEpisode,
+		getPlayback,
+		getPlaybackPreferences,
+		getProgress,
+		savePlaybackPreferences,
+		saveProgress,
+	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
+	import type {
+		Episode,
+		PlaybackPreferences,
+		PlaybackPreferencesUpdate,
+		Progress,
+		Series,
+	} from "@sora/sdk";
+	import { attempt } from "@sora/shared";
 	import { ArrowLeftIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./Controls.svelte";
 	import Settings from "./Settings.svelte";
 
-	type Props = {
-		id: string;
-		media: PlaybackMedia[] | undefined;
-		back: string;
-		previous?: string;
-		next?: string;
-		title: string;
-		series: string;
-		preferences: PlaybackPreferences;
-		start: number;
-		onprogress: (position: number, duration: number, finished: boolean, leaving: boolean) => void;
-		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
-		onnearend: () => void;
-	};
-
 	let {
-		id,
-		media,
-		back,
-		previous,
-		next,
-		title,
 		series,
+		episode,
+		playback,
 		preferences,
-		start,
-		onprogress,
-		onpreferences,
-		onnearend,
-	}: Props = $props();
+		progress,
+	}: {
+		series: Series;
+		episode: Episode;
+		playback?: Awaited<ReturnType<typeof getPlayback>>;
+		preferences: PlaybackPreferences;
+		progress?: Progress | null;
+	} = $props();
+
+	const key = $derived(`${series.id}/${episode.number}`);
+	const title = $derived(episode.title ?? `Episode ${episode.number}`);
+	const back = $derived(`/series/${series.id}`);
+	const previous = $derived(
+		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
+	);
+	const next = $derived(playback?.next ? `/series/${series.id}/watch/${playback.next}` : undefined);
+
+	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
 
 	const player = new Player(untrack(() => start));
 
-	let nearing = false;
+	let failure = $state("");
+	let nearing = $state(false);
 	let skipped = new Set<number>();
-	let current = untrack(() => id);
+	let current = untrack(() => key);
 
 	$effect.pre(() => {
-		if (id === current) {
+		if (key === current) {
 			return;
 		}
 
-		current = id;
+		current = key;
 		nearing = false;
 		skipped = new Set();
 		player.load(start);
 	});
 
 	$effect(() => {
-		if (nearing || player.duration <= 0 || player.duration - player.time > 60) {
-			return;
+		if (player.duration > 0 && player.duration - player.time <= 60) {
+			nearing = true;
 		}
-
-		nearing = true;
-		untrack(onnearend);
 	});
 
-	function report(ended = false, leaving = false) {
+	const upcoming = $derived(
+		nearing && playback?.next
+			? {
+					seriesId: series.id,
+					episode: String(playback.next),
+				}
+			: undefined,
+	);
+
+	$effect(() => {
+		if (upcoming) {
+			void [getEpisode(upcoming), getPlayback(upcoming), getProgress(upcoming)].map(
+				(query) => query.current,
+			);
+		}
+	});
+
+	const audio = $derived(
+		playback?.media.find((version) => version.audio === preferences.audio)?.audio ??
+			playback?.media[0]?.audio,
+	);
+	const selected = $derived(playback?.media.find((version) => version.audio === audio));
+	const subtitle = $derived.by(() => {
+		if (!selected || selected.audio === "raw") {
+			return undefined;
+		}
+
+		const choice = preferences.subtitles[selected.audio];
+		if (choice === null) {
+			return undefined;
+		}
+
+		const picked =
+			choice &&
+			(selected.subtitles.find(
+				(track) => track.language === choice.language && track.kind === choice.kind,
+			) ??
+				selected.subtitles.find((track) => track.language === choice.language));
+
+		return (picked ?? selected.subtitles.find((track) => track.default))?.url;
+	});
+	const loading = $derived(!playback || (selected !== undefined && player.buffering));
+
+	const segment = $derived(
+		selected?.skip_segments.find(
+			(segment) => player.time >= segment.start && player.time < segment.end,
+		),
+	);
+
+	async function report(ended = false, leaving = false) {
 		if (!(player.duration >= 1) || player.time <= 0) {
 			return;
 		}
 
 		const credits = selected?.skip_segments.find((candidate) => candidate.kind === "ending");
-		onprogress(
-			player.time,
-			player.duration,
-			ended || (!!credits && player.time >= credits.start),
-			leaving,
+		const { error } = await attempt(
+			saveProgress({
+				seriesId: series.id,
+				episode: episode.number,
+				position_seconds: Math.floor(player.time),
+				duration_seconds: Math.floor(player.duration),
+				finished: ended || (!!credits && player.time >= credits.start),
+				leaving,
+			}),
 		);
+		failure = error ? "Your progress couldn’t be saved." : "";
+	}
+
+	async function remember(changes: PlaybackPreferencesUpdate) {
+		const { error } = await attempt(
+			savePlaybackPreferences(changes).updates(
+				getPlaybackPreferences().withOverride((current) => ({
+					...current,
+					...changes,
+					subtitles: {
+						...current.subtitles,
+						...changes.subtitles,
+					},
+				})),
+			),
+		);
+		failure = error ? "Your player settings couldn’t be saved." : "";
 	}
 
 	$effect(() => {
@@ -89,57 +167,6 @@
 		return () => clearInterval(timer);
 	});
 
-	onDestroy(() => report(false, true));
-
-	const audio = $derived(
-		media?.find((version) => version.audio === preferences.audio)?.audio ?? media?.[0]?.audio,
-	);
-	const selected = $derived(media?.find((version) => version.audio === audio));
-	const subtitle = $derived.by(() => {
-		if (!selected || selected.audio === "raw") {
-			return undefined;
-		}
-
-		const choice = preferences.subtitles[selected.audio];
-		if (choice === null) {
-			return undefined;
-		}
-
-		const tracks = selected.subtitles;
-		const picked =
-			choice &&
-			(tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
-				tracks.find((track) => track.language === choice.language));
-
-		return (picked ?? tracks.find((track) => track.default))?.url;
-	});
-
-	function pickSubtitle(url: string | undefined) {
-		if (!selected || selected.audio === "raw") {
-			return;
-		}
-
-		const track = selected.subtitles.find((track) => track.url === url);
-		onpreferences({
-			subtitles: {
-				[selected.audio]: track
-					? {
-							language: track.language,
-							kind: track.kind,
-						}
-					: null,
-			},
-		});
-	}
-
-	const loading = $derived(!media || (selected !== undefined && player.buffering));
-
-	const segment = $derived(
-		selected?.skip_segments.find((segment) => {
-			return player.time >= segment.start && player.time < segment.end;
-		}),
-	);
-
 	$effect(() => {
 		if (!preferences.auto_skip || !segment || skipped.has(segment.start)) {
 			return;
@@ -150,7 +177,15 @@
 	});
 
 	$effect(() => player.remember());
+
+	onDestroy(() => report(false, true));
 </script>
+
+<svelte:head>
+	<title>{title} · {series.title} · Sora</title>
+</svelte:head>
+
+<StatusBanner message={failure} tone="error" ondismiss={() => (failure = "")} />
 
 <svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
 <svelte:document
@@ -244,12 +279,12 @@
 	<header
 		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 text-shadow-md in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Button href={back} variant="icon" size="lg" aria-label="Back to {series}">
+		<Button href={back} variant="icon" size="lg" aria-label="Back to {series.title}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
 		<div class="min-w-0">
-			<h1 class="text-lg font-normal sm:text-xl">{title}</h1>
-			<p class="mt-0.5 text-sm text-foreground/90">{series}</p>
+			<h1 class="text-lg font-normal sm:text-xl">{episode.number}. {title}</h1>
+			<p class="mt-0.5 text-sm text-foreground/90">{series.title}</p>
 		</div>
 	</header>
 
@@ -258,24 +293,12 @@
 	>
 		<Controls {player} {previous} {next}>
 			<Settings
-				media={media ?? []}
-				subtitles={selected?.subtitles ?? []}
-				bind:speed={player.speed}
-				bind:subtitle={() => subtitle, pickSubtitle}
-				bind:audio={
-					() => audio,
-					(value) =>
-						onpreferences({
-							audio: value,
-						})
-				}
-				bind:autoskip={
-					() => preferences.auto_skip,
-					(value) =>
-						onpreferences({
-							auto_skip: value,
-						})
-				}
+				media={playback?.media ?? []}
+				{selected}
+				{subtitle}
+				{preferences}
+				{player}
+				onpreferences={remember}
 			/>
 		</Controls>
 	</footer>
