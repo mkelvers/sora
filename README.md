@@ -25,30 +25,35 @@ reaches the viewer. Alongside it, a scheduler follows every airing anime and
 stores each new episode as soon as a provider carries it.
 
 ```ts
-import { SoraClient } from "@sora/sdk";
+import { route, SoraClient } from "@sora/sdk";
 
 const sora = new SoraClient({
 	baseUrl: "http://localhost:3000",
 });
 
-const [result] = await sora.search("Frieren");
-
-const series = await sora.series(result.id, {
-	params: {
-		episodes: true,
+const [result] = await sora.request(route.searchSeries, {
+	query: {
+		q: "Frieren",
 	},
 });
 
-const [episode] = series.episodes;
+const episodes = await sora.request(route.listEpisodes, {
+	params: {
+		series_id: result.id,
+	},
+});
 
-const media = await sora.playback({
-	seriesId: series.id,
-	number: episode.number,
+const media = await sora.request(route.getPlayback, {
+	params: {
+		series_id: result.id,
+		episode: episodes[0].number,
+	},
 });
 ```
 
-The SDK's types are derived from the API itself, so a route change that breaks a
-client fails type-checking here, before it ships.
+The SDK calls the API's own route definitions, so a route change that breaks a
+client fails type-checking here, before it ships, and every response is checked
+against its route at runtime.
 
 ## Apps
 
