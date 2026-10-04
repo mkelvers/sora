@@ -1,12 +1,17 @@
 import { command, query } from "$app/server";
 import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer } from "$lib/server/sora";
+import { route } from "@sora/sdk";
 import { z } from "zod";
 
 export const getWatchlist = query(async () => {
 	const viewer = remoteViewer();
 
-	return viewer.sora.watchlist(viewer.profile.id);
+	return viewer.sora.request(route.listWatchlist, {
+		params: {
+			profile_id: viewer.profile.id,
+		},
+	});
 });
 
 export const setWatchlistStatus = command(
@@ -18,9 +23,22 @@ export const setWatchlistStatus = command(
 		const viewer = remoteViewer();
 
 		if (status) {
-			await viewer.sora.setWatchlistStatus(viewer.profile.id, seriesId, status);
+			await viewer.sora.request(route.setWatchlistStatus, {
+				params: {
+					profile_id: viewer.profile.id,
+					series_id: seriesId,
+				},
+				body: {
+					status,
+				},
+			});
 		} else {
-			await viewer.sora.removeFromWatchlist(viewer.profile.id, seriesId);
+			await viewer.sora.request(route.removeFromWatchlist, {
+				params: {
+					profile_id: viewer.profile.id,
+					series_id: seriesId,
+				},
+			});
 		}
 
 		await Promise.all([
