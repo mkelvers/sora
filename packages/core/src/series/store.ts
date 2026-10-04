@@ -62,7 +62,8 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  */
 export async function storeSeries(anilistId: number): Promise<string> {
 	const built = await buildSeries(anilistId);
-	const isStored = (await storedSeriesIds([anilistId])).has(anilistId);
+	const storedIds = await storedSeriesIds([anilistId]);
+	const isStored = storedIds.has(anilistId);
 	const airings =
 		!isStored || built.mayGainEpisodes
 			? await fetchEpisodeAirings([anilistId])

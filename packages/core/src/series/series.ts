@@ -109,13 +109,15 @@ export interface SeriesLayout {
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
-	const entry = (await loadEntries([anilistId])).get(anilistId);
+	const loaded = await loadEntries([anilistId]);
+	const entry = loaded.get(anilistId);
 	if (!entry) {
 		throw new AnimeNotFoundError(anilistId);
 	}
 
 	const mapping = await resolveMapping(entry);
-	const card = (await getStoredAnimeCards([anilistId])).get(anilistId) ?? toAnimeCard(entry);
+	const storedCards = await getStoredAnimeCards([anilistId]);
+	const card = storedCards.get(anilistId) ?? toAnimeCard(entry);
 	const links = mappedEpisodes(mapping);
 	const show =
 		mapping.mediaType === "tv" && mapping.tmdbId !== null ? await getShow(mapping.tmdbId) : null;
@@ -187,7 +189,8 @@ async function anilistOverview(
 	links: readonly EpisodeLink[],
 	show: TmdbShow | null,
 ) {
-	const own = (await getAnime(entry.id)).description;
+	const anime = await getAnime(entry.id);
+	const own = anime.description;
 	if (own && !placeholder.test(own)) {
 		return own;
 	}
@@ -209,10 +212,16 @@ async function anilistOverview(
 					.from(series)
 					.where(eq(series.anilistId, first.id))
 					.limit(1);
+	let firstDescription: string | null = null;
+
+	if (first.id !== entry.id) {
+		const firstAnime = await getAnime(first.id);
+
+		firstDescription = firstAnime.description;
+	}
+
 	const replacement =
-		(show?.overview && synopsis(show.overview)) ||
-		stored?.overview ||
-		(first.id === entry.id ? null : (await getAnime(first.id)).description);
+		(show?.overview && synopsis(show.overview)) || stored?.overview || firstDescription;
 
 	return (replacement && !placeholder.test(replacement) ? replacement : null) ?? own;
 }
@@ -227,7 +236,8 @@ async function firstRelease(entry: FranchiseEntry) {
 				? [edge.node.id]
 				: [],
 		);
-		const prequels = [...(await loadEntries(ids)).values()];
+		const loadedPrequels = await loadEntries(ids);
+		const prequels = [...loadedPrequels.values()];
 		const earliest = prequels.toSorted(
 			(left, right) => releaseOrder(left) - releaseOrder(right) || left.id - right.id,
 		)[0];

@@ -284,7 +284,11 @@ async function bestMoviePlacement(
 	const [hinted, found] = await Promise.all([
 		Promise.all((hint?.movieIds ?? []).map((movieId) => getMovie(movieId))),
 		Promise.all(
-			queries.map(async (query) => (await searchMovies(query)).slice(0, resultsPerQuery)),
+			queries.map(async (query) => {
+				const movies = await searchMovies(query);
+
+				return movies.slice(0, resultsPerQuery);
+			}),
 		),
 	]);
 
@@ -321,7 +325,8 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
 			continue;
 		}
 
-		const collectionId = (await getMovie(mapping.tmdbId))?.belongs_to_collection?.id;
+		const mappedMovie = await getMovie(mapping.tmdbId);
+		const collectionId = mappedMovie?.belongs_to_collection?.id;
 		const placement =
 			collectionId === undefined
 				? null
