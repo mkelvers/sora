@@ -93,12 +93,11 @@
       "name": "@sora/sdk",
       "version": "0.0.1",
       "dependencies": {
+        "@hono/zod-openapi": "^1.6.3",
+        "@sora/api": "workspace:*",
         "@sora/shared": "workspace:*",
-        "hono": "^4.13.8",
       },
       "devDependencies": {
-        "@sora/api": "workspace:*",
-        "@sora/core": "workspace:*",
         "@types/bun": "^1.4.2",
       },
     },
