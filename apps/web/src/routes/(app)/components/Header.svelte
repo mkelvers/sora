@@ -6,7 +6,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import { getUnreadNotifications } from "$lib/notifications.remote";
-	import { cn, genreSlug } from "$lib/utils";
+	import { cn, pollWhileVisible } from "$lib/utils";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
@@ -61,20 +61,7 @@
 		},
 	];
 
-	$effect(() => {
-		const check = () => {
-			if (document.visibilityState === "visible") {
-				unreadQuery.refresh();
-			}
-		};
-		const timer = setInterval(check, 30_000);
-		document.addEventListener("visibilitychange", check);
-
-		return () => {
-			clearInterval(timer);
-			document.removeEventListener("visibilitychange", check);
-		};
-	});
+	$effect(() => pollWhileVisible(() => unreadQuery.refresh()));
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
@@ -125,12 +112,13 @@
 							{#if categoriesOpen}
 								<ul id="menu-genres" class="bg-tooltip/50">
 									{#each genres as genre (genre)}
+										{@const slug = genre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
 										<li>
 											<Button
-												href="/genres/{genreSlug(genre)}"
+												href="/genres/{slug}"
 												variant="item"
 												class="border-l-3 border-transparent pl-9 text-base aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
-												aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
+												aria-current={page.params.genre === slug ? "page" : undefined}
 											>
 												{genre}
 											</Button>
@@ -202,12 +190,13 @@
 							</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
 								{#each genres as genre (genre)}
+									{@const slug = genre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
 									<li>
 										<Button
-											href="/genres/{genreSlug(genre)}"
+											href="/genres/{slug}"
 											variant="item"
 											class="text-base aria-[current=page]:font-normal aria-[current=page]:text-accent"
-											aria-current={page.params.genre === genreSlug(genre) ? "page" : undefined}
+											aria-current={page.params.genre === slug ? "page" : undefined}
 										>
 											{genre}
 										</Button>

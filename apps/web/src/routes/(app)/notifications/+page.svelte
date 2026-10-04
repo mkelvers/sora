@@ -4,6 +4,7 @@
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
 	import { getNotifications, markNotificationsRead } from "$lib/notifications.remote";
+	import { pollWhileVisible } from "$lib/utils";
 	import { BellSimpleIcon, ChecksIcon } from "phosphor-svelte";
 
 	import Notification from "./components/Notification.svelte";
@@ -26,20 +27,7 @@
 		},
 	];
 
-	$effect(() => {
-		const check = () => {
-			if (document.visibilityState === "visible") {
-				notifications.refresh();
-			}
-		};
-		const timer = setInterval(check, 30_000);
-		document.addEventListener("visibilitychange", check);
-
-		return () => {
-			clearInterval(timer);
-			document.removeEventListener("visibilitychange", check);
-		};
-	});
+	$effect(() => pollWhileVisible(() => notifications.refresh()));
 </script>
 
 <svelte:head>

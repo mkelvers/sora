@@ -49,11 +49,22 @@ export function formatDuration(minutes: number) {
 	return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-export const timeZoneCookie = "sora_tz";
+export function pollWhileVisible(refresh: () => void, intervalMs = 30_000) {
+	const check = () => {
+		if (document.visibilityState === "visible") {
+			refresh();
+		}
+	};
+	const timer = setInterval(check, intervalMs);
+	document.addEventListener("visibilitychange", check);
 
-export function genreSlug(genre: string) {
-	return genre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+	return () => {
+		clearInterval(timer);
+		document.removeEventListener("visibilitychange", check);
+	};
 }
+
+export const timeZoneCookie = "sora_tz";
 
 const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
 
