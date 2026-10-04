@@ -116,7 +116,9 @@
 						class="absolute inset-x-0 bottom-0 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
 						value={played}
 						aria-label="{Math.round(played * 100)}% watched"
-					></progress>
+					>
+						{Math.round(played * 100)}%
+					</progress>
 				{/if}
 			</div>
 

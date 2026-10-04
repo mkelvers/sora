@@ -94,7 +94,9 @@
 												value={progress}
 												max="100"
 												aria-label="{Math.round(progress)}% watched"
-											></progress>
+											>
+												{Math.round(progress)}%
+											</progress>
 										{/if}
 									</div>
 
