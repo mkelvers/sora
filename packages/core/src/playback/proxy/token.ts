@@ -87,12 +87,12 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 	}
 
 	const json = Buffer.from(payload, "base64url").toString("utf8");
-	const { data: decoded, error } = attempt(() => JSON.parse(json), SyntaxError);
+	const { data, error } = attempt(() => JSON.parse(json), SyntaxError);
 	if (error) {
 		throw new InvalidStreamTokenError("Stream token payload is not JSON");
 	}
 
-	const parsed = StreamTargetSchema.safeParse(decoded);
+	const parsed = StreamTargetSchema.safeParse(data);
 	if (!parsed.success) {
 		throw new InvalidStreamTokenError("Stream token payload is invalid");
 	}

@@ -140,7 +140,7 @@ export async function fetchUpstreamBytes(
 		};
 
 		const settle = async (read: Promise<Attempt<UpstreamBytes>>) => {
-			const { data: result, error } = await read;
+			const { data, error } = await read;
 			if (settled) {
 				return;
 			}
@@ -148,7 +148,7 @@ export async function fetchUpstreamBytes(
 				settled = true;
 				clearTimeout(hedge);
 				losers.abort();
-				resolve(result);
+				resolve(data);
 				return;
 			}
 			if (!(error instanceof StreamUpstreamError)) {
@@ -241,7 +241,7 @@ async function fetchFollowingRedirects(
 	for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
 		assertPublicHttpUrl(url);
 
-		const { data: response, error } = await attempt(
+		const { data, error } = await attempt(
 			fetch(url, {
 				headers,
 				redirect: "manual",
@@ -256,22 +256,22 @@ async function fetchFollowingRedirects(
 			});
 		}
 
-		const location = response.headers.get("Location");
-		if (response.status >= 300 && response.status < 400 && location) {
+		const location = data.headers.get("Location");
+		if (data.status >= 300 && data.status < 400 && location) {
 			// Each hop is re-checked, so a redirect cannot reach a private address.
 			url = new URL(location, url).toString();
 			continue;
 		}
 
-		if (!response.ok) {
+		if (!data.ok) {
 			throw new StreamUpstreamError(
-				`Upstream ${new URL(url).host} returned ${response.status}`,
-				response.status,
+				`Upstream ${new URL(url).host} returned ${data.status}`,
+				data.status,
 			);
 		}
 
 		return {
-			response,
+			response: data,
 			url,
 		};
 	}

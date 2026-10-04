@@ -68,7 +68,7 @@ export async function canFetchStream(
 	headers: Record<string, string>,
 	mirrors: string[],
 ) {
-	const { data: upstream, error } = await attempt(
+	const { data, error } = await attempt(
 		fetchUpstream(
 			{
 				url,
@@ -84,7 +84,7 @@ export async function canFetchStream(
 	if (error) {
 		return false;
 	}
-	await upstream.response.body?.cancel();
+	await data.response.body?.cancel();
 	return true;
 }
 
@@ -98,7 +98,7 @@ export async function readSubtitle(
 	headers: Record<string, string>,
 	mirrors: string[],
 ) {
-	const { data: upstream, error } = await attempt(
+	const { data, error } = await attempt(
 		fetchUpstreamBytes(
 			{
 				url,
@@ -114,7 +114,7 @@ export async function readSubtitle(
 	if (error) {
 		return null;
 	}
-	return new TextDecoder().decode(upstream.bytes);
+	return new TextDecoder().decode(data.bytes);
 }
 
 /**
