@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 
+import { attempt } from "@sora/attempt";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { tmdbSnapshot } from "../database/schema";
+import { tmdbResponse } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
 
 const endpoint = "https://api.themoviedb.org/3";
@@ -27,12 +28,12 @@ const rateLimitRetries = 2;
 /** Freshness policy for one TMDB request. */
 export interface TmdbRequestOptions {
 	/**
-	 * How long a cached response is served without asking TMDB again, in
-	 * milliseconds.
+	 * How old a stored response may be and still be served without asking
+	 * TMDB again, in milliseconds.
 	 */
 	maxAgeMs: number;
 	/**
-	 * Whether the response is kept as a snapshot. A request that never
+	 * Whether the response is stored (see `tmdbResponse`). A request that never
 	 * repeats, such as one carrying a nonce, should not be.
 	 *
 	 * @defaultValue true
@@ -44,16 +45,17 @@ let nextRequestAt = 0;
 const inFlight = new Map<string, Promise<unknown>>();
 
 /**
- * Fetches a TMDB v3 resource with caching, request coalescing, and rate
- * limiting, and validates it against `schema`.
+ * Fetches a TMDB v3 resource with request coalescing and rate limiting,
+ * storing the response (see `tmdbResponse`), and validates it against
+ * `schema`.
  *
- * A snapshot younger than `maxAgeMs` is returned without a network call.
- * Identical concurrent requests share one upstream call. When TMDB is
- * unavailable, an expired snapshot is served rather than failing.
+ * A stored response younger than `maxAgeMs` is returned without a network
+ * call. Identical concurrent requests share one upstream call. When TMDB is
+ * unavailable, an older stored response is served rather than failing.
  *
  * @returns The validated response, or `null` when TMDB answers 404.
  * @throws {@link UpstreamUnavailableError} when TMDB fails or returns data
- *   that does not match `schema`, and no usable snapshot exists.
+ *   that does not match `schema`, and no usable response is stored.
  *
  * @example
  * ```ts
@@ -74,14 +76,14 @@ export async function tmdb<TSchema extends z.ZodType>(
 	}
 
 	const key = createHash("sha256").update(url.toString()).digest("hex");
-	const [snapshot] =
+	const [stored] =
 		options.store === false
 			? []
-			: await db.select().from(tmdbSnapshot).where(eq(tmdbSnapshot.key, key)).limit(1);
+			: await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
 
-	const cached = snapshot ? schema.safeParse(snapshot.data) : null;
-	if (snapshot && cached?.success && snapshot.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-		return cached.data;
+	const kept = stored ? schema.safeParse(stored.data) : null;
+	if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
+		return kept.data;
 	}
 
 	let pending = inFlight.get(key);
@@ -92,15 +94,12 @@ export async function tmdb<TSchema extends z.ZodType>(
 		inFlight.set(key, pending);
 	}
 
-	let data: unknown;
-	try {
-		data = await pending;
-	} catch (cause) {
-		if (cached?.success && cause instanceof UpstreamUnavailableError) {
-			return cached.data;
+	const { data, error } = await attempt(pending);
+	if (error) {
+		if (kept?.success && error instanceof UpstreamUnavailableError) {
+			return kept.data;
 		}
-
-		throw cause;
+		throw error;
 	}
 
 	if (data === null) {
@@ -118,29 +117,27 @@ export async function tmdb<TSchema extends z.ZodType>(
 	return parsed.data;
 }
 
-/** Fetches one resource and stores it as a snapshot unless told not to. A 404 is returned as `null` and not stored. */
+/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */
 async function fetchAndStore(key: string, path: string, url: URL, options: TmdbRequestOptions) {
 	const data = await execute(url);
 	if (data === null || options.store === false) {
 		return data;
 	}
 
-	const fetchedAt = new Date();
 	const values = {
 		path,
 		data,
-		fetchedAt,
-		expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
+		fetchedAt: new Date(),
 	};
 
 	await db
-		.insert(tmdbSnapshot)
+		.insert(tmdbResponse)
 		.values({
 			key,
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: tmdbSnapshot.key,
+			target: tmdbResponse.key,
 			set: values,
 		});
 
@@ -148,22 +145,22 @@ async function fetchAndStore(key: string, path: string, url: URL, options: TmdbR
 }
 
 async function execute(url: URL): Promise<unknown> {
-	for (let attempt = 0; ; attempt += 1) {
+	for (let tries = 0; ; tries += 1) {
 		await nextSlot();
 
-		let response: Response;
-		try {
-			response = await fetch(url, {
+		const { data: response, error: unreachable } = await attempt(
+			fetch(url, {
 				headers: {
 					Accept: "application/json",
 					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
 				},
 				signal: AbortSignal.timeout(requestTimeoutMs),
-			});
-		} catch (cause) {
+			}),
+		);
+		if (unreachable) {
 			throw new UpstreamUnavailableError("TMDB could not be reached", {
 				retryAfterMs: null,
-				cause,
+				cause: unreachable,
 			});
 		}
 
@@ -171,7 +168,7 @@ async function execute(url: URL): Promise<unknown> {
 			const retryAfterMs = retryAfter(response) ?? 2_000;
 			// Pause every request from this process, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
-			if (attempt < rateLimitRetries) {
+			if (tries < rateLimitRetries) {
 				continue;
 			}
 
@@ -184,13 +181,22 @@ async function execute(url: URL): Promise<unknown> {
 			return null;
 		}
 
-		const body: unknown = await response.json().catch(() => null);
-		if (!response.ok || body === null) {
+		if (!response.ok) {
 			throw new UpstreamUnavailableError(`TMDB returned ${response.status} for ${url.pathname}`, {
 				retryAfterMs: retryAfter(response),
 			});
 		}
 
+		const { data: body, error: unreadable } = await attempt(response.json());
+		if (unreadable) {
+			throw new UpstreamUnavailableError(
+				`TMDB returned a response for ${url.pathname} that is not JSON`,
+				{
+					retryAfterMs: null,
+					cause: unreadable,
+				},
+			);
+		}
 		return body;
 	}
 }

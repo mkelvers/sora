@@ -1,11 +1,12 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 
+import { attempt } from "@sora/attempt";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { anilistSnapshot } from "../database/schema";
+import { anilistResponse } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
 import type { TypedDocumentString } from "./graphql.generated";
 
@@ -48,8 +49,8 @@ const requestTimeoutMs = 10_000;
 /** Freshness policy for one AniList request. */
 export interface AniListRequestOptions {
 	/**
-	 * How long a cached response is served without asking AniList again, in
-	 * milliseconds.
+	 * How old a stored response may be and still be served without asking
+	 * AniList again, in milliseconds.
 	 */
 	maxAgeMs: number;
 }
@@ -81,7 +82,7 @@ const inFlight = new Map<string, Promise<unknown>>();
 
 /** A request waiting for its turn under the rate limit. */
 interface QueuedRequest {
-	/** The snapshot key of the request, which callers asking the same share. */
+	/** The stored-response key of the request, which callers asking the same share. */
 	key: string;
 	priority: number;
 	/** Sends the request and settles its caller's promise; never rejects. */
@@ -109,14 +110,14 @@ function currentAniListPriority() {
 }
 
 /**
- * Executes a generated AniList operation with caching, request coalescing,
- * and rate limiting.
+ * Executes a generated AniList operation with request coalescing and rate
+ * limiting, storing the response (see `anilistResponse`).
  *
- * A snapshot younger than `maxAgeMs` is returned without a network call.
- * Identical concurrent requests share one upstream call. When AniList is
- * unavailable, an expired snapshot is served rather than failing.
+ * A stored response younger than `maxAgeMs` is returned without a network
+ * call. Identical concurrent requests share one upstream call. When AniList
+ * is unavailable, an older stored response is served rather than failing.
  *
- * @throws {@link UpstreamUnavailableError} when AniList fails and no snapshot exists.
+ * @throws {@link UpstreamUnavailableError} when AniList fails and no response is stored.
  *
  * @example
  * ```ts
@@ -129,17 +130,17 @@ export async function anilist<TResult, TVariables>(
 	options: AniListRequestOptions,
 ): Promise<TResult> {
 	const query = document.toString();
-	const key = snapshotKey(query, variables);
+	const key = responseKey(query, variables);
 
-	const [snapshot] = await db
+	const [stored] = await db
 		.select()
-		.from(anilistSnapshot)
-		.where(eq(anilistSnapshot.key, key))
+		.from(anilistResponse)
+		.where(eq(anilistResponse.key, key))
 		.limit(1);
 
-	if (snapshot && snapshot.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
+	if (stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
 		// Stored by this function from a response typed as TResult.
-		return snapshot.data as TResult;
+		return stored.data as TResult;
 	}
 
 	const pending = inFlight.get(key);
@@ -149,45 +150,38 @@ export async function anilist<TResult, TVariables>(
 		return pending as Promise<TResult>;
 	}
 
-	const request = fetchAndStore<TResult>(key, query, variables, options)
-		.catch((cause: unknown) => {
-			if (snapshot && cause instanceof UpstreamUnavailableError) {
-				return snapshot.data as TResult;
+	const request = (async () => {
+		const { data, error } = await attempt(fetchAndStore<TResult>(key, query, variables));
+		inFlight.delete(key);
+		if (error) {
+			if (stored && error instanceof UpstreamUnavailableError) {
+				return stored.data as TResult;
 			}
-
-			throw cause;
-		})
-		.finally(() => {
-			inFlight.delete(key);
-		});
+			throw error;
+		}
+		return data;
+	})();
 
 	inFlight.set(key, request);
 	return request;
 }
 
-async function fetchAndStore<TResult>(
-	key: string,
-	query: string,
-	variables: unknown,
-	options: AniListRequestOptions,
-) {
+async function fetchAndStore<TResult>(key: string, query: string, variables: unknown) {
 	const data = await rateLimited(key, () => execute(query, variables));
-	const fetchedAt = new Date();
 	const values = {
 		operation: operationName(query),
 		data,
-		fetchedAt,
-		expiresAt: new Date(fetchedAt.getTime() + options.maxAgeMs),
+		fetchedAt: new Date(),
 	};
 
 	await db
-		.insert(anilistSnapshot)
+		.insert(anilistResponse)
 		.values({
 			key,
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: anilistSnapshot.key,
+			target: anilistResponse.key,
 			set: values,
 		});
 
@@ -293,7 +287,7 @@ const mediaBatchRetries = 3;
  * is sent at the most urgent priority among its callers', so a viewer's IDs
  * never wait for a background job's; the background IDs simply come along.
  *
- * Responses are not cached; an ID already queued or being fetched shares
+ * Responses are not stored; an ID already queued or being fetched shares
  * that request. A request AniList answers with a 429 is queued again, to
  * go once the pause that follows ends, rather than failing its callers.
  *
@@ -384,28 +378,16 @@ export function loadMediaById<
 			queuedIn.delete(id);
 		}
 
-		try {
-			const pages = Array.from(
-				{
-					length: Math.ceil(ids.length / mediaPageSize),
-				},
-				(_, page) => ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize),
-			);
-			// The envelope was validated; the payload shape is guaranteed by the schema.
-			const data = (await execute(query, operation.variables(pages))) as TResult;
-			const found = new Map<number, TMedia>();
-			for (const media of operation.media(data)) {
-				if (media) {
-					found.set(media.id, media);
-				}
-			}
-
-			for (const [id, { resolve }] of batch.wanted) {
-				resolve(found.get(id) ?? null);
-			}
-		} catch (cause) {
+		const pages = Array.from(
+			{
+				length: Math.ceil(ids.length / mediaPageSize),
+			},
+			(_, page) => ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize),
+		);
+		const { data, error } = await attempt(execute(query, operation.variables(pages)));
+		if (error) {
 			const isRateLimited =
-				cause instanceof UpstreamUnavailableError && cause.retryAfterMs !== null;
+				error instanceof UpstreamUnavailableError && error.retryAfterMs !== null;
 			if (isRateLimited && batch.retries < mediaBatchRetries) {
 				batch.retries += 1;
 				for (const id of ids) {
@@ -416,8 +398,21 @@ export function loadMediaById<
 			}
 
 			for (const { reject } of batch.wanted.values()) {
-				reject(cause);
+				reject(error);
 			}
+			return;
+		}
+
+		// The envelope was validated; the payload shape is guaranteed by the schema.
+		const found = new Map<number, TMedia>();
+		for (const media of operation.media(data as TResult)) {
+			if (media) {
+				found.set(media.id, media);
+			}
+		}
+
+		for (const [id, { resolve }] of batch.wanted) {
+			resolve(found.get(id) ?? null);
 		}
 	}
 
@@ -580,9 +575,8 @@ function followRateLimit(response: Response) {
 }
 
 async function execute(query: string, variables: unknown) {
-	let response: Response;
-	try {
-		response = await fetch(endpoint, {
+	const { data: response, error: unreachable } = await attempt(
+		fetch(endpoint, {
 			method: "POST",
 			headers: {
 				Accept: "application/json",
@@ -593,11 +587,12 @@ async function execute(query: string, variables: unknown) {
 				variables,
 			}),
 			signal: AbortSignal.timeout(requestTimeoutMs),
-		});
-	} catch (cause) {
+		}),
+	);
+	if (unreachable) {
 		throw new UpstreamUnavailableError("AniList could not be reached", {
 			retryAfterMs: null,
-			cause,
+			cause: unreachable,
 		});
 	}
 
@@ -616,7 +611,18 @@ async function execute(query: string, variables: unknown) {
 		});
 	}
 
-	const body = EnvelopeSchema.safeParse(await response.json().catch(() => null));
+	const { data: json, error: unreadable } = await attempt(response.json());
+	if (unreadable) {
+		throw new UpstreamUnavailableError(
+			`AniList returned a ${response.status} response that is not JSON`,
+			{
+				retryAfterMs: null,
+				cause: unreadable,
+			},
+		);
+	}
+
+	const body = EnvelopeSchema.safeParse(json);
 	if (!body.success) {
 		throw new UpstreamUnavailableError(`AniList returned an invalid ${response.status} response`, {
 			retryAfterMs: null,
@@ -660,12 +666,12 @@ function operationName(query: string) {
 }
 
 /**
- * Derives a stable cache key from the query text and variables.
+ * Derives a stable key from the query text and variables.
  *
- * Object keys are sorted so `{ a, b }` and `{ b, a }` share a snapshot, and the
- * query text is included so editing an operation invalidates its snapshots.
+ * Object keys are sorted so `{ a, b }` and `{ b, a }` share a stored response, and the
+ * query text is included so editing an operation leaves its stored responses behind.
  */
-function snapshotKey(query: string, variables: unknown) {
+function responseKey(query: string, variables: unknown) {
 	return createHash("sha256")
 		.update(query)
 		.update("\0")
