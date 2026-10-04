@@ -1,5 +1,6 @@
 import { query } from "$app/server";
 import { sora } from "$lib/server/sora";
+import { attempt } from "@sora/attempt";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -15,14 +16,12 @@ export const getCalendar = query(
 		weeks: z.number().int().min(-520).max(520),
 	}),
 	async ({ timeZone, weeks }) => {
-		let today: Temporal.PlainDate;
-		try {
-			today = Temporal.Now.plainDateISO(timeZone);
-		} catch (cause) {
-			if (!(cause instanceof RangeError)) {
-				throw cause;
-			}
+		const { data: today, error: invalid } = attempt(() => Temporal.Now.plainDateISO(timeZone));
+		if (invalid instanceof RangeError) {
 			error(400, "That time zone is not available");
+		}
+		if (invalid) {
+			throw invalid;
 		}
 
 		const current = mondayOf(today);
