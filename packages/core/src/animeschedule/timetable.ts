@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -211,6 +212,16 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
 	return [...anilistIds];
 }
 
+/** The AniList entry an AnimeSchedule show links, or `null` when it links none. */
+async function fetchShowAniListId(http: HttpClient, route: string): Promise<number | null> {
+	const response = await http.get(`${apiUrl}/anime/${encodeURIComponent(route)}`, {
+		headers,
+	});
+	const link = AnimeSchema.parse(await response.json()).websites?.aniList;
+	const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
+	return id ? Number(id) : null;
+}
+
 /**
  * The AniList entry of each AnimeSchedule show, as the show links it, or
  * `null` when it links none.
@@ -243,15 +254,9 @@ export async function resolveAnimeScheduleShows(
 	);
 
 	for (const route of unique.filter((route) => !resolved.has(route))) {
-		let anilistId: number | null;
-		try {
-			const response = await http.get(`${apiUrl}/anime/${encodeURIComponent(route)}`, {
-				headers,
-			});
-			const link = AnimeSchema.parse(await response.json()).websites?.aniList;
-			const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
-			anilistId = id ? Number(id) : null;
-		} catch {
+		const { data: anilistId, error } = await attempt(fetchShowAniListId(http, route));
+		if (error) {
+			console.warn(`AnimeSchedule show ${route} could not be read: ${error.message}`);
 			continue;
 		}
 
