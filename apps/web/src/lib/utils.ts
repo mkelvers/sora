@@ -21,6 +21,10 @@ export function audioLabel(audio: SeriesCard["audio"] | null | undefined) {
 	return sub ? "Subtitled" : dub ? "Dubbed" : "";
 }
 
+export function slug(name: string) {
+	return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
 export function formatClock(seconds: number) {
 	seconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 

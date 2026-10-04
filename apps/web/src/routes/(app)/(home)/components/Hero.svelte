@@ -7,9 +7,8 @@
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, slug, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
-	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
 	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
@@ -127,7 +126,7 @@
 								<span class="metadata-tag min-w-0 truncate">
 									{#each slide.genres.slice(0, 4) as genre (genre)}
 										<a
-											href="/genres/{genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"
+											href="/genres/{slug(genre)}"
 											class="pointer-events-auto transition-colors not-last:after:content-[',_'] hover:text-foreground"
 										>
 											{genre}
@@ -159,7 +158,7 @@
 											size="square"
 											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 											aria-pressed={listed}
-											onclick={() => setStatus(slide, listed ? null : "plan_to_watch")}
+											onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 										>
 											<BookmarkSimpleIcon size="1.5rem" weight={listed ? "fill" : "bold"} />
 										</Button>
@@ -170,7 +169,7 @@
 									variant="primary"
 									class="max-sm:flex-1"
 									aria-pressed={listed}
-									onclick={() => setStatus(slide, listed ? null : "plan_to_watch")}
+									onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 								>
 									<BookmarkSimpleIcon size="1.2rem" weight={listed ? "fill" : "bold"} />
 									{listed ? "Remove from Watchlist" : "Add to Watchlist"}

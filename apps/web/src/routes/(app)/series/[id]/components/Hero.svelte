@@ -3,10 +3,9 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
-	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, slug, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
-	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { Series, SeriesProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -24,24 +23,22 @@
 	const listed = $derived(library.status.has(series.id));
 
 	const play = $derived.by(() => {
-		const resume = progress?.next;
-		const place = (episode: number) => (series.format === "MOVIE" ? "" : ` E${episode}`);
-		if (resume) {
-			return {
-				href: `/series/${series.id}/watch/${resume.episode}`,
-				label: `Continue watching${place(resume.episode)}`,
-				rewatch: false,
-			};
-		}
-
-		if (series.episode_count === 0) {
+		const resume = progress?.next?.episode;
+		if (!resume && !series.episode_count) {
 			return null;
 		}
 
+		const rewatch = !resume && !!progress?.episodes.length;
+		const episode = resume ?? 1;
+		const suffix = series.format === "MOVIE" ? "" : ` E${episode}`;
 		return {
-			href: `/series/${series.id}/watch/1`,
-			label: progress?.episodes.length ? "Rewatch" : `Start watching${place(1)}`,
-			rewatch: !!progress?.episodes.length,
+			href: `/series/${series.id}/watch/${episode}`,
+			label: resume
+				? `Continue watching${suffix}`
+				: rewatch
+					? "Rewatch"
+					: `Start watching${suffix}`,
+			rewatch,
 		};
 	});
 
@@ -157,7 +154,7 @@
 					{#each series.genres as genre (genre)}
 						<span class="not-last:after:content-[',_']">
 							<a
-								href="/genres/{genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"
+								href="/genres/{slug(genre)}"
 								class="underline underline-offset-2 transition-colors hover:text-foreground"
 							>
 								{genre}
@@ -225,7 +222,7 @@
 					variant="primary"
 					class="min-w-0 max-sm:flex-1"
 					aria-pressed={listed}
-					onclick={() => setStatus(series, listed ? null : "plan_to_watch")}
+					onclick={() => library.set(series, listed ? null : "plan_to_watch")}
 				>
 					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
 					<span class="truncate">{listed ? "Remove from Watchlist" : "Add to Watchlist"}</span>
