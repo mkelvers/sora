@@ -71,9 +71,14 @@ export function tmdbSrcset(url: string, sizes: Record<string, number>) {
 		.join(", ");
 }
 
-const kinds: Partial<Record<SeriesCard["kind"], string>> = {
-	tv: "Series",
-	movie: "Movie",
+const formats: Record<NonNullable<SeriesCard["format"]>, string> = {
+	TV: "Series",
+	TV_SHORT: "Short",
+	MOVIE: "Movie",
+	SPECIAL: "Special",
+	OVA: "OVA",
+	ONA: "ONA",
+	MUSIC: "Music",
 };
 
 const statuses: Partial<Record<NonNullable<SeriesCard["status"]>, string>> = {
@@ -82,7 +87,7 @@ const statuses: Partial<Record<NonNullable<SeriesCard["status"]>, string>> = {
 };
 
 export function describeCard(card: SeriesCard) {
-	return [card.year, kinds[card.kind], card.status && statuses[card.status]]
+	return [card.year, card.format && formats[card.format], card.status && statuses[card.status]]
 		.filter((part) => !!part)
 		.join(" · ");
 }

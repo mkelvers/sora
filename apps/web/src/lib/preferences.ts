@@ -1,3 +1,5 @@
+import { attempt } from "@sora/attempt";
+
 export class Preferences {
 	#namespace: string;
 
@@ -6,28 +8,29 @@ export class Preferences {
 	}
 
 	get<T>(key: string, accepts: (value: unknown) => value is T, fallback: T): T {
-		try {
-			const stored: unknown = JSON.parse(localStorage.getItem(this.#key(key)) ?? "null");
-
-			return accepts(stored) ? stored : fallback;
-		} catch {
+		const { data: stored, error } = attempt(
+			(): unknown => JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
+		);
+		if (error instanceof DOMException || error instanceof SyntaxError) {
 			return fallback;
 		}
+		if (error) {
+			throw error;
+		}
+		return accepts(stored) ? stored : fallback;
 	}
 
 	set(key: string, value: unknown) {
-		try {
-			localStorage.setItem(this.#key(key), JSON.stringify(value));
-		} catch {
-			return;
+		const { error } = attempt(() => localStorage.setItem(this.#key(key), JSON.stringify(value)));
+		if (error && !(error instanceof DOMException)) {
+			throw error;
 		}
 	}
 
 	remove(key: string) {
-		try {
-			localStorage.removeItem(this.#key(key));
-		} catch {
-			return;
+		const { error } = attempt(() => localStorage.removeItem(this.#key(key)));
+		if (error && !(error instanceof DOMException)) {
+			throw error;
 		}
 	}
 
