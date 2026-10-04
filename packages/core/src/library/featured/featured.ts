@@ -2,9 +2,9 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { animeSearch, featuredPick, series, seriesState } from "../../database/schema";
+import type { SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
-import type { SeriesCard } from "../../series/models";
 import { toSeriesCards } from "../../series/queries";
 import {
 	arrange,
@@ -224,5 +224,5 @@ async function cardsOf(seriesIds: readonly string[]) {
 
 /** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
 function isShowable(card: SeriesCard | undefined) {
-	return card !== undefined && !!card.backdropUrl && !!card.logoUrl && card.audio.length > 0;
+	return card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
 }

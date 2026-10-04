@@ -1,14 +1,4 @@
-/**
- * Where a user is with a series on their watchlist. The user picks it, and
- * playing an episode moves it on (see {@link statusAfterPlayback}):
- *
- * - `watching`: started, or picked as being watched.
- * - `plan_to_watch`: saved to watch later.
- * - `completed`: watched to the end.
- * - `dropped`: given up on.
- */
-export type WatchlistStatus = "watching" | "plan_to_watch" | "completed" | "dropped";
-
+import type { WatchlistStatus } from "../../models/library";
 /** What {@link statusAfterPlayback} needs to know about one play of an episode. */
 export interface Playback {
 	/** Whether the user finished the episode. */

@@ -13,17 +13,9 @@ export {
 	dismissNotification,
 	getNotifications,
 	markNotificationsRead,
-	type Notification,
 	type Notifications,
 } from "./notifications/notifications";
-export {
-	getPlaybackPreferences,
-	PlaybackPreferencesUpdateSchema,
-	updatePlaybackPreferences,
-	type PlaybackPreferences,
-	type PlaybackPreferencesUpdate,
-	type SubtitleChoice,
-} from "./preferences/preferences";
+export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
 export {
 	dismissContinueWatching,
 	getContinueWatching,
@@ -31,21 +23,9 @@ export {
 	getSeriesProgress,
 	markUnwatched,
 	markWatched,
-	ProgressInputSchema,
 	removeProgress,
 	saveProgress,
 	startRewatch,
-	type ContinueWatching,
 	type EpisodeAddress,
-	type NextEpisode,
-	type Progress,
-	type ProgressInput,
-	type SeriesProgress,
 } from "./progress/progress";
-export type { WatchlistStatus } from "./watchlist/status";
-export {
-	getWatchlist,
-	removeFromWatchlist,
-	setWatchlistStatus,
-	type WatchlistEntry,
-} from "./watchlist/watchlist";
+export { getWatchlist, removeFromWatchlist, setWatchlistStatus } from "./watchlist/watchlist";

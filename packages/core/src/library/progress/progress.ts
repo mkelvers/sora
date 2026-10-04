@@ -1,11 +1,17 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { z } from "zod";
 
 import { db } from "../../database/client";
 import { episodeProgress, series, seriesState } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
+import {
+	ProgressInputSchema,
+	type ContinueWatching,
+	type NextEpisode,
+	type Progress,
+	type ProgressInput,
+	type SeriesProgress,
+} from "../../models/library";
 import { locateEpisode } from "../../series/episodes";
-import type { SeriesCard } from "../../series/models";
 import {
 	assertSeriesExists,
 	getAdjacentEpisodes,
@@ -15,76 +21,12 @@ import {
 import { clearSeriesState } from "../state";
 import { updateWatchlistAfterPlayback } from "../watchlist/watchlist";
 
-/** How far a user is into one episode. */
-export interface Progress {
-	seriesId: string;
-	/** The episode's number in the series, from 1. */
-	episode: number;
-	/** Where the user stopped, in seconds from the start. */
-	positionSeconds: number;
-	/** How long the episode runs, in seconds. */
-	durationSeconds: number;
-	/**
-	 * Whether the user stopped where the episode is over, as the player they
-	 * watched it in judged: it played to the end, or they stopped in or after
-	 * its ending. Playing part of it again later leaves it finished; only a
-	 * rewatch (see {@link startRewatch}) remembers that apart.
-	 */
-	finished: boolean;
-	/** When the user last played it, as an ISO 8601 timestamp. */
-	watchedAt: string;
-}
-
-/** The episode of a series a user plays next. */
-export interface NextEpisode {
-	/** The episode's number in the series, from 1. */
-	episode: number;
-	/** Where to resume the episode, in seconds; 0 for one not started. */
-	positionSeconds: number;
-	/** How long the episode runs, in seconds; `null` for one not started. */
-	durationSeconds: number | null;
-}
-
-/** A series a user is in the middle of, with the episode to play next. */
-export interface ContinueWatching extends NextEpisode {
-	series: SeriesCard;
-}
-
-/** A user's progress through one series. */
-export interface SeriesProgress {
-	/**
-	 * The progress in every episode of the series the user played, the most
-	 * recently played first: in the rewatch they are in the middle of, if
-	 * any, else in their first viewing.
-	 */
-	episodes: Progress[];
-	/**
-	 * The episode to play next, or `null` when the user played none of the
-	 * series, or finished the last episode that is out.
-	 */
-	next: NextEpisode | null;
-	/**
-	 * When the user started watching the series again from the start, as an
-	 * ISO 8601 timestamp; `null` when they are not (see {@link startRewatch}).
-	 */
-	rewatchStartedAt: string | null;
-}
-
 /** An episode, by its series and its number in it. */
 export interface EpisodeAddress {
 	seriesId: string;
 	/** The episode's number in the series, from 1. */
 	episode: number;
 }
-
-/** Where a user stopped in an episode. Validate untrusted input with this schema. */
-export const ProgressInputSchema = z.object({
-	positionSeconds: z.number().int().nonnegative(),
-	durationSeconds: z.number().int().positive(),
-	finished: z.boolean(),
-});
-
-export type ProgressInput = z.input<typeof ProgressInputSchema>;
 
 /** The series {@link getContinueWatching} looks at, the most recently played. */
 const recentSeries = 30;
@@ -126,13 +68,13 @@ export async function saveProgress(
 	await locateEpisode(address.seriesId, address.episode);
 
 	// Opening an episode and leaving before it plays is not watching it.
-	if (parsed.data.positionSeconds === 0 && !parsed.data.finished) {
+	if (parsed.data.position_seconds === 0 && !parsed.data.finished) {
 		return getProgress(userId, address);
 	}
 
 	const values = {
-		positionSeconds: Math.min(parsed.data.positionSeconds, parsed.data.durationSeconds),
-		durationSeconds: parsed.data.durationSeconds,
+		positionSeconds: Math.min(parsed.data.position_seconds, parsed.data.duration_seconds),
+		durationSeconds: parsed.data.duration_seconds,
 		finished: parsed.data.finished,
 	};
 	const [row] = await db
@@ -214,7 +156,7 @@ export async function markWatched(userId: string, seriesId: string, episode?: nu
 		.values(
 			marked.map((candidate) => {
 				const durationSeconds =
-					played.get(candidate.number) ?? (candidate.runtimeMinutes ?? 0) * 60;
+					played.get(candidate.number) ?? (candidate.runtime_minutes ?? 0) * 60;
 				return {
 					userId,
 					seriesId,
@@ -283,8 +225,12 @@ async function afterPlayback(userId: string, address: EpisodeAddress, finished: 
 		episode: address.episode,
 		finished,
 	});
-	if (finished && (await getAdjacentEpisodes(address.seriesId, address.episode)).next === null) {
-		await endRewatch(userId, address.seriesId);
+	if (finished) {
+		const adjacent = await getAdjacentEpisodes(address.seriesId, address.episode);
+
+		if (adjacent.next === null) {
+			await endRewatch(userId, address.seriesId);
+		}
 	}
 }
 
@@ -346,21 +292,27 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 
 	const [last] = rows;
 	const finished = rows.filter((row) => row.finished).length;
-	const complete =
-		!rewatch && finished > 0 && finished >= (await getSeriesEpisodes(seriesId)).length;
+	let complete = false;
+
+	if (!rewatch && finished > 0) {
+		const seriesEpisodes = await getSeriesEpisodes(seriesId);
+
+		complete = finished >= seriesEpisodes.length;
+	}
+
+	const nextBySeries = last && !complete ? await nextEpisodes(userId, [last]) : null;
+
 	return {
 		episodes: rows.map(toProgress),
 		next:
 			rewatch && !last
 				? {
 						episode: 1,
-						positionSeconds: 0,
-						durationSeconds: null,
+						position_seconds: 0,
+						duration_seconds: null,
 					}
-				: last && !complete
-					? ((await nextEpisodes(userId, [last])).get(seriesId) ?? null)
-					: null,
-		rewatchStartedAt: startedAt?.toISOString() ?? null,
+				: (nextBySeries?.get(seriesId) ?? null),
+		rewatch_started_at: startedAt?.toISOString() ?? null,
 	};
 }
 
@@ -485,7 +437,7 @@ export async function getContinueWatching(userId: string): Promise<ContinueWatch
 	return played.flatMap(({ seriesId, rewatch }) => {
 		const card = cards.get(seriesId);
 		const episode = next.get(seriesId);
-		const complete = !rewatch && (finished.get(seriesId) ?? 0) >= (card?.episodeCount ?? 0);
+		const complete = !rewatch && (finished.get(seriesId) ?? 0) >= (card?.episode_count ?? 0);
 		return card && episode && !complete
 			? [
 					{
@@ -588,17 +540,26 @@ async function nextEpisodes(
 		rewatch: boolean;
 	})[],
 ): Promise<Map<string, NextEpisode>> {
-	const found = (
-		await Promise.all(
-			played.map(async (last) => ({
+	const candidates = await Promise.all(
+		played.map(async (last) => {
+			if (!last.finished) {
+				return {
+					seriesId: last.seriesId,
+					rewatch: last.rewatch,
+					episode: last.episode,
+				};
+			}
+
+			const adjacent = await getAdjacentEpisodes(last.seriesId, last.episode);
+
+			return {
 				seriesId: last.seriesId,
 				rewatch: last.rewatch,
-				episode: last.finished
-					? (await getAdjacentEpisodes(last.seriesId, last.episode)).next
-					: last.episode,
-			})),
-		)
-	).flatMap(({ seriesId, rewatch, episode }) =>
+				episode: adjacent.next,
+			};
+		}),
+	);
+	const found = candidates.flatMap(({ seriesId, rewatch, episode }) =>
 		episode === null
 			? []
 			: [
@@ -641,8 +602,8 @@ async function nextEpisodes(
 				seriesId,
 				{
 					episode,
-					positionSeconds: unfinished?.positionSeconds ?? 0,
-					durationSeconds: unfinished?.durationSeconds ?? null,
+					position_seconds: unfinished?.positionSeconds ?? 0,
+					duration_seconds: unfinished?.durationSeconds ?? null,
 				},
 			];
 		}),
@@ -651,11 +612,11 @@ async function nextEpisodes(
 
 function toProgress(row: typeof episodeProgress.$inferSelect): Progress {
 	return {
-		seriesId: row.seriesId,
+		series_id: row.seriesId,
 		episode: row.episode,
-		positionSeconds: row.positionSeconds,
-		durationSeconds: row.durationSeconds,
+		position_seconds: row.positionSeconds,
+		duration_seconds: row.durationSeconds,
 		finished: row.finished,
-		watchedAt: row.watchedAt.toISOString(),
+		watched_at: row.watchedAt.toISOString(),
 	};
 }

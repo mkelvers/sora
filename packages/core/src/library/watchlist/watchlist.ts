@@ -2,20 +2,10 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { anime, series, seriesState } from "../../database/schema";
-import type { SeriesCard } from "../../series/models";
+import type { WatchlistEntry, WatchlistStatus } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { clearSeriesState } from "../state";
-import { statusAfterPlayback, type WatchlistStatus } from "./status";
-
-/** A series on a user's watchlist. */
-export interface WatchlistEntry {
-	series: SeriesCard;
-	status: WatchlistStatus;
-	/** When the series was put on the watchlist, as an ISO 8601 timestamp. */
-	addedAt: string;
-	/** When its status last changed, as an ISO 8601 timestamp. */
-	updatedAt: string;
-}
+import { statusAfterPlayback } from "./status";
 
 /** Lists a user's watchlist, the most recently changed first. */
 export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
@@ -39,8 +29,8 @@ export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 					{
 						series: card,
 						status: row.status,
-						addedAt: row.addedAt.toISOString(),
-						updatedAt: row.statusChangedAt.toISOString(),
+						added_at: row.addedAt.toISOString(),
+						updated_at: row.statusChangedAt.toISOString(),
 					},
 				]
 			: [];
