@@ -105,7 +105,7 @@ export function moveMenuFocus(event: KeyboardEvent & { currentTarget: HTMLElemen
 		...event.currentTarget.querySelectorAll<HTMLElement>(
 			"a[href], button:not(:disabled), input:not(:disabled)",
 		),
-	];
+	].filter((item) => item.checkVisibility());
 	if (!step || !items.length) {
 		return;
 	}
