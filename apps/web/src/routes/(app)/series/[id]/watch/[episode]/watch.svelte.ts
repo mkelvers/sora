@@ -56,21 +56,11 @@ export class Player {
 		this.time = start;
 		this.#resume = start;
 
-		this.volume = preferences.get(
-			"volume",
-			(value): value is number => typeof value === "number" && value >= 0 && value <= 1,
-			1,
-		);
-		this.muted = preferences.get(
-			"muted",
-			(value): value is boolean => typeof value === "boolean",
-			false,
-		);
-		this.speed = preferences.get(
-			"speed",
-			(value): value is number => typeof value === "number" && value > 0,
-			1,
-		);
+		const volume = preferences.get("volume");
+		const speed = preferences.get("speed");
+		this.volume = typeof volume === "number" && volume >= 0 && volume <= 1 ? volume : 1;
+		this.muted = preferences.get("muted") === true;
+		this.speed = typeof speed === "number" && speed > 0 ? speed : 1;
 	}
 
 	remember = () => {
@@ -127,23 +117,23 @@ export class Player {
 	};
 
 	onkeydown = (event: KeyboardEvent) => {
-		if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
-			return;
-		}
+		const target = event.target instanceof Element ? event.target : null;
 		if (
-			event.target instanceof Element &&
-			event.target.closest("input, textarea, [contenteditable]")
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey ||
+			target?.closest("input, textarea, [contenteditable]") ||
+			(event.key === " " && target?.closest("button, a"))
 		) {
 			return;
 		}
-		if (event.key === " " && event.target instanceof Element && event.target.closest("button, a")) {
-			return;
-		}
 
+		const toggle = () => (this.paused = !this.paused);
 		const action =
 			{
-				" ": () => (this.paused = !this.paused),
-				k: () => (this.paused = !this.paused),
+				" ": toggle,
+				k: toggle,
 				ArrowLeft: () => (this.time -= 10),
 				ArrowRight: () => (this.time += 10),
 				j: () => (this.time -= 10),
@@ -192,68 +182,71 @@ export class Player {
 			const start = this.#resume ?? 0;
 			this.#resume = undefined;
 
-			let hls: Hls | undefined;
-			let detached = false;
-
-			const direct = () => {
-				video.src = source.url;
-				video.currentTime = start;
-			};
-
-			const streamHls = async () => {
-				const loaded = await attempt(import("hls.js"));
-				if (detached) {
-					return;
-				}
-				if (loaded.error || !loaded.data.default.isSupported()) {
-					direct();
-					return;
-				}
-
-				const Hls = loaded.data.default;
-				const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
-				const instance = new Hls({
-					startPosition: start,
-					maxBufferLength: 7200,
-					maxMaxBufferLength: 7200,
-					maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
-					backBufferLength: 60,
-				});
-				let recovered = 0;
-
-				instance.on(Hls.Events.ERROR, (_, data) => {
-					if (!data.fatal) {
-						return;
-					}
-					if (data.type === Hls.ErrorTypes.MEDIA_ERROR && performance.now() - recovered > 5000) {
-						recovered = performance.now();
-						instance.recoverMediaError();
-						return;
-					}
-					if (performance.now() - this.#reloaded > 30_000) {
-						this.#reloaded = performance.now();
-						this.#reloads++;
-					}
-				});
-				instance.loadSource(source.url);
-				instance.attachMedia(video);
-				hls = instance;
-			};
-
-			if (source.format === "hls") {
-				void streamHls();
-			} else {
-				direct();
-			}
+			const stop =
+				source.format === "hls"
+					? this.#hls(video, source.url, start)
+					: this.#direct(video, source.url, start);
 
 			return () => {
 				this.#resume ??= video.currentTime || start;
-				detached = true;
-				hls?.destroy();
+				stop();
 				video.removeAttribute("src");
 				video.load();
 			};
 		};
+
+	#direct(video: HTMLVideoElement, url: string, start: number) {
+		video.src = url;
+		video.currentTime = start;
+		return () => {};
+	}
+
+	#hls(video: HTMLVideoElement, url: string, start: number) {
+		let hls: Hls | undefined;
+		let detached = false;
+
+		void (async () => {
+			const loaded = await attempt(import("hls.js"));
+			if (detached) {
+				return;
+			}
+			if (loaded.error || !loaded.data.default.isSupported()) {
+				this.#direct(video, url, start);
+				return;
+			}
+
+			const Hls = loaded.data.default;
+			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
+			hls = new Hls({
+				startPosition: start,
+				maxBufferLength: 7200,
+				maxMaxBufferLength: 7200,
+				maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
+				backBufferLength: 60,
+			});
+
+			let recovered = 0;
+			hls.on(Hls.Events.ERROR, (_, data) => {
+				if (!data.fatal) {
+					return;
+				}
+				if (data.type === Hls.ErrorTypes.MEDIA_ERROR && performance.now() - recovered > 5000) {
+					recovered = performance.now();
+					hls?.recoverMediaError();
+				} else if (performance.now() - this.#reloaded > 30_000) {
+					this.#reloaded = performance.now();
+					this.#reloads++;
+				}
+			});
+			hls.loadSource(url);
+			hls.attachMedia(video);
+		})();
+
+		return () => {
+			detached = true;
+			hls?.destroy();
+		};
+	}
 
 	caption =
 		(shown: boolean): Attachment<HTMLTrackElement> =>
