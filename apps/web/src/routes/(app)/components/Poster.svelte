@@ -4,9 +4,8 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { setStatus } from "$lib/watchlist";
-	import { getWatchlist } from "$lib/watchlist.remote";
-	import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
+	import { getLibrary } from "$routes/(app)/library.svelte";
+	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -20,11 +19,8 @@
 		class?: string;
 	} = $props();
 
-	const watchlist = getWatchlist();
-	const continueWatching = getContinueWatching();
-	const listed = $derived(
-		!!card && !!watchlist.current?.some((entry) => entry.series.id === card.id),
-	);
+	const library = getLibrary();
+	const listed = $derived(!!card && library.status.has(card.id));
 
 	const audio = $derived(audioLabel(card?.audio));
 
@@ -48,7 +44,7 @@
 			};
 		}
 
-		const resume = continueWatching.current?.find((other) => other.series.id === card.id);
+		const resume = library.resume.get(card.id);
 		if (resume) {
 			const verb = resume.position_seconds > 0 ? "Resume" : "Play";
 			return {

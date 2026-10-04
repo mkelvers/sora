@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import logo from "$lib/assets/logo.png";
-	import { getGenres } from "$lib/catalog.remote";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import { getUnreadNotifications } from "$lib/notifications.remote";
 	import { cn, pollWhileVisible } from "$lib/utils";
+	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
+	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {

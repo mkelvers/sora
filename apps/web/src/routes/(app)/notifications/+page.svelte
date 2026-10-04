@@ -3,11 +3,11 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
-	import { getNotifications, markNotificationsRead } from "$lib/notifications.remote";
 	import { pollWhileVisible } from "$lib/utils";
 	import { BellSimpleIcon, ChecksIcon } from "phosphor-svelte";
 
 	import Notification from "./components/Notification.svelte";
+	import { getNotifications, markNotificationsRead } from "./notifications.remote";
 
 	const notifications = getNotifications();
 	const unread = $derived(notifications.current?.filter((item) => item.unread) ?? []);

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import Poster from "$lib/components/Poster.svelte";
 	import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
 	import Content from "$lib/components/ui/carousel/Content.svelte";
 	import Item from "$lib/components/ui/carousel/Item.svelte";
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
-	import { getWatchlist } from "$lib/watchlist.remote";
+	import Poster from "$routes/(app)/components/Poster.svelte";
+	import { getLibrary } from "$routes/(app)/library.svelte";
 
 	import type { PageProps } from "./$types";
 	import ContinueWatching from "./components/ContinueWatching.svelte";
@@ -14,14 +14,7 @@
 
 	let { data }: PageProps = $props();
 
-	const watchlist = getWatchlist();
-	const dropped = $derived(
-		new Set(
-			(watchlist.current ?? [])
-				.filter((entry) => entry.status === "dropped")
-				.map((entry) => entry.series.id),
-		),
-	);
+	const library = getLibrary();
 </script>
 
 <svelte:head>
@@ -38,7 +31,7 @@
 	</div>
 
 	{#each data.rows as row (row.id)}
-		{@const cards = row.cards.filter((card) => !dropped.has(card.id))}
+		{@const cards = row.cards.filter((card) => library.status.get(card.id) !== "dropped")}
 		{#if cards.length}
 			<div class="relative z-20 pb-10 sm:pb-12 lg:pb-16">
 				<h2 id={row.id} class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">

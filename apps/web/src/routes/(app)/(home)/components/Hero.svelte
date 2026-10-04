@@ -8,8 +8,8 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { setStatus } from "$lib/watchlist";
-	import { getWatchlist } from "$lib/watchlist.remote";
+	import { getLibrary } from "$routes/(app)/library.svelte";
+	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
 	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
@@ -21,7 +21,7 @@
 		featured: SeriesCard[];
 	} = $props();
 
-	const watchlist = getWatchlist();
+	const library = getLibrary();
 	const delay = 10_000;
 
 	let held = $state(-1);
@@ -90,7 +90,7 @@
 					{@const near = [0, 1, featured.length - 1].includes(
 						(index - carousel.active + featured.length) % featured.length,
 					)}
-					{@const listed = !!watchlist.current?.some((entry) => entry.series.id === slide.id)}
+					{@const listed = library.status.has(slide.id)}
 					<article
 						class={cn(
 							"col-start-1 row-start-1 min-w-0 transition-opacity duration-500 motion-reduce:transition-none",

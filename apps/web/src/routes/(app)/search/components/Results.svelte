@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
 	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Poster from "$lib/components/Poster.svelte";
 	import { mascots } from "$lib/mascots";
+	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 
 	let {

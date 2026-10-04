@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Poster from "$lib/components/Poster.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { mascots } from "$lib/mascots";
+	import Poster from "$routes/(app)/components/Poster.svelte";
 
 	import Results from "./components/Results.svelte";
 

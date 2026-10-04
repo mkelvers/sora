@@ -1,6 +1,9 @@
 import { command, query } from "$app/server";
-import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer } from "$lib/server/sora";
+import {
+	getNotifications,
+	getUnreadNotifications,
+} from "$routes/(app)/notifications/notifications.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 

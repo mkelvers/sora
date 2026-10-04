@@ -2,8 +2,8 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { setStatus, statusLabels } from "$lib/watchlist";
-	import { getWatchlist } from "$lib/watchlist.remote";
+	import { getLibrary } from "$routes/(app)/library.svelte";
+	import { setStatus, statusLabels } from "$routes/(app)/watchlist/watchlist";
 	import type { SeriesCard, WatchlistStatus } from "@sora/sdk";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
@@ -13,10 +13,8 @@
 		series: SeriesCard;
 	} = $props();
 
-	const watchlist = getWatchlist();
-	const status = $derived(
-		watchlist.current?.find((entry) => entry.series.id === series.id)?.status ?? null,
-	);
+	const library = getLibrary();
+	const status = $derived(library.status.get(series.id) ?? null);
 	const statuses = Object.keys(statusLabels) as WatchlistStatus[];
 	const tooltip = $derived(status ? "Change Watchlist status" : "Add to Watchlist");
 </script>

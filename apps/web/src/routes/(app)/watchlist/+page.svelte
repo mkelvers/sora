@@ -1,14 +1,14 @@
 <script lang="ts">
 	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Poster from "$lib/components/Poster.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
-	import { statusLabels } from "$lib/watchlist";
-	import { getWatchlist } from "$lib/watchlist.remote";
+	import Poster from "$routes/(app)/components/Poster.svelte";
 	import type { WatchlistEntry, WatchlistStatus } from "@sora/sdk";
 	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
 	import WatchlistSort, { type WatchlistSort as Sort } from "./components/WatchlistSort.svelte";
+	import { statusLabels } from "./watchlist";
+	import { getWatchlist } from "./watchlist.remote";
 
 	const watchlist = getWatchlist();
 

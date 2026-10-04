@@ -4,9 +4,9 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { setStatus } from "$lib/watchlist";
-	import { getWatchlist } from "$lib/watchlist.remote";
+	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
+	import { setStatus } from "$routes/(app)/watchlist/watchlist";
 	import type { Series, SeriesProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
@@ -20,8 +20,8 @@
 		progress?: SeriesProgress;
 	} = $props();
 
-	const watchlist = getWatchlist();
-	const listed = $derived(!!watchlist.current?.some((entry) => entry.series.id === series.id));
+	const library = getLibrary();
+	const listed = $derived(library.status.has(series.id));
 
 	const play = $derived.by(() => {
 		const resume = progress?.next;

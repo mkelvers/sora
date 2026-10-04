@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { getCatalogPage, type CatalogRequest } from "$lib/catalog.remote";
 	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Poster from "$lib/components/Poster.svelte";
 	import { mascots } from "$lib/mascots";
+	import { getCatalogPage, type CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
+	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { CircleNotchIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 

@@ -1,9 +1,12 @@
 import { command, query } from "$app/server";
-import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
+import {
+	getNotifications,
+	getUnreadNotifications,
+} from "$routes/(app)/notifications/notifications.remote";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
+import { getWatchlist } from "$routes/(app)/watchlist/watchlist.remote";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";

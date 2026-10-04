@@ -2,8 +2,11 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { dismissNotification, markNotificationsRead } from "$lib/notifications.remote";
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import {
+		dismissNotification,
+		markNotificationsRead,
+	} from "$routes/(app)/notifications/notifications.remote";
 	import type { Notification } from "@sora/sdk";
 	import { CaretRightIcon, CheckIcon, TrashIcon } from "phosphor-svelte";
 

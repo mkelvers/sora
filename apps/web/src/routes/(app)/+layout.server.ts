@@ -1,4 +1,4 @@
-import { getGenres } from "$lib/catalog.remote";
+import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
 import { redirect } from "@sveltejs/kit";
 
 import type { LayoutServerLoad } from "./$types";

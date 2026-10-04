@@ -1,7 +1,9 @@
 <script lang="ts">
-	import Catalog from "$lib/components/Catalog.svelte";
-	import CatalogControls, { catalogFilters } from "$lib/components/CatalogControls.svelte";
-	import CatalogReset from "$lib/components/CatalogReset.svelte";
+	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
+	import CatalogControls, {
+		catalogFilters,
+	} from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
+	import CatalogReset from "$routes/(app)/(catalog)/components/CatalogReset.svelte";
 </script>
 
 <svelte:head>

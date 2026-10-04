@@ -1,5 +1,6 @@
-import { getWatchlist, setWatchlistStatus } from "$lib/watchlist.remote";
 import type { SeriesCard, WatchlistStatus } from "@sora/sdk";
+
+import { getWatchlist, setWatchlistStatus } from "./watchlist.remote";
 
 export const statusLabels: Record<WatchlistStatus, string> = {
 	watching: "Watching",

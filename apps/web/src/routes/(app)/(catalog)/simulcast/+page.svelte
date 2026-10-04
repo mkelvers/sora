@@ -7,10 +7,10 @@
 </script>
 
 <script lang="ts">
-	import Catalog from "$lib/components/Catalog.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
 	import { CaretDownIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";

@@ -5,8 +5,11 @@
 	import { timeZoneCookie } from "$lib/utils";
 
 	import Header from "./components/Header.svelte";
+	import { Library, setLibrary } from "./library.svelte";
 
 	let { data, children } = $props();
+
+	setLibrary(new Library());
 
 	$effect(() => {
 		const zone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);

@@ -1,8 +1,11 @@
 import { command, query } from "$app/server";
-import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
+import {
+	getNotifications,
+	getUnreadNotifications,
+} from "$routes/(app)/notifications/notifications.remote";
+import { getWatchlist } from "$routes/(app)/watchlist/watchlist.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
