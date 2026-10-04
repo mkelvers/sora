@@ -43,11 +43,11 @@ describe("groupNotifications", () => {
 		expect(notification).toMatchObject({
 			id: "slime:4",
 			kind: "episodes",
-			firstEpisode: 4,
-			lastEpisode: 6,
-			episodeTitle: "Episode 6",
-			stillUrl: "still-6",
-			releasedAt: monday.toISOString(),
+			first_episode: 4,
+			last_episode: 6,
+			episode_title: "Episode 6",
+			still_url: "still-6",
+			released_at: monday.toISOString(),
 			unread: true,
 		});
 	});
@@ -67,7 +67,7 @@ describe("groupNotifications", () => {
 
 		expect(notification).toMatchObject({
 			kind: "premiere",
-			stillUrl: "still-1",
+			still_url: "still-1",
 		});
 	});
 
@@ -112,7 +112,7 @@ describe("groupNotifications", () => {
 		expect(notification).toMatchObject({
 			id: "slime:3:dub",
 			kind: "dub",
-			lastEpisode: 4,
+			last_episode: 4,
 		});
 	});
 

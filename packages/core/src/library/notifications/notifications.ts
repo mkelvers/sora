@@ -11,40 +11,11 @@ import {
 	seriesRelated,
 	seriesState,
 } from "../../database/schema";
+import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
-import type { SeriesCard } from "../../series/models";
-import { episodeReleasedAt, listedEpisodesOf, toSeriesCards } from "../../series/queries";
+import { episodeReleasedAt } from "../../series/episodes";
+import { listedEpisodesOf, toSeriesCards } from "../../series/queries";
 import { day } from "../../time";
-
-/**
- * Something that came out for a series on a profile's watchlist, or that
- * continues one: its first episodes, new episodes, or the English dub of
- * episodes that were out already.
- */
-export interface Notification {
-	/** Stable for as long as the notification is listed. */
-	id: string;
-	/**
-	 * `premiere` when the series' first episode came out, which for a
-	 * sequel is the offer of a new season; `episodes` when a series that was
-	 * out already gained episodes; `dub` when episodes that were out already
-	 * were dubbed in English.
-	 */
-	kind: "premiere" | "episodes" | "dub";
-	series: SeriesCard;
-	/** The first episode that came out, or was dubbed, from 1. */
-	firstEpisode: number;
-	/** The last such episode; the same as `firstEpisode` when there was one. */
-	lastEpisode: number;
-	/** The title of `lastEpisode`, or `null` when TMDB has none. */
-	episodeTitle: string | null;
-	/** A still of `lastEpisode`, or of the first for a premiere; `null` when TMDB has none. */
-	stillUrl: string | null;
-	/** ISO 8601 timestamp of when it came out. */
-	releasedAt: string;
-	/** Whether the profile has not marked it read. */
-	unread: boolean;
-}
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
 export interface Notifications {
@@ -131,18 +102,18 @@ export function groupNotifications(
 					id,
 					kind: first.dubbed ? "dub" : isPremiere ? "premiere" : "episodes",
 					seriesId: first.seriesId,
-					firstEpisode: first.number,
-					lastEpisode: last.number,
-					episodeTitle: last.title,
-					stillUrl: isPremiere ? first.stillUrl : last.stillUrl,
-					releasedAt: first.releasedAt.toISOString(),
+					first_episode: first.number,
+					last_episode: last.number,
+					episode_title: last.title,
+					still_url: isPremiere ? first.stillUrl : last.stillUrl,
+					released_at: first.releasedAt.toISOString(),
 					unread: !read.has(id),
 				},
 			];
 		})
 		.toSorted(
 			(left, right) =>
-				right.releasedAt.localeCompare(left.releasedAt) || right.id.localeCompare(left.id),
+				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
 		);
 }
 
