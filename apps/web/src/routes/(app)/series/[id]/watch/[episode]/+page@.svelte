@@ -25,8 +25,7 @@
 	const progress = $derived(await getProgress(address));
 
 	const playback = $derived(getPlayback(address));
-	const next = $derived(playback.current?.next ?? undefined);
-	const previous = $derived(playback.current?.previous ?? undefined);
+	const next = $derived(playback.current?.next);
 
 	const key = $derived(`${series.id}/${episode.number}`);
 	let nearing = $state<string>();
@@ -94,7 +93,9 @@
 		id={key}
 		media={playback.current?.media}
 		back="/series/{series.id}"
-		previous={previous ? `/series/${series.id}/watch/${previous}` : undefined}
+		previous={playback.current?.previous
+			? `/series/${series.id}/watch/${playback.current.previous}`
+			: undefined}
 		next={next ? `/series/${series.id}/watch/${next}` : undefined}
 		title="{episode.number}. {title}"
 		series={series.title}
