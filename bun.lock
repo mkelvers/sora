@@ -19,6 +19,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@hono/zod-openapi": "^1.6.3",
+        "@sora/attempt": "workspace:*",
         "@sora/core": "workspace:*",
         "hono": "^4.13.8",
         "zod": "^4.6.5",
@@ -41,6 +42,7 @@
         "@dicebear/core": "^10.7.0",
         "@dicebear/styles": "^10.6.0",
         "@fontsource-variable/dm-sans": "^5.3.0",
+        "@sora/attempt": "workspace:*",
         "@sora/sdk": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -65,11 +67,19 @@
         "vite": "^8.2.2",
       },
     },
+    "packages/attempt": {
+      "name": "@sora/attempt",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+      },
+    },
     "packages/core": {
       "name": "@sora/core",
       "version": "0.0.1",
       "dependencies": {
         "@graphql-typed-document-node/core": "^3.2.0",
+        "@sora/attempt": "workspace:*",
         "anime-sdk": "^1.1.0",
         "better-auth": "^1.7.6",
         "drizzle-orm": "^0.45.3",
@@ -90,6 +100,7 @@
       "name": "@sora/sdk",
       "version": "0.0.1",
       "dependencies": {
+        "@sora/attempt": "workspace:*",
         "hono": "^4.13.8",
       },
       "devDependencies": {
@@ -607,6 +618,8 @@
     "@sinclair/typebox": ["@sinclair/typebox@0.27.12", "", {}, "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="],
 
     "@sora/api": ["@sora/api@workspace:apps/api"],
+
+    "@sora/attempt": ["@sora/attempt@workspace:packages/attempt"],
 
     "@sora/core": ["@sora/core@workspace:packages/core"],
 

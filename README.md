@@ -39,11 +39,10 @@ const series = await sora.series(result.id, {
 	},
 });
 
-const season = series.seasons[0];
-const episode = season.episodes[0];
+const [episode] = series.episodes;
 
 const media = await sora.playback({
-	seasonId: season.id,
+	seriesId: series.id,
 	number: episode.number,
 });
 ```
@@ -101,7 +100,7 @@ Sora doesn't make its own anime data or host any video.
 
 - [AniList](https://anilist.co): titles, descriptions, genres, cover art, scores,
   how entries relate, and airing schedules.
-- [The Movie Database (TMDB)](https://www.themoviedb.org): seasons, episode
-  details, backdrops, and logos. This product uses the TMDB API but is not
+- [The Movie Database (TMDB)](https://www.themoviedb.org): episode details,
+  backdrops, and logos. This product uses the TMDB API but is not
   endorsed or certified by TMDB.
 - [AnimeSchedule.net](https://animeschedule.net): when English dubs come out.
