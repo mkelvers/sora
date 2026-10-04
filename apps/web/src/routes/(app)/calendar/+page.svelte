@@ -8,10 +8,17 @@
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { mascots } from "$lib/mascots";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { Tabs } from "melt/builders";
-	import { CaretLeftIcon, CaretRightIcon, ClockIcon, InfoIcon } from "phosphor-svelte";
+	import {
+		CaretDownIcon,
+		CaretLeftIcon,
+		CaretRightIcon,
+		ClockIcon,
+		InfoIcon,
+	} from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
 	import { getCalendar } from "./calendar.remote";
@@ -87,6 +94,13 @@
 	};
 
 	let selected = $derived(calendar.days.find((day) => day.today)?.date ?? calendar.days[0].date);
+
+	let daysOpen = $state(false);
+
+	const current = $derived(calendar.days.find((day) => day.date === selected) ?? calendar.days[0]);
+
+	const dayLabel = (day: (typeof calendar.days)[number]) =>
+		day.today ? "Today" : weekday.format(noon(day.date));
 
 	const tabs = new Tabs<string>({
 		value: () => selected,
@@ -170,22 +184,15 @@
 	class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16"
 >
 	<section class="mx-auto w-full max-w-7xl" aria-labelledby="calendar-title">
-		<div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-			<div class="flex items-center justify-between gap-4">
-				<h1 id="calendar-title" class="text-2xl font-bold">Release Calendar</h1>
-				{#if shown.weeks !== 0}
-					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="sm:hidden">
-						This week
-					</Button>
-				{/if}
+		<div class="mb-6 flex items-center justify-between gap-2 sm:mb-8 sm:gap-4">
+			<div class="flex flex-col items-start">
+				<h1 id="calendar-title" class="text-xl font-bold sm:text-2xl">Release Calendar</h1>
+				<p class="mt-1 text-sm text-muted tabular-nums">{week}</p>
 			</div>
 
-			<nav
-				class="flex items-center justify-between gap-1 max-sm:bg-surface sm:justify-end"
-				aria-label="Weeks"
-			>
+			<nav class="flex items-center gap-1" aria-label="Weeks">
 				{#if shown.weeks !== 0}
-					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="mr-2 max-sm:hidden">
+					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="max-sm:hidden">
 						This week
 					</Button>
 				{/if}
@@ -197,7 +204,6 @@
 				>
 					<CaretLeftIcon size="1.25rem" weight="bold" />
 				</Button>
-				<p class="text-center text-sm font-semibold tabular-nums sm:min-w-40">{week}</p>
 				<Button
 					onclick={() => (shown.weeks += 1)}
 					variant="icon"
@@ -209,28 +215,42 @@
 			</nav>
 		</div>
 
-		<div {...tabs.triggerList} aria-label="Days" class="grid grid-cols-7 border-b border-border">
+		<div class="mb-2 flex items-center justify-between gap-2 sm:hidden">
+			<Button
+				variant="ghost"
+				class="min-h-11 gap-2 px-0 tracking-normal hover:bg-transparent hover:text-muted"
+				aria-label="Choose day, {longDay.format(noon(current.date))} selected"
+				aria-haspopup="dialog"
+				aria-controls="day-list"
+				onclick={() => (daysOpen = true)}
+			>
+				<CaretDownIcon size="0.875rem" weight="fill" />
+				{dayLabel(current)} · {longDay.format(noon(current.date)).split(", ")[1]}
+			</Button>
+			{#if shown.weeks !== 0}
+				<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="px-0">This week</Button>
+			{/if}
+		</div>
+
+		<div {...tabs.triggerList} aria-label="Days" class="grid grid-cols-7 max-sm:hidden">
 			{#each calendar.days as day (day.date)}
 				<button
 					{...tabs.getTrigger(day.date)}
 					type="button"
-					class="-mb-px flex min-h-16 cursor-pointer flex-col items-center justify-center gap-0.5 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-white/4 hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground sm:min-h-20 sm:gap-1"
+					class="-mb-px flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-white/4 hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground"
 					aria-label="{longDay.format(noon(day.date))}, {day.episodes.length} {day.episodes
 						.length === 1
 						? 'episode'
 						: 'episodes'}"
 				>
 					<span
-						class={cn(
-							"text-[0.65rem] font-bold tracking-wider uppercase sm:text-xs sm:tracking-widest",
-							day.today && "text-accent",
-						)}
+						class={cn("text-xs font-bold tracking-widest uppercase", day.today && "text-accent")}
 					>
-						{weekday.format(noon(day.date))}
+						{dayLabel(day)}
 					</span>
 					<span
 						class={cn(
-							"text-lg font-bold tabular-nums sm:text-2xl",
+							"text-2xl font-bold tabular-nums",
 							!day.episodes.length && "text-subtle",
 							day.today && "text-accent",
 						)}
@@ -253,9 +273,7 @@
 						<ol class="flex flex-col gap-8 pt-6 pb-10 sm:gap-10 sm:pt-8">
 							{#each slots as slot, index (slot.at)}
 								{#if day.today && !slot.aired && (index === 0 || slots[index - 1].aired)}
-									<li
-										class="flex items-center gap-4 text-sm font-semibold text-muted tabular-nums after:h-px after:flex-1 after:bg-border-strong sm:grid sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6"
-									>
+									<li class="text-sm font-semibold text-accent tabular-nums sm:pl-34">
 										Now · {clock.format(calendar.now)}
 									</li>
 								{/if}
@@ -263,7 +281,7 @@
 									<time
 										datetime={slot.at}
 										class={cn(
-											"flex items-center gap-4 text-xl font-bold tabular-nums after:h-px after:flex-1 after:bg-border sm:block sm:text-2xl sm:after:hidden",
+											"text-lg font-bold tabular-nums sm:text-2xl",
 											slot.aired && day.today && "text-muted",
 										)}
 									>
@@ -355,3 +373,20 @@
 		{/each}
 	</section>
 </div>
+
+<Sheet bind:open={daysOpen} id="day-list" title="Day List">
+	{#each calendar.days as day (day.date)}
+		<Button
+			variant="item"
+			class="justify-between aria-[current=true]:font-normal aria-[current=true]:text-foreground"
+			aria-current={day.date === selected ? "true" : undefined}
+			onclick={() => {
+				daysOpen = false;
+				selected = day.date;
+			}}
+		>
+			{longDay.format(noon(day.date))}
+			<span class="text-subtle tabular-nums">{day.episodes.length}</span>
+		</Button>
+	{/each}
+</Sheet>
