@@ -10,9 +10,8 @@
 	import Notification from "./components/Notification.svelte";
 
 	const notifications = getNotifications();
-	const items = $derived(notifications.current ?? []);
-	const unread = $derived(items.filter((item) => item.unread));
-	const read = $derived(items.filter((item) => !item.unread));
+	const unread = $derived(notifications.current?.filter((item) => item.unread) ?? []);
+	const read = $derived(notifications.current?.filter((item) => !item.unread) ?? []);
 
 	let view = $state<"new" | "past">("new");
 

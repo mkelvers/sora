@@ -14,8 +14,6 @@
 
 	let { data }: PageProps = $props();
 
-	const continuing = $derived(getContinueWatching().current ?? []);
-
 	const { featured, trending, upcoming } = $derived(data);
 	const watchlist = getWatchlist();
 	const dropped = $derived(
@@ -57,7 +55,7 @@
 		class="grid grid-cols-1 xl:not-has-[>_.continue-watching-section]:-mb-36 xl:not-has-[>_.continue-watching-section]:[--hero-overlap:9rem] wide:has-[>_.continue-watching-section]:grid-rows-[auto_15rem] wide:has-[>_.continue-watching-section]:pb-8 wide:has-[>_.continue-watching-section]:[--hero-overlap:5rem] hero:has-[>_.continue-watching-section]:grid-rows-[auto_16rem] hero:has-[>_.continue-watching-section]:pb-12 [&>section:first-child]:col-start-1 [&>section:first-child]:row-start-1"
 	>
 		<Hero {featured} />
-		<ContinueWatching items={continuing} />
+		<ContinueWatching items={getContinueWatching().current ?? []} />
 	</div>
 
 	{#each rows as row (row.id)}
