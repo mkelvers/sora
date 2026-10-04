@@ -1,4 +1,13 @@
 import type { Problem } from "@sora/api";
+import { attempt } from "@sora/attempt";
+
+/**
+ * What a failed response may carry: the API's problem, or Better Auth's
+ * `{ message, code }` from the `/v1/auth` endpoints.
+ */
+type FailureBody = Partial<Problem> & {
+	message?: string;
+};
 
 /**
  * A request the API answered with an error.
@@ -34,18 +43,16 @@ export class SoraError extends Error {
 		this.retryAfterSeconds = details.retryAfterSeconds;
 	}
 
-	/** Builds the error for a failed response, reading its problem body when it has one. */
+	/** Builds the error for a failed response, reading its problem or Better Auth body when it has one. */
 	static async from(response: {
 		status: number;
 		statusText: string;
 		headers: Headers;
 		json(): Promise<unknown>;
 	}): Promise<SoraError> {
-		// The API answers every failure with a problem; anything else came from
-		// in front of it, such as a proxy.
-		const problem = response.headers.get("Content-Type")?.startsWith("application/problem+json")
-			? ((await response.json().catch(() => null)) as Problem | null)
-			: null;
+		// A body that is not JSON came from in front of the API, such as a proxy.
+		const body = await attempt(response.json());
+		const problem = body.error ? null : (body.data as FailureBody);
 		const retryAfterHeader = response.headers.get("Retry-After");
 		const retryAfterSeconds = Number(retryAfterHeader);
 		const retryAfterDate = retryAfterHeader ? new Date(retryAfterHeader) : null;
@@ -57,7 +64,9 @@ export class SoraError extends Error {
 					: null;
 
 		return new SoraError(
-			problem?.detail ?? `The API answered ${response.status} ${response.statusText}`,
+			problem?.detail ??
+				problem?.message ??
+				`The API answered ${response.status} ${response.statusText}`,
 			{
 				status: response.status,
 				code: problem?.code ?? "HTTP_ERROR",
