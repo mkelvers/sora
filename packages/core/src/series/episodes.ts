@@ -1,200 +1,106 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { seriesEpisode, seriesSeason } from "../database/schema";
-import { EpisodeNotFoundError, SeasonNotFoundError } from "../errors";
+import {
+	anikotoSeries,
+	animeSearch,
+	providerMapping,
+	series,
+	seriesEpisode,
+} from "../database/schema";
+import { EpisodeNotFoundError, SeriesNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
 import { hour } from "../time";
-import type { SeasonKind } from "./seasons";
 import type { SeriesKind } from "./series";
 
 /**
- * A season episode together with the AniList episode that plays it.
+ * An episode of a series together with the AniList entry it belongs to.
  *
- * Clients address episodes by season and number; playback, progress, and
- * provider matching are keyed by AniList entry and episode, which survive a
- * series being laid out again.
+ * Clients address episodes by series and number; provider matching is keyed
+ * by AniList entry and episode. An episode's number is the same in both.
  */
 export interface LocatedEpisode {
 	seriesId: string;
-	seasonId: string;
-	/** Position within the season, from 1. */
+	/** The episode's number in the series, from 1. */
 	number: number;
 	anilistId: number;
-	anilistEpisode: number;
-}
-
-/** Where an AniList episode sits in its series. */
-export interface SeasonEpisodeRef {
-	seriesId: string;
-	seasonId: string;
-	number: number;
 }
 
 /**
- * Finds the AniList episode that plays a season episode.
+ * Finds the AniList entry an episode of a series belongs to.
  *
- * @param seriesId - The series the season is addressed under, when it is;
- *   a season of another series is then not found.
- * @throws {@link SeasonNotFoundError} when the season does not exist, or
- *   does not belong to `seriesId`.
- * @throws {@link EpisodeNotFoundError} when the season has no such episode,
- *   or it is an extra only TMDB lists, which nothing streams.
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link EpisodeNotFoundError} when the series has no such episode.
  */
-export async function locateEpisode(
-	seasonId: string,
-	number: number,
-	seriesId?: string,
-): Promise<LocatedEpisode> {
+export async function locateEpisode(seriesId: string, number: number): Promise<LocatedEpisode> {
 	const [row] = await db
 		.select({
-			seriesId: seriesSeason.seriesId,
-			anilistId: seriesEpisode.anilistId,
-			anilistEpisode: seriesEpisode.anilistEpisode,
+			anilistId: series.anilistId,
+			number: seriesEpisode.number,
 		})
-		.from(seriesSeason)
+		.from(series)
 		.leftJoin(
 			seriesEpisode,
-			and(eq(seriesEpisode.seasonId, seriesSeason.id), eq(seriesEpisode.number, number)),
+			and(eq(seriesEpisode.seriesId, series.id), eq(seriesEpisode.number, number)),
 		)
-		.where(eq(seriesSeason.id, seasonId))
+		.where(eq(series.id, seriesId))
 		.limit(1);
 
-	if (!row || (seriesId !== undefined && row.seriesId !== seriesId)) {
-		throw new SeasonNotFoundError(seasonId);
+	if (!row) {
+		throw new SeriesNotFoundError(seriesId);
 	}
 
-	if (row.anilistId === null || row.anilistEpisode === null) {
-		throw new EpisodeNotFoundError(seasonId, number);
+	if (row.number === null) {
+		throw new EpisodeNotFoundError(seriesId, number);
 	}
 
 	return {
-		seriesId: row.seriesId,
-		seasonId,
+		seriesId,
 		number,
 		anilistId: row.anilistId,
-		anilistEpisode: row.anilistEpisode,
 	};
 }
 
 /**
- * Finds where AniList episodes sit in their stored series.
- *
- * Episodes of entries no stored series contains are left out.
- *
- * @param options.placeUnlisted - Also place episodes the layout does not
- *   list yet. While AniList does not know an entry's episode count, its
- *   season lists only aired episodes; an upcoming one is placed right after
- *   the entry's latest listed episode.
- * @returns Positions keyed by {@link anilistEpisodeKey}.
+ * Whether AniKoto, which decides what can be watched, carries an index
+ * entry: its catalogue names the entry, or the entry was matched to it.
  */
-export async function findSeasonEpisodes(
-	episodes: readonly {
-		anilistId: number;
-		episode: number;
-	}[],
-	options: {
-		placeUnlisted: boolean;
-	},
-): Promise<Map<string, SeasonEpisodeRef>> {
-	const found = new Map<string, SeasonEpisodeRef>();
-	if (episodes.length === 0) {
-		return found;
-	}
+export const carriedByAniKoto = sql`(exists (select 1 from ${anikotoSeries} where ${anikotoSeries.anilistId} = ${animeSearch.anilistId}) or exists (select 1 from ${providerMapping} where ${providerMapping.provider} = ${aniKoto.id} and ${providerMapping.providerMediaId} is not null and ${providerMapping.anilistId} = ${animeSearch.anilistId}))`;
 
-	const rows = await db
-		.select({
-			seriesId: seriesSeason.seriesId,
-			seasonId: seriesEpisode.seasonId,
-			number: seriesEpisode.number,
-			anilistId: seriesEpisode.anilistId,
-			anilistEpisode: seriesEpisode.anilistEpisode,
-		})
-		.from(seriesEpisode)
-		.innerJoin(seriesSeason, eq(seriesSeason.id, seriesEpisode.seasonId))
-		.where(
-			inArray(seriesEpisode.anilistId, [...new Set(episodes.map((episode) => episode.anilistId))]),
-		);
-
-	const listed = new Map<string, SeasonEpisodeRef>();
-	const latest = new Map<
-		number,
-		{
-			anilistEpisode: number;
-			ref: SeasonEpisodeRef;
-		}
-	>();
-	for (const row of rows) {
-		if (row.anilistId === null || row.anilistEpisode === null) {
-			continue;
-		}
-
-		const ref = {
-			seriesId: row.seriesId,
-			seasonId: row.seasonId,
-			number: row.number,
-		};
-		listed.set(anilistEpisodeKey(row.anilistId, row.anilistEpisode), ref);
-
-		const previous = latest.get(row.anilistId);
-		if (!previous || row.anilistEpisode > previous.anilistEpisode) {
-			latest.set(row.anilistId, {
-				anilistEpisode: row.anilistEpisode,
-				ref,
-			});
-		}
-	}
-
-	for (const { anilistId, episode } of episodes) {
-		const key = anilistEpisodeKey(anilistId, episode);
-		const exact = listed.get(key);
-		const last = latest.get(anilistId);
-		if (exact) {
-			found.set(key, exact);
-		} else if (options.placeUnlisted && last && episode > last.anilistEpisode) {
-			found.set(key, {
-				...last.ref,
-				number: last.ref.number + (episode - last.anilistEpisode),
-			});
-		}
-	}
-
-	return found;
-}
-
-/** The key {@link findSeasonEpisodes} files an AniList episode under. */
+/** The key an AniList episode is filed under, such as in {@link AniKotoEpisodes}. */
 export function anilistEpisodeKey(anilistId: number, episode: number) {
 	return `${anilistId}:${episode}`;
 }
 
-/** What {@link isEpisodeReleased} needs to know about a title. */
+/** What {@link isEpisodeReleased} needs to know about a series. */
 export interface ReleaseSchedule {
-	nextEpisodeSeasonId: string | null;
 	nextEpisodeNumber: number | null;
 	nextEpisodeAiringAt: Date | null;
 }
 
+/** What {@link isEpisodeAvailable} and {@link isEpisodeShown} need to know about an episode. */
+export interface EpisodeListingRow {
+	number: number;
+	/** `YYYY-MM-DD`. */
+	airDate: string | null;
+	airedAt: Date | null;
+	tmdbEpisodeNumber: number | null;
+}
+
 /**
- * Whether an episode has been released: it is not at or past the title's
+ * Whether an episode has been released: it is not at or past the series'
  * announced next episode, and has aired. When it aired is AniList's airing
  * time when known, and otherwise TMDB's air date.
  */
 export function isEpisodeReleased(
 	title: ReleaseSchedule,
-	episode: {
-		seasonId: string;
-		number: number;
-		/** `YYYY-MM-DD`. */
-		airDate: string | null;
-		airedAt: Date | null;
-	},
+	episode: Pick<EpisodeListingRow, "number" | "airDate" | "airedAt">,
 	now = new Date(),
 ) {
 	const isAtOrAfterNext =
 		title.nextEpisodeAiringAt !== null &&
 		title.nextEpisodeAiringAt > now &&
-		episode.seasonId === title.nextEpisodeSeasonId &&
 		title.nextEpisodeNumber !== null &&
 		episode.number >= title.nextEpisodeNumber;
 	const hasAired = episode.airedAt
@@ -230,67 +136,46 @@ export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promis
 	};
 }
 
-/** What {@link isEpisodeAvailable} and {@link isEpisodeShown} need to know about an episode. */
-export interface EpisodeListingRow {
-	seasonId: string;
-	number: number;
-	anilistId: number | null;
-	anilistEpisode: number | null;
-	/** `YYYY-MM-DD`. */
-	airDate: string | null;
-	airedAt: Date | null;
-	tmdbEpisodeNumber: number | null;
-}
-
 /**
  * Whether an episode can be watched: AniKoto, the source of truth for which
- * episodes exist, carries it. An extra only TMDB lists never can.
+ * episodes exist, carries it.
  *
- * Until AniKoto has been looked up for the entry, the episode counts as
- * available once {@link isEpisodeReleased} says it has been released.
+ * Until AniKoto has been looked up for the series' entry, the episode counts
+ * as available once {@link isEpisodeReleased} says it has been released.
  */
 export function isEpisodeAvailable(
-	title: ReleaseSchedule,
+	title: ReleaseSchedule & {
+		anilistId: number;
+	},
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
 	now = new Date(),
 ) {
-	if (episode.anilistId === null || episode.anilistEpisode === null) {
-		return false;
-	}
-
-	return onAniKoto.lookedUp.has(episode.anilistId)
-		? onAniKoto.carried.has(anilistEpisodeKey(episode.anilistId, episode.anilistEpisode))
+	return onAniKoto.lookedUp.has(title.anilistId)
+		? onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number))
 		: isEpisodeReleased(title, episode, now);
 }
 
 /**
- * Whether a season lists an episode: it is available (see
- * {@link isEpisodeAvailable}) and has its details. An extra only TMDB lists
- * is always listed.
+ * Whether a series lists an episode: it is available (see
+ * {@link isEpisodeAvailable}) and has its details.
  *
- * An episode of a title TMDB lists has its details once TMDB lists the
- * episode; until then the scheduler lays the title out again to look for
- * them (see `refreshEpisodeDetails`). A film has the details of the film
- * itself, and a title TMDB does not list has only what AniList knows.
+ * An episode of an entry TMDB lists in a show has its details once TMDB
+ * lists the episode; until then the scheduler lays the series out again to
+ * look for them (see `refreshEpisodeListings`). A film has the details of
+ * the film itself, and an entry TMDB does not list has only what AniList
+ * knows.
  */
 export function isEpisodeShown(
 	title: ReleaseSchedule & {
+		anilistId: number;
 		kind: SeriesKind;
-	},
-	season: {
-		kind: SeasonKind;
 	},
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
 	now = new Date(),
 ) {
-	if (episode.anilistId === null) {
-		return true;
-	}
-
-	const hasDetails =
-		episode.tmdbEpisodeNumber !== null || season.kind === "movie" || title.kind !== "tv";
+	const hasDetails = episode.tmdbEpisodeNumber !== null || title.kind !== "tv";
 	return hasDetails && isEpisodeAvailable(title, episode, onAniKoto, now);
 }
 
@@ -304,9 +189,9 @@ const releaseGraceMs = 12 * hour;
 
 /**
  * Whether an episode has aired but is still to come out: AniList says it
- * aired, its season does not list it yet (see {@link isEpisodeShown}), and
- * it is the one AniKoto gets next, being its entry's first or following an
- * episode AniKoto carries.
+ * aired, the series does not list it yet (see {@link isEpisodeShown}), and
+ * it is the one AniKoto gets next, being the first or following an episode
+ * AniKoto carries.
  *
  * That last part leaves out an episode AniKoto skipped while carrying later
  * ones, and the episodes of an entry it has never carried any of. How long
@@ -314,27 +199,23 @@ const releaseGraceMs = 12 * hour;
  */
 export function isEpisodeAwaited(
 	title: ReleaseSchedule & {
+		anilistId: number;
 		kind: SeriesKind;
-	},
-	season: {
-		kind: SeasonKind;
 	},
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
 	now = new Date(),
 ) {
-	if (episode.anilistId === null || episode.anilistEpisode === null || episode.airedAt === null) {
+	if (episode.airedAt === null) {
 		return false;
 	}
 
 	const isNextOnAniKoto =
-		episode.anilistEpisode === 1 ||
-		onAniKoto.carried.has(anilistEpisodeKey(episode.anilistId, episode.anilistEpisode - 1));
+		episode.number === 1 ||
+		onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number - 1));
 
 	return (
-		episode.airedAt <= now &&
-		isNextOnAniKoto &&
-		!isEpisodeShown(title, season, episode, onAniKoto, now)
+		episode.airedAt <= now && isNextOnAniKoto && !isEpisodeShown(title, episode, onAniKoto, now)
 	);
 }
 
