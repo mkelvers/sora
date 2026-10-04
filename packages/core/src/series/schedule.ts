@@ -4,15 +4,15 @@ import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, series } from "../database/schema";
 import { InvalidInputError } from "../errors";
 import { day } from "../time";
-import { anilistEpisodeKey, findSeasonEpisodes } from "./episodes";
+import { anilistEpisodeKey } from "./episodes";
 import type { SeriesCard } from "./models";
 import { toSeriesCards } from "./queries";
+import { storedSeriesIds } from "./store";
 
 /** One episode coming out in the release calendar. */
 export interface ScheduledEpisode {
 	series: SeriesCard;
-	seasonId: string;
-	/** Position within the season, from 1. */
+	/** The episode's number in the series, from 1. */
 	episode: number;
 	/** Whether it comes out with English subtitles (`sub`) or dubbed in English (`dub`). */
 	airType: "sub" | "dub";
@@ -43,8 +43,6 @@ const pairingMarginMs = day;
  * Reads only the database, which the scheduler keeps from last week to next
  * week; see `syncTimetables`. Only stored titles are listed: the scheduler
  * queues the rest as it stores the timetable, and they appear once stored.
- * An episode that cannot be placed in its title's seasons yet, such as the
- * premiere of a season whose episode count is unknown, is also left out.
  *
  * @throws {@link InvalidInputError} when the window is empty or longer than 14 days.
  */
@@ -103,31 +101,28 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 	const broadcasts = [...chosen.values()]
 		.filter((broadcast) => broadcast.airsAt >= from && broadcast.airsAt < until)
 		.toSorted((left, right) => left.airsAt.getTime() - right.airsAt.getTime());
-	const placed = await findSeasonEpisodes(broadcasts, {
-		placeUnlisted: true,
-	});
-	const seriesIds = [...new Set([...placed.values()].map((ref) => ref.seriesId))];
+	const seriesIds = await storedSeriesIds(broadcasts.map((broadcast) => broadcast.anilistId));
 	const rows =
-		seriesIds.length > 0 ? await db.select().from(series).where(inArray(series.id, seriesIds)) : [];
+		seriesIds.size > 0
+			? await db
+					.select()
+					.from(series)
+					.where(inArray(series.id, [...seriesIds.values()]))
+			: [];
 	const cards = await toSeriesCards(rows);
 
-	const listed = new Set<string>();
 	return broadcasts.flatMap((broadcast) => {
-		const ref = placed.get(anilistEpisodeKey(broadcast.anilistId, broadcast.episode));
-		const card = ref ? cards.get(ref.seriesId) : undefined;
-		if (!ref || !card || listed.has(`${ref.seasonId}:${ref.number}:${broadcast.airType}`)) {
-			return [];
-		}
-
-		listed.add(`${ref.seasonId}:${ref.number}:${broadcast.airType}`);
-		return [
-			{
-				series: card,
-				seasonId: ref.seasonId,
-				episode: ref.number,
-				airType: broadcast.airType,
-				airingAt: broadcast.airsAt.toISOString(),
-			},
-		];
+		const seriesId = seriesIds.get(broadcast.anilistId);
+		const card = seriesId ? cards.get(seriesId) : undefined;
+		return card
+			? [
+					{
+						series: card,
+						episode: broadcast.episode,
+						airType: broadcast.airType,
+						airingAt: broadcast.airsAt.toISOString(),
+					},
+				]
+			: [];
 	});
 }
