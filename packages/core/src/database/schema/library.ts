@@ -153,3 +153,38 @@ export const seriesState = pgTable(
 		),
 	],
 );
+
+/**
+ * The notifications one user marked read. A notification is not stored:
+ * `getNotifications` works out what came out from the watchlist and the
+ * episodes' release times, so only the user's marks are. A mark is deleted
+ * once its notification would no longer be listed.
+ */
+export const notificationRead = pgTable(
+	"notification_read",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		readAt: timestamptz("read_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);
+
+/** The notifications one user deleted, kept until they would no longer be listed anyway. */
+export const notificationDismissal = pgTable(
+	"notification_dismissal",
+	{
+		userId: text("user_id").notNull(),
+		notificationId: text("notification_id").notNull(),
+		dismissedAt: timestamptz("dismissed_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.notificationId],
+		}),
+	],
+);

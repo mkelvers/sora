@@ -1,5 +1,5 @@
 import { profileCookie, sessionCookie, sora } from "$lib/server/sora";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { SoraError } from "@sora/sdk";
 import { fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";

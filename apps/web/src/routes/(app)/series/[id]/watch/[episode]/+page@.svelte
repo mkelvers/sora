@@ -1,6 +1,6 @@
 <script lang="ts">
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import { attempt } from "@sora/attempt";
+	import { attempt } from "@sora/shared";
 	import type { PlaybackPreferencesUpdate } from "@sora/sdk";
 
 	import type { PageProps } from "./$types";

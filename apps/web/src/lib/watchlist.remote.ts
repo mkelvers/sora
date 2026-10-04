@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer } from "$lib/server/sora";
 import { z } from "zod";
 
@@ -22,6 +23,10 @@ export const setWatchlistStatus = command(
 			await viewer.sora.removeFromWatchlist(viewer.profile.id, seriesId);
 		}
 
-		await getWatchlist().refresh();
+		await Promise.all([
+			getWatchlist().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
+		]);
 	},
 );

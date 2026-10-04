@@ -5,10 +5,12 @@
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import { getUnreadNotifications } from "$lib/notifications.remote";
 	import { cn, genreSlug } from "$lib/utils";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
 	import {
+		BellSimpleIcon,
 		BookmarkSimpleIcon,
 		CaretDownIcon,
 		ListIcon,
@@ -29,6 +31,8 @@
 
 	const others = $derived(profiles.filter((other) => other.id !== profile.id));
 	const here = $derived(encodeURIComponent(page.url.pathname + page.url.search));
+	const unreadQuery = getUnreadNotifications();
+	const unread = $derived(unreadQuery.current ?? 0);
 	const genresQuery = getGenres();
 	const genres = $derived(genresQuery.current ?? []);
 
@@ -56,6 +60,21 @@
 			label: "Release Calendar",
 		},
 	];
+
+	$effect(() => {
+		const check = () => {
+			if (document.visibilityState === "visible") {
+				unreadQuery.refresh();
+			}
+		};
+		const timer = setInterval(check, 30_000);
+		document.addEventListener("visibilitychange", check);
+
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener("visibilitychange", check);
+		};
+	});
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
@@ -213,11 +232,26 @@
 				<BookmarkSimpleIcon size="1.5rem" />
 			</a>
 
+			<a
+				href="/notifications"
+				class={cn(
+					"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
+					unread > 0 &&
+						"after:absolute after:top-3.5 after:right-3 after:size-2 after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
+				)}
+				aria-label={unread > 0 ? "Notifications, new notifications" : "Notifications"}
+				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+			>
+				<BellSimpleIcon size="1.5rem" />
+			</a>
+
 			<div class="h-full">
 				<Dropdown
 					variant="bar"
 					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-header-hover max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
-					label="Account menu for {profile.name}"
+					label={unread > 0
+						? `Account menu for ${profile.name}, new notifications`
+						: `Account menu for ${profile.name}`}
 				>
 					{#snippet trigger()}
 						<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-8" />
@@ -288,6 +322,20 @@
 								>
 									<BookmarkSimpleIcon size="1.5rem" />
 									Watch List
+								</Button>
+								<Button
+									role="menuitem"
+									href="/notifications"
+									variant="item"
+									class={cn(
+										"min-h-14 gap-4 py-4 text-base sm:hidden",
+										unread > 0 && "after:size-2 after:bg-status-error",
+									)}
+									aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+								>
+									<BellSimpleIcon size="1.5rem" />
+									Notifications
+									{#if unread > 0}<span class="sr-only">, new notifications</span>{/if}
 								</Button>
 							</div>
 

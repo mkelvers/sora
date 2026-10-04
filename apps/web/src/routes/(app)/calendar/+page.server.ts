@@ -1,5 +1,5 @@
 import { timeZoneCookie } from "$lib/utils";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 import type { PageServerLoad } from "./$types";
 

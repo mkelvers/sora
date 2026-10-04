@@ -1,6 +1,6 @@
 import { env } from "$env/dynamic/private";
 import { profileCookie, sessionCookie } from "$lib/server/sora";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { SoraClient, SoraError, type Profile } from "@sora/sdk";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 

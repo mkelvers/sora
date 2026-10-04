@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
 import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
@@ -39,6 +40,8 @@ export const markSeries = command(
 			getSeriesProgress(seriesId).refresh(),
 			getContinueWatching().refresh(),
 			getWatchlist().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );
@@ -66,6 +69,8 @@ export const markEpisode = command(
 			getSeriesProgress(seriesId).refresh(),
 			getContinueWatching().refresh(),
 			getWatchlist().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
 		]);
 	},
 );

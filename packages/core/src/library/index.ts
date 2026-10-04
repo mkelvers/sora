@@ -1,6 +1,6 @@
 /**
  * What Sora keeps per profile: the titles featured on its home page, its
- * playback preferences, its watchlist, and its progress through the
+ * playback preferences, its watchlist, the notifications it gets, and its progress through the
  * episodes it played.
  *
  * Every function takes an opaque `userId` from the caller's identity layer.
@@ -9,6 +9,13 @@
  * @packageDocumentation
  */
 export { getFeatured } from "./featured/featured";
+export {
+	dismissNotification,
+	getNotifications,
+	markNotificationsRead,
+	type Notification,
+	type Notifications,
+} from "./notifications/notifications";
 export {
 	getPlaybackPreferences,
 	PlaybackPreferencesUpdateSchema,

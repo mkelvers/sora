@@ -1,9 +1,10 @@
 import { command, query } from "$app/server";
+import { getNotifications, getUnreadNotifications } from "$lib/notifications.remote";
 import { remoteViewer, sora } from "$lib/server/sora";
 import { getWatchlist } from "$lib/watchlist.remote";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { SoraError } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
@@ -102,9 +103,15 @@ export const saveProgress = command(
 				getSeriesProgress(seriesId).refresh(),
 				getContinueWatching().refresh(),
 				getWatchlist().refresh(),
+				getNotifications().refresh(),
+				getUnreadNotifications().refresh(),
 			]);
 		} else if (progress.finished) {
-			await getWatchlist().refresh();
+			await Promise.all([
+				getWatchlist().refresh(),
+				getNotifications().refresh(),
+				getUnreadNotifications().refresh(),
+			]);
 		}
 	},
 );

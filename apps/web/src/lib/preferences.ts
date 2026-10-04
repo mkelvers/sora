@@ -1,4 +1,4 @@
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 
 export class Preferences {
 	#namespace: string;

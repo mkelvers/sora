@@ -9,6 +9,8 @@ import type { getSchedule, getSeries, listEpisodes, listSeasons } from "./openap
 import type {
 	ContinueWatchingSchema,
 	NextEpisodeSchema,
+	NotificationSchema,
+	NotificationsMetaSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
 	PlaybackPreferencesSchema,
@@ -45,6 +47,8 @@ export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
+export type Notification = z.infer<typeof NotificationSchema>;
+export type NotificationsMeta = z.infer<typeof NotificationsMetaSchema>;
 export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;

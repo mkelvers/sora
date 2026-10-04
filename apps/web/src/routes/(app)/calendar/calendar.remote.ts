@@ -1,6 +1,6 @@
 import { query } from "$app/server";
 import { sora } from "$lib/server/sora";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 

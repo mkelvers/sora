@@ -10,6 +10,7 @@ import type { AnimeSeason, AnimeTag } from "@sora/core/catalog";
 import type {
 	ContinueWatching,
 	NextEpisode,
+	Notification,
 	PlaybackPreferences,
 	Progress,
 	SeriesProgress,
@@ -669,3 +670,60 @@ export const SeriesProgressSchema = z
 		}),
 	})
 	.openapi("SeriesProgress") satisfies z.ZodType<SnakeCased<SeriesProgress>>;
+
+export const NotificationSchema = z
+	.object({
+		id: z.string().openapi({
+			description: "Stable for as long as the notification is listed.",
+			example: "EWBMBNIV4:13",
+		}),
+		kind: z.enum(["premiere", "episodes", "dub"]).openapi({
+			description:
+				"`premiere` when the title's first episode came out, which for a sequel of a title on the watchlist is the offer of a new season; `episodes` when a title that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
+		}),
+		series: SeriesCardSchema,
+		first_episode: z.number().int().openapi({
+			description: "The first episode that came out, or was dubbed, from 1.",
+		}),
+		last_episode: z.number().int().openapi({
+			description: "The last such episode; the same as `first_episode` when there was one.",
+		}),
+		episode_title: z.string().nullable().openapi({
+			description: "The title of `last_episode`.",
+		}),
+		still_url: z.string().nullable().openapi({
+			description: "A still of `last_episode`, or of the first episode for a premiere.",
+		}),
+		released_at: z.string().openapi({
+			description: "When it came out, as an ISO 8601 timestamp.",
+			example: "2026-10-04T13:30:00.000Z",
+		}),
+		unread: z.boolean().openapi({
+			description: "Whether the profile has not marked it read.",
+		}),
+	})
+	.openapi("Notification") satisfies z.ZodType<SnakeCased<Notification>>;
+
+export const NotificationsMetaSchema = z
+	.object({
+		count: z.number().int().nonnegative(),
+		unread: z.number().int().nonnegative().openapi({
+			description:
+				"How many of the profile's notifications are unread, including those past `limit`.",
+		}),
+	})
+	.openapi("NotificationsMeta");
+
+export const NotificationsReadSchema = z
+	.object({
+		ids: z
+			.array(z.string().min(1))
+			.min(1)
+			.max(100)
+			.openapi({
+				description:
+					"The `id` of each notification to mark read: the ones the profile was shown, so one that came out meanwhile stays unread.",
+				example: ["EWBMBNIV4:13"],
+			}),
+	})
+	.openapi("NotificationsRead");

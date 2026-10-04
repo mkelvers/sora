@@ -6,6 +6,8 @@ import {
 	avatarStyle,
 	episodeProgress,
 	featuredPick,
+	notificationDismissal,
+	notificationRead,
 	playbackPreference,
 	profile,
 	seriesState,
@@ -176,6 +178,8 @@ export async function deleteProfile(userId: string, profileId: string) {
 
 		await tx.delete(episodeProgress).where(eq(episodeProgress.userId, profileId));
 		await tx.delete(seriesState).where(eq(seriesState.userId, profileId));
+		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
+		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
 		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));

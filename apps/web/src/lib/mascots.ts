@@ -1,4 +1,5 @@
 import emptyCalendar from "$lib/assets/illustrations/empty-calendar.webp";
+import emptyNotifications from "$lib/assets/illustrations/empty-notifications.webp";
 import emptySearch from "$lib/assets/illustrations/empty-search.webp";
 import emptyWatchlist from "$lib/assets/illustrations/empty-watchlist.webp";
 import lost from "$lib/assets/illustrations/lost.webp";
@@ -18,6 +19,12 @@ export const mascots = {
 		alt: "Sora's mascot sitting by a desk calendar, frowning at a blank page she tore off",
 		width: 720,
 		height: 690,
+	},
+	emptyNotifications: {
+		src: emptyNotifications,
+		alt: "Sora's mascot asleep against a big golden bell",
+		width: 720,
+		height: 703,
 	},
 	emptySearch: {
 		src: emptySearch,

@@ -1,5 +1,5 @@
 import { Preferences } from "$lib/preferences";
-import { attempt } from "@sora/attempt";
+import { attempt } from "@sora/shared";
 import type { PlaybackMedia } from "@sora/sdk";
 import type Hls from "hls.js";
 import type { Attachment } from "svelte/attachments";
