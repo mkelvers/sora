@@ -1,13 +1,13 @@
 /**
- * Series: AniList entries grouped into Crunchyroll-style titles using TMDB.
+ * Series: AniList's entries as the titles clients see.
  *
- * AniList lists every season, cour, film, and special as a separate entry;
- * TMDB and Crunchyroll present a franchise as one show with seasons, plus
- * separate titles for films and spin-offs. This module matches each AniList
- * entry to TMDB by air dates, lays the entries out accordingly, and stores
- * the result under Sora's own series and season IDs, the only IDs clients
- * see. A series is laid out when first found; after that the scheduler
- * keeps it current as its seasons air and new ones are announced.
+ * AniList lists every season, cour, film, and special as a separate entry,
+ * and each is a series of its own, with the episodes AniList counts for it.
+ * An entry is matched to TMDB for its backdrop, logo, and episode details,
+ * and stored under Sora's own series ID, the only ID clients see. A series
+ * is laid out when first found; after that the scheduler keeps it current
+ * as it airs. The titles of a franchise are found from one another as
+ * AniList relates them.
  *
  * @packageDocumentation
  */
@@ -22,20 +22,17 @@ export {
 	type SeriesImageQuery,
 } from "./artwork";
 export type { ImageEdges } from "./edges";
-export type { PreparingTitle, Release, Season, SeasonEpisode, Series, SeriesCard } from "./models";
+export type { FranchisePart } from "./franchise";
+export type { Episode, PreparingTitle, Release, Series, SeriesCard } from "./models";
 export {
 	browseSeries,
 	getAdjacentEpisodes,
 	getLatestReleases,
-	getSeason,
-	getSeasonEpisodes,
-	getSeasonSeriesId,
 	getSeries,
+	getSeriesEpisodes,
 	ReleasesQuerySchema,
-	type EpisodeAddress,
 	type ReleasesQuery,
 } from "./queries";
 export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
-export type { SeasonKind } from "./seasons";
 export type { SeriesKind } from "./series";
 export { getUpcomingSeries, type UpcomingSeries } from "./upcoming";

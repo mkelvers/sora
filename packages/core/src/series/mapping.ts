@@ -341,20 +341,6 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
 	return null;
 }
 
-/** The entries whose stored mappings place them in one TMDB show or movie. */
-export async function entriesMappedTo(
-	mediaType: "tv" | "movie",
-	tmdbId: number,
-): Promise<number[]> {
-	const rows = await db
-		.select({
-			anilistId: tmdbMapping.anilistId,
-		})
-		.from(tmdbMapping)
-		.where(and(eq(tmdbMapping.mediaType, mediaType), eq(tmdbMapping.tmdbId, tmdbId)));
-	return rows.map((row) => row.anilistId);
-}
-
 /** One-episode specials and OVAs are sometimes released as TMDB movies. */
 function isSingleEpisode(subject: MatchSubject) {
 	return (
@@ -398,6 +384,19 @@ export async function expireMappingsAgainstHints(anilistIds: readonly number[]):
 		});
 
 	return expired.map((row) => row.anilistId);
+}
+
+/**
+ * Marks an entry's stored mapping to be matched again on its next layout,
+ * as when TMDB may have started to list an entry it did not match.
+ */
+export async function expireMapping(anilistId: number) {
+	await db
+		.update(tmdbMapping)
+		.set({
+			resolvedAt: new Date(0),
+		})
+		.where(eq(tmdbMapping.anilistId, anilistId));
 }
 
 /**
