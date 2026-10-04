@@ -442,22 +442,17 @@ export async function withEdits(
 	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
 	const { data: log, error } = await attempt(
 		tmdb(
-		`/tv/episode/${episode.id}/changes`,
-		{
-			start_date: new Date(from).toISOString().slice(0, 10),
-			end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
-		},
-		EpisodeChangesSchema,
+			`/tv/episode/${episode.id}/changes`,
+			{
+				start_date: new Date(from).toISOString().slice(0, 10),
+				end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
+			},
+			EpisodeChangesSchema,
 			options,
 		),
+		UpstreamUnavailableError,
 	);
-	if (error instanceof UpstreamUnavailableError) {
-		return episode;
-	}
-	if (error) {
-		throw error;
-	}
-	if (!log) {
+	if (error || !log) {
 		return episode;
 	}
 
