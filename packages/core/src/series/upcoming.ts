@@ -4,8 +4,8 @@ import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
 import { db } from "../database/client";
 import { anime, animeSearch, series } from "../database/schema";
+import type { UpcomingSeries } from "../models/series";
 import { day } from "../time";
-import type { SeriesCard } from "./models";
 import { byStartDate, franchiseIds, toSeriesCards } from "./queries";
 
 /** How far ahead a start counts as soon. */
@@ -19,22 +19,6 @@ const released: MediaStatus[] = ["FINISHED", "RELEASING"];
 
 /** What a franchise starts with: a show or a film, rather than a special or an OVA. */
 const openingFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
-
-/** A title with something starting soon. */
-export interface UpcomingSeries {
-	/**
-	 * The title starting, or for a `returning` one the title of its franchise
-	 * to start catching up on: the earliest show or film that is out.
-	 */
-	series: SeriesCard;
-	/** When it starts, as `YYYY-MM-DD`. */
-	startDate: string;
-	/**
-	 * Whether what starts belongs to a franchise with something out already,
-	 * such as a new season of a show, rather than being a new title.
-	 */
-	returning: boolean;
-}
 
 /**
  * Whether a start date is soon: its day is known, and it falls from today
@@ -123,7 +107,7 @@ export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSerie
 			? [
 					{
 						series: card,
-						startDate: title.startDate,
+						start_date: title.startDate,
 						returning: title.returning,
 					},
 				]

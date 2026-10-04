@@ -3,22 +3,11 @@ import { and, asc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, series } from "../database/schema";
 import { InvalidInputError } from "../errors";
+import type { ScheduledEpisode } from "../models/series";
 import { day } from "../time";
 import { anilistEpisodeKey } from "./episodes";
-import type { SeriesCard } from "./models";
 import { toSeriesCards } from "./queries";
 import { storedSeriesIds } from "./store";
-
-/** One episode coming out in the release calendar. */
-export interface ScheduledEpisode {
-	series: SeriesCard;
-	/** The episode's number in the series, from 1. */
-	episode: number;
-	/** Whether it comes out with English subtitles (`sub`) or dubbed in English (`dub`). */
-	airType: "sub" | "dub";
-	/** ISO 8601 timestamp. */
-	airingAt: string;
-}
 
 /** The longest window {@link getAiringSchedule} accepts. */
 const maximumScheduleWindowMs = 14 * day;
@@ -119,8 +108,8 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 					{
 						series: card,
 						episode: broadcast.episode,
-						airType: broadcast.airType,
-						airingAt: broadcast.airsAt.toISOString(),
+						air_type: broadcast.airType,
+						airing_at: broadcast.airsAt.toISOString(),
 					},
 				]
 			: [];

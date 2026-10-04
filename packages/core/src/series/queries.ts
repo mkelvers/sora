@@ -1,14 +1,10 @@
-import { and, asc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
-import {
-	browseAnime,
-	BrowseQuerySchema,
-	type BrowseQuery,
-	type Page,
-} from "../catalog/queries/browse";
+import { browseAnime, type Page } from "../catalog/queries/browse";
+import { BrowseQuerySchema, type BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { db } from "../database/client";
 import {
@@ -24,6 +20,15 @@ import {
 	titleArtwork,
 } from "../database/schema";
 import { InvalidInputError, SeriesNotFoundError } from "../errors";
+import type {
+	ContentLanguage,
+	Episode,
+	FranchisePart,
+	PreparingTitle,
+	Release,
+	Series,
+	SeriesCard,
+} from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { scheduleSeriesStore } from "../scheduler/queue";
 import { day } from "../time";
@@ -31,20 +36,14 @@ import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
+	episodeReleasedAt,
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeShown,
 	loadAniKotoEpisodes,
+	releasedAtOf,
 } from "./episodes";
-import { franchiseParts, type FranchisePart } from "./franchise";
-import type {
-	ContentLanguage,
-	Episode,
-	PreparingTitle,
-	Release,
-	Series,
-	SeriesCard,
-} from "./models";
+import { franchiseParts } from "./franchise";
 import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
@@ -94,22 +93,22 @@ export async function getSeries(seriesId: string): Promise<Series> {
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
 		...cards.get(row.id)!,
-		startDate: row.startDate,
+		start_date: row.startDate,
 		genres: anime.genres,
 		tags: anime.tags,
 		studios: anime.studios,
-		scoreCount: indexed?.scoreCount ?? null,
+		score_count: indexed?.scoreCount ?? null,
 		// An aired episode still to come out is next until it is listed, ahead of
 		// the one AniList announces after it.
-		nextEpisode:
+		next_episode:
 			overdue ??
 			(isNextEpisodeAhead && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
 				? {
 						number: row.nextEpisodeNumber,
-						airingAt: row.nextEpisodeAiringAt.toISOString(),
+						airing_at: row.nextEpisodeAiringAt.toISOString(),
 					}
 				: null),
-		backdropEdges: found.edges,
+		backdrop_edges: found.edges,
 		franchise,
 	};
 }
@@ -119,7 +118,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
  * still expected to come out, with when it is expected (see
  * {@link expectedRelease}), or `null` when none is.
  */
-async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series["nextEpisode"]> {
+async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series["next_episode"]> {
 	const [episodes, onAniKoto] = await Promise.all([
 		db
 			.select()
@@ -174,7 +173,7 @@ async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series[
 	return first
 		? {
 				number: first.number,
-				airingAt: first.expected.toISOString(),
+				airing_at: first.expected.toISOString(),
 			}
 		: null;
 }
@@ -215,7 +214,8 @@ export async function getAdjacentEpisodes(
 	previous: number | null;
 	next: number | null;
 }> {
-	const numbers = (await listedEpisodes(seriesId)).map((row) => row.number);
+	const listed = await listedEpisodes(seriesId);
+	const numbers = listed.map((row) => row.number);
 
 	return {
 		previous: numbers.findLast((number) => number < episode) ?? null,
@@ -238,10 +238,7 @@ export async function getAdjacentEpisodes(
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
-	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
-	if (!row) {
-		throw new SeriesNotFoundError(seriesId);
-	}
+	const row = await loadSeries(seriesId);
 
 	const [listed, stills] = await Promise.all([
 		listedEpisodesOf([row]),
@@ -269,10 +266,10 @@ export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
 			number: episode.number,
 			title: episode.title,
 			overview: episode.overview,
-			airDate: episode.airDate,
-			airedAt: episode.airedAt?.toISOString() ?? null,
-			runtimeMinutes: episode.runtimeMinutes,
-			stillUrl: stillOf.get(episode.number) ?? null,
+			air_date: episode.airDate,
+			aired_at: episode.airedAt?.toISOString() ?? null,
+			runtime_minutes: episode.runtimeMinutes,
+			still_url: stillOf.get(episode.number) ?? null,
 			audio: listing?.languages ?? null,
 			filler: listing?.isFiller ?? false,
 		};
@@ -397,7 +394,7 @@ function preparingOn(
 	pageStart: number,
 	perPage: number,
 	describe: (anilistId: number) =>
-		| (Omit<PreparingTitle, "anilistId" | "position" | "title"> & {
+		| (Omit<PreparingTitle, "anilist_id" | "position" | "title"> & {
 				title: string | null;
 		  })
 		| undefined,
@@ -409,7 +406,7 @@ function preparingOn(
 			? [
 					{
 						...described,
-						anilistId,
+						anilist_id: anilistId,
 						title: described.title,
 						position,
 					},
@@ -420,13 +417,10 @@ function preparingOn(
 
 /** Cards for stored series, in the given order. */
 async function cardsOf(seriesIds: readonly string[]) {
-	const rows =
-		seriesIds.length > 0
-			? await db
-					.select()
-					.from(series)
-					.where(inArray(series.id, [...seriesIds]))
-			: [];
+	const rows = await db
+		.select()
+		.from(series)
+		.where(inArray(series.id, [...seriesIds]));
 	const cards = await toSeriesCards(rows);
 	return seriesIds.flatMap((id) => cards.get(id) ?? []);
 }
@@ -479,31 +473,40 @@ async function seriesIdsFor(
 	};
 }
 
-/** A series' stored episodes that it lists (see {@link isEpisodeShown}), in order. */
-async function listedEpisodes(seriesId: string) {
+/**
+ * A stored series' row.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+async function loadSeries(seriesId: string) {
 	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
 
-	return (await listedEpisodesOf([row])).get(row.id) ?? [];
+	return row;
+}
+
+/** A series' stored episodes that it lists (see {@link isEpisodeShown}), in order. */
+async function listedEpisodes(seriesId: string) {
+	const row = await loadSeries(seriesId);
+	const listed = await listedEpisodesOf([row]);
+
+	return listed.get(row.id) ?? [];
 }
 
 /** {@link listedEpisodes} of several series at once, keyed by series ID. */
 export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
-	const rows =
-		titles.length > 0
-			? await db
-					.select()
-					.from(seriesEpisode)
-					.where(
-						inArray(
-							seriesEpisode.seriesId,
-							titles.map((title) => title.id),
-						),
-					)
-					.orderBy(asc(seriesEpisode.number))
-			: [];
+	const rows = await db
+		.select()
+		.from(seriesEpisode)
+		.where(
+			inArray(
+				seriesEpisode.seriesId,
+				titles.map((title) => title.id),
+			),
+		)
+		.orderBy(asc(seriesEpisode.number));
 	const onAniKoto = await loadAniKotoEpisodes(titles.map((title) => title.anilistId));
 
 	const now = new Date();
@@ -576,10 +579,7 @@ export function byStartDate(rows: readonly SeriesRow[]) {
  */
 async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 	const anilistIds = await franchiseIds(row.anilistId);
-	const rows =
-		anilistIds.length > 0
-			? await db.select().from(series).where(inArray(series.anilistId, anilistIds))
-			: [];
+	const rows = await db.select().from(series).where(inArray(series.anilistId, anilistIds));
 	const titles = [row, ...rows];
 	const [cards, sequels] = await Promise.all([
 		toSeriesCards(titles),
@@ -608,7 +608,7 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 				title.id === row.id ||
 				(card !== undefined &&
 					card.format !== "MUSIC" &&
-					(card.episodeCount > 0 ||
+					(card.episode_count > 0 ||
 						(title.status === "NOT_YET_RELEASED" &&
 							card.format !== null &&
 							["TV", "TV_SHORT", "ONA"].includes(card.format))));
@@ -620,7 +620,7 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 							title: card.title,
 							format: card.format,
 							startDate: title.startDate,
-							episodeCount: card.episodeCount,
+							episodeCount: card.episode_count,
 						},
 					]
 				: [];
@@ -636,12 +636,6 @@ function effectiveArtwork(override: string | null, laidOut: string | null) {
 
 /** How far back {@link getLatestReleases} looks. */
 const releaseWindowMs = 30 * day;
-
-/**
- * When an episode came out: when it aired, or its air date's midnight UTC
- * when AniList has no airing time.
- */
-export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
 export const ReleasesQuerySchema = BrowseQuerySchema.pick({
@@ -683,18 +677,15 @@ export async function getLatestReleases(
 		})
 		.from(seriesEpisode)
 		.where(and(gte(episodeReleasedAt, since), lte(episodeReleasedAt, now)));
-	const rows =
-		candidates.length > 0
-			? await db
-					.select()
-					.from(series)
-					.where(
-						inArray(
-							series.id,
-							candidates.map((candidate) => candidate.seriesId),
-						),
-					)
-			: [];
+	const rows = await db
+		.select()
+		.from(series)
+		.where(
+			inArray(
+				series.id,
+				candidates.map((candidate) => candidate.seriesId),
+			),
+		);
 	const listed = await listedEpisodesOf(rows);
 
 	const latest = rows.flatMap((row) => {
@@ -707,9 +698,7 @@ export async function getLatestReleases(
 			  }
 			| undefined;
 		for (const episode of listed.get(row.id) ?? []) {
-			const at =
-				episode.airedAt ??
-				(episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`));
+			const at = releasedAtOf(episode);
 			if (
 				at !== null &&
 				at >= since &&
@@ -729,7 +718,7 @@ export async function getLatestReleases(
 
 	const anilistIds = latest.map((release) => release.anilistId);
 	const [formats, languages] = await Promise.all([
-		format && anilistIds.length > 0
+		format
 			? db
 					.select({
 						anilistId: animeSearch.anilistId,
@@ -761,13 +750,14 @@ export async function getLatestReleases(
 	);
 
 	return {
-		items: shown.flatMap(({ seriesId, anilistId: _, ...release }) => {
+		items: shown.flatMap(({ seriesId, episode, releasedAt }) => {
 			const card = cards.get(seriesId);
 			return card
 				? [
 						{
 							series: card,
-							...release,
+							episode,
+							released_at: releasedAt,
 						},
 					]
 				: [];
@@ -796,17 +786,15 @@ async function cardsFrom(
 	const anilistIds = rows.map((row) => row.anilistId);
 	const keys = [...new Set(rows.map((row) => row.key))];
 	const [stored, languages, chosen] = await Promise.all([
-		anilistIds.length > 0
-			? db
-					.select({
-						anilistId: animeTable.anilistId,
-						media: animeTable.media,
-					})
-					.from(animeTable)
-					.where(inArray(animeTable.anilistId, anilistIds))
-			: [],
+		db
+			.select({
+				anilistId: animeTable.anilistId,
+				media: animeTable.media,
+			})
+			.from(animeTable)
+			.where(inArray(animeTable.anilistId, anilistIds)),
 		findAnimeLanguages(anilistIds),
-		keys.length > 0 ? db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)) : [],
+		db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)),
 	]);
 	const anime = new Map(stored.map((row) => [row.anilistId, toAnime(row.media)]));
 	const artwork = new Map(chosen.map((row) => [row.key, row]));
@@ -824,19 +812,19 @@ async function cardsFrom(
 					kind: row.kind,
 					format: details?.format ?? null,
 					title: row.title,
-					posterUrl: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
-					backdropUrl: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
-					logoUrl: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
-					logoScale: title?.logoScale ?? 1,
-					logoOffsetX: title?.logoOffsetX ?? 0,
-					logoOffsetY: title?.logoOffsetY ?? 0,
+					poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+					backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
+					logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
+					logo_scale: title?.logoScale ?? 1,
+					logo_offset_x: title?.logoOffsetX ?? 0,
+					logo_offset_y: title?.logoOffsetY ?? 0,
 					year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
 					status: row.status,
 					audio: order.filter((language) => audio.has(language)),
 					overview: row.overview ?? details?.description ?? null,
 					score: details?.score ?? null,
 					genres: details?.genres ?? [],
-					episodeCount: listed.get(row.id)?.length ?? 0,
+					episode_count: listed.get(row.id)?.length ?? 0,
 				},
 			];
 		}),

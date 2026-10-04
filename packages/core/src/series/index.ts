@@ -11,19 +11,14 @@
  *
  * @packageDocumentation
  */
+export { logoPlacement } from "./logo-placement";
 export {
 	listSeriesImages,
-	logoPlacement,
 	refreshSeriesImages,
 	setSeriesArtwork,
-	type ArtworkChanges,
-	type ImageType,
-	type SeriesImage,
 	type SeriesImageQuery,
 } from "./artwork";
 export type { ImageEdges } from "./edges";
-export type { FranchisePart } from "./franchise";
-export type { Episode, PreparingTitle, Release, Series, SeriesCard } from "./models";
 export {
 	browseSeries,
 	getAdjacentEpisodes,
@@ -33,6 +28,6 @@ export {
 	ReleasesQuerySchema,
 	type ReleasesQuery,
 } from "./queries";
-export { getAiringSchedule, type ScheduledEpisode } from "./schedule";
+export { getAiringSchedule } from "./schedule";
 export type { SeriesKind } from "./series";
-export { getUpcomingSeries, type UpcomingSeries } from "./upcoming";
+export { getUpcomingSeries } from "./upcoming";

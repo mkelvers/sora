@@ -1,18 +1,5 @@
 import type { AnimeFormat } from "../catalog/models/anime";
-
-/** One title of a franchise as a series page lists it; see `Series.franchise`. */
-export interface FranchisePart {
-	seriesId: string;
-	/**
-	 * The title without the franchise's name, such as "Season 2", "OAD", or
-	 * "Tears of the Azure Sea"; the first season is "Season 1". A title that
-	 * does not start with the franchise's name keeps its whole title.
-	 */
-	title: string;
-	format: AnimeFormat | null;
-	/** How many of its episodes can be watched. */
-	episodeCount: number;
-}
+import type { FranchisePart } from "../models/series";
 
 /** What {@link franchiseParts} needs to know about each title. */
 export interface FranchiseTitle {
@@ -80,10 +67,10 @@ export function franchiseParts(
 	const others = byRelease.filter((title) => !seasons.includes(title));
 
 	return [...seasons, ...others].map((title) => ({
-		seriesId: title.seriesId,
+		series_id: title.seriesId,
 		title: shortTitle(title, base),
 		format: title.format,
-		episodeCount: title.episodeCount,
+		episode_count: title.episodeCount,
 	}));
 }
 

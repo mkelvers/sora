@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../database/client";
 import { noArtwork, series, titleArtwork, titleImage } from "../database/schema";
 import { SeriesNotFoundError } from "../errors";
+import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
 import { day } from "../time";
 import {
 	getImages,
@@ -12,26 +13,8 @@ import {
 	type TmdbImage,
 } from "../tmdb/resources";
 import { storeBackdropEdges } from "./edges";
-import type { Series } from "./models";
 import { getSeries } from "./queries";
 import { parseKey, type SeriesKey } from "./series";
-
-export type ImageType = "poster" | "backdrop" | "logo";
-
-/** One image TMDB has for a title, to choose as its artwork with {@link setSeriesArtwork}. */
-export interface SeriesImage {
-	type: ImageType;
-	/** The original size; swap `/original/` for a TMDB size bucket for a smaller file. */
-	url: string;
-	width: number;
-	height: number;
-	/** ISO 639-1 code of any text on the image; `null` when it has none. */
-	language: string | null;
-	voteAverage: number;
-	voteCount: number;
-	/** TMDB's number of the season a poster is for; `null` for the title's own. */
-	seasonNumber: number | null;
-}
 
 /** How {@link listSeriesImages} filters and sorts. */
 export interface SeriesImageQuery {
@@ -47,35 +30,6 @@ export interface SeriesImageQuery {
 	 */
 	sort?: "votes" | "quality";
 }
-
-/**
- * Artwork to choose for a series. A URL replaces the laid-out image, `false`
- * shows none, `null` goes back to the laid-out one, and an omitted field is
- * left as it is.
- */
-export interface ArtworkChanges {
-	posterUrl?: string | false | null;
-	backdropUrl?: string | false | null;
-	logoUrl?: string | false | null;
-	/** How large to draw the logo, within {@link logoPlacement}`.scale`; 1 is as usual. */
-	logoScale?: number;
-	/** How far right to move the logo, in hero widths, within {@link logoPlacement}`.offset`. */
-	logoOffsetX?: number;
-	/** How far down to move the logo, in hero widths, within {@link logoPlacement}`.offset`. */
-	logoOffsetY?: number;
-}
-
-/** The ranges the logo's size and offsets in {@link ArtworkChanges} may be chosen in. */
-export const logoPlacement = {
-	scale: {
-		min: 0.5,
-		max: 2,
-	},
-	offset: {
-		min: -1,
-		max: 1,
-	},
-} as const;
 
 /** Stores `false`, no artwork, as {@link noArtwork}. */
 function toOverride(change: string | false | null | undefined) {
@@ -104,13 +58,13 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 		throw new SeriesNotFoundError(seriesId);
 	}
 
-	const poster = toOverride(changes.posterUrl);
+	const poster = toOverride(changes.poster_url);
 	const title = {
-		backdropUrlOverride: toOverride(changes.backdropUrl),
-		logoUrlOverride: toOverride(changes.logoUrl),
-		logoScale: changes.logoScale,
-		logoOffsetX: changes.logoOffsetX,
-		logoOffsetY: changes.logoOffsetY,
+		backdropUrlOverride: toOverride(changes.backdrop_url),
+		logoUrlOverride: toOverride(changes.logo_url),
+		logoScale: changes.logo_scale,
+		logoOffsetX: changes.logo_offset_x,
+		logoOffsetY: changes.logo_offset_y,
 	};
 
 	await db.transaction(async (tx) => {
@@ -217,9 +171,9 @@ async function storedImagesOf(key: string): Promise<SeriesImage[]> {
 			width: titleImage.width,
 			height: titleImage.height,
 			language: titleImage.language,
-			voteAverage: titleImage.voteAverage,
-			voteCount: titleImage.voteCount,
-			seasonNumber: titleImage.seasonNumber,
+			vote_average: titleImage.voteAverage,
+			vote_count: titleImage.voteCount,
+			season_number: titleImage.seasonNumber,
 		})
 		.from(titleImage)
 		.where(eq(titleImage.key, key));
@@ -249,7 +203,14 @@ async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImag
 				.values(
 					images.map((image) => ({
 						key,
-						...image,
+						type: image.type,
+						url: image.url,
+						width: image.width,
+						height: image.height,
+						language: image.language,
+						voteAverage: image.vote_average,
+						voteCount: image.vote_count,
+						seasonNumber: image.season_number,
 					})),
 				)
 				.onConflictDoNothing();
@@ -312,9 +273,9 @@ function toSeriesImage(
 		width: image.width,
 		height: image.height,
 		language: image.iso_639_1,
-		voteAverage: image.vote_average,
-		voteCount: image.vote_count,
-		seasonNumber,
+		vote_average: image.vote_average,
+		vote_count: image.vote_count,
+		season_number: seasonNumber,
 	};
 }
 
@@ -337,5 +298,5 @@ function byArea(left: SeriesImage, right: SeriesImage) {
 /** A Bayesian average: as if every image also had three votes of 5. */
 function confidence(image: SeriesImage) {
 	const priorVotes = 3;
-	return (image.voteAverage * image.voteCount + 5 * priorVotes) / (image.voteCount + priorVotes);
+	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
 }
