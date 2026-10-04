@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "../database/client";
 import { anilistResponse } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
+import { InFlight } from "../in-flight";
 import type { TypedDocumentString } from "./graphql.generated";
 
 const endpoint = "https://graphql.anilist.co";
@@ -78,7 +79,7 @@ const EnvelopeSchema = z.object({
 let nextRequestAt = 0;
 /** When each request of the last minute was sent; see {@link LimiterState}. */
 let recentSends: number[] = [];
-const inFlight = new Map<string, Promise<unknown>>();
+const inFlight = new InFlight<string, unknown>();
 
 /** A request waiting for its turn under the rate limit. */
 interface QueuedRequest {
@@ -143,29 +144,23 @@ export async function anilist<TResult, TVariables>(
 		return stored.data as TResult;
 	}
 
-	const pending = inFlight.get(key);
-	if (pending) {
+	if (inFlight.has(key)) {
 		// A viewer asking what a background job already queued should not wait at its priority.
 		raisePriority(key, currentAniListPriority());
-		return pending as Promise<TResult>;
 	}
 
-	const request = (async () => {
-		const { data, error } = await attempt(
-			fetchAndStore<TResult>(key, query, variables),
-			UpstreamUnavailableError,
-		).finally(() => inFlight.delete(key));
-		if (error) {
-			if (stored) {
-				return stored.data as TResult;
-			}
-			throw error;
+	const { data, error } = await attempt(
+		inFlight.run(key, () => fetchAndStore<TResult>(key, query, variables)),
+		UpstreamUnavailableError,
+	);
+	if (error) {
+		if (stored) {
+			return stored.data as TResult;
 		}
-		return data;
-	})();
-
-	inFlight.set(key, request);
-	return request;
+		throw error;
+	}
+	// Stored by fetchAndStore from a response typed as TResult.
+	return data as TResult;
 }
 
 async function fetchAndStore<TResult>(key: string, query: string, variables: unknown) {
@@ -309,35 +304,33 @@ export function loadMediaById<
 	const query = operation.document.toString();
 	const name = operationName(query);
 	/** IDs queued or being fetched, each settling with its media, or `null` when AniList has none. */
-	const loading = new Map<number, Promise<TMedia | null>>();
+	const loading = new InFlight<number, TMedia | null>();
 	/** The batch each queued ID waits in, until it is sent. */
 	const queuedIn = new Map<number, MediaBatch<TMedia>>();
 	/** The batch new IDs join, until it is full or sent. */
 	let open: MediaBatch<TMedia> | null = null;
 
 	function load(id: number, priority: number) {
-		const pending = loading.get(id);
-		if (pending) {
+		if (loading.has(id)) {
 			raise(queuedIn.get(id), priority);
-			return pending;
 		}
 
-		const loaded = new Promise<TMedia | null>((resolve, reject) => {
-			const batch = open ?? openBatch(priority);
-			batch.wanted.set(id, {
-				resolve,
-				reject,
-			});
-			queuedIn.set(id, batch);
-			raise(batch, priority);
-			if (batch.wanted.size >= capacity) {
-				open = null;
-			}
-		}).finally(() => {
-			loading.delete(id);
-		});
-		loading.set(id, loaded);
-		return loaded;
+		return loading.run(
+			id,
+			() =>
+				new Promise<TMedia | null>((resolve, reject) => {
+					const batch = open ?? openBatch(priority);
+					batch.wanted.set(id, {
+						resolve,
+						reject,
+					});
+					queuedIn.set(id, batch);
+					raise(batch, priority);
+					if (batch.wanted.size >= capacity) {
+						open = null;
+					}
+				}),
+		);
 	}
 
 	function openBatch(priority: number) {
