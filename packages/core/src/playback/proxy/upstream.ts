@@ -1,5 +1,7 @@
 import { isIP } from "node:net";
 
+import { attempt, type Attempt } from "@sora/attempt";
+
 import { CoreError, InvalidStreamTokenError } from "../../errors";
 import { second } from "../../time";
 import { isBareImage } from "./segment";
@@ -53,26 +55,26 @@ export async function fetchUpstream(
 
 	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
 
-	try {
-		return await fetchFollowingRedirects(target.url, headers, timeoutMs, signal);
-	} catch (cause) {
-		if (!(cause instanceof StreamUpstreamError)) {
-			throw cause;
-		}
-
-		for (const mirror of target.mirrors) {
-			try {
-				return await fetchFollowingRedirects(mirror, headers, timeoutMs, signal);
-			} catch (mirrorCause) {
-				if (!(mirrorCause instanceof StreamUpstreamError)) {
-					throw mirrorCause;
-				}
-			}
-		}
-
-		// The primary host's failure is the one worth reporting.
-		throw cause;
+	const primary = await attempt(
+		fetchFollowingRedirects(target.url, headers, timeoutMs, signal),
+		StreamUpstreamError,
+	);
+	if (!primary.error) {
+		return primary.data;
 	}
+
+	for (const mirror of target.mirrors) {
+		const fallback = await attempt(
+			fetchFollowingRedirects(mirror, headers, timeoutMs, signal),
+			StreamUpstreamError,
+		);
+		if (!fallback.error) {
+			return fallback.data;
+		}
+	}
+
+	// The primary host's failure is the one worth reporting.
+	throw primary.error;
 }
 
 /** A whole upstream body, read before any candidate host is trusted. */
@@ -132,46 +134,47 @@ export async function fetchUpstreamBytes(
 				}
 			};
 
-			attempt(candidate, target.kind, headers, timeoutMs, cancelled, answered).then(
-				(result) => {
-					if (settled) {
-						return;
-					}
-					settled = true;
-					clearTimeout(hedge);
-					losers.abort();
-					resolve(result);
-				},
-				(cause) => {
-					if (settled) {
-						return;
-					}
-					if (!(cause instanceof StreamUpstreamError)) {
-						settled = true;
-						clearTimeout(hedge);
-						losers.abort();
-						reject(cause);
-						return;
-					}
-
-					primaryFailure ??= cause;
-					failed += 1;
-					if (failed === candidates.length) {
-						settled = true;
-						clearTimeout(hedge);
-						reject(primaryFailure);
-						return;
-					}
-					launch();
-				},
+			void settle(
+				attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
 			);
+		};
+
+		const settle = async (read: Promise<Attempt<UpstreamBytes>>) => {
+			const { data: result, error } = await read;
+			if (settled) {
+				return;
+			}
+			if (!error) {
+				settled = true;
+				clearTimeout(hedge);
+				losers.abort();
+				resolve(result);
+				return;
+			}
+			if (!(error instanceof StreamUpstreamError)) {
+				settled = true;
+				clearTimeout(hedge);
+				losers.abort();
+				reject(error);
+				return;
+			}
+
+			primaryFailure ??= error;
+			failed += 1;
+			if (failed === candidates.length) {
+				settled = true;
+				clearTimeout(hedge);
+				reject(primaryFailure);
+				return;
+			}
+			launch();
 		};
 
 		launch();
 	});
 }
 
-async function attempt(
+async function readCandidate(
 	url: string,
 	kind: StreamTargetKind,
 	headers: Headers,
@@ -182,14 +185,13 @@ async function attempt(
 	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
 	answered();
 
-	let bytes: Uint8Array<ArrayBuffer>;
-	try {
-		bytes = new Uint8Array(await upstream.response.arrayBuffer());
-	} catch (cause) {
+	const body = await attempt(upstream.response.arrayBuffer());
+	if (body.error) {
 		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
-			cause,
+			cause: body.error,
 		});
 	}
+	const bytes = new Uint8Array(body.data);
 
 	// Stalling hosts sometimes close the connection instead, which reads as an empty body.
 	if (bytes.byteLength === 0) {
@@ -239,18 +241,18 @@ async function fetchFollowingRedirects(
 	for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
 		assertPublicHttpUrl(url);
 
-		let response: Response;
-		try {
-			response = await fetch(url, {
+		const { data: response, error } = await attempt(
+			fetch(url, {
 				headers,
 				redirect: "manual",
 				signal: signal
 					? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
 					: AbortSignal.timeout(timeoutMs),
-			});
-		} catch (cause) {
+			}),
+		);
+		if (error) {
 			throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
-				cause,
+				cause: error,
 			});
 		}
 

@@ -1,4 +1,7 @@
+import { attempt } from "@sora/attempt";
+
 import { getAnime } from "../../catalog/queries/anime";
+import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
 import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
 import type { ContentLanguage } from "../../series/models";
@@ -80,7 +83,7 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
  * up on the spot, once; after that the scheduler keeps its lists current.
  */
 export async function getEpisodeVersions(
-	episode: Pick<LocatedEpisode, "anilistId" | "anilistEpisode">,
+	episode: Pick<LocatedEpisode, "anilistId" | "number">,
 ): Promise<EpisodeVersion[]> {
 	const listed = (
 		await readAnimeListings([episode.anilistId], {
@@ -88,7 +91,7 @@ export async function getEpisodeVersions(
 		})
 	).get(episode.anilistId);
 	return versionsOffered(
-		listed?.listings.filter(({ unit }) => unit.number === episode.anilistEpisode) ?? [],
+		listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? [],
 	);
 }
 
@@ -269,24 +272,32 @@ function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promi
 	}
 
 	const lookup = (async () => {
-		const anime = await getAnime(anilistId).catch(() => null);
-		if (!anime) {
+		const { data: anime, error } = await attempt(
+			getAnime(anilistId),
+			AnimeNotFoundError,
+			UpstreamUnavailableError,
+		);
+		if (error) {
 			return [];
 		}
 
 		const found = await Promise.all(
-			sources.map((provider) =>
-				getProviderUnits(anime, provider).then(
-					(units) => [
-						{
-							anilistId,
-							provider: provider.id,
-							units,
-						},
-					],
-					() => [],
-				),
-			),
+			sources.map(async (provider) => {
+				const { data: units, error } = await attempt(getProviderUnits(anime, provider));
+				if (error) {
+					console.warn(
+						`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
+					);
+					return [];
+				}
+				return [
+					{
+						anilistId,
+						provider: provider.id,
+						units,
+					},
+				];
+			}),
 		);
 		return found.flat();
 	})().finally(() => lookupsInFlight.delete(anilistId));

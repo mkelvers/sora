@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { attempt } from "@sora/attempt";
 import { z } from "zod";
 
 import { InvalidStreamTokenError } from "../../errors";
@@ -85,10 +86,9 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 		throw new InvalidStreamTokenError("Stream token signature is invalid");
 	}
 
-	let decoded: unknown;
-	try {
-		decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-	} catch {
+	const json = Buffer.from(payload, "base64url").toString("utf8");
+	const { data: decoded, error } = attempt(() => JSON.parse(json), SyntaxError);
+	if (error) {
 		throw new InvalidStreamTokenError("Stream token payload is not JSON");
 	}
 

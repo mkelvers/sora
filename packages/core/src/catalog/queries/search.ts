@@ -139,11 +139,12 @@ async function fetchIndexPage(
 					maxAgeMs: hour,
 				},
 			),
+			UpstreamUnavailableError,
 		);
 		if (!error) {
 			return data;
 		}
-		if (!(error instanceof UpstreamUnavailableError) || tries >= pageAttempts) {
+		if (tries >= pageAttempts) {
 			throw error;
 		}
 

@@ -1,6 +1,8 @@
+import { attempt } from "@sora/attempt";
+
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import type { StreamTarget } from "./token";
-import { fetchUpstreamBytes } from "./upstream";
+import { fetchUpstreamBytes, StreamUpstreamError } from "./upstream";
 
 /**
  * How many segments past the one being played are fetched ahead of time.
@@ -80,7 +82,18 @@ function fetchAhead(target: StreamTarget) {
 		position.index + 1,
 		position.index + 1 + segmentsAhead,
 	)) {
-		load(next).catch(() => {});
+		void loadAhead(next);
+	}
+}
+
+/**
+ * Loads a segment before the player asks for it. An upstream failure is left
+ * for the player's own request, which tries again.
+ */
+async function loadAhead(target: StreamTarget) {
+	const { error } = await attempt(load(target));
+	if (error && !(error instanceof StreamUpstreamError)) {
+		console.error(`Fetching ${target.url} ahead failed: ${error.message}`);
 	}
 }
 

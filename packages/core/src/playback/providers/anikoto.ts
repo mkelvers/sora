@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { AnikotoProvider, type HttpClient } from "anime-sdk";
 import { z } from "zod";
 
@@ -77,10 +78,13 @@ export class AniKotoStreamProvider implements StreamProvider {
 	 * flag.
 	 */
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
-		const [units, listed] = await Promise.all([
+		const [units, { data: listed, error }] = await Promise.all([
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
-			fetchAniKotoEpisodeList(this.http, mediaId).catch(() => null),
+			attempt(fetchAniKotoEpisodeList(this.http, mediaId)),
 		]);
+		if (error) {
+			console.warn(`AniKoto's episode list for ${mediaId} could not be read: ${error.message}`);
+		}
 
 		return units.map((unit) => {
 			const episode = toProviderEpisode(unit);

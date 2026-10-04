@@ -1,3 +1,5 @@
+import { attempt } from "@sora/attempt";
+
 import { config } from "../../config";
 import { hour } from "../../time";
 import type { TimelineShift } from "../streams/align";
@@ -66,8 +68,8 @@ export async function canFetchStream(
 	headers: Record<string, string>,
 	mirrors: string[],
 ) {
-	try {
-		const { response } = await fetchUpstream(
+	const { data: upstream, error } = await attempt(
+		fetchUpstream(
 			{
 				url,
 				kind: "subtitle",
@@ -76,15 +78,14 @@ export async function canFetchStream(
 				expiresAt: 0,
 			},
 			null,
-		);
-		await response.body?.cancel();
-		return true;
-	} catch (cause) {
-		if (cause instanceof StreamUpstreamError) {
-			return false;
-		}
-		throw cause;
+		),
+		StreamUpstreamError,
+	);
+	if (error) {
+		return false;
 	}
+	await upstream.response.body?.cancel();
+	return true;
 }
 
 /**
@@ -97,8 +98,8 @@ export async function readSubtitle(
 	headers: Record<string, string>,
 	mirrors: string[],
 ) {
-	try {
-		const { bytes } = await fetchUpstreamBytes(
+	const { data: upstream, error } = await attempt(
+		fetchUpstreamBytes(
 			{
 				url,
 				kind: "subtitle",
@@ -107,14 +108,13 @@ export async function readSubtitle(
 				expiresAt: 0,
 			},
 			undefined,
-		);
-		return new TextDecoder().decode(bytes);
-	} catch (cause) {
-		if (cause instanceof StreamUpstreamError) {
-			return null;
-		}
-		throw cause;
+		),
+		StreamUpstreamError,
+	);
+	if (error) {
+		return null;
 	}
+	return new TextDecoder().decode(upstream.bytes);
 }
 
 /**

@@ -288,7 +288,7 @@ describe("getEpisodeVersions", () => {
 		expect(
 			await getEpisodeVersions({
 				anilistId: 154587,
-				anilistEpisode: 3,
+				number: 3,
 			}),
 		).toEqual([
 			{
@@ -313,7 +313,7 @@ describe("getEpisodeVersions", () => {
 		expect(
 			await getEpisodeVersions({
 				anilistId: 154587,
-				anilistEpisode: 3,
+				number: 3,
 			}),
 		).toEqual([
 			{
@@ -333,7 +333,7 @@ describe("getEpisodeVersions", () => {
 		expect(
 			await getEpisodeVersions({
 				anilistId: 154587,
-				anilistEpisode: 3,
+				number: 3,
 			}),
 		).toEqual([
 			{
@@ -355,7 +355,7 @@ describe("getEpisodeVersions", () => {
 		expect(
 			await getEpisodeVersions({
 				anilistId: 154587,
-				anilistEpisode: 3,
+				number: 3,
 			}),
 		).toEqual([
 			{
@@ -371,7 +371,7 @@ describe("getEpisodeVersions", () => {
 
 		const episode = {
 			anilistId: 154587,
-			anilistEpisode: 3,
+			number: 3,
 		};
 		await Promise.all([getEpisodeVersions(episode), getEpisodeVersions(episode)]);
 
@@ -384,7 +384,7 @@ describe("getEpisodeVersions", () => {
 		expect(
 			await getEpisodeVersions({
 				anilistId: 154587,
-				anilistEpisode: 3,
+				number: 3,
 			}),
 		).toEqual([]);
 	});

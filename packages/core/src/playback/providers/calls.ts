@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -52,28 +53,31 @@ export function recordingCalls(
 	) {
 		const startedAt = new Date();
 		const started = performance.now();
-		const finish = (outcome: CallOutcome, error: unknown) => {
-			const recorded = record({
-				provider: provider.id,
-				operation,
-				outcome,
-				startedAt,
-				durationMs: Math.round(performance.now() - started),
-				error: outcome === "failed" ? errorMessage(error) : null,
-			});
-			recorded.catch((cause: unknown) => {
-				console.warn(`Could not record a ${operation} call to ${provider.id}: ${String(cause)}`);
-			});
+		const finish = async (outcome: CallOutcome, error: Error | null) => {
+			const { error: unrecorded } = await attempt(
+				record({
+					provider: provider.id,
+					operation,
+					outcome,
+					startedAt,
+					durationMs: Math.round(performance.now() - started),
+					error: error ? errorMessage(error) : null,
+				}),
+			);
+			if (unrecorded) {
+				console.warn(
+					`Could not record a ${operation} call to ${provider.id}: ${unrecorded.message}`,
+				);
+			}
 		};
 
-		try {
-			const result = await call();
-			finish(isEmpty(result) ? "empty" : "ok", null);
-			return result;
-		} catch (error) {
-			finish("failed", error);
+		const { data: result, error } = await attempt(call());
+		if (error) {
+			void finish("failed", error);
 			throw error;
 		}
+		void finish(isEmpty(result) ? "empty" : "ok", null);
+		return result;
 	}
 
 	const syncCatalog = provider.syncCatalog?.bind(provider);
@@ -110,8 +114,8 @@ export function recordingCalls(
 	};
 }
 
-function errorMessage(error: unknown) {
-	const message = error instanceof Error ? error.message : String(error);
+function errorMessage(error: Error) {
+	const message = error.message;
 	return message.length > maxErrorLength ? `${message.slice(0, maxErrorLength - 1)}…` : message;
 }
 

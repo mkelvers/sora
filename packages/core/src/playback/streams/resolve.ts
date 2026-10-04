@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -86,8 +87,7 @@ export interface PlaybackMedia {
 /** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
 	seriesId: string;
-	seasonId: string;
-	/** Position within the season, from 1. */
+	/** The episode's number in the series, from 1. */
 	episode: number;
 	/** When the stream URLs stop working, as an ISO 8601 timestamp. */
 	expiresAt: string;
@@ -100,8 +100,7 @@ export interface Playback {
 
 export const PlaybackRequestSchema = z.object({
 	seriesId: z.string().min(1),
-	seasonId: z.string().min(1),
-	/** Position within the season, from 1. */
+	/** The episode's number in the series, from 1. */
 	episode: z.number().int().positive(),
 });
 
@@ -157,10 +156,9 @@ const qualityRank: Record<StreamQuality, number> = {
  * headers and hosts stay on the server. They expire with their tokens.
  *
  * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
- * @throws {@link SeasonNotFoundError} when the season does not exist, or
- *   does not belong to the series.
- * @throws {@link EpisodeNotFoundError} when the season has no such episode,
- *   the episode is an extra only TMDB lists, or no provider lists it.
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link EpisodeNotFoundError} when the series has no such episode,
+ *   or no provider lists it.
  * @throws {@link PlaybackUnavailableError} when providers list the episode but
  *   none can currently stream any version of it.
  */
@@ -175,10 +173,10 @@ export async function resolvePlayback(
 		});
 	}
 
-	const { seriesId, seasonId, episode } = parsed.data;
+	const { seriesId, episode } = parsed.data;
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-	const located = await locateEpisode(seasonId, episode, seriesId);
+	const located = await locateEpisode(seriesId, episode);
 	const anime = await getAnime(located.anilistId);
 	const offered = await getEpisodeVersions(located);
 	const streamUrl = (token: string) =>
@@ -201,7 +199,7 @@ export async function resolvePlayback(
 	);
 	const results = await Promise.all(
 		[...alwaysTried, ...served].map((version) =>
-			resolveVersion(version, located.anilistEpisode, unitsOf, streamUrl),
+			resolveVersion(version, located.number, unitsOf, streamUrl),
 		),
 	);
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
@@ -220,7 +218,6 @@ export async function resolvePlayback(
 	if (media.length > 0) {
 		return {
 			seriesId,
-			seasonId,
 			episode,
 			expiresAt,
 			media,
@@ -228,11 +225,11 @@ export async function resolvePlayback(
 	}
 
 	if (!results.some((result) => result.listed)) {
-		throw new EpisodeNotFoundError(seasonId, episode);
+		throw new EpisodeNotFoundError(seriesId, episode);
 	}
 
 	throw new PlaybackUnavailableError(
-		seasonId,
+		seriesId,
 		episode,
 		results.flatMap((result) => result.attempts),
 	);
@@ -277,72 +274,73 @@ async function resolveVersion(
 			continue;
 		}
 
-		try {
-			const unit = (await unitsOf(provider)).find(
-				(candidate) => candidate.number === anilistEpisode,
-			);
-			if (unit) {
-				candidates.push({
-					provider,
-					unit,
-				});
-			} else {
-				fail(provider, "Episode not listed");
-			}
-		} catch (cause) {
-			fail(provider, cause instanceof Error ? cause.message : "Provider failed");
+		const units = await attempt(unitsOf(provider));
+		if (units.error) {
+			fail(provider, units.error.message);
+			continue;
+		}
+
+		const unit = units.data.find((candidate) => candidate.number === anilistEpisode);
+		if (unit) {
+			candidates.push({
+				provider,
+				unit,
+			});
+		} else {
+			fail(provider, "Episode not listed");
 		}
 	}
 
 	const listed = candidates.length > 0;
 
 	/** Resolves the version from one provider; `null`, with the reason recorded, when it cannot. */
-	const attempt = async (provider: StreamProvider, unit: ProviderUnit) => {
-		try {
-			const stream = await provider.resolveStream(unit.id, language);
-			const [loads, kinds] =
-				language === "sub"
-					? await Promise.all([englishSubtitlesLoad(stream.videos), subtitleKinds(stream.videos)])
-					: [true, new Map<string, SubtitleKind | null>()];
-			if (!loads) {
-				fail(provider, "English subtitles cannot be fetched");
-				return null;
-			}
+	const resolveWith = async (provider: StreamProvider, unit: ProviderUnit) => {
+		const resolved = await attempt(provider.resolveStream(unit.id, language));
+		if (resolved.error) {
+			fail(provider, resolved.error.message);
+			return null;
+		}
+		const stream = resolved.data;
 
-			const media = toPlaybackMedia(stream.videos, streamUrl, kinds);
-			const version = {
-				audio: language,
-				label: audioLabels[language],
-				locale,
-				provider: provider.id,
-				hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
-				sources: media.sources,
-				// Providers hand a dub the sub's subtitles timed to the sub's encode;
-				// resolvePlayback retimes them to the dub's once both are resolved.
-				subtitles: language === "sub" ? withDefault(media.subtitles) : [],
-				skipSegments: stream.skipSegments,
-			};
+		const [loads, kinds] =
+			language === "sub"
+				? await Promise.all([englishSubtitlesLoad(stream.videos), subtitleKinds(stream.videos)])
+				: [true, new Map<string, SubtitleKind | null>()];
+		if (!loads) {
+			fail(provider, "English subtitles cannot be fetched");
+			return null;
+		}
 
-			// A sub without English tracks has them burned in. Later providers may
-			// serve tracks, which players can style and turn off, so they are tried
-			// first, and this one is kept to fall back on.
-			if (version.hardsub) {
-				fail(provider, "Subtitles are burned in");
-				hardsubbed ??= {
-					version,
-					videos: stream.videos,
-				};
-				return null;
-			}
+		const media = toPlaybackMedia(stream.videos, streamUrl, kinds);
+		const version = {
+			audio: language,
+			label: audioLabels[language],
+			locale,
+			provider: provider.id,
+			hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
+			sources: media.sources,
+			// Providers hand a dub the sub's subtitles timed to the sub's encode;
+			// resolvePlayback retimes them to the dub's once both are resolved.
+			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
+			skipSegments: stream.skipSegments,
+		};
 
-			return {
+		// A sub without English tracks has them burned in. Later providers may
+		// serve tracks, which players can style and turn off, so they are tried
+		// first, and this one is kept to fall back on.
+		if (version.hardsub) {
+			fail(provider, "Subtitles are burned in");
+			hardsubbed ??= {
 				version,
 				videos: stream.videos,
 			};
-		} catch (cause) {
-			fail(provider, cause instanceof Error ? cause.message : "Provider failed");
 			return null;
 		}
+
+		return {
+			version,
+			videos: stream.videos,
+		};
 	};
 
 	// Providers whose list has the version are asked in turn, so a later one
@@ -350,7 +348,7 @@ async function resolveVersion(
 	const lists = ({ unit }: (typeof candidates)[number]) =>
 		!unit.languages || unit.languages.includes(language);
 	for (const { provider, unit } of candidates.filter(lists)) {
-		const found = await attempt(provider, unit);
+		const found = await resolveWith(provider, unit);
 		if (found) {
 			return {
 				...found,
@@ -365,7 +363,7 @@ async function resolveVersion(
 	// rather than one per provider. The first in priority order that has it wins.
 	const unlisted = candidates.filter((candidate) => !lists(candidate));
 	const found = (
-		await Promise.all(unlisted.map(({ provider, unit }) => attempt(provider, unit)))
+		await Promise.all(unlisted.map(({ provider, unit }) => resolveWith(provider, unit)))
 	).find((result) => result !== null);
 	if (found) {
 		return {
@@ -395,18 +393,17 @@ async function timelineShifts(sub: ProviderVideo[], dub: ProviderVideo[]) {
 		return null;
 	}
 
-	try {
-		const [from, onto] = await Promise.all([
+	const starts = await attempt(
+		Promise.all([
 			segmentStarts(subVideo.url, subVideo.headers),
 			segmentStarts(dubVideo.url, dubVideo.headers),
-		]);
-		return alignTimelines(from, onto);
-	} catch (cause) {
-		if (cause instanceof StreamUpstreamError) {
-			return null;
-		}
-		throw cause;
+		]),
+		StreamUpstreamError,
+	);
+	if (starts.error) {
+		return null;
 	}
+	return alignTimelines(...starts.data);
 }
 
 /**
@@ -578,10 +575,9 @@ const languageNames = new Intl.DisplayNames(["en"], {
  * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
  */
 function languageName(tag: string) {
-	try {
-		const name = languageNames.of(tag);
-		return name && name !== tag ? name : null;
-	} catch {
+	const { data: name, error } = attempt(() => languageNames.of(tag), RangeError);
+	if (error) {
 		return null;
 	}
+	return name && name !== tag ? name : null;
 }

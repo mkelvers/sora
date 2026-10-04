@@ -103,7 +103,7 @@ function useProviders(list: FakeProvider[]) {
 mock.module("../../series/episodes", () => ({
 	locateEpisode: async () => ({
 		anilistId: 154587,
-		anilistEpisode: 3,
+		number: 3,
 	}),
 	anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
 }));
@@ -157,7 +157,6 @@ const { resolvePlayback } = await import("./resolve");
 
 const request = {
 	seriesId: "series",
-	seasonId: "season",
 	episode: 3,
 };
 const options = {
@@ -215,7 +214,6 @@ describe("resolvePlayback", () => {
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 		await expect(resolvePlayback(request, options)).resolves.toMatchObject({
 			seriesId: "series",
-			seasonId: "season",
 			episode: 3,
 		});
 	});

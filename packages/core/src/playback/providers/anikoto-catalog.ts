@@ -1,3 +1,4 @@
+import { attempt } from "@sora/attempt";
 import { bestSimilarity, type HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -343,16 +344,10 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
 		return null;
 	}
 
-	let prequelAnime;
-	try {
-		prequelAnime = await getAnime(prequel.id);
-	} catch (error) {
-		// A prequel AniList has since removed or marked adult.
-		if (error instanceof AnimeNotFoundError) {
-			return null;
-		}
-
-		throw error;
+	// A prequel AniList has since removed or marked adult.
+	const { data: prequelAnime, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
+	if (error) {
+		return null;
 	}
 	const series =
 		(await matchStoredSeries(prequelAnime)) ?? (await continuedSeries(prequelAnime, depth - 1));
