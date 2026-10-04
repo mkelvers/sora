@@ -8,12 +8,12 @@ describe("snakeCased", () => {
 			snakeCased({
 				posterUrl: "https://image.example/poster.jpg",
 				nextEpisode: {
-					seasonId: "s_1",
+					seriesId: "s_1",
 					airingAt: "2026-09-25T00:00:00.000Z",
 				},
-				seasons: [
+				episodes: [
 					{
-						episodeCount: 12,
+						runtimeMinutes: 24,
 					},
 				],
 				skipSegments: [],
@@ -22,12 +22,12 @@ describe("snakeCased", () => {
 		).toEqual({
 			poster_url: "https://image.example/poster.jpg",
 			next_episode: {
-				season_id: "s_1",
+				series_id: "s_1",
 				airing_at: "2026-09-25T00:00:00.000Z",
 			},
-			seasons: [
+			episodes: [
 				{
-					episode_count: 12,
+					runtime_minutes: 24,
 				},
 			],
 			skip_segments: [],

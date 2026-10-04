@@ -17,7 +17,6 @@ import type { Problem } from "./openapi/schemas";
 const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
 	ANIME_NOT_FOUND: 404,
 	SERIES_NOT_FOUND: 404,
-	SEASON_NOT_FOUND: 404,
 	EPISODE_NOT_FOUND: 404,
 	PROFILE_NOT_FOUND: 404,
 	LAST_PROFILE: 409,

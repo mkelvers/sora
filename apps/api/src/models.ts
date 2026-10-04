@@ -5,21 +5,10 @@
 import type { z } from "@hono/zod-openapi";
 
 import type { CountMetaSchema, PageMetaSchema, PreparingTitleSchema } from "./openapi/envelope";
-import type {
-	getSchedule,
-	getSeason,
-	listSeasons,
-	getSeries,
-	listSeasonEpisodes,
-} from "./openapi/routes";
+import type { getSchedule, getSeries, listEpisodes, listSeasons } from "./openapi/routes";
 import type {
 	ContinueWatchingSchema,
-	DroppedSchema,
-	HistoryItemSchema,
-	HistoryMetaSchema,
 	NextEpisodeSchema,
-	NotificationSchema,
-	NotificationsMetaSchema,
 	PlaybackMediaSchema,
 	PlaybackMetaSchema,
 	PlaybackPreferencesSchema,
@@ -29,23 +18,22 @@ import type {
 	AnimeSeasonSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
-	SeasonEpisodeSchema,
-	SeasonSchema,
+	EpisodeSchema,
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesProgressSchema,
-	ShowSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
 	SkipSegmentSchema,
+	WatchlistEntrySchema,
+	WatchlistStatusSchema,
 } from "./openapi/schemas";
 
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
 export type Series = z.infer<typeof SeriesSchema>;
 export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
 export type SeriesImage = z.infer<typeof SeriesImageSchema>;
-export type Season = z.infer<typeof SeasonSchema>;
-export type SeasonEpisode = z.infer<typeof SeasonEpisodeSchema>;
+export type Episode = z.infer<typeof EpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
 export type Release = z.infer<typeof ReleaseSchema>;
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
@@ -56,27 +44,18 @@ export type Progress = z.infer<typeof ProgressSchema>;
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
-export type Show = z.infer<typeof ShowSchema>;
-export type Dropped = z.infer<typeof DroppedSchema>;
-export type HistoryItem = z.infer<typeof HistoryItemSchema>;
-export type HistoryMeta = z.infer<typeof HistoryMetaSchema>;
-export type Notification = z.infer<typeof NotificationSchema>;
-export type NotificationsMeta = z.infer<typeof NotificationsMetaSchema>;
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
+export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
+export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
 export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;
 export type PageMeta = z.infer<typeof PageMetaSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 export type CountMeta = z.infer<typeof CountMetaSchema>;
 
-/** A season as `getSeries` returns it with `episodes=true`. */
-export type SeasonWithEpisodes = Season & {
-	episodes: SeasonEpisode[];
-};
-
-/** A title as `getSeries` returns it with `episodes=true`: every season carries its episodes. */
-export type SeriesWithEpisodes = Omit<Series, "seasons"> & {
-	seasons: SeasonWithEpisodes[];
+/** A title as `getSeries` returns it with `episodes=true`: it carries its episodes. */
+export type SeriesWithEpisodes = Series & {
+	episodes: Episode[];
 };
 
 /** The body a route answers with on success. */
@@ -95,8 +74,7 @@ type SuccessBody<
 > = z.infer<TRoute["responses"][200]["content"]["application/json"]["schema"]>;
 
 export type SeriesMeta = SuccessBody<typeof getSeries>["meta"];
-export type SeasonMeta = SuccessBody<typeof getSeason>["meta"];
-export type SeasonEpisodesMeta = SuccessBody<typeof listSeasonEpisodes>["meta"];
+export type EpisodesMeta = SuccessBody<typeof listEpisodes>["meta"];
 export type ScheduleMeta = SuccessBody<typeof getSchedule>["meta"];
 export type SeasonsMeta = SuccessBody<typeof listSeasons>["meta"];
 
