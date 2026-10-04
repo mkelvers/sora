@@ -6,7 +6,6 @@
 		{
 			variants: {
 				variant: {
-					menu: "",
 					toolbar:
 						"h-10 gap-2 px-3 text-sm font-medium tracking-normal group-has-[.dropdown-menu:popover-open]:bg-dropdown hover:bg-dropdown",
 					bar: "h-full gap-1 px-3 group-has-[.dropdown-menu:popover-open]:bg-header-hover hover:bg-header-hover",
@@ -15,38 +14,6 @@
 					outline:
 						"size-11 border-2 border-accent px-0 text-accent group-has-[.dropdown-menu:popover-open]:bg-transparent group-has-[.dropdown-menu:popover-open]:text-accent hover:bg-transparent hover:text-accent hover:brightness-110 active:scale-97",
 					overlay: "bg-transparent! hover:text-white",
-				},
-			},
-		},
-	);
-
-	const root = cva("dropdown-root group relative", {
-		variants: {
-			variant: {
-				menu: "",
-				toolbar: "",
-				bar: "h-full",
-				link: "h-full",
-				icon: "h-full",
-				outline: "",
-				overlay: "",
-			},
-		},
-	});
-
-	const menu = cva(
-		"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
-		{
-			variants: {
-				variant: {
-					menu: "",
-					toolbar:
-						"[&_:is(a,button):focus:not(:hover)]:bg-transparent [&_:is(a,button):focus:not(:hover):not([aria-checked=true])]:text-muted",
-					bar: "",
-					link: "",
-					icon: "",
-					outline: "",
-					overlay: "",
 				},
 			},
 		},
@@ -71,12 +38,14 @@
 
 	let {
 		alignment = "right",
-		variant = "menu",
+		variant,
 		children,
 		class: className,
 		label,
 		trigger,
 	}: Props = $props();
+
+	const stretch = $derived(variant === "bar" || variant === "link" || variant === "icon");
 
 	const popover = new Popover({
 		focus: {
@@ -92,11 +61,7 @@
 	});
 </script>
 
-<div
-	class={root({
-		variant,
-	})}
->
+<div class={cn("dropdown-root group relative", stretch && "h-full")}>
 	<Button
 		{...popover.trigger}
 		variant="ghost"
@@ -111,9 +76,9 @@
 	<div
 		{...popover.content}
 		class={cn(
-			menu({
-				variant,
-			}),
+			"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
+			variant === "toolbar" &&
+				"[&_:is(a,button):focus:not(:hover)]:bg-transparent [&_:is(a,button):focus:not(:hover):not([aria-checked=true])]:text-muted",
 			className,
 		)}
 		onpointermove={(event) => {
