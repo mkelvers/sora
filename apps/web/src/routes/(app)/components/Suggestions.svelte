@@ -47,8 +47,12 @@
 		"absolute inset-x-0 top-0 h-0.5 overflow-hidden",
 		(typing || $effect.pending() > 0) && "busy",
 	)}
-	aria-hidden="true"
-></div>
+	role="status"
+>
+	{#if typing || $effect.pending() > 0}
+		<span class="sr-only">Searching</span>
+	{/if}
+</div>
 
 {#each found.results as card, index (card.id)}
 	<a
