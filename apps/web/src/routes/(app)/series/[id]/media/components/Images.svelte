@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, languages, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
@@ -98,7 +98,7 @@
 				>
 					{#if image}
 						<span class="metadata-tag">
-							{image.language ? languages.of(image.language) : "Textless"}
+							{image.label}
 						</span>
 						<span class="metadata-tag">{image.width}×{image.height}</span>
 					{:else}

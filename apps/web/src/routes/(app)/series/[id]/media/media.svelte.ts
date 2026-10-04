@@ -21,7 +21,7 @@ export class Media {
 		this.languages = [];
 	}
 
-	apply(images: SeriesImage[]) {
+	apply<T extends SeriesImage>(images: T[]) {
 		const shown = images.filter(
 			(image) =>
 				image.type === this.type &&

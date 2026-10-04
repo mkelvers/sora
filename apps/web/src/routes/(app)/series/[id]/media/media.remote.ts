@@ -1,24 +1,38 @@
 import { command, query } from "$app/server";
 import { sora } from "$lib/server/sora";
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
-import { route } from "@sora/sdk";
+import { route, type SeriesImage } from "@sora/sdk";
 import { z } from "zod";
 
-export const getImages = query(z.string(), (seriesId) =>
-	sora.request(route.listImages, {
-		params: {
-			series_id: seriesId,
-		},
-	}),
-);
+const languages = new Intl.DisplayNames(["en"], {
+	type: "language",
+});
 
-export const refreshImages = command(z.string(), async (seriesId) => {
-	getImages(seriesId).set(
-		await sora.request(route.refreshImages, {
+const label = (images: SeriesImage[]) =>
+	images.map((image) => ({
+		...image,
+		label: image.language ? (languages.of(image.language) ?? image.language) : "Textless",
+	}));
+
+export const getImages = query(z.string(), async (seriesId) =>
+	label(
+		await sora.request(route.listImages, {
 			params: {
 				series_id: seriesId,
 			},
 		}),
+	),
+);
+
+export const refreshImages = command(z.string(), async (seriesId) => {
+	getImages(seriesId).set(
+		label(
+			await sora.request(route.refreshImages, {
+				params: {
+					series_id: seriesId,
+				},
+			}),
+		),
 	);
 });
 

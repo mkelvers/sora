@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
-	import { languages as names } from "$lib/utils";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 
@@ -17,6 +16,7 @@
 		[...Map.groupBy(images, (image) => image.language ?? "none")]
 			.map(([code, group]) => ({
 				code,
+				label: group[0].label,
 				count: group.length,
 			}))
 			.toSorted(
@@ -37,13 +37,8 @@
 		<h2 class="mb-2 px-2 text-xs font-bold tracking-wide text-subtle uppercase">Language</h2>
 		<div class="grid" role="group" aria-label="Language">
 			{@render row("All", images.length, !media.languages.length, () => (media.languages = []))}
-			{#each languages as { code, count } (code)}
-				{@render row(
-					code === "none" ? "Textless" : (names.of(code) ?? code),
-					count,
-					media.languages.includes(code),
-					() => media.toggle(code),
-				)}
+			{#each languages as { code, label, count } (code)}
+				{@render row(label, count, media.languages.includes(code), () => media.toggle(code))}
 			{/each}
 		</div>
 	</section>
