@@ -236,7 +236,7 @@
 			class="text-center text-[clamp(18px,2.6vw,40px)] leading-tight font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] text-shadow-lg"
 		>
 			{#each player.cues as cue (cue)}
-				<p {@attach (element) => element.replaceChildren(cue.getCueAsHTML())}></p>
+				<p>{@html new XMLSerializer().serializeToString(cue.getCueAsHTML())}</p>
 			{/each}
 		</div>
 	</div>
