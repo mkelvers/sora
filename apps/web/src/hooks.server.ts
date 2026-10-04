@@ -13,30 +13,6 @@ const knownProfiles = new Map<
 	}
 >();
 
-async function profilesOf(token: string, sora: SoraClient, isRemoteRequest: boolean) {
-	const known = knownProfiles.get(token);
-	if (isRemoteRequest && known && Date.now() - known.at < remoteProfilesTtl) {
-		return known.profiles;
-	}
-
-	const loaded = await attempt(sora.profiles());
-	if (loaded.error instanceof SoraError && loaded.error.status === 401) {
-		return null;
-	}
-	if (loaded.error) {
-		throw loaded.error;
-	}
-
-	if (knownProfiles.size > 500) {
-		knownProfiles.clear();
-	}
-	knownProfiles.set(token, {
-		profiles: loaded.data,
-		at: Date.now(),
-	});
-	return loaded.data;
-}
-
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
@@ -49,8 +25,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 			},
 		});
 
-		const profiles = await profilesOf(token, sora, event.isRemoteRequest);
-		if (profiles) {
+		let known = knownProfiles.get(token);
+		if (!event.isRemoteRequest || !known || Date.now() - known.at >= remoteProfilesTtl) {
+			const { data: profiles, error: failed } = await attempt(sora.profiles(), SoraError);
+			if (failed && failed.status !== 401) {
+				throw failed;
+			}
+
+			if (failed) {
+				known = undefined;
+			} else {
+				if (knownProfiles.size > 500) {
+					knownProfiles.clear();
+				}
+				known = {
+					profiles,
+					at: Date.now(),
+				};
+				knownProfiles.set(token, known);
+			}
+		}
+
+		if (known) {
+			const { profiles } = known;
 			const chosen = event.cookies.get(profileCookie);
 			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
 
