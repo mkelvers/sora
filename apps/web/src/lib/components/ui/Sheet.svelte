@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { XIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
 	import Button from "./Button.svelte";
@@ -7,14 +8,12 @@
 		open = $bindable(false),
 		id,
 		title,
-		closeLabel,
 		children,
 		footer,
 	}: {
 		open?: boolean;
 		id: string;
 		title: string;
-		closeLabel: string;
 		children: Snippet;
 		footer?: Snippet;
 	} = $props();
@@ -46,18 +45,14 @@
 	}}
 >
 	<div class="flex h-15 shrink-0 items-center justify-between bg-dropdown-hover px-5">
-		<h2 id="{id}-title" class="text-[0.9375rem] font-normal">{title}</h2>
+		<h2 id="{id}-title" class="text-base font-normal">{title}</h2>
 		<Button
 			variant="icon"
 			class="text-foreground"
-			aria-label={closeLabel}
+			aria-label="Close"
 			onclick={() => (open = false)}
 		>
-			<svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-				<path
-					d="M13.414 12l5.293-5.293a.999.999 0 1 0-1.414-1.414L12 10.586 6.707 5.293a.999.999 0 1 0-1.414 1.414L10.586 12l-5.293 5.293a.999.999 0 0 0 0 1.414.993.993 0 0 0 1.414 0L12 13.414l5.293 5.293a.999.999 0 1 0 1.414-1.414L13.414 12z"
-				/>
-			</svg>
+			<XIcon size="1.5rem" weight="bold" />
 		</Button>
 	</div>
 	<div class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">

@@ -9,10 +9,30 @@
 					menu: "",
 					toolbar:
 						"h-10 gap-2 px-3 text-sm font-medium tracking-normal group-has-[.dropdown-menu:popover-open]:bg-dropdown hover:bg-dropdown",
+					bar: "h-full gap-1 px-3 group-has-[.dropdown-menu:popover-open]:bg-header-hover hover:bg-header-hover",
+					link: "h-full px-4 text-sm font-medium tracking-normal normal-case group-has-[.dropdown-menu:popover-open]:bg-header-hover hover:bg-header-hover",
+					icon: "h-full w-12 justify-center p-0 group-has-[.dropdown-menu:popover-open]:bg-header-hover group-has-[.dropdown-menu:popover-open]:text-foreground hover:bg-header-hover hover:text-foreground",
+					outline:
+						"size-11 border-2 border-accent px-0 text-accent group-has-[.dropdown-menu:popover-open]:bg-transparent group-has-[.dropdown-menu:popover-open]:text-accent hover:bg-transparent hover:text-accent hover:brightness-110 active:scale-97",
+					overlay: "bg-transparent! hover:text-white",
 				},
 			},
 		},
 	);
+
+	const root = cva("dropdown-root group relative", {
+		variants: {
+			variant: {
+				menu: "",
+				toolbar: "",
+				bar: "h-full",
+				link: "h-full",
+				icon: "h-full",
+				outline: "",
+				overlay: "",
+			},
+		},
+	});
 
 	const menu = cva(
 		"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
@@ -22,6 +42,11 @@
 					menu: "",
 					toolbar:
 						"[&_:is(a,button):focus:not(:hover)]:bg-transparent [&_:is(a,button):focus:not(:hover):not([aria-checked=true])]:text-muted",
+					bar: "",
+					link: "",
+					icon: "",
+					outline: "",
+					overlay: "",
 				},
 			},
 		},
@@ -67,7 +92,11 @@
 	});
 </script>
 
-<div class="dropdown-root group relative">
+<div
+	class={root({
+		variant,
+	})}
+>
 	<Button
 		{...popover.trigger}
 		variant="ghost"

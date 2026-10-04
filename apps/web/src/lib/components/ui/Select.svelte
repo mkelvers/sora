@@ -16,7 +16,7 @@
 	);
 
 	const content = cva(
-		"inset-auto m-0 max-h-[min(60vh,24rem)] scrollbar-thin [scrollbar-color:var(--color-border)_transparent] flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex",
+		"inset-auto m-0 max-h-[min(60vh,24rem)] scrollbar-thin flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex",
 		{
 			variants: {
 				variant: {

@@ -1,9 +1,8 @@
 <script lang="ts">
-	import emptySearch from "$lib/assets/illustrations/empty-search.webp";
-	import preparing from "$lib/assets/illustrations/preparing.webp";
 	import { getCatalogPage, type CatalogRequest } from "$lib/catalog.remote";
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Poster from "$lib/components/Poster.svelte";
+	import { mascots } from "$lib/mascots";
 	import { CircleNotchIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
@@ -154,22 +153,12 @@
 		{#if !items.length && !hasNextPage}
 			{#if pages.some((page) => page.preparing)}
 				<EmptyState
-					image={preparing}
-					alt="Sora's mascot hurrying along with a wobbling stack of poster cards, one sliding off the top"
-					width={720}
-					height={709}
+					mascot={mascots.preparing}
 					title="We're getting these titles ready."
 					hint="They'll show up here as soon as they're done."
 				/>
 			{:else}
-				<EmptyState
-					image={emptySearch}
-					alt="Sora's mascot squinting at a poster card next to a tipped-over box"
-					width={720}
-					height={663}
-					title={empty.title}
-					hint={empty.hint}
-				/>
+				<EmptyState mascot={mascots.emptySearch} title={empty.title} hint={empty.hint} />
 			{/if}
 		{/if}
 

@@ -18,7 +18,7 @@
 	<Button
 		variant="icon"
 		class={cn(
-			"pointer-events-auto z-40 col-start-1 row-start-1 h-20 w-auto self-center justify-self-end px-6 text-white drop-shadow-[0_0_1px_rgb(0_0_0/0.9),0_1px_6px_rgb(0_0_0/0.75)] hover:text-white/70",
+			"pointer-events-auto z-40 col-start-1 row-start-1 h-20 w-auto self-center justify-self-end px-6 text-white drop-shadow-lg hover:text-white/70",
 			className,
 		)}
 		aria-label="Next slides"
