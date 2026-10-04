@@ -68,7 +68,7 @@
 	}
 
 	async function remember(changes: PlaybackPreferencesUpdate) {
-		const { error } = await attempt(() =>
+		const { error } = await attempt(
 			savePlaybackPreferences(changes).updates(
 				getPlaybackPreferences().withOverride((current) => ({
 					...current,

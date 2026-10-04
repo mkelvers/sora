@@ -175,8 +175,8 @@ export class Player {
 	};
 
 	async #play(video: HTMLVideoElement) {
-		const { error } = await attempt(video.play());
-		if (error && !(error instanceof DOMException && error.name === "AbortError")) {
+		const { error } = await attempt(video.play(), DOMException);
+		if (error && error.name !== "AbortError") {
 			this.paused = true;
 		}
 	}

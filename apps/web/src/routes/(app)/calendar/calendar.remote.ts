@@ -16,12 +16,12 @@ export const getCalendar = query(
 		weeks: z.number().int().min(-520).max(520),
 	}),
 	async ({ timeZone, weeks }) => {
-		const { data: today, error: invalid } = attempt(() => Temporal.Now.plainDateISO(timeZone));
-		if (invalid instanceof RangeError) {
-			error(400, "That time zone is not available");
-		}
+		const { data: today, error: invalid } = attempt(
+			() => Temporal.Now.plainDateISO(timeZone),
+			RangeError,
+		);
 		if (invalid) {
-			throw invalid;
+			error(400, "That time zone is not available");
 		}
 
 		const current = mondayOf(today);

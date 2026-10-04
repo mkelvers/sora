@@ -23,8 +23,9 @@ export const actions: Actions = {
 			locals.viewer!.sora.createProfile({
 				name: parsed.data,
 			}),
+			SoraError,
 		);
-		if (error instanceof SoraError && error.status === 422) {
+		if (error?.status === 422) {
 			return fail(400, {
 				name,
 				message: "Give the profile a name of up to 40 characters.",

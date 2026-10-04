@@ -38,16 +38,14 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 				meta: true,
 			},
 		),
+		SoraError,
 	);
-	if (playback.error instanceof SoraError) {
+	if (playback.error) {
 		return {
 			media: [],
 			next: null,
 			previous: null,
 		};
-	}
-	if (playback.error) {
-		throw playback.error;
 	}
 
 	const { results, meta } = playback.data;

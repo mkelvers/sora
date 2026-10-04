@@ -35,7 +35,7 @@ export class Media {
 	}
 
 	choose = async (seriesId: string, url: string | false) => {
-		const { error } = await attempt(() =>
+		const { error } = await attempt(
 			setArtwork({
 				seriesId,
 				type: this.type,
@@ -58,7 +58,7 @@ export class Media {
 			y: number;
 		},
 	) => {
-		const { error } = await attempt(() =>
+		const { error } = await attempt(
 			setLogoPlacement({
 				seriesId,
 				...placement,

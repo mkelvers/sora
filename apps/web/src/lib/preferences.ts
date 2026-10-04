@@ -8,30 +8,23 @@ export class Preferences {
 	}
 
 	get<T>(key: string, accepts: (value: unknown) => value is T, fallback: T): T {
-		const { data: stored, error } = attempt((): unknown =>
-			JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
+		const { data: stored, error } = attempt(
+			() => JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
+			DOMException,
+			SyntaxError,
 		);
-		if (error instanceof DOMException || error instanceof SyntaxError) {
-			return fallback;
-		}
 		if (error) {
-			throw error;
+			return fallback;
 		}
 		return accepts(stored) ? stored : fallback;
 	}
 
 	set(key: string, value: unknown) {
-		const { error } = attempt(() => localStorage.setItem(this.#key(key), JSON.stringify(value)));
-		if (error && !(error instanceof DOMException)) {
-			throw error;
-		}
+		attempt(() => localStorage.setItem(this.#key(key), JSON.stringify(value)), DOMException);
 	}
 
 	remove(key: string) {
-		const { error } = attempt(() => localStorage.removeItem(this.#key(key)));
-		if (error && !(error instanceof DOMException)) {
-			throw error;
-		}
+		attempt(() => localStorage.removeItem(this.#key(key)), DOMException);
 	}
 
 	#key(key: string) {

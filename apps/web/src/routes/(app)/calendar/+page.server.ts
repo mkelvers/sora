@@ -8,12 +8,9 @@ function zoneOf(value: string | undefined) {
 		return "UTC";
 	}
 
-	const { data: now, error } = attempt(() => Temporal.Now.zonedDateTimeISO(value));
-	if (error instanceof RangeError) {
-		return "UTC";
-	}
+	const { data: now, error } = attempt(() => Temporal.Now.zonedDateTimeISO(value), RangeError);
 	if (error) {
-		throw error;
+		return "UTC";
 	}
 	return now.timeZoneId;
 }
