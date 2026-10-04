@@ -185,7 +185,8 @@ export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadc
 
 /** @throws {@link AnimeNotFoundError} for unknown and adult anime. */
 async function fetchAnimeDetails(anilistId: number) {
-	const media = (await loadAnimeDetails([anilistId])).get(anilistId);
+	const details = await loadAnimeDetails([anilistId]);
+	const media = details.get(anilistId);
 	if (!media || media.isAdult) {
 		throw new AnimeNotFoundError(anilistId);
 	}
