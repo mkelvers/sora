@@ -175,7 +175,7 @@
 	</Button>
 </div>
 
-<Sheet bind:open={sortOpen} id="sort-list" title="Sort By" closeLabel="Close sort by">
+<Sheet bind:open={sortOpen} id="sort-list" title="Sort By">
 	{#each sorts as sort (sort.kind)}
 		<Button
 			variant="item"
@@ -189,7 +189,7 @@
 	{/each}
 </Sheet>
 
-<Sheet bind:open={filterOpen} id="filter-list" title="Filter" closeLabel="Close filter">
+<Sheet bind:open={filterOpen} id="filter-list" title="Filter">
 	{#each groups as group (group.id)}
 		<div role="radiogroup" aria-labelledby="filter-sheet-{group.id}">
 			<p id="filter-sheet-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
