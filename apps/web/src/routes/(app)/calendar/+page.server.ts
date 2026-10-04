@@ -8,11 +8,11 @@ function zoneOf(value: string | undefined) {
 		return "UTC";
 	}
 
-	const { data: now, error } = attempt(() => Temporal.Now.zonedDateTimeISO(value), RangeError);
+	const { data, error } = attempt(() => Temporal.Now.zonedDateTimeISO(value), RangeError);
 	if (error) {
 		return "UTC";
 	}
-	return now.timeZoneId;
+	return data.timeZoneId;
 }
 
 export const load: PageServerLoad = async ({ cookies, depends }) => {

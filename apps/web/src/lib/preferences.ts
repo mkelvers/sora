@@ -8,7 +8,7 @@ export class Preferences {
 	}
 
 	get<T>(key: string, accepts: (value: unknown) => value is T, fallback: T): T {
-		const { data: stored, error } = attempt(
+		const { data, error } = attempt(
 			() => JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
 			DOMException,
 			SyntaxError,
@@ -16,7 +16,7 @@ export class Preferences {
 		if (error) {
 			return fallback;
 		}
-		return accepts(stored) ? stored : fallback;
+		return accepts(data) ? data : fallback;
 	}
 
 	set(key: string, value: unknown) {

@@ -1,6 +1,6 @@
 import { profileCookie, sessionCookie, sora } from "$lib/server/sora";
-import { attempt } from "@sora/shared";
 import { SoraError } from "@sora/sdk";
+import { attempt } from "@sora/shared";
 import { fail, redirect } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -43,7 +43,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const { data: session, error } = await attempt(sora.signIn(credentials.data), SoraError);
+		const { data, error } = await attempt(sora.signIn(credentials.data), SoraError);
 		if (error?.code === "INVALID_EMAIL_OR_PASSWORD") {
 			return fail(400, {
 				email,
@@ -63,7 +63,7 @@ export const actions: Actions = {
 		cookies.delete(profileCookie, {
 			path: "/",
 		});
-		cookies.set(sessionCookie, session.token, {
+		cookies.set(sessionCookie, data.token, {
 			path: "/",
 			httpOnly: true,
 			sameSite: "lax",

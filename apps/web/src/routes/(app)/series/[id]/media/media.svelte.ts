@@ -1,6 +1,6 @@
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
-import { attempt } from "@sora/shared";
 import type { SeriesImage } from "@sora/sdk";
+import { attempt } from "@sora/shared";
 
 import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
 

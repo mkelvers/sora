@@ -1,6 +1,6 @@
 import { Preferences } from "$lib/preferences";
-import { attempt } from "@sora/shared";
 import type { PlaybackMedia } from "@sora/sdk";
+import { attempt } from "@sora/shared";
 import type Hls from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
