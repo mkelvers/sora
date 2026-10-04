@@ -1,12 +1,7 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
-import {
-	getNotifications,
-	getUnreadNotifications,
-} from "$routes/(app)/notifications/notifications.remote";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { getWatchlist } from "$routes/(app)/watchlist/watchlist.remote";
+import { refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
@@ -116,19 +111,9 @@ export const saveProgress = command(
 		});
 
 		if (leaving) {
-			await Promise.all([
-				getSeriesProgress(seriesId).refresh(),
-				getContinueWatching().refresh(),
-				getWatchlist().refresh(),
-				getNotifications().refresh(),
-				getUnreadNotifications().refresh(),
-			]);
+			await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
 		} else if (progress.finished) {
-			await Promise.all([
-				getWatchlist().refresh(),
-				getNotifications().refresh(),
-				getUnreadNotifications().refresh(),
-			]);
+			await refreshTracking();
 		}
 	},
 );

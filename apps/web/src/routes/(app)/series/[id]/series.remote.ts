@@ -1,13 +1,9 @@
 import { command, query } from "$app/server";
 import { remoteViewer, sora } from "$lib/server/sora";
-import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
-import {
-	getNotifications,
-	getUnreadNotifications,
-} from "$routes/(app)/notifications/notifications.remote";
-import { getWatchlist } from "$routes/(app)/watchlist/watchlist.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
+
+import { refreshTracking } from "./tracking.server";
 
 export const getSeries = query(z.string(), (id) =>
 	sora.request(route.getSeries, {
@@ -72,13 +68,7 @@ export const markSeries = command(
 			});
 		}
 
-		await Promise.all([
-			getSeriesProgress(seriesId).refresh(),
-			getContinueWatching().refresh(),
-			getWatchlist().refresh(),
-			getNotifications().refresh(),
-			getUnreadNotifications().refresh(),
-		]);
+		await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
 	},
 );
 
@@ -106,12 +96,6 @@ export const markEpisode = command(
 			});
 		}
 
-		await Promise.all([
-			getSeriesProgress(seriesId).refresh(),
-			getContinueWatching().refresh(),
-			getWatchlist().refresh(),
-			getNotifications().refresh(),
-			getUnreadNotifications().refresh(),
-		]);
+		await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
 	},
 );
