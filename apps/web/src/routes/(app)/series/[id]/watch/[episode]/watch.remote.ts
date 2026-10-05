@@ -38,7 +38,7 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 
 export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const playback = await attempt(
-		sora.requestWithMeta(route.getPlayback, {
+		remoteViewer().sora.requestWithMeta(route.getPlayback, {
 			params: {
 				series_id: seriesId,
 				episode,

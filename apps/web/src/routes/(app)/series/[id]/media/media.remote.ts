@@ -1,5 +1,5 @@
 import { command, query } from "$app/server";
-import { sora } from "$lib/server/sora";
+import { remoteViewer, sora } from "$lib/server/sora";
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
 import { route, type SeriesImage } from "@sora/sdk";
 import { z } from "zod";
@@ -27,7 +27,7 @@ export const getImages = query(z.string(), async (seriesId) =>
 export const refreshImages = command(z.string(), async (seriesId) => {
 	getImages(seriesId).set(
 		label(
-			await sora.request(route.refreshImages, {
+			await remoteViewer().sora.request(route.refreshImages, {
 				params: {
 					series_id: seriesId,
 				},
@@ -49,7 +49,7 @@ export const setArtwork = command(
 		url: z.union([z.url(), z.literal(false)]),
 	}),
 	async ({ seriesId, type, url }) => {
-		const series = await sora.request(route.updateArtwork, {
+		const series = await remoteViewer().sora.request(route.updateArtwork, {
 			params: {
 				series_id: seriesId,
 			},
@@ -70,7 +70,7 @@ export const setLogoPlacement = command(
 		y: z.number().min(-1).max(1),
 	}),
 	async ({ seriesId, scale, x, y }) => {
-		const series = await sora.request(route.updateArtwork, {
+		const series = await remoteViewer().sora.request(route.updateArtwork, {
 			params: {
 				series_id: seriesId,
 			},
