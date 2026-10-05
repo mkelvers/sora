@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { remoteViewer, sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { route, type SeriesCard } from "@sora/sdk";
 import { z } from "zod";
 
@@ -53,10 +53,10 @@ type WithoutPage<TRequest> = TRequest extends unknown ? Omit<TRequest, "page"> :
 
 export type CatalogRequest = WithoutPage<z.input<typeof request>>;
 
-export const getGenres = query(async () => sora.request(route.listGenres));
+export const getGenres = query(async () => remoteViewer().sora.request(route.listGenres));
 
 export const getCatalogPage = query(request, async (input) => {
-	remoteViewer();
+	const { sora } = remoteViewer();
 	const now = Date.now();
 
 	const found =

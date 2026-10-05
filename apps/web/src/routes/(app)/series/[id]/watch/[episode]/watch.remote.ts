@@ -1,5 +1,5 @@
 import { command, query } from "$app/server";
-import { remoteViewer, sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
 import { refreshStatus, refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
 import { route, SoraError } from "@sora/sdk";
@@ -16,6 +16,7 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 	const params = {
 		series_id: seriesId,
 	};
+	const { sora } = remoteViewer();
 	const [series, episodes] = await Promise.all([
 		sora.request(route.getSeries, {
 			params,

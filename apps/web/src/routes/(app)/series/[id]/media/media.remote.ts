@@ -1,5 +1,5 @@
 import { command, query } from "$app/server";
-import { remoteViewer, sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { getSeries } from "$routes/(app)/series/[id]/series.remote";
 import { route, type SeriesImage } from "@sora/sdk";
 import { z } from "zod";
@@ -16,7 +16,7 @@ const label = (images: SeriesImage[]) =>
 
 export const getImages = query(z.string(), async (seriesId) =>
 	label(
-		await sora.request(route.listImages, {
+		await remoteViewer().sora.request(route.listImages, {
 			params: {
 				series_id: seriesId,
 			},

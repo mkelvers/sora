@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { remoteViewer, sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
@@ -42,7 +42,7 @@ export const searchSeries = query(
 
 		remoteViewer();
 
-		const found = await sora.requestWithMeta(route.searchSeries, {
+		const found = await remoteViewer().sora.requestWithMeta(route.searchSeries, {
 			query: {
 				q,
 				page,

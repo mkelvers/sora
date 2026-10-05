@@ -1,4 +1,3 @@
-import { sora } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 
@@ -17,13 +16,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 				profile_id: viewer.profile.id,
 			},
 		}),
-		sora.request(route.browseSeries, {
+		viewer.sora.request(route.browseSeries, {
 			query: {
 				sort: "trending",
 				per_page: 20,
 			},
 		}),
-		sora.request(route.listUpcoming),
+		viewer.sora.request(route.listUpcoming),
 		getContinueWatching(),
 	]);
 

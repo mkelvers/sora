@@ -1,12 +1,15 @@
-import { sora } from "$lib/server/sora";
 import { slug } from "$routes/(app)/(catalog)/genres/slug";
 import { route } from "@sora/sdk";
 import { error } from "@sveltejs/kit";
 
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ params }) => {
-	const genres = await sora.request(route.listGenres);
+export const load: PageServerLoad = async ({ params, locals }) => {
+	if (!locals.viewer) {
+		error(401, "Not signed in");
+	}
+
+	const genres = await locals.viewer.sora.request(route.listGenres);
 
 	const genre = genres.find((name) => slug(name) === params.genre);
 

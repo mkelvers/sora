@@ -50,7 +50,11 @@ function draw(style: string, seed: string) {
 	}).toString();
 }
 
-export const GET: RequestHandler = ({ params }) => {
+export const GET: RequestHandler = ({ params, locals }) => {
+	if (!locals.viewer) {
+		error(401, "Not signed in");
+	}
+
 	if (!["sprouts", "critters"].includes(params.style) || params.seed.length > 64) {
 		error(404, "No such avatar");
 	}
@@ -58,7 +62,7 @@ export const GET: RequestHandler = ({ params }) => {
 	return new Response(draw(params.style, params.seed), {
 		headers: {
 			"Content-Type": "image/svg+xml",
-			"Cache-Control": "public, max-age=31536000, immutable",
+			"Cache-Control": "private, max-age=31536000, immutable",
 			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
 			"X-Content-Type-Options": "nosniff",
 		},

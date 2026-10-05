@@ -1,5 +1,5 @@
 import { query } from "$app/server";
-import { sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { audioLabel } from "$lib/utils";
 import { route } from "@sora/sdk";
 import type { ScheduledEpisode } from "@sora/sdk";
@@ -84,7 +84,7 @@ export const getCalendar = query(
 			days: 6,
 		});
 
-		const episodes = await sora.request(route.getSchedule, {
+		const episodes = await remoteViewer().sora.request(route.getSchedule, {
 			query: {
 				from: new Date(monday.toZonedDateTime(timeZone).epochMilliseconds).toISOString(),
 				until: new Date(

@@ -1,12 +1,12 @@
 import { command, query } from "$app/server";
-import { remoteViewer, sora } from "$lib/server/sora";
+import { remoteViewer } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
 import { refreshTracking } from "./tracking.server";
 
 export const getSeries = query(z.string(), (id) =>
-	sora.request(route.getSeries, {
+	remoteViewer().sora.request(route.getSeries, {
 		params: {
 			series_id: id,
 		},
@@ -25,7 +25,7 @@ export const getSeriesProgress = query(z.string(), (id) => {
 });
 
 export const getEpisodes = query(z.string(), (id) =>
-	sora.request(route.listEpisodes, {
+	remoteViewer().sora.request(route.listEpisodes, {
 		params: {
 			series_id: id,
 		},
