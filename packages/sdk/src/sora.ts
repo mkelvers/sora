@@ -96,6 +96,8 @@ export type RequestResults<TRoute extends Route> =
 export interface RequestOptions {
 	/** Aborts the request, for example `AbortSignal.timeout(10_000)`. */
 	signal?: AbortSignal;
+	/** Headers sent with this request, over {@link SoraClientOptions.headers}. */
+	headers?: Record<string, string>;
 }
 
 /** A route's input and options as arguments: the input may be left out when none of it is required. */
@@ -218,6 +220,7 @@ export class SoraClient {
 			method: route.method.toUpperCase(),
 			headers: {
 				...this.#options.headers,
+				...options?.headers,
 				...(body !== undefined && {
 					"Content-Type": "application/json",
 				}),
@@ -296,6 +299,7 @@ export class SoraClient {
 					// Browsers ignore it and send their own.
 					Origin: new URL(this.#options.baseUrl).origin,
 					...this.#options.headers,
+					...options?.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify(body),

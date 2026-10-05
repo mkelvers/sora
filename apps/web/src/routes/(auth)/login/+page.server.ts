@@ -23,7 +23,7 @@ export const load: PageServerLoad = ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, url }) => {
+	default: async ({ request, cookies, url, getClientAddress }) => {
 		const form = await request.formData();
 		const email = String(form.get("email") ?? "");
 		const credentials = Credentials.safeParse({
@@ -43,7 +43,14 @@ export const actions: Actions = {
 			});
 		}
 
-		const { data, error } = await attempt(sora.signIn(credentials.data), SoraError);
+		const { data, error } = await attempt(
+			sora.signIn(credentials.data, {
+				headers: {
+					"X-Forwarded-For": getClientAddress(),
+				},
+			}),
+			SoraError,
+		);
 		if (error?.code === "INVALID_EMAIL_OR_PASSWORD") {
 			return fail(400, {
 				email,

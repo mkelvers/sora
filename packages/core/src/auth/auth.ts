@@ -18,6 +18,12 @@ import { createProfile } from "./profiles";
  *
  * Nobody can sign up: accounts are made with `bun run auth:create-account`.
  * A new account starts with one profile, named after the account.
+ *
+ * Sign-in is limited to a few tries a minute per client address, in
+ * development too. The web server is the client of its visitors, so it
+ * passes theirs in `X-Forwarded-For`, which is trusted: keep the API
+ * reachable only through it (see `HOST`), or visitors can pick their own
+ * address.
  */
 export const auth = betterAuth({
 	baseURL: config.authUrl,
@@ -52,6 +58,22 @@ export const auth = betterAuth({
 					});
 				},
 			},
+		},
+	},
+	rateLimit: {
+		enabled: true,
+		window: 60,
+		max: 100,
+		customRules: {
+			"/sign-in/email": {
+				window: 60,
+				max: 5,
+			},
+		},
+	},
+	advanced: {
+		ipAddress: {
+			ipAddressHeaders: ["x-forwarded-for"],
 		},
 	},
 	plugins: [bearer()],
