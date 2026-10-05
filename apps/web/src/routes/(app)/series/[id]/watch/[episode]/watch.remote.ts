@@ -63,7 +63,7 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 		return match ? Number(match[1]) : null;
 	};
 
-	const streamPath = (url: string) => `/stream/${new URL(url).pathname.split("/").pop()}`;
+	const streamPath = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
 
 	return {
 		media: results.map(
