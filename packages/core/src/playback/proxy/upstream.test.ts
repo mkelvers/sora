@@ -9,6 +9,7 @@ function target(url: string) {
 		kind: "file" as const,
 		headers: {},
 		mirrors: [],
+		accountId: "account",
 		expiresAt: Math.floor(Date.now() / 1_000) + 60,
 	};
 }
