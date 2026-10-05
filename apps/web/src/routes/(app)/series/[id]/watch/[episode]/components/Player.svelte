@@ -39,6 +39,7 @@
 		progress?: Progress | null;
 	} = $props();
 
+	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
 	const key = $derived(`${series.id}/${episode.number}`);
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
 	const back = $derived(`/series/${series.id}`);
@@ -181,6 +182,18 @@
 	onDestroy(() => report(false, true));
 </script>
 
+{#snippet cueNodes(nodes: Iterable<Node>)}
+	{#each nodes as node (node)}
+		{#if node instanceof Text}
+			{node.data}
+		{:else if node instanceof Element && cueTags.has(node.localName)}
+			<svelte:element this={node.localName}>{@render cueNodes(node.childNodes)}</svelte:element>
+		{:else if node instanceof Element}
+			{@render cueNodes(node.childNodes)}
+		{/if}
+	{/each}
+{/snippet}
+
 <svelte:head>
 	<title>{title} · {series.title} · Sora</title>
 </svelte:head>
@@ -271,7 +284,7 @@
 			class="text-center text-[clamp(18px,2.6vw,40px)] leading-tight font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] text-shadow-lg"
 		>
 			{#each player.cues as cue (cue)}
-				<p>{@html new XMLSerializer().serializeToString(cue.getCueAsHTML())}</p>
+				<p>{@render cueNodes(cue.getCueAsHTML().childNodes)}</p>
 			{/each}
 		</div>
 	</div>
