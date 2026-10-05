@@ -13,9 +13,9 @@
 
 	let { params }: PageProps = $props();
 
-	const [series, progress] = $derived(
-		await Promise.all([getSeries(params.id), getSeriesProgress(params.id)]),
-	);
+	const loaded = $derived(await Promise.all([getSeries(params.id), getSeriesProgress(params.id)]));
+	const series = $derived(loaded[0]);
+	const progress = $derived(loaded[1]);
 	const seasonWatched = $derived(
 		!progress.rewatch_started_at &&
 			progress.episodes.filter((entry) => entry.finished).length >= series.episode_count,
