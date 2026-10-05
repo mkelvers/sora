@@ -529,7 +529,10 @@ const franchiseLimit = 60;
  * `seriesRelated`) from series to series, in either direction: a series
  * stored before its sequel was announced is still found from the sequel.
  * Only stored series are followed through, so an entry none of them relates
- * to is not reached.
+ * to is not reached. An entry related only as `OTHER` is reached but not
+ * followed through: crossovers, such as Ple Ple Pleiades × Kage-Jitsu!, are
+ * `OTHER` to each franchise they join, and following them would merge the
+ * franchises.
  */
 export async function franchiseIds(anilistId: number): Promise<number[]> {
 	const reached = new Set([anilistId]);
@@ -539,16 +542,23 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 			.select({
 				from: series.anilistId,
 				to: seriesRelated.anilistId,
+				relation: seriesRelated.relation,
 			})
 			.from(seriesRelated)
 			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 			.where(or(inArray(series.anilistId, frontier), inArray(seriesRelated.anilistId, frontier)));
 
 		frontier = [];
-		for (const id of edges.flatMap((edge) => [edge.from, edge.to])) {
-			if (!reached.has(id) && reached.size <= franchiseLimit) {
-				reached.add(id);
-				frontier.push(id);
+		for (const edge of edges.toSorted(
+			(left, right) => Number(left.relation === "OTHER") - Number(right.relation === "OTHER"),
+		)) {
+			for (const id of [edge.from, edge.to]) {
+				if (!reached.has(id) && reached.size <= franchiseLimit) {
+					reached.add(id);
+					if (edge.relation !== "OTHER") {
+						frontier.push(id);
+					}
+				}
 			}
 		}
 	}
