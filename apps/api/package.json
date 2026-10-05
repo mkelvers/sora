@@ -11,7 +11,7 @@
 		"check": "tsc --noEmit -p .",
 		"start": "bun --env-file=../../packages/core/.env src/main.ts",
 		"dev": "bun --env-file=../../packages/core/.env --watch src/main.ts",
-		"test": "bun test"
+		"test": "bun test --isolate"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",
