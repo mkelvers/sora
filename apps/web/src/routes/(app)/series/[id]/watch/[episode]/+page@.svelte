@@ -9,9 +9,9 @@
 		seriesId: params.id,
 		episode: params.episode,
 	});
-	const { series, episode } = $derived(await getEpisode(address));
-	const preferences = $derived(await getPlaybackPreferences());
-	const progress = $derived(await getProgress(address));
+	const [{ series, episode }, preferences, progress] = $derived(
+		await Promise.all([getEpisode(address), getPlaybackPreferences(), getProgress(address)]),
+	);
 	const playback = $derived(getPlayback(address));
 </script>
 
