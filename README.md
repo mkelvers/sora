@@ -22,42 +22,14 @@ Accounts hold any number of profiles, and each profile keeps its own watchlist, 
 notifications.
 
 The web app is one client of a versioned HTTP API. A scheduler keeps the catalogue current, and a
-typed SDK gives your own code the same access the web app has.
+typed SDK, checked against the API's own route definitions, gives your own code the same access the
+web app has.
 
 - Playback tries AniKoto and MegaPlay in turn and falls through when a source fails. Streams go
   through a signed proxy, and skip-intro segments come with them.
 - A show is listed once a provider actually carries its episode, and the calendar follows airing
   times.
 - Search and browsing read from Sora's own database and never wait on an upstream service.
-
-## The SDK
-
-Routes come from the API's own contract, so the client has no endpoint methods to keep in sync.
-Inputs and outputs are typed from the route, and every response is parsed at runtime.
-
-```ts
-import { route, SoraClient } from "@sora/sdk";
-
-const sora = new SoraClient({
-	baseUrl: "http://localhost:3000",
-});
-
-const [result] = await sora.request(route.searchSeries, {
-	query: {
-		q: "Frieren",
-	},
-});
-
-const episodes = await sora.request(route.listEpisodes, {
-	params: {
-		series_id: result.id,
-	},
-});
-```
-
-Leave out `series_id` and it fails type-checking. The same Zod schemas validate requests on the
-server, generate the OpenAPI document at `/v1/openapi.json`, and type the SDK, so a breaking change
-fails here before it ships.
 
 ## Architecture
 
@@ -75,7 +47,7 @@ flowchart LR
 | ----------------------------------- | ------------------------------------------------------------------ |
 | [`@sora/api`](apps/api)             | HTTP API and OpenAPI document                                      |
 | [`@sora/scheduler`](apps/scheduler) | Follows airing anime and stores new episodes under upstream limits |
-| [`web`](apps/web)                   | SvelteKit app                                                      |
+| [`@sora/web`](apps/web)             | SvelteKit app                                                      |
 | [`@sora/core`](packages/core)       | Database schema, catalogue, playback providers, scheduler jobs     |
 | [`@sora/sdk`](packages/sdk)         | Typed client                                                       |
 | [`@sora/shared`](packages/shared)   | Helpers shared across workspaces                                   |
@@ -90,17 +62,17 @@ bun install
 cp packages/core/.env.example packages/core/.env  # fill in the secrets
 cp apps/web/.env.example apps/web/.env
 
-bun run dev  # PostgreSQL, migrations, API on :3000, web on :5173
+bun run dev  # PostgreSQL, migrations, API on :3000, web on :5173, and the scheduler
 ```
 
 Sign-up is off. Create your account from the terminal, which prompts for the password:
 
 ```sh
-cd packages/core && bun run auth:create-account you@example.com "Your name"
+cd packages/core
+bun run auth:create-account you@example.com "Your name"
 ```
 
-Then sign in at <http://localhost:5173>. The scheduler stays out of `dev` because it polls
-upstream providers; start it with `bun run --filter @sora/scheduler start`.
+Then sign in at <http://localhost:5173>.
 
 ## Testing
 
