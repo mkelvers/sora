@@ -13,10 +13,6 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/db-postgres-336791?style=flat-square" />
 </p>
 
-<p align="center">
-  <img src=".github/assets/screenshots/home.jpg" alt="Sora's home page: a hero carousel over a Trending Now row" />
-</p>
-
 Sora is a catalogue, player, watchlist, and release calendar for anime, run from your own server.
 Accounts hold any number of profiles, and each profile keeps its own watchlist, progress, and
 notifications.
