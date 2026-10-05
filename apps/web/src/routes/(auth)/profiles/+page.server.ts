@@ -29,7 +29,8 @@ export const actions: Actions = {
 		});
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);
-		redirect(303, target.origin === url.origin ? target.pathname + target.search : "/");
+		const path = target.pathname + target.search;
+		redirect(303, target.origin === url.origin && !path.startsWith("//") ? path : "/");
 	},
 
 	delete: async ({ request, locals, cookies }) => {
