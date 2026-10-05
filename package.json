@@ -29,6 +29,7 @@
 		"@esbuild-kit/core-utils": {
 			"esbuild": "~0.25.4"
 		},
+		"braces": "file:./vendor/braces",
 		"cookie": "^0.7.2"
 	},
 	"packageManager": "bun@1.4.2"

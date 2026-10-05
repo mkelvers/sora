@@ -13,5 +13,5 @@
 		"functions": ["cn", "cva", "clsx"]
 	},
 	"svelte": true,
-	"ignorePatterns": ["bun.lock", "packages/core/drizzle/**", "**/*.generated.ts"]
+	"ignorePatterns": ["bun.lock", "packages/core/drizzle/**", "vendor/**", "**/*.generated.ts"]
 }

@@ -17,5 +17,10 @@
 		"node": true,
 		"es2024": true
 	},
-	"ignorePatterns": ["packages/core/drizzle/**", "**/*.generated.ts", "**/.svelte-kit/**"]
+	"ignorePatterns": [
+		"packages/core/drizzle/**",
+		"vendor/**",
+		"**/*.generated.ts",
+		"**/.svelte-kit/**"
+	]
 }
