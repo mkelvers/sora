@@ -47,6 +47,7 @@ import { createMiddleware } from "hono/factory";
 import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
 import { pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
+import { rateLimit } from "./rate-limit";
 
 const day = 24 * 60 * 60 * 1_000;
 
@@ -85,6 +86,34 @@ const signedIn = createMiddleware<V1Env>(async (c, next) => {
 
 v1.use("/profiles", signedIn);
 v1.use("/profiles/*", signedIn);
+
+// Routes that change what everyone sees or make the server call out to
+// providers need an account, and are limited per account so one cannot
+// spend the upstream budgets alone.
+v1.use(
+	route.updateArtwork.getRoutingPath(),
+	signedIn,
+	rateLimit({
+		limit: 30,
+		windowMs: 60_000,
+	}),
+);
+v1.use(
+	route.refreshImages.getRoutingPath(),
+	signedIn,
+	rateLimit({
+		limit: 6,
+		windowMs: 60_000,
+	}),
+);
+v1.use(
+	route.getPlayback.getRoutingPath(),
+	signedIn,
+	rateLimit({
+		limit: 60,
+		windowMs: 60_000,
+	}),
+);
 
 v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 	type: "http",
