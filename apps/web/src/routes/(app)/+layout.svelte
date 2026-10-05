@@ -19,8 +19,9 @@
 	});
 </script>
 
-{#if data.viewer?.profile}
-	<Header profile={data.viewer.profile} profiles={data.viewer.profiles} />
+{#if data.viewer}
+	{@const viewer = data.viewer}
+	<Header profile={viewer.profile} profiles={viewer.profiles} />
 {/if}
 
 <main id="main-content" class="pt-26 sm:pt-14" tabindex="-1">
