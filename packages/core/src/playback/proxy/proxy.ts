@@ -1,6 +1,7 @@
 import { attempt } from "@sora/shared";
 
 import { config } from "../../config";
+import { InvalidStreamTokenError } from "../../errors";
 import { hour } from "../../time";
 import type { TimelineShift } from "../streams/align";
 import { rewritePlaylist } from "./playlist";
@@ -33,21 +34,24 @@ export const tokenLifetimeMs = 6 * hour;
 const maximumPlaylistBytes = 4 * 1_024 * 1_024;
 
 /**
- * Issues a token that lets clients fetch `url` through {@link proxyStream}.
+ * Issues a token that lets an account fetch `url` through {@link proxyStream}.
  *
- * Clients never see upstream headers; the proxy applies them.
+ * Clients never see the upstream URL or headers: the token is opaque and the
+ * proxy applies them.
  */
 export function createStreamToken(
 	url: string,
 	kind: StreamTargetKind,
 	headers: Record<string, string>,
 	{
+		accountId,
 		mirrors = [],
 		shifts,
 	}: {
+		accountId: string;
 		mirrors?: string[];
 		shifts?: TimelineShift[];
-	} = {},
+	},
 ) {
 	return signStreamTarget(
 		{
@@ -56,6 +60,7 @@ export function createStreamToken(
 			headers,
 			mirrors,
 			shifts,
+			accountId,
 			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
 		},
 		config.streamSigningSecret,
@@ -75,6 +80,7 @@ export async function canFetchStream(
 				kind: "subtitle",
 				headers,
 				mirrors,
+				accountId: "",
 				expiresAt: 0,
 			},
 			null,
@@ -105,6 +111,7 @@ export async function readSubtitle(
 				kind: "subtitle",
 				headers,
 				mirrors,
+				accountId: "",
 				expiresAt: 0,
 			},
 			undefined,
@@ -129,6 +136,7 @@ export async function segmentStarts(url: string, headers: Record<string, string>
 		kind: "playlist" as const,
 		headers,
 		mirrors: [],
+		accountId: "",
 		expiresAt: 0,
 	};
 	let upstream = await fetchUpstream(target, null);
@@ -166,17 +174,23 @@ export async function segmentStarts(url: string, headers: Record<string, string>
  *
  * `Range` is forwarded so players can seek in progressive files.
  *
- * @throws {@link InvalidStreamTokenError} for a forged, malformed, or expired token.
+ * @throws {@link InvalidStreamTokenError} for a forged, malformed, or expired
+ *   token, or one issued to another account.
  * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
  */
 export async function proxyStream(
 	token: string,
 	request: {
+		/** The signed-in account asking; the token must have been issued to it. */
+		accountId: string;
 		range: string | null;
 		signal?: AbortSignal;
 	},
 ): Promise<Response> {
 	const target = verifyStreamToken(token, config.streamSigningSecret);
+	if (target.accountId !== request.accountId) {
+		throw new InvalidStreamTokenError("Stream token was issued to another account");
+	}
 
 	if (target.kind === "segment" && !request.range) {
 		const segment = await readSegment(target);
@@ -333,6 +347,7 @@ async function playlistResponse(target: StreamTarget, upstream: UpstreamBytes) {
 			kind,
 			headers: target.headers,
 			mirrors: mirrorsFor(url, upstream.url),
+			accountId: target.accountId,
 			expiresAt: target.expiresAt,
 		};
 		if (kind === "segment") {

@@ -50,6 +50,8 @@ export interface PlaybackOptions {
 	 * under it.
 	 */
 	streamBaseUrl: string;
+	/** The account the playback is for; its tokens work for nobody else. */
+	accountId: string;
 }
 
 /**
@@ -136,14 +138,20 @@ export async function resolvePlayback(
 	);
 	const results = await Promise.all(
 		[...alwaysTried, ...served].map((version) =>
-			resolveVersion(version, located.number, unitsOf, streamUrl),
+			resolveVersion(version, located.number, unitsOf, streamUrl, options.accountId),
 		),
 	);
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
 	if (sub?.version && sub.videos && dub?.version && dub.videos) {
 		const shifts = await timelineShifts(sub.videos, dub.videos);
-		dub.version.subtitles = await subtitlesForDub(sub.videos, dub.videos, streamUrl, shifts);
+		dub.version.subtitles = await subtitlesForDub(
+			sub.videos,
+			dub.videos,
+			streamUrl,
+			options.accountId,
+			shifts,
+		);
 		dub.version.skip_segments = skipSegmentsForDub(
 			sub.version.skip_segments,
 			dub.version.skip_segments,
@@ -183,6 +191,7 @@ async function resolveVersion(
 	anilistEpisode: number,
 	unitsOf: (provider: StreamProvider) => Promise<ProviderUnit[]>,
 	streamUrl: (token: string) => string,
+	accountId: string,
 ): Promise<{
 	version: PlaybackMedia | null;
 	/** The upstream videos behind `version`. */
@@ -248,7 +257,7 @@ async function resolveVersion(
 			return null;
 		}
 
-		const media = toPlaybackMedia(stream.videos, streamUrl, kinds);
+		const media = toPlaybackMedia(stream.videos, streamUrl, kinds, accountId);
 		const version = {
 			audio: language,
 			label: audioLabels[language],
@@ -352,18 +361,19 @@ async function subtitlesForDub(
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
 	streamUrl: (token: string) => string,
+	accountId: string,
 	shifts: TimelineShift[] | null,
 ) {
 	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
 	const retimed = shifts
-		? toPlaybackMedia(sub, streamUrl, subKinds, shifts).subtitles.filter(
+		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts).subtitles.filter(
 				(track) => track.format === "vtt",
 			)
 		: [];
 
 	// Signs and captions exist only on the dub, timed to it as they are. Its
 	// dialogue can be the sub's, timed to the sub, so only retiming serves that.
-	const own = toPlaybackMedia(dub, streamUrl, dubKinds).subtitles.filter(
+	const own = toPlaybackMedia(dub, streamUrl, dubKinds, accountId).subtitles.filter(
 		(track) => track.format === "vtt" && (track.kind === "signs" || track.kind === "captions"),
 	);
 
@@ -407,13 +417,16 @@ function toPlaybackMedia(
 	videos: ProviderVideo[],
 	streamUrl: (token: string) => string,
 	kinds: Map<string, SubtitleKind | null>,
+	accountId: string,
 	shifts?: TimelineShift[],
 ) {
 	const sources = [...videos]
 		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
 		.map((video) => ({
 			url: streamUrl(
-				createStreamToken(video.url, video.format === "hls" ? "playlist" : "file", video.headers),
+				createStreamToken(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
+					accountId,
+				}),
 			),
 			format: video.format,
 			quality: video.quality,
@@ -427,6 +440,7 @@ function toPlaybackMedia(
 				subtitles.set(track.url, {
 					url: streamUrl(
 						createStreamToken(track.url, "subtitle", video.headers, {
+							accountId,
 							mirrors: mirrorsFor(track.url, video.url),
 							shifts,
 						}),

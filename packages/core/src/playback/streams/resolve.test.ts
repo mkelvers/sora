@@ -162,6 +162,7 @@ const request = {
 };
 const options = {
 	streamBaseUrl: "https://sora.example/v1/streams/",
+	accountId: "account",
 };
 
 const sub = (locale = "en"): EpisodeVersion => ({
