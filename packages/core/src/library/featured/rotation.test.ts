@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { arrange, featuredPattern, rotate, rotationPeriod, rotationOf, shelfOf } from "./rotation";
+import { arrange, featuredCount, isCurrent, rotate, rotationOf, rotationPeriod } from "./rotation";
 
-const now = new Date("2026-09-29T12:00:00Z");
+const now = new Date("2026-10-05T12:00:00Z");
+
 const ids = (prefix: string, count: number) =>
 	Array.from(
 		{
@@ -11,159 +12,116 @@ const ids = (prefix: string, count: number) =>
 		(_, index) => `${prefix}${index}`,
 	);
 
-describe("shelfOf", () => {
-	test("puts a well-liked season from the last year on fresh", () => {
+describe("isCurrent", () => {
+	test("accepts a well-liked, popular season that started recently", () => {
 		expect(
-			shelfOf(
-				[
-					{
-						startDate: "2021-06-17",
-						score: 67,
-						popularity: 132_000,
-					},
-					{
-						startDate: "2025-12-10",
-						score: 77,
-						popularity: 28_000,
-					},
-				],
+			isCurrent(
+				{
+					startDate: "2026-07-04",
+					status: "FINISHED",
+					score: 86,
+					popularity: 167_000,
+				},
 				now,
 			),
-		).toBe("fresh");
+		).toBe(true);
 	});
 
-	test("leaves out a new title that is poorly liked", () => {
+	test("accepts a title that is still airing", () => {
 		expect(
-			shelfOf(
-				[
-					{
-						startDate: "2026-07-03",
-						score: 67,
-						popularity: 65_000,
-					},
-				],
+			isCurrent(
+				{
+					startDate: "2026-02-01",
+					status: "RELEASING",
+					score: 80,
+					popularity: 90_000,
+				},
 				now,
 			),
-		).toBeNull();
+		).toBe(true);
 	});
 
-	test("puts an older, highly rated title on acclaimed before popular", () => {
+	test("rejects an old favourite that is not airing", () => {
 		expect(
-			shelfOf(
-				[
-					{
-						startDate: "2009-04-05",
-						score: 90,
-						popularity: 900_000,
-					},
-				],
+			isCurrent(
+				{
+					startDate: "2013-04-07",
+					status: "FINISHED",
+					score: 90,
+					popularity: 900_000,
+				},
 				now,
 			),
-		).toBe("acclaimed");
+		).toBe(false);
 	});
 
-	test("puts an older, well-liked hit on popular", () => {
+	test("rejects a season that ended long ago", () => {
 		expect(
-			shelfOf(
-				[
-					{
-						startDate: "2019-04-06",
-						score: 80,
-						popularity: 400_000,
-					},
-				],
+			isCurrent(
+				{
+					startDate: "2026-01-09",
+					status: "FINISHED",
+					score: 86,
+					popularity: 260_000,
+				},
 				now,
 			),
-		).toBe("popular");
+		).toBe(false);
+	});
+
+	test("rejects a new title that is poorly liked or little known", () => {
+		const entry = {
+			startDate: "2026-07-03",
+			status: "RELEASING",
+		};
+		expect(isCurrent({ ...entry, score: 67, popularity: 165_000 }, now)).toBe(false);
+		expect(isCurrent({ ...entry, score: 80, popularity: 20_000 }, now)).toBe(false);
 	});
 });
 
 describe("rotationOf", () => {
-	const monday = new Date("2026-09-28T06:00:00Z");
+	const day = new Date("2026-09-28T06:00:00Z");
 
-	test("starts a rotation on Monday at 06:00 UTC", () => {
-		expect(rotationOf(new Date(monday.getTime() - 1))).toBe(rotationOf(monday) - 1);
+	test("starts a rotation every day at 06:00 UTC", () => {
+		expect(rotationOf(new Date(day.getTime() - 1))).toBe(rotationOf(day) - 1);
 	});
 
-	test("keeps it all week", () => {
-		expect(rotationOf(new Date(monday.getTime() + rotationPeriod - 1))).toBe(rotationOf(monday));
-		expect(rotationOf(new Date(monday.getTime() + rotationPeriod))).toBe(rotationOf(monday) + 1);
+	test("keeps it all day", () => {
+		expect(rotationOf(new Date(day.getTime() + rotationPeriod - 1))).toBe(rotationOf(day));
+		expect(rotationOf(new Date(day.getTime() + rotationPeriod))).toBe(rotationOf(day) + 1);
 	});
 });
 
 describe("rotate", () => {
-	const shelves = {
-		fresh: ids("f", 40),
-		acclaimed: ids("a", 30),
-		popular: ids("p", 20),
-	};
+	const candidates = ids("c", 20);
+
+	test("is stable for one profile and rotation", () => {
+		expect(rotate(candidates, "profile", 100)).toEqual(rotate(candidates, "profile", 100));
+	});
 
 	test("shuffles each rotation anew", () => {
-		expect(rotate(shelves, "profile", 100)).not.toEqual(rotate(shelves, "profile", 101));
+		expect(rotate(candidates, "profile", 100)).not.toEqual(rotate(candidates, "profile", 101));
 	});
 
 	test("orders each profile differently", () => {
-		expect(rotate(shelves, "one", 100)).not.toEqual(rotate(shelves, "two", 100));
+		expect(rotate(candidates, "one", 100)).not.toEqual(rotate(candidates, "two", 100));
 	});
 
-	test("keeps a few candidates per place", () => {
-		const candidates = rotate(shelves, "profile", 100);
-		expect(candidates.fresh).toHaveLength(9);
-		expect(candidates.acclaimed).toHaveLength(6);
-		expect(candidates.popular).toHaveLength(3);
-	});
-
-	test("keeps every candidate of a small shelf", () => {
-		const small = rotate(
-			{
-				fresh: ["x", "y"],
-				acclaimed: [],
-				popular: [],
-			},
-			"profile",
-			100,
-		);
-		expect(small.fresh.toSorted()).toEqual(["x", "y"]);
-		expect(small.acclaimed).toEqual([]);
+	test("keeps every candidate", () => {
+		expect(rotate(candidates, "profile", 100).toSorted()).toEqual(candidates.toSorted());
 	});
 });
 
 describe("arrange", () => {
-	test("fills the pattern from each shelf in order, skipping unusable titles", () => {
-		expect(
-			arrange(
-				{
-					fresh: ["f0", "f1", "f2", "f3"],
-					acclaimed: ["a0", "a1"],
-					popular: ["p0"],
-				},
-				(id) => id !== "f1",
-			),
-		).toEqual(["f0", "a0", "f2", "p0", "f3", "a1"]);
+	test("skips unusable titles", () => {
+		expect(arrange(ids("c", 9), (id) => id !== "c1")).toEqual(["c0", "c2", "c3", "c4", "c5", "c6"]);
 	});
 
-	test("fills a place whose shelf ran out from another", () => {
-		const picked = arrange(
-			{
-				fresh: ["f0", "f1", "f2", "f3", "f4"],
-				acclaimed: [],
-				popular: [],
-			},
-			() => true,
-		);
-		expect(picked).toEqual(["f0", "f1", "f2", "f3", "f4"]);
+	test("never places more than the carousel holds", () => {
+		expect(arrange(ids("c", 20), () => true)).toHaveLength(featuredCount);
 	});
 
-	test("never places more than the pattern holds", () => {
-		expect(
-			arrange(
-				{
-					fresh: ids("f", 9),
-					acclaimed: ids("a", 6),
-					popular: ids("p", 3),
-				},
-				() => true,
-			),
-		).toHaveLength(featuredPattern.length);
+	test("places fewer when too few are usable", () => {
+		expect(arrange(ids("c", 3), () => true)).toHaveLength(3);
 	});
 });

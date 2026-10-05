@@ -9,13 +9,14 @@ import { toSeriesCards } from "../../series/queries";
 import {
 	arrange,
 	dateBefore,
-	featuredPattern,
+	currentThresholds,
+	featuredCount,
+	isCurrent,
 	longRunningAfter,
+	restRotations,
 	rotate,
 	rotationOf,
-	shelfOf,
-	shelfThresholds,
-	type FeaturedShelf,
+	spareCandidates,
 } from "./rotation";
 
 /** Formats worth featuring: shows and films, not music videos, specials, or OVAs. */
@@ -24,24 +25,19 @@ const featuredFormats = ["TV", "ONA", "MOVIE"] as const;
 /** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
 const backfillPerPick = 20;
 
-/** The weakest an entry may be and still put its title on some shelf. */
-const lowestThreshold = {
-	score: Math.min(...Object.values(shelfThresholds).map((threshold) => threshold.score)),
-	popularity: Math.min(...Object.values(shelfThresholds).map((threshold) => threshold.popularity)),
-};
-
 /**
- * Titles to feature on a profile's home page: new seasons and films that are
- * well liked, the best rated, and popular hits, mostly new ones (see
- * {@link featuredPattern}). The seasons of one show share its backdrop and
- * logo, so a show is featured through one of them: a new season as itself,
- * and a show that is acclaimed or popular through its earliest such season.
+ * Titles to feature on a profile's home page: what is popular right now, a
+ * season or film that is airing or started in the last six months and is well
+ * liked, never an old favourite without a new season. The seasons of one
+ * show share its backdrop and logo, so a show is featured through its newest
+ * current season.
  *
- * They are picked once a week, on Monday morning (see `rotationStart`), in
- * each profile's own order, and kept for the week: a title that can no
- * longer be shown gives its place to another, as does one the profile
- * dropped from its watchlist. No title is featured two
- * weeks in a row.
+ * They are picked once a day, at 06:00 UTC (see `rotationStart`), in each
+ * profile's own order, and kept for the day: a title that can no longer be
+ * shown gives its place to another, as does one the profile dropped from its
+ * watchlist. A title is rested for a week (`restRotations`) after it was
+ * featured, and shown again only when too few others are current to fill the
+ * place.
  *
  * Reads only the database: candidates come from the search index.
  * Long-running titles such as Detective Conan are left out, as are those
@@ -54,10 +50,7 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 		.select()
 		.from(featuredPick)
 		.where(
-			and(
-				eq(featuredPick.userId, userId),
-				inArray(featuredPick.rotation, [rotation - 1, rotation]),
-			),
+			and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - restRotations)),
 		)
 		.orderBy(asc(featuredPick.position));
 
@@ -73,16 +66,17 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 	const kept = current.map((pick) => pick.seriesId);
 	const keptCards = await cardsOf(kept);
 	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
-	const wanted = featuredPattern.length - shown.length;
+	const wanted = featuredCount - shown.length;
 	if (wanted <= 0) {
-		return shown.slice(0, featuredPattern.length).flatMap((id) => keptCards.get(id) ?? []);
+		return shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []);
 	}
 
 	const { picked, cards } = await pickTitles(
 		userId,
 		rotation,
 		now,
-		new Set([...picks.map((pick) => pick.seriesId), ...unwanted]),
+		new Set([...kept, ...unwanted]),
+		new Set(picks.filter((pick) => pick.rotation !== rotation).map((pick) => pick.seriesId)),
 	);
 	const added = picked.slice(0, wanted);
 	if (added.length > 0) {
@@ -102,7 +96,9 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 	if (current.length === 0) {
 		await db
 			.delete(featuredPick)
-			.where(and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - 1)));
+			.where(
+				and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - restRotations)),
+			);
 	}
 
 	return [
@@ -112,22 +108,24 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 }
 
 /**
- * Picks titles to feature for a rotation from the search index, in
- * {@link featuredPattern} order, leaving out `excluded`, with their cards.
+ * Picks titles to feature for a rotation from the search index, leaving out
+ * `excluded` and putting `rested` last, with their cards.
  */
 async function pickTitles(
 	userId: string,
 	rotation: number,
 	now: Date,
 	excluded: ReadonlySet<string>,
+	rested: ReadonlySet<string>,
 ) {
-	const [entries, longRunning, featuredBefore] = await Promise.all([
+	const [entries, longRunning] = await Promise.all([
 		db
 			.select({
 				anilistId: animeSearch.anilistId,
 				seriesId: series.id,
 				key: series.key,
 				startDate: animeSearch.startDate,
+				status: animeSearch.status,
 				score: sql<number>`${animeSearch.averageScore}`,
 				popularity: animeSearch.popularity,
 				isDrawable: sql<boolean>`coalesce(
@@ -142,8 +140,8 @@ async function pickTitles(
 					eq(animeSearch.isAdult, false),
 					inArray(animeSearch.format, [...featuredFormats]),
 					inArray(animeSearch.status, ["RELEASING", "FINISHED"]),
-					gte(animeSearch.averageScore, lowestThreshold.score),
-					gte(animeSearch.popularity, lowestThreshold.popularity),
+					gte(animeSearch.averageScore, currentThresholds.score),
+					gte(animeSearch.popularity, currentThresholds.popularity),
 				),
 			),
 		db
@@ -158,18 +156,11 @@ async function pickTitles(
 					lt(animeSearch.startDate, dateBefore(now, longRunningAfter)),
 				),
 			),
-		excluded.size > 0
-			? db
-					.select({
-						key: series.key,
-					})
-					.from(series)
-					.where(inArray(series.id, [...excluded]))
-			: [],
 	]);
 
-	const unstored = entries
-		.filter((entry) => entry.seriesId === null && shelfOf([entry], now) !== null)
+	const current = entries.filter((entry) => isCurrent(entry, now));
+	const unstored = current
+		.filter((entry) => entry.seriesId === null)
 		.sort((a, b) => b.popularity - a.popularity)
 		.slice(0, backfillPerPick);
 	for (const { anilistId } of unstored) {
@@ -177,35 +168,41 @@ async function pickTitles(
 	}
 
 	// The seasons of a show are matched to one TMDB title, which names the show.
-	const skipped = new Set([...longRunning, ...featuredBefore].map((row) => row.key));
-	const byShow = new Map<string, (typeof entries)[number][]>();
-	for (const entry of entries) {
-		if (entry.key !== null && entry.isDrawable && !skipped.has(entry.key)) {
-			byShow.set(entry.key, [...(byShow.get(entry.key) ?? []), entry]);
+	const skipped = new Set(longRunning.map((row) => row.key));
+	const newest = new Map<string, (typeof current)[number]>();
+	for (const entry of current) {
+		if (
+			entry.seriesId === null ||
+			entry.key === null ||
+			!entry.isDrawable ||
+			skipped.has(entry.key)
+		) {
+			continue;
+		}
+		const known = newest.get(entry.key);
+		if (!known || (entry.startDate ?? "") > (known.startDate ?? "")) {
+			newest.set(entry.key, entry);
 		}
 	}
 
-	const shelves: Record<FeaturedShelf, string[]> = {
-		fresh: [],
-		acclaimed: [],
-		popular: [],
-	};
-	for (const seasons of byShow.values()) {
-		const shelf = shelfOf(seasons, now);
-		const inOrder = seasons.toSorted((left, right) =>
-			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
-		);
-		const reaching = inOrder.filter((season) => shelfOf([season], now) === shelf);
-		const featured = shelf === "fresh" ? reaching.at(-1) : reaching[0];
-		if (shelf && featured?.seriesId) {
-			shelves[shelf].push(featured.seriesId);
-		}
-	}
-
-	const candidates = rotate(shelves, userId, rotation);
-	const cards = await cardsOf([...new Set(Object.values(candidates).flat())]);
+	const candidates = [...newest.values()]
+		.map((entry) => entry.seriesId!)
+		.filter((id) => !excluded.has(id));
+	const ordered = [
+		...rotate(
+			candidates.filter((id) => !rested.has(id)),
+			userId,
+			rotation,
+		),
+		...rotate(
+			candidates.filter((id) => rested.has(id)),
+			userId,
+			rotation,
+		),
+	].slice(0, featuredCount + spareCandidates);
+	const cards = await cardsOf(ordered);
 	return {
-		picked: arrange(candidates, (id) => isShowable(cards.get(id))),
+		picked: arrange(ordered, (id) => isShowable(cards.get(id))),
 		cards,
 	};
 }

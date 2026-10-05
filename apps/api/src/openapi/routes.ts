@@ -452,7 +452,7 @@ export const getStream = createRoute({
 	tags: ["Playback"],
 	summary: "Fetch a stream resource",
 	description:
-		"Serves a playlist, segment, file, or subtitle through the stream proxy. `getPlayback` hands out these URLs; players fetch them directly: the token is the credential, and any origin may fetch it. Playlists reference their children by relative token, so the token must stay the last path segment. `Range` is honoured for seeking.",
+		"Serves a playlist, segment, file, or subtitle through the stream proxy. `getPlayback` hands out these URLs. Only the Sora web app's server may call this and `getPlayback`, with its client key in `X-Sora-Client-Key`, for the account the token was issued to; players reach it through the web app, never directly. Playlists reference their children by relative token, so the token must stay the last path segment. `Range` is honoured for seeking.",
 	request: {
 		params: z.object({
 			token: z.string().openapi({
@@ -590,7 +590,7 @@ export const getFeatured = createRoute({
 	tags: ["Profiles"],
 	summary: "Titles to feature",
 	description:
-		"Up to six titles to feature on the profile's home page, mostly new seasons and films from the last year that are well liked, then the best rated and popular hits. They are picked every Monday at 06:00 UTC, in each profile's own order, and kept all week; none is featured two weeks in a row. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
+		"Up to six titles to feature on the profile's home page: what is popular right now, seasons and films that are airing or started in the last six months and are well liked, never old favourites without a new season. They are picked every day at 06:00 UTC, in each profile's own order, and kept all day. A title is rested for a week after it was featured unless too few others are current. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,
