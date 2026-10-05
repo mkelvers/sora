@@ -1,4 +1,5 @@
 import { env } from "$env/dynamic/private";
+import { requestedByPage } from "$lib/server/fetch-metadata";
 import { sessionCookie } from "$lib/server/sora";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
@@ -21,12 +22,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 		error(401, "Not signed in");
 	}
 
-	const site = request.headers.get("sec-fetch-site");
-	const destination = request.headers.get("sec-fetch-dest");
-	if (
-		(site !== null && site !== "same-origin") ||
-		(destination !== null && !mediaDestinations.has(destination))
-	) {
+	if (!requestedByPage(request, mediaDestinations)) {
 		error(403, "Not available");
 	}
 
