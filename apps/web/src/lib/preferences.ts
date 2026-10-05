@@ -1,16 +1,16 @@
+import { browser } from "$app/environment";
 import { attempt } from "@sora/shared";
 
 export class Preferences {
 	constructor(private namespace: string) {}
 
 	get(key: string): unknown {
-		const storage = this.#storage();
-		if (!storage) {
+		if (!browser) {
 			return null;
 		}
 
 		const { data } = attempt(
-			() => JSON.parse(storage.getItem(this.#key(key)) ?? "null"),
+			() => JSON.parse(localStorage.getItem(this.#key(key)) ?? "null"),
 			DOMException,
 			SyntaxError,
 		);
@@ -18,16 +18,11 @@ export class Preferences {
 	}
 
 	set(key: string, value: unknown) {
-		const storage = this.#storage();
-		if (!storage) {
+		if (!browser) {
 			return;
 		}
 
-		attempt(() => storage.setItem(this.#key(key), JSON.stringify(value)), DOMException);
-	}
-
-	#storage(): Storage | undefined {
-		return globalThis.localStorage;
+		attempt(() => localStorage.setItem(this.#key(key), JSON.stringify(value)), DOMException);
 	}
 
 	#key(key: string) {
