@@ -41,6 +41,7 @@ import {
 	refreshSeriesImages,
 	setSeriesArtwork,
 } from "@sora/core/series";
+import { except } from "hono/combine";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 
@@ -84,15 +85,33 @@ const signedIn = createMiddleware<V1Env>(async (c, next) => {
 	await next();
 });
 
-v1.use("/profiles", signedIn);
-v1.use("/profiles/*", signedIn);
+// Everything but sign-in, the contract, and the stream proxy (whose tokens
+// are the credential) needs an account, so nobody anonymous can make the
+// server look anything up, and each account is held to a generous ceiling.
+v1.use(
+	except(["/v1/auth/*", "/v1/openapi.json", "/v1/streams/*"], signedIn, async (c, next) => {
+		await next();
+		const cacheControl = c.res.headers.get("Cache-Control");
+		if (cacheControl?.startsWith("public")) {
+			c.header("Cache-Control", cacheControl.replace("public", "private"));
+		}
+	}),
+);
+v1.use(
+	except(
+		["/v1/auth/*", "/v1/openapi.json", "/v1/streams/*"],
+		rateLimit({
+			limit: 600,
+			windowMs: 60_000,
+		}),
+	),
+);
 
 // Routes that change what everyone sees or make the server call out to
-// providers need an account, and are limited per account so one cannot
-// spend the upstream budgets alone.
+// providers are limited further, so one account cannot spend the upstream
+// budgets alone.
 v1.use(
 	route.updateArtwork.getRoutingPath(),
-	signedIn,
 	rateLimit({
 		limit: 30,
 		windowMs: 60_000,
@@ -100,15 +119,20 @@ v1.use(
 );
 v1.use(
 	route.refreshImages.getRoutingPath(),
-	signedIn,
 	rateLimit({
 		limit: 6,
 		windowMs: 60_000,
 	}),
 );
 v1.use(
+	route.listImages.getRoutingPath(),
+	rateLimit({
+		limit: 60,
+		windowMs: 60_000,
+	}),
+);
+v1.use(
 	route.getPlayback.getRoutingPath(),
-	signedIn,
 	rateLimit({
 		limit: 60,
 		windowMs: 60_000,
