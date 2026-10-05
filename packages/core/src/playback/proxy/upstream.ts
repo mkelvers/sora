@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import { attempt, type Attempt } from "@sora/shared";
@@ -239,7 +240,7 @@ async function fetchFollowingRedirects(
 	let url = start;
 
 	for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
-		assertPublicHttpUrl(url);
+		await assertPublicHttpUrl(url);
 
 		const { data, error } = await attempt(
 			fetch(url, {
@@ -279,15 +280,40 @@ async function fetchFollowingRedirects(
 	throw new StreamUpstreamError("Upstream stream redirected too many times", null);
 }
 
+/** How long a host's addresses stay vetted, so a stream's many segments cost one lookup. */
+const vettedFor = 60 * second;
+const vettedHosts = new Map<string, number>();
+
+/** Whether an IP address is loopback, private, link-local, reserved, or multicast. */
+function isPrivateAddress(address: string) {
+	const version = isIP(address);
+	if (version === 4) {
+		return /^(0|10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./.test(
+			address,
+		);
+	}
+
+	return version === 6 && /^(::1?$|f[cd]|fe[89ab]|ff|::ffff:)/i.test(address);
+}
+
 /**
  * Rejects URLs the proxy must never fetch: non-HTTP schemes, loopback, and
- * private or link-local IP literals.
+ * private or link-local addresses, whether written as an IP or a hostname
+ * that resolves to one.
  *
  * Tokens are signed, but playlist URIs come from third-party servers, so a
  * hostile playlist could otherwise point the proxy at internal services.
- * Hostnames that resolve to private addresses via DNS are not covered.
+ * The check resolves a hostname before the fetch resolves it again, so a
+ * server that changes its answer in between (DNS rebinding) is not fully
+ * stopped; the vetted result is kept for {@link vettedFor} to bound that.
+ *
+ * @throws {@link InvalidStreamTokenError} for a URL written as a non-public
+ *   address or scheme.
+ * @throws {@link StreamUpstreamError} when a hostname does not resolve or
+ *   resolves to a non-public address, as sinkholed shards do, so the next
+ *   mirror can be tried.
  */
-function assertPublicHttpUrl(value: string) {
+async function assertPublicHttpUrl(value: string) {
 	const url = new URL(value);
 	if (url.protocol !== "https:" && url.protocol !== "http:") {
 		throw new InvalidStreamTokenError("Stream target must use HTTP");
@@ -298,15 +324,34 @@ function assertPublicHttpUrl(value: string) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
 
-	const version = isIP(host);
-	const privateAddress =
-		version === 4
-			? /^(0|10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7]))\./.test(
-					host,
-				)
-			: version === 6 && /^(::1?$|f[cd]|fe[89ab]|::ffff:)/.test(host);
-
-	if (privateAddress) {
-		throw new InvalidStreamTokenError("Stream target is not a public host");
+	if (isIP(host)) {
+		if (isPrivateAddress(host)) {
+			throw new InvalidStreamTokenError("Stream target is not a public host");
+		}
+		return;
 	}
+
+	const vetted = vettedHosts.get(host);
+	if (vetted !== undefined && vetted > Date.now()) {
+		return;
+	}
+
+	const { data, error } = await attempt(
+		lookup(host, {
+			all: true,
+		}),
+	);
+	if (error) {
+		throw new StreamUpstreamError(`Upstream ${host} could not be resolved`, null, {
+			cause: error,
+		});
+	}
+	if (data.some(({ address }) => isPrivateAddress(address))) {
+		throw new StreamUpstreamError(`Upstream ${host} resolves to a private address`, null);
+	}
+
+	if (vettedHosts.size > 1_000) {
+		vettedHosts.clear();
+	}
+	vettedHosts.set(host, Date.now() + vettedFor);
 }
