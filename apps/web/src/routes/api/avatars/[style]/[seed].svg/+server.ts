@@ -59,6 +59,8 @@ export const GET: RequestHandler = ({ params }) => {
 		headers: {
 			"Content-Type": "image/svg+xml",
 			"Cache-Control": "public, max-age=31536000, immutable",
+			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+			"X-Content-Type-Options": "nosniff",
 		},
 	});
 };
