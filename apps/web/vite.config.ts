@@ -51,6 +51,10 @@ export default defineConfig(({ mode }) => {
 					directives: {
 						"default-src": ["self"],
 						"script-src": ["self"],
+						"script-src-attr": [
+							"unsafe-hashes",
+							"sha256-7dQwUgLau1NFCCGjfn9FsYptB6ZtWxJin6VohGIu20I=",
+						],
 						"style-src": ["self", "unsafe-inline"],
 						"img-src": ["self", "data:", "blob:", "https:"],
 						"font-src": ["self", "data:"],
