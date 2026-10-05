@@ -282,6 +282,13 @@ export const PreparingTitleSchema = z
 
 export type ContentLanguage = z.infer<typeof LanguageSchema>;
 export type AnimeTag = z.infer<typeof AnimeTagSchema>;
+/**
+ * The hosts artwork may be chosen from, which are those the catalogue's own
+ * images come from: any other would let whoever picks artwork, which everyone
+ * sees, make every viewer's browser contact a server of their choosing.
+ */
+export const artworkHosts = ["image.tmdb.org", "s4.anilist.co"];
+
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
 const ArtworkUrlSchema = z
 	.union([
@@ -289,7 +296,10 @@ const ArtworkUrlSchema = z
 			.url({
 				protocol: /^https$/,
 			})
-			.max(2_048),
+			.max(2_048)
+			.refine((value) => artworkHosts.includes(new URL(value).hostname), {
+				message: `The image must be on ${artworkHosts.join(" or ")}`,
+			}),
 		z.literal(false),
 	])
 	.nullable()
