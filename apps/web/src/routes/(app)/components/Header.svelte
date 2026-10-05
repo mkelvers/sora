@@ -222,7 +222,7 @@
 				class={cn(
 					"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
 					unread.current &&
-						"after:absolute after:top-3.5 after:right-3 after:size-2 after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
+						"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
 				)}
 				aria-label={unread.current ? "Notifications, new notifications" : "Notifications"}
 				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
@@ -321,7 +321,7 @@
 									variant="item"
 									class={cn(
 										"min-h-14 gap-4 py-4 text-base sm:hidden",
-										unread.current && "after:size-2 after:bg-status-error",
+										unread.current && "after:size-2 after:rounded-full after:bg-status-error",
 									)}
 									aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
 								>

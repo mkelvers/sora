@@ -33,7 +33,7 @@
 			class={cn(
 				"relative aspect-video w-full shrink-0 bg-surface sm:aspect-4/3 sm:w-[40%] sm:max-w-96",
 				unread &&
-					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:bg-status-error",
+					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-status-error",
 			)}
 		>
 			{#if item.series.backdrop_url}
