@@ -1,17 +1,10 @@
 import { env } from "$env/dynamic/private";
-import { profileCookie, sessionCookie } from "$lib/server/sora";
-import { route, SoraClient, SoraError, type Profile } from "@sora/sdk";
+import { knownProfiles, profileCookie, sessionCookie } from "$lib/server/sora";
+import { route, SoraClient, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 
-const remoteProfilesTtl = 5 * 60_000;
-const knownProfiles = new Map<
-	string,
-	{
-		profiles: Profile[];
-		at: number;
-	}
->();
+const remoteProfilesTtl = 30_000;
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
@@ -84,6 +77,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const response = await resolve(event);
 	response.headers.set("X-Robots-Tag", "noindex, nofollow");
+	response.headers.set("X-Content-Type-Options", "nosniff");
+	response.headers.set("X-Frame-Options", "DENY");
+	response.headers.set("Referrer-Policy", "same-origin");
+	response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+	response.headers.set(
+		"Permissions-Policy",
+		"camera=(), microphone=(), geolocation=(), payment=()",
+	);
+	if (event.url.protocol === "https:") {
+		response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+	}
 
 	return response;
 };
