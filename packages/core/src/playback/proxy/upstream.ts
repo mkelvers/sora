@@ -1,5 +1,8 @@
-import { lookup } from "node:dns/promises";
+import { lookup, type LookupAddress } from "node:dns";
+import http from "node:http";
+import https from "node:https";
 import { isIP } from "node:net";
+import { Readable } from "node:stream";
 
 import { attempt, type Attempt } from "@sora/shared";
 
@@ -240,16 +243,16 @@ async function fetchFollowingRedirects(
 	let url = start;
 
 	for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
-		await assertPublicHttpUrl(url);
+		assertPublicHttpUrl(url);
 
 		const { data, error } = await attempt(
-			fetch(url, {
+			requestPublicHost(
+				url,
 				headers,
-				redirect: "manual",
-				signal: signal
+				signal
 					? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
 					: AbortSignal.timeout(timeoutMs),
-			}),
+			),
 		);
 		if (error) {
 			throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
@@ -280,10 +283,6 @@ async function fetchFollowingRedirects(
 	throw new StreamUpstreamError("Upstream stream redirected too many times", null);
 }
 
-/** How long a host's addresses stay vetted, so a stream's many segments cost one lookup. */
-const vettedFor = 60 * second;
-const vettedHosts = new Map<string, number>();
-
 /** Whether an IP address is loopback, private, link-local, reserved, or multicast. */
 function isPrivateAddress(address: string) {
 	const version = isIP(address);
@@ -298,22 +297,15 @@ function isPrivateAddress(address: string) {
 
 /**
  * Rejects URLs the proxy must never fetch: non-HTTP schemes, loopback, and
- * private or link-local addresses, whether written as an IP or a hostname
- * that resolves to one.
+ * private or link-local IP literals. Hostnames are vetted when the
+ * connection is made; see {@link requestPublicHost}.
  *
  * Tokens are signed, but playlist URIs come from third-party servers, so a
  * hostile playlist could otherwise point the proxy at internal services.
- * The check resolves a hostname before the fetch resolves it again, so a
- * server that changes its answer in between (DNS rebinding) is not fully
- * stopped; the vetted result is kept for {@link vettedFor} to bound that.
  *
- * @throws {@link InvalidStreamTokenError} for a URL written as a non-public
- *   address or scheme.
- * @throws {@link StreamUpstreamError} when a hostname does not resolve or
- *   resolves to a non-public address, as sinkholed shards do, so the next
- *   mirror can be tried.
+ * @throws {@link InvalidStreamTokenError} for a URL that is not public.
  */
-async function assertPublicHttpUrl(value: string) {
+function assertPublicHttpUrl(value: string) {
 	const url = new URL(value);
 	if (url.protocol !== "https:" && url.protocol !== "http:") {
 		throw new InvalidStreamTokenError("Stream target must use HTTP");
@@ -324,34 +316,91 @@ async function assertPublicHttpUrl(value: string) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
 
-	if (isIP(host)) {
-		if (isPrivateAddress(host)) {
-			throw new InvalidStreamTokenError("Stream target is not a public host");
-		}
-		return;
+	if (isIP(host) && isPrivateAddress(host)) {
+		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
+}
 
-	const vetted = vettedHosts.get(host);
-	if (vetted !== undefined && vetted > Date.now()) {
-		return;
-	}
-
-	const { data, error } = await attempt(
-		lookup(host, {
+/**
+ * Resolves a hostname for a connection, refusing when any of its addresses
+ * is not public. The connection uses these very addresses, so a server that
+ * answers a name with a public address first and a private one next (DNS
+ * rebinding) cannot steer it.
+ */
+const publicLookup: typeof lookup = ((
+	host: string,
+	options: { all?: boolean },
+	callback: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
+) => {
+	lookup(
+		host,
+		{
+			...options,
 			all: true,
-		}),
-	);
-	if (error) {
-		throw new StreamUpstreamError(`Upstream ${host} could not be resolved`, null, {
-			cause: error,
-		});
-	}
-	if (data.some(({ address }) => isPrivateAddress(address))) {
-		throw new StreamUpstreamError(`Upstream ${host} resolves to a private address`, null);
-	}
+		},
+		(error, addresses) => {
+			if (error) {
+				callback(error);
+				return;
+			}
+			if (addresses.some(({ address }) => isPrivateAddress(address))) {
+				callback(new InvalidStreamTokenError("Stream target is not a public host"));
+				return;
+			}
 
-	if (vettedHosts.size > 1_000) {
-		vettedHosts.clear();
-	}
-	vettedHosts.set(host, Date.now() + vettedFor);
+			if (options.all) {
+				callback(null, addresses);
+				return;
+			}
+			callback(null, addresses[0]!.address, addresses[0]!.family);
+		},
+	);
+}) as typeof lookup;
+
+/**
+ * Makes one request without following redirects, like `fetch(url, { redirect:
+ * "manual" })`, but connecting only to public addresses.
+ */
+function requestPublicHost(url: string, headers: Headers, signal: AbortSignal): Promise<Response> {
+	return new Promise((resolve, reject) => {
+		const target = new URL(url);
+		const outgoing = Object.fromEntries(headers);
+		const send = target.protocol === "https:" ? https.request : http.request;
+
+		const request = send(
+			target,
+			{
+				headers: {
+					Accept: "*/*",
+					"Accept-Encoding": "identity",
+					"User-Agent": `Bun/${Bun.version}`,
+					...outgoing,
+				},
+				lookup: publicLookup,
+				signal,
+			},
+			(incoming) => {
+				const received = new Headers();
+				for (const [name, value] of Object.entries(incoming.headers)) {
+					for (const each of Array.isArray(value) ? value : [value]) {
+						if (each !== undefined) {
+							received.append(name, each);
+						}
+					}
+				}
+
+				const status = incoming.statusCode ?? 502;
+				const empty = status === 204 || status === 205 || status === 304;
+				resolve(
+					new Response(empty ? null : (Readable.toWeb(incoming) as unknown as ReadableStream), {
+						status,
+						statusText: incoming.statusMessage,
+						headers: received,
+					}),
+				);
+			},
+		);
+		request.on("error", reject);
+		request.end();
+	});
 }
