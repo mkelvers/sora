@@ -8,6 +8,12 @@ const EnvironmentSchema = z.object({
 	 * one upstream URL, so a leaked secret lets anyone use the proxy.
 	 */
 	STREAM_SIGNING_SECRET: z.string().min(32),
+	/**
+	 * Key the web app sends with every playback and stream request, so media
+	 * is only served to it and not to anyone calling the API directly, even
+	 * with an account. Share it with the web app as `WEB_CLIENT_KEY`.
+	 */
+	WEB_CLIENT_KEY: z.string().min(32),
 	/** TMDB API read access token (v4 bearer token), used to group anime into series. */
 	TMDB_READ_ACCESS_TOKEN: z.string().min(1),
 	/** AnimeSchedule application token, used to learn when dubs come out. */
@@ -45,6 +51,7 @@ export const config = (() => {
 	return {
 		databaseUrl: environment.DATABASE_URL,
 		streamSigningSecret: environment.STREAM_SIGNING_SECRET,
+		webClientKey: environment.WEB_CLIENT_KEY,
 		tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
 		animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 		authSecret: environment.AUTH_SECRET,

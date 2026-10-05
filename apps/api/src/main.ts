@@ -3,8 +3,8 @@
  * `PORT` (default 3000).
  *
  * Every route is versioned under `/v1`, whose OpenAPI document is served at
- * `/v1/openapi.json`; `/health` is for load balancers and also reports how
- * each stream provider has been doing. Errors are RFC 9457 problems.
+ * `/v1/openapi.json` for signed-in accounts; `/health` is for load balancers
+ * and tells signed-in accounts how each stream provider has been doing. Errors are RFC 9457 problems.
  *
  * It listens on `HOST` (default `127.0.0.1`, so only this machine reaches
  * it); set `HOST=0.0.0.0` to serve other machines, such as in a container.

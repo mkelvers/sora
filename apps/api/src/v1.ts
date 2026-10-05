@@ -28,7 +28,7 @@ import {
 	startRewatch,
 	updatePlaybackPreferences,
 } from "@sora/core/library";
-import { proxyStream, resolvePlayback } from "@sora/core/playback";
+import { isWebClientKey, proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
 	browseSeries,
 	getAdjacentEpisodes,
@@ -41,8 +41,8 @@ import {
 	refreshSeriesImages,
 	setSeriesArtwork,
 } from "@sora/core/series";
+import { attempt } from "@sora/shared";
 import { except } from "hono/combine";
-import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 
 import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
@@ -65,8 +65,24 @@ const v1 = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 });
 
-// Browser players (hls.js, subtitle tracks) fetch streams directly.
-v1.use(route.getStream.getRoutingPath(), cors());
+// Wrong passwords are limited per e-mail address as well as per client
+// address (Better Auth does that one), so guessing at one account does not
+// get easier by changing address.
+v1.use(
+	"/auth/sign-in/email",
+	rateLimit({
+		limit: 10,
+		windowMs: 60_000,
+		key: async (c) => {
+			const { data } = await attempt(
+				c.req.raw.clone().json() as Promise<{ email?: unknown }>,
+				SyntaxError,
+			);
+			const email = typeof data?.email === "string" ? data.email.trim().toLowerCase() : "";
+			return `sign-in:${email}`;
+		},
+	}),
+);
 
 // Sign-up, sign-in, and sign-out, answered by Better Auth itself.
 v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
@@ -85,11 +101,11 @@ const signedIn = createMiddleware<V1Env>(async (c, next) => {
 	await next();
 });
 
-// Everything but sign-in, the contract, and the stream proxy (whose tokens
-// are the credential) needs an account, so nobody anonymous can make the
+// Everything but sign-in and the stream proxy (whose tokens are the
+// credential) needs an account, the contract included, so nobody anonymous can make the
 // server look anything up, and each account is held to a generous ceiling.
 v1.use(
-	except(["/v1/auth/*", "/v1/openapi.json", "/v1/streams/*"], signedIn, async (c, next) => {
+	except(["/v1/auth/*"], signedIn, async (c, next) => {
 		await next();
 		const cacheControl = c.res.headers.get("Cache-Control");
 		if (cacheControl?.startsWith("public")) {
@@ -99,12 +115,34 @@ v1.use(
 );
 v1.use(
 	except(
-		["/v1/auth/*", "/v1/openapi.json", "/v1/streams/*"],
+		["/v1/auth/*", "/v1/streams/*"],
 		rateLimit({
 			limit: 600,
 			windowMs: 60_000,
 		}),
 	),
+);
+
+/** Answers 403 unless the request carries the web app's key; see {@link isWebClientKey}. */
+const webClient = createMiddleware<V1Env>(async (c, next) => {
+	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
+		return sendProblem(c, 403, "FORBIDDEN", "Media is only served to the Sora web app");
+	}
+
+	await next();
+});
+
+// Media is served to the web app's own server and nothing else, for the
+// account that asked, so neither a token nor an account is enough on its own.
+// Segments arrive by the hundred, so streams have a ceiling of their own.
+v1.use(route.getPlayback.getRoutingPath(), webClient);
+v1.use(
+	route.getStream.getRoutingPath(),
+	webClient,
+	rateLimit({
+		limit: 3_000,
+		windowMs: 60_000,
+	}),
 );
 
 // Routes that change what everyone sees or make the server call out to
@@ -375,6 +413,7 @@ export const v1Routes = v1
 				},
 				{
 					streamBaseUrl: streamBaseUrl.href,
+					accountId: c.get("accountId"),
 				},
 			),
 			getAdjacentEpisodes(series_id, episode),
@@ -398,6 +437,7 @@ export const v1Routes = v1
 
 	.openapi(route.getStream, (c) =>
 		proxyStream(c.req.valid("param").token, {
+			accountId: c.get("accountId"),
 			range: c.req.header("range") ?? null,
 			signal: c.req.raw.signal,
 		}),

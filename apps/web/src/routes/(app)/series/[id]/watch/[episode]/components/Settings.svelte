@@ -2,8 +2,9 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Switch from "$lib/components/ui/Switch.svelte";
 	import { cn, moveMenuFocus } from "$lib/utils";
+	import type { WatchMedia } from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import type { PlaybackMedia, PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
+	import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
 	import { tick } from "svelte";
@@ -16,8 +17,8 @@
 		player,
 		onpreferences,
 	}: {
-		media: PlaybackMedia[];
-		selected?: PlaybackMedia;
+		media: WatchMedia[];
+		selected?: WatchMedia;
 		subtitle?: string;
 		preferences: PlaybackPreferences;
 		player: Player;
@@ -59,7 +60,7 @@
 						})),
 						select: (value: string) =>
 							onpreferences({
-								audio: value as PlaybackMedia["audio"],
+								audio: value as WatchMedia["audio"],
 							}),
 					},
 				]

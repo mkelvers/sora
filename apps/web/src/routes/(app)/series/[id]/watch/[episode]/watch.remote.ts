@@ -2,10 +2,12 @@ import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
 import { refreshStatus, refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
-import { route, SoraError } from "@sora/sdk";
+import { route, SoraError, type PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
+
+export type WatchMedia = Omit<PlaybackMedia, "provider" | "locale" | "hardsub">;
 
 const EpisodeAddress = z.object({
 	seriesId: z.string(),
@@ -61,8 +63,29 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 		return match ? Number(match[1]) : null;
 	};
 
+	const streamPath = (url: string) => `/stream/${new URL(url).pathname.split("/").pop()}`;
+
 	return {
-		media: results,
+		media: results.map(
+			({
+				provider: _provider,
+				locale: _locale,
+				hardsub: _hardsub,
+				sources,
+				subtitles,
+				...rest
+			}) => ({
+				...rest,
+				sources: sources.map((source) => ({
+					...source,
+					url: streamPath(source.url),
+				})),
+				subtitles: subtitles.map((track) => ({
+					...track,
+					url: streamPath(track.url),
+				})),
+			}),
+		),
 		next: number(meta.next),
 		previous: number(meta.previous),
 	};

@@ -15,6 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			baseUrl: env.SORA_API_URL!,
 			headers: {
 				Authorization: `Bearer ${token}`,
+				"X-Sora-Client-Key": env.WEB_CLIENT_KEY!,
 			},
 		});
 

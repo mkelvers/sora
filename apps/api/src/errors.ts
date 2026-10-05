@@ -38,7 +38,13 @@ export interface V1Env {
 export function sendProblem(
 	c: Context,
 	status: ContentfulStatusCode,
-	code: CoreErrorCode | "NOT_FOUND" | "UNAUTHORIZED" | "TOO_MANY_REQUESTS" | "INTERNAL_ERROR",
+	code:
+		| CoreErrorCode
+		| "NOT_FOUND"
+		| "UNAUTHORIZED"
+		| "FORBIDDEN"
+		| "TOO_MANY_REQUESTS"
+		| "INTERNAL_ERROR",
 	detail: string,
 	errors?: Problem["errors"],
 ) {

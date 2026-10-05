@@ -6,6 +6,10 @@ if (!env.SORA_API_URL) {
 	throw new Error("SORA_API_URL is not set; see .env.example");
 }
 
+if (!env.WEB_CLIENT_KEY) {
+	throw new Error("WEB_CLIENT_KEY is not set; see .env.example");
+}
+
 export const sora = new SoraClient({
 	baseUrl: env.SORA_API_URL,
 });
