@@ -7,18 +7,26 @@ const cacheMs = 60_000;
 
 /**
  * `/health`: always `200` with `status: "ok"` while the process serves
- * requests, so load balancers keep it in rotation, plus how each stream
- * provider has been doing.
+ * requests, so load balancers keep it in rotation. Requests from a signed-in
+ * account also get how each stream provider has been doing; everyone else
+ * gets the status alone, as provider names and timings are nobody else's
+ * business.
  *
  * A failing provider does not make the API unhealthy: playback falls back to
  * the others, and taking instances out of rotation would not fix a scraper.
  * `providers` is `null` when provider health cannot be read.
  *
- * The endpoint is public, so errors are reported by time only: their
- * messages come from scrapers and can quote upstream URLs and pages. They
- * are in `provider_calls` and the scheduler's warnings.
+ * Errors are reported by time only: their messages come from scrapers and
+ * can quote upstream URLs and pages. They are in `provider_calls` and the
+ * scheduler's warnings.
+ *
+ * @param load Reads the providers' health.
+ * @param signedIn Whether a request's headers carry a session.
  */
-export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProviderHealth) {
+export function healthRoutes(
+	load: () => Promise<ProviderHealth[]> = getProviderHealth,
+	signedIn: (headers: Headers) => Promise<boolean> = async () => false,
+) {
 	let cached: {
 		at: number;
 		providers: Promise<ProviderHealth[] | null>;
@@ -50,6 +58,12 @@ export function healthRoutes(load: () => Promise<ProviderHealth[]> = getProvider
 	};
 
 	return new Hono().get("/", async (c) => {
+		if (!(await signedIn(c.req.raw.headers))) {
+			return c.json({
+				status: "ok",
+			});
+		}
+
 		const health = await providers();
 		return c.json({
 			status: "ok",

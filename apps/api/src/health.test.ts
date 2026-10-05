@@ -27,20 +27,22 @@ const anikoto: ProviderHealth = {
 	],
 };
 
+const signedIn = async () => true;
+
 async function probe(routes: ReturnType<typeof healthRoutes>) {
 	const response = await routes.request("/");
 	return {
 		status: response.status,
 		body: (await response.json()) as {
 			status: string;
-			providers: unknown[] | null;
+			providers?: unknown[] | null;
 		},
 	};
 }
 
 describe("/health", () => {
 	test("stays ok while a provider fails, and reports providers in snake_case without error messages", async () => {
-		const { status, body } = await probe(healthRoutes(async () => [anikoto]));
+		const { status, body } = await probe(healthRoutes(async () => [anikoto], signedIn));
 
 		expect(status).toBe(200);
 		expect(body).toEqual({
@@ -65,12 +67,28 @@ describe("/health", () => {
 		});
 	});
 
-	test("reads provider health once for probes within a minute", async () => {
+	test("tells anonymous requests nothing but that it is ok, and does not read providers for them", async () => {
 		let loads = 0;
 		const routes = healthRoutes(async () => {
 			loads += 1;
 			return [anikoto];
 		});
+
+		expect(await probe(routes)).toEqual({
+			status: 200,
+			body: {
+				status: "ok",
+			},
+		});
+		expect(loads).toBe(0);
+	});
+
+	test("reads provider health once for probes within a minute", async () => {
+		let loads = 0;
+		const routes = healthRoutes(async () => {
+			loads += 1;
+			return [anikoto];
+		}, signedIn);
 
 		await probe(routes);
 		await probe(routes);
@@ -86,7 +104,7 @@ describe("/health", () => {
 				throw new Error("database is down");
 			}
 			return [anikoto];
-		});
+		}, signedIn);
 
 		expect(await probe(routes)).toEqual({
 			status: 200,
