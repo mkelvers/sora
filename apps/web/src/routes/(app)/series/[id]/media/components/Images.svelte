@@ -12,7 +12,8 @@
 		media: Media;
 	} = $props();
 
-	const shown = $derived(media.apply(await getImages(series.id)));
+	const images = $derived(await getImages(series.id));
+	const shown = $derived(media.apply(images));
 	const current = $derived(series[`${media.type}_url`]?.split("/").at(-1));
 
 	const srcsets = {
