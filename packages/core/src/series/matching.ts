@@ -691,6 +691,26 @@ function pick(
 	return picked;
 }
 
+/**
+ * Whether a show lists regular episodes after the last one an entry's links
+ * reach, in the same season: the entry gained episodes since it was matched,
+ * as when the second of a double premiere reaches TMDB after the first.
+ */
+export function continuesPastLinks(
+	show: Pick<TmdbShow, "episodes">,
+	links: readonly EpisodeLink[],
+) {
+	const last = links.at(-1);
+	return (
+		last !== undefined &&
+		last.seasonNumber > 0 &&
+		show.episodes.some(
+			(episode) =>
+				episode.season_number === last.seasonNumber && episode.episode_number > last.episodeNumber,
+		)
+	);
+}
+
 /** The index right after `ref` in `track`, or `null` when `ref` is not on it. */
 function indexAfter(track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) {
 	const index = indexOfRef(track, ref);

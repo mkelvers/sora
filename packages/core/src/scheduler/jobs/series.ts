@@ -12,13 +12,15 @@ import {
 	providerEpisodes,
 	series,
 	seriesEpisode,
+	tmdbMapping,
 	tmdbResponse,
 } from "../../database/schema";
 import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";
 import { episodeReleasedAt } from "../../series/episodes";
-import { expireMapping } from "../../series/mapping";
+import { expireMapping, mappedEpisodes } from "../../series/mapping";
+import { continuesPastLinks } from "../../series/matching";
 import { storedSeriesIds, storeSeries } from "../../series/store";
 import { day, hour, minute } from "../../time";
 import {
@@ -329,7 +331,9 @@ const longestListingWaitMs = 30 * day;
  *   for an episode that just aired, and monthly for the many specials and
  *   recaps TMDB has not listed in years and mostly never will. Listing it
  *   changes the layout, so the series is queued to be laid out again once
- *   TMDB lists episodes it did not list before; some never line up with
+ *   TMDB lists episodes it did not list before, or lists episodes past
+ *   those its stored match links (see `continuesPastLinks`), which expires
+ *   the match; some never line up with
  *   TMDB's numbering, and laying them out again changed nothing.
  * - one that aired lately and still has no title other than TMDB's
  *   "Episode N", no overview, or no still. {@link refreshEpisodeDetails}
@@ -476,8 +480,28 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			updated += await copyEpisodeDetails(row.series_id, show.episodes);
 		}
 
+		// A series is matched to TMDB's episodes once a day at most, so one
+		// matched before TMDB listed its latest episodes keeps linking only
+		// the earlier ones until it is matched anew.
+		const [mapping] = show
+			? await db
+					.select()
+					.from(tmdbMapping)
+					.where(eq(tmdbMapping.anilistId, row.anilist_id))
+					.limit(1)
+			: [];
+		const isMatchStale =
+			row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
+
 		// A show TMDB no longer has needs its series matched anew.
-		if (!show || (row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)))) {
+		if (
+			!show ||
+			isMatchStale ||
+			(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)))
+		) {
+			if (isMatchStale) {
+				await expireMapping(row.anilist_id);
+			}
 			await scheduleStoredSeriesRefresh(row.anilist_id);
 			queued += 1;
 		}

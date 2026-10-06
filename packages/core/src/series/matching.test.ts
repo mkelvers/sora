@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { TmdbEpisode, TmdbMovieResult } from "../tmdb/resources";
 import {
+	continuesPastLinks,
 	placeAfterInCollection,
 	placeAsMovie,
 	placeInShow,
@@ -931,5 +932,49 @@ describe("titleSimilarity", () => {
 
 	test("scores unrelated titles low", () => {
 		expect(titleSimilarity("Attack on Titan", "Mushoku Tensei")).toBeLessThan(0.2);
+	});
+});
+
+describe("continuesPastLinks", () => {
+	const show = {
+		episodes: weekly(1, "2026-10-03", 13),
+	};
+
+	test("sees the second episode of a double premiere TMDB listed after the match", () => {
+		expect(
+			continuesPastLinks(show, [
+				{
+					anilistEpisode: 1,
+					seasonNumber: 1,
+					episodeNumber: 1,
+				},
+			]),
+		).toBe(true);
+	});
+
+	test("finds nothing once the links reach the show's last episode", () => {
+		expect(
+			continuesPastLinks(
+				{
+					episodes: weekly(1, "2026-10-03", 2),
+				},
+				[
+					{
+						anilistEpisode: 1,
+						seasonNumber: 1,
+						episodeNumber: 1,
+					},
+					{
+						anilistEpisode: 2,
+						seasonNumber: 1,
+						episodeNumber: 2,
+					},
+				],
+			),
+		).toBe(false);
+	});
+
+	test("finds nothing for an entry without links", () => {
+		expect(continuesPastLinks(show, [])).toBe(false);
 	});
 });
