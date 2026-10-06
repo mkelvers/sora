@@ -1,12 +1,12 @@
 import { attempt } from "@sora/shared";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { fetchLatestAiring, getAnime, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { providerMapping } from "../../database/schema";
+import { animeScheduleRelease, animeScheduleShow, providerMapping } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import { aniKoto, streamProviders } from "../../playback/providers/registry";
@@ -18,7 +18,7 @@ import {
 	scheduleStoredSeriesRefresh,
 	trackAiringTask,
 } from "../queue";
-import { planNextCheck, type AiringState } from "./airing-plan";
+import { extendThroughReleased, planNextCheck, type AiringState } from "./airing-plan";
 
 const TrackAiringPayloadSchema = z.object({
 	anilistId: z.number().int().positive(),
@@ -178,7 +178,10 @@ async function refreshProviderEpisodes(anime: Anime, logger: Parameters<Task>[1]
  *
  * Its airing schedule decides when it records the episode: an entry whose
  * broadcast AniList moved can have no next episode announced while the one
- * it moved has not reached providers yet.
+ * it moved has not reached providers yet. AnimeSchedule's timetable adds
+ * the episodes that came out with it, such as a double-episode premiere,
+ * which AniList records as the last one only, or half an hour or a week
+ * apart; see {@link extendThroughReleased}.
  */
 async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAiredEpisode"]> {
 	const fromNext =
@@ -187,7 +190,29 @@ async function latestAiredEpisode(anime: Anime): Promise<AiringState["latestAire
 	const latestAiring = await fetchLatestAiring(anime.id);
 	const scheduled = latestAiring?.episode ?? null;
 	const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
-	return known.length > 0 ? Math.max(...known) : null;
+	if (known.length === 0) {
+		return null;
+	}
+
+	const latest = Math.max(...known);
+	const released = await db
+		.selectDistinct({
+			episode: animeScheduleRelease.episode,
+		})
+		.from(animeScheduleRelease)
+		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
+		.where(
+			and(
+				eq(animeScheduleShow.anilistId, anime.id),
+				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
+				gt(animeScheduleRelease.episode, latest),
+				lte(animeScheduleRelease.airsAt, new Date()),
+			),
+		);
+	return extendThroughReleased(
+		latest,
+		released.map((release) => release.episode),
+	);
 }
 
 /** The graphile-worker task that restarts tracking for airing anime that lost their check. */

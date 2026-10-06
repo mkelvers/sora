@@ -156,3 +156,24 @@ function japanDay(date: string | null) {
 		end: new Date(start + day),
 	};
 }
+
+/**
+ * Extends the latest aired episode AniList knows through the episodes
+ * AnimeSchedule's timetable lists as released after it, such as the second
+ * of a double-episode premiere.
+ *
+ * Only an unbroken run counts: the timetable numbers some long-running
+ * shows differently from AniList (episode 555 where AniList and AniKoto
+ * say 260 or 360), and a number far ahead would be waited on forever.
+ *
+ * @param latest - The latest aired episode AniList knows.
+ * @param released - The episodes the timetable lists as released.
+ */
+export function extendThroughReleased(latest: number, released: readonly number[]) {
+	const episodes = new Set(released);
+	let through = latest;
+	while (episodes.has(through + 1)) {
+		through += 1;
+	}
+	return through;
+}

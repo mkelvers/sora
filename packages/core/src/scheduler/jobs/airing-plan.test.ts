@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import { hour, minute } from "../../time";
-import { maximumReleaseAttempts, planNextCheck, type AiringState } from "./airing-plan";
+import {
+	extendThroughReleased,
+	maximumReleaseAttempts,
+	planNextCheck,
+	type AiringState,
+} from "./airing-plan";
 
 const now = new Date("2026-09-23T12:00:00Z");
 
@@ -219,6 +224,53 @@ describe("planNextCheck", () => {
 
 		expect(plan).toMatchObject({
 			runAt: new Date(now.getTime() + 20 * minute),
+		});
+	});
+});
+
+describe("extendThroughReleased", () => {
+	test("includes the second episode of a double premiere AniList lists later", () => {
+		expect(extendThroughReleased(1, [2])).toBe(2);
+	});
+
+	test("includes every episode released together", () => {
+		expect(extendThroughReleased(1, [4, 2, 3])).toBe(4);
+	});
+
+	test("keeps AniList's episode when the timetable lists nothing after it", () => {
+		expect(extendThroughReleased(5, [])).toBe(5);
+	});
+
+	test("ignores a timetable number far ahead of AniList's, which would never arrive", () => {
+		expect(extendThroughReleased(260, [555])).toBe(260);
+	});
+
+	test("stops at the first gap", () => {
+		expect(extendThroughReleased(1, [2, 4])).toBe(2);
+	});
+});
+
+describe("a double-episode premiere", () => {
+	const premiere = new Date("2026-10-03T13:20:00Z");
+
+	test("keeps waiting for the second episode once AniKoto carries the first", () => {
+		const plan = planNextCheck(
+			state({
+				nextAiringAt: new Date("2026-10-03T15:14:00Z"),
+				latestAiredEpisode: extendThroughReleased(1, [2]),
+				latestReleasedEpisode: 1,
+			}),
+			{
+				awaitedEpisode: 2,
+				attempt: 0,
+			},
+			premiere,
+		);
+
+		expect(plan).toMatchObject({
+			awaitedEpisode: 2,
+			attempt: 1,
+			runAt: new Date(premiere.getTime() + 30 * minute),
 		});
 	});
 });
