@@ -2,10 +2,14 @@
  * Creates an account, as signing up is turned off:
  * `bun run auth:create-account <email> <name>`.
  *
- * Asks for the password, so it stays out of the shell history. The password
- * is hashed the way Better Auth hashes it on sign-up, and the account gets
- * its first profile, named after it, from the same hook sign-up runs.
+ * Asks for the password without echoing it, so it stays out of the terminal
+ * and shell history. It is hashed the way Better Auth hashes it on sign-up,
+ * and the account gets its first profile, named after it, from the same hook
+ * sign-up runs.
  */
+import { createInterface } from "node:readline/promises";
+import { Writable } from "node:stream";
+
 import { z } from "zod";
 
 import { closeDatabase } from "../database/client";
@@ -26,6 +30,11 @@ if (!input.success) {
 	process.exit(1);
 }
 
+if (!process.stdin.isTTY || !process.stdout.isTTY) {
+	console.error("Run this command in an interactive terminal to enter a hidden password.");
+	process.exit(1);
+}
+
 const context = await auth.$context;
 
 if (await context.internalAdapter.findUserByEmail(input.data.email)) {
@@ -33,7 +42,41 @@ if (await context.internalAdapter.findUserByEmail(input.data.email)) {
 	process.exit(1);
 }
 
-const password = prompt("Password:")?.trim() ?? "";
+// Readline handles editing, but its output is discarded so typed characters stay hidden.
+const output = new Writable({
+	write(_chunk, _encoding, callback) {
+		callback();
+	},
+});
+const reader = createInterface({
+	input: process.stdin,
+	output,
+	terminal: true,
+});
+const controller = new AbortController();
+reader.once("SIGINT", () => controller.abort());
+reader.once("close", () => controller.abort());
+process.stdout.write("Password: ");
+const password = await reader
+	.question("", {
+		signal: controller.signal,
+	})
+	.catch((error) => {
+		if (!controller.signal.aborted) {
+			throw error;
+		}
+		return null;
+	})
+	.finally(() => {
+		reader.close();
+		output.destroy();
+		process.stdout.write("\n");
+	});
+if (password === null) {
+	console.error("Account creation cancelled.");
+	await closeDatabase();
+	process.exit(1);
+}
 const { minPasswordLength, maxPasswordLength } = context.password.config;
 if (password.length < minPasswordLength || password.length > maxPasswordLength) {
 	console.error(`The password must be ${minPasswordLength}–${maxPasswordLength} characters.`);
