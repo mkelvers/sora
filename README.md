@@ -50,25 +50,64 @@ flowchart LR
 
 ## Getting started
 
-Requires [Bun](https://bun.com) 1.4+, Docker, a [TMDB](https://www.themoviedb.org/settings/api)
-read access token, and an [AnimeSchedule.net](https://animeschedule.net) API key.
+Requires [Bun](https://bun.com) 1.4.2+, Docker with Compose and a running Docker engine,
+a [TMDB](https://www.themoviedb.org/settings/api) API Read Access Token,
+and an [AnimeSchedule.net](https://animeschedule.net) application token.
+Both tokens are required by the current configuration.
 
 ```sh
+git clone https://github.com/mkelvers/sora.git
+cd sora
 bun install
-cp packages/core/.env.example packages/core/.env  # fill in the secrets
+cp packages/core/.env.example packages/core/.env
 cp apps/web/.env.example apps/web/.env
-
-bun run dev  # PostgreSQL, migrations, API on :3000, web on :5173, and the scheduler
 ```
 
-Sign-up is off. Create your account from the terminal, which prompts for the password:
+Edit `packages/core/.env` before starting:
+
+- Leave `DATABASE_URL` as provided for the included local database.
+- Run `openssl rand -base64 48` three times. Use a different result for each of
+  `STREAM_SIGNING_SECRET`, `WEB_CLIENT_KEY`, and `AUTH_SECRET`.
+- Fill in `TMDB_READ_ACCESS_TOKEN` with TMDB's **API Read Access Token**, not its API key.
+- Fill in `ANIME_SCHEDULE_API_KEY` with your AnimeSchedule application token.
+
+In `apps/web/.env`, copy the same `WEB_CLIENT_KEY` from `packages/core/.env`.
+Leave `SORA_API_URL` as provided for local development. Each example includes comments about
+where to get values and which settings are optional. Credentials belong in the ignored `.env`
+files; the examples contain local defaults and blank secret fields.
+
+The API and scheduler load `packages/core/.env` directly, so they need no separate env files.
 
 ```sh
-cd packages/core
+bun run dev
+```
+
+This starts PostgreSQL, applies migrations, and runs the API on :3000, the web app on :5173,
+and the scheduler. Keep it running and open a second terminal to create an account.
+
+Sign-up is off. The account command requires an interactive terminal and hides the password
+while you type. Enter at least eight characters and press Enter, or press Ctrl+C to cancel:
+
+```sh
+cd sora/packages/core # from the directory where you cloned Sora
 bun run auth:create-account you@example.com "Your name"
 ```
 
 Then sign in at <http://localhost:5173>.
+
+The database starts empty. The scheduler fills the catalogue in the background; a running
+web app does not mean the initial catalogue sync has finished.
+
+If setup fails:
+
+- Check `docker info` if Docker cannot connect to its engine.
+- PostgreSQL uses port 5432. If it is occupied, change the host port in `compose.yaml` and
+  the port in `DATABASE_URL` together. Use a separate Compose project name if another Sora
+  checkout is already running, so the two checkouts do not share a database.
+- For a different API port, set `PORT` and `AUTH_URL` in `packages/core/.env`, then update
+  `SORA_API_URL` in `apps/web/.env` to match.
+- A startup validation error naming an env key means its value is missing or invalid.
+  Check the comments in the corresponding `.env.example`.
 
 ## Testing
 

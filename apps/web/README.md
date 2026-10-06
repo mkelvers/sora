@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/logo.png" alt="Sora" height="140" />
+  <img src="../../.github/assets/logo.png" alt="Sora" height="140" />
 </p>
 
 <h1 align="center">Sora Web</h1>
@@ -27,6 +27,9 @@ type-checking before it ships.
 
 The web app lives in the Sora monorepo as `apps/web` and takes the SDK from its
 Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
+
+Copy `.env.example` to `.env` in this directory. The local API URL is already filled in;
+copy `WEB_CLIENT_KEY` from `packages/core/.env` so playback requests use the same key.
 
 `bun run dev` from the repository root starts it together with the API.
 
