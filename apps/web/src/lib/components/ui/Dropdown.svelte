@@ -49,14 +49,30 @@
 
 	const popover = new Popover({
 		focus: {
-			onOpen: (): string => `#${popover.ids.popover} [aria-checked="true"]`,
+			onOpen: null,
 			onClose: null,
+		},
+		onOpenChange: (open) => {
+			if (!open) {
+				return;
+			}
+
+			setTimeout(() =>
+				document
+					.querySelector<HTMLElement>(`#${popover.ids.popover} [aria-checked="true"]`)
+					?.focus({
+						preventScroll: true,
+					}),
+			);
 		},
 		floatingConfig: () => ({
 			computePosition: {
 				placement: alignment === "left" ? "bottom-start" : "bottom-end",
 			},
 			offset: 0,
+			flip: {
+				mainAxis: false,
+			},
 		}),
 	});
 </script>

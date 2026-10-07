@@ -72,11 +72,15 @@
 			}
 		},
 		sameWidth: false,
+		scrollAlignment: "nearest",
 		floatingConfig: {
 			computePosition: {
 				placement: "bottom-start",
 			},
 			offset: 0,
+			flip: {
+				mainAxis: false,
+			},
 		},
 	});
 
@@ -101,6 +105,13 @@
 <div
 	{...select.content}
 	aria-label={label}
+	{@attach (node) => {
+		node.focus = (options) =>
+			HTMLElement.prototype.focus.call(node, {
+				...options,
+				preventScroll: true,
+			});
+	}}
 	class={content({
 		variant,
 	})}
