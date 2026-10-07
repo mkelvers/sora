@@ -36,7 +36,7 @@
 			<button
 				{...tabs.getTrigger(item.value)}
 				type="button"
-				class="inline-flex h-12 cursor-pointer items-center border-b-2 border-transparent px-5 text-sm font-bold tracking-wide text-muted uppercase transition-colors outline-none hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground"
+				class="inline-flex h-12 cursor-pointer items-center border-b-2 border-transparent px-5 text-sm font-medium tracking-wide text-muted uppercase transition-colors outline-none hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground"
 			>
 				{item.label}
 			</button>
