@@ -30,6 +30,13 @@
 					true: "before:size-3.5 before:animate-spin before:border-2 before:border-current before:border-t-transparent disabled:opacity-100",
 				},
 			},
+			compoundVariants: [
+				{
+					variant: "item",
+					tone: "danger",
+					class: "text-status-error hover:text-status-error focus-visible:text-status-error",
+				},
+			],
 		},
 	);
 </script>
