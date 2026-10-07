@@ -54,7 +54,9 @@
 				{#snippet children(current)}
 					{@const empty = statuses.find((option) => option.value === current)?.empty}
 					{#if empty && watchlist.current && shown.length === 0}
-						<EmptyState mascot={mascots.emptySearch} title={empty.title} hint={empty.hint} />
+						<div class="pt-6 pb-10">
+							<EmptyState mascot={mascots.emptySearch} title={empty.title} hint={empty.hint} />
+						</div>
 					{:else}
 						<ul
 							class="grid grid-cols-2 items-start gap-x-3 gap-y-8 pt-6 pb-10 **:data-listed:hidden sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
