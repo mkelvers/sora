@@ -6,3 +6,4 @@
  * @packageDocumentation
  */
 export * from "./openapi/routes";
+export { ProblemSchema } from "./openapi/schemas";

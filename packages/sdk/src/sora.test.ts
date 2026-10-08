@@ -141,6 +141,71 @@ describe("SoraClient.request", () => {
 		expect(error?.code).toBe("SERIES_NOT_FOUND");
 	});
 
+	test("keeps malformed failure bodies as HTTP errors", async () => {
+		for (const body of [
+			null,
+			[],
+			"Bad gateway",
+			{ detail: 502 },
+			{ code: 502 },
+			{
+				message: { text: "Bad gateway" },
+			},
+			{ errors: "Bad gateway" },
+			{
+				errors: [{ path: "email" }],
+			},
+		]) {
+			const { sora } = clientAnswering(() =>
+				Response.json(body, { status: 502, statusText: "Bad Gateway" }),
+			);
+			const { error } = await attempt(sora.request(route.listGenres), SoraError);
+
+			expect(error?.status).toBe(502);
+			expect(error?.code).toBe("HTTP_ERROR");
+			expect(error?.message).toBe("The API answered 502 Bad Gateway");
+			expect(error?.errors).toEqual([]);
+		}
+	});
+
+	test("keeps Better Auth's error message and code", async () => {
+		const { sora } = clientAnswering(() =>
+			Response.json(
+				{
+					code: "INVALID_EMAIL_OR_PASSWORD",
+					message: "Invalid email or password",
+				},
+				{ status: 401 },
+			),
+		);
+		const { error } = await attempt(
+			sora.signIn({ email: "viewer@example.com", password: "wrong-password" }),
+			SoraError,
+		);
+
+		expect(error?.code).toBe("INVALID_EMAIL_OR_PASSWORD");
+		expect(error?.message).toBe("Invalid email or password");
+	});
+
+	test("keeps validation errors and the retry delay from a problem response", async () => {
+		const errors = [{ path: "email", message: "Invalid email" }];
+		const { sora } = clientAnswering(() =>
+			Response.json(
+				{ code: "INVALID_INPUT", detail: "Check the fields", errors },
+				{
+					status: 429,
+					headers: { "Retry-After": "30" },
+				},
+			),
+		);
+		const { error } = await attempt(sora.request(route.listGenres), SoraError);
+
+		expect(error?.code).toBe("INVALID_INPUT");
+		expect(error?.message).toBe("Check the fields");
+		expect(error?.errors).toEqual(errors);
+		expect(error?.retryAfterSeconds).toBe(30);
+	});
+
 	test("throws when a response does not match the contract", async () => {
 		const { sora } = clientAnswering(() =>
 			Response.json({

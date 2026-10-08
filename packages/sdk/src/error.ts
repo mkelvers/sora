@@ -1,13 +1,21 @@
+import { z } from "@hono/zod-openapi";
 import type { Problem } from "@sora/api";
+import { ProblemSchema } from "@sora/api/contract";
 import { attempt } from "@sora/shared";
 
 /**
  * What a failed response may carry: the API's problem, or Better Auth's
  * `{ message, code }` from the `/v1/auth` endpoints.
  */
-type FailureBody = Partial<Problem> & {
-	message?: string;
-};
+const FailureBodySchema = ProblemSchema.pick({
+	detail: true,
+	code: true,
+	errors: true,
+})
+	.partial()
+	.extend({
+		message: z.string().optional(),
+	});
 
 /**
  * A request the API answered with an error.
@@ -50,9 +58,10 @@ export class SoraError extends Error {
 		headers: Headers;
 		json(): Promise<unknown>;
 	}): Promise<SoraError> {
-		// A body that is not JSON came from in front of the API, such as a proxy.
+		// A proxy can return HTML or unrelated JSON; only use fields we recognize.
 		const body = await attempt(response.json());
-		const problem = body.error ? null : (body.data as FailureBody);
+		const parsed = FailureBodySchema.safeParse(body.data);
+		const problem = parsed.success ? parsed.data : null;
 		const retryAfterHeader = response.headers.get("Retry-After");
 		const retryAfterSeconds = Number(retryAfterHeader);
 		const retryAfterDate = retryAfterHeader ? new Date(retryAfterHeader) : null;

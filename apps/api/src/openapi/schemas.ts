@@ -9,7 +9,7 @@ import { z } from "@hono/zod-openapi";
  * An RFC 9457 problem details body, which every error response carries as
  * `application/problem+json`.
  */
-const ProblemSchema = z
+export const ProblemSchema = z
 	.object({
 		type: z.string().openapi({
 			example: "about:blank",
