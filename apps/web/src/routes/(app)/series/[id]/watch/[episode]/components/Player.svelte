@@ -19,7 +19,7 @@
 		Series,
 	} from "@sora/sdk";
 	import { attempt } from "@sora/shared";
-	import { ArrowLeftIcon } from "phosphor-svelte";
+	import { ArrowLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./Controls.svelte";
@@ -214,8 +214,6 @@
 	class={[
 		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white *:[grid-area:1/1]",
 		player.idle && !player.paused && "idle cursor-none",
-		loading &&
-			"after:pointer-events-none after:size-12 after:animate-spin after:place-self-center after:border-3 after:border-white/20 after:border-t-white after:[grid-area:1/1]",
 	]}
 	aria-busy={loading}
 	bind:this={player.root}
@@ -261,6 +259,15 @@
 			/>
 		{/each}
 	</video>
+
+	{#if loading}
+		<CircleNotchIcon
+			size="3rem"
+			weight="bold"
+			class="pointer-events-none z-1 animate-spin place-self-center text-accent motion-reduce:animate-none"
+			aria-hidden="true"
+		/>
+	{/if}
 
 	<div
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
