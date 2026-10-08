@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { FormatSchema, StatusSchema } from "../../models/series";
+
 /** Browse filters accepted from clients. Validate untrusted input with this schema. */
 export const BrowseQuerySchema = z.object({
 	/** Free-text search. When present, results are ordered by relevance unless `sort` is set. */
@@ -7,8 +9,8 @@ export const BrowseQuerySchema = z.object({
 	sort: z.enum(["trending", "popular", "score", "newest", "title"]).optional(),
 	season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]).optional(),
 	seasonYear: z.number().int().min(1940).max(2100).optional(),
-	format: z.array(z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"])).optional(),
-	status: z.enum(["RELEASING", "FINISHED", "NOT_YET_RELEASED", "CANCELLED", "HIATUS"]).optional(),
+	format: z.array(FormatSchema).optional(),
+	status: StatusSchema.optional(),
 	genres: z.array(z.string().min(1)).max(10).optional(),
 	/**
 	 * Only titles that can be watched with this audio. Applied to the titles

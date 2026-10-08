@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SeriesCardSchema } from "./series";
+import { LanguageSchema, SeriesCardSchema } from "./series";
 
 export const SubtitleChoiceSchema = z
 	.object({
@@ -31,7 +31,7 @@ export const SubtitlePreferencesSchema = z
 
 export const PlaybackPreferencesSchema = z
 	.object({
-		audio: z.enum(["sub", "dub", "raw"]).nullable().meta({
+		audio: LanguageSchema.nullable().meta({
 			description: "The version to play when an episode has it; `null` for the first it has.",
 		}),
 		subtitles: SubtitlePreferencesSchema,
@@ -185,7 +185,7 @@ export const NotificationSchema = z
 
 export const PlaybackPreferencesUpdateSchema = z
 	.object({
-		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
+		audio: LanguageSchema.nullable().optional(),
 		subtitles: SubtitlePreferencesSchema.optional().meta({
 			description: "Changes the subtitles of the audio given, leaving the other's as they are.",
 		}),

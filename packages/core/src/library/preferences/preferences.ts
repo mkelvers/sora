@@ -1,5 +1,4 @@
 import { eq, sql } from "drizzle-orm";
-import { z } from "zod";
 
 import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema";
@@ -10,6 +9,7 @@ import {
 	type PlaybackPreferences,
 	type PlaybackPreferencesUpdate,
 } from "../../models/library";
+import { LanguageSchema } from "../../models/series";
 
 const defaults: PlaybackPreferences = {
 	audio: null,
@@ -75,7 +75,7 @@ export async function updatePlaybackPreferences(
 }
 
 function toPreferences(row: typeof playbackPreference.$inferSelect): PlaybackPreferences {
-	const audio = z.enum(["sub", "dub", "raw"]).safeParse(row.audio);
+	const audio = LanguageSchema.safeParse(row.audio);
 	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
 
 	return {

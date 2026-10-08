@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
 import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema";
+import { LanguageSchema } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { aniKoto } from "../providers/registry";
 import { getProviderMedia } from "./mapping";
@@ -23,7 +24,7 @@ const ProviderUnitsSchema = z.array(
 		id: z.string(),
 		number: z.number(),
 		title: z.string(),
-		languages: z.array(z.enum(["sub", "dub", "raw"])).nullable(),
+		languages: z.array(LanguageSchema).nullable(),
 		isFiller: z.boolean().nullable(),
 	}),
 );
