@@ -4,10 +4,10 @@
 	import tmdbLogo from "$lib/assets/tmdb.svg";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Field from "$lib/components/ui/Field.svelte";
 	import { untrack } from "svelte";
 
 	import type { PageProps } from "./$types";
-	import AuthInput from "./components/AuthInput.svelte";
 
 	let { form }: PageProps = $props();
 
@@ -48,32 +48,28 @@
 >
 	<header class="flex flex-col items-center text-center">
 		<img src={logo} alt="Sora logo" class="size-16" />
-		<h1 id="sign-in" class="mt-6 text-3xl font-bold sm:text-4xl">Welcome back</h1>
-		<p class="mt-3 text-muted">Sign in to pick up where you left off.</p>
+		<h1 id="sign-in" class="mt-6 text-3xl font-bold">Welcome back</h1>
+		<p class="mt-4 text-sm text-muted">Sign in to pick up where you left off.</p>
 	</header>
 
 	<div class="mt-12 space-y-6">
-		<AuthInput
+		<Field
 			name="email"
 			label="E-mail"
 			type="email"
 			autocomplete="email"
 			autocapitalize="none"
 			spellcheck={false}
-			constraints={{
-				required: true,
-			}}
+			required
 			error={form?.errors?.email}
 			bind:value={email}
 		/>
-		<AuthInput
+		<Field
 			name="password"
 			label="Password"
 			type="password"
 			autocomplete="current-password"
-			constraints={{
-				required: true,
-			}}
+			required
 			error={form?.errors?.password}
 			bind:value={password}
 		/>
