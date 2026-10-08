@@ -9,24 +9,6 @@ const filters = {
 	page: z.number().int().positive().max(500),
 };
 
-const day = 24 * 60 * 60 * 1000;
-
-const relativeTime = new Intl.RelativeTimeFormat("en", {
-	numeric: "always",
-});
-
-const formats = {
-	TV: ["TV", "TV_SHORT", "ONA"],
-	MOVIE: ["MOVIE"],
-} as const;
-
-export type CatalogItem = {
-	key: string;
-	card: SeriesCard;
-	meta?: string;
-	group?: string;
-};
-
 const request = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("new"),
@@ -53,71 +35,71 @@ type WithoutPage<TRequest> = TRequest extends unknown ? Omit<TRequest, "page"> :
 
 export type CatalogRequest = WithoutPage<z.input<typeof request>>;
 
+export type CatalogItem = {
+	card: SeriesCard;
+	meta?: string;
+	group?: string;
+};
+
+const formats = {
+	TV: ["TV", "TV_SHORT", "ONA"],
+	MOVIE: ["MOVIE"],
+} as const;
+
 export const getGenres = query(async () => remoteViewer().sora.request(route.listGenres));
 
 export const getCatalogPage = query(request, async (input) => {
 	const { sora } = remoteViewer();
-	const now = Date.now();
+	const paging = {
+		page: input.page,
+		per_page: 36,
+	};
 
-	const found =
-		input.kind === "new"
-			? await sora.requestWithMeta(route.listReleases, {
-					query: {
+	if (input.kind === "new") {
+		const { results, meta } = await sora.requestWithMeta(route.listReleases, {
+			query: {
+				audio: input.audio,
+				format: input.format && [...formats[input.format]],
+				...paging,
+			},
+		});
+
+		return {
+			items: results.map((release): CatalogItem => ({
+				card: release.series,
+				meta: release.released_ago,
+				group: release.period,
+			})),
+			hasNextPage: meta.has_next_page,
+			preparing: meta.preparing,
+		};
+	}
+
+	const { results, meta } = await sora.requestWithMeta(route.browseSeries, {
+		query:
+			input.kind === "simulcast"
+				? {
+						sort: "popular",
+						season: input.season,
+						season_year: input.year,
+						format: [...formats.TV],
+						...paging,
+					}
+				: {
+						sort: "popular",
+						genres: input.kind === "genre" ? [input.genre] : undefined,
 						audio: input.audio,
 						format: input.format && [...formats[input.format]],
-						page: input.page,
-						per_page: 36,
+						...paging,
 					},
-				})
-			: await sora.requestWithMeta(route.browseSeries, {
-					query:
-						input.kind === "popular" || input.kind === "genre"
-							? {
-									sort: "popular",
-									genres: input.kind === "genre" ? [input.genre] : undefined,
-									audio: input.audio,
-									format: input.format && [...formats[input.format]],
-									page: input.page,
-									per_page: 36,
-								}
-							: {
-									sort: "popular",
-									season: input.season,
-									season_year: input.year,
-									format: [...formats.TV],
-									page: input.page,
-									per_page: 36,
-								},
-				});
-
-	const items: CatalogItem[] = found.results.map((result) => {
-		if (!("series" in result)) {
-			return {
-				key: result.id,
-				card: result,
-				group: input.kind === "popular" ? "Popular" : undefined,
-			};
-		}
-
-		const age = Math.max(0, now - Date.parse(result.released_at));
-		const minutes = Math.floor(age / 60_000);
-		const hours = Math.floor(minutes / 60);
-		return {
-			key: result.series.id,
-			card: result.series,
-			meta:
-				minutes < 60
-					? relativeTime.format(-Math.max(1, minutes), "minute")
-					: hours < 24
-						? relativeTime.format(-hours, "hour")
-						: relativeTime.format(-Math.floor(hours / 24), "day"),
-			group: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
-		};
 	});
 
 	return {
-		items,
-		hasNextPage: found.meta.has_next_page,
-		preparing: found.meta.preparing,
+		items: results.map((card): CatalogItem => ({
+			card,
+			group: input.kind === "popular" ? "Popular" : undefined,
+		})),
+		hasNextPage: meta.has_next_page,
+		preparing: meta.preparing,
 	};
 });

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import { mascots } from "$lib/mascots";
+	import { onVisible } from "$lib/utils";
 	import { getCatalogPage, type CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
 	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { CircleNotchIcon } from "phosphor-svelte";
@@ -25,44 +26,35 @@
 
 	let count = $state(1);
 
-	const pages = $derived(
-		await Promise.all(
-			Array.from(
-				{
-					length: count,
-				},
-				(_, index) =>
-					getCatalogPage({
-						...request,
-						page: index + 1,
-					}),
-			),
+	const queries = $derived(
+		Array.from(
+			{
+				length: count,
+			},
+			(_, index) =>
+				getCatalogPage({
+					...request,
+					page: index + 1,
+				}),
 		),
 	);
+	const pages = $derived(await Promise.all(queries));
 	const items = $derived.by(() => {
 		const seen = new Set<string>();
 		return pages
 			.flatMap((page) => page.items)
-			.filter((item) => !seen.has(item.key) && !!seen.add(item.key));
+			.filter((item) => !seen.has(item.card.id) && !!seen.add(item.card.id));
 	});
 	const hasNextPage = $derived(pages.at(-1)?.hasNextPage ?? false);
 	const sections = $derived([...Map.groupBy(items, (item) => item.group)]);
 
 	$effect(() => {
-		const waiting = pages.flatMap((page, index) => (page.preparing ? [index + 1] : []));
-		if (waiting.length === 0) {
+		const waiting = queries.filter((_, index) => pages[index]?.preparing);
+		if (!waiting.length) {
 			return;
 		}
 
-		const timer = setTimeout(() => {
-			for (const page of waiting) {
-				getCatalogPage({
-					...request,
-					page,
-				}).refresh();
-			}
-		}, 1000);
-
+		const timer = setTimeout(() => waiting.forEach((query) => query.refresh()), 1000);
 		return () => clearTimeout(timer);
 	});
 </script>
@@ -85,7 +77,7 @@
 				<ul
 					class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
 				>
-					{#each entries as item (item.key)}
+					{#each entries as item (item.card.id)}
 						<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">
 							<Poster card={item.card} meta={item.meta} />
 						</li>
@@ -107,36 +99,29 @@
 		{/if}
 
 		{#if hasNextPage}
-			<div
-				class="flex min-h-24 items-center justify-center"
-				aria-live="polite"
-				{@attach (node) => {
-					const loaded = pages.length;
-					const observer = new IntersectionObserver(
-						(entries) => {
-							if (entries.some((entry) => entry.isIntersecting) && loaded === count) {
-								count += 1;
-							}
-						},
-						{ rootMargin: "600px 0px" },
-					);
-
-					observer.observe(node);
-					return () => observer.disconnect();
-				}}
-			>
-				{#if pages.length < count}
-					<CircleNotchIcon
-						size="2rem"
-						weight="bold"
-						class="animate-spin text-accent motion-reduce:animate-none"
-						role="status"
-						aria-label="Loading more anime"
-					/>
-				{:else}
-					<span class="sr-only">More anime load automatically while scrolling.</span>
-				{/if}
-			</div>
+			{#key pages.length}
+				<div
+					class="flex min-h-24 items-center justify-center"
+					aria-live="polite"
+					{@attach onVisible(() => {
+						if (pages.length === count) {
+							count += 1;
+						}
+					}, "600px 0px")}
+				>
+					{#if pages.length < count}
+						<CircleNotchIcon
+							size="2rem"
+							weight="bold"
+							class="animate-spin text-accent motion-reduce:animate-none"
+							role="status"
+							aria-label="Loading more anime"
+						/>
+					{:else}
+						<span class="sr-only">More anime load automatically while scrolling.</span>
+					{/if}
+				</div>
+			{/key}
 		{/if}
 	</section>
 </div>

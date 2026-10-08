@@ -10,7 +10,6 @@
 
 	let { data }: PageProps = $props();
 
-	// Whether the "Seasons" sheet is open.
 	let seasons = $state(false);
 
 	const selected = $derived(

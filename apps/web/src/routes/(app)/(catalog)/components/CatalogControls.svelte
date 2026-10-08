@@ -3,7 +3,11 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { cn } from "$lib/utils";
-	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
+	import {
+		filterGroups,
+		filters,
+		type CatalogFilters,
+	} from "$routes/(app)/(catalog)/catalog.svelte";
 	import { CircleIcon, FunnelIcon, ListBulletsIcon, RadioButtonIcon } from "phosphor-svelte";
 
 	let {
@@ -23,63 +27,29 @@
 		},
 	] as const;
 
-	const groups = [
-		{
-			id: "audio",
-			label: "Language",
-			options: [
-				{
-					label: "All",
-					value: undefined,
-				},
-				{
-					label: "Subtitled",
-					value: "sub",
-				},
-				{
-					label: "Dubbed",
-					value: "dub",
-				},
-			],
-		},
-		{
-			id: "format",
-			label: "Media",
-			options: [
-				{
-					label: "All",
-					value: undefined,
-				},
-				{
-					label: "Series",
-					value: "TV",
-				},
-				{
-					label: "Movies",
-					value: "MOVIE",
-				},
-			],
-		},
-	] as const;
-
-	// Whether the "Sort by" sheet is open.
 	let sorting = $state(false);
-	// Whether the "Filter" sheet is open.
 	let filtering = $state(false);
-	const draft = $state<typeof filters>({});
-
-	$effect(() => {
-		if (filtering) {
-			Object.assign(draft, {
-				audio: filters.audio,
-				format: filters.format,
-			});
-		}
-	});
+	let draft = $state<CatalogFilters>({});
 
 	const current = $derived(sorts.find((sort) => sort.kind === kind));
 	const filtered = $derived(!!filters.audio || !!filters.format);
 </script>
+
+{#snippet radio(
+	role: "menuitemradio" | "radio",
+	checked: boolean,
+	label: string,
+	onclick: () => void,
+)}
+	<Button {role} aria-checked={checked} {onclick} variant="item" class="gap-2.5">
+		{#if checked}
+			<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
+		{:else}
+			<CircleIcon size="1.25rem" />
+		{/if}
+		{label}
+	</Button>
+{/snippet}
 
 <div class="flex items-center gap-1 max-sm:hidden">
 	{#if current}
@@ -114,30 +84,21 @@
 
 		{#snippet children()}
 			<div role="menu" aria-label="Filter anime">
-				{#each groups as group (group.id)}
+				{#each filterGroups as group (group.id)}
 					<div role="group" aria-labelledby="filter-{group.id}">
 						<p id="filter-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
 							{group.label}
 						</p>
 						{#each group.options as option (option.label)}
-							{@const checked = filters[group.id] === option.value}
-							<Button
-								role="menuitemradio"
-								aria-checked={checked}
-								onclick={() =>
+							{@render radio(
+								"menuitemradio",
+								filters[group.id] === option.value,
+								option.label,
+								() =>
 									Object.assign(filters, {
 										[group.id]: option.value,
-									})}
-								variant="item"
-								class="gap-2.5"
-							>
-								{#if checked}
-									<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
-								{:else}
-									<CircleIcon size="1.25rem" />
-								{/if}
-								{option.label}
-							</Button>
+									}),
+							)}
 						{/each}
 					</div>
 				{/each}
@@ -163,7 +124,12 @@
 		aria-label="Filter anime"
 		aria-haspopup="dialog"
 		aria-controls="filter-list"
-		onclick={() => (filtering = true)}
+		onclick={() => {
+			draft = {
+				...filters,
+			};
+			filtering = true;
+		}}
 	>
 		<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
 	</Button>
@@ -183,30 +149,17 @@
 </Sheet>
 
 <Sheet bind:open={filtering} id="filter-list" title="Filter">
-	{#each groups as group (group.id)}
+	{#each filterGroups as group (group.id)}
 		<div role="radiogroup" aria-labelledby="filter-sheet-{group.id}">
 			<p id="filter-sheet-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
 				{group.label}
 			</p>
 			{#each group.options as option (option.label)}
-				{@const checked = draft[group.id] === option.value}
-				<Button
-					role="radio"
-					aria-checked={checked}
-					onclick={() =>
-						Object.assign(draft, {
-							[group.id]: option.value,
-						})}
-					variant="item"
-					class="gap-2.5"
-				>
-					{#if checked}
-						<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
-					{:else}
-						<CircleIcon size="1.25rem" />
-					{/if}
-					{option.label}
-				</Button>
+				{@render radio("radio", draft[group.id] === option.value, option.label, () =>
+					Object.assign(draft, {
+						[group.id]: option.value,
+					}),
+				)}
 			{/each}
 		</div>
 	{/each}
