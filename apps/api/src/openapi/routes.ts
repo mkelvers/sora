@@ -91,7 +91,7 @@ const BrowseParams = BrowseQuerySchema.omit({
 
 /** {@link BrowseParams} with the search text, which is required. */
 const SearchParams = BrowseParams.extend({
-	q: browse.search.unwrap().openapi({
+	q: browse.search.unwrap().meta({
 		description: "The text to search titles for.",
 		example: "k-on",
 	}),
@@ -439,7 +439,7 @@ export const listSeasons = createRoute({
 			envelopeOf(
 				z.array(AnimeSeasonSchema),
 				CountMetaSchema.extend({
-					current: AnimeSeasonSchema.openapi({
+					current: AnimeSeasonSchema.meta({
 						description: "The season airing now.",
 					}),
 				}),
