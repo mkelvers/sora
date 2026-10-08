@@ -1,4 +1,4 @@
-import { knownProfiles, profileCookie, sessionCookie } from "$lib/server/sora";
+import { knownProfiles } from "$lib/server/sora";
 import { SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { redirect } from "@sveltejs/kit";
@@ -6,15 +6,15 @@ import { redirect } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ locals, cookies }) => {
-	const token = cookies.get(sessionCookie);
+	const token = cookies.get("sora_session");
 	if (token) {
 		knownProfiles.delete(token);
 	}
 
-	cookies.delete(sessionCookie, {
+	cookies.delete("sora_session", {
 		path: "/",
 	});
-	cookies.delete(profileCookie, {
+	cookies.delete("sora_profile", {
 		path: "/",
 	});
 

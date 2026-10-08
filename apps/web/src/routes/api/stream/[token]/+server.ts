@@ -1,32 +1,21 @@
 import { env } from "$env/dynamic/private";
-import { sessionCookie } from "$lib/server/sora";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 
 import type { RequestHandler } from "./$types";
 
-const mediaDestinations = new Set(["video", "audio", "track", "empty"]);
-const passedOn = [
-	"Accept-Ranges",
-	"Cache-Control",
-	"Content-Length",
-	"Content-Range",
-	"Content-Type",
-	"Retry-After",
-];
-
 export const GET: RequestHandler = async ({ params, request, locals, cookies }) => {
-	const session = cookies.get(sessionCookie);
+	const session = cookies.get("sora_session");
 	if (!locals.viewer?.profile || !session) {
 		error(401, "Not signed in");
 	}
 
 	const site = request.headers.get("sec-fetch-site");
 	const destination = request.headers.get("sec-fetch-dest");
-	const byPage =
-		(site === null || site === "same-origin") &&
-		(destination === null || mediaDestinations.has(destination));
-	if (!byPage) {
+	if (
+		(site !== null && site !== "same-origin") ||
+		(destination !== null && !["video", "audio", "track", "empty"].includes(destination))
+	) {
 		error(403, "Not available");
 	}
 
@@ -63,7 +52,14 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 	}
 
 	const forwarded = new Headers();
-	for (const name of passedOn) {
+	for (const name of [
+		"Accept-Ranges",
+		"Cache-Control",
+		"Content-Length",
+		"Content-Range",
+		"Content-Type",
+		"Retry-After",
+	]) {
 		const value = upstream.headers.get(name);
 		if (value !== null) {
 			forwarded.set(name, value);

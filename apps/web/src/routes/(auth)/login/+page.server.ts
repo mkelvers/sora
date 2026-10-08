@@ -1,4 +1,4 @@
-import { profileCookie, sessionCookie, sora } from "$lib/server/sora";
+import { sora } from "$lib/server/sora";
 import { SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { fail, redirect } from "@sveltejs/kit";
@@ -67,10 +67,10 @@ export const actions: Actions = {
 			throw error;
 		}
 
-		cookies.delete(profileCookie, {
+		cookies.delete("sora_profile", {
 			path: "/",
 		});
-		cookies.set(sessionCookie, data.token, {
+		cookies.set("sora_session", data.token, {
 			path: "/",
 			httpOnly: true,
 			sameSite: "lax",
