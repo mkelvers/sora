@@ -11,10 +11,14 @@
 		series,
 		episode,
 		progress,
+		options,
+		onoptions,
 	}: {
 		series: Series;
 		episode: Episode;
 		progress?: Progress;
+		options: boolean;
+		onoptions: () => void;
 	} = $props();
 
 	function duration(minutes: number) {
@@ -138,7 +142,19 @@
 		</div>
 	</svelte:element>
 
-	<div class="absolute -right-2 -bottom-2 z-20">
+	<Button
+		variant="icon"
+		class="absolute -right-2 -bottom-2 z-20 sm:hidden"
+		aria-label="Episode {episode.number} options"
+		aria-haspopup="dialog"
+		aria-controls="episode-options"
+		aria-expanded={options}
+		onclick={onoptions}
+	>
+		<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
+	</Button>
+
+	<div class="absolute -right-2 -bottom-2 z-20 max-sm:hidden">
 		<Dropdown variant="icon" label="Episode options" class="w-48">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
@@ -155,7 +171,7 @@
 								watched: !watched,
 							})}
 					>
-						Mark as {watched ? "unwatched" : "watched"}
+						Mark as {watched ? "Unwatched" : "Watched"}
 					</Button>
 				</div>
 			{/snippet}

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import { getEpisodes } from "$routes/(app)/series/[id]/series.remote";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import { getEpisodes, markEpisode } from "$routes/(app)/series/[id]/series.remote";
 	import type { Progress, Series } from "@sora/sdk";
 
 	import Episode from "./Episode.svelte";
@@ -15,6 +17,20 @@
 
 	const played = $derived(new Map(progress.map((entry) => [entry.episode, entry])));
 	const episodes = $derived(getEpisodes(series.id));
+	let selected = $state<number | null>(null);
+	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
+
+	function mark() {
+		if (selected === null) return;
+		const episode = selected;
+		const finished = watched;
+		selected = null;
+		markEpisode({
+			seriesId: series.id,
+			episode,
+			watched: !finished,
+		});
+	}
 
 	$effect(() => {
 		if (!episodes.current?.some((episode) => episode.audio === null)) {
@@ -32,7 +48,13 @@
 >
 	{#if episodes.current}
 		{#each episodes.current as episode (episode.number)}
-			<Episode {series} {episode} progress={played.get(episode.number)} />
+			<Episode
+				{series}
+				{episode}
+				progress={played.get(episode.number)}
+				options={selected === episode.number}
+				onoptions={() => (selected = episode.number)}
+			/>
 		{/each}
 	{:else}
 		{#each { length: Math.min(series.episode_count, 10) }, index (index)}
@@ -45,3 +67,11 @@
 		{/each}
 	{/if}
 </ol>
+
+<Sheet
+	bind:open={() => selected !== null, (open) => !open && (selected = null)}
+	id="episode-options"
+	title="Options"
+>
+	<Button variant="item" onclick={mark}>Mark as {watched ? "Unwatched" : "Watched"}</Button>
+</Sheet>
