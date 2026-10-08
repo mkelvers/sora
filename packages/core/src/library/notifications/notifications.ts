@@ -46,7 +46,7 @@ export interface ReleasedEpisode {
 }
 
 /** A notification before its series' card is attached. */
-export type NotificationGroup = Omit<Notification, "series"> & {
+export type NotificationGroup = Omit<Notification, "series" | "message"> & {
 	seriesId: string;
 };
 
@@ -370,12 +370,50 @@ export async function getNotifications(
 						{
 							...group,
 							series: card,
+							message: notificationMessage(group, card.format === "MOVIE"),
 						},
 					]
 				: [];
 		}),
 		unread: all.filter((group) => group.unread).length,
 	};
+}
+
+/** A notification's sentence: what came out, for a film or for episodes. */
+function notificationMessage(
+	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
+	movie: boolean,
+) {
+	const count = group.last_episode - group.first_episode + 1;
+	const range = `${group.first_episode} through ${group.last_episode}`;
+
+	if (group.kind === "dub") {
+		if (movie) {
+			return "It is now dubbed in English. Ready whenever you are.";
+		}
+
+		return count === 1
+			? `Episode ${group.last_episode} is now dubbed in English.`
+			: `${count} episodes are now dubbed in English, ${range}.`;
+	}
+
+	if (group.kind === "premiere") {
+		if (movie) {
+			return "It has arrived, ready whenever you are.";
+		}
+
+		return count > 1
+			? `It has started, and ${count} episodes are waiting for you.`
+			: "It has started with its first episode.";
+	}
+
+	if (count > 1) {
+		return `${count} new episodes are out, ${range}. Plenty to dig into.`;
+	}
+
+	return group.episode_title
+		? `Episode ${group.last_episode} is out: “${group.episode_title}”. Settle in and catch up.`
+		: `Episode ${group.last_episode} is out. Settle in and catch up.`;
 }
 
 /**

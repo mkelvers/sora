@@ -14,9 +14,7 @@
 		item,
 		unread,
 	}: {
-		item: Notification & {
-			detail: string;
-		};
+		item: Notification;
 		unread: boolean;
 	} = $props();
 </script>
@@ -53,7 +51,7 @@
 				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
 			</h2>
-			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{item.detail}</p>
+			<p class="mt-2 text-sm text-muted sm:mt-3 sm:text-base">{item.message}</p>
 			<p
 				class="mt-1 inline-flex min-h-11 items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:min-h-0 sm:text-sm"
 				aria-hidden="true"
