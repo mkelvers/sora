@@ -11,6 +11,7 @@ import { db } from "../../database/client";
 import { animeSearch, catalogSync } from "../../database/schema";
 import { UpstreamUnavailableError } from "../../errors";
 import { day, hour, minute } from "../../time";
+import { catalogFormatAllowed } from "../visibility";
 import type { BrowseQuery } from "./browse-query";
 
 /**
@@ -302,8 +303,8 @@ export type SearchCandidate = Pick<
 
 /**
  * Finds the AniList entries that best match a query, best first, applying
- * the browse filters. Adult entries are never returned, and music videos
- * only when `format` asks for them.
+ * the browse filters. Adult entries, short series, and web series are never
+ * returned. Music videos are returned only when `format` asks for them.
  *
  * Candidates come from the index by trigram similarity, which forgives typos
  * and word order; a query too short for trigrams is matched as a word, see
@@ -354,11 +355,14 @@ export async function searchAnime(
 }
 
 /**
- * The index rows the browse filters allow. Adult entries never are, and
- * music videos only when `format` asks for them.
+ * The index rows the browse filters allow. Adult, short, and web entries are
+ * excluded. Music videos are returned only when `format` asks for them.
  */
 function indexConditions(filters: Omit<BrowseQuery, "search" | "page" | "perPage">) {
-	const conditions: SQL[] = [eq(animeSearch.isAdult, false)];
+	const conditions: SQL[] = [
+		eq(animeSearch.isAdult, false),
+		catalogFormatAllowed(animeSearch.format),
+	];
 	if (filters.format) {
 		conditions.push(inArray(animeSearch.format, filters.format));
 	} else {

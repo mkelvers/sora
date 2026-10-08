@@ -189,6 +189,7 @@ export type BrowseAnimeQueryVariables = Exact<{
   season?: MediaSeason | null | undefined;
   seasonYear?: number | null | undefined;
   format?: Array<MediaFormat> | MediaFormat | null | undefined;
+  excludedFormats: Array<MediaFormat> | MediaFormat;
   status?: MediaStatus | null | undefined;
   genres?: Array<string> | string | null | undefined;
 }>;
@@ -632,7 +633,7 @@ export const AnimeCardsDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<AnimeCardsQuery, AnimeCardsQueryVariables>;
 export const BrowseAnimeDocument = new TypedDocumentString(`
-    query BrowseAnime($page: Int!, $perPage: Int!, $search: String, $sort: [MediaSort!]!, $season: MediaSeason, $seasonYear: Int, $format: [MediaFormat!], $status: MediaStatus, $genres: [String!]) {
+    query BrowseAnime($page: Int!, $perPage: Int!, $search: String, $sort: [MediaSort!]!, $season: MediaSeason, $seasonYear: Int, $format: [MediaFormat!], $excludedFormats: [MediaFormat!]!, $status: MediaStatus, $genres: [String!]) {
   Page(page: $page, perPage: $perPage) {
     pageInfo {
       currentPage
@@ -646,6 +647,7 @@ export const BrowseAnimeDocument = new TypedDocumentString(`
       season: $season
       seasonYear: $seasonYear
       format_in: $format
+      format_not_in: $excludedFormats
       status: $status
       genre_in: $genres
     ) {

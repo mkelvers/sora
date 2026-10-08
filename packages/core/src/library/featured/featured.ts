@@ -20,7 +20,7 @@ import {
 } from "./rotation";
 
 /** Formats worth featuring: shows and films, not music videos, specials, or OVAs. */
-const featuredFormats = ["TV", "ONA", "MOVIE"] as const;
+const featuredFormats = ["TV", "MOVIE"] as const;
 
 /** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
 const backfillPerPick = 20;

@@ -2,6 +2,7 @@ import { and, eq, inArray, not, sql } from "drizzle-orm";
 
 import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
+import { catalogFormatAllowed, catalogSeriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch, series } from "../database/schema";
 import type { UpcomingSeries } from "../models/series";
@@ -18,7 +19,7 @@ const upcomingLimit = 12;
 const released: MediaStatus[] = ["FINISHED", "RELEASING"];
 
 /** What a franchise starts with: a show or a film, rather than a special or an OVA. */
-const openingFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
+const openingFormats: MediaFormat[] = ["TV", "MOVIE"];
 
 /**
  * Whether a start date is soon: its day is known, and it falls from today
@@ -65,7 +66,9 @@ export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSerie
 		.from(series)
 		.innerJoin(anime, eq(anime.anilistId, series.anilistId))
 		.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-		.where(and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult)));
+		.where(
+			and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult), catalogSeriesAllowed),
+		);
 
 	const listed = new Map<
 		string,
@@ -131,7 +134,14 @@ async function earliestReleased(anilistId: number) {
 					})
 					.from(series)
 					.leftJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-					.where(and(inArray(series.anilistId, franchise), inArray(series.status, released)))
+					.where(
+						and(
+							inArray(series.anilistId, franchise),
+							inArray(series.status, released),
+							catalogFormatAllowed(animeSearch.format),
+							catalogSeriesAllowed,
+						),
+					)
 			: [];
 	const opening = rows.filter((row) => row.format !== null && openingFormats.includes(row.format));
 	const [earliest] = byStartDate((opening.length > 0 ? opening : rows).map((row) => row.series));

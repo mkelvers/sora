@@ -1,5 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 
+import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import {
 	episodeDub,
@@ -235,7 +236,9 @@ export async function getNotifications(
 		})
 		.from(seriesState)
 		.innerJoin(series, eq(series.id, seriesState.seriesId))
-		.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)));
+		.where(
+			and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
+		);
 	const followed = new Map(
 		states.flatMap((state) =>
 			state.status !== "dropped" && state.addedAt
@@ -254,7 +257,9 @@ export async function getNotifications(
 	const rows = await db
 		.select()
 		.from(series)
-		.where(inArray(series.anilistId, [...followed.keys(), ...offered.keys()]));
+		.where(
+			and(inArray(series.anilistId, [...followed.keys(), ...offered.keys()]), catalogSeriesAllowed),
+		);
 	const seriesIds = rows.map((row) => row.id);
 	const cutoffs = new Map(
 		rows.map((row) => [row.id, followed.get(row.anilistId) ?? offered.get(row.anilistId)!]),

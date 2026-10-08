@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
+import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import { episodeProgress, series, seriesState } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
@@ -400,7 +401,13 @@ export async function getContinueWatching(userId: string): Promise<ContinueWatch
 			rewatch: latest.rewatch,
 		})
 		.from(latest)
-		.where(or(isNull(latest.dismissedAt), lt(latest.dismissedAt, latest.watchedAt)))
+		.innerJoin(series, eq(series.id, latest.seriesId))
+		.where(
+			and(
+				catalogSeriesAllowed,
+				or(isNull(latest.dismissedAt), lt(latest.dismissedAt, latest.watchedAt)),
+			),
+		)
 		.orderBy(desc(latest.watchedAt))
 		.limit(recentSeries);
 

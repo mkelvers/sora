@@ -13,6 +13,7 @@ import { InvalidInputError } from "../../errors";
 import type { AnimeSeason } from "../../models/series";
 import { day, hour, minute } from "../../time";
 import { toAnimeCard, type AnimeCard } from "../models/anime";
+import { catalogFormatAllowed, excludedFormats } from "../visibility";
 import { BrowseQuerySchema, type BrowseQuery } from "./browse-query";
 
 /** One page of results. */
@@ -73,6 +74,7 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
 			season: input.season,
 			seasonYear: input.seasonYear,
 			format: input.format,
+			excludedFormats: [...excludedFormats],
 			status: input.status,
 			genres: input.genres,
 		},
@@ -149,6 +151,7 @@ export async function listSeasons(now = new Date()): Promise<AnimeSeason[]> {
 		.where(
 			and(
 				eq(animeSearch.isAdult, false),
+				catalogFormatAllowed(animeSearch.format),
 				isNotNull(animeSearch.season),
 				isNotNull(animeSearch.seasonYear),
 				lte(animeSearch.seasonYear, next.year),

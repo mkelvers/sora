@@ -6,6 +6,7 @@ query BrowseAnime(
 	$season: MediaSeason
 	$seasonYear: Int
 	$format: [MediaFormat!]
+	$excludedFormats: [MediaFormat!]!
 	$status: MediaStatus
 	$genres: [String!]
 ) {
@@ -22,6 +23,7 @@ query BrowseAnime(
 			season: $season
 			seasonYear: $seasonYear
 			format_in: $format
+			format_not_in: $excludedFormats
 			status: $status
 			genre_in: $genres
 		) {
