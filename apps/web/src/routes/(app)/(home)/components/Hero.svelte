@@ -147,13 +147,13 @@
 									<PlayIcon size="1.2rem" weight="bold" />
 									{slide.format === "MOVIE" ? "Start watching" : "Start watching E1"}
 								</Button>
-								<Tooltip text={listed ? "Remove from watchlist" : "Add to watchlist"}>
+								<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
 									{#snippet children(trigger)}
 										<Button
 											{...trigger}
 											variant="secondary"
 											square
-											aria-label={listed ? "Remove from watchlist" : "Add to watchlist"}
+											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 											aria-pressed={listed}
 											onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 										>
@@ -169,7 +169,7 @@
 									onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 								>
 									<BookmarkSimpleIcon size="1.2rem" weight={listed ? "fill" : "bold"} />
-									{listed ? "Remove from watchlist" : "Add to watchlist"}
+									{listed ? "Remove from Watchlist" : "Add to Watchlist"}
 								</Button>
 							{/if}
 						</div>
@@ -198,7 +198,7 @@
 								{#key index === carousel.active ? carousel.cycle : -1}
 									<span
 										class={cn(
-											"relative block h-1.5 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
+											"relative block h-1.5 w-full overflow-hidden rounded-full bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
 											index === carousel.active &&
 												"after:absolute after:inset-y-0 after:left-0 after:bg-accent",
 											index === carousel.active &&

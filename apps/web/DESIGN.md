@@ -41,7 +41,10 @@ labels and the calendar's weekday names.
 
 App pages use the `page` utility for padding and minimum height, then a centred `max-w-7xl`
 column. The title row is `mb-8 flex items-center justify-between`, with page actions on the
-right. No border radius anywhere; dots and markers are square too. No divider borders; separate
+right. Corners are square by default. Badges, including the home hero's carousel indicators,
+and switch tracks and thumbs are explicitly approved rounded exceptions. Use `rounded-full`
+for badge and switch containers, with circular switch thumbs. Other dots and markers remain
+square. Add rounding elsewhere only when explicitly requested. No divider borders; separate
 with space or a `surface`/`raised` step. Empty states sit in a `border-2 border-dotted
 border-muted` frame.
 
