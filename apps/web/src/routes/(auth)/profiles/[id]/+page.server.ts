@@ -1,3 +1,4 @@
+import { profileCookie } from "$lib/server/sora";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error, fail, redirect } from "@sveltejs/kit";
@@ -32,6 +33,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 
 	return {
 		profile,
+		deletable: locals.viewer!.profiles.length > 1,
 		choices: Array.from(
 			{
 				length: 11,
@@ -44,8 +46,13 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	};
 };
 
+function profiles(url: URL) {
+	const target = url.searchParams.get("redirect");
+	return target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles";
+}
+
 export const actions: Actions = {
-	default: async ({ request, locals, params, url }) => {
+	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
 		const changes = Changes.safeParse({
@@ -76,6 +83,36 @@ export const actions: Actions = {
 			throw updated.error;
 		}
 
-		redirect(303, `/profiles${url.search}`);
+		redirect(303, profiles(url));
+	},
+
+	delete: async ({ locals, params, cookies, url }) => {
+		const deleted = await attempt(
+			locals.viewer!.sora.request(route.deleteProfile, {
+				params: {
+					profile_id: params.id,
+				},
+			}),
+			SoraError,
+		);
+		if (deleted.error?.code === "LAST_PROFILE") {
+			return fail(409, {
+				message: "An account keeps at least one profile.",
+			});
+		}
+		if (deleted.error?.status === 404) {
+			error(404, "No such profile");
+		}
+		if (deleted.error) {
+			throw deleted.error;
+		}
+
+		if (locals.viewer!.profile?.id === params.id) {
+			cookies.delete(profileCookie, {
+				path: "/",
+			});
+		}
+
+		redirect(303, profiles(url));
 	},
 };
