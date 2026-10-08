@@ -44,8 +44,8 @@
 		return () => desktop.removeEventListener("change", closeOnDesktop);
 	}}
 >
-	<div class="flex h-14 shrink-0 items-center justify-between pr-1.5 pl-5">
-		<h2 id="{id}-title" class="text-lg font-bold">{title}</h2>
+	<div class="flex h-14 shrink-0 items-center justify-between bg-[#151515] pr-1.5 pl-5">
+		<h2 id="{id}-title" class="text-base font-normal">{title}</h2>
 		<Button variant="icon" aria-label="Close" onclick={() => (open = false)}>
 			<XIcon size="1.5rem" />
 		</Button>
