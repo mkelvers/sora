@@ -104,7 +104,10 @@
 				<Episodes {series} progress={progress.episodes} />
 			</section>
 		{:else}
-			<section class="py-14 text-center sm:pb-20" aria-labelledby="check-back">
+			<section
+				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
+				aria-labelledby="check-back"
+			>
 				<h2 id="check-back" class="font-bold">No episodes yet.</h2>
 				<p class="mt-1 text-sm text-muted">
 					Check back soon, in the meantime feel free to look around.
