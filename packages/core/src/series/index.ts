@@ -11,7 +11,7 @@
  *
  * @packageDocumentation
  */
-export { logoPlacement } from "./logo-placement";
+export { logoPlacement } from "../models/series";
 export {
 	listSeriesImages,
 	refreshSeriesImages,

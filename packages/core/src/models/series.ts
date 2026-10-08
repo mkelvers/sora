@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { logoPlacement } from "../series/logo-placement";
-
 export const StatusSchema = z.enum([
 	"FINISHED",
 	"RELEASING",
@@ -365,7 +363,7 @@ export const PreparingTitleSchema = z
 		title: z.string().meta({
 			example: "Insomniacs After School",
 		}),
-		format: z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]).nullable(),
+		format: FormatSchema.nullable(),
 		year: z.number().int().nullable().meta({
 			example: 2023,
 		}),
@@ -402,6 +400,18 @@ const ArtworkUrlSchema = z
 	])
 	.nullable()
 	.optional();
+
+/** Shared bounds for artwork validation and the client's logo placement controls. */
+export const logoPlacement = {
+	scale: {
+		min: 0.5,
+		max: 2,
+	},
+	offset: {
+		min: -1,
+		max: 1,
+	},
+} as const;
 
 const LogoOffsetSchema = z
 	.number()
