@@ -6,6 +6,7 @@
 	"exports": {
 		"./auth": "./src/auth/index.ts",
 		"./contract": "./src/contract.ts",
+		"./playback/choice": "./src/playback/choice.ts",
 		"./catalog": "./src/catalog/index.ts",
 		"./playback": "./src/playback/index.ts",
 		"./library": "./src/library/index.ts",

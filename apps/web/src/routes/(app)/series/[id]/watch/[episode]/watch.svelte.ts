@@ -1,12 +1,10 @@
 import { Preferences } from "$lib/preferences";
-import type { PlaybackMedia, PlaybackPreferences } from "@sora/sdk";
+import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import type Hls from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
-
-import type { WatchMedia } from "./watch.remote";
 
 type Source = PlaybackMedia["sources"][number];
 
@@ -20,26 +18,6 @@ const preferences = new Preferences("player");
 const subscribeFullscreen = createSubscriber((update) => {
 	on(document, "fullscreenchange", update);
 });
-
-export function subtitleFor(media: WatchMedia, preferences: PlaybackPreferences) {
-	if (media.audio === "raw") {
-		return undefined;
-	}
-
-	const choice = preferences.subtitles[media.audio];
-	if (choice === null) {
-		return undefined;
-	}
-
-	const chosen =
-		choice &&
-		(media.subtitles.find(
-			(track) => track.language === choice.language && track.kind === choice.kind,
-		) ??
-			media.subtitles.find((track) => track.language === choice.language));
-
-	return (chosen ?? media.subtitles.find((track) => track.default))?.url;
-}
 
 export class Player {
 	root?: HTMLElement;

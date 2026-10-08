@@ -10,13 +10,14 @@
 		savePlaybackPreferences,
 		saveProgress,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
-	import { Player, subtitleFor } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import type {
-		Episode,
-		PlaybackPreferences,
-		PlaybackPreferencesUpdate,
-		Progress,
-		Series,
+	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
+	import {
+		choosePlayback,
+		type Episode,
+		type PlaybackPreferences,
+		type PlaybackPreferencesUpdate,
+		type Progress,
+		type Series,
 	} from "@sora/sdk";
 	import { attempt } from "@sora/shared";
 	import { ArrowLeftIcon, CircleNotchIcon } from "phosphor-svelte";
@@ -91,10 +92,9 @@
 		}
 	});
 
-	const selected = $derived(
-		playback?.media.find((version) => version.audio === preferences.audio) ?? playback?.media[0],
-	);
-	const subtitle = $derived(selected && subtitleFor(selected, preferences));
+	const chosen = $derived(choosePlayback(playback?.media ?? [], preferences));
+	const selected = $derived(chosen.media);
+	const subtitle = $derived(chosen.subtitle?.url);
 	const loading = $derived(!playback || (selected !== undefined && player.buffering));
 
 	const segment = $derived(

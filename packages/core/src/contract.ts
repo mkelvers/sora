@@ -7,6 +7,7 @@
  */
 export { BrowseQuerySchema, type BrowseQuery } from "./catalog/queries/browse-query";
 export { logoPlacement } from "./series/logo-placement";
+export { choosePlayback } from "./playback/choice";
 export * from "./models/library";
 export * from "./models/playback";
 export * from "./models/profile";
