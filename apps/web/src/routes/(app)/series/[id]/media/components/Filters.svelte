@@ -16,7 +16,7 @@
 		[...Map.groupBy(images, (image) => image.language ?? "none")]
 			.map(([code, group]) => ({
 				code,
-				label: group[0].label,
+				label: group[0].language_name,
 				count: group.length,
 			}))
 			.toSorted(

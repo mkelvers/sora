@@ -99,7 +99,7 @@
 				>
 					{#if image}
 						<span class="metadata-tag">
-							{image.label}
+							{image.language_name}
 						</span>
 						<span class="metadata-tag">{image.width}×{image.height}</span>
 					{:else}

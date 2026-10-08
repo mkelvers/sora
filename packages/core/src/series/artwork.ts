@@ -32,8 +32,22 @@ export interface SeriesImageQuery {
 }
 
 /** Stores `false`, no artwork, as {@link noArtwork}. */
-function toOverride(change: string | false | null | undefined) {
-	return change === false ? noArtwork : change;
+/** An image as stored, before {@link applyQuery} names its language. */
+type StoredImage = Omit<SeriesImage, "language_name">;
+
+const languageNames = new Intl.DisplayNames(["en"], {
+	type: "language",
+});
+
+/** The TMDB size an image is saved in once chosen: the largest one it is shown at. */
+const savedSizes = {
+	poster: "w780",
+	backdrop: "original",
+	logo: "w500",
+} as const;
+
+function toOverride(change: string | false | null | undefined, type: ImageType) {
+	return change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
 }
 
 /**
@@ -58,10 +72,10 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 		throw new SeriesNotFoundError(seriesId);
 	}
 
-	const poster = toOverride(changes.poster_url);
+	const poster = toOverride(changes.poster_url, "poster");
 	const title = {
-		backdropUrlOverride: toOverride(changes.backdrop_url),
-		logoUrlOverride: toOverride(changes.logo_url),
+		backdropUrlOverride: toOverride(changes.backdrop_url, "backdrop"),
+		logoUrlOverride: toOverride(changes.logo_url, "logo"),
 		logoScale: changes.logo_scale,
 		logoOffsetX: changes.logo_offset_x,
 		logoOffsetY: changes.logo_offset_y,
@@ -156,14 +170,20 @@ async function imageStateOf(seriesId: string) {
 	return row;
 }
 
-function applyQuery(images: SeriesImage[], query: SeriesImageQuery) {
+function applyQuery(images: StoredImage[], query: SeriesImageQuery): SeriesImage[] {
 	return images
 		.filter((image) => !query.types || query.types.includes(image.type))
 		.filter((image) => !query.languages || query.languages.includes(image.language))
-		.sort(query.sort === "quality" ? byQuality : byVotes);
+		.sort(query.sort === "quality" ? byQuality : byVotes)
+		.map((image) => ({
+			...image,
+			language_name: image.language
+				? (languageNames.of(image.language) ?? image.language)
+				: "Textless",
+		}));
 }
 
-async function storedImagesOf(key: string): Promise<SeriesImage[]> {
+async function storedImagesOf(key: string): Promise<StoredImage[]> {
 	return db
 		.select({
 			type: titleImage.type,
@@ -180,7 +200,7 @@ async function storedImagesOf(key: string): Promise<SeriesImage[]> {
 }
 
 /** Fetches a title's images from TMDB, no older than `maxAgeMs`, and stores them in place of the old. */
-async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImage[]> {
+async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> {
 	const images = await fetchImages(key, maxAgeMs);
 
 	await db.transaction(async (tx) => {
@@ -220,7 +240,7 @@ async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImag
 	return images;
 }
 
-async function fetchImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImage[]> {
+async function fetchImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> {
 	const [kind, id] = parseKey(key);
 	if (kind !== "tv" && kind !== "movie") {
 		return [];
@@ -236,9 +256,9 @@ async function fetchImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImag
 	// A season's poster is often the show's too; list it once, as the show's.
 	const seen = new Set<string>();
 	return [
-		...(own?.posters ?? []).map((image) => toSeriesImage("poster", image, null)),
-		...(own?.backdrops ?? []).map((image) => toSeriesImage("backdrop", image, null)),
-		...(own?.logos ?? []).map((image) => toSeriesImage("logo", image, null)),
+		...(own?.posters ?? []).map((image) => toStoredImage("poster", image, null)),
+		...(own?.backdrops ?? []).map((image) => toStoredImage("backdrop", image, null)),
+		...(own?.logos ?? []).map((image) => toStoredImage("logo", image, null)),
 		...seasons,
 	].filter((image) => {
 		const key = `${image.type}:${image.url}`;
@@ -247,7 +267,7 @@ async function fetchImages(key: SeriesKey, maxAgeMs: number): Promise<SeriesImag
 }
 
 /** Every season's posters, specials included. */
-async function seasonPostersOf(showId: number, maxAgeMs: number): Promise<SeriesImage[]> {
+async function seasonPostersOf(showId: number, maxAgeMs: number): Promise<StoredImage[]> {
 	// A refresh also finds seasons added since; otherwise the show's usual lifetime will do.
 	const show = await getShow(showId, maxAgeMs === 0 ? { maxAgeMs } : {});
 	const perSeason = await Promise.all(
@@ -256,17 +276,17 @@ async function seasonPostersOf(showId: number, maxAgeMs: number): Promise<Series
 				await getSeasonPosters(showId, seasonNumber, {
 					maxAgeMs,
 				})
-			).map((image) => toSeriesImage("poster", image, seasonNumber)),
+			).map((image) => toStoredImage("poster", image, seasonNumber)),
 		),
 	);
 	return perSeason.flat();
 }
 
-function toSeriesImage(
+function toStoredImage(
 	type: ImageType,
 	image: TmdbImage,
 	seasonNumber: number | null,
-): SeriesImage {
+): StoredImage {
 	return {
 		type,
 		url: tmdbImageUrl(image.file_path, "original")!,
@@ -283,20 +303,20 @@ function toSeriesImage(
  * TMDB's rating, pulled toward 5 when few voted, so one 10 does not outrank
  * dozens of 8s; then the larger image.
  */
-function byVotes(left: SeriesImage, right: SeriesImage) {
+function byVotes(left: StoredImage, right: StoredImage) {
 	return confidence(right) - confidence(left) || byArea(left, right);
 }
 
-function byQuality(left: SeriesImage, right: SeriesImage) {
+function byQuality(left: StoredImage, right: StoredImage) {
 	return byArea(left, right) || confidence(right) - confidence(left);
 }
 
-function byArea(left: SeriesImage, right: SeriesImage) {
+function byArea(left: StoredImage, right: StoredImage) {
 	return right.width * right.height - left.width * left.height;
 }
 
 /** A Bayesian average: as if every image also had three votes of 5. */
-function confidence(image: SeriesImage) {
+function confidence(image: StoredImage) {
 	const priorVotes = 3;
 	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
 }
