@@ -19,10 +19,7 @@
 	});
 </script>
 
-{#if data.viewer}
-	{@const viewer = data.viewer}
-	<Header profile={viewer.profile} profiles={viewer.profiles} />
-{/if}
+<Header profile={data.viewer.profile} profiles={data.viewer.profiles} />
 
 <main id="main-content" class="pt-26 sm:pt-14" tabindex="-1">
 	<svelte:boundary>

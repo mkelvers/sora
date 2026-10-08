@@ -1,15 +1,13 @@
 import { env } from "$env/dynamic/private";
-import { knownProfiles, profileCookie, sessionCookie } from "$lib/server/sora";
+import { knownProfiles } from "$lib/server/sora";
 import { route, SoraClient, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
 
-const remoteProfilesTtl = 30_000;
-
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
-	const token = event.cookies.get(sessionCookie);
+	const token = event.cookies.get("sora_session");
 	if (token) {
 		const sora = new SoraClient({
 			baseUrl: env.SORA_API_URL!,
@@ -20,11 +18,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 
 		const known = knownProfiles.get(token);
-		if (!event.isRemoteRequest || !known || Date.now() - known.at >= remoteProfilesTtl) {
+		let profiles = known?.profiles ?? null;
+		if (!event.isRemoteRequest || !known || Date.now() - known.at >= 30_000) {
 			const { data, error } = await attempt(sora.request(route.listProfiles), SoraError);
 			if (error && error.status !== 401) {
 				throw error;
 			}
+
+			profiles = data;
 
 			if (knownProfiles.size > 500) {
 				knownProfiles.clear();
@@ -39,9 +40,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		}
 
-		const profiles = knownProfiles.get(token)?.profiles;
 		if (profiles) {
-			const chosen = event.cookies.get(profileCookie);
+			const chosen = event.cookies.get("sora_profile");
 			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
 
 			event.locals.viewer = {
@@ -51,7 +51,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			};
 
 			if (profile) {
-				event.cookies.set(profileCookie, profile.id, {
+				event.cookies.set("sora_profile", profile.id, {
 					path: "/",
 					httpOnly: true,
 					sameSite: "lax",
@@ -59,21 +59,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 				});
 			}
 		} else {
-			event.cookies.delete(sessionCookie, {
+			event.cookies.delete("sora_session", {
 				path: "/",
 			});
-			event.cookies.delete(profileCookie, {
+			event.cookies.delete("sora_profile", {
 				path: "/",
 			});
 		}
 	}
 
-	if (event.isRemoteRequest && !event.locals.viewer) {
-		error(401, "Not signed in");
-	}
-
-	if (event.isRemoteRequest && !event.locals.viewer?.profile) {
-		error(403, "Choose a profile first");
+	if (event.isRemoteRequest) {
+		if (!event.locals.viewer) {
+			error(401, "Not signed in");
+		}
+		if (!event.locals.viewer.profile) {
+			error(403, "Choose a profile first");
+		}
 	}
 
 	const response = await resolve(event);

@@ -1,11 +1,14 @@
-import { profileCookie } from "$lib/server/sora";
 import { error, redirect } from "@sveltejs/kit";
 
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
+	if (!locals.viewer) {
+		error(401, "Not signed in");
+	}
+
 	return {
-		profiles: locals.viewer!.profiles,
+		profiles: locals.viewer.profiles,
 	};
 };
 
@@ -13,13 +16,16 @@ export const actions: Actions = {
 	select: async ({ request, locals, cookies, url }) => {
 		const form = await request.formData();
 		const id = form.get("profile");
-		const profile = locals.viewer!.profiles.find((profile) => profile.id === id);
+		if (!locals.viewer) {
+			error(401, "Not signed in");
+		}
+		const profile = locals.viewer.profiles.find((profile) => profile.id === id);
 
 		if (!profile) {
 			error(404, "No such profile");
 		}
 
-		cookies.set(profileCookie, profile.id, {
+		cookies.set("sora_profile", profile.id, {
 			path: "/",
 			httpOnly: true,
 			sameSite: "lax",

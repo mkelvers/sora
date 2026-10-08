@@ -10,9 +10,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const genres = await locals.viewer.sora.request(route.listGenres);
-
 	const genre = genres.find((name) => slug(name) === params.genre);
-
 	if (!genre) {
 		error(404, "That genre is not available");
 	}

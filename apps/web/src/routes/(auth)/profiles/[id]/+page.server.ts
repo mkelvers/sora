@@ -1,4 +1,3 @@
-import { profileCookie } from "$lib/server/sora";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error, fail, redirect } from "@sveltejs/kit";
@@ -26,14 +25,18 @@ const Changes = z.object({
 });
 
 export const load: PageServerLoad = ({ locals, params }) => {
-	const profile = locals.viewer!.profiles.find((profile) => profile.id === params.id);
+	if (!locals.viewer) {
+		error(401, "Not signed in");
+	}
+	const { profiles } = locals.viewer;
+	const profile = profiles.find((profile) => profile.id === params.id);
 	if (!profile) {
 		error(404, "No such profile");
 	}
 
 	return {
 		profile,
-		deletable: locals.viewer!.profiles.length > 1,
+		deletable: profiles.length > 1,
 		choices: Array.from(
 			{
 				length: 11,
@@ -45,11 +48,6 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		),
 	};
 };
-
-function profiles(url: URL) {
-	const target = url.searchParams.get("redirect");
-	return target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles";
-}
 
 export const actions: Actions = {
 	save: async ({ request, locals, params, url }) => {
@@ -67,8 +65,12 @@ export const actions: Actions = {
 			});
 		}
 
+		if (!locals.viewer) {
+			error(401, "Not signed in");
+		}
+
 		const updated = await attempt(
-			locals.viewer!.sora.request(route.updateProfile, {
+			locals.viewer.sora.request(route.updateProfile, {
 				params: {
 					profile_id: params.id,
 				},
@@ -83,12 +85,17 @@ export const actions: Actions = {
 			throw updated.error;
 		}
 
-		redirect(303, profiles(url));
+		const target = url.searchParams.get("redirect");
+		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
 	},
 
 	delete: async ({ locals, params, cookies, url }) => {
+		if (!locals.viewer) {
+			error(401, "Not signed in");
+		}
+		const viewer = locals.viewer;
 		const deleted = await attempt(
-			locals.viewer!.sora.request(route.deleteProfile, {
+			viewer.sora.request(route.deleteProfile, {
 				params: {
 					profile_id: params.id,
 				},
@@ -107,12 +114,13 @@ export const actions: Actions = {
 			throw deleted.error;
 		}
 
-		if (locals.viewer!.profile?.id === params.id) {
-			cookies.delete(profileCookie, {
+		if (viewer.profile?.id === params.id) {
+			cookies.delete("sora_profile", {
 				path: "/",
 			});
 		}
 
-		redirect(303, profiles(url));
+		const target = url.searchParams.get("redirect");
+		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
 	},
 };
