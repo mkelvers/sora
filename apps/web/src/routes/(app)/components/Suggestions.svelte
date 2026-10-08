@@ -15,41 +15,28 @@
 		typing: boolean;
 	} = $props();
 
-	const found = $derived(
-		await searchSeries({
+	const search = $derived(
+		searchSeries({
 			q: term,
 			page: 1,
 			perPage: 6,
 		}),
 	);
+	const found = $derived(await search);
+	const busy = $derived(typing || $effect.pending() > 0);
 
 	$effect(() => {
 		if (!found.meta.preparing) {
 			return;
 		}
 
-		const timer = setTimeout(
-			() =>
-				searchSeries({
-					q: term,
-					page: 1,
-					perPage: 6,
-				}).refresh(),
-			3000,
-		);
-
+		const timer = setTimeout(() => search.refresh(), 3000);
 		return () => clearTimeout(timer);
 	});
 </script>
 
-<div
-	class={cn(
-		"absolute inset-x-0 top-0 h-0.5 overflow-hidden",
-		(typing || $effect.pending() > 0) && "busy",
-	)}
-	role="status"
->
-	{#if typing || $effect.pending() > 0}
+<div class={cn("absolute inset-x-0 top-0 h-0.5 overflow-hidden", busy && "busy")} role="status">
+	{#if busy}
 		<span class="sr-only">Searching</span>
 	{/if}
 </div>
@@ -80,7 +67,7 @@
 		</span>
 		<span class="grid min-w-0 gap-0.75">
 			<span class="truncate text-sm font-medium text-foreground">{card.title}</span>
-			<span class="text-sm text-muted">{card.description}</span>
+			<span class="text-sm text-muted">{card.details}</span>
 		</span>
 	</a>
 {:else}
