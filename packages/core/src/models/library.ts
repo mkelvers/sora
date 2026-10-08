@@ -130,6 +130,10 @@ export const SeriesProgressSchema = z
 			description:
 				"The episode to play next, as `listContinueWatching` picks it; null when the profile played none of the title, or finished the last episode that is out.",
 		}),
+		finished: z.boolean().meta({
+			description:
+				"Whether the profile finished every episode the title lists in its first viewing, and is not rewatching it.",
+		}),
 		rewatch_started_at: z.string().nullable().meta({
 			description:
 				"When the profile started watching the title again from the start (see `startRewatch`), as an ISO 8601 timestamp; null when it is not.",
@@ -169,6 +173,10 @@ export const NotificationSchema = z
 		}),
 		unread: z.boolean().meta({
 			description: "Whether the profile has not marked it read.",
+		}),
+		message: z.string().meta({
+			description: "What came out, as a sentence to show under the title.",
+			example: "Episode 13 is out. Settle in and catch up.",
 		}),
 	})
 	.meta({

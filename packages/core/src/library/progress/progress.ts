@@ -292,16 +292,10 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 		.orderBy(desc(episodeProgress.watchedAt), desc(episodeProgress.episode));
 
 	const [last] = rows;
-	const finished = rows.filter((row) => row.finished).length;
-	let complete = false;
-
-	if (!rewatch && finished > 0) {
-		const seriesEpisodes = await getSeriesEpisodes(seriesId);
-
-		complete = finished >= seriesEpisodes.length;
-	}
-
-	const nextBySeries = last && !complete ? await nextEpisodes(userId, [last]) : null;
+	const finishedCount = rows.filter((row) => row.finished).length;
+	const finished =
+		!rewatch && finishedCount > 0 && finishedCount >= (await getSeriesEpisodes(seriesId)).length;
+	const next = last && !finished ? await nextEpisodes(userId, [last]) : null;
 
 	return {
 		episodes: rows.map(toProgress),
@@ -312,7 +306,8 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 						position_seconds: 0,
 						duration_seconds: null,
 					}
-				: (nextBySeries?.get(seriesId) ?? null),
+				: (next?.get(seriesId) ?? null),
+		finished,
 		rewatch_started_at: startedAt?.toISOString() ?? null,
 	};
 }
