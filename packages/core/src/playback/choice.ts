@@ -20,26 +20,23 @@ export function choosePlayback<TMedia extends Pick<PlaybackMedia, "audio" | "sub
 	media: TMedia | undefined;
 	subtitle: TMedia["subtitles"][number] | undefined;
 } {
-	const chosen = media.find((version) => version.audio === preferences.audio) ?? media[0];
-	if (!chosen || chosen.audio === "raw") {
-		return {
-			media: chosen,
-			subtitle: undefined,
-		};
+	const version = media.find((version) => version.audio === preferences.audio) ?? media[0];
+	const choice = version && version.audio !== "raw" ? preferences.subtitles[version.audio] : null;
+	let subtitle: TMedia["subtitles"][number] | undefined;
+
+	if (version && choice !== null) {
+		const tracks = version.subtitles;
+		if (choice) {
+			// Prefer the exact track, then any track in the chosen language.
+			subtitle =
+				tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
+				tracks.find((track) => track.language === choice.language);
+		}
+		subtitle ??= tracks.find((track) => track.default);
 	}
 
-	const choice = preferences.subtitles[chosen.audio];
-	const tracks = chosen.subtitles;
 	return {
-		media: chosen,
-		subtitle:
-			choice === null
-				? undefined
-				: ((choice &&
-						(tracks.find(
-							(track) => track.language === choice.language && track.kind === choice.kind,
-						) ??
-							tracks.find((track) => track.language === choice.language))) ??
-					tracks.find((track) => track.default)),
+		media: version,
+		subtitle,
 	};
 }
