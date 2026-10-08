@@ -46,7 +46,8 @@
 			onfocusout={anchor.onblur}
 		>
 			<Dropdown
-				variant="icon"
+				variant="secondary"
+				square
 				alignment="left"
 				label={statusLabel ? `${statusLabel}, Change watchlist status` : "Change watchlist status"}
 			>
@@ -66,6 +67,16 @@
 								{option.label}
 							</Button>
 						{/each}
+						{#if status}
+							<Button
+								role="menuitem"
+								variant="item"
+								tone="danger"
+								onclick={() => library.set(series, null)}
+							>
+								Remove from watchlist
+							</Button>
+						{/if}
 					</div>
 				{/snippet}
 			</Dropdown>
