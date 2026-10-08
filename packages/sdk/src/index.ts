@@ -21,6 +21,7 @@ export type {
 	AnimeSeason,
 	ContinueWatching,
 	Episode,
+	FranchisePart,
 	NextEpisode,
 	Notification,
 	PlaybackMedia,

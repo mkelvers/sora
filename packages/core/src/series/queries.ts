@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import type { z } from "zod";
 
-import { toAnime, toAnimeFormat } from "../catalog/models/anime";
+import { toAnime, toAnimeFormat, type AnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, type Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema, type BrowseQuery } from "../catalog/queries/browse-query";
@@ -20,7 +20,7 @@ import {
 	seriesRelated,
 	titleArtwork,
 } from "../database/schema";
-import { InvalidInputError, SeriesNotFoundError } from "../errors";
+import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
 import type {
 	ContentLanguage,
 	Episode,
@@ -32,7 +32,7 @@ import type {
 } from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { scheduleSeriesStore } from "../scheduler/queue";
-import { day } from "../time";
+import { day, hour, minute } from "../time";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
@@ -90,6 +90,8 @@ export async function getSeries(seriesId: string): Promise<Series> {
 			.limit(1),
 	]);
 
+	const current = franchise.find((part) => part.series_id === row.id);
+	const seasons = franchise.filter((part) => part.role === "season");
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
@@ -110,7 +112,8 @@ export async function getSeries(seriesId: string): Promise<Series> {
 					}
 				: null),
 		backdrop_edges: found.edges,
-		franchise,
+		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
+		related: franchise.filter((part) => part.role === "related" && part !== current),
 	};
 }
 
@@ -275,6 +278,21 @@ export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
 			filler: listing?.isFiller ?? false,
 		};
 	});
+}
+
+/**
+ * One episode of a series, as {@link getSeriesEpisodes} lists it.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link EpisodeNotFoundError} when the series does not list the episode.
+ */
+export async function getSeriesEpisode(seriesId: string, number: number): Promise<Episode> {
+	const episode = (await getSeriesEpisodes(seriesId)).find((episode) => episode.number === number);
+	if (!episode) {
+		throw new EpisodeNotFoundError(seriesId, number);
+	}
+
+	return episode;
 }
 
 /**
@@ -779,6 +797,7 @@ export async function getLatestReleases(
 							series: card,
 							episode,
 							released_at: releasedAt,
+							...releaseAge(releasedAt, now.getTime()),
 						},
 					]
 				: [];
@@ -787,6 +806,42 @@ export async function getLatestReleases(
 		perPage,
 		hasNextPage: matching.length > page * perPage,
 		isPreparing: false,
+	};
+}
+
+const formatNames: Record<AnimeFormat, string> = {
+	TV: "Series",
+	TV_SHORT: "Short",
+	MOVIE: "Movie",
+	SPECIAL: "Special",
+	OVA: "OVA",
+	ONA: "ONA",
+	MUSIC: "Music",
+};
+
+const statusNames: Partial<Record<string, string>> = {
+	RELEASING: "Airing",
+	NOT_YET_RELEASED: "Upcoming",
+};
+
+const relativeTime = new Intl.RelativeTimeFormat("en", {
+	numeric: "always",
+});
+
+/** How long ago a release came out, in words, and the stretch of time it falls in. */
+function releaseAge(releasedAt: string, now: number): Pick<Release, "released_ago" | "period"> {
+	const age = Math.max(0, now - Date.parse(releasedAt));
+	const minutes = Math.floor(age / minute);
+	const hours = Math.floor(age / hour);
+
+	return {
+		released_ago:
+			minutes < 60
+				? relativeTime.format(-Math.max(1, minutes), "minute")
+				: hours < 24
+					? relativeTime.format(-hours, "hour")
+					: relativeTime.format(-Math.floor(age / day), "day"),
+		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
 	};
 }
 
@@ -848,6 +903,13 @@ async function cardsFrom(
 						score: details?.score ?? null,
 						genres: details?.genres ?? [],
 						episode_count: listed.get(row.id)?.length ?? 0,
+						details: [
+							row.startDate?.slice(0, 4),
+							details?.format && formatNames[details.format],
+							row.status && statusNames[row.status],
+						]
+							.filter(Boolean)
+							.join(" · "),
 					},
 				] as const,
 			];

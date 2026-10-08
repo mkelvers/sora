@@ -71,6 +71,11 @@ export const SeriesCardSchema = z
 		episode_count: z.number().int().meta({
 			description: "How many episodes it lists, as `listEpisodes` lists them.",
 		}),
+		details: z.string().meta({
+			description:
+				"Its year, format, and whether it is airing or upcoming, in words, as a line under its title.",
+			example: "2021 · Series · Airing",
+		}),
 	})
 	.meta({
 		id: "SeriesCard",
@@ -140,9 +145,13 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			description:
 				"The backdrop's average colour down its left and right edges, as `#rrggbb`, to fill the space beside it when it is shown whole. Null without a backdrop, or until Sora has measured it.",
 		}),
-	franchise: z.array(FranchisePartSchema).meta({
+	seasons: z.array(FranchisePartSchema).meta({
 		description:
-			"Every title of its franchise that is out, this one included, as AniList relates them: its seasons in release order, then its films, OVAs, and spin-offs. Just this one when it has no other.",
+			"The seasons of its franchise in release order, to switch between on its page, with this title first when it is not one of them, such as a film. Just this one when it has no other.",
+	}),
+	related: z.array(FranchisePartSchema).meta({
+		description:
+			"The other titles of its franchise that are out and are not its seasons, such as its films, OVAs, and spin-offs, in release order.",
 	}),
 }).meta({
 	id: "Series",
@@ -167,6 +176,10 @@ export const SeriesImageSchema = z
 		language: z.string().nullable().meta({
 			description: "ISO 639-1 code of any text on the image; null when it has none.",
 			example: "en",
+		}),
+		language_name: z.string().meta({
+			description: "The language of any text on the image in English, or `Textless`.",
+			example: "English",
 		}),
 		vote_average: z.number(),
 		vote_count: z.number().int(),
@@ -239,6 +252,76 @@ export const ScheduledEpisodeSchema = z
 		id: "ScheduledEpisode",
 	});
 
+export const CalendarReleaseSchema = z.object({
+	series: SeriesCardSchema,
+	audio: z.array(z.enum(["sub", "dub"])).meta({
+		description: "Whether these episodes come out subbed, dubbed, or both at this time.",
+	}),
+	episodes: z.string().meta({
+		description: "The episodes coming out, as runs of numbers.",
+		example: "Episodes 3–5, 7",
+	}),
+});
+
+export const CalendarSlotSchema = z.object({
+	airing_at: z.string(),
+	time: z.string().meta({
+		description: "When it airs on the 24-hour clock of the calendar's time zone.",
+		example: "17:30",
+	}),
+	aired: z.boolean(),
+	next: z.boolean().meta({
+		description: "Whether it is the first time today that has yet to air.",
+	}),
+	releases: z.array(CalendarReleaseSchema).meta({
+		description: "What comes out at this time, one entry per title and audio that share episodes.",
+	}),
+});
+
+export const CalendarDaySchema = z.object({
+	date: z.string().meta({
+		example: "2026-10-05",
+	}),
+	today: z.boolean(),
+	name: z.string().meta({
+		example: "Monday",
+	}),
+	short_name: z.string().meta({
+		description: "`Today` for today, else the weekday's abbreviation.",
+		example: "Mon",
+	}),
+	label: z.string().meta({
+		example: "Monday, October 5",
+	}),
+	month_day: z.string().meta({
+		example: "October 5",
+	}),
+	number: z.number().int().meta({
+		description: "The day of the month.",
+		example: 5,
+	}),
+	count: z.number().int().meta({
+		description: "How many episodes come out on the day, subbed and dubbed counted apart.",
+	}),
+	slots: z.array(CalendarSlotSchema),
+});
+
+export const CalendarSchema = z
+	.object({
+		week: z.string().meta({
+			description: "The week's dates, Monday to Sunday.",
+			example: "Oct 5 – 11, 2026",
+		}),
+		now: z.string().meta({
+			description: "The time now on the 24-hour clock of the calendar's time zone.",
+			example: "14:05",
+		}),
+		days: z.array(CalendarDaySchema),
+	})
+	.meta({
+		id: "Calendar",
+	});
+
 export const AnimeSeasonSchema = z
 	.object({
 		season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]),
@@ -260,6 +343,13 @@ export const ReleaseSchema = z
 			description:
 				"When the episode came out: when it aired, or its air date's midnight UTC when AniList has no airing time.",
 			example: "2026-09-27T15:00:00.000Z",
+		}),
+		released_ago: z.string().meta({
+			description: "How long ago it came out, as of the request.",
+			example: "3 hours ago",
+		}),
+		period: z.enum(["Last 24 hours", "This past week", "Earlier"]).meta({
+			description: "Which stretch of time it came out in, to group releases by.",
 		}),
 	})
 	.meta({
@@ -322,7 +412,8 @@ const LogoOffsetSchema = z
 /**
  * Artwork to choose for a series. An HTTPS URL replaces the image, `false`
  * shows none, `null` goes back to the one Sora chose, and an omitted field
- * is left as it is.
+ * is left as it is. A TMDB image may be given at its original size, as
+ * `listImages` lists it: it is saved at the largest size it is shown at.
  */
 export const ArtworkChangesSchema = z
 	.object({
@@ -361,6 +452,7 @@ export type SeriesImage = z.infer<typeof SeriesImageSchema>;
 export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
 export type Episode = z.infer<typeof EpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
+export type Calendar = z.infer<typeof CalendarSchema>;
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
 export type Release = z.infer<typeof ReleaseSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
