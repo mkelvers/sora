@@ -42,7 +42,7 @@
 			<EmptyState
 				mascot={mascots.emptyNotifications}
 				title="All quiet for now."
-				hint="We'll ring the bell when new episodes and dubs of your watchlist arrive."
+				hint="We'll ring the bell when new episodes and dubs of your Watchlist arrive."
 			/>
 		{:else}
 			<Tabs items={views} bind:value={view} label="Notifications">
@@ -74,7 +74,7 @@
 							<EmptyState
 								mascot={mascots.emptyNotifications}
 								title="You're all caught up."
-								hint="New episodes, dubs and sequels of your watchlist will appear here."
+								hint="New episodes, dubs and sequels of your Watchlist will appear here."
 							/>
 						{:else}
 							<EmptyState

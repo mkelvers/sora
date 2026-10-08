@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			},
 			{
 				id: "coming-soon",
-				title: "Coming soon: add to your watchlist",
+				title: "Coming soon: add to your Watchlist",
 				hint: "Your new favorite shows from the upcoming season",
 				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
 			},

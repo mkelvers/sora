@@ -105,7 +105,7 @@
 							weight="fill"
 							aria-hidden="true"
 						/>
-						<span class="sr-only">On your watchlist</span>
+						<span class="sr-only">On your Watchlist</span>
 					</span>
 				{/if}
 			</div>
@@ -178,14 +178,14 @@
 					</Tooltip>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from watchlist" : "Add to watchlist"}>
+				<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
 					{#snippet children(trigger)}
 						<Button
 							{...trigger}
 							variant="icon"
 							tone="accent"
 							size="sm"
-							aria-label={listed ? "Remove from watchlist" : "Add to watchlist"}
+							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 							aria-pressed={listed}
 							onclick={toggleListed}
 						>

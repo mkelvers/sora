@@ -10,7 +10,7 @@ export const statuses = [
 		label: "Watching",
 		empty: {
 			title: "Nothing on the go right now.",
-			hint: "Finish an episode of a title on your watchlist and it lands here.",
+			hint: "Finish an episode of a title on your Watchlist and it lands here.",
 		},
 	},
 	{

@@ -17,13 +17,13 @@
 	const statusLabel = $derived(statuses.find((option) => option.value === status)?.label);
 </script>
 
-<Tooltip text={status ? "Remove from watchlist" : "Add to watchlist"}>
+<Tooltip text={status ? "Remove from Watchlist" : "Add to Watchlist"}>
 	{#snippet children(anchor)}
 		<Button
 			{...anchor}
 			variant="secondary"
 			square
-			aria-label={status ? "Remove from watchlist" : "Add to watchlist"}
+			aria-label={status ? "Remove from Watchlist" : "Add to Watchlist"}
 			aria-pressed={!!status}
 			onclick={() => library.set(series, status ? null : "plan_to_watch")}
 		>
@@ -32,7 +32,7 @@
 	{/snippet}
 </Tooltip>
 
-<Tooltip text="Change watchlist status">
+<Tooltip text="Change Watchlist Status">
 	{#snippet children(anchor)}
 		<div
 			{...anchor}
@@ -49,14 +49,14 @@
 				variant="secondary"
 				square
 				alignment="left"
-				label={statusLabel ? `${statusLabel}, Change watchlist status` : "Change watchlist status"}
+				label={statusLabel ? `${statusLabel}, Change Watchlist Status` : "Change Watchlist Status"}
 			>
 				{#snippet trigger()}
 					<PencilSimpleIcon size="1.5rem" weight="bold" />
 				{/snippet}
 
 				{#snippet children()}
-					<div role="menu" aria-label="Watchlist status">
+					<div role="menu" aria-label="Watchlist Status">
 						{#each statuses as option (option.value)}
 							<Button
 								role="menuitemradio"
@@ -74,7 +74,7 @@
 								tone="danger"
 								onclick={() => library.set(series, null)}
 							>
-								Remove from watchlist
+								Remove from Watchlist
 							</Button>
 						{/if}
 					</div>

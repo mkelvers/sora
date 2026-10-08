@@ -226,7 +226,7 @@
 					onclick={() => library.set(series, listed ? null : "plan_to_watch")}
 				>
 					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
-					<span class="truncate">{listed ? "Remove from watchlist" : "Add to watchlist"}</span>
+					<span class="truncate">{listed ? "Remove from Watchlist" : "Add to Watchlist"}</span>
 				</Button>
 			{/if}
 		</div>

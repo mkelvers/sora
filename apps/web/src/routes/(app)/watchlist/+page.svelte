@@ -32,7 +32,7 @@
 		{#if watchlist.current?.length === 0}
 			<EmptyState
 				mascot={mascots.emptyWatchlist}
-				title="Your watchlist is looking a little empty."
+				title="Your Watchlist is looking a little empty."
 				hint="Let's fill it up with something to watch."
 			/>
 		{:else}
