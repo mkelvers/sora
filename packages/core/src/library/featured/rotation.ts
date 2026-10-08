@@ -23,7 +23,7 @@ export const currentThresholds = {
  * How recently an entry must have started to count as current, unless it is
  * still airing: a new season or film, never an old favourite.
  */
-export const currentFor = 180 * day;
+const currentFor = 180 * day;
 
 /**
  * How long an entry may have aired without end before its title counts as
@@ -36,7 +36,7 @@ export const longRunningAfter = 3 * 365 * day;
 export const rotationPeriod = day;
 
 /** When in the day they change, from the Unix epoch: 06:00 UTC, after the weekly full sync of the search index (Monday 02:20 UTC). */
-export const rotationStart = 6 * hour;
+const rotationStart = 6 * hour;
 
 /** How many rotations back a featured title is rested, shown again only when too few others remain: a week. */
 export const restRotations = 7;

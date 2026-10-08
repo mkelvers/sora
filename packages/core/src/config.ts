@@ -38,6 +38,8 @@ const EnvironmentSchema = z.object({
 		),
 });
 
+const environment = EnvironmentSchema.parse(process.env);
+
 /**
  * Validated process configuration for the core.
  *
@@ -45,17 +47,13 @@ const EnvironmentSchema = z.object({
  * Parsed once when first imported. A missing or malformed variable throws at
  * startup instead of failing later inside a request.
  */
-export const config = (() => {
-	const environment = EnvironmentSchema.parse(process.env);
-
-	return {
-		databaseUrl: environment.DATABASE_URL,
-		streamSigningSecret: environment.STREAM_SIGNING_SECRET,
-		webClientKey: environment.WEB_CLIENT_KEY,
-		tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
-		animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
-		authSecret: environment.AUTH_SECRET,
-		authUrl: environment.AUTH_URL,
-		authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,
-	};
-})();
+export const config = {
+	databaseUrl: environment.DATABASE_URL,
+	streamSigningSecret: environment.STREAM_SIGNING_SECRET,
+	webClientKey: environment.WEB_CLIENT_KEY,
+	tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
+	animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
+	authSecret: environment.AUTH_SECRET,
+	authUrl: environment.AUTH_URL,
+	authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,
+};

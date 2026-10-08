@@ -224,7 +224,7 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
  * {@link unlinkedShowLifetimeMs}, and one that cannot be looked up is left
  * out.
  */
-export async function resolveAnimeScheduleShows(
+async function resolveAnimeScheduleShows(
 	http: HttpClient,
 	routes: readonly string[],
 ): Promise<Map<string, number | null>> {

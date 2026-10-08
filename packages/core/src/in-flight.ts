@@ -1,5 +1,3 @@
-import { attempt } from "@sora/shared";
-
 /**
  * Work running per key, so concurrent callers asking for the same key share
  * one run instead of starting their own.
@@ -22,17 +20,8 @@ export class InFlight<TKey, TValue> {
 			return running;
 		}
 
-		const started = this.#forgetOnceSettled(key, start());
+		const started = start().finally(() => this.#running.delete(key));
 		this.#running.set(key, started);
 		return started;
-	}
-
-	async #forgetOnceSettled(key: TKey, work: Promise<TValue>): Promise<TValue> {
-		const { data, error } = await attempt(work);
-		this.#running.delete(key);
-		if (error) {
-			throw error;
-		}
-		return data;
 	}
 }
