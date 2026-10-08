@@ -10,7 +10,7 @@
 		savePlaybackPreferences,
 		saveProgress,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
-	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
+	import { Player, subtitleFor } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
 	import type {
 		Episode,
 		PlaybackPreferences,
@@ -91,30 +91,10 @@
 		}
 	});
 
-	const audio = $derived(
-		playback?.media.find((version) => version.audio === preferences.audio)?.audio ??
-			playback?.media[0]?.audio,
+	const selected = $derived(
+		playback?.media.find((version) => version.audio === preferences.audio) ?? playback?.media[0],
 	);
-	const selected = $derived(playback?.media.find((version) => version.audio === audio));
-	const subtitle = $derived.by(() => {
-		if (!selected || selected.audio === "raw") {
-			return undefined;
-		}
-
-		const choice = preferences.subtitles[selected.audio];
-		if (choice === null) {
-			return undefined;
-		}
-
-		const picked =
-			choice &&
-			(selected.subtitles.find(
-				(track) => track.language === choice.language && track.kind === choice.kind,
-			) ??
-				selected.subtitles.find((track) => track.language === choice.language));
-
-		return (picked ?? selected.subtitles.find((track) => track.default))?.url;
-	});
+	const subtitle = $derived(selected && subtitleFor(selected, preferences));
 	const loading = $derived(!playback || (selected !== undefined && player.buffering));
 
 	const segment = $derived(
