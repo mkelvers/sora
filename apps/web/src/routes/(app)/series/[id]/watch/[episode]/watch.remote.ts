@@ -1,7 +1,7 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { refreshStatus, refreshTracking } from "$routes/(app)/series/[id]/tracking.server";
+import { refreshStatus, refreshTracking } from "$routes/(app)/tracking.server";
 import { route, SoraError, type PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
@@ -15,27 +15,33 @@ const EpisodeAddress = z.object({
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	const params = {
-		series_id: seriesId,
-	};
 	const { sora } = remoteViewer();
-	const [series, episodes] = await Promise.all([
-		sora.request(route.getSeries, {
-			params,
-		}),
-		sora.request(route.listEpisodes, {
-			params,
-		}),
-	]);
-	const found = episodes.find((candidate) => candidate.number === episode);
-
-	if (!found) {
+	const found = await attempt(
+		Promise.all([
+			sora.request(route.getSeries, {
+				params: {
+					series_id: seriesId,
+				},
+			}),
+			sora.request(route.getEpisode, {
+				params: {
+					series_id: seriesId,
+					episode,
+				},
+			}),
+		]),
+		SoraError,
+	);
+	if (found.error?.status === 404) {
 		error(404, "Episode not found");
+	}
+	if (found.error) {
+		throw found.error;
 	}
 
 	return {
-		series,
-		episode: found,
+		series: found.data[0],
+		episode: found.data[1],
 	};
 });
 
@@ -58,55 +64,41 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 	}
 
 	const { results, meta } = playback.data;
-	const number = (path: string | null) => {
-		const match = path?.match(/\/episodes\/(\d+)\/playback$/);
-		return match ? Number(match[1]) : null;
-	};
-
-	const streamPath = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
+	const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
 
 	return {
-		media: results.map(
-			({
-				provider: _provider,
-				locale: _locale,
-				hardsub: _hardsub,
-				sources,
-				subtitles,
-				...rest
-			}) => ({
-				...rest,
-				sources: sources.map((source) => ({
-					...source,
-					url: streamPath(source.url),
-				})),
-				subtitles: subtitles.map((track) => ({
-					...track,
-					url: streamPath(track.url),
-				})),
-			}),
-		),
-		next: number(meta.next),
-		previous: number(meta.previous),
+		media: results.map(({ provider: _provider, locale: _locale, hardsub: _hardsub, ...media }) => ({
+			...media,
+			sources: media.sources.map((source) => ({
+				...source,
+				url: proxied(source.url),
+			})),
+			subtitles: media.subtitles.map((track) => ({
+				...track,
+				url: proxied(track.url),
+			})),
+		})),
+		next: meta.next_episode,
+		previous: meta.previous_episode,
 	};
 });
 
 export const getPlaybackPreferences = query(async () => {
-	const viewer = remoteViewer();
+	const { sora, profile } = remoteViewer();
 
-	return viewer.sora.request(route.getPlaybackPreferences, {
+	return sora.request(route.getPlaybackPreferences, {
 		params: {
-			profile_id: viewer.profile.id,
+			profile_id: profile.id,
 		},
 	});
 });
 
 export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	const viewer = remoteViewer();
+	const { sora, profile } = remoteViewer();
 
-	return viewer.sora.request(route.getProgress, {
+	return sora.request(route.getProgress, {
 		params: {
-			profile_id: viewer.profile.id,
+			profile_id: profile.id,
 			series_id: seriesId,
 			episode,
 		},
@@ -123,11 +115,11 @@ export const saveProgress = command(
 		leaving: z.boolean(),
 	}),
 	async ({ seriesId, episode, leaving, ...progress }) => {
-		const viewer = remoteViewer();
+		const { sora, profile } = remoteViewer();
 
-		await viewer.sora.request(route.saveProgress, {
+		await sora.request(route.saveProgress, {
 			params: {
-				profile_id: viewer.profile.id,
+				profile_id: profile.id,
 				series_id: seriesId,
 				episode,
 			},
@@ -161,12 +153,12 @@ export const savePlaybackPreferences = command(
 		auto_skip: z.boolean().optional(),
 	}),
 	async (changes) => {
-		const viewer = remoteViewer();
+		const { sora, profile } = remoteViewer();
 
 		getPlaybackPreferences().set(
-			await viewer.sora.request(route.updatePlaybackPreferences, {
+			await sora.request(route.updatePlaybackPreferences, {
 				params: {
-					profile_id: viewer.profile.id,
+					profile_id: profile.id,
 				},
 				body: changes,
 			}),
