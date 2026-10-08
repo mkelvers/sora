@@ -8,9 +8,9 @@
 	--breakpoint-wide: 90rem;
 	--breakpoint-hero: 120rem;
 	--color-canvas: #000;
-	--color-surface: #141414;
+	--color-surface: #151515;
 	--color-raised: #232323;
-	--color-hover: rgb(255 255 255 / 0.08);
+	--color-hover: #151515;
 	--color-foreground: #fff;
 	--color-muted: #a3a3a3;
 	--color-subtle: #737373;
@@ -18,6 +18,7 @@
 	--color-border-strong: #5c5c5c;
 	--color-accent: #ff640a;
 	--color-on-accent: #000;
+	--color-accent-secondary: #2abdbb;
 	--color-danger: #f04427;
 	--color-success: #2ca66f;
 	--color-on-status: #1a0f08;
@@ -73,6 +74,10 @@
 }
 
 @layer base {
+	.bg-surface {
+		--color-hover: #272727;
+	}
+
 	html,
 	body {
 		@apply min-h-dvh min-w-0 bg-canvas text-foreground;
@@ -102,7 +107,7 @@
 	}
 
 	:where(input[type="checkbox"], input[type="radio"], input[type="range"]) {
-		accent-color: var(--color-accent);
+		accent-color: var(--color-accent-secondary);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
