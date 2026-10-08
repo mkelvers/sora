@@ -38,7 +38,7 @@ const seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
 export function franchiseParts(
 	titles: readonly FranchiseTitle[],
 	sequels: readonly (readonly [number, number])[],
-): FranchisePart[] {
+): Omit<FranchisePart, "card">[] {
 	const byRelease = titles.toSorted((left, right) =>
 		(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
 	);
@@ -68,13 +68,21 @@ export function franchiseParts(
 
 	return [...seasons, ...others].map((title) => ({
 		series_id: title.seriesId,
-		title: shortTitle(title, base),
+		role: seasons.includes(title) ? "season" : "related",
+		title: shortTitle(title, base, seasons.includes(title)),
 		format: title.format,
 		episode_count: title.episodeCount,
 	}));
 }
 
-function shortTitle(title: FranchiseTitle, base: string) {
+function shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {
+	// Keep the title's own numbering, including untranslated sequel names.
+	const numbered = isSeason
+		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/i)
+		: null;
+	if (numbered) {
+		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
+	}
 	const rest = withoutPrefix(title.title, base);
 	if (rest === null) {
 		return title.title;

@@ -23,6 +23,19 @@ function titlesOf(parts: ReturnType<typeof franchiseParts>) {
 }
 
 describe("franchiseParts", () => {
+	test("preserves known season and part numbers across translated titles", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "That Time I Got Reincarnated as a Slime", "TV", "2018-01-01"),
+				title(2, "Tensei Shitara Slime Datta Ken 4th Season Part 3", "TV", "2027-01-01"),
+			],
+			[[1, 2]],
+		);
+		expect(parts[1]?.title).toBe("Season 4 Part 3");
+		expect(franchiseParts([title(1, "Show Season 2", "TV", "2020-01-01")], [])[0]?.title).toBe(
+			"Season 2",
+		);
+	});
 	test("lists Slime's seasons first, named without the franchise's name", () => {
 		const parts = franchiseParts(
 			[
@@ -57,6 +70,12 @@ describe("franchiseParts", () => {
 			"Visions of Coleus",
 			"Tears of the Azure Sea",
 		]);
+		expect(parts.filter((part) => part.role === "season").map((part) => part.title)).toEqual([
+			"Season 1",
+			"Season 2",
+			"Season 2 Part 2",
+			"Season 3",
+		]);
 	});
 
 	test("leaves a spin-off named after the franchise out of its seasons", () => {
@@ -70,6 +89,7 @@ describe("franchiseParts", () => {
 		);
 
 		expect(titlesOf(parts)).toEqual(["Season 1", "Season 2", "Junior High"]);
+		expect(parts.find((part) => part.series_id === "series-2")?.role).toBe("related");
 	});
 
 	test("follows the sequels through a film", () => {
@@ -123,5 +143,6 @@ describe("franchiseParts", () => {
 		);
 
 		expect(titlesOf(parts)).toEqual(["Your Name.", "Director's Cut"]);
+		expect(parts.every((part) => part.role === "related")).toBe(true);
 	});
 });

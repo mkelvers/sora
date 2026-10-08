@@ -85,6 +85,14 @@ export const AnimeTagSchema = z.object({
 /** One title of a franchise as a series page lists it. */
 export const FranchisePartSchema = z.object({
 	series_id: z.string(),
+	role: z.enum(["season", "related"]).meta({
+		description:
+			"Seasons of the franchise's first show, distinguished from films, specials, and other related titles. This is a navigation grouping, not a canon verdict.",
+	}),
+	card: SeriesCardSchema.meta({
+		description:
+			"The full title and metadata used by catalog posters, including artwork, audio, rating, and synopsis.",
+	}),
 	title: z.string().meta({
 		description:
 			"The title without the franchise's name, such as `Season 2`, `OAD`, or `Tears of the Azure Sea`; the first season is `Season 1`. A title not named after the franchise keeps its whole title.",

@@ -6,6 +6,7 @@ import { getAnime } from "../catalog/queries/anime";
 import { browseAnime, type Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema, type BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
+import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
 import {
 	anime as animeTable,
@@ -67,7 +68,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 		})
 		.from(series)
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
-		.where(eq(series.id, seriesId))
+		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
 		.limit(1);
 	if (!found) {
 		throw new SeriesNotFoundError(seriesId);
@@ -190,7 +191,7 @@ export async function assertSeriesExists(seriesId: string) {
 			id: series.id,
 		})
 		.from(series)
-		.where(eq(series.id, seriesId))
+		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
 		.limit(1);
 	if (!stored) {
 		throw new SeriesNotFoundError(seriesId);
@@ -479,7 +480,11 @@ async function seriesIdsFor(
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 async function loadSeries(seriesId: string) {
-	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+	const [row] = await db
+		.select()
+		.from(series)
+		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
+		.limit(1);
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -636,7 +641,10 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 				: [];
 		}),
 		sequels.map(({ from, to }) => [from, to] as const),
-	);
+	).map((part) => ({
+		...part,
+		card: cards.get(part.series_id)!,
+	}));
 }
 
 /** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
@@ -691,9 +699,12 @@ export async function getLatestReleases(
 		.select()
 		.from(series)
 		.where(
-			inArray(
-				series.id,
-				candidates.map((candidate) => candidate.seriesId),
+			and(
+				catalogSeriesAllowed,
+				inArray(
+					series.id,
+					candidates.map((candidate) => candidate.seriesId),
+				),
 			),
 		);
 	const listed = await listedEpisodesOf(rows);
@@ -780,8 +791,8 @@ export async function getLatestReleases(
 }
 
 /**
- * Builds the cards of stored series rows, keyed by series ID, with the audio
- * each can be watched in and the episodes each lists. Reads only the
+ * Builds visible cards of stored series rows, keyed by series ID, with each
+ * title's audio and listed episodes. Short and web series are omitted. Reads only the
  * database.
  */
 export async function toSeriesCards(rows: readonly SeriesRow[]): Promise<Map<string, SeriesCard>> {
@@ -811,31 +822,34 @@ async function cardsFrom(
 	const order: ContentLanguage[] = ["dub", "sub", "raw"];
 
 	return new Map(
-		rows.map((row) => {
+		rows.flatMap((row) => {
 			const audio = new Set(languages.get(row.anilistId) ?? []);
 			const details = anime.get(row.anilistId);
+			if (!isCatalogFormat(details?.format)) return [];
 			const title = artwork.get(row.key);
 			return [
-				row.id,
-				{
-					id: row.id,
-					kind: row.kind,
-					format: details?.format ?? null,
-					title: row.title,
-					poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
-					backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
-					logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
-					logo_scale: title?.logoScale ?? 1,
-					logo_offset_x: title?.logoOffsetX ?? 0,
-					logo_offset_y: title?.logoOffsetY ?? 0,
-					year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
-					status: row.status,
-					audio: order.filter((language) => audio.has(language)),
-					overview: row.overview ?? details?.description ?? null,
-					score: details?.score ?? null,
-					genres: details?.genres ?? [],
-					episode_count: listed.get(row.id)?.length ?? 0,
-				},
+				[
+					row.id,
+					{
+						id: row.id,
+						kind: row.kind,
+						format: details?.format ?? null,
+						title: row.title,
+						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
+						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
+						logo_scale: title?.logoScale ?? 1,
+						logo_offset_x: title?.logoOffsetX ?? 0,
+						logo_offset_y: title?.logoOffsetY ?? 0,
+						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
+						status: row.status,
+						audio: order.filter((language) => audio.has(language)),
+						overview: row.overview ?? details?.description ?? null,
+						score: details?.score ?? null,
+						genres: details?.genres ?? [],
+						episode_count: listed.get(row.id)?.length ?? 0,
+					},
+				] as const,
 			];
 		}),
 	);
