@@ -8,28 +8,19 @@
 	--breakpoint-wide: 90rem;
 	--breakpoint-hero: 120rem;
 	--color-canvas: #000;
-	--color-header: #272727;
-	--color-header-hover: #151515;
+	--color-surface: #141414;
+	--color-raised: #232323;
+	--color-hover: rgb(255 255 255 / 0.08);
 	--color-foreground: #fff;
-	--color-surface: oklch(0.17 0.006 285);
-	--color-muted: oklch(0.71 0.008 285);
-	--color-subtle: oklch(0.57 0.008 285);
-	--color-border: oklch(0.35 0.008 285);
-	--color-border-strong: oklch(0.5 0.008 285);
+	--color-muted: #a3a3a3;
+	--color-subtle: #737373;
+	--color-border: #3a3a3a;
+	--color-border-strong: #5c5c5c;
 	--color-accent: #ff640a;
 	--color-on-accent: #000;
-	--color-status-error: #f04427;
-	--color-status-success: #2ca66f;
-	--color-on-status: oklch(0.13 0.01 48);
-	--color-panel: oklch(0.26 0.004 285);
-	--color-panel-strong: oklch(0.23 0.004 285);
-	--color-accent-secondary: #2abdbb;
-	--color-tooltip: #414141;
-	--color-tooltip-foreground: #ececec;
-	--color-dropdown: #272727;
-	--color-dropdown-hover: #151515;
-	--color-dropdown-foreground: #8c8c8c;
-	--color-selection: #272727;
+	--color-danger: #f04427;
+	--color-success: #2ca66f;
+	--color-on-status: #1a0f08;
 }
 
 :root {
@@ -50,6 +41,20 @@
 
 	@variant sm {
 		height: calc(100dvh - 3.5rem);
+	}
+}
+
+@utility page {
+	min-height: calc(100dvh - 6.5rem);
+	padding: 2.5rem 1.25rem;
+
+	@variant sm {
+		min-height: calc(100dvh - 3.5rem);
+		padding: 3rem 2.5rem;
+	}
+
+	@variant lg {
+		padding: 4rem;
 	}
 }
 
@@ -87,7 +92,7 @@
 	}
 
 	::selection {
-		background-color: var(--color-selection);
+		background-color: var(--color-raised);
 		color: var(--color-accent);
 	}
 
@@ -97,7 +102,7 @@
 	}
 
 	:where(input[type="checkbox"], input[type="radio"], input[type="range"]) {
-		accent-color: var(--color-accent-secondary);
+		accent-color: var(--color-accent);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
