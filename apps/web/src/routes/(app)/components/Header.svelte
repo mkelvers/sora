@@ -55,7 +55,7 @@
 		...sections,
 		{
 			href: "/calendar",
-			label: "Release calendar",
+			label: "Release Calendar",
 		},
 	];
 

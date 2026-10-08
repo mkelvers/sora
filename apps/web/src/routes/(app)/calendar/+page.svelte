@@ -45,14 +45,14 @@
 </script>
 
 <svelte:head>
-	<title>Release calendar · Sora</title>
+	<title>Release Calendar · Sora</title>
 </svelte:head>
 
 <div class="page overflow-x-clip">
 	<section class="mx-auto w-full max-w-7xl" aria-labelledby="calendar-title">
 		<div class="mb-6 flex items-center justify-between gap-2 sm:mb-8 sm:gap-4">
 			<div class="flex flex-col items-start">
-				<h1 id="calendar-title" class="text-2xl font-bold">Release calendar</h1>
+				<h1 id="calendar-title" class="text-2xl font-bold">Release Calendar</h1>
 				<p class="mt-1 text-sm text-muted tabular-nums">{calendar.week}</p>
 			</div>
 
