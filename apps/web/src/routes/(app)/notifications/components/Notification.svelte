@@ -22,7 +22,7 @@
 </script>
 
 <article
-	class="group relative transition-colors focus-within:bg-white/5 hover:bg-white/5"
+	class="group relative transition-colors focus-within:bg-hover hover:bg-hover"
 	aria-labelledby="notification-{item.id}"
 >
 	<a
@@ -32,8 +32,7 @@
 		<div
 			class={cn(
 				"relative aspect-video w-full shrink-0 bg-surface sm:aspect-4/3 sm:w-[40%] sm:max-w-96",
-				unread &&
-					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-status-error",
+				unread && "after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:bg-danger",
 			)}
 		>
 			{#if item.series.backdrop_url}
@@ -50,7 +49,7 @@
 		</div>
 
 		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-24 sm:pb-0">
-			<h2 id="notification-{item.id}" class="text-lg leading-snug font-bold sm:text-xl">
+			<h2 id="notification-{item.id}" class="text-lg leading-snug font-bold">
 				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
 			</h2>
@@ -71,7 +70,7 @@
 				<Button
 					{...trigger}
 					variant="icon"
-					class="absolute right-12 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-14 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+					class="absolute right-12 bottom-1 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-14 sm:bottom-auto pointer-fine:opacity-0"
 					aria-label="Mark notification about {item.series.title} as read"
 					onclick={() => markNotificationsRead([item.id])}
 				>
@@ -87,7 +86,7 @@
 				{...trigger}
 				variant="icon"
 				tone="danger"
-				class="absolute right-1 bottom-1 size-11 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-3 sm:bottom-auto sm:size-9 pointer-fine:opacity-0"
+				class="absolute right-1 bottom-1 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-3 sm:bottom-auto pointer-fine:opacity-0"
 				aria-label="Delete notification about {item.series.title}"
 				onclick={() => dismissNotification(item.id)}
 			>

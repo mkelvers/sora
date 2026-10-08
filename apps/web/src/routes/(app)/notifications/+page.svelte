@@ -1,10 +1,10 @@
 <script lang="ts">
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
 	import { pollWhileVisible } from "$lib/utils";
-	import { CaretDownIcon, ChecksIcon } from "phosphor-svelte";
+	import { ChecksIcon } from "phosphor-svelte";
 
 	import Notification from "./components/Notification.svelte";
 	import { getNotifications, markNotificationsRead } from "./notifications.remote";
@@ -15,17 +15,16 @@
 
 	const views = [
 		{
-			value: "new" as const,
-			label: "New Notifications",
+			value: "new",
+			label: "New",
 		},
 		{
-			value: "past" as const,
-			label: "Past Notifications",
+			value: "past",
+			label: "Past",
 		},
-	];
+	] as const;
 
 	let view = $state<(typeof views)[number]["value"]>("new");
-	const current = $derived(views.find((option) => option.value === view)!);
 	const shown = $derived(view === "new" ? unread : read);
 
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
@@ -35,79 +34,58 @@
 	<title>Notifications · Sora</title>
 </svelte:head>
 
-<div class="mx-auto w-full max-w-7xl px-5 py-10 sm:px-10">
-	<h1 class="mb-8 text-center text-2xl font-bold">Notification Center</h1>
+<div class="page">
+	<div class="mx-auto max-w-7xl">
+		<h1 class="mb-8 text-2xl font-bold">Notifications</h1>
 
-	{#if notifications.current?.length === 0}
-		<EmptyState
-			mascot={mascots.emptyNotifications}
-			title="All quiet for now."
-			hint="We'll ring the bell when new episodes and dubs of your watchlist arrive."
-		/>
-	{:else}
-		<div class="mb-6 flex min-h-12 items-center justify-between gap-4 border-b border-muted">
-			<Dropdown
-				alignment="left"
-				variant="toolbar"
-				class="w-52"
-				label="Show notifications, {current.label} selected"
-			>
-				{#snippet trigger()}
-					<CaretDownIcon size="0.875rem" weight="fill" />
-					{current.label}
+		{#if notifications.current?.length === 0}
+			<EmptyState
+				mascot={mascots.emptyNotifications}
+				title="All quiet for now."
+				hint="We'll ring the bell when new episodes and dubs of your watchlist arrive."
+			/>
+		{:else}
+			<Tabs items={views} bind:value={view} label="Notifications">
+				{#snippet actions()}
+					{#if view === "new" && unread.length}
+						<Button
+							variant="ghost"
+							class="ml-auto"
+							onclick={() => markNotificationsRead(unread.map((item) => item.id))}
+						>
+							<ChecksIcon size="1.125rem" />
+							<span class="max-sm:sr-only">Mark all as read</span>
+						</Button>
+					{/if}
 				{/snippet}
 
-				{#snippet children()}
-					<div role="menu" aria-label="Show notifications">
-						{#each views as option (option.value)}
-							<Button
-								role="menuitemradio"
-								aria-checked={option.value === view}
-								onclick={() => (view = option.value)}
-								variant="item"
-							>
-								{option.label}
-							</Button>
-						{/each}
-					</div>
+				{#snippet children(current)}
+					{#if shown.length}
+						<ul
+							class="flex flex-col gap-4 pt-6"
+							aria-label={current === "new" ? "New notifications" : "Past notifications"}
+						>
+							{#each shown as item (item.id)}
+								<li><Notification {item} unread={current === "new"} /></li>
+							{/each}
+						</ul>
+					{:else if notifications.current}
+						{#if current === "new"}
+							<EmptyState
+								mascot={mascots.emptyNotifications}
+								title="You're all caught up."
+								hint="New episodes, dubs and sequels of your watchlist will appear here."
+							/>
+						{:else}
+							<EmptyState
+								mascot={mascots.emptyNotifications}
+								title="No past notifications yet."
+								hint="Notifications you mark as read are kept here for 30 days."
+							/>
+						{/if}
+					{/if}
 				{/snippet}
-			</Dropdown>
-
-			{#if view === "new" && unread.length}
-				<Button
-					variant="ghost"
-					class="hover:bg-transparent"
-					onclick={() => markNotificationsRead(unread.map((item) => item.id))}
-				>
-					<ChecksIcon size="1.125rem" />
-					Mark all as read
-				</Button>
-			{/if}
-		</div>
-
-		{#if shown.length}
-			<ul
-				class="flex flex-col gap-4"
-				aria-label={view === "new" ? "New notifications" : "Past notifications"}
-			>
-				{#each shown as item (item.id)}
-					<li><Notification {item} unread={view === "new"} /></li>
-				{/each}
-			</ul>
-		{:else if notifications.current}
-			{#if view === "new"}
-				<EmptyState
-					mascot={mascots.emptyNotifications}
-					title="You're all caught up."
-					hint="New episodes, dubs and sequels of your watchlist will appear here."
-				/>
-			{:else}
-				<EmptyState
-					mascot={mascots.emptyNotifications}
-					title="No past notifications yet."
-					hint="Notifications you mark as read are kept here for 30 days."
-				/>
-			{/if}
+			</Tabs>
 		{/if}
-	{/if}
+	</div>
 </div>
