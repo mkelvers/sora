@@ -1,5 +1,6 @@
 import type { SeriesCard } from "@sora/sdk";
 import { clsx, type ClassValue } from "clsx";
+import type { Attachment } from "svelte/attachments";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -17,6 +18,10 @@ export function audioLabel(audio: SeriesCard["audio"] | null | undefined) {
 	return sub ? "Subtitled" : dub ? "Dubbed" : "";
 }
 
+export function episodes(count: number) {
+	return `${count} ${count === 1 ? "Episode" : "Episodes"}`;
+}
+
 export function pollWhileVisible(refresh: () => void, intervalMs = 30_000) {
 	const check = () => {
 		if (document.visibilityState === "visible") {
@@ -32,9 +37,26 @@ export function pollWhileVisible(refresh: () => void, intervalMs = 30_000) {
 	};
 }
 
+export function onVisible(callback: () => void, rootMargin: string): Attachment {
+	return (node) => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((entry) => entry.isIntersecting)) {
+					callback();
+				}
+			},
+			{
+				rootMargin,
+			},
+		);
+
+		observer.observe(node);
+		return () => observer.disconnect();
+	};
+}
+
 const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
 
-/** Every width TMDB serves, across its poster, backdrop, logo and still sizes. */
 export type TmdbSize =
 	| "w45"
 	| "w92"
