@@ -4,12 +4,13 @@
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
 
-	type Props = {
+	let {
+		series,
+		media,
+	}: {
 		series: Series;
 		media: Media;
-	};
-
-	let { series, media }: Props = $props();
+	} = $props();
 
 	let scale = $derived(series.logo_scale);
 	let x = $derived(series.logo_offset_x);

@@ -2,13 +2,15 @@
 	import { cn } from "$lib/utils";
 	import type { ProfileAvatar } from "@sora/sdk";
 
-	type Props = {
+	let {
+		avatar,
+		alt,
+		class: className,
+	}: {
 		avatar: ProfileAvatar;
 		alt: string;
 		class?: string;
-	};
-
-	let { avatar, alt, class: className }: Props = $props();
+	} = $props();
 </script>
 
 <img

@@ -16,14 +16,17 @@
 	} from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
-	type Props = {
+	let {
+		player,
+		previous,
+		next,
+		children,
+	}: {
 		player: Player;
 		previous?: string;
 		next?: string;
 		children?: Snippet;
-	};
-
-	let { player, previous, next, children }: Props = $props();
+	} = $props();
 
 	function clock(seconds: number) {
 		const total = Math.floor(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);

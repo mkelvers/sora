@@ -2,13 +2,15 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import type { Mascot } from "$lib/mascots";
 
-	interface Props {
+	let {
+		mascot,
+		title,
+		hint,
+	}: {
 		mascot: Mascot;
 		title: string;
 		hint: string;
-	}
-
-	let { mascot, title, hint }: Props = $props();
+	} = $props();
 </script>
 
 <section

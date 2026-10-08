@@ -5,16 +5,6 @@
 
 	import Button from "./Button.svelte";
 
-	type Props = {
-		children: Snippet;
-		trigger: Snippet;
-		label?: string;
-		alignment?: "left" | "right";
-		variant?: "ghost" | "icon" | "secondary" | "toolbar" | "text" | "nav";
-		square?: boolean;
-		class?: string;
-	};
-
 	let {
 		alignment = "right",
 		variant = "ghost",
@@ -23,7 +13,15 @@
 		class: className,
 		label,
 		trigger,
-	}: Props = $props();
+	}: {
+		children: Snippet;
+		trigger: Snippet;
+		label?: string;
+		alignment?: "left" | "right";
+		variant?: "ghost" | "icon" | "secondary" | "toolbar" | "text" | "nav";
+		square?: boolean;
+		class?: string;
+	} = $props();
 
 	const popover = new Popover({
 		focus: {

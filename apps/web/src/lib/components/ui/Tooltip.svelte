@@ -2,13 +2,15 @@
 	import { Tooltip } from "melt/builders";
 	import type { Snippet } from "svelte";
 
-	interface Props {
+	let {
+		text,
+		children,
+		placement = "top",
+	}: {
 		text: string;
 		children: Snippet<[Tooltip["trigger"]]>;
 		placement?: "top" | "bottom";
-	}
-
-	let { text, children, placement = "top" }: Props = $props();
+	} = $props();
 
 	const tooltip = new Tooltip({
 		openDelay: 0,

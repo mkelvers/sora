@@ -5,13 +5,15 @@
 	import { prefersReducedMotion } from "svelte/motion";
 	import { fly } from "svelte/transition";
 
-	interface Props {
+	let {
+		message,
+		tone = "success",
+		ondismiss,
+	}: {
 		message: string;
 		tone?: "error" | "success";
 		ondismiss?: () => void;
-	}
-
-	let { message, tone = "success", ondismiss }: Props = $props();
+	} = $props();
 
 	$effect(() => {
 		if (!message || tone === "error") {
