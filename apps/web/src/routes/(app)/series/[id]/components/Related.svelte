@@ -5,9 +5,13 @@
 	import Next from "$lib/components/ui/carousel/Next.svelte";
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Poster from "$routes/(app)/components/Poster.svelte";
-	import type { Series } from "@sora/sdk";
+	import type { FranchisePart } from "@sora/sdk";
 
-	let { parts }: { parts: Series["franchise"] } = $props();
+	let {
+		parts,
+	}: {
+		parts: FranchisePart[];
+	} = $props();
 </script>
 
 <div class="pb-10 sm:pb-12 lg:pb-16">
@@ -17,7 +21,10 @@
 	<Carousel
 		class="mt-5 min-w-0"
 		aria-labelledby="related-titles"
-		options={{ slidesToScroll: "auto", duration: 20 }}
+		options={{
+			slidesToScroll: "auto",
+			duration: 20,
+		}}
 	>
 		{#snippet children()}
 			<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16">

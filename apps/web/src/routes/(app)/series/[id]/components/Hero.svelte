@@ -23,15 +23,17 @@
 	const library = getLibrary();
 	const listed = $derived(library.status.has(series.id));
 
+	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
+
 	const play = $derived.by(() => {
 		const resume = progress?.next?.episode;
 		if (!resume && !series.episode_count) {
 			return null;
 		}
 
-		const rewatch = !resume && !!progress?.episodes.length;
 		const episode = resume ?? 1;
 		const suffix = series.format === "MOVIE" ? "" : ` E${episode}`;
+		const rewatch = !resume && !!progress?.episodes.length;
 		return {
 			href: `/series/${series.id}/watch/${episode}`,
 			label: resume
@@ -43,8 +45,6 @@
 		};
 	});
 
-	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
-
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
 			return null;
@@ -52,23 +52,29 @@
 
 		const airing = new Date(series.next_episode.airing_at);
 		const aired = airing <= new Date();
-
 		const day = airing.toLocaleDateString("en-US", {
 			month: "long",
 			day: "numeric",
 		});
-		if (series.next_episode.number > 1) {
-			const time = airing.toLocaleTimeString("en-GB", {
-				hour: "2-digit",
-				minute: "2-digit",
-			});
-			return aired
-				? `Next episode aired ${day} at ${time}, available soon`
-				: `Next episode airs ${day} at ${time}`;
+		const time = airing.toLocaleTimeString("en-GB", {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+
+		if (series.next_episode.number === 1) {
+			return aired ? "Premiere available soon" : `Series premiere starts ${day}`;
 		}
 
-		return aired ? "Premiere available soon" : `Series premiere starts ${day}`;
+		return aired
+			? `Next episode aired ${day} at ${time}, available soon`
+			: `Next episode airs ${day} at ${time}`;
 	});
+
+	async function rewatch(event: MouseEvent) {
+		event.preventDefault();
+		await startRewatch(series.id);
+		await goto(`/series/${series.id}/watch/1`);
+	}
 </script>
 
 <header
@@ -204,15 +210,7 @@
 					href={play.href}
 					variant="primary"
 					class="min-w-0 max-sm:flex-1"
-					onclick={async (event: MouseEvent) => {
-						if (!play.rewatch) {
-							return;
-						}
-
-						event.preventDefault();
-						await startRewatch(series.id);
-						await goto(play.href);
-					}}
+					onclick={play.rewatch ? rewatch : undefined}
 				>
 					<PlayIcon size="1.55em" weight="bold" />
 					<span class="truncate">{play.label}</span>
@@ -223,7 +221,7 @@
 					variant="primary"
 					class="min-w-0 max-sm:flex-1"
 					aria-pressed={listed}
-					onclick={() => library.set(series, listed ? null : "plan_to_watch")}
+					onclick={() => library.toggle(series)}
 				>
 					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
 					<span class="truncate">{listed ? "Remove from Watchlist" : "Add to Watchlist"}</span>

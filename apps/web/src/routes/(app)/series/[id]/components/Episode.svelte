@@ -27,18 +27,24 @@
 
 	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
-	const played = $derived(
-		progress && !watched && progress.position_seconds > 0
-			? progress.position_seconds / progress.duration_seconds
-			: 0,
-	);
+	const started = $derived(progress && !watched && progress.position_seconds > 0 ? progress : null);
+	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
 	const playable = $derived(episode.audio?.length !== 0);
 	const heading = $derived(
 		movie
 			? (episode.title ?? series.title)
 			: `E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`,
 	);
-	const suffix = $derived(movie ? "" : ` E${episode.number}`);
+	const badge = $derived(
+		watched
+			? "Watched"
+			: started
+				? `${duration(Math.max(1, (started.duration_seconds - started.position_seconds) / 60))} left`
+				: episode.runtime_minutes && duration(episode.runtime_minutes),
+	);
+	const action = $derived(
+		`${watched ? "Watch again" : started ? "Resume" : "Play"}${movie ? "" : ` E${episode.number}`}`,
+	);
 	const released = $derived(episode.aired_at ?? episode.air_date);
 	const image = $derived(episode.still_url ?? series.backdrop_url);
 </script>
@@ -72,22 +78,16 @@
 						<span class="sr-only">Filler episode</span>
 					</span>
 				{/if}
-				{#if watched || played || episode.runtime_minutes}
+				{#if badge}
 					<span
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
-						{#if watched}
-							Watched
-						{:else if progress && played}
-							{duration(Math.max(1, (progress.duration_seconds - progress.position_seconds) / 60))} left
-						{:else if episode.runtime_minutes}
-							{duration(episode.runtime_minutes)}
-						{/if}
+						{badge}
 					</span>
 				{/if}
-				{#if played}
+				{#if started}
 					<progress
-						class="absolute inset-x-0 bottom-0 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
+						class="absolute inset-x-0 bottom-0 z-10 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
 						value={played}
 						aria-label="{Math.round(played * 100)}% watched"
 					>
@@ -132,13 +132,7 @@
 					class="mt-auto flex h-10 shrink-0 items-center gap-2 text-sm font-bold text-accent uppercase"
 				>
 					<PlayIcon size="1.25rem" weight="bold" />
-					{#if watched}
-						Watch again{suffix}
-					{:else if played}
-						Resume{suffix}
-					{:else}
-						Play{suffix}
-					{/if}
+					{action}
 				</span>
 			{/if}
 		</div>
