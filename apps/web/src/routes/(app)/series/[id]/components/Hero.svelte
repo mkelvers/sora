@@ -3,6 +3,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
@@ -81,7 +82,7 @@
 	class="series-hero @container relative z-30 grid w-full grid-cols-1 grid-rows-1 bg-black before:pointer-events-none before:z-10 before:col-start-1 before:row-start-1 before:h-full after:pointer-events-none after:z-10 after:col-start-1 after:row-start-1 after:h-full sm:aspect-video sm:max-h-[85svh] sm:min-h-150 short:min-h-[calc(100svh-3.5rem)]"
 >
 	{#if series.backdrop_url}
-		<div class="absolute inset-x-0 top-0 z-0 aspect-4/3 sm:bottom-0 sm:aspect-auto">
+		<div class="absolute inset-x-0 top-0 z-0 h-[100vw] sm:bottom-0 sm:h-auto">
 			<Image
 				src={tmdbImage(series.backdrop_url, "original")}
 				srcset={tmdbSrcset(series.backdrop_url, {
@@ -89,9 +90,10 @@
 					w1280: 1280,
 					original: 3840,
 				})}
-				sizes="(min-width: 66.75rem) 100vw, (min-width: 40rem) 67rem, 134vw"
+				sizes="(min-width: 66.75rem) 100vw, (min-width: 40rem) 67rem, 178vw"
 				alt="Backdrop from {series.title}"
-				class="object-[50%_35%]"
+				class="object-[50%_35%] max-sm:object-[var(--mobile-backdrop-position,50%)_top]"
+				{@attach mobileBackdrop}
 				loading="eager"
 				fetchpriority="high"
 			/>
@@ -142,7 +144,7 @@
 		</h1>
 
 		{#if next}
-			<p class="mt-5 text-sm font-semibold sm:mt-6 sm:text-base">{next}</p>
+			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">{next}</p>
 		{/if}
 
 		<p

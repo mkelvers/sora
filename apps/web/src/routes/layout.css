@@ -209,7 +209,7 @@
 	@variant max-sm {
 		.home-hero-slide {
 			&::before {
-				background-image: linear-gradient(to right, rgb(0 0 0 / 0.42), transparent 80%);
+				background-image: none;
 			}
 
 			&::after {
@@ -230,9 +230,9 @@
 			&::after {
 				background-image: linear-gradient(
 					to bottom,
-					transparent calc(75vw - 10rem),
-					rgb(0 0 0 / 0.72) calc(75vw - 3rem),
-					var(--color-canvas) 75vw
+					transparent calc(100vw - 10rem),
+					rgb(0 0 0 / 0.72) calc(100vw - 3rem),
+					var(--color-canvas) 100vw
 				);
 			}
 		}

@@ -7,6 +7,7 @@
 	import Previous from "$lib/components/ui/carousel/Previous.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
@@ -53,7 +54,7 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="col-start-1 row-start-1 grid"
+							class="col-start-1 row-start-1 grid max-sm:h-[100vw] max-sm:max-h-full max-sm:self-start max-sm:mask-[linear-gradient(to_bottom,black_65%,transparent)]"
 							aria-label={slide.title}
 							tabindex={index === carousel.active ? undefined : -1}
 						>
@@ -65,9 +66,10 @@
 										w1280: 1280,
 										original: 3840,
 									})}
-									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) calc(92vw + 7rem), 57rem"
+									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) calc(92vw + 7rem), 178vw"
 									alt="Backdrop from {slide.title}"
-									class="object-top"
+									class="object-top max-sm:object-[var(--mobile-backdrop-position,50%)_top]"
+									{@attach mobileBackdrop}
 									loading={index === carousel.active ? "eager" : "lazy"}
 									fetchpriority={index === carousel.active ? "high" : "low"}
 								/>
@@ -98,7 +100,7 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="pointer-events-auto flex h-24 w-full max-w-xs items-end justify-center px-10 sm:h-32 sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
+							class="pointer-events-auto flex h-24 w-full max-w-xs items-end justify-center px-10 max-sm:mx-auto sm:h-32 sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
 							aria-label={slide.title}
 							tabindex="-1"
 						>
