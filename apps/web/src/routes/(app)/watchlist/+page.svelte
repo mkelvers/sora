@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EmptyState from "$lib/components/EmptyState.svelte";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
 	import Poster from "$routes/(app)/components/Poster.svelte";
@@ -66,7 +67,8 @@
 							{:else}
 								{#each { length: 12 }, index (index)}
 									<li>
-										<Poster />
+										<Skeleton class="aspect-2/3" />
+										<Skeleton class="mt-3 h-4 w-4/5" />
 									</li>
 								{/each}
 							{/if}

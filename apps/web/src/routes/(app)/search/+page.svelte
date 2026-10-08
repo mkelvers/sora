@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import EmptyState from "$lib/components/EmptyState.svelte";
+	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { mascots } from "$lib/mascots";
-	import Poster from "$routes/(app)/components/Poster.svelte";
 
 	import Results from "./components/Results.svelte";
 
@@ -28,7 +28,10 @@
 
 					{#snippet pending()}
 						{#each { length: 12 }, index (index)}
-							<li><Poster /></li>
+							<li>
+								<Skeleton class="aspect-2/3" />
+								<Skeleton class="mt-3 h-4 w-4/5" />
+							</li>
 						{/each}
 					{/snippet}
 
