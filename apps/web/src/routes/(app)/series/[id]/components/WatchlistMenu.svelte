@@ -25,7 +25,7 @@
 			square
 			aria-label={status ? "Remove from Watchlist" : "Add to Watchlist"}
 			aria-pressed={!!status}
-			onclick={() => library.set(series, status ? null : "plan_to_watch")}
+			onclick={() => library.toggle(series)}
 		>
 			<BookmarkSimpleIcon size="1.5rem" weight={status ? "fill" : "bold"} />
 		</Button>

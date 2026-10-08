@@ -25,6 +25,12 @@
 	const delay = 10_000;
 
 	let held = $state(-1);
+
+	function near(index: number, active: number) {
+		return [0, 1, featured.length - 1].includes(
+			(index - active + featured.length) % featured.length,
+		);
+	}
 </script>
 
 {#if featured.length}
@@ -39,9 +45,6 @@
 		{#snippet children(carousel)}
 			<Content>
 				{#each featured as slide, index (slide.id)}
-					{@const near = [0, 1, featured.length - 1].includes(
-						(index - carousel.active + featured.length) % featured.length,
-					)}
 					<Item
 						class="home-hero-slide grid grid-cols-1 grid-rows-1 overflow-hidden"
 						aria-label="{slide.title}, {index + 1} of {featured.length}"
@@ -54,7 +57,7 @@
 							aria-label={slide.title}
 							tabindex={index === carousel.active ? undefined : -1}
 						>
-							{#if slide.backdrop_url && near}
+							{#if slide.backdrop_url && near(index, carousel.active)}
 								<Image
 									src={tmdbImage(slide.backdrop_url, "original")}
 									srcset={tmdbSrcset(slide.backdrop_url, {
@@ -83,9 +86,6 @@
 				{@attach () => carousel.autoplay(delay)}
 			>
 				{#each featured as slide, index (slide.id)}
-					{@const near = [0, 1, featured.length - 1].includes(
-						(index - carousel.active + featured.length) % featured.length,
-					)}
 					{@const listed = library.status.has(slide.id)}
 					<article
 						class={cn(
@@ -102,7 +102,7 @@
 							aria-label={slide.title}
 							tabindex="-1"
 						>
-							{#if slide.logo_url && near}
+							{#if slide.logo_url && near(index, carousel.active)}
 								<img
 									src={tmdbImage(slide.logo_url, "w500")}
 									alt="{slide.title} logo"
@@ -155,7 +155,7 @@
 											square
 											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 											aria-pressed={listed}
-											onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
+											onclick={() => library.toggle(slide)}
 										>
 											<BookmarkSimpleIcon size="1.5rem" weight={listed ? "fill" : "bold"} />
 										</Button>
@@ -166,7 +166,7 @@
 									variant="primary"
 									class="max-sm:flex-1"
 									aria-pressed={listed}
-									onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
+									onclick={() => library.toggle(slide)}
 								>
 									<BookmarkSimpleIcon size="1.2rem" weight={listed ? "fill" : "bold"} />
 									{listed ? "Remove from Watchlist" : "Add to Watchlist"}

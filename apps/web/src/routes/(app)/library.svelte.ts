@@ -46,11 +46,6 @@ export const statuses = [
 	};
 }[];
 
-/**
- * The viewer's watchlist and continue-watching rows, indexed by series id once
- * for the whole app so each poster or button looks up its own series instead of
- * scanning the lists.
- */
 export class Library {
 	status: Map<string, WatchlistStatus>;
 	resume: Map<string, ContinueWatching>;
@@ -64,6 +59,10 @@ export class Library {
 		this.resume = $derived(
 			new Map((continuing.current ?? []).map((item) => [item.series.id, item])),
 		);
+	}
+
+	toggle(series: SeriesCard) {
+		this.set(series, this.status.has(series.id) ? null : "plan_to_watch");
 	}
 
 	set(series: SeriesCard, status: WatchlistStatus | null) {
