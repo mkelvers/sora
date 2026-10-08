@@ -1,13 +1,6 @@
-import type {
-	BaseProvider,
-	IContentUnit,
-	IMediaMetadata,
-	MappingClient,
-	ResolvedMediaStream,
-} from "anime-sdk";
+import type { BaseProvider, IContentUnit, IMediaMetadata, MappingClient } from "anime-sdk";
 
 import type { Anime } from "../../catalog/models/anime";
-import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
 
@@ -69,18 +62,31 @@ export class SdkStreamProvider implements StreamProvider {
 	async resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
 		const resolved = await this.sdk.resolveStream(episodeId, language);
 		if (resolved.type !== "video") {
-			return toProviderStream(resolved, []);
+			throw new Error("No video streams returned");
 		}
 
-		return toProviderStream(
-			{
-				...resolved,
-				streams: resolved.streams.filter(
-					(stream) => stream.language === undefined || stream.language === language,
-				),
-			},
-			[],
+		const streams = resolved.streams.filter(
+			(stream) => stream.language === undefined || stream.language === language,
 		);
+		if (streams.length === 0) {
+			throw new Error("No video streams returned");
+		}
+
+		return {
+			videos: streams.map((stream) => ({
+				url: stream.sourceUrl,
+				format: stream.isHLS ? "hls" : "mp4",
+				quality: stream.quality,
+				headers: stream.headers ?? {},
+				subtitles: (stream.subtitles ?? []).map((track) => ({
+					url: track.url,
+					language: track.language,
+					label: track.label,
+					format: track.format ?? null,
+				})),
+			})),
+			skipSegments: [],
+		};
 	}
 }
 
@@ -101,36 +107,6 @@ export function toProviderEpisode(unit: IContentUnit): ProviderEpisode {
 		title: unit.title,
 		languages: unit.availableLanguages ?? null,
 		isFiller: unit.isFiller ?? null,
-	};
-}
-
-/**
- * An `anime-sdk` stream as a {@link ProviderStream}.
- *
- * @throws when it has no videos.
- */
-function toProviderStream(
-	resolved: ResolvedMediaStream,
-	skipSegments: SkipSegment[],
-): ProviderStream {
-	if (resolved.type !== "video" || resolved.streams.length === 0) {
-		throw new Error("No video streams returned");
-	}
-
-	return {
-		videos: resolved.streams.map((stream) => ({
-			url: stream.sourceUrl,
-			format: stream.isHLS ? "hls" : "mp4",
-			quality: stream.quality,
-			headers: stream.headers ?? {},
-			subtitles: (stream.subtitles ?? []).map((track) => ({
-				url: track.url,
-				language: track.language,
-				label: track.label,
-				format: track.format ?? null,
-			})),
-		})),
-		skipSegments,
 	};
 }
 
