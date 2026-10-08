@@ -19,12 +19,12 @@
 </script>
 
 <svelte:head>
-	<title>{selected.label} simulcast season · Sora</title>
+	<title>{selected.label} Simulcast Season · Sora</title>
 </svelte:head>
 
 {#key selected.slug}
 	<Catalog
-		title="Simulcast season"
+		title="Simulcast Season"
 		empty={{
 			title: `${selected.label} came up empty.`,
 			hint: "Try another season, there's plenty more airing.",
@@ -37,7 +37,7 @@
 	>
 		{#snippet controls()}
 			<Button
-				variant="ghost"
+				variant="text"
 				class="sm:hidden"
 				aria-label="Choose simulcast season, {selected.label} selected"
 				aria-haspopup="dialog"
@@ -49,6 +49,7 @@
 			</Button>
 			<div class="hidden sm:block">
 				<Dropdown
+					variant="toolbar"
 					class="max-h-80 min-w-48 overflow-y-auto"
 					label="Choose simulcast season, {selected.label} selected"
 				>

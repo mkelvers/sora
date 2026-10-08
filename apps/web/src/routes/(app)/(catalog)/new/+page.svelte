@@ -11,7 +11,7 @@
 
 {#key `${filters.audio}:${filters.format}`}
 	<Catalog
-		title="Newly added anime"
+		title="Newly Added Anime"
 		empty={{
 			title: "Nothing fresh in the last 30 days.",
 			hint: "New arrivals land here the moment they're added.",
