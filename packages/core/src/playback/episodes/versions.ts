@@ -165,19 +165,15 @@ export async function findEpisodeListings(
 export async function findAnimeLanguages(
 	anilistIds: readonly number[],
 ): Promise<Map<number, ContentLanguage[]>> {
-	const sources = listingSources();
-	const ids = [...new Set(anilistIds)];
-	const stored = await getStoredUnits(ids);
-	const listed = ids.map((anilistId) => ({
-		anilistId,
-		...listingsOf(anilistId, stored, sources),
-	}));
-	await scheduleEpisodeLookups(
-		listed.filter(({ pending }) => pending).map(({ anilistId }) => anilistId),
-		"current",
-	);
+	const listed = await readAnimeListings(anilistIds, {
+		lookUpUnknown: false,
+		priority: "current",
+	});
 	return new Map(
-		listed.map(({ anilistId, listings }) => [anilistId, languagesOf(versionsOffered(listings))]),
+		[...listed].map(([anilistId, { listings }]) => [
+			anilistId,
+			languagesOf(versionsOffered(listings)),
+		]),
 	);
 }
 
@@ -195,12 +191,14 @@ interface AnimeListings {
  * With `lookUpUnknown`, an anime no provider has been looked up for yet is
  * looked up on the spot, once; its lists are stored, and later calls only
  * read them. Every provider still missing, such as one that failed, is left
- * to the scheduler, whose lookup is queued to run first.
+ * to the scheduler at the caller's priority, with waiting viewers first.
  */
 async function readAnimeListings(
 	anilistIds: readonly number[],
 	options: {
 		lookUpUnknown: boolean;
+		/** Card backfills run after listings a viewer is waiting on. */
+		priority?: "current" | "waiting";
 	},
 ): Promise<Map<number, AnimeListings>> {
 	const sources = listingSources();
@@ -221,7 +219,7 @@ async function readAnimeListings(
 
 	await scheduleEpisodeLookups(
 		[...byId].flatMap(([anilistId, listed]) => (listed.pending ? [anilistId] : [])),
-		"waiting",
+		options.priority ?? "waiting",
 	);
 	return byId;
 }

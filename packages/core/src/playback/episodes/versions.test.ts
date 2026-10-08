@@ -19,6 +19,7 @@ interface FakeProvider {
 
 let providers: FakeProvider[] = [];
 let queuedLookups: number[] = [];
+let queuedPriorities: string[] = [];
 let asks = 0;
 
 /** The registry's `streamProviders`, kept in step with `providers` by {@link useProviders}. */
@@ -45,8 +46,11 @@ mock.module("../../series/episodes", () => ({
 	anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
 }));
 mock.module("../../scheduler/queue", () => ({
-	scheduleEpisodeLookups: async (anilistIds: readonly number[]) => {
+	scheduleEpisodeLookups: async (anilistIds: readonly number[], priority: string) => {
 		queuedLookups.push(...anilistIds);
+		if (anilistIds.length > 0) {
+			queuedPriorities.push(priority);
+		}
 	},
 }));
 mock.module("../../catalog/queries/anime", () => ({
@@ -165,6 +169,7 @@ const firstEpisode = [
 beforeEach(() => {
 	useProviders([]);
 	queuedLookups = [];
+	queuedPriorities = [];
 	asks = 0;
 });
 
@@ -322,6 +327,7 @@ describe("getEpisodeVersions", () => {
 			},
 		]);
 		expect(queuedLookups).toEqual([154587]);
+		expect(queuedPriorities).toEqual(["waiting"]);
 	});
 
 	test("looks an anime no provider was looked up for up on the spot", async () => {
@@ -473,6 +479,7 @@ describe("findEpisodeLanguages", () => {
 			"2:1": null,
 		});
 		expect(queuedLookups).toEqual([2]);
+		expect(queuedPriorities).toEqual(["waiting"]);
 	});
 
 	test("asks no provider for an anime none was looked up for, and queues its lookup", async () => {
@@ -552,5 +559,6 @@ describe("findAnimeLanguages", () => {
 		});
 		expect(asks).toBe(0);
 		expect(queuedLookups).toEqual([2]);
+		expect(queuedPriorities).toEqual(["current"]);
 	});
 });
