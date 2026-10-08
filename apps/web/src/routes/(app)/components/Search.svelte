@@ -23,7 +23,7 @@
 >
 	<div
 		class={cn(
-			"flex items-center overflow-hidden bg-surface transition-[width,flex-grow,visibility] duration-260 ease-out motion-reduce:transition-none max-sm:visible max-sm:w-full",
+			"flex items-center overflow-hidden bg-surface transition-[width,flex-grow] duration-260 ease-out motion-reduce:transition-none max-sm:visible max-sm:w-full",
 			search.open ? "sm:w-[min(22.5rem,calc(100vw-9rem))]" : "invisible w-0",
 		)}
 	>
