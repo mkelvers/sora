@@ -15,9 +15,7 @@
 	<title>{q ? `${q} · Search` : "Search"} · Sora</title>
 </svelte:head>
 
-<div
-	class="flex min-h-page flex-col bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-20 text-foreground"
->
+<div class="flex page flex-col">
 	{#if q}
 		<h1 class="sr-only">Search results for {q}</h1>
 
@@ -44,15 +42,13 @@
 			{/each}
 		</ul>
 	{:else}
+		<h1 class="sr-only">Search</h1>
 		<div class="grid flex-1 place-items-center">
-			<div class="w-full max-w-5xl">
-				<h1 class="mb-8 text-center text-2xl font-bold">Find something to watch</h1>
-				<EmptyState
-					mascot={mascots.search}
-					title="Search for any anime by its title."
-					hint="Your results will show up right here."
-				/>
-			</div>
+			<EmptyState
+				mascot={mascots.search}
+				title="Find something to watch."
+				hint="Search for any anime by its title, your results will show up right here."
+			/>
 		</div>
 	{/if}
 </div>

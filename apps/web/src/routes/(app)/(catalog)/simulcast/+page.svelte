@@ -10,7 +10,7 @@
 
 	let { data }: PageProps = $props();
 
-	// Whether the "Season List" sheet is open.
+	// Whether the "Seasons" sheet is open.
 	let seasons = $state(false);
 
 	const selected = $derived(
@@ -19,12 +19,12 @@
 </script>
 
 <svelte:head>
-	<title>{selected.label} Simulcast Season · Sora</title>
+	<title>{selected.label} simulcast season · Sora</title>
 </svelte:head>
 
 {#key selected.slug}
 	<Catalog
-		title="Simulcast Season"
+		title="Simulcast season"
 		empty={{
 			title: `${selected.label} came up empty.`,
 			hint: "Try another season, there's plenty more airing.",
@@ -38,7 +38,7 @@
 		{#snippet controls()}
 			<Button
 				variant="ghost"
-				class="min-h-11 gap-2 px-0 tracking-normal hover:bg-transparent hover:text-muted sm:hidden"
+				class="sm:hidden"
 				aria-label="Choose simulcast season, {selected.label} selected"
 				aria-haspopup="dialog"
 				aria-controls="season-list"
@@ -49,7 +49,6 @@
 			</Button>
 			<div class="hidden sm:block">
 				<Dropdown
-					variant="toolbar"
 					class="max-h-80 min-w-48 overflow-y-auto"
 					label="Choose simulcast season, {selected.label} selected"
 				>
@@ -78,12 +77,11 @@
 	</Catalog>
 {/key}
 
-<Sheet bind:open={seasons} id="season-list" title="Season List">
+<Sheet bind:open={seasons} id="season-list" title="Seasons">
 	{#each data.seasons as option (option.slug)}
 		<Button
 			variant="item"
 			aria-current={option.slug === selected.slug ? "true" : undefined}
-			class="aria-current:font-normal aria-current:text-foreground"
 			onclick={() => {
 				seasons = false;
 				simulcast.slug = option.slug;

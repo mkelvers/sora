@@ -103,7 +103,7 @@
 			{#snippet children()}
 				<div role="menu" aria-label="More">
 					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
-						View Media Options
+						View media options
 					</Button>
 				</div>
 			{/snippet}
@@ -136,7 +136,7 @@
 		</h1>
 
 		{#if next}
-			<p class="mt-5 text-sm font-semibold text-amber-100 sm:mt-6 sm:text-base">{next}</p>
+			<p class="mt-5 text-sm font-semibold sm:mt-6 sm:text-base">{next}</p>
 		{/if}
 
 		<p
@@ -226,7 +226,7 @@
 					onclick={() => library.set(series, listed ? null : "plan_to_watch")}
 				>
 					<BookmarkSimpleIcon size="1.55em" weight={listed ? "fill" : "bold"} />
-					<span class="truncate">{listed ? "Remove from Watchlist" : "Add to Watchlist"}</span>
+					<span class="truncate">{listed ? "Remove from watchlist" : "Add to watchlist"}</span>
 				</Button>
 			{/if}
 		</div>

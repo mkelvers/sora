@@ -6,12 +6,12 @@
 </script>
 
 <svelte:head>
-	<title>Newly Added · Sora</title>
+	<title>Newly added · Sora</title>
 </svelte:head>
 
 {#key `${filters.audio}:${filters.format}`}
 	<Catalog
-		title="Newly Added Anime"
+		title="Newly added anime"
 		empty={{
 			title: "Nothing fresh in the last 30 days.",
 			hint: "New arrivals land here the moment they're added.",

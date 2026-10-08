@@ -55,20 +55,21 @@
 		...sections,
 		{
 			href: "/calendar",
-			label: "Release Calendar",
+			label: "Release calendar",
 		},
 	];
 
 	$effect(() => pollWhileVisible(() => unread.refresh()));
 </script>
 
-<header class="fixed inset-x-0 top-0 z-50 h-14 bg-header backdrop-blur">
+<header class="fixed inset-x-0 top-0 z-50 h-14 bg-raised">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div class="h-full sm:hidden">
 			<Dropdown
-				variant="icon"
+				variant="nav"
+				square
 				alignment="left"
-				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full gap-0 overflow-y-auto bg-header-hover"
+				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full overflow-y-auto"
 				label="Menu"
 			>
 				{#snippet trigger()}
@@ -82,17 +83,16 @@
 								<Button
 									href={section.href}
 									variant="item"
-									class="border-l-3 border-transparent px-4 text-base aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
 									aria-current={page.url.pathname === section.href ? "page" : undefined}
 								>
-									{section.href === "/simulcast" ? "Simulcast Season" : section.label}
+									{section.href === "/simulcast" ? "Simulcast season" : section.label}
 								</Button>
 							</li>
 						{/each}
 						<li>
 							<Button
 								variant="item"
-								class="justify-between text-base aria-expanded:text-foreground"
+								class="justify-between"
 								aria-expanded={categories}
 								aria-controls="menu-genres"
 								onclick={(event: MouseEvent) => {
@@ -108,13 +108,13 @@
 								/>
 							</Button>
 							{#if categories}
-								<ul id="menu-genres" class="bg-tooltip/50">
+								<ul id="menu-genres">
 									{#each genres.current ?? [] as genre (genre)}
 										<li>
 											<Button
 												href="/genres/{slug(genre)}"
 												variant="item"
-												class="border-l-3 border-transparent pl-9 text-base aria-[current=page]:border-accent aria-[current=page]:font-normal aria-[current=page]:text-accent"
+												class="pl-9"
 												aria-current={page.params.genre === slug(genre) ? "page" : undefined}
 											>
 												{genre}
@@ -131,7 +131,7 @@
 
 		<a
 			href="/"
-			class="inline-flex h-full items-center px-1 max-[60rem]:group-has-[[role=search]>button[aria-expanded=true]]/nav:mr-auto max-sm:mr-auto sm:px-3"
+			class="inline-flex h-full items-center px-1 focus-visible:-outline-offset-2 max-[60rem]:group-has-[[role=search]>button[aria-expanded=true]]/nav:mr-auto max-sm:mr-auto sm:px-3"
 			aria-label="Home"
 			aria-current={page.url.pathname === "/" ? "page" : undefined}
 		>
@@ -143,20 +143,20 @@
 		>
 			{#each sections as section (section.href)}
 				<li class="max-lg:hidden">
-					<a
+					<Button
 						href={section.href}
-						class="inline-flex h-full items-center px-4 text-sm font-medium text-muted transition-colors hover:bg-header-hover hover:text-foreground"
+						variant="nav"
 						aria-current={page.url.pathname === section.href ? "page" : undefined}
 					>
 						{section.label}
-					</a>
+					</Button>
 				</li>
 			{/each}
 			<li class="h-full">
 				<Dropdown
-					variant="link"
+					variant="nav"
 					alignment="left"
-					class="w-[min(48rem,calc(100vw-2rem))] bg-header-hover open:flex-row"
+					class="w-[min(48rem,calc(100vw-2rem))] open:flex-row"
 				>
 					{#snippet trigger()}
 						Categories
@@ -164,13 +164,12 @@
 					{/snippet}
 
 					{#snippet children()}
-						<ul class="w-56 shrink-0 border-r border-border">
+						<ul class="w-56 shrink-0 py-2">
 							{#each links as section (section.href)}
 								<li>
 									<Button
 										href={section.href}
 										variant="item"
-										class="text-base aria-[current=page]:font-normal aria-[current=page]:text-accent"
 										aria-current={page.url.pathname === section.href ? "page" : undefined}
 									>
 										{section.label}
@@ -178,20 +177,14 @@
 								</li>
 							{/each}
 						</ul>
-						<section class="min-w-0 flex-1" aria-labelledby="header-genres">
-							<h2
-								id="header-genres"
-								class="px-5 pt-4 pb-2 text-xs font-bold tracking-wide text-muted uppercase"
-							>
-								Genres
-							</h2>
+						<section class="min-w-0 flex-1 bg-surface py-2" aria-labelledby="header-genres">
+							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
 								{#each genres.current ?? [] as genre (genre)}
 									<li>
 										<Button
 											href="/genres/{slug(genre)}"
 											variant="item"
-											class="text-base aria-[current=page]:font-normal aria-[current=page]:text-accent"
 											aria-current={page.params.genre === slug(genre) ? "page" : undefined}
 										>
 											{genre}
@@ -208,32 +201,36 @@
 		<div class="flex h-full items-center">
 			<Search />
 
-			<a
+			<Button
 				href="/watchlist"
-				class="relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14"
+				variant="nav"
+				square
+				class="max-sm:hidden"
 				aria-label="Watchlist"
 				aria-current={page.url.pathname === "/watchlist" ? "page" : undefined}
 			>
 				<BookmarkSimpleIcon size="1.5rem" />
-			</a>
+			</Button>
 
-			<a
+			<Button
 				href="/notifications"
+				variant="nav"
+				square
 				class={cn(
-					"relative inline-flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-header-hover hover:text-foreground max-sm:hidden sm:w-14",
+					"relative max-sm:hidden",
 					unread.current &&
-						"after:absolute after:top-3.5 after:right-3 after:size-2 after:rounded-full after:bg-status-error after:ring-2 after:ring-header sm:after:right-4",
+						"after:absolute after:top-3.5 after:right-4 after:size-2 after:bg-danger",
 				)}
 				aria-label={unread.current ? "Notifications, new notifications" : "Notifications"}
 				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
 			>
 				<BellSimpleIcon size="1.5rem" />
-			</a>
+			</Button>
 
 			<div class="h-full">
 				<Dropdown
-					variant="bar"
-					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-header-hover max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
+					variant="nav"
+					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
 					label={unread.current
 						? `Account menu for ${profile.name}, new notifications`
 						: `Account menu for ${profile.name}`}
@@ -256,20 +253,14 @@
 									role="menuitem"
 									href="/profiles/{profile.id}"
 									variant="item"
-									class="min-h-14 gap-3 py-2 max-sm:min-h-22 max-sm:gap-4 max-sm:py-4"
+									class="gap-3"
 									aria-label="Edit profile {profile.name}"
 								>
-									<Avatar
-										avatar={profile.avatar}
-										alt="Avatar of {profile.name}"
-										class="size-9 max-sm:size-14"
-									/>
-									<span
-										class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground max-sm:text-lg"
-									>
+									<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-9" />
+									<span class="min-w-0 flex-1 truncate font-bold text-foreground">
 										{profile.name}
 									</span>
-									<PencilSimpleIcon size="1.1rem" class="text-muted max-sm:size-6" />
+									<PencilSimpleIcon size="1.25rem" />
 								</Button>
 
 								<form
@@ -287,9 +278,9 @@
 											value={other.id}
 											aria-label="Switch to {other.name}"
 											variant="item"
-											class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
+											class="gap-3"
 										>
-											<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-7" />
+											<Avatar avatar={other.avatar} alt="Avatar of {other.name}" class="size-9" />
 											{other.name}
 										</Button>
 									{/each}
@@ -299,33 +290,30 @@
 									role="menuitem"
 									href="/profiles"
 									variant="item"
-									class="gap-3 max-sm:min-h-14 max-sm:gap-4 max-sm:py-4 max-sm:text-base"
+									class="gap-3"
 									onclick={() => (profilesPage.managing = true)}
 								>
-									<UsersIcon size="1.3rem" class="max-sm:size-6" />
+									<UsersIcon size="1.25rem" />
 									Manage profiles
 								</Button>
 								<Button
 									role="menuitem"
 									href="/watchlist"
 									variant="item"
-									class="min-h-14 gap-4 py-4 text-base sm:hidden"
+									class="gap-3 sm:hidden"
 									aria-current={page.url.pathname === "/watchlist" ? "page" : undefined}
 								>
-									<BookmarkSimpleIcon size="1.5rem" />
-									Watch List
+									<BookmarkSimpleIcon size="1.25rem" />
+									Watchlist
 								</Button>
 								<Button
 									role="menuitem"
 									href="/notifications"
 									variant="item"
-									class={cn(
-										"min-h-14 gap-4 py-4 text-base sm:hidden",
-										unread.current && "after:size-2 after:rounded-full after:bg-status-error",
-									)}
+									class={cn("gap-3 sm:hidden", unread.current && "after:size-2 after:bg-danger")}
 									aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
 								>
-									<BellSimpleIcon size="1.5rem" />
+									<BellSimpleIcon size="1.25rem" />
 									Notifications
 									{#if unread.current}<span class="sr-only">, new notifications</span>{/if}
 								</Button>
@@ -336,11 +324,10 @@
 									role="menuitem"
 									type="submit"
 									variant="item"
-									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:min-h-14 max-sm:gap-4 max-sm:bg-header-hover max-sm:pt-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:text-base"
+									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:bg-raised max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
 								>
-									<SignOutIcon size="1.3rem" class="max-sm:size-6" />
-									<span class="sm:hidden">Log Out</span>
-									<span class="max-sm:hidden">Sign out</span>
+									<SignOutIcon size="1.25rem" />
+									Sign out
 								</Button>
 							</form>
 						</div>

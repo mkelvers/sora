@@ -26,7 +26,7 @@
 </script>
 
 {#snippet row(label: string, count: number, pressed: boolean, onclick: () => void)}
-	<Button aria-pressed={pressed} variant="item" class="min-h-9 gap-3 px-2 py-0" {onclick}>
+	<Button aria-pressed={pressed} variant="item" size="sm" class="gap-3" {onclick}>
 		<span class="min-w-0 truncate">{label}</span>
 		<span class="ml-auto text-xs text-subtle tabular-nums">{count}</span>
 	</Button>
@@ -34,7 +34,7 @@
 
 {#if languages.length > 1}
 	<section>
-		<h2 class="mb-2 px-2 text-xs font-bold tracking-wide text-subtle uppercase">Language</h2>
+		<h2 class="mb-1 px-2 text-sm text-subtle">Language</h2>
 		<div class="grid" role="group" aria-label="Language">
 			{@render row("All", images.length, !media.languages.length, () => (media.languages = []))}
 			{#each languages as { code, label, count } (code)}

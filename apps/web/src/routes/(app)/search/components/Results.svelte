@@ -53,25 +53,19 @@
 	{#if page === 1}
 		{#if found.meta.preparing}
 			<li class={["col-span-full grid place-items-center", stale && "opacity-50"]}>
-				<div class="w-full max-w-5xl">
-					<h2 class="mb-8 text-center text-2xl font-bold">Looking further for “{q}”…</h2>
-					<EmptyState
-						mascot={mascots.preparing}
-						title="Some matching titles are still being prepared."
-						hint="They'll show up here as soon as they're done."
-					/>
-				</div>
+				<EmptyState
+					mascot={mascots.preparing}
+					title="Looking further for “{q}”."
+					hint="Some matching titles are still being prepared, they'll show up here as soon as they're done."
+				/>
 			</li>
 		{:else}
 			<li class={["col-span-full grid place-items-center", stale && "opacity-50"]}>
-				<div class="w-full max-w-5xl">
-					<h2 class="mb-8 text-center text-2xl font-bold">Are you sure you spelled that right?</h2>
-					<EmptyState
-						mascot={mascots.emptySearch}
-						title="We couldn't find anything for “{q}”."
-						hint="Maybe it goes by its English or Japanese title?"
-					/>
-				</div>
+				<EmptyState
+					mascot={mascots.emptySearch}
+					title="We couldn't find anything for “{q}”."
+					hint="Maybe it goes by its English or Japanese title?"
+				/>
 			</li>
 		{/if}
 	{/if}

@@ -96,13 +96,10 @@
 				{/if}
 			</div>
 
-			<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase sm:mt-3.5">
-				{series.title}
-			</p>
-			<h3 class="mt-1 pr-8 text-base leading-snug font-bold text-foreground sm:mt-1.5">
+			<h3 class="pr-8 text-sm leading-snug font-semibold text-foreground sm:mt-3">
 				{heading}
 			</h3>
-			<p class="mt-1 pr-8 text-sm text-muted sm:mt-2 sm:pr-0">
+			<p class="mt-1 pr-8 text-sm text-muted sm:mt-1.5 sm:pr-0">
 				{audioLabel(episode.audio)}
 			</p>
 		</div>
@@ -111,8 +108,7 @@
 			aria-hidden="true"
 			class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 		>
-			<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase">{series.title}</p>
-			<p class="mt-2 text-base leading-snug font-bold text-foreground">{heading}</p>
+			<p class="text-sm leading-snug font-semibold text-foreground">{heading}</p>
 			{#if released}
 				<p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
 					<CalendarBlankIcon size="1rem" />
@@ -149,7 +145,7 @@
 	</svelte:element>
 
 	<div class="absolute -right-2 -bottom-2 z-20">
-		<Dropdown variant="overlay" label="Episode options" class="w-48">
+		<Dropdown variant="icon" label="Episode options" class="w-48">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 			{/snippet}
@@ -165,7 +161,7 @@
 								watched: !watched,
 							})}
 					>
-						Mark as {watched ? "Unwatched" : "Watched"}
+						Mark as {watched ? "unwatched" : "watched"}
 					</Button>
 				</div>
 			{/snippet}

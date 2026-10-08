@@ -63,7 +63,7 @@
 						"relative block overflow-hidden outline-2 outline-offset-2 transition-[outline-color]",
 						media.type === "poster" ? "aspect-2/3" : "aspect-video",
 						media.type === "logo" || !image
-							? "bg-[repeating-conic-gradient(var(--color-panel-strong)_0_25%,var(--color-surface)_0_50%)] bg-size-[1rem_1rem]"
+							? "bg-[repeating-conic-gradient(var(--color-raised)_0_25%,var(--color-surface)_0_50%)] bg-size-[1rem_1rem]"
 							: "bg-surface",
 						chosen ? "outline-accent" : "outline-transparent group-hover:outline-border-strong",
 					)}

@@ -137,7 +137,7 @@
 		{/if}
 
 		<div
-			class="pointer-events-none absolute -inset-2 flex flex-col bg-header-hover/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
+			class="pointer-events-none absolute -inset-2 flex flex-col bg-surface/95 p-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100"
 		>
 			<div class="min-h-0 flex-1 overflow-hidden mask-b-from-80%" aria-hidden="true">
 				<h3 class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</h3>
@@ -167,27 +167,29 @@
 							<Button
 								{...trigger}
 								href={play.href}
-								variant="icon"
-								tone="accent"
+								variant="primary"
+								size="sm"
+								square
 								aria-label={play.label}
 							>
-								<PlayIcon size="1.55rem" weight="bold" />
+								<PlayIcon size="1.25rem" weight="fill" />
 							</Button>
 						{/snippet}
 					</Tooltip>
 				{/if}
 
-				<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
+				<Tooltip text={listed ? "Remove from watchlist" : "Add to watchlist"}>
 					{#snippet children(trigger)}
 						<Button
 							{...trigger}
-							variant="icon"
-							tone="accent"
-							aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+							variant="secondary"
+							size="sm"
+							square
+							aria-label={listed ? "Remove from watchlist" : "Add to watchlist"}
 							aria-pressed={listed}
 							onclick={toggleListed}
 						>
-							<BookmarkSimpleIcon size="1.55rem" weight={listed ? "fill" : "bold"} />
+							<BookmarkSimpleIcon size="1.25rem" weight={listed ? "fill" : "bold"} />
 						</Button>
 					{/snippet}
 				</Tooltip>

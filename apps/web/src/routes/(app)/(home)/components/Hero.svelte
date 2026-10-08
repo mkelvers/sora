@@ -74,12 +74,8 @@
 				{/each}
 			</Content>
 
-			<Previous
-				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden hover:text-white/70 sm:grid"
-			/>
-			<Next
-				class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden hover:text-white/70 sm:grid"
-			/>
+			<Previous class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
+			<Next class="mb-[calc(var(--hero-overlap,0rem)+var(--hero-bleed))] hidden sm:grid" />
 
 			<div
 				class="pointer-events-none z-30 col-start-1 row-start-1 mb-(--hero-bleed) grid min-w-0 self-end pb-8 sm:self-center sm:pb-0 xl:mb-[calc(clamp(0rem,58rem-100svh,9rem)+var(--hero-bleed))]"
@@ -151,13 +147,13 @@
 									<PlayIcon size="1.2rem" weight="bold" />
 									{slide.format === "MOVIE" ? "Start watching" : "Start watching E1"}
 								</Button>
-								<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
+								<Tooltip text={listed ? "Remove from watchlist" : "Add to watchlist"}>
 									{#snippet children(trigger)}
 										<Button
 											{...trigger}
-											variant="outline"
-											size="square"
-											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
+											variant="secondary"
+											square
+											aria-label={listed ? "Remove from watchlist" : "Add to watchlist"}
 											aria-pressed={listed}
 											onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 										>
@@ -173,7 +169,7 @@
 									onclick={() => library.set(slide, listed ? null : "plan_to_watch")}
 								>
 									<BookmarkSimpleIcon size="1.2rem" weight={listed ? "fill" : "bold"} />
-									{listed ? "Remove from Watchlist" : "Add to Watchlist"}
+									{listed ? "Remove from watchlist" : "Add to watchlist"}
 								</Button>
 							{/if}
 						</div>
@@ -202,7 +198,7 @@
 								{#key index === carousel.active ? carousel.cycle : -1}
 									<span
 										class={cn(
-											"relative block h-2 w-full overflow-hidden rounded-full bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
+											"relative block h-1.5 w-full overflow-hidden bg-white/40 transition-colors duration-300 group-hover:bg-accent/60",
 											index === carousel.active &&
 												"after:absolute after:inset-y-0 after:left-0 after:bg-accent",
 											index === carousel.active &&

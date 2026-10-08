@@ -121,8 +121,8 @@
 <Button
 	{...popover.trigger}
 	variant="icon"
-	size="lg"
-	class={cn("transition-[color,rotate]", popover.open && "rotate-30 text-foreground")}
+	class={cn("transition-[color,background-color,rotate]", popover.open && "rotate-30")}
+	aria-expanded={popover.open}
 	aria-label="Settings"
 >
 	<GearSixIcon size="1.5rem" weight="fill" />
@@ -133,7 +133,7 @@
 	bind:this={content}
 	role="menu"
 	aria-label={open?.label ?? "Settings"}
-	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-neutral-900/95 text-sm text-foreground/90 shadow-xl select-none open:flex"
+	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-raised/95 text-sm shadow-lg select-none open:flex"
 	onkeydown={moveMenuFocus}
 	onpointermove={(event) => {
 		const target = (event.target as HTMLElement).closest<HTMLElement>("button, label");
@@ -148,7 +148,7 @@
 	{#if open}
 		<Button
 			variant="item"
-			class="border-b border-white/8 pl-2.5 text-foreground"
+			class="pl-3"
 			role="menuitem"
 			aria-label="Back to settings"
 			onclick={() => (submenu = undefined)}
@@ -172,7 +172,7 @@
 	{:else}
 		<Switch
 			role="menuitemcheckbox"
-			class="min-h-11 w-full px-5 py-3 text-sm text-muted hover:bg-white/8 hover:text-foreground has-checked:text-foreground has-focus-visible:bg-white/8 has-focus-visible:text-foreground"
+			class="min-h-11 w-full px-5 py-3 text-sm text-muted hover:bg-hover hover:text-foreground has-checked:text-foreground has-focus-visible:bg-hover has-focus-visible:text-foreground"
 			bind:checked={
 				() => preferences.auto_skip,
 				(value) =>

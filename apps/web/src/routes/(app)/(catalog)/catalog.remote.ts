@@ -111,7 +111,7 @@ export const getCatalogPage = query(request, async (input) => {
 					: hours < 24
 						? relativeTime.format(-hours, "hour")
 						: relativeTime.format(-Math.floor(hours / 24), "day"),
-			group: age < day ? "Last 24 Hours" : age < 7 * day ? "This Past Week" : "Earlier",
+			group: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
 		};
 	});
 

@@ -59,13 +59,12 @@
 		<Button
 			href="/series/{series.id}"
 			variant="icon"
-			size="lg"
-			class="-ml-2"
+			class="-ml-3"
 			aria-label="Back to {series.title}"
 		>
 			<CaretLeftIcon size="1.5rem" weight="bold" />
 		</Button>
-		<h1 class="text-3xl font-bold">Media</h1>
+		<h1 class="text-2xl font-bold">Media</h1>
 	</header>
 
 	<Tabs
@@ -121,7 +120,7 @@
 					</div>
 
 					{#if media.error}
-						<p class="mt-4 text-sm text-status-error" role="alert">{media.error}</p>
+						<p class="mt-4 text-sm text-danger" role="alert">{media.error}</p>
 					{/if}
 
 					<div class="@container-size mt-4 min-h-0 flex-1">
@@ -155,7 +154,7 @@
 
 					<section aria-label="Choose {media.type}">
 						{#if media.error}
-							<p class="mb-6 text-sm text-status-error" role="alert">{media.error}</p>
+							<p class="mb-6 text-sm text-danger" role="alert">{media.error}</p>
 						{/if}
 
 						<svelte:boundary>

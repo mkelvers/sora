@@ -35,7 +35,7 @@
 	let selected = $derived(calendar.days.find((day) => day.today)?.date ?? calendar.days[0].date);
 	const current = $derived(calendar.days.find((day) => day.date === selected) ?? calendar.days[0]);
 
-	// Whether the "Day List" sheet is open.
+	// Whether the "Days" sheet is open.
 	let days = $state(false);
 
 	const tabs = new Tabs<string>({
@@ -45,16 +45,14 @@
 </script>
 
 <svelte:head>
-	<title>Release Calendar · Sora</title>
+	<title>Release calendar · Sora</title>
 </svelte:head>
 
-<div
-	class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16"
->
+<div class="page overflow-x-clip">
 	<section class="mx-auto w-full max-w-7xl" aria-labelledby="calendar-title">
 		<div class="mb-6 flex items-center justify-between gap-2 sm:mb-8 sm:gap-4">
 			<div class="flex flex-col items-start">
-				<h1 id="calendar-title" class="text-xl font-bold sm:text-2xl">Release Calendar</h1>
+				<h1 id="calendar-title" class="text-2xl font-bold">Release calendar</h1>
 				<p class="mt-1 text-sm text-muted tabular-nums">{calendar.week}</p>
 			</div>
 
@@ -64,20 +62,10 @@
 						This week
 					</Button>
 				{/if}
-				<Button
-					onclick={() => (shown.weeks -= 1)}
-					variant="icon"
-					class="size-11 sm:size-9"
-					aria-label="Previous week"
-				>
+				<Button onclick={() => (shown.weeks -= 1)} variant="icon" aria-label="Previous week">
 					<CaretLeftIcon size="1.25rem" weight="bold" />
 				</Button>
-				<Button
-					onclick={() => (shown.weeks += 1)}
-					variant="icon"
-					class="size-11 sm:size-9"
-					aria-label="Next week"
-				>
+				<Button onclick={() => (shown.weeks += 1)} variant="icon" aria-label="Next week">
 					<CaretRightIcon size="1.25rem" weight="bold" />
 				</Button>
 			</nav>
@@ -86,7 +74,7 @@
 		<div class="mb-2 flex items-center justify-between gap-2 sm:hidden">
 			<Button
 				variant="ghost"
-				class="min-h-11 gap-2 px-0 tracking-normal hover:bg-transparent hover:text-muted"
+				class="-ml-3"
 				aria-label="Choose day, {current.label} selected"
 				aria-haspopup="dialog"
 				aria-controls="day-list"
@@ -96,7 +84,7 @@
 				{current.weekday} · {current.monthDay}
 			</Button>
 			{#if shown.weeks !== 0}
-				<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="px-0">This week</Button>
+				<Button onclick={() => (shown.weeks = 0)} variant="ghost">This week</Button>
 			{/if}
 		</div>
 
@@ -105,11 +93,11 @@
 				<button
 					{...tabs.getTrigger(day.date)}
 					type="button"
-					class="-mb-px flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-white/4 hover:text-foreground focus-visible:bg-white/8 aria-selected:border-accent aria-selected:text-foreground"
+					class="-mb-px flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-hover hover:text-foreground focus-visible:bg-hover aria-selected:border-accent aria-selected:text-foreground"
 					aria-label="{day.label}, {day.count} {day.count === 1 ? 'episode' : 'episodes'}"
 				>
 					<span
-						class={cn("text-xs font-bold tracking-widest uppercase", day.today && "text-accent")}
+						class={cn("text-xs font-medium tracking-wide uppercase", day.today && "text-accent")}
 					>
 						{day.weekday}
 					</span>
@@ -177,9 +165,7 @@
 																/>
 															{/if}
 														</div>
-														<h3
-															class="line-clamp-2 text-sm leading-snug font-bold sm:mt-3.5 sm:text-base"
-														>
+														<h3 class="line-clamp-2 text-sm leading-snug font-semibold sm:mt-3">
 															{release.series.title}
 														</h3>
 														<p class="mt-1 text-xs text-muted sm:text-sm">
@@ -191,10 +177,10 @@
 														aria-hidden="true"
 														class="pointer-events-none absolute -inset-2 z-10 flex flex-col bg-surface px-4 pt-6 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-focus-visible:opacity-100 max-sm:hidden"
 													>
-														<p class="line-clamp-1 text-xs font-semibold text-subtle uppercase">
+														<p class="line-clamp-1 text-sm text-muted">
 															{release.series.title}
 														</p>
-														<p class="mt-2 text-base leading-snug font-bold text-foreground">
+														<p class="mt-1 text-base leading-snug font-bold text-foreground">
 															{release.episodes}
 														</p>
 														<p class="text-sm text-muted">{release.language}</p>
@@ -232,11 +218,11 @@
 	</section>
 </div>
 
-<Sheet bind:open={days} id="day-list" title="Day List">
+<Sheet bind:open={days} id="day-list" title="Days">
 	{#each calendar.days as day (day.date)}
 		<Button
 			variant="item"
-			class="justify-between aria-current:font-normal aria-current:text-foreground"
+			class="justify-between"
 			aria-current={day.date === selected ? "true" : undefined}
 			onclick={() => {
 				days = false;

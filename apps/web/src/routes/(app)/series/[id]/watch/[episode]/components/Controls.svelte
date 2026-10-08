@@ -48,23 +48,17 @@
 
 <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Playback controls">
 	{#if previous}
-		<Button href={previous} variant="icon" size="lg" aria-label="Previous episode">
+		<Button href={previous} variant="icon" aria-label="Previous episode">
 			<SkipBackIcon size="1.5rem" weight="fill" />
 		</Button>
 	{/if}
 
-	<Button
-		variant="icon"
-		size="lg"
-		aria-label="Rewind 10 seconds"
-		onclick={() => (player.time -= 10)}
-	>
+	<Button variant="icon" aria-label="Rewind 10 seconds" onclick={() => (player.time -= 10)}>
 		<RewindIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	<Button
 		variant="icon"
-		size="lg"
 		aria-label={player.paused ? "Play" : "Pause"}
 		onclick={() => (player.paused = !player.paused)}
 	>
@@ -75,17 +69,12 @@
 		{/if}
 	</Button>
 
-	<Button
-		variant="icon"
-		size="lg"
-		aria-label="Forward 10 seconds"
-		onclick={() => (player.time += 10)}
-	>
+	<Button variant="icon" aria-label="Forward 10 seconds" onclick={() => (player.time += 10)}>
 		<FastForwardIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	{#if next}
-		<Button href={next} variant="icon" size="lg" aria-label="Next episode">
+		<Button href={next} variant="icon" aria-label="Next episode">
 			<SkipForwardIcon size="1.5rem" weight="fill" />
 		</Button>
 	{/if}
@@ -101,7 +90,6 @@
 
 	<Button
 		variant="icon"
-		size="lg"
 		class="max-sm:ml-auto"
 		aria-label={player.muted ? "Unmute" : "Mute"}
 		onclick={() => (player.muted = !player.muted)}
@@ -126,7 +114,6 @@
 
 	<Button
 		variant="icon"
-		size="lg"
 		aria-label={player.fullscreen ? "Exit fullscreen" : "Fullscreen"}
 		onclick={player.toggleFullscreen}
 	>

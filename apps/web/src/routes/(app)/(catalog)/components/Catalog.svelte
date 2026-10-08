@@ -67,13 +67,11 @@
 	});
 </script>
 
-<div
-	class="min-h-dvh overflow-x-clip bg-canvas px-5 py-10 text-foreground sm:px-10 sm:py-12 lg:px-16 lg:py-16"
->
+<div class="page overflow-x-clip">
 	<section class="mx-auto w-full max-w-264" aria-labelledby="catalog-title">
 		<div class="mb-8 flex items-center justify-between gap-2 sm:gap-4">
 			<div class="flex flex-col items-start">
-				<h1 id="catalog-title" class="text-xl font-bold sm:text-2xl">{title}</h1>
+				<h1 id="catalog-title" class="text-2xl font-bold">{title}</h1>
 				{@render summary?.()}
 			</div>
 			{@render controls()}
@@ -81,7 +79,7 @@
 
 		{#each sections as [group, entries], index (group)}
 			<section class="mb-12" aria-labelledby="catalog-section-{index}">
-				<h2 id="catalog-section-{index}" class={group ? "mb-4 text-base font-bold" : "sr-only"}>
+				<h2 id="catalog-section-{index}" class={group ? "mb-4 text-lg font-bold" : "sr-only"}>
 					{group ?? title}
 				</h2>
 				<ul

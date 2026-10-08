@@ -62,7 +62,7 @@
 		},
 	] as const;
 
-	// Whether the "Sort By" sheet is open.
+	// Whether the "Sort by" sheet is open.
 	let sorting = $state(false);
 	// Whether the "Filter" sheet is open.
 	let filtering = $state(false);
@@ -83,10 +83,10 @@
 
 <div class="flex items-center gap-1 max-sm:hidden">
 	{#if current}
-		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {current.label} selected">
+		<Dropdown class="w-52" label="Sort anime, {current.label} selected">
 			{#snippet trigger()}
 				<ListBulletsIcon size="1.2rem" weight="bold" />
-				<span class="max-sm:hidden">{current.label}</span>
+				{current.label}
 			{/snippet}
 
 			{#snippet children()}
@@ -106,17 +106,21 @@
 		</Dropdown>
 	{/if}
 
-	<Dropdown variant="toolbar" class="w-60" label="Filter anime">
+	<Dropdown class="w-60" label="Filter anime">
 		{#snippet trigger()}
-			<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
-			<span class={cn("max-sm:hidden", filtered && "text-accent-secondary")}>Filter</span>
+			<FunnelIcon
+				size="1.2rem"
+				weight={filtered ? "fill" : "bold"}
+				class={cn(filtered && "text-accent")}
+			/>
+			Filter
 		{/snippet}
 
 		{#snippet children()}
 			<div role="menu" aria-label="Filter anime">
 				{#each groups as group (group.id)}
 					<div role="group" aria-labelledby="filter-{group.id}">
-						<p id="filter-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
+						<p id="filter-{group.id}" class="px-5 pt-4 pb-1 text-sm text-subtle">
 							{group.label}
 						</p>
 						{#each group.options as option (option.label)}
@@ -132,7 +136,7 @@
 								class="gap-2.5"
 							>
 								{#if checked}
-									<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
+									<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent" />
 								{:else}
 									<CircleIcon size="1.25rem" />
 								{/if}
@@ -149,8 +153,7 @@
 <div class="flex items-center gap-1 sm:hidden">
 	{#if current}
 		<Button
-			variant="ghost"
-			class="size-11 px-0"
+			variant="icon"
 			aria-label="Sort anime, {current.label} selected"
 			aria-haspopup="dialog"
 			aria-controls="sort-list"
@@ -160,24 +163,26 @@
 		</Button>
 	{/if}
 	<Button
-		variant="ghost"
-		class="size-11 px-0"
+		variant="icon"
 		aria-label="Filter anime"
 		aria-haspopup="dialog"
 		aria-controls="filter-list"
 		onclick={() => (filtering = true)}
 	>
-		<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
+		<FunnelIcon
+			size="1.2rem"
+			weight={filtered ? "fill" : "bold"}
+			class={cn(filtered && "text-accent")}
+		/>
 	</Button>
 </div>
 
-<Sheet bind:open={sorting} id="sort-list" title="Sort By">
+<Sheet bind:open={sorting} id="sort-list" title="Sort by">
 	{#each sorts as sort (sort.kind)}
 		<Button
 			variant="item"
 			href="/{sort.kind}"
 			aria-current={sort.kind === kind ? "true" : undefined}
-			class="aria-current:font-normal aria-current:text-foreground"
 			onclick={() => (sorting = false)}
 		>
 			{sort.label}
@@ -188,7 +193,7 @@
 <Sheet bind:open={filtering} id="filter-list" title="Filter">
 	{#each groups as group (group.id)}
 		<div role="radiogroup" aria-labelledby="filter-sheet-{group.id}">
-			<p id="filter-sheet-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
+			<p id="filter-sheet-{group.id}" class="px-5 pt-4 pb-1 text-sm text-subtle">
 				{group.label}
 			</p>
 			{#each group.options as option (option.label)}
@@ -204,7 +209,7 @@
 					class="gap-2.5"
 				>
 					{#if checked}
-						<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
+						<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent" />
 					{:else}
 						<CircleIcon size="1.25rem" />
 					{/if}
@@ -216,14 +221,14 @@
 
 	{#snippet footer()}
 		<Button
-			variant="outline"
+			variant="primary"
 			class="w-full"
 			onclick={() => {
 				Object.assign(filters, draft);
 				filtering = false;
 			}}
 		>
-			Update Filters
+			Apply filters
 		</Button>
 	{/snippet}
 </Sheet>

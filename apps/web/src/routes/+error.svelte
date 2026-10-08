@@ -7,22 +7,12 @@
 </script>
 
 <svelte:head>
-	<title>{missing ? "Page Not Found" : "Something Went Wrong"} · Sora</title>
+	<title>{missing ? "Page not found" : "Something went wrong"} · Sora</title>
 </svelte:head>
 
-<main
-	id="main-content"
-	tabindex="-1"
-	class="grid min-h-dvh place-items-center bg-canvas px-5 py-10 text-foreground"
->
-	<div class="w-full max-w-5xl">
-		<h1 class="mb-8 text-center text-2xl font-bold">
-			{#if missing}
-				We couldn't find this page
-			{:else}
-				Well, that didn't go as planned
-			{/if}
-		</h1>
+<main id="main-content" tabindex="-1" class="grid min-h-dvh place-items-center px-5 py-10">
+	<div>
+		<h1 class="sr-only">{missing ? "Page not found" : "Something went wrong"}</h1>
 
 		{#if missing}
 			<EmptyState

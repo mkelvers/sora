@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/Button.svelte";
+	import { XIcon } from "phosphor-svelte";
 
 	let {
 		applied,
@@ -11,13 +12,12 @@
 </script>
 
 <Button
-	variant="link"
-	class="group mt-1 gap-1 text-sm text-inherit no-underline hover:no-underline"
+	variant="ghost"
+	size="sm"
+	class="-ml-2"
 	aria-label="Reset filters: {applied}"
 	onclick={onreset}
 >
-	<span class="text-accent-secondary transition-colors group-hover:text-status-error">
-		Reset Filters:
-	</span>
-	<span class="text-muted group-hover:line-through">{applied}</span>
+	{applied}
+	<XIcon size="0.875rem" weight="bold" />
 </Button>

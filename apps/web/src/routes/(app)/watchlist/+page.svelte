@@ -5,7 +5,6 @@
 	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { statuses } from "$routes/(app)/library.svelte";
 	import type { WatchlistStatus } from "@sora/sdk";
-	import { BookmarkSimpleIcon } from "phosphor-svelte";
 
 	import WatchlistSort, { sorts } from "./components/WatchlistSort.svelte";
 	import { getWatchlist } from "./watchlist.remote";
@@ -26,13 +25,10 @@
 	<title>Watchlist · Sora</title>
 </svelte:head>
 
-<div class="min-h-page bg-canvas px-[clamp(1rem,3.3vw,4rem)] pt-10 pb-10 text-foreground">
-	<h1 class="flex items-center justify-center gap-3 text-4xl font-semibold">
-		<BookmarkSimpleIcon size="2.25rem" />
-		Watchlist
-	</h1>
+<div class="page">
+	<div class="mx-auto max-w-7xl">
+		<h1 class="mb-8 text-2xl font-bold">Watchlist</h1>
 
-	<div class="mx-auto mt-10 max-w-7xl">
 		{#if watchlist.current?.length === 0}
 			<EmptyState
 				mascot={mascots.emptyWatchlist}

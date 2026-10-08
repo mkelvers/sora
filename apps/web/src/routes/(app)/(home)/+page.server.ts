@@ -31,19 +31,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		rows: [
 			{
 				id: "trending",
-				title: "Trending Now",
+				title: "Trending now",
 				hint: undefined,
 				cards: trending,
 			},
 			{
 				id: "coming-soon",
-				title: "Coming Soon: Add to Your Watchlist",
+				title: "Coming soon: add to your watchlist",
 				hint: "Your new favorite shows from the upcoming season",
 				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
 			},
 			{
 				id: "catch-up",
-				title: "Catch Up Before the New Season",
+				title: "Catch up before the new season",
 				hint: "Catch up on previous episodes before the new season premiere!",
 				cards: upcoming.filter((title) => title.returning).map((title) => title.series),
 			},

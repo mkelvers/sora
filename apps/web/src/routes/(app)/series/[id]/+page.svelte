@@ -29,7 +29,7 @@
 					? "Movie"
 					: part.episode_count
 						? `${part.episode_count} ${part.episode_count === 1 ? "Episode" : "Episodes"}`
-						: "Coming Soon",
+						: "Coming soon",
 		})),
 	);
 </script>
@@ -83,7 +83,7 @@
 												watched: !seasonWatched,
 											})}
 									>
-										Mark Season as {seasonWatched ? "Unwatched" : "Watched"}
+										Mark season as {seasonWatched ? "unwatched" : "watched"}
 									</Button>
 								</div>
 							{/snippet}
@@ -104,12 +104,11 @@
 				<Episodes {series} progress={progress.episodes} />
 			</section>
 		{:else}
-			<section
-				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
-				aria-labelledby="check-back"
-			>
-				<h2 id="check-back" class="text-xl font-bold">Check Back Soon!</h2>
-				<p class="mt-2 text-sm text-subtle">In the meantime, feel free to take a look around.</p>
+			<section class="py-14 text-center sm:pb-20" aria-labelledby="check-back">
+				<h2 id="check-back" class="font-bold">No episodes yet.</h2>
+				<p class="mt-1 text-sm text-muted">
+					Check back soon, in the meantime feel free to look around.
+				</p>
 			</section>
 		{/if}
 	</div>

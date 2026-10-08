@@ -17,13 +17,13 @@
 	const statusLabel = $derived(statuses.find((option) => option.value === status)?.label);
 </script>
 
-<Tooltip text={status ? "Remove from Watchlist" : "Add to Watchlist"}>
+<Tooltip text={status ? "Remove from watchlist" : "Add to watchlist"}>
 	{#snippet children(anchor)}
 		<Button
 			{...anchor}
-			variant="outline"
-			size="square"
-			aria-label={status ? "Remove from Watchlist" : "Add to Watchlist"}
+			variant="secondary"
+			square
+			aria-label={status ? "Remove from watchlist" : "Add to watchlist"}
 			aria-pressed={!!status}
 			onclick={() => library.set(series, status ? null : "plan_to_watch")}
 		>
@@ -32,37 +32,35 @@
 	{/snippet}
 </Tooltip>
 
-<Tooltip text="Change Watchlist Status">
+<Tooltip text="Change watchlist status">
 	{#snippet children(anchor)}
 		<div
 			{...anchor}
-			class="[&_.dropdown-trigger]:border-transparent"
 			onfocus={undefined}
 			onblur={undefined}
 			onfocusin={(event) => {
-				if ((event.target as HTMLElement).matches(".dropdown-trigger")) {
+				if ((event.target as HTMLElement).matches("[aria-expanded]")) {
 					anchor.onfocus();
 				}
 			}}
 			onfocusout={anchor.onblur}
 		>
 			<Dropdown
-				variant="outline"
+				variant="icon"
 				alignment="left"
-				label={statusLabel ? `${statusLabel}, Change Watchlist Status` : "Change Watchlist Status"}
+				label={statusLabel ? `${statusLabel}, Change watchlist status` : "Change watchlist status"}
 			>
 				{#snippet trigger()}
 					<PencilSimpleIcon size="1.5rem" weight="bold" />
 				{/snippet}
 
 				{#snippet children()}
-					<div role="menu" aria-label="Watchlist Status">
+					<div role="menu" aria-label="Watchlist status">
 						{#each statuses as option (option.value)}
 							<Button
 								role="menuitemradio"
 								aria-checked={option.value === status}
 								variant="item"
-								class="aria-checked:bg-white/8"
 								onclick={() => library.set(series, option.value)}
 							>
 								{option.label}

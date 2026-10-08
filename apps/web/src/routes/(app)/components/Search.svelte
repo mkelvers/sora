@@ -14,7 +14,7 @@
 
 <form
 	bind:this={search.form}
-	class="relative flex h-full max-sm:absolute max-sm:inset-x-0 max-sm:top-13.75 max-sm:h-12.25 max-sm:bg-header-hover"
+	class="relative flex h-full max-sm:absolute max-sm:inset-x-0 max-sm:top-13.75 max-sm:h-12.25 max-sm:bg-surface"
 	role="search"
 	action="/search"
 	onsubmit={search.submit}
@@ -23,7 +23,7 @@
 >
 	<div
 		class={cn(
-			"flex items-center overflow-hidden bg-header-hover transition-[width,flex-grow,visibility] duration-260 ease-out motion-reduce:transition-none max-sm:visible max-sm:w-full",
+			"flex items-center overflow-hidden bg-surface transition-[width,flex-grow,visibility] duration-260 ease-out motion-reduce:transition-none max-sm:visible max-sm:w-full",
 			search.open ? "sm:w-[min(22.5rem,calc(100vw-9rem))]" : "invisible w-0",
 		)}
 	>
@@ -49,11 +49,9 @@
 	</div>
 
 	<Button
-		variant="icon"
-		class={cn(
-			"h-full w-12 hover:bg-header-hover focus-visible:-outline-offset-2 active:scale-100 max-sm:hidden sm:w-14",
-			search.open && "bg-header-hover text-foreground",
-		)}
+		variant="nav"
+		square
+		class="max-sm:hidden"
 		aria-label="Search"
 		aria-expanded={search.open}
 		onclick={search.toggle}
@@ -65,7 +63,7 @@
 		<div
 			bind:this={search.panel}
 			id="search-suggestions"
-			class="absolute top-full right-0 w-full overflow-hidden bg-header-hover pt-1.5 shadow-xl transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
+			class="absolute top-full right-0 w-full overflow-hidden bg-raised pt-1.5 shadow-lg transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
 			role="listbox"
 			aria-label="Suggestions"
 			tabindex="-1"

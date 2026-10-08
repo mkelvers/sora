@@ -3,7 +3,7 @@
 	import { page } from "$app/state";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Input from "$lib/components/ui/Input.svelte";
+	import Field from "$lib/components/ui/Field.svelte";
 
 	import type { PageProps } from "./$types";
 
@@ -31,16 +31,15 @@
 		};
 	}}
 >
-	<h1 class="text-center text-3xl font-normal">Add profile</h1>
+	<h1 class="text-center text-3xl font-bold">Add profile</h1>
 	<p class="mt-4 text-center text-sm text-muted">
 		Each profile has its own home page and playback settings.
 	</p>
 
-	<label class="mt-12 block text-sm text-muted" for="name">Name</label>
-	<Input
-		id="name"
+	<Field
 		name="name"
-		class="mt-2 h-11 rounded-none"
+		label="Name"
+		class="mt-12"
 		value={form?.name ?? ""}
 		maxlength={40}
 		autocomplete="off"
@@ -49,6 +48,6 @@
 
 	<div class="mt-10 flex gap-3">
 		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Add profile</Button>
-		<Button href="/profiles{page.url.search}" variant="outline" class="flex-1">Cancel</Button>
+		<Button href="/profiles{page.url.search}" variant="secondary" class="flex-1">Cancel</Button>
 	</div>
 </form>

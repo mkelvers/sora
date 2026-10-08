@@ -3,12 +3,12 @@
 
 	export const sorts = [
 		{
-			label: "Last Updated",
+			label: "Last updated",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.updated_at.localeCompare(left.updated_at),
 		},
 		{
-			label: "Date Added",
+			label: "Date added",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.added_at.localeCompare(left.added_at),
 		},
@@ -32,7 +32,7 @@
 	} = $props();
 </script>
 
-<Dropdown variant="toolbar" class="w-52" label="Sort watchlist, {sort.label} selected">
+<Dropdown class="w-52" label="Sort watchlist, {sort.label} selected">
 	{#snippet trigger()}
 		<ListBulletsIcon size="1.2rem" weight="bold" />
 		<span class="max-sm:hidden">{sort.label}</span>

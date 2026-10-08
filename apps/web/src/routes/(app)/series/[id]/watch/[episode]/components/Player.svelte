@@ -215,7 +215,7 @@
 		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white *:[grid-area:1/1]",
 		player.idle && !player.paused && "idle cursor-none",
 		loading &&
-			"after:pointer-events-none after:size-12 after:animate-spin after:place-self-center after:rounded-full after:border-3 after:border-white/20 after:border-t-white after:[grid-area:1/1]",
+			"after:pointer-events-none after:size-12 after:animate-spin after:place-self-center after:border-3 after:border-white/20 after:border-t-white after:[grid-area:1/1]",
 	]}
 	aria-busy={loading}
 	bind:this={player.root}
@@ -267,8 +267,8 @@
 	>
 		{#if segment}
 			<Button
-				variant="light"
-				class="pointer-events-auto self-end shadow-md"
+				variant="primary"
+				class="pointer-events-auto self-end shadow-lg"
 				onclick={() => (player.time = segment.end)}
 			>
 				{#if segment.kind === "opening"}
@@ -292,7 +292,7 @@
 	<header
 		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 text-shadow-md in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Button href={back} variant="icon" size="lg" aria-label="Back to {series.title}">
+		<Button href={back} variant="icon" aria-label="Back to {series.title}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
 		<div class="min-w-0">

@@ -40,7 +40,7 @@
 		class="continue-watching-section relative z-20 col-start-1 row-start-2 row-end-3 min-w-0 self-end wide:row-start-1 wide:row-end-3"
 	>
 		<h2 id="continue-watching" class="mb-5 px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
-			Continue Watching
+			Continue watching
 		</h2>
 
 		<Carousel
@@ -119,7 +119,7 @@
 										variant="icon"
 										tone="danger"
 										class="absolute right-2 bottom-2 z-10 group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
-										aria-label="Remove {item.series.title} from Continue Watching"
+										aria-label="Remove {item.series.title} from Continue watching"
 										onclick={() => remove(item.series.id)}
 									>
 										<TrashIcon size="1.125rem" />

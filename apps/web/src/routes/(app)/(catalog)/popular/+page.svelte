@@ -6,12 +6,12 @@
 </script>
 
 <svelte:head>
-	<title>Most Popular · Sora</title>
+	<title>Most popular · Sora</title>
 </svelte:head>
 
 {#key `${filters.audio}:${filters.format}`}
 	<Catalog
-		title="Most Popular Anime"
+		title="Most popular anime"
 		empty={{
 			title: "The spotlight's empty right now.",
 			hint: "Loosen a filter and see who steps up.",
