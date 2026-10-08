@@ -91,25 +91,29 @@
 		</div>
 	</fieldset>
 
-	<div class="mt-10 flex gap-3">
-		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Save profile</Button>
-		<Button href="/profiles{page.url.search}" variant="secondary" class="flex-1">Cancel</Button>
+	<div class="mt-10 flex flex-wrap items-center gap-3">
+		<Button type="submit" variant="primary" class="max-sm:flex-1" loading={pending}>
+			Save profile
+		</Button>
+		<Button href="/profiles{page.url.search}" variant="secondary" class="max-sm:flex-1">
+			Cancel
+		</Button>
+		{#if data.deletable}
+			<div class="ml-auto flex justify-end max-sm:basis-full">
+				<Button
+					type="submit"
+					formaction="?/delete{page.url.search.replace('?', '&')}"
+					formnovalidate
+					variant="ghost"
+					size="sm"
+					tone="danger"
+					class="-mr-2"
+					disabled={pending}
+				>
+					<TrashIcon size="1rem" />
+					Delete profile
+				</Button>
+			</div>
+		{/if}
 	</div>
-
-	{#if data.deletable}
-		<div class="mt-6 flex justify-center">
-			<Button
-				type="submit"
-				formaction="?/delete{page.url.search.replace('?', '&')}"
-				formnovalidate
-				variant="ghost"
-				size="sm"
-				tone="danger"
-				disabled={pending}
-			>
-				<TrashIcon size="1rem" />
-				Delete profile
-			</Button>
-		</div>
-	{/if}
 </form>
