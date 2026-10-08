@@ -249,13 +249,13 @@
 		/>
 	{/if}
 
-	<div
-		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center gap-4 self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
-	>
-		{#if segment}
+	{#if segment}
+		<div
+			class="pointer-events-none z-1 mx-4 mb-32 self-end justify-self-end transition-[margin] duration-200 in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:mb-25"
+		>
 			<Button
 				variant="primary"
-				class="pointer-events-auto self-end shadow-lg"
+				class="pointer-events-auto bg-white text-black shadow-lg shadow-black/50 transition-[background-color] duration-150 hover:bg-white/80 hover:brightness-100 motion-reduce:transition-none"
 				onclick={() => (player.time = segment.end)}
 			>
 				{#if segment.kind === "opening"}
@@ -264,8 +264,12 @@
 					Skip credits
 				{/if}
 			</Button>
-		{/if}
+		</div>
+	{/if}
 
+	<div
+		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center self-end transition-[margin] duration-200 [--cue-lift:7rem] in-[.idle:not(:has(:popover-open))]:mb-[6vh] sm:[--cue-lift:5.25rem]"
+	>
 		<div
 			aria-hidden="true"
 			class="text-center text-[clamp(18px,2.6vw,40px)] leading-tight font-semibold whitespace-pre-line [-webkit-text-stroke:0.14em_#000] [paint-order:stroke_fill] text-shadow-lg"
