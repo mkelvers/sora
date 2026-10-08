@@ -74,6 +74,8 @@
 	});
 
 	const selected = $derived(options.find((option) => option.value === value));
+
+	let keyboard = $state(false);
 </script>
 
 <button
@@ -81,6 +83,8 @@
 	type="button"
 	aria-label="{label}: {selected?.label}"
 	class={cn(trigger({ variant }), className)}
+	onpointerdowncapture={() => (keyboard = false)}
+	onkeydowncapture={() => (keyboard = true)}
 >
 	{#if variant === "heading"}
 		<CaretDownIcon size="1.1rem" weight="fill" class="shrink-0" />
@@ -94,6 +98,9 @@
 <div
 	{...select.content}
 	aria-label={label}
+	data-keyboard={keyboard || undefined}
+	onpointermovecapture={() => (keyboard = false)}
+	onkeydowncapture={() => (keyboard = true)}
 	{@attach (node) => {
 		node.focus = (options) =>
 			HTMLElement.prototype.focus.call(node, {
@@ -108,7 +115,7 @@
 	{#each options as option (option.value)}
 		<div
 			{...select.getOption(option.value, option.label)}
-			class="flex min-h-11 w-full cursor-pointer items-center gap-6 px-5 py-3 text-left text-sm text-muted aria-selected:text-foreground data-highlighted:bg-hover data-highlighted:text-foreground max-sm:min-h-13 max-sm:text-base"
+			class="flex min-h-11 w-full cursor-pointer items-center gap-6 px-5 py-3 text-left text-sm text-muted hover:bg-hover hover:text-foreground aria-selected:text-foreground in-data-keyboard:data-highlighted:bg-hover in-data-keyboard:data-highlighted:text-foreground max-sm:min-h-13 max-sm:text-base"
 		>
 			<span class="truncate">{option.label}</span>
 			{#if option.detail}

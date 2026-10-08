@@ -73,5 +73,7 @@ primitive so every page gets it.
 ## States
 
 Hover, open (`aria-expanded`) and pressed share the `hover` tint. Focus is a 2px `accent`
-outline. Selected or current items turn `foreground`; checked radios fill with `accent-secondary`.
+outline. Selected or current items turn `foreground` but never get the hover background; menus
+open without a pre-highlighted row (the background follows the pointer, or keyboard
+navigation once a key is pressed). Checked radios fill with `accent-secondary`.
 Destructive actions turn `danger` on hover and live away from the primary action.
