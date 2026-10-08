@@ -24,10 +24,11 @@ export {
 	getAdjacentEpisodes,
 	getLatestReleases,
 	getSeries,
+	getSeriesEpisode,
 	getSeriesEpisodes,
 	ReleasesQuerySchema,
 	type ReleasesQuery,
 } from "./queries";
-export { getAiringSchedule } from "./schedule";
+export { getAiringSchedule, getCalendar } from "./schedule";
 export type { SeriesKind } from "./series";
 export { getUpcomingSeries } from "./upcoming";

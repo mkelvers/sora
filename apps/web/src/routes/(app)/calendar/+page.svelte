@@ -10,7 +10,7 @@
 	import Image from "$lib/components/ui/Image.svelte";
 	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { mascots } from "$lib/mascots";
-	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { audioLabel, cn, episodes, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { Tabs } from "melt/builders";
 	import {
 		CaretDownIcon,
@@ -33,9 +33,9 @@
 	);
 
 	let selected = $derived(calendar.days.find((day) => day.today)?.date ?? calendar.days[0].date);
+	const quiet = $derived(calendar.days.every((day) => !day.count));
 	const current = $derived(calendar.days.find((day) => day.date === selected) ?? calendar.days[0]);
 
-	// Whether the "Days" sheet is open.
 	let days = $state(false);
 
 	const tabs = new Tabs<string>({
@@ -80,7 +80,7 @@
 				onclick={() => (days = true)}
 			>
 				<CaretDownIcon size="0.875rem" weight="fill" />
-				{current.weekday} · {current.monthDay}
+				{current.short_name} · {current.month_day}
 			</Button>
 			{#if shown.weeks !== 0}
 				<Button onclick={() => (shown.weeks = 0)} variant="ghost">This week</Button>
@@ -93,12 +93,12 @@
 					{...tabs.getTrigger(day.date)}
 					type="button"
 					class="-mb-px flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1 border-b-2 border-transparent py-2 text-muted transition-colors outline-none hover:bg-hover hover:text-foreground focus-visible:bg-hover aria-selected:border-accent aria-selected:text-foreground"
-					aria-label="{day.label}, {day.count} {day.count === 1 ? 'episode' : 'episodes'}"
+					aria-label="{day.label}, {episodes(day.count)}"
 				>
 					<span
 						class={cn("text-xs font-medium tracking-wide uppercase", day.today && "text-accent")}
 					>
-						{day.weekday}
+						{day.short_name}
 					</span>
 					<span
 						class={cn(
@@ -118,15 +118,15 @@
 				{#if day.date === selected}
 					{#if day.slots.length}
 						<ol class="flex flex-col gap-8 pt-6 pb-10 sm:gap-10 sm:pt-8">
-							{#each day.slots as slot (slot.at)}
-								{#if slot.now}
+							{#each day.slots as slot (slot.airing_at)}
+								{#if slot.next}
 									<li class="text-sm font-semibold text-accent tabular-nums sm:pl-34">
 										Now · {calendar.now}
 									</li>
 								{/if}
 								<li class="grid gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6">
 									<time
-										datetime={slot.at}
+										datetime={slot.airing_at}
 										class={cn(
 											"text-lg font-bold tabular-nums sm:text-2xl",
 											slot.aired && day.today && "text-muted",
@@ -136,7 +136,7 @@
 									</time>
 
 									<ul class="grid gap-x-5 gap-y-5 sm:grid-cols-2 sm:gap-y-6 lg:grid-cols-3">
-										{#each slot.releases as release (release.key)}
+										{#each slot.releases as release (`${release.series.id}:${release.audio}`)}
 											{@const image = release.series.backdrop_url ?? release.series.poster_url}
 											<li
 												class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10"
@@ -168,7 +168,7 @@
 															{release.series.title}
 														</h3>
 														<p class="mt-1 text-xs text-muted sm:text-sm">
-															{release.episodes} · {release.language}
+															{release.episodes} · {audioLabel(release.audio)}
 														</p>
 													</div>
 
@@ -182,7 +182,7 @@
 														<p class="mt-1 text-base leading-snug font-bold text-foreground">
 															{release.episodes}
 														</p>
-														<p class="text-sm text-muted">{release.language}</p>
+														<p class="text-sm text-muted">{audioLabel(release.audio)}</p>
 														<p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
 															<ClockIcon size="1rem" />
 															{day.name} · {slot.time}
@@ -208,7 +208,19 @@
 						</ol>
 					{:else}
 						<div class="pt-8">
-							<EmptyState mascot={mascots.emptyCalendar} {...day.nothing} />
+							<EmptyState
+								mascot={mascots.emptyCalendar}
+								title={quiet
+									? shown.weeks > 1
+										? "The schedule for this week isn't out yet."
+										: "There's no schedule for this week."
+									: `Nothing airs on ${day.name}.`}
+								hint={quiet
+									? shown.weeks > 1
+										? "Check back closer to the week."
+										: "Try another week."
+									: "Pick another day to see what's coming out."}
+							/>
 						</div>
 					{/if}
 				{/if}

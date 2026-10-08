@@ -26,6 +26,7 @@ import {
 	ProgressSchema,
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
+	CalendarSchema,
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesProgressSchema,
@@ -305,6 +306,24 @@ export const listEpisodes = createRoute({
 	},
 });
 
+export const getEpisode = createRoute({
+	operationId: "getEpisode",
+	method: "get",
+	path: "/series/{series_id}/episodes/{episode}",
+	tags: ["Series"],
+	summary: "Get one of a series' episodes",
+	request: {
+		params: EpisodeParams,
+	},
+	responses: {
+		200: json(
+			envelopeOf(EpisodeSchema, EmptyMetaSchema),
+			"The episode, as `listEpisodes` lists it.",
+		),
+		404: problem("No such title, or it does not list the episode."),
+	},
+});
+
 export const listGenres = createRoute({
 	operationId: "listGenres",
 	method: "get",
@@ -353,6 +372,31 @@ export const getSchedule = createRoute({
 			"Scheduled episodes, and the window they air in.",
 		),
 		422: problem("The window is invalid or longer than 14 days."),
+	},
+});
+
+export const getCalendar = createRoute({
+	operationId: "getCalendar",
+	method: "get",
+	path: "/calendar",
+	tags: ["Series"],
+	summary: "Release calendar",
+	description:
+		"A week of `getSchedule` laid out in a time zone, Monday to Sunday: each day's times and what comes out at each, with a title's subbed and dubbed episodes merged when they are the same ones.",
+	request: {
+		query: z.object({
+			time_zone: z.string().min(1).max(100).meta({
+				description: "An IANA time zone.",
+				example: "Europe/Oslo",
+			}),
+			week: z.coerce.number().int().min(-520).max(520).default(0).meta({
+				description: "How many weeks after this one; negative for earlier weeks.",
+			}),
+		}),
+	},
+	responses: {
+		200: json(envelopeOf(CalendarSchema, EmptyMetaSchema), "The week."),
+		422: problem("The time zone is unknown."),
 	},
 });
 

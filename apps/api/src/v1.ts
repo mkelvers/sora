@@ -33,8 +33,10 @@ import {
 	browseSeries,
 	getAdjacentEpisodes,
 	getAiringSchedule,
+	getCalendar,
 	getLatestReleases,
 	getSeries,
+	getSeriesEpisode,
 	getSeriesEpisodes,
 	getUpcomingSeries,
 	listSeriesImages,
@@ -317,6 +319,17 @@ export const v1Routes = v1
 		);
 	})
 
+	.openapi(route.getEpisode, async (c) => {
+		const { series_id, episode } = c.req.valid("param");
+		return c.json(
+			{
+				meta: {},
+				results: await getSeriesEpisode(series_id, episode),
+			},
+			200,
+		);
+	})
+
 	.openapi(route.listGenres, async (c) => {
 		const genres = await getGenres();
 		c.header("Cache-Control", "public, max-age=86400");
@@ -345,6 +358,19 @@ export const v1Routes = v1
 					count: episodes.length,
 				},
 				results: episodes,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getCalendar, async (c) => {
+		const { time_zone, week } = c.req.valid("query");
+		const calendar = await getCalendar(time_zone, week);
+		c.header("Cache-Control", "public, max-age=60");
+		return c.json(
+			{
+				meta: {},
+				results: calendar,
 			},
 			200,
 		);
@@ -428,6 +454,8 @@ export const v1Routes = v1
 					expires_at: playback.expiresAt,
 					next: adjacent.next === null ? null : playbackPath(series_id, adjacent.next),
 					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
+					next_episode: adjacent.next,
+					previous_episode: adjacent.previous,
 				},
 				results: playback.media,
 			},

@@ -1,9 +1,10 @@
+import { attempt } from "@sora/shared";
 import { and, asc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, series } from "../database/schema";
 import { InvalidInputError } from "../errors";
-import type { ScheduledEpisode } from "../models/series";
+import type { Calendar, ScheduledEpisode } from "../models/series";
 import { day } from "../time";
 import { anilistEpisodeKey } from "./episodes";
 import { toSeriesCards } from "./queries";
@@ -114,4 +115,118 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 				]
 			: [];
 	});
+}
+
+/**
+ * A week of {@link getAiringSchedule} laid out as a calendar in a time zone:
+ * each day from Monday to Sunday, the times episodes come out on it, and
+ * what comes out at each, with a title's subbed and dubbed episodes merged
+ * when they are the same ones.
+ *
+ * @param weeks - How many weeks after this one; negative for earlier weeks.
+ * @throws {@link InvalidInputError} when the time zone is unknown.
+ */
+export async function getCalendar(timeZone: string, weeks: number): Promise<Calendar> {
+	const today = attempt(() => Temporal.Now.plainDateISO(timeZone), RangeError);
+	if (today.error) {
+		throw new InvalidInputError(`Unknown time zone ${timeZone}`);
+	}
+
+	const monday = today.data.subtract({ days: today.data.dayOfWeek - 1 }).add({ weeks });
+	const sunday = monday.add({ days: 6 });
+	const episodes = await getAiringSchedule(
+		new Date(monday.toZonedDateTime(timeZone).epochMilliseconds),
+		new Date(sunday.add({ days: 1 }).toZonedDateTime(timeZone).epochMilliseconds),
+	);
+	const now = Date.now();
+	const clock = (epochMs: number) =>
+		Temporal.Instant.fromEpochMilliseconds(epochMs)
+			.toZonedDateTimeISO(timeZone)
+			.toLocaleString("en", {
+				hour: "2-digit",
+				minute: "2-digit",
+				hourCycle: "h23",
+			});
+
+	return {
+		week: new Intl.DateTimeFormat("en", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		}).formatRange(monday, sunday),
+		now: clock(now),
+		days: Array.from({ length: 7 }, (_, index) => {
+			const date = monday.add({ days: index });
+			const isToday = date.equals(today.data);
+			const airing = episodes.filter((episode) =>
+				Temporal.Instant.from(episode.airing_at)
+					.toZonedDateTimeISO(timeZone)
+					.toPlainDate()
+					.equals(date),
+			);
+			const slots = [...Map.groupBy(airing, (episode) => episode.airing_at)];
+
+			return {
+				date: date.toString(),
+				today: isToday,
+				name: date.toLocaleString("en", { weekday: "long" }),
+				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),
+				label: date.toLocaleString("en", { weekday: "long", month: "long", day: "numeric" }),
+				month_day: date.toLocaleString("en", { month: "long", day: "numeric" }),
+				number: date.day,
+				count: airing.length,
+				slots: slots.map(([at, group], position) => {
+					const aired = Date.parse(at) <= now;
+					const previous = slots[position - 1];
+					return {
+						airing_at: at,
+						time: clock(Date.parse(at)),
+						aired,
+						next: isToday && !aired && (!previous || Date.parse(previous[0]) <= now),
+						releases: [...Map.groupBy(group, (episode) => episode.series.id).values()].flatMap(
+							calendarReleases,
+						),
+					};
+				}),
+			};
+		}),
+	};
+}
+
+/**
+ * One title's episodes at one time as calendar entries: one for its subbed
+ * and one for its dubbed episodes, or a single one when they are the same.
+ */
+function calendarReleases(versions: ScheduledEpisode[]) {
+	const audioByEpisodes = new Map<string, ("sub" | "dub")[]>();
+	for (const airType of ["sub", "dub"] as const) {
+		const numbers = versions
+			.filter((version) => version.air_type === airType)
+			.map((version) => version.episode)
+			.toSorted((left, right) => left - right);
+		if (!numbers.length) {
+			continue;
+		}
+
+		const runs: [number, number][] = [];
+		for (const number of numbers) {
+			const run = runs.at(-1);
+			if (run?.[1] === number - 1) {
+				run[1] = number;
+			} else {
+				runs.push([number, number]);
+			}
+		}
+
+		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
+			.map(([first, last]) => (first === last ? first : `${first}–${last}`))
+			.join(", ")}`;
+		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
+	}
+
+	return [...audioByEpisodes].map(([episodes, audio]) => ({
+		series: versions[0]!.series,
+		audio,
+		episodes,
+	}));
 }
