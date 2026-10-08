@@ -22,8 +22,6 @@ const tops: Record<string, number> = {
 	tall: 14,
 	tulip: 21,
 };
-const bottom = 109.5;
-const scale = 1;
 
 function draw(style: string, seed: string) {
 	const options = {
@@ -44,9 +42,9 @@ function draw(style: string, seed: string) {
 	return new Avatar(sprouts, {
 		...options,
 		backgroundColor: [],
-		scale,
-		translateX: -1.5 * scale,
-		translateY: -((top + bottom) / 2 - 50) * scale,
+		scale: 1,
+		translateX: -1.5,
+		translateY: -((top + 109.5) / 2 - 50),
 	}).toString();
 }
 
