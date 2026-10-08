@@ -1,18 +1,15 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import {
-	getNotifications,
-	getUnreadNotifications,
-} from "$routes/(app)/notifications/notifications.remote";
+import { refreshStatus } from "$routes/(app)/tracking.server";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
 export const getWatchlist = query(async () => {
-	const viewer = remoteViewer();
+	const { sora, profile } = remoteViewer();
 
-	return viewer.sora.request(route.listWatchlist, {
+	return sora.request(route.listWatchlist, {
 		params: {
-			profile_id: viewer.profile.id,
+			profile_id: profile.id,
 		},
 	});
 });
@@ -23,31 +20,25 @@ export const setWatchlistStatus = command(
 		status: z.enum(["watching", "plan_to_watch", "completed", "dropped"]).nullable(),
 	}),
 	async ({ seriesId, status }) => {
-		const viewer = remoteViewer();
+		const { sora, profile } = remoteViewer();
+		const params = {
+			profile_id: profile.id,
+			series_id: seriesId,
+		};
 
 		if (status) {
-			await viewer.sora.request(route.setWatchlistStatus, {
-				params: {
-					profile_id: viewer.profile.id,
-					series_id: seriesId,
-				},
+			await sora.request(route.setWatchlistStatus, {
+				params,
 				body: {
 					status,
 				},
 			});
 		} else {
-			await viewer.sora.request(route.removeFromWatchlist, {
-				params: {
-					profile_id: viewer.profile.id,
-					series_id: seriesId,
-				},
+			await sora.request(route.removeFromWatchlist, {
+				params,
 			});
 		}
 
-		await Promise.all([
-			getWatchlist().refresh(),
-			getNotifications().refresh(),
-			getUnreadNotifications().refresh(),
-		]);
+		await refreshStatus();
 	},
 );
