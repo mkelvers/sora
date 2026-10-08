@@ -1,25 +1,3 @@
-<script lang="ts" module>
-	import { cva, type VariantProps } from "class-variance-authority";
-
-	const triggerVariants = cva(
-		"dropdown-trigger group-has-[.dropdown-menu:popover-open]:bg-white/8 group-has-[.dropdown-menu:popover-open]:text-foreground",
-		{
-			variants: {
-				variant: {
-					toolbar:
-						"h-10 gap-2 px-3 text-sm font-medium tracking-normal group-has-[.dropdown-menu:popover-open]:bg-dropdown hover:bg-dropdown",
-					bar: "h-full gap-1 px-3 group-has-[.dropdown-menu:popover-open]:bg-header-hover hover:bg-header-hover",
-					link: "h-full px-4 text-sm font-medium tracking-normal normal-case group-has-[.dropdown-menu:popover-open]:bg-header-hover hover:bg-header-hover",
-					icon: "h-full w-12 justify-center p-0 group-has-[.dropdown-menu:popover-open]:bg-header-hover group-has-[.dropdown-menu:popover-open]:text-foreground hover:bg-header-hover hover:text-foreground",
-					outline:
-						"size-11 border-2 border-accent px-0 text-accent group-has-[.dropdown-menu:popover-open]:bg-transparent group-has-[.dropdown-menu:popover-open]:text-accent hover:bg-transparent hover:text-accent hover:brightness-110 active:scale-97",
-					overlay: "bg-transparent! hover:text-white",
-				},
-			},
-		},
-	);
-</script>
-
 <script lang="ts">
 	import { cn, moveMenuFocus } from "$lib/utils";
 	import { Popover } from "melt/builders";
@@ -32,20 +10,20 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
-		variant?: NonNullable<VariantProps<typeof triggerVariants>["variant"]>;
+		variant?: "ghost" | "icon" | "secondary" | "nav";
+		square?: boolean;
 		class?: string;
 	};
 
 	let {
 		alignment = "right",
-		variant,
+		variant = "ghost",
+		square = false,
 		children,
 		class: className,
 		label,
 		trigger,
 	}: Props = $props();
-
-	const stretch = $derived(variant === "bar" || variant === "link" || variant === "icon");
 
 	const popover = new Popover({
 		focus: {
@@ -77,24 +55,15 @@
 	});
 </script>
 
-<div class={cn("dropdown-root group relative", stretch && "h-full")}>
-	<Button
-		{...popover.trigger}
-		variant="ghost"
-		class={triggerVariants({
-			variant,
-		})}
-		aria-label={label}
-	>
+<div class={cn("relative", variant === "nav" && "h-full")}>
+	<Button {...popover.trigger} {variant} {square} aria-expanded={popover.open} aria-label={label}>
 		{@render trigger()}
 	</Button>
 
 	<div
 		{...popover.content}
 		class={cn(
-			"dropdown-menu inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-dropdown shadow-lg open:flex",
-			variant === "toolbar" &&
-				"[&_:is(a,button):focus:not(:hover)]:bg-transparent [&_:is(a,button):focus:not(:hover):not([aria-checked=true])]:text-muted",
+			"inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-raised shadow-lg open:flex",
 			className,
 		)}
 		onpointermove={(event) => {

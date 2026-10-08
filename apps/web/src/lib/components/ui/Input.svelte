@@ -9,7 +9,7 @@
 	{...props}
 	bind:value
 	class={cn(
-		"flex h-10 w-full border border-border bg-transparent px-3 py-2 text-sm transition-[border-color,box-shadow] duration-150 ease-out outline-none placeholder:text-muted focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
+		"flex h-11 w-full border border-border bg-transparent px-3 text-base transition-[border-color] duration-150 outline-none placeholder:text-subtle hover:border-border-strong focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-danger sm:text-sm",
 		className,
 	)}
 />

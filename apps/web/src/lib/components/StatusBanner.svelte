@@ -26,7 +26,7 @@
 	<div
 		class={cn(
 			"fixed inset-x-0 top-0 z-100 grid min-h-12 place-items-center px-14 py-2 text-sm font-semibold text-on-status",
-			tone === "error" ? "bg-status-error" : "bg-status-success",
+			tone === "error" ? "bg-danger" : "bg-success",
 		)}
 		out:fly={{
 			y: prefersReducedMotion.current ? 0 : -48,

@@ -33,7 +33,7 @@
 	bind:this={dialog}
 	{id}
 	aria-labelledby="{id}-title"
-	class="sheet fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none flex-col overflow-hidden border-0 bg-dropdown p-0 text-foreground shadow-lg open:flex"
+	class="sheet fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none flex-col overflow-hidden border-0 bg-raised p-0 text-foreground shadow-lg open:flex"
 	onclose={() => (open = false)}
 	{@attach (node) => {
 		const desktop = window.matchMedia("(min-width: 640px)");
@@ -44,15 +44,10 @@
 		return () => desktop.removeEventListener("change", closeOnDesktop);
 	}}
 >
-	<div class="flex h-15 shrink-0 items-center justify-between bg-dropdown-hover px-5">
-		<h2 id="{id}-title" class="text-base font-normal">{title}</h2>
-		<Button
-			variant="icon"
-			class="text-foreground"
-			aria-label="Close"
-			onclick={() => (open = false)}
-		>
-			<XIcon size="1.5rem" weight="bold" />
+	<div class="flex h-14 shrink-0 items-center justify-between pr-1.5 pl-5">
+		<h2 id="{id}-title" class="text-lg font-bold">{title}</h2>
+		<Button variant="icon" aria-label="Close" onclick={() => (open = false)}>
+			<XIcon size="1.5rem" />
 		</Button>
 	</div>
 	<div class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">

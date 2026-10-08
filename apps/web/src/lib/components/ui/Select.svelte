@@ -7,16 +7,15 @@
 			variants: {
 				variant: {
 					field:
-						"h-10 w-full justify-between border border-border px-3 text-sm font-medium hover:border-border-strong aria-expanded:border-border-strong",
-					heading:
-						"py-2 text-lg font-bold hover:text-accent-secondary aria-expanded:text-accent-secondary",
+						"h-11 w-full justify-between border border-border px-3 text-sm hover:border-border-strong aria-expanded:border-border-strong",
+					heading: "-ml-3 h-11 px-3 text-lg font-bold hover:bg-hover aria-expanded:bg-hover",
 				},
 			},
 		},
 	);
 
 	const content = cva(
-		"inset-auto m-0 max-h-[min(60vh,24rem)] scrollbar-thin flex-col overflow-y-auto bg-dropdown shadow-2xl shadow-black/60 outline-none open:flex",
+		"inset-auto m-0 max-h-[min(60vh,24rem)] scrollbar-thin flex-col overflow-y-auto bg-raised shadow-lg outline-none open:flex",
 		{
 			variants: {
 				variant: {
@@ -26,17 +25,6 @@
 			},
 		},
 	);
-
-	const item = cva("flex w-full cursor-pointer items-center gap-6 px-5 text-left", {
-		variants: {
-			variant: {
-				field:
-					"min-h-11 py-3 text-sm text-muted aria-selected:text-foreground data-highlighted:bg-white/8 data-highlighted:text-foreground",
-				heading:
-					"min-h-11 py-2.5 text-base text-dropdown-foreground hover:bg-dropdown-hover aria-selected:text-foreground data-highlighted:text-foreground",
-			},
-		},
-	});
 </script>
 
 <script lang="ts" generics="T extends string">
@@ -119,13 +107,11 @@
 	{#each options as option (option.value)}
 		<div
 			{...select.getOption(option.value, option.label)}
-			class={item({
-				variant,
-			})}
+			class="flex min-h-11 w-full cursor-pointer items-center gap-6 px-5 py-3 text-left text-sm text-muted aria-selected:text-foreground data-highlighted:bg-hover data-highlighted:text-foreground max-sm:min-h-13 max-sm:text-base"
 		>
 			<span class="truncate">{option.label}</span>
 			{#if option.detail}
-				<span class="ml-auto shrink-0 text-xs tabular-nums">{option.detail}</span>
+				<span class="ml-auto shrink-0 text-xs text-subtle tabular-nums">{option.detail}</span>
 			{/if}
 		</div>
 	{/each}
