@@ -119,6 +119,12 @@ export const PlaybackMetaSchema = z
 		previous: z.string().nullable().openapi({
 			description: "The previous episode's playback URL, or null before the first one.",
 		}),
+		next_episode: z.number().int().nullable().openapi({
+			description: "The number of the episode `next` plays.",
+		}),
+		previous_episode: z.number().int().nullable().openapi({
+			description: "The number of the episode `previous` plays.",
+		}),
 	})
 	.openapi("PlaybackMeta");
 
