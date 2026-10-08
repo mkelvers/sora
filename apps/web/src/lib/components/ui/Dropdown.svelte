@@ -10,7 +10,7 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
-		variant?: "ghost" | "icon" | "secondary" | "nav";
+		variant?: "ghost" | "icon" | "secondary" | "toolbar" | "text" | "nav";
 		square?: boolean;
 		class?: string;
 	};

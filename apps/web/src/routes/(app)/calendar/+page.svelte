@@ -73,8 +73,7 @@
 
 		<div class="mb-2 flex items-center justify-between gap-2 sm:hidden">
 			<Button
-				variant="ghost"
-				class="-ml-3"
+				variant="text"
 				aria-label="Choose day, {current.label} selected"
 				aria-haspopup="dialog"
 				aria-controls="day-list"

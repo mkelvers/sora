@@ -32,7 +32,7 @@
 	} = $props();
 </script>
 
-<Dropdown class="w-52" label="Sort watchlist, {sort.label} selected">
+<Dropdown variant="toolbar" class="w-52" label="Sort watchlist, {sort.label} selected">
 	{#snippet trigger()}
 		<ListBulletsIcon size="1.2rem" weight="bold" />
 		<span class="max-sm:hidden">{sort.label}</span>

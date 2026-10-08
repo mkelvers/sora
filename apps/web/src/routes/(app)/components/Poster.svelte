@@ -167,12 +167,12 @@
 							<Button
 								{...trigger}
 								href={play.href}
-								variant="primary"
+								variant="icon"
+								tone="accent"
 								size="sm"
-								square
 								aria-label={play.label}
 							>
-								<PlayIcon size="1.25rem" weight="fill" />
+								<PlayIcon size="1.55rem" weight="bold" />
 							</Button>
 						{/snippet}
 					</Tooltip>
@@ -182,14 +182,14 @@
 					{#snippet children(trigger)}
 						<Button
 							{...trigger}
-							variant="secondary"
+							variant="icon"
+							tone="accent"
 							size="sm"
-							square
 							aria-label={listed ? "Remove from watchlist" : "Add to watchlist"}
 							aria-pressed={listed}
 							onclick={toggleListed}
 						>
-							<BookmarkSimpleIcon size="1.25rem" weight={listed ? "fill" : "bold"} />
+							<BookmarkSimpleIcon size="1.55rem" weight={listed ? "fill" : "bold"} />
 						</Button>
 					{/snippet}
 				</Tooltip>

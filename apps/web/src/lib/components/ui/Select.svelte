@@ -8,7 +8,8 @@
 				variant: {
 					field:
 						"h-11 w-full justify-between border border-border px-3 text-sm hover:border-border-strong aria-expanded:border-border-strong",
-					heading: "-ml-3 h-11 px-3 text-lg font-bold hover:bg-hover aria-expanded:bg-hover",
+					heading:
+						"h-11 text-lg font-bold hover:text-accent-secondary aria-expanded:text-accent-secondary",
 				},
 			},
 		},

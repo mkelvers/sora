@@ -83,7 +83,7 @@
 
 <div class="flex items-center gap-1 max-sm:hidden">
 	{#if current}
-		<Dropdown class="w-52" label="Sort anime, {current.label} selected">
+		<Dropdown variant="toolbar" class="w-52" label="Sort anime, {current.label} selected">
 			{#snippet trigger()}
 				<ListBulletsIcon size="1.2rem" weight="bold" />
 				{current.label}
@@ -106,21 +106,17 @@
 		</Dropdown>
 	{/if}
 
-	<Dropdown class="w-60" label="Filter anime">
+	<Dropdown variant="toolbar" class="w-60" label="Filter anime">
 		{#snippet trigger()}
-			<FunnelIcon
-				size="1.2rem"
-				weight={filtered ? "fill" : "bold"}
-				class={cn(filtered && "text-accent")}
-			/>
-			Filter
+			<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
+			<span class={cn(filtered && "text-accent-secondary")}>Filter</span>
 		{/snippet}
 
 		{#snippet children()}
 			<div role="menu" aria-label="Filter anime">
 				{#each groups as group (group.id)}
 					<div role="group" aria-labelledby="filter-{group.id}">
-						<p id="filter-{group.id}" class="px-5 pt-4 pb-1 text-sm text-subtle">
+						<p id="filter-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
 							{group.label}
 						</p>
 						{#each group.options as option (option.label)}
@@ -136,7 +132,7 @@
 								class="gap-2.5"
 							>
 								{#if checked}
-									<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent" />
+									<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
 								{:else}
 									<CircleIcon size="1.25rem" />
 								{/if}
@@ -169,11 +165,7 @@
 		aria-controls="filter-list"
 		onclick={() => (filtering = true)}
 	>
-		<FunnelIcon
-			size="1.2rem"
-			weight={filtered ? "fill" : "bold"}
-			class={cn(filtered && "text-accent")}
-		/>
+		<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
 	</Button>
 </div>
 
@@ -193,7 +185,7 @@
 <Sheet bind:open={filtering} id="filter-list" title="Filter">
 	{#each groups as group (group.id)}
 		<div role="radiogroup" aria-labelledby="filter-sheet-{group.id}">
-			<p id="filter-sheet-{group.id}" class="px-5 pt-4 pb-1 text-sm text-subtle">
+			<p id="filter-sheet-{group.id}" class="px-5 pt-3 pb-2 text-base font-bold text-foreground">
 				{group.label}
 			</p>
 			{#each group.options as option (option.label)}
@@ -209,7 +201,7 @@
 					class="gap-2.5"
 				>
 					{#if checked}
-						<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent" />
+						<RadioButtonIcon size="1.25rem" weight="fill" class="text-accent-secondary" />
 					{:else}
 						<CircleIcon size="1.25rem" />
 					{/if}
