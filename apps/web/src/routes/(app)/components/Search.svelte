@@ -63,7 +63,7 @@
 		<div
 			bind:this={search.panel}
 			id="search-suggestions"
-			class="absolute top-full right-0 w-full overflow-hidden bg-raised pt-1.5 shadow-lg transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
+			class="absolute top-full right-0 w-full overflow-hidden bg-surface pt-1.5 shadow-lg transition-[opacity,translate] duration-140 outline-none max-sm:h-[calc(100dvh-6.5rem)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:shadow-none starting:-translate-y-1 starting:opacity-0"
 			role="listbox"
 			aria-label="Suggestions"
 			tabindex="-1"

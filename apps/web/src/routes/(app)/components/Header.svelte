@@ -69,7 +69,7 @@
 				variant="nav"
 				square
 				alignment="left"
-				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full overflow-y-auto"
+				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full overflow-y-auto bg-surface"
 				label="Menu"
 			>
 				{#snippet trigger()}
@@ -156,7 +156,7 @@
 				<Dropdown
 					variant="nav"
 					alignment="left"
-					class="w-[min(48rem,calc(100vw-2rem))] open:flex-row"
+					class="w-[min(48rem,calc(100vw-2rem))] bg-surface open:flex-row"
 				>
 					{#snippet trigger()}
 						Categories
@@ -177,7 +177,7 @@
 								</li>
 							{/each}
 						</ul>
-						<section class="min-w-0 flex-1 bg-surface py-2" aria-labelledby="header-genres">
+						<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
 							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
 								{#each genres.current ?? [] as genre (genre)}
@@ -230,7 +230,7 @@
 			<div class="h-full">
 				<Dropdown
 					variant="nav"
-					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
+					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-surface max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
 					label={unread.current
 						? `Account menu for ${profile.name}, new notifications`
 						: `Account menu for ${profile.name}`}
@@ -324,7 +324,7 @@
 									role="menuitem"
 									type="submit"
 									variant="item"
-									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:bg-raised max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:bg-surface max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
 								>
 									<SignOutIcon size="1.25rem" />
 									Sign out
