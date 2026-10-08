@@ -33,7 +33,6 @@
 	const unread = getUnreadNotifications();
 	const genres = getGenres();
 
-	// Whether the "Categories" group in the mobile menu is expanded.
 	let categories = $state(false);
 
 	const sections = [
@@ -48,6 +47,7 @@
 		{
 			href: "/simulcast",
 			label: "Simulcast",
+			long: "Simulcast season",
 		},
 	];
 
@@ -58,6 +58,10 @@
 			label: "Release calendar",
 		},
 	];
+
+	function current(href: string) {
+		return page.url.pathname === href ? "page" : undefined;
+	}
 
 	$effect(() => pollWhileVisible(() => unread.refresh()));
 </script>
@@ -80,12 +84,8 @@
 					<ul class="flex flex-col">
 						{#each links as section (section.href)}
 							<li>
-								<Button
-									href={section.href}
-									variant="item"
-									aria-current={page.url.pathname === section.href ? "page" : undefined}
-								>
-									{section.href === "/simulcast" ? "Simulcast season" : section.label}
+								<Button href={section.href} variant="item" aria-current={current(section.href)}>
+									{"long" in section ? section.long : section.label}
 								</Button>
 							</li>
 						{/each}
@@ -115,7 +115,7 @@
 												href="/genres/{slug(genre)}"
 												variant="item"
 												class="pl-9"
-												aria-current={page.params.genre === slug(genre) ? "page" : undefined}
+												aria-current={current(`/genres/${slug(genre)}`)}
 											>
 												{genre}
 											</Button>
@@ -133,7 +133,7 @@
 			href="/"
 			class="inline-flex h-full items-center px-1 focus-visible:-outline-offset-2 max-[60rem]:group-has-[[role=search]>button[aria-expanded=true]]/nav:mr-auto max-sm:mr-auto sm:px-3"
 			aria-label="Home"
-			aria-current={page.url.pathname === "/" ? "page" : undefined}
+			aria-current={current("/")}
 		>
 			<img src={logo} alt="Sora logo" class="size-11" />
 		</a>
@@ -143,11 +143,7 @@
 		>
 			{#each sections as section (section.href)}
 				<li class="max-lg:hidden">
-					<Button
-						href={section.href}
-						variant="nav"
-						aria-current={page.url.pathname === section.href ? "page" : undefined}
-					>
+					<Button href={section.href} variant="nav" aria-current={current(section.href)}>
 						{section.label}
 					</Button>
 				</li>
@@ -167,11 +163,7 @@
 						<ul class="w-56 shrink-0 py-2">
 							{#each links as section (section.href)}
 								<li>
-									<Button
-										href={section.href}
-										variant="item"
-										aria-current={page.url.pathname === section.href ? "page" : undefined}
-									>
+									<Button href={section.href} variant="item" aria-current={current(section.href)}>
 										{section.label}
 									</Button>
 								</li>
@@ -185,7 +177,7 @@
 										<Button
 											href="/genres/{slug(genre)}"
 											variant="item"
-											aria-current={page.params.genre === slug(genre) ? "page" : undefined}
+											aria-current={current(`/genres/${slug(genre)}`)}
 										>
 											{genre}
 										</Button>
@@ -207,7 +199,7 @@
 				square
 				class="max-sm:hidden"
 				aria-label="Watchlist"
-				aria-current={page.url.pathname === "/watchlist" ? "page" : undefined}
+				aria-current={current("/watchlist")}
 			>
 				<BookmarkSimpleIcon size="1.5rem" />
 			</Button>
@@ -222,7 +214,7 @@
 						"after:absolute after:top-3.5 after:right-4 after:size-2 after:bg-danger",
 				)}
 				aria-label={unread.current ? "Notifications, new notifications" : "Notifications"}
-				aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+				aria-current={current("/notifications")}
 			>
 				<BellSimpleIcon size="1.5rem" />
 			</Button>
@@ -301,7 +293,7 @@
 									href="/watchlist"
 									variant="item"
 									class="gap-3 sm:hidden"
-									aria-current={page.url.pathname === "/watchlist" ? "page" : undefined}
+									aria-current={current("/watchlist")}
 								>
 									<BookmarkSimpleIcon size="1.25rem" />
 									Watchlist
@@ -311,7 +303,7 @@
 									href="/notifications"
 									variant="item"
 									class={cn("gap-3 sm:hidden", unread.current && "after:size-2 after:bg-danger")}
-									aria-current={page.url.pathname === "/notifications" ? "page" : undefined}
+									aria-current={current("/notifications")}
 								>
 									<BellSimpleIcon size="1.25rem" />
 									Notifications

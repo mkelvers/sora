@@ -19,11 +19,12 @@
 	} = $props();
 
 	function label(item: ContinueWatching, where: string) {
-		if (item.position_seconds > 0) {
-			return where ? `Continue with ${where}` : "Continue watching";
+		const started = item.position_seconds > 0;
+		if (!where) {
+			return started ? "Continue watching" : "Up next";
 		}
 
-		return where ? `Up next with ${where}` : "Up next";
+		return started ? `Continue with ${where}` : `Up next with ${where}`;
 	}
 
 	function remove(seriesId: string) {
@@ -56,9 +57,7 @@
 					{#each items as item (item.series.id)}
 						{@const where = item.series.format === "MOVIE" ? "" : `Episode ${item.episode}`}
 						{@const progress =
-							item.duration_seconds && item.position_seconds > 0
-								? Math.min(100, (item.position_seconds / item.duration_seconds) * 100)
-								: 0}
+							item.duration_seconds && Math.min(1, item.position_seconds / item.duration_seconds)}
 						<Item
 							class="group relative basis-[calc((100vw-3.75rem)/1.35)] last:mr-3 xs:basis-[calc((100vw-4.75rem)/2.1)] sm:basis-[calc((100vw-8.75rem)/3.25)] sm:last:mr-8 lg:basis-[calc((100vw-20.375rem)/4.25)] lg:last:mr-18 2xl:basis-[calc((100vw-22.25rem)/5.25)]"
 						>
@@ -68,9 +67,9 @@
 								<a
 									href="/series/{item.series.id}/watch/{item.episode}"
 									class="flex h-full flex-col"
-									aria-label={["Continue watching " + item.series.title, where]
-										.filter((part) => !!part)
-										.join(", ")}
+									aria-label={where
+										? `Continue watching ${item.series.title}, ${where}`
+										: `Continue watching ${item.series.title}`}
 								>
 									<div class="relative aspect-video overflow-hidden bg-surface">
 										{#if item.series.backdrop_url}
@@ -84,14 +83,13 @@
 												alt="Backdrop from {item.series.title}"
 											/>
 										{/if}
-										{#if progress > 0}
+										{#if progress}
 											<progress
 												class="absolute inset-x-0 bottom-0 z-10 block h-1 w-full appearance-none bg-black/60 [&::-moz-progress-bar]:bg-accent [&::-webkit-progress-bar]:bg-black/60 [&::-webkit-progress-value]:bg-accent"
 												value={progress}
-												max="100"
-												aria-label="{Math.round(progress)}% watched"
+												aria-label="{Math.round(progress * 100)}% watched"
 											>
-												{Math.round(progress)}%
+												{Math.round(progress * 100)}%
 											</progress>
 										{/if}
 									</div>

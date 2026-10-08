@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			{
 				id: "trending",
 				title: "Trending now",
-				hint: undefined,
 				cards: trending,
 			},
 			{
