@@ -355,6 +355,37 @@ const longestListingWaitMs = 30 * day;
  * first ten hours, and none once it is matched; two had a new episode.
  */
 export const refreshEpisodeListings: Task = async (_payload, helpers) => {
+	// Finished standalone titles have no airing job to revisit a failed
+	// match. Retry them monthly, and apply successful mappings resolved
+	// after the last layout, including those resolved through a sequel.
+	const staleMappings = await db.execute<{
+		anilist_id: number;
+		retry_match: boolean;
+	}>(sql`
+    select ${series.anilistId} as anilist_id,
+      (${tmdbMapping.tmdbId} is null) as retry_match
+    from ${series}
+    inner join ${tmdbMapping} on ${tmdbMapping.anilistId} = ${series.anilistId}
+    where (
+      (${tmdbMapping.tmdbId} is not null and ${tmdbMapping.resolvedAt} > ${series.laidOutAt})
+      or (
+        ${series.kind} = 'standalone'
+        and ${tmdbMapping.tmdbId} is null
+        and ${series.status} = 'FINISHED'
+        and ${tmdbMapping.resolvedAt} < now() - interval '30 days'
+        and ${series.laidOutAt} < now() - interval '30 days'
+      )
+    )
+    order by ${series.laidOutAt}
+    limit 50
+  `);
+	for (const row of staleMappings) {
+		if (row.retry_match) {
+			await expireMapping(row.anilist_id);
+		}
+		await scheduleStoredSeriesRefresh(row.anilist_id);
+	}
+
 	const unlisted = sql`(
     ${series.kind} = 'tv'
     and ${seriesEpisode.tmdbEpisodeNumber} is null
