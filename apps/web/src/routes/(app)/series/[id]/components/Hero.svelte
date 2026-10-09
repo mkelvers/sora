@@ -4,6 +4,7 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
+	import { storyContinuation } from "$lib/series-navigation";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
@@ -27,6 +28,18 @@
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
 
 	const play = $derived.by(() => {
+		let continuation = progress?.finished ? storyContinuation(series) : undefined;
+		while (continuation && library.status.get(continuation.series_id) === "completed") {
+			continuation = storyContinuation({ id: continuation.series_id, seasons: series.seasons });
+		}
+		if (continuation) {
+			const episode = library.resume.get(continuation.series_id)?.episode ?? 1;
+			return {
+				href: `/series/${continuation.series_id}/watch/${episode}`,
+				label: `Continue watching${continuation.format === "MOVIE" ? "" : ` E${episode}`}`,
+				rewatch: false,
+			};
+		}
 		const resume = progress?.next?.episode;
 		if (!resume && !series.episode_count) {
 			return null;

@@ -2,6 +2,7 @@
 	import { goto } from "$app/navigation";
 	import StatusBanner from "$lib/components/StatusBanner.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { nextEpisodeAddress } from "$lib/series-navigation";
 	import {
 		getEpisode,
 		getPlayback,
@@ -47,7 +48,14 @@
 	const previous = $derived(
 		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
 	);
-	const next = $derived(playback?.next ? `/series/${series.id}/watch/${playback.next}` : undefined);
+	const nextAddress = $derived(
+		playback && playback.media.length > 0
+			? nextEpisodeAddress(series, episode.number, playback.next)
+			: undefined,
+	);
+	const next = $derived(
+		nextAddress ? `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}` : undefined,
+	);
 
 	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
 
@@ -75,14 +83,7 @@
 		}
 	});
 
-	const upcoming = $derived(
-		nearing && playback?.next
-			? {
-					seriesId: series.id,
-					episode: String(playback.next),
-				}
-			: undefined,
-	);
+	const upcoming = $derived(nearing ? nextAddress : undefined);
 
 	$effect(() => {
 		if (upcoming) {
