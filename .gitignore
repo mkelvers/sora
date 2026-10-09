@@ -30,6 +30,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # local agent tools
 .claude
 
+# local infra notes
+decisions.tsv
+
 # IntelliJ based IDEs
 .idea
 
