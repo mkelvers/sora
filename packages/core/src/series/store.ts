@@ -65,7 +65,7 @@ export async function storeSeries(anilistId: number): Promise<string> {
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);
 	const airings =
-		!isStored || built.mayGainEpisodes
+		built.useAniListAirings && (!isStored || built.mayGainEpisodes)
 			? await fetchEpisodeAirings([anilistId])
 			: new Map<string, Date>();
 
@@ -120,10 +120,11 @@ export async function storeSeries(anilistId: number): Promise<string> {
 			title: episode.title,
 			overview: episode.overview,
 			airDate: episode.airDate,
-			airedAt:
-				airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
-				airedBefore.get(episode.number) ??
-				null,
+			airedAt: built.useAniListAirings
+				? (airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
+					airedBefore.get(episode.number) ??
+					null)
+				: null,
 			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
 			stillUrl: episode.stillUrl,
 			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,

@@ -71,6 +71,8 @@ export interface SeriesLayout {
 	startDate: string | null;
 	status: AnimeStatus | null;
 	episodes: SeriesEpisode[];
+	/** False when playable compilations use different numbers from AniList's broadcast shorts. */
+	useAniListAirings: boolean;
 	/** The entries AniList relates the entry to inside its franchise, in AniList's order. */
 	related: {
 		anilistId: number;
@@ -151,6 +153,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
 		status: card.status,
 		episodes: layoutEpisodes(card, links, show, movie),
+		useAniListAirings: mapping.method !== "compilation",
 		related: (entry.relations?.edges ?? []).flatMap((edge) =>
 			edge?.node?.type === "ANIME" && edge.relationType && franchiseRelations.has(edge.relationType)
 				? [
