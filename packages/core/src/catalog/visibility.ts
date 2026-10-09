@@ -2,8 +2,10 @@ import { sql, type SQLWrapper } from "drizzle-orm";
 
 import { anime, series } from "../database/schema";
 
-/** Short series and web series are kept for metadata relations, but never offered in Sora. */
-export const excludedFormats = ["TV_SHORT", "ONA"] as const;
+/** Short TV series are kept for metadata relations, but never offered in Sora.
+ * ONA describes web distribution, including full-length shows such as Overgeared.
+ */
+export const excludedFormats = ["TV_SHORT"] as const;
 
 export function isCatalogFormat(format: string | null | undefined) {
 	return !excludedFormats.some((excluded) => excluded === format);

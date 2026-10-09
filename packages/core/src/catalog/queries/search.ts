@@ -303,7 +303,7 @@ export type SearchCandidate = Pick<
 
 /**
  * Finds the AniList entries that best match a query, best first, applying
- * the browse filters. Adult entries, short series, and web series are never
+ * the browse filters. Adult entries and short TV series are never
  * returned. Music videos are returned only when `format` asks for them.
  *
  * Candidates come from the index by trigram similarity, which forgives typos
@@ -355,7 +355,7 @@ export async function searchAnime(
 }
 
 /**
- * The index rows the browse filters allow. Adult, short, and web entries are
+ * The index rows the browse filters allow. Adult and short TV entries are
  * excluded. Music videos are returned only when `format` asks for them.
  */
 function indexConditions(filters: Omit<BrowseQuery, "search" | "page" | "perPage">) {
