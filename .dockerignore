@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.env
+**/.env.*
+**/.svelte-kit
+**/.turbo
+**/build
+**/dist
+**/coverage
+decisions.tsv
+.claude
+.DS_Store

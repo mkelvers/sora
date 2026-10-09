@@ -109,6 +109,29 @@ If setup fails:
 - A startup validation error naming an env key means its value is missing or invalid.
   Check the comments in the corresponding `.env.example`.
 
+## Production deployment
+
+The root `Dockerfile` has three build targets: `web`, `api`, and `scheduler`.
+Configure three Dokploy applications from this repository, using the root build context
+and the matching target. All services use Bun 1.4.2. The web and API listen on port 3000.
+The API applies database migrations before starting; deploy it before the scheduler.
+
+Use PostgreSQL 18 with an explicit persistent volume mounted at `/var/lib/postgresql`.
+Keep its port internal to the Docker network. Set the API and scheduler environment
+from `packages/core/.env.example`, with `HOST=0.0.0.0`, the production database URL,
+and the public HTTPS origin in `AUTH_URL` and `AUTH_TRUSTED_ORIGINS`.
+Include the internal API origin in `AUTH_TRUSTED_ORIGINS` too, since the web
+server signs in through that address.
+For the web app, set `SORA_API_URL` to the internal API service URL, copy the same
+`WEB_CLIENT_KEY`, and set `ORIGIN` to the public HTTPS origin.
+Behind Cloudflare Tunnel, set `ADDRESS_HEADER=cf-connecting-ip` on the web service
+so sign-in limits use each visitor's address.
+
+Route `/` to the web service and `/v1` to the API on the same domain. Keep TLS at
+your reverse proxy or tunnel. `/v1` requires authentication; the API's internal
+`/health` endpoint is used by its Docker health check. The scheduler's cron jobs
+and queue are stored in PostgreSQL, so they need no separate Dokploy schedules.
+
 ## Testing
 
 Tests run on Bun's runner and sit beside the code they cover, as `name.test.ts` next to `name.ts`.
