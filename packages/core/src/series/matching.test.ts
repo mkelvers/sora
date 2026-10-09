@@ -122,6 +122,47 @@ function range(placement: ReturnType<typeof placeInShow>) {
 }
 
 describe("placeInShow", () => {
+	test("matches Saiki K.'s 120 shorts to the 24 compiled playback episodes", () => {
+		const shorts = subject({
+			format: "TV_SHORT",
+			titles: ["The Disastrous Life of Saiki K."],
+			startDate: "2016-07-04",
+			endDate: "2016-12-26",
+			episodes: 120,
+			durationMinutes: 5,
+			playbackEpisodes: 24,
+		});
+		const candidate = show(weekly(1, "2016-07-11", 24, { runtime: 23 }), {
+			show: {
+				id: 67676,
+				name: "The Disastrous Life of Saiki K.",
+				originalName: "斉木楠雄のΨ難",
+				episodes: weekly(1, "2016-07-11", 24, { runtime: 23 }),
+			},
+		});
+		const placement = placeInShow(shorts, candidate);
+		expect(placement?.method).toBe("compilation");
+		expect(placement?.tmdbId).toBe(67676);
+		expect(range(placement)).toHaveLength(24);
+		expect(range(placement)?.at(-1)).toBe("24:S1E24");
+		for (const invalid of [
+			{ playbackEpisodes: null },
+			{ playbackEpisodes: 12 },
+			{ playbackEpisodes: 120 },
+			{ episodes: 119 },
+			{ durationMinutes: null },
+			{ durationMinutes: 2 },
+			{ startDate: null },
+			{ startDate: "2015-07-04" },
+			{ endDate: "2018-12-26" },
+			{ titles: ["A different short adaptation"] },
+		]) {
+			expect(placeInShow({ ...shorts, ...invalid }, candidate)?.method).not.toBe("compilation");
+		}
+		expect(
+			range(placeInShow({ ...shorts, format: "TV", durationMinutes: 23 }, candidate)),
+		).toHaveLength(24);
+	});
 	test("maps a streaming batch to its later weekly franchise broadcast", () => {
 		const candidate = show(
 			[

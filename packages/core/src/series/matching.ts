@@ -31,6 +31,8 @@ export interface MatchSubject {
 	endDate: string | null;
 	/** Planned episode count, or the number aired so far when the total is unknown. */
 	episodes: number | null;
+	/** Highest playable episode number from AniKoto, preferred over AniList's count. */
+	playbackEpisodes?: number | null;
 	/**
 	 * `YYYY-MM-DD` before which none of the entry's episodes aired. For an
 	 * entry AniList lists as not yet released it is the day matching runs,
@@ -83,7 +85,7 @@ export type Placement =
 			tmdbId: number;
 			/** The subject's episodes that TMDB lists, in order. Never empty. */
 			episodes: EpisodeLink[];
-			method: "air-date" | "continuation" | "title" | "episode-group";
+			method: "air-date" | "continuation" | "title" | "episode-group" | "compilation";
 			score: number;
 	  }
 	| {
@@ -156,7 +158,8 @@ const titleOnlyReleaseWindowDays = 120;
  * @returns The best-scoring placement, or `null` when nothing reaches
  *   {@link minimumShowScore}.
  */
-export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Placement | null {
+export function placeInShow(source: MatchSubject, candidate: ShowCandidate): Placement | null {
+	const subject = { ...source, episodes: source.playbackEpisodes ?? source.episodes };
 	const start = dayNumber(subject.startDate);
 	const end = dayNumber(subject.endDate);
 	const nameSimilarity = bestSimilarity(subject.titles, [
@@ -258,6 +261,7 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 
 	return (
 		best ??
+		placeCompiledShorts(source, candidate) ??
 		placeByTitle(subject, candidate, nameSimilarity) ??
 		placeDelayedStreamingRun(subject, candidate) ??
 		placeSpecialByTitle(subject, candidate) ??
@@ -266,15 +270,73 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 }
 
 /**
+ * Short broadcasts may be bundled into the full episodes AniKoto carries.
+ * Require the same primary title, a complete TMDB season with AniKoto's count,
+ * matching broadcast dates, and a matching total runtime. Never infer a bundle
+ * solely from a similar title or a shorter provider listing.
+ */
+function placeCompiledShorts(subject: MatchSubject, candidate: ShowCandidate): Placement | null {
+	if (
+		subject.format !== "TV_SHORT" ||
+		!subject.episodes ||
+		!subject.playbackEpisodes ||
+		!subject.durationMinutes ||
+		subject.episodes <= subject.playbackEpisodes ||
+		subject.episodes % subject.playbackEpisodes !== 0 ||
+		bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), [
+			candidate.show.name,
+			candidate.show.originalName,
+		]) < 0.95
+	)
+		return null;
+
+	const placements: Placement[] = [];
+	const seasons = new Set(candidate.show.episodes.map((episode) => episode.season_number));
+	for (const season of seasons) {
+		if (season <= 0) continue;
+		const run = regularTrack(candidate.show.episodes).filter(
+			(episode) => episode.season_number === season,
+		);
+		const first = run[0];
+		const last = run.at(-1);
+		const startOffset = dayOffset(subject.startDate, first?.air_date ?? null);
+		const endOffset = dayOffset(subject.endDate, last?.air_date ?? null);
+		if (
+			!first ||
+			!last ||
+			run.length !== subject.playbackEpisodes ||
+			run.some((episode, index) => episode.episode_number !== index + 1 || !episode.runtime) ||
+			airedBefore(first, subject.airsFrom) ||
+			startOffset === null ||
+			startOffset > startWindowDays ||
+			endOffset === null ||
+			endOffset > startWindowDays
+		)
+			continue;
+		const minutes = run.reduce((total, episode) => total + (episode.runtime ?? 0), 0);
+		if (!runtimesAgree(minutes, subject.episodes * subject.durationMinutes, 1.2)) continue;
+		placements.push({
+			mediaType: "tv",
+			tmdbId: candidate.show.id,
+			episodes: linkRun(run),
+			method: "compilation",
+			score: 180,
+		});
+	}
+	return placements.length === 1 ? (placements[0] ?? null) : null;
+}
+
+/**
  * Matches named TMDB arcs or release parts against primary AniList titles.
  * Consecutive numbered parts may combine when AniList combines their count.
  * Conflicting arrangements stay unresolved instead of choosing an order.
  */
 export function placeInEpisodeGroups(
-	subject: MatchSubject,
+	source: MatchSubject,
 	show: Pick<TmdbShow, "id" | "episodes">,
 	arrangements: readonly (readonly TmdbEpisodeGroup[])[],
 ): Placement | null {
+	const subject = { ...source, episodes: source.playbackEpisodes ?? source.episodes };
 	if (!subject.episodes) return null;
 	const placements = new Map<string, Placement>();
 	for (const groups of arrangements) {

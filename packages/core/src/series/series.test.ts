@@ -33,6 +33,23 @@ const links = [1, 2, 3].map((number) => ({
 }));
 
 describe("layoutEpisodes", () => {
+	test("uses AniKoto's playable count before larger AniList counts or stale TMDB links", () => {
+		const episodes = layoutEpisodes(
+			{
+				episodes: 120,
+				playbackEpisodes: 3,
+				nextEpisode: null,
+				durationMinutes: 5,
+			},
+			[...links, { anilistEpisode: 120, seasonNumber: 2, episodeNumber: 120 }],
+			show,
+			null,
+		);
+		expect(episodes).toHaveLength(3);
+		expect(episodes[2]?.title).toBe("Chapter 3");
+		expect(episodes[2]?.runtimeMinutes).toBe(23);
+		expect(episodes[2]?.stillUrl).toEndWith("/still-3.jpg");
+	});
 	test("numbers episodes as AniList does, each with its TMDB episode's details", () => {
 		const episodes = layoutEpisodes(finished, links, show, null);
 

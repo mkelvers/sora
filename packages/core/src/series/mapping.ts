@@ -14,6 +14,7 @@ import {
 	searchShows,
 } from "../tmdb/resources";
 import { loadEntries, primaryTitlesOf, toMatchSubject, type FranchiseEntry } from "./entries";
+import { getAniKotoEpisodeCount } from "./episodes";
 import { tmdbHintFor, type TmdbHint } from "./hints";
 import {
 	bestSimilarity,
@@ -92,7 +93,10 @@ async function freshMapping(entry: FranchiseEntry) {
 }
 
 async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Promise<TmdbMapping> {
-	const subject = toMatchSubject(entry, new Date());
+	const subject = {
+		...toMatchSubject(entry, new Date()),
+		playbackEpisodes: await getAniKotoEpisodeCount(entry.id),
+	};
 	// Synonyms are too noisy to search with.
 	const queries = primaryTitlesOf(entry);
 	const predecessors = await predecessorMappings(entry, resolving);
@@ -355,7 +359,7 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
 /** One-episode specials and OVAs are sometimes released as TMDB movies. */
 function isSingleEpisode(subject: MatchSubject) {
 	return (
-		subject.episodes === 1 &&
+		(subject.playbackEpisodes ?? subject.episodes) === 1 &&
 		(subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA")
 	);
 }

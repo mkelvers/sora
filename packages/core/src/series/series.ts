@@ -16,6 +16,7 @@ import {
 	type TmdbShow,
 } from "../tmdb/resources";
 import { franchiseRelations, loadEntries, type FranchiseEntry } from "./entries";
+import { getAniKotoEpisodeCount } from "./episodes";
 import { mappedEpisodes, resolveMapping } from "./mapping";
 import type { EpisodeLink } from "./matching";
 
@@ -117,7 +118,10 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 
 	const mapping = await resolveMapping(entry);
 	const storedCards = await getStoredAnimeCards([anilistId]);
-	const card = storedCards.get(anilistId) ?? toAnimeCard(entry);
+	const card = {
+		...(storedCards.get(anilistId) ?? toAnimeCard(entry)),
+		playbackEpisodes: await getAniKotoEpisodeCount(anilistId),
+	};
 	const links = mappedEpisodes(mapping);
 	const show =
 		mapping.mediaType === "tv" && mapping.tmdbId !== null ? await getShow(mapping.tmdbId) : null;
@@ -264,11 +268,13 @@ function releaseOrder(entry: FranchiseEntry) {
  * details of the TMDB episode it was matched to. A film TMDB lists on its
  * own has no episodes there; its details stand in for its first.
  *
- * Their count is AniList's total, or the episodes aired so far while that
- * is unknown, and never fewer than were matched to TMDB or than one.
+ * AniKoto's playable count takes precedence. Without it, use AniList's total,
+ * or the episodes aired so far, and never fewer than the TMDB links or one.
  */
 export function layoutEpisodes(
-	card: Pick<AnimeCard, "episodes" | "nextEpisode" | "durationMinutes">,
+	card: Pick<AnimeCard, "episodes" | "nextEpisode" | "durationMinutes"> & {
+		playbackEpisodes?: number | null;
+	},
 	links: readonly EpisodeLink[],
 	show: Pick<TmdbShow, "episodes"> | null,
 	movie: Pick<
@@ -283,11 +289,13 @@ export function layoutEpisodes(
 		]),
 	);
 	const linked = new Map(links.map((link) => [link.anilistEpisode, link]));
-	const count = Math.max(
-		card.episodes ?? (card.nextEpisode ? card.nextEpisode.number - 1 : links.length),
-		...links.map((link) => link.anilistEpisode),
-		1,
-	);
+	const count =
+		card.playbackEpisodes ??
+		Math.max(
+			card.episodes ?? (card.nextEpisode ? card.nextEpisode.number - 1 : links.length),
+			...links.map((link) => link.anilistEpisode),
+			1,
+		);
 
 	return Array.from(
 		{

@@ -151,6 +151,19 @@ export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promis
 }
 
 /**
+ * AniKoto's highest playable episode number, or null until it carries numbered
+ * episodes. Matching and stored layouts use this before AniList's broadcast count.
+ */
+export async function getAniKotoEpisodeCount(anilistId: number): Promise<number | null> {
+	const stored = await getStoredUnits([anilistId]);
+	const numbers = stored
+		.filter((entry) => entry.provider === aniKoto.id)
+		.flatMap((entry) => entry.units.map((unit) => unit.number))
+		.filter((number) => Number.isInteger(number) && number > 0);
+	return numbers.length > 0 ? Math.max(...numbers) : null;
+}
+
+/**
  * Whether an episode can be watched: AniKoto, the source of truth for which
  * episodes exist, carries it.
  *

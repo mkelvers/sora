@@ -3,9 +3,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
-import { anime, series, seriesState } from "../../database/schema";
+import { anime, series, seriesEpisode, seriesState } from "../../database/schema";
 import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
-import { getWatchlist, setWatchlistStatus } from "./watchlist";
+import { getWatchlist, setWatchlistStatus, updateWatchlistAfterPlayback } from "./watchlist";
 
 // Opt in against a migrated local database. Synthetic IDs keep the fixture
 // separate from real accounts and titles; cleanup runs after failed assertions.
@@ -37,7 +37,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 				bannerImage: null,
 				season: null,
 				seasonYear: null,
-				episodes: null,
+				episodes: 120,
 				duration: null,
 				averageScore: null,
 				popularity: null,
@@ -58,6 +58,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 			anilistId,
 			key: `anilist:${anilistId}`,
 			kind: "standalone",
+			status: "FINISHED",
 			title: "Saved short title",
 			laidOutAt: updatedAt,
 		});
@@ -99,5 +100,12 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 
 		await setWatchlistStatus(profile, id, "completed");
 		expect(await getWatchlist(profile)).toEqual([entry]);
+	});
+
+	test("completes at the stored playable finale instead of AniList's short count", async () => {
+		await db.insert(seriesEpisode).values({ seriesId: id, number: 24 });
+		await setWatchlistStatus(profile, id, "watching");
+		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
+		expect((await getWatchlist(profile))[0]?.status).toBe("completed");
 	});
 });

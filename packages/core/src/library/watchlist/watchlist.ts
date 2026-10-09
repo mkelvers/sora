@@ -1,7 +1,7 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { anime, series, seriesState } from "../../database/schema";
+import { series, seriesEpisode, seriesState } from "../../database/schema";
 import type { WatchlistEntry, WatchlistStatus } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { clearSeriesState } from "../state";
@@ -103,10 +103,11 @@ export async function updateWatchlistAfterPlayback(
 		db
 			.select({
 				status: series.status,
-				episodes: sql<number | null>`(${anime.media} ->> 'episodes')::int`,
+				episodes: sql<
+					number | null
+				>`(select max(${seriesEpisode.number}) from ${seriesEpisode} where ${seriesEpisode.seriesId} = ${series.id})`,
 			})
 			.from(series)
-			.leftJoin(anime, eq(anime.anilistId, series.anilistId))
 			.where(eq(series.id, seriesId))
 			.limit(1),
 	]);
