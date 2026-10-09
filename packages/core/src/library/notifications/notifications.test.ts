@@ -85,19 +85,16 @@ describe("groupNotifications", () => {
 		expect(groups.map((group) => group.id)).toEqual(["slime:7"]);
 	});
 
-	test("lists a series that is only offered for its premiere alone", () => {
-		const groups = groupNotifications(
-			[
-				...released("season-2", 1, 1, monday),
-				...released("season-2", 2, 2, tuesday),
-				...released("season-2", 1, 2, tuesday, {
-					dubbed: true,
-				}),
-			],
-			new Set(["season-2"]),
-		);
+	test("keeps later episodes and dubs of a connected season", () => {
+		const groups = groupNotifications([
+			...released("season-2", 1, 1, monday),
+			...released("season-2", 2, 2, tuesday),
+			...released("season-2", 1, 2, tuesday, {
+				dubbed: true,
+			}),
+		]);
 
-		expect(groups.map((group) => group.id)).toEqual(["season-2:1"]);
+		expect(groups.map((group) => group.id)).toEqual(["season-2:2", "season-2:1:dub", "season-2:1"]);
 	});
 
 	test("keeps a dub when its episodes are played", () => {
@@ -125,12 +122,7 @@ describe("groupNotifications", () => {
 
 	test("leaves out deleted notifications and marks read ones", () => {
 		const episodes = [...released("slime", 4, 4, monday), ...released("frieren", 9, 9, monday)];
-		const groups = groupNotifications(
-			episodes,
-			new Set(),
-			new Set(["slime:4"]),
-			new Set(["frieren:9"]),
-		);
+		const groups = groupNotifications(episodes, new Set(["slime:4"]), new Set(["frieren:9"]));
 
 		expect(groups.map((group) => [group.id, group.unread])).toEqual([["frieren:9", false]]);
 	});

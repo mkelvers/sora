@@ -1006,9 +1006,9 @@ export const getNotifications = createRoute({
 	method: "get",
 	path: "/profiles/{profile_id}/notifications",
 	tags: ["Profiles"],
-	summary: "What came out for the profile's watchlist",
+	summary: "What came out for the shows the profile follows",
 	description:
-		"What came out in the last 30 days for the titles on the profile's watchlist, newest first: new episodes, the English dub of episodes that were out already, and the premiere of a sequel or prequel of a title on it as an offer of the next season. Episodes of one title that come out together make one notification. A title is notified of only what came out after it was put on the watchlist, and not at all when it is `dropped`. A notification goes once the profile plays one of its episodes, or deletes it.",
+		"What came out in the last 30 days for titles the profile saved or played and their connected sequels and prequels, newest first: premieres, new episodes, and English dubs of episodes that were out already. Connected seasons do not need to be on the watchlist. Episodes of one title that come out together make one notification. Only releases after the earliest watchlist or recorded playback time in the connected seasons qualify. Dropped titles do not start following or receive notifications, even with playback progress. A regular release notification goes once the profile plays one of its episodes, or deletes it; a dub stays after playback.",
 	security: signedIn,
 	request: {
 		params: ProfileParams,

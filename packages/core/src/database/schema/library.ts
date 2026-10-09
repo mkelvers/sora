@@ -156,7 +156,7 @@ export const seriesState = pgTable(
 
 /**
  * The notifications one user marked read. A notification is not stored:
- * `getNotifications` works out what came out from the watchlist and the
+ * `getNotifications` works out what came out from saved or played series and the
  * episodes' release times, so only the user's marks are. A mark is deleted
  * once its notification would no longer be listed.
  */

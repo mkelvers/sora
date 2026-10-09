@@ -27,7 +27,7 @@ export interface Notifications {
 /** How long a notification is listed after it came out. */
 const notificationLifetimeMs = 30 * day;
 
-/** How many entries {@link offeredSeries} follows relations through at most. */
+/** How many entries {@link followedSeries} follows relations through at most. */
 const continuityLimit = 500;
 
 /** One episode that came out, or was dubbed, as {@link groupNotifications} reads it. */
@@ -60,20 +60,14 @@ export type NotificationGroup = Omit<Notification, "series" | "message"> & {
  * and left out, as is one it deleted. A `dub` stays when its episodes are
  * played, since a dub is news of episodes that were out already.
  *
- * A series that is only offered, because it continues one on the watchlist,
- * notifies of its premiere and nothing else; the profile asks for the rest
- * by putting it on the watchlist.
- *
  * A notification's ID is its series and first episode, so it stays the same
  * when the time the episode came out is corrected; a dub's ends in `:dub`.
  *
- * @param offered - The IDs of the series that are only offered.
  * @param dismissed - The IDs of the notifications the profile deleted.
  * @param read - The IDs of the notifications the profile marked read.
  */
 export function groupNotifications(
 	episodes: readonly ReleasedEpisode[],
-	offered: ReadonlySet<string> = new Set(),
 	dismissed: ReadonlySet<string> = new Set(),
 	read: ReadonlySet<string> = new Set(),
 ): NotificationGroup[] {
@@ -90,11 +84,7 @@ export function groupNotifications(
 			const last = sorted.at(-1)!;
 			const id = `${first.seriesId}:${first.number}${first.dubbed ? ":dub" : ""}`;
 			const isPremiere = !first.dubbed && first.number === 1;
-			if (
-				dismissed.has(id) ||
-				(!first.dubbed && group.some((episode) => episode.watched)) ||
-				(offered.has(first.seriesId) && !isPremiere)
-			) {
+			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
 				return [];
 			}
 
@@ -119,19 +109,19 @@ export function groupNotifications(
 }
 
 /**
- * Finds the stored series that continue the ones a profile follows, as
- * AniList relates them by sequel and prequel, with the time from which what
- * comes out of each is news: when its franchise's earliest followed series
- * went on the watchlist.
+ * Finds the series a profile follows, including connected seasons, as
+ * AniList relates them by sequel and prequel. Each uses the earliest
+ * watchlist or recorded playback time in its connected seasons as the
+ * cutoff for new releases.
  *
  * Relations are followed through series that are not followed too, so the
  * second sequel of a followed series is found while the first one is not
- * stored. A followed series is left out, as is one in `excluded`.
+ * stored. Entries in `excluded` are left out, even when they were watched.
  *
- * @param followed - The AniList ID of each followed series and when it went on the watchlist.
- * @param excluded - AniList IDs never to offer, such as those the profile dropped.
+ * @param followed - The AniList ID of each saved or played series and when it was followed.
+ * @param excluded - AniList IDs not to notify about, such as those the profile dropped.
  */
-async function offeredSeries(
+async function followedSeries(
 	followed: ReadonlyMap<number, Date>,
 	excluded: ReadonlySet<number>,
 ): Promise<Map<number, Date>> {
@@ -169,7 +159,7 @@ async function offeredSeries(
 		}
 	}
 
-	const offeredFrom = new Map<number, Date>();
+	const followedFrom = new Map<number, Date>();
 	for (const [origin, addedAt] of followed) {
 		const reached = new Set([origin]);
 		const pending = [origin];
@@ -183,33 +173,33 @@ async function offeredSeries(
 		}
 
 		for (const id of reached) {
-			const earlier = offeredFrom.get(id);
-			if (!followed.has(id) && !excluded.has(id) && (!earlier || addedAt < earlier)) {
-				offeredFrom.set(id, addedAt);
+			const earlier = followedFrom.get(id);
+			if (!excluded.has(id) && (!earlier || addedAt < earlier)) {
+				followedFrom.set(id, addedAt);
 			}
 		}
 	}
 
-	return offeredFrom;
+	return followedFrom;
 }
 
 /**
- * Lists what came out in the last 30 days for a profile's watchlist,
+ * Lists what came out in the last 30 days for a profile's saved or played
+ * series and their connected seasons,
  * newest first: one notification per series per moment (see
  * {@link groupNotifications}).
  *
  * Nothing is recorded as episodes come out: an episode counts from when it
  * aired (see {@link episodeReleasedAt}) and once its series lists it, so one
  * AniKoto does not carry yet waits. A dub counts from when AniKoto was first
- * seen to carry it (see `episodeDub`). The watchlist decides who is told,
- * and the rest follows from it, whatever else Sora keeps about what a
- * profile watched:
+ * seen to carry it (see `episodeDub`). Saving or playing a series follows
+ * its connected seasons without adding them to the watchlist:
  *
- * - A series on the watchlist, whatever its status but `dropped`, notifies
- *   of what came out after it was put there, so saving a series never brings
- *   up what it already had.
- * - A sequel or prequel of such a series that is not on the watchlist
- *   notifies of its premiere, as an offer of the next season.
+ * - A saved or played series notifies of episodes and dubs released after
+ *   the earliest watchlist or recorded playback time in its connected seasons.
+ * - Sequels and prequels notify of all releases, not only their premieres.
+ * - A dropped series neither starts following nor receives notifications,
+ *   even if it has playback progress. Other connected seasons can still be followed.
  * - A notification goes once the profile plays one of its episodes or
  *   deletes it, and is `unread` until the profile marks it read.
  *
@@ -228,17 +218,31 @@ export async function getNotifications(
 		unread: 0,
 	};
 	const since = new Date(now.getTime() - notificationLifetimeMs);
-	const states = await db
-		.select({
-			anilistId: series.anilistId,
-			status: seriesState.status,
-			addedAt: seriesState.addedAt,
-		})
-		.from(seriesState)
-		.innerJoin(series, eq(series.id, seriesState.seriesId))
-		.where(
-			and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
-		);
+	const [states, watched] = await Promise.all([
+		db
+			.select({
+				anilistId: series.anilistId,
+				status: seriesState.status,
+				addedAt: seriesState.addedAt,
+			})
+			.from(seriesState)
+			.innerJoin(series, eq(series.id, seriesState.seriesId))
+			.where(
+				and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
+			),
+		db
+			.select({
+				anilistId: series.anilistId,
+				watchedAt: sql<Date>`min(${episodeProgress.watchedAt})`.mapWith(episodeProgress.watchedAt),
+			})
+			.from(episodeProgress)
+			.innerJoin(series, eq(series.id, episodeProgress.seriesId))
+			.where(and(eq(episodeProgress.userId, userId), catalogSeriesAllowed))
+			.groupBy(series.anilistId),
+	]);
+	const excluded = new Set(
+		states.filter((state) => state.status === "dropped").map((state) => state.anilistId),
+	);
 	const followed = new Map(
 		states.flatMap((state) =>
 			state.status !== "dropped" && state.addedAt
@@ -246,25 +250,23 @@ export async function getNotifications(
 				: [],
 		),
 	);
+	for (const entry of watched) {
+		const savedAt = followed.get(entry.anilistId);
+		if (!excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt)) {
+			followed.set(entry.anilistId, entry.watchedAt);
+		}
+	}
 	if (followed.size === 0) {
 		return nothing;
 	}
 
-	const offered = await offeredSeries(
-		followed,
-		new Set(states.filter((state) => state.status === "dropped").map((state) => state.anilistId)),
-	);
+	const following = await followedSeries(followed, excluded);
 	const rows = await db
 		.select()
 		.from(series)
-		.where(
-			and(inArray(series.anilistId, [...followed.keys(), ...offered.keys()]), catalogSeriesAllowed),
-		);
+		.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
 	const seriesIds = rows.map((row) => row.id);
-	const cutoffs = new Map(
-		rows.map((row) => [row.id, followed.get(row.anilistId) ?? offered.get(row.anilistId)!]),
-	);
-	const offeredIds = new Set(rows.filter((row) => offered.has(row.anilistId)).map((row) => row.id));
+	const cutoffs = new Map(rows.map((row) => [row.id, following.get(row.anilistId)!]));
 
 	const episodeColumns = {
 		seriesId: seriesEpisode.seriesId,
@@ -354,7 +356,6 @@ export async function getNotifications(
 
 	const all = groupNotifications(
 		episodes,
-		offeredIds,
 		new Set(dismissals.map((row) => row.notificationId)),
 		new Set(reads.map((row) => row.notificationId)),
 	);
@@ -379,41 +380,36 @@ export async function getNotifications(
 	};
 }
 
-/** A notification's sentence: what came out, for a film or for episodes. */
+/** Describes the release and what the profile can watch, without promotional copy. */
 function notificationMessage(
 	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
 	movie: boolean,
 ) {
 	const count = group.last_episode - group.first_episode + 1;
 	const range = `${group.first_episode} through ${group.last_episode}`;
+	const title = group.episode_title ? `, "${group.episode_title}",` : "";
 
 	if (group.kind === "dub") {
 		if (movie) {
-			return "It is now dubbed in English. Ready whenever you are.";
+			return "The English dub is now available. You can choose the dubbed version when you start the film.";
 		}
-
 		return count === 1
-			? `Episode ${group.last_episode} is now dubbed in English.`
-			: `${count} episodes are now dubbed in English, ${range}.`;
+			? `The English dub of episode ${group.last_episode}${title} is now available. You can switch to English audio in the player for this episode.`
+			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
 	}
 
 	if (group.kind === "premiere") {
 		if (movie) {
-			return "It has arrived, ready whenever you are.";
+			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
 		}
-
 		return count > 1
-			? `It has started, and ${count} episodes are waiting for you.`
-			: "It has started with its first episode.";
+			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
+			: `The season has started. Episode 1${title} is now available to watch, and you can open the season's page to see its episode list.`;
 	}
 
-	if (count > 1) {
-		return `${count} new episodes are out, ${range}. Plenty to dig into.`;
-	}
-
-	return group.episode_title
-		? `Episode ${group.last_episode} is out: “${group.episode_title}”. Settle in and catch up.`
-		: `Episode ${group.last_episode} is out. Settle in and catch up.`;
+	return count > 1
+		? `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`
+		: `Episode ${group.last_episode}${title} is now available to watch. You can find it in the episode list on the season's page.`;
 }
 
 /**

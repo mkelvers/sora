@@ -152,7 +152,7 @@ export const NotificationSchema = z
 		}),
 		kind: z.enum(["premiere", "episodes", "dub"]).meta({
 			description:
-				"`premiere` when the title's first episode came out, which for a sequel of a title on the watchlist is the offer of a new season; `episodes` when a title that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
+				"`premiere` when the title's first episode came out; `episodes` when a title that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
 		}),
 		series: SeriesCardSchema,
 		first_episode: z.number().int().meta({

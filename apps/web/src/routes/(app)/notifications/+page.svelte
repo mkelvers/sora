@@ -42,10 +42,10 @@
 			<EmptyState
 				mascot={mascots.emptyNotifications}
 				title="All quiet for now."
-				hint="We'll ring the bell when new episodes and dubs of your Watchlist arrive."
+				hint="We'll ring the bell when new episodes and dubs of shows you saved or watched arrive."
 			/>
 		{:else}
-			<Tabs items={views} bind:value={view} label="Notifications">
+			<Tabs items={views} bind:value={view} label="Notifications" panelClass="pt-6">
 				{#snippet actions()}
 					{#if view === "new" && unread.length}
 						<Button
@@ -62,7 +62,7 @@
 				{#snippet children(current)}
 					{#if shown.length}
 						<ul
-							class="flex flex-col gap-4 pt-6"
+							class="flex flex-col gap-4"
 							aria-label={current === "new" ? "New notifications" : "Past notifications"}
 						>
 							{#each shown as item (item.id)}
@@ -74,7 +74,7 @@
 							<EmptyState
 								mascot={mascots.emptyNotifications}
 								title="You're all caught up."
-								hint="New episodes, dubs and sequels of your Watchlist will appear here."
+								hint="New episodes, dubs and seasons of shows you saved or watched will appear here."
 							/>
 						{:else}
 							<EmptyState
