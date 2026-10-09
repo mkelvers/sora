@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
 import { day, hour } from "../time";
-import { tmdb } from "./client";
+import { tmdb, type TmdbPath } from "./client";
 
 /** TMDB sends missing dates and text as `""` or `null`; both become `null`. */
 const OptionalText = z
@@ -253,7 +253,7 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
 		"/search/tv",
 		{
 			query,
-			include_adult: "false",
+			include_adult: false,
 			language: "en-US",
 		},
 		ShowSearchSchema,
@@ -302,7 +302,7 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
 		"/search/movie",
 		{
 			query,
-			include_adult: "false",
+			include_adult: false,
 			language: "en-US",
 		},
 		MovieSearchSchema,
@@ -659,7 +659,7 @@ const languagesPerImageRequest = 5;
  * `null` and a nonce. An image in a language the title had none in yet is
  * still missed until that cache expires.
  */
-async function loadImages(path: string, maxAgeMs: number): Promise<TmdbImages | null> {
+async function loadImages(path: TmdbPath, maxAgeMs: number): Promise<TmdbImages | null> {
 	const cached = await tmdb(path, {}, AllImagesSchema, {
 		maxAgeMs,
 	});

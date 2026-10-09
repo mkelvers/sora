@@ -9,6 +9,7 @@ import { db } from "../database/client";
 import { tmdbResponse } from "../database/schema";
 import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
+import type { TmdbEndpoints } from "./api.generated";
 
 const endpoint = "https://api.themoviedb.org/3";
 
@@ -42,6 +43,31 @@ export interface TmdbRequestOptions {
 	store?: boolean;
 }
 
+type Params = Record<string, unknown>;
+
+/** A path template with each `{name}` filled by the type of that path parameter. */
+type Filled<
+	Template extends string,
+	Path extends Params,
+> = Template extends `${infer Head}{${infer Name}}${infer Tail}`
+	? `${Head}${Path[Name] extends number ? number : string}${Filled<Tail, Path>}`
+	: Template;
+
+/** Every TMDB v3 GET path, as a type that accepts the paths built from it. */
+export type TmdbPath = {
+	[Template in keyof TmdbEndpoints & string]: Filled<Template, TmdbEndpoints[Template]["path"]>;
+}[keyof TmdbEndpoints & string];
+
+/** The query parameters TMDB documents for `Path`. */
+export type TmdbQuery<Path extends TmdbPath> = {
+	[Template in keyof TmdbEndpoints & string]: Path extends Filled<
+		Template,
+		TmdbEndpoints[Template]["path"]
+	>
+		? TmdbEndpoints[Template]["query"]
+		: never;
+}[keyof TmdbEndpoints & string];
+
 let nextRequestAt = 0;
 const inFlight = new InFlight<string, unknown>();
 
@@ -61,19 +87,22 @@ const inFlight = new InFlight<string, unknown>();
  * @example
  * ```ts
  * const show = await tmdb("/tv/82684", {}, TvShowSchema, { maxAgeMs: day });
+ * // await tmdb("/tv/82684/episodes", {}, ...) does not compile: no such endpoint
  * ```
  */
-export async function tmdb<TSchema extends z.ZodType>(
-	path: string,
-	query: Record<string, string>,
+export async function tmdb<Path extends TmdbPath, TSchema extends z.ZodType>(
+	path: Path,
+	query: TmdbQuery<Path>,
 	schema: TSchema,
 	options: TmdbRequestOptions,
 ): Promise<z.infer<TSchema> | null> {
 	const url = new URL(`${endpoint}${path}`);
-	for (const [name, value] of Object.entries(query).sort(([left], [right]) =>
+	for (const [name, value] of Object.entries(query as Params).sort(([left], [right]) =>
 		left.localeCompare(right),
 	)) {
-		url.searchParams.set(name, value);
+		if (value !== undefined) {
+			url.searchParams.set(name, String(value));
+		}
 	}
 
 	const key = createHash("sha256").update(url.toString()).digest("hex");
