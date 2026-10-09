@@ -6,6 +6,7 @@ import {
 	placeAfterInCollection,
 	placeAsMovie,
 	placeInShow,
+	placeInEpisodeGroups,
 	titleSimilarity,
 	type MatchSubject,
 	type ShowCandidate,
@@ -121,6 +122,78 @@ function range(placement: ReturnType<typeof placeInShow>) {
 }
 
 describe("placeInShow", () => {
+	test("maps a streaming batch to its later weekly franchise broadcast", () => {
+		const candidate = show(
+			[
+				...weekly(4, "2018-10-06", 39),
+				...weekly(5, "2022-01-08", 12),
+				...weekly(5, "2022-10-08", 26, { first: 13 }),
+			],
+			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+		);
+		const first = placeInShow(
+			subject({ format: "ONA", startDate: "2021-12-01", endDate: "2021-12-01", episodes: 12 }),
+			candidate,
+		);
+		expect(range(first)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
+		const second = placeInShow(
+			subject({ format: "ONA", startDate: "2022-09-01", endDate: "2022-12-01", episodes: 26 }),
+			{ ...candidate, prequel: endingAt(5, 12) },
+		);
+		expect(range(second)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
+	});
+
+	test("matches a complete first season when a preview predates its broadcast", () => {
+		const placement = placeInShow(
+			subject({ startDate: "2013-06-23", endDate: "2013-09-21", episodes: 12 }),
+			show([...weekly(1, "2013-07-06", 12), ...weekly(2, "2015-04-06", 12)]),
+		);
+		expect(range(placement)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S1E${i + 1}`));
+	});
+
+	test("matches a complete streaming season broadcast across a year boundary", () => {
+		const placement = placeInShow(
+			subject({ format: "ONA", startDate: "2021-09-16", endDate: "2021-11-25", episodes: 11 }),
+			show(weekly(1, "2022-01-13", 11)),
+		);
+		expect(range(placement)).toHaveLength(11);
+	});
+
+	test("does not use a delayed streaming continuation without a proven prequel", () => {
+		expect(
+			placeInShow(
+				subject({ format: "ONA", startDate: "2021-12-01", endDate: "2021-12-01", episodes: 12 }),
+				show(weekly(5, "2022-01-08", 38), { isFranchiseShow: true }),
+			),
+		).toBeNull();
+	});
+
+	test("does not let delayed streaming releases cross seasons or distant premieres", () => {
+		const candidate = show(
+			[
+				...weekly(4, "2018-10-06", 39),
+				...weekly(5, "2022-01-08", 10),
+				...weekly(6, "2022-04-01", 2),
+			],
+			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+		);
+		const entry = subject({
+			format: "ONA",
+			startDate: "2021-12-01",
+			endDate: "2021-12-01",
+			episodes: 12,
+		});
+		expect(placeInShow(entry, candidate)).toBeNull();
+		expect(placeInShow({ ...entry, startDate: "2021-01-01", episodes: 10 }, candidate)).toBeNull();
+	});
+
+	test("title fallback rejects mismatched runtimes and already-aired upcoming seasons", () => {
+		const candidate = show(weekly(1, "2022-01-13", 11));
+		const entry = subject({ format: "ONA", startDate: "2021-09-16", episodes: 11 });
+		expect(placeInShow({ ...entry, durationMinutes: 3 }, candidate)).toBeNull();
+		expect(placeInShow({ ...entry, airsFrom: "2022-02-01" }, candidate)).toBeNull();
+	});
+
 	test("places the second cour of a split season mid-season", () => {
 		// Tensura keeps "Season 2" and "Season 2 Part 2" in one 24-episode TMDB season.
 		const episodes = [
@@ -976,5 +1049,93 @@ describe("continuesPastLinks", () => {
 
 	test("finds nothing for an entry without links", () => {
 		expect(continuesPastLinks(show, [])).toBe(false);
+	});
+});
+
+describe("placeInEpisodeGroups", () => {
+	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({ ...episode, order }));
+	const second = weekly(5, "2022-10-08", 12, { first: 13 }).map((episode, order) => ({
+		...episode,
+		order,
+	}));
+	const final = weekly(5, "2023-01-07", 14, { first: 25 }).map((episode, order) => ({
+		...episode,
+		order,
+	}));
+	const stage = weekly(6, "2026-03-19", 1, { runtime: 49 }).map((episode, order) => ({
+		...episode,
+		order,
+	}));
+	const candidate = show([...first, ...second, ...final, ...stage]).show;
+	const groups = [
+		{ name: "JoJo's Bizarre Adventure: STONE OCEAN", order: 1, episodes: first },
+		{ name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ", order: 2, episodes: second },
+		{ name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3", order: 3, episodes: final },
+		{ name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE", order: 4, episodes: stage },
+	];
+	const entry = subject({
+		titles: ["JoJo's Bizarre Adventure: STONE OCEAN"],
+		format: "ONA",
+		startDate: "2021-12-01",
+		episodes: 12,
+	});
+
+	test("uses the named Stone Ocean batch despite its later TV dates", () => {
+		const placed = placeInEpisodeGroups(entry, candidate, [groups]);
+		expect(placed?.method).toBe("episode-group");
+		expect(range(placed)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
+	});
+
+	test("combines numbered TMDB parts when AniList lists them as one release", () => {
+		const placed = placeInEpisodeGroups(
+			{
+				...entry,
+				titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 2"],
+				startDate: "2022-09-01",
+				episodes: 26,
+			},
+			candidate,
+			[groups],
+		);
+		expect(range(placed)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
+	});
+
+	test("keeps Steel Ball Run on its parent show's canonical episode", () => {
+		const placed = placeInEpisodeGroups(
+			subject({
+				titles: ["STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE"],
+				format: "ONA",
+				startDate: "2026-03-19",
+				episodes: 1,
+				durationMinutes: 47,
+			}),
+			candidate,
+			[groups],
+		);
+		expect(range(placed)).toEqual(["1:S6E1"]);
+	});
+
+	test("rejects conflicting arrangements, wrong counts, and already-aired upcoming releases", () => {
+		expect(
+			placeInEpisodeGroups(entry, candidate, [
+				groups,
+				[{ name: entry.titles[0] ?? "", order: 1, episodes: second }],
+			]),
+		).toBeNull();
+		expect(placeInEpisodeGroups({ ...entry, episodes: 13 }, candidate, [groups])).toBeNull();
+		expect(
+			placeInEpisodeGroups({ ...entry, airsFrom: "2023-01-01" }, candidate, [groups]),
+		).toBeNull();
+	});
+
+	test("rejects stale group identities and a differently numbered part", () => {
+		expect(placeInEpisodeGroups(entry, { ...candidate, episodes: [] }, [groups])).toBeNull();
+		expect(
+			placeInEpisodeGroups(
+				{ ...entry, titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"] },
+				candidate,
+				[groups],
+			),
+		).toBeNull();
 	});
 });

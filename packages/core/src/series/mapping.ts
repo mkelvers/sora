@@ -9,6 +9,7 @@ import {
 	getCollectionParts,
 	getMovie,
 	getShow,
+	getShowEpisodeGroups,
 	searchMovies,
 	searchShows,
 } from "../tmdb/resources";
@@ -19,6 +20,7 @@ import {
 	placeAfterInCollection,
 	placeAsMovie,
 	placeInShow,
+	placeInEpisodeGroups,
 	type EpisodeLink,
 	type MatchSubject,
 	type Placement,
@@ -225,15 +227,26 @@ async function bestShowPlacement(
 	}
 
 	// Fetched at once, weighed in order, so ties go the same way as fetched in turn.
-	const shows = await Promise.all([...candidates.keys()].map((showId) => getShow(showId)));
+	const shows = await Promise.all(
+		[...candidates.keys()].map(async (showId) => {
+			const [show, episodeGroups] = await Promise.all([
+				getShow(showId),
+				getShowEpisodeGroups(showId),
+			]);
+			return { show, episodeGroups };
+		}),
+	);
 	let best: Placement | null = null;
 	for (const [index, candidate] of [...candidates.values()].entries()) {
-		const show = shows[index];
+		const loaded = shows[index];
+		if (!loaded) continue;
+		const { show, episodeGroups } = loaded;
 		const placement = show
-			? placeInShow(subject, {
+			? (placeInEpisodeGroups(subject, show, episodeGroups) ??
+				placeInShow(subject, {
 					show,
 					...candidate,
-				})
+				}))
 			: null;
 
 		if (placement && (!best || placement.score > best.score)) {

@@ -17,7 +17,7 @@
  * Nothing here performs I/O; see `mapping.ts` for how candidates are found.
  */
 import type { AnimeFormat } from "../catalog/models/anime";
-import type { TmdbEpisode, TmdbMovieResult, TmdbShow } from "../tmdb/resources";
+import type { TmdbEpisode, TmdbEpisodeGroup, TmdbMovieResult, TmdbShow } from "../tmdb/resources";
 
 /** An AniList entry reduced to the facts matching uses. */
 export interface MatchSubject {
@@ -83,7 +83,7 @@ export type Placement =
 			tmdbId: number;
 			/** The subject's episodes that TMDB lists, in order. Never empty. */
 			episodes: EpisodeLink[];
-			method: "air-date" | "continuation" | "title";
+			method: "air-date" | "continuation" | "title" | "episode-group";
 			score: number;
 	  }
 	| {
@@ -259,9 +259,77 @@ export function placeInShow(subject: MatchSubject, candidate: ShowCandidate): Pl
 	return (
 		best ??
 		placeByTitle(subject, candidate, nameSimilarity) ??
+		placeDelayedStreamingRun(subject, candidate) ??
 		placeSpecialByTitle(subject, candidate) ??
 		placeSpecialsByEnd(subject, candidate)
 	);
+}
+
+/**
+ * Matches named TMDB arcs or release parts against primary AniList titles.
+ * Consecutive numbered parts may combine when AniList combines their count.
+ * Conflicting arrangements stay unresolved instead of choosing an order.
+ */
+export function placeInEpisodeGroups(
+	subject: MatchSubject,
+	show: Pick<TmdbShow, "id" | "episodes">,
+	arrangements: readonly (readonly TmdbEpisodeGroup[])[],
+): Placement | null {
+	if (!subject.episodes) return null;
+	const placements = new Map<string, Placement>();
+	for (const groups of arrangements) {
+		for (const [index, group] of groups.entries()) {
+			const similarity = bestSimilarity(
+				subject.titles.slice(0, subject.primaryTitleCount),
+				[group.name],
+				{ sameNumbers: true },
+			);
+			if (similarity < 0.95) continue;
+			const episodes = [...group.episodes];
+			let part = /^(.*) part (\d+)$/.exec(normalizeTitle(group.name));
+			for (const next of groups.slice(index + 1)) {
+				if (episodes.length >= subject.episodes || !part) break;
+				const nextPart = /^(.*) part (\d+)$/.exec(normalizeTitle(next.name));
+				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1)
+					break;
+				episodes.push(...next.episodes);
+				part = nextPart;
+			}
+			const first = episodes[0];
+			if (
+				!first ||
+				episodes.length !== subject.episodes ||
+				airedBefore(first, subject.airsFrom) ||
+				!datesAgree(subject.startDate, first.air_date, 365) ||
+				!runtimesAgree(medianRuntime(episodes), subject.durationMinutes, regularRuntimeTolerance)
+			)
+				continue;
+			// Groups can lag behind the main show or contain duplicated episodes.
+			const identities = new Set(episodes.map((episode) => episode.id));
+			if (
+				identities.size !== episodes.length ||
+				episodes.some(
+					(episode) =>
+						!show.episodes.some(
+							(canonical) =>
+								canonical.id === episode.id &&
+								canonical.season_number === episode.season_number &&
+								canonical.episode_number === episode.episode_number,
+						),
+				)
+			)
+				continue;
+			const links = linkRun(episodes);
+			placements.set(JSON.stringify(links), {
+				mediaType: "tv",
+				tmdbId: show.id,
+				episodes: links,
+				method: "episode-group",
+				score: 200 + 20 * similarity,
+			});
+		}
+	}
+	return placements.size === 1 ? ([...placements.values()][0] ?? null) : null;
 }
 
 /**
@@ -320,24 +388,45 @@ function placeSpecialsByEnd(subject: MatchSubject, candidate: ShowCandidate): Pl
 }
 
 /**
- * Places a subject that is a whole single show on its own when the air
- * dates disagree, as they sometimes do by weeks for older titles: the show
- * must carry the subject's name, premiere the same year, and have exactly
- * the subject's episodes.
+ * Matches an entire show, or its complete first season, by title and count.
+ * A first season must start within a month, or four months for streaming
+ * releases. A whole show's existing same-year fallback also covers older
+ * titles whose premiere dates disagree by more.
  */
 function placeByTitle(
 	subject: MatchSubject,
 	candidate: ShowCandidate,
 	nameSimilarity: number,
 ): Placement | null {
-	const track = regularTrack(candidate.show.episodes);
-	const firstYear = yearOf(track[0]?.air_date ?? null);
+	const regular = regularTrack(candidate.show.episodes);
+	const firstSeason = regular[0]?.season_number;
+	const track = regular.filter((episode) => episode.season_number === firstSeason);
+	const offset = dayOffset(subject.startDate, track[0]?.air_date ?? null);
+	if (
+		candidate.prequel &&
+		indexOfRef(track, candidate.prequel.last) !== -1 &&
+		!airsLater(regular, candidate.prequel.first, dayNumber(subject.startDate))
+	) {
+		return null;
+	}
 	const matches =
+		isSeriesFormat(subject.format) &&
 		nameSimilarity >= 0.9 &&
+		(track.length === regular.length ||
+			bestSimilarity(
+				subject.titles.slice(0, subject.primaryTitleCount),
+				[candidate.show.name, candidate.show.originalName],
+				{ sameNumbers: true },
+			) >= 0.9) &&
 		subject.episodes !== null &&
 		track.length === subject.episodes &&
-		firstYear !== null &&
-		firstYear === yearOf(subject.startDate);
+		track[0] !== undefined &&
+		!airedBefore(track[0], subject.airsFrom) &&
+		runtimesAgree(medianRuntime(track), subject.durationMinutes, regularRuntimeTolerance) &&
+		((offset !== null && offset <= (subject.format === "ONA" ? 120 : 31)) ||
+			(track.length === regular.length &&
+				yearOf(track[0]?.air_date ?? null) !== null &&
+				yearOf(track[0]?.air_date ?? null) === yearOf(subject.startDate)));
 
 	if (!matches) {
 		return null;
@@ -349,6 +438,64 @@ function placeByTitle(
 		episodes: linkRun(track),
 		method: "title",
 		score: minimumShowScore,
+	};
+}
+
+/**
+ * Streaming releases can precede the weekly TV dates TMDB records. Only
+ * continue a proven franchise run, within four months, taking the exact
+ * AniList count inside one TMDB season. Shift the end-date boundary by the
+ * same delay so a batch's release date does not cut off its TV broadcast.
+ */
+function placeDelayedStreamingRun(
+	subject: MatchSubject,
+	candidate: ShowCandidate,
+): Placement | null {
+	if (
+		subject.format !== "ONA" ||
+		!candidate.isFranchiseShow ||
+		!candidate.prequel ||
+		!subject.episodes
+	) {
+		return null;
+	}
+
+	const track = regularTrack(candidate.show.episodes);
+	const start = dayNumber(subject.startDate);
+	const index = indexAfter(track, candidate.prequel.last);
+	const first = index === null ? undefined : track[index];
+	const firstDay = dayNumber(first?.air_date ?? null);
+	if (
+		!first ||
+		index === null ||
+		start === null ||
+		firstDay === null ||
+		airedBefore(first, subject.airsFrom)
+	) {
+		return null;
+	}
+
+	const delay = firstDay - start;
+	if (delay <= startWindowDays || delay > 120 || airsLater(track, candidate.prequel.first, start)) {
+		return null;
+	}
+
+	const end = dayNumber(subject.endDate);
+	const run = track.slice(index).filter((episode) => episode.season_number === first.season_number);
+	const picked = pick(run, 0, subject, end === null ? null : end + delay, true);
+	if (
+		picked.length !== subject.episodes ||
+		!runtimesAgree(medianRuntime(picked), subject.durationMinutes, regularRuntimeTolerance)
+	) {
+		return null;
+	}
+
+	return {
+		mediaType: "tv",
+		tmdbId: candidate.show.id,
+		episodes: linkRun(picked),
+		method: "continuation",
+		score: minimumShowScore + 25,
 	};
 }
 

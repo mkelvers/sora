@@ -51,6 +51,28 @@ const EpisodeSchema = z.object({
 	still_path: OptionalText,
 });
 
+const EpisodeGroupSchema = z.object({
+	groups: z.array(
+		z.object({
+			name: z.string(),
+			order: z.number().int(),
+			episodes: z.array(EpisodeSchema.extend({ order: z.number().int() })),
+		}),
+	),
+});
+
+/** Named arcs or release parts, keeping each episode's canonical TMDB identity. */
+export type TmdbEpisodeGroup = z.infer<typeof EpisodeGroupSchema>["groups"][number];
+
+const EpisodeGroupsSchema = z.object({
+	results: z.array(
+		z.object({
+			id: z.string(),
+			type: z.number().int(),
+		}),
+	),
+});
+
 const SeasonSchema = z.object({
 	episodes: z.array(EpisodeSchema),
 });
@@ -241,6 +263,37 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
 	);
 
 	return result?.results ?? [];
+}
+
+/**
+ * Loads a show's alternative episode arrangements through TMDB's episode
+ * group API. Group order never replaces canonical season/episode numbers.
+ * All arrangements are checked, since useful anime parts can be classified
+ * as air order, digital releases, story arcs, or TV order.
+ */
+export async function getShowEpisodeGroups(showId: number): Promise<TmdbEpisodeGroup[][]> {
+	const listed = await tmdb(`/tv/${showId}/episode_groups`, {}, EpisodeGroupsSchema, {
+		maxAgeMs: showLifetimeMs,
+	});
+	const details = await Promise.all(
+		(listed?.results ?? []).map(({ id }) =>
+			tmdb(`/tv/episode_group/${id}`, { language: "en-US" }, EpisodeGroupSchema, {
+				maxAgeMs: showLifetimeMs,
+			}),
+		),
+	);
+	return details.flatMap((detail) =>
+		detail
+			? [
+					[...detail.groups]
+						.sort((left, right) => left.order - right.order)
+						.map((group) => ({
+							...group,
+							episodes: [...group.episodes].sort((left, right) => left.order - right.order),
+						})),
+				]
+			: [],
+	);
 }
 
 /** Searches TMDB movies by title. Returns the first page, best matches first. */
