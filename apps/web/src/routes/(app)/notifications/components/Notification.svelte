@@ -8,7 +8,7 @@
 		markNotificationsRead,
 	} from "$routes/(app)/notifications/notifications.remote";
 	import type { Notification } from "@sora/sdk";
-	import { CaretRightIcon, CheckIcon, TrashIcon } from "phosphor-svelte";
+	import { CaretRightIcon, CheckIcon, ClockIcon, TrashIcon } from "phosphor-svelte";
 
 	let {
 		item,
@@ -17,6 +17,21 @@
 		item: Notification;
 		unread: boolean;
 	} = $props();
+	const releasedAt = $derived.by(() => {
+		const released = new Date(item.released_at);
+		const time = new Intl.DateTimeFormat(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+			hourCycle: "h23",
+		}).format(released);
+		if (released.toDateString() === new Date().toDateString()) {
+			return `Released at ${time}`;
+		}
+		const date = new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+		}).format(released);
+		return `Released on ${date} at ${time}`;
+	});
 </script>
 
 <article
@@ -30,7 +45,8 @@
 		<div
 			class={cn(
 				"relative aspect-video w-full shrink-0 bg-surface sm:aspect-4/3 sm:w-[40%] sm:max-w-96",
-				unread && "after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:bg-danger",
+				unread &&
+					"after:absolute after:top-2.5 after:left-2.5 after:size-2.5 after:rounded-full after:bg-danger",
 			)}
 		>
 			{#if item.series.backdrop_url}
@@ -46,7 +62,7 @@
 			{/if}
 		</div>
 
-		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-24 sm:pb-0">
+		<div class="min-w-0 px-3 pb-1 sm:px-0 sm:pt-6 sm:pr-36 sm:pb-0">
 			<h2 id="notification-{item.id}" class="text-lg leading-snug font-bold">
 				{#if unread}<span class="sr-only">New:</span>{/if}
 				{item.series.title}
@@ -62,34 +78,49 @@
 		</div>
 	</a>
 
-	{#if unread}
-		<Tooltip text="Mark as read">
+	<div class="absolute right-1 bottom-1 flex items-center sm:top-3 sm:right-3 sm:bottom-auto">
+		<Tooltip text={releasedAt}>
 			{#snippet children(trigger)}
 				<Button
 					{...trigger}
 					variant="icon"
-					class="absolute right-12 bottom-1 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-14 sm:bottom-auto pointer-fine:opacity-0"
-					aria-label="Mark notification about {item.series.title} as read"
-					onclick={() => markNotificationsRead([item.id])}
+					class="group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
+					aria-label={releasedAt}
 				>
-					<CheckIcon size="1.125rem" />
+					<ClockIcon size="1.125rem" />
 				</Button>
 			{/snippet}
 		</Tooltip>
-	{/if}
 
-	<Tooltip text="Delete">
-		{#snippet children(trigger)}
-			<Button
-				{...trigger}
-				variant="icon"
-				tone="danger"
-				class="absolute right-1 bottom-1 group-focus-within:opacity-100 group-hover:opacity-100 sm:top-3 sm:right-3 sm:bottom-auto pointer-fine:opacity-0"
-				aria-label="Delete notification about {item.series.title}"
-				onclick={() => dismissNotification(item.id)}
-			>
-				<TrashIcon size="1.125rem" />
-			</Button>
-		{/snippet}
-	</Tooltip>
+		{#if unread}
+			<Tooltip text="Mark as read">
+				{#snippet children(trigger)}
+					<Button
+						{...trigger}
+						variant="icon"
+						class="group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
+						aria-label="Mark notification about {item.series.title} as read"
+						onclick={() => markNotificationsRead([item.id])}
+					>
+						<CheckIcon size="1.125rem" />
+					</Button>
+				{/snippet}
+			</Tooltip>
+		{/if}
+
+		<Tooltip text="Delete">
+			{#snippet children(trigger)}
+				<Button
+					{...trigger}
+					variant="icon"
+					tone="danger"
+					class="group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
+					aria-label="Delete notification about {item.series.title}"
+					onclick={() => dismissNotification(item.id)}
+				>
+					<TrashIcon size="1.125rem" />
+				</Button>
+			{/snippet}
+		</Tooltip>
+	</div>
 </article>

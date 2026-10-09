@@ -211,7 +211,7 @@
 				class={cn(
 					"relative max-sm:hidden",
 					unread.current &&
-						"after:absolute after:top-3.5 after:right-4 after:size-2 after:bg-danger",
+						"after:absolute after:top-3.5 after:right-4 after:size-2 after:rounded-full after:bg-danger",
 				)}
 				aria-label={unread.current ? "Notifications, new notifications" : "Notifications"}
 				aria-current={current("/notifications")}
@@ -302,7 +302,10 @@
 									role="menuitem"
 									href="/notifications"
 									variant="item"
-									class={cn("gap-3 sm:hidden", unread.current && "after:size-2 after:bg-danger")}
+									class={cn(
+										"gap-3 sm:hidden",
+										unread.current && "after:size-2 after:rounded-full after:bg-danger",
+									)}
 									aria-current={current("/notifications")}
 								>
 									<BellSimpleIcon size="1.25rem" />
