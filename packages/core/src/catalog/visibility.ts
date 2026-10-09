@@ -2,7 +2,7 @@ import { sql, type SQLWrapper } from "drizzle-orm";
 
 import { anime, series } from "../database/schema";
 
-/** Short TV series are kept for metadata relations, but never offered in Sora.
+/** Short TV series stay out of catalogue discovery, but saved titles remain accessible.
  * ONA describes web distribution, including full-length shows such as Overgeared.
  */
 export const excludedFormats = ["TV_SHORT"] as const;

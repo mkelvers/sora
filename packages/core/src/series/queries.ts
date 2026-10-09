@@ -68,7 +68,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 		})
 		.from(series)
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
-		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
+		.where(eq(series.id, seriesId))
 		.limit(1);
 	if (!found) {
 		throw new SeriesNotFoundError(seriesId);
@@ -78,7 +78,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 
 	const [anime, cards, franchise, overdue, [indexed]] = await Promise.all([
 		getAnime(row.anilistId),
-		toSeriesCards([row]),
+		toSeriesCards([row], [row.id]),
 		franchiseOf(row),
 		overdueEpisode(row),
 		db
@@ -194,7 +194,7 @@ export async function assertSeriesExists(seriesId: string) {
 			id: series.id,
 		})
 		.from(series)
-		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
+		.where(eq(series.id, seriesId))
 		.limit(1);
 	if (!stored) {
 		throw new SeriesNotFoundError(seriesId);
@@ -498,11 +498,7 @@ async function seriesIdsFor(
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 async function loadSeries(seriesId: string) {
-	const [row] = await db
-		.select()
-		.from(series)
-		.where(and(eq(series.id, seriesId), catalogSeriesAllowed))
-		.limit(1);
+	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -615,7 +611,7 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 	const rows = await db.select().from(series).where(inArray(series.anilistId, anilistIds));
 	const titles = [row, ...rows];
 	const [cards, relations] = await Promise.all([
-		toSeriesCards(titles),
+		toSeriesCards(titles, [row.id]),
 		db
 			.select({
 				from: series.anilistId,
@@ -869,17 +865,22 @@ function releaseAge(releasedAt: string, now: number): Pick<Release, "released_ag
 
 /**
  * Builds visible cards of stored series rows, keyed by series ID, with each
- * title's audio and listed episodes. Short TV series are omitted. Reads only the
- * database.
+ * title's audio and listed episodes. Catalogue-hidden formats are omitted unless
+ * their IDs are explicitly included for a saved watchlist or selected title.
+ * Reads only the database.
  */
-export async function toSeriesCards(rows: readonly SeriesRow[]): Promise<Map<string, SeriesCard>> {
-	return cardsFrom(rows, await listedEpisodesOf(rows));
+export async function toSeriesCards(
+	rows: readonly SeriesRow[],
+	includeHiddenIds: readonly string[] = [],
+): Promise<Map<string, SeriesCard>> {
+	return cardsFrom(rows, await listedEpisodesOf(rows), includeHiddenIds);
 }
 
 /** {@link toSeriesCards} with the rows' episodes already listed. */
 async function cardsFrom(
 	rows: readonly SeriesRow[],
 	listed: Awaited<ReturnType<typeof listedEpisodesOf>>,
+	includeHiddenIds: readonly string[] = [],
 ): Promise<Map<string, SeriesCard>> {
 	const anilistIds = rows.map((row) => row.anilistId);
 	const keys = [...new Set(rows.map((row) => row.key))];
@@ -902,7 +903,7 @@ async function cardsFrom(
 		rows.flatMap((row) => {
 			const audio = new Set(languages.get(row.anilistId) ?? []);
 			const details = anime.get(row.anilistId);
-			if (!isCatalogFormat(details?.format)) return [];
+			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) return [];
 			const title = artwork.get(row.key);
 			return [
 				[

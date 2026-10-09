@@ -20,7 +20,11 @@ export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 		.innerJoin(series, eq(series.id, seriesState.seriesId))
 		.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)))
 		.orderBy(desc(seriesState.statusChangedAt));
-	const cards = await toSeriesCards(rows.map((row) => row.series));
+	const titles = rows.map((row) => row.series);
+	const cards = await toSeriesCards(
+		titles,
+		titles.map((title) => title.id),
+	);
 
 	return rows.flatMap((row) => {
 		const card = cards.get(row.series.id);
