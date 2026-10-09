@@ -48,6 +48,7 @@
 		<h1 class="sr-only">Search</h1>
 		<div class="grid flex-1 place-items-center">
 			<EmptyState
+				class="w-full max-w-7xl py-16 sm:px-12 sm:py-22"
 				mascot={mascots.search}
 				title="Find something to watch."
 				hint="Search for any anime by its title, your results will show up right here."

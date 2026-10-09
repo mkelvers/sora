@@ -47,12 +47,14 @@
 		<li class={["col-span-full grid place-items-center", stale && "opacity-50"]}>
 			{#if found.meta.preparing}
 				<EmptyState
+					class="w-full max-w-7xl py-16 sm:px-12 sm:py-22"
 					mascot={mascots.preparing}
 					title="Looking further for “{q}”."
 					hint="Some matching titles are still being prepared, they'll show up here as soon as they're done."
 				/>
 			{:else}
 				<EmptyState
+					class="w-full max-w-7xl py-16 sm:px-12 sm:py-22"
 					mascot={mascots.emptySearch}
 					title="We couldn't find anything for “{q}”."
 					hint="Maybe it goes by its English or Japanese title?"
