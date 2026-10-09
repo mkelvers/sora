@@ -113,7 +113,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 				: null),
 		backdrop_edges: found.edges,
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
-		related: franchise.filter((part) => part.role === "related" && part !== current),
+		related: franchise.filter((part) => part.role === "related"),
 	};
 }
 
@@ -614,12 +614,13 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 	const anilistIds = await franchiseIds(row.anilistId);
 	const rows = await db.select().from(series).where(inArray(series.anilistId, anilistIds));
 	const titles = [row, ...rows];
-	const [cards, sequels] = await Promise.all([
+	const [cards, relations] = await Promise.all([
 		toSeriesCards(titles),
 		db
 			.select({
 				from: series.anilistId,
 				to: seriesRelated.anilistId,
+				relation: seriesRelated.relation,
 			})
 			.from(seriesRelated)
 			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
@@ -629,7 +630,13 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 						seriesRelated.seriesId,
 						titles.map((title) => title.id),
 					),
-					inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
+					inArray(seriesRelated.relation, [
+						"SEQUEL",
+						"PREQUEL",
+						"ALTERNATIVE",
+						"SUMMARY",
+						"COMPILATION",
+					]),
 				),
 			),
 	]);
@@ -658,7 +665,22 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 					]
 				: [];
 		}),
-		sequels.map(({ from, to }) => [from, to] as const),
+		relations.flatMap(({ from, to, relation }) =>
+			relation === "SEQUEL"
+				? [[from, to] as const]
+				: relation === "PREQUEL"
+					? [[to, from] as const]
+					: [],
+		),
+		{
+			currentId: row.anilistId,
+			alternatives: relations
+				.filter(({ relation }) => relation === "ALTERNATIVE")
+				.map(({ from, to }) => [from, to] as const),
+			summaries: relations
+				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
+				.map(({ to }) => to),
+		},
 	).map((part) => ({
 		...part,
 		card: cards.get(part.series_id)!,
@@ -847,7 +869,7 @@ function releaseAge(releasedAt: string, now: number): Pick<Release, "released_ag
 
 /**
  * Builds visible cards of stored series rows, keyed by series ID, with each
- * title's audio and listed episodes. Short and web series are omitted. Reads only the
+ * title's audio and listed episodes. Short TV series are omitted. Reads only the
  * database.
  */
 export async function toSeriesCards(rows: readonly SeriesRow[]): Promise<Map<string, SeriesCard>> {

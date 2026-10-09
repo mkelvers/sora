@@ -88,9 +88,9 @@ export const AnimeTagSchema = z.object({
 /** One title of a franchise as a series page lists it. */
 export const FranchisePartSchema = z.object({
 	series_id: z.string(),
-	role: z.enum(["season", "related"]).meta({
+	role: z.enum(["season", "related", "alternative"]).meta({
 		description:
-			"Seasons of the franchise's first show, distinguished from films, specials, and other related titles. This is a navigation grouping, not a canon verdict.",
+			"Main story entries, including sequel films and specials, distinguished from related stories and explicitly selected alternative adaptations or recaps.",
 	}),
 	card: SeriesCardSchema.meta({
 		description:
@@ -102,6 +102,10 @@ export const FranchisePartSchema = z.object({
 		example: "Season 2",
 	}),
 	format: FormatSchema.nullable(),
+	next_series_id: z.string().nullable().meta({
+		description:
+			"An unambiguous available direct story sequel, or null. Never an alternative, recap, or inferred sequel based on a title's name.",
+	}),
 	episode_count: z.number().int().meta({
 		description: "How many of its episodes can be watched.",
 	}),
@@ -145,11 +149,11 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		}),
 	seasons: z.array(FranchisePartSchema).meta({
 		description:
-			"The seasons of its franchise in release order, to switch between on its page, with this title first when it is not one of them, such as a film. Just this one when it has no other.",
+			"The franchise's main seasons and story continuations in prequel/sequel order, with this title first when it is an extra or alternative outside that continuity.",
 	}),
 	related: z.array(FranchisePartSchema).meta({
 		description:
-			"The other titles of its franchise that are out and are not its seasons, such as its films, OVAs, and spin-offs, in release order.",
+			"Other released stories in the franchise, in release order. Alternatives, summaries, and compilations are omitted.",
 	}),
 }).meta({
 	id: "Series",

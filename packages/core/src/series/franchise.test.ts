@@ -23,6 +23,153 @@ function titlesOf(parts: ReturnType<typeof franchiseParts>) {
 }
 
 describe("franchiseParts", () => {
+	test("keeps JoJo's older adaptations out of the modern viewing path", () => {
+		const parts = franchiseParts(
+			[
+				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
+				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
+				title(14719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
+				title(20474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
+				title(21778, "Thus Spoke Rohan Kishibe", "OVA", "2017-09-20"),
+			],
+			[
+				[665, 666],
+				[14719, 20474],
+			],
+			{
+				alternatives: [
+					[666, 20474],
+					[665, 20474],
+				],
+				currentId: 14719,
+			},
+		);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Stardust Crusaders", "Thus Spoke Rohan Kishibe"]);
+		expect(parts[0]?.next_series_id).toBe("series-20474");
+	});
+
+	test("keeps the same main seasons when an alternative adaptation is selected", () => {
+		const parts = franchiseParts(
+			[
+				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
+				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
+				title(14719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
+				title(20474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
+			],
+			[
+				[665, 666],
+				[14719, 20474],
+			],
+			{
+				alternatives: [
+					[666, 20474],
+					[665, 20474],
+				],
+				currentId: 665,
+			},
+		);
+		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
+			"series-14719",
+			"series-20474",
+		]);
+		expect(parts.find((part) => part.series_id === "series-665")?.role).toBe("alternative");
+		expect(parts.filter((part) => part.role === "related")).toEqual([]);
+	});
+
+	test("keeps essential sequel films and specials in the picker", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Show", "TV", "2020-01-01"),
+				title(2, "Show: Finale", "SPECIAL", "2021-01-01"),
+				title(3, "Show: Movie", "MOVIE", "2022-01-01"),
+			],
+			[
+				[1, 2],
+				[2, 3],
+			],
+		);
+		expect(parts.every((part) => part.role === "season")).toBe(true);
+		expect(parts[0]?.next_series_id).toBe("series-2");
+	});
+
+	test("does not turn an optional OVA prequel into the starting season", () => {
+		const parts = franchiseParts(
+			[title(2, "Show: Prequel", "OVA", "2015-01-01"), title(1, "Show", "TV", "2020-01-01")],
+			[[2, 1]],
+		);
+		expect(parts.map((part) => part.role)).toEqual(["season", "related"]);
+		expect(parts[1]?.next_series_id).toBeNull();
+	});
+
+	test("recommends one version of an arc and excludes recaps", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Show", "TV", "2020-01-01"),
+				title(2, "Show: Movie", "MOVIE", "2021-01-01"),
+				title(3, "Show: Arc", "TV", "2022-01-01"),
+				title(4, "Show Season 2", "TV", "2023-01-01"),
+				title(5, "Show: Recap", "MOVIE", "2024-01-01"),
+			],
+			[
+				[1, 2],
+				[1, 3],
+				[2, 4],
+				[3, 4],
+			],
+			{ alternatives: [[2, 3]], summaries: [5] },
+		);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2"]);
+		expect(parts[0]?.next_series_id).toBe("series-3");
+	});
+
+	test("never auto-continues into an ambiguous or unavailable sequel", () => {
+		const first = title(1, "Show", "TV", "2020-01-01");
+		const second = title(2, "Show Season 2", "TV", "2021-01-01");
+		expect(
+			franchiseParts(
+				[first, second],
+				[
+					[1, 2],
+					[1, 3],
+				],
+			)[0]?.next_series_id,
+		).toBeNull();
+		expect(
+			franchiseParts([first, { ...second, episodeCount: 0 }], [[1, 2]])[0]?.next_series_id,
+		).toBeNull();
+		expect(franchiseParts([first, second], [])[0]?.next_series_id).toBeNull();
+		expect(
+			franchiseParts(
+				[first, second],
+				[
+					[1, 2],
+					[2, 1],
+				],
+			).every((part) => part.next_series_id === null),
+		).toBe(true);
+	});
+
+	test("keeps the same main seasons when a film alternative is selected", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Show", "TV", "2020-01-01"),
+				title(2, "Show: Movie", "MOVIE", "2021-01-01"),
+				title(3, "Show: Arc", "TV", "2022-01-01"),
+				title(4, "Show Season 2", "TV", "2023-01-01"),
+			],
+			[
+				[1, 2],
+				[1, 3],
+				[2, 4],
+				[3, 4],
+			],
+			{ alternatives: [[2, 3]], currentId: 2 },
+		);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2", "Movie"]);
+		expect(parts[0]?.next_series_id).toBe("series-3");
+		expect(parts[3]?.role).toBe("alternative");
+		expect(parts[3]?.next_series_id).toBeNull();
+	});
 	test("preserves known season and part numbers across translated titles", () => {
 		const parts = franchiseParts(
 			[
@@ -55,7 +202,7 @@ describe("franchiseParts", () => {
 			],
 			[
 				[1, 2],
-				[3, 2],
+				[2, 3],
 				[3, 4],
 			],
 		);
@@ -105,7 +252,7 @@ describe("franchiseParts", () => {
 			],
 		);
 
-		expect(titlesOf(parts)).toEqual(["Season 1", "Mugen Train Arc", "Mugen Train"]);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Mugen Train", "Mugen Train Arc"]);
 	});
 
 	test("goes by names when AniList relates no sequels", () => {

@@ -12,67 +12,143 @@ export interface FranchiseTitle {
 	episodeCount: number;
 }
 
-/** The formats that are a franchise's seasons, listed before its films and extras. */
+/** Formats that can establish the default TV/web adaptation. */
 const seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
 
+/** Relationships used to keep adaptations and recaps out of the viewing path. */
+export interface FranchiseOptions {
+	/** Pairs of titles that adapt the same story. */
+	alternatives?: readonly (readonly [number, number])[];
+	/** AniList IDs explicitly identified as summaries or compilations. */
+	summaries?: readonly number[];
+	/** Keep an explicitly selected extra available in the picker. */
+	currentId?: number;
+}
+
 /**
- * A franchise's titles as a series page lists them: its seasons in release
- * order, then everything else in release order, such as its films, OVAs,
- * and spin-offs, each named without the franchise's name (see
- * {@link FranchisePart.title}).
+ * Lists the default adaptation's story entries, then its other related stories.
+ * Sequel pairs must point from prequel to sequel. Story entries follow these
+ * relationships, with release dates breaking ties; films and specials that
+ * continue the story belong alongside TV seasons. An optional non-TV prequel
+ * does not displace the first TV season.
  *
- * The franchise's name is the title of its first TV or web series, or of its
- * first title when it has none. Its seasons are the TV and web series that
- * first one leads to by AniList's sequel and prequel relations, through
- * films and OVAs too; a spin-off, such as The Slime Diaries or Attack on
- * Titan: Junior High, is related otherwise. Without any such relation, the
- * series named after the franchise are its seasons.
- *
- * Names are compared by their letters and digits alone, so "Demon Slayer
- * -Kimetsu no Yaiba- The Movie: Mugen Train" is "Mugen Train" in the
- * franchise "Demon Slayer: Kimetsu no Yaiba".
- *
- * @param sequels - Pairs of AniList IDs related as sequel and prequel, in
- *   either order.
+ * Alternatives and recaps stay accessible in the catalog but are omitted from
+ * related recommendations. When a film and TV arc retell the same story, the
+ * TV arc is preferred. An explicitly selected alternative is returned with
+ * role `alternative`, so it can be selected without entering recommendations.
+ * `next_series_id` is only supplied for an unambiguous, available direct sequel.
  */
 export function franchiseParts(
 	titles: readonly FranchiseTitle[],
 	sequels: readonly (readonly [number, number])[],
+	options: FranchiseOptions = {},
 ): Omit<FranchisePart, "card">[] {
-	const byRelease = titles.toSorted((left, right) =>
-		(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
+	const byRelease = [...new Map(titles.map((title) => [title.anilistId, title])).values()].toSorted(
+		(left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
 	);
 	const isSeriesFormat = (title: FranchiseTitle) =>
 		title.format !== null && seasonFormats.has(title.format);
 	const first = byRelease.find(isSeriesFormat) ?? byRelease[0];
-	const base = first?.title ?? "";
-
-	const continuity = new Set(first ? [first.anilistId] : []);
-	for (let frontier = [...continuity]; frontier.length > 0;) {
-		frontier = sequels.flatMap(([left, right]) =>
-			[frontier.includes(left) ? right : null, frontier.includes(right) ? left : null].filter(
-				(id): id is number => id !== null && !continuity.has(id),
-			),
-		);
-		frontier.forEach((id) => continuity.add(id));
+	const component = (id: number) => {
+		const ids = new Set([id]);
+		for (let frontier = [id]; frontier.length > 0;) {
+			const next = new Set<number>();
+			for (const [left, right] of sequels) {
+				if (frontier.includes(left) && !ids.has(right)) next.add(right);
+				if (frontier.includes(right) && !ids.has(left)) next.add(left);
+			}
+			frontier = [...next];
+			frontier.forEach((id) => ids.add(id));
+		}
+		return ids;
+	};
+	const current = byRelease.find((title) => title.anilistId === options.currentId);
+	const selected = first;
+	const continuity = selected ? component(selected.anilistId) : new Set<number>();
+	const base = (selected?.title ?? "").replace(/\s*\(TV\)$/i, "");
+	const omitted = new Set(options.summaries);
+	for (const [left, right] of options.alternatives ?? []) {
+		const leftTitle = byRelease.find((title) => title.anilistId === left);
+		const rightTitle = byRelease.find((title) => title.anilistId === right);
+		if (continuity.has(left) && !continuity.has(right)) {
+			component(right).forEach((id) => omitted.add(id));
+		} else if (continuity.has(right) && !continuity.has(left)) {
+			component(left).forEach((id) => omitted.add(id));
+		} else if (continuity.has(left) && continuity.has(right) && leftTitle && rightTitle) {
+			if (isSeriesFormat(leftTitle) !== isSeriesFormat(rightTitle)) {
+				omitted.add(isSeriesFormat(leftTitle) ? right : left);
+			}
+		}
 	}
 
-	const seasons = byRelease.filter(
+	// Only forward continuations pull non-TV entries into the season picker.
+	const forward = new Set(selected ? [selected.anilistId] : []);
+	for (let changed = true; changed;) {
+		changed = false;
+		for (const [from, to] of sequels) {
+			if (forward.has(from) && !forward.has(to)) {
+				forward.add(to);
+				changed = true;
+			}
+		}
+	}
+	const candidates = byRelease.filter(
 		(title) =>
-			isSeriesFormat(title) &&
+			!omitted.has(title.anilistId) &&
 			(sequels.length > 0
-				? continuity.has(title.anilistId)
-				: withoutPrefix(title.title, base) !== null),
+				? continuity.has(title.anilistId) &&
+					(isSeriesFormat(title) ||
+						(selected && !isSeriesFormat(selected)) ||
+						forward.has(title.anilistId))
+				: isSeriesFormat(title) && withoutPrefix(title.title, base) !== null),
 	);
-	const others = byRelease.filter((title) => !seasons.includes(title));
-
-	return [...seasons, ...others].map((title) => ({
-		series_id: title.seriesId,
-		role: seasons.includes(title) ? "season" : "related",
-		title: shortTitle(title, base, seasons.includes(title)),
-		format: title.format,
-		episode_count: title.episodeCount,
-	}));
+	const seasons: FranchiseTitle[] = [];
+	const pending = [...candidates];
+	let cyclic = false;
+	while (pending.length) {
+		const ready = pending.findIndex(
+			(title) =>
+				!sequels.some(
+					([from, to]) => to === title.anilistId && pending.some((part) => part.anilistId === from),
+				),
+		);
+		// Malformed cyclic metadata can still be browsed, but never auto-continued.
+		if (ready === -1) cyclic = true;
+		seasons.push(...pending.splice(ready === -1 ? 0 : ready, 1));
+	}
+	const others = byRelease.filter(
+		(title) => !seasons.includes(title) && !omitted.has(title.anilistId),
+	);
+	return [
+		...seasons,
+		...others,
+		...(current && omitted.has(current.anilistId) ? [current] : []),
+	].map((title) => {
+		const following = new Set(
+			sequels
+				.filter(([from, to]) => from === title.anilistId && !omitted.has(to))
+				.map(([, to]) => to),
+		);
+		const successors = seasons.filter((part) => following.has(part.anilistId));
+		const successor = successors.length === 1 ? successors[0] : undefined;
+		const next =
+			successor && seasons.indexOf(successor) > seasons.indexOf(title) && successor.episodeCount > 0
+				? successor.seriesId
+				: null;
+		return {
+			series_id: title.seriesId,
+			role: seasons.includes(title)
+				? "season"
+				: omitted.has(title.anilistId)
+					? "alternative"
+					: "related",
+			title: shortTitle(title, base, seasons.includes(title)),
+			format: title.format,
+			episode_count: title.episodeCount,
+			next_series_id:
+				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
+		};
+	});
 }
 
 function shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {
@@ -83,12 +159,15 @@ function shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {
 	if (numbered) {
 		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
 	}
-	const rest = withoutPrefix(title.title, base);
+	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base);
 	if (rest === null) {
 		return title.title;
 	}
 
 	const named = rest.replace(/^the movie\b[\s:.-]*/i, "").replace(/[\s~-]+$/, "");
+	if (/^\d{4}\)?$/.test(named)) {
+		return title.title;
+	}
 	if (named) {
 		return named;
 	}

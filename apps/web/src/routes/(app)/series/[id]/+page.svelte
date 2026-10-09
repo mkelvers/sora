@@ -21,7 +21,11 @@
 	);
 	const current = $derived(series.seasons.find((part) => part.series_id === series.id));
 	const subject = $derived(
-		current?.role === "season" ? "Season" : series.format === "MOVIE" ? "Movie" : "Title",
+		series.format === "MOVIE"
+			? "Movie"
+			: current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
+				? "Season"
+				: "Title",
 	);
 
 	let choosing = $state(false);
