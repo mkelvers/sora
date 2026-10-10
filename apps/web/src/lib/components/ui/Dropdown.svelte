@@ -64,7 +64,16 @@
 			"inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-raised shadow-lg open:flex",
 			className,
 		)}
-		onkeydown={moveMenuFocus}
+		onkeydown={(event) => {
+			if (event.key === "Escape") {
+				event.currentTarget.parentElement
+					?.querySelector<HTMLElement>(":scope > [data-melt-popover-trigger]")
+					?.focus({
+						preventScroll: true,
+					});
+			}
+			moveMenuFocus(event);
+		}}
 		onclick={(event) => {
 			if ((event.target as HTMLElement).closest("a, button")) {
 				popover.open = false;
