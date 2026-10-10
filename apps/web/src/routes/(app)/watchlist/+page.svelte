@@ -23,11 +23,20 @@
 	const options = [{ value: "all", label: "All" }, ...statuses] as const;
 	const selected = $derived(options.find((option) => option.value === status));
 
-	const shown = $derived(
+	const batch = 36;
+	let grown = $state({
+		key: "",
+		count: batch,
+	});
+	const key = $derived(`${status}:${sort.label}`);
+	const limit = $derived(grown.key === key ? grown.count : batch);
+
+	const matching = $derived(
 		(watchlist.current ?? [])
 			.filter((entry) => status === "all" || entry.status === status)
 			.toSorted(sort.compare),
 	);
+	const shown = $derived(matching.slice(0, limit));
 </script>
 
 <svelte:head>
@@ -79,7 +88,7 @@
 
 				{#snippet children(current)}
 					{@const empty = statuses.find((option) => option.value === current)?.empty}
-					{#if empty && watchlist.current && shown.length === 0}
+					{#if empty && watchlist.current && matching.length === 0}
 						<div class="pt-6 pb-10">
 							<EmptyState mascot={mascots.emptySearch} title={empty.title} hint={empty.hint} />
 						</div>
@@ -102,6 +111,19 @@
 								{/each}
 							{/if}
 						</ul>
+						{#if watchlist.current && shown.length < matching.length}
+							<Button
+								variant="ghost"
+								class="mx-auto mb-10 flex h-11 w-full max-w-5xl bg-[#213944] text-foreground hover:bg-[#2f5161]"
+								onclick={() =>
+									(grown = {
+										key,
+										count: limit + batch,
+									})}
+							>
+								Show More
+							</Button>
+						{/if}
 					{/if}
 				{/snippet}
 			</Tabs>
