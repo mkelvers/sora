@@ -28,6 +28,9 @@
 				: "Title",
 	);
 
+	const extras = $derived(series.related.filter((part) => part.role === "extra"));
+	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));
+
 	let choosing = $state(false);
 	let options = $state(false);
 
@@ -155,8 +158,11 @@
 		{/if}
 	</div>
 
-	{#if series.related.length}
-		<Related parts={series.related} />
+	{#if extras.length}
+		<Related id="extras" heading="More from this series" parts={extras} />
+	{/if}
+	{#if spinOffs.length}
+		<Related id="spin-offs" heading="Spin-offs" parts={spinOffs} />
 	{/if}
 </div>
 

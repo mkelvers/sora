@@ -8,19 +8,23 @@
 	import type { FranchisePart } from "@sora/sdk";
 
 	let {
+		id,
+		heading,
 		parts,
 	}: {
+		id: string;
+		heading: string;
 		parts: FranchisePart[];
 	} = $props();
 </script>
 
 <div class="pb-10 sm:pb-12 lg:pb-16">
-	<h2 id="related-titles" class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-16">
-		More from this series
+	<h2 {id} class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-16">
+		{heading}
 	</h2>
 	<Carousel
 		class="mt-5 min-w-0"
-		aria-labelledby="related-titles"
+		aria-labelledby={id}
 		options={{
 			slidesToScroll: "auto",
 			duration: 20,
