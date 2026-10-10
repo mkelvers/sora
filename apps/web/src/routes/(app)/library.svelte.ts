@@ -2,7 +2,11 @@ import type { ContinueWatching, SeriesCard, WatchlistStatus } from "@sora/sdk";
 import { createContext } from "svelte";
 
 import { getContinueWatching } from "./(home)/home.remote";
-import { getWatchlist, setWatchlistStatus } from "./watchlist/watchlist.remote";
+import {
+	getWatchlist,
+	getWatchlistStatuses,
+	setWatchlistStatus,
+} from "./watchlist/watchlist.remote";
 
 export const statuses = [
 	{
@@ -51,10 +55,10 @@ export class Library {
 	resume: Map<string, ContinueWatching>;
 
 	constructor() {
-		const watchlist = getWatchlist();
+		const statuses = getWatchlistStatuses();
 		const continuing = getContinueWatching();
 		this.status = $derived(
-			new Map((watchlist.current ?? []).map((entry) => [entry.series.id, entry.status])),
+			new Map((statuses.current ?? []).map((entry) => [entry.series_id, entry.status])),
 		);
 		this.resume = $derived(
 			new Map((continuing.current ?? []).map((item) => [item.series.id, item])),
@@ -72,6 +76,18 @@ export class Library {
 			seriesId: series.id,
 			status,
 		}).updates(
+			getWatchlistStatuses().withOverride((current) => {
+				const rest = current.filter((entry) => entry.series_id !== series.id);
+				return status
+					? [
+							{
+								series_id: series.id,
+								status,
+							},
+							...rest,
+						]
+					: rest;
+			}),
 			getWatchlist().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series.id !== series.id);
 				if (!status) {

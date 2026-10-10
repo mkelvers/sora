@@ -28,4 +28,9 @@ export {
 	startRewatch,
 	type EpisodeAddress,
 } from "./progress/progress";
-export { getWatchlist, removeFromWatchlist, setWatchlistStatus } from "./watchlist/watchlist";
+export {
+	getWatchlist,
+	getWatchlistStatuses,
+	removeFromWatchlist,
+	setWatchlistStatus,
+} from "./watchlist/watchlist";

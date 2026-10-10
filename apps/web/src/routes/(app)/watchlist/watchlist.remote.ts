@@ -14,6 +14,16 @@ export const getWatchlist = query(async () => {
 	});
 });
 
+export const getWatchlistStatuses = query(async () => {
+	const { sora, profile } = remoteViewer();
+
+	return sora.request(route.listWatchlistStatuses, {
+		params: {
+			profile_id: profile.id,
+		},
+	});
+});
+
 export const setWatchlistStatus = command(
 	z.object({
 		seriesId: z.string(),

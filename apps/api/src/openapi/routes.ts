@@ -33,6 +33,7 @@ import {
 	SeriesSchema,
 	UpcomingSeriesSchema,
 	WatchlistEntrySchema,
+	WatchlistStatusEntrySchema,
 	WatchlistStatusSchema,
 } from "@sora/core/contract";
 
@@ -950,6 +951,25 @@ export const listWatchlist = createRoute({
 	},
 	responses: {
 		200: json(envelopeOf(z.array(WatchlistEntrySchema), CountMetaSchema), "The watchlist."),
+		401: problem("Not signed in."),
+		404: problem("The account has no such profile."),
+	},
+});
+
+export const listWatchlistStatuses = createRoute({
+	operationId: "listWatchlistStatuses",
+	method: "get",
+	path: "/profiles/{profile_id}/watchlist/statuses",
+	tags: ["Profiles"],
+	summary: "The status of every title on the profile's watchlist",
+	description:
+		"The ID and status of every title on the profile's watchlist, without the titles' cards. For knowing what is listed; `listWatchlist` has the cards.",
+	security: signedIn,
+	request: {
+		params: ProfileParams,
+	},
+	responses: {
+		200: json(envelopeOf(z.array(WatchlistStatusEntrySchema), CountMetaSchema), "The statuses."),
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},

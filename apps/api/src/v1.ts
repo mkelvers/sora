@@ -18,6 +18,7 @@ import {
 	getProgress,
 	getSeriesProgress,
 	getWatchlist,
+	getWatchlistStatuses,
 	markNotificationsRead,
 	markUnwatched,
 	markWatched,
@@ -677,6 +678,20 @@ export const v1Routes = v1
 	.openapi(route.listWatchlist, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const entries = await getWatchlist(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: entries.length,
+				},
+				results: entries,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listWatchlistStatuses, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const entries = await getWatchlistStatuses(profile.id);
 		return c.json(
 			{
 				meta: {

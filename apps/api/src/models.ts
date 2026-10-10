@@ -30,6 +30,7 @@ export type {
 	UpcomingSeries,
 	WatchlistEntry,
 	WatchlistStatus,
+	WatchlistStatusEntry,
 } from "@sora/core/contract";
 
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;

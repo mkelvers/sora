@@ -5,7 +5,12 @@ import { eq } from "drizzle-orm";
 import { closeDatabase, db } from "../../database/client";
 import { anime, series, seriesEpisode, seriesState } from "../../database/schema";
 import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
-import { getWatchlist, setWatchlistStatus, updateWatchlistAfterPlayback } from "./watchlist";
+import {
+	getWatchlist,
+	getWatchlistStatuses,
+	setWatchlistStatus,
+	updateWatchlistAfterPlayback,
+} from "./watchlist";
 
 // Opt in against a migrated local database. Synthetic IDs keep the fixture
 // separate from real accounts and titles; cleanup runs after failed assertions.
@@ -100,6 +105,12 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 
 		await setWatchlistStatus(profile, id, "completed");
 		expect(await getWatchlist(profile)).toEqual([entry]);
+		expect(await getWatchlistStatuses(profile)).toEqual([
+			{
+				series_id: id,
+				status: "completed",
+			},
+		]);
 	});
 
 	test("completes at the stored playable finale instead of AniList's short count", async () => {

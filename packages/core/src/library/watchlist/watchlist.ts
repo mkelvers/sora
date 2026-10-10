@@ -2,7 +2,7 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { series, seriesEpisode, seriesState } from "../../database/schema";
-import type { WatchlistEntry, WatchlistStatus } from "../../models/library";
+import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { clearSeriesState } from "../state";
 import { statusAfterPlayback } from "./status";
@@ -39,6 +39,31 @@ export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 				]
 			: [];
 	});
+}
+
+/**
+ * Lists the status of every title on a user's watchlist without loading
+ * their cards, for callers that only need to know what is listed.
+ */
+export async function getWatchlistStatuses(userId: string): Promise<WatchlistStatusEntry[]> {
+	const rows = await db
+		.select({
+			seriesId: seriesState.seriesId,
+			status: seriesState.status,
+		})
+		.from(seriesState)
+		.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)));
+
+	return rows.flatMap((row) =>
+		row.status
+			? [
+					{
+						series_id: row.seriesId,
+						status: row.status,
+					},
+				]
+			: [],
+	);
 }
 
 /**

@@ -43,4 +43,5 @@ export type {
 	UpcomingSeries,
 	WatchlistEntry,
 	WatchlistStatus,
+	WatchlistStatusEntry,
 } from "@sora/api";

@@ -120,6 +120,17 @@ export const WatchlistEntrySchema = z
 		id: "WatchlistEntry",
 	});
 
+export const WatchlistStatusEntrySchema = z
+	.object({
+		series_id: z.string().meta({
+			description: "The title's ID.",
+		}),
+		status: WatchlistStatusSchema,
+	})
+	.meta({
+		id: "WatchlistStatusEntry",
+	});
+
 export const SeriesProgressSchema = z
 	.object({
 		episodes: z.array(ProgressSchema).meta({
@@ -227,5 +238,6 @@ export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
 export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
+export type WatchlistStatusEntry = z.infer<typeof WatchlistStatusEntrySchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
