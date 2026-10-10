@@ -6,7 +6,7 @@ import { z } from "zod";
 export const getNotifications = query(async () => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.getNotifications, {
+	const { results, meta } = await sora.requestWithMeta(route.getNotifications, {
 		params: {
 			profile_id: profile.id,
 		},
@@ -14,6 +14,10 @@ export const getNotifications = query(async () => {
 			limit: 100,
 		},
 	});
+	return {
+		items: results,
+		unread: meta.unread,
+	};
 });
 
 export const getUnreadNotifications = query(async () => {

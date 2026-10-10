@@ -63,7 +63,13 @@
 		return page.url.pathname === href ? "page" : undefined;
 	}
 
-	$effect(() => pollWhileVisible(() => unread.refresh()));
+	$effect(() => {
+		if (page.url.pathname === "/notifications") {
+			return;
+		}
+
+		return pollWhileVisible(() => unread.refresh());
+	});
 </script>
 
 <header class="fixed inset-x-0 top-0 z-50 h-14 bg-raised">

@@ -7,11 +7,16 @@
 	import { ChecksIcon } from "phosphor-svelte";
 
 	import Notification from "./components/Notification.svelte";
-	import { getNotifications, markNotificationsRead } from "./notifications.remote";
+	import {
+		getNotifications,
+		getUnreadNotifications,
+		markNotificationsRead,
+	} from "./notifications.remote";
 
 	const notifications = getNotifications();
-	const unread = $derived(notifications.current?.filter((item) => item.unread) ?? []);
-	const read = $derived(notifications.current?.filter((item) => !item.unread) ?? []);
+	const items = $derived(notifications.current?.items);
+	const unread = $derived(items?.filter((item) => item.unread) ?? []);
+	const read = $derived(items?.filter((item) => !item.unread) ?? []);
 
 	const views = [
 		{
@@ -28,6 +33,13 @@
 	const shown = $derived(view === "new" ? unread : read);
 
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
+
+	$effect(() => {
+		const count = notifications.current?.unread;
+		if (count !== undefined) {
+			getUnreadNotifications().set(count);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -38,7 +50,7 @@
 	<div class="mx-auto max-w-7xl">
 		<h1 class="mb-8 text-2xl font-bold">Notifications</h1>
 
-		{#if notifications.current?.length === 0}
+		{#if items?.length === 0}
 			<EmptyState
 				mascot={mascots.emptyNotifications}
 				title="All quiet for now."
@@ -69,7 +81,7 @@
 								<li><Notification {item} unread={current === "new"} /></li>
 							{/each}
 						</ul>
-					{:else if notifications.current}
+					{:else if items}
 						{#if current === "new"}
 							<EmptyState
 								mascot={mascots.emptyNotifications}
