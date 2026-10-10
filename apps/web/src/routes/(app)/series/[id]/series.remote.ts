@@ -23,12 +23,22 @@ export const getSeriesProgress = query(z.string(), (id) => {
 	});
 });
 
-export const getEpisodes = query(z.string(), (id) =>
-	remoteViewer().sora.request(route.listEpisodes, {
-		params: {
-			series_id: id,
-		},
+export const getEpisodes = query(
+	z.object({
+		id: z.string(),
+		page: z.number().int().positive(),
+		perPage: z.number().int().positive(),
 	}),
+	({ id, page, perPage }) =>
+		remoteViewer().sora.request(route.listEpisodes, {
+			params: {
+				series_id: id,
+			},
+			query: {
+				page,
+				per_page: perPage,
+			},
+		}),
 );
 
 export const startRewatch = command(z.string(), async (id) => {
