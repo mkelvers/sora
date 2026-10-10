@@ -3,6 +3,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Image from "$lib/components/ui/Image.svelte";
+	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { storyContinuation } from "$lib/series-navigation";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
@@ -22,6 +23,8 @@
 		progress?: SeriesProgress;
 	} = $props();
 
+	let more = $state(false);
+
 	const library = getLibrary();
 	const listed = $derived(library.status.has(series.id));
 
@@ -36,7 +39,7 @@
 			const episode = library.resume.get(continuation.series_id)?.episode ?? 1;
 			return {
 				href: `/series/${continuation.series_id}/watch/${episode}`,
-				label: `Continue watching${continuation.format === "MOVIE" ? "" : ` E${episode}`}`,
+				label: `Continue Watching${continuation.format === "MOVIE" ? "" : ` E${episode}`}`,
 				rewatch: false,
 			};
 		}
@@ -51,10 +54,10 @@
 		return {
 			href: `/series/${series.id}/watch/${episode}`,
 			label: resume
-				? `Continue watching${suffix}`
+				? `Continue Watching${suffix}`
 				: rewatch
 					? "Rewatch"
-					: `Start watching${suffix}`,
+					: `Start Watching${suffix}`,
 			rewatch,
 		};
 	});
@@ -116,17 +119,30 @@
 	<div
 		class="z-30 col-start-1 row-start-1 mt-3 mr-3 self-start justify-self-end sm:mt-5 sm:mr-8 lg:mr-12"
 	>
-		<Dropdown class="w-64">
-			{#snippet trigger()}
-				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
-				<span class="max-sm:sr-only">More</span>
-			{/snippet}
-			{#snippet children()}
-				<div role="group" aria-label="More">
-					<Button href="/series/{series.id}/media" variant="item">View media options</Button>
-				</div>
-			{/snippet}
-		</Dropdown>
+		<Button
+			variant="icon"
+			class="sm:hidden"
+			aria-label="More"
+			aria-haspopup="dialog"
+			aria-controls="series-more"
+			aria-expanded={more}
+			onclick={() => (more = true)}
+		>
+			<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
+		</Button>
+		<div class="max-sm:hidden">
+			<Dropdown class="w-64">
+				{#snippet trigger()}
+					<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
+					More
+				{/snippet}
+				{#snippet children()}
+					<div role="group" aria-label="More">
+						<Button href="/series/{series.id}/media" variant="item">View Media Options</Button>
+					</div>
+				{/snippet}
+			</Dropdown>
+		</div>
 	</div>
 
 	<div
@@ -243,3 +259,9 @@
 		</div>
 	</div>
 </header>
+
+<Sheet bind:open={more} id="series-more" title="More">
+	<Button href="/series/{series.id}/media" variant="item" onclick={() => (more = false)}>
+		View Media Options
+	</Button>
+</Sheet>
