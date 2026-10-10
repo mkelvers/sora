@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte, or } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat, type AnimeFormat } from "../catalog/models/anime";
@@ -563,15 +563,24 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 	let frontier = [anilistId];
 	let around = 0;
 	while (frontier.length > 0) {
-		const edges = await db
-			.select({
-				from: series.anilistId,
-				to: seriesRelated.anilistId,
-				relation: seriesRelated.relation,
-			})
-			.from(seriesRelated)
-			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
-			.where(or(inArray(series.anilistId, frontier), inArray(seriesRelated.anilistId, frontier)));
+		const edge = {
+			from: series.anilistId,
+			to: seriesRelated.anilistId,
+			relation: seriesRelated.relation,
+		};
+		const [outgoing, incoming] = await Promise.all([
+			db
+				.select(edge)
+				.from(series)
+				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+				.where(inArray(series.anilistId, frontier)),
+			db
+				.select(edge)
+				.from(seriesRelated)
+				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
+				.where(inArray(seriesRelated.anilistId, frontier)),
+		]);
+		const edges = [...outgoing, ...incoming];
 
 		const rank = (relation: string) =>
 			relation === "SEQUEL" || relation === "PREQUEL" ? 0 : relation === "OTHER" ? 2 : 1;

@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNotNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
@@ -132,19 +132,24 @@ async function followedSeries(
 	const seen = new Set(followed.keys());
 	let frontier = [...seen];
 	while (frontier.length > 0 && seen.size <= continuityLimit) {
-		const edges = await db
-			.select({
-				from: series.anilistId,
-				to: seriesRelated.anilistId,
-			})
-			.from(seriesRelated)
-			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
-			.where(
-				and(
-					inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
-					or(inArray(series.anilistId, frontier), inArray(seriesRelated.anilistId, frontier)),
-				),
-			);
+		const edge = {
+			from: series.anilistId,
+			to: seriesRelated.anilistId,
+		};
+		const continues = inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]);
+		const [outgoing, incoming] = await Promise.all([
+			db
+				.select(edge)
+				.from(series)
+				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+				.where(and(continues, inArray(series.anilistId, frontier))),
+			db
+				.select(edge)
+				.from(seriesRelated)
+				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
+				.where(and(continues, inArray(seriesRelated.anilistId, frontier))),
+		]);
+		const edges = [...outgoing, ...incoming];
 
 		frontier = [];
 		for (const edge of edges) {
