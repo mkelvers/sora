@@ -279,7 +279,7 @@ export async function getNotifications(
 		title: seriesEpisode.title,
 		stillUrl: effectiveStill,
 	};
-	const [aired, dubs, played, listed, dismissals, reads] = await Promise.all([
+	const [aired, dubs, played, dismissals, reads] = await Promise.all([
 		db
 			.select({
 				...episodeColumns,
@@ -323,7 +323,6 @@ export async function getNotifications(
 			})
 			.from(episodeProgress)
 			.where(and(eq(episodeProgress.userId, userId), inArray(episodeProgress.seriesId, seriesIds))),
-		listedEpisodesOf(rows),
 		db
 			.select({
 				notificationId: notificationDismissal.notificationId,
@@ -337,11 +336,7 @@ export async function getNotifications(
 			.from(notificationRead)
 			.where(eq(notificationRead.userId, userId)),
 	]);
-	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
-	const isListed = (seriesId: string, number: number) =>
-		listed.get(seriesId)?.some((episode) => episode.number === number) ?? false;
-
-	const episodes = [
+	const releases = [
 		...aired.map((row) => ({
 			...row,
 			dubbed: false,
@@ -350,10 +345,18 @@ export async function getNotifications(
 			...row,
 			dubbed: true,
 		})),
-	]
-		.filter(
-			(row) => isListed(row.seriesId, row.number) && row.releasedAt > cutoffs.get(row.seriesId)!,
-		)
+	].filter((row) => row.releasedAt > cutoffs.get(row.seriesId)!);
+	if (releases.length === 0) {
+		return nothing;
+	}
+
+	// Check availability only for titles with recent news. A large library can
+	// otherwise load tens of thousands of old episodes for an unread badge.
+	const releasedIds = new Set(releases.map((row) => row.seriesId));
+	const listed = await listedEpisodesOf(rows.filter((row) => releasedIds.has(row.id)));
+	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
+	const episodes = releases
+		.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
 		.map((row) => ({
 			...row,
 			watched: playedKeys.has(`${row.seriesId}:${row.number}`),

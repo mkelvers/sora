@@ -112,6 +112,29 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 			expect(result.items.some((item) => item.series.id === spinOff)).toBe(false);
 		});
 
+		test("a recent dub of an old episode still uses the full episode inventory", async () => {
+			await db.insert(seriesState).values({
+				userId: profile,
+				seriesId: first,
+				status: "completed",
+				addedAt: followedAt,
+				statusChangedAt: followedAt,
+			});
+			await db.insert(episodeDub).values({
+				anilistId: anilistIds[0]!,
+				episode: 1,
+				releasedAt,
+			});
+			try {
+				const result = await getNotifications(profile, {}, now);
+				const dubbed = result.items.find((item) => item.id === `${first}:1:dub`);
+				expect(dubbed?.series.episode_count).toBe(1);
+				expect(dubbed?.first_episode).toBe(1);
+			} finally {
+				await db.delete(episodeDub).where(eq(episodeDub.anilistId, anilistIds[0]!));
+			}
+		});
+
 		test("partial playback follows the show even after a later watchlist addition", async () => {
 			await db.insert(episodeProgress).values({
 				userId: profile,
