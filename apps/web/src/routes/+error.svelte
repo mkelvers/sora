@@ -11,8 +11,8 @@
 </svelte:head>
 
 <main id="main-content" tabindex="-1" class="grid min-h-dvh place-items-center px-5 py-10">
-	<div>
-		<h1 class="sr-only">{missing ? "Page not found" : "Something went wrong"}</h1>
+	<div class="w-full max-w-7xl">
+		<h1 class="mb-8 text-2xl font-bold">{missing ? "Page not found" : "Something went wrong"}</h1>
 
 		{#if missing}
 			<EmptyState

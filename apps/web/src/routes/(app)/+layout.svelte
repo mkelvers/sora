@@ -26,13 +26,15 @@
 		{@render children()}
 
 		{#snippet failed()}
-			<section class="grid page place-items-center" aria-labelledby="page-failed">
-				<h1 id="page-failed" class="sr-only">This page couldn't be loaded</h1>
-				<EmptyState
-					mascot={mascots.lost}
-					title="This page couldn't be loaded."
-					hint="Give it a moment and try again."
-				/>
+			<section class="page" aria-labelledby="page-failed">
+				<div class="mx-auto max-w-7xl">
+					<h1 id="page-failed" class="mb-8 text-2xl font-bold">This page couldn't be loaded</h1>
+					<EmptyState
+						mascot={mascots.lost}
+						title="Something got in the way."
+						hint="Give it a moment and try again."
+					/>
+				</div>
 			</section>
 		{/snippet}
 	</svelte:boundary>
