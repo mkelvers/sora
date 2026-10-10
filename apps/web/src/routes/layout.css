@@ -82,6 +82,12 @@
 	}
 }
 
+@utility comma-separated {
+	&:not(:last-child)::after {
+		content: ", " / "";
+	}
+}
+
 @layer base {
 	.bg-surface {
 		--color-hover: #272727;

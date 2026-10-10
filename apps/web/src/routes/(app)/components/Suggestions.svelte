@@ -60,6 +60,7 @@
 					})}
 					sizes="40px"
 					alt="Poster for {card.title}"
+					aria-hidden="true"
 					decoding="async"
 					class="size-full object-cover"
 				/>

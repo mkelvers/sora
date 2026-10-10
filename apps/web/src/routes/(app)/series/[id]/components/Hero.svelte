@@ -172,7 +172,7 @@
 			{#if series.genres.length}
 				<span class="metadata-tag">
 					{#each series.genres as genre (genre)}
-						<span class="not-last:after:content-[',_']">
+						<span class="comma-separated">
 							<a
 								href="/genres/{slug(genre)}"
 								class="underline underline-offset-2 transition-colors hover:text-foreground"

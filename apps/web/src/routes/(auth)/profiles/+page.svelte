@@ -55,6 +55,7 @@
 							type="submit"
 							name="profile"
 							value={profile.id}
+							aria-label="Watch as {profile.name}"
 							class="group flex w-32 cursor-pointer flex-col items-center gap-3 sm:w-36"
 						>
 							<Avatar

@@ -68,6 +68,7 @@
 									})}
 									sizes="(min-width: 80rem) 100vw, (min-width: 40rem) calc(92vw + 7rem), 178vw"
 									alt="Backdrop from {slide.title}"
+									aria-hidden="true"
 									class="object-top max-sm:object-[var(--mobile-backdrop-position,50%)_top]"
 									{@attach mobileBackdrop}
 									loading={index === carousel.active ? "eager" : "lazy"}
@@ -126,7 +127,7 @@
 									{#each slide.genres.slice(0, 4) as genre (genre)}
 										<a
 											href="/genres/{slug(genre)}"
-											class="pointer-events-auto transition-colors not-last:after:content-[',_'] hover:text-foreground"
+											class="pointer-events-auto transition-colors comma-separated hover:text-foreground"
 										>
 											{genre}
 										</a>

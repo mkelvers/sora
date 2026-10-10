@@ -58,6 +58,7 @@
 					})}
 					sizes="(min-width: 60rem) 24rem, (min-width: 40rem) 40vw, 100vw"
 					alt="Backdrop from {item.series.title}"
+					aria-hidden="true"
 				/>
 			{/if}
 		</div>

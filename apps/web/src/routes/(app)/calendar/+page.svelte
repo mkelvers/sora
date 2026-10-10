@@ -160,6 +160,7 @@
 																	})}
 																	sizes="(min-width: 64rem) 22vw, (min-width: 40rem) 40vw, 40vw"
 																	alt="Backdrop of {release.series.title}"
+																	aria-hidden="true"
 																	class="brightness-75"
 																/>
 															{/if}

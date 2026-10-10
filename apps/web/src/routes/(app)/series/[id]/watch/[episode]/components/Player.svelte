@@ -274,7 +274,6 @@
 		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center self-end transition-[margin] duration-200 [--cue-lift:8rem] in-[.idle:not(:has(:popover-open))]:mb-[7vh] sm:[--cue-lift:6.25rem]"
 	>
 		<div
-			aria-hidden="true"
 			class="text-center text-[clamp(20px,2.8vw,44px)] leading-tight font-semibold tracking-[0.02em] whitespace-pre-line [-webkit-text-stroke:0.1em_#000] [paint-order:stroke_fill] [text-shadow:0_2px_3px_#000]"
 		>
 			{#each player.cues as cue (cue)}

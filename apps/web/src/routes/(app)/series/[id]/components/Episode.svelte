@@ -29,6 +29,7 @@
 		return hours === 0 ? `${rest}m` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 	}
 
+	const id = $props.id();
 	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
 	const started = $derived(progress && !watched && progress.position_seconds > 0 ? progress : null);
@@ -57,6 +58,8 @@
 	<svelte:element
 		this={playable ? "a" : "div"}
 		href={playable ? `/series/${series.id}/watch/${episode.number}` : undefined}
+		aria-labelledby={playable ? `${id}-title` : undefined}
+		aria-describedby={playable ? `${id}-filler ${id}-badge ${id}-audio` : undefined}
 		class="flex min-w-0 flex-1 flex-col focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 	>
 		<div
@@ -72,6 +75,7 @@
 						})}
 						sizes="(min-width: 120rem) 14vw, (min-width: 96rem) 16vw, (min-width: 90rem) 20vw, (min-width: 64rem) 25vw, (min-width: 48rem) 33vw, (min-width: 40rem) 50vw, 40vw"
 						alt="Still from episode {episode.number} of {series.title}"
+						aria-hidden="true"
 						class={cn("brightness-75", watched && "opacity-60")}
 					/>
 				{/if}
@@ -79,11 +83,12 @@
 					<span
 						class="absolute top-0 right-0 size-7 after:absolute after:inset-0 after:bg-yellow-400 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
 					>
-						<span class="sr-only">Filler episode</span>
+						<span id="{id}-filler" class="sr-only">Filler episode</span>
 					</span>
 				{/if}
 				{#if badge}
 					<span
+						id="{id}-badge"
 						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
 					>
 						{badge}
@@ -100,10 +105,10 @@
 				{/if}
 			</div>
 
-			<h3 class="pr-8 text-sm leading-snug font-semibold text-foreground sm:mt-3">
+			<h3 id="{id}-title" class="pr-8 text-sm leading-snug font-semibold text-foreground sm:mt-3">
 				{heading}
 			</h3>
-			<p class="mt-1 pr-8 text-sm text-muted sm:mt-1.5 sm:pr-0">
+			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-muted sm:mt-1.5 sm:pr-0">
 				{audioLabel(episode.audio)}
 			</p>
 		</div>

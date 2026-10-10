@@ -81,6 +81,7 @@
 												})}
 												sizes="(min-width: 96rem) 19vw, (min-width: 64rem) 23vw, (min-width: 40rem) 30vw, (min-width: 30em) 47vw, 74vw"
 												alt="Backdrop from {item.series.title}"
+												aria-hidden="true"
 											/>
 										{/if}
 										{#if progress}
