@@ -79,13 +79,22 @@ export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSerie
 			returning: boolean;
 		}
 	>();
-	for (const entry of unreleased) {
+	const soon = unreleased.flatMap((entry) => {
 		const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
-		if (!startsSoon(startDate, now)) {
-			continue;
-		}
-
-		const caughtUpOn = await earliestReleased(entry.series.anilistId);
+		return startsSoon(startDate, now)
+			? [
+					{
+						entry,
+						startDate,
+					},
+				]
+			: [];
+	});
+	const caughtUp = await Promise.all(
+		soon.map(({ entry }) => earliestReleased(entry.series.anilistId)),
+	);
+	for (const [index, { entry, startDate }] of soon.entries()) {
+		const caughtUpOn = caughtUp[index]!;
 		const row = caughtUpOn ?? entry.series;
 		const known = listed.get(row.id);
 		listed.set(row.id, {
