@@ -122,10 +122,8 @@
 				<span class="max-sm:sr-only">More</span>
 			{/snippet}
 			{#snippet children()}
-				<div role="menu" aria-label="More">
-					<Button role="menuitem" href="/series/{series.id}/media" variant="item">
-						View media options
-					</Button>
+				<div role="group" aria-label="More">
+					<Button href="/series/{series.id}/media" variant="item">View media options</Button>
 				</div>
 			{/snippet}
 		</Dropdown>

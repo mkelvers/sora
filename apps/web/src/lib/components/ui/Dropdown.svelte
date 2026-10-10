@@ -64,14 +64,6 @@
 			"inset-auto z-10 m-0 w-56 flex-col overflow-hidden bg-raised shadow-lg open:flex",
 			className,
 		)}
-		onpointermove={(event) => {
-			const item = (event.target as HTMLElement).closest<HTMLElement>("a, button");
-			if (item && item !== document.activeElement) {
-				item.focus({
-					preventScroll: true,
-				});
-			}
-		}}
 		onkeydown={moveMenuFocus}
 		onclick={(event) => {
 			if ((event.target as HTMLElement).closest("a, button")) {

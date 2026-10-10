@@ -135,7 +135,7 @@
 			aria-label="Home"
 			aria-current={current("/")}
 		>
-			<img src={logo} alt="Sora logo" class="size-11" />
+			<img src={logo} alt="Sora logo" width="160" height="160" class="size-11" />
 		</a>
 
 		<ul
@@ -234,7 +234,7 @@
 
 					{#snippet children()}
 						<div
-							role="menu"
+							role="group"
 							aria-label="Account"
 							class="max-sm:flex max-sm:min-h-0 max-sm:flex-1 max-sm:flex-col"
 						>
@@ -242,7 +242,6 @@
 								class="max-sm:min-h-0 max-sm:flex-1 max-sm:overflow-y-auto max-sm:overscroll-contain"
 							>
 								<Button
-									role="menuitem"
 									href="/profiles/{profile.id}"
 									variant="item"
 									class="gap-3"
@@ -264,7 +263,6 @@
 								>
 									{#each profiles.filter((other) => other.id !== profile.id) as other (other.id)}
 										<Button
-											role="menuitem"
 											type="submit"
 											name="profile"
 											value={other.id}
@@ -279,7 +277,6 @@
 								</form>
 
 								<Button
-									role="menuitem"
 									href="/profiles"
 									variant="item"
 									class="gap-3"
@@ -289,7 +286,6 @@
 									Manage profiles
 								</Button>
 								<Button
-									role="menuitem"
 									href="/watchlist"
 									variant="item"
 									class="gap-3 sm:hidden"
@@ -299,7 +295,6 @@
 									Watchlist
 								</Button>
 								<Button
-									role="menuitem"
 									href="/notifications"
 									variant="item"
 									class={cn(
@@ -316,7 +311,6 @@
 
 							<form class="contents" method="POST" action="/logout">
 								<Button
-									role="menuitem"
 									type="submit"
 									variant="item"
 									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:bg-surface max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
