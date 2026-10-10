@@ -124,9 +124,21 @@ export function franchiseParts(
 			}
 		}
 	}
+	// A title released after the show it is a prequel of tells a story the show
+	// grew out of; it is an extra, never a season ahead of the show.
+	const lateOrigins = new Set<number>();
+	for (let frontier = selected ? [selected.anilistId] : []; frontier.length > 0;) {
+		const before = links.flatMap(([from, to]) => (frontier.includes(to) ? [from] : []));
+		frontier = before.filter((id) => !lateOrigins.has(id));
+		frontier.forEach((id) => lateOrigins.add(id));
+	}
+	const selectedStart = selected?.startDate ?? "9999";
+	const isLateOrigin = (title: FranchiseTitle) =>
+		lateOrigins.has(title.anilistId) && (title.startDate ?? "9999") > selectedStart;
 	const candidates = byRelease.filter(
 		(title) =>
 			!omitted.has(title.anilistId) &&
+			!isLateOrigin(title) &&
 			(links.length > 0
 				? continuity.has(title.anilistId) &&
 					(isSeriesFormat(title) ||

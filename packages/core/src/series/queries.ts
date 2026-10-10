@@ -552,7 +552,9 @@ const franchiseLimit = 60;
  * to is not reached. An entry related only as `OTHER` is reached but not
  * followed through: crossovers, such as Ple Ple Pleiades × Kage-Jitsu!, are
  * `OTHER` to each franchise they join, and following them would merge the
- * franchises.
+ * franchises. A one-off special that lists another as `OTHER` while the other
+ * lists it as something else, such as `PARENT`, is a crossover and counts as
+ * `OTHER` from both; a title in a sequel chain listing `OTHER` does not.
  *
  * Sequels and prequels are always followed, so a long-running franchise's
  * main path is never cut short by the entries around it; those are reached
@@ -580,7 +582,41 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(inArray(seriesRelated.anilistId, frontier)),
 		]);
-		const edges = [...outgoing, ...incoming];
+		const rawEdges = [...outgoing, ...incoming];
+		const listers = [
+			...new Set(rawEdges.filter(({ relation }) => relation === "OTHER").map(({ from }) => from)),
+		];
+		const chained = new Set(
+			listers.length === 0
+				? []
+				: (
+						await db
+							.select({
+								anilistId: series.anilistId,
+							})
+							.from(series)
+							.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+							.where(
+								and(
+									inArray(series.anilistId, listers),
+									inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
+								),
+							)
+					).map((row) => row.anilistId),
+		);
+		const crossovers = new Set(
+			rawEdges
+				.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
+				.map(({ from, to }) => `${to}>${from}`),
+		);
+		const edges = rawEdges.map((edge) =>
+			crossovers.has(`${edge.from}>${edge.to}`)
+				? {
+						...edge,
+						relation: "OTHER" as const,
+					}
+				: edge,
+		);
 
 		const rank = (relation: string) =>
 			relation === "SEQUEL" || relation === "PREQUEL" ? 0 : relation === "OTHER" ? 2 : 1;
