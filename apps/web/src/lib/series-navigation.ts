@@ -30,13 +30,26 @@ export function nextEpisodeAddress(
 	series: StorySeries,
 	episode: number,
 	nextWithinTitle: number | null | undefined,
-): { seriesId: string; episode: string } | undefined {
+):
+	| {
+			seriesId: string;
+			episode: string;
+	  }
+	| undefined {
 	if (nextWithinTitle) {
-		return { seriesId: series.id, episode: String(nextWithinTitle) };
+		return {
+			seriesId: series.id,
+			episode: String(nextWithinTitle),
+		};
 	}
 	if (episode !== series.episode_count) {
 		return undefined;
 	}
 	const next = storyContinuation(series);
-	return next ? { seriesId: next.series_id, episode: "1" } : undefined;
+	return next
+		? {
+				seriesId: next.series_id,
+				episode: "1",
+			}
+		: undefined;
 }
