@@ -116,8 +116,10 @@ export async function resolvePlayback(
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
 	const located = await locateEpisode(seriesId, episode);
-	const anime = await getAnime(located.anilistId);
-	const offered = await getEpisodeVersions(located);
+	const [anime, offered] = await Promise.all([
+		getAnime(located.anilistId),
+		getEpisodeVersions(located),
+	]);
 	const streamUrl = (token: string) =>
 		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(token)}`;
 
@@ -211,16 +213,19 @@ async function resolveVersion(
 		videos: ProviderVideo[];
 	} | null;
 
+	// Providers are asked for their episode lists at once; the lists are
+	// kept in priority order.
+	const asked = streamProviders.filter(
+		(provider) =>
+			provider.locale === servedLocale && (locale === null || provider.locale === locale),
+	);
+	const unitLists = await Promise.all(asked.map((provider) => attempt(unitsOf(provider))));
 	const candidates: {
 		provider: StreamProvider;
 		unit: ProviderUnit;
 	}[] = [];
-	for (const provider of streamProviders) {
-		if (provider.locale !== servedLocale || (locale !== null && provider.locale !== locale)) {
-			continue;
-		}
-
-		const units = await attempt(unitsOf(provider));
+	for (const [index, provider] of asked.entries()) {
+		const units = unitLists[index]!;
 		if (units.error) {
 			fail(provider, units.error.message);
 			continue;
