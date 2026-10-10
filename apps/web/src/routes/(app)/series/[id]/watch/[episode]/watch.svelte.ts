@@ -119,12 +119,14 @@ export class Player {
 	onkeydown = (event: KeyboardEvent) => {
 		const target = event.target instanceof Element ? event.target : null;
 		if (
+			!target ||
+			!this.root?.contains(target) ||
 			event.defaultPrevented ||
 			event.metaKey ||
 			event.ctrlKey ||
 			event.altKey ||
-			target?.closest("input, textarea, [contenteditable]") ||
-			(event.key === " " && target?.closest("button, a"))
+			target.closest("input, textarea, [contenteditable]") ||
+			(event.key === " " && target.closest("button, a"))
 		) {
 			return;
 		}

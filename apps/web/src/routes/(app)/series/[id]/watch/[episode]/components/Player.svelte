@@ -192,12 +192,14 @@
 
 <section
 	aria-label="Video player"
+	tabindex="-1"
 	class={[
-		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white *:[grid-area:1/1]",
+		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white outline-none *:[grid-area:1/1]",
 		player.idle && !player.paused && "idle cursor-none",
 	]}
 	aria-busy={loading}
 	bind:this={player.root}
+	{@attach (node) => node.focus({ preventScroll: true })}
 >
 	<video
 		bind:currentTime={player.time}
