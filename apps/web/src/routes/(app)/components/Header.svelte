@@ -73,7 +73,7 @@
 				variant="nav"
 				square
 				alignment="left"
-				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full overflow-y-auto bg-surface"
+				class="mobile-menu fixed! top-14! bottom-0! left-0! h-auto w-full overflow-y-auto bg-surface max-sm:**:aria-[current]:text-accent! max-sm:**:aria-[current]:shadow-[inset_0.125rem_0_0_var(--color-accent)]!"
 				label="Menu"
 			>
 				{#snippet trigger()}
@@ -92,7 +92,7 @@
 						<li>
 							<Button
 								variant="item"
-								class="justify-between"
+								class="justify-between font-normal aria-expanded:text-muted"
 								aria-expanded={categories}
 								aria-controls="menu-genres"
 								onclick={(event: MouseEvent) => {
@@ -108,7 +108,7 @@
 								/>
 							</Button>
 							{#if categories}
-								<ul id="menu-genres">
+								<ul id="menu-genres" class="bg-[rgb(65_65_65/0.502)]">
 									{#each genres.current ?? [] as genre (genre)}
 										<li>
 											<Button
@@ -222,7 +222,7 @@
 			<div class="h-full">
 				<Dropdown
 					variant="nav"
-					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-surface max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden"
+					class="mobile-menu w-[min(21rem,calc(100vw-1rem))] bg-surface max-sm:fixed! max-sm:inset-x-0! max-sm:top-14! max-sm:bottom-0! max-sm:h-[calc(100dvh-3.5rem)] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:overflow-hidden max-sm:**:aria-[current]:text-accent! max-sm:**:aria-[current]:shadow-[inset_0.125rem_0_0_var(--color-accent)]!"
 					label={unread.current
 						? `Account menu for ${profile.name}, new notifications`
 						: `Account menu for ${profile.name}`}
