@@ -88,9 +88,9 @@ export const AnimeTagSchema = z.object({
 /** One title of a franchise as a series page lists it. */
 export const FranchisePartSchema = z.object({
 	series_id: z.string(),
-	role: z.enum(["season", "related", "alternative"]).meta({
+	role: z.enum(["season", "extra", "spin_off", "alternative"]).meta({
 		description:
-			"Main story entries, including sequel films and specials, distinguished from related stories and explicitly selected alternative adaptations or recaps.",
+			"`season`: main story entries, including sequel films and specials. `extra`: films, OVAs, and specials that sit inside the story or are worth watching on their own. `spin_off`: stories of their own that share the world or characters. `alternative`: another adaptation or recap, only listed when explicitly selected.",
 	}),
 	card: SeriesCardSchema.meta({
 		description:

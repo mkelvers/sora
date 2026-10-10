@@ -49,11 +49,12 @@ export function franchiseParts(
 	const isSeriesFormat = (title: FranchiseTitle) =>
 		title.format !== null && seasonFormats.has(title.format);
 	const first = byRelease.find(isSeriesFormat) ?? byRelease[0];
+	const links = [...sequels];
 	const component = (id: number) => {
 		const ids = new Set([id]);
 		for (let frontier = [id]; frontier.length > 0;) {
 			const next = new Set<number>();
-			for (const [left, right] of sequels) {
+			for (const [left, right] of links) {
 				if (frontier.includes(left) && !ids.has(right)) next.add(right);
 				if (frontier.includes(right) && !ids.has(left)) next.add(left);
 			}
@@ -64,8 +65,39 @@ export function franchiseParts(
 	};
 	const current = byRelease.find((title) => title.anilistId === options.currentId);
 	const selected = first;
-	const continuity = selected ? component(selected.anilistId) : new Set<number>();
 	const base = (selected?.title ?? "").replace(/\s*\(TV\)$/i, "");
+	if (sequels.length > 0 && selected) {
+		// AniList often leaves a gap between eras of one show. A series named
+		// after the franchise whose own seasons are linked joins the story after
+		// the latest earlier one; a lone spin-off, an alternative adaptation, or
+		// a recap never does.
+		const apart = new Set([...(options.alternatives ?? []).flat(), ...(options.summaries ?? [])]);
+		const joined = component(selected.anilistId);
+		for (const title of byRelease) {
+			if (
+				joined.has(title.anilistId) ||
+				apart.has(title.anilistId) ||
+				!links.some(([left, right]) => left === title.anilistId || right === title.anilistId) ||
+				!isSeriesFormat(title) ||
+				withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base) === null
+			) {
+				continue;
+			}
+
+			const before = byRelease.findLast(
+				(earlier) =>
+					joined.has(earlier.anilistId) &&
+					isSeriesFormat(earlier) &&
+					(earlier.startDate ?? "9999") < (title.startDate ?? "9999"),
+			);
+			if (before) {
+				links.push([before.anilistId, title.anilistId]);
+				component(title.anilistId).forEach((id) => joined.add(id));
+			}
+		}
+	}
+
+	const continuity = selected ? component(selected.anilistId) : new Set<number>();
 	const omitted = new Set(options.summaries);
 	for (const [left, right] of options.alternatives ?? []) {
 		const leftTitle = byRelease.find((title) => title.anilistId === left);
@@ -85,7 +117,7 @@ export function franchiseParts(
 	const forward = new Set(selected ? [selected.anilistId] : []);
 	for (let changed = true; changed;) {
 		changed = false;
-		for (const [from, to] of sequels) {
+		for (const [from, to] of links) {
 			if (forward.has(from) && !forward.has(to)) {
 				forward.add(to);
 				changed = true;
@@ -95,7 +127,7 @@ export function franchiseParts(
 	const candidates = byRelease.filter(
 		(title) =>
 			!omitted.has(title.anilistId) &&
-			(sequels.length > 0
+			(links.length > 0
 				? continuity.has(title.anilistId) &&
 					(isSeriesFormat(title) ||
 						(selected && !isSeriesFormat(selected)) ||
@@ -108,7 +140,7 @@ export function franchiseParts(
 	while (pending.length) {
 		const ready = pending.findIndex(
 			(title) =>
-				!sequels.some(
+				!links.some(
 					([from, to]) => to === title.anilistId && pending.some((part) => part.anilistId === from),
 				),
 		);
@@ -141,7 +173,7 @@ export function franchiseParts(
 				? "season"
 				: omitted.has(title.anilistId)
 					? "alternative"
-					: "related",
+					: "extra",
 			title: shortTitle(title, base, seasons.includes(title)),
 			format: title.format,
 			episode_count: title.episodeCount,

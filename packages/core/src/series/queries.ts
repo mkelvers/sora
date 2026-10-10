@@ -45,6 +45,7 @@ import {
 	releasedAtOf,
 } from "./episodes";
 import { franchiseParts } from "./franchise";
+import { franchiseRoles } from "./roles";
 import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
@@ -113,7 +114,7 @@ export async function getSeries(seriesId: string): Promise<Series> {
 				: null),
 		backdrop_edges: found.edges,
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
-		related: franchise.filter((part) => part.role === "related"),
+		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
 	};
 }
 
@@ -537,7 +538,7 @@ export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
 	);
 }
 
-/** How many entries {@link franchiseIds} reaches at most. */
+/** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
 const franchiseLimit = 60;
 
 /**
@@ -552,11 +553,16 @@ const franchiseLimit = 60;
  * followed through: crossovers, such as Ple Ple Pleiades × Kage-Jitsu!, are
  * `OTHER` to each franchise they join, and following them would merge the
  * franchises.
+ *
+ * Sequels and prequels are always followed, so a long-running franchise's
+ * main path is never cut short by the entries around it; those are reached
+ * up to a limit.
  */
 export async function franchiseIds(anilistId: number): Promise<number[]> {
 	const reached = new Set([anilistId]);
 	let frontier = [anilistId];
-	while (frontier.length > 0 && reached.size <= franchiseLimit) {
+	let around = 0;
+	while (frontier.length > 0) {
 		const edges = await db
 			.select({
 				from: series.anilistId,
@@ -567,13 +573,20 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 			.where(or(inArray(series.anilistId, frontier), inArray(seriesRelated.anilistId, frontier)));
 
+		const rank = (relation: string) =>
+			relation === "SEQUEL" || relation === "PREQUEL" ? 0 : relation === "OTHER" ? 2 : 1;
 		frontier = [];
 		for (const edge of edges.toSorted(
-			(left, right) => Number(left.relation === "OTHER") - Number(right.relation === "OTHER"),
+			(left, right) => rank(left.relation) - rank(right.relation),
 		)) {
+			const continues = rank(edge.relation) === 0;
 			for (const id of [edge.from, edge.to]) {
-				if (!reached.has(id) && reached.size <= franchiseLimit) {
+				if (!reached.has(id) && (continues || around < franchiseLimit)) {
 					reached.add(id);
+					if (!continues) {
+						around += 1;
+					}
+
 					if (edge.relation !== "OTHER") {
 						frontier.push(id);
 					}
@@ -610,7 +623,7 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 	const anilistIds = await franchiseIds(row.anilistId);
 	const rows = await db.select().from(series).where(inArray(series.anilistId, anilistIds));
 	const titles = [row, ...rows];
-	const [cards, relations] = await Promise.all([
+	const [cards, relations, ratings] = await Promise.all([
 		toSeriesCards(titles, [row.id]),
 		db
 			.select({
@@ -621,23 +634,27 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 			.from(seriesRelated)
 			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 			.where(
-				and(
-					inArray(
-						seriesRelated.seriesId,
-						titles.map((title) => title.id),
-					),
-					inArray(seriesRelated.relation, [
-						"SEQUEL",
-						"PREQUEL",
-						"ALTERNATIVE",
-						"SUMMARY",
-						"COMPILATION",
-					]),
+				inArray(
+					seriesRelated.seriesId,
+					titles.map((title) => title.id),
+				),
+			),
+		db
+			.select({
+				anilistId: animeSearch.anilistId,
+				score: animeSearch.averageScore,
+				popularity: animeSearch.popularity,
+			})
+			.from(animeSearch)
+			.where(
+				inArray(
+					animeSearch.anilistId,
+					titles.map((title) => title.anilistId),
 				),
 			),
 	]);
 
-	return franchiseParts(
+	const parts = franchiseParts(
 		titles.flatMap((title) => {
 			const card = cards.get(title.id);
 			const isListed =
@@ -677,10 +694,49 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
 				.map(({ to }) => to),
 		},
-	).map((part) => ({
-		...part,
-		card: cards.get(part.series_id)!,
-	}));
+	);
+
+	const anilistIdOf = new Map(titles.map((title) => [title.id, title.anilistId]));
+	const ratingOf = new Map(ratings.map((rating) => [rating.anilistId, rating]));
+	const roles = franchiseRoles(
+		parts.flatMap((part) => {
+			const anilistId = anilistIdOf.get(part.series_id)!;
+			return [
+				{
+					anilistId,
+					format: part.format,
+					episodeCount: part.episode_count,
+					durationMinutes: null,
+					score: ratingOf.get(anilistId)?.score ?? null,
+					popularity: ratingOf.get(anilistId)?.popularity ?? null,
+				},
+			];
+		}),
+		relations.map(({ from, to, relation }) => ({
+			from,
+			to,
+			type: relation,
+		})),
+		new Set(
+			parts
+				.filter((part) => part.role === "season")
+				.map((part) => anilistIdOf.get(part.series_id)!),
+		),
+	);
+
+	return parts
+		.filter((part) => {
+			const role = roles.get(anilistIdOf.get(part.series_id)!);
+			return part.series_id === row.id || (role !== "noise" && role !== "recap");
+		})
+		.map((part) => ({
+			...part,
+			role:
+				part.role === "extra" && roles.get(anilistIdOf.get(part.series_id)!) === "spin_off"
+					? ("spin_off" as const)
+					: part.role,
+			card: cards.get(part.series_id)!,
+		}));
 }
 
 /** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */

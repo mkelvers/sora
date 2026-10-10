@@ -73,7 +73,7 @@ describe("franchiseParts", () => {
 			"series-20474",
 		]);
 		expect(parts.find((part) => part.series_id === "series-665")?.role).toBe("alternative");
-		expect(parts.filter((part) => part.role === "related")).toEqual([]);
+		expect(parts.filter((part) => part.role === "extra")).toEqual([]);
 	});
 
 	test("keeps essential sequel films and specials in the picker", () => {
@@ -97,7 +97,7 @@ describe("franchiseParts", () => {
 			[title(2, "Show: Prequel", "OVA", "2015-01-01"), title(1, "Show", "TV", "2020-01-01")],
 			[[2, 1]],
 		);
-		expect(parts.map((part) => part.role)).toEqual(["season", "related"]);
+		expect(parts.map((part) => part.role)).toEqual(["season", "extra"]);
 		expect(parts[1]?.next_series_id).toBeNull();
 	});
 
@@ -236,7 +236,7 @@ describe("franchiseParts", () => {
 		);
 
 		expect(titlesOf(parts)).toEqual(["Season 1", "Season 2", "Junior High"]);
-		expect(parts.find((part) => part.series_id === "series-2")?.role).toBe("related");
+		expect(parts.find((part) => part.series_id === "series-2")?.role).toBe("extra");
 	});
 
 	test("follows the sequels through a film", () => {
@@ -290,6 +290,48 @@ describe("franchiseParts", () => {
 		);
 
 		expect(titlesOf(parts)).toEqual(["Your Name.", "Director's Cut"]);
-		expect(parts.every((part) => part.role === "related")).toBe(true);
+		expect(parts.every((part) => part.role === "extra")).toBe(true);
+	});
+
+	test("joins an era AniList leaves unlinked after the latest earlier season", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Pokémon", "TV", "1997-04-01"),
+				title(2, "Pokémon: Black & White", "TV", "2010-09-23"),
+				title(3, "Pokémon the Series: XY", "TV", "2013-10-17"),
+				title(4, "Pokémon the Series: XYZ", "TV", "2015-10-29"),
+				title(5, "Pokémon the Movie: I Choose You!", "MOVIE", "2017-07-15"),
+			],
+			[
+				[1, 2],
+				[3, 4],
+			],
+			{
+				alternatives: [[1, 5]],
+			},
+		);
+		expect(parts.map((part) => [part.series_id, part.role])).toEqual([
+			["series-1", "season"],
+			["series-2", "season"],
+			["series-3", "season"],
+			["series-4", "season"],
+		]);
+		expect(parts[1]?.next_series_id).toBeNull();
+		expect(parts[2]?.next_series_id).toBe("series-4");
+	});
+
+	test("does not chain an alternative adaptation as a later season", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Fullmetal Alchemist", "TV", "2003-10-04"),
+				title(2, "Fullmetal Alchemist: Brotherhood", "TV", "2009-04-05"),
+				title(3, "Fullmetal Alchemist: The Movie", "MOVIE", "2005-07-23"),
+			],
+			[[1, 3]],
+			{
+				alternatives: [[1, 2]],
+			},
+		);
+		expect(parts.find((part) => part.series_id === "series-2")?.role).not.toBe("season");
 	});
 });
