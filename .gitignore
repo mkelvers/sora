@@ -33,6 +33,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # local infra notes
 decisions.tsv
 
+# local browser tooling
+.playwright-cli
+
 # IntelliJ based IDEs
 .idea
 
