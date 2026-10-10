@@ -1,11 +1,14 @@
 <script lang="ts">
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import Tabs from "$lib/components/ui/Tabs.svelte";
 	import { mascots } from "$lib/mascots";
 	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { statuses } from "$routes/(app)/library.svelte";
 	import type { WatchlistStatus } from "@sora/sdk";
+	import { CaretDownIcon } from "phosphor-svelte";
 
 	import WatchlistSort, { sorts } from "./components/WatchlistSort.svelte";
 	import { getWatchlist } from "./watchlist.remote";
@@ -14,6 +17,11 @@
 
 	let status = $state<WatchlistStatus | "all">("all");
 	let sort = $state(sorts[0]);
+	let statusSheet = $state(false);
+	let sortSheet = $state(false);
+
+	const options = [{ value: "all", label: "All" }, ...statuses] as const;
+	const selected = $derived(options.find((option) => option.value === status));
 
 	const shown = $derived(
 		(watchlist.current ?? [])
@@ -37,11 +45,32 @@
 				hint="Let's fill it up with something to watch."
 			/>
 		{:else}
-			<Tabs
-				items={[{ value: "all", label: "All" }, ...statuses]}
-				bind:value={status}
-				label="Statuses"
-			>
+			<div class="flex items-center justify-between border-b border-border sm:hidden">
+				<Button
+					variant="text"
+					class="font-normal"
+					aria-label="Filter Watchlist, {selected?.label} selected"
+					aria-haspopup="dialog"
+					aria-controls="watchlist-status"
+					onclick={() => (statusSheet = true)}
+				>
+					<CaretDownIcon size="0.875rem" weight="fill" />
+					{selected?.label}
+				</Button>
+				<Button
+					variant="text"
+					class="font-normal"
+					aria-label="Sort Watchlist, {sort.label} selected"
+					aria-haspopup="dialog"
+					aria-controls="watchlist-sort"
+					onclick={() => (sortSheet = true)}
+				>
+					<CaretDownIcon size="0.875rem" weight="fill" />
+					{sort.label}
+				</Button>
+			</div>
+
+			<Tabs items={options} bind:value={status} label="Statuses" class="max-sm:hidden">
 				{#snippet actions()}
 					<div class="ml-auto">
 						<WatchlistSort bind:sort />
@@ -79,3 +108,33 @@
 		{/if}
 	</div>
 </div>
+
+<Sheet bind:open={statusSheet} id="watchlist-status" title="Status">
+	{#each options as option (option.value)}
+		<Button
+			variant="item"
+			aria-current={option.value === status ? "true" : undefined}
+			onclick={() => {
+				statusSheet = false;
+				status = option.value;
+			}}
+		>
+			{option.label}
+		</Button>
+	{/each}
+</Sheet>
+
+<Sheet bind:open={sortSheet} id="watchlist-sort" title="Sort By">
+	{#each sorts as option (option.label)}
+		<Button
+			variant="item"
+			aria-current={option === sort ? "true" : undefined}
+			onclick={() => {
+				sortSheet = false;
+				sort = option;
+			}}
+		>
+			{option.label}
+		</Button>
+	{/each}
+</Sheet>
