@@ -143,7 +143,9 @@
 				class={["pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-7" : "pt-6"]}
 				aria-labelledby="episodes"
 			>
-				<Episodes {series} progress={progress.episodes} />
+				{#key series.id}
+					<Episodes {series} progress={progress.episodes} />
+				{/key}
 			</section>
 		{:else}
 			<section

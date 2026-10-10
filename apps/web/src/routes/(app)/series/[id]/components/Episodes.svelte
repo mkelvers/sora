@@ -30,7 +30,7 @@
 			const rest = series.episode_count - offset;
 			list.push({
 				offset,
-				limit: rest - perPage < perPage ? rest : perPage,
+				limit: step > 0 && rest - perPage < perPage ? rest : Math.min(perPage, rest),
 			});
 		}
 		return list;
