@@ -244,26 +244,69 @@ export async function getAdjacentEpisodes(
  */
 export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
 	const row = await loadSeries(seriesId);
+	const listed = await listedEpisodesOf([row]);
 
-	const [listed, stills] = await Promise.all([
-		listedEpisodesOf([row]),
-		db
-			.select({
-				number: seriesEpisode.number,
-				stillUrl: effectiveStill,
-			})
-			.from(seriesEpisode)
-			.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
-			.where(eq(seriesEpisode.seriesId, seriesId)),
+	return describeEpisodes(row, listed.get(seriesId) ?? []);
+}
+
+/**
+ * One page of {@link getSeriesEpisodes}: the `perPage` episodes of the
+ * `page`th page, counted from 1, and how many episodes the title lists in
+ * all. Only the page's episodes are looked up for their audio and fillers.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export async function getSeriesEpisodePage(
+	seriesId: string,
+	window: {
+		page: number;
+		perPage: number;
+	},
+): Promise<{
+	episodes: Episode[];
+	total: number;
+}> {
+	const row = await loadSeries(seriesId);
+	const listed = (await listedEpisodesOf([row])).get(seriesId) ?? [];
+	const from = (window.page - 1) * window.perPage;
+
+	return {
+		episodes: await describeEpisodes(row, listed.slice(from, from + window.perPage)),
+		total: listed.length,
+	};
+}
+
+async function describeEpisodes(
+	row: SeriesRow,
+	episodes: Awaited<ReturnType<typeof listedEpisodes>>,
+): Promise<Episode[]> {
+	const first = episodes.at(0);
+	const last = episodes.at(-1);
+	const [stills, listings] = await Promise.all([
+		!first || !last
+			? []
+			: db
+					.select({
+						number: seriesEpisode.number,
+						stillUrl: effectiveStill,
+					})
+					.from(seriesEpisode)
+					.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
+					.where(
+						and(
+							eq(seriesEpisode.seriesId, row.id),
+							gte(seriesEpisode.number, first.number),
+							lte(seriesEpisode.number, last.number),
+						),
+					),
+		findEpisodeListings(
+			episodes.map((episode) => ({
+				anilistId: row.anilistId,
+				episode: episode.number,
+			})),
+		),
 	]);
-	const episodes = listed.get(seriesId) ?? [];
 	const stillOf = new Map(stills.map((still) => [still.number, still.stillUrl]));
-	const listings = await findEpisodeListings(
-		episodes.map((episode) => ({
-			anilistId: row.anilistId,
-			episode: episode.number,
-		})),
-	);
 
 	return episodes.map((episode) => {
 		const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));

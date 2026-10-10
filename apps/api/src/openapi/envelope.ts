@@ -47,6 +47,38 @@ export const CountMetaSchema = z
 	})
 	.openapi("CountMeta");
 
+/** Paging for a list of one parent's items that has more than one page. */
+export const ItemsPageMetaSchema = PageMetaSchema.omit({
+	preparing: true,
+	preparing_titles: true,
+})
+	.extend({
+		total: z.number().int().nonnegative().openapi({
+			description: "How many items the list has in all, over every page.",
+		}),
+	})
+	.openapi("ItemsPageMeta");
+
+/** The links to the pages next to `page` that keep the rest of the request's query. */
+export function pageLinks(
+	url: string,
+	page: {
+		page: number;
+		hasNextPage: boolean;
+	},
+) {
+	const pageUrl = (number: number) => {
+		const target = new URL(url);
+		target.searchParams.set("page", String(number));
+		return `${target.pathname}${target.search}`;
+	};
+
+	return {
+		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
+		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
+	};
+}
+
 /**
  * The meta of a page: its paging, and links to the pages next to it that
  * keep the rest of the request's query.
@@ -61,18 +93,11 @@ export function pageMeta(
 		preparing?: PreparingTitle[];
 	},
 ): z.infer<typeof PageMetaSchema> {
-	const pageUrl = (number: number) => {
-		const target = new URL(url);
-		target.searchParams.set("page", String(number));
-		return `${target.pathname}${target.search}`;
-	};
-
 	return {
 		page: page.page,
 		per_page: page.perPage,
 		has_next_page: page.hasNextPage,
-		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
-		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
+		...pageLinks(url, page),
 		preparing: page.isPreparing,
 		preparing_titles: page.preparing ?? [],
 	};

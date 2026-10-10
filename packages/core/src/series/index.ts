@@ -25,6 +25,7 @@ export {
 	getLatestReleases,
 	getSeries,
 	getSeriesEpisode,
+	getSeriesEpisodePage,
 	getSeriesEpisodes,
 	ReleasesQuerySchema,
 	type ReleasesQuery,

@@ -36,7 +36,7 @@ import {
 	WatchlistStatusSchema,
 } from "@sora/core/contract";
 
-import { CountMetaSchema, envelopeOf, PageMetaSchema } from "./envelope";
+import { CountMetaSchema, envelopeOf, ItemsPageMetaSchema, PageMetaSchema } from "./envelope";
 import {
 	EpisodeNumberParam,
 	json,
@@ -289,14 +289,24 @@ export const listEpisodes = createRoute({
 	path: "/series/{series_id}/episodes",
 	tags: ["Series"],
 	summary: "List a series' episodes",
+	description:
+		"Every episode when `per_page` is omitted, so a title's page needs one request; otherwise the episodes a page at a time, with `meta.next` linking to the following page.",
 	request: {
 		params: SeriesParams,
+		query: z.object({
+			page: z.coerce.number().int().min(1).optional().openapi({
+				description: "The page to list, from 1; 1 when omitted.",
+			}),
+			per_page: z.coerce.number().int().min(1).max(200).optional().openapi({
+				description: "Episodes per page; all of them on one page when omitted.",
+			}),
+		}),
 	},
 	responses: {
 		200: json(
 			envelopeOf(
 				z.array(EpisodeSchema),
-				CountMetaSchema.extend({
+				ItemsPageMetaSchema.extend({
 					series_id: z.string(),
 				}),
 			),

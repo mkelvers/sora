@@ -37,6 +37,7 @@ import {
 	getLatestReleases,
 	getSeries,
 	getSeriesEpisode,
+	getSeriesEpisodePage,
 	getSeriesEpisodes,
 	getUpcomingSeries,
 	listSeriesImages,
@@ -48,7 +49,7 @@ import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 
 import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
-import { pageMeta } from "./openapi/envelope";
+import { pageLinks, pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
 import { rateLimit } from "./rate-limit";
 
@@ -301,7 +302,12 @@ export const v1Routes = v1
 
 	.openapi(route.listEpisodes, async (c) => {
 		const { series_id } = c.req.valid("param");
-		const episodes = await getSeriesEpisodes(series_id);
+		const { page = 1, per_page } = c.req.valid("query");
+		const { episodes, total } = await getSeriesEpisodePage(series_id, {
+			page,
+			perPage: per_page ?? Number.MAX_SAFE_INTEGER,
+		});
+		const perPage = per_page ?? Math.max(total, 1);
 		// Unknown audio is filled in once providers are looked up.
 		c.header(
 			"Cache-Control",
@@ -311,7 +317,14 @@ export const v1Routes = v1
 			{
 				meta: {
 					series_id,
-					count: episodes.length,
+					total,
+					page,
+					per_page: perPage,
+					has_next_page: page * perPage < total,
+					...pageLinks(c.req.url, {
+						page,
+						hasNextPage: page * perPage < total,
+					}),
 				},
 				results: episodes,
 			},
