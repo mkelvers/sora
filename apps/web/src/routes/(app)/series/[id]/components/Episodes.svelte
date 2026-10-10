@@ -17,7 +17,25 @@
 	const played = $derived(new Map(progress.map((entry) => [entry.episode, entry])));
 	const minimum = 24;
 	let perPage = $state<number | null>(null);
-	let pages = $state(1);
+	let steps = $state(1);
+
+	const chunks = $derived.by(() => {
+		if (perPage === null) {
+			return [];
+		}
+
+		const list: { offset: number; limit: number }[] = [];
+		for (let step = 0; step < steps; step++) {
+			const offset = step * perPage;
+			const rest = series.episode_count - offset;
+			list.push({
+				offset,
+				limit: rest - perPage < perPage ? rest : perPage,
+			});
+		}
+		return list;
+	});
+	const loaded = $derived(chunks.reduce((count, chunk) => count + chunk.limit, 0));
 	let selected = $state<number | null>(null);
 	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
 
@@ -43,11 +61,11 @@
 	}}
 >
 	{#if perPage !== null}
-		{#each { length: pages }, index (index)}
+		{#each chunks as chunk (chunk.offset)}
 			<EpisodePage
 				{series}
-				page={index + 1}
-				{perPage}
+				offset={chunk.offset}
+				limit={chunk.limit}
 				{played}
 				{selected}
 				onoptions={(episode) => (selected = episode)}
@@ -56,11 +74,11 @@
 	{/if}
 </ol>
 
-{#if perPage !== null && pages * perPage < series.episode_count}
+{#if chunks.length && loaded < series.episode_count}
 	<Button
 		variant="ghost"
 		class="mx-auto mt-8 flex h-11 w-full max-w-5xl bg-[#213944] text-foreground hover:bg-[#2f5161]"
-		onclick={() => pages++}
+		onclick={() => steps++}
 	>
 		Show More
 	</Button>

@@ -250,17 +250,17 @@ export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
 }
 
 /**
- * One page of {@link getSeriesEpisodes}: the `perPage` episodes of the
- * `page`th page, counted from 1, and how many episodes the title lists in
- * all. Only the page's episodes are looked up for their audio and fillers.
+ * A slice of {@link getSeriesEpisodes}: `limit` episodes after skipping
+ * `offset`, and how many episodes the title lists in all. Only the slice's
+ * episodes are looked up for their audio and fillers.
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
 export async function getSeriesEpisodePage(
 	seriesId: string,
 	window: {
-		page: number;
-		perPage: number;
+		offset: number;
+		limit: number;
 	},
 ): Promise<{
 	episodes: Episode[];
@@ -268,10 +268,12 @@ export async function getSeriesEpisodePage(
 }> {
 	const row = await loadSeries(seriesId);
 	const listed = (await listedEpisodesOf([row])).get(seriesId) ?? [];
-	const from = (window.page - 1) * window.perPage;
 
 	return {
-		episodes: await describeEpisodes(row, listed.slice(from, from + window.perPage)),
+		episodes: await describeEpisodes(
+			row,
+			listed.slice(window.offset, window.offset + window.limit),
+		),
 		total: listed.length,
 	};
 }

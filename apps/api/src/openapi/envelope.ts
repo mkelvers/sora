@@ -40,44 +40,50 @@ export const PageMetaSchema = z
 	})
 	.openapi("PageMeta");
 
+/** Paging for the items of one parent, which a client reads from any `offset`. */
+export const OffsetMetaSchema = z
+	.object({
+		offset: z.number().int().nonnegative(),
+		limit: z.number().int().positive(),
+		total: z.number().int().nonnegative().openapi({
+			description: "How many items the list has in all.",
+		}),
+		next: z.string().nullable().openapi({
+			description: "The URL of the items after these, with the same query, or null after the last.",
+		}),
+		previous: z.string().nullable().openapi({
+			description: "The URL of the items before these, with the same query, or null at the first.",
+		}),
+	})
+	.openapi("OffsetMeta");
+
+/** The links to the `limit` items either side of the ones from `offset`, keeping the rest of the query. */
+export function offsetLinks(
+	url: string,
+	page: {
+		offset: number;
+		limit: number;
+		total: number;
+	},
+) {
+	const link = (offset: number) => {
+		const target = new URL(url);
+		target.searchParams.set("offset", String(offset));
+		return `${target.pathname}${target.search}`;
+	};
+
+	return {
+		next: page.offset + page.limit < page.total ? link(page.offset + page.limit) : null,
+		previous: page.offset > 0 ? link(Math.max(page.offset - page.limit, 0)) : null,
+	};
+}
+
 /** The size of a list that is always returned whole. */
 export const CountMetaSchema = z
 	.object({
 		count: z.number().int().nonnegative(),
 	})
 	.openapi("CountMeta");
-
-/** Paging for a list of one parent's items that has more than one page. */
-export const ItemsPageMetaSchema = PageMetaSchema.omit({
-	preparing: true,
-	preparing_titles: true,
-})
-	.extend({
-		total: z.number().int().nonnegative().openapi({
-			description: "How many items the list has in all, over every page.",
-		}),
-	})
-	.openapi("ItemsPageMeta");
-
-/** The links to the pages next to `page` that keep the rest of the request's query. */
-export function pageLinks(
-	url: string,
-	page: {
-		page: number;
-		hasNextPage: boolean;
-	},
-) {
-	const pageUrl = (number: number) => {
-		const target = new URL(url);
-		target.searchParams.set("page", String(number));
-		return `${target.pathname}${target.search}`;
-	};
-
-	return {
-		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
-		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
-	};
-}
 
 /**
  * The meta of a page: its paging, and links to the pages next to it that
@@ -93,11 +99,18 @@ export function pageMeta(
 		preparing?: PreparingTitle[];
 	},
 ): z.infer<typeof PageMetaSchema> {
+	const pageUrl = (number: number) => {
+		const target = new URL(url);
+		target.searchParams.set("page", String(number));
+		return `${target.pathname}${target.search}`;
+	};
+
 	return {
 		page: page.page,
 		per_page: page.perPage,
 		has_next_page: page.hasNextPage,
-		...pageLinks(url, page),
+		next: page.hasNextPage ? pageUrl(page.page + 1) : null,
+		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
 		preparing: page.isPreparing,
 		preparing_titles: page.preparing ?? [],
 	};

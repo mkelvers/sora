@@ -7,15 +7,15 @@
 
 	let {
 		series,
-		page,
-		perPage,
+		offset,
+		limit,
 		played,
 		selected,
 		onoptions,
 	}: {
 		series: Series;
-		page: number;
-		perPage: number;
+		offset: number;
+		limit: number;
 		played: Map<number, Progress>;
 		selected: number | null;
 		onoptions: (episode: number) => void;
@@ -24,8 +24,8 @@
 	const episodes = $derived(
 		getEpisodes({
 			id: series.id,
-			page,
-			perPage,
+			offset,
+			limit,
 		}),
 	);
 
@@ -50,7 +50,7 @@
 		/>
 	{/each}
 {:else}
-	{#each { length: Math.min(perPage, series.episode_count - (page - 1) * perPage) }, index (index)}
+	{#each { length: limit }, index (index)}
 		<li class="grid grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 sm:block sm:min-h-56">
 			<Skeleton class="row-span-3 aspect-video" />
 			<Skeleton class="h-3 w-3/4 sm:mt-3" />
