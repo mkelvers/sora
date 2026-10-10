@@ -22,7 +22,15 @@
 		className,
 	)}
 >
-	<img src={mascot.src} alt={mascot.alt} width={mascot.width} height={mascot.height} class="w-72" />
+	<img
+		src={mascot.src}
+		alt={mascot.alt}
+		width={mascot.width}
+		height={mascot.height}
+		loading="lazy"
+		decoding="async"
+		class="w-72"
+	/>
 	<p class="mt-8 font-bold">{title}</p>
 	<p class="mt-1 text-sm text-muted">{hint}</p>
 	<Button href="/" variant="secondary" class="mt-8">Go to home feed</Button>
