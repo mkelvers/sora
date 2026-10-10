@@ -1,6 +1,15 @@
 @import "@fontsource-variable/dm-sans/wght.css";
 @import "tailwindcss";
 
+@font-face {
+	font-family: "DM Sans Fallback";
+	src: local("Arial");
+	size-adjust: 104.53%;
+	ascent-override: 94.9%;
+	descent-override: 29.66%;
+	line-gap-override: 0%;
+}
+
 @custom-variant short (@media (min-width: 40rem) and (max-height: 32rem));
 
 @theme {
@@ -13,13 +22,13 @@
 	--color-hover: #151515;
 	--color-foreground: #fff;
 	--color-muted: #a3a3a3;
-	--color-subtle: #737373;
+	--color-subtle: #909090;
 	--color-border: #3a3a3a;
-	--color-border-strong: #5c5c5c;
+	--color-border-strong: #757575;
 	--color-accent: #ff640a;
 	--color-on-accent: #000;
 	--color-accent-secondary: #2abdbb;
-	--color-danger: #f04427;
+	--color-danger: #ff5c3f;
 	--color-success: #2ca66f;
 	--color-on-status: #1a0f08;
 }
@@ -84,7 +93,7 @@
 	}
 
 	html {
-		font-family: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+		font-family: "DM Sans Variable", "DM Sans Fallback", ui-sans-serif, system-ui, sans-serif;
 		font-synthesis: none;
 		overflow-wrap: anywhere;
 		text-rendering: optimizeLegibility;

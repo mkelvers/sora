@@ -7,7 +7,7 @@
 			variants: {
 				variant: {
 					field:
-						"h-11 w-full justify-between border border-border px-3 text-sm hover:border-border-strong aria-expanded:border-border-strong",
+						"h-11 w-full justify-between border border-border-strong px-3 text-sm hover:border-muted aria-expanded:border-muted",
 					heading:
 						"h-11 text-lg font-bold hover:text-accent-secondary aria-expanded:text-accent-secondary",
 				},
