@@ -145,7 +145,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 		kind: kind === "anilist" ? "standalone" : kind,
 		title: card.title.display,
 		overview: overviewOf(links, show, movie) ?? (await anilistOverview(entry, links, show)),
-		posterUrl: card.coverUrl,
+		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
 		backdropUrl:
 			tmdbImageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ??
 			card.bannerUrl,
