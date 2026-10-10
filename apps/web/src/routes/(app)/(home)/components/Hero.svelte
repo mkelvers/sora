@@ -13,7 +13,7 @@
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
-	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, PauseIcon, PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
 
 	let {
@@ -101,7 +101,7 @@
 						<a
 							href="/series/{slide.id}"
 							class="pointer-events-auto flex h-24 w-full max-w-xs items-end justify-center px-10 max-sm:mx-auto sm:h-32 sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
-							aria-label={slide.title}
+							aria-hidden="true"
 							tabindex="-1"
 						>
 							{#if slide.logo_url && near(index, carousel.active)}
@@ -116,7 +116,7 @@
 						</a>
 
 						<p
-							class="mt-5 flex h-5 max-w-full items-center justify-center px-5 text-xs font-normal whitespace-nowrap text-muted antialiased sm:h-6 sm:max-w-xl sm:justify-start sm:px-10 sm:text-sm lg:mt-9 lg:h-7 lg:max-w-3xl lg:px-20 lg:text-base"
+							class="mt-5 flex min-h-5 max-w-full items-center justify-center px-5 text-xs font-normal whitespace-nowrap text-muted antialiased sm:min-h-6 sm:max-w-xl sm:justify-start sm:px-10 sm:text-sm lg:mt-9 lg:min-h-7 lg:max-w-3xl lg:px-20 lg:text-base"
 						>
 							{#if slide.audio.length}
 								<span class="metadata-tag shrink-0">{audioLabel(slide.audio)}</span>
@@ -136,7 +136,7 @@
 						</p>
 
 						<p
-							class="mt-2 hidden h-18 max-w-full px-5 text-sm leading-6 font-normal text-pretty text-muted antialiased sm:max-w-xl sm:px-10 lg:mt-3 lg:h-28 lg:max-w-3xl lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
+							class="mt-2 hidden min-h-18 max-w-full px-5 text-sm leading-6 font-normal text-pretty text-muted antialiased sm:max-w-xl sm:px-10 lg:mt-3 lg:min-h-28 lg:max-w-3xl lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
 						>
 							{slide.overview}
 						</p>
@@ -180,10 +180,25 @@
 
 				{#if featured.length > 1}
 					<div
-						class="col-start-1 row-start-2 mt-6 flex justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-20"
+						class="col-start-1 row-start-2 mt-6 flex items-center justify-center gap-2 px-5 sm:justify-start sm:px-10 lg:mt-8 lg:px-20"
 						role="group"
-						aria-label="Choose a featured series"
+						aria-label="Featured series"
 					>
+						{#if !prefersReducedMotion.current}
+							<Button
+								variant="icon"
+								size="sm"
+								class="pointer-events-auto text-foreground"
+								aria-label={carousel.stopped ? "Resume rotation" : "Pause rotation"}
+								onclick={() => carousel.toggle()}
+							>
+								{#if carousel.stopped}
+									<PlayIcon size="1.25rem" weight="fill" />
+								{:else}
+									<PauseIcon size="1.25rem" weight="fill" />
+								{/if}
+							</Button>
+						{/if}
 						{#each featured as item, index (item.id)}
 							<button
 								type="button"

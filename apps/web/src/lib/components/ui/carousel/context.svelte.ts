@@ -11,9 +11,11 @@ export class CarouselState {
 	canPrevious = $state(false);
 	canNext = $state(false);
 	paused = $state(true);
+	stopped = $state(false);
 	cycle = $state(0);
 
 	#restart?: () => void;
+	#toggle?: () => void;
 
 	constructor(
 		readonly options: () => CarouselOptions,
@@ -80,7 +82,7 @@ export class CarouselState {
 			};
 
 			const resume = () => {
-				if (timer !== undefined || document.hidden) {
+				if (timer !== undefined || document.hidden || this.stopped) {
 					return;
 				}
 
@@ -99,19 +101,43 @@ export class CarouselState {
 
 			const visibility = () => (document.hidden ? pause() : resume());
 
+			const root = api.rootNode().closest("section");
+			const leave = (event: FocusEvent) => {
+				if (!root?.contains(event.relatedTarget as Node | null)) {
+					resume();
+				}
+			};
+
 			api.on("select", restart).on("pointerDown", pause).on("pointerUp", resume);
 			document.addEventListener("visibilitychange", visibility);
+			root?.addEventListener("focusin", pause);
+			root?.addEventListener("focusout", leave);
 			this.#restart = restart;
+			this.#toggle = () => {
+				this.stopped = !this.stopped;
+				if (this.stopped) {
+					pause();
+				} else {
+					resume();
+				}
+			};
 			restart();
 
 			return () => {
 				clearTimeout(timer);
 				api.off("select", restart).off("pointerDown", pause).off("pointerUp", resume);
 				document.removeEventListener("visibilitychange", visibility);
+				root?.removeEventListener("focusin", pause);
+				root?.removeEventListener("focusout", leave);
 				this.#restart = undefined;
+				this.#toggle = undefined;
 				this.paused = true;
 			};
 		});
+	}
+
+	toggle() {
+		this.#toggle?.();
 	}
 
 	select(index: number) {
