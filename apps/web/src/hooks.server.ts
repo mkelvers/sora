@@ -19,7 +19,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		const known = knownProfiles.get(token);
 		let profiles = known?.profiles ?? null;
-		if (!event.isRemoteRequest || !known || Date.now() - known.at >= 30_000) {
+		if (!known || Date.now() - known.at >= 30_000) {
 			const { data, error } = await attempt(sora.request(route.listProfiles), SoraError);
 			if (error && error.status !== 401) {
 				throw error;
@@ -78,6 +78,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const response = await resolve(event);
+	if (token && !event.isRemoteRequest && event.request.method !== "GET") {
+		knownProfiles.delete(token);
+	}
 	response.headers.set("X-Robots-Tag", "noindex, nofollow");
 	response.headers.set("X-Content-Type-Options", "nosniff");
 	response.headers.set("X-Frame-Options", "DENY");
