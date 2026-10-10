@@ -245,7 +245,7 @@
 									href="/profiles/{profile.id}"
 									variant="item"
 									class="gap-3"
-									aria-label="Edit profile {profile.name}"
+									aria-label="Edit Profile {profile.name}"
 								>
 									<Avatar avatar={profile.avatar} alt="Avatar of {profile.name}" class="size-9" />
 									<span class="min-w-0 flex-1 truncate font-bold text-foreground">
@@ -283,7 +283,7 @@
 									onclick={() => (profilesPage.managing = true)}
 								>
 									<UsersIcon size="1.25rem" />
-									Manage profiles
+									Manage Profiles
 								</Button>
 								<Button
 									href="/watchlist"
@@ -316,7 +316,7 @@
 									class="gap-3 max-sm:sticky max-sm:bottom-0 max-sm:bg-surface max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
 								>
 									<SignOutIcon size="1.25rem" />
-									Sign out
+									Sign Out
 								</Button>
 							</form>
 						</div>

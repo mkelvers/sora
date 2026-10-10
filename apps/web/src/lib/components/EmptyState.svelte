@@ -33,5 +33,5 @@
 	/>
 	<p class="mt-8 font-bold">{title}</p>
 	<p class="mt-1 text-sm text-muted">{hint}</p>
-	<Button href="/" variant="secondary" class="mt-8">Go to home feed</Button>
+	<Button href="/" variant="secondary" class="mt-8">Go to Home Feed</Button>
 </section>

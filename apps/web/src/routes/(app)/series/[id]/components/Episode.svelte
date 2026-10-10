@@ -83,7 +83,7 @@
 					<span
 						class="absolute top-0 right-0 size-7 after:absolute after:inset-0 after:bg-yellow-400 after:[clip-path:polygon(0_0,100%_0,100%_100%)]"
 					>
-						<span id="{id}-filler" class="sr-only">Filler episode</span>
+						<span id="{id}-filler" class="sr-only">Filler Episode</span>
 					</span>
 				{/if}
 				{#if badge}

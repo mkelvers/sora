@@ -59,7 +59,7 @@
 			<nav class="flex items-center gap-1" aria-label="Weeks">
 				{#if shown.weeks !== 0}
 					<Button onclick={() => (shown.weeks = 0)} variant="ghost" class="max-sm:hidden">
-						This week
+						This Week
 					</Button>
 				{/if}
 				<Button onclick={() => (shown.weeks -= 1)} variant="icon" aria-label="Previous week">
@@ -83,7 +83,7 @@
 				{current.short_name} · {current.month_day}
 			</Button>
 			{#if shown.weeks !== 0}
-				<Button onclick={() => (shown.weeks = 0)} variant="ghost">This week</Button>
+				<Button onclick={() => (shown.weeks = 0)} variant="ghost">This Week</Button>
 			{/if}
 		</div>
 
@@ -197,7 +197,7 @@
 															class="mt-auto flex h-10 shrink-0 items-center gap-2 text-sm font-bold text-accent uppercase"
 														>
 															<InfoIcon size="1.25rem" weight="bold" />
-															View series
+															View Series
 														</span>
 													</div>
 												</a>

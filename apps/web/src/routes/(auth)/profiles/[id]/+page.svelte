@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-	<title>Edit profile · Sora</title>
+	<title>Edit Profile · Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />
@@ -45,7 +45,7 @@
 		};
 	}}
 >
-	<h1 class="text-center text-3xl font-bold">Edit profile</h1>
+	<h1 class="text-center text-3xl font-bold">Edit Profile</h1>
 
 	<Field
 		name="name"
@@ -75,7 +75,7 @@
 					))}
 			>
 				<ShuffleIcon size="1rem" />
-				More avatars
+				More Avatars
 			</Button>
 		</div>
 
@@ -93,7 +93,7 @@
 
 	<div class="mt-10 flex flex-wrap items-center gap-3">
 		<Button type="submit" variant="primary" class="max-sm:flex-1" loading={pending}>
-			Save profile
+			Save Profile
 		</Button>
 		<Button href="/profiles{page.url.search}" variant="secondary" class="max-sm:flex-1">
 			Cancel
@@ -111,7 +111,7 @@
 					disabled={pending}
 				>
 					<TrashIcon size="1rem" />
-					Delete profile
+					Delete Profile
 				</Button>
 			</div>
 		{/if}

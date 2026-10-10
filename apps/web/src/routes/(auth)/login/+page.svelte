@@ -48,7 +48,7 @@
 >
 	<header class="flex flex-col items-center text-center">
 		<img src={logo} alt="Sora logo" width="160" height="160" class="size-16" />
-		<h1 id="sign-in" class="mt-6 text-3xl font-bold">Welcome back</h1>
+		<h1 id="sign-in" class="mt-6 text-3xl font-bold">Welcome Back</h1>
 		<p class="mt-4 text-sm text-muted">Sign in to pick up where you left off.</p>
 	</header>
 
@@ -75,7 +75,7 @@
 		/>
 	</div>
 
-	<Button variant="primary" class="mt-10 w-full" type="submit" loading={pending}>Sign in</Button>
+	<Button variant="primary" class="mt-10 w-full" type="submit" loading={pending}>Sign In</Button>
 
 	<p class="mt-16 flex flex-col items-center gap-3 text-center text-xs text-muted">
 		<img

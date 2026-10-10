@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Add profile · Sora</title>
+	<title>Add Profile · Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />
@@ -31,7 +31,7 @@
 		};
 	}}
 >
-	<h1 class="text-center text-3xl font-bold">Add profile</h1>
+	<h1 class="text-center text-3xl font-bold">Add Profile</h1>
 	<p class="mt-4 text-center text-sm text-muted">
 		Each profile has its own home page and playback settings.
 	</p>
@@ -47,7 +47,7 @@
 	/>
 
 	<div class="mt-10 flex gap-3">
-		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Add profile</Button>
+		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Add Profile</Button>
 		<Button href="/profiles{page.url.search}" variant="secondary" class="flex-1">Cancel</Button>
 	</div>
 </form>

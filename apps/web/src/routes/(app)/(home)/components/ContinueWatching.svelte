@@ -21,7 +21,7 @@
 	function label(item: ContinueWatching, where: string) {
 		const started = item.position_seconds > 0;
 		if (!where) {
-			return started ? "Continue watching" : "Up next";
+			return started ? "Continue Watching" : "Up Next";
 		}
 
 		return started ? `Continue with ${where}` : `Up next with ${where}`;
@@ -41,7 +41,7 @@
 		class="continue-watching-section relative z-20 col-start-1 row-start-2 row-end-3 min-w-0 self-end wide:row-start-1 wide:row-end-3"
 	>
 		<h2 id="continue-watching" class="mb-5 px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
-			Continue watching
+			Continue Watching
 		</h2>
 
 		<Carousel
@@ -68,8 +68,8 @@
 									href="/series/{item.series.id}/watch/{item.episode}"
 									class="flex h-full flex-col"
 									aria-label={where
-										? `Continue watching ${item.series.title}, ${where}`
-										: `Continue watching ${item.series.title}`}
+										? `Continue Watching ${item.series.title}, ${where}`
+										: `Continue Watching ${item.series.title}`}
 								>
 									<div class="relative aspect-video overflow-hidden bg-surface">
 										{#if item.series.backdrop_url}
@@ -118,7 +118,7 @@
 										variant="icon"
 										tone="danger"
 										class="absolute right-2 bottom-2 z-10 group-focus-within:opacity-100 group-hover:opacity-100 pointer-fine:opacity-0"
-										aria-label="Remove {item.series.title} from Continue watching"
+										aria-label="Remove {item.series.title} from Continue Watching"
 										onclick={() => remove(item.series.id)}
 									>
 										<TrashIcon size="1.125rem" />

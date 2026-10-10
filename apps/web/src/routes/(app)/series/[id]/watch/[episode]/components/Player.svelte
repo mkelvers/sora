@@ -262,9 +262,9 @@
 				onclick={() => (player.time = segment.end)}
 			>
 				{#if segment.kind === "opening"}
-					Skip intro
+					Skip Intro
 				{:else}
-					Skip credits
+					Skip Credits
 				{/if}
 			</Button>
 		</div>

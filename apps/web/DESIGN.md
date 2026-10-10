@@ -25,8 +25,11 @@ palette colours or `white/…` overlays.
 
 ## Type
 
-One family, DM Sans. Sentence case for all copy. Uppercase is reserved for button labels, tab
-labels and the calendar's weekday names.
+One family, DM Sans. Title Case for labels: buttons, menu items, tabs, sort and filter options,
+sheet titles and section headings ("Plan to Watch", "Mark Season as Watched", "Last Updated"), with
+short words like "to", "as", "and", "from" and "the" kept lowercase. Sentence case for everything
+else: descriptions, hints, empty-state copy and error messages. All-caps is reserved for button
+labels, tab labels and the calendar's weekday names, and comes from CSS, never from the text.
 
 | Role                  | Classes                                               |
 | --------------------- | ----------------------------------------------------- |

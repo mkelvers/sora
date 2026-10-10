@@ -181,7 +181,7 @@
 					})
 			}
 		>
-			Auto skip
+			Auto Skip
 		</Switch>
 		{#each menus as menu (menu.label)}
 			<Button role="menuitem" variant="item" onclick={() => (submenu = menu.label)}>

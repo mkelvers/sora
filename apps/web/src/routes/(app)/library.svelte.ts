@@ -15,7 +15,7 @@ export const statuses = [
 	},
 	{
 		value: "plan_to_watch",
-		label: "Plan to watch",
+		label: "Plan to Watch",
 		empty: {
 			title: "Nothing planned to watch.",
 			hint: "Add a few titles you've been meaning to start.",

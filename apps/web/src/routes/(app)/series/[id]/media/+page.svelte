@@ -102,7 +102,7 @@
 					<div class="mt-4 flex items-center justify-between gap-4">
 						<Button variant="ghost" onclick={() => (sizing = false)}>
 							<CaretLeftIcon size="1rem" weight="bold" />
-							All logos
+							All Logos
 						</Button>
 						<Button
 							variant="ghost"
@@ -141,7 +141,7 @@
 						{#if media.type === "logo" && series.logo_url}
 							<Button variant="ghost" class="justify-self-start" onclick={() => (sizing = true)}>
 								<ResizeIcon size="1rem" weight="bold" />
-								Size and position
+								Size and Position
 							</Button>
 						{/if}
 

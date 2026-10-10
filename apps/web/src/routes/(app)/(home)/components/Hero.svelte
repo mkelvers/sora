@@ -148,7 +148,7 @@
 							{#if slide.episode_count > 0}
 								<Button href="/series/{slide.id}/watch/1" variant="primary" class="max-sm:flex-1">
 									<PlayIcon size="1.2rem" weight="bold" />
-									{slide.format === "MOVIE" ? "Start watching" : "Start watching E1"}
+									{slide.format === "MOVIE" ? "Start Watching" : "Start Watching E1"}
 								</Button>
 								<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
 									{#snippet children(trigger)}

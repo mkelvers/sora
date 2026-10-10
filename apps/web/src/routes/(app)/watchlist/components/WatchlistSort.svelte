@@ -3,12 +3,12 @@
 
 	export const sorts = [
 		{
-			label: "Last updated",
+			label: "Last Updated",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.updated_at.localeCompare(left.updated_at),
 		},
 		{
-			label: "Date added",
+			label: "Date Added",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.added_at.localeCompare(left.added_at),
 		},

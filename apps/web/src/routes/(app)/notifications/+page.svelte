@@ -54,7 +54,7 @@
 							onclick={() => markNotificationsRead(unread.map((item) => item.id))}
 						>
 							<ChecksIcon size="1.125rem" />
-							<span class="max-sm:sr-only">Mark all as read</span>
+							<span class="max-sm:sr-only">Mark All as Read</span>
 						</Button>
 					{/if}
 				{/snippet}

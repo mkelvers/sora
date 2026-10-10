@@ -12,13 +12,13 @@
 </script>
 
 <svelte:head>
-	<title>{profilesPage.managing ? "Manage profiles" : "Who's watching?"} · Sora</title>
+	<title>{profilesPage.managing ? "Manage Profiles" : "Who's watching?"} · Sora</title>
 </svelte:head>
 
 <div class="flex w-full max-w-5xl flex-col items-center gap-12">
 	<h1 class="text-center text-3xl font-bold">
 		{#if profilesPage.managing}
-			Manage profiles
+			Manage Profiles
 		{:else}
 			Who's watching?
 		{/if}
@@ -82,7 +82,7 @@
 						>
 							<PlusIcon size="3rem" aria-hidden="true" />
 						</span>
-						<span class="text-sm text-muted group-hover:text-foreground">Add profile</span>
+						<span class="text-sm text-muted group-hover:text-foreground">Add Profile</span>
 					</a>
 				</li>
 			{/if}
@@ -94,7 +94,7 @@
 			<Button variant="primary" onclick={() => (profilesPage.managing = false)}>Done</Button>
 		{:else}
 			<Button variant="secondary" onclick={() => (profilesPage.managing = true)}>
-				Manage profiles
+				Manage Profiles
 			</Button>
 		{/if}
 	</div>

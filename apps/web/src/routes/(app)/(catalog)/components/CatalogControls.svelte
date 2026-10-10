@@ -135,7 +135,7 @@
 	</Button>
 </div>
 
-<Sheet bind:open={sorting} id="sort-list" title="Sort by">
+<Sheet bind:open={sorting} id="sort-list" title="Sort By">
 	{#each sorts as sort (sort.kind)}
 		<Button
 			variant="item"
@@ -173,7 +173,7 @@
 				filtering = false;
 			}}
 		>
-			Apply filters
+			Apply Filters
 		</Button>
 	{/snippet}
 </Sheet>

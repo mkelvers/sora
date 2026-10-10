@@ -11,7 +11,7 @@
 
 {#key `${filters.audio}:${filters.format}`}
 	<Catalog
-		title="Most popular anime"
+		title="Most Popular Anime"
 		empty={{
 			title: "The spotlight's empty right now.",
 			hint: "Loosen a filter and see who steps up.",

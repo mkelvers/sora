@@ -159,7 +159,7 @@
 	</div>
 
 	{#if extras.length}
-		<Related id="extras" heading="More from this series" parts={extras} />
+		<Related id="extras" heading="More from This Series" parts={extras} />
 	{/if}
 	{#if spinOffs.length}
 		<Related id="spin-offs" heading="Spin-offs" parts={spinOffs} />

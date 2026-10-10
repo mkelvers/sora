@@ -73,7 +73,7 @@
 				class="mt-1 inline-flex min-h-11 items-center gap-2 text-xs font-bold tracking-wide uppercase sm:mt-4 sm:min-h-0 sm:text-sm"
 				aria-hidden="true"
 			>
-				View now
+				View Now
 				<CaretRightIcon size="0.9rem" weight="bold" />
 			</p>
 		</div>
