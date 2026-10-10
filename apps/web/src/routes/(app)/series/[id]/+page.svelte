@@ -9,15 +9,23 @@
 	import { CaretDownIcon, DotsThreeVerticalIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import Episodes from "./components/Episodes.svelte";
+	import Episodes, { pageSize } from "./components/Episodes.svelte";
 	import Hero from "./components/Hero.svelte";
 	import Related from "./components/Related.svelte";
-	import { getSeries, getSeriesProgress, markSeries } from "./series.remote";
+	import { getEpisodes, getSeries, getSeriesProgress, markSeries } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
 	const [series, progress] = $derived(
-		await Promise.all([getSeries(params.id), getSeriesProgress(params.id)]),
+		await Promise.all([
+			getSeries(params.id),
+			getSeriesProgress(params.id),
+			getEpisodes({
+				id: params.id,
+				offset: 0,
+				limit: pageSize,
+			}),
+		]),
 	);
 	const current = $derived(series.seasons.find((part) => part.series_id === series.id));
 	const subject = $derived(
