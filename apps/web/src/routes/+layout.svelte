@@ -9,6 +9,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<link rel="preconnect" href="https://image.tmdb.org" />
 	<link rel="preload" href={font} as="font" type="font/woff2" crossorigin="anonymous" />
 	<meta name="theme-color" content="#000000" />
 	<meta property="og:site_name" content="Sora" />
