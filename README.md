@@ -128,7 +128,9 @@ Behind Cloudflare Tunnel, set `ADDRESS_HEADER=cf-connecting-ip` on the web servi
 so sign-in limits use each visitor's address.
 
 Route `/` to the web service and `/v1` to the API on the same domain. Keep TLS at
-your reverse proxy or tunnel. `/v1` requires authentication; the API's internal
+your reverse proxy or tunnel. The web build ships Brotli and gzip copies of its static
+assets, but Bun does not compress server-rendered HTML, so enable compression at the
+proxy (Cloudflare Tunnel and Traefik's `compress` middleware both do it). `/v1` requires authentication; the API's internal
 `/health` endpoint is used by its Docker health check. The scheduler's cron jobs
 and queue are stored in PostgreSQL, so they need no separate Dokploy schedules.
 

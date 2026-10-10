@@ -31,7 +31,9 @@ export default defineConfig({
 			experimental: {
 				remoteFunctions: true,
 			},
-			adapter: adapter(),
+			adapter: adapter({
+				precompress: true,
+			}),
 			alias: {
 				$routes: "src/routes",
 			},
