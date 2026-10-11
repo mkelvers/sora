@@ -1,9 +1,10 @@
-import { and, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
 import {
 	anikotoSeries,
 	animeSearch,
+	providerEpisodes,
 	providerMapping,
 	series,
 	seriesEpisode,
@@ -158,16 +159,56 @@ export interface AniKotoEpisodes {
 /**
  * Reads which episodes of the given AniList entries AniKoto carries, from
  * its stored episode lists, without asking AniKoto.
+ *
+ * The database picks the episode numbers out of each list, so the lists are
+ * not loaded and parsed whole.
  */
 export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promise<AniKotoEpisodes> {
-	const stored = await getStoredUnits(anilistIds, aniKoto.id);
+	if (anilistIds.length === 0) {
+		return {
+			carried: new Set(),
+			lookedUp: new Set(),
+		};
+	}
+
+	const ids = [...new Set(anilistIds)];
+	const [listed, unmatched] = await Promise.all([
+		db
+			.select({
+				anilistId: providerEpisodes.anilistId,
+				numbers: sql<unknown>`jsonb_path_query_array(${providerEpisodes.units}, '$[*].number')`,
+			})
+			.from(providerEpisodes)
+			.where(
+				and(
+					inArray(providerEpisodes.anilistId, ids),
+					eq(providerEpisodes.provider, aniKoto.id),
+					sql`jsonb_typeof(${providerEpisodes.units}) = 'array'`,
+				),
+			),
+		db
+			.select({
+				anilistId: providerMapping.anilistId,
+			})
+			.from(providerMapping)
+			.where(
+				and(
+					inArray(providerMapping.anilistId, ids),
+					eq(providerMapping.provider, aniKoto.id),
+					isNull(providerMapping.providerMediaId),
+				),
+			),
+	]);
+
 	return {
 		carried: new Set(
-			stored.flatMap((entry) =>
-				entry.units.map((unit) => anilistEpisodeKey(entry.anilistId, unit.number)),
+			listed.flatMap((entry) =>
+				(Array.isArray(entry.numbers) ? entry.numbers : []).flatMap((number: unknown) =>
+					typeof number === "number" ? [anilistEpisodeKey(entry.anilistId, number)] : [],
+				),
 			),
 		),
-		lookedUp: new Set(stored.map((entry) => entry.anilistId)),
+		lookedUp: new Set([...listed, ...unmatched].map((entry) => entry.anilistId)),
 	};
 }
 
@@ -176,7 +217,7 @@ export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promis
  * episodes. Matching and stored layouts use this before AniList's broadcast count.
  */
 export async function getAniKotoEpisodeCount(anilistId: number): Promise<number | null> {
-	const stored = await getStoredUnits([anilistId], aniKoto.id);
+	const stored = await getStoredUnits([anilistId], [aniKoto.id]);
 	const numbers = stored
 		.flatMap((entry) => entry.units.map((unit) => unit.number))
 		.filter((number) => Number.isInteger(number) && number > 0);

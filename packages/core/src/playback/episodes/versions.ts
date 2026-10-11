@@ -203,7 +203,10 @@ async function readAnimeListings(
 ): Promise<Map<number, AnimeListings>> {
 	const sources = listingSources();
 	const ids = [...new Set(anilistIds)];
-	const stored = await getStoredUnits(ids);
+	const stored = await getStoredUnits(
+		ids,
+		sources.map((source) => source.id),
+	);
 	if (options.lookUpUnknown) {
 		const neverLookedUp = ids.filter(
 			(anilistId) => !stored.some((entry) => entry.anilistId === anilistId),

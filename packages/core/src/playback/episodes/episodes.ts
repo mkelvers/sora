@@ -75,11 +75,11 @@ export interface StoredUnits {
  * provider. A provider missing for an anime has not been looked up yet, or
  * its stored list is outdated; {@link getProviderUnits} fills it in.
  *
- * @param provider - Reads only this provider's lists, which skips parsing the others.
+ * @param providers - Reads only these providers' lists, which skips parsing the others.
  */
 export async function getStoredUnits(
 	anilistIds: readonly number[],
-	provider?: string,
+	providers?: readonly string[],
 ): Promise<StoredUnits[]> {
 	if (anilistIds.length === 0) {
 		return [];
@@ -93,7 +93,7 @@ export async function getStoredUnits(
 			.where(
 				and(
 					inArray(providerEpisodes.anilistId, ids),
-					provider ? eq(providerEpisodes.provider, provider) : undefined,
+					providers ? inArray(providerEpisodes.provider, [...providers]) : undefined,
 				),
 			),
 		db
@@ -106,7 +106,7 @@ export async function getStoredUnits(
 				and(
 					inArray(providerMapping.anilistId, ids),
 					isNull(providerMapping.providerMediaId),
-					provider ? eq(providerMapping.provider, provider) : undefined,
+					providers ? inArray(providerMapping.provider, [...providers]) : undefined,
 				),
 			),
 	]);
