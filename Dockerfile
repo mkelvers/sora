@@ -1,4 +1,4 @@
-FROM oven/bun:1.4.2 AS dependencies
+FROM oven/bun:1.4.0 AS dependencies
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/package.json

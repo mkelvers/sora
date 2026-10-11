@@ -50,7 +50,7 @@ flowchart LR
 
 ## Getting started
 
-Requires [Bun](https://bun.com) 1.4.2+, Docker with Compose and a running Docker engine,
+Requires [Bun](https://bun.com) 1.4.0+, Docker with Compose and a running Docker engine,
 a [TMDB](https://www.themoviedb.org/settings/api) API Read Access Token,
 and an [AnimeSchedule.net](https://animeschedule.net) application token.
 Both tokens are required by the current configuration.
@@ -119,7 +119,7 @@ If setup fails:
 
 The root `Dockerfile` has three build targets: `web`, `api`, and `scheduler`.
 Configure three Dokploy applications from this repository, using the root build context
-and the matching target. All services use Bun 1.4.2. The web and API listen on port 3000.
+and the matching target. All services use Bun 1.4.0. The web and API listen on port 3000.
 The API applies database migrations before starting; deploy it before the scheduler.
 
 Use PostgreSQL 18 with an explicit persistent volume mounted at `/var/lib/postgresql`.
