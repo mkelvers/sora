@@ -95,6 +95,12 @@ bun run auth:create-account you@example.com "Your name"
 
 Then sign in at <http://localhost:5173>.
 
+To run formatting, linting, and type checks before every commit, enable the bundled hook once:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 The database starts empty. The scheduler fills the catalogue in the background; a running
 web app does not mean the initial catalogue sync has finished.
 
@@ -152,3 +158,8 @@ Sora makes no anime data and hosts no video.
 - [TMDB](https://www.themoviedb.org) for episode details, backdrops, and logos. This product uses
   the TMDB API but is not endorsed or certified by TMDB.
 - [AnimeSchedule.net](https://animeschedule.net) for English dub release times.
+
+## License
+
+Sora is licensed under the [GNU Affero General Public License v3.0](LICENSE). The patched
+`braces` copy in `vendor/` keeps its own MIT license.
