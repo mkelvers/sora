@@ -36,11 +36,11 @@ export interface RoleRelation {
 export type FranchiseRole = "season" | "extra" | "spin_off" | "recap" | "alternative" | "noise";
 
 /** Total runtime, in minutes, under which an unconnected title is a clip. */
-export const minimumRuntimeMinutes = 5;
+const minimumRuntimeMinutes = 5;
 
 /** Anything but a direct sequel or prequel needs one of these to count as worth watching. */
-export const worthwhileScore = 60;
-export const worthwhilePopularity = 2000;
+const worthwhileScore = 60;
+const worthwhilePopularity = 2000;
 
 const continuationRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
 const sideStoryRelations = new Set<MediaRelation>(["SIDE_STORY", "PARENT"]);
