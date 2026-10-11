@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
 import {
@@ -96,6 +96,28 @@ export interface EpisodeListingRow {
 export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, (${seriesEpisode.airDate} || 'T00:00:00Z')::timestamptz)`;
 
 /**
+ * Whether an episode came out from `since` to `until`, in a query.
+ *
+ * Narrows by `aired_at` and `air_date` first, which their indexes answer, and
+ * then applies {@link episodeReleasedAt} exactly: asking for the latter alone
+ * computes it for every episode stored.
+ */
+export function releasedBetween(since: Date, until: Date) {
+	return and(
+		or(
+			and(gte(seriesEpisode.airedAt, since), lte(seriesEpisode.airedAt, until)),
+			and(
+				isNull(seriesEpisode.airedAt),
+				gte(seriesEpisode.airDate, since.toISOString().slice(0, 10)),
+				lte(seriesEpisode.airDate, until.toISOString().slice(0, 10)),
+			),
+		),
+		gte(episodeReleasedAt, since),
+		lte(episodeReleasedAt, until),
+	);
+}
+
+/**
  * When an episode came out, as {@link episodeReleasedAt} says, or `null`
  * when it has neither an airing time nor an air date.
  */
@@ -138,8 +160,7 @@ export interface AniKotoEpisodes {
  * its stored episode lists, without asking AniKoto.
  */
 export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promise<AniKotoEpisodes> {
-	const storedUnits = await getStoredUnits(anilistIds);
-	const stored = storedUnits.filter((entry) => entry.provider === aniKoto.id);
+	const stored = await getStoredUnits(anilistIds, aniKoto.id);
 	return {
 		carried: new Set(
 			stored.flatMap((entry) =>
@@ -155,9 +176,8 @@ export async function loadAniKotoEpisodes(anilistIds: readonly number[]): Promis
  * episodes. Matching and stored layouts use this before AniList's broadcast count.
  */
 export async function getAniKotoEpisodeCount(anilistId: number): Promise<number | null> {
-	const stored = await getStoredUnits([anilistId]);
+	const stored = await getStoredUnits([anilistId], aniKoto.id);
 	const numbers = stored
-		.filter((entry) => entry.provider === aniKoto.id)
 		.flatMap((entry) => entry.units.map((unit) => unit.number))
 		.filter((number) => Number.isInteger(number) && number > 0);
 	return numbers.length > 0 ? Math.max(...numbers) : null;

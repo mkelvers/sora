@@ -1,0 +1,2 @@
+CREATE INDEX "series_episode_aired_at_idx" ON "series_episode" USING btree ("aired_at");--> statement-breakpoint
+CREATE INDEX "series_episode_undated_air_date_idx" ON "series_episode" USING btree ("air_date") WHERE "series_episode"."aired_at" is null;

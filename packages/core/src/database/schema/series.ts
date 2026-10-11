@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
 	doublePrecision,
 	index,
@@ -167,6 +168,10 @@ export const seriesEpisode = pgTable(
 		primaryKey({
 			columns: [table.seriesId, table.number],
 		}),
+		index("series_episode_aired_at_idx").on(table.airedAt),
+		index("series_episode_undated_air_date_idx")
+			.on(table.airDate)
+			.where(sql`${table.airedAt} is null`),
 	],
 );
 

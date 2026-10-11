@@ -37,12 +37,12 @@ import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
-	episodeReleasedAt,
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeShown,
 	loadAniKotoEpisodes,
 	releasedAtOf,
+	releasedBetween,
 } from "./episodes";
 import { franchiseParts } from "./franchise";
 import { franchiseRoles } from "./roles";
@@ -562,23 +562,26 @@ async function listedEpisodes(seriesId: string) {
 
 /** {@link listedEpisodes} of several series at once, keyed by series ID. */
 export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
-	const rows = await db
-		.select()
-		.from(seriesEpisode)
-		.where(
-			inArray(
-				seriesEpisode.seriesId,
-				titles.map((title) => title.id),
-			),
-		)
-		.orderBy(asc(seriesEpisode.number));
-	const onAniKoto = await loadAniKotoEpisodes(titles.map((title) => title.anilistId));
+	const [rows, onAniKoto] = await Promise.all([
+		db
+			.select()
+			.from(seriesEpisode)
+			.where(
+				inArray(
+					seriesEpisode.seriesId,
+					titles.map((title) => title.id),
+				),
+			)
+			.orderBy(asc(seriesEpisode.number)),
+		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+	]);
 
 	const now = new Date();
+	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
 	return new Map(
 		titles.map((title) => [
 			title.id,
-			rows.filter((row) => row.seriesId === title.id && isEpisodeShown(title, row, onAniKoto, now)),
+			(bySeries.get(title.id) ?? []).filter((row) => isEpisodeShown(title, row, onAniKoto, now)),
 		]),
 	);
 }
@@ -871,12 +874,6 @@ export async function getLatestReleases(
 
 	const { format, audio, page, perPage } = parsed.data;
 	const since = new Date(now.getTime() - releaseWindowMs);
-	const candidates = await db
-		.selectDistinct({
-			seriesId: seriesEpisode.seriesId,
-		})
-		.from(seriesEpisode)
-		.where(and(gte(episodeReleasedAt, since), lte(episodeReleasedAt, now)));
 	const rows = await db
 		.select()
 		.from(series)
@@ -885,7 +882,12 @@ export async function getLatestReleases(
 				catalogSeriesAllowed,
 				inArray(
 					series.id,
-					candidates.map((candidate) => candidate.seriesId),
+					db
+						.selectDistinct({
+							seriesId: seriesEpisode.seriesId,
+						})
+						.from(seriesEpisode)
+						.where(releasedBetween(since, now)),
 				),
 			),
 		);
