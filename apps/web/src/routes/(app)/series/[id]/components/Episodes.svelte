@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	export const pageSize = 24;
+	const tail = 12;
 </script>
 
 <script lang="ts">
@@ -23,13 +24,15 @@
 
 	const chunks = $derived.by(() => {
 		const list: { offset: number; limit: number }[] = [];
-		for (let step = 0; step < steps; step++) {
-			const offset = step * pageSize;
+		let offset = 0;
+		for (let step = 0; step < steps && offset < series.episode_count; step++) {
 			const rest = series.episode_count - offset;
+			const limit = rest - pageSize <= tail ? rest : pageSize;
 			list.push({
 				offset,
-				limit: step === 0 ? pageSize : rest - pageSize < pageSize ? rest : pageSize,
+				limit,
 			});
+			offset += limit;
 		}
 		return list;
 	});
