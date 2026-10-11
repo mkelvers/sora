@@ -37,6 +37,7 @@ import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
+	type EpisodeListingRow,
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeShown,
@@ -576,6 +577,44 @@ export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
 		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
 	]);
 
+	return keepListed(titles, rows, onAniKoto);
+}
+
+/**
+ * {@link listedEpisodesOf} with only what telling whether and when an episode
+ * came out takes, for callers that count episodes or look at their dates:
+ * titles' titles and overviews are the bulk of a long series' rows.
+ */
+export async function listedEpisodeDatesOf(titles: readonly SeriesRow[]) {
+	const [rows, onAniKoto] = await Promise.all([
+		db
+			.select({
+				seriesId: seriesEpisode.seriesId,
+				number: seriesEpisode.number,
+				airDate: seriesEpisode.airDate,
+				airedAt: seriesEpisode.airedAt,
+				tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+			})
+			.from(seriesEpisode)
+			.where(
+				inArray(
+					seriesEpisode.seriesId,
+					titles.map((title) => title.id),
+				),
+			)
+			.orderBy(asc(seriesEpisode.number)),
+		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+	]);
+
+	return keepListed(titles, rows, onAniKoto);
+}
+
+/** The rows each title lists (see {@link isEpisodeShown}), grouped by series ID. */
+function keepListed<TRow extends EpisodeListingRow & { seriesId: string }>(
+	titles: readonly SeriesRow[],
+	rows: readonly TRow[],
+	onAniKoto: Awaited<ReturnType<typeof loadAniKotoEpisodes>>,
+) {
 	const now = new Date();
 	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
 	return new Map(
@@ -891,7 +930,7 @@ export async function getLatestReleases(
 				),
 			),
 		);
-	const listed = await listedEpisodesOf(rows);
+	const listed = await listedEpisodeDatesOf(rows);
 
 	const latest = rows.flatMap((row) => {
 		let found:
@@ -1021,13 +1060,13 @@ export async function toSeriesCards(
 	rows: readonly SeriesRow[],
 	includeHiddenIds: readonly string[] = [],
 ): Promise<Map<string, SeriesCard>> {
-	return cardsFrom(rows, await listedEpisodesOf(rows), includeHiddenIds);
+	return cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
 }
 
 /** {@link toSeriesCards} with the rows' episodes already listed. */
 async function cardsFrom(
 	rows: readonly SeriesRow[],
-	listed: Awaited<ReturnType<typeof listedEpisodesOf>>,
+	listed: Awaited<ReturnType<typeof listedEpisodeDatesOf>>,
 	includeHiddenIds: readonly string[] = [],
 ): Promise<Map<string, SeriesCard>> {
 	const anilistIds = rows.map((row) => row.anilistId);

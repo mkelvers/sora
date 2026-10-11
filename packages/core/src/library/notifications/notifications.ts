@@ -15,7 +15,7 @@ import {
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt } from "../../series/episodes";
-import { listedEpisodesOf, toSeriesCards } from "../../series/queries";
+import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
 import { day } from "../../time";
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
@@ -353,7 +353,7 @@ export async function getNotifications(
 	// Check availability only for titles with recent news. A large library can
 	// otherwise load tens of thousands of old episodes for an unread badge.
 	const releasedIds = new Set(releases.map((row) => row.seriesId));
-	const listed = await listedEpisodesOf(rows.filter((row) => releasedIds.has(row.id)));
+	const listed = await listedEpisodeDatesOf(rows.filter((row) => releasedIds.has(row.id)));
 	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
 	const episodes = releases
 		.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
