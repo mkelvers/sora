@@ -14,7 +14,8 @@
 	} from "./notifications.remote";
 
 	const notifications = getNotifications();
-	const items = $derived(notifications.current?.items);
+	const loaded = $derived(await notifications);
+	const items = $derived(loaded.items);
 	const unread = $derived(items?.filter((item) => item.unread) ?? []);
 	const read = $derived(items?.filter((item) => !item.unread) ?? []);
 
@@ -35,10 +36,7 @@
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
 
 	$effect(() => {
-		const count = notifications.current?.unread;
-		if (count !== undefined) {
-			getUnreadNotifications().set(count);
-		}
+		getUnreadNotifications().set(loaded.unread);
 	});
 </script>
 
