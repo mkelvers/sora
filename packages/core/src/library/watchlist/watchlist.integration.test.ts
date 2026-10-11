@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
 import { anime, series, seriesEpisode, seriesState } from "../../database/schema";
@@ -80,6 +80,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 		try {
 			await db.delete(series).where(eq(series.id, id));
 			await db.delete(anime).where(eq(anime.anilistId, anilistId));
+			await db.execute(sql`select graphile_worker.remove_job(${`episodes:${anilistId}`})`);
 		} finally {
 			await closeDatabase();
 		}
