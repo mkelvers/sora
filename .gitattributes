@@ -2,3 +2,8 @@
 
 bun.lock linguist-generated
 packages/core/drizzle/meta/*_snapshot.json linguist-generated
+packages/core/drizzle/*.sql linguist-generated
+Dockerfile linguist-vendored
+.githooks/* linguist-vendored
+apps/web/src/app.html linguist-vendored
+apps/web/src/routes/layout.css linguist-vendored
