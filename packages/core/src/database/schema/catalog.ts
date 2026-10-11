@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 
 import type {
@@ -59,10 +60,17 @@ export const anime = pgTable(
 		media: jsonb("media").$type<AnimeDetailsFragment>().notNull(),
 		/** Copied from `media` so the scheduler can find anime that are still airing. */
 		status: text("status").$type<MediaStatus>(),
+		/** Generated from `media`, so catalogue visibility never has to read the JSON. */
+		format: text("format").generatedAlwaysAs(sql`media->>'format'`),
 		savedAt: timestamptz("saved_at").notNull().defaultNow(),
 		refreshedAt: timestamptz("refreshed_at").notNull(),
 	},
-	(table) => [index("anime_status_idx").on(table.status)],
+	(table) => [
+		index("anime_status_idx").on(table.status),
+		index("anime_excluded_format_idx")
+			.on(table.anilistId)
+			.where(sql`${table.format} in ('TV_SHORT')`),
+	],
 );
 
 /**

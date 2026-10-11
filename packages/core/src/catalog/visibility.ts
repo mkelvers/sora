@@ -19,9 +19,16 @@ export function catalogFormatAllowed(format: SQLWrapper) {
 	)}))`;
 }
 
-/** Uses stored metadata, including for titles not yet mirrored in the search index. */
+/**
+ * Uses stored metadata, including for titles not yet mirrored in the search index.
+ * Matches `anime_excluded_format_idx`, so it never reads the stored JSON; keep the
+ * two lists of formats in step.
+ */
 export const catalogSeriesAllowed = sql`not exists (
 	select 1 from ${anime}
 	where ${anime.anilistId} = ${series.anilistId}
-	and not (${catalogFormatAllowed(sql`${anime.media}->>'format'`)})
+	and ${anime.format} in (${sql.join(
+		excludedFormats.map((format) => sql`${format}`),
+		sql`, `,
+	)})
 )`;

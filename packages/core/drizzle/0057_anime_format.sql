@@ -1,0 +1,2 @@
+ALTER TABLE "anime" ADD COLUMN "format" text GENERATED ALWAYS AS (media->>'format') STORED;--> statement-breakpoint
+CREATE INDEX "anime_excluded_format_idx" ON "anime" USING btree ("anilist_id") WHERE "anime"."format" in ('TV_SHORT');
