@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+bun.lock linguist-generated
+packages/core/drizzle/meta/*_snapshot.json linguist-generated
