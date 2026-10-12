@@ -46,9 +46,11 @@ import {
 	setSeriesArtwork,
 } from "@sora/core/series";
 import { attempt } from "@sora/shared";
+import type { Context } from "hono";
 import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 
+import { addressOf, clientAddress } from "./client-address";
 import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
 import { offsetLinks, pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
@@ -69,22 +71,32 @@ const v1 = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 });
 
+v1.use("/auth/*", clientAddress);
+
 // Wrong passwords are limited per e-mail address as well as per client
 // address (Better Auth does that one), so guessing at one account does not
-// get easier by changing address.
+// get easier by changing address. The limit for one address and e-mail stops
+// one client from guessing, and cannot shut the owner out from another
+// address. The one for the e-mail alone only bounds guessing from many
+// addresses at once, which is also the only way to keep it full.
+const signInEmail = async (c: Context<V1Env>) => {
+	const { data } = await attempt(
+		c.req.raw.clone().json() as Promise<{ email?: unknown }>,
+		SyntaxError,
+	);
+	return typeof data?.email === "string" ? data.email.trim().toLowerCase().slice(0, 254) : "";
+};
 v1.use(
 	"/auth/sign-in/email",
 	rateLimit({
 		limit: 10,
 		windowMs: 60_000,
-		key: async (c) => {
-			const { data } = await attempt(
-				c.req.raw.clone().json() as Promise<{ email?: unknown }>,
-				SyntaxError,
-			);
-			const email = typeof data?.email === "string" ? data.email.trim().toLowerCase() : "";
-			return `sign-in:${email}`;
-		},
+		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInEmail(c)}`,
+	}),
+	rateLimit({
+		limit: 60,
+		windowMs: 60_000,
+		key: async (c) => `sign-in:${await signInEmail(c)}`,
 	}),
 );
 
@@ -105,9 +117,9 @@ const signedIn = createMiddleware<V1Env>(async (c, next) => {
 	await next();
 });
 
-// Everything but sign-in and the stream proxy (whose tokens are the
-// credential) needs an account, the contract included, so nobody anonymous can make the
-// server look anything up, and each account is held to a generous ceiling.
+// Everything but sign-in needs an account, the contract and the stream proxy
+// included, so nobody anonymous can make the server look anything up, and each
+// account is held to a generous ceiling.
 v1.use(
 	except(["/v1/auth/*"], signedIn, async (c, next) => {
 		await next();

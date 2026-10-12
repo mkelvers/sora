@@ -1,3 +1,4 @@
+import { env } from "$env/dynamic/private";
 import { sora } from "$lib/server/sora";
 import { SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
@@ -47,6 +48,7 @@ export const actions: Actions = {
 			sora.signIn(credentials.data, {
 				headers: {
 					"X-Forwarded-For": getClientAddress(),
+					"X-Sora-Client-Key": env.WEB_CLIENT_KEY!,
 				},
 			}),
 			SoraError,
