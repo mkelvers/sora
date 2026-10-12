@@ -2,6 +2,7 @@ import type { BaseProvider, IContentUnit, IMediaMetadata, MappingClient } from "
 
 import type { Anime } from "../../catalog/models/anime";
 import type { ContentLanguage } from "../../models/series";
+import { bestSimilarity } from "../../series/matching";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
 
 /** What a provider serves, which `anime-sdk` does not describe. */
@@ -33,16 +34,32 @@ export class SdkStreamProvider implements StreamProvider {
 		this.listsLanguages = traits.listsLanguages;
 	}
 
+	/**
+	 * Matches the anime through `anime-sdk`, which tries IDs first and then
+	 * searches by title. A title search takes a title that merely resembles the
+	 * anime, such as an earlier season, so it is kept only when {@link acceptsTitleMatch}
+	 * agrees; other providers' lists are numbered by episode, so a wrong
+	 * season would play the wrong episodes.
+	 */
 	async findMedia(anime: Anime): Promise<ProviderMatch | null> {
 		const resolution = await this.mapping.resolveProviderMediaId(toSdkMetadata(anime), this.sdk);
-		return (
-			resolution && {
-				mediaId: resolution.rawMediaId,
-				matchedTitle: resolution.matchedTitle,
-				method: resolution.method,
-				episodeOffset: 0,
+		if (!resolution) {
+			return null;
+		}
+
+		if (resolution.method === "fuzzy") {
+			const units = await this.sdk.fetchContentUnits(`${this.id}:${resolution.rawMediaId}`);
+			if (!acceptsTitleMatch(anime, resolution.matchedTitle, units.length)) {
+				return null;
 			}
-		);
+		}
+
+		return {
+			mediaId: resolution.rawMediaId,
+			matchedTitle: resolution.matchedTitle,
+			method: resolution.method,
+			episodeOffset: 0,
+		};
 	}
 
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
@@ -136,4 +153,51 @@ function toSdkMetadata(anime: Anime): IMediaMetadata {
 			mal: anime.malId ?? undefined,
 		},
 	};
+}
+
+/** The least a provider's title may resemble the anime's for a title match. */
+const minimumTitleSimilarity = 0.78;
+
+/** The statuses of an anime whose episodes may not all exist. */
+const incompleteStatuses: ReadonlySet<Anime["status"]> = new Set([
+	"RELEASING",
+	"NOT_YET_RELEASED",
+	"HIATUS",
+	"CANCELLED",
+]);
+
+/** How many episodes a provider's list may differ from the anime's count. */
+const episodeCountTolerance = 3;
+
+/**
+ * Whether a series found by searching titles is the anime.
+ *
+ * The title must be about as alike as `anime-sdk` asks and number the same
+ * instalment ("Season 2" never matches "Season 3"). When AniList knows how
+ * many episodes the anime has, the provider's list must fit it: an anime
+ * that is airing, paused or cancelled may have fewer, a finished one must
+ * have about as many.
+ */
+export function acceptsTitleMatch(anime: Anime, matchedTitle: string, providerEpisodes: number) {
+	const titles = [
+		anime.title.english,
+		anime.title.romaji,
+		anime.title.native,
+		...anime.synonyms,
+	].flatMap((title) => (title ? [title] : []));
+	if (
+		bestSimilarity(titles, [matchedTitle], {
+			sameNumbers: true,
+		}) < minimumTitleSimilarity
+	) {
+		return false;
+	}
+
+	if (anime.episodes === null) {
+		return true;
+	}
+
+	return incompleteStatuses.has(anime.status)
+		? providerEpisodes <= anime.episodes + episodeCountTolerance
+		: Math.abs(providerEpisodes - anime.episodes) <= episodeCountTolerance;
 }

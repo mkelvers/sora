@@ -21,9 +21,9 @@ import { createProfile } from "./profiles";
  *
  * Sign-in is limited to a few tries a minute per client address, in
  * development too. The web server is the client of its visitors, so it
- * passes theirs in `X-Forwarded-For`, which is trusted: keep the API
- * reachable only through it (see `HOST`), or visitors can pick their own
- * address.
+ * passes theirs in `X-Forwarded-For`. The API believes that header only from
+ * a request that carries the web client key (see `clientAddress` in the API);
+ * for any other it counts the address the request connected from.
  */
 export const auth = betterAuth({
 	baseURL: config.authUrl,

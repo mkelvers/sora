@@ -17,6 +17,12 @@ const segmentsAhead = 32;
 /** Segments kept in memory, oldest dropped first. */
 const cacheBudgetBytes = 256 * 1_024 * 1_024;
 
+/**
+ * What a segment still being fetched ahead counts for against the budget, since
+ * its size is not known until it arrives.
+ */
+const expectedSegmentBytes = 8 * 1_024 * 1_024;
+
 /** Playlists whose segment order is remembered, oldest dropped first. */
 const rememberedSegments = 20_000;
 
@@ -35,6 +41,7 @@ const positions = new Map<string, Position>();
 const segments = new Map<string, Promise<Segment>>();
 const sizes = new Map<string, number>();
 let cachedBytes = 0;
+let fetchingAhead = 0;
 
 /**
  * Remembers the order of a media playlist's segments, so that serving one
@@ -87,11 +94,21 @@ function fetchAhead(target: StreamTarget) {
 }
 
 /**
- * Loads a segment before the player asks for it. An upstream failure is left
- * for the player's own request, which tries again.
+ * Loads a segment before the player asks for it, unless it is already loading
+ * or the budget has no room for another. An upstream failure is left for the
+ * player's own request, which tries again.
  */
 async function loadAhead(target: StreamTarget) {
+	if (
+		segments.has(target.url) ||
+		cachedBytes + fetchingAhead * expectedSegmentBytes > cacheBudgetBytes
+	) {
+		return;
+	}
+
+	fetchingAhead += 1;
 	const { error } = await attempt(load(target));
+	fetchingAhead -= 1;
 	if (error && !(error instanceof StreamUpstreamError)) {
 		console.error(`Fetching ${target.url} ahead failed: ${error.message}`);
 	}

@@ -5,6 +5,7 @@ import { recordingCalls } from "./calls";
 import { MegaPlayStreamProvider } from "./megaplay";
 import type { StreamProvider } from "./provider";
 import { SdkStreamProvider } from "./sdk";
+import { providerTransport } from "./transport";
 
 /**
  * Shared HTTP client for every scraper, so per-host rate limits and retries
@@ -12,6 +13,7 @@ import { SdkStreamProvider } from "./sdk";
  */
 export const providerHttp = new HttpClient({
 	timeoutMs: 20_000,
+	transport: providerTransport,
 	rateLimits: {
 		// AniKoto's API allows 60 requests a minute per IP.
 		"anikotoapi.site": {

@@ -23,6 +23,19 @@ const hedgeDelayMs = 1.5 * second;
 const segmentHedgeMs = 12 * second;
 const maximumRedirects = 5;
 
+/**
+ * The most a body read in full may hold, by what it is. A host that sends
+ * more is not serving that, and reading on would fill memory until the
+ * timeout. A file is streamed, never read in full, so it has no limit.
+ */
+const maximumBodyBytes: Record<StreamTargetKind, number> = {
+	playlist: 4 * 1_024 * 1_024,
+	segment: 32 * 1_024 * 1_024,
+	subtitle: 4 * 1_024 * 1_024,
+	key: 64 * 1_024,
+	file: Number.POSITIVE_INFINITY,
+};
+
 /** The proxied upstream could not be fetched. Retryable. */
 export class StreamUpstreamError extends CoreError {
 	readonly status: number | null;
@@ -189,13 +202,16 @@ async function readCandidate(
 	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
 	answered();
 
-	const body = await attempt(upstream.response.arrayBuffer());
+	const body = await attempt(readBounded(upstream.response, maximumBodyBytes[kind]));
 	if (body.error) {
+		if (body.error instanceof StreamUpstreamError) {
+			throw body.error;
+		}
 		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
 			cause: body.error,
 		});
 	}
-	const bytes = new Uint8Array(body.data);
+	const bytes = body.data;
 
 	// Stalling hosts sometimes close the connection instead, which reads as an empty body.
 	if (bytes.byteLength === 0) {
@@ -215,6 +231,43 @@ async function readCandidate(
 		headers: upstream.response.headers,
 		url: upstream.url,
 	};
+}
+
+/**
+ * Reads a response's whole body, giving up as soon as it passes `maximumBytes`.
+ *
+ * @throws {@link StreamUpstreamError} when the body is larger than `maximumBytes`.
+ */
+export async function readBounded(response: Response, maximumBytes: number) {
+	if (Number(response.headers.get("Content-Length")) > maximumBytes) {
+		await response.body?.cancel();
+		throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
+	}
+
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	const reader = response.body?.getReader();
+	while (reader) {
+		const chunk = await reader.read();
+		if (chunk.done) {
+			break;
+		}
+
+		total += chunk.value.byteLength;
+		if (total > maximumBytes) {
+			await reader.cancel();
+			throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
+		}
+		chunks.push(chunk.value);
+	}
+
+	const bytes = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return bytes;
 }
 
 /**

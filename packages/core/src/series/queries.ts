@@ -220,8 +220,9 @@ export async function getAdjacentEpisodes(
 	previous: number | null;
 	next: number | null;
 }> {
-	const listed = await listedEpisodes(seriesId);
-	const numbers = listed.map((row) => row.number);
+	const row = await loadSeries(seriesId);
+	const listed = (await listedEpisodeDatesOf([row])).get(row.id) ?? [];
+	const numbers = listed.map((episode) => episode.number);
 
 	return {
 		previous: numbers.findLast((number) => number < episode) ?? null,
@@ -281,7 +282,7 @@ export async function getSeriesEpisodePage(
 
 async function describeEpisodes(
 	row: SeriesRow,
-	episodes: Awaited<ReturnType<typeof listedEpisodes>>,
+	episodes: (typeof seriesEpisode.$inferSelect)[],
 ): Promise<Episode[]> {
 	const first = episodes.at(0);
 	const last = episodes.at(-1);
@@ -553,15 +554,7 @@ async function loadSeries(seriesId: string) {
 	return row;
 }
 
-/** A series' stored episodes that it lists (see {@link isEpisodeShown}), in order. */
-async function listedEpisodes(seriesId: string) {
-	const row = await loadSeries(seriesId);
-	const listed = await listedEpisodesOf([row]);
-
-	return listed.get(row.id) ?? [];
-}
-
-/** {@link listedEpisodes} of several series at once, keyed by series ID. */
+/** The episodes each title lists, of several series at once, keyed by series ID. */
 export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
 	const [rows, onAniKoto] = await Promise.all([
 		db

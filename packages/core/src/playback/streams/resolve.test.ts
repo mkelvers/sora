@@ -787,3 +787,48 @@ describe("resolvePlayback", () => {
 		await expect(resolvePlayback(request, options)).rejects.toBeInstanceOf(EpisodeNotFoundError);
 	});
 });
+
+describe("resolvePlayback deadline", () => {
+	test("serves the versions that answered and gives up on the one that hangs", async () => {
+		useProviders([
+			{
+				id: "anikoto",
+				locale: "en",
+				languages: ["sub"],
+				delayMs: 0,
+			},
+			{
+				id: "slow",
+				locale: "en",
+				languages: ["dub"],
+				delayMs: 400,
+			},
+		]);
+		offered = [sub(), dub()];
+
+		const playback = await resolvePlayback(request, {
+			...options,
+			deadlineMs: 100,
+		});
+		expect(playback.media.map((version) => version.audio)).toEqual(["sub"]);
+	});
+
+	test("says playback is unavailable, not that the episode is missing, when nothing answers", async () => {
+		useProviders([
+			{
+				id: "slow",
+				locale: "en",
+				languages: ["sub", "dub"],
+				delayMs: 400,
+			},
+		]);
+		offered = [sub(), dub()];
+
+		const failure = await resolvePlayback(request, {
+			...options,
+			deadlineMs: 100,
+		}).catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(PlaybackUnavailableError);
+		expect((failure as PlaybackUnavailableError).attempts[0]?.reason).toContain("no answer within");
+	});
+});

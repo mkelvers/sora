@@ -11,6 +11,7 @@ import {
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import { locateEpisode } from "../../series/episodes";
+import { second } from "../../time";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
@@ -52,6 +53,29 @@ export interface PlaybackOptions {
 	streamBaseUrl: string;
 	/** The account the playback is for; its tokens work for nobody else. */
 	accountId: string;
+	/**
+	 * How long each version may take to resolve before it is left out, in
+	 * milliseconds. {@link playbackDeadlineMs} when left out.
+	 */
+	deadlineMs?: number;
+}
+
+/**
+ * How long a version may take to resolve. Providers that hang cost their own
+ * timeouts one after another, so without a limit a dead provider chain holds
+ * playback for minutes; past this a version is given up on, and the others
+ * are still served.
+ */
+export const playbackDeadlineMs = 30 * second;
+
+/** What {@link resolveVersion} found for one version. */
+interface VersionResult {
+	version: PlaybackMedia | null;
+	/** The upstream videos behind `version`. */
+	videos?: ProviderVideo[];
+	/** Whether a provider serving the locale lists the episode. */
+	listed: boolean;
+	attempts: ProviderAttempt[];
 }
 
 /**
@@ -140,7 +164,11 @@ export async function resolvePlayback(
 	);
 	const results = await Promise.all(
 		[...alwaysTried, ...served].map((version) =>
-			resolveVersion(version, located.number, unitsOf, streamUrl, options.accountId),
+			beforeDeadline(
+				resolveVersion(version, located.number, unitsOf, streamUrl, options.accountId),
+				version,
+				options.deadlineMs ?? playbackDeadlineMs,
+			),
 		),
 	);
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
@@ -194,14 +222,7 @@ async function resolveVersion(
 	unitsOf: (provider: StreamProvider) => Promise<ProviderUnit[]>,
 	streamUrl: (token: string) => string,
 	accountId: string,
-): Promise<{
-	version: PlaybackMedia | null;
-	/** The upstream videos behind `version`. */
-	videos?: ProviderVideo[];
-	/** Whether a provider serving the locale lists the episode. */
-	listed: boolean;
-	attempts: ProviderAttempt[];
-}> {
+): Promise<VersionResult> {
 	const attempts: ProviderAttempt[] = [];
 	const fail = (provider: StreamProvider, reason: string) =>
 		attempts.push({
@@ -330,6 +351,41 @@ async function resolveVersion(
 		listed,
 		attempts,
 	};
+}
+
+/**
+ * `resolving`, or an empty result once `deadlineMs` passes. What is still
+ * running then is left to finish unused. A version given up on counts as
+ * listed, so the failure is "unavailable, try again" rather than "no such
+ * episode".
+ */
+async function beforeDeadline(
+	resolving: Promise<VersionResult>,
+	{ language, locale }: EpisodeVersion,
+	deadlineMs: number,
+) {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const gaveUp = new Promise<VersionResult>((resolve) => {
+		timer = setTimeout(
+			() =>
+				resolve({
+					version: null,
+					listed: true,
+					attempts: [
+						{
+							provider: "all",
+							reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
+						},
+					],
+				}),
+			deadlineMs,
+		);
+	});
+	try {
+		return await Promise.race([resolving, gaveUp]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 /**
