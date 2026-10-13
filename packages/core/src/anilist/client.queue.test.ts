@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import { aniListPriority, createAniListClient, viewerWaitingPriority } from "./client";
-import type { TypedDocumentString } from "./graphql.generated";
+import { TypedDocumentString } from "./graphql.generated";
 
 /** The `id` variable of each request AniList received, in the order they were sent. */
 const sent: number[] = [];
@@ -41,13 +41,9 @@ const { anilist } = createAniListClient({
 	},
 });
 
-const document =
-	"query Media($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<
-		unknown,
-		{
-			id: number;
-		}
-	>;
+const document = new TypedDocumentString<unknown, { id: number }>(
+	"query Media($id: Int!) { Media(id: $id) { id } }",
+);
 const fetchMedia = (id: number) =>
 	anilist(
 		document,

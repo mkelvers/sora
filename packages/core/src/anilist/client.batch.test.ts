@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 
 import { aniListPriority, createAniListClient } from "./client";
-import type { TypedDocumentString } from "./graphql.generated";
+import { TypedDocumentString } from "./graphql.generated";
 
 type Pages = Record<string, number[] | number | boolean>;
 
@@ -108,11 +108,9 @@ type Result = Record<
 	| undefined
 >;
 
-const document =
-	"query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }" as unknown as TypedDocumentString<
-		Result,
-		Pages
-	>;
+const document = new TypedDocumentString<Result, Pages>(
+	"query Media($ids0: [Int!]!) { page0: Page { media(id_in: $ids0) { id } } }",
+);
 
 /** A loader of `pages` pages, its variables named as the operations name theirs. */
 function loader(pages: number) {
@@ -192,13 +190,9 @@ test("splits a request over pages of 50, and fills a request before starting ano
 
 test("sends a batch a viewer joins ahead of background work queued before it", async () => {
 	const load = loader(1);
-	const other =
-		"query Other($id: Int!) { Media(id: $id) { id } }" as unknown as TypedDocumentString<
-			unknown,
-			{
-				id: number;
-			}
-		>;
+	const other = new TypedDocumentString<unknown, { id: number }>(
+		"query Other($id: Int!) { Media(id: $id) { id } }",
+	);
 
 	await aniListPriority.run(background, () => load([20]));
 	const queuedBefore = aniListPriority.run(background, () =>
