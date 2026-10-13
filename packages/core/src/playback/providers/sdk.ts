@@ -158,15 +158,7 @@ function toSdkMetadata(anime: Anime): IMediaMetadata {
 /** The least a provider's title may resemble the anime's for a title match. */
 const minimumTitleSimilarity = 0.78;
 
-/** The statuses of an anime whose episodes may not all exist. */
-const incompleteStatuses: ReadonlySet<Anime["status"]> = new Set([
-	"RELEASING",
-	"NOT_YET_RELEASED",
-	"HIATUS",
-	"CANCELLED",
-]);
-
-/** How many episodes a provider's list may differ from the anime's count. */
+/** How many episodes more than the anime's count a provider's list may have. */
 const episodeCountTolerance = 3;
 
 /**
@@ -174,9 +166,11 @@ const episodeCountTolerance = 3;
  *
  * The title must be about as alike as `anime-sdk` asks and number the same
  * instalment ("Season 2" never matches "Season 3"). When AniList knows how
- * many episodes the anime has, the provider's list must fit it: an anime
- * that is airing, paused or cancelled may have fewer, a finished one must
- * have about as many.
+ * many episodes the anime has, the provider's list may not run past them: a
+ * longer list is a whole series holding the anime's special, film or one
+ * season among others, and playing it would number the episodes wrong. A
+ * shorter list, or none, is kept; the title is right and the provider is only
+ * missing episodes.
  */
 export function acceptsTitleMatch(anime: Anime, matchedTitle: string, providerEpisodes: number) {
 	const titles = [
@@ -197,7 +191,5 @@ export function acceptsTitleMatch(anime: Anime, matchedTitle: string, providerEp
 		return true;
 	}
 
-	return incompleteStatuses.has(anime.status)
-		? providerEpisodes <= anime.episodes + episodeCountTolerance
-		: Math.abs(providerEpisodes - anime.episodes) <= episodeCountTolerance;
+	return providerEpisodes <= anime.episodes + episodeCountTolerance;
 }
