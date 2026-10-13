@@ -1,53 +1,66 @@
 import { shiftTime, type TimelineShift } from "../streams/align";
+import type { CueAnchor } from "../subtitles/refine";
+import { readTiming, splitBlocks, writeTiming } from "../subtitles/vtt";
 
-const timing = /^(\S+)\s+-->\s+(\S+)(.*)$/m;
+/** How much of a cue an anchor's cue must overlap for them to be the same line. */
+const sameCueOverlap = 0.6;
 
 /**
  * Moves every cue of a WebVTT file onto another encode's timeline, such as a
- * sub's subtitles onto its dub. A cue keeps its length and moves by the
- * shift at its start; one that would start before the video is dropped.
+ * sub's subtitles onto its dub.
+ *
+ * A cue with an anchor, which is a cue of the sub's English dialogue that
+ * was matched to what the dub says, goes where the anchor puts it. That
+ * covers the same cue in other languages, which providers time alike. Any
+ * other cue keeps its length and moves by the shift at its start, and is
+ * dropped when that would put it before the video.
  */
-export function retimeWebVtt(content: string, shifts: TimelineShift[]) {
-	return content
-		.split(/\r?\n\r?\n/)
+export function retimeWebVtt(content: string, shifts: TimelineShift[], anchors: CueAnchor[] = []) {
+	return splitBlocks(content)
 		.flatMap((block) => {
-			const match = timing.exec(block);
-			const start = match && parseTimestamp(match[1]!);
-			const end = match && parseTimestamp(match[2]!);
-			if (!match || start === null || end === null) {
+			const cue = readTiming(block);
+			if (!cue) {
 				return [block];
 			}
 
-			const moved = shiftTime(shifts, start);
+			const anchor = anchorFor(anchors, cue.start, cue.end);
+			if (anchor) {
+				return [writeTiming(block, anchor.movedStart, anchor.movedEnd)];
+			}
+
+			const moved = shiftTime(shifts, cue.start);
 			if (moved < 0) {
 				return [];
 			}
 
-			return [
-				block.replace(
-					timing,
-					`${formatTimestamp(moved)} --> ${formatTimestamp(end + moved - start)}${match[3]}`,
-				),
-			];
+			return [writeTiming(block, moved, cue.end + moved - cue.start)];
 		})
 		.join("\n\n");
 }
 
-/** Seconds in a WebVTT timestamp, `hh:mm:ss.ttt` or `mm:ss.ttt`. */
-function parseTimestamp(value: string) {
-	const parts = /^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/.exec(value);
-	if (!parts) {
-		return null;
+/** The anchor, from ascending `anchors`, whose cue is this one. */
+function anchorFor(anchors: CueAnchor[], start: number, end: number) {
+	let low = 0;
+	let high = anchors.length;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (anchors[middle]!.start < start) {
+			low = middle + 1;
+		} else {
+			high = middle;
+		}
 	}
 
-	const [, hours = "0", minutes, seconds, milliseconds] = parts;
-	return (
-		Number(hours) * 3_600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1_000
-	);
-}
-
-function formatTimestamp(seconds: number) {
-	const milliseconds = Math.round(seconds * 1_000);
-	const pad = (value: number, length = 2) => String(value).padStart(length, "0");
-	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1_000) % 60)}.${pad(milliseconds % 1_000, 3)}`;
+	let best: CueAnchor | null = null;
+	let bestOverlap = sameCueOverlap;
+	for (const anchor of anchors.slice(Math.max(0, low - 2), low + 3)) {
+		const overlap =
+			Math.max(0, Math.min(end, anchor.end) - Math.max(start, anchor.start)) /
+			Math.max(end - start, anchor.end - anchor.start, 0.001);
+		if (overlap >= bestOverlap) {
+			best = anchor;
+			bestOverlap = overlap;
+		}
+	}
+	return best;
 }

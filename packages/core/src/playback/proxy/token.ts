@@ -31,6 +31,8 @@ export interface StreamTarget {
 	expiresAt: number;
 	/** For a subtitle made for another encode, how to move its cues onto this one. */
 	shifts?: TimelineShift[];
+	/** The stored refinement whose anchors move this subtitle's cues to when the dub says them. */
+	refinement?: string;
 }
 
 const StreamTargetSchema = z.object({
@@ -47,6 +49,7 @@ const StreamTargetSchema = z.object({
 	a: z.string().min(1),
 	e: z.number().int().positive(),
 	t: z.array(z.tuple([z.number(), z.number()])).optional(),
+	r: z.string().min(1).optional(),
 });
 
 /**
@@ -71,6 +74,7 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
 				a: target.accountId,
 				e: target.expiresAt,
 				t: target.shifts?.map(({ from, offset }) => [from, offset]),
+				r: target.refinement,
 			}),
 			"utf8",
 		),
@@ -136,6 +140,7 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 			from,
 			offset,
 		})),
+		refinement: parsed.data.r,
 	};
 }
 

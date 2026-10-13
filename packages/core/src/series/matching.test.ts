@@ -705,6 +705,44 @@ describe("placeInShow", () => {
 		expect(franchise?.score).toBeGreaterThan(duplicate?.score ?? 0);
 	});
 
+	test("places a rerun's new episodes when the entry's start date is the rerun's", () => {
+		const episodes = [
+			...weekly(1, "2006-04-03", 14),
+			...weekly(1, "2009-05-22", 14, {
+				first: 15,
+			}),
+		];
+		const rerun = subject({
+			titles: ["The Melancholy of Haruhi Suzumiya (2009)"],
+			startDate: "2009-04-03",
+			endDate: "2009-10-09",
+			episodes: 28,
+			playbackEpisodes: 14,
+		});
+		const candidate = {
+			...show(episodes),
+			show: {
+				id: 1,
+				name: "The Melancholy of Haruhi Suzumiya",
+				originalName: "涼宮ハルヒの憂鬱",
+				episodes,
+			},
+		};
+
+		const placement = placeInShow(rerun, candidate);
+
+		expect(range(placement)?.[0]).toBe("1:S1E15");
+		expect(range(placement)?.at(-1)).toBe("14:S1E28");
+
+		expect(placeInShow({ ...rerun, playbackEpisodes: 13 }, candidate)).toBeNull();
+		expect(
+			placeInShow(rerun, {
+				...candidate,
+				prequel: endingAt(1, 20),
+			}),
+		).toBeNull();
+	});
+
 	test("rejects a show whose episodes air far from the entry's dates", () => {
 		const placement = placeInShow(
 			subject({

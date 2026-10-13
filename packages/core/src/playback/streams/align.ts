@@ -12,7 +12,7 @@ const tolerance = 0.12;
 /** An offset needs this many matching boundaries across the episode to be considered. */
 const minimumVotes = 4;
 /** Matches an offset must win to be worth switching to, so stray matches cannot. */
-const switchPenalty = 6;
+const defaultSwitchPenalty = 6;
 /** The most offsets weighed per boundary; later ones have too few votes to matter. */
 const maximumCandidates = 32;
 /** Below this share of matching boundaries, the encodes are not the same episode. */
@@ -108,10 +108,10 @@ function candidateOffsets(source: number[], target: number[]) {
 }
 
 /**
- * The candidate per boundary that matches most boundaries overall, paying
- * {@link switchPenalty} per change (Viterbi).
+ * The candidate per row that matches most rows overall, paying `switchPenalty`
+ * per change (Viterbi).
  */
-function bestPath(matches: boolean[][]) {
+export function bestPath(matches: boolean[][], switchPenalty = defaultSwitchPenalty) {
 	let scores = matches[0]!.map(Number);
 	const cameFrom: number[][] = [];
 

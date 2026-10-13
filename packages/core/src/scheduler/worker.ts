@@ -31,12 +31,14 @@ import {
 	refreshEpisodeListingsTask,
 	storeSeriesJob,
 } from "./jobs/series";
+import { refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
 import { watchPools } from "./pools";
 import {
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
 	pollAniKotoTask,
+	refineSubtitlesTask,
 	seriesStorePriority,
 	storeSeriesNowTask,
 	storeSeriesTask,
@@ -185,12 +187,35 @@ export async function startScheduler(): Promise<Scheduler> {
 		].join("\n"),
 	});
 
+	// Listening to a dub downloads and transcribes a whole episode, which takes
+	// minutes of one processor, so one runs at a time and nothing else shares
+	// its worker.
+	const listening = await run({
+		events: pools.events,
+		connectionString: config.databaseUrl,
+		concurrency: 1,
+		maxPoolSize: 2,
+		taskList: {
+			[refineSubtitlesTask]: refineSubtitles,
+		},
+	});
+
 	return {
-		promise: Promise.all([main.promise, waitedOn.promise, lookups.promise, releases.promise]).then(
-			() => undefined,
-		),
+		promise: Promise.all([
+			main.promise,
+			waitedOn.promise,
+			lookups.promise,
+			releases.promise,
+			listening.promise,
+		]).then(() => undefined),
 		stop: async () => {
-			await Promise.all([main.stop(), waitedOn.stop(), lookups.stop(), releases.stop()]);
+			await Promise.all([
+				main.stop(),
+				waitedOn.stop(),
+				lookups.stop(),
+				releases.stop(),
+				listening.stop(),
+			]);
 			await pools.stop();
 		},
 	};

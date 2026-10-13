@@ -263,6 +263,7 @@ export function placeInShow(source: MatchSubject, candidate: ShowCandidate): Pla
 		best ??
 		placeCompiledShorts(source, candidate) ??
 		placeByTitle(subject, candidate, nameSimilarity) ??
+		placeRunWithinBroadcast(subject, candidate, nameSimilarity) ??
 		placeDelayedStreamingRun(subject, candidate) ??
 		placeSpecialByTitle(subject, candidate) ??
 		placeSpecialsByEnd(subject, candidate)
@@ -499,6 +500,71 @@ function placeByTitle(
 		tmdbId: candidate.show.id,
 		episodes: linkRun(track),
 		method: "title",
+		score: minimumShowScore,
+	};
+}
+
+/**
+ * Places an entry whose AniList dates cover a rerun, such as the 2009
+ * broadcast of The Melancholy of Haruhi Suzumiya, which started in April with
+ * the 2006 episodes and only reached its fourteen new ones in May. TMDB dates
+ * just those, so no episode airs within the start window.
+ *
+ * The show must carry the entry's name, and exactly as many regular episodes
+ * as the entry has must air from its start to its end date, one after the
+ * other. Any other number leaves no telling which of them are the entry's.
+ * Episodes its prequel already occupies are never taken.
+ */
+function placeRunWithinBroadcast(
+	subject: MatchSubject,
+	candidate: ShowCandidate,
+	nameSimilarity: number,
+): Placement | null {
+	const start = dayNumber(subject.startDate);
+	const end = dayNumber(subject.endDate);
+	if (
+		!isSeriesFormat(subject.format) ||
+		subject.episodes === null ||
+		start === null ||
+		end === null ||
+		nameSimilarity < 0.9
+	) {
+		return null;
+	}
+
+	const track = regularTrack(candidate.show.episodes);
+	const run = track.filter((episode) => {
+		const airDay = dayNumber(episode.air_date);
+		return airDay !== null && airDay >= start && airDay <= end + endGraceDays;
+	});
+	const first = run[0];
+	const index = first ? track.indexOf(first) : -1;
+	if (
+		!first ||
+		run.length !== subject.episodes ||
+		run.some((episode, offset) => track[index + offset] !== episode) ||
+		airedBefore(first, subject.airsFrom) ||
+		!runtimesAgree(medianRuntime(run), subject.durationMinutes, regularRuntimeTolerance)
+	) {
+		return null;
+	}
+
+	const prequelFirst = candidate.prequel ? indexOfRef(track, candidate.prequel.first) : -1;
+	const prequelLast = candidate.prequel ? indexOfRef(track, candidate.prequel.last) : -1;
+	if (
+		prequelFirst !== -1 &&
+		prequelLast !== -1 &&
+		index <= prequelLast &&
+		index + run.length > prequelFirst
+	) {
+		return null;
+	}
+
+	return {
+		mediaType: "tv",
+		tmdbId: candidate.show.id,
+		episodes: linkRun(run),
+		method: "air-date",
 		score: minimumShowScore,
 	};
 }

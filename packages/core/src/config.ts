@@ -36,6 +36,15 @@ const EnvironmentSchema = z.object({
 				.map((origin) => origin.trim())
 				.filter(Boolean),
 		),
+	/**
+	 * A Python with `faster-whisper` installed, such as `/opt/whisper/bin/python`.
+	 * With it, and ffmpeg on the `PATH`, the scheduler listens to each dub once
+	 * and times the sub's subtitles to when its characters speak. Without it,
+	 * dub subtitles are timed to the picture only.
+	 */
+	SUBTITLE_ALIGNMENT_PYTHON: z.string().min(1).optional(),
+	/** The `faster-whisper` model that listens to dubs; larger ones hear more and take longer. */
+	SUBTITLE_ALIGNMENT_MODEL: z.string().min(1).default("small.en"),
 });
 
 const environment = EnvironmentSchema.parse(process.env);
@@ -56,4 +65,6 @@ export const config = {
 	authSecret: environment.AUTH_SECRET,
 	authUrl: environment.AUTH_URL,
 	authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,
+	subtitleAlignmentPython: environment.SUBTITLE_ALIGNMENT_PYTHON ?? null,
+	subtitleAlignmentModel: environment.SUBTITLE_ALIGNMENT_MODEL,
 };

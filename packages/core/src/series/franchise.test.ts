@@ -23,6 +23,46 @@ function titlesOf(parts: ReturnType<typeof franchiseParts>) {
 }
 
 describe("franchiseParts", () => {
+	test("keeps a crossover that the opening title is named after at the start", () => {
+		const parts = franchiseParts(
+			[
+				title(481, "Yu-Gi-Oh!", "TV", "2000-04-18"),
+				title(10015, "Yu-Gi-Oh! Zexal", "TV", "2011-04-11"),
+				title(15489, "Yu-Gi-Oh! Zexal II", "TV", "2012-10-07"),
+			],
+			[[10015, 15489]],
+			{
+				crossovers: [481],
+				currentId: 10015,
+			},
+		);
+		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
+			"series-481",
+			"series-10015",
+			"series-15489",
+		]);
+	});
+
+	test("does not start a franchise with an older crossover", () => {
+		const parts = franchiseParts(
+			[
+				title(4975, "Chaos;Head", "TV", "2008-10-09"),
+				title(9253, "Steins;Gate", "TV", "2011-04-06"),
+				title(10863, "Steins;Gate: Egoistic Poriomania", "OVA", "2012-02-22"),
+			],
+			[[9253, 10863]],
+			{
+				crossovers: [4975],
+				currentId: 9253,
+			},
+		);
+		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
+			"series-9253",
+			"series-10863",
+		]);
+		expect(parts.find((part) => part.series_id === "series-4975")?.role).toBe("extra");
+	});
+
 	test("keeps JoJo's older adaptations out of the modern viewing path", () => {
 		const parts = franchiseParts(
 			[

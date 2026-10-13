@@ -4,6 +4,7 @@ import { config } from "../../config";
 import { InvalidStreamTokenError } from "../../errors";
 import { hour } from "../../time";
 import type { TimelineShift } from "../streams/align";
+import { getRefinement } from "../subtitles/store";
 import { rewritePlaylist } from "./playlist";
 import { readSegment, rememberSegmentOrder } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
@@ -47,10 +48,12 @@ export function createStreamToken(
 		accountId,
 		mirrors = [],
 		shifts,
+		refinement,
 	}: {
 		accountId: string;
 		mirrors?: string[];
 		shifts?: TimelineShift[];
+		refinement?: string;
 	},
 ) {
 	return signStreamTarget(
@@ -60,6 +63,7 @@ export function createStreamToken(
 			headers,
 			mirrors,
 			shifts,
+			refinement,
 			accountId,
 			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
 		},
@@ -216,7 +220,8 @@ export async function proxyStream(
 		const upstream = await fetchUpstreamBytes(target, request.signal);
 		if (target.kind === "subtitle" && target.shifts) {
 			const text = new TextDecoder().decode(upstream.bytes);
-			return new Response(retimeWebVtt(text, target.shifts), {
+			const stored = target.refinement ? await getRefinement(target.refinement) : null;
+			return new Response(retimeWebVtt(text, target.shifts, stored?.refinement?.anchors ?? []), {
 				status: 200,
 				headers: {
 					"Content-Type": "text/vtt; charset=utf-8",

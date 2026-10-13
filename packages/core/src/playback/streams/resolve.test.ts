@@ -6,6 +6,7 @@ import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderStream, StreamProvider } from "../providers/provider";
+import { getRefinement, refinementKey } from "../subtitles/store";
 import { resolvePlayback, type PlaybackDependencies } from "./resolve";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
@@ -103,6 +104,9 @@ function useProviders(list: FakeProvider[]) {
 /** Segment start times `segmentStarts` hands out, by playlist URL. */
 const timelines = new Map<string, number[]>();
 
+/** What `getRefinement` finds, by the key of a pair of encodes. */
+const refinements = new Map<string, Awaited<ReturnType<typeof getRefinement>>>();
+
 const dependencies: PlaybackDependencies = {
 	providers,
 	locateEpisode: async (seriesId) => ({
@@ -122,9 +126,13 @@ const dependencies: PlaybackDependencies = {
 		},
 	],
 	createStreamToken: (url, _kind, _headers, options) =>
-		options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`,
+		options?.shifts
+			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
+			: `token:${url}`,
 	segmentStarts: async (url) => timelines.get(url) ?? [],
 	canFetchStream: async (url) => !url.includes(".unreachable."),
+	getRefinement: async (key) => refinements.get(key) ?? null,
+	requestRefinement: async () => undefined,
 };
 
 const request = {
@@ -166,6 +174,7 @@ beforeEach(() => {
 	resolved.length = 0;
 	offered = [];
 	timelines.clear();
+	refinements.clear();
 });
 
 describe("resolvePlayback", () => {
@@ -661,6 +670,40 @@ describe("resolvePlayback", () => {
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(playback.media[0]?.subtitles).toEqual([]);
+	});
+
+	test("times a dub's subtitles to its speech once it was listened to, even when its encode does not align with the sub's", async () => {
+		useProviders([
+			{
+				id: "anikoto",
+				locale: "en",
+				languages: ["sub", "dub"],
+			},
+		]);
+		offered = [dub(), sub()];
+		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
+		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
+		const key = refinementKey(
+			"https://anikoto.example/sub.m3u8",
+			"https://anikoto.example/dub.m3u8",
+		);
+		refinements.set(key, {
+			refinement: {
+				shifts: [
+					{
+						from: 0,
+						offset: 0.5,
+					},
+				],
+				anchors: [],
+			},
+			attemptedAt: new Date(),
+		});
+
+		const playback = await resolvePlayback(request, options, dependencies);
+		expect(playback.media[0]?.subtitles.map((track) => decodeURIComponent(track.url))).toEqual([
+			`https://sora.example/v1/streams/token:https://anikoto.example/en.vtt@[{"from":0,"offset":0.5}]#${key}`,
+		]);
 	});
 
 	test("serves burned-in subtitles marked hardsub when no provider has tracks", async () => {

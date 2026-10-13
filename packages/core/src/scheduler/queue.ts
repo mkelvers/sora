@@ -296,3 +296,36 @@ export async function scheduleEpisodeLookups(
     ) as entry
   `);
 }
+
+/** The graphile-worker task that times a dub's subtitles to its speech. */
+export const refineSubtitlesTask = "refine-subtitles";
+
+/** Where {@link refineSubtitlesTask} looks: the episode, and what identifies its dub and sub. */
+export interface RefineSubtitlesPayload {
+	seriesId: string;
+	episode: number;
+	key: string;
+}
+
+/**
+ * Asks for a dub to be listened to, unless that is already queued. Jobs run
+ * one at a time in their own queue and behind everything else, since each
+ * downloads and transcribes a whole episode, and give up after a few tries.
+ */
+export async function requestRefinement(payload: RefineSubtitlesPayload) {
+	await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${refineSubtitlesTask},
+      payload => json_build_object(
+        'seriesId', ${payload.seriesId}::text,
+        'episode', ${payload.episode}::int,
+        'key', ${payload.key}::text
+      ),
+      queue_name => 'refine-subtitles',
+      job_key => ${`refine-subtitles:${payload.key}`},
+      job_key_mode => 'unsafe_dedupe',
+      max_attempts => 3,
+      priority => 10
+    )
+  `);
+}

@@ -7,6 +7,7 @@ import { db } from "../database/client";
 import { anime, animeSearch, series } from "../database/schema";
 import type { UpcomingSeries } from "../models/series";
 import { day } from "../time";
+import { isNamedAfter } from "./franchise";
 import { byStartDate, franchiseIds, toSeriesCards } from "./queries";
 
 /** How far ahead a start counts as soon. */
@@ -133,7 +134,7 @@ export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSerie
  * `null` when nothing of the franchise is out.
  */
 async function earliestReleased(anilistId: number) {
-	const franchise = await franchiseIds(anilistId);
+	const { ids: franchise, crossovers } = await franchiseIds(anilistId);
 	const rows =
 		franchise.length > 0
 			? await db
@@ -152,7 +153,21 @@ async function earliestReleased(anilistId: number) {
 						),
 					)
 			: [];
-	const opening = rows.filter((row) => row.format !== null && openingFormats.includes(row.format));
-	const [earliest] = byStartDate((opening.length > 0 ? opening : rows).map((row) => row.series));
-	return earliest ?? null;
+	const earliestOf = (candidates: typeof rows) => {
+		const opening = candidates.filter(
+			(row) => row.format !== null && openingFormats.includes(row.format),
+		);
+		return byStartDate((opening.length > 0 ? opening : candidates).map((row) => row.series))[0];
+	};
+	// A crossover shares the universe, not the story, so catching up never
+	// starts there unless the franchise's own earliest title is named after it.
+	const own = rows.filter((row) => !crossovers.has(row.series.anilistId));
+	const start = earliestOf(own.length > 0 ? own : rows);
+	const named = start
+		? rows.filter(
+				(row) =>
+					crossovers.has(row.series.anilistId) && isNamedAfter(start.title, row.series.title),
+			)
+		: [];
+	return (named.length > 0 ? earliestOf([...own, ...named]) : start) ?? null;
 }

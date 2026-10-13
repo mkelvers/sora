@@ -2,6 +2,7 @@ import { attempt } from "@sora/shared";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
+import { config } from "../../config";
 import {
 	EpisodeNotFoundError,
 	InvalidInputError,
@@ -10,6 +11,7 @@ import {
 } from "../../errors";
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
+import { requestRefinement } from "../../scheduler/queue";
 import { locateEpisode } from "../../series/episodes";
 import { second } from "../../time";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
@@ -18,6 +20,7 @@ import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
+import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime, type TimelineShift } from "./align";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
@@ -54,6 +57,8 @@ export interface PlaybackDependencies {
 	createStreamToken: typeof createStreamToken;
 	segmentStarts: typeof segmentStarts;
 	canFetchStream: typeof canFetchStream;
+	getRefinement: typeof getRefinement;
+	requestRefinement: typeof requestRefinement;
 }
 
 const live: PlaybackDependencies = {
@@ -65,6 +70,8 @@ const live: PlaybackDependencies = {
 	createStreamToken,
 	segmentStarts,
 	canFetchStream,
+	getRefinement,
+	requestRefinement,
 };
 
 /** The URL of a stream token for `createStreamToken`'s arguments. */
@@ -166,55 +173,28 @@ export async function resolvePlayback(
 	const { seriesId, episode } = parsed.data;
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-	const located = await dependencies.locateEpisode(seriesId, episode);
-	const [anime, offered] = await Promise.all([
-		dependencies.getAnime(located.anilistId),
-		dependencies.getEpisodeVersions(located),
-	]);
 	const streamUrl: StreamUrl = (...token) =>
 		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
-
-	// Versions share each provider's episode list.
-	const lists = new Map<string, Promise<ProviderUnit[]>>();
-	const unitsOf = (provider: StreamProvider) => {
-		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
-		lists.set(provider.id, list);
-		return list;
-	};
-
-	const served = offered.filter(
-		(version) =>
-			(version.locale === null || version.locale === servedLocale) &&
-			!alwaysTried.some(
-				(tried) => tried.language === version.language && tried.locale === version.locale,
-			),
-	);
-	const results = await Promise.all(
-		[...alwaysTried, ...served].map((version) =>
-			beforeDeadline(
-				resolveVersion(
-					version,
-					located.number,
-					unitsOf,
-					streamUrl,
-					options.accountId,
-					dependencies,
-				),
-				version,
-				options.deadlineMs ?? playbackDeadlineMs,
-			),
-		),
+	const results = await resolveVersions(
+		parsed.data,
+		streamUrl,
+		options.accountId,
+		options.deadlineMs ?? playbackDeadlineMs,
+		dependencies,
 	);
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
 	if (sub?.version && sub.videos && dub?.version && dub.videos) {
-		const shifts = await timelineShifts(sub.videos, dub.videos, dependencies);
+		const refined = await storedRefinement(sub.videos, dub.videos, parsed.data, dependencies);
+		const shifts =
+			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
 		dub.version.subtitles = await subtitlesForDub(
 			sub.videos,
 			dub.videos,
 			streamUrl,
 			options.accountId,
 			shifts,
+			refined?.refinement ? refined.key : undefined,
 		);
 		dub.version.skip_segments = skipSegmentsForDub(
 			sub.version.skip_segments,
@@ -241,6 +221,65 @@ export async function resolvePlayback(
 		seriesId,
 		episode,
 		results.flatMap((result) => result.attempts),
+	);
+}
+
+/**
+ * The upstream videos of an episode's sub and dub, for work that listens to
+ * them rather than plays them. `null` for a version no provider can stream,
+ * and for a sub whose English subtitles are burned in.
+ */
+export async function resolveStreams(
+	request: PlaybackRequest,
+	dependencies: PlaybackDependencies = live,
+) {
+	const parsed = PlaybackRequestSchema.parse(request);
+	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
+	return {
+		sub:
+			results.find((result) => result.version?.audio === "sub" && !result.version.hardsub)
+				?.videos ?? null,
+		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
+	};
+}
+
+/** Resolves every version of an episode at once; see {@link resolvePlayback}. */
+async function resolveVersions(
+	{ seriesId, episode }: z.output<typeof PlaybackRequestSchema>,
+	streamUrl: StreamUrl,
+	accountId: string,
+	deadlineMs: number,
+	dependencies: PlaybackDependencies,
+) {
+	const located = await dependencies.locateEpisode(seriesId, episode);
+	const [anime, offered] = await Promise.all([
+		dependencies.getAnime(located.anilistId),
+		dependencies.getEpisodeVersions(located),
+	]);
+
+	// Versions share each provider's episode list.
+	const lists = new Map<string, Promise<ProviderUnit[]>>();
+	const unitsOf = (provider: StreamProvider) => {
+		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
+		lists.set(provider.id, list);
+		return list;
+	};
+
+	const served = offered.filter(
+		(version) =>
+			(version.locale === null || version.locale === servedLocale) &&
+			!alwaysTried.some(
+				(tried) => tried.language === version.language && tried.locale === version.locale,
+			),
+	);
+	return Promise.all(
+		[...alwaysTried, ...served].map((version) =>
+			beforeDeadline(
+				resolveVersion(version, located.number, unitsOf, streamUrl, accountId, dependencies),
+				version,
+				deadlineMs,
+			),
+		),
 	);
 }
 
@@ -431,10 +470,10 @@ async function beforeDeadline(
  * encodes' segment boundaries (see {@link alignTimelines}). `null` when either
  * is not HLS, a playlist cannot be read, or the encodes do not align.
  */
-async function timelineShifts(
+export async function timelineShifts(
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
-	dependencies: PlaybackDependencies,
+	dependencies: PlaybackDependencies = live,
 ) {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
@@ -456,9 +495,40 @@ async function timelineShifts(
 }
 
 /**
+ * What listening to the dub found for this pair of encodes, and asks the
+ * scheduler to listen when nothing has been found yet, or a failed try is
+ * old enough to repeat. `null` when either is not HLS.
+ */
+async function storedRefinement(
+	sub: ProviderVideo[],
+	dub: ProviderVideo[],
+	request: PlaybackRequest,
+	dependencies: PlaybackDependencies,
+) {
+	const subVideo = sub.find((video) => video.format === "hls");
+	const dubVideo = dub.find((video) => video.format === "hls");
+	if (!subVideo || !dubVideo) {
+		return null;
+	}
+
+	const key = refinementKey(subVideo.url, dubVideo.url);
+	const stored = await dependencies.getRefinement(key);
+	if (config.subtitleAlignmentPython && isRefinementDue(stored)) {
+		// Playback goes on with picture-timed subtitles if the job cannot be queued.
+		await attempt(dependencies.requestRefinement({ ...request, key }));
+	}
+
+	return {
+		key,
+		refinement: stored?.refinement ?? null,
+	};
+}
+
+/**
  * The sub's WebVTT subtitles moved onto the dub's timeline by `shifts`, and
  * the dub's own signs and captions, which are timed to it already. The sub's
- * are left out when the encodes do not align.
+ * are left out when the encodes do not align. With a `refinement`, cues
+ * that were matched to the dub's speech go where it says them.
  */
 async function subtitlesForDub(
 	sub: ProviderVideo[],
@@ -466,10 +536,11 @@ async function subtitlesForDub(
 	streamUrl: StreamUrl,
 	accountId: string,
 	shifts: TimelineShift[] | null,
+	refinement?: string,
 ) {
 	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
 	const retimed = shifts
-		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts).subtitles.filter(
+		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts, refinement).subtitles.filter(
 				(track) => track.format === "vtt",
 			)
 		: [];
@@ -522,6 +593,7 @@ function toPlaybackMedia(
 	kinds: Map<string, SubtitleKind | null>,
 	accountId: string,
 	shifts?: TimelineShift[],
+	refinement?: string,
 ) {
 	const sources = [...videos]
 		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
@@ -543,6 +615,7 @@ function toPlaybackMedia(
 						accountId,
 						mirrors: mirrorsFor(track.url, video.url),
 						shifts,
+						refinement,
 					}),
 					language: track.language,
 					label: languageName(track.language) ?? track.label,

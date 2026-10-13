@@ -23,6 +23,8 @@ export interface FranchiseOptions {
 	summaries?: readonly number[];
 	/** Keep an explicitly selected extra available in the picker. */
 	currentId?: number;
+	/** Titles that share the universe without being part of the story; they never start it. */
+	crossovers?: readonly number[];
 }
 
 /**
@@ -48,7 +50,21 @@ export function franchiseParts(
 	);
 	const isSeriesFormat = (title: FranchiseTitle) =>
 		title.format !== null && seasonFormats.has(title.format);
-	const first = byRelease.find(isSeriesFormat) ?? byRelease[0];
+	const own = byRelease.filter((title) => !options.crossovers?.includes(title.anilistId));
+	const starters = own.length > 0 ? own : byRelease;
+	const opening = starters.find(isSeriesFormat) ?? starters[0];
+	// A crossover still starts the franchise when the opening title is named
+	// after it, as Yu-Gi-Oh! Zexal is after Yu-Gi-Oh!.
+	const first =
+		(opening &&
+			byRelease.find(
+				(title) =>
+					title !== opening &&
+					(isSeriesFormat(title) || !isSeriesFormat(opening)) &&
+					options.crossovers?.includes(title.anilistId) &&
+					isNamedAfter(opening.title, title.title),
+			)) ??
+		opening;
 	const links = [...sequels];
 	const component = (id: number) => {
 		const ids = new Set([id]);
@@ -193,6 +209,12 @@ export function franchiseParts(
 				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
 		};
 	});
+}
+
+/** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
+export function isNamedAfter(title: string, original: string) {
+	const plain = (name: string) => name.replace(/\s*\(TV\)$/i, "");
+	return withoutPrefix(plain(title), plain(original)) !== null;
 }
 
 function shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {

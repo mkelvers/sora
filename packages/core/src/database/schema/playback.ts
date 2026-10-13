@@ -1,5 +1,7 @@
 import { bigint, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
+import type { TimelineShift } from "../../playback/streams/align";
+import type { CueAnchor } from "../../playback/subtitles/refine";
 import { jsonb, timestamptz } from "./columns";
 
 /**
@@ -195,3 +197,23 @@ export const animeScheduleRelease = pgTable(
 		index("anime_schedule_release_airs_at_idx").on(table.airsAt),
 	],
 );
+
+/**
+ * How a sub's English subtitles move onto one dub's timeline so each cue
+ * shows while the dub says it, found by matching the cues to the speech in
+ * the dub's audio; see `refineCues`. Keyed by what identifies the pair of
+ * encodes, since stream URLs expire but their paths do not.
+ *
+ * A row with null `shifts` records that the dub's speech does not match
+ * the sub's script, so it is not tried again until `attemptedAt` is a week
+ * old.
+ */
+export const subtitleRefinement = pgTable("subtitle_refinement", {
+	/** A hash of the dub's and the sub's playlist paths. */
+	key: text("key").primaryKey(),
+	/** How the sub's timeline maps onto the dub's for cues without an anchor. */
+	shifts: jsonb("shifts").$type<TimelineShift[] | null>(),
+	/** Where each matched cue goes; see `CueAnchor`. */
+	anchors: jsonb("anchors").$type<CueAnchor[] | null>(),
+	attemptedAt: timestamptz("attempted_at").notNull(),
+});

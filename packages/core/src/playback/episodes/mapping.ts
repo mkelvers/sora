@@ -8,8 +8,16 @@ import type { StreamProvider } from "../providers/provider";
 
 /** A confirmed match is reused for a month before being re-verified. */
 const matchedMappingLifetimeMs = 30 * day;
-/** A failed match is retried daily, since providers add titles over time. */
-const unmatchedMappingLifetimeMs = day;
+/**
+ * A failed match is retried daily, since providers add titles over time. So
+ * is one made by title or as a continuation of a prequel: the provider may
+ * have added a series of the anime's own since, as AniKoto does for a new
+ * cour it first files under the previous one.
+ */
+const provisionalMappingLifetimeMs = day;
+
+/** Methods whose match a provider's own entry for the anime replaces. */
+const provisionalMethods = new Set(["title", "continuation"]);
 
 /** Where an anime's episodes are in a provider's catalogue. */
 export interface ProviderMedia {
@@ -44,7 +52,10 @@ export async function getProviderMedia(
 		.limit(1);
 
 	if (stored && (stored.providerMediaId || !options.retryUnmatched)) {
-		const lifetime = stored.providerMediaId ? matchedMappingLifetimeMs : unmatchedMappingLifetimeMs;
+		const lifetime =
+			stored.providerMediaId && !provisionalMethods.has(stored.method ?? "")
+				? matchedMappingLifetimeMs
+				: provisionalMappingLifetimeMs;
 		if (stored.resolvedAt.getTime() + lifetime > Date.now()) {
 			return toProviderMedia(stored);
 		}

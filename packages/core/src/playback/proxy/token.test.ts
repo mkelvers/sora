@@ -21,6 +21,24 @@ describe("stream tokens", () => {
 		expect(verifyStreamToken(token, secret, new Date(0))).toEqual(target);
 	});
 
+	test("round-trip the shifts and stored refinement of a retimed subtitle", () => {
+		const retimed: StreamTarget = {
+			...target,
+			kind: "subtitle",
+			shifts: [
+				{
+					from: 0,
+					offset: 2.5,
+				},
+			],
+			refinement: "f00d",
+		};
+
+		expect(verifyStreamToken(signStreamTarget(retimed, secret), secret, new Date(0))).toEqual(
+			retimed,
+		);
+	});
+
 	test("are URL-safe", () => {
 		expect(signStreamTarget(target, secret)).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 	});

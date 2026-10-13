@@ -45,7 +45,7 @@ import {
 	releasedAtOf,
 	releasedBetween,
 } from "./episodes";
-import { franchiseParts } from "./franchise";
+import { franchiseParts, isNamedAfter } from "./franchise";
 import { franchiseRoles } from "./roles";
 import { storedSeriesIds } from "./store";
 
@@ -639,9 +639,16 @@ const franchiseLimit = 60;
  * Sequels and prequels are always followed, so a long-running franchise's
  * main path is never cut short by the entries around it; those are reached
  * up to a limit.
+ *
+ * `crossovers` holds the entries reached only as `OTHER`: they share a
+ * universe with the entry but are not part of its story, so they never decide
+ * where the franchise starts.
  */
-export async function franchiseIds(anilistId: number): Promise<number[]> {
+export async function franchiseIds(
+	anilistId: number,
+): Promise<{ ids: number[]; crossovers: Set<number> }> {
 	const reached = new Set([anilistId]);
+	const outsiders = new Set<number>();
 	let frontier = [anilistId];
 	let around = 0;
 	while (frontier.length > 0) {
@@ -700,6 +707,9 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 
 		const rank = (relation: string) =>
 			relation === "SEQUEL" || relation === "PREQUEL" ? 0 : relation === "OTHER" ? 2 : 1;
+		const storyIds = new Set(
+			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
+		);
 		frontier = [];
 		for (const edge of edges.toSorted(
 			(left, right) => rank(left.relation) - rank(right.relation),
@@ -714,14 +724,21 @@ export async function franchiseIds(anilistId: number): Promise<number[]> {
 
 					if (edge.relation !== "OTHER") {
 						frontier.push(id);
+					} else if (!storyIds.has(id)) {
+						outsiders.add(id);
 					}
+				} else if (storyIds.has(id)) {
+					outsiders.delete(id);
 				}
 			}
 		}
 	}
 
 	reached.delete(anilistId);
-	return [...reached];
+	return {
+		ids: [...reached],
+		crossovers: outsiders,
+	};
 }
 
 /** Stored series in release order, the earliest first; those undated last. */
@@ -745,9 +762,17 @@ export function byStartDate(rows: readonly SeriesRow[]) {
  * well after the first episode can be watched.
  */
 async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
-	const anilistIds = await franchiseIds(row.anilistId);
-	const rows = await db.select().from(series).where(inArray(series.anilistId, anilistIds));
-	const titles = [row, ...rows];
+	const { ids, crossovers } = await franchiseIds(row.anilistId);
+	const rows = await db.select().from(series).where(inArray(series.anilistId, ids));
+	const titles = [
+		row,
+		...rows.filter(
+			(other) =>
+				!crossovers.has(other.anilistId) ||
+				isNamedAfter(row.title, other.title) ||
+				isNamedAfter(other.title, row.title),
+		),
+	];
 	const [cards, relations, ratings] = await Promise.all([
 		toSeriesCards(titles, [row.id]),
 		db
@@ -812,6 +837,7 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 		),
 		{
 			currentId: row.anilistId,
+			crossovers: [...crossovers],
 			alternatives: relations
 				.filter(({ relation }) => relation === "ALTERNATIVE")
 				.map(({ from, to }) => [from, to] as const),
