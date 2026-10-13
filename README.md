@@ -95,7 +95,8 @@ bun run auth:create-account you@example.com "Your name"
 
 Then sign in at <http://localhost:5173>.
 
-To run formatting, linting, and type checks before every commit, enable the bundled hook once:
+To run formatting, linting, and type checks before every commit, and the tests before every push
+(they need the database running), enable the bundled hooks once:
 
 ```sh
 git config core.hooksPath .githooks
