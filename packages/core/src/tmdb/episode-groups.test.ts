@@ -1,11 +1,8 @@
-import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
+import { expect, test } from "bun:test";
 
-import type { z } from "zod";
-
-import * as client from "./client";
+import { createTmdbClient } from "./client";
 import { getShowEpisodeGroups } from "./resources";
 
-const requests: string[] = [];
 const episode = {
 	id: 1,
 	season_number: 5,
@@ -31,23 +28,23 @@ const responses: Record<string, unknown> = {
 	},
 	"/tv/1/episode_groups": { results: [] },
 };
-beforeEach(() => {
-	spyOn(client, "tmdb").mockImplementation((async (
-		path: string,
-		_query: Record<string, string>,
-		schema: z.ZodType,
-	) => {
-		requests.push(path);
-		return schema.parse(responses[path]);
-	}) as typeof client.tmdb);
-});
+/** The paths TMDB was asked for, in order. */
+const requests: string[] = [];
 
-afterEach(() => {
-	mock.restore();
+const { tmdb } = createTmdbClient({
+	fetch: async (url) => {
+		const path = url.pathname.replace("/3", "");
+		requests.push(path);
+		return Response.json(responses[path]);
+	},
+	store: {
+		find: async () => undefined,
+		save: async () => undefined,
+	},
 });
 
 test("loads episode groups in order and retains canonical episode numbers", async () => {
-	const arrangements = await getShowEpisodeGroups(45790);
+	const arrangements = await getShowEpisodeGroups(45790, tmdb);
 	expect(
 		arrangements.map((groups) =>
 			groups.map((group) => ({
@@ -66,6 +63,6 @@ test("loads episode groups in order and retains canonical episode numbers", asyn
 
 test("makes no detail requests for shows without episode groups", async () => {
 	requests.length = 0;
-	expect(await getShowEpisodeGroups(1)).toEqual([]);
+	expect(await getShowEpisodeGroups(1, tmdb)).toEqual([]);
 	expect(requests).toEqual(["/tv/1/episode_groups"]);
 });

@@ -270,14 +270,19 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
  * group API. Group order never replaces canonical season/episode numbers.
  * All arrangements are checked, since useful anime parts can be classified
  * as air order, digital releases, story arcs, or TV order.
+ *
+ * @param request - Fetches from TMDB; tests pass a client of their own.
  */
-export async function getShowEpisodeGroups(showId: number): Promise<TmdbEpisodeGroup[][]> {
-	const listed = await tmdb(`/tv/${showId}/episode_groups`, {}, EpisodeGroupsSchema, {
+export async function getShowEpisodeGroups(
+	showId: number,
+	request: typeof tmdb = tmdb,
+): Promise<TmdbEpisodeGroup[][]> {
+	const listed = await request(`/tv/${showId}/episode_groups`, {}, EpisodeGroupsSchema, {
 		maxAgeMs: showLifetimeMs,
 	});
 	const details = await Promise.all(
 		(listed?.results ?? []).map(({ id }) =>
-			tmdb(`/tv/episode_group/${id}`, { language: "en-US" }, EpisodeGroupSchema, {
+			request(`/tv/episode_group/${id}`, { language: "en-US" }, EpisodeGroupSchema, {
 				maxAgeMs: showLifetimeMs,
 			}),
 		),

@@ -68,179 +68,217 @@ export type TmdbQuery<Path extends TmdbPath> = {
 		: never;
 }[keyof TmdbEndpoints & string];
 
-let nextRequestAt = 0;
-const inFlight = new InFlight<string, unknown>();
+/** What the client sends TMDB's requests with; the global `fetch` fits. */
+export type Fetch = (input: URL, init: RequestInit) => Promise<Response>;
+
+/** Where the client keeps responses between requests; see `tmdbResponse`. */
+export interface ResponseStore {
+	find: (key: string) => Promise<{ data: unknown; fetchedAt: Date } | undefined>;
+	save: (key: string, response: { path: string; data: unknown; fetchedAt: Date }) => Promise<void>;
+}
+
+/** What a TMDB client depends on, so tests can give it a plain `fetch` and an in-memory store. */
+export interface TmdbDependencies {
+	fetch: Fetch;
+	store: ResponseStore;
+}
 
 /**
- * Fetches a TMDB v3 resource with request coalescing and rate limiting,
- * storing the response (see `tmdbResponse`), and validates it against
- * `schema`.
- *
- * A stored response younger than `maxAgeMs` is returned without a network
- * call. Identical concurrent requests share one upstream call. When TMDB is
- * unavailable, an older stored response is served rather than failing.
- *
- * @returns The validated response, or `null` when TMDB answers 404.
- * @throws {@link UpstreamUnavailableError} when TMDB fails or returns data
- *   that does not match `schema`, and no usable response is stored.
- *
- * @example
- * ```ts
- * const show = await tmdb("/tv/82684", {}, TvShowSchema, { maxAgeMs: day });
- * // await tmdb("/tv/82684/episodes", {}, ...) does not compile: no such endpoint
- * ```
+ * Creates a TMDB client with its own request spacing and coalescing. The
+ * process shares one, {@link tmdb}, since TMDB's limit is per IP.
  */
-export async function tmdb<Path extends TmdbPath, TSchema extends z.ZodType>(
-	path: Path,
-	query: TmdbQuery<Path>,
-	schema: TSchema,
-	options: TmdbRequestOptions,
-): Promise<z.infer<TSchema> | null> {
-	const url = new URL(`${endpoint}${path}`);
-	for (const [name, value] of Object.entries(query as Params).sort(([left], [right]) =>
-		left.localeCompare(right),
-	)) {
-		if (value !== undefined) {
-			url.searchParams.set(name, String(value));
+export function createTmdbClient({ fetch, store }: TmdbDependencies) {
+	let nextRequestAt = 0;
+	const inFlight = new InFlight<string, unknown>();
+
+	/**
+	 * Fetches a TMDB v3 resource with request coalescing and rate limiting,
+	 * storing the response (see `tmdbResponse`), and validates it against
+	 * `schema`.
+	 *
+	 * A stored response younger than `maxAgeMs` is returned without a network
+	 * call. Identical concurrent requests share one upstream call. When TMDB is
+	 * unavailable, an older stored response is served rather than failing.
+	 *
+	 * @returns The validated response, or `null` when TMDB answers 404.
+	 * @throws {@link UpstreamUnavailableError} when TMDB fails or returns data
+	 *   that does not match `schema`, and no usable response is stored.
+	 *
+	 * @example
+	 * ```ts
+	 * const show = await tmdb("/tv/82684", {}, TvShowSchema, { maxAgeMs: day });
+	 * // await tmdb("/tv/82684/episodes", {}, ...) does not compile: no such endpoint
+	 * ```
+	 */
+	async function tmdb<Path extends TmdbPath, TSchema extends z.ZodType>(
+		path: Path,
+		query: TmdbQuery<Path>,
+		schema: TSchema,
+		options: TmdbRequestOptions,
+	): Promise<z.infer<TSchema> | null> {
+		const url = new URL(`${endpoint}${path}`);
+		for (const [name, value] of Object.entries(query as Params).sort(([left], [right]) =>
+			left.localeCompare(right),
+		)) {
+			if (value !== undefined) {
+				url.searchParams.set(name, String(value));
+			}
 		}
-	}
 
-	const key = createHash("sha256").update(url.toString()).digest("hex");
-	const [stored] =
-		options.store === false
-			? []
-			: await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
+		const key = createHash("sha256").update(url.toString()).digest("hex");
+		const stored = options.store === false ? undefined : await store.find(key);
 
-	const kept = stored ? schema.safeParse(stored.data) : null;
-	if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-		return kept.data;
-	}
-
-	const { data, error } = await attempt(
-		inFlight.run(key, () => fetchAndStore(key, path, url, options)),
-		UpstreamUnavailableError,
-	);
-	if (error) {
-		if (kept?.success) {
+		const kept = stored ? schema.safeParse(stored.data) : null;
+		if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
 			return kept.data;
 		}
-		throw error;
-	}
 
-	if (data === null) {
-		return null;
-	}
-
-	const parsed = schema.safeParse(data);
-	if (!parsed.success) {
-		throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
-			retryAfterMs: null,
-			cause: parsed.error,
-		});
-	}
-
-	return parsed.data;
-}
-
-/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */
-async function fetchAndStore(key: string, path: string, url: URL, options: TmdbRequestOptions) {
-	const data = await execute(url);
-	if (data === null || options.store === false) {
-		return data;
-	}
-
-	const values = {
-		path,
-		data,
-		fetchedAt: new Date(),
-	};
-
-	await db
-		.insert(tmdbResponse)
-		.values({
-			key,
-			...values,
-		})
-		.onConflictDoUpdate({
-			target: tmdbResponse.key,
-			set: values,
-		});
-
-	return data;
-}
-
-async function execute(url: URL): Promise<unknown> {
-	for (let tries = 0; ; tries += 1) {
-		await nextSlot();
-
-		const response = await attempt(
-			fetch(url, {
-				headers: {
-					Accept: "application/json",
-					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
-				},
-				signal: AbortSignal.timeout(requestTimeoutMs),
-			}),
+		const { data, error } = await attempt(
+			inFlight.run(key, () => fetchAndStore(key, path, url, options)),
+			UpstreamUnavailableError,
 		);
-		if (response.error) {
-			throw new UpstreamUnavailableError("TMDB could not be reached", {
-				retryAfterMs: null,
-				cause: response.error,
-			});
-		}
-
-		if (response.data.status === 429) {
-			const retryAfterMs = retryAfter(response.data) ?? 2_000;
-			// Pause every request from this process, not just this one.
-			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
-			if (tries < rateLimitRetries) {
-				continue;
+		if (error) {
+			if (kept?.success) {
+				return kept.data;
 			}
-
-			throw new UpstreamUnavailableError("TMDB rate limit reached", {
-				retryAfterMs,
-			});
+			throw error;
 		}
 
-		if (response.data.status === 404) {
+		if (data === null) {
 			return null;
 		}
 
-		if (!response.data.ok) {
-			throw new UpstreamUnavailableError(
-				`TMDB returned ${response.data.status} for ${url.pathname}`,
-				{
-					retryAfterMs: retryAfter(response.data),
-				},
-			);
+		const parsed = schema.safeParse(data);
+		if (!parsed.success) {
+			throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
+				retryAfterMs: null,
+				cause: parsed.error,
+			});
 		}
 
-		const body = await attempt(response.data.json());
-		if (body.error) {
-			throw new UpstreamUnavailableError(
-				`TMDB returned a response for ${url.pathname} that is not JSON`,
-				{
+		return parsed.data;
+	}
+
+	/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */
+	async function fetchAndStore(key: string, path: string, url: URL, options: TmdbRequestOptions) {
+		const data = await execute(url);
+		if (data === null || options.store === false) {
+			return data;
+		}
+
+		const values = {
+			path,
+			data,
+			fetchedAt: new Date(),
+		};
+
+		await store.save(key, values);
+
+		return data;
+	}
+
+	async function execute(url: URL): Promise<unknown> {
+		for (let tries = 0; ; tries += 1) {
+			await nextSlot();
+
+			const response = await attempt(
+				fetch(url, {
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${config.tmdbReadAccessToken}`,
+					},
+					signal: AbortSignal.timeout(requestTimeoutMs),
+				}),
+			);
+			if (response.error) {
+				throw new UpstreamUnavailableError("TMDB could not be reached", {
 					retryAfterMs: null,
-					cause: body.error,
-				},
-			);
+					cause: response.error,
+				});
+			}
+
+			if (response.data.status === 429) {
+				const retryAfterMs = retryAfter(response.data) ?? 2_000;
+				// Pause every request from this process, not just this one.
+				nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+				if (tries < rateLimitRetries) {
+					continue;
+				}
+
+				throw new UpstreamUnavailableError("TMDB rate limit reached", {
+					retryAfterMs,
+				});
+			}
+
+			if (response.data.status === 404) {
+				return null;
+			}
+
+			if (!response.data.ok) {
+				throw new UpstreamUnavailableError(
+					`TMDB returned ${response.data.status} for ${url.pathname}`,
+					{
+						retryAfterMs: retryAfter(response.data),
+					},
+				);
+			}
+
+			const body = await attempt(response.data.json());
+			if (body.error) {
+				throw new UpstreamUnavailableError(
+					`TMDB returned a response for ${url.pathname} that is not JSON`,
+					{
+						retryAfterMs: null,
+						cause: body.error,
+					},
+				);
+			}
+			return body.data;
 		}
-		return body.data;
 	}
-}
 
-/** Waits until this request may start, reserving the following slot for the next caller. */
-async function nextSlot() {
-	const startAt = Math.max(Date.now(), nextRequestAt);
-	nextRequestAt = startAt + requestSpacingMs;
+	/** Waits until this request may start, reserving the following slot for the next caller. */
+	async function nextSlot() {
+		const startAt = Math.max(Date.now(), nextRequestAt);
+		nextRequestAt = startAt + requestSpacingMs;
 
-	const wait = startAt - Date.now();
-	if (wait > 0) {
-		await Bun.sleep(wait);
+		const wait = startAt - Date.now();
+		if (wait > 0) {
+			await Bun.sleep(wait);
+		}
 	}
+
+	return {
+		tmdb,
+	};
 }
 
 function retryAfter(response: Response) {
 	const seconds = Number(response.headers.get("Retry-After"));
 	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : null;
 }
+
+/** The responses TMDB is asked for, kept in the database. */
+const databaseStore: ResponseStore = {
+	find: async (key) => {
+		const [stored] = await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
+		return stored;
+	},
+	save: async (key, values) => {
+		await db
+			.insert(tmdbResponse)
+			.values({
+				key,
+				...values,
+			})
+			.onConflictDoUpdate({
+				target: tmdbResponse.key,
+				set: values,
+			});
+	},
+};
+
+export const { tmdb } = createTmdbClient({
+	fetch,
+	store: databaseStore,
+});
