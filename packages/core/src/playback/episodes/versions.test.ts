@@ -1,10 +1,7 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
-import * as animeQueries from "../../catalog/queries/anime";
+import { anime } from "../../catalog/models/anime.fixture";
 import type { ContentLanguage } from "../../models/series";
-import * as queue from "../../scheduler/queue";
-import { streamProviders } from "../providers/registry";
-import * as episodes from "./episodes";
 import type { ProviderUnit } from "./episodes";
 import {
 	fillerOf,
@@ -13,8 +10,9 @@ import {
 	getEpisodeVersions,
 	languagesOf,
 	versionsOffered,
+	type ListedUnit,
+	type VersionDependencies,
 } from "./versions";
-import type { ListedUnit } from "./versions";
 
 /**
  * A provider stand-in: its ID, what it serves, its stored episode list for
@@ -29,62 +27,50 @@ interface FakeProvider {
 	ask: () => Promise<ProviderUnit[]>;
 }
 
-let providers: FakeProvider[] = [];
 let queuedLookups: number[] = [];
 let queuedPriorities: string[] = [];
 let asks = 0;
 
-/** The registry's providers, which tests swap for fakes and put back. */
-const registry = streamProviders as unknown[];
-const registered = [...registry];
-
-function useProviders(list: FakeProvider[]) {
-	providers = list;
-	registry.splice(
-		0,
-		registry.length,
-		...list.map(({ id, locale, listsLanguages }) => ({
+/** Dependencies backed by the providers in `list`, recording what they are asked. */
+function useProviders(list: FakeProvider[]): VersionDependencies {
+	return {
+		providers: list.map(({ id, locale, listsLanguages }) => ({
 			id,
 			locale,
 			listsLanguages,
+			findMedia: async () => null,
+			listEpisodes: async () => [],
+			resolveStream: async () => {
+				throw new Error(`${id} streams nothing in these tests`);
+			},
 		})),
-	);
-}
-
-function fakeCollaborators() {
-	spyOn(animeQueries, "getAnime").mockImplementation((async (id: number) => ({
-		id,
-	})) as never);
-	spyOn(queue, "scheduleEpisodeLookups").mockImplementation(async (anilistIds, priority) => {
-		queuedLookups.push(...anilistIds);
-		if (anilistIds.length > 0) {
-			queuedPriorities.push(priority);
-		}
-	});
-	spyOn(episodes, "getProviderUnits").mockImplementation(((
-		_anime: unknown,
-		target: {
-			id: string;
+		getAnime: async (id) => anime(id),
+		scheduleEpisodeLookups: async (anilistIds, priority) => {
+			queuedLookups.push(...anilistIds);
+			if (anilistIds.length > 0) {
+				queuedPriorities.push(priority);
+			}
 		},
-	) => {
-		asks += 1;
-		return providers.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
-	}) as never);
-	spyOn(episodes, "getStoredUnits").mockImplementation((async (anilistIds: readonly number[]) =>
-		[...new Set(anilistIds)].flatMap((anilistId) =>
-			providers.flatMap((candidate) => {
-				const units = candidate.units(anilistId);
-				return units
-					? [
-							{
-								anilistId,
-								provider: candidate.id,
-								units,
-							},
-						]
-					: [];
-			}),
-		)) as never);
+		getProviderUnits: (_anime, target) => {
+			asks += 1;
+			return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
+		},
+		getStoredUnits: async (anilistIds) =>
+			[...new Set(anilistIds)].flatMap((anilistId) =>
+				list.flatMap((candidate) => {
+					const units = candidate.units(anilistId);
+					return units
+						? [
+								{
+									anilistId,
+									provider: candidate.id,
+									units,
+								},
+							]
+						: [];
+				}),
+			),
+	};
 }
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
@@ -154,17 +140,7 @@ const firstEpisode = [
 	},
 ];
 
-afterAll(() => {
-	registry.splice(0, registry.length, ...registered);
-});
-
-afterEach(() => {
-	mock.restore();
-});
-
 beforeEach(() => {
-	fakeCollaborators();
-	useProviders([]);
 	queuedLookups = [];
 	queuedPriorities = [];
 	asks = 0;
@@ -280,7 +256,7 @@ describe("fillerOf", () => {
 
 describe("getEpisodeVersions", () => {
 	test("combines the English providers that list the AniList episode", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			provider("anikoto", "en", [unit(3, ["sub", "dub"])]),
 			provider("megaplay", "en", [unit(3, ["sub", "dub"])], false),
 			provider("allmanga", "en", [unit(3, ["sub", "raw"]), unit(4, ["dub"])]),
@@ -288,10 +264,13 @@ describe("getEpisodeVersions", () => {
 		]);
 
 		expect(
-			await getEpisodeVersions({
-				anilistId: 154587,
-				number: 3,
-			}),
+			await getEpisodeVersions(
+				{
+					anilistId: 154587,
+					number: 3,
+				},
+				dependencies,
+			),
 		).toEqual([
 			{
 				language: "dub",
@@ -310,13 +289,19 @@ describe("getEpisodeVersions", () => {
 	});
 
 	test("lists what is stored and queues the lookup when a provider is not looked up yet", async () => {
-		useProviders([provider("anikoto", "en", [unit(3, ["sub"])]), notLookedUp("allmanga", "en")]);
+		const dependencies = useProviders([
+			provider("anikoto", "en", [unit(3, ["sub"])]),
+			notLookedUp("allmanga", "en"),
+		]);
 
 		expect(
-			await getEpisodeVersions({
-				anilistId: 154587,
-				number: 3,
-			}),
+			await getEpisodeVersions(
+				{
+					anilistId: 154587,
+					number: 3,
+				},
+				dependencies,
+			),
 		).toEqual([
 			{
 				language: "sub",
@@ -328,16 +313,19 @@ describe("getEpisodeVersions", () => {
 	});
 
 	test("looks an anime no provider was looked up for up on the spot", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			notLookedUp("anikoto", "en", [unit(3, ["sub"])]),
 			notLookedUp("allmanga", "en", [unit(3, ["dub"])]),
 		]);
 
 		expect(
-			await getEpisodeVersions({
-				anilistId: 154587,
-				number: 3,
-			}),
+			await getEpisodeVersions(
+				{
+					anilistId: 154587,
+					number: 3,
+				},
+				dependencies,
+			),
 		).toEqual([
 			{
 				language: "dub",
@@ -353,13 +341,19 @@ describe("getEpisodeVersions", () => {
 	});
 
 	test("leaves providers that fail the first lookup to the scheduler", async () => {
-		useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])]), notLookedUp("allmanga", "en")]);
+		const dependencies = useProviders([
+			notLookedUp("anikoto", "en", [unit(3, ["sub"])]),
+			notLookedUp("allmanga", "en"),
+		]);
 
 		expect(
-			await getEpisodeVersions({
-				anilistId: 154587,
-				number: 3,
-			}),
+			await getEpisodeVersions(
+				{
+					anilistId: 154587,
+					number: 3,
+				},
+				dependencies,
+			),
 		).toEqual([
 			{
 				language: "sub",
@@ -370,32 +364,38 @@ describe("getEpisodeVersions", () => {
 	});
 
 	test("shares one first lookup between concurrent plays", async () => {
-		useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])])]);
+		const dependencies = useProviders([notLookedUp("anikoto", "en", [unit(3, ["sub"])])]);
 
 		const episode = {
 			anilistId: 154587,
 			number: 3,
 		};
-		await Promise.all([getEpisodeVersions(episode), getEpisodeVersions(episode)]);
+		await Promise.all([
+			getEpisodeVersions(episode, dependencies),
+			getEpisodeVersions(episode, dependencies),
+		]);
 
 		expect(asks).toBe(1);
 	});
 
 	test("returns nothing when no provider lists the episode", async () => {
-		useProviders([provider("anikoto", "en", [unit(1, ["sub", "dub"])])]);
+		const dependencies = useProviders([provider("anikoto", "en", [unit(1, ["sub", "dub"])])]);
 
 		expect(
-			await getEpisodeVersions({
-				anilistId: 154587,
-				number: 3,
-			}),
+			await getEpisodeVersions(
+				{
+					anilistId: 154587,
+					number: 3,
+				},
+				dependencies,
+			),
 		).toEqual([]);
 	});
 });
 
 describe("findEpisodeListings", () => {
 	test("marks each episode filler or not, as the providers that say do", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			provider("anikoto", "en", [unit(1, ["sub"], false), unit(2, ["sub"], true)]),
 			provider("silent", "en", [unit(1, ["dub"]), unit(2, ["dub"]), unit(3, ["dub"])]),
 		]);
@@ -405,6 +405,7 @@ describe("findEpisodeListings", () => {
 				anilistId: 1,
 				episode,
 			})),
+			dependencies,
 		);
 
 		expect(Object.fromEntries([...found].map(([key, listing]) => [key, listing.isFiller]))).toEqual(
@@ -417,9 +418,9 @@ describe("findEpisodeListings", () => {
 	});
 
 	test("does not know whether an episode is filler while it is unknown", async () => {
-		useProviders([notLookedUp("anikoto", "en")]);
+		const dependencies = useProviders([notLookedUp("anikoto", "en")]);
 
-		const listings = await findEpisodeListings(firstEpisode);
+		const listings = await findEpisodeListings(firstEpisode, dependencies);
 		expect(listings.get("1:1")).toEqual({
 			languages: null,
 			isFiller: null,
@@ -429,7 +430,7 @@ describe("findEpisodeListings", () => {
 
 describe("findEpisodeLanguages", () => {
 	test("lists each episode's languages, keyed by AniList episode", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			provider("anikoto", "en", [unit(1, ["sub", "dub"]), unit(2, ["sub"])]),
 			provider("brazilian", "pt-BR", [unit(2, ["dub"])]),
 		]);
@@ -439,6 +440,7 @@ describe("findEpisodeLanguages", () => {
 				anilistId: 1,
 				episode,
 			})),
+			dependencies,
 		);
 
 		expect(Object.fromEntries(found)).toEqual({
@@ -450,7 +452,7 @@ describe("findEpisodeLanguages", () => {
 	});
 
 	test("marks an anime's episodes unknown until it is looked up, queueing its lookup, and keeps others", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			{
 				...provider("anikoto", "en", []),
 				units: (anilistId) => (anilistId === 1 ? [unit(1, ["sub", "dub"])] : undefined),
@@ -460,16 +462,19 @@ describe("findEpisodeLanguages", () => {
 			},
 		]);
 
-		const found = await findEpisodeLanguages([
-			{
-				anilistId: 1,
-				episode: 1,
-			},
-			{
-				anilistId: 2,
-				episode: 1,
-			},
-		]);
+		const found = await findEpisodeLanguages(
+			[
+				{
+					anilistId: 1,
+					episode: 1,
+				},
+				{
+					anilistId: 2,
+					episode: 1,
+				},
+			],
+			dependencies,
+		);
 
 		expect(Object.fromEntries(found)).toEqual({
 			"1:1": ["dub", "sub"],
@@ -480,53 +485,59 @@ describe("findEpisodeLanguages", () => {
 	});
 
 	test("asks no provider for an anime none was looked up for, and queues its lookup", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			notLookedUp("anikoto", "en", [unit(1, ["sub"])]),
 			notLookedUp("allmanga", "en", [unit(1, ["dub"])]),
 		]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toBeNull();
 		expect(asks).toBe(0);
 		expect(queuedLookups).toEqual([1]);
 	});
 
 	test("asks no provider once any has been looked up", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			provider("anikoto", "en", [unit(1, ["sub"])]),
 			notLookedUp("allmanga", "en", [unit(1, ["dub"])]),
 		]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual(["sub"]);
 		expect(asks).toBe(0);
 		expect(queuedLookups).toEqual([1]);
 	});
 
 	test("uses the providers looked up so far when another has not been", async () => {
-		useProviders([provider("anikoto", "en", [unit(1, ["sub"])]), notLookedUp("slow", "en")]);
+		const dependencies = useProviders([
+			provider("anikoto", "en", [unit(1, ["sub"])]),
+			notLookedUp("slow", "en"),
+		]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual(["sub"]);
 	});
 
 	test("marks an episode unknown, not unwatchable, when only a provider not looked up yet might list it", async () => {
-		useProviders([provider("anikoto", "en", []), notLookedUp("slow", "en")]);
+		const dependencies = useProviders([provider("anikoto", "en", []), notLookedUp("slow", "en")]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toBeNull();
 	});
 
 	test("knows an episode is unwatchable once every provider is looked up without listing it", async () => {
-		useProviders([provider("anikoto", "en", []), provider("allmanga", "en", [])]);
+		const dependencies = useProviders([
+			provider("anikoto", "en", []),
+			provider("allmanga", "en", []),
+		]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual([]);
 		expect(queuedLookups).toEqual([]);
 	});
 
 	test("ignores providers whose lists do not say which languages episodes have", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			provider("anikoto", "en", [unit(1, ["sub"])]),
 			{
 				...notLookedUp("megaplay", "en"),
@@ -534,7 +545,7 @@ describe("findEpisodeLanguages", () => {
 			},
 		]);
 
-		const languages = await findEpisodeLanguages(firstEpisode);
+		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual(["sub"]);
 		expect(queuedLookups).toEqual([]);
 	});
@@ -542,7 +553,7 @@ describe("findEpisodeLanguages", () => {
 
 describe("findAnimeLanguages", () => {
 	test("lists the languages of the providers looked up so far, and queues the rest", async () => {
-		useProviders([
+		const dependencies = useProviders([
 			{
 				...provider("anikoto", "en", []),
 				units: (anilistId) => (anilistId === 1 ? [unit(1, ["sub", "dub"])] : undefined),
@@ -550,7 +561,7 @@ describe("findAnimeLanguages", () => {
 			provider("allmanga", "en", [unit(1, ["sub"])]),
 		]);
 
-		expect(Object.fromEntries(await findAnimeLanguages([1, 2]))).toEqual({
+		expect(Object.fromEntries(await findAnimeLanguages([1, 2], dependencies))).toEqual({
 			1: ["dub", "sub"],
 			2: ["sub"],
 		});

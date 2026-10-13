@@ -10,6 +10,23 @@ import type { StreamProvider } from "../providers/provider";
 import { servedLocale, streamProviders } from "../providers/registry";
 import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
 
+/** What listing versions reads, asks, and queues through; tests pass their own. */
+export interface VersionDependencies {
+	providers: readonly StreamProvider[];
+	getAnime: typeof getAnime;
+	getStoredUnits: typeof getStoredUnits;
+	getProviderUnits: typeof getProviderUnits;
+	scheduleEpisodeLookups: typeof scheduleEpisodeLookups;
+}
+
+const live: VersionDependencies = {
+	providers: streamProviders,
+	getAnime,
+	getStoredUnits,
+	getProviderUnits,
+	scheduleEpisodeLookups,
+};
+
 /**
  * One way to watch an episode: its {@link ContentLanguage} and, for sub and
  * dub, whose language it is in.
@@ -85,11 +102,16 @@ export function languagesOf(versions: readonly EpisodeVersion[]): ContentLanguag
  */
 export async function getEpisodeVersions(
 	episode: Pick<LocatedEpisode, "anilistId" | "number">,
+	dependencies: VersionDependencies = live,
 ): Promise<EpisodeVersion[]> {
 	const listed = (
-		await readAnimeListings([episode.anilistId], {
-			lookUpUnknown: true,
-		})
+		await readAnimeListings(
+			[episode.anilistId],
+			{
+				lookUpUnknown: true,
+			},
+			dependencies,
+		)
 	).get(episode.anilistId);
 	return versionsOffered(
 		listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? [],
@@ -131,12 +153,14 @@ export async function findEpisodeListings(
 		anilistId: number;
 		episode: number;
 	}[],
+	dependencies: VersionDependencies = live,
 ): Promise<Map<string, EpisodeListing>> {
 	const listingsById = await readAnimeListings(
 		episodes.map((episode) => episode.anilistId),
 		{
 			lookUpUnknown: false,
 		},
+		dependencies,
 	);
 
 	const found = new Map<string, EpisodeListing>();
@@ -164,11 +188,16 @@ export async function findEpisodeListings(
  */
 export async function findAnimeLanguages(
 	anilistIds: readonly number[],
+	dependencies: VersionDependencies = live,
 ): Promise<Map<number, ContentLanguage[]>> {
-	const listed = await readAnimeListings(anilistIds, {
-		lookUpUnknown: false,
-		priority: "current",
-	});
+	const listed = await readAnimeListings(
+		anilistIds,
+		{
+			lookUpUnknown: false,
+			priority: "current",
+		},
+		dependencies,
+	);
 	return new Map(
 		[...listed].map(([anilistId, { listings }]) => [
 			anilistId,
@@ -200,10 +229,11 @@ async function readAnimeListings(
 		/** Card backfills run after listings a viewer is waiting on. */
 		priority?: "current" | "waiting";
 	},
+	dependencies: VersionDependencies,
 ): Promise<Map<number, AnimeListings>> {
-	const sources = listingSources();
+	const sources = listingSources(dependencies.providers);
 	const ids = [...new Set(anilistIds)];
-	const stored = await getStoredUnits(
+	const stored = await dependencies.getStoredUnits(
 		ids,
 		sources.map((source) => source.id),
 	);
@@ -212,7 +242,7 @@ async function readAnimeListings(
 			(anilistId) => !stored.some((entry) => entry.anilistId === anilistId),
 		);
 		for (const found of await Promise.all(
-			neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources)),
+			neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources, dependencies)),
 		)) {
 			stored.push(...found);
 		}
@@ -220,7 +250,7 @@ async function readAnimeListings(
 
 	const byId = new Map(ids.map((anilistId) => [anilistId, listingsOf(anilistId, stored, sources)]));
 
-	await scheduleEpisodeLookups(
+	await dependencies.scheduleEpisodeLookups(
 		[...byId].flatMap(([anilistId, listed]) => (listed.pending ? [anilistId] : [])),
 		options.priority ?? "waiting",
 	);
@@ -228,10 +258,8 @@ async function readAnimeListings(
 }
 
 /** The providers whose lists say truthfully which languages the served locale has. */
-function listingSources() {
-	return streamProviders.filter(
-		(source) => source.listsLanguages && source.locale === servedLocale,
-	);
+function listingSources(providers: readonly StreamProvider[]) {
+	return providers.filter((source) => source.listsLanguages && source.locale === servedLocale);
 }
 
 /** One anime's episode lists among `stored`, from `sources`. */
@@ -267,16 +295,24 @@ const lookupsInFlight = new InFlight<number, StoredUnits[]>();
  * the providers that fail, and every provider when the anime cannot be
  * loaded.
  */
-function lookUpNow(anilistId: number, sources: readonly StreamProvider[]): Promise<StoredUnits[]> {
+function lookUpNow(
+	anilistId: number,
+	sources: readonly StreamProvider[],
+	dependencies: VersionDependencies,
+): Promise<StoredUnits[]> {
 	return lookupsInFlight.run(anilistId, async () => {
-		const anime = await attempt(getAnime(anilistId), AnimeNotFoundError, UpstreamUnavailableError);
+		const anime = await attempt(
+			dependencies.getAnime(anilistId),
+			AnimeNotFoundError,
+			UpstreamUnavailableError,
+		);
 		if (anime.error) {
 			return [];
 		}
 
 		const found = await Promise.all(
 			sources.map(async (provider) => {
-				const { data, error } = await attempt(getProviderUnits(anime.data, provider));
+				const { data, error } = await attempt(dependencies.getProviderUnits(anime.data, provider));
 				if (error) {
 					console.warn(
 						`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
