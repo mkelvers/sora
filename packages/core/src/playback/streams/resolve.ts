@@ -44,6 +44,32 @@ export const PlaybackRequestSchema = z.object({
 
 export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
 
+/** What resolving playback reads, asks, and signs with; tests pass their own. */
+export interface PlaybackDependencies {
+	providers: readonly StreamProvider[];
+	locateEpisode: typeof locateEpisode;
+	getAnime: typeof getAnime;
+	getEpisodeVersions: typeof getEpisodeVersions;
+	getProviderUnits: typeof getProviderUnits;
+	createStreamToken: typeof createStreamToken;
+	segmentStarts: typeof segmentStarts;
+	canFetchStream: typeof canFetchStream;
+}
+
+const live: PlaybackDependencies = {
+	providers: streamProviders,
+	locateEpisode,
+	getAnime,
+	getEpisodeVersions,
+	getProviderUnits,
+	createStreamToken,
+	segmentStarts,
+	canFetchStream,
+};
+
+/** The URL of a stream token for `createStreamToken`'s arguments. */
+type StreamUrl = (...token: Parameters<typeof createStreamToken>) => string;
+
 export interface PlaybackOptions {
 	/**
 	 * Absolute URL of the proxy route that serves stream tokens, such as
@@ -128,6 +154,7 @@ const qualityRank: Record<StreamQuality, number> = {
 export async function resolvePlayback(
 	request: PlaybackRequest,
 	options: PlaybackOptions,
+	dependencies: PlaybackDependencies = live,
 ): Promise<Playback> {
 	const parsed = PlaybackRequestSchema.safeParse(request);
 	if (!parsed.success) {
@@ -139,18 +166,18 @@ export async function resolvePlayback(
 	const { seriesId, episode } = parsed.data;
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-	const located = await locateEpisode(seriesId, episode);
+	const located = await dependencies.locateEpisode(seriesId, episode);
 	const [anime, offered] = await Promise.all([
-		getAnime(located.anilistId),
-		getEpisodeVersions(located),
+		dependencies.getAnime(located.anilistId),
+		dependencies.getEpisodeVersions(located),
 	]);
-	const streamUrl = (token: string) =>
-		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(token)}`;
+	const streamUrl: StreamUrl = (...token) =>
+		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
 
 	// Versions share each provider's episode list.
 	const lists = new Map<string, Promise<ProviderUnit[]>>();
 	const unitsOf = (provider: StreamProvider) => {
-		const list = lists.get(provider.id) ?? getProviderUnits(anime, provider);
+		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
 		lists.set(provider.id, list);
 		return list;
 	};
@@ -165,7 +192,14 @@ export async function resolvePlayback(
 	const results = await Promise.all(
 		[...alwaysTried, ...served].map((version) =>
 			beforeDeadline(
-				resolveVersion(version, located.number, unitsOf, streamUrl, options.accountId),
+				resolveVersion(
+					version,
+					located.number,
+					unitsOf,
+					streamUrl,
+					options.accountId,
+					dependencies,
+				),
 				version,
 				options.deadlineMs ?? playbackDeadlineMs,
 			),
@@ -174,7 +208,7 @@ export async function resolvePlayback(
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
 	if (sub?.version && sub.videos && dub?.version && dub.videos) {
-		const shifts = await timelineShifts(sub.videos, dub.videos);
+		const shifts = await timelineShifts(sub.videos, dub.videos, dependencies);
 		dub.version.subtitles = await subtitlesForDub(
 			sub.videos,
 			dub.videos,
@@ -220,8 +254,9 @@ async function resolveVersion(
 	{ language, locale }: EpisodeVersion,
 	anilistEpisode: number,
 	unitsOf: (provider: StreamProvider) => Promise<ProviderUnit[]>,
-	streamUrl: (token: string) => string,
+	streamUrl: StreamUrl,
 	accountId: string,
+	dependencies: PlaybackDependencies,
 ): Promise<VersionResult> {
 	const attempts: ProviderAttempt[] = [];
 	const fail = (provider: StreamProvider, reason: string) =>
@@ -236,7 +271,7 @@ async function resolveVersion(
 
 	// Providers are asked for their episode lists at once; the lists are
 	// kept in priority order.
-	const asked = streamProviders.filter(
+	const asked = dependencies.providers.filter(
 		(provider) =>
 			provider.locale === servedLocale && (locale === null || provider.locale === locale),
 	);
@@ -276,7 +311,10 @@ async function resolveVersion(
 
 		const [loads, kinds] =
 			language === "sub"
-				? await Promise.all([englishSubtitlesLoad(stream.videos), subtitleKinds(stream.videos)])
+				? await Promise.all([
+						englishSubtitlesLoad(stream.videos, dependencies),
+						subtitleKinds(stream.videos),
+					])
 				: [true, new Map<string, SubtitleKind | null>()];
 		if (!loads) {
 			fail(provider, "English subtitles cannot be fetched");
@@ -393,7 +431,11 @@ async function beforeDeadline(
  * encodes' segment boundaries (see {@link alignTimelines}). `null` when either
  * is not HLS, a playlist cannot be read, or the encodes do not align.
  */
-async function timelineShifts(sub: ProviderVideo[], dub: ProviderVideo[]) {
+async function timelineShifts(
+	sub: ProviderVideo[],
+	dub: ProviderVideo[],
+	dependencies: PlaybackDependencies,
+) {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
 	if (!subVideo || !dubVideo) {
@@ -402,8 +444,8 @@ async function timelineShifts(sub: ProviderVideo[], dub: ProviderVideo[]) {
 
 	const starts = await attempt(
 		Promise.all([
-			segmentStarts(subVideo.url, subVideo.headers),
-			segmentStarts(dubVideo.url, dubVideo.headers),
+			dependencies.segmentStarts(subVideo.url, subVideo.headers),
+			dependencies.segmentStarts(dubVideo.url, dubVideo.headers),
 		]),
 		StreamUpstreamError,
 	);
@@ -421,7 +463,7 @@ async function timelineShifts(sub: ProviderVideo[], dub: ProviderVideo[]) {
 async function subtitlesForDub(
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
-	streamUrl: (token: string) => string,
+	streamUrl: StreamUrl,
 	accountId: string,
 	shifts: TimelineShift[] | null,
 ) {
@@ -476,7 +518,7 @@ function skipSegmentsForDub(
 
 function toPlaybackMedia(
 	videos: ProviderVideo[],
-	streamUrl: (token: string) => string,
+	streamUrl: StreamUrl,
 	kinds: Map<string, SubtitleKind | null>,
 	accountId: string,
 	shifts?: TimelineShift[],
@@ -484,11 +526,9 @@ function toPlaybackMedia(
 	const sources = [...videos]
 		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
 		.map((video) => ({
-			url: streamUrl(
-				createStreamToken(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
-					accountId,
-				}),
-			),
+			url: streamUrl(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
+				accountId,
+			}),
 			format: video.format,
 			quality: video.quality,
 		}));
@@ -499,13 +539,11 @@ function toPlaybackMedia(
 		for (const track of video.subtitles) {
 			if (!subtitles.has(track.url)) {
 				subtitles.set(track.url, {
-					url: streamUrl(
-						createStreamToken(track.url, "subtitle", video.headers, {
-							accountId,
-							mirrors: mirrorsFor(track.url, video.url),
-							shifts,
-						}),
-					),
+					url: streamUrl(track.url, "subtitle", video.headers, {
+						accountId,
+						mirrors: mirrorsFor(track.url, video.url),
+						shifts,
+					}),
 					language: track.language,
 					label: languageName(track.language) ?? track.label,
 					format: track.format,
@@ -553,7 +591,7 @@ function withDefault(subtitles: PlaybackSubtitle[]) {
  * fall back to the video's host, which often carries them when theirs is
  * unreachable. A sub without English tracks has them burned in, so passes.
  */
-async function englishSubtitlesLoad(videos: ProviderVideo[]) {
+async function englishSubtitlesLoad(videos: ProviderVideo[], dependencies: PlaybackDependencies) {
 	const english = videos.flatMap((video) =>
 		video.subtitles.filter(isServedSubtitle).map((track) => ({
 			track,
@@ -566,7 +604,7 @@ async function englishSubtitlesLoad(videos: ProviderVideo[]) {
 
 	const loads = await Promise.all(
 		english.map(({ track, video }) =>
-			canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)),
+			dependencies.canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)),
 		),
 	);
 	return loads.includes(true);
