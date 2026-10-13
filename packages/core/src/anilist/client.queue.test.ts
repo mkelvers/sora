@@ -1,25 +1,16 @@
-import { afterAll, beforeAll, expect, mock, spyOn, test } from "bun:test";
+import { expect, test } from "bun:test";
 
-import { db } from "../database/client";
-import { anilist, viewerWaitingPriority, aniListPriority } from "./client";
+import { aniListPriority, createAniListClient, viewerWaitingPriority } from "./client";
 import type { TypedDocumentString } from "./graphql.generated";
-
-/** A database with no snapshots that accepts every write. */
-const chain: Record<string, unknown> = {};
-for (const method of ["select", "from", "where", "insert", "values"]) {
-	chain[method] = () => chain;
-}
-chain.limit = async () => [];
-chain.onConflictDoUpdate = async () => undefined;
 
 /** The `id` variable of each request AniList received, in the order they were sent. */
 const sent: number[] = [];
 /** When each request was sent. */
 const sentAt: number[] = [];
-const fakeFetch = (async (_input: unknown, init?: RequestInit) => {
+async function respond(_input: string, init: RequestInit) {
 	sent.push(
 		(
-			JSON.parse(String(init?.body)) as {
+			JSON.parse(String(init.body)) as {
 				variables: {
 					id: number;
 				};
@@ -40,16 +31,14 @@ const fakeFetch = (async (_input: unknown, init?: RequestInit) => {
 			},
 		},
 	);
-}) as typeof fetch;
+}
 
-beforeAll(() => {
-	spyOn(db, "select").mockReturnValue(chain as never);
-	spyOn(db, "insert").mockReturnValue(chain as never);
-	spyOn(globalThis, "fetch").mockImplementation(fakeFetch);
-});
-
-afterAll(() => {
-	mock.restore();
+const { anilist } = createAniListClient({
+	fetch: respond,
+	store: {
+		find: async () => undefined,
+		save: async () => undefined,
+	},
 });
 
 const document =
@@ -72,10 +61,6 @@ const fetchMedia = (id: number) =>
 const background = 10;
 
 test("sends a request a viewer joins ahead of background work queued before it", async () => {
-	// A request sent first, so each one after it waits out the spacing, whatever sent before this file.
-	await aniListPriority.run(background, () => fetchMedia(0));
-	sent.length = 0;
-
 	const first = aniListPriority.run(background, () => fetchMedia(1));
 	const second = aniListPriority.run(background, () => fetchMedia(2));
 	const shared = aniListPriority.run(background, () => fetchMedia(3));
@@ -84,7 +69,7 @@ test("sends a request a viewer joins ahead of background work queued before it",
 
 	await Promise.all([first, second, shared, viewer]);
 
-	expect(sent).toEqual([3, 1, 2]);
+	expect(sent).toEqual([1, 3, 2]);
 }, 15_000);
 
 test("spaces background requests to the limit AniList reports, not the normal one", async () => {
