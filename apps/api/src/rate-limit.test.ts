@@ -1,16 +1,9 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import { Hono } from "hono";
 
 import type { V1Env } from "./errors";
-
-// The real module reads the core's configuration on import, which the error
-// handling the limiter answers with pulls in.
-mock.module("@sora/core/playback", () => ({
-	StreamUpstreamError: class extends Error {},
-}));
-
-const { rateLimit } = await import("./rate-limit");
+import { rateLimit } from "./rate-limit";
 
 function app(limit: number, windowMs = 60_000) {
 	return new Hono<V1Env>()

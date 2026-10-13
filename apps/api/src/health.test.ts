@@ -1,14 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import type { ProviderHealth } from "@sora/core/playback";
 
-// The real module reads the core's configuration on import; every test here
-// passes its own loader.
-mock.module("@sora/core/playback", () => ({
-	getProviderHealth: async () => [],
-}));
-
-const { healthRoutes } = await import("./health");
+import { healthRoutes } from "./health";
 
 const anikoto: ProviderHealth = {
 	provider: "anikoto",

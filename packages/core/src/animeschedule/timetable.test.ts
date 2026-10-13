@@ -1,17 +1,9 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import type { HttpClient } from "anime-sdk";
 
-mock.module("../config", () => ({
-	config: {
-		animeScheduleApiKey: "token",
-	},
-}));
-mock.module("../database/client", () => ({
-	db: {},
-}));
-
-const { fetchTimetable, isoWeek } = await import("./timetable");
+import { config } from "../config";
+import { fetchTimetable, isoWeek } from "./timetable";
 
 let asked: {
 	url: string;
@@ -69,7 +61,7 @@ describe("fetchTimetable", () => {
 			{
 				url: "https://animeschedule.net/api/v3/timetables/all?year=2026&week=40&tz=UTC",
 				headers: {
-					Authorization: "Bearer token",
+					Authorization: `Bearer ${config.animeScheduleApiKey}`,
 				},
 			},
 		]);

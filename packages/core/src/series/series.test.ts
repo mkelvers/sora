@@ -1,10 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-mock.module("../database/client", () => ({
-	db: {},
-}));
-
-const { layoutEpisodes } = await import("./series");
+import { layoutEpisodes } from "./series";
 
 const finished = {
 	episodes: 3,

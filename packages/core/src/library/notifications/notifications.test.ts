@@ -1,11 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-mock.module("../../database/client", () => ({
-	db: {},
-}));
-
-const { groupNotifications } = await import("./notifications");
-type ReleasedEpisode = import("./notifications").ReleasedEpisode;
+import { groupNotifications, type ReleasedEpisode } from "./notifications";
 
 const monday = new Date("2026-09-28T15:00:00Z");
 const tuesday = new Date("2026-09-29T15:00:00Z");

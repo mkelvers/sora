@@ -1,12 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import type { Anime } from "../../catalog/models/anime";
-
-mock.module("../../database/client", () => ({
-	db: {},
-}));
-
-const { bestIdMatch, parseCatalogSeries, strictTitle } = await import("./anikoto-catalog");
+import { bestIdMatch, parseCatalogSeries, strictTitle } from "./anikoto-catalog";
 
 /** Frieren as AniKoto's catalogue listing sends it. */
 const frieren = {

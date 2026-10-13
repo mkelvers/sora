@@ -1,10 +1,17 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
+import * as animeQueries from "../../catalog/queries/anime";
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
 import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
+import * as series from "../../series/episodes";
+import * as episodes from "../episodes/episodes";
+import * as versions from "../episodes/versions";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderStream } from "../providers/provider";
+import { streamProviders } from "../providers/registry";
+import * as proxy from "../proxy/proxy";
+import { resolvePlayback } from "./resolve";
 
 /** A provider stand-in that lists episode 3 and streams the languages it has. */
 interface FakeProvider {
@@ -28,12 +35,8 @@ interface FakeProvider {
 }
 
 /** The registry's `streamProviders`, filled in place by {@link useProviders}. */
-const streamProviders: {
-	id: string;
-	locale: string;
-	listsLanguages: boolean;
-	resolveStream: (episodeId: string, language: ContentLanguage) => Promise<ProviderStream>;
-}[] = [];
+const registry = streamProviders as unknown[];
+const registered = [...registry];
 const units = new Map<string, ContentLanguage[]>();
 const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
@@ -41,9 +44,9 @@ let offered: EpisodeVersion[] = [];
 
 function useProviders(list: FakeProvider[]) {
 	units.clear();
-	streamProviders.splice(
+	registry.splice(
 		0,
-		streamProviders.length,
+		registry.length,
 		...list.map((fake) => {
 			units.set(fake.id, fake.languages);
 			return {
@@ -101,20 +104,18 @@ function useProviders(list: FakeProvider[]) {
 	);
 }
 
-mock.module("../../series/episodes", () => ({
-	locateEpisode: async () => ({
+/** Segment start times `segmentStarts` hands out, by playlist URL. */
+const timelines = new Map<string, number[]>();
+
+function fakeCollaborators() {
+	spyOn(series, "locateEpisode").mockImplementation((async () => ({
 		anilistId: 154587,
 		number: 3,
-	}),
-	anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
-}));
-mock.module("../../catalog/queries/anime", () => ({
-	getAnime: async (id: number) => ({
+	})) as never);
+	spyOn(animeQueries, "getAnime").mockImplementation((async (id: number) => ({
 		id,
-	}),
-}));
-mock.module("../episodes/episodes", () => ({
-	getProviderUnits: async (
+	})) as never);
+	spyOn(episodes, "getProviderUnits").mockImplementation((async (
 		_anime: unknown,
 		provider: {
 			id: string;
@@ -126,35 +127,24 @@ mock.module("../episodes/episodes", () => ({
 			title: "Episode 3",
 			languages: units.get(provider.id) ?? null,
 		},
-	],
-}));
-mock.module("../episodes/versions", () => ({
-	getEpisodeVersions: async () => offered,
-}));
-mock.module("../providers/registry", () => ({
-	servedLocale: "en",
-	isServedSubtitle: (track: { language: string }) => track.language === "en",
-	streamProviders,
-}));
-/** Segment start times `segmentStarts` hands out, by playlist URL. */
-const timelines = new Map<string, number[]>();
-
-mock.module("../proxy/proxy", () => ({
-	createStreamToken: (
+	]) as never);
+	spyOn(versions, "getEpisodeVersions").mockImplementation(async () => offered);
+	spyOn(proxy, "createStreamToken").mockImplementation(((
 		url: string,
 		_kind: string,
 		_headers: unknown,
 		options?: {
 			shifts?: unknown;
 		},
-	) => (options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`),
-	segmentStarts: async (url: string) => timelines.get(url) ?? [],
-	canFetchStream: async (url: string) => !url.includes(".unreachable."),
-	readSubtitle: async () => null,
-	tokenLifetimeMs: 6 * 60 * 60 * 1_000,
-}));
-
-const { resolvePlayback } = await import("./resolve");
+	) =>
+		options?.shifts ? `token:${url}@${JSON.stringify(options.shifts)}` : `token:${url}`) as never);
+	spyOn(proxy, "segmentStarts").mockImplementation(
+		(async (url: string) => timelines.get(url) ?? []) as never,
+	);
+	spyOn(proxy, "canFetchStream").mockImplementation(
+		(async (url: string) => !url.includes(".unreachable.")) as never,
+	);
+}
 
 const request = {
 	seriesId: "series",
@@ -191,7 +181,16 @@ function boundaries(seed: number) {
 	return times;
 }
 
+afterAll(() => {
+	registry.splice(0, registry.length, ...registered);
+});
+
+afterEach(() => {
+	mock.restore();
+});
+
 beforeEach(() => {
+	fakeCollaborators();
 	resolved.length = 0;
 	offered = [];
 	timelines.clear();

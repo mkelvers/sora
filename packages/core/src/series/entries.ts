@@ -63,15 +63,20 @@ const recentEntries = new Map<
  *
  * Unknown, adult, and music-video IDs are left out: music videos are not
  * watchable series, and adult media is never served.
+ *
+ * @param load - Fetches entries from AniList; tests pass their own.
  */
-export async function loadEntries(ids: Iterable<number>): Promise<Map<number, FranchiseEntry>> {
+export async function loadEntries(
+	ids: Iterable<number>,
+	load: typeof loadFranchiseEntries = loadFranchiseEntries,
+): Promise<Map<number, FranchiseEntry>> {
 	const wanted = [...new Set(ids)];
 	const missing = wanted.filter((id) => {
 		const recent = recentEntries.get(id);
 		return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
 	});
 	if (missing.length > 0) {
-		await fetchAndRemember(missing);
+		await fetchAndRemember(missing, load);
 	}
 
 	const entries = new Map<number, FranchiseEntry>();
@@ -104,8 +109,8 @@ const loadFranchiseEntries = loadMediaById({
 });
 
 /** Fetches entries and remembers them and their neighbours. */
-async function fetchAndRemember(ids: readonly number[]) {
-	const loaded = await loadFranchiseEntries(ids);
+async function fetchAndRemember(ids: readonly number[], load: typeof loadFranchiseEntries) {
+	const loaded = await load(ids);
 	const asked = new Set(ids);
 	for (const id of ids) {
 		const media = loaded.get(id);

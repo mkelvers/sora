@@ -1,5 +1,7 @@
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
 
+import { db } from "../database/client";
+import { anilist, loadMediaById, aniListPriority } from "./client";
 import type { TypedDocumentString } from "./graphql.generated";
 
 /** A database with no snapshots that accepts every write. */
@@ -10,12 +12,6 @@ for (const method of ["select", "from", "where", "insert", "values"]) {
 chain.limit = async () => [];
 chain.onConflictDoUpdate = async () => undefined;
 
-mock.module("../database/client", () => ({
-	db: chain,
-}));
-
-const { anilist, loadMediaById, aniListPriority } = await import("./client");
-
 type Pages = Record<string, number[] | number | boolean>;
 
 /** The variables of each request AniList received, in the order they were sent. */
@@ -24,8 +20,7 @@ const sent: Pages[] = [];
 const unknown = new Set([404]);
 let failNext = false;
 let rateLimitNext = false;
-const realFetch = globalThis.fetch;
-globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+const fakeFetch = (async (_input: unknown, init?: RequestInit) => {
 	const variables = (
 		JSON.parse(String(init?.body)) as {
 			variables: Pages;
@@ -99,8 +94,14 @@ globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
 	);
 }) as typeof fetch;
 
+beforeAll(() => {
+	spyOn(db, "select").mockReturnValue(chain as never);
+	spyOn(db, "insert").mockReturnValue(chain as never);
+	spyOn(globalThis, "fetch").mockImplementation(fakeFetch);
+});
+
 afterAll(() => {
-	globalThis.fetch = realFetch;
+	mock.restore();
 });
 
 beforeEach(() => {

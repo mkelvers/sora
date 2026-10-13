@@ -1,7 +1,19 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
+import * as animeQueries from "../../catalog/queries/anime";
 import type { ContentLanguage } from "../../models/series";
+import * as queue from "../../scheduler/queue";
+import { streamProviders } from "../providers/registry";
+import * as episodes from "./episodes";
 import type { ProviderUnit } from "./episodes";
+import {
+	fillerOf,
+	findAnimeLanguages,
+	findEpisodeListings,
+	getEpisodeVersions,
+	languagesOf,
+	versionsOffered,
+} from "./versions";
 import type { ListedUnit } from "./versions";
 
 /**
@@ -22,18 +34,15 @@ let queuedLookups: number[] = [];
 let queuedPriorities: string[] = [];
 let asks = 0;
 
-/** The registry's `streamProviders`, kept in step with `providers` by {@link useProviders}. */
-const streamProviders: {
-	id: string;
-	locale: string;
-	listsLanguages: boolean;
-}[] = [];
+/** The registry's providers, which tests swap for fakes and put back. */
+const registry = streamProviders as unknown[];
+const registered = [...registry];
 
 function useProviders(list: FakeProvider[]) {
 	providers = list;
-	streamProviders.splice(
+	registry.splice(
 		0,
-		streamProviders.length,
+		registry.length,
 		...list.map(({ id, locale, listsLanguages }) => ({
 			id,
 			locale,
@@ -42,24 +51,17 @@ function useProviders(list: FakeProvider[]) {
 	);
 }
 
-mock.module("../../series/episodes", () => ({
-	anilistEpisodeKey: (anilistId: number, episode: number) => `${anilistId}:${episode}`,
-}));
-mock.module("../../scheduler/queue", () => ({
-	scheduleEpisodeLookups: async (anilistIds: readonly number[], priority: string) => {
+function fakeCollaborators() {
+	spyOn(animeQueries, "getAnime").mockImplementation((async (id: number) => ({
+		id,
+	})) as never);
+	spyOn(queue, "scheduleEpisodeLookups").mockImplementation(async (anilistIds, priority) => {
 		queuedLookups.push(...anilistIds);
 		if (anilistIds.length > 0) {
 			queuedPriorities.push(priority);
 		}
-	},
-}));
-mock.module("../../catalog/queries/anime", () => ({
-	getAnime: async (id: number) => ({
-		id,
-	}),
-}));
-mock.module("./episodes", () => ({
-	getProviderUnits: (
+	});
+	spyOn(episodes, "getProviderUnits").mockImplementation(((
 		_anime: unknown,
 		target: {
 			id: string;
@@ -67,8 +69,8 @@ mock.module("./episodes", () => ({
 	) => {
 		asks += 1;
 		return providers.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
-	},
-	getStoredUnits: async (anilistIds: readonly number[]) =>
+	}) as never);
+	spyOn(episodes, "getStoredUnits").mockImplementation((async (anilistIds: readonly number[]) =>
 		[...new Set(anilistIds)].flatMap((anilistId) =>
 			providers.flatMap((candidate) => {
 				const units = candidate.units(anilistId);
@@ -82,22 +84,8 @@ mock.module("./episodes", () => ({
 						]
 					: [];
 			}),
-		),
-}));
-mock.module("../providers/registry", () => ({
-	servedLocale: "en",
-	isServedSubtitle: (track: { language: string }) => track.language === "en",
-	streamProviders,
-}));
-
-const {
-	fillerOf,
-	findAnimeLanguages,
-	findEpisodeListings,
-	getEpisodeVersions,
-	languagesOf,
-	versionsOffered,
-} = await import("./versions");
+		)) as never);
+}
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
 async function findEpisodeLanguages(...args: Parameters<typeof findEpisodeListings>) {
@@ -166,7 +154,16 @@ const firstEpisode = [
 	},
 ];
 
+afterAll(() => {
+	registry.splice(0, registry.length, ...registered);
+});
+
+afterEach(() => {
+	mock.restore();
+});
+
 beforeEach(() => {
+	fakeCollaborators();
 	useProviders([]);
 	queuedLookups = [];
 	queuedPriorities = [];

@@ -1,6 +1,9 @@
-import { expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 
 import type { z } from "zod";
+
+import * as client from "./client";
+import { getShowEpisodeGroups } from "./resources";
 
 const requests: string[] = [];
 const episode = {
@@ -28,13 +31,20 @@ const responses: Record<string, unknown> = {
 	},
 	"/tv/1/episode_groups": { results: [] },
 };
-mock.module("./client", () => ({
-	tmdb: async (path: string, _query: Record<string, string>, schema: z.ZodType) => {
+beforeEach(() => {
+	spyOn(client, "tmdb").mockImplementation((async (
+		path: string,
+		_query: Record<string, string>,
+		schema: z.ZodType,
+	) => {
 		requests.push(path);
 		return schema.parse(responses[path]);
-	},
-}));
-const { getShowEpisodeGroups } = await import("./resources");
+	}) as typeof client.tmdb);
+});
+
+afterEach(() => {
+	mock.restore();
+});
 
 test("loads episode groups in order and retains canonical episode numbers", async () => {
 	const arrangements = await getShowEpisodeGroups(45790);

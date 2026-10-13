@@ -1,22 +1,13 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-mock.module("../database/client", () => ({
-	db: {},
-}));
-mock.module("../playback/providers/registry", () => ({
-	aniKoto: {
-		id: "anikoto",
-	},
-}));
-
-const {
+import {
 	anilistEpisodeKey,
 	isEpisodeAvailable,
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeReleased,
 	isEpisodeShown,
-} = await import("./episodes");
+} from "./episodes";
 
 const now = new Date("2026-09-27T16:00:00Z");
 

@@ -1,10 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-mock.module("../../database/client", () => ({
-	db: {},
-}));
-
-const {
+import {
 	normalizeTitle,
 	popularityWeight,
 	rankCandidates,
@@ -12,7 +8,7 @@ const {
 	shortQueryPattern,
 	textScore,
 	titleScore,
-} = await import("./search");
+} from "./search";
 
 /** An indexed entry with the fields ranking reads. */
 function entry(
