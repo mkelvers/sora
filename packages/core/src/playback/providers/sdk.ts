@@ -1,9 +1,20 @@
-import type { BaseProvider, IContentUnit, IMediaMetadata, MappingClient } from "anime-sdk";
+import type { BaseProvider, IContentUnit, IMediaMetadata, MappingResolution } from "anime-sdk";
 
 import type { Anime } from "../../catalog/models/anime";
 import type { ContentLanguage } from "../../models/series";
 import { bestSimilarity } from "../../series/matching";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
+
+/** What this asks of an `anime-sdk` provider; the SDK's providers fit. */
+export type SdkProvider = Pick<BaseProvider, "id" | "fetchContentUnits" | "resolveStream">;
+
+/** What this asks of `anime-sdk`'s mapping client, which fits. */
+export interface ProviderMapping {
+	resolveProviderMediaId(
+		metadata: IMediaMetadata,
+		provider: SdkProvider,
+	): Promise<MappingResolution | null>;
+}
 
 /** What a provider serves, which `anime-sdk` does not describe. */
 export interface ProviderTraits {
@@ -25,8 +36,8 @@ export class SdkStreamProvider implements StreamProvider {
 	readonly listsLanguages: boolean;
 
 	constructor(
-		protected readonly sdk: BaseProvider,
-		private readonly mapping: MappingClient,
+		protected readonly sdk: SdkProvider,
+		private readonly mapping: ProviderMapping,
 		traits: ProviderTraits,
 	) {
 		this.id = sdk.id;

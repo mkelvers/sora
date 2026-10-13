@@ -1,5 +1,4 @@
 import { attempt } from "@sora/shared";
-import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -7,6 +6,18 @@ import { config } from "../config";
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, type AirType } from "../database/schema";
 import { day } from "../time";
+
+/** What reading AnimeSchedule asks of an HTTP client; the SDK's fits. */
+export interface AnimeScheduleHttp {
+	get: (
+		url: string,
+		options: {
+			headers: Record<string, string>;
+		},
+	) => Promise<{
+		json: () => Promise<unknown>;
+	}>;
+}
 
 const apiUrl = "https://animeschedule.net/api/v3";
 
@@ -103,7 +114,7 @@ export interface TimetableRelease {
  * @throws when AnimeSchedule cannot be read.
  */
 export async function fetchTimetable(
-	http: HttpClient,
+	http: AnimeScheduleHttp,
 	week: {
 		year: number;
 		week: number;
@@ -155,7 +166,7 @@ const syncedWeeks = [-1, 0, 1];
  * @returns The AniList entries of the stored episodes.
  * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
-export async function syncTimetables(http: HttpClient, now = new Date()): Promise<number[]> {
+export async function syncTimetables(http: AnimeScheduleHttp, now = new Date()): Promise<number[]> {
 	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
@@ -225,7 +236,7 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
  * out.
  */
 async function resolveAnimeScheduleShows(
-	http: HttpClient,
+	http: AnimeScheduleHttp,
 	routes: readonly string[],
 ): Promise<Map<string, number | null>> {
 	const unique = [...new Set(routes)];

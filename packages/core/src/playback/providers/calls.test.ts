@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type { Anime } from "../../catalog/models/anime";
+import { anime as blankAnime } from "../../catalog/models/anime.fixture";
 import { recordingCalls, type ProviderCall } from "./calls";
 import type { ProviderEpisode, ProviderStream, StreamProvider } from "./provider";
 
-const anime = {
-	id: 1,
-} as Anime;
+const anime = blankAnime(1);
 
 const episode: ProviderEpisode = {
 	id: "fake:1",

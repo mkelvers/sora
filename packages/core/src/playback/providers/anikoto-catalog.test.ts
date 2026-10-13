@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Anime } from "../../catalog/models/anime";
+import { anime as blankAnime } from "../../catalog/models/anime.fixture";
 import { bestIdMatch, parseCatalogSeries, strictTitle } from "./anikoto-catalog";
 
 /** Frieren as AniKoto's catalogue listing sends it. */
@@ -20,23 +21,13 @@ const frieren = {
 	updated_at: "2024-10-18 09:15:13",
 };
 
-/** An AniList entry with what matching reads; the rest is left out. */
+/** An AniList entry with what matching reads; the rest is left blank. */
 function anime(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime {
 	return {
-		title: {
-			display: "",
-			english: null,
-			romaji: null,
-			native: null,
-		},
-		synonyms: [],
-		episodes: null,
-		seasonYear: null,
-		startDate: null,
+		...blankAnime(fields.id),
 		status: "FINISHED",
-		relations: [],
 		...fields,
-	} as Anime;
+	};
 }
 
 /** A stored AniKoto series, as the mirror holds it. */

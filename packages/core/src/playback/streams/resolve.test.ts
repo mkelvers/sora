@@ -810,6 +810,8 @@ describe("resolvePlayback deadline", () => {
 			dependencies,
 		).catch((error: unknown) => error);
 		expect(failure).toBeInstanceOf(PlaybackUnavailableError);
-		expect((failure as PlaybackUnavailableError).attempts[0]?.reason).toContain("no answer within");
+		expect(
+			failure instanceof PlaybackUnavailableError ? failure.attempts[0]?.reason : null,
+		).toContain("no answer within");
 	});
 });

@@ -1,24 +1,24 @@
 import { describe, expect, test } from "bun:test";
 
+import type { IContentUnit, MappingMethod, MappingResolution } from "anime-sdk";
+
 import type { Anime } from "../../catalog/models/anime";
+import { anime as blankAnime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 
-function anime(titles: { english?: string; romaji?: string }, episodes: number | null) {
+function anime(titles: { english?: string; romaji?: string }, episodes: number | null): Anime {
 	return {
-		id: 1,
-		malId: null,
+		...blankAnime(1),
 		title: {
+			display: titles.english ?? titles.romaji ?? "",
 			english: titles.english ?? null,
 			romaji: titles.romaji ?? null,
 			native: null,
 		},
-		synonyms: [],
 		episodes,
 		status: "FINISHED",
-		startDate: null,
-		seasonYear: null,
 		format: "TV",
-	} as unknown as Anime;
+	};
 }
 
 const titan = anime(
@@ -84,20 +84,31 @@ describe("acceptsTitleMatch", () => {
 	});
 });
 
+/** An episode list of `count` episodes. */
+const episodes = (count: number): IContentUnit[] =>
+	Array.from({ length: count }, (_, index) => ({
+		id: `episode-${index + 1}`,
+		title: `Episode ${index + 1}`,
+		number: index + 1,
+	}));
+
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
-function providerFinding(resolution: object | null, units: Promise<unknown[]>) {
+function providerFinding(resolution: MappingResolution | null, units: Promise<IContentUnit[]>) {
 	const fetched: string[] = [];
 	const provider = new SdkStreamProvider(
 		{
 			id: "stub",
-			fetchContentUnits: (id: string) => {
+			fetchContentUnits: (id) => {
 				fetched.push(id);
 				return units;
 			},
-		} as never,
+			resolveStream: async () => {
+				throw new Error("The stub streams nothing");
+			},
+		},
 		{
 			resolveProviderMediaId: async () => resolution,
-		} as never,
+		},
 		{
 			locale: "en",
 			listsLanguages: true,
@@ -109,7 +120,8 @@ function providerFinding(resolution: object | null, units: Promise<unknown[]>) {
 	};
 }
 
-const resolved = (method: string, matchedTitle: string) => ({
+const resolved = (method: MappingMethod, matchedTitle: string): MappingResolution => ({
+	providerId: "stub",
 	rawMediaId: "abc",
 	matchedTitle,
 	method,
@@ -124,13 +136,13 @@ describe("SdkStreamProvider.findMedia", () => {
 
 	test("trusts an ID match without fetching its episodes", async () => {
 		const { provider, fetched } = providerFinding(
-			resolved("anilist_id", "Anything At All"),
+			resolved("provider", "Anything At All"),
 			Promise.resolve([]),
 		);
 		expect(await provider.findMedia(titan)).toEqual({
 			mediaId: "abc",
 			matchedTitle: "Anything At All",
-			method: "anilist_id",
+			method: "provider",
 			episodeOffset: 0,
 		});
 		expect(fetched).toEqual([]);
@@ -139,7 +151,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("keeps a title match that fits, checking its episodes under the provider's ID", async () => {
 		const { provider, fetched } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
-			Promise.resolve(Array.from({ length: 12 })),
+			Promise.resolve(episodes(12)),
 		);
 		expect((await provider.findMedia(titan))?.mediaId).toBe("abc");
 		expect(fetched).toEqual(["stub:abc"]);
@@ -148,7 +160,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("drops a title match for another season", async () => {
 		const { provider } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 3"),
-			Promise.resolve(Array.from({ length: 12 })),
+			Promise.resolve(episodes(12)),
 		);
 		expect(await provider.findMedia(titan)).toBeNull();
 	});
@@ -156,7 +168,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("drops a title match whose list runs far past the anime's episodes", async () => {
 		const { provider } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
-			Promise.resolve(Array.from({ length: 40 })),
+			Promise.resolve(episodes(40)),
 		);
 		expect(await provider.findMedia(titan)).toBeNull();
 	});

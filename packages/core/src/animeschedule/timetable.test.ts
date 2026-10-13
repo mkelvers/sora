@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import type { HttpClient } from "anime-sdk";
-
 import { config } from "../config";
-import { fetchTimetable, isoWeek } from "./timetable";
+import { fetchTimetable, isoWeek, type AnimeScheduleHttp } from "./timetable";
 
 let asked: {
 	url: string;
@@ -11,7 +9,7 @@ let asked: {
 }[] = [];
 
 /** An HTTP client that answers every request with `body`, recording what it was asked. */
-function serving(body: unknown) {
+function serving(body: unknown): AnimeScheduleHttp {
 	asked = [];
 	return {
 		get: async (
@@ -28,7 +26,7 @@ function serving(body: unknown) {
 				json: async () => body,
 			};
 		},
-	} as unknown as HttpClient;
+	};
 }
 
 /** A timetable entry as AnimeSchedule's API sends it, trimmed to a few of its fields. */
