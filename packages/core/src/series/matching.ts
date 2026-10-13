@@ -1159,9 +1159,65 @@ function normalizeTitle(title: string) {
 		.trim();
 }
 
+const romanValues: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+
+/** Canonical numerals only, so "iiii" and "vx" stay words. */
+const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/;
+
+/**
+ * The value of a roman numeral from 2 to 399, or `null`. A lone "I", "V",
+ * "X", "L" or "C" is left out: it is as often a letter ("Gundam X", "I'm")
+ * as a numeral. "D" and "M" are not read, so "mix" and "mild" stay words.
+ */
+function romanValue(word: string) {
+	if (word.length < 2 || !romanNumeral.test(word)) {
+		return null;
+	}
+
+	const values = Array.from(word, (letter) => romanValues[letter] ?? 0);
+	return values.reduce(
+		(total, value, index) => total + (value < (values[index + 1] ?? 0) ? -value : value),
+		0,
+	);
+}
+
+/** Numbers titles write as words, so "Season Two" and "Second Season" both count as 2. */
+const numberWords = new Map<string, number>(
+	(
+		[
+			[1, "one", "first"],
+			[2, "two", "second"],
+			[3, "three", "third"],
+			[4, "four", "fourth"],
+			[5, "five", "fifth"],
+			[6, "six", "sixth"],
+			[7, "seven", "seventh"],
+			[8, "eight", "eighth"],
+			[9, "nine", "ninth"],
+			[10, "ten", "tenth"],
+			[11, "eleven"],
+			[12, "twelve"],
+			[13, "thirteen"],
+			[14, "fourteen"],
+			[15, "fifteen"],
+			[16, "sixteen"],
+			[17, "seventeen"],
+			[18, "eighteen"],
+			[19, "nineteen"],
+			[20, "twenty"],
+		] as const
+	).flatMap(([number, ...words]) => words.map((word) => [word, number] as const)),
+);
+
 /** The title's numbers in order, such as `"2"` for "Infinity Castle Part 2". */
 function numbersIn(title: string) {
-	return (normalizeTitle(title).match(/\d+/g) ?? []).map(Number).join(" ");
+	return normalizeTitle(title)
+		.split(" ")
+		.flatMap((word) => {
+			const written = numberWords.get(word) ?? romanValue(word);
+			return written === null ? (word.match(/\d+/g) ?? []).map(Number) : [written];
+		})
+		.join(" ");
 }
 
 function bigrams(value: string) {

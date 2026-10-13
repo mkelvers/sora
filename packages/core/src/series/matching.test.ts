@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { TmdbEpisode, TmdbMovieResult } from "../tmdb/resources";
 import {
+	bestSimilarity,
 	continuesPastLinks,
 	placeAfterInCollection,
 	placeAsMovie,
@@ -1046,6 +1047,39 @@ describe("titleSimilarity", () => {
 
 	test("scores unrelated titles low", () => {
 		expect(titleSimilarity("Attack on Titan", "Mushoku Tensei")).toBeLessThan(0.2);
+	});
+});
+
+describe("bestSimilarity with sameNumbers", () => {
+	const same = (a: string, b: string) => bestSimilarity([a], [b], { sameNumbers: true }) > 0;
+
+	test("tells roman numerals apart", () => {
+		expect(same("Overlord II", "Overlord III")).toBe(false);
+		expect(same("Overlord III", "Overlord III")).toBe(true);
+		expect(same("Overlord II", "Overlord 2")).toBe(true);
+	});
+
+	test("reads any roman numeral, not a fixed list", () => {
+		expect(same("Show XXI", "Show 21")).toBe(true);
+		expect(same("Show XL", "Show 40")).toBe(true);
+		expect(same("Show LIV", "Show 54")).toBe(true);
+		expect(same("Show XXIV", "Show XXV")).toBe(false);
+	});
+
+	test("leaves words that merely look like numerals", () => {
+		expect(same("Mix", "Mild")).toBe(true);
+		expect(same("Civil War", "Civil War")).toBe(true);
+	});
+
+	test("tells numbers written as words apart", () => {
+		expect(same("Slime Season Two", "Slime Season 3")).toBe(false);
+		expect(same("Slime Second Season", "Slime Season 2")).toBe(true);
+		expect(same("Slime Third Season", "Slime 2nd Season")).toBe(false);
+	});
+
+	test("leaves a lone letter alone", () => {
+		expect(same("Gundam X", "Gundam X")).toBe(true);
+		expect(same("Mix", "Mix")).toBe(true);
 	});
 });
 
