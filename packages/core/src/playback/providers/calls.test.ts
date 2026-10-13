@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { anime as blankAnime } from "../../catalog/models/anime.fixture";
+import { anime } from "../../catalog/models/anime.fixture";
 import { recordingCalls, type ProviderCall } from "./calls";
 import type { ProviderEpisode, ProviderStream, StreamProvider } from "./provider";
-
-const anime = blankAnime(1);
 
 const episode: ProviderEpisode = {
 	id: "fake:1",
@@ -73,7 +71,7 @@ describe("recordingCalls", () => {
 	test("records no match and no episodes as empty, which a broken scraper often returns", async () => {
 		const { provider, calls } = recorded({});
 
-		expect(await provider.findMedia(anime)).toBeNull();
+		expect(await provider.findMedia(anime(1))).toBeNull();
 		expect(await provider.listEpisodes("1")).toEqual([]);
 		expect(outcomes(calls)).toEqual(["find_media:empty", "list_episodes:empty"]);
 	});
@@ -112,7 +110,7 @@ describe("recordingCalls", () => {
 	test("keeps no error for calls that did not fail", async () => {
 		const { provider, calls } = recorded({});
 
-		await provider.findMedia(anime);
+		await provider.findMedia(anime(1));
 
 		expect(calls[0]?.error).toBeNull();
 	});

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Anime } from "../../catalog/models/anime";
-import { anime as blankAnime } from "../../catalog/models/anime.fixture";
+import { anime } from "../../catalog/models/anime.fixture";
 import { bestIdMatch, parseCatalogSeries, strictTitle } from "./anikoto-catalog";
 
 /** Frieren as AniKoto's catalogue listing sends it. */
@@ -22,9 +22,9 @@ const frieren = {
 };
 
 /** An AniList entry with what matching reads; the rest is left blank. */
-function anime(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime {
+function animeWith(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime {
 	return {
-		...blankAnime(fields.id),
+		...anime(fields.id),
 		status: "FINISHED",
 		...fields,
 	};
@@ -146,7 +146,7 @@ describe("bestIdMatch", () => {
 
 		expect(
 			bestIdMatch(
-				anime({
+				animeWith({
 					id: 101922,
 					malId: 38000,
 					format: "TV",
@@ -177,7 +177,7 @@ describe("bestIdMatch", () => {
 
 		expect(
 			bestIdMatch(
-				anime({
+				animeWith({
 					id: 171018,
 					malId: 57334,
 					format: "TV",
@@ -199,7 +199,7 @@ describe("bestIdMatch", () => {
 
 		expect(
 			bestIdMatch(
-				anime({
+				animeWith({
 					id: 153930,
 					malId: 51705,
 					format: "TV",
@@ -225,7 +225,7 @@ describe("bestIdMatch", () => {
 	test("never matches a film to a show", () => {
 		expect(
 			bestIdMatch(
-				anime({
+				animeWith({
 					id: 195200,
 					malId: 62546,
 					format: "MOVIE",
@@ -245,7 +245,7 @@ describe("bestIdMatch", () => {
 	test("accepts a web series AniKoto lists as TV", () => {
 		expect(
 			bestIdMatch(
-				anime({
+				animeWith({
 					id: 177709,
 					malId: 58939,
 					format: "ONA",

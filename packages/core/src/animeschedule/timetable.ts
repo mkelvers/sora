@@ -1,4 +1,5 @@
 import { attempt } from "@sora/shared";
+import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -7,19 +8,7 @@ import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, type AirType } from "../database/schema";
 import { day } from "../time";
 
-/** What reading AnimeSchedule asks of an HTTP client; the SDK's fits. */
-export interface AnimeScheduleHttp {
-	get: (
-		url: string,
-		options: {
-			headers: Record<string, string>;
-		},
-	) => Promise<{
-		json: () => Promise<unknown>;
-	}>;
-}
-
-const apiUrl = "https://animeschedule.net/api/v3";
+const api = "https://animeschedule.net/api/v3";
 
 /** Every request carries the app's token; see the API's documentation. */
 const headers = {
@@ -114,14 +103,14 @@ export interface TimetableRelease {
  * @throws when AnimeSchedule cannot be read.
  */
 export async function fetchTimetable(
-	http: AnimeScheduleHttp,
+	http: HttpClient,
 	week: {
 		year: number;
 		week: number;
 	},
 ): Promise<TimetableRelease[]> {
 	const response = await http.get(
-		`${apiUrl}/timetables/all?year=${week.year}&week=${week.week}&tz=UTC`,
+		`${api}/timetables/all?year=${week.year}&week=${week.week}&tz=UTC`,
 		{
 			headers,
 		},
@@ -166,7 +155,7 @@ const syncedWeeks = [-1, 0, 1];
  * @returns The AniList entries of the stored episodes.
  * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
-export async function syncTimetables(http: AnimeScheduleHttp, now = new Date()): Promise<number[]> {
+export async function syncTimetables(http: HttpClient, now = new Date()): Promise<number[]> {
 	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
@@ -236,7 +225,7 @@ export async function syncTimetables(http: AnimeScheduleHttp, now = new Date()):
  * out.
  */
 async function resolveAnimeScheduleShows(
-	http: AnimeScheduleHttp,
+	http: HttpClient,
 	routes: readonly string[],
 ): Promise<Map<string, number | null>> {
 	const unique = [...new Set(routes)];
@@ -258,7 +247,7 @@ async function resolveAnimeScheduleShows(
 
 	for (const route of unique.filter((route) => !resolved.has(route))) {
 		const response = await attempt(
-			http.get(`${apiUrl}/anime/${encodeURIComponent(route)}`, {
+			http.get(`${api}/anime/${encodeURIComponent(route)}`, {
 				headers,
 			}),
 		);

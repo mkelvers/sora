@@ -3,12 +3,12 @@ import { describe, expect, test } from "bun:test";
 import type { IContentUnit, MappingMethod, MappingResolution } from "anime-sdk";
 
 import type { Anime } from "../../catalog/models/anime";
-import { anime as blankAnime } from "../../catalog/models/anime.fixture";
+import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 
-function anime(titles: { english?: string; romaji?: string }, episodes: number | null): Anime {
+function titled(titles: { english?: string; romaji?: string }, episodes: number | null): Anime {
 	return {
-		...blankAnime(1),
+		...anime(1),
 		title: {
 			display: titles.english ?? titles.romaji ?? "",
 			english: titles.english ?? null,
@@ -21,7 +21,7 @@ function anime(titles: { english?: string; romaji?: string }, episodes: number |
 	};
 }
 
-const titan = anime(
+const titan = titled(
 	{
 		english: "Attack on Titan Season 2",
 		romaji: "Shingeki no Kyojin 2",
@@ -43,11 +43,11 @@ describe("acceptsTitleMatch", () => {
 	// Each pair below was a stored fuzzy mapping before the guard.
 	test("refuses the neighbouring season of real mappings", () => {
 		const cases = [
-			[anime({ english: "GOBLIN SLAYER" }, 12), "GOBLIN SLAYER II", 12],
-			[anime({ english: "Lupin the 3rd Part IV" }, 24), "Lupin the 3rd Part V", 24],
-			[anime({ english: "Love Live! Superstar!!" }, 12), "Love Live! Superstar!! Season 2", 12],
-			[anime({ english: "Little Shark's Day Out" }, 60), "Little Shark's Day Out Season 2", 25],
-			[anime({ english: "Kuroko's Basketball: Tip Off" }, 1), "Kuroko's Basketball 3", 25],
+			[titled({ english: "GOBLIN SLAYER" }, 12), "GOBLIN SLAYER II", 12],
+			[titled({ english: "Lupin the 3rd Part IV" }, 24), "Lupin the 3rd Part V", 24],
+			[titled({ english: "Love Live! Superstar!!" }, 12), "Love Live! Superstar!! Season 2", 12],
+			[titled({ english: "Little Shark's Day Out" }, 60), "Little Shark's Day Out Season 2", 25],
+			[titled({ english: "Kuroko's Basketball: Tip Off" }, 1), "Kuroko's Basketball 3", 25],
 		] as const;
 		for (const [wanted, matched, units] of cases) {
 			expect(acceptsTitleMatch(wanted, matched, units)).toBe(false);
@@ -56,9 +56,9 @@ describe("acceptsTitleMatch", () => {
 
 	test("refuses a whole series standing in for a special, film or OVA", () => {
 		const cases = [
-			[anime({ english: "Asobi Asobase OVA" }, 1), "Asobi Asobase - workshop of fun -", 12],
-			[anime({ romaji: "Durarara!! Specials" }, 2), "Durarara!!", 24],
-			[anime({ romaji: "Aldnoah.Zero (Re+)" }, 1), "Aldnoah.Zero", 12],
+			[titled({ english: "Asobi Asobase OVA" }, 1), "Asobi Asobase - workshop of fun -", 12],
+			[titled({ romaji: "Durarara!! Specials" }, 2), "Durarara!!", 24],
+			[titled({ romaji: "Aldnoah.Zero (Re+)" }, 1), "Aldnoah.Zero", 12],
 		] as const;
 		for (const [wanted, matched, units] of cases) {
 			expect(acceptsTitleMatch(wanted, matched, units)).toBe(false);
@@ -66,31 +66,29 @@ describe("acceptsTitleMatch", () => {
 	});
 
 	test("keeps a right title whose list is short or empty", () => {
-		const quintuplets = anime({ english: "The Quintessential Quintuplets" }, 12);
+		const quintuplets = titled({ english: "The Quintessential Quintuplets" }, 12);
 		expect(acceptsTitleMatch(quintuplets, "The Quintessential Quintuplets*", 2)).toBe(true);
 		expect(acceptsTitleMatch(quintuplets, "The Quintessential Quintuplets*", 0)).toBe(true);
 	});
 
 	test("takes numbers written as numerals or words as the same instalment", () => {
-		const slime = anime({ english: "Slime Season 3" }, 12);
+		const slime = titled({ english: "Slime Season 3" }, 12);
 		expect(acceptsTitleMatch(slime, "Slime Season III", 12)).toBe(true);
 		expect(acceptsTitleMatch(slime, "Slime Season Three", 12)).toBe(true);
 		expect(acceptsTitleMatch(slime, "Slime Season Two", 12)).toBe(false);
 	});
 
 	test("takes any length when AniList does not know the count", () => {
-		const unknown = anime({ english: "Attack on Titan Season 2" }, null);
+		const unknown = titled({ english: "Attack on Titan Season 2" }, null);
 		expect(acceptsTitleMatch(unknown, "Attack on Titan Season 2", 300)).toBe(true);
 	});
 });
 
-/** An episode list of `count` episodes. */
-const episodes = (count: number): IContentUnit[] =>
-	Array.from({ length: count }, (_, index) => ({
-		id: `episode-${index + 1}`,
-		title: `Episode ${index + 1}`,
-		number: index + 1,
-	}));
+const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
+	id: `episode-${index + 1}`,
+	title: `Episode ${index + 1}`,
+	number: index + 1,
+}));
 
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
 function providerFinding(resolution: MappingResolution | null, units: Promise<IContentUnit[]>) {
@@ -151,7 +149,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("keeps a title match that fits, checking its episodes under the provider's ID", async () => {
 		const { provider, fetched } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
-			Promise.resolve(episodes(12)),
+			Promise.resolve(episodes.slice(0, 12)),
 		);
 		expect((await provider.findMedia(titan))?.mediaId).toBe("abc");
 		expect(fetched).toEqual(["stub:abc"]);
@@ -160,7 +158,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("drops a title match for another season", async () => {
 		const { provider } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 3"),
-			Promise.resolve(episodes(12)),
+			Promise.resolve(episodes.slice(0, 12)),
 		);
 		expect(await provider.findMedia(titan)).toBeNull();
 	});
@@ -168,7 +166,7 @@ describe("SdkStreamProvider.findMedia", () => {
 	test("drops a title match whose list runs far past the anime's episodes", async () => {
 		const { provider } = providerFinding(
 			resolved("fuzzy", "Attack on Titan Season 2"),
-			Promise.resolve(episodes(40)),
+			Promise.resolve(episodes),
 		);
 		expect(await provider.findMedia(titan)).toBeNull();
 	});

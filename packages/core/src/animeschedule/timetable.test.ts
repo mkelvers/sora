@@ -1,33 +1,33 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+
+import { HttpClient } from "anime-sdk";
 
 import { config } from "../config";
-import { fetchTimetable, isoWeek, type AnimeScheduleHttp } from "./timetable";
+import { fetchTimetable, isoWeek } from "./timetable";
 
-let asked: {
+/** What AnimeSchedule answers every request with. */
+let timetable: unknown[] = [];
+const asked: {
 	url: string;
-	headers: Record<string, string>;
+	headers: RequestInit["headers"];
 }[] = [];
 
-/** An HTTP client that answers every request with `body`, recording what it was asked. */
-function serving(body: unknown): AnimeScheduleHttp {
-	asked = [];
-	return {
-		get: async (
-			url: string,
-			options: {
-				headers: Record<string, string>;
-			},
-		) => {
+const http = new HttpClient({
+	transport: {
+		fetch: async (url, init) => {
 			asked.push({
 				url,
-				headers: options.headers,
+				headers: init.headers,
 			});
-			return {
-				json: async () => body,
-			};
+			return Response.json(timetable);
 		},
-	};
-}
+	},
+});
+
+beforeEach(() => {
+	timetable = [];
+	asked.length = 0;
+});
 
 /** A timetable entry as AnimeSchedule's API sends it, trimmed to a few of its fields. */
 function entry(
@@ -50,7 +50,7 @@ function entry(
 
 describe("fetchTimetable", () => {
 	test("asks for the week's whole timetable in UTC with the app's token", async () => {
-		await fetchTimetable(serving([]), {
+		await fetchTimetable(http, {
 			year: 2026,
 			week: 40,
 		});
@@ -66,14 +66,14 @@ describe("fetchTimetable", () => {
 	});
 
 	test("lists each episode's show, how it comes out, episode, and time", async () => {
-		const timetable = [
+		timetable = [
 			entry("mushoku-tensei-iii-isekai-ittara-honki-dasu", 13, "2026-10-04T15:01:00Z", "dub"),
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:00:00Z", "raw"),
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:30:00Z", "sub"),
 		];
 
 		expect(
-			await fetchTimetable(serving(timetable), {
+			await fetchTimetable(http, {
 				year: 2026,
 				week: 40,
 			}),
@@ -100,7 +100,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("lists each episode of an entry for several at once, as a double-episode premiere", async () => {
-		const timetable = [
+		timetable = [
 			{
 				...entry(
 					"tensei-shita-daiseijo-wa-seijo-de-aru-koto-wo-hitakakusu",
@@ -113,7 +113,7 @@ describe("fetchTimetable", () => {
 
 		expect(
 			(
-				await fetchTimetable(serving(timetable), {
+				await fetchTimetable(http, {
 					year: 2026,
 					week: 40,
 				})
@@ -122,14 +122,14 @@ describe("fetchTimetable", () => {
 	});
 
 	test("leaves out a delayed episode, which is listed again in the week it airs", async () => {
-		const timetable = [
+		timetable = [
 			entry("bleach-sennen-kessen-hen-kashin-tan", 9, "2026-09-28T15:00:00Z", "raw", "delayed-air"),
 			entry("chiikawa", 382, "2026-10-02T23:55:00Z", "raw", "aired"),
 		];
 
 		expect(
 			(
-				await fetchTimetable(serving(timetable), {
+				await fetchTimetable(http, {
 					year: 2026,
 					week: 40,
 				})
@@ -143,7 +143,7 @@ describe("fetchTimetable", () => {
 			delayedFrom: "2026-09-14T00:00:00Z",
 			delayedUntil: "2026-10-19T00:00:00Z",
 		};
-		const timetable = [
+		timetable = [
 			{
 				...entry("bleach-sennen-kessen-hen-kashin-tan", 9, "2026-10-05T15:00:00Z"),
 				...held,
@@ -169,7 +169,7 @@ describe("fetchTimetable", () => {
 
 		expect(
 			(
-				await fetchTimetable(serving(timetable), {
+				await fetchTimetable(http, {
 					year: 2026,
 					week: 41,
 				})
@@ -181,7 +181,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("leaves out an entry it cannot read, keeping the rest", async () => {
-		const timetable = [
+		timetable = [
 			{
 				route: "no-episode",
 				airType: "raw",
@@ -194,7 +194,7 @@ describe("fetchTimetable", () => {
 
 		expect(
 			(
-				await fetchTimetable(serving(timetable), {
+				await fetchTimetable(http, {
 					year: 2026,
 					week: 40,
 				})
