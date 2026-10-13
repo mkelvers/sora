@@ -20,7 +20,7 @@
 			"outputLogs": "errors-only"
 		},
 		"test": {
-			"inputs": ["$TURBO_DEFAULT$", ".env"]
+			"inputs": ["$TURBO_DEFAULT$", ".env", "../../.env.test"]
 		},
 		"db:migrate": {
 			"cache": false

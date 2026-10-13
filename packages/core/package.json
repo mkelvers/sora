@@ -23,7 +23,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun src/database/migrate.ts",
 		"auth:create-account": "bun src/auth/create-account.ts",
-		"test": "bun test"
+		"test": "bun test --env-file=../../.env.test"
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",
