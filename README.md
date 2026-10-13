@@ -141,6 +141,22 @@ proxy (Cloudflare Tunnel and Traefik's `compress` middleware both do it). `/v1` 
 `/health` endpoint is used by its Docker health check. The scheduler's cron jobs
 and queue are stored in PostgreSQL, so they need no separate Dokploy schedules.
 
+### Dub subtitles
+
+Dubs have no English subtitles of their own, so Sora takes the sub's and moves them onto
+the dub's timeline. The picture decides most of it, which needs nothing extra. Timing each
+line to when the dub's characters speak does: the scheduler downloads each dub's audio once,
+transcribes it with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and stores
+where every line goes. Playback uses it from then on, and until the job finishes (a few
+minutes per episode, one at a time) it uses the picture's timing.
+
+The `scheduler` image has ffmpeg, Python, and the model built in, and sets
+`SUBTITLE_ALIGNMENT_PYTHON`. Set the same variable on the API, to any value, so it
+queues the jobs; it never runs them. Leave it unset everywhere to turn this off. To run it
+from source, install ffmpeg, then `pip install faster-whisper` in a virtual environment and
+point `SUBTITLE_ALIGNMENT_PYTHON` at its `python`. The model downloads on first use.
+`SUBTITLE_ALIGNMENT_MODEL` picks another one, such as `medium.en`.
+
 ## Testing
 
 Tests run on Bun's runner and sit beside the code they cover, as `name.test.ts` next to `name.ts`.
