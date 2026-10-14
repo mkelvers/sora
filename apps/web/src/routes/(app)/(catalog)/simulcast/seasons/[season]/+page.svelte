@@ -6,19 +6,16 @@
 	import { CaretDownIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import { simulcast } from "./simulcast.svelte";
 
 	let { data }: PageProps = $props();
 
 	let seasons = $state(false);
 
-	const selected = $derived(
-		data.seasons.find((option) => option.slug === simulcast.slug) ?? data.current,
-	);
+	const selected = $derived(data.selected);
 </script>
 
 <svelte:head>
-	<title>{selected.label} Simulcast Season · Sora</title>
+	<title>Browse Simulcasted Anime - Sora</title>
 </svelte:head>
 
 {#key selected.slug}
@@ -63,7 +60,7 @@
 								<Button
 									role="menuitemradio"
 									aria-checked={option.slug === selected.slug}
-									onclick={() => (simulcast.slug = option.slug)}
+									href="/simulcast/seasons/{option.slug}"
 									variant="item"
 								>
 									{option.label}
@@ -81,11 +78,9 @@
 	{#each data.seasons as option (option.slug)}
 		<Button
 			variant="item"
+			href="/simulcast/seasons/{option.slug}"
 			aria-current={option.slug === selected.slug ? "true" : undefined}
-			onclick={() => {
-				seasons = false;
-				simulcast.slug = option.slug;
-			}}
+			onclick={() => (seasons = false)}
 		>
 			{option.label}
 		</Button>
