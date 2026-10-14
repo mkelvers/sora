@@ -18,7 +18,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in · Sora</title>
+	<title>Sign In - Sora</title>
 	<meta name="description" content="Sign in to Sora" />
 </svelte:head>
 

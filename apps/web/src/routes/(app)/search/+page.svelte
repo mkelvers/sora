@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>{q ? `${q} · Search` : "Search"} · Sora</title>
+	<title>{q ? `Search Results for ${q}` : "Search Anime"} - Sora</title>
 </svelte:head>
 
 <div class="flex page flex-col">

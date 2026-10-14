@@ -45,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>Release Calendar · Sora</title>
+	<title>Anime Release Calendar - Sora</title>
 </svelte:head>
 
 <div class="page overflow-x-clip">

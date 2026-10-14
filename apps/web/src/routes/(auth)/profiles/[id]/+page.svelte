@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-	<title>Edit Profile · Sora</title>
+	<title>Edit Profile - Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />

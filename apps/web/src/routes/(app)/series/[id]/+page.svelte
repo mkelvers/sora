@@ -60,7 +60,7 @@
 </script>
 
 <svelte:head>
-	<title>{series.title} · Sora</title>
+	<title>Watch {series.title} - Sora</title>
 </svelte:head>
 
 {#snippet markAction()}

@@ -176,7 +176,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>{title} · {series.title} · Sora</title>
+	<title>Watch {series.title} Episode {episode.number} - Sora</title>
 </svelte:head>
 
 <StatusBanner message={failure} tone="error" ondismiss={() => (failure = "")} />

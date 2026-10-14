@@ -40,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>Watchlist · Sora</title>
+	<title>Watchlist - Sora</title>
 </svelte:head>
 
 <div class="page">

@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Add Profile · Sora</title>
+	<title>Add Profile - Sora</title>
 </svelte:head>
 
 <StatusBanner message={form?.message ?? ""} tone="error" />

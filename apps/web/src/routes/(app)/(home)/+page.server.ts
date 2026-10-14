@@ -35,16 +35,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 				cards: trending,
 			},
 			{
-				id: "coming-soon",
-				title: "Coming Soon: Add to Your Watchlist",
-				hint: "Your new favorite shows from the upcoming season",
-				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
-			},
-			{
 				id: "catch-up",
 				title: "Catch Up Before the New Season",
 				hint: "Catch up on previous episodes before the new season premiere!",
 				cards: upcoming.filter((title) => title.returning).map((title) => title.series),
+			},
+			{
+				id: "coming-soon",
+				title: "Coming Soon: Add to Your Watchlist",
+				hint: "Your new favorite shows from the upcoming season",
+				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
 			},
 		],
 	};

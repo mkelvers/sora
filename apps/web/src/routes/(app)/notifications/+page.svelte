@@ -41,7 +41,7 @@
 </script>
 
 <svelte:head>
-	<title>Notifications · Sora</title>
+	<title>Notifications - Sora</title>
 </svelte:head>
 
 <div class="page">

@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<title>Newly added · Sora</title>
+	<title>Latest Anime Shows and Movies - Sora</title>
 </svelte:head>
 
 {#key `${filters.audio}:${filters.format}`}

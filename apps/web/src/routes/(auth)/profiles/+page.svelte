@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>{profilesPage.managing ? "Manage Profiles" : "Who's watching?"} · Sora</title>
+	<title>{profilesPage.managing ? "Manage Profiles" : "Who's Watching?"} - Sora</title>
 </svelte:head>
 
 <div class="flex w-full max-w-5xl flex-col items-center gap-12">

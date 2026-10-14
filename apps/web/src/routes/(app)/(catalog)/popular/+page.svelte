@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<title>Most popular · Sora</title>
+	<title>Most Popular Anime Shows and Movies - Sora</title>
 </svelte:head>
 
 {#key `${filters.audio}:${filters.format}`}

@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.genre} Anime · Sora</title>
+	<title>{data.genre} Anime Shows and Movies - Sora</title>
 </svelte:head>
 
 {#key `${data.genre}:${filters.audio}:${filters.format}`}

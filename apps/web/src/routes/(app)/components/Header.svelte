@@ -60,7 +60,8 @@
 	];
 
 	function current(href: string) {
-		return page.url.pathname === href ? "page" : undefined;
+		const { pathname } = page.url;
+		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
 	}
 
 	$effect(() => {
