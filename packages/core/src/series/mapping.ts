@@ -107,7 +107,7 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
 				(await collectionPlacement(subject, predecessors)) ??
 				(await bestShowPlacement(subject, predecessors, hint, [])))
 			: ((await bestShowPlacement(subject, predecessors, hint, queries)) ??
-				(isSingleEpisode(subject) ? await bestMoviePlacement(subject, queries, hint) : null));
+				(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null));
 
 	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
 	const values = {
@@ -310,9 +310,10 @@ async function bestMoviePlacement(
 	]);
 
 	const placements = new Map<number, Placement>();
+	const hintedIds = new Set(hint?.movieIds);
 	for (const movies of [hinted.filter((movie) => movie !== null), ...found]) {
 		for (const movie of movies) {
-			const placement = placeAsMovie(subject, movie);
+			const placement = placeAsMovie(subject, movie, hintedIds.has(movie.id));
 			if (
 				placement &&
 				placement.score > (placements.get(movie.id)?.score ?? Number.NEGATIVE_INFINITY)
@@ -326,7 +327,7 @@ async function bestMoviePlacement(
 	// film it was released with, so the best are checked against the details.
 	for (const [movieId] of [...placements].sort(([, left], [, right]) => right.score - left.score)) {
 		const movie = await getMovie(movieId);
-		const confirmed = movie && placeAsMovie(subject, movie);
+		const confirmed = movie && placeAsMovie(subject, movie, hintedIds.has(movie.id));
 		if (confirmed) {
 			return confirmed;
 		}
@@ -356,12 +357,12 @@ async function collectionPlacement(subject: MatchSubject, predecessors: readonly
 	return null;
 }
 
-/** One-episode specials and OVAs are sometimes released as TMDB movies. */
-function isSingleEpisode(subject: MatchSubject) {
-	return (
-		(subject.playbackEpisodes ?? subject.episodes) === 1 &&
-		(subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA")
-	);
+/**
+ * Specials and OVAs are sometimes released as TMDB movies, whatever their
+ * episode count. The movie's runtime must still match their total length.
+ */
+function isShortRelease(subject: MatchSubject) {
+	return subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA";
 }
 
 /**

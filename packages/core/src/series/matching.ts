@@ -91,7 +91,7 @@ export type Placement =
 	| {
 			mediaType: "movie";
 			tmdbId: number;
-			method: "release-date" | "title" | "continuation";
+			method: "hint" | "release-date" | "title" | "continuation";
 			score: number;
 	  };
 
@@ -687,6 +687,7 @@ function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): P
  * Wings of Farewell, so a movie whose runtime is known must also run about
  * as long as the subject.
  *
+ * @param hinted - Whether a TMDB hint names this movie for the subject.
  * @returns A placement, or `null` when the movie is not a confident match.
  */
 export function placeAsMovie(
@@ -694,11 +695,23 @@ export function placeAsMovie(
 	movie: Pick<TmdbMovieResult, "id" | "title" | "original_title" | "release_date"> & {
 		runtime?: number | null;
 	},
+	hinted = false,
 ): Placement | null {
 	const subjectMinutes =
 		subject.durationMinutes === null ? null : subject.durationMinutes * (subject.episodes ?? 1);
 	if (!runtimesAgree(movie.runtime ?? null, subjectMinutes, regularRuntimeTolerance)) {
 		return null;
+	}
+
+	// A hint names this film for this entry, so its date and title, which
+	// differ when TMDB dates the film by its premiere, are not weighed.
+	if (hinted) {
+		return {
+			mediaType: "movie",
+			tmdbId: movie.id,
+			method: "hint",
+			score: 200,
+		};
 	}
 
 	const movieTitles = [movie.title, movie.original_title];

@@ -994,6 +994,51 @@ describe("placeAsMovie", () => {
 		).toBe("release-date");
 	});
 
+	test("accepts a hinted film whose premiere predates the entry's broadcast", () => {
+		// Go-toubun no Hanayome Specials: two 24-minute episodes, a 61-minute film on TMDB.
+		const special = subject({
+			format: "SPECIAL",
+			titles: ["The Quintessential Quintuplets Specials", "Go-toubun no Hanayome∽"],
+			startDate: "2023-09-02",
+			episodes: 2,
+		});
+		const film = {
+			...movie({
+				id: 1153706,
+				title: "The Quintessential Quintuplets∽",
+				release_date: "2023-07-14",
+			}),
+			runtime: 61,
+		};
+
+		expect(placeAsMovie(special, film)).toBeNull();
+		expect(placeAsMovie(special, film, true)).toMatchObject({
+			tmdbId: 1153706,
+			method: "hint",
+		});
+		expect(placeAsMovie(special, { ...film, runtime: 300 }, true)).toBeNull();
+	});
+
+	test("accepts a film that runs as long as a special's episodes together", () => {
+		const special = subject({
+			format: "SPECIAL",
+			titles: ["The Quintessential Quintuplets Specials 2", "The Quintessential Quintuplets*"],
+			startDate: "2024-09-20",
+			episodes: 2,
+		});
+
+		expect(
+			placeAsMovie(special, {
+				...movie({
+					title: "The Quintessential Quintuplets＊",
+					original_title: "五等分の花嫁＊",
+					release_date: "2024-09-20",
+				}),
+				runtime: 47,
+			})?.method,
+		).toBe("release-date");
+	});
+
 	test("accepts an unreleased film only on a near-exact title", () => {
 		const upcoming = subject({
 			format: "MOVIE",

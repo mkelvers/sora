@@ -134,4 +134,31 @@ describe("layoutEpisodes", () => {
 		});
 		expect(episode?.stillUrl).toEndWith("/backdrop.jpg");
 	});
+
+	test("keeps the episodes of a special TMDB lists as a film bare", () => {
+		const episodes = layoutEpisodes(
+			{
+				episodes: 2,
+				nextEpisode: null,
+				durationMinutes: 24,
+			},
+			[],
+			null,
+			{
+				title: "Specials",
+				overview: "A film",
+				release_date: "2024-09-20",
+				runtime: 47,
+				backdrop_path: "/backdrop.jpg",
+			},
+		);
+
+		expect(episodes).toHaveLength(2);
+		expect(episodes[0]).toMatchObject({
+			title: null,
+			overview: null,
+			runtimeMinutes: 24,
+			stillUrl: null,
+		});
+	});
 });

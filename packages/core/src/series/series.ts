@@ -138,13 +138,16 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 			? `movie:${movie.id}`
 			: `anilist:${anilistId}`;
 	const [kind, tmdbId] = parseKey(key);
+	const episodes = layoutEpisodes(card, links, show, movie);
+	// A film's synopsis describes the film, not a special of several episodes.
+	const film = episodes.length === 1 ? movie : null;
 
 	return {
 		anilistId,
 		key,
 		kind: kind === "anilist" ? "standalone" : kind,
 		title: card.title.display,
-		overview: overviewOf(links, show, movie) ?? (await anilistOverview(entry, links, show)),
+		overview: overviewOf(links, show, film) ?? (await anilistOverview(entry, links, show)),
 		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
 		backdropUrl:
 			tmdbImageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ??
@@ -152,7 +155,7 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 		logoUrl: kind === "anilist" ? null : tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500"),
 		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
 		status: card.status,
-		episodes: layoutEpisodes(card, links, show, movie),
+		episodes,
 		useAniListAirings: mapping.method !== "compilation",
 		related: (entry.relations?.edges ?? []).flatMap((edge) =>
 			edge?.node?.type === "ANIME" && edge.relationType && franchiseRelations.has(edge.relationType)
@@ -269,7 +272,8 @@ function releaseOrder(entry: FranchiseEntry) {
 /**
  * The entry's episodes, numbered as AniList numbers them, each with the
  * details of the TMDB episode it was matched to. A film TMDB lists on its
- * own has no episodes there; its details stand in for its first.
+ * own has no episodes there; its details stand in for its only episode. A
+ * special of several episodes that TMDB lists as a film keeps them bare.
  *
  * AniKoto's playable count takes precedence. Without it, use AniList's total,
  * or the episodes aired so far, and never fewer than the TMDB links or one.
@@ -310,7 +314,7 @@ export function layoutEpisodes(
 			const tmdb = link
 				? (tmdbEpisodes.get(`${link.seasonNumber}:${link.episodeNumber}`) ?? null)
 				: null;
-			const film = number === 1 ? movie : null;
+			const film = number === 1 && count === 1 ? movie : null;
 			return {
 				number,
 				title: tmdb?.name ?? film?.title ?? null,
