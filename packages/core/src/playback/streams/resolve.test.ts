@@ -133,6 +133,7 @@ const dependencies: PlaybackDependencies = {
 	canFetchStream: async (url) => !url.includes(".unreachable."),
 	getRefinement: async (key) => refinements.get(key) ?? null,
 	requestRefinement: async () => undefined,
+	normalizeSkipSegments: async (_seriesId, _episode, _audio, segments) => segments,
 };
 
 const request = {

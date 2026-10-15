@@ -1,8 +1,17 @@
-import { bigint, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
+import {
+	bigint,
+	doublePrecision,
+	index,
+	integer,
+	pgTable,
+	primaryKey,
+	text,
+} from "drizzle-orm/pg-core";
 
 import type { TimelineShift } from "../../playback/streams/align";
 import type { CueAnchor } from "../../playback/subtitles/refine";
 import { jsonb, timestamptz } from "./columns";
+import { series } from "./series";
 
 /**
  * The result of matching an AniList anime to a stream provider's catalogue.
@@ -217,3 +226,29 @@ export const subtitleRefinement = pgTable("subtitle_refinement", {
 	anchors: jsonb("anchors").$type<CueAnchor[] | null>(),
 	attemptedAt: timestamptz("attempted_at").notNull(),
 });
+
+/**
+ * How long each episode's opening and ending ran as its provider reported
+ * them, per audio. A series' episodes share their opening's length, so the
+ * length most of them report is the one an outlier is brought to; see
+ * `normalizeSkipSegments`.
+ */
+export const skipSegmentLength = pgTable(
+	"skip_segment_length",
+	{
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		audio: text("audio").notNull(),
+		kind: text("kind").notNull(),
+		episode: integer("episode").notNull(),
+		seconds: doublePrecision("seconds").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.seriesId, table.audio, table.kind, table.episode],
+		}),
+	],
+);
