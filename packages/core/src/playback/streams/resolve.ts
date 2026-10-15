@@ -21,6 +21,7 @@ import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } fro
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime, type TimelineShift } from "./align";
+import { normalizeSkipSegments } from "./skip-lengths";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 
@@ -58,6 +59,7 @@ export interface PlaybackDependencies {
 	canFetchStream: typeof canFetchStream;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
+	normalizeSkipSegments: typeof normalizeSkipSegments;
 }
 
 const live: PlaybackDependencies = {
@@ -71,6 +73,7 @@ const live: PlaybackDependencies = {
 	canFetchStream,
 	getRefinement,
 	requestRefinement,
+	normalizeSkipSegments,
 };
 
 /** The URL of a stream token for `createStreamToken`'s arguments. */
@@ -203,6 +206,16 @@ export async function resolvePlayback(
 	}
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
+	await Promise.all(
+		media.map(async (version) => {
+			version.skip_segments = await dependencies.normalizeSkipSegments(
+				seriesId,
+				episode,
+				version.audio,
+				version.skip_segments,
+			);
+		}),
+	);
 	if (media.length > 0) {
 		return {
 			seriesId,
