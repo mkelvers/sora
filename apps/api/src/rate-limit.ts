@@ -1,3 +1,4 @@
+import { formatRetryAfter } from "@sora/shared";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
@@ -60,7 +61,7 @@ export function rateLimit({ limit, windowMs, key }: RateLimitOptions) {
 				"TOO_MANY_REQUESTS",
 				"Too many requests; try again shortly",
 			);
-			response.headers.set("Retry-After", String(Math.ceil((window.resetAt - now) / 1_000)));
+			response.headers.set("Retry-After", formatRetryAfter(window.resetAt - now));
 			return response;
 		}
 

@@ -45,7 +45,7 @@ import {
 	refreshSeriesImages,
 	setSeriesArtwork,
 } from "@sora/core/series";
-import { attempt } from "@sora/shared";
+import { attempt, day } from "@sora/shared";
 import type { Context } from "hono";
 import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
@@ -55,8 +55,6 @@ import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
 import { offsetLinks, pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
 import { rateLimit } from "./rate-limit";
-
-const day = 24 * 60 * 60 * 1_000;
 
 /**
  * Version 1 of the API: the handlers for the contracts in `openapi/routes.ts`.

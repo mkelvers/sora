@@ -8,6 +8,7 @@ import {
 	type CoreErrorCode,
 } from "@sora/core/errors";
 import { StreamUpstreamError } from "@sora/core/playback";
+import { formatRetryAfter } from "@sora/shared";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
@@ -81,7 +82,7 @@ export function onError(error: unknown, c: Context) {
 	const status = error instanceof StreamUpstreamError ? 502 : statusByCode[error.code];
 	const response = sendProblem(c, status, error.code, error.message);
 	if (error instanceof UpstreamUnavailableError && error.retryAfterMs !== null) {
-		response.headers.set("Retry-After", String(Math.ceil(error.retryAfterMs / 1_000)));
+		response.headers.set("Retry-After", formatRetryAfter(error.retryAfterMs));
 	}
 
 	return response;
