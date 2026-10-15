@@ -1,4 +1,5 @@
-import { and, eq } from "drizzle-orm";
+import { attempt } from "@sora/shared";
+import { and, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { skipSegmentLength } from "../../database/schema";
@@ -39,11 +40,103 @@ export function withLength(segment: SkipSegment, usual: number | null): SkipSegm
 	};
 }
 
+/** How many sibling episodes are asked of a provider at once. */
+const learnConcurrency = 6;
+
+/** How long learning the other episodes may hold playback, in milliseconds. */
+const learnDeadlineMs = 8_000;
+
+const kinds = ["opening", "ending"] as const satisfies readonly SkipSegment["kind"][];
+
+/** The series' other episodes, as the provider that served this one reports them. */
+export interface SkipSource {
+	/** Every episode the provider lists, numbered as the series numbers them. */
+	episodes: number[];
+	/** The segments the provider ships with an episode; `null` when it cannot be streamed. */
+	skipSegments(episode: number): Promise<SkipSegment[] | null>;
+}
+
+/**
+ * Remembers how long an episode's segments are, as reported. A kind the
+ * episode has no segment of is remembered as 0, so the episode counts as seen.
+ * With `keep`, a length already stored stays.
+ */
+async function remember(
+	seriesId: string,
+	episode: number,
+	audio: ContentLanguage,
+	segments: SkipSegment[],
+	keep: boolean,
+) {
+	await db
+		.insert(skipSegmentLength)
+		.values(
+			kinds.map((kind) => {
+				const segment = segments.find((candidate) => candidate.kind === kind);
+				return {
+					seriesId,
+					audio,
+					kind,
+					episode,
+					seconds: segment ? segment.end - segment.start : 0,
+				};
+			}),
+		)
+		.onConflictDoUpdate({
+			target: [
+				skipSegmentLength.seriesId,
+				skipSegmentLength.audio,
+				skipSegmentLength.kind,
+				skipSegmentLength.episode,
+			],
+			set: {
+				seconds: keep ? skipSegmentLength.seconds : sql`excluded.seconds`,
+			},
+		});
+}
+
+/**
+ * Asks the provider for the episodes of the series not yet remembered, so a
+ * series whose episodes were never played has a usual length from the first.
+ */
+async function learn(
+	seriesId: string,
+	episode: number,
+	audio: ContentLanguage,
+	source: SkipSource,
+) {
+	const seen = await db
+		.selectDistinct({
+			episode: skipSegmentLength.episode,
+		})
+		.from(skipSegmentLength)
+		.where(and(eq(skipSegmentLength.seriesId, seriesId), eq(skipSegmentLength.audio, audio)));
+	const known = new Set(seen.map((row) => row.episode));
+	const missing = source.episodes.filter((number) => number !== episode && !known.has(number));
+
+	const queue = [...missing];
+	const worker = async () => {
+		for (let number = queue.shift(); number !== undefined; number = queue.shift()) {
+			const { data } = await attempt(source.skipSegments(number));
+			await remember(seriesId, number, audio, data ?? [], true);
+		}
+	};
+	await Promise.race([
+		Promise.all(Array.from({ length: learnConcurrency }, worker)),
+		new Promise((resolve) => setTimeout(resolve, learnDeadlineMs)),
+	]);
+	queue.length = 0;
+}
+
 /**
  * Remembers the length of an episode's segments and brings each to the
  * length the series' other episodes report. A provider that times one
  * episode's opening past the music keeps the skip button up over the
  * episode; its start is trusted, its length is not.
+ *
+ * The first time a series is seen, the provider is asked for its other
+ * episodes, so an outlier is corrected on its first play rather than after
+ * enough episodes were watched.
  *
  * Lengths are remembered as reported, so the usual one never follows an
  * earlier correction.
@@ -53,33 +146,18 @@ export async function normalizeSkipSegments(
 	episode: number,
 	audio: ContentLanguage,
 	segments: SkipSegment[],
+	source?: SkipSource,
 ) {
+	await remember(seriesId, episode, audio, segments, false);
+	if (segments.length === 0) {
+		return segments;
+	}
+	if (source) {
+		await attempt(learn(seriesId, episode, audio, source));
+	}
+
 	return Promise.all(
 		segments.map(async (segment) => {
-			const key = {
-				seriesId,
-				audio,
-				kind: segment.kind,
-			};
-			await db
-				.insert(skipSegmentLength)
-				.values({
-					...key,
-					episode,
-					seconds: segment.end - segment.start,
-				})
-				.onConflictDoUpdate({
-					target: [
-						skipSegmentLength.seriesId,
-						skipSegmentLength.audio,
-						skipSegmentLength.kind,
-						skipSegmentLength.episode,
-					],
-					set: {
-						seconds: segment.end - segment.start,
-					},
-				});
-
 			const rows = await db
 				.select({
 					seconds: skipSegmentLength.seconds,
@@ -90,6 +168,7 @@ export async function normalizeSkipSegments(
 						eq(skipSegmentLength.seriesId, seriesId),
 						eq(skipSegmentLength.audio, audio),
 						eq(skipSegmentLength.kind, segment.kind),
+						gt(skipSegmentLength.seconds, 0),
 					),
 				);
 

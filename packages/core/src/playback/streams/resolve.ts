@@ -21,7 +21,7 @@ import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } fro
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime, type TimelineShift } from "./align";
-import { normalizeSkipSegments } from "./skip-lengths";
+import { normalizeSkipSegments, type SkipSource } from "./skip-lengths";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 
@@ -108,6 +108,8 @@ interface VersionResult {
 	version: PlaybackMedia | null;
 	/** The upstream videos behind `version`. */
 	videos?: ProviderVideo[];
+	/** The series' other episodes at the provider behind `version`. */
+	skipSource?: SkipSource;
 	/** Whether a provider serving the locale lists the episode. */
 	listed: boolean;
 	attempts: ProviderAttempt[];
@@ -207,13 +209,16 @@ export async function resolvePlayback(
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
 	await Promise.all(
-		media.map(async (version) => {
-			version.skip_segments = await dependencies.normalizeSkipSegments(
-				seriesId,
-				episode,
-				version.audio,
-				version.skip_segments,
-			);
+		results.map(async ({ version, skipSource }) => {
+			if (version) {
+				version.skip_segments = await dependencies.normalizeSkipSegments(
+					seriesId,
+					episode,
+					version.audio,
+					version.skip_segments,
+					skipSource,
+				);
+			}
 		}),
 	);
 	if (media.length > 0) {
@@ -398,9 +403,20 @@ async function resolveVersion(
 			return null;
 		}
 
+		const units = await unitsOf(provider);
 		return {
 			version,
 			videos: stream.videos,
+			skipSource: {
+				episodes: units.map((candidate) => candidate.number),
+				skipSegments: async (number: number) => {
+					const sibling = units.find((candidate) => candidate.number === number);
+					const { data } = sibling
+						? await attempt(provider.resolveStream(sibling.id, language))
+						: { data: null };
+					return data?.skipSegments ?? null;
+				},
+			},
 		};
 	};
 
