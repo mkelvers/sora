@@ -1,5 +1,6 @@
 import {
 	bigint,
+	boolean,
 	doublePrecision,
 	index,
 	integer,
@@ -198,6 +199,10 @@ export const animeScheduleRelease = pgTable(
 		airType: text("air_type").$type<AirType>().notNull(),
 		episode: integer("episode").notNull(),
 		airsAt: timestamptz("airs_at").notNull(),
+		/** Whether AnimeSchedule files the show as a donghua, a Chinese animation. */
+		donghua: boolean("donghua").notNull().default(false),
+		/** How long an episode runs, in minutes, as AnimeSchedule gives it; null when unknown. */
+		lengthMinutes: integer("length_minutes"),
 	},
 	(table) => [
 		primaryKey({

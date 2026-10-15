@@ -83,18 +83,59 @@ describe("fetchTimetable", () => {
 				airType: "dub",
 				episode: 13,
 				airsAt: new Date("2026-10-04T15:01:00Z"),
+				donghua: false,
+				lengthMinutes: null,
 			},
 			{
 				route: "yomi-no-tsugai",
 				airType: "raw",
 				episode: 24,
 				airsAt: new Date("2026-10-03T16:00:00Z"),
+				donghua: false,
+				lengthMinutes: null,
 			},
 			{
 				route: "yomi-no-tsugai",
 				airType: "sub",
 				episode: 24,
 				airsAt: new Date("2026-10-03T16:30:00Z"),
+				donghua: false,
+				lengthMinutes: null,
+			},
+		]);
+	});
+
+	test("lists whether the show is a donghua and how long its episodes run", async () => {
+		timetable = [
+			{
+				...entry("ni-tian-zhizun", 558, "2026-10-16T02:00:00Z"),
+				donghua: true,
+				lengthMin: 10,
+			},
+			{
+				...entry("sore-ike-anpanman", 1749, "2026-10-16T01:55:00Z"),
+				donghua: false,
+				lengthMin: 0,
+			},
+		];
+
+		expect(
+			(
+				await fetchTimetable(http, {
+					year: 2026,
+					week: 42,
+				})
+			).map(({ route, donghua, lengthMinutes }) => ({ route, donghua, lengthMinutes })),
+		).toEqual([
+			{
+				route: "ni-tian-zhizun",
+				donghua: true,
+				lengthMinutes: 10,
+			},
+			{
+				route: "sore-ike-anpanman",
+				donghua: false,
+				lengthMinutes: null,
 			},
 		]);
 	});

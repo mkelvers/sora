@@ -25,6 +25,10 @@ const TimetableEntrySchema = z.object({
 		offset: true,
 	}),
 	airingStatus: z.string(),
+	/** Whether the show is a Chinese animation, which AnimeSchedule files apart from anime. */
+	donghua: z.boolean().optional(),
+	/** The length of an episode in minutes; absent or 0 when not known. */
+	lengthMin: z.number().int().nonnegative().nullish(),
 	/** Set, as `Delayed` or `Break`, while the episode is held back; see {@link isHeldBack}. */
 	delayedText: z.string().optional(),
 	/** When the hold starts and ends; `0001-01-01T00:00:00Z` when not known. */
@@ -87,6 +91,9 @@ export interface TimetableRelease {
 	/** The episode, numbered as the AniList entry numbers it. */
 	episode: number;
 	airsAt: Date;
+	donghua: boolean;
+	/** The length of an episode in minutes; `null` when AnimeSchedule does not know it. */
+	lengthMinutes: number | null;
 }
 
 /**
@@ -135,6 +142,8 @@ export async function fetchTimetable(
 					airType: entry.data.airType,
 					episode: first + index,
 					airsAt: new Date(entry.data.episodeDate),
+					donghua: entry.data.donghua ?? false,
+					lengthMinutes: entry.data.lengthMin || null,
 				}),
 			);
 		});
@@ -197,6 +206,8 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
 						],
 						set: {
 							airsAt: sql`excluded.airs_at`,
+							donghua: sql`excluded.donghua`,
+							lengthMinutes: sql`excluded.length_minutes`,
 						},
 					});
 			}
