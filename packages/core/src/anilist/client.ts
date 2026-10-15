@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 
-import { attempt } from "@sora/shared";
+import { attempt, parseRetryAfter, second } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -666,9 +666,8 @@ export function followBudget(previous: Budget | null, remaining: number, now: nu
  * to answer it with a burst.
  */
 function retryAfter(response: Response) {
-	const header = response.headers.get("Retry-After");
-	const seconds = header === null ? Number.NaN : Number(header);
-	return Number.isFinite(seconds) && seconds >= 0 ? Math.max(seconds, 1) * 1_000 : null;
+	const wait = parseRetryAfter(response.headers.get("Retry-After"));
+	return wait === null ? null : Math.max(wait, second);
 }
 
 function operationName(query: string) {

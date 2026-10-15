@@ -1,4 +1,5 @@
-import { second } from "../../time";
+import { second } from "@sora/shared";
+
 import { unwrapDisguisedSegment } from "../proxy/segment";
 import type { StreamTarget } from "../proxy/token";
 import { fetchUpstreamBytes, mirrorsFor } from "../proxy/upstream";

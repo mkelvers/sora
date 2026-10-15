@@ -1,3 +1,4 @@
+import { hour, minute } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -5,7 +6,6 @@ import { db } from "../../database/client";
 import { animeScheduleRelease, animeScheduleShow, series } from "../../database/schema";
 import { getStoredUnits } from "../../playback/episodes/episodes";
 import { aniKoto } from "../../playback/providers/registry";
-import { hour, minute } from "../../time";
 import { scheduleAniKotoPoll } from "../queue";
 
 /** How far ahead each daily run schedules dubs: a day, with room for a run that starts late. */

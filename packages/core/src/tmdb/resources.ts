@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { attempt } from "@sora/shared";
+import { attempt, day, hour } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
-import { day, hour } from "../time";
 import { tmdb, type TmdbPath } from "./client";
 
 /** TMDB sends missing dates and text as `""` or `null`; both become `null`. */

@@ -1,9 +1,9 @@
+import { day } from "@sora/shared";
 import { and, eq } from "drizzle-orm";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
 import { providerMapping } from "../../database/schema";
-import { day } from "../../time";
 import type { StreamProvider } from "../providers/provider";
 
 /** A confirmed match is reused for a month before being re-verified. */

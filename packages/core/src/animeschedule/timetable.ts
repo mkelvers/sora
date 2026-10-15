@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, day } from "@sora/shared";
 import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -6,7 +6,6 @@ import { z } from "zod";
 import { config } from "../config";
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, type AirType } from "../database/schema";
-import { day } from "../time";
 
 const api = "https://animeschedule.net/api/v3";
 

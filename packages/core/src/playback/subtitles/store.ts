@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 
+import { day } from "@sora/shared";
 import { eq } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { subtitleRefinement } from "../../database/schema";
-import { day } from "../../time";
 import type { Refinement } from "./refine";
 
 /** How long after a failed attempt dub and sub are listened to again. */

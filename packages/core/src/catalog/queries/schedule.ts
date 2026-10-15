@@ -1,7 +1,8 @@
+import { hour } from "@sora/shared";
+
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
 import { anilistEpisodeKey } from "../../series/episodes";
-import { hour } from "../../time";
 
 /** One AniList episode broadcast. */
 export interface AiringBroadcast {

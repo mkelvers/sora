@@ -1,3 +1,4 @@
+import { day } from "@sora/shared";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer } from "better-auth/plugins";
@@ -5,7 +6,6 @@ import { bearer } from "better-auth/plugins";
 import { config } from "../config";
 import { db } from "../database/client";
 import { authAccount, authSession, authUser, authVerification } from "../database/schema";
-import { day } from "../time";
 import { createProfile } from "./profiles";
 
 /**

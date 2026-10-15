@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
+import { day } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
@@ -11,7 +12,6 @@ import {
 	seriesRelated,
 	seriesState,
 } from "../../database/schema";
-import { day } from "../../time";
 import { getNotifications } from "./notifications";
 
 // Opt in against a local database with migrations applied. Fixtures use their

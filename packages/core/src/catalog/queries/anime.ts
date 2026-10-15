@@ -1,3 +1,4 @@
+import { day, hour } from "@sora/shared";
 import { eq, inArray } from "drizzle-orm";
 
 import { anilist, loadMediaById } from "../../anilist/client";
@@ -10,7 +11,6 @@ import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
-import { day, hour } from "../../time";
 import { toAnime, toAnimeCard, type Anime, type AnimeCard } from "../models/anime";
 import { fromUnixSeconds } from "../models/text";
 import type { AiringBroadcast } from "./schedule";

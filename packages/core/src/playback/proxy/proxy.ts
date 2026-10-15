@@ -1,8 +1,7 @@
-import { attempt } from "@sora/shared";
+import { attempt, hour } from "@sora/shared";
 
 import { config } from "../../config";
 import { InvalidStreamTokenError } from "../../errors";
-import { hour } from "../../time";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
 import { rewritePlaylist } from "./playlist";

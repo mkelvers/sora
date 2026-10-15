@@ -1,3 +1,4 @@
+import { day } from "@sora/shared";
 import { and, eq, inArray, not, sql } from "drizzle-orm";
 
 import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
@@ -6,7 +7,6 @@ import { catalogFormatAllowed, catalogSeriesAllowed } from "../catalog/visibilit
 import { db } from "../database/client";
 import { anime, animeSearch, series } from "../database/schema";
 import type { UpcomingSeries } from "../models/series";
-import { day } from "../time";
 import { isNamedAfter } from "./franchise";
 import { byStartDate, franchiseIds, toSeriesCards } from "./queries";
 

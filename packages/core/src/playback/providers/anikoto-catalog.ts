@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, hour } from "@sora/shared";
 import { bestSimilarity, type HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -8,7 +8,6 @@ import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
-import { hour } from "../../time";
 
 const apiUrl = "https://anikotoapi.site";
 const siteUrl = "https://anikototv.to";

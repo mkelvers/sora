@@ -1,3 +1,4 @@
+import { hour } from "@sora/shared";
 import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -12,7 +13,6 @@ import {
 import { EpisodeNotFoundError, SeriesNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
-import { hour } from "../time";
 import type { SeriesKind } from "./series";
 
 /**

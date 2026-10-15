@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, second } from "@sora/shared";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -13,7 +13,6 @@ import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/
 import type { ContentLanguage } from "../../models/series";
 import { requestRefinement } from "../../scheduler/queue";
 import { locateEpisode } from "../../series/episodes";
-import { second } from "../../time";
 import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
 import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";

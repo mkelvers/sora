@@ -1,5 +1,3 @@
-import { day, hour } from "../../time";
-
 /** One AniList entry of a title, as the search index knows it. */
 export interface FeaturedEntry {
 	/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
@@ -98,3 +96,4 @@ function hash(text: string) {
 	}
 	return value >>> 0;
 }
+import { day, hour } from "@sora/shared";

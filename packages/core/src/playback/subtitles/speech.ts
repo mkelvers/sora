@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 
+import { second } from "@sora/shared";
 import { z } from "zod";
 
 import { config } from "../../config";
-import { second } from "../../time";
 import { SubtitleRefinementError } from "./audio";
 import type { SpokenWord } from "./refine";
 

@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Problem } from "@sora/api";
 import { ProblemSchema } from "@sora/api/contract";
-import { attempt } from "@sora/shared";
+import { attempt, parseRetryAfter, second } from "@sora/shared";
 
 /**
  * What a failed response may carry: the API's problem, or Better Auth's
@@ -62,15 +62,7 @@ export class SoraError extends Error {
 		const body = await attempt(response.json());
 		const parsed = FailureBodySchema.safeParse(body.data);
 		const problem = parsed.success ? parsed.data : null;
-		const retryAfterHeader = response.headers.get("Retry-After");
-		const retryAfterSeconds = Number(retryAfterHeader);
-		const retryAfterDate = retryAfterHeader ? new Date(retryAfterHeader) : null;
-		const retryAfter =
-			retryAfterSeconds > 0
-				? retryAfterSeconds
-				: retryAfterDate && !Number.isNaN(retryAfterDate.getTime())
-					? Math.max(0, Math.round((retryAfterDate.getTime() - Date.now()) / 1000))
-					: null;
+		const wait = parseRetryAfter(response.headers.get("Retry-After"));
 
 		return new SoraError(
 			problem?.detail ??
@@ -80,7 +72,7 @@ export class SoraError extends Error {
 				status: response.status,
 				code: problem?.code ?? "HTTP_ERROR",
 				errors: problem?.errors,
-				retryAfterSeconds: retryAfter,
+				retryAfterSeconds: wait === null ? null : Math.ceil(wait / second),
 			},
 		);
 	}

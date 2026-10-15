@@ -1,5 +1,6 @@
+import { day, hour, minute } from "@sora/shared";
+
 import type { AnimeStatus } from "../../catalog/models/anime";
-import { day, hour, minute } from "../../time";
 
 /** What one airing check learned about an anime. */
 export interface AiringState {

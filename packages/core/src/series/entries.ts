@@ -1,3 +1,5 @@
+import { hour } from "@sora/shared";
+
 import { loadMediaById } from "../anilist/client";
 import {
 	FranchiseEntriesDocument,
@@ -5,7 +7,6 @@ import {
 	type MediaRelation,
 } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
-import { hour } from "../time";
 import type { MatchSubject } from "./matching";
 
 /** An AniList entry as loaded for laying out its series: what TMDB matching compares, and the entries it is related to. */

@@ -84,3 +84,5 @@ export function attempt<TData, TExpected extends ErrorClass[]>(
 		return failed(thrown);
 	}
 }
+
+export * from "./time";

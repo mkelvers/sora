@@ -4,10 +4,9 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 
-import { attempt, type Attempt } from "@sora/shared";
+import { attempt, second, type Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
-import { second } from "../../time";
 import { isBareImage } from "./segment";
 import type { StreamTarget, StreamTargetKind } from "./token";
 

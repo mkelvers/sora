@@ -1,6 +1,5 @@
+import { second } from "@sora/shared";
 import type { HttpTransport } from "anime-sdk";
-
-import { second } from "../../time";
 
 /** The longest a provider's `Retry-After` may make a request wait. */
 const maximumRetryAfterSeconds = 10;

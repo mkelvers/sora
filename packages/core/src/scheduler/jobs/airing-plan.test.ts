@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { hour, minute } from "../../time";
+import { hour, minute } from "@sora/shared";
+
 import {
 	extendThroughReleased,
 	maximumReleaseAttempts,

@@ -1,3 +1,4 @@
+import { day } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import { catalogSeriesAllowed } from "../../catalog/visibility";
@@ -16,7 +17,6 @@ import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
-import { day } from "../../time";
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
 export interface Notifications {

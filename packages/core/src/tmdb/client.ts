@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { attempt } from "@sora/shared";
+import { attempt, parseRetryAfter } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -254,8 +254,8 @@ export function createTmdbClient({ fetch, store }: TmdbDependencies) {
 }
 
 function retryAfter(response: Response) {
-	const seconds = Number(response.headers.get("Retry-After"));
-	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1_000 : null;
+	const wait = parseRetryAfter(response.headers.get("Retry-After"));
+	return wait === null || wait === 0 ? null : wait;
 }
 
 /** The responses TMDB is asked for, kept in the database. */

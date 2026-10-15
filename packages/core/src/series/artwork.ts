@@ -1,10 +1,10 @@
+import { day } from "@sora/shared";
 import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { noArtwork, series, titleArtwork, titleImage } from "../database/schema";
 import { SeriesNotFoundError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
-import { day } from "../time";
 import {
 	getImages,
 	getSeasonPosters,
