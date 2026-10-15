@@ -1,5 +1,5 @@
 import { attempt, day } from "@sora/shared";
-import { and, asc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow, series } from "../database/schema";
@@ -21,9 +21,18 @@ const maximumScheduleWindowMs = 14 * day;
 const pairingMarginMs = day;
 
 /**
+ * Episodes shorter than this, in minutes, are not scheduled: AniList files
+ * them as `TV_SHORT`, which the catalogue leaves out as well.
+ */
+const shortEpisodeMinutes = 15;
+
+/**
  * Lists episodes coming out between `from` (inclusive) and `until`
  * (exclusive) as AnimeSchedule's timetable has them, in order. An episode
  * is listed once subbed and once dubbed, as it comes out.
+ *
+ * Donghua and shows with episodes under {@link shortEpisodeMinutes} are
+ * left out, as AnimeSchedule's timetable marks them.
  *
  * Every raw broadcast counts as subbed, since subs follow it wherever
  * episodes are streamed from; an official subbed stream, where there is
@@ -55,6 +64,11 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 				gte(animeScheduleRelease.airsAt, new Date(from.getTime() - pairingMarginMs)),
 				lt(animeScheduleRelease.airsAt, new Date(until.getTime() + pairingMarginMs)),
 				isNotNull(animeScheduleShow.anilistId),
+				eq(animeScheduleRelease.donghua, false),
+				or(
+					isNull(animeScheduleRelease.lengthMinutes),
+					gte(animeScheduleRelease.lengthMinutes, shortEpisodeMinutes),
+				),
 			),
 		)
 		.orderBy(asc(animeScheduleRelease.airsAt), asc(animeScheduleRelease.route));
