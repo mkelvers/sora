@@ -75,6 +75,7 @@ export async function canFetchStream(
 	url: string,
 	headers: Record<string, string>,
 	mirrors: string[],
+	signal?: AbortSignal,
 ) {
 	const { data, error } = await attempt(
 		fetchUpstream(
@@ -87,6 +88,7 @@ export async function canFetchStream(
 				expiresAt: 0,
 			},
 			null,
+			signal,
 		),
 		StreamUpstreamError,
 	);

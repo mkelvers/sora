@@ -24,6 +24,8 @@ interface FakeProvider {
 	noSubtitles?: boolean;
 	/** Whether its subtitle files cannot be fetched from any host. */
 	unreachableSubtitles?: boolean;
+	/** Whether its videos cannot be fetched from any host. */
+	unreachableVideo?: boolean;
 	/** The skip segments its player ships with each language's stream. */
 	skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
 	/** Subtitle tracks only one language's stream carries, by their labels. */
@@ -66,7 +68,7 @@ function useProviders(list: FakeProvider[]) {
 						skipSegments: fake.skipSegments?.[language] ?? [],
 						videos: [
 							{
-								url: `https://${fake.id}.example/${language}.m3u8`,
+								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
 								format: "hls",
 								quality: "auto",
 								headers: {},
@@ -598,6 +600,25 @@ describe("resolvePlayback", () => {
 		offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
+	});
+
+	test("skips a provider whose video host cannot be reached", async () => {
+		useProviders([
+			{
+				id: "anikoto",
+				locale: "en",
+				languages: ["sub", "dub"],
+				unreachableVideo: true,
+			},
+			{
+				id: "allmanga",
+				locale: "en",
+				languages: ["sub", "dub"],
+			},
+		]);
+		offered = [dub(), sub()];
+
+		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
 	});
 
 	test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {

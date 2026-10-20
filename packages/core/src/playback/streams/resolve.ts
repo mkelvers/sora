@@ -103,6 +103,9 @@ export interface PlaybackOptions {
  */
 export const playbackDeadlineMs = 30 * second;
 
+/** How long a video's host has to answer before its provider is passed over. */
+const videoProbeTimeoutMs = 3 * second;
+
 /** What {@link resolveVersion} found for one version. */
 interface VersionResult {
 	version: PlaybackMedia | null;
@@ -364,6 +367,11 @@ async function resolveVersion(
 			return null;
 		}
 		const stream = resolved.data;
+
+		if (!(await videoLoads(stream.videos, dependencies))) {
+			fail(provider, "Video host cannot be reached");
+			return null;
+		}
 
 		const [loads, kinds] =
 			language === "sub"
@@ -685,6 +693,25 @@ function withDefault(subtitles: PlaybackSubtitle[]) {
 		...track,
 		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
 	}));
+}
+
+/**
+ * Whether any of a provider's videos can be fetched, so it is watchable. A
+ * host that accepts connections and never answers would otherwise fail every
+ * play with a gateway timeout while the next provider sat unused.
+ */
+async function videoLoads(videos: ProviderVideo[], dependencies: PlaybackDependencies) {
+	const loads = await Promise.all(
+		videos.map((video) =>
+			dependencies.canFetchStream(
+				video.url,
+				video.headers,
+				[],
+				AbortSignal.timeout(videoProbeTimeoutMs),
+			),
+		),
+	);
+	return loads.includes(true);
 }
 
 /**

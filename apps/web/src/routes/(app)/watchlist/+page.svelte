@@ -23,20 +23,11 @@
 	const options = [{ value: "all", label: "All" }, ...statuses] as const;
 	const selected = $derived(options.find((option) => option.value === status));
 
-	const batch = 36;
-	let grown = $state({
-		key: "",
-		count: batch,
-	});
-	const key = $derived(`${status}:${sort.label}`);
-	const limit = $derived(grown.key === key ? grown.count : batch);
-
 	const matching = $derived(
 		(watchlist.current ?? [])
 			.filter((entry) => status === "all" || entry.status === status)
 			.toSorted(sort.compare),
 	);
-	const shown = $derived(matching.slice(0, limit));
 </script>
 
 <svelte:head>
@@ -97,7 +88,7 @@
 							class="grid grid-cols-2 items-start gap-x-3 gap-y-8 pt-6 pb-10 **:data-listed:hidden sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
 						>
 							{#if watchlist.current}
-								{#each shown as entry (entry.series.id)}
+								{#each matching as entry (entry.series.id)}
 									<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">
 										<Poster card={entry.series} />
 									</li>
@@ -111,19 +102,6 @@
 								{/each}
 							{/if}
 						</ul>
-						{#if watchlist.current && shown.length < matching.length}
-							<Button
-								variant="ghost"
-								class="mx-auto mb-10 flex h-11 w-full max-w-5xl bg-[#213944] text-foreground hover:bg-[#2f5161]"
-								onclick={() =>
-									(grown = {
-										key,
-										count: limit + batch,
-									})}
-							>
-								Show More
-							</Button>
-						{/if}
 					{/if}
 				{/snippet}
 			</Tabs>
