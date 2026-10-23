@@ -8,12 +8,7 @@ import { z } from "zod";
 import type { Actions, PageServerLoad } from "./$types";
 
 const Credentials = z.object({
-	email: z
-		.string()
-		.trim()
-		.toLowerCase()
-		.min(1, "Enter your e-mail.")
-		.pipe(z.email("Enter a valid e-mail address.")),
+	username: z.string().trim().toLowerCase().min(1, "Enter your username."),
 	password: z.string().min(1, "Enter your password."),
 });
 
@@ -26,9 +21,9 @@ export const load: PageServerLoad = ({ locals, url }) => {
 export const actions: Actions = {
 	default: async ({ request, cookies, url, getClientAddress }) => {
 		const form = await request.formData();
-		const email = String(form.get("email") ?? "");
+		const username = String(form.get("username") ?? "");
 		const credentials = Credentials.safeParse({
-			email,
+			username,
 			password: form.get("password") ?? "",
 		});
 
@@ -36,9 +31,9 @@ export const actions: Actions = {
 			const { fieldErrors } = z.flattenError(credentials.error);
 
 			return fail(400, {
-				email,
+				username,
 				errors: {
-					email: fieldErrors.email?.[0],
+					username: fieldErrors.username?.[0],
 					password: fieldErrors.password?.[0],
 				},
 			});
@@ -53,15 +48,15 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
-		if (error?.code === "INVALID_EMAIL_OR_PASSWORD") {
+		if (error?.code === "INVALID_USERNAME_OR_PASSWORD") {
 			return fail(400, {
-				email,
-				message: "Wrong e-mail or password.",
+				username,
+				message: "Wrong username or password.",
 			});
 		}
 		if (error?.status === 429) {
 			return fail(429, {
-				email,
+				username,
 				message: "Too many attempts. Try again in a minute.",
 			});
 		}

@@ -71,30 +71,30 @@ const v1 = new OpenAPIHono<V1Env>({
 
 v1.use("/auth/*", clientAddress);
 
-// Wrong passwords are limited per e-mail address as well as per client
+// Wrong passwords are limited per username as well as per client
 // address (Better Auth does that one), so guessing at one account does not
-// get easier by changing address. The limit for one address and e-mail stops
+// get easier by changing address. The limit for one address and username stops
 // one client from guessing, and cannot shut the owner out from another
-// address. The one for the e-mail alone only bounds guessing from many
+// address. The one for the username alone only bounds guessing from many
 // addresses at once, which is also the only way to keep it full.
-const signInEmail = async (c: Context<V1Env>) => {
+const signInUsername = async (c: Context<V1Env>) => {
 	const { data } = await attempt(
-		c.req.raw.clone().json() as Promise<{ email?: unknown }>,
+		c.req.raw.clone().json() as Promise<{ username?: unknown }>,
 		SyntaxError,
 	);
-	return typeof data?.email === "string" ? data.email.trim().toLowerCase().slice(0, 254) : "";
+	return typeof data?.username === "string" ? data.username.trim().toLowerCase().slice(0, 30) : "";
 };
 v1.use(
-	"/auth/sign-in/email",
+	"/auth/sign-in/username",
 	rateLimit({
 		limit: 10,
 		windowMs: 60_000,
-		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInEmail(c)}`,
+		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInUsername(c)}`,
 	}),
 	rateLimit({
 		limit: 60,
 		windowMs: 60_000,
-		key: async (c) => `sign-in:${await signInEmail(c)}`,
+		key: async (c) => `sign-in:${await signInUsername(c)}`,
 	}),
 );
 
@@ -194,7 +194,7 @@ v1.use(
 v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 	type: "http",
 	scheme: "bearer",
-	description: "The session token from `POST /v1/auth/sign-in/email`.",
+	description: "The session token from `POST /v1/auth/sign-in/username`.",
 });
 
 /** An episode's playback URL, relative to the API's origin. */

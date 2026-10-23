@@ -11,7 +11,7 @@
 
 	let { form }: PageProps = $props();
 
-	let email = $state(untrack(() => form?.email ?? ""));
+	let username = $state(untrack(() => form?.username ?? ""));
 	let password = $state("");
 	let pending = $state(false);
 	let dismissed = $state(false);
@@ -54,15 +54,15 @@
 
 	<div class="mt-12 space-y-6">
 		<Field
-			name="email"
-			label="E-mail"
-			type="email"
-			autocomplete="email"
+			name="username"
+			label="Username"
+			type="text"
+			autocomplete="username"
 			autocapitalize="none"
 			spellcheck={false}
 			required
-			error={form?.errors?.email}
-			bind:value={email}
+			error={form?.errors?.username}
+			bind:value={username}
 		/>
 		<Field
 			name="password"
