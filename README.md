@@ -90,7 +90,7 @@ while you type. Enter at least eight characters and press Enter, or press Ctrl+C
 
 ```sh
 cd sora/packages/core # from the directory where you cloned Sora
-bun run auth:create-account you@example.com "Your name"
+bun run auth:create-account yourname
 ```
 
 Then sign in at <http://localhost:5173>.
