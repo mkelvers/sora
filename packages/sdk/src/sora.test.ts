@@ -187,6 +187,22 @@ describe("SoraClient.request", () => {
 		expect(error?.message).toBe("Invalid username or password");
 	});
 
+	test("changes the password, ends other sessions, and returns the new token", async () => {
+		const { sora, requests } = clientAnswering(() => Response.json({ token: "new-token" }));
+		const changed = await sora.changePassword({
+			currentPassword: "old-password",
+			newPassword: "new-password",
+		});
+
+		expect(changed).toEqual({ token: "new-token" });
+		expect(new URL(requests[0]!.url).pathname).toBe("/v1/auth/change-password");
+		expect(await requests[0]!.json()).toEqual({
+			currentPassword: "old-password",
+			newPassword: "new-password",
+			revokeOtherSessions: true,
+		});
+	});
+
 	test("keeps validation errors and the retry delay from a problem response", async () => {
 		const errors = [{ path: "email", message: "Invalid email" }];
 		const { sora } = clientAnswering(() =>

@@ -112,6 +112,12 @@ export interface SignIn {
 	password: string;
 }
 
+/** The passwords for {@link SoraClient.changePassword}. */
+export interface ChangePassword {
+	currentPassword: string;
+	newPassword: string;
+}
+
 /**
  * A signed-in session. Send `token` with every request that needs an account,
  * as an `Authorization: Bearer <token>` header in {@link SoraClientOptions.headers}.
@@ -275,6 +281,34 @@ export class SoraClient {
 				name: signedIn.user.name,
 				username: signedIn.user.username,
 			},
+		};
+	}
+
+	/**
+	 * Changes the signed-in account's password and ends every session, this
+	 * client's included. Use the returned token from here on.
+	 *
+	 * @throws {@link SoraError} with code `INVALID_PASSWORD` when
+	 *   `currentPassword` is wrong.
+	 */
+	async changePassword(
+		passwords: ChangePassword,
+		options?: RequestOptions,
+	): Promise<{ token: string }> {
+		const response = await this.#auth(
+			"change-password",
+			{
+				...passwords,
+				revokeOtherSessions: true,
+			},
+			options,
+		);
+		const changed = (await response.json()) as {
+			token: string;
+		};
+
+		return {
+			token: changed.token,
 		};
 	}
 

@@ -6,6 +6,7 @@
 export { SoraError } from "./error";
 export {
 	SoraClient,
+	type ChangePassword,
 	type RequestBody,
 	type RequestInput,
 	type RequestOptions,
