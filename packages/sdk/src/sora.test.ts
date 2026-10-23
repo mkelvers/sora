@@ -172,19 +172,19 @@ describe("SoraClient.request", () => {
 		const { sora } = clientAnswering(() =>
 			Response.json(
 				{
-					code: "INVALID_EMAIL_OR_PASSWORD",
-					message: "Invalid email or password",
+					code: "INVALID_USERNAME_OR_PASSWORD",
+					message: "Invalid username or password",
 				},
 				{ status: 401 },
 			),
 		);
 		const { error } = await attempt(
-			sora.signIn({ email: "viewer@example.com", password: "wrong-password" }),
+			sora.signIn({ username: "viewer", password: "wrong-password" }),
 			SoraError,
 		);
 
-		expect(error?.code).toBe("INVALID_EMAIL_OR_PASSWORD");
-		expect(error?.message).toBe("Invalid email or password");
+		expect(error?.code).toBe("INVALID_USERNAME_OR_PASSWORD");
+		expect(error?.message).toBe("Invalid username or password");
 	});
 
 	test("keeps validation errors and the retry delay from a problem response", async () => {

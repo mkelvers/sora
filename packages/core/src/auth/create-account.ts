@@ -1,6 +1,6 @@
 /**
  * Creates an account, as signing up is turned off:
- * `bun run auth:create-account <email> <name>`.
+ * `bun run auth:create-account <username>`.
  *
  * Asks for the password without echoing it, so it stays out of the terminal
  * and shell history. It is hashed the way Better Auth hashes it on sign-up,
@@ -15,18 +15,19 @@ import { z } from "zod";
 import { closeDatabase } from "../database/client";
 import { auth } from "./auth";
 
-const [email, name] = process.argv.slice(2);
+const [username] = process.argv.slice(2);
 const Input = z.object({
-	email: z.email(),
-	name: z.string().trim().min(1).max(40),
+	username: z
+		.string()
+		.trim()
+		.regex(/^[a-zA-Z0-9_.]{3,30}$/),
 });
 
 const input = Input.safeParse({
-	email: email?.trim().toLowerCase(),
-	name,
+	username,
 });
 if (!input.success) {
-	console.error("Usage: bun run auth:create-account <email> <name>");
+	console.error("Usage: bun run auth:create-account <username>");
 	process.exit(1);
 }
 
@@ -37,8 +38,10 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
 
 const context = await auth.$context;
 
-if (await context.internalAdapter.findUserByEmail(input.data.email)) {
-	console.error(`${input.data.email} already has an account.`);
+const normalized = input.data.username.toLowerCase();
+const email = `${normalized}@sora.invalid`;
+if (await context.internalAdapter.findUserByEmail(email)) {
+	console.error(`${input.data.username} already has an account.`);
 	process.exit(1);
 }
 
@@ -85,8 +88,10 @@ if (password.length < minPasswordLength || password.length > maxPasswordLength) 
 
 const user = await context.internalAdapter.createUser(
 	{
-		email: input.data.email,
-		name: input.data.name,
+		email,
+		name: input.data.username,
+		username: normalized,
+		displayUsername: input.data.username,
 		emailVerified: true,
 	},
 	{
@@ -100,5 +105,5 @@ await context.internalAdapter.linkAccount({
 	password: await context.password.hash(password),
 });
 
-console.log(`Created ${user.email}.`);
+console.log(`Created ${input.data.username}.`);
 await closeDatabase();

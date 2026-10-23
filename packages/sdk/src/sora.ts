@@ -108,7 +108,7 @@ type Args<TRoute extends Route> =
 
 /** An account's credentials for {@link SoraClient.signIn}. */
 export interface SignIn {
-	email: string;
+	username: string;
 	password: string;
 }
 
@@ -121,7 +121,7 @@ export interface Session {
 	account: {
 		id: string;
 		name: string;
-		email: string;
+		username: string;
 	};
 }
 
@@ -258,11 +258,11 @@ export class SoraClient {
 	/**
 	 * Signs an account in.
 	 *
-	 * @throws {@link SoraError} with code `INVALID_EMAIL_OR_PASSWORD` when the
+	 * @throws {@link SoraError} with code `INVALID_USERNAME_OR_PASSWORD` when the
 	 *   credentials are wrong.
 	 */
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
-		const response = await this.#auth("sign-in/email", credentials, options);
+		const response = await this.#auth("sign-in/username", credentials, options);
 		const signedIn = (await response.json()) as {
 			token: string;
 			user: Session["account"];
@@ -273,7 +273,7 @@ export class SoraClient {
 			account: {
 				id: signedIn.user.id,
 				name: signedIn.user.name,
-				email: signedIn.user.email,
+				username: signedIn.user.username,
 			},
 		};
 	}

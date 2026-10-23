@@ -12,11 +12,17 @@ import { timestamptz } from "./columns";
 /** The animated DiceBear styles a profile's avatar may be drawn in. */
 export const avatarStyle = pgEnum("avatar_style", ["sprouts", "critters"]);
 
-/** A Sora account: one e-mail and password, shared by its profiles. */
+/**
+ * A Sora account: one username and password, shared by its profiles.
+ * Better Auth requires an e-mail, so it holds `<username>@sora.invalid`,
+ * which is never shown or used.
+ */
 export const authUser = pgTable("auth_user", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
 	email: text("email").notNull().unique(),
+	username: text("username").notNull().unique(),
+	displayUsername: text("display_username").notNull(),
 	emailVerified: boolean("email_verified").notNull().default(false),
 	image: text("image"),
 	createdAt: timestamptz("created_at").notNull().defaultNow(),

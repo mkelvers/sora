@@ -1,7 +1,7 @@
 import { day } from "@sora/shared";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer } from "better-auth/plugins";
+import { bearer, username } from "better-auth/plugins";
 
 import { config } from "../config";
 import { db } from "../database/client";
@@ -9,7 +9,7 @@ import { authAccount, authSession, authUser, authVerification } from "../databas
 import { createProfile } from "./profiles";
 
 /**
- * Accounts and sessions, by e-mail and password.
+ * Accounts and sessions, by username and password.
  *
  * Mount {@link auth.handler} at `/v1/auth/*`. Browsers may use its session
  * cookie; every other client (the web server, TV and mobile apps) sends the
@@ -17,7 +17,8 @@ import { createProfile } from "./profiles";
  * plugin accepts. Signing in returns that token.
  *
  * Nobody can sign up: accounts are made with `bun run auth:create-account`.
- * A new account starts with one profile, named after the account.
+ * A new account starts with one profile, named after the account. Better
+ * Auth insists on an e-mail, so accounts hold `<username>@sora.invalid`.
  *
  * Sign-in is limited to a few tries a minute per client address, in
  * development too. The web server is the client of its visitors, so it
@@ -65,7 +66,7 @@ export const auth = betterAuth({
 		window: 60,
 		max: 100,
 		customRules: {
-			"/sign-in/email": {
+			"/sign-in/username": {
 				window: 60,
 				max: 5,
 			},
@@ -76,5 +77,5 @@ export const auth = betterAuth({
 			ipAddressHeaders: ["x-forwarded-for"],
 		},
 	},
-	plugins: [bearer()],
+	plugins: [bearer(), username()],
 });
