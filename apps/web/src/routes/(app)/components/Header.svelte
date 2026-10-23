@@ -14,6 +14,7 @@
 		BellSimpleIcon,
 		BookmarkSimpleIcon,
 		CaretDownIcon,
+		GearSixIcon,
 		ListIcon,
 		PencilSimpleIcon,
 		SignOutIcon,
@@ -291,6 +292,15 @@
 								>
 									<UsersIcon size="1.25rem" />
 									Manage Profiles
+								</Button>
+								<Button
+									href="/settings"
+									variant="item"
+									class="gap-3"
+									aria-current={current("/settings")}
+								>
+									<GearSixIcon size="1.25rem" />
+									Settings
 								</Button>
 								<Button
 									href="/watchlist"
