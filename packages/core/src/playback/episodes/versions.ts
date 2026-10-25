@@ -230,15 +230,14 @@ export const getEpisodeVersions = async (
 	episode: Pick<LocatedEpisode, "anilistId" | "number">,
 	dependencies: VersionDependencies = live,
 ): Promise<EpisodeVersion[]> => {
-	const listed = (
-		await readAnimeListings(
-			[episode.anilistId],
-			{
-				lookUpUnknown: true,
-			},
-			dependencies,
-		)
-	).get(episode.anilistId);
+	const listings = await readAnimeListings(
+		[episode.anilistId],
+		{
+			lookUpUnknown: true,
+		},
+		dependencies,
+	);
+	const listed = listings.get(episode.anilistId);
 	return versionsOffered(
 		listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? [],
 	);

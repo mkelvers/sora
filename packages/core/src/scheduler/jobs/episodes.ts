@@ -29,20 +29,19 @@ export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const failed = (
-		await Promise.all(
-			streamProviders.map(async (provider) => {
-				const { error } = await attempt(getProviderUnits(data, provider));
-				if (error) {
-					helpers.logger.warn(
-						`Provider ${provider.id} failed for anime ${anilistId}: ${error.message}`,
-					);
-					return [provider.id];
-				}
-				return [];
-			}),
-		)
-	).flat();
+	const failures = await Promise.all(
+		streamProviders.map(async (provider) => {
+			const { error } = await attempt(getProviderUnits(data, provider));
+			if (error) {
+				helpers.logger.warn(
+					`Provider ${provider.id} failed for anime ${anilistId}: ${error.message}`,
+				);
+				return [provider.id];
+			}
+			return [];
+		}),
+	);
+	const failed = failures.flat();
 
 	if (failed.length > 0) {
 		throw new Error(`Looking up anime ${anilistId} failed on ${failed.join(", ")}`);

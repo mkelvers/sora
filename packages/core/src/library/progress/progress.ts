@@ -223,23 +223,20 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 	const rewatching = await isRewatching(userId, seriesId);
 	const ending = rewatching && episode === undefined;
 	const rewatch = rewatching && !ending;
-	const played = new Map(
-		(
-			await db
-				.select({
-					durationSeconds: episodeProgress.durationSeconds,
-					episode: episodeProgress.episode,
-				})
-				.from(episodeProgress)
-				.where(
-					and(
-						eq(episodeProgress.userId, userId),
-						eq(episodeProgress.seriesId, seriesId),
-						eq(episodeProgress.rewatch, rewatch),
-					),
-				)
-		).map((row) => [row.episode, row.durationSeconds]),
-	);
+	const playedRows = await db
+		.select({
+			durationSeconds: episodeProgress.durationSeconds,
+			episode: episodeProgress.episode,
+		})
+		.from(episodeProgress)
+		.where(
+			and(
+				eq(episodeProgress.userId, userId),
+				eq(episodeProgress.seriesId, seriesId),
+				eq(episodeProgress.rewatch, rewatch),
+			),
+		);
+	const played = new Map(playedRows.map((row) => [row.episode, row.durationSeconds]));
 	await db
 		.insert(episodeProgress)
 		.values(
@@ -424,8 +421,8 @@ export const getSeriesProgress = async (
 
 	const [last] = rows;
 	const finishedCount = rows.filter((row) => row.finished).length;
-	const finished =
-		!rewatch && finishedCount > 0 && finishedCount >= (await getSeriesEpisodes(seriesId)).length;
+	const seriesEpisodes = await getSeriesEpisodes(seriesId);
+	const finished = !rewatch && finishedCount > 0 && finishedCount >= seriesEpisodes.length;
 	const next = last && !finished ? await nextEpisodes(userId, [last]) : null;
 
 	return {

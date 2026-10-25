@@ -251,24 +251,22 @@ export const franchiseIds = async (
 		const listers = [
 			...new Set(rawEdges.filter(({ relation }) => relation === "OTHER").map(({ from }) => from)),
 		];
-		const chained = new Set(
+		const chainedRows =
 			listers.length === 0
 				? []
-				: (
-						await db
-							.select({
-								anilistId: series.anilistId,
-							})
-							.from(series)
-							.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
-							.where(
-								and(
-									inArray(series.anilistId, listers),
-									inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
-								),
-							)
-					).map((row) => row.anilistId),
-		);
+				: await db
+						.select({
+							anilistId: series.anilistId,
+						})
+						.from(series)
+						.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+						.where(
+							and(
+								inArray(series.anilistId, listers),
+								inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
+							),
+						);
+		const chained = new Set(chainedRows.map((row) => row.anilistId));
 		const crossovers = new Set(
 			rawEdges
 				.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
@@ -646,7 +644,8 @@ export const getAdjacentEpisodes = async (
 	next: number | null;
 }> => {
 	const row = await loadSeries(seriesId);
-	const listed = (await listedEpisodeDatesOf([row])).get(row.id) ?? [];
+	const listedByRow = await listedEpisodeDatesOf([row]);
+	const listed = listedByRow.get(row.id) ?? [];
 	const numbers = listed.map((episode) => episode.number);
 
 	return {
@@ -761,7 +760,8 @@ export const getSeriesEpisodePage = async (
 	total: number;
 }> => {
 	const row = await loadSeries(seriesId);
-	const listed = (await listedEpisodesOf([row])).get(seriesId) ?? [];
+	const listedBySeries = await listedEpisodesOf([row]);
+	const listed = listedBySeries.get(seriesId) ?? [];
 
 	return {
 		episodes: await describeEpisodes(
@@ -779,7 +779,8 @@ export const getSeriesEpisodePage = async (
  * @throws {@link EpisodeNotFoundError} when the series does not list the episode.
  */
 export const getSeriesEpisode = async (seriesId: string, number: number): Promise<Episode> => {
-	const episode = (await getSeriesEpisodes(seriesId)).find((episode) => episode.number === number);
+	const episodes = await getSeriesEpisodes(seriesId);
+	const episode = episodes.find((candidate) => candidate.number === number);
 	if (!episode) {
 		throw new EpisodeNotFoundError(seriesId, number);
 	}

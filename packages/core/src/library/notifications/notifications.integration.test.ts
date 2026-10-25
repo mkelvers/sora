@@ -155,9 +155,8 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				statusChangedAt: now,
 				userId: profile,
 			});
-			expect(
-				(await getNotifications(profile, {}, now)).items.some((item) => item.id === `${second}:2`),
-			).toBe(true);
+			const notifications = await getNotifications(profile, {}, now);
+			expect(notifications.items.some((item) => item.id === `${second}:2`)).toBe(true);
 		});
 
 		test("a later watchlist addition keeps the earlier follow cutoff for its season", async () => {
@@ -177,9 +176,8 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 					userId: profile,
 				},
 			]);
-			expect(
-				(await getNotifications(profile, {}, now)).items.some((item) => item.id === `${second}:2`),
-			).toBe(true);
+			const notifications = await getNotifications(profile, {}, now);
+			expect(notifications.items.some((item) => item.id === `${second}:2`)).toBe(true);
 		});
 
 		test("dropping a watched entry prevents it from starting a follow", async () => {

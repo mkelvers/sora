@@ -26,28 +26,33 @@ const get = (routes: ReturnType<typeof app>, account = "a") =>
 		},
 	});
 
+const statusOf = async (routes: ReturnType<typeof app>, account = "a") => {
+	const response = await get(routes, account);
+	return response.status;
+};
+
 describe("rateLimit", () => {
 	test("answers 429 with Retry-After past the limit, per account", async () => {
 		const routes = app(2);
 
-		expect((await get(routes)).status).toBe(200);
-		expect((await get(routes)).status).toBe(200);
+		expect(await statusOf(routes)).toBe(200);
+		expect(await statusOf(routes)).toBe(200);
 		const limited = await get(routes);
 
 		expect(limited.status).toBe(429);
 		expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);
 		expect(((await limited.json()) as { code: string }).code).toBe("TOO_MANY_REQUESTS");
-		expect((await get(routes, "b")).status).toBe(200);
+		expect(await statusOf(routes, "b")).toBe(200);
 	});
 
 	test("starts a new window once the old one ends", async () => {
 		const routes = app(1, 20);
 
-		expect((await get(routes)).status).toBe(200);
-		expect((await get(routes)).status).toBe(429);
+		expect(await statusOf(routes)).toBe(200);
+		expect(await statusOf(routes)).toBe(429);
 		await Bun.sleep(30);
 
-		expect((await get(routes)).status).toBe(200);
+		expect(await statusOf(routes)).toBe(200);
 	});
 
 	test("counts by the key it is given instead of the account", async () => {
@@ -60,15 +65,17 @@ describe("rateLimit", () => {
 				}),
 			)
 			.get("/", (c) => c.text("ok"));
-		const fromAddress = (address: string) =>
-			routes.request("/", {
+		const fromAddress = async (address: string) => {
+			const response = await routes.request("/", {
 				headers: {
 					"x-address": address,
 				},
 			});
+			return response.status;
+		};
 
-		expect((await fromAddress("a")).status).toBe(200);
-		expect((await fromAddress("a")).status).toBe(429);
-		expect((await fromAddress("b")).status).toBe(200);
+		expect(await fromAddress("a")).toBe(200);
+		expect(await fromAddress("a")).toBe(429);
+		expect(await fromAddress("b")).toBe(200);
 	});
 });

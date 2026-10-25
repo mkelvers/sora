@@ -91,8 +91,10 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 		if (!row) {
 			throw new Error("Missing watchlist test fixture");
 		}
-		expect((await toSeriesCards([row])).size).toBe(0);
-		expect((await toSeriesCards([row], ["another-title"])).size).toBe(0);
+		const cards = await toSeriesCards([row]);
+		const cardsOfAnotherTitle = await toSeriesCards([row], ["another-title"]);
+		expect(cards.size).toBe(0);
+		expect(cardsOfAnotherTitle.size).toBe(0);
 
 		const [entry] = await getWatchlist(profile);
 		if (!entry) {
@@ -122,6 +124,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 		await db.insert(seriesEpisode).values({ number: 24, seriesId: id });
 		await setWatchlistStatus(profile, id, "watching");
 		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
-		expect((await getWatchlist(profile))[0]?.status).toBe("completed");
+		const [completed] = await getWatchlist(profile);
+		expect(completed?.status).toBe("completed");
 	});
 });

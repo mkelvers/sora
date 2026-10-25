@@ -469,18 +469,16 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		}
 	}
 
-	const known = new Set(
+	const stored =
 		found.size === 0
 			? []
-			: (
-					await db
-						.select({
-							anikotoId: anikotoSeries.anikotoId,
-						})
-						.from(anikotoSeries)
-						.where(inArray(anikotoSeries.anikotoId, [...found]))
-				).map((row) => row.anikotoId),
-	);
+			: await db
+					.select({
+						anikotoId: anikotoSeries.anikotoId,
+					})
+					.from(anikotoSeries)
+					.where(inArray(anikotoSeries.anikotoId, [...found]));
+	const known = new Set(stored.map((row) => row.anikotoId));
 
 	const rows: (typeof anikotoSeries.$inferInsert)[] = [];
 	for (const id of [...found]

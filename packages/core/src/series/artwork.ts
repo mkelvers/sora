@@ -163,13 +163,12 @@ const seasonPostersOf = async (showId: number, maxAgeMs: number): Promise<Stored
 	// A refresh also finds seasons added since; otherwise the show's usual lifetime will do.
 	const show = await getShow(showId, maxAgeMs === 0 ? { maxAgeMs } : {});
 	const perSeason = await Promise.all(
-		(show?.seasons ?? []).map(async ({ seasonNumber }) =>
-			(
-				await getSeasonPosters(showId, seasonNumber, {
-					maxAgeMs,
-				})
-			).map((image) => toStoredImage("poster", image, seasonNumber)),
-		),
+		(show?.seasons ?? []).map(async ({ seasonNumber }) => {
+			const posters = await getSeasonPosters(showId, seasonNumber, {
+				maxAgeMs,
+			});
+			return posters.map((image) => toStoredImage("poster", image, seasonNumber));
+		}),
 	);
 	return perSeason.flat();
 };

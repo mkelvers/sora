@@ -38,7 +38,8 @@ describe("readBounded", () => {
 	});
 
 	test("reads an empty body", async () => {
-		expect((await readBounded(new Response(null), 10)).byteLength).toBe(0);
+		const body = await readBounded(new Response(null), 10);
+		expect(body.byteLength).toBe(0);
 	});
 
 	test("refuses a body that announces more than the limit", async () => {

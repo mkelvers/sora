@@ -149,7 +149,8 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.resolve(episodes.slice(0, 12)),
 		);
-		expect((await provider.findMedia(titan))?.mediaId).toBe("abc");
+		const media = await provider.findMedia(titan);
+		expect(media?.mediaId).toBe("abc");
 		expect(fetched).toEqual(["stub:abc"]);
 	});
 

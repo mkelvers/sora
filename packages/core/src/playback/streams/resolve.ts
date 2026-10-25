@@ -458,9 +458,10 @@ const resolveVersion = async (
 	// they do not have it: an episode without a dub then costs one round trip
 	// rather than one per provider. The first in priority order that has it wins.
 	const unlisted = candidates.filter((candidate) => !lists(candidate));
-	const found = (
-		await Promise.all(unlisted.map(({ provider, unit }) => resolveWith(provider, unit)))
-	).find((result) => result !== null);
+	const resolved = await Promise.all(
+		unlisted.map(({ provider, unit }) => resolveWith(provider, unit)),
+	);
+	const found = resolved.find((result) => result !== null);
 	if (found) {
 		return {
 			...found,

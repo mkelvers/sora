@@ -134,17 +134,14 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			});
 		const { id } = defined(stored);
 
-		const airedBefore = new Map(
-			(
-				await tx
-					.select({
-						airedAt: seriesEpisode.airedAt,
-						number: seriesEpisode.number,
-					})
-					.from(seriesEpisode)
-					.where(eq(seriesEpisode.seriesId, id))
-			).map((row) => [row.number, row.airedAt]),
-		);
+		const earlierEpisodes = await tx
+			.select({
+				airedAt: seriesEpisode.airedAt,
+				number: seriesEpisode.number,
+			})
+			.from(seriesEpisode)
+			.where(eq(seriesEpisode.seriesId, id));
+		const airedBefore = new Map(earlierEpisodes.map((row) => [row.number, row.airedAt]));
 		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
 		const episodes = built.episodes.map((episode) => ({
 			airDate: episode.airDate,

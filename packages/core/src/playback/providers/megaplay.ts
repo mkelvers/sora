@@ -80,13 +80,12 @@ const fetchMegaPlaySources = async (
 	embedReferer: string,
 	language: ContentLanguage,
 ): Promise<MegaPlaySources> => {
-	const embedPage = await (
-		await http.get(embedUrl, {
-			headers: {
-				Referer: embedReferer,
-			},
-		})
-	).text();
+	const embedResponse = await http.get(embedUrl, {
+		headers: {
+			Referer: embedReferer,
+		},
+	});
+	const embedPage = await embedResponse.text();
 
 	if (embedPage.includes("<title>Error - MegaPlay</title>")) {
 		throw new Error(`MegaPlay has no ${language} source for this episode`);

@@ -117,13 +117,12 @@ describe("fetchTimetable", () => {
 			},
 		];
 
+		const releases = await fetchTimetable(http, {
+			week: 42,
+			year: 2026,
+		});
 		expect(
-			(
-				await fetchTimetable(http, {
-					week: 42,
-					year: 2026,
-				})
-			).map(({ route, donghua, lengthMinutes }) => ({ donghua, lengthMinutes, route })),
+			releases.map(({ route, donghua, lengthMinutes }) => ({ donghua, lengthMinutes, route })),
 		).toEqual([
 			{
 				donghua: true,
@@ -150,14 +149,11 @@ describe("fetchTimetable", () => {
 			},
 		];
 
-		expect(
-			(
-				await fetchTimetable(http, {
-					week: 40,
-					year: 2026,
-				})
-			).map((release) => release.episode),
-		).toEqual([1, 2]);
+		const releases = await fetchTimetable(http, {
+			week: 40,
+			year: 2026,
+		});
+		expect(releases.map((release) => release.episode)).toEqual([1, 2]);
 	});
 
 	test("leaves out a delayed episode, which is listed again in the week it airs", async () => {
@@ -166,14 +162,11 @@ describe("fetchTimetable", () => {
 			entry("chiikawa", 382, "2026-10-02T23:55:00Z", "raw", "aired"),
 		];
 
-		expect(
-			(
-				await fetchTimetable(http, {
-					week: 40,
-					year: 2026,
-				})
-			).map((release) => release.route),
-		).toEqual(["chiikawa"]);
+		const releases = await fetchTimetable(http, {
+			week: 40,
+			year: 2026,
+		});
+		expect(releases.map((release) => release.route)).toEqual(["chiikawa"]);
 	});
 
 	test("leaves out a delayed episode in the weeks before it airs, where it is not marked delayed-air", async () => {
@@ -206,14 +199,11 @@ describe("fetchTimetable", () => {
 			},
 		];
 
-		expect(
-			(
-				await fetchTimetable(http, {
-					week: 41,
-					year: 2026,
-				})
-			).map((release) => `${release.route} ${release.airsAt.toISOString()}`),
-		).toEqual([
+		const releases = await fetchTimetable(http, {
+			week: 41,
+			year: 2026,
+		});
+		expect(releases.map((release) => `${release.route} ${release.airsAt.toISOString()}`)).toEqual([
 			"bleach-sennen-kessen-hen-kashin-tan 2026-10-19T15:00:00.000Z",
 			"chiikawa 2026-10-02T23:55:00.000Z",
 		]);
@@ -231,14 +221,11 @@ describe("fetchTimetable", () => {
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:00:00Z"),
 		];
 
-		expect(
-			(
-				await fetchTimetable(http, {
-					week: 40,
-					year: 2026,
-				})
-			).map((release) => release.route),
-		).toEqual(["yomi-no-tsugai"]);
+		const releases = await fetchTimetable(http, {
+			week: 40,
+			year: 2026,
+		});
+		expect(releases.map((release) => release.route)).toEqual(["yomi-no-tsugai"]);
 	});
 });
 

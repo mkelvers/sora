@@ -106,7 +106,8 @@ export const refreshProviderUnits = async (
 	}
 
 	const { mediaId, episodeOffset } = media;
-	const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
+	const listedUnits = await provider.listEpisodes(mediaId);
+	const units: ProviderUnit[] = listedUnits
 		// A part filed under its prequel's series keeps only its own episodes,
 		// numbered from 1; a later part may follow them in the same series.
 		.filter(

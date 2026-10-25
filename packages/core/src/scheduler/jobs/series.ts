@@ -485,20 +485,18 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 	);
 	// When each show was last fetched, so one fetched lately is not even read.
 	const paths = [...new Set(showIds.values())].map((showId) => `/tv/${showId}`);
-	const fetchedAt = new Map(
+	const fetchedRows =
 		paths.length > 0
-			? (
-					await db
-						.select({
-							at: sql<Date>`max(${tmdbResponse.fetchedAt})`.mapWith(tmdbResponse.fetchedAt),
-							path: tmdbResponse.path,
-						})
-						.from(tmdbResponse)
-						.where(inArray(tmdbResponse.path, paths))
-						.groupBy(tmdbResponse.path)
-				).map(({ path, at }) => [path, at.getTime()] as const)
-			: [],
-	);
+			? await db
+					.select({
+						at: sql<Date>`max(${tmdbResponse.fetchedAt})`.mapWith(tmdbResponse.fetchedAt),
+						path: tmdbResponse.path,
+					})
+					.from(tmdbResponse)
+					.where(inArray(tmdbResponse.path, paths))
+					.groupBy(tmdbResponse.path)
+			: [];
+	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
 	let fetched = 0;
 	let updated = 0;
