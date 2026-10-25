@@ -391,6 +391,117 @@ const episodeKeys = (show: TmdbShow) =>
 		.toSorted()
 		.join(",");
 
+/** A stored series with an episode TMDB is behind on, and how long ago each lack began. */
+interface BehindSeries {
+	series_id: string;
+	key: string;
+	anilist_id: number;
+	is_unlisted: boolean;
+	unlisted_for_ms: number | null;
+	lacks_details: boolean;
+	lacking_for_ms: number | null;
+	laid_out_for_ms: number;
+}
+
+/** What asking TMDB about one series came to. */
+interface Outcome {
+	fetched: number;
+	queued: number;
+	updated: number;
+}
+
+/** A series with no TMDB show laid out again when it has gone unmatched or without details too long. */
+const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
+	const isUnmatched = row.key.startsWith("anilist:");
+	const relayoutAfterMs =
+		isUnmatched && row.lacks_details
+			? recheckAfterMs(row.lacking_for_ms, {
+					max: day,
+					min: hour,
+				})
+			: day;
+	if (row.laid_out_for_ms <= relayoutAfterMs) {
+		return { fetched: 0, queued: 0, updated: 0 };
+	}
+	if (isUnmatched) {
+		await expireMapping(row.anilist_id);
+	}
+	await scheduleStoredSeriesRefresh(row.anilist_id);
+	return { fetched: 0, queued: 1, updated: 0 };
+};
+
+/** Asks TMDB again for the show of a series that is behind, and queues the series when its layout is stale. */
+const refreshShow = async (
+	row: BehindSeries,
+	showId: number,
+	fetchedAt: ReadonlyMap<string, number>,
+	logger: Parameters<Task>[1]["logger"],
+): Promise<Outcome> => {
+	const maxAgeMs = Math.min(
+		row.is_unlisted
+			? recheckAfterMs(row.unlisted_for_ms, {
+					max: longestListingWaitMs,
+					min: hour,
+				})
+			: Infinity,
+		row.lacks_details ? day : Infinity,
+	);
+	if (Date.now() - (fetchedAt.get(`/tv/${showId}`) ?? 0) < maxAgeMs) {
+		return { fetched: 0, queued: 0, updated: 0 };
+	}
+
+	// The stored copy is read before the fresh one replaces it.
+	const stored = await attempt(
+		getShow(showId, {
+			maxAgeMs: storedShowAgeMs,
+		}),
+		UpstreamUnavailableError,
+	);
+	if (stored.error) {
+		logger.warn(`TMDB failed for show ${showId}: ${stored.error.message}`);
+		return { fetched: 0, queued: 0, updated: 0 };
+	}
+
+	const fresh = await attempt(
+		getShow(showId, {
+			maxAgeMs,
+		}),
+		UpstreamUnavailableError,
+	);
+	if (fresh.error) {
+		logger.warn(`TMDB failed for show ${showId}: ${fresh.error.message}`);
+		return { fetched: 0, queued: 0, updated: 0 };
+	}
+
+	const before = stored.data;
+	const show = fresh.data;
+
+	const copied = show ? await copyEpisodeDetails(row.series_id, show.episodes) : 0;
+
+	// A series is matched to TMDB's episodes once a day at most, so one
+	// matched before TMDB listed its latest episodes keeps linking only
+	// the earlier ones until it is matched anew.
+	const [mapping] = show
+		? await db.select().from(tmdbMapping).where(eq(tmdbMapping.anilistId, row.anilist_id)).limit(1)
+		: [];
+	const isMatchStale =
+		row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
+
+	// A show TMDB no longer has needs its series matched anew.
+	if (
+		!show ||
+		isMatchStale ||
+		(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)))
+	) {
+		if (isMatchStale) {
+			await expireMapping(row.anilist_id);
+		}
+		await scheduleStoredSeriesRefresh(row.anilist_id);
+		return { fetched: 1, queued: 1, updated: copied };
+	}
+	return { fetched: 1, queued: 0, updated: copied };
+};
+
 /**
  * Asks TMDB again for the shows of stored series with an episode that a
  * series lists, or would, and that TMDB is behind on:
@@ -464,16 +575,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     ${airedLately}
     and (${isUnnamed} or ${seriesEpisode.overview} is null or ${seriesEpisode.stillUrl} is null)
   )`;
-	const behind = await db.execute<{
-		series_id: string;
-		key: string;
-		anilist_id: number;
-		is_unlisted: boolean;
-		unlisted_for_ms: number | null;
-		lacks_details: boolean;
-		lacking_for_ms: number | null;
-		laid_out_for_ms: number;
-	}>(sql`
+	const behind = await db.execute<BehindSeries & Record<string, unknown>>(sql`
     select
       ${series.id} as series_id,
       ${series.key} as key,
@@ -513,92 +615,9 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const outcomes = await inSequence([...behind], async (row) => {
 		const showId = showIds.get(row.series_id);
-		if (showId === undefined) {
-			const isUnmatched = row.key.startsWith("anilist:");
-			const relayoutAfterMs =
-				isUnmatched && row.lacks_details
-					? recheckAfterMs(row.lacking_for_ms, {
-							max: day,
-							min: hour,
-						})
-					: day;
-			if (row.laid_out_for_ms <= relayoutAfterMs) {
-				return { fetched: 0, queued: 0, updated: 0 };
-			}
-			if (isUnmatched) {
-				await expireMapping(row.anilist_id);
-			}
-			await scheduleStoredSeriesRefresh(row.anilist_id);
-			return { fetched: 0, queued: 1, updated: 0 };
-		}
-
-		const maxAgeMs = Math.min(
-			row.is_unlisted
-				? recheckAfterMs(row.unlisted_for_ms, {
-						max: longestListingWaitMs,
-						min: hour,
-					})
-				: Infinity,
-			row.lacks_details ? day : Infinity,
-		);
-		if (Date.now() - (fetchedAt.get(`/tv/${showId}`) ?? 0) < maxAgeMs) {
-			return { fetched: 0, queued: 0, updated: 0 };
-		}
-
-		// The stored copy is read before the fresh one replaces it.
-		const stored = await attempt(
-			getShow(showId, {
-				maxAgeMs: storedShowAgeMs,
-			}),
-			UpstreamUnavailableError,
-		);
-		if (stored.error) {
-			helpers.logger.warn(`TMDB failed for show ${showId}: ${stored.error.message}`);
-			return { fetched: 0, queued: 0, updated: 0 };
-		}
-
-		const fresh = await attempt(
-			getShow(showId, {
-				maxAgeMs,
-			}),
-			UpstreamUnavailableError,
-		);
-		if (fresh.error) {
-			helpers.logger.warn(`TMDB failed for show ${showId}: ${fresh.error.message}`);
-			return { fetched: 0, queued: 0, updated: 0 };
-		}
-
-		const before = stored.data;
-		const show = fresh.data;
-
-		const copied = show ? await copyEpisodeDetails(row.series_id, show.episodes) : 0;
-
-		// A series is matched to TMDB's episodes once a day at most, so one
-		// matched before TMDB listed its latest episodes keeps linking only
-		// the earlier ones until it is matched anew.
-		const [mapping] = show
-			? await db
-					.select()
-					.from(tmdbMapping)
-					.where(eq(tmdbMapping.anilistId, row.anilist_id))
-					.limit(1)
-			: [];
-		const isMatchStale =
-			row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
-
-		// A show TMDB no longer has needs its series matched anew.
-		if (
-			!show ||
-			isMatchStale ||
-			(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)))
-		) {
-			if (isMatchStale) {
-				await expireMapping(row.anilist_id);
-			}
-			await scheduleStoredSeriesRefresh(row.anilist_id);
-			return { fetched: 1, queued: 1, updated: copied };
-		}
-		return { fetched: 1, queued: 0, updated: copied };
+		return showId === undefined
+			? await relayoutUnshown(row)
+			: await refreshShow(row, showId, fetchedAt, helpers.logger);
 	});
 
 	let fetched = 0;

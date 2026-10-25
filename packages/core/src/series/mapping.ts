@@ -306,6 +306,41 @@ const bestShowPlacement = async (
 const isShortRelease = (subject: MatchSubject) =>
 	subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA";
 
+/** Where on TMDB an entry lives, from the best of the candidates its format allows. */
+const placementOf = async (
+	subject: MatchSubject,
+	queries: readonly string[],
+	predecessors: readonly Predecessor[],
+	hint: TmdbHint | null,
+) => {
+	if (subject.format === "MOVIE") {
+		return (
+			(await bestMoviePlacement(subject, queries, hint)) ??
+			(await collectionPlacement(subject, predecessors)) ??
+			(await bestShowPlacement(subject, predecessors, hint, []))
+		);
+	}
+	return (
+		(await bestShowPlacement(subject, predecessors, hint, queries)) ??
+		(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null)
+	);
+};
+
+/** The columns of a stored mapping for a placement; all empty when the entry was placed nowhere. */
+const mappingValues = (placement: Awaited<ReturnType<typeof placementOf>>) => {
+	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
+	return {
+		episodeNumber: episodes[0]?.episodeNumber ?? null,
+		episodes,
+		mediaType: placement?.mediaType ?? null,
+		method: placement?.method ?? null,
+		resolvedAt: new Date(),
+		score: placement?.score ?? null,
+		seasonNumber: episodes[0]?.seasonNumber ?? null,
+		tmdbId: placement?.tmdbId ?? null,
+	};
+};
+
 const match = async (
 	entry: FranchiseEntry,
 	resolving: ReadonlySet<number>,
@@ -318,25 +353,8 @@ const match = async (
 	const queries = primaryTitlesOf(entry);
 	const predecessors = await predecessorMappings(entry, resolving, match);
 	const hint = await tmdbHintFor(entry.id);
-	const placement =
-		subject.format === "MOVIE"
-			? ((await bestMoviePlacement(subject, queries, hint)) ??
-				(await collectionPlacement(subject, predecessors)) ??
-				(await bestShowPlacement(subject, predecessors, hint, [])))
-			: ((await bestShowPlacement(subject, predecessors, hint, queries)) ??
-				(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null));
-
-	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
-	const values = {
-		episodeNumber: episodes[0]?.episodeNumber ?? null,
-		episodes,
-		mediaType: placement?.mediaType ?? null,
-		method: placement?.method ?? null,
-		resolvedAt: new Date(),
-		score: placement?.score ?? null,
-		seasonNumber: episodes[0]?.seasonNumber ?? null,
-		tmdbId: placement?.tmdbId ?? null,
-	};
+	const placement = await placementOf(subject, queries, predecessors, hint);
+	const values = mappingValues(placement);
 
 	const [row] = await db
 		.insert(tmdbMapping)
