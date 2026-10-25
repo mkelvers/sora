@@ -12,7 +12,7 @@
 		"./playback": "./src/playback/index.ts",
 		"./library": "./src/library/index.ts",
 		"./series": "./src/series/index.ts",
-		"./errors": "./src/errors.ts",
+		"./errors": "./src/errors/index.ts",
 		"./database": "./src/database/client.ts",
 		"./scheduler": "./src/scheduler/index.ts"
 	},

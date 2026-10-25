@@ -55,7 +55,7 @@ export const chooseStill = async (
 	const accepted = await firstInSequence(pool, async (still) => {
 		const { data, error } = await attempt(loadStill(still.file_path));
 		if (error) {
-			return undefined;
+			return null;
 		}
 
 		measured += 1;
