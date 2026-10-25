@@ -89,32 +89,12 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	// Pools that stop without shutting down keep their jobs locked; see watchPools.
 	const pools = watchPools();
 	const main = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
 		// Long jobs, such as a full catalogue sync or an airing check waiting
 		// out a provider's rate limit, must not take every slot from a layout a
 		// viewer is waiting on. AniList's limit is shared by the whole process
 		// and serves the most urgent job first, so more slots cost it nothing.
 		concurrency: 8,
-		taskList: prioritized({
-			[trackAiringTask]: trackAiring,
-			[reviveAiringChecksTask]: reviveAiringChecks,
-			[storeSeriesTask]: storeSeriesJob,
-			...waitedOnTasks,
-			[discoverSeriesEntriesTask]: discoverSeriesEntries,
-			[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
-			[refreshEpisodeListingsTask]: refreshEpisodeListings,
-			[syncProviderCatalogsTask]: syncProviderCatalogs,
-			[pruneProviderCallsTask]: pruneProviderCallsJob,
-			[pruneDeadJobsTask]: pruneDeadJobsJob,
-			[checkProviderHealthTask]: checkProviderHealthJob,
-			[syncSearchIndexTask]: syncSearchIndexJob,
-			[backfillSeriesTask]: backfillSeries,
-			[syncTmdbHintsTask]: syncTmdbHintsJob,
-			[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
-			[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
-			[syncTimetablesTask]: syncTimetablesJob,
-		}),
+		connectionString: config.databaseUrl,
 		crontab: [
 			`0 * * * * ${reviveAiringChecksTask}`,
 			`30 4 * * * ${discoverSeriesEntriesTask}`,
@@ -137,6 +117,26 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
 		].join("\n"),
+		events: pools.events,
+		taskList: prioritized({
+			[trackAiringTask]: trackAiring,
+			[reviveAiringChecksTask]: reviveAiringChecks,
+			[storeSeriesTask]: storeSeriesJob,
+			...waitedOnTasks,
+			[discoverSeriesEntriesTask]: discoverSeriesEntries,
+			[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
+			[refreshEpisodeListingsTask]: refreshEpisodeListings,
+			[syncProviderCatalogsTask]: syncProviderCatalogs,
+			[pruneProviderCallsTask]: pruneProviderCallsJob,
+			[pruneDeadJobsTask]: pruneDeadJobsJob,
+			[checkProviderHealthTask]: checkProviderHealthJob,
+			[syncSearchIndexTask]: syncSearchIndexJob,
+			[backfillSeriesTask]: backfillSeries,
+			[syncTmdbHintsTask]: syncTmdbHintsJob,
+			[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
+			[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
+			[syncTimetablesTask]: syncTimetablesJob,
+		}),
 	});
 
 	// Every slot above can be held for minutes by jobs waiting their turn on
@@ -146,9 +146,9 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	// and share AniList requests, rather than a few at a time each paying
 	// their own; they spend most of their time waiting on AniList and TMDB.
 	const waitedOn = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
 		concurrency: 24,
+		connectionString: config.databaseUrl,
+		events: pools.events,
 		// graphile-worker opens connections as jobs need them, up to this.
 		maxPoolSize: 24,
 		taskList: prioritized(waitedOnTasks),

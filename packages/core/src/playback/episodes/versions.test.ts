@@ -53,11 +53,11 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 			}),
 		),
 	providers: list.map(({ id, locale, listsLanguages }) => ({
-		id,
-		locale,
-		listsLanguages,
 		findMedia: async () => null,
+		id,
 		listEpisodes: async () => [],
+		listsLanguages,
+		locale,
 		resolveStream: async () => {
 			throw new Error(`${id} streams nothing in these tests`);
 		},

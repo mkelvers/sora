@@ -183,10 +183,10 @@ export class SdkStreamProvider implements StreamProvider {
 				headers: stream.headers ?? {},
 				quality: stream.quality,
 				subtitles: (stream.subtitles ?? []).map((track) => ({
-					url: track.url,
-					language: track.language,
-					label: track.label,
 					format: track.format ?? null,
+					label: track.label,
+					language: track.language,
+					url: track.url,
 				})),
 				url: stream.sourceUrl,
 			})),

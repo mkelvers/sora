@@ -178,13 +178,8 @@ export const toMatchSubject = (entry: FranchiseEntry, now: Date): MatchSubject =
 	);
 
 	return {
-		format:
-			entry.format === "MANGA" || entry.format === "NOVEL" || entry.format === "ONE_SHOT"
-				? null
-				: entry.format,
-		titles: [...primaryTitles, ...new Set(synonyms)],
-		primaryTitleCount: primaryTitles.length,
-		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
+		airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
+		durationMinutes: entry.duration,
 		endDate: entry.endDate ? fuzzyDate(entry.endDate) : null,
 		// Before its first episode airs, an entry's length is unknown, not zero.
 		episodes:
@@ -192,7 +187,12 @@ export const toMatchSubject = (entry: FranchiseEntry, now: Date): MatchSubject =
 			(entry.nextAiringEpisode && entry.nextAiringEpisode.episode > 1
 				? entry.nextAiringEpisode.episode - 1
 				: null),
-		airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
-		durationMinutes: entry.duration,
+		format:
+			entry.format === "MANGA" || entry.format === "NOVEL" || entry.format === "ONE_SHOT"
+				? null
+				: entry.format,
+		primaryTitleCount: primaryTitles.length,
+		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
+		titles: [...primaryTitles, ...new Set(synonyms)],
 	};
 };

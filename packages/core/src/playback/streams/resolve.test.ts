@@ -77,22 +77,22 @@ const useProviders = (list: FakeProvider[]) => {
 									? []
 									: [
 											{
-												url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
-												language: "en",
-												label: "English",
 												format: "vtt",
+												label: "English",
+												language: "en",
+												url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
 											},
 											{
-												url: `https://${fake.id}.example/pt.vtt`,
-												language: "pt",
-												label: "Portuguese",
 												format: null,
+												label: "Portuguese",
+												language: "pt",
+												url: `https://${fake.id}.example/pt.vtt`,
 											},
 											...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
-												url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
-												language: "en",
-												label,
 												format: "vtt" as const,
+												label,
+												language: "en",
+												url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
 											})),
 										],
 								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,

@@ -214,8 +214,8 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 			return {
 				count: airing.length,
 				date: date.toString(),
-				label: date.toLocaleString("en", { weekday: "long", month: "long", day: "numeric" }),
-				month_day: date.toLocaleString("en", { month: "long", day: "numeric" }),
+				label: date.toLocaleString("en", { day: "numeric", month: "long", weekday: "long" }),
+				month_day: date.toLocaleString("en", { day: "numeric", month: "long" }),
 				name: date.toLocaleString("en", { weekday: "long" }),
 				number: date.day,
 				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),
@@ -223,13 +223,13 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 					const aired = Date.parse(at) <= now;
 					const previous = slots[position - 1];
 					return {
-						airing_at: at,
-						time: clock(Date.parse(at)),
 						aired,
+						airing_at: at,
 						next: isToday && !aired && (!previous || Date.parse(previous[0]) <= now),
 						releases: [...Map.groupBy(group, (episode) => episode.series.id).values()].flatMap(
 							calendarReleases,
 						),
+						time: clock(Date.parse(at)),
 					};
 				}),
 				today: isToday,

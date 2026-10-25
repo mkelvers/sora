@@ -574,11 +574,8 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
 		...cards.get(row.id)!,
-		start_date: row.startDate,
+		backdrop_edges: found.edges,
 		genres: anime.genres,
-		tags: anime.tags,
-		studios: anime.studios,
-		score_count: indexed?.scoreCount ?? null,
 		// An aired episode still to come out is next until it is listed, ahead of
 		// the one AniList announces after it.
 		next_episode:
@@ -589,9 +586,12 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 						number: row.nextEpisodeNumber,
 					}
 				: null),
-		backdrop_edges: found.edges,
-		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
 		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
+		score_count: indexed?.scoreCount ?? null,
+		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
+		start_date: row.startDate,
+		studios: anime.studios,
+		tags: anime.tags,
 	};
 };
 

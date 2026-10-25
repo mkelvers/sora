@@ -53,14 +53,14 @@ export type { Problem } from "./openapi/schemas";
 export type * from "./models";
 
 const server = Bun.serve({
-	hostname: process.env.HOST ?? "127.0.0.1",
-	port: Number(process.env.PORT ?? 3000),
-	// Every request body here is a small JSON document; Bun's default allows 128 MiB.
-	maxRequestBodySize: 1024 * 1024,
 	fetch: app.fetch,
+	hostname: process.env.HOST ?? "127.0.0.1",
 	// Resolving playback and laying out a new title can take several seconds
 	// before the first byte, well past Bun's default of 10.
 	idleTimeout: 120,
+	// Every request body here is a small JSON document; Bun's default allows 128 MiB.
+	maxRequestBodySize: 1024 * 1024,
+	port: Number(process.env.PORT ?? 3000),
 });
 
 console.log(`Sora API listening on ${server.url}`);

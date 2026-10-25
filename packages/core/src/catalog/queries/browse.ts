@@ -65,17 +65,17 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 	const { Page } = await anilist(
 		BrowseAnimeDocument,
 		{
+			excludedFormats: [...excludedFormats],
+			format: input.format,
+			genres: input.genres,
 			page: input.page,
 			perPage: input.perPage,
 			// Absent filters must be omitted, not null; see codegen.ts.
 			search: input.search,
-			sort,
 			season: input.season,
 			seasonYear: input.seasonYear,
-			format: input.format,
-			excludedFormats: [...excludedFormats],
+			sort,
 			status: input.status,
-			genres: input.genres,
 		},
 		{
 			// Searches are rarely repeated exactly; lists like "trending" are shared.

@@ -19,9 +19,9 @@ const responses: Record<string, unknown> = {
 	"/tv/45790/episode_groups": { results: [{ id: "anime-parts", type: 1 }] },
 	"/tv/episode_group/anime-parts": {
 		groups: [
-			{ episodes: [{ ...episode, id: 3, episode_number: 25 }], name: "Part 3", order: 3 },
+			{ episodes: [{ ...episode, episode_number: 25, id: 3 }], name: "Part 3", order: 3 },
 			{
-				episodes: [{ ...episode, id: 2, episode_number: 14, order: 1 }, episode],
+				episodes: [{ ...episode, episode_number: 14, id: 2, order: 1 }, episode],
 				name: "Part 2",
 				order: 2,
 			},

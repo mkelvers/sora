@@ -14,18 +14,18 @@ export default {
 	generates: {
 		"src/anilist/graphql.generated.ts": {
 			config: {
-				documentMode: "string",
-				enumsAsTypes: true,
-				skipTypename: true,
-				useTypeImports: true,
 				// AniList treats an explicit null differently from an omitted variable
 				// (`format_in: null` is a 500), so optional variables must stay optional.
 				avoidOptionals: false,
+				documentMode: "string",
+				enumsAsTypes: true,
 				scalars: {
 					CountryCode: "string",
 					FuzzyDateInt: "number",
 					Json: "unknown",
 				},
+				skipTypename: true,
+				useTypeImports: true,
 			},
 			plugins: ["typescript-operations", "typed-document-node"],
 		},

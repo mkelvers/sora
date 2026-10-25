@@ -399,15 +399,15 @@ const resolveVersion = async (
 		const media = toPlaybackMedia(stream.videos, streamUrl, kinds, accountId);
 		const version = {
 			audio: language,
+			hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
 			label: audioLabels[language],
 			locale,
 			provider: provider.id,
-			hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
+			skip_segments: stream.skipSegments,
 			sources: media.sources,
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
 			// resolvePlayback retimes them to the dub's once both are resolved.
 			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
-			skip_segments: stream.skipSegments,
 		};
 
 		// A sub without English tracks has them burned in. Later providers may

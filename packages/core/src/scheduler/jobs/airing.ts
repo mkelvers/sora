@@ -172,13 +172,13 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
 	const plan = planNextCheck(
 		{
-			status: anime.data.status,
-			nextAiringAt: anime.data.nextEpisode ? new Date(anime.data.nextEpisode.airingAt) : null,
 			// An anime AniKoto does not carry has no episode to wait for; the
 			// half-hourly look picks it up once AniKoto adds it.
 			latestAiredEpisode: onAniKoto.carried ? await latestAiredEpisode(anime.data) : null,
 			latestReleasedEpisode: onAniKoto.latest,
+			nextAiringAt: anime.data.nextEpisode ? new Date(anime.data.nextEpisode.airingAt) : null,
 			startDate: anime.data.startDate,
+			status: anime.data.status,
 		},
 		payload,
 		new Date(),

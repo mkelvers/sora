@@ -218,12 +218,12 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
 		}
 
 		const details = {
-			title: tmdbEpisode.name,
-			overview: tmdbEpisode.overview,
 			airDate: tmdbEpisode.air_date,
+			overview: tmdbEpisode.overview,
 			// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
 			runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
 			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
+			title: tmdbEpisode.name,
 		};
 		if (
 			Object.entries(details).every(

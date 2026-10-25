@@ -57,13 +57,13 @@ const special = (episode: number, airDate: string, runtime: number): TmdbEpisode
 const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
 	const titles = overrides.titles ?? ["Example"];
 	return {
-		format: "TV",
-		startDate: null,
-		endDate: null,
-		episodes: null,
 		airsFrom: null,
 		durationMinutes: 24,
+		endDate: null,
+		episodes: null,
+		format: "TV",
 		primaryTitleCount: titles.length,
+		startDate: null,
 		...overrides,
 		titles,
 	};

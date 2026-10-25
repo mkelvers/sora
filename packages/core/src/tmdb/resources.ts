@@ -84,12 +84,12 @@ const EpisodeChangesSchema = z.object({
 			items: z.array(
 				z.object({
 					action: z.string(),
+					iso_639_1: OptionalText,
+					original_value: z.unknown().optional(),
 					/** `YYYY-MM-DD HH:MM:SS UTC`. */
 					time: z.string(),
-					iso_639_1: OptionalText,
 					// A deletion has no value, an addition no original one.
 					value: z.unknown().optional(),
-					original_value: z.unknown().optional(),
 				}),
 			),
 			key: z.string(),
@@ -127,24 +127,24 @@ const ShowFields = {
 };
 
 const MovieSchema = z.object({
-	id: z.number().int(),
-	title: z.string(),
-	original_title: z.string(),
-	overview: OptionalText,
-	poster_path: OptionalText,
 	backdrop_path: OptionalText,
-	release_date: OptionalText,
-	// An unreleased film's runtime is 0 until TMDB knows it.
-	runtime: z
-		.number()
-		.nullish()
-		.transform((value) => value || null),
 	belongs_to_collection: z
 		.object({
 			id: z.number().int(),
 		})
 		.nullish()
 		.transform((value) => value ?? null),
+	id: z.number().int(),
+	original_title: z.string(),
+	overview: OptionalText,
+	poster_path: OptionalText,
+	release_date: OptionalText,
+	// An unreleased film's runtime is 0 until TMDB knows it.
+	runtime: z
+		.number()
+		.nullish()
+		.transform((value) => value || null),
+	title: z.string(),
 });
 
 const CollectionSchema = z.object({

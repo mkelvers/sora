@@ -275,9 +275,9 @@ const typesAreChecked = async () => {
 	// @ts-expect-error a body the route requires
 	await sora.request(route.markNotificationsRead, { params: { profile_id: "P1" } });
 	await sora.request(route.setWatchlistStatus, {
-		params: { profile_id: "P1", series_id: "S1" },
 		// @ts-expect-error a status the route does not know
 		body: { status: "bored" },
+		params: { profile_id: "P1", series_id: "S1" },
 	});
 	// @ts-expect-error results are not a number
 	const wrong: number = await sora.request(route.listGenres);

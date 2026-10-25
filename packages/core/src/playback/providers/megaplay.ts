@@ -35,12 +35,16 @@ const mediaReferer = "https://megaplay.buzz/";
 
 const SourcesResponseSchema = z
 	.object({
+		enc: z.string().min(1).optional(),
+		// Skip spans only enhance playback, so a malformed one is dropped rather
+		// than failing the stream.
+		intro: SkipSpanSchema.optional().catch(undefined),
+		outro: SkipSpanSchema.optional().catch(undefined),
 		sources: z
 			.object({
 				file: z.string().min(1),
 			})
 			.optional(),
-		enc: z.string().min(1).optional(),
 		tracks: z
 			.array(
 				z.object({
@@ -50,10 +54,6 @@ const SourcesResponseSchema = z
 				}),
 			)
 			.optional(),
-		// Skip spans only enhance playback, so a malformed one is dropped rather
-		// than failing the stream.
-		intro: SkipSpanSchema.optional().catch(undefined),
-		outro: SkipSpanSchema.optional().catch(undefined),
 	})
 	.refine((body) => body.sources !== undefined || body.enc !== undefined, {
 		message: "MegaPlay returned neither sources nor enc",
@@ -220,10 +220,10 @@ export const resolveMegaPlayEmbed = async (
 					track.kind === "captions" && track.label
 						? [
 								{
-									url: track.file,
+									format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const),
 									label: track.label,
 									language: subtitleLanguage(track.label),
-									format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const),
+									url: track.file,
 								},
 							]
 						: [],

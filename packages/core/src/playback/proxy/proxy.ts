@@ -191,9 +191,9 @@ const playlistResponse = async (target: StreamTarget, upstream: UpstreamBytes) =
 
 	return new Response(rewritten, {
 		headers: {
-			"Content-Type": "application/vnd.apple.mpegurl",
 			// Live playlists change; media playlists for VOD are cheap to refetch.
 			"Cache-Control": "no-cache",
+			"Content-Type": "application/vnd.apple.mpegurl",
 		},
 		status: 200,
 	});

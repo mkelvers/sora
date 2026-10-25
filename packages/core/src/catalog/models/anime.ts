@@ -149,8 +149,8 @@ export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => ({
 	malId: media.idMal,
 	nextEpisode: media.nextAiringEpisode
 		? {
-				number: media.nextAiringEpisode.episode,
 				airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
+				number: media.nextAiringEpisode.episode,
 			}
 		: null,
 	popularity: media.popularity,
@@ -174,8 +174,8 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 		edge.relationType && edge.node?.type === "ANIME"
 			? [
 					{
-						type: edge.relationType,
 						anime: toAnimeCard(edge.node),
+						type: edge.relationType,
 					},
 				]
 			: [],
