@@ -147,7 +147,9 @@ export const franchiseParts = (
 				}
 			}
 			frontier = [...next];
-			frontier.forEach((member) => ids.add(member));
+			for (const member of frontier) {
+				ids.add(member);
+			}
 		}
 		return ids;
 	};
@@ -180,7 +182,9 @@ export const franchiseParts = (
 			);
 			if (before) {
 				links.push([before.anilistId, title.anilistId]);
-				component(title.anilistId).forEach((id) => joined.add(id));
+				for (const id of component(title.anilistId)) {
+					joined.add(id);
+				}
 			}
 		}
 	}
@@ -191,9 +195,13 @@ export const franchiseParts = (
 		const leftTitle = byRelease.find((title) => title.anilistId === left);
 		const rightTitle = byRelease.find((title) => title.anilistId === right);
 		if (continuity.has(left) && !continuity.has(right)) {
-			component(right).forEach((id) => omitted.add(id));
+			for (const id of component(right)) {
+				omitted.add(id);
+			}
 		} else if (continuity.has(right) && !continuity.has(left)) {
-			component(left).forEach((id) => omitted.add(id));
+			for (const id of component(left)) {
+				omitted.add(id);
+			}
 		} else if (continuity.has(left) && continuity.has(right) && leftTitle && rightTitle) {
 			if (isSeriesFormat(leftTitle) !== isSeriesFormat(rightTitle)) {
 				omitted.add(isSeriesFormat(leftTitle) ? right : left);
@@ -218,7 +226,9 @@ export const franchiseParts = (
 	for (let frontier = selected ? [selected.anilistId] : []; frontier.length > 0;) {
 		const before = links.flatMap(([from, to]) => (frontier.includes(to) ? [from] : []));
 		frontier = before.filter((id) => !lateOrigins.has(id));
-		frontier.forEach((id) => lateOrigins.add(id));
+		for (const id of frontier) {
+			lateOrigins.add(id);
+		}
 	}
 	const selectedStart = selected?.startDate ?? "9999";
 	const isLateOrigin = (title: FranchiseTitle) =>

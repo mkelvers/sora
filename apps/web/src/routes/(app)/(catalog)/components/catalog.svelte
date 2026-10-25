@@ -55,7 +55,11 @@
 			return;
 		}
 
-		const timer = setTimeout(() => waiting.forEach((query) => query.refresh()), 1000);
+		const timer = setTimeout(() => {
+			for (const query of waiting) {
+				query.refresh();
+			}
+		}, 1000);
 		return () => clearTimeout(timer);
 	});
 </script>

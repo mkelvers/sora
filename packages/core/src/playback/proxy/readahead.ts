@@ -48,13 +48,13 @@ let fetchingAhead = 0;
  * can start fetching the ones after it.
  */
 export const rememberSegmentOrder = (targets: StreamTarget[]) => {
-	targets.forEach((target, index) => {
+	for (const [index, target] of targets.entries()) {
 		positions.delete(target.url);
 		positions.set(target.url, {
 			index,
 			targets,
 		});
-	});
+	}
 
 	for (const url of positions.keys()) {
 		if (positions.size <= rememberedSegments) {

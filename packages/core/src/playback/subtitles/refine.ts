@@ -295,7 +295,7 @@ const voteOffsets = (
 	}
 
 	const shifts: TimelineShift[] = [];
-	path.forEach((choice, index) => {
+	for (const [index, choice] of path.entries()) {
 		const offset = defined(offsets[choice]);
 		if (shifts.at(-1)?.offset !== offset) {
 			shifts.push({
@@ -303,7 +303,7 @@ const voteOffsets = (
 				offset,
 			});
 		}
-	});
+	}
 	return shifts;
 };
 

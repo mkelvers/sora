@@ -336,14 +336,14 @@ const startIndexes = (
 
 	if (start !== null) {
 		let previousDay: number | null = null;
-		track.forEach((episode, index) => {
+		for (const [index, episode] of track.entries()) {
 			const airDay = dayNumber(episode.air_date);
 			if (airDay !== previousDay && withinDays(airDay, start, startWindowDays)) {
 				indexes.add(index);
 			}
 
 			previousDay = airDay;
-		});
+		}
 	}
 
 	return indexes;
