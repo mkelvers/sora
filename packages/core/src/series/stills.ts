@@ -1,4 +1,4 @@
-import { attempt, defined } from "@sora/shared";
+import { attempt, defined, firstInSequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -52,16 +52,17 @@ export const chooseStill = async (
 	const pool = ranked.filter((still) => still.iso_639_1 === null).slice(0, stillsLooked);
 
 	let measured = 0;
-	for (const still of pool) {
+	const accepted = await firstInSequence(pool, async (still) => {
 		const { data, error } = await attempt(loadStill(still.file_path));
 		if (error) {
-			continue;
+			return undefined;
 		}
 
 		measured += 1;
-		if (!(await hasBlackBars(data)) && !(await showsText(data))) {
-			return still.file_path;
-		}
+		return !(await hasBlackBars(data)) && !(await showsText(data)) ? still.file_path : undefined;
+	});
+	if (accepted) {
+		return accepted;
 	}
 
 	if (pool.length > 0 && measured === 0) {

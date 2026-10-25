@@ -107,64 +107,62 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 	};
 
-	const execute = async (url: URL): Promise<unknown> => {
-		for (let tries = 0; ; tries += 1) {
-			await nextSlot();
+	const execute = async (url: URL, tries = 0): Promise<unknown> => {
+		await nextSlot();
 
-			const response = await attempt(
-				fetch(url, {
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${config.tmdbReadAccessToken}`,
-					},
-					signal: AbortSignal.timeout(requestTimeoutMs),
-				}),
-			);
-			if (response.error) {
-				throw new UpstreamUnavailableError("TMDB could not be reached", {
-					cause: response.error,
-					retryAfterMs: null,
-				});
-			}
-
-			if (response.data.status === 429) {
-				const retryAfterMs = retryAfter(response.data) ?? 2000;
-				// Pause every request from this process, not just this one.
-				nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
-				if (tries < rateLimitRetries) {
-					continue;
-				}
-
-				throw new UpstreamUnavailableError("TMDB rate limit reached", {
-					retryAfterMs,
-				});
-			}
-
-			if (response.data.status === 404) {
-				return null;
-			}
-
-			if (!response.data.ok) {
-				throw new UpstreamUnavailableError(
-					`TMDB returned ${response.data.status} for ${url.pathname}`,
-					{
-						retryAfterMs: retryAfter(response.data),
-					},
-				);
-			}
-
-			const body = await attempt(response.data.json());
-			if (body.error) {
-				throw new UpstreamUnavailableError(
-					`TMDB returned a response for ${url.pathname} that is not JSON`,
-					{
-						cause: body.error,
-						retryAfterMs: null,
-					},
-				);
-			}
-			return body.data;
+		const response = await attempt(
+			fetch(url, {
+				headers: {
+					Accept: "application/json",
+					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
+				},
+				signal: AbortSignal.timeout(requestTimeoutMs),
+			}),
+		);
+		if (response.error) {
+			throw new UpstreamUnavailableError("TMDB could not be reached", {
+				cause: response.error,
+				retryAfterMs: null,
+			});
 		}
+
+		if (response.data.status === 429) {
+			const retryAfterMs = retryAfter(response.data) ?? 2000;
+			// Pause every request from this process, not just this one.
+			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+			if (tries < rateLimitRetries) {
+				return await execute(url, tries + 1);
+			}
+
+			throw new UpstreamUnavailableError("TMDB rate limit reached", {
+				retryAfterMs,
+			});
+		}
+
+		if (response.data.status === 404) {
+			return null;
+		}
+
+		if (!response.data.ok) {
+			throw new UpstreamUnavailableError(
+				`TMDB returned ${response.data.status} for ${url.pathname}`,
+				{
+					retryAfterMs: retryAfter(response.data),
+				},
+			);
+		}
+
+		const body = await attempt(response.data.json());
+		if (body.error) {
+			throw new UpstreamUnavailableError(
+				`TMDB returned a response for ${url.pathname} that is not JSON`,
+				{
+					cause: body.error,
+					retryAfterMs: null,
+				},
+			);
+		}
+		return body.data;
 	};
 
 	/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */

@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, inSequence, chunked } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -173,11 +173,11 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 	const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
 
 	await db.transaction(async (tx) => {
-		for (let start = 0; start < changed.length; start += writeBatchSize) {
+		await inSequence(chunked(changed, writeBatchSize), async (batch) => {
 			await tx
 				.insert(tmdbHint)
 				.values(
-					changed.slice(start, start + writeBatchSize).map(([anilistId, hint]) => ({
+					batch.map(([anilistId, hint]) => ({
 						anilistId,
 						...hint,
 					})),
@@ -189,13 +189,11 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 					},
 					target: tmdbHint.anilistId,
 				});
-		}
+		});
 
-		for (let start = 0; start < removed.length; start += writeBatchSize) {
-			await tx
-				.delete(tmdbHint)
-				.where(inArray(tmdbHint.anilistId, removed.slice(start, start + writeBatchSize)));
-		}
+		await inSequence(chunked(removed, writeBatchSize), async (batch) => {
+			await tx.delete(tmdbHint).where(inArray(tmdbHint.anilistId, batch));
+		});
 	});
 
 	return [...changed.map(([anilistId]) => anilistId), ...removed];

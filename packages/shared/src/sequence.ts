@@ -60,3 +60,9 @@ export const inParallel = async <TItem>(
 	};
 	await Promise.all(Array.from({ length: concurrency }, worker));
 };
+
+/** `items` cut into consecutive groups of at most `size`, the last one possibly shorter. */
+export const chunked = <TItem>(items: readonly TItem[], size: number): TItem[][] =>
+	Array.from({ length: Math.ceil(items.length / size) }, (_, group) =>
+		items.slice(group * size, (group + 1) * size),
+	);

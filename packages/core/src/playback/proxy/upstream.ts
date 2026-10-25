@@ -5,7 +5,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 
-import { attempt, second, defined } from "@sora/shared";
+import { attempt, second, defined, firstInSequence } from "@sora/shared";
 import type { Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
@@ -262,14 +262,15 @@ export const fetchUpstream = async (
 		return primary.data;
 	}
 
-	for (const mirror of target.mirrors) {
-		const fallback = await attempt(
+	const fallback = await firstInSequence(target.mirrors, async (mirror) => {
+		const result = await attempt(
 			fetchFollowingRedirects(mirror, headers, timeoutMs, signal),
 			StreamUpstreamError,
 		);
-		if (!fallback.error) {
-			return fallback.data;
-		}
+		return result.error ? undefined : result.data;
+	});
+	if (fallback) {
+		return fallback;
 	}
 
 	// The primary host's failure is the one worth reporting.
@@ -297,19 +298,13 @@ export const readBounded = async (response: Response, maximumBytes: number) => {
 
 	const chunks: Uint8Array[] = [];
 	let total = 0;
-	const reader = response.body?.getReader();
-	while (reader) {
-		const chunk = await reader.read();
-		if (chunk.done) {
-			break;
-		}
-
-		total += chunk.value.byteLength;
+	// Leaving the loop early, as by the throw below, cancels the stream.
+	for await (const chunk of response.body ?? []) {
+		total += chunk.byteLength;
 		if (total > maximumBytes) {
-			await reader.cancel();
 			throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
 		}
-		chunks.push(chunk.value);
+		chunks.push(chunk);
 	}
 
 	const bytes = new Uint8Array(total);

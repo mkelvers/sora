@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { attempt, day, hour } from "@sora/shared";
+import { attempt, day, hour, inSequence } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
@@ -353,7 +353,11 @@ const missingEpisodes = async (
 		seasons.find((season) => season.season_number === seasonNumber)?.episode_count ?? 0;
 	const after = Math.max(0, ...listed.map((episode) => episode.episode_number));
 	const found: TmdbEpisode[] = [];
-	for (let number = after + 1; listed.length + found.length < counted; number += 1) {
+	const readFrom = async (number: number): Promise<void> => {
+		if (listed.length + found.length >= counted) {
+			return;
+		}
+
 		const episode = await tmdb(
 			`/tv/${showId}/season/${seasonNumber}/episode/${number}`,
 			{
@@ -363,11 +367,13 @@ const missingEpisodes = async (
 			options,
 		);
 		if (!episode) {
-			break;
+			return;
 		}
 
 		found.push(episode);
-	}
+		await readFrom(number + 1);
+	};
+	await readFrom(after + 1);
 
 	return found;
 };
@@ -484,9 +490,12 @@ export const getShow = async (
 	} = {},
 ): Promise<TmdbShow | null> => {
 	const episodes: TmdbEpisode[] = [];
-	let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
+	type ShowPage = z.infer<ReturnType<typeof showPageSchema>>;
 
-	for (let firstSeason = 0; ; firstSeason += seasonsPerRequest) {
+	const readSeasons = async (
+		firstSeason: number,
+		first: ShowPage | null,
+	): Promise<ShowPage | null> => {
 		const seasons = Array.from(
 			{
 				length: seasonsPerRequest,
@@ -509,8 +518,7 @@ export const getShow = async (
 			return null;
 		}
 
-		details ??= page;
-		for (const season of seasons) {
+		await inSequence(seasons, async (season) => {
 			const listed = page[`season/${season}`]?.episodes ?? [];
 			episodes.push(
 				...listed,
@@ -518,15 +526,21 @@ export const getShow = async (
 					maxAgeMs: options.maxAgeMs ?? showLifetimeMs,
 				})),
 			);
-		}
+		});
 
+		const details = first ?? page;
 		const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
-		if (lastSeason < firstSeason + seasonsPerRequest) {
-			break;
-		}
+		return lastSeason < firstSeason + seasonsPerRequest
+			? details
+			: await readSeasons(firstSeason + seasonsPerRequest, details);
+	};
+
+	const details = await readSeasons(0, null);
+	if (!details) {
+		return null;
 	}
 
-	episodes.toSorted(
+	const ordered = episodes.toSorted(
 		(left, right) =>
 			left.season_number - right.season_number || left.episode_number - right.episode_number,
 	);
@@ -536,7 +550,7 @@ export const getShow = async (
 		episodes: await withChosenStills(
 			details.id,
 			await Promise.all(
-				episodes.map((episode) =>
+				ordered.map((episode) =>
 					withEdits(episode, {
 						maxAgeMs: changeLogSpanMs,
 					}),

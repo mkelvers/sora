@@ -136,8 +136,10 @@ const followedSeries = async (
 		neighbours.set(from, (neighbours.get(from) ?? new Set()).add(to));
 	};
 	const seen = new Set(followed.keys());
-	let frontier = [...seen];
-	while (frontier.length > 0 && seen.size <= continuityLimit) {
+	const follow = async (frontier: number[]): Promise<void> => {
+		if (frontier.length === 0 || seen.size > continuityLimit) {
+			return;
+		}
 		const columns = {
 			from: series.anilistId,
 			to: seriesRelated.anilistId,
@@ -157,18 +159,21 @@ const followedSeries = async (
 		]);
 		const edges = [...outgoing, ...incoming];
 
-		frontier = [];
+		const next: number[] = [];
 		for (const edge of edges) {
 			link(edge.from, edge.to);
 			link(edge.to, edge.from);
 			for (const id of [edge.from, edge.to]) {
 				if (!seen.has(id)) {
 					seen.add(id);
-					frontier.push(id);
+					next.push(id);
 				}
 			}
 		}
-	}
+
+		await follow(next);
+	};
+	await follow([...seen]);
 
 	const followedFrom = new Map<number, Date>();
 	for (const [origin, addedAt] of followed) {

@@ -234,9 +234,12 @@ export const franchiseIds = async (
 ): Promise<{ ids: number[]; crossovers: Set<number> }> => {
 	const reached = new Set([anilistId]);
 	const outsiders = new Set<number>();
-	let frontier = [anilistId];
 	let around = 0;
-	while (frontier.length > 0) {
+	const expand = async (frontier: number[]): Promise<void> => {
+		if (frontier.length === 0) {
+			return;
+		}
+
 		const columns = {
 			from: series.anilistId,
 			relation: seriesRelated.relation,
@@ -291,7 +294,7 @@ export const franchiseIds = async (
 		const storyIds = new Set(
 			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
 		);
-		frontier = [];
+		const next: number[] = [];
 		for (const edge of edges.toSorted(
 			(left, right) => rank(left.relation) - rank(right.relation),
 		)) {
@@ -304,7 +307,7 @@ export const franchiseIds = async (
 					}
 
 					if (edge.relation !== "OTHER") {
-						frontier.push(id);
+						next.push(id);
 					} else if (!storyIds.has(id)) {
 						outsiders.add(id);
 					}
@@ -313,7 +316,10 @@ export const franchiseIds = async (
 				}
 			}
 		}
-	}
+
+		await expand(next);
+	};
+	await expand([anilistId]);
 
 	reached.delete(anilistId);
 	return {

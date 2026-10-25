@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { firstInSequence, inParallel, inSequence } from "./sequence";
+import { chunked, firstInSequence, inParallel, inSequence } from "./sequence";
 
 describe("inSequence", () => {
 	test("starts each item once the one before it has finished, and keeps the order", async () => {
@@ -92,5 +92,15 @@ describe("inParallel", () => {
 		);
 
 		expect(started).toEqual([1]);
+	});
+});
+
+describe("chunked", () => {
+	test("cuts into groups of the size, the last shorter", () => {
+		expect(chunked([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+	});
+
+	test("gives no groups for no items", () => {
+		expect(chunked([], 3)).toEqual([]);
 	});
 });

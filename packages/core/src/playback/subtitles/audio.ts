@@ -1,4 +1,4 @@
-import { attempt, second, defined } from "@sora/shared";
+import { attempt, second, defined, inSequence } from "@sora/shared";
 
 import { unwrapDisguisedSegment } from "../proxy/segment";
 import type { StreamTarget } from "../proxy/token";
@@ -59,17 +59,17 @@ const readWithRetries = async (
 	url: string,
 	playlistUrl: string,
 	headers: Record<string, string>,
-) => {
-	for (let tries = 1; ; tries += 1) {
-		try {
-			const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
-			return unwrapDisguisedSegment(upstream.bytes);
-		} catch (error) {
-			if (tries === attempts) {
-				throw error;
-			}
-			await Bun.sleep(tries * 1.5 * second);
+	tries = 1,
+): Promise<Uint8Array> => {
+	try {
+		const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
+		return unwrapDisguisedSegment(upstream.bytes);
+	} catch (error) {
+		if (tries === attempts) {
+			throw error;
 		}
+		await Bun.sleep(tries * 1.5 * second);
+		return await readWithRetries(url, playlistUrl, headers, tries + 1);
 	}
 };
 
@@ -128,7 +128,7 @@ export const extractAudio = async (
 			return promise;
 		};
 
-		for (let index = 0; index < segments.length; index += 1) {
+		await inSequence([...segments.keys()], async (index) => {
 			for (let ahead = index; ahead < Math.min(segments.length, index + concurrency); ahead += 1) {
 				// A failed fetch ahead is awaited, and so reported, when its turn comes.
 				attempt(fetchSegment(ahead));
@@ -137,7 +137,7 @@ export const extractAudio = async (
 			ffmpeg.stdin.write(await fetchSegment(index));
 			await ffmpeg.stdin.flush();
 			fetching.delete(index);
-		}
+		});
 		await ffmpeg.stdin.end();
 	} catch (error) {
 		ffmpeg.kill();

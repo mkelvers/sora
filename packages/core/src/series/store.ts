@@ -1,4 +1,4 @@
-import { defined, inSequence } from "@sora/shared";
+import { defined, inSequence, chunked } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
@@ -159,13 +159,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
 			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
 		}));
-		const insertBatches = Array.from(
-			{
-				length: Math.ceil(episodes.length / episodeInsertBatch),
-			},
-			(_, batch) => episodes.slice(batch * episodeInsertBatch, (batch + 1) * episodeInsertBatch),
-		);
-		await inSequence(insertBatches, async (batch) => {
+		await inSequence(chunked(episodes, episodeInsertBatch), async (batch) => {
 			await tx.insert(seriesEpisode).values(batch);
 		});
 
