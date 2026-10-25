@@ -204,7 +204,10 @@ export async function showsText(image: Buffer): Promise<boolean> {
 		});
 	}
 
-	const scored = await loaded.data(await RawImage.fromBlob(new Blob([image])), stillLabels);
+	const scored = await loaded.data(
+		await RawImage.fromBlob(new Blob([new Uint8Array(image)])),
+		stillLabels,
+	);
 	const scene = [scored].flat().find((score) => score.label === sceneLabel);
 	return (scene?.score ?? 0) < sceneShare;
 }
