@@ -21,22 +21,39 @@
 
 	const played = $derived(new Map(progress.map((entry) => [entry.episode, entry])));
 	let steps = $state(1);
+	let grid = $state<HTMLOListElement>();
+	let columns = $state(1);
 
-	const chunks = $derived.by(() => {
-		const list: { offset: number; limit: number }[] = [];
-		let offset = 0;
-		for (let step = 0; step < steps && offset < series.episode_count; step++) {
-			const rest = series.episode_count - offset;
-			const limit = rest - pageSize <= tail ? rest : pageSize;
-			list.push({
-				offset,
-				limit,
-			});
-			offset += limit;
+	$effect(() => {
+		if (!grid) return;
+		const element = grid;
+		const observer = new ResizeObserver(
+			() => (columns = getComputedStyle(element).gridTemplateColumns.split(" ").length),
+		);
+		observer.observe(element);
+		return () => observer.disconnect();
+	});
+
+	const stops = $derived.by(() => {
+		const stop = (target: number) =>
+			series.episode_count - target <= tail ? series.episode_count : target;
+		const list = [stop(pageSize)];
+		for (let step = 1; step <= steps; step++) {
+			const end = stop(Math.ceil((pageSize * step) / columns) * columns);
+			if (end > list[list.length - 1]) list.push(end);
 		}
 		return list;
 	});
-	const loaded = $derived(chunks.reduce((count, chunk) => count + chunk.limit, 0));
+	const chunks = $derived(
+		stops.map((end, index) => {
+			const offset = stops[index - 1] ?? 0;
+			return {
+				offset,
+				limit: end - offset,
+			};
+		}),
+	);
+	const loaded = $derived(stops[stops.length - 1]);
 	let selected = $state<number | null>(null);
 	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
 
@@ -54,6 +71,7 @@
 </script>
 
 <ol
+	bind:this={grid}
 	class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 hero:grid-cols-7"
 >
 	{#each chunks as chunk (chunk.offset)}
