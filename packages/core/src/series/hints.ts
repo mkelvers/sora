@@ -3,7 +3,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { tmdbHint } from "../database/schema";
+import { tmdbHint } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 
 /**

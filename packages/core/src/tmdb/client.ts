@@ -6,7 +6,7 @@ import type { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { tmdbResponse } from "../database/schema";
+import { tmdbResponse } from "../database/schema/catalog";
 import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TmdbEndpoints } from "./api.generated";

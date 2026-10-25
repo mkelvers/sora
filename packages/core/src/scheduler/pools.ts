@@ -6,7 +6,7 @@ import { consoleLogFactory, Logger } from "graphile-worker";
 import type { WorkerEvents } from "graphile-worker";
 
 import { db } from "../database/client";
-import { schedulerPool } from "../database/schema";
+import { schedulerPool } from "../database/schema/scheduler";
 
 const logger = new Logger(consoleLogFactory).scope({
 	label: "pools",

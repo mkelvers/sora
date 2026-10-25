@@ -4,14 +4,9 @@ import { day, defined, inSequence } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
-import {
-	episodeDub,
-	episodeProgress,
-	series,
-	seriesEpisode,
-	seriesRelated,
-	seriesState,
-} from "../../database/schema";
+import { episodeProgress, seriesState } from "../../database/schema/library";
+import { episodeDub } from "../../database/schema/playback";
+import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
 import { getNotifications } from "./notifications";
 
 // Opt in against a local database with migrations applied. Fixtures use their

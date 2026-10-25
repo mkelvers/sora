@@ -2,7 +2,7 @@ import { day, hour } from "@sora/shared";
 import { sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { providerCalls } from "../../database/schema";
+import { providerCalls } from "../../database/schema/playback";
 import type { ProviderOperation } from "./calls";
 import { streamProviders } from "./registry";
 

@@ -1,7 +1,8 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { series, seriesEpisode, seriesState } from "../../database/schema";
+import { seriesState } from "../../database/schema/library";
+import { series, seriesEpisode } from "../../database/schema/series";
 import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
 import { clearSeriesState } from "../state";

@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { animeScheduleRelease, animeScheduleShow } from "../database/schema";
-import type { AirType } from "../database/schema";
+import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
+import type { AirType } from "../database/schema/playback";
 
 const api = "https://animeschedule.net/api/v3";
 

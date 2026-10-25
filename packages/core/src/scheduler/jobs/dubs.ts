@@ -3,7 +3,8 @@ import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
-import { animeScheduleRelease, animeScheduleShow, series } from "../../database/schema";
+import { animeScheduleRelease, animeScheduleShow } from "../../database/schema/playback";
+import { series } from "../../database/schema/series";
 import { getStoredUnits } from "../../playback/episodes/episodes";
 import { aniKoto } from "../../playback/providers/registry";
 import { scheduleAniKotoPoll } from "../queue";

@@ -2,7 +2,8 @@ import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
-import { episodeProgress, series, seriesState } from "../../database/schema";
+import { episodeProgress, seriesState } from "../../database/schema/library";
+import { series } from "../../database/schema/series";
 import { InvalidInputError } from "../../errors";
 import { ProgressInputSchema } from "../../models/library";
 import type {

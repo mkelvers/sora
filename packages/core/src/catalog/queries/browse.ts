@@ -6,7 +6,7 @@ import { anilist } from "../../anilist/client";
 import { BrowseAnimeDocument, GenresDocument } from "../../anilist/graphql.generated";
 import type { MediaSort } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
-import { animeSearch } from "../../database/schema";
+import { animeSearch } from "../../database/schema/catalog";
 import { InvalidInputError } from "../../errors";
 import type { AnimeSeason } from "../../models/series";
 import { toAnimeCard } from "../models/anime";

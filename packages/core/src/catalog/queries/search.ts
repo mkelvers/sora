@@ -6,7 +6,7 @@ import { anilist } from "../../anilist/client";
 import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
 import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
-import { animeSearch, catalogSync } from "../../database/schema";
+import { animeSearch, catalogSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
 import { catalogFormatAllowed } from "../visibility";
 import type { BrowseQuery } from "./browse-query";

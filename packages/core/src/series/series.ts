@@ -6,7 +6,7 @@ import type { AnimeCard, AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate, placeholder, synopsis } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { db } from "../database/client";
-import { series } from "../database/schema";
+import { series } from "../database/schema/series";
 import { AnimeNotFoundError } from "../errors";
 import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";

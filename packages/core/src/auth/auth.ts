@@ -5,7 +5,7 @@ import { bearer, username } from "better-auth/plugins";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { authAccount, authSession, authUser, authVerification } from "../database/schema";
+import { authAccount, authSession, authUser, authVerification } from "../database/schema/auth";
 import { createProfile } from "./profiles";
 
 /**

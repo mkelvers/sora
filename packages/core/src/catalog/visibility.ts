@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import type { SQLWrapper } from "drizzle-orm";
 
-import { anime, series } from "../database/schema";
+import { anime } from "../database/schema/catalog";
+import { series } from "../database/schema/series";
 
 /** Short TV series stay out of catalogue discovery, but saved titles remain accessible.
  * ONA describes web distribution, including full-length shows such as Overgeared.

@@ -5,7 +5,12 @@ import { migrate } from "drizzle-orm/bun-sql/migrator";
 import { runMigrations } from "graphile-worker";
 
 import { config } from "../config";
-import * as schema from "./schema";
+import * as auth from "./schema/auth";
+import * as catalog from "./schema/catalog";
+import * as library from "./schema/library";
+import * as playback from "./schema/playback";
+import * as scheduler from "./schema/scheduler";
+import * as series from "./schema/series";
 
 /**
  * The process-wide database connection.
@@ -15,7 +20,14 @@ import * as schema from "./schema";
  */
 export const db = drizzle({
 	client: new SQL(config.databaseUrl),
-	schema,
+	schema: {
+		...auth,
+		...catalog,
+		...library,
+		...playback,
+		...scheduler,
+		...series,
+	},
 });
 
 /** The advisory lock replicas hold, one at a time, while they migrate. */

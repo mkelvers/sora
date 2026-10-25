@@ -5,7 +5,7 @@ import sharp from "sharp";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { episodeStill } from "../database/schema";
+import { episodeStill } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 import type { TmdbEpisode, TmdbImage } from "./resources";
 

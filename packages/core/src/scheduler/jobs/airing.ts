@@ -6,7 +6,11 @@ import { z } from "zod";
 import type { Anime } from "../../catalog/models/anime";
 import { fetchLatestAiring, getAnime, refreshAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { animeScheduleRelease, animeScheduleShow, providerMapping } from "../../database/schema";
+import {
+	animeScheduleRelease,
+	animeScheduleShow,
+	providerMapping,
+} from "../../database/schema/playback";
 import { AnimeNotFoundError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import { aniKoto, streamProviders } from "../../playback/providers/registry";

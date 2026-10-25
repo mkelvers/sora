@@ -12,18 +12,17 @@ import type { BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
+import { anime as animeTable } from "../database/schema/catalog";
+import { animeSearch } from "../database/schema/catalog";
+import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
 import {
-	anime as animeTable,
-	animeScheduleRelease,
-	animeScheduleShow,
-	animeSearch,
 	imageEdge,
 	noArtwork,
 	series,
 	seriesEpisode,
 	seriesRelated,
 	titleArtwork,
-} from "../database/schema";
+} from "../database/schema/series";
 import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
 import type {
 	ContentLanguage,

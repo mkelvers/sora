@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
-import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema";
+import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema/playback";
 import { LanguageSchema } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { aniKoto } from "../providers/registry";

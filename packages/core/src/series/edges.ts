@@ -3,7 +3,13 @@ import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
-import { imageEdge, noArtwork, series, seriesEpisode, titleArtwork } from "../database/schema";
+import {
+	imageEdge,
+	noArtwork,
+	series,
+	seriesEpisode,
+	titleArtwork,
+} from "../database/schema/series";
 
 /** An image's average colour down its left and right edges, each `#rrggbb`. */
 export interface ImageEdges {

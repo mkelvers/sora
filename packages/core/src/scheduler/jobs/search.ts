@@ -6,7 +6,8 @@ import { z } from "zod";
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
 import { syncSearchIndex } from "../../catalog/queries/search";
 import { db } from "../../database/client";
-import { animeSearch, series } from "../../database/schema";
+import { animeSearch } from "../../database/schema/catalog";
+import { series } from "../../database/schema/series";
 import { carriedByAniKoto } from "../../series/episodes";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 

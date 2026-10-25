@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { tmdbHint, tmdbMapping } from "../database/schema";
+import { tmdbHint, tmdbMapping } from "../database/schema/series";
 import { InFlight } from "../in-flight";
 import {
 	getCollectionParts,

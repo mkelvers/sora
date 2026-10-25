@@ -2,7 +2,8 @@ import { attempt, day, defined } from "@sora/shared";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { animeScheduleRelease, animeScheduleShow, series } from "../database/schema";
+import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
+import { series } from "../database/schema/series";
 import { InvalidInputError } from "../errors";
 import type { Calendar, ScheduledEpisode } from "../models/series";
 import { anilistEpisodeKey } from "./episodes";

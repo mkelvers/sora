@@ -4,15 +4,13 @@ import { and, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import {
-	episodeDub,
 	episodeProgress,
 	notificationDismissal,
 	notificationRead,
-	series,
-	seriesEpisode,
-	seriesRelated,
 	seriesState,
-} from "../../database/schema";
+} from "../../database/schema/library";
+import { episodeDub } from "../../database/schema/playback";
+import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt } from "../../series/episodes";

@@ -2,14 +2,9 @@ import { hour } from "@sora/shared";
 import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
-import {
-	anikotoSeries,
-	animeSearch,
-	providerEpisodes,
-	providerMapping,
-	series,
-	seriesEpisode,
-} from "../database/schema";
+import { animeSearch } from "../database/schema/catalog";
+import { anikotoSeries, providerEpisodes, providerMapping } from "../database/schema/playback";
+import { series, seriesEpisode } from "../database/schema/series";
 import { EpisodeNotFoundError, SeriesNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";

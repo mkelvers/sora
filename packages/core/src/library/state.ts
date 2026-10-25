@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { seriesState } from "../database/schema";
+import { seriesState } from "../database/schema/library";
 
 /**
  * Clears some of what a user decided about a series (see `seriesState`),

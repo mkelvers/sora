@@ -3,16 +3,16 @@ import { and, asc, count, eq } from "drizzle-orm";
 import type { z } from "zod";
 
 import { db } from "../database/client";
-import type { avatarStyle } from "../database/schema";
+import type { avatarStyle } from "../database/schema/auth";
+import { profile } from "../database/schema/auth";
 import {
 	episodeProgress,
 	featuredPick,
 	notificationDismissal,
 	notificationRead,
 	playbackPreference,
-	profile,
 	seriesState,
-} from "../database/schema";
+} from "../database/schema/library";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
 import { ProfileInputSchema } from "../models/profile";

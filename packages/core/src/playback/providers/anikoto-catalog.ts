@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { anikotoSeries } from "../../database/schema";
+import { anikotoSeries } from "../../database/schema/playback";
 import { AnimeNotFoundError } from "../../errors";
 
 const apiUrl = "https://anikotoapi.site";

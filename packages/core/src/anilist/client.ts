@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../database/client";
-import { anilistResponse } from "../database/schema";
+import { anilistResponse } from "../database/schema/catalog";
 import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TypedDocumentString } from "./graphql.generated";

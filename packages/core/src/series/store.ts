@@ -4,7 +4,8 @@ import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 import { getAnime } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
-import { animeSearch, series, seriesEpisode, seriesRelated } from "../database/schema";
+import { animeSearch } from "../database/schema/catalog";
+import { series, seriesEpisode, seriesRelated } from "../database/schema/series";
 import { newId } from "../ids";
 import {
 	scheduleEpisodeLookups,

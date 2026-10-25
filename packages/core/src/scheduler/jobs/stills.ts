@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
-import { episodeStill, series, seriesEpisode } from "../../database/schema";
+import { episodeStill, series, seriesEpisode } from "../../database/schema/series";
 import { UpstreamUnavailableError } from "../../errors";
 import { chooseStill, storeStill } from "../../series/stills";
 

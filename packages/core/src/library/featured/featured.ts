@@ -2,7 +2,9 @@ import { defined, inSequence } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { animeSearch, featuredPick, series, seriesState } from "../../database/schema";
+import { animeSearch } from "../../database/schema/catalog";
+import { featuredPick, seriesState } from "../../database/schema/library";
+import { series } from "../../database/schema/series";
 import type { SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";

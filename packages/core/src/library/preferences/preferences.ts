@@ -2,7 +2,7 @@ import { defined } from "@sora/shared";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { playbackPreference } from "../../database/schema";
+import { playbackPreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
 import { PlaybackPreferencesUpdateSchema, SubtitlePreferencesSchema } from "../../models/library";
 import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "../../models/library";

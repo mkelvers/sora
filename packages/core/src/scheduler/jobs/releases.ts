@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { providerEpisodes, providerMapping, series } from "../../database/schema";
+import { providerEpisodes, providerMapping } from "../../database/schema/playback";
+import { series } from "../../database/schema/series";
 import { AnimeNotFoundError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import type { ProviderUnit } from "../../playback/episodes/episodes";

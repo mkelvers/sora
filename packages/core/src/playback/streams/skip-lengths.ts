@@ -2,7 +2,7 @@ import { attempt, inParallel } from "@sora/shared";
 import { and, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { skipSegmentLength } from "../../database/schema";
+import { skipSegmentLength } from "../../database/schema/playback";
 import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 

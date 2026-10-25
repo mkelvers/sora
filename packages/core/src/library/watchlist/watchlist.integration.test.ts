@@ -3,7 +3,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
-import { anime, series, seriesEpisode, seriesState } from "../../database/schema";
+import { anime } from "../../database/schema/catalog";
+import { seriesState } from "../../database/schema/library";
+import { series, seriesEpisode } from "../../database/schema/series";
 import { getSeries, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
 import {
 	getWatchlist,

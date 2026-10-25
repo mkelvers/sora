@@ -2,7 +2,7 @@ import { day, defined } from "@sora/shared";
 import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { noArtwork, series, titleArtwork, titleImage } from "../database/schema";
+import { noArtwork, series, titleArtwork, titleImage } from "../database/schema/series";
 import { SeriesNotFoundError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
 import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";

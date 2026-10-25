@@ -7,14 +7,9 @@ import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
 import { db } from "../../database/client";
-import {
-	animeSearch,
-	providerEpisodes,
-	series,
-	seriesEpisode,
-	tmdbMapping,
-	tmdbResponse,
-} from "../../database/schema";
+import { animeSearch, tmdbResponse } from "../../database/schema/catalog";
+import { providerEpisodes } from "../../database/schema/playback";
+import { series, seriesEpisode, tmdbMapping } from "../../database/schema/series";
 import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { aniKoto } from "../../playback/providers/registry";
 import { franchiseRelations, idsRelatedBy } from "../../series/entries";

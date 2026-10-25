@@ -2,7 +2,7 @@ import { attempt, defined, firstInSequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { episodeStill, series, seriesEpisode } from "../database/schema";
+import { episodeStill, series, seriesEpisode } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 import { getEpisodeStills, tmdbImageUrl } from "../tmdb/resources";
 import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";

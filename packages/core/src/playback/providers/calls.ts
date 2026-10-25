@@ -2,7 +2,7 @@ import { attempt, day, hour } from "@sora/shared";
 import { lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { providerCalls } from "../../database/schema";
+import { providerCalls } from "../../database/schema/playback";
 import type { StreamProvider } from "./provider";
 
 /** A {@link StreamProvider} method, as `provider_calls` names it. */

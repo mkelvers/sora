@@ -5,7 +5,7 @@ import { anilist, loadMediaById } from "../../anilist/client";
 import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
 import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
-import { anime as animeTable } from "../../database/schema";
+import { anime as animeTable } from "../../database/schema/catalog";
 import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
 import { toAnime, toAnimeCard } from "../models/anime";
