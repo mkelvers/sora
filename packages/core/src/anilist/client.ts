@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, parseRetryAfter, second } from "@sora/shared";
 import { eq } from "drizzle-orm";
@@ -338,20 +339,21 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			const [next] = waiting;
 			const wait = next ? waitToSend(next.priority, Date.now(), limiterState()) : 0;
 			if (wait > 0) {
-				await new Promise<void>((resolve) => {
-					const timer = setTimeout(resolve, wait);
-					wake = () => {
-						clearTimeout(timer);
-						resolve();
-					};
-				});
+				const waking = new AbortController();
+				wake = () => waking.abort();
+				await attempt(
+					sleep(wait, undefined, {
+						signal: waking.signal,
+					}),
+				);
 				wake = null;
 				continue;
 			}
 
 			const request = waiting.shift();
 			const sentAt = Date.now();
-			recentSends = [...recentSends.filter((earlier) => earlier > sentAt - minuteMs), sentAt];
+			recentSends = recentSends.filter((earlier) => earlier > sentAt - minuteMs);
+			recentSends.push(sentAt);
 			// Counted until AniList's response reports the budget itself.
 			if (budget && sentAt < budget.resetAt) {
 				budget = {
@@ -369,15 +371,23 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 * Serializes upstream calls, sending the most urgent waiting one next; see
 	 * {@link aniListPriority}, as soon as {@link waitToSend} allows.
 	 */
-	const rateLimited = <T>(key: string, task: () => Promise<T>): Promise<T> =>
-		new Promise<T>((resolve, reject) => {
-			enqueue({
-				key,
-				priority: currentAniListPriority(),
-				send: () => task().then(resolve, reject),
-			});
-			void drain();
+	const rateLimited = <T>(key: string, task: () => Promise<T>): Promise<T> => {
+		const { promise, resolve, reject } = Promise.withResolvers<T>();
+		enqueue({
+			key,
+			priority: currentAniListPriority(),
+			send: async () => {
+				const { data, error } = await attempt(task());
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(data);
+			},
 		});
+		attempt(drain());
+		return promise;
+	};
 
 	/**
 	 * Follows the per-minute limit and remaining budget AniList reports in its
@@ -645,7 +655,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			});
 			// Once the current task is done, so IDs asked for alongside join even
 			// when the request could go at once.
-			queueMicrotask(() => void drain());
+			queueMicrotask(() => attempt(drain()));
 		};
 
 		const openBatch = (priority: number) => {
@@ -665,22 +675,20 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				raise(queuedIn.get(id), priority);
 			}
 
-			return loading.run(
-				id,
-				() =>
-					new Promise<TMedia | null>((resolve, reject) => {
-						const batch = open ?? openBatch(priority);
-						batch.wanted.set(id, {
-							reject,
-							resolve,
-						});
-						queuedIn.set(id, batch);
-						raise(batch, priority);
-						if (batch.wanted.size >= capacity) {
-							open = null;
-						}
-					}),
-			);
+			return loading.run(id, () => {
+				const { promise, resolve, reject } = Promise.withResolvers<TMedia | null>();
+				const batch = open ?? openBatch(priority);
+				batch.wanted.set(id, {
+					reject,
+					resolve,
+				});
+				queuedIn.set(id, batch);
+				raise(batch, priority);
+				if (batch.wanted.size >= capacity) {
+					open = null;
+				}
+				return promise;
+			});
 		};
 
 		return async (ids: Iterable<number>): Promise<Map<number, TMedia>> => {

@@ -259,7 +259,7 @@ const typesAreChecked = async () => {
 		},
 	});
 	const hasNext: boolean = page.meta.has_next_page;
-	const nothing: void = await sora.request(route.dismissNotification, {
+	const nothing: undefined = await sora.request(route.dismissNotification, {
 		params: {
 			notification_id: "S1:2",
 			profile_id: "P1",

@@ -59,11 +59,8 @@ const tier = (still: TmdbImage) => [
  *
  * and then TMDB's own pick comes first, then the larger one.
  */
-export const rankStills = (
-	stills: readonly TmdbImage[],
-	defaultPath: string | null,
-): TmdbImage[] => {
-	return stills.toSorted((left, right) => {
+export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] =>
+	stills.toSorted((left, right) => {
 		const leftTier = tier(left);
 		const rightTier = tier(right);
 		for (const [index, value] of leftTier.entries()) {
@@ -78,7 +75,6 @@ export const rankStills = (
 			right.width - left.width
 		);
 	});
-};
 
 const depth = (edge: { brightest: number; mean: number }[]) => {
 	let bar = 0;

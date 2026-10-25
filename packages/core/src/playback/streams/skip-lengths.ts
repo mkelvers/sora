@@ -123,7 +123,7 @@ const learn = async (
 	};
 	await Promise.race([
 		Promise.all(Array.from({ length: learnConcurrency }, worker)),
-		new Promise((resolve) => setTimeout(resolve, learnDeadlineMs)),
+		Bun.sleep(learnDeadlineMs),
 	]);
 	queue.length = 0;
 };

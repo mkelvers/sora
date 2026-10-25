@@ -1,5 +1,4 @@
-import { lookup } from "node:dns";
-import type { LookupAddress } from "node:dns";
+import type { LookupAddress, lookup } from "node:dns";
 import { lookup as lookupAddresses } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";

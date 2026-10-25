@@ -96,11 +96,16 @@ export const summarizeHealth = (
 
 	return providerIds.map((provider) => {
 		const own = rows.filter((row) => row.provider === provider);
-		const latest = (pick: (row: OperationRow) => Date | null) =>
-			own.reduce<Date | null>((found, row) => {
+		const latest = (pick: (row: OperationRow) => Date | null) => {
+			let found: Date | null = null;
+			for (const row of own) {
 				const value = pick(row);
-				return value && (!found || value > found) ? value : found;
-			}, null);
+				if (value && (!found || value > found)) {
+					found = value;
+				}
+			}
+			return found;
+		};
 
 		const lastOk = latest((row) => row.lastOkHour);
 		const recentCalls = own.reduce((total, row) => total + row.recentCalls, 0);

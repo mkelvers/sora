@@ -1,4 +1,4 @@
-import { second, defined } from "@sora/shared";
+import { attempt, second, defined } from "@sora/shared";
 
 import { unwrapDisguisedSegment } from "../proxy/segment";
 import type { StreamTarget } from "../proxy/token";
@@ -51,7 +51,7 @@ const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 		),
 		url: new URL(defined(uri).trim(), master.url).toString(),
 	}));
-	const lowest = variants.toSorted((a, b) => a.bandwidth - b.bandwidth)[0];
+	const [lowest] = variants.toSorted((a, b) => a.bandwidth - b.bandwidth);
 	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
 };
 
@@ -60,15 +60,15 @@ const readWithRetries = async (
 	playlistUrl: string,
 	headers: Record<string, string>,
 ) => {
-	for (let attempt = 1; ; attempt += 1) {
+	for (let tries = 1; ; tries += 1) {
 		try {
 			const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
 			return unwrapDisguisedSegment(upstream.bytes);
 		} catch (error) {
-			if (attempt === attempts) {
+			if (tries === attempts) {
 				throw error;
 			}
-			await Bun.sleep(attempt * 1.5 * second);
+			await Bun.sleep(tries * 1.5 * second);
 		}
 	}
 };
@@ -131,7 +131,7 @@ export const extractAudio = async (
 		for (let index = 0; index < segments.length; index += 1) {
 			for (let ahead = index; ahead < Math.min(segments.length, index + concurrency); ahead += 1) {
 				// A failed fetch ahead is awaited, and so reported, when its turn comes.
-				void fetchSegment(ahead).catch(() => undefined);
+				attempt(fetchSegment(ahead));
 			}
 
 			ffmpeg.stdin.write(await fetchSegment(index));

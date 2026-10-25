@@ -5,7 +5,9 @@ import { redirect } from "@sveltejs/kit";
 
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ cookies, depends, locals, url }) => {
+	depends("sora:time-zone");
+
 	if (!locals.viewer) {
 		redirect(303, `/login?redirect=${encodeURIComponent(url.pathname + url.search)}`);
 	}
@@ -17,6 +19,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	await Promise.all([getGenres(), getWatchlistStatuses(), getContinueWatching()]);
 
 	return {
+		timeZone: cookies.get("sora_tz") ?? null,
 		viewer: {
 			profile: locals.viewer.profile,
 			profiles: locals.viewer.profiles,

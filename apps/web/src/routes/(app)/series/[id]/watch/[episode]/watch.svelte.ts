@@ -22,7 +22,6 @@ const subscribeFullscreen = createSubscriber((update) => {
 const playDirect = (video: HTMLVideoElement, url: string, start: number) => {
 	video.src = url;
 	video.currentTime = start;
-	return () => undefined;
 };
 
 export class Player {
@@ -188,14 +187,16 @@ export class Player {
 			const start = this.#resume ?? 0;
 			this.#resume = undefined;
 
-			const stop =
-				source.format === "hls"
-					? this.#hls(video, source.url, start)
-					: playDirect(video, source.url, start);
+			let stop: (() => void) | undefined;
+			if (source.format === "hls") {
+				stop = this.#hls(video, source.url, start);
+			} else {
+				playDirect(video, source.url, start);
+			}
 
 			return () => {
 				this.#resume ??= video.currentTime || start;
-				stop();
+				stop?.();
 				video.removeAttribute("src");
 				video.load();
 			};

@@ -65,9 +65,8 @@ const withoutPrefix = (title: string, prefix: string) => {
 const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
 
 /** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
-export const isNamedAfter = (title: string, original: string) => {
-	return withoutPrefix(plain(title), plain(original)) !== null;
-};
+export const isNamedAfter = (title: string, original: string) =>
+	withoutPrefix(plain(title), plain(original)) !== null;
 
 const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
 	// Keep the title's own numbering, including untranslated sequel names.
@@ -202,10 +201,14 @@ export const franchiseParts = (
 			for (const id of component(left)) {
 				omitted.add(id);
 			}
-		} else if (continuity.has(left) && continuity.has(right) && leftTitle && rightTitle) {
-			if (isSeriesFormat(leftTitle) !== isSeriesFormat(rightTitle)) {
-				omitted.add(isSeriesFormat(leftTitle) ? right : left);
-			}
+		} else if (
+			continuity.has(left) &&
+			continuity.has(right) &&
+			leftTitle &&
+			rightTitle &&
+			isSeriesFormat(leftTitle) !== isSeriesFormat(rightTitle)
+		) {
+			omitted.add(isSeriesFormat(leftTitle) ? right : left);
 		}
 	}
 

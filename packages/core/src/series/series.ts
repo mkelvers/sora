@@ -192,9 +192,9 @@ const firstRelease = async (entry: FranchiseEntry) => {
 		);
 		const loadedPrequels = await loadEntries(ids);
 		const prequels = [...loadedPrequels.values()];
-		const earliest = prequels.toSorted(
+		const [earliest] = prequels.toSorted(
 			(left, right) => releaseOrder(left) - releaseOrder(right) || left.id - right.id,
-		)[0];
+		);
 		if (!earliest) {
 			return current;
 		}

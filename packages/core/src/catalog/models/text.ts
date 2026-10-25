@@ -28,7 +28,7 @@ const decodeEntity = (entity: string, body: string) => {
 	}
 
 	if (body.startsWith("#")) {
-		return String.fromCodePoint(Number.parseInt(body.slice(1), 10));
+		return String.fromCodePoint(Math.trunc(Number(body.slice(1))));
 	}
 
 	return namedEntities[body.toLowerCase()] ?? entity;

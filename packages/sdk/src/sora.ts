@@ -37,10 +37,10 @@ export interface Route {
 
 /** A request's `params`, `query`, or `body` as a property of its input, left optional when nothing in it is required. */
 type Part<TKey extends string, TValue, TRequired extends boolean = false> = [TValue] extends [never]
-	? {}
+	? Record<never, never>
 	: TRequired extends true
 		? Record<TKey, TValue>
-		: {} extends TValue
+		: Record<never, never> extends TValue
 			? Partial<Record<TKey, TValue>>
 			: Record<TKey, TValue>;
 
@@ -85,7 +85,7 @@ type SuccessBody<TRoute extends Route> = {
 
 /** A successful response's `{ meta, results }`, or `void` for a route that answers with nothing. */
 export type RequestBody<TRoute extends Route> = [SuccessBody<TRoute>] extends [never]
-	? void
+	? undefined
 	: SuccessBody<TRoute>;
 
 /** What {@link SoraClient.request} resolves to: the response's `results`. */
@@ -102,7 +102,7 @@ export interface RequestOptions {
 
 /** A route's input and options as arguments: the input may be left out when none of it is required. */
 type Args<TRoute extends Route> =
-	{} extends RequestInput<TRoute>
+	Record<never, never> extends RequestInput<TRoute>
 		? [input?: RequestInput<TRoute>, options?: RequestOptions]
 		: [input: RequestInput<TRoute>, options?: RequestOptions];
 

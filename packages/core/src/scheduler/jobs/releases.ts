@@ -34,7 +34,7 @@ const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[]
 	}
 
 	const storedUnits = await getStoredUnits([anilistId]);
-	const [stored] = storedUnits.filter((entry) => entry.provider === aniKoto.id);
+	const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
 	const units = await refreshProviderUnits(data, aniKoto, {
 		retryUnmatched: true,
 	});
@@ -242,7 +242,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 	}
 
 	const storedUnits = await getStoredUnits([anilistId]);
-	const [stored] = storedUnits.filter((entry) => entry.provider === aniKoto.id);
+	const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
 	if (
 		stored?.units.some(
 			(unit) => unit.number >= episode && (language === "sub" || unit.languages?.includes("dub")),

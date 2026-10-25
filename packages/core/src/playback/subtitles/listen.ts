@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { isServedSubtitle } from "../providers/registry";
 import { readSubtitle } from "../proxy/proxy";
@@ -73,9 +73,9 @@ export const listenToDub = async (
 	}
 
 	const picture = await timelineShifts(sub, dub);
-	const directory = await mkdtemp(join(tmpdir(), "sora-dub-"));
+	const directory = await mkdtemp(path.join(tmpdir(), "sora-dub-"));
 	try {
-		const audio = join(directory, "audio.wav");
+		const audio = path.join(directory, "audio.wav");
 		await extractAudio(dubVideo.url, dubVideo.headers, audio);
 		return refineCues(cues, await transcribe(audio), picture);
 	} finally {

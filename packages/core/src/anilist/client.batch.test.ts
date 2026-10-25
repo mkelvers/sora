@@ -19,15 +19,15 @@ const respond = (_input: string, init: RequestInit) => {
 	if (rateLimitNext) {
 		rateLimitNext = false;
 		return Promise.resolve(
-			new Response(
-				JSON.stringify({
+			Response.json(
+				{
 					errors: [
 						{
 							message: "Too Many Requests.",
 							status: 429,
 						},
 					],
-				}),
+				},
 				{
 					headers: {
 						"Retry-After": "1",
@@ -41,14 +41,14 @@ const respond = (_input: string, init: RequestInit) => {
 	if (failNext) {
 		failNext = false;
 		return Promise.resolve(
-			new Response(
-				JSON.stringify({
+			Response.json(
+				{
 					errors: [
 						{
 							message: "Internal error",
 						},
 					],
-				}),
+				},
 				{
 					status: 500,
 				},
@@ -75,10 +75,10 @@ const respond = (_input: string, init: RequestInit) => {
 		),
 	);
 	return Promise.resolve(
-		new Response(
-			JSON.stringify({
+		Response.json(
+			{
 				data,
-			}),
+			},
 			{
 				headers: {
 					"x-ratelimit-limit": "90",

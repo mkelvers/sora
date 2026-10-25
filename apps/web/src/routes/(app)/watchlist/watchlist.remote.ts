@@ -36,18 +36,16 @@ export const setWatchlistStatus = command(
 			series_id: seriesId,
 		};
 
-		if (status) {
-			await sora.request(route.setWatchlistStatus, {
-				body: {
-					status,
-				},
-				params,
-			});
-		} else {
-			await sora.request(route.removeFromWatchlist, {
-				params,
-			});
-		}
+		await (status
+			? sora.request(route.setWatchlistStatus, {
+					body: {
+						status,
+					},
+					params,
+				})
+			: sora.request(route.removeFromWatchlist, {
+					params,
+				}));
 
 		await refreshStatus();
 	},

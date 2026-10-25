@@ -17,9 +17,10 @@ test("migrating waits while another replica holds the lock", async () => {
 	await holder`select pg_advisory_lock(${migrationLockKey}::bigint)`;
 
 	let finished = false;
-	const migrating = migrateDatabase().then(() => {
+	const migrating = (async () => {
+		await migrateDatabase();
 		finished = true;
-	});
+	})();
 	await Bun.sleep(500);
 	expect(finished).toBe(false);
 

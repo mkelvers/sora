@@ -636,7 +636,7 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 		const run = regularTrack(candidate.show.episodes).filter(
 			(episode) => episode.season_number === season,
 		);
-		const first = run[0];
+		const [first] = run;
 		const last = run.at(-1);
 		const startOffset = dayOffset(subject.startDate, first?.air_date ?? null);
 		const endOffset = dayOffset(subject.endDate, last?.air_date ?? null);
@@ -760,7 +760,7 @@ const placeRunWithinBroadcast = (
 		const airDay = dayNumber(episode.air_date);
 		return airDay !== null && airDay >= start && airDay <= end + endGraceDays;
 	});
-	const first = run[0];
+	const [first] = run;
 	const index = first ? track.indexOf(first) : -1;
 	if (
 		!first ||
@@ -1019,7 +1019,7 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 				continue;
 			}
 
-			const first = picked[0];
+			const [first] = picked;
 			const last = picked.at(-1);
 			if (first && airedBefore(first, subject.airsFrom)) {
 				// A season that has not aired yet cannot be episodes that have.
@@ -1135,7 +1135,7 @@ export const placeInEpisodeGroups = (
 				episodes.push(...next.episodes);
 				part = nextPart;
 			}
-			const first = episodes[0];
+			const [first] = episodes;
 			if (
 				!first ||
 				episodes.length !== subject.episodes ||

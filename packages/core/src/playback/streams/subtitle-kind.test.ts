@@ -7,12 +7,11 @@ const stamp = (seconds: number) => {
 	return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
 };
 
-const track = (cues: { start: number; text: string }[]) => {
-	return [
+const track = (cues: { start: number; text: string }[]) =>
+	[
 		"WEBVTT",
 		...cues.map((cue) => `${stamp(cue.start)} --> ${stamp(cue.start + 2)}\n${cue.text}`),
 	].join("\n\n");
-};
 
 const every = (seconds: number, count: number, text: (index: number) => string) =>
 	track(

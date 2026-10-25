@@ -143,7 +143,7 @@ const cardsFrom = async (
 
 	return new Map(
 		rows.flatMap((row) => {
-			const audio = new Set(languages.get(row.anilistId) ?? []);
+			const audio = new Set(languages.get(row.anilistId));
 			const details = anime.get(row.anilistId);
 			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
 				return [];

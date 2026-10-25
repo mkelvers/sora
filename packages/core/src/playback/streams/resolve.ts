@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { attempt, second, defined } from "@sora/shared";
 import { z } from "zod";
 
@@ -154,27 +156,28 @@ const beforeDeadline = async (
 	{ language, locale }: EpisodeVersion,
 	deadlineMs: number,
 ) => {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const gaveUp = new Promise<VersionResult>((resolve) => {
-		timer = setTimeout(
-			() =>
-				resolve({
-					attempts: [
-						{
-							provider: "all",
-							reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
-						},
-					],
-					listed: true,
-					version: null,
-				}),
-			deadlineMs,
+	const stop = new AbortController();
+	const gaveUp = async (): Promise<VersionResult> => {
+		await attempt(
+			sleep(deadlineMs, undefined, {
+				signal: stop.signal,
+			}),
 		);
-	});
+		return {
+			attempts: [
+				{
+					provider: "all",
+					reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
+				},
+			],
+			listed: true,
+			version: null,
+		};
+	};
 	try {
-		return await Promise.race([resolving, gaveUp]);
+		return await Promise.race([resolving, gaveUp()]);
 	} finally {
-		clearTimeout(timer);
+		stop.abort();
 	}
 };
 

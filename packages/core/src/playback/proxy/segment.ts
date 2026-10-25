@@ -55,7 +55,7 @@ export const isBareImage = <Backing extends ArrayBufferLike>(bytes: Uint8Array<B
 		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
 	}
 
-	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+	const ascii = (start: number, end: number) => String.fromCodePoint(...bytes.subarray(start, end));
 	const webp = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
 	const gif = ascii(0, 4) === "GIF8";
 	return webp || gif;

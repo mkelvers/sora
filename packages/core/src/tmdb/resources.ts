@@ -12,7 +12,7 @@ import { withChosenStills } from "./stills";
 const OptionalText = z
 	.string()
 	.nullish()
-	.transform((value) => (value ? value : null));
+	.transform((value) => value || null);
 
 const ShowSearchSchema = z.object({
 	results: z.array(

@@ -19,12 +19,12 @@ const respond = (_input: string, init: RequestInit) => {
 	);
 	sentAt.push(performance.now());
 	return Promise.resolve(
-		new Response(
-			JSON.stringify({
+		Response.json(
+			{
 				data: {
 					Media: null,
 				},
-			}),
+			},
 			{
 				headers: {
 					"x-ratelimit-limit": "30",

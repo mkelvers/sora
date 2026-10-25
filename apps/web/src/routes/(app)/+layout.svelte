@@ -2,19 +2,20 @@
 	import { invalidate } from "$app/navigation";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
+	import { attempt } from "@sora/shared";
 
 	import Header from "./components/header.svelte";
 	import { Library, setLibrary } from "./library.svelte";
+	import { setTimeZone } from "./time-zone.remote";
 
 	let { data, children } = $props();
 
 	setLibrary(new Library());
 
 	$effect(() => {
-		const zone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
-		if (!document.cookie.split("; ").includes(`sora_tz=${zone}`)) {
-			document.cookie = `sora_tz=${zone}; path=/; max-age=31536000; samesite=lax`;
-			invalidate("sora:time-zone");
+		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		if (data.timeZone !== zone) {
+			attempt(setTimeZone(zone).then(() => invalidate("sora:time-zone")));
 		}
 	});
 </script>
