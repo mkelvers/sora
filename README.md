@@ -61,19 +61,9 @@ bun run auth:create-account yourname
 
 ## Production
 
-The root `Dockerfile` has three targets: `web`, `api`, and `scheduler`. Build one service from
-each, with PostgreSQL 18 on a persistent volume. The API runs migrations on start, so deploy it
-before the scheduler.
-
-- Set the API and scheduler environment from `packages/core/.env.example`, plus `HOST=0.0.0.0`,
-  the production `DATABASE_URL`, and your public HTTPS origin in `AUTH_URL` and `AUTH_TRUSTED_ORIGINS`.
-- Set the web environment from `apps/web/.env.example`, plus `ORIGIN` as your public HTTPS origin.
-  Add the internal API origin to `AUTH_TRUSTED_ORIGINS`, since the web server signs in through it.
-- Route `/` to web and `/v1` to the API on one domain. Terminate TLS and enable compression at the proxy.
-- Behind Cloudflare Tunnel, set `ADDRESS_HEADER=cf-connecting-ip` on web so sign-in limits count real visitors.
-
-Dub subtitle timing is optional and described in `packages/core/.env.example`. The `scheduler`
-image already includes what it needs.
+The root `Dockerfile` has `web`, `api`, and `scheduler` targets, run with PostgreSQL 18 on a
+persistent volume. Route `/` to web and `/v1` to the API on one domain. The environment variables
+for production are documented in the `.env.example` files.
 
 ## Credits
 
@@ -86,5 +76,4 @@ Sora makes no anime data and hosts no video.
 
 ## License
 
-Sora is licensed under the [GNU Affero General Public License v3.0](LICENSE). The patched
-`braces` copy in `vendor/` keeps its own MIT license.
+Sora is licensed under the [GNU Affero General Public License v3.0](LICENSE).
