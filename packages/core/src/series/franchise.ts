@@ -267,16 +267,18 @@ export const franchiseParts = (
 			successor && seasons.indexOf(successor) > seasons.indexOf(title) && successor.episodeCount > 0
 				? successor.seriesId
 				: null;
+		let role: "alternative" | "extra" | "season" = "extra";
+		if (seasons.includes(title)) {
+			role = "season";
+		} else if (omitted.has(title.anilistId)) {
+			role = "alternative";
+		}
 		return {
 			episode_count: title.episodeCount,
 			format: title.format,
 			next_series_id:
 				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
-			role: seasons.includes(title)
-				? "season"
-				: omitted.has(title.anilistId)
-					? "alternative"
-					: "extra",
+			role,
 			series_id: title.seriesId,
 			title: shortTitle(title, base, seasons.includes(title)),
 		};

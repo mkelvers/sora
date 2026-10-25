@@ -62,17 +62,15 @@
 	}>();
 
 	const activeHandle = $derived(drag?.handle ?? hovered);
-	const cursor = $derived(
-		activeHandle === "logo"
-			? drag
-				? "cursor-grabbing"
-				: "cursor-grab"
-			: activeHandle
-				? activeHandle.x === activeHandle.y
-					? "cursor-nwse-resize"
-					: "cursor-nesw-resize"
-				: undefined,
-	);
+	const cursor = $derived.by(() => {
+		if (activeHandle === "logo") {
+			return drag ? "cursor-grabbing" : "cursor-grab";
+		}
+		if (!activeHandle) {
+			return undefined;
+		}
+		return activeHandle.x === activeHandle.y ? "cursor-nwse-resize" : "cursor-nesw-resize";
+	});
 
 	const elements = () => ({
 		hero: defined(defined(stage).querySelector<HTMLElement>(".series-hero")),

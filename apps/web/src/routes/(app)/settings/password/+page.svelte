@@ -34,7 +34,7 @@
 	let pending = $state(false);
 	let dismissed = $state(false);
 
-	const message = $derived(dismissed ? "" : form?.saved ? "Password changed." : "");
+	const message = $derived(!dismissed && form?.saved ? "Password changed." : "");
 </script>
 
 <svelte:head>

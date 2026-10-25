@@ -28,13 +28,14 @@
 		]),
 	);
 	const current = $derived(series.seasons.find((part) => part.series_id === series.id));
-	const subject = $derived(
-		series.format === "MOVIE"
-			? "Movie"
-			: current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
-				? "Season"
-				: "Title",
-	);
+	const subject = $derived.by(() => {
+		if (series.format === "MOVIE") {
+			return "Movie";
+		}
+		return current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
+			? "Season"
+			: "Title";
+	});
 
 	const extras = $derived(series.related.filter((part) => part.role === "extra"));
 	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));

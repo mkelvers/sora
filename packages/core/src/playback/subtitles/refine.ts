@@ -169,6 +169,14 @@ const editDistance = (left: string, right: string) => {
 	return defined(row[right.length]);
 };
 
+/** How many letters of a word of this length may be heard wrong. */
+const typoAllowance = (length: number) => {
+	if (length >= 8) {
+		return 2;
+	}
+	return length >= 5 ? 1 : 0;
+};
+
 /** Whether two stems are one word, allowing for a mishearing in a long one. */
 const same = (left: string, right: string) => {
 	if (left === right) {
@@ -176,7 +184,7 @@ const same = (left: string, right: string) => {
 	}
 
 	const shortest = Math.min(left.length, right.length);
-	const allowed = shortest >= 8 ? 2 : shortest >= 5 ? 1 : 0;
+	const allowed = typoAllowance(shortest);
 	return (
 		allowed > 0 &&
 		Math.abs(left.length - right.length) <= allowed &&

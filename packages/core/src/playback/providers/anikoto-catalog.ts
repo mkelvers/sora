@@ -330,17 +330,17 @@ const idMatchScore = (anime: Anime, candidate: StoredSeries): number | null => {
 
 	const year = anime.seasonYear ?? (anime.startDate ? Number(anime.startDate.slice(0, 4)) : null);
 	const titles = animeTitles(anime);
+	let yearScore = 0;
+	if (year !== null && candidate.year !== null) {
+		yearScore = Math.abs(candidate.year - year) <= 1 ? 1 : -2;
+	}
 
 	return (
 		(candidate.anilistId === anime.id ? 4 : 0) +
 		(anime.malId !== null && candidate.malId === anime.malId ? 4 : 0) +
 		formatScore +
 		(anime.episodes !== null && candidate.episodes === anime.episodes ? 2 : 0) +
-		(year !== null && candidate.year !== null
-			? Math.abs(candidate.year - year) <= 1
-				? 1
-				: -2
-			: 0) +
+		yearScore +
 		3 * Math.max(0, ...candidate.titles.map((title) => bestSimilarity(title, titles))) -
 		// AniKoto lists some series twice, once uncensored; the broadcast cut
 		// is the one AniList describes.

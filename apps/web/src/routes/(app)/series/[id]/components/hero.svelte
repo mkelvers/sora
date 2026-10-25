@@ -51,13 +51,15 @@
 		const episode = resume ?? 1;
 		const suffix = series.format === "MOVIE" ? "" : ` E${episode}`;
 		const rewatch = !resume && !!progress?.episodes.length;
+		let label = `Start Watching${suffix}`;
+		if (resume) {
+			label = `Continue Watching${suffix}`;
+		} else if (rewatch) {
+			label = "Rewatch";
+		}
 		return {
 			href: `/series/${series.id}/watch/${episode}`,
-			label: resume
-				? `Continue Watching${suffix}`
-				: rewatch
-					? "Rewatch"
-					: `Start Watching${suffix}`,
+			label,
 			rewatch,
 		};
 	});

@@ -56,11 +56,12 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 	}
 
 	const input = parsed.data;
-	const sort: MediaSort[] = input.sort
-		? sortOrders[input.sort]
-		: input.search
-			? ["SEARCH_MATCH"]
-			: sortOrders.trending;
+	let sort: MediaSort[] = sortOrders.trending;
+	if (input.sort) {
+		sort = sortOrders[input.sort];
+	} else if (input.search) {
+		sort = ["SEARCH_MATCH"];
+	}
 
 	const { Page } = await anilist(
 		BrowseAnimeDocument,

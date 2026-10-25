@@ -168,7 +168,8 @@ const overviewOf = (
 	movie: TmdbMovie | null,
 ) => {
 	const opensShow = links.some((link) => link.seasonNumber === 1 && link.episodeNumber === 1);
-	const overview = movie ? movie.overview : opensShow ? show?.overview : null;
+	const showOverview = opensShow ? show?.overview : null;
+	const overview = movie ? movie.overview : showOverview;
 	return (overview && synopsis(overview)) || null;
 };
 
@@ -294,11 +295,8 @@ export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 			? await getMovie(mapping.tmdbId)
 			: null;
 	// An entry whose TMDB title cannot be read is laid out as one TMDB does not list.
-	const key: SeriesKey = show
-		? `tv:${show.id}`
-		: movie
-			? `movie:${movie.id}`
-			: `anilist:${anilistId}`;
+	const fallbackKey: SeriesKey = movie ? `movie:${movie.id}` : `anilist:${anilistId}`;
+	const key: SeriesKey = show ? `tv:${show.id}` : fallbackKey;
 	const [kind, tmdbId] = parseKey(key);
 	const episodes = layoutEpisodes(card, links, show, movie);
 	// A film's synopsis describes the film, not a special of several episodes.

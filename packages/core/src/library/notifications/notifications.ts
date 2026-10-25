@@ -84,6 +84,12 @@ export const groupNotifications = (
 			const last = defined(sorted.at(-1));
 			const id = `${first.seriesId}:${first.number}${first.dubbed ? ":dub" : ""}`;
 			const isPremiere = !first.dubbed && first.number === 1;
+			let kind: NotificationGroup["kind"] = "episodes";
+			if (first.dubbed) {
+				kind = "dub";
+			} else if (isPremiere) {
+				kind = "premiere";
+			}
 			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
 				return [];
 			}
@@ -93,7 +99,7 @@ export const groupNotifications = (
 					episode_title: last.title,
 					first_episode: first.number,
 					id,
-					kind: first.dubbed ? "dub" : isPremiere ? "premiere" : "episodes",
+					kind,
 					last_episode: last.number,
 					released_at: first.releasedAt.toISOString(),
 					seriesId: first.seriesId,

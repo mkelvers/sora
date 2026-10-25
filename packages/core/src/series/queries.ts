@@ -281,8 +281,12 @@ export const franchiseIds = async (
 				: rawEdge,
 		);
 
-		const rank = (relation: string) =>
-			relation === "SEQUEL" || relation === "PREQUEL" ? 0 : relation === "OTHER" ? 2 : 1;
+		const rank = (relation: string) => {
+			if (relation === "SEQUEL" || relation === "PREQUEL") {
+				return 0;
+			}
+			return relation === "OTHER" ? 2 : 1;
+		};
 		const storyIds = new Set(
 			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
 		);
@@ -395,13 +399,12 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 					]
 				: [];
 		}),
-		relations.flatMap(({ from, to, relation }) =>
-			relation === "SEQUEL"
-				? [[from, to] as const]
-				: relation === "PREQUEL"
-					? [[to, from] as const]
-					: [],
-		),
+		relations.flatMap(({ from, to, relation }) => {
+			if (relation === "SEQUEL") {
+				return [[from, to] as const];
+			}
+			return relation === "PREQUEL" ? [[to, from] as const] : [];
+		}),
 		{
 			alternatives: relations
 				.filter(({ relation }) => relation === "ALTERNATIVE")
@@ -1016,15 +1019,22 @@ const releaseAge = (releasedAt: string, now: number): Pick<Release, "released_ag
 	const age = Math.max(0, now - Date.parse(releasedAt));
 	const minutes = Math.floor(age / minute);
 	const hours = Math.floor(age / hour);
+	let period: Release["period"] = "Earlier";
+	if (age < day) {
+		period = "Last 24 hours";
+	} else if (age < 7 * day) {
+		period = "This past week";
+	}
+	let releasedAgo = relativeTime.format(-Math.floor(age / day), "day");
+	if (minutes < 60) {
+		releasedAgo = relativeTime.format(-Math.max(1, minutes), "minute");
+	} else if (hours < 24) {
+		releasedAgo = relativeTime.format(-hours, "hour");
+	}
 
 	return {
-		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
-		released_ago:
-			minutes < 60
-				? relativeTime.format(-Math.max(1, minutes), "minute")
-				: hours < 24
-					? relativeTime.format(-hours, "hour")
-					: relativeTime.format(-Math.floor(age / day), "day"),
+		period,
+		released_ago: releasedAgo,
 	};
 };
 

@@ -108,12 +108,8 @@ export const summarizeHealth = (
 		const lastError = own.find(
 			(row) => lastErrorAt !== null && row.lastErrorAt?.getTime() === lastErrorAt.getTime(),
 		);
-		const status: ProviderStatus =
-			lastOk !== null && lastOk.getTime() >= recent
-				? "ok"
-				: recentCalls >= failingAfterCalls
-					? "failing"
-					: "idle";
+		const failing: ProviderStatus = recentCalls >= failingAfterCalls ? "failing" : "idle";
+		const status: ProviderStatus = lastOk !== null && lastOk.getTime() >= recent ? "ok" : failing;
 
 		return {
 			last_error: lastError?.lastError ?? null,

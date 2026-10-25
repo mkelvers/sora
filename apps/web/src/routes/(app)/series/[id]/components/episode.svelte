@@ -26,7 +26,10 @@
 		const hours = Math.floor(total / 60);
 		const rest = total % 60;
 
-		return hours === 0 ? `${rest}m` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+		if (hours === 0) {
+			return `${rest}m`;
+		}
+		return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 	};
 
 	const id = $props.id();
@@ -40,16 +43,22 @@
 			? (episode.title ?? series.title)
 			: `E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`,
 	);
-	const badge = $derived(
-		watched
-			? "Watched"
-			: started
-				? `${duration(Math.max(1, (started.duration_seconds - started.position_seconds) / 60))} left`
-				: episode.runtime_minutes && duration(episode.runtime_minutes),
-	);
-	const action = $derived(
-		`${watched ? "Watch again" : started ? "Resume" : "Play"}${movie ? "" : ` E${episode.number}`}`,
-	);
+	const badge = $derived.by(() => {
+		if (watched) {
+			return "Watched";
+		}
+		if (started) {
+			return `${duration(Math.max(1, (started.duration_seconds - started.position_seconds) / 60))} left`;
+		}
+		return episode.runtime_minutes && duration(episode.runtime_minutes);
+	});
+	const verb = $derived.by(() => {
+		if (watched) {
+			return "Watch again";
+		}
+		return started ? "Resume" : "Play";
+	});
+	const action = $derived(`${verb}${movie ? "" : ` E${episode.number}`}`);
 	const released = $derived(episode.aired_at ?? episode.air_date);
 	const image = $derived(episode.still_url ?? series.backdrop_url);
 </script>

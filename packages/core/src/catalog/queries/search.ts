@@ -377,7 +377,7 @@ const editDistance = (left: string, right: string) => {
 				{
 					length: b.length + 1,
 				},
-				(_cell, j) => (i === 0 ? j : j === 0 ? i : 0),
+				(_cell, j) => (i === 0 || j === 0 ? Math.max(i, j) : 0),
 			),
 	);
 	for (let i = 1; i <= a.length; i += 1) {
@@ -403,7 +403,12 @@ const editDistance = (left: string, right: string) => {
  * one letter makes another word, one in a word of five letters or more, and
  * two in one of nine or more.
  */
-const allowedTypos = (word: string) => (word.length >= 9 ? 2 : word.length >= 5 ? 1 : 0);
+const allowedTypos = (word: string) => {
+	if (word.length >= 9) {
+		return 2;
+	}
+	return word.length >= 5 ? 1 : 0;
+};
 
 /**
  * How closely a query resembles a title as a mistyped version of it, from 0

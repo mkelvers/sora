@@ -124,7 +124,12 @@ const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
  */
 export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
 	const measured = content === null ? null : classifySubtitle(content);
-	const named = captionsLabel.test(label) ? "captions" : signsLabel.test(label) ? "signs" : null;
+	let named: SubtitleKind | null = null;
+	if (captionsLabel.test(label)) {
+		named = "captions";
+	} else if (signsLabel.test(label)) {
+		named = "signs";
+	}
 
 	if (named === null) {
 		return measured;
