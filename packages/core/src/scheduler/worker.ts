@@ -232,6 +232,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				releases.promise,
 				listening.promise,
 			]);
+			await pools.stop();
 		})(),
 		stop: async () => {
 			await Promise.all([

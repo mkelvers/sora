@@ -110,7 +110,8 @@ export const watchPools = (): PoolWatch => {
 		await previous;
 		const { error } = await attempt(beat());
 		if (error) {
-			logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
+			const reason = error.cause instanceof Error ? error.cause.message : error.message;
+			logger.warn(`Could not mark scheduler pools alive: ${reason}`);
 		}
 	};
 	const tick = () => {
