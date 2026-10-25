@@ -29,16 +29,6 @@ web app has.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    web["web (SvelteKit)"] -->|SDK| api["API (Hono, /v1)"]
-    other["your client"] -->|SDK or HTTP| api
-    api --> core["@sora/core"]
-    scheduler["scheduler"] --> core
-    core --> db[("PostgreSQL")]
-    core --> up["AniList, TMDB, AnimeSchedule.net, providers"]
-```
-
 | Workspace                           | Role                                                               |
 | ----------------------------------- | ------------------------------------------------------------------ |
 | [`@sora/api`](apps/api)             | HTTP API and OpenAPI document                                      |
@@ -50,10 +40,7 @@ flowchart LR
 
 ## Getting started
 
-Requires [Bun](https://bun.com) 1.4.0+, Docker with Compose and a running Docker engine,
-a [TMDB](https://www.themoviedb.org/settings/api) API Read Access Token,
-and an [AnimeSchedule.net](https://animeschedule.net) application token.
-Both tokens are required by the current configuration.
+Needs [Bun](https://bun.com) 1.4.0+ and Docker.
 
 ```sh
 git clone https://github.com/mkelvers/sora.git
@@ -61,111 +48,32 @@ cd sora
 bun install
 cp packages/core/.env.example packages/core/.env
 cp apps/web/.env.example apps/web/.env
-```
-
-Edit `packages/core/.env` before starting:
-
-- Leave `DATABASE_URL` as provided for the included local database.
-- Run `openssl rand -base64 48` three times. Use a different result for each of
-  `STREAM_SIGNING_SECRET`, `WEB_CLIENT_KEY`, and `AUTH_SECRET`.
-- Fill in `TMDB_READ_ACCESS_TOKEN` with TMDB's **API Read Access Token**, not its API key.
-- Fill in `ANIME_SCHEDULE_API_KEY` with your AnimeSchedule application token.
-
-In `apps/web/.env`, copy the same `WEB_CLIENT_KEY` from `packages/core/.env`.
-Leave `SORA_API_URL` as provided for local development. Each example includes comments about
-where to get values and which settings are optional. Credentials belong in the ignored `.env`
-files; the examples contain local defaults and blank secret fields.
-
-The API and scheduler load `packages/core/.env` directly, so they need no separate env files.
-
-```sh
+# fill in both, then:
 bun run dev
 ```
 
-This starts PostgreSQL, applies migrations, and runs the API on :3000, the web app on :5173,
-and the scheduler. Keep it running and open a second terminal to create an account.
-
-Sign-up is off. The account command requires an interactive terminal and hides the password
-while you type. Enter at least eight characters and press Enter, or press Ctrl+C to cancel:
+Sign-up is off. Create your account, then sign in at <http://localhost:5173>:
 
 ```sh
-cd sora/packages/core # from the directory where you cloned Sora
+cd packages/core
 bun run auth:create-account yourname
 ```
 
-Then sign in at <http://localhost:5173>.
+## Production
 
-To run formatting, linting, and type checks before every commit, and the tests before every push
-(they need the database running), enable the bundled hooks once:
+The root `Dockerfile` has three targets: `web`, `api`, and `scheduler`. Build one service from
+each, with PostgreSQL 18 on a persistent volume. The API runs migrations on start, so deploy it
+before the scheduler.
 
-```sh
-git config core.hooksPath .githooks
-```
+- Set the API and scheduler environment from `packages/core/.env.example`, plus `HOST=0.0.0.0`,
+  the production `DATABASE_URL`, and your public HTTPS origin in `AUTH_URL` and `AUTH_TRUSTED_ORIGINS`.
+- Set the web environment from `apps/web/.env.example`, plus `ORIGIN` as your public HTTPS origin.
+  Add the internal API origin to `AUTH_TRUSTED_ORIGINS`, since the web server signs in through it.
+- Route `/` to web and `/v1` to the API on one domain. Terminate TLS and enable compression at the proxy.
+- Behind Cloudflare Tunnel, set `ADDRESS_HEADER=cf-connecting-ip` on web so sign-in limits count real visitors.
 
-The database starts empty. The scheduler fills the catalogue in the background; a running
-web app does not mean the initial catalogue sync has finished.
-
-If setup fails:
-
-- Check `docker info` if Docker cannot connect to its engine.
-- PostgreSQL uses port 5432. If it is occupied, change the host port in `compose.yaml` and
-  the port in `DATABASE_URL` together. Use a separate Compose project name if another Sora
-  checkout is already running, so the two checkouts do not share a database.
-- For a different API port, set `PORT` and `AUTH_URL` in `packages/core/.env`, then update
-  `SORA_API_URL` in `apps/web/.env` to match.
-- A startup validation error naming an env key means its value is missing or invalid.
-  Check the comments in the corresponding `.env.example`.
-
-## Production deployment
-
-The root `Dockerfile` has three build targets: `web`, `api`, and `scheduler`.
-Configure three Dokploy applications from this repository, using the root build context
-and the matching target. All services use Bun 1.4.0. The web and API listen on port 3000.
-The API applies database migrations before starting; deploy it before the scheduler.
-
-Use PostgreSQL 18 with an explicit persistent volume mounted at `/var/lib/postgresql`.
-Keep its port internal to the Docker network. Set the API and scheduler environment
-from `packages/core/.env.example`, with `HOST=0.0.0.0`, the production database URL,
-and the public HTTPS origin in `AUTH_URL` and `AUTH_TRUSTED_ORIGINS`.
-Include the internal API origin in `AUTH_TRUSTED_ORIGINS` too, since the web
-server signs in through that address.
-For the web app, set `SORA_API_URL` to the internal API service URL, copy the same
-`WEB_CLIENT_KEY`, and set `ORIGIN` to the public HTTPS origin.
-Behind Cloudflare Tunnel, set `ADDRESS_HEADER=cf-connecting-ip` on the web service
-so sign-in limits use each visitor's address.
-
-Route `/` to the web service and `/v1` to the API on the same domain. Keep TLS at
-your reverse proxy or tunnel. The web build ships Brotli and gzip copies of its static
-assets, but Bun does not compress server-rendered HTML, so enable compression at the
-proxy (Cloudflare Tunnel and Traefik's `compress` middleware both do it). `/v1` requires authentication; the API's internal
-`/health` endpoint is used by its Docker health check. The scheduler's cron jobs
-and queue are stored in PostgreSQL, so they need no separate Dokploy schedules.
-
-### Dub subtitles
-
-Dubs have no English subtitles of their own, so Sora takes the sub's and moves them onto
-the dub's timeline. The picture decides most of it, which needs nothing extra. Timing each
-line to when the dub's characters speak does: the scheduler downloads each dub's audio once,
-transcribes it with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and stores
-where every line goes. Playback uses it from then on, and until the job finishes (a few
-minutes per episode, one at a time) it uses the picture's timing.
-
-The `scheduler` image has ffmpeg, Python, and the model built in, and sets
-`SUBTITLE_ALIGNMENT_PYTHON`. Set the same variable on the API, to any value, so it
-queues the jobs; it never runs them. Leave it unset everywhere to turn this off. To run it
-from source, install ffmpeg, then `pip install faster-whisper` in a virtual environment and
-point `SUBTITLE_ALIGNMENT_PYTHON` at its `python`. The model downloads on first use.
-`SUBTITLE_ALIGNMENT_MODEL` picks another one, such as `medium.en`.
-
-## Testing
-
-Tests run on Bun's runner and sit beside the code they cover, as `name.test.ts` next to `name.ts`.
-
-```sh
-bun run test    # all workspaces
-bun run check   # type-check
-bun run lint
-```
+Dub subtitle timing is optional and described in `packages/core/.env.example`. The `scheduler`
+image already includes what it needs.
 
 ## Credits
 
