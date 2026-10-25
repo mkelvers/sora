@@ -4,12 +4,12 @@
 </script>
 
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
 	import type { Progress, Series } from "@sora/sdk";
 
-	import EpisodePage from "./EpisodePage.svelte";
+	import EpisodePage from "./episode-page.svelte";
 
 	let {
 		series,

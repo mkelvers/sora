@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Field from "$lib/components/ui/Field.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Field from "$lib/components/ui/field.svelte";
 
 	import type { PageProps } from "./$types";
 

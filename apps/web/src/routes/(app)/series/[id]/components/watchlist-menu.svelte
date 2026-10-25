@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
+	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { getLibrary, statuses } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";
 	import { BookmarkSimpleIcon, PencilSimpleIcon } from "phosphor-svelte";

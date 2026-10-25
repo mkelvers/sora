@@ -2,7 +2,7 @@
 	import { XIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 
-	import Button from "./Button.svelte";
+	import Button from "./button.svelte";
 
 	let {
 		open = $bindable(false),

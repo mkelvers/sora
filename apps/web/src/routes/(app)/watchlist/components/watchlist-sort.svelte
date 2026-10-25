@@ -21,8 +21,8 @@
 </script>
 
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { ListBulletsIcon } from "phosphor-svelte";
 
 	let {

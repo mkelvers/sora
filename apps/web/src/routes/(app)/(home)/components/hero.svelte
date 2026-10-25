@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
-	import Content from "$lib/components/ui/carousel/Content.svelte";
-	import Item from "$lib/components/ui/carousel/Item.svelte";
-	import Next from "$lib/components/ui/carousel/Next.svelte";
-	import Previous from "$lib/components/ui/carousel/Previous.svelte";
-	import Image from "$lib/components/ui/Image.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Carousel from "$lib/components/ui/carousel/carousel.svelte";
+	import Content from "$lib/components/ui/carousel/content.svelte";
+	import Item from "$lib/components/ui/carousel/item.svelte";
+	import Next from "$lib/components/ui/carousel/next.svelte";
+	import Previous from "$lib/components/ui/carousel/previous.svelte";
+	import Image from "$lib/components/ui/image.svelte";
+	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { cn } from "$lib/utils";
 	import { filterGroups, filters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import type { CatalogFilters } from "$routes/(app)/(catalog)/catalog.svelte";

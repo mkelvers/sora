@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Image from "$lib/components/ui/Image.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Image from "$lib/components/ui/image.svelte";
+	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { audioLabel, episodes, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";

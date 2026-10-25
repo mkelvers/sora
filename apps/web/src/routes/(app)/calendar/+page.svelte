@@ -5,10 +5,10 @@
 </script>
 
 <script lang="ts">
-	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Image from "$lib/components/ui/Image.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Image from "$lib/components/ui/image.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { mascots } from "$lib/mascots";
 	import { audioLabel, cn, episodes, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { Tabs } from "melt/builders";

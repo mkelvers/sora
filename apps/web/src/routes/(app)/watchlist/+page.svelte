@@ -1,16 +1,16 @@
 <script lang="ts">
-	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
-	import Tabs from "$lib/components/ui/Tabs.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import Skeleton from "$lib/components/snippets/skeleton.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
+	import Tabs from "$lib/components/ui/tabs.svelte";
 	import { mascots } from "$lib/mascots";
-	import Poster from "$routes/(app)/components/Poster.svelte";
+	import Poster from "$routes/(app)/components/poster.svelte";
 	import { statuses } from "$routes/(app)/library.svelte";
 	import type { WatchlistStatus } from "@sora/sdk";
 	import { CaretDownIcon } from "phosphor-svelte";
 
-	import WatchlistSort, { sorts } from "./components/WatchlistSort.svelte";
+	import WatchlistSort, { sorts } from "./components/watchlist-sort.svelte";
 	import { getWatchlist } from "./watchlist.remote";
 
 	const watchlist = getWatchlist();

@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Select from "$lib/components/ui/Select.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Select from "$lib/components/ui/select.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { episodes } from "$lib/utils";
 	import type { FranchisePart } from "@sora/sdk";
 	import { CaretDownIcon, DotsThreeVerticalIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import Episodes, { pageSize } from "./components/Episodes.svelte";
-	import Hero from "./components/Hero.svelte";
-	import Related from "./components/Related.svelte";
+	import Episodes, { pageSize } from "./components/episodes.svelte";
+	import Hero from "./components/hero.svelte";
+	import Related from "./components/related.svelte";
 	import { getEpisodes, getSeries, getSeriesProgress, markSeries } from "./series.remote";
 
 	let { params }: PageProps = $props();

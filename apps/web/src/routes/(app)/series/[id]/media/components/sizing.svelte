@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
-	import Hero from "$routes/(app)/series/[id]/components/Hero.svelte";
+	import Hero from "$routes/(app)/series/[id]/components/hero.svelte";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
 

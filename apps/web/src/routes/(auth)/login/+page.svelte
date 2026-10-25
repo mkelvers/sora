@@ -2,9 +2,9 @@
 	import { enhance } from "$app/forms";
 	import logo from "$lib/assets/logo.png";
 	import tmdbLogo from "$lib/assets/tmdb.svg";
-	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Field from "$lib/components/ui/Field.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Field from "$lib/components/ui/field.svelte";
 	import { untrack } from "svelte";
 
 	import type { PageProps } from "./$types";

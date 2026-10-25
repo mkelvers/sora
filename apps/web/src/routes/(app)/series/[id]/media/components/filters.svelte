@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 

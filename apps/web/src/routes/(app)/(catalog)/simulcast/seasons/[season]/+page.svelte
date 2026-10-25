@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
-	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
+	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
 	import { CaretDownIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";

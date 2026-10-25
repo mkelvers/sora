@@ -1,11 +1,11 @@
 <script lang="ts">
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
+	import Skeleton from "$lib/components/snippets/skeleton.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import { cn } from "$lib/utils";
 	import { MagnifyingGlassIcon } from "phosphor-svelte";
 
 	import { Search } from "./searchbox.svelte";
-	import Suggestions from "./Suggestions.svelte";
+	import Suggestions from "./suggestions.svelte";
 
 	const search = new Search();
 </script>

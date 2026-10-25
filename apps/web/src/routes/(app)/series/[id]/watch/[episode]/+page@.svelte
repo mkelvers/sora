@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
-	import Player from "./components/Player.svelte";
+	import Player from "./components/player.svelte";
 	import { getEpisode, getPlayback, getPlaybackPreferences, getProgress } from "./watch.remote";
 
 	let { params }: PageProps = $props();

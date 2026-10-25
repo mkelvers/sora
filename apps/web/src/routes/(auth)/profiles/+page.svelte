@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import { page } from "$app/state";
-	import Avatar from "$lib/components/ui/Avatar.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
+	import Avatar from "$lib/components/ui/avatar.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import { PencilSimpleIcon, PlusIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";

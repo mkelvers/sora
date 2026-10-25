@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import type { Mascot } from "$lib/mascots";
 	import { cn } from "$lib/utils";
 

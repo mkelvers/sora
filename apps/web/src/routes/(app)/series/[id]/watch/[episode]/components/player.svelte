@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import { nextEpisodeAddress } from "$lib/series-navigation";
 	import {
 		getEpisode,
@@ -24,8 +24,8 @@
 	import { ArrowLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
-	import Controls from "./Controls.svelte";
-	import Settings from "./Settings.svelte";
+	import Controls from "./controls.svelte";
+	import Settings from "./settings.svelte";
 
 	let {
 		series,

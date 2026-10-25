@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import Select from "$lib/components/ui/Select.svelte";
-	import Switch from "$lib/components/ui/Switch.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Select from "$lib/components/ui/select.svelte";
+	import Switch from "$lib/components/ui/switch.svelte";
 	import {
 		getPlaybackPreferences,
 		savePlaybackPreferences,

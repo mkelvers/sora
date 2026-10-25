@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Switch from "$lib/components/ui/Switch.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Switch from "$lib/components/ui/switch.svelte";
 	import { cn, moveMenuFocus } from "$lib/utils";
 	import type { WatchMedia } from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";

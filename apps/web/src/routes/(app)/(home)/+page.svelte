@@ -1,15 +1,15 @@
 <script lang="ts">
-	import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
-	import Content from "$lib/components/ui/carousel/Content.svelte";
-	import Item from "$lib/components/ui/carousel/Item.svelte";
-	import Next from "$lib/components/ui/carousel/Next.svelte";
-	import Previous from "$lib/components/ui/carousel/Previous.svelte";
-	import Poster from "$routes/(app)/components/Poster.svelte";
+	import Carousel from "$lib/components/ui/carousel/carousel.svelte";
+	import Content from "$lib/components/ui/carousel/content.svelte";
+	import Item from "$lib/components/ui/carousel/item.svelte";
+	import Next from "$lib/components/ui/carousel/next.svelte";
+	import Previous from "$lib/components/ui/carousel/previous.svelte";
+	import Poster from "$routes/(app)/components/poster.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 
 	import type { PageProps } from "./$types";
-	import ContinueWatching from "./components/ContinueWatching.svelte";
-	import Hero from "./components/Hero.svelte";
+	import ContinueWatching from "./components/continue-watching.svelte";
+	import Hero from "./components/hero.svelte";
 	import { getContinueWatching } from "./home.remote";
 
 	let { data }: PageProps = $props();

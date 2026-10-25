@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Image from "$lib/components/ui/Image.svelte";
-	import Sheet from "$lib/components/ui/Sheet.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Image from "$lib/components/ui/image.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { storyContinuation } from "$lib/series-navigation";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
@@ -13,7 +13,7 @@
 	import type { Series, SeriesProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
 
-	import WatchlistMenu from "./WatchlistMenu.svelte";
+	import WatchlistMenu from "./watchlist-menu.svelte";
 
 	let {
 		series,

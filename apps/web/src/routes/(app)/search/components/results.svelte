@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { navigating } from "$app/state";
-	import EmptyState from "$lib/components/EmptyState.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
-	import Poster from "$routes/(app)/components/Poster.svelte";
+	import Poster from "$routes/(app)/components/poster.svelte";
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 
 	let {

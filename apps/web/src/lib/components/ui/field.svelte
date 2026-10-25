@@ -2,8 +2,8 @@
 	import { EyeIcon, EyeSlashIcon } from "phosphor-svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
 
-	import Button from "./Button.svelte";
-	import Input from "./Input.svelte";
+	import Button from "./button.svelte";
+	import Input from "./input.svelte";
 
 	type Props = Omit<HTMLInputAttributes, "id" | "name" | "type" | "value" | "class"> & {
 		name: string;

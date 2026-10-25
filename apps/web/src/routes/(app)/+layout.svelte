@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { invalidate } from "$app/navigation";
-	import EmptyState from "$lib/components/EmptyState.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 
-	import Header from "./components/Header.svelte";
+	import Header from "./components/header.svelte";
 	import { Library, setLibrary } from "./library.svelte";
 
 	let { data, children } = $props();

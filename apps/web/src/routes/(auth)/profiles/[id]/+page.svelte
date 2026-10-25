@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import { page } from "$app/state";
-	import StatusBanner from "$lib/components/StatusBanner.svelte";
-	import Avatar from "$lib/components/ui/Avatar.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Field from "$lib/components/ui/Field.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Avatar from "$lib/components/ui/avatar.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Field from "$lib/components/ui/field.svelte";
 	import { ShuffleIcon, TrashIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";

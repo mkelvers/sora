@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import logo from "$lib/assets/logo.png";
-	import Avatar from "$lib/components/ui/Avatar.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
+	import Avatar from "$lib/components/ui/avatar.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
 	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
@@ -21,7 +21,7 @@
 		UsersIcon,
 	} from "phosphor-svelte";
 
-	import Search from "./Search.svelte";
+	import Search from "./search.svelte";
 
 	let {
 		profile,

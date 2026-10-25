@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
-	import Catalog from "$routes/(app)/(catalog)/components/Catalog.svelte";
-	import CatalogControls from "$routes/(app)/(catalog)/components/CatalogControls.svelte";
-	import CatalogReset from "$routes/(app)/(catalog)/components/CatalogReset.svelte";
+	import CatalogControls from "$routes/(app)/(catalog)/components/catalog-controls.svelte";
+	import CatalogReset from "$routes/(app)/(catalog)/components/catalog-reset.svelte";
+	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
 
 	import type { PageProps } from "./$types";
 

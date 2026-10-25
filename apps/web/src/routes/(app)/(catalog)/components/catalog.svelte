@@ -1,10 +1,10 @@
 <script lang="ts">
-	import EmptyState from "$lib/components/EmptyState.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
 	import { getCatalogPage } from "$routes/(app)/(catalog)/catalog.remote";
 	import type { CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
-	import Poster from "$routes/(app)/components/Poster.svelte";
+	import Poster from "$routes/(app)/components/poster.svelte";
 	import { CircleNotchIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 

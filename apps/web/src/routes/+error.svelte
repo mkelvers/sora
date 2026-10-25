@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import EmptyState from "$lib/components/EmptyState.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 
 	const missing = $derived(page.status === 404);

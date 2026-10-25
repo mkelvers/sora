@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Tabs from "$lib/components/ui/Tabs.svelte";
+	import Skeleton from "$lib/components/snippets/skeleton.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Tabs from "$lib/components/ui/tabs.svelte";
 	import { cn } from "$lib/utils";
 	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
 	import {
@@ -12,9 +12,9 @@
 	} from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import Filters from "./components/Filters.svelte";
-	import Images from "./components/Images.svelte";
-	import Sizing from "./components/Sizing.svelte";
+	import Filters from "./components/filters.svelte";
+	import Images from "./components/images.svelte";
+	import Sizing from "./components/sizing.svelte";
 	import { Media } from "./media.svelte";
 
 	let { params }: PageProps = $props();

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import Skeleton from "$lib/components/snippets/skeleton.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import { mascots } from "$lib/mascots";
 
-	import Results from "./components/Results.svelte";
+	import Results from "./components/results.svelte";
 
 	const q = $derived(page.url.searchParams.get("q")?.trim() ?? "");
 	let count = $derived(q ? 1 : 0);

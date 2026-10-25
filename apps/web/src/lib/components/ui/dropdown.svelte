@@ -3,7 +3,7 @@
 	import { Popover } from "melt/builders";
 	import type { Snippet } from "svelte";
 
-	import Button from "./Button.svelte";
+	import Button from "./button.svelte";
 
 	let {
 		alignment = "right",

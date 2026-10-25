@@ -1,12 +1,12 @@
 <script lang="ts">
-	import EmptyState from "$lib/components/EmptyState.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import Tabs from "$lib/components/ui/Tabs.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Tabs from "$lib/components/ui/tabs.svelte";
 	import { mascots } from "$lib/mascots";
 	import { pollWhileVisible } from "$lib/utils";
 	import { ChecksIcon } from "phosphor-svelte";
 
-	import Notification from "./components/Notification.svelte";
+	import Notification from "./components/notification.svelte";
 	import {
 		getNotifications,
 		getUnreadNotifications,

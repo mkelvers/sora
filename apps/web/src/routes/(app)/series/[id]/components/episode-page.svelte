@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Skeleton from "$lib/components/snippets/Skeleton.svelte";
+	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import { getEpisodes } from "$routes/(app)/series/[id]/series.remote";
 	import type { Progress, Series } from "@sora/sdk";
 
-	import Episode from "./Episode.svelte";
+	import Episode from "./episode.svelte";
 
 	let {
 		series,

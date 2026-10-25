@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Button from "$lib/components/ui/Button.svelte";
-	import Dropdown from "$lib/components/ui/Dropdown.svelte";
-	import Image from "$lib/components/ui/Image.svelte";
+	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Image from "$lib/components/ui/image.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
 	import type { Episode, Progress, Series } from "@sora/sdk";
