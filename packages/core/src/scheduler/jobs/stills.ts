@@ -70,7 +70,7 @@ export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
 			async () => {
 				for (let row = queue.shift(); row; row = queue.shift()) {
 					const defaultPath =
-						row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/, "") ?? null;
+						row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/u, "") ?? null;
 					const result = await attempt(
 						chooseStill(row.show_id, row.season_number, row.episode_number, defaultPath),
 						UpstreamUnavailableError,

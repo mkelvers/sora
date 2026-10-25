@@ -35,14 +35,14 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 	let sound = 0;
 	let end = 0;
 
-	for (const block of content.split(/\r?\n\r?\n/)) {
-		const lines = block.split(/\r?\n/);
+	for (const block of content.split(/\r?\n\r?\n/u)) {
+		const lines = block.split(/\r?\n/u);
 		const timing = lines.findIndex((line) => line.includes("-->"));
 		if (timing === -1) {
 			continue;
 		}
 
-		const stamp = /-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})\.(\d{3})/.exec(lines[timing]!);
+		const stamp = /-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})\.(\d{3})/u.exec(lines[timing]!);
 		if (stamp) {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;
 			end = Math.max(
@@ -54,7 +54,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 		const text = lines
 			.slice(timing + 1)
 			.join(" ")
-			.replaceAll(/<[^>]*>|\{\\[^}]*\}/g, "")
+			.replaceAll(/<[^>]*>|\{\\[^}]*\}/gu, "")
 			.trim();
 		if (!text) {
 			continue;
@@ -106,8 +106,8 @@ export const classifySubtitle = (content: string): SubtitleKind | null => {
 	return null;
 };
 
-const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/i;
-const signsLabel = /\bsigns?\b|\bforced\b|on-screen/i;
+const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
+const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
 
 /**
  * What a track carries, from the name its provider gave it and its cues.

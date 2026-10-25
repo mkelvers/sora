@@ -53,7 +53,7 @@ const CatalogSeriesSchema = z.object({
 	/** Other titles, joined with commas, which titles themselves may contain. */
 	titles: z.string().nullish(),
 	/** `YYYY-MM-DD hh:mm:ss`, in UTC. */
-	updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
+	updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/u),
 	year: OptionalIdSchema,
 });
 
@@ -108,7 +108,7 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 					series.titles,
 					// Titles are joined with commas; the whole string is kept too, for
 					// titles that contain one.
-					...(series.titles?.split(/[,;] /) ?? []),
+					...(series.titles?.split(/[,;] /u) ?? []),
 				].flatMap((title) => (title?.trim() ? [title.trim()] : [])),
 			),
 		],
@@ -344,7 +344,7 @@ const idMatchScore = (anime: Anime, candidate: StoredSeries): number | null => {
 		3 * Math.max(0, ...candidate.titles.map((title) => bestSimilarity(title, titles))) -
 		// AniKoto lists some series twice, once uncensored; the broadcast cut
 		// is the one AniList describes.
-		(/\buncensored\b/i.test(candidate.title) ? 2 : 0)
+		(/\buncensored\b/iu.test(candidate.title) ? 2 : 0)
 	);
 };
 
@@ -464,7 +464,7 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		// AniKoto's default order ranks spin-offs above the main series.
 		const html = await response.text();
 
-		for (const [, id] of html.matchAll(/data-tip="(\d+)"/g)) {
+		for (const [, id] of html.matchAll(/data-tip="(\d+)"/gu)) {
 			found.add(Number(id));
 		}
 	}

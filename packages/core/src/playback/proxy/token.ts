@@ -42,13 +42,13 @@ const StreamTargetSchema = z.object({
 	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
 	m: z.array(
 		z.url({
-			protocol: /^https?$/,
+			protocol: /^https?$/u,
 		}),
 	),
 	r: z.string().min(1).optional(),
 	t: z.array(z.tuple([z.number(), z.number()])).optional(),
 	u: z.url({
-		protocol: /^https?$/,
+		protocol: /^https?$/u,
 	}),
 });
 

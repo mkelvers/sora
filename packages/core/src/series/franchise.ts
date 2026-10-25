@@ -61,25 +61,25 @@ const withoutPrefix = (title: string, prefix: string) => {
 
 /** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
 export const isNamedAfter = (title: string, original: string) => {
-	const plain = (name: string) => name.replace(/\s*\(TV\)$/i, "");
+	const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
 	return withoutPrefix(plain(title), plain(original)) !== null;
 };
 
 const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
 	// Keep the title's own numbering, including untranslated sequel names.
 	const numbered = isSeason
-		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/i)
+		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/iu)
 		: null;
 	if (numbered) {
 		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
 	}
-	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base);
+	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/iu, ""), base);
 	if (rest === null) {
 		return title.title;
 	}
 
-	const named = rest.replace(/^the movie\b[\s:.-]*/i, "").replace(/[\s~-]+$/, "");
-	if (/^\d{4}\)?$/.test(named)) {
+	const named = rest.replace(/^the movie\b[\s:.-]*/iu, "").replace(/[\s~-]+$/u, "");
+	if (/^\d{4}\)?$/u.test(named)) {
 		return title.title;
 	}
 	if (named) {
@@ -147,7 +147,7 @@ export const franchiseParts = (
 	};
 	const current = byRelease.find((title) => title.anilistId === options.currentId);
 	const selected = first;
-	const base = (selected?.title ?? "").replace(/\s*\(TV\)$/i, "");
+	const base = (selected?.title ?? "").replace(/\s*\(TV\)$/iu, "");
 	if (sequels.length > 0 && selected) {
 		// AniList often leaves a gap between eras of one show. A series named
 		// after the franchise whose own seasons are linked joins the story after
@@ -161,7 +161,7 @@ export const franchiseParts = (
 				apart.has(title.anilistId) ||
 				!links.some(([left, right]) => left === title.anilistId || right === title.anilistId) ||
 				!isSeriesFormat(title) ||
-				withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base) === null
+				withoutPrefix(title.title.replace(/\s*\(TV\)$/iu, ""), base) === null
 			) {
 				continue;
 			}

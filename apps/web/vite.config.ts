@@ -9,12 +9,12 @@ const phosphorWeights: Plugin = {
 	enforce: "pre",
 	name: "phosphor-weights",
 	transform(code, id) {
-		if (!/phosphor-svelte\/lib\/\w+\.svelte(?:\?.*)?$/.test(id)) {
+		if (!/phosphor-svelte\/lib\/\w+\.svelte(?:\?.*)?$/u.test(id)) {
 			return;
 		}
 
 		return code.replaceAll(
-			/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/g,
+			/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/gu,
 			"",
 		);
 	},
@@ -39,7 +39,7 @@ export default defineConfig({
 					async: true,
 				},
 				runes: ({ filename }) =>
-					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
+					filename.split(/[/\\]/u).includes("node_modules") ? undefined : true,
 			},
 			csp: {
 				directives: {

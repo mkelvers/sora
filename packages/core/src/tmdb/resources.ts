@@ -246,7 +246,7 @@ const changeLogSpanMs = 14 * day;
 export const editsWindowMs = changeLogSpanMs - 2 * day;
 
 /** The title TMDB gives an episode nobody has named. */
-const unnamedEpisode = /^episode \d+$/i;
+const unnamedEpisode = /^episode \d+$/iu;
 
 /** Searches TMDB TV shows by title. Returns the first page, best matches first. */
 export const searchShows = async (query: string): Promise<TmdbShowResult[]> => {

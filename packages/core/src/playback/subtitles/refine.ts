@@ -83,7 +83,7 @@ const stopWords = new Set(
 	`a an the and or but so if of to in on at by for with from as is are was were be been am do does did
 	i you he she it we they me him her us them my your his its our their this that these those there
 	oh well just not no yes yeah hey what who how why when where which will would can could shall should
-	have has had get got go going gonna then than too very really all some any`.split(/\s+/),
+	have has had get got go going gonna then than too very really all some any`.split(/\s+/u),
 );
 
 interface Token {
@@ -108,12 +108,12 @@ const stemOf = (word: string) => {
 const tokenize = (text: string): Token[] => {
 	const spokenText = text
 		.toLowerCase()
-		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/g, " ")
-		.replaceAll(/[’‘]/g, "'");
-	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/g) ?? []).map((word) => {
+		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/gu, " ")
+		.replaceAll(/[’‘]/gu, "'");
+	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/gu) ?? []).map((word) => {
 		const bare = word
-			.replace(/'(?:s|d|ll|re|ve|m)$/, "")
-			.replace(/n't$/, "nt")
+			.replace(/'(?:s|d|ll|re|ve|m)$/u, "")
+			.replace(/n't$/u, "nt")
 			.replaceAll("'", "");
 		return {
 			stem: stemOf(bare),
@@ -136,7 +136,7 @@ const phrasesOf = (words: SpokenWord[]) => {
 		const ends =
 			!next ||
 			next.start - words[index]!.end > 0.35 ||
-			/[.?!…]["')\]]?$/.test(words[index]!.text.trim()) ||
+			/[.?!…]["')\]]?$/u.test(words[index]!.text.trim()) ||
 			index - first >= 24;
 		if (ends) {
 			phrases.push({

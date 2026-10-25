@@ -50,23 +50,23 @@ const fetchAniKotoEpisodeList = async (
 	});
 	const { result } = EpisodeListResponseSchema.parse(await response.json());
 
-	const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/g) ?? [];
+	const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/gu) ?? [];
 	if (links.length === 0) {
 		throw new Error("AniKoto's episode list has no episodes");
 	}
 
 	const episodes = new Map<number, ListedEpisode>();
 	for (const link of links) {
-		const number = Number(/\bdata-num="([^"]*)"/.exec(link)?.[1]);
+		const number = Number(/\bdata-num="([^"]*)"/u.exec(link)?.[1]);
 		if (!Number.isFinite(number)) {
 			continue;
 		}
 
-		const classes = /\bclass="([^"]*)"/.exec(link)?.[1]?.split(/\s+/) ?? [];
+		const classes = /\bclass="([^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
 		episodes.set(number, {
 			isFiller: classes.includes("filler"),
 			languages: languageOrder.filter((language) =>
-				new RegExp(`\\bdata-${language}="1"`).test(link),
+				new RegExp(`\\bdata-${language}="1"`, "u").test(link),
 			),
 		});
 	}

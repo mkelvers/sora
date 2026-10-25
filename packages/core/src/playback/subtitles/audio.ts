@@ -44,9 +44,9 @@ const readPlaylist = async (url: string, headers: Record<string, string>, parent
 const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 	const master = await readPlaylist(url, headers);
 	const variants = [
-		...master.text.matchAll(/^#EXT-X-STREAM-INF:([^\n]*)\n\s*([^#\s][^\n]*)/gm),
+		...master.text.matchAll(/^#EXT-X-STREAM-INF:([^\n]*)\n\s*([^#\s][^\n]*)/gmu),
 	].map(([, attributes, uri]) => ({
-		bandwidth: Number(/BANDWIDTH=(\d+)/.exec(attributes!)?.[1] ?? Number.POSITIVE_INFINITY),
+		bandwidth: Number(/BANDWIDTH=(\d+)/u.exec(attributes!)?.[1] ?? Number.POSITIVE_INFINITY),
 		url: new URL(uri!.trim(), master.url).toString(),
 	}));
 	const lowest = variants.toSorted((a, b) => a.bandwidth - b.bandwidth)[0];
@@ -90,15 +90,15 @@ export const extractAudio = async (
 	path: string,
 ) => {
 	const media = await mediaPlaylist(playlistUrl, headers);
-	if (/^#EXT-X-KEY:(?!METHOD=NONE)/m.test(media.text)) {
+	if (/^#EXT-X-KEY:(?!METHOD=NONE)/mu.test(media.text)) {
 		throw new SubtitleRefinementError("The stream is encrypted");
 	}
 
-	const initialization = /^#EXT-X-MAP:.*URI="([^"]+)"/m.exec(media.text)?.[1];
+	const initialization = /^#EXT-X-MAP:.*URI="([^"]+)"/mu.exec(media.text)?.[1];
 	const segments = [
 		...(initialization ? [initialization] : []),
 		...media.text
-			.split(/\r?\n/)
+			.split(/\r?\n/u)
 			.map((line) => line.trim())
 			.filter((line) => line && !line.startsWith("#")),
 	].map((uri) => new URL(uri, media.url).toString());

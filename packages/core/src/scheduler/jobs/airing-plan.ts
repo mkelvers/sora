@@ -71,7 +71,7 @@ const japanOffsetMs = 9 * hour;
 
 /** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
 const japanDay = (date: string | null) => {
-	const match = date ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(date) : null;
+	const match = date ? /^(\d{4})-(\d{2})-(\d{2})$/u.exec(date) : null;
 	if (!match) {
 		return null;
 	}

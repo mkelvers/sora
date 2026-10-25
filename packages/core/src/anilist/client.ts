@@ -185,7 +185,7 @@ const responseKey = (query: string, variables: unknown) =>
 		.digest("hex");
 
 const operationName = (query: string) => {
-	const name = /\b(?:query|mutation)\s+(\w+)/.exec(query)?.[1];
+	const name = /\b(?:query|mutation)\s+(\w+)/u.exec(query)?.[1];
 	if (!name) {
 		throw new TypeError("AniList documents must be named operations");
 	}

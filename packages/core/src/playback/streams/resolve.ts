@@ -677,7 +677,7 @@ export const resolvePlayback = async (
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
 	const streamUrl: StreamUrl = (...token) =>
-		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
+		`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
 	const results = await resolveVersions(
 		parsed.data,
 		streamUrl,

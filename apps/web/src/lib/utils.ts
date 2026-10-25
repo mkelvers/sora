@@ -52,7 +52,7 @@ export const onVisible =
 		return () => observer.disconnect();
 	};
 
-const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
+const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//u;
 
 export type TmdbSize =
 	| "w45"

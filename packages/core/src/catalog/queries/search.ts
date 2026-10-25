@@ -84,7 +84,7 @@ export const normalizeTitle = (title: string) =>
 		.normalize("NFKD")
 		.replaceAll(/\p{M}/gu, "")
 		.toLowerCase()
-		.replaceAll(/[×✕]/g, " x ")
+		.replaceAll(/[×✕]/gu, " x ")
 		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
 		.trim();
 
@@ -94,7 +94,7 @@ export const normalizeTitle = (title: string) =>
  * Bizarre Adventure (TV)". Nobody types it, so it does not count against a
  * match.
  */
-const disambiguator = /\s*\((?:\d{4}|TV|OVA|ONA|Movie)\)\s*$/i;
+const disambiguator = /\s*\((?:\d{4}|TV|OVA|ONA|Movie)\)\s*$/iu;
 
 /**
  * The text the index matches queries against: every title in
@@ -154,7 +154,7 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 };
 
 const toSnakeCase = (name: string) =>
-	name.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+	name.replaceAll(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`);
 
 /**
  * Stores index rows, rewriting a stored row only when something in it
@@ -587,7 +587,7 @@ export const searchAnime = async (
 					...conditions,
 					isShort
 						? sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`
-						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replaceAll(/[\\%_]/g, (character) => `\\${character}`)}%`})`,
+						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replaceAll(/[\\%_]/gu, (character) => `\\${character}`)}%`})`,
 				),
 			)
 			.orderBy(

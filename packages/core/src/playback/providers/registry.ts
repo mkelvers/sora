@@ -46,9 +46,9 @@ export const servedLocale = "en";
 export const isServedSubtitle = (track: { language: string; label: string }) => {
 	const language = track.language.trim().toLowerCase();
 	return (
-		/^en(?:-|_|$)/.test(language) ||
+		/^en(?:-|_|$)/u.test(language) ||
 		language.startsWith("english") ||
-		/^english\b/i.test(track.label.trim())
+		/^english\b/iu.test(track.label.trim())
 	);
 };
 

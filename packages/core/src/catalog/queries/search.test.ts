@@ -220,7 +220,8 @@ describe("searchText", () => {
 });
 
 describe("shortQueryPattern", () => {
-	const matches = (query: string, text: string) => new RegExp(shortQueryPattern(query)).test(text);
+	const matches = (query: string, text: string) =>
+		new RegExp(shortQueryPattern(query), "u").test(text);
 
 	test("matches a whole word or initials of the search text", () => {
 		expect(matches("op", "one piece movie | opm | op")).toBe(true);

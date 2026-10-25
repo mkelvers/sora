@@ -20,7 +20,7 @@ const Input = z.object({
 	username: z
 		.string()
 		.trim()
-		.regex(/^[a-zA-Z0-9_.]{3,30}$/),
+		.regex(/^[a-zA-Z0-9_.]{3,30}$/u),
 });
 
 const input = Input.safeParse({

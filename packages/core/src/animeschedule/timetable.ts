@@ -214,7 +214,7 @@ const resolveAnimeScheduleShows = async (
 		}
 
 		const link = show.data.websites?.aniList;
-		const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
+		const id = link ? /anilist\.co\/anime\/(\d+)/u.exec(link)?.[1] : undefined;
 		const anilistId = id ? Number(id) : null;
 
 		const values = {

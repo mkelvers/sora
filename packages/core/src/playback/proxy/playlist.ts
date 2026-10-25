@@ -34,12 +34,12 @@ const tagUriKind = (tag: string): StreamTargetKind | null => {
  * ```
  */
 export const rewritePlaylist = (content: string, playlistUrl: string, sign: PlaylistUriSigner) => {
-	const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/m.test(content);
+	const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/mu.test(content);
 	const lineKind: StreamTargetKind = isMaster ? "playlist" : "segment";
 	const resolve = (uri: string) => new URL(uri, playlistUrl).toString();
 
 	return content
-		.split(/\r?\n/)
+		.split(/\r?\n/u)
 		.map((line) => {
 			const trimmed = line.trim();
 			if (!trimmed) {
@@ -56,7 +56,7 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 			}
 
 			return line.replace(
-				/URI="([^"]+)"/,
+				/URI="([^"]+)"/u,
 				(_match, uri: string) => `URI="${sign(resolve(uri), kind)}"`,
 			);
 		})

@@ -208,7 +208,7 @@ export const listImages = createRoute({
 			.object({
 				language: commaSeparated(
 					z
-						.array(z.string().regex(/^(?:[a-z]{2}|none)$/))
+						.array(z.string().regex(/^(?:[a-z]{2}|none)$/u))
 						.transform((codes) => codes.map((code) => (code === "none" ? null : code))),
 					"en,none",
 				).openapi({

@@ -5,14 +5,14 @@ export interface Cue {
 	text: string;
 }
 
-const timing = /^(\S+)\s+-->\s+(\S+)(.*)$/m;
+const timing = /^(\S+)\s+-->\s+(\S+)(.*)$/mu;
 
 /**
  * Seconds in a WebVTT timestamp, `hh:mm:ss.ttt` or `mm:ss.ttt`, or `null` when
  * it is neither.
  */
 export const parseTimestamp = (value: string) => {
-	const parts = /^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/.exec(value);
+	const parts = /^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/u.exec(value);
 	if (!parts) {
 		return null;
 	}
@@ -30,7 +30,7 @@ export const formatTimestamp = (seconds: number) => {
 };
 
 /** The blocks of a WebVTT file, separated by blank lines. */
-export const splitBlocks = (content: string) => content.split(/\r?\n\r?\n/);
+export const splitBlocks = (content: string) => content.split(/\r?\n\r?\n/u);
 
 /**
  * The start and end of a block's cue timing line, in seconds, and what
@@ -66,12 +66,12 @@ export const readCues = (content: string) => {
 			continue;
 		}
 
-		const lines = block.split(/\r?\n/);
+		const lines = block.split(/\r?\n/u);
 		const text = lines
 			.slice(lines.findIndex((line) => line.includes("-->")) + 1)
 			.join(" ")
-			.replaceAll(/<[^>]*>|\{\\[^}]*\}/g, "")
-			.replaceAll(/\s+/g, " ")
+			.replaceAll(/<[^>]*>|\{\\[^}]*\}/gu, "")
+			.replaceAll(/\s+/gu, " ")
 			.trim();
 		if (text) {
 			cues.push({

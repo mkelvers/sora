@@ -143,7 +143,7 @@ export class Player {
 				l: () => (this.time += 10),
 				m: () => (this.muted = !this.muted),
 			}[event.key] ??
-			(/^[0-9]$/.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
+			(/^[0-9]$/u.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
 
 		if (action) {
 			event.preventDefault();

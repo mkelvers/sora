@@ -143,7 +143,7 @@ const titleOnlyReleaseWindowDays = 120;
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */
 const dayNumber = (date: string | null) => {
-	const match = date ? /^(\d{4})-(\d{2})-(\d{2})/.exec(date) : null;
+	const match = date ? /^(\d{4})-(\d{2})-(\d{2})/u.exec(date) : null;
 	if (!match) {
 		return null;
 	}
@@ -161,7 +161,7 @@ const normalizeTitle = (title: string) =>
 		.toLowerCase()
 		.replaceAll("&", " and ")
 		.replaceAll(/[\p{P}\p{S}]+/gu, " ")
-		.replaceAll(/\s+/g, " ")
+		.replaceAll(/\s+/gu, " ")
 		.trim();
 
 /** Numbers titles write as words, so "Season Two" and "Second Season" both count as 2. */
@@ -193,7 +193,7 @@ const numberWords = new Map<string, number>(
 );
 
 /** Canonical numerals only, so "iiii" and "vx" stay words. */
-const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/;
+const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
 
 const romanValues: Record<string, number> = { c: 100, i: 1, l: 50, v: 5, x: 10 };
 
@@ -220,7 +220,7 @@ const numbersIn = (title: string) =>
 		.split(" ")
 		.flatMap((word) => {
 			const written = numberWords.get(word) ?? romanValue(word);
-			return written === null ? (word.match(/\d+/g) ?? []).map(Number) : [written];
+			return written === null ? (word.match(/\d+/gu) ?? []).map(Number) : [written];
 		})
 		.join(" ");
 
@@ -669,7 +669,7 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 };
 
 const yearOf = (date: string | null) => {
-	const match = date ? /^(\d{4})/.exec(date) : null;
+	const match = date ? /^(\d{4})/u.exec(date) : null;
 	return match ? Number(match[1]) : null;
 };
 
@@ -1123,12 +1123,12 @@ export const placeInEpisodeGroups = (
 				continue;
 			}
 			const episodes = [...group.episodes];
-			let part = /^(.*) part (\d+)$/.exec(normalizeTitle(group.name));
+			let part = /^(.*) part (\d+)$/u.exec(normalizeTitle(group.name));
 			for (const next of groups.slice(index + 1)) {
 				if (episodes.length >= subject.episodes || !part) {
 					break;
 				}
-				const nextPart = /^(.*) part (\d+)$/.exec(normalizeTitle(next.name));
+				const nextPart = /^(.*) part (\d+)$/u.exec(normalizeTitle(next.name));
 				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
 					break;
 				}

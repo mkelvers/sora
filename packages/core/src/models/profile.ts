@@ -40,7 +40,7 @@ export const ProfileInputSchema = z
 		}),
 		color: z
 			.string()
-			.regex(/^#[0-9a-f]{6}$/i)
+			.regex(/^#[0-9a-f]{6}$/iu)
 			.optional()
 			.meta({
 				description: "A hex color such as `#4f7cff`; picked from a palette when omitted.",

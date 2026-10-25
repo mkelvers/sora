@@ -64,7 +64,7 @@ const operations = Object.entries(spec.paths)
 			members(parameters, location).length === 0
 				? "{}"
 				: `{\n${members(parameters, location).join("\n")}\n}`;
-		return `${JSON.stringify(path.replace(/^\/3/, ""))}: { path: ${block("path")}; query: ${block("query")} };`;
+		return `${JSON.stringify(path.replace(/^\/3/u, ""))}: { path: ${block("path")}; query: ${block("query")} };`;
 	});
 
 await writeFile(

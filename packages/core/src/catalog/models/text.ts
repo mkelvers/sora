@@ -35,18 +35,18 @@ const decodeEntity = (entity: string, body: string) => {
 };
 export const plainText = (value: string) =>
 	value
-		.replaceAll(/<br\s*\/?>/gi, "\n")
-		.replaceAll(/<[^>]+>/g, "")
+		.replaceAll(/<br\s*\/?>/giu, "\n")
+		.replaceAll(/<[^>]+>/gu, "")
 		.replaceAll(
-			/&(#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/gi,
+			/&(#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/giu,
 			decodeEntity,
 		)
-		.replace(/\s*[([]\s*(?:source|written by)\s*:[\s\S]*$/i, "")
-		.replace(/^\s*note\s*:[^\n]*/i, "")
-		.replace(/\s*\b(?:note|\*?(?:this )?includes)\s*:[\s\S]*$/i, "")
-		.replaceAll(/^[^.!?\n]{1,40}:[ \t]*$/gm, "")
-		.replaceAll(/[ \t]+\n/g, "\n")
-		.replaceAll(/\n{3,}/g, "\n\n")
+		.replace(/\s*[([]\s*(?:source|written by)\s*:[\s\S]*$/iu, "")
+		.replace(/^\s*note\s*:[^\n]*/iu, "")
+		.replace(/\s*\b(?:note|\*?(?:this )?includes)\s*:[\s\S]*$/iu, "")
+		.replaceAll(/^[^.!?\n]{1,40}:[ \t]*$/gmu, "")
+		.replaceAll(/[ \t]+\n/gu, "\n")
+		.replaceAll(/\n{3,}/gu, "\n\n")
 		.trim();
 
 /** The longest a {@link synopsis} runs. */
@@ -55,9 +55,9 @@ const synopsisLength = 320;
 /** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
 const sentences = (text: string) => {
 	const found: string[] = [];
-	for (const part of text.replaceAll(/\s+/g, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/)) {
+	for (const part of text.replaceAll(/\s+/gu, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/u)) {
 		const previous = found.at(-1);
-		if (previous && /\b[A-Z]\.$/.test(previous)) {
+		if (previous && /\b[A-Z]\.$/u.test(previous)) {
 			found[found.length - 1] = `${previous} ${part}`;
 		} else {
 			found.push(part);
@@ -69,7 +69,7 @@ const sentences = (text: string) => {
 
 /** A sentence that only names the release, such as `The second season of Frieren.` */
 export const placeholder =
-	/^(?:the )?(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of\b[^.!?]*[.!?]?$/i;
+	/^(?:the )?(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of\b[^.!?]*[.!?]?$/iu;
 
 /**
  * A synopsis cut down to its premise: AniList's or TMDB's text as

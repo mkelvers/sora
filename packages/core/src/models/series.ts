@@ -394,7 +394,7 @@ const ArtworkUrlSchema = z
 	.union([
 		z
 			.url({
-				protocol: /^https$/,
+				protocol: /^https$/u,
 			})
 			.max(2048)
 			.refine((value) => artworkHosts.includes(new URL(value).hostname), {

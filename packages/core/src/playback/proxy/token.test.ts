@@ -41,7 +41,7 @@ describe("stream tokens", () => {
 	});
 
 	test("are URL-safe", () => {
-		expect(signStreamTarget(target, secret)).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+		expect(signStreamTarget(target, secret)).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
 	});
 
 	test("show nothing of the target", () => {

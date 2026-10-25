@@ -58,12 +58,12 @@ export interface Upstream {
 const isPrivateAddress = (address: string) => {
 	const version = isIP(address);
 	if (version === 4) {
-		return /^(0|10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./.test(
+		return /^(0|10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./u.test(
 			address,
 		);
 	}
 
-	return version === 6 && /^(::1?$|f[cd]|fe[89ab]|ff|::ffff:)/i.test(address);
+	return version === 6 && /^(::1?$|f[cd]|fe[89ab]|ff|::ffff:)/iu.test(address);
 };
 
 /**
@@ -82,7 +82,7 @@ const assertPublicHttpUrl = (value: string) => {
 		throw new InvalidStreamTokenError("Stream target must use HTTP");
 	}
 
-	const host = url.hostname.replaceAll(/^\[|\]$/g, "").toLowerCase();
+	const host = url.hostname.replaceAll(/^\[|\]$/gu, "").toLowerCase();
 	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}

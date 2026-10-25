@@ -169,7 +169,7 @@ export class SoraClient {
 	constructor(options: SoraClientOptions) {
 		this.#options = {
 			...options,
-			baseUrl: options.baseUrl.replace(/\/+$/, ""),
+			baseUrl: options.baseUrl.replace(/\/+$/u, ""),
 		};
 	}
 
@@ -208,7 +208,7 @@ export class SoraClient {
 			body?: unknown;
 		};
 		const url = new URL(
-			`${this.#options.baseUrl}/v1${route.path.replaceAll(/\{(\w+)\}/g, (_, name: string) =>
+			`${this.#options.baseUrl}/v1${route.path.replaceAll(/\{(\w+)\}/gu, (_, name: string) =>
 				encodeURIComponent(String(params?.[name])),
 			)}`,
 		);
