@@ -1,5 +1,6 @@
 import { afterNavigate, goto } from "$app/navigation";
 import { page } from "$app/state";
+import { attempt } from "@sora/shared";
 import { tick } from "svelte";
 
 export class Search {
@@ -48,7 +49,7 @@ export class Search {
 			this.open = true;
 
 			if (!this.text) {
-				tick().then(() => this.input?.focus());
+				attempt(tick().then(() => this.input?.focus()));
 			}
 		});
 	}

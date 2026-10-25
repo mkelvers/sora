@@ -103,7 +103,7 @@ v1.use(
 v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
 
 /** Answers 401 unless the request carries a session, as a bearer token or cookie. */
-const signedIn = createMiddleware<V1Env>(async (c, next) => {
+const signedIn = createMiddleware<V1Env>(async (c, proceed) => {
 	const session = await auth.api.getSession({
 		headers: c.req.raw.headers,
 	});
@@ -113,15 +113,15 @@ const signedIn = createMiddleware<V1Env>(async (c, next) => {
 
 	c.set("accountId", session.user.id);
 	c.header("Cache-Control", "private, no-store");
-	await next();
+	await proceed();
 });
 
 // Everything but sign-in needs an account, the contract and the stream proxy
 // included, so nobody anonymous can make the server look anything up, and each
 // account is held to a generous ceiling.
 v1.use(
-	except(["/v1/auth/*"], signedIn, async (c, next) => {
-		await next();
+	except(["/v1/auth/*"], signedIn, async (c, proceed) => {
+		await proceed();
 		const cacheControl = c.res.headers.get("Cache-Control");
 		if (cacheControl?.startsWith("public")) {
 			c.header("Cache-Control", cacheControl.replace("public", "private"));
@@ -139,12 +139,12 @@ v1.use(
 );
 
 /** Answers 403 unless the request carries the web app's key; see {@link isWebClientKey}. */
-const webClient = createMiddleware<V1Env>(async (c, next) => {
+const webClient = createMiddleware<V1Env>(async (c, proceed) => {
 	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
 		return sendProblem(c, 403, "FORBIDDEN", "Media is only served to the Sora web app");
 	}
 
-	await next();
+	await proceed();
 });
 
 // Media is served to the web app's own server and nothing else, for the

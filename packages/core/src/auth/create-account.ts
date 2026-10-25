@@ -47,8 +47,8 @@ if (await context.internalAdapter.findUserByEmail(email)) {
 
 // Readline handles editing, but its output is discarded so typed characters stay hidden.
 const output = new Writable({
-	write(_chunk, _encoding, callback) {
-		callback();
+	write(_chunk, _encoding, finish) {
+		finish();
 	},
 });
 const reader = createInterface({

@@ -215,13 +215,15 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	});
 
 	return {
-		promise: Promise.all([
-			main.promise,
-			waitedOn.promise,
-			lookups.promise,
-			releases.promise,
-			listening.promise,
-		]).then(() => {}),
+		promise: (async () => {
+			await Promise.all([
+				main.promise,
+				waitedOn.promise,
+				lookups.promise,
+				releases.promise,
+				listening.promise,
+			]);
+		})(),
 		stop: async () => {
 			await Promise.all([
 				main.stop(),

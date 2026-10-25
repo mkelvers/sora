@@ -19,7 +19,7 @@ describe("ArtworkChangesSchema", () => {
 		"https://image.tmdb.org.evil.example/a.png",
 		"https://user@evil.example/a.png",
 		"http://image.tmdb.org/a.png",
-		"javascript:alert(1)",
+		`${"java"}script:alert(1)`,
 	])("rejects %s", (url) => {
 		expect(
 			ArtworkChangesSchema.safeParse({

@@ -7,9 +7,9 @@ import { rateLimit } from "./rate-limit";
 
 const app = (limit: number, windowMs = 60_000) =>
 	new Hono<V1Env>()
-		.use(async (c, next) => {
+		.use(async (c, proceed) => {
 			c.set("accountId", c.req.header("x-account") ?? "a");
-			await next();
+			await proceed();
 		})
 		.use(
 			rateLimit({

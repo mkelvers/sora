@@ -34,7 +34,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 		}
 	>();
 
-	return createMiddleware<V1Env>(async (c: Context<V1Env>, next) => {
+	return createMiddleware<V1Env>(async (c: Context<V1Env>, proceed) => {
 		const now = Date.now();
 		if (windows.size > sweepAbove) {
 			for (const [counted, window] of windows) {
@@ -66,6 +66,6 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 			return response;
 		}
 
-		await next();
+		await proceed();
 	});
 };

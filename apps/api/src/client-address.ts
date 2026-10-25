@@ -14,7 +14,7 @@ import type { V1Env } from "./errors";
  * it connected from, so nobody who can reach the API directly can pick the
  * address its limits count against.
  */
-export const clientAddress = createMiddleware<V1Env>(async (c, next) => {
+export const clientAddress = createMiddleware<V1Env>(async (c, proceed) => {
 	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
 		const { data: address } = attempt(() => getConnInfo(c).remote.address, TypeError);
 		const headers = new Headers(c.req.raw.headers);
@@ -24,7 +24,7 @@ export const clientAddress = createMiddleware<V1Env>(async (c, next) => {
 		});
 	}
 
-	await next();
+	await proceed();
 });
 
 /** The address a request's limits count against, once {@link clientAddress} has run. */

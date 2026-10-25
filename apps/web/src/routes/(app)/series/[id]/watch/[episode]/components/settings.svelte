@@ -5,6 +5,7 @@
 	import type { WatchMedia } from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
 	import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "@sora/sdk";
+	import { attempt } from "@sora/shared";
 	import { Popover } from "melt/builders";
 	import { CaretLeftIcon, CaretRightIcon, GearSixIcon } from "phosphor-svelte";
 	import { tick } from "svelte";
@@ -102,7 +103,9 @@
 
 	$effect(() => {
 		if (open) {
-			tick().then(() => content?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus());
+			attempt(
+				tick().then(() => content?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus()),
+			);
 		}
 	});
 

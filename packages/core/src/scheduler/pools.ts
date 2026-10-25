@@ -112,13 +112,15 @@ export const watchPools = (): PoolWatch => {
 			.delete(schedulerPool)
 			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
 	};
+	const beatAfter = async (previous: Promise<void>) => {
+		await previous;
+		const { error } = await attempt(beat());
+		if (error) {
+			logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
+		}
+	};
 	const tick = () => {
-		running = running.then(async () => {
-			const { error } = await attempt(beat());
-			if (error) {
-				logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
-			}
-		});
+		running = beatAfter(running);
 	};
 
 	const timer = setInterval(tick, heartbeatMs);

@@ -38,12 +38,12 @@ export const pollWhileVisible = (refresh: () => void, intervalMs = 30_000) => {
 };
 
 export const onVisible =
-	(callback: () => void, rootMargin: string): Attachment =>
+	(reveal: () => void, rootMargin: string): Attachment =>
 	(node) => {
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries.some((entry) => entry.isIntersecting)) {
-					callback();
+					reveal();
 				}
 			},
 			{

@@ -69,7 +69,7 @@ export class Library {
 		this.set(series, this.status.has(series.id) ? null : "plan_to_watch");
 	}
 
-	set(series: SeriesCard, status: WatchlistStatus | null) {
+	set = (series: SeriesCard, status: WatchlistStatus | null) => {
 		const now = new Date().toISOString();
 
 		setWatchlistStatus({
@@ -105,7 +105,7 @@ export class Library {
 				];
 			}),
 		);
-	}
+	};
 }
 
 export const [getLibrary, setLibrary] = createContext<Library>();

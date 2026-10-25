@@ -107,21 +107,22 @@ const load = (target: StreamTarget) => {
 
 	const pending = download(target);
 	segments.set(target.url, pending);
-	pending.then(
-		(segment) => {
-			if (segments.get(target.url) !== pending) {
-				return;
-			}
-			sizes.set(target.url, segment.bytes.byteLength);
-			cachedBytes += segment.bytes.byteLength;
-			evict(target.url);
-		},
-		() => {
+	const track = async () => {
+		const { data: segment, error } = await attempt(pending);
+		if (error) {
 			if (segments.get(target.url) === pending) {
 				segments.delete(target.url);
 			}
-		},
-	);
+			return;
+		}
+		if (segments.get(target.url) !== pending) {
+			return;
+		}
+		sizes.set(target.url, segment.bytes.byteLength);
+		cachedBytes += segment.bytes.byteLength;
+		evict(target.url);
+	};
+	attempt(track());
 	return pending;
 };
 

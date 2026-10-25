@@ -1,5 +1,6 @@
 import { lookup } from "node:dns";
 import type { LookupAddress } from "node:dns";
+import { lookup as lookupAddresses } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
@@ -99,34 +100,39 @@ const assertPublicHttpUrl = (value: string) => {
  * answers a name with a public address first and a private one next (DNS
  * rebinding) cannot steer it.
  */
-const publicLookup: typeof lookup = ((
+const respondToLookup = async (
 	host: string,
 	options: { all?: boolean },
-	callback: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
+	respond: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
 ) => {
-	lookup(
-		host,
-		{
+	const { data: addresses, error } = await attempt(
+		lookupAddresses(host, {
 			...options,
 			all: true,
-		},
-		(error, addresses) => {
-			if (error) {
-				callback(error);
-				return;
-			}
-			if (addresses.some(({ address }) => isPrivateAddress(address))) {
-				callback(new InvalidStreamTokenError("Stream target is not a public host"));
-				return;
-			}
-
-			if (options.all) {
-				callback(null, addresses);
-				return;
-			}
-			callback(null, defined(addresses[0]).address, defined(addresses[0]).family);
-		},
+		}),
 	);
+	if (error) {
+		respond(error);
+		return;
+	}
+	if (addresses.some(({ address }) => isPrivateAddress(address))) {
+		respond(new InvalidStreamTokenError("Stream target is not a public host"));
+		return;
+	}
+
+	if (options.all) {
+		respond(null, addresses);
+		return;
+	}
+	respond(null, defined(addresses[0]).address, defined(addresses[0]).family);
+};
+
+const publicLookup = ((
+	host: string,
+	options: { all?: boolean },
+	respond: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
+) => {
+	attempt(respondToLookup(host, options, respond));
 }) as typeof lookup;
 
 /**

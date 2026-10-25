@@ -19,6 +19,12 @@ const subscribeFullscreen = createSubscriber((update) => {
 	on(document, "fullscreenchange", update);
 });
 
+const playDirect = (video: HTMLVideoElement, url: string, start: number) => {
+	video.src = url;
+	video.currentTime = start;
+	return () => undefined;
+};
+
 export class Player {
 	root?: HTMLElement;
 	paused = $state(false);
@@ -185,7 +191,7 @@ export class Player {
 			const stop =
 				source.format === "hls"
 					? this.#hls(video, source.url, start)
-					: this.#direct(video, source.url, start);
+					: playDirect(video, source.url, start);
 
 			return () => {
 				this.#resume ??= video.currentTime || start;
@@ -194,12 +200,6 @@ export class Player {
 				video.load();
 			};
 		};
-
-	#direct(video: HTMLVideoElement, url: string, start: number) {
-		video.src = url;
-		video.currentTime = start;
-		return () => {};
-	}
 
 	#hls(video: HTMLVideoElement, url: string, start: number) {
 		let hls: Hls | undefined;
@@ -211,7 +211,7 @@ export class Player {
 				return;
 			}
 			if (loaded.error || !loaded.data.default.isSupported()) {
-				this.#direct(video, url, start);
+				playDirect(video, url, start);
 				return;
 			}
 
@@ -258,12 +258,13 @@ export class Player {
 			}
 
 			track.mode = "hidden";
-			track.oncuechange = () => {
+			const update = () => {
 				this.cues = [...(track.activeCues ?? [])] as VTTCue[];
 			};
+			track.addEventListener("cuechange", update);
 
 			return () => {
-				track.oncuechange = null;
+				track.removeEventListener("cuechange", update);
 				this.cues = [];
 			};
 		};

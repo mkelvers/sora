@@ -1,4 +1,4 @@
-import { attempt, defined } from "@sora/shared";
+import { attempt } from "@sora/shared";
 import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 

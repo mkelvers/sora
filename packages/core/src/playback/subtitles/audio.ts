@@ -131,7 +131,7 @@ export const extractAudio = async (
 		for (let index = 0; index < segments.length; index += 1) {
 			for (let ahead = index; ahead < Math.min(segments.length, index + concurrency); ahead += 1) {
 				// A failed fetch ahead is awaited, and so reported, when its turn comes.
-				void fetchSegment(ahead).catch(() => {});
+				void fetchSegment(ahead).catch(() => undefined);
 			}
 
 			ffmpeg.stdin.write(await fetchSegment(index));
