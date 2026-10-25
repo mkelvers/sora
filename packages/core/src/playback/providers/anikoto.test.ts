@@ -223,7 +223,7 @@ const seriesResponseOf = (
 	JSON.stringify({
 		data: {
 			episodes: numbers.map((number) => ({
-				id: 27298 + number,
+				id: 27_298 + number,
 				title: `Episode ${number}`,
 				number,
 				episode_embed_id: `${7880 + number}`,

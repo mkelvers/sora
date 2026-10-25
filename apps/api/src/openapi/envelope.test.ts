@@ -43,7 +43,7 @@ describe("pageMeta", () => {
 			perPage: 24,
 			preparing: [
 				{
-					anilist_id: 143653,
+					anilist_id: 143_653,
 					format: "TV",
 					position: 0,
 					title: "Insomniacs After School",

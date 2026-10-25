@@ -49,7 +49,7 @@ export const createStreamToken = (
 	signStreamTarget(
 		{
 			accountId,
-			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
+			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
 			headers,
 			kind,
 			mirrors,

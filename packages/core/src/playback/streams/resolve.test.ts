@@ -130,7 +130,7 @@ const dependencies: PlaybackDependencies = {
 	],
 	getRefinement: async (key) => refinements.get(key) ?? null,
 	locateEpisode: async (seriesId) => ({
-		anilistId: 154587,
+		anilistId: 154_587,
 		number: 3,
 		seriesId,
 	}),

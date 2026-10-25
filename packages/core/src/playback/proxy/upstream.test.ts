@@ -5,7 +5,7 @@ import { fetchUpstream, readBounded, StreamUpstreamError } from "./upstream";
 
 const target = (url: string) => ({
 	accountId: "account",
-	expiresAt: Math.floor(Date.now() / 1_000) + 60,
+	expiresAt: Math.floor(Date.now() / 1000) + 60,
 	headers: {},
 	kind: "file" as const,
 	mirrors: [],
