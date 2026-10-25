@@ -1,7 +1,7 @@
-import { env } from "$env/dynamic/private";
+import { WEB_CLIENT_KEY } from "$app/env/private";
 import { knownProfiles } from "$lib/server/sora";
 import { SoraError } from "@sora/sdk";
-import { attempt, defined } from "@sora/shared";
+import { attempt } from "@sora/shared";
 import { error, fail } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -55,7 +55,7 @@ export const actions: Actions = {
 				{
 					headers: {
 						"X-Forwarded-For": getClientAddress(),
-						"X-Sora-Client-Key": defined(env.WEB_CLIENT_KEY),
+						"X-Sora-Client-Key": WEB_CLIENT_KEY,
 					},
 				},
 			),

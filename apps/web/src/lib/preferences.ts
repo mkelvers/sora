@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { attempt } from "@sora/shared";
 
 export class Preferences {

@@ -222,9 +222,8 @@
 		onended={() => {
 			report(true);
 			goto(next ?? back, {
-				replaceState: true,
-				noScroll: true,
-				keepFocus: !!next,
+				replace: true,
+				reset: false,
 			});
 		}}
 		{@attach player.stream(selected?.sources[0])}

@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import adapter from "@sveltejs/adapter-node";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
@@ -31,9 +33,6 @@ export default defineConfig({
 			adapter: adapter({
 				precompress: true,
 			}),
-			alias: {
-				$routes: "src/routes",
-			},
 			compilerOptions: {
 				experimental: {
 					async: true,
@@ -68,4 +67,10 @@ export default defineConfig({
 		}),
 		sveltePhosphorOptimize(),
 	],
+	resolve: {
+		alias: {
+			$lib: fileURLToPath(new URL("src/lib", import.meta.url)),
+			$routes: fileURLToPath(new URL("src/routes", import.meta.url)),
+		},
+	},
 });

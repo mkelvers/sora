@@ -1,6 +1,9 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import { refreshStatus } from "$routes/(app)/tracking.server";
+import {
+	getNotifications,
+	getUnreadNotifications,
+} from "$routes/(app)/notifications/notifications.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
@@ -47,6 +50,11 @@ export const setWatchlistStatus = command(
 					params,
 				}));
 
-		await refreshStatus();
+		await Promise.all([
+			getWatchlist().refresh(),
+			getWatchlistStatuses().refresh(),
+			getNotifications().refresh(),
+			getUnreadNotifications().refresh(),
+		]);
 	},
 );

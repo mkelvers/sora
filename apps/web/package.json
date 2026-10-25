@@ -30,12 +30,12 @@
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-node": "^5.5.7",
-		"@sveltejs/kit": "^2.70.3",
+		"@sveltejs/adapter-node": "^6",
+		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@tailwindcss/vite": "^4.3.3",
 		"phosphor-svelte": "^3.1.0",
-		"svelte": "^5.56.10",
+		"svelte": "^5.57.2",
 		"svelte-check": "^4.7.6",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^6.0.3",

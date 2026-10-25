@@ -65,9 +65,8 @@ export class Search {
 
 			if (this.onSearch && this.term && this.term !== this.query) {
 				goto(`/search?q=${encodeURIComponent(this.term)}`, {
-					keepFocus: true,
-					noScroll: true,
-					replaceState: true,
+					replace: true,
+					reset: false,
 				});
 			}
 		}, 250);

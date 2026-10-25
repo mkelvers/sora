@@ -1,5 +1,5 @@
-import { env } from "$env/dynamic/private";
-import { attempt, defined } from "@sora/shared";
+import { SORA_API_URL, WEB_CLIENT_KEY } from "$app/env/private";
+import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 
 import type { RequestHandler } from "./$types";
@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 
 	const headers = new Headers({
 		Authorization: `Bearer ${session}`,
-		"X-Sora-Client-Key": defined(env.WEB_CLIENT_KEY),
+		"X-Sora-Client-Key": WEB_CLIENT_KEY,
 	});
 	const range = request.headers.get("range");
 	if (range) {
@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 	}
 
 	const { data: upstream, error: unreachable } = await attempt(
-		fetch(`${env.SORA_API_URL}/v1/streams/${encodeURIComponent(params.token)}`, {
+		fetch(`${SORA_API_URL}/v1/streams/${encodeURIComponent(params.token)}`, {
 			headers,
 			signal: request.signal,
 		}),
