@@ -1,9 +1,6 @@
-import { EventEmitter } from "node:events";
-
 import { attempt, day, minute } from "@sora/shared";
 import { inArray, lt, sql } from "drizzle-orm";
 import { consoleLogFactory, Logger } from "graphile-worker";
-import type { WorkerEvents } from "graphile-worker";
 
 import { db } from "../database/client";
 import { schedulerPool } from "../database/schema/scheduler";
@@ -23,8 +20,12 @@ const deadAfterMs = 2 * minute;
 
 /** The pools a scheduler runs, kept alive; see {@link watchPools}. */
 export interface PoolWatch {
-	/** Passed to each of the scheduler's `run()` calls, so its pools are known. */
-	events: WorkerEvents;
+	/**
+	 * Marks the pool that locked a job alive from now on. Each task calls it
+	 * with its job's `locked_by`, which graphile-worker sets to the ID of the
+	 * pool running it.
+	 */
+	know: (poolId: string | null | undefined) => void;
 	stop: () => Promise<void>;
 }
 
@@ -77,14 +78,7 @@ const releaseDeadPools = async (now: Date) => {
  * it replaces left locked.
  */
 export const watchPools = (): PoolWatch => {
-	const events: WorkerEvents = new EventEmitter();
 	const poolIds = new Set<string>();
-	events.on("pool:create", ({ workerPool }) => {
-		poolIds.add(workerPool.id);
-	});
-	events.on("pool:release", ({ workerPool }) => {
-		poolIds.delete(workerPool.id);
-	});
 
 	let running = Promise.resolve();
 
@@ -124,11 +118,15 @@ export const watchPools = (): PoolWatch => {
 	};
 
 	const timer = setInterval(tick, heartbeatMs);
-	// Pools are created as `run()` resolves; give them a moment to be known first.
-	setTimeout(tick, 1000);
+	tick();
 
 	return {
-		events,
+		know: (poolId) => {
+			if (poolId && !poolIds.has(poolId)) {
+				poolIds.add(poolId);
+				tick();
+			}
+		},
 		stop: async () => {
 			clearInterval(timer);
 			await running;

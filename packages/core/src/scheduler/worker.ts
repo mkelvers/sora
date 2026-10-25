@@ -36,6 +36,7 @@ import { chooseEpisodeStillsJob, chooseEpisodeStillsTask } from "./jobs/stills";
 import { refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
 import { watchPools } from "./pools";
+import type { PoolWatch } from "./pools";
 import {
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
@@ -61,12 +62,14 @@ const waitedOnTasks: Record<string, Task> = {
 };
 
 /** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
-const prioritized = (tasks: Record<string, Task>): TaskList =>
+const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): TaskList =>
 	Object.fromEntries(
 		Object.entries(tasks).map(([name, task]): [string, Task] => [
 			name,
-			(payload, helpers) =>
-				aniListPriority.run(helpers.job.priority, async () => await task(payload, helpers)),
+			(payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return aniListPriority.run(helpers.job.priority, async () => await task(payload, helpers));
+			},
 		]),
 	);
 
@@ -117,26 +120,28 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
 		].join("\n"),
-		events: pools.events,
-		taskList: prioritized({
-			[trackAiringTask]: trackAiring,
-			[reviveAiringChecksTask]: reviveAiringChecks,
-			[storeSeriesTask]: storeSeriesJob,
-			...waitedOnTasks,
-			[discoverSeriesEntriesTask]: discoverSeriesEntries,
-			[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
-			[refreshEpisodeListingsTask]: refreshEpisodeListings,
-			[syncProviderCatalogsTask]: syncProviderCatalogs,
-			[pruneProviderCallsTask]: pruneProviderCallsJob,
-			[pruneDeadJobsTask]: pruneDeadJobsJob,
-			[checkProviderHealthTask]: checkProviderHealthJob,
-			[syncSearchIndexTask]: syncSearchIndexJob,
-			[backfillSeriesTask]: backfillSeries,
-			[syncTmdbHintsTask]: syncTmdbHintsJob,
-			[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
-			[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
-			[syncTimetablesTask]: syncTimetablesJob,
-		}),
+		taskList: prioritized(
+			{
+				[trackAiringTask]: trackAiring,
+				[reviveAiringChecksTask]: reviveAiringChecks,
+				[storeSeriesTask]: storeSeriesJob,
+				...waitedOnTasks,
+				[discoverSeriesEntriesTask]: discoverSeriesEntries,
+				[refreshEpisodeDetailsTask]: refreshEpisodeDetails,
+				[refreshEpisodeListingsTask]: refreshEpisodeListings,
+				[syncProviderCatalogsTask]: syncProviderCatalogs,
+				[pruneProviderCallsTask]: pruneProviderCallsJob,
+				[pruneDeadJobsTask]: pruneDeadJobsJob,
+				[checkProviderHealthTask]: checkProviderHealthJob,
+				[syncSearchIndexTask]: syncSearchIndexJob,
+				[backfillSeriesTask]: backfillSeries,
+				[syncTmdbHintsTask]: syncTmdbHintsJob,
+				[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
+				[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
+				[syncTimetablesTask]: syncTimetablesJob,
+			},
+			pools,
+		),
 	});
 
 	// Every slot above can be held for minutes by jobs waiting their turn on
@@ -148,10 +153,9 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	const waitedOn = await run({
 		concurrency: 24,
 		connectionString: config.databaseUrl,
-		events: pools.events,
 		// graphile-worker opens connections as jobs need them, up to this.
 		maxPoolSize: 24,
-		taskList: prioritized(waitedOnTasks),
+		taskList: prioritized(waitedOnTasks, pools),
 	});
 
 	// Episode lookups ask stream providers, not AniList, so they have workers
@@ -170,14 +174,15 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	const lookups = await run({
 		concurrency: 12,
 		connectionString: config.databaseUrl,
-		events: pools.events,
 		maxPoolSize: 12,
 		taskList: {
-			[lookUpEpisodesTask]: (payload, helpers) =>
-				aniListPriority.run(
+			[lookUpEpisodesTask]: (payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return aniListPriority.run(
 					Math.min(helpers.job.priority, seriesStorePriority("current")),
 					async () => await lookUpEpisodes(payload, helpers),
-				),
+				);
+			},
 		},
 	});
 
@@ -192,13 +197,15 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`*/30 * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
 			`0 0 * * * ${syncDubScheduleTask} ?id=dub-schedule&fill=1d&priority=-1`,
 		].join("\n"),
-		events: pools.events,
 		maxPoolSize: 4,
-		taskList: prioritized({
-			[watchAniKotoReleasesTask]: watchAniKotoReleases,
-			[pollAniKotoTask]: pollAniKoto,
-			[syncDubScheduleTask]: syncDubSchedule,
-		}),
+		taskList: prioritized(
+			{
+				[watchAniKotoReleasesTask]: watchAniKotoReleases,
+				[pollAniKotoTask]: pollAniKoto,
+				[syncDubScheduleTask]: syncDubSchedule,
+			},
+			pools,
+		),
 	});
 
 	// Listening to a dub downloads and transcribes a whole episode, which takes
@@ -207,10 +214,12 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	const listening = await run({
 		concurrency: 1,
 		connectionString: config.databaseUrl,
-		events: pools.events,
 		maxPoolSize: 2,
 		taskList: {
-			[refineSubtitlesTask]: refineSubtitles,
+			[refineSubtitlesTask]: (payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return refineSubtitles(payload, helpers);
+			},
 		},
 	});
 
