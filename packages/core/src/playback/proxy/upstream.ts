@@ -388,30 +388,7 @@ export const fetchUpstreamBytes = async (
 		let hedge: ReturnType<typeof setTimeout> | undefined;
 		let primaryFailure: unknown;
 
-		const launch = () => {
-			clearTimeout(hedge);
-			if (settled || launched >= candidates.length) {
-				return;
-			}
-
-			const candidate = candidates[launched]!;
-			launched += 1;
-			const position = launched;
-			hedge = setTimeout(launch, hedgeDelayMs);
-
-			const answered = () => {
-				if (!settled && position === launched) {
-					clearTimeout(hedge);
-					hedge = setTimeout(launch, bodyHedgeMs);
-				}
-			};
-
-			void settle(
-				attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
-			);
-		};
-
-		const settle = async (read: Promise<Attempt<UpstreamBytes>>) => {
+		const settle = async (read: Promise<Attempt<UpstreamBytes>>, retry: () => void) => {
 			const { data, error } = await read;
 			if (settled) {
 				return;
@@ -439,7 +416,31 @@ export const fetchUpstreamBytes = async (
 				reject(primaryFailure);
 				return;
 			}
-			launch();
+			retry();
+		};
+
+		const launch = () => {
+			clearTimeout(hedge);
+			if (settled || launched >= candidates.length) {
+				return;
+			}
+
+			const candidate = candidates[launched]!;
+			launched += 1;
+			const position = launched;
+			hedge = setTimeout(launch, hedgeDelayMs);
+
+			const answered = () => {
+				if (!settled && position === launched) {
+					clearTimeout(hedge);
+					hedge = setTimeout(launch, bodyHedgeMs);
+				}
+			};
+
+			void settle(
+				attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
+				launch,
+			);
 		};
 
 		launch();

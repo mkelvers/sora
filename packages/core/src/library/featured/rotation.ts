@@ -1,3 +1,5 @@
+import { day, hour } from "@sora/shared";
+
 /** One AniList entry of a title, as the search index knows it. */
 export interface FeaturedEntry {
 	/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
@@ -96,4 +98,3 @@ export const rotate = (ids: readonly string[], seed: string, rotation: number): 
 export const arrange = (candidates: readonly string[], isUsable: (id: string) => boolean) => {
 	return [...new Set(candidates)].filter(isUsable).slice(0, featuredCount);
 };
-import { day, hour } from "@sora/shared";

@@ -592,7 +592,10 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			}
 		};
 
-		const send = async (batch: MediaBatch<TMedia>) => {
+		const send = async (
+			batch: MediaBatch<TMedia>,
+			requeue: (batch: MediaBatch<TMedia>) => void,
+		) => {
 			if (open === batch) {
 				open = null;
 			}
@@ -617,7 +620,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 					for (const id of ids) {
 						queuedIn.set(id, batch);
 					}
-					queue(batch);
+					requeue(batch);
 					return;
 				}
 
@@ -644,7 +647,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			enqueue({
 				key: batch.key,
 				priority: batch.priority,
-				send: () => send(batch),
+				send: () => send(batch, queue),
 			});
 			// Once the current task is done, so IDs asked for alongside join even
 			// when the request could go at once.

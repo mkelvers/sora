@@ -29,7 +29,7 @@ export const migrationLockKey = 7_302_024_001;
  * together take turns: each holds a PostgreSQL advisory lock while it
  * migrates, so a later one finds nothing left to apply.
  */
-export async function migrateDatabase() {
+export const migrateDatabase = async () => {
 	const lock = await db.$client.reserve();
 	const migrated = await attempt(
 		(async () => {
@@ -50,7 +50,7 @@ export async function migrateDatabase() {
 	if (migrated.error) {
 		throw migrated.error;
 	}
-}
+};
 
 /** Closes the connection pool so the process can exit cleanly. */
 export const closeDatabase = async () => {

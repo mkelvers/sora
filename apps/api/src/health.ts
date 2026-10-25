@@ -35,6 +35,7 @@ export const healthRoutes = (
 
 	const providers = () => {
 		if (!cached || Date.now() - cached.at >= cacheMs) {
+			const at = Date.now();
 			const read = async () => {
 				const { data, error } = await attempt(load());
 				if (!error) {
@@ -44,16 +45,15 @@ export const healthRoutes = (
 				console.warn(`Could not read provider health: ${error.message}`);
 				// Not cached: the next probe tries again, unless a later
 				// request already replaced this entry with a fresher one.
-				if (cached === entry) {
+				if (cached?.at === at) {
 					cached = null;
 				}
 				return null;
 			};
-			const entry: NonNullable<typeof cached> = {
-				at: Date.now(),
+			cached = {
+				at,
 				providers: read(),
 			};
-			cached = entry;
 		}
 		return cached.providers;
 	};

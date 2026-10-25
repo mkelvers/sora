@@ -79,57 +79,6 @@ interface Predecessor {
 	mapping: TmdbMapping;
 }
 
-const match = async (
-	entry: FranchiseEntry,
-	resolving: ReadonlySet<number>,
-): Promise<TmdbMapping> => {
-	const subject = {
-		...toMatchSubject(entry, new Date()),
-		playbackEpisodes: await getAniKotoEpisodeCount(entry.id),
-	};
-	// Synonyms are too noisy to search with.
-	const queries = primaryTitlesOf(entry);
-	const predecessors = await predecessorMappings(entry, resolving);
-	const hint = await tmdbHintFor(entry.id);
-	const placement =
-		subject.format === "MOVIE"
-			? ((await bestMoviePlacement(subject, queries, hint)) ??
-				(await collectionPlacement(subject, predecessors)) ??
-				(await bestShowPlacement(subject, predecessors, hint, [])))
-			: ((await bestShowPlacement(subject, predecessors, hint, queries)) ??
-				(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null));
-
-	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
-	const values = {
-		episodeNumber: episodes[0]?.episodeNumber ?? null,
-		episodes,
-		mediaType: placement?.mediaType ?? null,
-		method: placement?.method ?? null,
-		resolvedAt: new Date(),
-		score: placement?.score ?? null,
-		seasonNumber: episodes[0]?.seasonNumber ?? null,
-		tmdbId: placement?.tmdbId ?? null,
-	};
-
-	const [row] = await db
-		.insert(tmdbMapping)
-		.values({
-			anilistId: entry.id,
-			...values,
-		})
-		.onConflictDoUpdate({
-			set: values,
-			target: tmdbMapping.anilistId,
-		})
-		.returning();
-
-	if (!row) {
-		throw new Error(`Storing the TMDB mapping for anime ${entry.id} returned no row`);
-	}
-
-	return row;
-};
-
 /**
  * Resolves the entry's prequels and parents. Entries already being resolved
  * further up the chain are skipped, which breaks relation cycles.
@@ -142,6 +91,7 @@ const match = async (
 const predecessorMappings = async (
 	entry: FranchiseEntry,
 	resolving: ReadonlySet<number>,
+	resolve: (entry: FranchiseEntry, resolving: ReadonlySet<number>) => Promise<TmdbMapping>,
 ): Promise<Predecessor[]> => {
 	const edges = (entry.relations?.edges ?? []).flatMap((edge) => {
 		const relation = edge?.relationType;
@@ -168,7 +118,7 @@ const predecessorMappings = async (
 			predecessors.push({
 				mapping:
 					(await freshMapping(predecessor)) ??
-					(await match(predecessor, new Set([...resolving, predecessor.id]))),
+					(await resolve(predecessor, new Set([...resolving, predecessor.id]))),
 				relation: edge.relation,
 			});
 		}
@@ -240,6 +190,15 @@ const collectionPlacement = async (subject: MatchSubject, predecessors: readonly
 	}
 
 	return null;
+};
+
+/**
+ * The episode links of a TV mapping, validated because they come from a
+ * JSON column. A malformed value reads as no links.
+ */
+export const mappedEpisodes = (mapping: TmdbMapping): EpisodeLink[] => {
+	const parsed = EpisodeLinksSchema.safeParse(mapping.episodes);
+	return parsed.success ? parsed.data : [];
 };
 
 /**
@@ -351,13 +310,55 @@ const isShortRelease = (subject: MatchSubject) => {
 	return subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA";
 };
 
-/**
- * The episode links of a TV mapping, validated because they come from a
- * JSON column. A malformed value reads as no links.
- */
-export const mappedEpisodes = (mapping: TmdbMapping): EpisodeLink[] => {
-	const parsed = EpisodeLinksSchema.safeParse(mapping.episodes);
-	return parsed.success ? parsed.data : [];
+const match = async (
+	entry: FranchiseEntry,
+	resolving: ReadonlySet<number>,
+): Promise<TmdbMapping> => {
+	const subject = {
+		...toMatchSubject(entry, new Date()),
+		playbackEpisodes: await getAniKotoEpisodeCount(entry.id),
+	};
+	// Synonyms are too noisy to search with.
+	const queries = primaryTitlesOf(entry);
+	const predecessors = await predecessorMappings(entry, resolving, match);
+	const hint = await tmdbHintFor(entry.id);
+	const placement =
+		subject.format === "MOVIE"
+			? ((await bestMoviePlacement(subject, queries, hint)) ??
+				(await collectionPlacement(subject, predecessors)) ??
+				(await bestShowPlacement(subject, predecessors, hint, [])))
+			: ((await bestShowPlacement(subject, predecessors, hint, queries)) ??
+				(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null));
+
+	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
+	const values = {
+		episodeNumber: episodes[0]?.episodeNumber ?? null,
+		episodes,
+		mediaType: placement?.mediaType ?? null,
+		method: placement?.method ?? null,
+		resolvedAt: new Date(),
+		score: placement?.score ?? null,
+		seasonNumber: episodes[0]?.seasonNumber ?? null,
+		tmdbId: placement?.tmdbId ?? null,
+	};
+
+	const [row] = await db
+		.insert(tmdbMapping)
+		.values({
+			anilistId: entry.id,
+			...values,
+		})
+		.onConflictDoUpdate({
+			set: values,
+			target: tmdbMapping.anilistId,
+		})
+		.returning();
+
+	if (!row) {
+		throw new Error(`Storing the TMDB mapping for anime ${entry.id} returned no row`);
+	}
+
+	return row;
 };
 
 /**
