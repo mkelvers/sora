@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, inSequence } from "@sora/shared";
 import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
@@ -164,15 +164,12 @@ export const storeMissingBackdropEdges = async (): Promise<{
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
 		.where(isNull(imageEdge.url));
 
-	let stored = 0;
-	for (const { url } of rows) {
-		if (url && (await storeImageEdges(url))) {
-			stored += 1;
-		}
-	}
+	const urls = rows.flatMap(({ url }) => (url ? [url] : []));
+	const results = await inSequence(urls, (url) => storeImageEdges(url));
+	const stored = results.filter(Boolean).length;
 
 	return {
-		failed: rows.filter((row) => row.url).length - stored,
+		failed: urls.length - stored,
 		stored,
 	};
 };

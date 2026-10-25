@@ -2,6 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { firstInSequence } from "@sora/shared";
+
 import { isServedSubtitle } from "../providers/registry";
 import { readSubtitle } from "../proxy/proxy";
 import { mirrorsFor } from "../proxy/upstream";
@@ -33,13 +35,11 @@ const englishDialogue = async (
 		)
 		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
 
-	for (const { track, video } of tracks) {
+	const cues = await firstInSequence(tracks, async ({ track, video }) => {
 		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
-		if (content) {
-			return readCues(content);
-		}
-	}
-	return [];
+		return content ? readCues(content) : undefined;
+	});
+	return cues ?? [];
 };
 
 /**

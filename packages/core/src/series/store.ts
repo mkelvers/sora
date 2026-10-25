@@ -1,4 +1,4 @@
-import { defined } from "@sora/shared";
+import { defined, inSequence } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
@@ -159,9 +159,15 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
 			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
 		}));
-		for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
-			await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));
-		}
+		const insertBatches = Array.from(
+			{
+				length: Math.ceil(episodes.length / episodeInsertBatch),
+			},
+			(_, batch) => episodes.slice(batch * episodeInsertBatch, (batch + 1) * episodeInsertBatch),
+		);
+		await inSequence(insertBatches, async (batch) => {
+			await tx.insert(seriesEpisode).values(batch);
+		});
 
 		await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, id));
 		if (built.related.length > 0) {
@@ -190,9 +196,8 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 	// Episode listings read providers' episode lists from the database only.
 	await scheduleEpisodeLookups([anilistId], "backfill");
 
-	for (const id of await relatedWorthStoring(built.related.map((related) => related.anilistId))) {
-		await scheduleSeriesStore(id, "backfill");
-	}
+	const relatedIds = await relatedWorthStoring(built.related.map((related) => related.anilistId));
+	await inSequence(relatedIds, (id) => scheduleSeriesStore(id, "backfill"));
 
 	return seriesId;
 };

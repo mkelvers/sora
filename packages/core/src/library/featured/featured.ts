@@ -1,4 +1,4 @@
-import { defined } from "@sora/shared";
+import { defined, inSequence } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -97,9 +97,7 @@ const pickTitles = async (
 		.filter((entry) => entry.seriesId === null)
 		.toSorted((a, b) => b.popularity - a.popularity)
 		.slice(0, backfillPerPick);
-	for (const { anilistId } of unstored) {
-		await scheduleSeriesStore(anilistId, "backfill");
-	}
+	await inSequence(unstored, ({ anilistId }) => scheduleSeriesStore(anilistId, "backfill"));
 
 	// The seasons of a show are matched to one TMDB title, which names the show.
 	const skipped = new Set(longRunning.map((row) => row.key));

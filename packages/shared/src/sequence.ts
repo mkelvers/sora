@@ -22,7 +22,7 @@ export const inSequence = <TItem, TResult>(
 
 /**
  * Runs `work` on each item in turn until one resolves to something other
- * than `undefined`, and resolves to that; `undefined` when none does.
+ * than `undefined` or `null`, and resolves to that; `undefined` when none does.
  */
 export const firstInSequence = <TItem, TResult>(
 	items: readonly TItem[],

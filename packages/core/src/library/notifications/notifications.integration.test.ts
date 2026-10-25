@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { day, defined } from "@sora/shared";
+import { day, defined, inSequence } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
@@ -72,9 +72,9 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 			try {
 				if (anilistIds.length) {
 					await db.delete(episodeDub).where(inArray(episodeDub.anilistId, anilistIds));
-					for (const anilistId of anilistIds) {
+					await inSequence(anilistIds, async (anilistId) => {
 						await db.execute(sql`select graphile_worker.remove_job(${`episodes:${anilistId}`})`);
-					}
+					});
 				}
 				await db.delete(series).where(inArray(series.id, ids));
 			} finally {

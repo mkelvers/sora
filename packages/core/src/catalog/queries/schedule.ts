@@ -1,4 +1,4 @@
-import { hour } from "@sora/shared";
+import { hour, inSequence } from "@sora/shared";
 
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
@@ -34,34 +34,38 @@ export const fetchEpisodeAirings = async (
 ): Promise<Map<string, Date>> => {
 	const ids = [...new Set(anilistIds)];
 	const airings = new Map<string, Date>();
-	for (let offset = 0; offset < ids.length; offset += airingsBatchSize) {
-		const batch = ids.slice(offset, offset + airingsBatchSize);
-		for (let page = 1; ; page += 1) {
-			const { Page } = await anilist(
-				EpisodeAiringsDocument,
-				{
-					ids: batch,
-					page,
-				},
-				{
-					maxAgeMs: hour,
-				},
-			);
+	const readPage = async (batch: number[], page: number): Promise<void> => {
+		const { Page } = await anilist(
+			EpisodeAiringsDocument,
+			{
+				ids: batch,
+				page,
+			},
+			{
+				maxAgeMs: hour,
+			},
+		);
 
-			for (const entry of Page?.airingSchedules ?? []) {
-				if (entry) {
-					airings.set(
-						anilistEpisodeKey(entry.mediaId, entry.episode),
-						new Date(entry.airingAt * 1000),
-					);
-				}
-			}
-
-			if (!Page?.pageInfo?.hasNextPage) {
-				break;
+		for (const entry of Page?.airingSchedules ?? []) {
+			if (entry) {
+				airings.set(
+					anilistEpisodeKey(entry.mediaId, entry.episode),
+					new Date(entry.airingAt * 1000),
+				);
 			}
 		}
-	}
+
+		if (Page?.pageInfo?.hasNextPage) {
+			await readPage(batch, page + 1);
+		}
+	};
+	const batches = Array.from(
+		{
+			length: Math.ceil(ids.length / airingsBatchSize),
+		},
+		(_, index) => ids.slice(index * airingsBatchSize, (index + 1) * airingsBatchSize),
+	);
+	await inSequence(batches, (batch) => readPage(batch, 1));
 
 	return airings;
 };

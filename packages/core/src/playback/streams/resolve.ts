@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { attempt, second, defined } from "@sora/shared";
+import { attempt, second, defined, firstInSequence } from "@sora/shared";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -446,15 +446,15 @@ const resolveVersion = async (
 	// is asked only when an earlier one fails.
 	const lists = ({ unit }: (typeof candidates)[number]) =>
 		!unit.languages || unit.languages.includes(language);
-	for (const { provider, unit } of candidates.filter(lists)) {
-		const found = await resolveWith(provider, unit);
-		if (found) {
-			return {
-				...found,
-				attempts,
-				listed,
-			};
-		}
+	const foundInOrder = await firstInSequence(candidates.filter(lists), ({ provider, unit }) =>
+		resolveWith(provider, unit),
+	);
+	if (foundInOrder) {
+		return {
+			...foundInOrder,
+			attempts,
+			listed,
+		};
 	}
 
 	// The rest are asked at once, since most leave the version out because

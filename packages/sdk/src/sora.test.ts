@@ -140,31 +140,25 @@ describe("SoraClient.request", () => {
 		expect(error?.code).toBe("SERIES_NOT_FOUND");
 	});
 
-	test("keeps malformed failure bodies as HTTP errors", async () => {
-		for (const body of [
-			null,
-			[],
-			"Bad gateway",
-			{ detail: 502 },
-			{ code: 502 },
-			{
-				message: { text: "Bad gateway" },
-			},
-			{ errors: "Bad gateway" },
-			{
-				errors: [{ path: "email" }],
-			},
-		]) {
-			const { sora } = clientAnswering(() =>
-				Response.json(body, { status: 502, statusText: "Bad Gateway" }),
-			);
-			const { error } = await attempt(sora.request(route.listGenres), SoraError);
+	test.each([
+		[null],
+		[[]],
+		["Bad gateway"],
+		[{ detail: 502 }],
+		[{ code: 502 }],
+		[{ message: { text: "Bad gateway" } }],
+		[{ errors: "Bad gateway" }],
+		[{ errors: [{ path: "email" }] }],
+	])("keeps a malformed failure body as an HTTP error: %j", async (body) => {
+		const { sora } = clientAnswering(() =>
+			Response.json(body, { status: 502, statusText: "Bad Gateway" }),
+		);
+		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
-			expect(error?.status).toBe(502);
-			expect(error?.code).toBe("HTTP_ERROR");
-			expect(error?.message).toBe("The API answered 502 Bad Gateway");
-			expect(error?.errors).toEqual([]);
-		}
+		expect(error?.status).toBe(502);
+		expect(error?.code).toBe("HTTP_ERROR");
+		expect(error?.message).toBe("The API answered 502 Bad Gateway");
+		expect(error?.errors).toEqual([]);
 	});
 
 	test("keeps Better Auth's error message and code", async () => {
