@@ -215,8 +215,9 @@ const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Header
 
 	if (isDisguisedSegment(first.value)) {
 		const chunks = [first.value];
-		for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-			chunks.push(chunk.value);
+		reader.releaseLock();
+		for await (const chunk of body) {
+			chunks.push(chunk);
 		}
 
 		const segment = unwrapDisguisedSegment(Buffer.concat(chunks));

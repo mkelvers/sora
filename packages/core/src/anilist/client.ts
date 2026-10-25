@@ -327,43 +327,50 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		recentSends,
 	});
 
+	const sendWaiting = async (): Promise<void> => {
+		if (waiting.length === 0) {
+			return;
+		}
+
+		// Picked only once its turn comes, so a more urgent request queued
+		// during the wait goes first.
+		const [next] = waiting;
+		const wait = next ? waitToSend(next.priority, Date.now(), limiterState()) : 0;
+		if (wait > 0) {
+			const waking = new AbortController();
+			wake = () => waking.abort();
+			await attempt(
+				sleep(wait, undefined, {
+					signal: waking.signal,
+				}),
+			);
+			wake = null;
+			await sendWaiting();
+			return;
+		}
+
+		const request = waiting.shift();
+		const sentAt = Date.now();
+		recentSends = recentSends.filter((earlier) => earlier > sentAt - minuteMs);
+		recentSends.push(sentAt);
+		// Counted until AniList's response reports the budget itself.
+		if (budget && sentAt < budget.resetAt) {
+			budget = {
+				remaining: budget.remaining - 1,
+				resetAt: budget.resetAt,
+			};
+		}
+		await request?.send();
+		await sendWaiting();
+	};
+
 	const drain = async () => {
 		if (isDraining) {
 			return;
 		}
 
 		isDraining = true;
-		while (waiting.length > 0) {
-			// Picked only once its turn comes, so a more urgent request queued
-			// during the wait goes first.
-			const [next] = waiting;
-			const wait = next ? waitToSend(next.priority, Date.now(), limiterState()) : 0;
-			if (wait > 0) {
-				const waking = new AbortController();
-				wake = () => waking.abort();
-				await attempt(
-					sleep(wait, undefined, {
-						signal: waking.signal,
-					}),
-				);
-				wake = null;
-				continue;
-			}
-
-			const request = waiting.shift();
-			const sentAt = Date.now();
-			recentSends = recentSends.filter((earlier) => earlier > sentAt - minuteMs);
-			recentSends.push(sentAt);
-			// Counted until AniList's response reports the budget itself.
-			if (budget && sentAt < budget.resetAt) {
-				budget = {
-					remaining: budget.remaining - 1,
-					resetAt: budget.resetAt,
-				};
-			}
-			await request?.send();
-		}
-
+		await sendWaiting();
 		isDraining = false;
 	};
 

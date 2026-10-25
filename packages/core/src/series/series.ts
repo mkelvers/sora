@@ -183,8 +183,11 @@ const releaseOrder = (entry: FranchiseEntry) => {
 /** The release a franchise starts with: the earliest prequel of the earliest prequel, and so on. */
 const firstRelease = async (entry: FranchiseEntry) => {
 	const visited = new Set([entry.id]);
-	let current = entry;
-	for (let depth = 0; depth < 12; depth += 1) {
+	const earliestFrom = async (current: FranchiseEntry, depth: number): Promise<FranchiseEntry> => {
+		if (depth >= 12) {
+			return current;
+		}
+
 		const ids = (current.relations?.edges ?? []).flatMap((edge) =>
 			edge?.relationType === "PREQUEL" && edge.node?.type === "ANIME" && !visited.has(edge.node.id)
 				? [edge.node.id]
@@ -200,10 +203,10 @@ const firstRelease = async (entry: FranchiseEntry) => {
 		}
 
 		visited.add(earliest.id);
-		current = earliest;
-	}
+		return await earliestFrom(earliest, depth + 1);
+	};
 
-	return current;
+	return await earliestFrom(entry, 0);
 };
 
 /**

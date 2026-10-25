@@ -187,52 +187,56 @@ const requestPublicHost = (
 };
 
 const fetchFollowingRedirects = async (
-	start: string,
+	url: string,
 	headers: Headers,
 	timeoutMs: number,
 	signal?: AbortSignal,
+	redirects = 0,
 ): Promise<Upstream> => {
-	let url = start;
-
-	for (let redirects = 0; redirects <= maximumRedirects; redirects += 1) {
-		assertPublicHttpUrl(url);
-
-		const { data, error } = await attempt(
-			requestPublicHost(
-				url,
-				headers,
-				signal
-					? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-					: AbortSignal.timeout(timeoutMs),
-			),
-		);
-		if (error) {
-			throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
-				cause: error,
-			});
-		}
-
-		const location = data.headers.get("Location");
-		if (data.status >= 300 && data.status < 400 && location) {
-			// Each hop is re-checked, so a redirect cannot reach a private address.
-			url = new URL(location, url).toString();
-			continue;
-		}
-
-		if (!data.ok) {
-			throw new StreamUpstreamError(
-				`Upstream ${new URL(url).host} returned ${data.status}`,
-				data.status,
-			);
-		}
-
-		return {
-			response: data,
-			url,
-		};
+	if (redirects > maximumRedirects) {
+		throw new StreamUpstreamError("Upstream stream redirected too many times", null);
 	}
 
-	throw new StreamUpstreamError("Upstream stream redirected too many times", null);
+	assertPublicHttpUrl(url);
+
+	const { data, error } = await attempt(
+		requestPublicHost(
+			url,
+			headers,
+			signal
+				? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+				: AbortSignal.timeout(timeoutMs),
+		),
+	);
+	if (error) {
+		throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
+			cause: error,
+		});
+	}
+
+	const location = data.headers.get("Location");
+	if (data.status >= 300 && data.status < 400 && location) {
+		// Each hop is re-checked, so a redirect cannot reach a private address.
+		return await fetchFollowingRedirects(
+			new URL(location, url).toString(),
+			headers,
+			timeoutMs,
+			signal,
+			redirects + 1,
+		);
+	}
+
+	if (!data.ok) {
+		throw new StreamUpstreamError(
+			`Upstream ${new URL(url).host} returned ${data.status}`,
+			data.status,
+		);
+	}
+
+	return {
+		response: data,
+		url,
+	};
 };
 
 /**
