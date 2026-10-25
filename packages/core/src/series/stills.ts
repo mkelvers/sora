@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -11,7 +11,7 @@ import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
 const stillsLooked = 8;
 
 const loadStill = async (path: string): Promise<Buffer> => {
-	const url = tmdbImageUrl(path, "w780")!;
+	const url = defined(tmdbImageUrl(path, "w780"));
 	const response = await fetch(url, {
 		signal: AbortSignal.timeout(10_000),
 	});

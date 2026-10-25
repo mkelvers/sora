@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 /** One cue of a WebVTT file, with its text stripped of markup. */
 export interface Cue {
 	start: number;
@@ -39,15 +40,15 @@ export const splitBlocks = (content: string) => content.split(/\r?\n\r?\n/u);
  */
 export const readTiming = (block: string) => {
 	const match = timing.exec(block);
-	const start = match && parseTimestamp(match[1]!);
-	const end = match && parseTimestamp(match[2]!);
+	const start = match && parseTimestamp(defined(match[1]));
+	const end = match && parseTimestamp(defined(match[2]));
 	if (!match || start === null || end === null) {
 		return null;
 	}
 
 	return {
 		end,
-		settings: match[3]!,
+		settings: defined(match[3]),
 		start,
 	};
 };

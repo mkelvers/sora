@@ -1,4 +1,4 @@
-import { second } from "@sora/shared";
+import { second, defined } from "@sora/shared";
 
 import { unwrapDisguisedSegment } from "../proxy/segment";
 import type { StreamTarget } from "../proxy/token";
@@ -47,9 +47,9 @@ const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 		...master.text.matchAll(/^#EXT-X-STREAM-INF:(?<attributes>[^\n]*)\n\s*(?<uri>[^#\s][^\n]*)/gmu),
 	].map(([, attributes, uri]) => ({
 		bandwidth: Number(
-			/BANDWIDTH=(?<bandwidth>\d+)/u.exec(attributes!)?.[1] ?? Number.POSITIVE_INFINITY,
+			/BANDWIDTH=(?<bandwidth>\d+)/u.exec(defined(attributes))?.[1] ?? Number.POSITIVE_INFINITY,
 		),
-		url: new URL(uri!.trim(), master.url).toString(),
+		url: new URL(defined(uri).trim(), master.url).toString(),
 	}));
 	const lowest = variants.toSorted((a, b) => a.bandwidth - b.bandwidth)[0];
 	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
@@ -122,7 +122,8 @@ export const extractAudio = async (
 	try {
 		const fetching = new Map<number, Promise<Uint8Array>>();
 		const fetchSegment = (index: number) => {
-			const promise = fetching.get(index) ?? readWithRetries(segments[index]!, media.url, headers);
+			const promise =
+				fetching.get(index) ?? readWithRetries(defined(segments[index]), media.url, headers);
 			fetching.set(index, promise);
 			return promise;
 		};

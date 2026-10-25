@@ -1,7 +1,7 @@
 import { env } from "$env/dynamic/private";
 import { knownProfiles } from "$lib/server/sora";
 import { route, SoraClient, SoraError } from "@sora/sdk";
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit";
 
@@ -11,10 +11,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get("sora_session");
 	if (token) {
 		const sora = new SoraClient({
-			baseUrl: env.SORA_API_URL!,
+			baseUrl: defined(env.SORA_API_URL),
 			headers: {
 				Authorization: `Bearer ${token}`,
-				"X-Sora-Client-Key": env.WEB_CLIENT_KEY!,
+				"X-Sora-Client-Key": defined(env.WEB_CLIENT_KEY),
 			},
 		});
 

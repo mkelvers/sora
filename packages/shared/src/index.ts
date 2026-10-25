@@ -89,4 +89,16 @@ interface Settle {
 
 export const attempt = settle as Settle;
 
+/**
+ * The value, narrowed to exclude `null` and `undefined`, or an error when it
+ * is absent. For a value the surrounding code guarantees, such as an array
+ * item at an index already checked against its length.
+ */
+export const defined = <TValue>(value: TValue | null | undefined): TValue => {
+	if (value === null || value === undefined) {
+		throw new TypeError("Expected a value, found none");
+	}
+	return value;
+};
+
 export * from "./time";

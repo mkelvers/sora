@@ -1,4 +1,4 @@
-import { attempt, second } from "@sora/shared";
+import { attempt, second, defined } from "@sora/shared";
 import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
@@ -351,7 +351,7 @@ const resolveVersion = async (
 		unit: ProviderUnit;
 	}[] = [];
 	for (const [index, provider] of asked.entries()) {
-		const units = unitLists[index]!;
+		const units = defined(unitLists[index]);
 		if (units.error) {
 			fail(provider, units.error.message);
 			continue;

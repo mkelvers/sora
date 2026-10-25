@@ -1,3 +1,5 @@
+import { defined } from "@sora/shared";
+
 import { shiftTime } from "../streams/align";
 import type { TimelineShift } from "../streams/align";
 import type { CueAnchor } from "../subtitles/refine";
@@ -12,7 +14,7 @@ const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
 	let high = anchors.length;
 	while (low < high) {
 		const middle = Math.floor((low + high) / 2);
-		if (anchors[middle]!.start < start) {
+		if (defined(anchors[middle]).start < start) {
 			low = middle + 1;
 		} else {
 			high = middle;

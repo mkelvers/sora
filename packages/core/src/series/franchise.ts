@@ -1,3 +1,5 @@
+import { defined } from "@sora/shared";
+
 import type { AnimeFormat } from "../catalog/models/anime";
 import type { FranchisePart } from "../models/series";
 
@@ -38,7 +40,7 @@ const withoutPrefix = (title: string, prefix: string) => {
 	const characters = [...title];
 	let index = 0;
 	for (const expected of wanted) {
-		while (index < characters.length && !isWordCharacter(characters[index]!)) {
+		while (index < characters.length && !isWordCharacter(defined(characters[index]))) {
 			index += 1;
 		}
 
@@ -49,7 +51,7 @@ const withoutPrefix = (title: string, prefix: string) => {
 		index += 1;
 	}
 
-	if (index < characters.length && isWordCharacter(characters[index]!)) {
+	if (index < characters.length && isWordCharacter(defined(characters[index]))) {
 		return null;
 	}
 

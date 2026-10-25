@@ -1,4 +1,4 @@
-import { attempt, day } from "@sora/shared";
+import { attempt, day, defined } from "@sora/shared";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -164,7 +164,7 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
 	return [...audioByEpisodes].map(([episodes, audio]) => ({
 		audio,
 		episodes,
-		series: versions[0]!.series,
+		series: defined(versions[0]).series,
 	}));
 };
 

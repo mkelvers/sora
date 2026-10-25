@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 /**
  * From a point on one timeline on, how far the same picture sits on another,
  * in seconds.
@@ -24,7 +25,7 @@ const nearest = (sorted: number[], time: number) => {
 	let high = sorted.length;
 	while (low < high) {
 		const middle = Math.floor((low + high) / 2);
-		if (sorted[middle]! < time) {
+		if (defined(sorted[middle]) < time) {
 			low = middle + 1;
 		} else {
 			high = middle;
@@ -72,19 +73,19 @@ const candidateOffsets = (source: number[], target: number[]) => {
  * per change (Viterbi).
  */
 export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPenalty) => {
-	let scores = matches[0]!.map(Number);
+	let scores = defined(matches[0]).map(Number);
 	const cameFrom: number[][] = [];
 
 	for (const row of matches.slice(1)) {
 		const leader = scores.indexOf(Math.max(...scores));
-		const switched = scores[leader]! - switchPenalty;
+		const switched = defined(scores[leader]) - switchPenalty;
 		cameFrom.push(scores.map((stay, choice) => (stay >= switched ? choice : leader)));
 		scores = scores.map((stay, choice) => Math.max(stay, switched) + Number(row[choice]));
 	}
 
 	const path = [scores.indexOf(Math.max(...scores))];
 	for (const step of cameFrom.toReversed()) {
-		path.unshift(step[path[0]!]!);
+		path.unshift(defined(step[defined(path[0])]));
 	}
 	return path;
 };
@@ -130,10 +131,10 @@ export const alignTimelines = (source: number[], target: number[]): TimelineShif
 
 	const shifts: TimelineShift[] = [];
 	path.forEach((choice, index) => {
-		const offset = offsets[choice]!;
+		const offset = defined(offsets[choice]);
 		if (shifts.at(-1)?.offset !== offset) {
 			shifts.push({
-				from: index === 0 ? 0 : source[index]!,
+				from: index === 0 ? 0 : defined(source[index]),
 				offset,
 			});
 		}

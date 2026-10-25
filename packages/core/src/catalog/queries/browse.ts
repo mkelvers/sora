@@ -1,4 +1,4 @@
-import { day, hour, minute } from "@sora/shared";
+import { day, hour, minute, defined } from "@sora/shared";
 import { and, eq, isNotNull, lte } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -112,7 +112,7 @@ const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;
 
 /** The season `now` falls in: winter is January to March, and so on. Counted in UTC. */
 export const currentSeason = (now = new Date()): AnimeSeason => ({
-	season: seasonOrder[Math.floor(now.getUTCMonth() / 3)]!,
+	season: defined(seasonOrder[Math.floor(now.getUTCMonth() / 3)]),
 	year: now.getUTCFullYear(),
 });
 
@@ -124,7 +124,7 @@ export const nextSeason = (season: AnimeSeason): AnimeSeason =>
 				year: season.year + 1,
 			}
 		: {
-				season: seasonOrder[seasonOrder.indexOf(season.season) + 1]!,
+				season: defined(seasonOrder[seasonOrder.indexOf(season.season) + 1]),
 				year: season.year,
 			};
 

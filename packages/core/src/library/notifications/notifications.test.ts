@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { defined } from "@sora/shared";
+
 import { groupNotifications } from "./notifications";
 import type { ReleasedEpisode } from "./notifications";
 
@@ -112,7 +114,7 @@ describe("groupNotifications", () => {
 		const before = groupNotifications(released("slime", 4, 4, monday));
 		const after = groupNotifications(released("slime", 4, 4, tuesday));
 
-		expect(after[0]!.id).toBe(before[0]!.id);
+		expect(defined(after[0]).id).toBe(defined(before[0]).id);
 	});
 
 	test("leaves out deleted notifications and marks read ones", () => {

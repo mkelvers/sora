@@ -1,4 +1,4 @@
-import { attempt, day, hour, minute } from "@sora/shared";
+import { attempt, day, hour, minute, defined } from "@sora/shared";
 import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
@@ -383,15 +383,19 @@ const editDistance = (left: string, right: string) => {
 	for (let i = 1; i <= a.length; i += 1) {
 		for (let j = 1; j <= b.length; j += 1) {
 			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-			let best = Math.min(rows[i - 1]![j]! + 1, rows[i]![j - 1]! + 1, rows[i - 1]![j - 1]! + cost);
+			let best = Math.min(
+				defined(defined(rows[i - 1])[j]) + 1,
+				defined(defined(rows[i])[j - 1]) + 1,
+				defined(defined(rows[i - 1])[j - 1]) + cost,
+			);
 			if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-				best = Math.min(best, rows[i - 2]![j - 2]! + 1);
+				best = Math.min(best, defined(defined(rows[i - 2])[j - 2]) + 1);
 			}
-			rows[i]![j] = best;
+			defined(rows[i])[j] = best;
 		}
 	}
 
-	return rows[a.length]![b.length]!;
+	return defined(defined(rows[a.length])[b.length]);
 };
 
 /**

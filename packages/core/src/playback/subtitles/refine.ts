@@ -1,3 +1,5 @@
+import { defined } from "@sora/shared";
+
 import { bestPath, shiftTime } from "../streams/align";
 import type { TimelineShift } from "../streams/align";
 import type { Cue } from "./vtt";
@@ -135,8 +137,8 @@ const phrasesOf = (words: SpokenWord[]) => {
 		const next = words[index + 1];
 		const ends =
 			!next ||
-			next.start - words[index]!.end > 0.35 ||
-			/[.?!…]["')\]]?$/u.test(words[index]!.text.trim()) ||
+			next.start - defined(words[index]).end > 0.35 ||
+			/[.?!…]["')\]]?$/u.test(defined(words[index]).text.trim()) ||
 			index - first >= 24;
 		if (ends) {
 			phrases.push({
@@ -157,14 +159,14 @@ const editDistance = (left: string, right: string) => {
 		const next = [i];
 		for (let j = 1; j <= right.length; j += 1) {
 			next[j] = Math.min(
-				row[j]! + 1,
-				next[j - 1]! + 1,
-				row[j - 1]! + (left[i - 1] === right[j - 1] ? 0 : 1),
+				defined(row[j]) + 1,
+				defined(next[j - 1]) + 1,
+				defined(row[j - 1]) + (left[i - 1] === right[j - 1] ? 0 : 1),
 			);
 		}
 		row = next;
 	}
-	return row[right.length]!;
+	return defined(row[right.length]);
 };
 
 /** Whether two stems are one word, allowing for a mishearing in a long one. */
@@ -190,7 +192,7 @@ const sharedWeight = (left: Token[], right: Token[]) => {
 		const match = right.findIndex((other, index) => free[index] && same(token.stem, other.stem));
 		if (match !== -1) {
 			free[match] = false;
-			shared += Math.min(token.weight, right[match]!.weight);
+			shared += Math.min(token.weight, defined(right[match]).weight);
 		}
 	}
 	return shared;
@@ -205,7 +207,7 @@ const dice = (left: Token[], right: Token[]) =>
 
 const median = (values: number[]) => {
 	const sorted = values.toSorted((a, b) => a - b);
-	return sorted[Math.floor(sorted.length / 2)]!;
+	return defined(sorted[Math.floor(sorted.length / 2)]);
 };
 
 /**
@@ -226,15 +228,15 @@ const voteOffsets = (
 	);
 
 	const votes = cues.map((cue, index) => {
-		const tokens = cueTokens[index]!;
+		const tokens = defined(cueTokens[index]);
 		if (weightOf(tokens) < 1.5) {
 			return [];
 		}
 
 		return phrases
 			.map((phrase, other) => ({
-				offset: words[phrase.first]!.start - cue.start,
-				score: dice(tokens, phraseTokens[other]!),
+				offset: defined(words[phrase.first]).start - cue.start,
+				score: dice(tokens, defined(phraseTokens[other])),
 			}))
 			.filter((vote) => vote.score >= voteScore)
 			.sort((a, b) => b.score - a.score)
@@ -286,10 +288,10 @@ const voteOffsets = (
 
 	const shifts: TimelineShift[] = [];
 	path.forEach((choice, index) => {
-		const offset = offsets[choice]!;
+		const offset = defined(offsets[choice]);
 		if (shifts.at(-1)?.offset !== offset) {
 			shifts.push({
-				from: index === 0 ? 0 : cues[index]!.start,
+				from: index === 0 ? 0 : defined(cues[index]).start,
 				offset,
 			});
 		}
@@ -303,7 +305,7 @@ const firstStartingAfter = (words: SpokenWord[], time: number) => {
 	let high = words.length;
 	while (low < high) {
 		const middle = Math.floor((low + high) / 2);
-		if (words[middle]!.start < time) {
+		if (defined(words[middle]).start < time) {
 			low = middle + 1;
 		} else {
 			high = middle;
@@ -347,14 +349,17 @@ const candidatesFor = (
 		first < words.length;
 		first += 1
 	) {
-		const { start } = words[first]!;
+		const { start } = defined(words[first]);
 		if (start > expected + searchSeconds) {
 			break;
 		}
 
 		const run: Token[] = [];
 		for (let last = first; last < Math.min(words.length, first + longest); last += 1) {
-			if (last > first && words[last]!.start - words[last - 1]!.end > pauseSeconds) {
+			if (
+				last > first &&
+				defined(words[last]).start - defined(words[last - 1]).end > pauseSeconds
+			) {
 				break;
 			}
 
@@ -405,7 +410,7 @@ const pickAnchors = (
 	voted: TimelineShift[],
 ) => {
 	const candidates = cues.map((cue, index) =>
-		candidatesFor(cue, index, cueTokens[index]!, words, spoken, offsetAt(voted, cue.start)),
+		candidatesFor(cue, index, defined(cueTokens[index]), words, spoken, offsetAt(voted, cue.start)),
 	);
 
 	const best: { total: number; before: [number, number] | null }[][] = candidates.map((row) =>
@@ -416,26 +421,26 @@ const pickAnchors = (
 	);
 	let top: [number, number] | null = null;
 	for (let cue = 0; cue < cues.length; cue += 1) {
-		for (const [index, candidate] of candidates[cue]!.entries()) {
-			const entry = best[cue]![index]!;
+		for (const [index, candidate] of defined(candidates[cue]).entries()) {
+			const entry = defined(defined(best[cue])[index]);
 			for (let earlier = Math.max(0, cue - lookback); earlier < cue; earlier += 1) {
-				for (const [other, previous] of candidates[earlier]!.entries()) {
-					const total = best[earlier]![other]!.total + candidate.score;
+				for (const [other, previous] of defined(candidates[earlier]).entries()) {
+					const total = defined(defined(best[earlier])[other]).total + candidate.score;
 					if (previous.last <= candidate.first && total > entry.total) {
 						entry.total = total;
 						entry.before = [earlier, other];
 					}
 				}
 			}
-			if (!top || entry.total > best[top[0]]![top[1]]!.total) {
+			if (!top || entry.total > defined(defined(best[top[0]])[top[1]]).total) {
 				top = [cue, index];
 			}
 		}
 	}
 
 	const picked: Pick[] = [];
-	for (let at = top; at; at = best[at[0]]![at[1]]!.before) {
-		picked.unshift(candidates[at[0]]![at[1]]!);
+	for (let at = top; at; at = defined(defined(best[at[0]])[at[1]]).before) {
+		picked.unshift(defined(defined(candidates[at[0]])[at[1]]));
 	}
 	return picked;
 };
@@ -481,14 +486,14 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
  * takes to read, though never longer than it was.
  */
 const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
-	const movedStart = Math.max(0, words[first]!.start - lead);
+	const movedStart = Math.max(0, defined(words[first]).start - lead);
 	const readable = Math.min(
 		cue.end - cue.start,
 		Math.max(minimumShowSeconds, cue.text.length / readingRate),
 	);
 	return {
 		cue: index,
-		movedEnd: Math.max(words[last]!.end + tail, movedStart + readable),
+		movedEnd: Math.max(defined(words[last]).end + tail, movedStart + readable),
 		movedStart,
 	};
 };
@@ -511,7 +516,7 @@ const place = (
 	picked: Pick[],
 ) =>
 	picked.map((pick): Placed => {
-		const tokens = cueTokens[pick.cue]!;
+		const tokens = defined(cueTokens[pick.cue]);
 		const shared = (index: number) => {
 			const token = spoken[index];
 			return !!token && tokens.some((other) => same(other.stem, token.stem));
@@ -525,7 +530,7 @@ const place = (
 			last -= 1;
 		}
 
-		return showFor(cues[pick.cue]!, pick.cue, words, first, last);
+		return showFor(defined(cues[pick.cue]), pick.cue, words, first, last);
 	});
 
 /**
@@ -538,15 +543,15 @@ const tidy = (cues: Cue[], placed: Placed[]) => {
 	let before: Placed | null = null;
 	for (const next of placed.toSorted((a, b) => a.cue - b.cue)) {
 		const previous = anchors.at(-1);
-		const together = before && cues[next.cue]!.start < cues[before.cue]!.end - 0.05;
+		const together = before && defined(cues[next.cue]).start < defined(cues[before.cue]).end - 0.05;
 		if (previous && !together && next.movedStart < previous.movedEnd) {
 			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
 		}
 		anchors.push({
-			end: cues[next.cue]!.end,
+			end: defined(cues[next.cue]).end,
 			movedEnd: next.movedEnd,
 			movedStart: next.movedStart,
-			start: cues[next.cue]!.start,
+			start: defined(cues[next.cue]).start,
 		});
 		before = next;
 	}
@@ -572,8 +577,8 @@ const placeByTime = (
 ) => {
 	const runs = phrasesOf(words).map((run) => ({
 		...run,
-		end: words[run.last]!.end,
-		start: words[run.first]!.start,
+		end: defined(words[run.last]).end,
+		start: defined(words[run.first]).start,
 	}));
 	const claimedCues = new Set(matched.map((placed) => placed.cue));
 	const free = runs.filter(
@@ -587,7 +592,7 @@ const placeByTime = (
 
 	const claims = new Map<(typeof runs)[number], number[]>();
 	for (const [index, cue] of cues.entries()) {
-		if (claimedCues.has(index) || weightOf(cueTokens[index]!) < 0.5) {
+		if (claimedCues.has(index) || weightOf(defined(cueTokens[index])) < 0.5) {
 			continue;
 		}
 
@@ -619,16 +624,16 @@ const placeByTime = (
 
 	return [...claims].flatMap(([run, claiming]) => {
 		const count = run.last - run.first + 1;
-		const total = claiming.reduce((sum, index) => sum + cues[index]!.text.length, 0);
+		const total = claiming.reduce((sum, index) => sum + defined(cues[index]).text.length, 0);
 		let passed = 0;
 		let { first } = run;
 		return claiming.map((index, position) => {
-			passed += cues[index]!.text.length;
+			passed += defined(cues[index]).text.length;
 			const last =
 				position === claiming.length - 1
 					? run.last
 					: Math.max(first, run.first + Math.round((passed / total) * count) - 1);
-			const placed = showFor(cues[index]!, index, words, first, last);
+			const placed = showFor(defined(cues[index]), index, words, first, last);
 			first = Math.min(run.last, last + 1);
 			return placed;
 		});

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
+import { defined } from "@sora/shared";
+
 import { anime } from "../../catalog/models/anime.fixture";
 import { EpisodeNotFoundError, PlaybackUnavailableError } from "../../errors";
 import type { SkipSegment } from "../../models/playback";
@@ -170,7 +172,7 @@ const boundaries = (seed: number) => {
 	let state = seed;
 	for (let index = 1; index < 300; index += 1) {
 		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
-		times.push(times.at(-1)! + 1 + (state % 9000) / 1000);
+		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
 	}
 	return times;
 };

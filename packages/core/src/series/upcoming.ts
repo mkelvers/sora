@@ -1,4 +1,4 @@
-import { day } from "@sora/shared";
+import { day, defined } from "@sora/shared";
 import { and, eq, inArray, not, sql } from "drizzle-orm";
 
 import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
@@ -139,7 +139,7 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 		soon.map(({ entry }) => earliestReleased(entry.series.anilistId)),
 	);
 	for (const [index, { entry, startDate }] of soon.entries()) {
-		const caughtUpOn = caughtUp[index]!;
+		const caughtUpOn = defined(caughtUp[index]);
 		const row = caughtUpOn ?? entry.series;
 		const known = listed.get(row.id);
 		listed.set(row.id, {

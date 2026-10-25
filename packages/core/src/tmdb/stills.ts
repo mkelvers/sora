@@ -1,5 +1,5 @@
 import { env, pipeline, RawImage } from "@huggingface/transformers";
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
 
@@ -68,7 +68,7 @@ export const rankStills = (
 		const rightTier = tier(right);
 		for (const [index, value] of leftTier.entries()) {
 			if (value !== rightTier[index]) {
-				return value - rightTier[index]!;
+				return value - defined(rightTier[index]);
 			}
 		}
 
@@ -113,14 +113,14 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 					(_, index) => at(line, index),
 				).toSorted((left, right) => left - right);
 				return {
-					brightest: values[Math.floor(length * 0.98)]!,
+					brightest: defined(values[Math.floor(length * 0.98)]),
 					mean: values.reduce((sum, value) => sum + value, 0) / length,
 				};
 			},
 		);
 	const depth = (edge: { brightest: number; mean: number }[]) => {
 		let bar = 0;
-		while (bar < edge.length && edge[bar]!.brightest < blackLuma) {
+		while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
 			bar += 1;
 		}
 		if (bar === 0 || bar > edge.length * widestBar) {
@@ -132,15 +132,11 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 		return outside - inside >= barStep ? bar / edge.length : 0;
 	};
 
-	const rows = lines(
-		measuredHeight,
-		measuredWidth,
-		(line, index) => data[line * measuredWidth + index]!,
+	const rows = lines(measuredHeight, measuredWidth, (line, index) =>
+		defined(data[line * measuredWidth + index]),
 	);
-	const columns = lines(
-		measuredWidth,
-		measuredHeight,
-		(line, index) => data[index * measuredWidth + line]!,
+	const columns = lines(measuredWidth, measuredHeight, (line, index) =>
+		defined(data[index * measuredWidth + line]),
 	);
 	return Math.max(
 		depth(rows),

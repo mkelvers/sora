@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { defined } from "@sora/shared";
+
 import { refineCues } from "./refine";
 import type { SpokenWord } from "./refine";
 import type { Cue } from "./vtt";
@@ -42,7 +44,7 @@ describe("refineCues", () => {
 		const refinement = refineCues(cues, speech(cues, 10.4), null);
 
 		expect(refinement?.anchors).toHaveLength(30);
-		const [first, second] = refinement!.anchors;
+		const [first, second] = defined(refinement).anchors;
 		expect(first?.movedStart).toBeCloseTo(10.4 - 0.15, 2);
 		expect(first?.movedEnd).toBeCloseTo(10.4 + 1.5 + 0.25, 2);
 		expect(second?.movedStart).toBeCloseTo(5 + 10.4 - 0.15, 2);
@@ -63,9 +65,9 @@ describe("refineCues", () => {
 		}));
 		const refinement = refineCues(cues, speech(cues, 0.3, 1.2), null);
 
-		const [anchor] = refinement!.anchors;
-		expect(anchor!.movedEnd - anchor!.movedStart).toBeLessThan(2);
-		expect(anchor!.end - anchor!.start).toBeCloseTo(4.8, 5);
+		const [anchor] = defined(refinement).anchors;
+		expect(defined(anchor).movedEnd - defined(anchor).movedStart).toBeLessThan(2);
+		expect(defined(anchor).end - defined(anchor).start).toBeCloseTo(4.8, 5);
 	});
 
 	test("leaves a cue nobody says, such as a sign, to the offset", () => {
@@ -124,8 +126,8 @@ describe("refineCues", () => {
 		const cues = script(30);
 		const refinement = refineCues(cues, speech(cues, 1, 4.5), null);
 
-		for (const [index, anchor] of refinement!.anchors.entries()) {
-			const next = refinement!.anchors[index + 1];
+		for (const [index, anchor] of defined(refinement).anchors.entries()) {
+			const next = defined(refinement).anchors[index + 1];
 			if (next) {
 				expect(anchor.movedEnd).toBeLessThanOrEqual(next.movedStart);
 			}
@@ -134,12 +136,12 @@ describe("refineCues", () => {
 
 	test("leaves cues that show together in the sub showing together", () => {
 		const cues = script(30);
-		cues.splice(5, 0, { ...cues[5]! });
+		cues.splice(5, 0, { ...defined(cues[5]) });
 		const refinement = refineCues(cues, speech(cues, 1), null);
 
-		const [first, second] = refinement!.anchors.filter((anchor) => anchor.start === 25);
-		expect(first!.movedEnd - first!.movedStart).toBeGreaterThan(1.5);
-		expect(second!.movedStart).toBeCloseTo(first!.movedStart, 5);
+		const [first, second] = defined(refinement).anchors.filter((anchor) => anchor.start === 25);
+		expect(defined(first).movedEnd - defined(first).movedStart).toBeGreaterThan(1.5);
+		expect(defined(second).movedStart).toBeCloseTo(defined(first).movedStart, 5);
 	});
 
 	test("places a cue by when it is said when the dub words it differently", () => {
@@ -148,7 +150,7 @@ describe("refineCues", () => {
 		const reworded = cues.map((cue, line) => (line === 10 ? { ...cue, text: "qqa qqb qqc" } : cue));
 		const refinement = refineCues(reworded, words, null);
 
-		const anchor = refinement!.anchors.find((candidate) => candidate.start === 50);
+		const anchor = defined(refinement).anchors.find((candidate) => candidate.start === 50);
 		expect(anchor?.movedStart).toBeCloseTo(52 - 0.15, 1);
 	});
 

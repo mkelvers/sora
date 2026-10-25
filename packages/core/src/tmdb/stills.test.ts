@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { defined } from "@sora/shared";
 import sharp from "sharp";
 
 import type { TmdbImage } from "./resources";
@@ -39,10 +40,10 @@ const withBars = async (image: Buffer, bars: { top?: number; left?: number }) =>
 	const left = bars.left ?? 0;
 	return sharp(image)
 		.extract({
-			height: meta.height! - 2 * top,
+			height: defined(meta.height) - 2 * top,
 			left,
 			top,
-			width: meta.width! - 2 * left,
+			width: defined(meta.width) - 2 * left,
 		})
 		.extend({
 			background: "#000",

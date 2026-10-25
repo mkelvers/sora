@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
 import { getAnime } from "../catalog/queries/anime";
@@ -131,7 +132,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			.returning({
 				id: series.id,
 			});
-		const { id } = stored!;
+		const { id } = defined(stored);
 
 		const airedBefore = new Map(
 			(

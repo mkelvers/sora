@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 import { eq, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 
@@ -74,7 +74,7 @@ const measureEdges = async (url: string): Promise<ImageEdges> => {
 			for (let x = from; x < from + edgeColumns; x += 1) {
 				const offset = (y * info.width + x) * info.channels;
 				for (let channel = 0; channel < 3; channel += 1) {
-					sum[channel]! += data[offset + channel]!;
+					sum[channel] = (sum[channel] ?? 0) + (data[offset + channel] ?? 0);
 				}
 			}
 		}

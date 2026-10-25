@@ -1,4 +1,4 @@
-import { day, hour, minute } from "@sora/shared";
+import { day, hour, minute, defined } from "@sora/shared";
 
 import type { AnimeStatus } from "../../catalog/models/anime";
 
@@ -136,7 +136,8 @@ export const planNextCheck = (
 	const retryAt =
 		awaitedEpisode !== null && attempt < maximumReleaseAttempts
 			? new Date(
-					now.getTime() + releaseRetryDelaysMs[Math.min(attempt, releaseRetryDelaysMs.length - 1)]!,
+					now.getTime() +
+						defined(releaseRetryDelaysMs[Math.min(attempt, releaseRetryDelaysMs.length - 1)]),
 				)
 			: null;
 

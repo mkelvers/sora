@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -78,5 +79,5 @@ export const updatePlaybackPreferences = async (
 		})
 		.returning();
 
-	return toPreferences(row!);
+	return toPreferences(defined(row));
 };

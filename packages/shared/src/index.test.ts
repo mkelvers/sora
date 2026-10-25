@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { attempt } from "./index";
+import { attempt, defined } from "./index";
 
 class NotFound extends Error {}
 
@@ -60,4 +60,16 @@ describe("attempt", () => {
 test("takes asynchronous work only as a promise", () => {
 	// @ts-expect-error A function returning a promise is passed as the promise.
 	attempt(async () => 1);
+});
+
+describe("defined", () => {
+	test("returns a value that is present", () => {
+		expect(defined(0)).toBe(0);
+		expect(defined("")).toBe("");
+	});
+
+	test("throws for null and undefined", () => {
+		expect(() => defined(null)).toThrow(TypeError);
+		expect(() => defined(undefined)).toThrow(TypeError);
+	});
 });

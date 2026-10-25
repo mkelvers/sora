@@ -1,4 +1,4 @@
-import { day } from "@sora/shared";
+import { day, defined } from "@sora/shared";
 import { eq } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -152,7 +152,7 @@ const toStoredImage = (
 	language: image.iso_639_1,
 	season_number: seasonNumber,
 	type,
-	url: tmdbImageUrl(image.file_path, "original")!,
+	url: defined(tmdbImageUrl(image.file_path, "original")),
 	vote_average: image.vote_average,
 	vote_count: image.vote_count,
 	width: image.width,

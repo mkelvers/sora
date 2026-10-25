@@ -3,6 +3,7 @@
 	import Hero from "$routes/(app)/series/[id]/components/hero.svelte";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import type { Series } from "@sora/sdk";
+	import { defined } from "@sora/shared";
 
 	let {
 		series,
@@ -74,12 +75,12 @@
 	);
 
 	const elements = () => ({
-		hero: stage!.querySelector<HTMLElement>(".series-hero")!,
-		logo: stage!.querySelector<HTMLImageElement>("[data-hero-logo]")!,
+		hero: defined(defined(stage).querySelector<HTMLElement>(".series-hero")),
+		logo: defined(defined(stage).querySelector<HTMLImageElement>("[data-hero-logo]")),
 	});
 
 	const measure = () => {
-		const frame = stage!.getBoundingClientRect();
+		const frame = defined(stage).getBoundingClientRect();
 		const logo = elements().logo.getBoundingClientRect();
 		box = {
 			height: logo.height,
@@ -100,7 +101,7 @@
 		stage = node;
 		const observer = new ResizeObserver(() => {
 			const { hero, logo } = elements();
-			for (const element of [hero, logo, logo.parentElement!.parentElement!]) {
+			for (const element of [hero, logo, defined(defined(logo.parentElement).parentElement)]) {
 				observer.observe(element);
 			}
 			measure();
@@ -149,7 +150,7 @@
 		}
 
 		event.preventDefault();
-		stage!.setPointerCapture(event.pointerId);
+		defined(stage).setPointerCapture(event.pointerId);
 		drag = {
 			handle: found,
 			hero: hero.getBoundingClientRect(),

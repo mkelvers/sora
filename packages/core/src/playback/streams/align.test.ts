@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { defined } from "@sora/shared";
+
 import { alignTimelines, shiftTime } from "./align";
 
 /** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
@@ -8,7 +10,7 @@ const boundaries = (seed: number, count = 300) => {
 	let state = seed;
 	for (let index = 1; index < count; index += 1) {
 		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
-		times.push(times.at(-1)! + 1 + (state % 9000) / 1000);
+		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
 	}
 	return times;
 };
@@ -22,14 +24,14 @@ describe("alignTimelines", () => {
 		);
 
 		expect(shifts).toHaveLength(1);
-		expect(shifts![0]!.offset).toBeCloseTo(2.5, 2);
+		expect(defined(defined(shifts)[0]).offset).toBeCloseTo(2.5, 2);
 	});
 
 	test("changes offset where the other encode adds footage", () => {
 		const sub = boundaries(2);
-		const cut = sub[150]!;
+		const cut = defined(sub[150]);
 		const dub = sub.map((time) => (time < cut ? time - 1 : time + 12.4));
-		const shifts = alignTimelines(sub, dub)!;
+		const shifts = defined(alignTimelines(sub, dub));
 
 		expect(shifts.map((shift) => [shift.from, Math.round(shift.offset * 10) / 10])).toEqual([
 			[0, -1],

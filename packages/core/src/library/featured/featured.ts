@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -119,7 +120,7 @@ const pickTitles = async (
 	}
 
 	const candidates = [...newest.values()]
-		.map((entry) => entry.seriesId!)
+		.map((entry) => defined(entry.seriesId))
 		.filter((id) => !excluded.has(id));
 	const ordered = [
 		...rotate(

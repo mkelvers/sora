@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 
 import { route, SoraClient, SoraError } from "./index";
 
@@ -194,8 +194,8 @@ describe("SoraClient.request", () => {
 		});
 
 		expect(changed).toEqual({ token: "new-token" });
-		expect(new URL(requests[0]!.url).pathname).toBe("/v1/auth/change-password");
-		expect(await requests[0]!.json()).toEqual({
+		expect(new URL(defined(requests[0]).url).pathname).toBe("/v1/auth/change-password");
+		expect(await defined(requests[0]).json()).toEqual({
 			currentPassword: "old-password",
 			newPassword: "new-password",
 			revokeOtherSessions: true,

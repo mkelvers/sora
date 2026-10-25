@@ -1,4 +1,4 @@
-import { day, hour, minute } from "@sora/shared";
+import { day, hour, minute, defined } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -420,7 +420,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	const ratingOf = new Map(ratings.map((rating) => [rating.anilistId, rating]));
 	const roles = franchiseRoles(
 		parts.flatMap((part) => {
-			const anilistId = anilistIdOf.get(part.series_id)!;
+			const anilistId = defined(anilistIdOf.get(part.series_id));
 			return [
 				{
 					anilistId,
@@ -440,20 +440,20 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 		new Set(
 			parts
 				.filter((part) => part.role === "season")
-				.map((part) => anilistIdOf.get(part.series_id)!),
+				.map((part) => defined(anilistIdOf.get(part.series_id))),
 		),
 	);
 
 	return parts
 		.filter((part) => {
-			const role = roles.get(anilistIdOf.get(part.series_id)!);
+			const role = roles.get(defined(anilistIdOf.get(part.series_id)));
 			return part.series_id === row.id || (role !== "noise" && role !== "recap");
 		})
 		.map((part) => ({
 			...part,
-			card: cards.get(part.series_id)!,
+			card: defined(cards.get(part.series_id)),
 			role:
-				part.role === "extra" && roles.get(anilistIdOf.get(part.series_id)!) === "spin_off"
+				part.role === "extra" && roles.get(defined(anilistIdOf.get(part.series_id))) === "spin_off"
 					? ("spin_off" as const)
 					: part.role,
 		}));
@@ -573,7 +573,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
-		...cards.get(row.id)!,
+		...defined(cards.get(row.id)),
 		backdrop_edges: found.edges,
 		genres: anime.genres,
 		// An aired episode still to come out is next until it is listed, ahead of

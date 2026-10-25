@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 /**
  * What a subtitle track carries.
  *
@@ -44,7 +45,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 
 		const stamp =
 			/-->\s*(?:(?<hours>\d+):)?(?<minutes>\d{1,2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})/u.exec(
-				lines[timing]!,
+				defined(lines[timing]),
 			);
 		if (stamp) {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;

@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/private";
-import { attempt } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 
 import type { RequestHandler } from "./$types";
@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 
 	const headers = new Headers({
 		Authorization: `Bearer ${session}`,
-		"X-Sora-Client-Key": env.WEB_CLIENT_KEY!,
+		"X-Sora-Client-Key": defined(env.WEB_CLIENT_KEY),
 	});
 	const range = request.headers.get("range");
 	if (range) {

@@ -1,4 +1,4 @@
-import { day } from "@sora/shared";
+import { day, defined } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import { catalogSeriesAllowed } from "../../catalog/visibility";
@@ -80,8 +80,8 @@ export const groupNotifications = (
 	return [...moments.values()]
 		.flatMap((group): NotificationGroup[] => {
 			const sorted = group.toSorted((left, right) => left.number - right.number);
-			const first = sorted[0]!;
-			const last = sorted.at(-1)!;
+			const first = defined(sorted[0]);
+			const last = defined(sorted.at(-1));
 			const id = `${first.seriesId}:${first.number}${first.dubbed ? ":dub" : ""}`;
 			const isPremiere = !first.dubbed && first.number === 1;
 			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
@@ -303,7 +303,7 @@ export const getNotifications = async (
 		.from(series)
 		.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
 	const seriesIds = rows.map((row) => row.id);
-	const cutoffs = new Map(rows.map((row) => [row.id, following.get(row.anilistId)!]));
+	const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
 
 	const episodeColumns = {
 		number: seriesEpisode.number,
@@ -377,7 +377,7 @@ export const getNotifications = async (
 			...row,
 			dubbed: true,
 		})),
-	].filter((row) => row.releasedAt > cutoffs.get(row.seriesId)!);
+	].filter((row) => row.releasedAt > defined(cutoffs.get(row.seriesId)));
 	if (releases.length === 0) {
 		return nothing;
 	}

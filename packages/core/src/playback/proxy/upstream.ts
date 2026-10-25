@@ -5,7 +5,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 
-import { attempt, second } from "@sora/shared";
+import { attempt, second, defined } from "@sora/shared";
 import type { Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
@@ -123,7 +123,7 @@ const publicLookup: typeof lookup = ((
 				callback(null, addresses);
 				return;
 			}
-			callback(null, addresses[0]!.address, addresses[0]!.family);
+			callback(null, defined(addresses[0]).address, defined(addresses[0]).family);
 		},
 	);
 }) as typeof lookup;
@@ -420,7 +420,7 @@ export const fetchUpstreamBytes = async (
 				return;
 			}
 
-			const candidate = candidates[launched]!;
+			const candidate = defined(candidates[launched]);
 			launched += 1;
 			const position = launched;
 			hedge = setTimeout(launch, hedgeDelayMs);

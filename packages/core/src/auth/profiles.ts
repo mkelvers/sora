@@ -1,3 +1,4 @@
+import { defined } from "@sora/shared";
 import { and, asc, count, eq } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -103,14 +104,14 @@ export const createProfile = async (userId: string, input: ProfileInput): Promis
 		.values({
 			avatarSeed: avatar?.seed ?? id,
 			avatarStyle: avatar?.style ?? "sprouts",
-			color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
+			color: color ?? defined(palette[(existing?.total ?? 0) % palette.length]),
 			id,
 			name,
 			userId,
 		})
 		.returning();
 
-	return toProfile(row!);
+	return toProfile(defined(row));
 };
 
 /**

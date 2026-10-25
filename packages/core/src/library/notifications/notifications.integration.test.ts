@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { day } from "@sora/shared";
+import { day, defined } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 
 import { closeDatabase, db } from "../../database/client";
@@ -36,7 +36,7 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 			anilistIds = ids.map((_, index) => base - index);
 			await db.insert(series).values(
 				ids.map((id, index) => ({
-					anilistId: anilistIds[index]!,
+					anilistId: defined(anilistIds[index]),
 					id,
 					key: `anilist:${anilistIds[index]}`,
 					kind: "standalone" as const,
@@ -45,9 +45,9 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				})),
 			);
 			await db.insert(seriesRelated).values([
-				{ anilistId: anilistIds[1]!, position: 0, relation: "SEQUEL", seriesId: first },
-				{ anilistId: anilistIds[1]!, position: 0, relation: "PREQUEL", seriesId: third },
-				{ anilistId: anilistIds[3]!, position: 1, relation: "SIDE_STORY", seriesId: first },
+				{ anilistId: defined(anilistIds[1]), position: 0, relation: "SEQUEL", seriesId: first },
+				{ anilistId: defined(anilistIds[1]), position: 0, relation: "PREQUEL", seriesId: third },
+				{ anilistId: defined(anilistIds[3]), position: 1, relation: "SIDE_STORY", seriesId: first },
 			]);
 			await db.insert(seriesEpisode).values([
 				{ airedAt: new Date(now.getTime() - 40 * day), number: 1, seriesId: first },
@@ -57,7 +57,7 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				{ airedAt: releasedAt, number: 1, seriesId: spinOff },
 			]);
 			await db.insert(episodeDub).values({
-				anilistId: anilistIds[1]!,
+				anilistId: defined(anilistIds[1]),
 				episode: 2,
 				releasedAt,
 			});
@@ -124,7 +124,7 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				userId: profile,
 			});
 			await db.insert(episodeDub).values({
-				anilistId: anilistIds[0]!,
+				anilistId: defined(anilistIds[0]),
 				episode: 1,
 				releasedAt,
 			});
@@ -134,7 +134,7 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				expect(dubbed?.series.episode_count).toBe(1);
 				expect(dubbed?.first_episode).toBe(1);
 			} finally {
-				await db.delete(episodeDub).where(eq(episodeDub.anilistId, anilistIds[0]!));
+				await db.delete(episodeDub).where(eq(episodeDub.anilistId, defined(anilistIds[0])));
 			}
 		});
 
