@@ -27,6 +27,12 @@ const EnvironmentSchema = z.object({
 	 * dub subtitles are timed to the picture only.
 	 */
 	SUBTITLE_ALIGNMENT_PYTHON: z.string().min(1).optional(),
+	/**
+	 * Where the image model that finds text on episode stills is kept. Left
+	 * out, it is fetched into the dependency's own folder on first use, and
+	 * again whenever that folder is replaced, as by a new container.
+	 */
+	STILL_MODEL_DIR: z.string().min(1).optional(),
 	/** The `faster-whisper` model that listens to dubs; larger ones hear more and take longer. */
 	SUBTITLE_ALIGNMENT_MODEL: z.string().min(1).default("small.en"),
 });
@@ -48,5 +54,6 @@ export const config = {
 	animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 	authSecret: environment.AUTH_SECRET,
 	subtitleAlignmentPython: environment.SUBTITLE_ALIGNMENT_PYTHON ?? null,
+	stillModelDir: environment.STILL_MODEL_DIR ?? null,
 	subtitleAlignmentModel: environment.SUBTITLE_ALIGNMENT_MODEL,
 };

@@ -30,6 +30,7 @@ import {
 	type TmdbEpisode,
 	type TmdbShow,
 } from "../../tmdb/resources";
+import { withChosenStills } from "../../tmdb/stills";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
@@ -304,7 +305,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 			continue;
 		}
 
-		updated += await copyEpisodeDetails(seriesId, edited.data);
+		updated += await copyEpisodeDetails(seriesId, await withChosenStills(showId, edited.data));
 	}
 
 	if (updated > 0) {

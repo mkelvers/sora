@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
 import { tmdb, type TmdbPath } from "./client";
+import { withChosenStills } from "./stills";
 
 /** TMDB sends missing dates and text as `""` or `null`; both become `null`. */
 const OptionalText = z
@@ -409,11 +410,14 @@ export async function getShow(
 			overview: season.overview,
 			posterPath: season.poster_path,
 		})),
-		episodes: await Promise.all(
-			episodes.map((episode) =>
-				withEdits(episode, {
-					maxAgeMs: changeLogSpanMs,
-				}),
+		episodes: await withChosenStills(
+			details.id,
+			await Promise.all(
+				episodes.map((episode) =>
+					withEdits(episode, {
+						maxAgeMs: changeLogSpanMs,
+					}),
+				),
 			),
 		),
 	};
@@ -631,6 +635,34 @@ export function getImages(
 	} = {},
 ): Promise<TmdbImages | null> {
 	return loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
+}
+
+const EpisodeStillsSchema = z.object({
+	stills: z.array(ImageSchema).default([]),
+});
+
+/**
+ * Loads every still TMDB lists for an episode, in every language, and
+ * always from TMDB: the answer is a choice made once and stored (see
+ * `chooseStill`), not one read again.
+ *
+ * @returns The stills; empty when TMDB does not know the episode.
+ */
+export async function getEpisodeStills(
+	showId: number,
+	seasonNumber: number,
+	episodeNumber: number,
+): Promise<TmdbImage[]> {
+	const listed = await tmdb(
+		`/tv/${showId}/season/${seasonNumber}/episode/${episodeNumber}/images`,
+		{},
+		EpisodeStillsSchema,
+		{
+			maxAgeMs: 0,
+			store: false,
+		},
+	);
+	return listed?.stills ?? [];
 }
 
 /**

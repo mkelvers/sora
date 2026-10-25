@@ -41,12 +41,12 @@ export const effectiveLogo = sql<string | null>`nullif(coalesce(
 
 /**
  * An episode's still as readers see it: a film's episode shows its series'
- * {@link effectiveBackdrop} rather than TMDB's own, and any other keeps its
- * stored one. Needs the episode's series joined.
+ * {@link effectiveBackdrop} rather than TMDB's own, and any other its stored
+ * still, or the backdrop when it has none. Needs the episode's series joined.
  */
 export const effectiveStill = sql<
 	string | null
->`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else ${seriesEpisode.stillUrl} end`;
+>`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
 /**
  * Measures the edges of a series' backdrop as readers see it, unless they
