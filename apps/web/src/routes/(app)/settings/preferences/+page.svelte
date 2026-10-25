@@ -10,12 +10,12 @@
 
 	const audios = [
 		{
-			value: "dub",
 			label: "Dubbed",
+			value: "dub",
 		},
 		{
-			value: "sub",
 			label: "Subtitled",
+			value: "sub",
 		},
 	] as const;
 

@@ -26,9 +26,9 @@ describe("usualLength", () => {
 
 describe("withLength", () => {
 	const opening = {
+		end: 217,
 		kind: "opening",
 		start: 128,
-		end: 217,
 	} as const;
 
 	test("cuts a segment that is longer than the usual length", () => {

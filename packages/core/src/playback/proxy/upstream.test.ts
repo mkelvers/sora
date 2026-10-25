@@ -5,12 +5,12 @@ import { fetchUpstream, readBounded, StreamUpstreamError } from "./upstream";
 
 function target(url: string) {
 	return {
-		url,
-		kind: "file" as const,
-		headers: {},
-		mirrors: [],
 		accountId: "account",
 		expiresAt: Math.floor(Date.now() / 1_000) + 60,
+		headers: {},
+		kind: "file" as const,
+		mirrors: [],
+		url,
 	};
 }
 
@@ -57,12 +57,10 @@ describe("readBounded", () => {
 		const body = new ReadableStream<Uint8Array>({
 			pull(controller) {
 				sent += 1;
-				controller.enqueue(new Uint8Array(1_024));
+				controller.enqueue(new Uint8Array(1024));
 			},
 		});
-		await expect(readBounded(new Response(body), 4_096)).rejects.toBeInstanceOf(
-			StreamUpstreamError,
-		);
+		await expect(readBounded(new Response(body), 4096)).rejects.toBeInstanceOf(StreamUpstreamError);
 		expect(sent).toBeLessThan(20);
 	});
 });

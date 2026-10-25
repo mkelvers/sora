@@ -56,9 +56,9 @@ describe("rateLimit", () => {
 		const routes = new Hono<V1Env>()
 			.use(
 				rateLimit({
+					key: (c) => c.req.header("x-address") ?? "",
 					limit: 1,
 					windowMs: 60_000,
-					key: (c) => c.req.header("x-address") ?? "",
 				}),
 			)
 			.get("/", (c) => c.text("ok"));

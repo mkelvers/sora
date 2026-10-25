@@ -33,11 +33,11 @@
 	import { Select } from "melt/builders";
 	import { CaretDownIcon } from "phosphor-svelte";
 
-	type Option = {
+	interface Option {
 		value: T;
 		label: string;
 		detail?: string;
-	};
+	}
 
 	let {
 		options,
@@ -54,7 +54,15 @@
 	} = $props();
 
 	const select = new Select<T>({
-		value: () => value,
+		floatingConfig: {
+			computePosition: {
+				placement: "bottom-start",
+			},
+			flip: {
+				mainAxis: false,
+			},
+			offset: 0,
+		},
 		onValueChange: (next) => {
 			if (next !== undefined) {
 				value = next;
@@ -62,15 +70,7 @@
 		},
 		sameWidth: false,
 		scrollAlignment: "nearest",
-		floatingConfig: {
-			computePosition: {
-				placement: "bottom-start",
-			},
-			offset: 0,
-			flip: {
-				mainAxis: false,
-			},
-		},
+		value: () => value,
 	});
 
 	const selected = $derived(options.find((option) => option.value === value));

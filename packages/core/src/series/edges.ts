@@ -89,8 +89,8 @@ export async function storeMissingBackdropEdges(): Promise<{
 	}
 
 	return {
-		stored,
 		failed: rows.filter((row) => row.url).length - stored,
+		stored,
 	};
 }
 

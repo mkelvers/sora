@@ -44,7 +44,7 @@ export function withLength(segment: SkipSegment, usual: number | null): SkipSegm
 const learnConcurrency = 6;
 
 /** How long learning the other episodes may hold playback, in milliseconds. */
-const learnDeadlineMs = 8_000;
+const learnDeadlineMs = 8000;
 
 const kinds = ["opening", "ending"] as const satisfies readonly SkipSegment["kind"][];
 
@@ -74,24 +74,24 @@ async function remember(
 			kinds.map((kind) => {
 				const segment = segments.find((candidate) => candidate.kind === kind);
 				return {
-					seriesId,
 					audio,
-					kind,
 					episode,
+					kind,
 					seconds: segment ? segment.end - segment.start : 0,
+					seriesId,
 				};
 			}),
 		)
 		.onConflictDoUpdate({
+			set: {
+				seconds: keep ? skipSegmentLength.seconds : sql`excluded.seconds`,
+			},
 			target: [
 				skipSegmentLength.seriesId,
 				skipSegmentLength.audio,
 				skipSegmentLength.kind,
 				skipSegmentLength.episode,
 			],
-			set: {
-				seconds: keep ? skipSegmentLength.seconds : sql`excluded.seconds`,
-			},
 		});
 }
 

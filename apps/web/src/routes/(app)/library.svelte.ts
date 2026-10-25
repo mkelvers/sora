@@ -10,36 +10,36 @@ import {
 
 export const statuses = [
 	{
-		value: "watching",
-		label: "Watching",
 		empty: {
-			title: "Nothing on the go right now.",
 			hint: "Finish an episode of a title on your Watchlist and it lands here.",
+			title: "Nothing on the go right now.",
 		},
+		label: "Watching",
+		value: "watching",
 	},
 	{
-		value: "plan_to_watch",
-		label: "Plan to Watch",
 		empty: {
-			title: "Nothing planned to watch.",
 			hint: "Add a few titles you've been meaning to start.",
+			title: "Nothing planned to watch.",
 		},
+		label: "Plan to Watch",
+		value: "plan_to_watch",
 	},
 	{
-		value: "completed",
-		label: "Completed",
 		empty: {
-			title: "Nothing finished yet.",
 			hint: "Titles you watch to the end land here.",
+			title: "Nothing finished yet.",
 		},
+		label: "Completed",
+		value: "completed",
 	},
 	{
-		value: "dropped",
-		label: "Dropped",
 		empty: {
-			title: "Nothing dropped. Everything's still in the running.",
 			hint: "Titles you give up on land here, out of your way.",
+			title: "Nothing dropped. Everything's still in the running.",
 		},
+		label: "Dropped",
+		value: "dropped",
 	},
 ] as const satisfies readonly {
 	value: WatchlistStatus;
@@ -96,9 +96,9 @@ export class Library {
 
 				return [
 					{
+						added_at: current.find((entry) => entry.series.id === series.id)?.added_at ?? now,
 						series,
 						status,
-						added_at: current.find((entry) => entry.series.id === series.id)?.added_at ?? now,
 						updated_at: now,
 					},
 					...rest,

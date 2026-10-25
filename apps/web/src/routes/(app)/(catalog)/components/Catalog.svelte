@@ -2,7 +2,8 @@
 	import EmptyState from "$lib/components/EmptyState.svelte";
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
-	import { getCatalogPage, type CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
+	import { getCatalogPage } from "$routes/(app)/(catalog)/catalog.remote";
+	import type { CatalogRequest } from "$routes/(app)/(catalog)/catalog.remote";
 	import Poster from "$routes/(app)/components/Poster.svelte";
 	import { CircleNotchIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";

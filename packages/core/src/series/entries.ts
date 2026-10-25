@@ -1,11 +1,8 @@
 import { hour } from "@sora/shared";
 
 import { loadMediaById } from "../anilist/client";
-import {
-	FranchiseEntriesDocument,
-	type FranchiseEntryFragment,
-	type MediaRelation,
-} from "../anilist/graphql.generated";
+import { FranchiseEntriesDocument } from "../anilist/graphql.generated";
+import type { FranchiseEntryFragment, MediaRelation } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
 import type { MatchSubject } from "./matching";
 
@@ -35,7 +32,7 @@ export const franchiseRelations = new Set<MediaRelation>([
 const entryLifetimeMs = hour;
 
 /** Bounds {@link recentEntries}; the oldest entries are evicted first. */
-const recentEntryLimit = 5_000;
+const recentEntryLimit = 5000;
 
 /**
  * Entries loaded recently by this process, by AniList ID.
@@ -93,6 +90,8 @@ export async function loadEntries(
 
 const loadFranchiseEntries = loadMediaById({
 	document: FranchiseEntriesDocument,
+	media: ({ page0, page1, page2, page3, page4 }) =>
+		[page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? []),
 	pages: 5,
 	variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = [], ids4 = []]) => ({
 		ids0,
@@ -105,8 +104,6 @@ const loadFranchiseEntries = loadMediaById({
 		with3: ids3.length > 0,
 		with4: ids4.length > 0,
 	}),
-	media: ({ page0, page1, page2, page3, page4 }) =>
-		[page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? []),
 });
 
 /** Fetches entries and remembers them and their neighbours. */

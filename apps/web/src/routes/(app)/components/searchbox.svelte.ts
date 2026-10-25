@@ -64,9 +64,9 @@ export class Search {
 
 			if (this.onSearch && this.term && this.term !== this.query) {
 				goto(`/search?q=${encodeURIComponent(this.term)}`, {
-					replaceState: true,
 					keepFocus: true,
 					noScroll: true,
+					replaceState: true,
 				});
 			}
 		}, 250);
@@ -80,9 +80,7 @@ export class Search {
 	};
 
 	toggle = () => {
-		if (!this.open) {
-			this.reveal();
-		} else {
+		if (this.open) {
 			clearTimeout(this.timer);
 			this.open = false;
 			this.input?.blur();
@@ -91,6 +89,8 @@ export class Search {
 				this.text = "";
 				this.term = "";
 			}
+		} else {
+			this.reveal();
 		}
 	};
 

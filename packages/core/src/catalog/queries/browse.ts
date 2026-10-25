@@ -1,20 +1,19 @@
 import { day, hour, minute } from "@sora/shared";
 import { and, eq, isNotNull, lte } from "drizzle-orm";
-import { z } from "zod";
+import type { z } from "zod";
 
 import { anilist } from "../../anilist/client";
-import {
-	BrowseAnimeDocument,
-	GenresDocument,
-	type MediaSort,
-} from "../../anilist/graphql.generated";
+import { BrowseAnimeDocument, GenresDocument } from "../../anilist/graphql.generated";
+import type { MediaSort } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
 import type { AnimeSeason } from "../../models/series";
-import { toAnimeCard, type AnimeCard } from "../models/anime";
+import { toAnimeCard } from "../models/anime";
+import type { AnimeCard } from "../models/anime";
 import { catalogFormatAllowed, excludedFormats } from "../visibility";
-import { BrowseQuerySchema, type BrowseQuery } from "./browse-query";
+import { BrowseQuerySchema } from "./browse-query";
+import type { BrowseQuery } from "./browse-query";
 
 /** One page of results. */
 export interface Page<T> {
@@ -31,11 +30,11 @@ export interface Page<T> {
 }
 
 const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>, MediaSort[]> = {
-	trending: ["TRENDING_DESC", "POPULARITY_DESC"],
+	newest: ["START_DATE_DESC", "POPULARITY_DESC"],
 	popular: ["POPULARITY_DESC"],
 	score: ["SCORE_DESC", "POPULARITY_DESC"],
-	newest: ["START_DATE_DESC", "POPULARITY_DESC"],
 	title: ["TITLE_ROMAJI"],
+	trending: ["TRENDING_DESC", "POPULARITY_DESC"],
 };
 
 /**
@@ -85,11 +84,11 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
 	);
 
 	return {
+		hasNextPage: Page?.pageInfo?.hasNextPage === true,
+		isPreparing: false,
 		items: (Page?.media ?? []).flatMap((media) => (media ? [toAnimeCard(media)] : [])),
 		page: input.page,
 		perPage: input.perPage,
-		hasNextPage: Page?.pageInfo?.hasNextPage === true,
-		isPreparing: false,
 	};
 }
 

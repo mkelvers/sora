@@ -8,7 +8,8 @@ import { mirrorsFor } from "../proxy/upstream";
 import { resolveStreams, timelineShifts } from "../streams/resolve";
 import { subtitleKinds } from "../streams/subtitle-kinds";
 import { extractAudio, SubtitleRefinementError } from "./audio";
-import { refineCues, type Refinement } from "./refine";
+import { refineCues } from "./refine";
+import type { Refinement } from "./refine";
 import { transcribe } from "./speech";
 import { refinementKey } from "./store";
 import { readCues } from "./vtt";
@@ -54,8 +55,8 @@ export async function listenToDub(
 		return refineCues(cues, await transcribe(audio), picture);
 	} finally {
 		await rm(directory, {
-			recursive: true,
 			force: true,
+			recursive: true,
 		});
 	}
 }

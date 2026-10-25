@@ -22,14 +22,8 @@ import { episodeReleasedAt } from "../../series/episodes";
 import { expireMapping, mappedEpisodes } from "../../series/mapping";
 import { continuesPastLinks } from "../../series/matching";
 import { storedSeriesIds, storeSeries } from "../../series/store";
-import {
-	editsWindowMs,
-	getShow,
-	tmdbImageUrl,
-	withEdits,
-	type TmdbEpisode,
-	type TmdbShow,
-} from "../../tmdb/resources";
+import { editsWindowMs, getShow, tmdbImageUrl, withEdits } from "../../tmdb/resources";
+import type { TmdbEpisode, TmdbShow } from "../../tmdb/resources";
 import { withChosenStills } from "../../tmdb/stills";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
@@ -177,7 +171,7 @@ const onAniKoto = sql`exists (
   )`;
 
 /** Whether a stored episode aired within the time TMDB's change log of it is read for. */
-const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs => ${editsWindowMs / 1_000}) and now()`;
+const airedLately = sql`${episodeReleasedAt} between now() - make_interval(secs => ${editsWindowMs / 1000}) and now()`;
 
 /** Whether a stored episode has no title, or only TMDB's "Episode N". */
 const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} ~* '^episode [0-9]+$')`;
@@ -290,8 +284,8 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 									// A minute short, so a run is never a moment too early for it.
 									maxAgeMs:
 										recheckAfterMs(episode.missing_for_ms, {
-											min: detailsRunEveryMs,
 											max: editsWindowMs,
+											min: detailsRunEveryMs,
 										}) - minute,
 								}),
 							]
@@ -433,8 +427,8 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			? (
 					await db
 						.select({
-							path: tmdbResponse.path,
 							at: sql<Date>`max(${tmdbResponse.fetchedAt})`.mapWith(tmdbResponse.fetchedAt),
+							path: tmdbResponse.path,
 						})
 						.from(tmdbResponse)
 						.where(inArray(tmdbResponse.path, paths))
@@ -453,8 +447,8 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			const relayoutAfterMs =
 				isUnmatched && row.lacks_details
 					? recheckAfterMs(row.lacking_for_ms, {
-							min: hour,
 							max: day,
+							min: hour,
 						})
 					: day;
 			if (row.laid_out_for_ms > relayoutAfterMs) {
@@ -470,8 +464,8 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 		const maxAgeMs = Math.min(
 			row.is_unlisted
 				? recheckAfterMs(row.unlisted_for_ms, {
-						min: hour,
 						max: longestListingWaitMs,
+						min: hour,
 					})
 				: Infinity,
 			row.lacks_details ? day : Infinity,
@@ -562,14 +556,14 @@ async function copyEpisodeDetails(seriesId: string, episodes: readonly TmdbEpiso
 	);
 	const stored = await db
 		.select({
-			number: seriesEpisode.number,
-			title: seriesEpisode.title,
-			overview: seriesEpisode.overview,
 			airDate: seriesEpisode.airDate,
+			number: seriesEpisode.number,
+			overview: seriesEpisode.overview,
 			runtimeMinutes: seriesEpisode.runtimeMinutes,
 			stillUrl: seriesEpisode.stillUrl,
-			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
+			title: seriesEpisode.title,
 			tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
 		})
 		.from(seriesEpisode)
 		.where(and(eq(seriesEpisode.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));

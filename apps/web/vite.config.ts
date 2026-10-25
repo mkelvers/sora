@@ -2,11 +2,12 @@ import adapter from "@sveltejs/adapter-node";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { sveltePhosphorOptimize } from "phosphor-svelte/vite";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
+import type { Plugin } from "vite";
 
 const phosphorWeights: Plugin = {
-	name: "phosphor-weights",
 	enforce: "pre",
+	name: "phosphor-weights",
 	transform(code, id) {
 		if (!/phosphor-svelte\/lib\/\w+\.svelte(?:\?.*)?$/.test(id)) {
 			return;
@@ -17,6 +18,9 @@ const phosphorWeights: Plugin = {
 };
 
 export default defineConfig({
+	optimizeDeps: {
+		exclude: ["phosphor-svelte"],
+	},
 	plugins: [
 		phosphorWeights,
 		tailwindcss(),
@@ -61,7 +65,4 @@ export default defineConfig({
 		}),
 		sveltePhosphorOptimize(),
 	],
-	optimizeDeps: {
-		exclude: ["phosphor-svelte"],
-	},
 });

@@ -44,7 +44,7 @@ export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(
 	bytes: Uint8Array<Backing>,
 ) {
 	const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
-	if (end >= 0) {
+	if (end !== -1) {
 		return bytes.subarray(end + pngEnd.length);
 	}
 

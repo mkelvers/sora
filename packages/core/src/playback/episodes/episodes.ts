@@ -22,10 +22,10 @@ export type ProviderUnit = ProviderEpisode;
 const ProviderUnitsSchema = z.array(
 	z.object({
 		id: z.string(),
+		isFiller: z.boolean().nullable(),
+		languages: z.array(LanguageSchema).nullable(),
 		number: z.number(),
 		title: z.string(),
-		languages: z.array(LanguageSchema).nullable(),
-		isFiller: z.boolean().nullable(),
 	}),
 );
 
@@ -166,16 +166,16 @@ export async function refreshProviderUnits(
 		)
 		.map((unit) => ({
 			id: unit.id,
+			isFiller: unit.isFiller,
+			languages: unit.languages,
 			number: unit.number - episodeOffset,
 			title: unit.title,
-			languages: unit.languages,
-			isFiller: unit.isFiller,
 		}))
 		.sort((left, right) => left.number - right.number);
 
 	const values = {
-		units,
 		fetchedAt: new Date(),
+		units,
 	};
 	if (provider.id === aniKoto.id) {
 		await recordDubs(anime.id, units, values.fetchedAt);
@@ -189,8 +189,8 @@ export async function refreshProviderUnits(
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: [providerEpisodes.anilistId, providerEpisodes.provider],
 			set: values,
+			target: [providerEpisodes.anilistId, providerEpisodes.provider],
 		});
 
 	return units;

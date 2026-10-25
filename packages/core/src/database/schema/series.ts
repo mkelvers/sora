@@ -27,18 +27,18 @@ export const tmdbMapping = pgTable(
 	"tmdb_mapping",
 	{
 		anilistId: integer("anilist_id").primaryKey(),
-		mediaType: tmdbMediaType("media_type"),
-		tmdbId: integer("tmdb_id"),
-		/** TMDB season of the entry's first mapped episode; `0` is TMDB's specials season. */
-		seasonNumber: integer("season_number"),
 		/** TMDB episode number of the entry's first mapped episode, for ordering entries within a show. */
 		episodeNumber: integer("episode_number"),
 		/** `EpisodeLink[]` for TV mappings, empty otherwise. */
 		episodes: jsonb("episodes").$type<unknown>().notNull(),
+		mediaType: tmdbMediaType("media_type"),
 		/** Which signal decided the match, for diagnosing bad mappings. */
 		method: text("method"),
-		score: doublePrecision("score"),
 		resolvedAt: timestamptz("resolved_at").notNull(),
+		score: doublePrecision("score"),
+		/** TMDB season of the entry's first mapped episode; `0` is TMDB's specials season. */
+		seasonNumber: integer("season_number"),
+		tmdbId: integer("tmdb_id"),
 	},
 	(table) => [index("tmdb_mapping_target_idx").on(table.mediaType, table.tmdbId)],
 );
@@ -54,8 +54,8 @@ export const tmdbMapping = pgTable(
  */
 export const tmdbHint = pgTable("tmdb_hint", {
 	anilistId: integer("anilist_id").primaryKey(),
-	showId: integer("show_id"),
 	movieIds: integer("movie_ids").array().notNull(),
+	showId: integer("show_id"),
 });
 
 export const seriesKind = pgEnum("series_kind", ["tv", "movie", "standalone"]);
@@ -75,9 +75,11 @@ export const noArtwork = "";
 export const series = pgTable(
 	"series",
 	{
-		id: text("id").primaryKey(),
 		/** The AniList entry the series is. */
 		anilistId: integer("anilist_id").notNull().unique(),
+		backdropUrl: text("backdrop_url"),
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+		id: text("id").primaryKey(),
 		/**
 		 * The `SeriesKey` of the TMDB title the entry was matched to, such as
 		 * `tv:82684`, which its backdrop, logo, and episode details come from.
@@ -85,11 +87,17 @@ export const series = pgTable(
 		 */
 		key: text("key").notNull(),
 		kind: seriesKind("kind").notNull(),
-		title: text("title").notNull(),
+		/** When the episodes were last laid out. */
+		laidOutAt: timestamptz("laid_out_at").notNull(),
+		logoUrl: text("logo_url"),
+		nextEpisodeAiringAt: timestamptz("next_episode_airing_at"),
+		/**
+		 * The next episode to air. Written when the series is laid out; the
+		 * airing scheduler lays it out again after each broadcast.
+		 */
+		nextEpisodeNumber: integer("next_episode_number"),
 		overview: text("overview"),
 		posterUrl: text("poster_url"),
-		backdropUrl: text("backdrop_url"),
-		logoUrl: text("logo_url"),
 		/**
 		 * A poster someone chose in place of the laid-out one; {@link noArtwork}
 		 * for none at all, null keeps the laid-out one. A poster tells one
@@ -101,15 +109,7 @@ export const series = pgTable(
 		/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. */
 		startDate: text("start_date"),
 		status: text("status").$type<MediaStatus>(),
-		/**
-		 * The next episode to air. Written when the series is laid out; the
-		 * airing scheduler lays it out again after each broadcast.
-		 */
-		nextEpisodeNumber: integer("next_episode_number"),
-		nextEpisodeAiringAt: timestamptz("next_episode_airing_at"),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
-		/** When the episodes were last laid out. */
-		laidOutAt: timestamptz("laid_out_at").notNull(),
+		title: text("title").notNull(),
 	},
 	(table) => [index("series_key_idx").on(table.key)],
 );
@@ -123,20 +123,20 @@ export const series = pgTable(
  * outlives it.
  */
 export const titleArtwork = pgTable("title_artwork", {
-	key: text("key").primaryKey(),
-	/** When {@link titleImage} last got the title's images from TMDB; `null` until it first has. */
-	imagesFetchedAt: timestamptz("images_fetched_at"),
 	/** In place of the laid-out one; {@link noArtwork} for none at all, null keeps the laid-out one. */
 	backdropUrlOverride: text("backdrop_url_override"),
-	logoUrlOverride: text("logo_url_override"),
+	/** When {@link titleImage} last got the title's images from TMDB; `null` until it first has. */
+	imagesFetchedAt: timestamptz("images_fetched_at"),
+	key: text("key").primaryKey(),
+	logoOffsetX: doublePrecision("logo_offset_x").notNull().default(0),
+	logoOffsetY: doublePrecision("logo_offset_y").notNull().default(0),
 	/**
 	 * Where and how large the logo is drawn on a series page: its size
 	 * relative to the usual one, and how far it is moved from its usual place,
 	 * in widths of the page's hero.
 	 */
 	logoScale: doublePrecision("logo_scale").notNull().default(1),
-	logoOffsetX: doublePrecision("logo_offset_x").notNull().default(0),
-	logoOffsetY: doublePrecision("logo_offset_y").notNull().default(0),
+	logoUrlOverride: text("logo_url_override"),
 });
 
 /**
@@ -147,22 +147,22 @@ export const titleArtwork = pgTable("title_artwork", {
 export const seriesEpisode = pgTable(
 	"series_episode",
 	{
+		/** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
+		airDate: text("air_date"),
+		/** When the episode aired, from AniList's airing schedule; null when AniList has no schedule for it. */
+		airedAt: timestamptz("aired_at"),
+		number: integer("number").notNull(),
+		overview: text("overview"),
+		runtimeMinutes: integer("runtime_minutes"),
 		seriesId: text("series_id")
 			.notNull()
 			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		number: integer("number").notNull(),
-		title: text("title"),
-		overview: text("overview"),
-		/** `YYYY-MM-DD`, in the calendar of the country it aired in, as TMDB lists it. */
-		airDate: text("air_date"),
-		/** When the episode aired, from AniList's airing schedule; null when AniList has no schedule for it. */
-		airedAt: timestamptz("aired_at"),
-		runtimeMinutes: integer("runtime_minutes"),
 		stillUrl: text("still_url"),
-		tmdbSeasonNumber: integer("tmdb_season_number"),
+		title: text("title"),
 		tmdbEpisodeNumber: integer("tmdb_episode_number"),
+		tmdbSeasonNumber: integer("tmdb_season_number"),
 	},
 	(table) => [
 		primaryKey({
@@ -188,11 +188,11 @@ export const seriesEpisode = pgTable(
 export const episodeStill = pgTable(
 	"episode_still",
 	{
-		showId: integer("show_id").notNull(),
-		seasonNumber: integer("season_number").notNull(),
+		chosenAt: timestamptz("chosen_at").notNull(),
 		episodeNumber: integer("episode_number").notNull(),
 		path: text("path"),
-		chosenAt: timestamptz("chosen_at").notNull(),
+		seasonNumber: integer("season_number").notNull(),
+		showId: integer("show_id").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -214,22 +214,22 @@ export const imageType = pgEnum("image_type", ["poster", "backdrop", "logo"]);
 export const titleImage = pgTable(
 	"title_image",
 	{
+		height: integer("height").notNull(),
 		key: text("key")
 			.notNull()
 			.references(() => titleArtwork.key, {
 				onDelete: "cascade",
 			}),
+		/** ISO 639-1 code of any text on the image; null when it has none. */
+		language: text("language"),
+		/** TMDB's number of the season a poster is for; null for the title's own. */
+		seasonNumber: integer("season_number"),
 		type: imageType("type").notNull(),
 		/** The original size on TMDB's image host. */
 		url: text("url").notNull(),
-		width: integer("width").notNull(),
-		height: integer("height").notNull(),
-		/** ISO 639-1 code of any text on the image; null when it has none. */
-		language: text("language"),
 		voteAverage: doublePrecision("vote_average").notNull(),
 		voteCount: integer("vote_count").notNull(),
-		/** TMDB's number of the season a poster is for; null for the title's own. */
-		seasonNumber: integer("season_number"),
+		width: integer("width").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -244,11 +244,11 @@ export const titleImage = pgTable(
  * that continue it. Measured once per URL; see `storeImageEdges`.
  */
 export const imageEdge = pgTable("image_edge", {
-	url: text("url").primaryKey(),
 	/** `#rrggbb`. */
 	left: text("left").notNull(),
 	/** `#rrggbb`. */
 	right: text("right").notNull(),
+	url: text("url").primaryKey(),
 });
 
 /**
@@ -263,16 +263,16 @@ export const imageEdge = pgTable("image_edge", {
 export const seriesRelated = pgTable(
 	"series_related",
 	{
+		anilistId: integer("anilist_id").notNull(),
+		/** The order AniList lists the relations in, from 0. */
+		position: integer("position").notNull(),
+		/** How AniList relates the entry to the series' own, such as `SEQUEL`. */
+		relation: text("relation").$type<MediaRelation>().notNull(),
 		seriesId: text("series_id")
 			.notNull()
 			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		anilistId: integer("anilist_id").notNull(),
-		/** How AniList relates the entry to the series' own, such as `SEQUEL`. */
-		relation: text("relation").$type<MediaRelation>().notNull(),
-		/** The order AniList lists the relations in, from 0. */
-		position: integer("position").notNull(),
 	},
 	(table) => [
 		primaryKey({

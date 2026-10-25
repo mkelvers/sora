@@ -66,10 +66,10 @@ export class SdkStreamProvider implements StreamProvider {
 		}
 
 		return {
-			mediaId: resolution.rawMediaId,
-			matchedTitle: resolution.matchedTitle,
-			method: resolution.method,
 			episodeOffset: 0,
+			matchedTitle: resolution.matchedTitle,
+			mediaId: resolution.rawMediaId,
+			method: resolution.method,
 		};
 	}
 
@@ -101,6 +101,7 @@ export class SdkStreamProvider implements StreamProvider {
 		}
 
 		return {
+			skipSegments: [],
 			videos: streams.map((stream) => ({
 				url: stream.sourceUrl,
 				format: stream.isHLS ? "hls" : "mp4",
@@ -113,7 +114,6 @@ export class SdkStreamProvider implements StreamProvider {
 					format: track.format ?? null,
 				})),
 			})),
-			skipSegments: [],
 		};
 	}
 }
@@ -131,10 +131,10 @@ export function rawEpisodeId(providerId: string, episodeId: string) {
 export function toProviderEpisode(unit: IContentUnit): ProviderEpisode {
 	return {
 		id: unit.id,
+		isFiller: unit.isFiller ?? null,
+		languages: unit.availableLanguages ?? null,
 		number: unit.number,
 		title: unit.title,
-		languages: unit.availableLanguages ?? null,
-		isFiller: unit.isFiller ?? null,
 	};
 }
 
@@ -147,22 +147,22 @@ function toSdkMetadata(anime: Anime): IMediaMetadata {
 	const startYear = anime.startDate ? Number(anime.startDate.slice(0, 4)) : undefined;
 
 	return {
-		id: `anilist:${anime.id}`,
-		providerId: "anilist",
 		catalogType: "ANIME",
-		title: {
-			romaji: anime.title.romaji ?? undefined,
-			english: anime.title.english ?? undefined,
-			native: anime.title.native ?? undefined,
-		},
-		synonyms: anime.synonyms,
-		year: anime.seasonYear ?? startYear,
-		format: anime.format ?? undefined,
 		episodeCount: anime.episodes ?? undefined,
+		format: anime.format ?? undefined,
+		id: `anilist:${anime.id}`,
 		mappings: {
 			anilist: anime.id,
 			mal: anime.malId ?? undefined,
 		},
+		providerId: "anilist",
+		synonyms: anime.synonyms,
+		title: {
+			english: anime.title.english ?? undefined,
+			native: anime.title.native ?? undefined,
+			romaji: anime.title.romaji ?? undefined,
+		},
+		year: anime.seasonYear ?? startYear,
 	};
 }
 

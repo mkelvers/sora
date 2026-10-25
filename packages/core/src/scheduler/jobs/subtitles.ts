@@ -7,9 +7,9 @@ import { listenToDub } from "../../playback/subtitles/listen";
 import { getRefinement, isRefinementDue, saveRefinement } from "../../playback/subtitles/store";
 
 const PayloadSchema = z.object({
-	seriesId: z.string().min(1),
 	episode: z.number().int().positive(),
 	key: z.string().min(1),
+	seriesId: z.string().min(1),
 });
 
 /**
@@ -30,8 +30,8 @@ export const refineSubtitles: Task = async (payload) => {
 
 	const refinement = await listenToDub(
 		{
-			seriesId,
 			episode,
+			seriesId,
 		},
 		key,
 	);

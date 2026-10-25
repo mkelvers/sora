@@ -1,5 +1,6 @@
 import type { SeriesCard } from "@sora/sdk";
-import { clsx, type ClassValue } from "clsx";
+import { clsx } from "clsx";
+import type { ClassValue } from "clsx";
 import type { Attachment } from "svelte/attachments";
 import { twMerge } from "tailwind-merge";
 
@@ -75,7 +76,7 @@ export function tmdbImage(url: string, size: TmdbSize) {
 
 export function tmdbSrcset(url: string, sizes: Partial<Record<TmdbSize, number>>) {
 	if (!tmdbBucket.test(url)) {
-		return undefined;
+		return;
 	}
 
 	return Object.entries(sizes)
@@ -86,8 +87,8 @@ export function tmdbSrcset(url: string, sizes: Partial<Record<TmdbSize, number>>
 const menuKeys: Record<string, (index: number, count: number) => number> = {
 	ArrowDown: (index, count) => (index + 1) % count,
 	ArrowUp: (index, count) => (index - 1 + count) % count,
-	Home: () => 0,
 	End: (_, count) => count - 1,
+	Home: () => 0,
 };
 
 export function moveMenuFocus(event: KeyboardEvent & { currentTarget: HTMLElement }) {

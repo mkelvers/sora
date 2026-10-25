@@ -24,8 +24,8 @@
 	const episodes = $derived(
 		getEpisodes({
 			id: series.id,
-			offset,
 			limit,
+			offset,
 		}),
 	);
 

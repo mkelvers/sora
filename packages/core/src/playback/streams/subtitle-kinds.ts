@@ -1,11 +1,12 @@
 import type { ProviderVideo } from "../providers/provider";
 import { readSubtitle } from "../proxy/proxy";
 import { mirrorsFor } from "../proxy/upstream";
-import { subtitleKind, type SubtitleKind } from "./subtitle-kind";
+import { subtitleKind } from "./subtitle-kind";
+import type { SubtitleKind } from "./subtitle-kind";
 
 /** Kinds already worked out, by the provider's subtitle URL, oldest dropped first. */
 const known = new Map<string, SubtitleKind | null>();
-const knownLimit = 5_000;
+const knownLimit = 5000;
 
 /**
  * What each subtitle track of some videos carries, by the provider's URL.
@@ -20,8 +21,8 @@ export async function subtitleKinds(videos: ProviderVideo[]) {
 	for (const video of videos) {
 		for (const track of video.subtitles) {
 			tracks.set(track.url, {
-				label: track.label,
 				format: track.format,
+				label: track.label,
 				video,
 			});
 		}

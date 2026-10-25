@@ -14,7 +14,7 @@ import { UpstreamUnavailableError } from "../errors";
 const minimumKeptShare = 0.8;
 
 /** Rows written per statement. */
-const writeBatchSize = 1_000;
+const writeBatchSize = 1000;
 
 /** The TMDB titles hinted for one AniList entry. */
 export interface TmdbHint {
@@ -31,8 +31,8 @@ const TmdbIdSchema = z.number().int().positive();
 const ListEntrySchema = z.object({
 	anilist_id: TmdbIdSchema,
 	themoviedb_id: z.object({
-		tv: TmdbIdSchema.optional(),
 		movie: z.array(TmdbIdSchema).optional(),
+		tv: TmdbIdSchema.optional(),
 	}),
 });
 
@@ -40,8 +40,8 @@ const ListEntrySchema = z.object({
 export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
 	const [row] = await db
 		.select({
-			showId: tmdbHint.showId,
 			movieIds: tmdbHint.movieIds,
+			showId: tmdbHint.showId,
 		})
 		.from(tmdbHint)
 		.where(eq(tmdbHint.anilistId, anilistId))
@@ -51,8 +51,8 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
 	// would turn each of its IDs into a number again.
 	return row
 		? {
-				showId: row.showId,
 				movieIds: [...row.movieIds],
+				showId: row.showId,
 			}
 		: null;
 }
@@ -81,8 +81,8 @@ export function parseTmdbHints(list: unknown): Map<number, TmdbHint> {
 		const { anilist_id: anilistId, themoviedb_id: ids } = parsed.data;
 		const known = hints.get(anilistId);
 		const hint = {
-			showId: known?.showId ?? ids.tv ?? null,
 			movieIds: [...new Set([...(known?.movieIds ?? []), ...(ids.movie ?? [])])],
+			showId: known?.showId ?? ids.tv ?? null,
 		};
 		if (hint.showId !== null || hint.movieIds.length > 0) {
 			hints.set(anilistId, hint);
@@ -130,11 +130,11 @@ export async function syncTmdbHints(): Promise<number[]> {
 					})),
 				)
 				.onConflictDoUpdate({
-					target: tmdbHint.anilistId,
 					set: {
-						showId: sql`excluded.show_id`,
 						movieIds: sql`excluded.movie_ids`,
+						showId: sql`excluded.show_id`,
 					},
+					target: tmdbHint.anilistId,
 				});
 		}
 
@@ -163,8 +163,8 @@ async function downloadHints() {
 		throw new UpstreamUnavailableError(
 			"GitHub could not be reached for the Fribb/anime-lists list",
 			{
-				retryAfterMs: null,
 				cause: response.error,
+				retryAfterMs: null,
 			},
 		);
 	}
@@ -180,16 +180,16 @@ async function downloadHints() {
 	const list = await attempt(response.data.json());
 	if (list.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
-			retryAfterMs: null,
 			cause: list.error,
+			retryAfterMs: null,
 		});
 	}
 
 	const hints = attempt(() => parseTmdbHints(list.data), TypeError);
 	if (hints.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
-			retryAfterMs: null,
 			cause: hints.error,
+			retryAfterMs: null,
 		});
 	}
 	return hints.data;

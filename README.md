@@ -13,30 +13,24 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/db-postgres-336791?style=flat-square" />
 </p>
 
-Sora is a catalogue, player, watchlist, and release calendar for anime, run from your own server.
-Accounts hold any number of profiles, and each profile keeps its own watchlist, progress, and
-notifications.
+Sora is a catalogue, player, watchlist, and release calendar for anime, run from your own server. Accounts hold any number of profiles, and each profile keeps its own watchlist, progress, and notifications.
 
-The web app is one client of a versioned HTTP API. A scheduler keeps the catalogue current, and a
-typed SDK, checked against the API's own route definitions, gives your own code the same access the
-web app has.
+The web app is one client of a versioned HTTP API. A scheduler keeps the catalogue current, and a typed SDK, checked against the API's own route definitions, gives your own code the same access the web app has.
 
-- Playback tries AniKoto and MegaPlay in turn and falls through when a source fails. Streams go
-  through a signed proxy, and skip-intro segments come with them.
-- A show is listed once a provider actually carries its episode, and the calendar follows airing
-  times.
+- Playback tries AniKoto and MegaPlay in turn and falls through when a source fails. Streams go through a signed proxy, and skip-intro segments come with them.
+- A show is listed once a provider actually carries its episode, and the calendar follows airing times.
 - Search and browsing read from Sora's own database and never wait on an upstream service.
 
 ## Architecture
 
-| Workspace                           | Role                                                               |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| [`@sora/api`](apps/api)             | HTTP API and OpenAPI document                                      |
+| Workspace | Role |
+| --- | --- |
+| [`@sora/api`](apps/api) | HTTP API and OpenAPI document |
 | [`@sora/scheduler`](apps/scheduler) | Follows airing anime and stores new episodes under upstream limits |
-| [`@sora/web`](apps/web)             | SvelteKit app                                                      |
-| [`@sora/core`](packages/core)       | Database schema, catalogue, playback providers, scheduler jobs     |
-| [`@sora/sdk`](packages/sdk)         | Typed client                                                       |
-| [`@sora/shared`](packages/shared)   | Helpers shared across workspaces                                   |
+| [`@sora/web`](apps/web) | SvelteKit app |
+| [`@sora/core`](packages/core) | Database schema, catalogue, playback providers, scheduler jobs |
+| [`@sora/sdk`](packages/sdk) | Typed client |
+| [`@sora/shared`](packages/shared) | Helpers shared across workspaces |
 
 ## Getting started
 
@@ -61,17 +55,14 @@ bun run auth:create-account yourname
 
 ## Production
 
-The root `Dockerfile` has `web`, `api`, and `scheduler` targets, run with PostgreSQL 18 on a
-persistent volume. Route `/` to web and `/v1` to the API on one domain. The environment variables
-for production are documented in the `.env.example` files.
+The root `Dockerfile` has `web`, `api`, and `scheduler` targets, run with PostgreSQL 18 on a persistent volume. Route `/` to web and `/v1` to the API on one domain. The environment variables for production are documented in the `.env.example` files.
 
 ## Credits
 
 Sora makes no anime data and hosts no video.
 
 - [AniList](https://anilist.co) for titles, art, scores, relations, and airing schedules.
-- [TMDB](https://www.themoviedb.org) for episode details, backdrops, and logos. This product uses
-  the TMDB API but is not endorsed or certified by TMDB.
+- [TMDB](https://www.themoviedb.org) for episode details, backdrops, and logos. This product uses the TMDB API but is not endorsed or certified by TMDB.
 - [AnimeSchedule.net](https://animeschedule.net) for English dub release times.
 
 ## License

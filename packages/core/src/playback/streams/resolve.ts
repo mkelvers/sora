@@ -3,25 +3,25 @@ import { z } from "zod";
 
 import { getAnime } from "../../catalog/queries/anime";
 import { config } from "../../config";
-import {
-	EpisodeNotFoundError,
-	InvalidInputError,
-	PlaybackUnavailableError,
-	type ProviderAttempt,
-} from "../../errors";
+import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError } from "../../errors";
+import type { ProviderAttempt } from "../../errors";
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import { requestRefinement } from "../../scheduler/queue";
 import { locateEpisode } from "../../series/episodes";
-import { getProviderUnits, type ProviderUnit } from "../episodes/episodes";
-import { getEpisodeVersions, type EpisodeVersion } from "../episodes/versions";
+import { getProviderUnits } from "../episodes/episodes";
+import type { ProviderUnit } from "../episodes/episodes";
+import { getEpisodeVersions } from "../episodes/versions";
+import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
 import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
-import { alignTimelines, shiftTime, type TimelineShift } from "./align";
-import { normalizeSkipSegments, type SkipSource } from "./skip-lengths";
+import { alignTimelines, shiftTime } from "./align";
+import type { TimelineShift } from "./align";
+import { normalizeSkipSegments } from "./skip-lengths";
+import type { SkipSource } from "./skip-lengths";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 
@@ -40,9 +40,9 @@ export interface Playback {
 }
 
 export const PlaybackRequestSchema = z.object({
-	seriesId: z.string().min(1),
 	/** The episode's number in the series, from 1. */
 	episode: z.number().int().positive(),
+	seriesId: z.string().min(1),
 });
 
 export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
@@ -63,17 +63,17 @@ export interface PlaybackDependencies {
 }
 
 const live: PlaybackDependencies = {
-	providers: streamProviders,
-	locateEpisode,
+	canFetchStream,
+	createStreamToken,
 	getAnime,
 	getEpisodeVersions,
 	getProviderUnits,
-	createStreamToken,
-	segmentStarts,
-	canFetchStream,
 	getRefinement,
-	requestRefinement,
+	locateEpisode,
 	normalizeSkipSegments,
+	providers: streamProviders,
+	requestRefinement,
+	segmentStarts,
 };
 
 /** The URL of a stream token for `createStreamToken`'s arguments. */
@@ -136,11 +136,11 @@ const alwaysTried: readonly EpisodeVersion[] = [
 ];
 
 const qualityRank: Record<StreamQuality, number> = {
-	auto: 0,
 	"1080p": 1,
-	"720p": 2,
-	"480p": 3,
 	"360p": 4,
+	"480p": 3,
+	"720p": 2,
+	auto: 0,
 };
 
 /**
@@ -226,10 +226,10 @@ export async function resolvePlayback(
 	);
 	if (media.length > 0) {
 		return {
-			seriesId,
 			episode,
 			expiresAt,
 			media,
+			seriesId,
 		};
 	}
 
@@ -256,10 +256,10 @@ export async function resolveStreams(
 	const parsed = PlaybackRequestSchema.parse(request);
 	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
 	return {
+		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
 		sub:
 			results.find((result) => result.version?.audio === "sub" && !result.version.hardsub)
 				?.videos ?? null,
-		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
 	};
 }
 
@@ -413,8 +413,6 @@ async function resolveVersion(
 
 		const units = await unitsOf(provider);
 		return {
-			version,
-			videos: stream.videos,
 			skipSource: {
 				episodes: units.map((candidate) => candidate.number),
 				skipSegments: async (number: number) => {
@@ -425,6 +423,8 @@ async function resolveVersion(
 					return data?.skipSegments ?? null;
 				},
 			},
+			version,
+			videos: stream.videos,
 		};
 	};
 
@@ -437,8 +437,8 @@ async function resolveVersion(
 		if (found) {
 			return {
 				...found,
-				listed,
 				attempts,
+				listed,
 			};
 		}
 	}
@@ -453,16 +453,16 @@ async function resolveVersion(
 	if (found) {
 		return {
 			...found,
-			listed,
 			attempts,
+			listed,
 		};
 	}
 
 	return {
 		...hardsubbed,
-		version: hardsubbed?.version ?? null,
-		listed,
 		attempts,
+		listed,
+		version: hardsubbed?.version ?? null,
 	};
 }
 
@@ -482,14 +482,14 @@ async function beforeDeadline(
 		timer = setTimeout(
 			() =>
 				resolve({
-					version: null,
-					listed: true,
 					attempts: [
 						{
 							provider: "all",
 							reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
 						},
 					],
+					listed: true,
+					version: null,
 				}),
 			deadlineMs,
 		);
@@ -615,11 +615,11 @@ function skipSegmentsForDub(
 		return dub;
 	}
 
-	const moved = (time: number) => Math.max(0, Math.round(shiftTime(shifts, time) * 1_000) / 1_000);
+	const moved = (time: number) => Math.max(0, Math.round(shiftTime(shifts, time) * 1000) / 1000);
 	return sub.map((segment) => ({
+		end: moved(segment.end),
 		kind: segment.kind,
 		start: moved(segment.start),
-		end: moved(segment.end),
 	}));
 }
 
@@ -634,11 +634,11 @@ function toPlaybackMedia(
 	const sources = [...videos]
 		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
 		.map((video) => ({
+			format: video.format,
+			quality: video.quality,
 			url: streamUrl(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
 				accountId,
 			}),
-			format: video.format,
-			quality: video.quality,
 		}));
 
 	// Providers attach the same subtitle tracks to every quality variant.
@@ -647,17 +647,17 @@ function toPlaybackMedia(
 		for (const track of video.subtitles) {
 			if (!subtitles.has(track.url)) {
 				subtitles.set(track.url, {
+					default: false,
+					format: track.format,
+					kind: kinds.get(track.url) ?? null,
+					label: languageName(track.language) ?? track.label,
+					language: track.language,
 					url: streamUrl(track.url, "subtitle", video.headers, {
 						accountId,
 						mirrors: mirrorsFor(track.url, video.url),
 						shifts,
 						refinement,
 					}),
-					language: track.language,
-					label: languageName(track.language) ?? track.label,
-					format: track.format,
-					kind: kinds.get(track.url) ?? null,
-					default: false,
 				});
 			}
 		}
@@ -670,9 +670,9 @@ function toPlaybackMedia(
 }
 
 const kindRank = {
+	captions: 2,
 	dialogue: 0,
 	signs: 1,
-	captions: 2,
 };
 
 /** English first, then dialogue before signs before captions, then by language. */
@@ -740,8 +740,8 @@ async function englishSubtitlesLoad(videos: ProviderVideo[], dependencies: Playb
 
 const audioLabels: Record<ContentLanguage, string> = {
 	dub: "Dub",
-	sub: "Sub",
 	raw: "Raw",
+	sub: "Sub",
 };
 
 const languageNames = new Intl.DisplayNames(["en"], {

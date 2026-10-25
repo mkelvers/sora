@@ -8,8 +8,8 @@ import { z } from "zod";
 import type { Actions, PageServerLoad } from "./$types";
 
 const Credentials = z.object({
-	username: z.string().trim().toLowerCase().min(1, "Enter your username."),
 	password: z.string().min(1, "Enter your password."),
+	username: z.string().trim().toLowerCase().min(1, "Enter your username."),
 });
 
 export const load: PageServerLoad = ({ locals, url }) => {
@@ -23,19 +23,19 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const username = String(form.get("username") ?? "");
 		const credentials = Credentials.safeParse({
-			username,
 			password: form.get("password") ?? "",
+			username,
 		});
 
 		if (!credentials.success) {
 			const { fieldErrors } = z.flattenError(credentials.error);
 
 			return fail(400, {
-				username,
 				errors: {
-					username: fieldErrors.username?.[0],
 					password: fieldErrors.password?.[0],
+					username: fieldErrors.username?.[0],
 				},
+				username,
 			});
 		}
 
@@ -50,14 +50,14 @@ export const actions: Actions = {
 		);
 		if (error?.code === "INVALID_USERNAME_OR_PASSWORD") {
 			return fail(400, {
-				username,
 				message: "Wrong username or password.",
+				username,
 			});
 		}
 		if (error?.status === 429) {
 			return fail(429, {
-				username,
 				message: "Too many attempts. Try again in a minute.",
+				username,
 			});
 		}
 		if (error) {
@@ -68,10 +68,10 @@ export const actions: Actions = {
 			path: "/",
 		});
 		cookies.set("sora_session", data.token, {
-			path: "/",
 			httpOnly: true,
-			sameSite: "lax",
 			maxAge: 90 * 24 * 60 * 60,
+			path: "/",
+			sameSite: "lax",
 		});
 
 		redirect(303, `/profiles${url.search}`);

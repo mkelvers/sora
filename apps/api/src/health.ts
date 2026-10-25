@@ -1,4 +1,5 @@
-import { getProviderHealth, type ProviderHealth } from "@sora/core/playback";
+import { getProviderHealth } from "@sora/core/playback";
+import type { ProviderHealth } from "@sora/core/playback";
 import { attempt } from "@sora/shared";
 import { Hono } from "hono";
 
@@ -66,8 +67,8 @@ export function healthRoutes(
 
 		const health = await providers();
 		return c.json({
-			status: "ok",
 			providers: health?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,
+			status: "ok",
 		});
 	});
 }

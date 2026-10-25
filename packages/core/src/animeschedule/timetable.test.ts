@@ -16,8 +16,8 @@ const http = new HttpClient({
 	transport: {
 		fetch: async (url, init) => {
 			asked.push({
-				url,
 				headers: init.headers,
+				url,
 			});
 			return Response.json(timetable);
 		},
@@ -38,29 +38,29 @@ function entry(
 	airingStatus = "unaired",
 ) {
 	return {
-		title: route,
-		route,
+		airType,
+		airingStatus,
 		episodeDate,
 		episodeNumber,
 		episodes: 24,
-		airType,
-		airingStatus,
+		route,
+		title: route,
 	};
 }
 
 describe("fetchTimetable", () => {
 	test("asks for the week's whole timetable in UTC with the app's token", async () => {
 		await fetchTimetable(http, {
-			year: 2026,
 			week: 40,
+			year: 2026,
 		});
 
 		expect(asked).toEqual([
 			{
-				url: "https://animeschedule.net/api/v3/timetables/all?year=2026&week=40&tz=UTC",
 				headers: {
 					Authorization: `Bearer ${config.animeScheduleApiKey}`,
 				},
+				url: "https://animeschedule.net/api/v3/timetables/all?year=2026&week=40&tz=UTC",
 			},
 		]);
 	});
@@ -74,33 +74,33 @@ describe("fetchTimetable", () => {
 
 		expect(
 			await fetchTimetable(http, {
-				year: 2026,
 				week: 40,
+				year: 2026,
 			}),
 		).toEqual([
 			{
-				route: "mushoku-tensei-iii-isekai-ittara-honki-dasu",
 				airType: "dub",
-				episode: 13,
 				airsAt: new Date("2026-10-04T15:01:00Z"),
 				donghua: false,
+				episode: 13,
 				lengthMinutes: null,
+				route: "mushoku-tensei-iii-isekai-ittara-honki-dasu",
 			},
 			{
-				route: "yomi-no-tsugai",
 				airType: "raw",
-				episode: 24,
 				airsAt: new Date("2026-10-03T16:00:00Z"),
 				donghua: false,
+				episode: 24,
 				lengthMinutes: null,
+				route: "yomi-no-tsugai",
 			},
 			{
-				route: "yomi-no-tsugai",
 				airType: "sub",
-				episode: 24,
 				airsAt: new Date("2026-10-03T16:30:00Z"),
 				donghua: false,
+				episode: 24,
 				lengthMinutes: null,
+				route: "yomi-no-tsugai",
 			},
 		]);
 	});
@@ -122,20 +122,20 @@ describe("fetchTimetable", () => {
 		expect(
 			(
 				await fetchTimetable(http, {
-					year: 2026,
 					week: 42,
+					year: 2026,
 				})
-			).map(({ route, donghua, lengthMinutes }) => ({ route, donghua, lengthMinutes })),
+			).map(({ route, donghua, lengthMinutes }) => ({ donghua, lengthMinutes, route })),
 		).toEqual([
 			{
-				route: "ni-tian-zhizun",
 				donghua: true,
 				lengthMinutes: 10,
+				route: "ni-tian-zhizun",
 			},
 			{
-				route: "sore-ike-anpanman",
 				donghua: false,
 				lengthMinutes: null,
+				route: "sore-ike-anpanman",
 			},
 		]);
 	});
@@ -155,8 +155,8 @@ describe("fetchTimetable", () => {
 		expect(
 			(
 				await fetchTimetable(http, {
-					year: 2026,
 					week: 40,
+					year: 2026,
 				})
 			).map((release) => release.episode),
 		).toEqual([1, 2]);
@@ -171,8 +171,8 @@ describe("fetchTimetable", () => {
 		expect(
 			(
 				await fetchTimetable(http, {
-					year: 2026,
 					week: 40,
+					year: 2026,
 				})
 			).map((release) => release.route),
 		).toEqual(["chiikawa"]);
@@ -180,8 +180,8 @@ describe("fetchTimetable", () => {
 
 	test("leaves out a delayed episode in the weeks before it airs, where it is not marked delayed-air", async () => {
 		const held = {
-			delayedText: "Delayed",
 			delayedFrom: "2026-09-14T00:00:00Z",
+			delayedText: "Delayed",
 			delayedUntil: "2026-10-19T00:00:00Z",
 		};
 		timetable = [
@@ -196,14 +196,14 @@ describe("fetchTimetable", () => {
 			},
 			{
 				...entry("chiikawa", 382, "2026-10-02T23:55:00Z", "raw", "aired"),
-				delayedText: "Delayed",
 				delayedFrom: "2026-10-05T00:00:00Z",
+				delayedText: "Delayed",
 				delayedUntil: "0001-01-01T00:00:00Z",
 			},
 			{
 				...entry("yani-neko", 11, "2026-10-01T15:00:00Z", "dub"),
-				delayedText: "Delayed",
 				delayedFrom: "0001-01-01T00:00:00Z",
+				delayedText: "Delayed",
 				delayedUntil: "0001-01-01T00:00:00Z",
 			},
 		];
@@ -211,8 +211,8 @@ describe("fetchTimetable", () => {
 		expect(
 			(
 				await fetchTimetable(http, {
-					year: 2026,
 					week: 41,
+					year: 2026,
 				})
 			).map((release) => `${release.route} ${release.airsAt.toISOString()}`),
 		).toEqual([
@@ -224,10 +224,10 @@ describe("fetchTimetable", () => {
 	test("leaves out an entry it cannot read, keeping the rest", async () => {
 		timetable = [
 			{
-				route: "no-episode",
 				airType: "raw",
-				episodeDate: "2026-10-03T16:00:00Z",
 				airingStatus: "unaired",
+				episodeDate: "2026-10-03T16:00:00Z",
+				route: "no-episode",
 			},
 			entry("half-episode", 12.5, "2026-10-03T16:00:00Z"),
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:00:00Z"),
@@ -236,8 +236,8 @@ describe("fetchTimetable", () => {
 		expect(
 			(
 				await fetchTimetable(http, {
-					year: 2026,
 					week: 40,
+					year: 2026,
 				})
 			).map((release) => release.route),
 		).toEqual(["yomi-no-tsugai"]);
@@ -247,27 +247,27 @@ describe("fetchTimetable", () => {
 describe("isoWeek", () => {
 	test("numbers weeks from Monday, as AnimeSchedule's timetable does", () => {
 		expect(isoWeek(new Date("2026-09-21T00:00:00Z"))).toEqual({
-			year: 2026,
 			week: 39,
+			year: 2026,
 		});
 		expect(isoWeek(new Date("2026-09-27T23:59:00Z"))).toEqual({
-			year: 2026,
 			week: 39,
+			year: 2026,
 		});
 		expect(isoWeek(new Date("2026-09-28T00:00:00Z"))).toEqual({
-			year: 2026,
 			week: 40,
+			year: 2026,
 		});
 	});
 
 	test("puts days around New Year in the week that holds their Thursday", () => {
 		expect(isoWeek(new Date("2027-01-01T12:00:00Z"))).toEqual({
-			year: 2026,
 			week: 53,
+			year: 2026,
 		});
 		expect(isoWeek(new Date("2025-12-29T12:00:00Z"))).toEqual({
-			year: 2026,
 			week: 1,
+			year: 2026,
 		});
 	});
 });

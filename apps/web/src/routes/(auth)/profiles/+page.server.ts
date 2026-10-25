@@ -26,10 +26,10 @@ export const actions: Actions = {
 		}
 
 		cookies.set("sora_profile", profile.id, {
-			path: "/",
 			httpOnly: true,
-			sameSite: "lax",
 			maxAge: 60 * 60,
+			path: "/",
+			sameSite: "lax",
 		});
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);

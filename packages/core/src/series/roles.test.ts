@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { franchiseRoles, type RoleRelation, type RoleTitle } from "./roles";
+import { franchiseRoles } from "./roles";
+import type { RoleRelation, RoleTitle } from "./roles";
 
 function title(anilistId: number, format: RoleTitle["format"], overrides: Partial<RoleTitle> = {}) {
 	return {
 		anilistId,
-		format,
-		episodeCount: 1,
 		durationMinutes: 24,
-		score: 70,
+		episodeCount: 1,
+		format,
 		popularity: 5000,
+		score: 70,
 		...overrides,
 	} satisfies RoleTitle;
 }
@@ -27,7 +28,7 @@ describe("franchiseRoles", () => {
 
 	test("lists side-story films and specials as extras when they are worth watching", () => {
 		const film = title(10, "MOVIE", { durationMinutes: 75 });
-		const special = title(11, "SPECIAL", { score: 62, popularity: 100 });
+		const special = title(11, "SPECIAL", { popularity: 100, score: 62 });
 		const roles = franchiseRoles(
 			[indigo, film, special],
 			[
@@ -41,8 +42,8 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps a sequel film however little it is rated, but not a side-story promo", () => {
-		const sequel = title(12, "MOVIE", { score: 45, popularity: 300 });
-		const promo = title(13, "SPECIAL", { score: 56, popularity: 1800 });
+		const sequel = title(12, "MOVIE", { popularity: 300, score: 45 });
+		const promo = title(13, "SPECIAL", { popularity: 1800, score: 56 });
 		const roles = franchiseRoles(
 			[indigo, sequel, promo],
 			[
@@ -88,8 +89,8 @@ describe("franchiseRoles", () => {
 		const roles = franchiseRoles(
 			[
 				indigo,
-				title(50, "MUSIC", { popularity: 90000 }),
-				title(51, "ONA", { durationMinutes: 2, popularity: 90000 }),
+				title(50, "MUSIC", { popularity: 90_000 }),
+				title(51, "ONA", { durationMinutes: 2, popularity: 90_000 }),
 			],
 			[],
 			main,
@@ -99,12 +100,12 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps an unconnected short with a real runtime that people watch", () => {
-		const fun = title(60, "OVA", { episodeCount: 3, durationMinutes: 8, score: 74 });
+		const fun = title(60, "OVA", { durationMinutes: 8, episodeCount: 3, score: 74 });
 		const forgotten = title(61, "OVA", {
-			episodeCount: 3,
 			durationMinutes: 8,
-			score: 41,
+			episodeCount: 3,
 			popularity: 120,
+			score: 41,
 		});
 		const roles = franchiseRoles([indigo, fun, forgotten], [], main);
 		expect(roles.get(60)).toBe("extra");

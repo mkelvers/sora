@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { followBudget, viewerWaitingPriority, waitToSend, type LimiterState } from "./client";
+import { followBudget, viewerWaitingPriority, waitToSend } from "./client";
+import type { LimiterState } from "./client";
 
 const background = 10;
 const now = 1_000_000;
@@ -21,21 +22,21 @@ function degraded(
 	overrides: Partial<LimiterState> = {},
 ): LimiterState {
 	return {
-		limit: 30,
-		recentSends,
-		pausedUntil: 0,
 		budget: null,
+		limit: 30,
+		pausedUntil: 0,
+		recentSends,
 		...overrides,
 	};
 }
 
 describe("waitToSend", () => {
 	test("sends a viewer's request at once while the last minute has room", () => {
-		expect(waitToSend(viewerWaitingPriority, now, degraded(sends(27, 2_000)))).toBe(0);
+		expect(waitToSend(viewerWaitingPriority, now, degraded(sends(27, 2000)))).toBe(0);
 	});
 
 	test("lets a viewer's request use the room background work leaves alone", () => {
-		const state = degraded(sends(25, 2_000));
+		const state = degraded(sends(25, 2000));
 
 		expect(waitToSend(viewerWaitingPriority, now, state)).toBe(0);
 		expect(waitToSend(background, now, state)).toBeGreaterThan(0);
@@ -43,7 +44,7 @@ describe("waitToSend", () => {
 
 	test("holds a viewer's request once 30 went out in the last 60 s, as AniList then answers 429", () => {
 		// As logged: 29 requests in the minute before, and the 30th was refused.
-		const recent = sends(30, 1_900, 100);
+		const recent = sends(30, 1900, 100);
 
 		expect(waitToSend(viewerWaitingPriority, now, degraded(recent))).toBe(
 			(recent[0] ?? 0) + 60_000 - now,
@@ -52,12 +53,12 @@ describe("waitToSend", () => {
 
 	test("holds background requests while fewer than the reserve's worth of room is left", () => {
 		// 19 in the last minute leaves 11: one for background work above the 10 kept for viewers.
-		expect(waitToSend(background, now, degraded(sends(19, 3_000)))).toBe(0);
-		expect(waitToSend(background, now, degraded(sends(20, 2_900)))).toBeGreaterThan(0);
+		expect(waitToSend(background, now, degraded(sends(19, 3000)))).toBe(0);
+		expect(waitToSend(background, now, degraded(sends(20, 2900)))).toBeGreaterThan(0);
 	});
 
 	test("lets a request through as soon as the oldest one leaves the last minute", () => {
-		const recent = sends(30, 2_000, 100);
+		const recent = sends(30, 2000, 100);
 		const wait = waitToSend(viewerWaitingPriority, now, degraded(recent));
 
 		expect(waitToSend(viewerWaitingPriority, now + wait, degraded(recent))).toBe(0);
@@ -69,7 +70,7 @@ describe("waitToSend", () => {
 
 	test("spaces background requests to the per-minute limit, even with room left", () => {
 		// 60 s / 30 plus the 100 ms margin, 1 s of which has passed.
-		expect(waitToSend(background, now, degraded([now - 1_000]))).toBe(1_100);
+		expect(waitToSend(background, now, degraded([now - 1000]))).toBe(1100);
 	});
 
 	test("respects what AniList reports left, which counts other processes too", () => {
@@ -96,7 +97,7 @@ describe("waitToSend", () => {
 	});
 
 	test("treats requests made outside any priority as a waiting viewer's", () => {
-		expect(waitToSend(Number.NEGATIVE_INFINITY, now, degraded(sends(25, 2_000)))).toBe(0);
+		expect(waitToSend(Number.NEGATIVE_INFINITY, now, degraded(sends(25, 2000)))).toBe(0);
 	});
 
 	test("waits out a pause after a 429 whoever is waiting", () => {

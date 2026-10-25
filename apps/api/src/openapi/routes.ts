@@ -64,8 +64,8 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
 		.pipe(list)
 		.optional()
 		.openapi({
-			type: "string",
 			example,
+			type: "string",
 		});
 }
 
@@ -77,17 +77,17 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
  * misspelled one would otherwise return the unfiltered catalog.
  */
 const BrowseParams = BrowseQuerySchema.omit({
+	perPage: true,
 	search: true,
 	seasonYear: true,
-	perPage: true,
 })
 	.strict()
 	.extend({
-		season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
 		format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
 		genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
 		page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
 		per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
+		season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
 	});
 
 /** {@link BrowseParams} with the search text, which is required. */
@@ -115,13 +115,11 @@ const EpisodeParams = SeriesParams.extend({
 });
 
 export const browseSeries = createRoute({
-	operationId: "browseSeries",
-	method: "get",
-	path: "/series",
-	tags: ["Series"],
-	summary: "Browse series",
 	description:
 		"Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
+	method: "get",
+	operationId: "browseSeries",
+	path: "/series",
 	request: {
 		query: BrowseParams,
 	},
@@ -130,16 +128,16 @@ export const browseSeries = createRoute({
 		422: problem("The query is invalid."),
 		503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
 	},
+	summary: "Browse series",
+	tags: ["Series"],
 });
 
 export const searchSeries = createRoute({
-	operationId: "searchSeries",
-	method: "get",
-	path: "/search",
-	tags: ["Series"],
-	summary: "Search series",
 	description:
 		"Finds titles matching `q` in English, romaji, Japanese, or a known synonym or abbreviation, forgiving typos. Best match first, weighing how popular titles are, unless `sort` is given; narrowed by the same filters as `browseSeries`. One card per title, and a first search for a title not prepared yet may come back without it while it is prepared in the background.",
+	method: "get",
+	operationId: "searchSeries",
+	path: "/search",
 	request: {
 		query: SearchParams,
 	},
@@ -148,16 +146,16 @@ export const searchSeries = createRoute({
 		422: problem("The query is invalid or `q` is missing."),
 		503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
 	},
+	summary: "Search series",
+	tags: ["Series"],
 });
 
 export const getSeries = createRoute({
-	operationId: "getSeries",
-	method: "get",
-	path: "/series/{series_id}",
-	tags: ["Series"],
-	summary: "Get a series",
 	description:
 		"The title's page: details, artwork, the next episode, and the other titles of its franchise. A title is one AniList entry, so a show's seasons, films, and OVAs are each a title, found from one another under `related`.",
+	method: "get",
+	operationId: "getSeries",
+	path: "/series/{series_id}",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
@@ -193,16 +191,16 @@ export const getSeries = createRoute({
 		404: problem("No such title."),
 		422: problem("The query is invalid."),
 	},
+	summary: "Get a series",
+	tags: ["Series"],
 });
 
 export const listImages = createRoute({
-	operationId: "listImages",
-	method: "get",
-	path: "/series/{series_id}/images",
-	tags: ["Series"],
-	summary: "List a series' images",
 	description:
 		"Every backdrop, poster, and logo TMDB has for the title, in every language, and for a show each season's posters too. Choose one with `updateArtwork`. Titles TMDB does not list have none. They are fetched from TMDB the first time and kept; `refreshImages` fetches them again.",
+	method: "get",
+	operationId: "listImages",
+	path: "/series/{series_id}/images",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
@@ -234,16 +232,16 @@ export const listImages = createRoute({
 		422: problem("The query is invalid."),
 		503: problem("TMDB is unavailable; retry after `Retry-After`."),
 	},
+	summary: "List a series' images",
+	tags: ["Series"],
 });
 
 export const refreshImages = createRoute({
-	operationId: "refreshImages",
-	method: "post",
-	path: "/series/{series_id}/images/refresh",
-	tags: ["Series"],
-	summary: "Refresh a series' images",
 	description:
 		"Fetches the title's images from TMDB again, past every cache, and keeps them in place of the old, so artwork added on TMDB since can be chosen. When TMDB fails, the kept images stay as they were.",
+	method: "post",
+	operationId: "refreshImages",
+	path: "/series/{series_id}/images/refresh",
 	request: {
 		params: z.object({
 			series_id: SeriesIdParam,
@@ -254,44 +252,44 @@ export const refreshImages = createRoute({
 		404: problem("No such title."),
 		503: problem("TMDB is unavailable; retry after `Retry-After`."),
 	},
+	summary: "Refresh a series' images",
+	tags: ["Series"],
 });
 
 export const updateArtwork = createRoute({
-	operationId: "updateArtwork",
-	method: "patch",
-	path: "/series/{series_id}/artwork",
-	tags: ["Series"],
-	summary: "Change a series' artwork",
 	description:
 		"Chooses the title's poster, backdrop, or logo, and where and how large the logo is drawn, for everyone. An HTTPS URL replaces the image, `false` shows none, `null` goes back to the one Sora chose, and an omitted field stays as it is. The choice is kept when the title is laid out again.",
+	method: "patch",
+	operationId: "updateArtwork",
+	path: "/series/{series_id}/artwork",
 	request: {
-		params: z.object({
-			series_id: SeriesIdParam,
-		}),
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: ArtworkChangesSchema,
 				},
 			},
+			required: true,
 		},
+		params: z.object({
+			series_id: SeriesIdParam,
+		}),
 	},
 	responses: {
 		200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title, with its new artwork."),
 		404: problem("No such title."),
 		422: problem("The body is invalid."),
 	},
+	summary: "Change a series' artwork",
+	tags: ["Series"],
 });
 
 export const listEpisodes = createRoute({
-	operationId: "listEpisodes",
-	method: "get",
-	path: "/series/{series_id}/episodes",
-	tags: ["Series"],
-	summary: "List a series' episodes",
 	description:
 		"Every episode when `limit` is omitted, so a title's page needs one request; otherwise `limit` episodes from `offset`, with `meta.next` linking to the ones after.",
+	method: "get",
+	operationId: "listEpisodes",
+	path: "/series/{series_id}/episodes",
 	request: {
 		params: SeriesParams,
 		query: z.object({
@@ -315,14 +313,14 @@ export const listEpisodes = createRoute({
 		),
 		404: problem("No such title."),
 	},
+	summary: "List a series' episodes",
+	tags: ["Series"],
 });
 
 export const getEpisode = createRoute({
-	operationId: "getEpisode",
 	method: "get",
+	operationId: "getEpisode",
 	path: "/series/{series_id}/episodes/{episode}",
-	tags: ["Series"],
-	summary: "Get one of a series' episodes",
 	request: {
 		params: EpisodeParams,
 	},
@@ -333,30 +331,30 @@ export const getEpisode = createRoute({
 		),
 		404: problem("No such title, or it does not list the episode."),
 	},
+	summary: "Get one of a series' episodes",
+	tags: ["Series"],
 });
 
 export const listGenres = createRoute({
-	operationId: "listGenres",
 	method: "get",
+	operationId: "listGenres",
 	path: "/genres",
-	tags: ["Series"],
-	summary: "List genres",
 	responses: {
 		200: json(
 			envelopeOf(z.array(z.string()), CountMetaSchema),
 			"Genre names accepted by `browseSeries`.",
 		),
 	},
+	summary: "List genres",
+	tags: ["Series"],
 });
 
 export const getSchedule = createRoute({
-	operationId: "getSchedule",
-	method: "get",
-	path: "/schedule",
-	tags: ["Series"],
-	summary: "Release schedule",
 	description:
 		"Episodes coming out in a window of up to 14 days, in order, as AnimeSchedule's timetable has them: each once subbed and once dubbed, as it comes out. A raw broadcast counts as subbed, timed by the official subbed stream where there is one. Last week to next week are kept current. Defaults to the next 7 days.",
+	method: "get",
+	operationId: "getSchedule",
+	path: "/schedule",
 	request: {
 		query: z.object({
 			from: z.iso
@@ -384,16 +382,16 @@ export const getSchedule = createRoute({
 		),
 		422: problem("The window is invalid or longer than 14 days."),
 	},
+	summary: "Release schedule",
+	tags: ["Series"],
 });
 
 export const getCalendar = createRoute({
-	operationId: "getCalendar",
-	method: "get",
-	path: "/calendar",
-	tags: ["Series"],
-	summary: "Release calendar",
 	description:
 		"A week of `getSchedule` laid out in a time zone, Monday to Sunday: each day's times and what comes out at each, with a title's subbed and dubbed episodes merged when they are the same ones.",
+	method: "get",
+	operationId: "getCalendar",
+	path: "/calendar",
 	request: {
 		query: z.object({
 			time_zone: z.string().min(1).max(100).meta({
@@ -409,16 +407,16 @@ export const getCalendar = createRoute({
 		200: json(envelopeOf(CalendarSchema, EmptyMetaSchema), "The week."),
 		422: problem("The time zone is unknown."),
 	},
+	summary: "Release calendar",
+	tags: ["Series"],
 });
 
 export const listReleases = createRoute({
-	operationId: "listReleases",
-	method: "get",
-	path: "/releases",
-	tags: ["Series"],
-	summary: "Newly added episodes",
 	description:
 		"The titles with an episode out in the last 30 days, each with its latest episode that can be watched, the latest first. A new episode of a show counts, not only a new title; an episode that has aired but cannot be played yet is left out until it can. `format` and `audio` apply to the title.",
+	method: "get",
+	operationId: "listReleases",
+	path: "/releases",
 	request: {
 		query: z
 			.object({
@@ -435,16 +433,16 @@ export const listReleases = createRoute({
 			"One page of each title's latest episode, the latest first.",
 		),
 	},
+	summary: "Newly added episodes",
+	tags: ["Series"],
 });
 
 export const listSeasons = createRoute({
-	operationId: "listSeasons",
-	method: "get",
-	path: "/seasons",
-	tags: ["Series"],
-	summary: "List anime seasons",
 	description:
 		"Every season some anime started in, the latest first, up to next season, whose titles are announced by now. Pass one to `browseSeries` as `season` and `season_year`.",
+	method: "get",
+	operationId: "listSeasons",
+	path: "/seasons",
 	responses: {
 		200: json(
 			envelopeOf(
@@ -458,29 +456,29 @@ export const listSeasons = createRoute({
 			"The seasons, and the one airing now.",
 		),
 	},
+	summary: "List anime seasons",
+	tags: ["Series"],
 });
 
 export const listUpcoming = createRoute({
-	operationId: "listUpcoming",
-	method: "get",
-	path: "/upcoming",
-	tags: ["Series"],
-	summary: "Titles with something starting soon",
 	description:
 		"Titles starting within 30 days from today, on a day that is known, whatever they are: a season, a film, or an OVA. What is only announced, or dated to a month or year, is never listed. `returning` titles come first, then new titles, each kind the most anticipated first and at most 12. A title is returning when its franchise has something out already; the earliest title of the franchise that is out is listed in its place, since that is where catching up starts.",
+	method: "get",
+	operationId: "listUpcoming",
+	path: "/upcoming",
 	responses: {
 		200: json(envelopeOf(z.array(UpcomingSeriesSchema), CountMetaSchema), "The titles."),
 	},
+	summary: "Titles with something starting soon",
+	tags: ["Series"],
 });
 
 export const getPlayback = createRoute({
-	operationId: "getPlayback",
-	method: "get",
-	path: "/series/{series_id}/episodes/{episode}/playback",
-	tags: ["Playback"],
-	summary: "Get everything needed to play an episode",
 	description:
 		"Resolves streams for every version of the episode at once, such as sub and dub, each from the first provider that can play it, with its skip segments. Sources and subtitles are URLs a player fetches directly; they expire, so resolve again rather than storing them.",
+	method: "get",
+	operationId: "getPlayback",
+	path: "/series/{series_id}/episodes/{episode}/playback",
 	request: {
 		params: EpisodeParams,
 	},
@@ -498,16 +496,16 @@ export const getPlayback = createRoute({
 		404: problem("No such title, no such episode in it, or nothing streams it."),
 		502: problem("Providers list the episode but none can stream it right now."),
 	},
+	summary: "Get everything needed to play an episode",
+	tags: ["Playback"],
 });
 
 export const getStream = createRoute({
-	operationId: "getStream",
-	method: "get",
-	path: "/streams/{token}",
-	tags: ["Playback"],
-	summary: "Fetch a stream resource",
 	description:
 		"Serves a playlist, segment, file, or subtitle through the stream proxy. `getPlayback` hands out these URLs. Only the Sora web app's server may call this and `getPlayback`, with its client key in `X-Sora-Client-Key`, for the account the token was issued to; players reach it through the web app, never directly. Playlists reference their children by relative token, so the token must stay the last path segment. `Range` is honoured for seeking.",
+	method: "get",
+	operationId: "getStream",
+	path: "/streams/{token}",
 	request: {
 		params: z.object({
 			token: z.string().openapi({
@@ -520,17 +518,17 @@ export const getStream = createRoute({
 	},
 	responses: {
 		200: {
-			description: "The resource.",
 			content: {
-				"application/vnd.apple.mpegurl": {
-					schema: z.string(),
-				},
 				"application/octet-stream": {
 					schema: z.string().openapi({
 						format: "binary",
 					}),
 				},
+				"application/vnd.apple.mpegurl": {
+					schema: z.string(),
+				},
 			},
+			description: "The resource.",
 		},
 		206: {
 			description: "Part of the resource, for a `Range` request.",
@@ -538,6 +536,8 @@ export const getStream = createRoute({
 		403: problem("The token is forged, malformed, or expired."),
 		502: problem("The upstream host failed."),
 	},
+	summary: "Fetch a stream resource",
+	tags: ["Playback"],
 });
 
 /** Routes that need a signed-in account, as a bearer token or session cookie. */
@@ -552,36 +552,33 @@ const ProfileParams = z.object({
 });
 
 export const listProfiles = createRoute({
-	operationId: "listProfiles",
-	method: "get",
-	path: "/profiles",
-	tags: ["Profiles"],
-	summary: "List the account's profiles",
 	description:
 		"Every profile of the signed-in account, oldest first. A new account starts with one.",
-	security: signedIn,
+	method: "get",
+	operationId: "listProfiles",
+	path: "/profiles",
 	responses: {
 		200: json(envelopeOf(z.array(ProfileSchema), CountMetaSchema), "The profiles."),
 		401: problem("Not signed in."),
 	},
+	security: signedIn,
+	summary: "List the account's profiles",
+	tags: ["Profiles"],
 });
 
 export const createProfile = createRoute({
-	operationId: "createProfile",
-	method: "post",
-	path: "/profiles",
-	tags: ["Profiles"],
-	summary: "Add a profile",
 	description: "An account may hold any number of profiles.",
-	security: signedIn,
+	method: "post",
+	operationId: "createProfile",
+	path: "/profiles",
 	request: {
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: ProfileInputSchema,
 				},
 			},
+			required: true,
 		},
 	},
 	responses: {
@@ -589,25 +586,25 @@ export const createProfile = createRoute({
 		401: problem("Not signed in."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Add a profile",
+	tags: ["Profiles"],
 });
 
 export const updateProfile = createRoute({
-	operationId: "updateProfile",
 	method: "patch",
+	operationId: "updateProfile",
 	path: "/profiles/{profile_id}",
-	tags: ["Profiles"],
-	summary: "Rename or recolor a profile",
-	security: signedIn,
 	request: {
-		params: ProfileParams,
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: ProfileInputSchema.partial(),
 				},
 			},
+			required: true,
 		},
+		params: ProfileParams,
 	},
 	responses: {
 		200: json(envelopeOf(ProfileSchema, EmptyMetaSchema), "The profile."),
@@ -615,16 +612,16 @@ export const updateProfile = createRoute({
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Rename or recolor a profile",
+	tags: ["Profiles"],
 });
 
 export const deleteProfile = createRoute({
-	operationId: "deleteProfile",
-	method: "delete",
-	path: "/profiles/{profile_id}",
-	tags: ["Profiles"],
-	summary: "Delete a profile",
 	description: "Deletes the profile and what Sora keeps for it.",
-	security: signedIn,
+	method: "delete",
+	operationId: "deleteProfile",
+	path: "/profiles/{profile_id}",
 	request: {
 		params: ProfileParams,
 	},
@@ -636,17 +633,17 @@ export const deleteProfile = createRoute({
 		404: problem("The account has no such profile."),
 		409: problem("The profile is the account's last; an account keeps at least one."),
 	},
+	security: signedIn,
+	summary: "Delete a profile",
+	tags: ["Profiles"],
 });
 
 export const getFeatured = createRoute({
-	operationId: "getFeatured",
-	method: "get",
-	path: "/profiles/{profile_id}/featured",
-	tags: ["Profiles"],
-	summary: "Titles to feature",
 	description:
 		"Up to six titles to feature on the profile's home page: what is popular right now, seasons and films that are airing or started in the last six months and are well liked, never old favourites without a new season. They are picked every day at 06:00 UTC, in each profile's own order, and kept all day. A title is rested for a week after it was featured unless too few others are current. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
-	security: signedIn,
+	method: "get",
+	operationId: "getFeatured",
+	path: "/profiles/{profile_id}/featured",
 	request: {
 		params: ProfileParams,
 	},
@@ -655,17 +652,17 @@ export const getFeatured = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "Titles to feature",
+	tags: ["Profiles"],
 });
 
 export const getPlaybackPreferences = createRoute({
-	operationId: "getPlaybackPreferences",
-	method: "get",
-	path: "/profiles/{profile_id}/playback-preferences",
-	tags: ["Profiles"],
-	summary: "How the profile likes episodes to play",
 	description:
 		"The audio, subtitles, and skipping the profile last picked in a player, so every episode on every device plays the same way. The defaults until it picks anything: the first version an episode has, its default subtitles, and no auto-skip.",
-	security: signedIn,
+	method: "get",
+	operationId: "getPlaybackPreferences",
+	path: "/profiles/{profile_id}/playback-preferences",
 	request: {
 		params: ProfileParams,
 	},
@@ -674,27 +671,27 @@ export const getPlaybackPreferences = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "How the profile likes episodes to play",
+	tags: ["Profiles"],
 });
 
 export const updatePlaybackPreferences = createRoute({
-	operationId: "updatePlaybackPreferences",
-	method: "patch",
-	path: "/profiles/{profile_id}/playback-preferences",
-	tags: ["Profiles"],
-	summary: "Remember what the profile picked in a player",
 	description:
 		"Changes only what is given. Subtitles change per audio: picking the dub's leaves the sub's as they are.",
-	security: signedIn,
+	method: "patch",
+	operationId: "updatePlaybackPreferences",
+	path: "/profiles/{profile_id}/playback-preferences",
 	request: {
-		params: ProfileParams,
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: PlaybackPreferencesUpdateSchema,
 				},
 			},
+			required: true,
 		},
+		params: ProfileParams,
 	},
 	responses: {
 		200: json(
@@ -705,23 +702,23 @@ export const updatePlaybackPreferences = createRoute({
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Remember what the profile picked in a player",
+	tags: ["Profiles"],
 });
 
 /** An episode, addressed under its series, under the profile whose progress it is. */
 const ProfileEpisodeParams = ProfileParams.extend({
-	series_id: SeriesIdParam,
 	episode: EpisodeNumberParam,
+	series_id: SeriesIdParam,
 });
 
 export const getProgress = createRoute({
-	operationId: "getProgress",
-	method: "get",
-	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/progress",
-	tags: ["Profiles"],
-	summary: "How far the profile is into an episode",
 	description:
 		"Where the profile stopped in the episode, to resume it from there, or null when the profile never played it.",
-	security: signedIn,
+	method: "get",
+	operationId: "getProgress",
+	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/progress",
 	request: {
 		params: ProfileEpisodeParams,
 	},
@@ -730,27 +727,27 @@ export const getProgress = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "How far the profile is into an episode",
+	tags: ["Profiles"],
 });
 
 export const saveProgress = createRoute({
-	operationId: "saveProgress",
-	method: "put",
-	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/progress",
-	tags: ["Profiles"],
-	summary: "Remember where the profile stopped in an episode",
 	description:
 		"Replaces what was remembered for the episode. A player sends it every few seconds while the episode plays, and when it is paused, left, or ends, and says each time whether the episode is over at that point. Stopping at second 0 of an unfinished episode is not remembered, since opening an episode is not watching it, and a finished episode stays as it was unless it is finished again. During a rewatch (see `startRewatch`) this is the rewatch's progress.",
-	security: signedIn,
+	method: "put",
+	operationId: "saveProgress",
+	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/progress",
 	request: {
-		params: ProfileEpisodeParams,
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: ProgressInputSchema,
 				},
 			},
+			required: true,
 		},
+		params: ProfileEpisodeParams,
 	},
 	responses: {
 		200: json(
@@ -761,17 +758,17 @@ export const saveProgress = createRoute({
 		404: problem("The account has no such profile, or the series has no such episode."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Remember where the profile stopped in an episode",
+	tags: ["Profiles"],
 });
 
 export const getSeriesProgress = createRoute({
-	operationId: "getSeriesProgress",
-	method: "get",
-	path: "/profiles/{profile_id}/series/{series_id}/progress",
-	tags: ["Profiles"],
-	summary: "How far the profile is through a title",
 	description:
 		"The profile's progress in every episode of the title it played, to mark them in an episode list, and the episode to play next.",
-	security: signedIn,
+	method: "get",
+	operationId: "getSeriesProgress",
+	path: "/profiles/{profile_id}/series/{series_id}/progress",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -782,17 +779,17 @@ export const getSeriesProgress = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series does not exist."),
 	},
+	security: signedIn,
+	summary: "How far the profile is through a title",
+	tags: ["Profiles"],
 });
 
 export const removeProgress = createRoute({
-	operationId: "removeProgress",
-	method: "delete",
-	path: "/profiles/{profile_id}/series/{series_id}/progress",
-	tags: ["Profiles"],
-	summary: "Forget the profile's progress in a title",
 	description:
 		"Forgets the profile's progress in every episode of the title, in its first viewing and any rewatch, which takes it out of `listContinueWatching`.",
-	security: signedIn,
+	method: "delete",
+	operationId: "removeProgress",
+	path: "/profiles/{profile_id}/series/{series_id}/progress",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -805,17 +802,17 @@ export const removeProgress = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series does not exist."),
 	},
+	security: signedIn,
+	summary: "Forget the profile's progress in a title",
+	tags: ["Profiles"],
 });
 
 export const markSeriesWatched = createRoute({
-	operationId: "markSeriesWatched",
-	method: "put",
-	path: "/profiles/{profile_id}/series/{series_id}/watched",
-	tags: ["Profiles"],
-	summary: "Mark a title watched",
 	description:
 		"Marks every episode the title lists watched without playing them, as if each had been played to its end just now. The watchlist status moves on as finishing them would. During a rewatch it ends the rewatch instead: its progress is forgotten, and only episodes the first viewing left unfinished are marked, so the rest keep when they were watched. `removeProgress` marks the title unwatched.",
-	security: signedIn,
+	method: "put",
+	operationId: "markSeriesWatched",
+	path: "/profiles/{profile_id}/series/{series_id}/watched",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -828,17 +825,17 @@ export const markSeriesWatched = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series does not exist."),
 	},
+	security: signedIn,
+	summary: "Mark a title watched",
+	tags: ["Profiles"],
 });
 
 export const markEpisodeWatched = createRoute({
-	operationId: "markEpisodeWatched",
-	method: "put",
-	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/watched",
-	tags: ["Profiles"],
-	summary: "Mark an episode watched",
 	description:
 		"Marks the episode watched without playing it, as if it had been played to its end just now, in the rewatch the profile is in the middle of, if any. The watchlist status moves on as finishing it would.",
-	security: signedIn,
+	method: "put",
+	operationId: "markEpisodeWatched",
+	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/watched",
 	request: {
 		params: ProfileEpisodeParams,
 	},
@@ -849,17 +846,17 @@ export const markEpisodeWatched = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series has no such episode."),
 	},
+	security: signedIn,
+	summary: "Mark an episode watched",
+	tags: ["Profiles"],
 });
 
 export const markEpisodeUnwatched = createRoute({
-	operationId: "markEpisodeUnwatched",
-	method: "delete",
-	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/watched",
-	tags: ["Profiles"],
-	summary: "Mark an episode unwatched",
 	description:
 		"Forgets the profile's progress in the episode, so it is neither watched nor started: in the rewatch the profile is in the middle of, if any, else in its first viewing.",
-	security: signedIn,
+	method: "delete",
+	operationId: "markEpisodeUnwatched",
+	path: "/profiles/{profile_id}/series/{series_id}/episodes/{episode}/watched",
 	request: {
 		params: ProfileEpisodeParams,
 	},
@@ -870,17 +867,17 @@ export const markEpisodeUnwatched = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series has no such episode."),
 	},
+	security: signedIn,
+	summary: "Mark an episode unwatched",
+	tags: ["Profiles"],
 });
 
 export const startRewatch = createRoute({
-	operationId: "startRewatch",
-	method: "post",
-	path: "/profiles/{profile_id}/series/{series_id}/rewatch",
-	tags: ["Profiles"],
-	summary: "Watch a title again from the start",
 	description:
 		"Starts watching the title again from its first episode. Until the profile finishes its last episode again, or marks the title watched, what it plays is remembered apart from its first viewing, which stays as it was, and the progress and episode to play next in `getSeriesProgress` follow it (see `rewatch_started_at`).",
-	security: signedIn,
+	method: "post",
+	operationId: "startRewatch",
+	path: "/profiles/{profile_id}/series/{series_id}/rewatch",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -893,17 +890,17 @@ export const startRewatch = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile, or the series does not exist."),
 	},
+	security: signedIn,
+	summary: "Watch a title again from the start",
+	tags: ["Profiles"],
 });
 
 export const listContinueWatching = createRoute({
-	operationId: "listContinueWatching",
-	method: "get",
-	path: "/profiles/{profile_id}/continue-watching",
-	tags: ["Profiles"],
-	summary: "Titles the profile is in the middle of",
 	description:
 		"The titles the profile is in the middle of, the most recently played first, each with the episode to play next. A title is judged by the episode played last: while it is unfinished it is the one to play, and once it is finished the episode after it is. A title with no episode after it is left out until one comes out; finishing it never leads on into another title, such as its next season. Only the 30 most recently played titles are looked at.",
-	security: signedIn,
+	method: "get",
+	operationId: "listContinueWatching",
+	path: "/profiles/{profile_id}/continue-watching",
 	request: {
 		params: ProfileParams,
 	},
@@ -912,17 +909,17 @@ export const listContinueWatching = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "Titles the profile is in the middle of",
+	tags: ["Profiles"],
 });
 
 export const dismissContinueWatching = createRoute({
-	operationId: "dismissContinueWatching",
-	method: "delete",
-	path: "/profiles/{profile_id}/continue-watching/{series_id}",
-	tags: ["Profiles"],
-	summary: "Take a title's card out of Continue Watching",
 	description:
 		"Takes the title out of `listContinueWatching`. The profile's progress in it stays, and so does its place on the watchlist; playing an episode of it brings it back.",
-	security: signedIn,
+	method: "delete",
+	operationId: "dismissContinueWatching",
+	path: "/profiles/{profile_id}/continue-watching/{series_id}",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -935,17 +932,17 @@ export const dismissContinueWatching = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "Take a title's card out of Continue Watching",
+	tags: ["Profiles"],
 });
 
 export const listWatchlist = createRoute({
-	operationId: "listWatchlist",
-	method: "get",
-	path: "/profiles/{profile_id}/watchlist",
-	tags: ["Profiles"],
-	summary: "The profile's watchlist",
 	description:
 		"Every title on the profile's watchlist with its status, the one whose status changed last first.",
-	security: signedIn,
+	method: "get",
+	operationId: "listWatchlist",
+	path: "/profiles/{profile_id}/watchlist",
 	request: {
 		params: ProfileParams,
 	},
@@ -954,17 +951,17 @@ export const listWatchlist = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "The profile's watchlist",
+	tags: ["Profiles"],
 });
 
 export const listWatchlistStatuses = createRoute({
-	operationId: "listWatchlistStatuses",
-	method: "get",
-	path: "/profiles/{profile_id}/watchlist/statuses",
-	tags: ["Profiles"],
-	summary: "The status of every title on the profile's watchlist",
 	description:
 		"The ID and status of every title on the profile's watchlist, without the titles' cards. For knowing what is listed; `listWatchlist` has the cards.",
-	security: signedIn,
+	method: "get",
+	operationId: "listWatchlistStatuses",
+	path: "/profiles/{profile_id}/watchlist/statuses",
 	request: {
 		params: ProfileParams,
 	},
@@ -973,23 +970,19 @@ export const listWatchlistStatuses = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "The status of every title on the profile's watchlist",
+	tags: ["Profiles"],
 });
 
 export const setWatchlistStatus = createRoute({
-	operationId: "setWatchlistStatus",
-	method: "put",
-	path: "/profiles/{profile_id}/watchlist/{series_id}",
-	tags: ["Profiles"],
-	summary: "Put a title on the watchlist with a status",
 	description:
 		"Puts the title on the profile's watchlist with the status given, or changes the status of one already there.",
-	security: signedIn,
+	method: "put",
+	operationId: "setWatchlistStatus",
+	path: "/profiles/{profile_id}/watchlist/{series_id}",
 	request: {
-		params: ProfileParams.extend({
-			series_id: SeriesIdParam,
-		}),
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: z.object({
@@ -997,7 +990,11 @@ export const setWatchlistStatus = createRoute({
 					}),
 				},
 			},
+			required: true,
 		},
+		params: ProfileParams.extend({
+			series_id: SeriesIdParam,
+		}),
 	},
 	responses: {
 		204: {
@@ -1007,16 +1004,16 @@ export const setWatchlistStatus = createRoute({
 		404: problem("The account has no such profile, or the series does not exist."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Put a title on the watchlist with a status",
+	tags: ["Profiles"],
 });
 
 export const removeFromWatchlist = createRoute({
-	operationId: "removeFromWatchlist",
-	method: "delete",
-	path: "/profiles/{profile_id}/watchlist/{series_id}",
-	tags: ["Profiles"],
-	summary: "Take a title off the watchlist",
 	description: "Takes the title off the profile's watchlist. The profile's progress in it stays.",
-	security: signedIn,
+	method: "delete",
+	operationId: "removeFromWatchlist",
+	path: "/profiles/{profile_id}/watchlist/{series_id}",
 	request: {
 		params: ProfileParams.extend({
 			series_id: SeriesIdParam,
@@ -1029,17 +1026,17 @@ export const removeFromWatchlist = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "Take a title off the watchlist",
+	tags: ["Profiles"],
 });
 
 export const getNotifications = createRoute({
-	operationId: "getNotifications",
-	method: "get",
-	path: "/profiles/{profile_id}/notifications",
-	tags: ["Profiles"],
-	summary: "What came out for the shows the profile follows",
 	description:
 		"What came out in the last 30 days for titles the profile saved or played and their connected sequels and prequels, newest first: premieres, new episodes, and English dubs of episodes that were out already. Connected seasons do not need to be on the watchlist. Episodes of one title that come out together make one notification. Only releases after the earliest watchlist or recorded playback time in the connected seasons qualify. Dropped titles do not start following or receive notifications, even with playback progress. A regular release notification goes once the profile plays one of its episodes, or deletes it; a dub stays after playback.",
-	security: signedIn,
+	method: "get",
+	operationId: "getNotifications",
+	path: "/profiles/{profile_id}/notifications",
 	request: {
 		params: ProfileParams,
 		query: z.object({
@@ -1056,27 +1053,27 @@ export const getNotifications = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "What came out for the shows the profile follows",
+	tags: ["Profiles"],
 });
 
 export const markNotificationsRead = createRoute({
-	operationId: "markNotificationsRead",
-	method: "put",
-	path: "/profiles/{profile_id}/notifications/read",
-	tags: ["Profiles"],
-	summary: "Mark notifications read",
 	description:
 		"Marks the given notifications read. One that is not listed, or already read, is left as it is.",
-	security: signedIn,
+	method: "put",
+	operationId: "markNotificationsRead",
+	path: "/profiles/{profile_id}/notifications/read",
 	request: {
-		params: ProfileParams,
 		body: {
-			required: true,
 			content: {
 				"application/json": {
 					schema: NotificationsReadSchema,
 				},
 			},
+			required: true,
 		},
+		params: ProfileParams,
 	},
 	responses: {
 		204: {
@@ -1086,16 +1083,16 @@ export const markNotificationsRead = createRoute({
 		404: problem("The account has no such profile."),
 		422: problem("The body is invalid."),
 	},
+	security: signedIn,
+	summary: "Mark notifications read",
+	tags: ["Profiles"],
 });
 
 export const dismissNotification = createRoute({
-	operationId: "dismissNotification",
-	method: "delete",
-	path: "/profiles/{profile_id}/notifications/{notification_id}",
-	tags: ["Profiles"],
-	summary: "Delete a notification",
 	description: "Takes the notification out of the profile's notifications for good.",
-	security: signedIn,
+	method: "delete",
+	operationId: "dismissNotification",
+	path: "/profiles/{profile_id}/notifications/{notification_id}",
 	request: {
 		params: ProfileParams.extend({
 			notification_id: z
@@ -1118,4 +1115,7 @@ export const dismissNotification = createRoute({
 		401: problem("Not signed in."),
 		404: problem("The account has no such profile."),
 	},
+	security: signedIn,
+	summary: "Delete a notification",
+	tags: ["Profiles"],
 });

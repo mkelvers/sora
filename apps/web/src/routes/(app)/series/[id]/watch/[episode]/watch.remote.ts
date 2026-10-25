@@ -2,7 +2,8 @@ import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
 import { refreshStatus, refreshTracking } from "$routes/(app)/tracking.server";
-import { route, SoraError, type PlaybackMedia } from "@sora/sdk";
+import { route, SoraError } from "@sora/sdk";
+import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
@@ -10,8 +11,8 @@ import { z } from "zod";
 export type WatchMedia = Omit<PlaybackMedia, "provider" | "locale" | "hardsub">;
 
 const EpisodeAddress = z.object({
-	seriesId: z.string(),
 	episode: z.coerce.number().int().positive(),
+	seriesId: z.string(),
 });
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) => {
@@ -25,8 +26,8 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 			}),
 			sora.request(route.getEpisode, {
 				params: {
-					series_id: seriesId,
 					episode,
+					series_id: seriesId,
 				},
 			}),
 		]),
@@ -40,8 +41,8 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 	}
 
 	return {
-		series: found.data[0],
 		episode: found.data[1],
+		series: found.data[0],
 	};
 });
 
@@ -49,8 +50,8 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 	const playback = await attempt(
 		remoteViewer().sora.requestWithMeta(route.getPlayback, {
 			params: {
-				series_id: seriesId,
 				episode,
+				series_id: seriesId,
 			},
 		}),
 		SoraError,
@@ -98,32 +99,32 @@ export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) =
 
 	return sora.request(route.getProgress, {
 		params: {
+			episode,
 			profile_id: profile.id,
 			series_id: seriesId,
-			episode,
 		},
 	});
 });
 
 export const saveProgress = command(
 	z.object({
-		seriesId: z.string(),
-		episode: z.number().int().positive(),
-		position_seconds: z.number().int().nonnegative(),
 		duration_seconds: z.number().int().positive(),
+		episode: z.number().int().positive(),
 		finished: z.boolean(),
 		leaving: z.boolean(),
+		position_seconds: z.number().int().nonnegative(),
+		seriesId: z.string(),
 	}),
 	async ({ seriesId, episode, leaving, ...progress }) => {
 		const { sora, profile } = remoteViewer();
 
 		await sora.request(route.saveProgress, {
+			body: progress,
 			params: {
+				episode,
 				profile_id: profile.id,
 				series_id: seriesId,
-				episode,
 			},
-			body: progress,
 		});
 
 		if (leaving) {
@@ -136,31 +137,31 @@ export const saveProgress = command(
 
 const SubtitleChoice = z
 	.object({
-		language: z.string(),
 		kind: z.enum(["dialogue", "signs", "captions"]).nullable(),
+		language: z.string(),
 	})
 	.nullable();
 
 export const savePlaybackPreferences = command(
 	z.object({
 		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
+		auto_skip: z.boolean().optional(),
 		subtitles: z
 			.object({
 				sub: SubtitleChoice.optional(),
 				dub: SubtitleChoice.optional(),
 			})
 			.optional(),
-		auto_skip: z.boolean().optional(),
 	}),
 	async (changes) => {
 		const { sora, profile } = remoteViewer();
 
 		getPlaybackPreferences().set(
 			await sora.request(route.updatePlaybackPreferences, {
+				body: changes,
 				params: {
 					profile_id: profile.id,
 				},
-				body: changes,
 			}),
 		);
 	},

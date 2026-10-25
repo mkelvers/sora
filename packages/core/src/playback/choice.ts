@@ -4,8 +4,8 @@ import type { PlaybackMedia } from "../models/playback";
 /** The audios to try, in order, for each preferred audio; raw is the last resort of a dub. */
 const fallbacks = {
 	dub: ["dub", "sub", "raw"],
-	sub: ["sub", "raw", "dub"],
 	raw: ["raw", "sub", "dub"],
+	sub: ["sub", "raw", "dub"],
 } as const;
 
 /**

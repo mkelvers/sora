@@ -21,8 +21,8 @@
 		const released = new Date(item.released_at);
 		const time = new Intl.DateTimeFormat(undefined, {
 			hour: "2-digit",
-			minute: "2-digit",
 			hourCycle: "h23",
+			minute: "2-digit",
 		}).format(released);
 		if (released.toDateString() === new Date().toDateString()) {
 			return `Released at ${time}`;

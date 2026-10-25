@@ -2,7 +2,8 @@ import { EventEmitter } from "node:events";
 
 import { attempt, day, minute } from "@sora/shared";
 import { inArray, lt, sql } from "drizzle-orm";
-import { consoleLogFactory, Logger, type WorkerEvents } from "graphile-worker";
+import { consoleLogFactory, Logger } from "graphile-worker";
+import type { WorkerEvents } from "graphile-worker";
 
 import { db } from "../database/client";
 import { schedulerPool } from "../database/schema";
@@ -69,15 +70,15 @@ export function watchPools(): PoolWatch {
 				.insert(schedulerPool)
 				.values(
 					[...poolIds].map((poolId) => ({
-						poolId,
 						heartbeatAt: now,
+						poolId,
 					})),
 				)
 				.onConflictDoUpdate({
-					target: schedulerPool.poolId,
 					set: {
 						heartbeatAt: now,
 					},
+					target: schedulerPool.poolId,
 				});
 		}
 
@@ -89,7 +90,7 @@ export function watchPools(): PoolWatch {
 
 	const timer = setInterval(tick, heartbeatMs);
 	// Pools are created as `run()` resolves; give them a moment to be known first.
-	setTimeout(tick, 1_000);
+	setTimeout(tick, 1000);
 
 	return {
 		events,

@@ -32,9 +32,9 @@ export const providerTransport: HttpTransport = {
 		const headers = new Headers(response.headers);
 		headers.set("Retry-After", String(maximumRetryAfterSeconds));
 		return new Response(response.body, {
+			headers,
 			status: response.status,
 			statusText: response.statusText,
-			headers,
 		});
 	},
 };

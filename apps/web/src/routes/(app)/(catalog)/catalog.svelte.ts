@@ -1,7 +1,7 @@
-export type CatalogFilters = {
+export interface CatalogFilters {
 	audio?: "sub" | "dub";
 	format?: "TV" | "MOVIE";
-};
+}
 
 export const filterGroups = [
 	{

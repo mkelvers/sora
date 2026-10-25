@@ -18,8 +18,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}),
 		viewer.sora.request(route.browseSeries, {
 			query: {
-				sort: "trending",
 				per_page: 20,
+				sort: "trending",
 			},
 		}),
 		viewer.sora.request(route.listUpcoming),
@@ -30,21 +30,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		featured,
 		rows: [
 			{
+				cards: trending,
 				id: "trending",
 				title: "Trending Now",
-				cards: trending,
 			},
 			{
+				cards: upcoming.filter((title) => title.returning).map((title) => title.series),
+				hint: "Catch up on previous episodes before the new season premiere!",
 				id: "catch-up",
 				title: "Catch Up Before the New Season",
-				hint: "Catch up on previous episodes before the new season premiere!",
-				cards: upcoming.filter((title) => title.returning).map((title) => title.series),
 			},
 			{
+				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
+				hint: "Your new favorite shows from the upcoming season",
 				id: "coming-soon",
 				title: "Coming Soon: Add to Your Watchlist",
-				hint: "Your new favorite shows from the upcoming season",
-				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
 			},
 		],
 	};

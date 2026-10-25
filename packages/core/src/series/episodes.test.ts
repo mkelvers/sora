@@ -15,23 +15,23 @@ const now = new Date("2026-09-27T16:00:00Z");
 const title = {
 	anilistId: 178789,
 	kind: "tv" as const,
-	nextEpisodeNumber: null,
 	nextEpisodeAiringAt: null,
+	nextEpisodeNumber: null,
 };
 
 /** Its episode 14, which TMDB lists and dates a day after its broadcast. */
 const episode = {
-	number: 14,
 	airDate: "2026-09-28",
 	airedAt: new Date("2026-09-27T15:00:00Z"),
+	number: 14,
 	tmdbEpisodeNumber: 14,
 };
 
 /** AniKoto, looked up for entry 178789, carrying `episodes` of it. */
 function onAniKoto(...episodes: number[]) {
 	return {
-		carried: new Set(episodes.map((number) => anilistEpisodeKey(178789, number))),
-		lookedUp: new Set([178789]),
+		carried: new Set(episodes.map((number) => anilistEpisodeKey(178_789, number))),
+		lookedUp: new Set([178_789]),
 	};
 }
 

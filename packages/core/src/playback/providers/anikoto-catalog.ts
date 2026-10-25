@@ -1,5 +1,6 @@
 import { attempt, hour } from "@sora/shared";
-import { bestSimilarity, type HttpClient } from "anime-sdk";
+import { bestSimilarity } from "anime-sdk";
+import type { HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -37,23 +38,23 @@ const OptionalIdSchema = z
 
 /** One series in AniKoto's catalogue listing. */
 const CatalogSeriesSchema = z.object({
-	id: z.number().int().positive(),
-	title: z.string().min(1),
 	alternative: z.string().nullish(),
-	/** Other titles, joined with commas, which titles themselves may contain. */
-	titles: z.string().nullish(),
-	native: z.string().nullish(),
 	ani_id: OptionalIdSchema,
-	mal_id: OptionalIdSchema,
-	year: OptionalIdSchema,
 	episodes: OptionalIdSchema,
+	id: z.number().int().positive(),
+	mal_id: OptionalIdSchema,
+	native: z.string().nullish(),
 	terms_by_type: z
 		.object({
 			type: z.array(z.string()).optional(),
 		})
 		.nullish(),
+	title: z.string().min(1),
+	/** Other titles, joined with commas, which titles themselves may contain. */
+	titles: z.string().nullish(),
 	/** `YYYY-MM-DD hh:mm:ss`, in UTC. */
 	updated_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
+	year: OptionalIdSchema,
 });
 
 /** AniKoto's series endpoint; the series itself is read by {@link parseCatalogSeries}. */
@@ -73,15 +74,15 @@ const CatalogPageSchema = z.object({
 
 /** AniKoto's series types, as AniList formats. */
 const formats: Record<string, AnimeFormat> = {
-	tv: "TV",
-	tv_short: "TV_SHORT",
-	"tv short": "TV_SHORT",
 	movie: "MOVIE",
-	ova: "OVA",
-	ona: "ONA",
-	special: "SPECIAL",
-	"tv special": "SPECIAL",
 	music: "MUSIC",
+	ona: "ONA",
+	ova: "OVA",
+	special: "SPECIAL",
+	tv: "TV",
+	"tv short": "TV_SHORT",
+	"tv special": "SPECIAL",
+	tv_short: "TV_SHORT",
 };
 
 /** Formats one site may list as another: a TV short as TV, a web series as TV or OVA. */
@@ -222,6 +223,8 @@ function toRow(series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 	return {
 		anikotoId: series.id,
 		anilistId: series.ani_id,
+		episodes: series.episodes,
+		format: type ? (formats[type] ?? null) : null,
 		malId: series.mal_id,
 		title: series.title,
 		titles: [
@@ -237,10 +240,8 @@ function toRow(series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 				].flatMap((title) => (title?.trim() ? [title.trim()] : [])),
 			),
 		],
-		format: type ? (formats[type] ?? null) : null,
-		year: series.year,
-		episodes: series.episodes,
 		updatedAt: new Date(`${series.updated_at.replace(" ", "T")}Z`),
+		year: series.year,
 	};
 }
 
@@ -253,17 +254,17 @@ async function upsert(rows: (typeof anikotoSeries.$inferInsert)[]) {
 		.insert(anikotoSeries)
 		.values(rows)
 		.onConflictDoUpdate({
-			target: anikotoSeries.anikotoId,
 			set: {
 				anilistId: sql`excluded.anilist_id`,
+				episodes: sql`excluded.episodes`,
+				format: sql`excluded.format`,
 				malId: sql`excluded.mal_id`,
 				title: sql`excluded.title`,
 				titles: sql`excluded.titles`,
-				format: sql`excluded.format`,
-				year: sql`excluded.year`,
-				episodes: sql`excluded.episodes`,
 				updatedAt: sql`excluded.updated_at`,
+				year: sql`excluded.year`,
 			},
+			target: anikotoSeries.anikotoId,
 		});
 	return rows.length;
 }
@@ -366,8 +367,8 @@ async function continuedSeries(anime: Anime, depth: number): Promise<AniKotoMatc
 	return stored?.episodes && stored.episodes >= episodeOffset + (anime.episodes ?? 1)
 		? {
 				...series,
-				method: "continuation",
 				episodeOffset,
+				method: "continuation",
 			}
 		: null;
 }
@@ -387,9 +388,9 @@ async function matchStoredSeries(anime: Anime): Promise<AniKotoMatch | null> {
 	if (best) {
 		return {
 			anikotoId: String(best.anikotoId),
-			title: best.title,
-			method: "id",
 			episodeOffset: 0,
+			method: "id",
+			title: best.title,
 		};
 	}
 
@@ -397,9 +398,9 @@ async function matchStoredSeries(anime: Anime): Promise<AniKotoMatch | null> {
 	return byTitle.length === 1 && byTitle[0]
 		? {
 				anikotoId: String(byTitle[0].anikotoId),
-				title: byTitle[0].title,
-				method: "title",
 				episodeOffset: 0,
+				method: "title",
+				title: byTitle[0].title,
 			}
 		: null;
 }
@@ -576,8 +577,8 @@ function animeTitles(anime: Anime) {
 export function strictTitle(title: string) {
 	return title
 		.normalize("NFKD")
-		.replace(/\p{M}/gu, "")
+		.replaceAll(/\p{M}/gu, "")
 		.toLowerCase()
-		.replace(/[^\p{L}\p{N}]+/gu, " ")
+		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
 		.trim();
 }

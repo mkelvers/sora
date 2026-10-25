@@ -17,10 +17,10 @@ describe("isCurrent", () => {
 		expect(
 			isCurrent(
 				{
+					popularity: 167_000,
+					score: 86,
 					startDate: "2026-07-04",
 					status: "FINISHED",
-					score: 86,
-					popularity: 167_000,
 				},
 				now,
 			),
@@ -31,10 +31,10 @@ describe("isCurrent", () => {
 		expect(
 			isCurrent(
 				{
+					popularity: 90_000,
+					score: 80,
 					startDate: "2026-02-01",
 					status: "RELEASING",
-					score: 80,
-					popularity: 90_000,
 				},
 				now,
 			),
@@ -45,10 +45,10 @@ describe("isCurrent", () => {
 		expect(
 			isCurrent(
 				{
+					popularity: 900_000,
+					score: 90,
 					startDate: "2013-04-07",
 					status: "FINISHED",
-					score: 90,
-					popularity: 900_000,
 				},
 				now,
 			),
@@ -59,10 +59,10 @@ describe("isCurrent", () => {
 		expect(
 			isCurrent(
 				{
+					popularity: 260_000,
+					score: 86,
 					startDate: "2026-01-09",
 					status: "FINISHED",
-					score: 86,
-					popularity: 260_000,
 				},
 				now,
 			),
@@ -74,8 +74,8 @@ describe("isCurrent", () => {
 			startDate: "2026-07-03",
 			status: "RELEASING",
 		};
-		expect(isCurrent({ ...entry, score: 67, popularity: 165_000 }, now)).toBe(false);
-		expect(isCurrent({ ...entry, score: 80, popularity: 20_000 }, now)).toBe(false);
+		expect(isCurrent({ ...entry, popularity: 165_000, score: 67 }, now)).toBe(false);
+		expect(isCurrent({ ...entry, popularity: 20_000, score: 80 }, now)).toBe(false);
 	});
 });
 

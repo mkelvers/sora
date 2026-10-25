@@ -1,4 +1,5 @@
-import { sql, type SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import { viewerWaitingPriority } from "../anilist/client";
 import { db } from "../database/client";
@@ -64,8 +65,8 @@ export async function startTrackingAiring(anilistId: number) {
       identifier => ${trackAiringTask},
       payload => ${payloadJson({
 				anilistId,
-				awaitedEpisode: null,
 				attempt: 0,
+				awaitedEpisode: null,
 			})},
       job_key => ${airingJobKey(anilistId)},
       job_key_mode => 'unsafe_dedupe',
@@ -152,9 +153,9 @@ export const storeSeriesNowTask = "store-series-now";
 export type SeriesStorePriority = "waiting" | "current" | "backfill";
 
 const seriesStorePriorities: Record<SeriesStorePriority, number> = {
-	waiting: viewerWaitingPriority,
-	current: 0,
 	backfill: 10,
+	current: 0,
+	waiting: viewerWaitingPriority,
 };
 
 /**

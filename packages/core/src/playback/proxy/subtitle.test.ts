@@ -54,10 +54,10 @@ Before the opening
 	describe("with anchors", () => {
 		const anchors = [
 			{
-				start: 1,
 				end: 3.5,
-				movedStart: 11.6,
 				movedEnd: 12.4,
+				movedStart: 11.6,
+				start: 1,
 			},
 		];
 

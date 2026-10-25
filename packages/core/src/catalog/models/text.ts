@@ -9,18 +9,18 @@
  */
 export function plainText(value: string) {
 	return value
-		.replace(/<br\s*\/?>/gi, "\n")
-		.replace(/<[^>]+>/g, "")
-		.replace(
+		.replaceAll(/<br\s*\/?>/gi, "\n")
+		.replaceAll(/<[^>]+>/g, "")
+		.replaceAll(
 			/&(#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/gi,
 			decodeEntity,
 		)
 		.replace(/\s*[([]\s*(?:source|written by)\s*:[\s\S]*$/i, "")
 		.replace(/^\s*note\s*:[^\n]*/i, "")
 		.replace(/\s*\b(?:note|\*?(?:this )?includes)\s*:[\s\S]*$/i, "")
-		.replace(/^[^.!?\n]{1,40}:[ \t]*$/gm, "")
-		.replace(/[ \t]+\n/g, "\n")
-		.replace(/\n{3,}/g, "\n\n")
+		.replaceAll(/^[^.!?\n]{1,40}:[ \t]*$/gm, "")
+		.replaceAll(/[ \t]+\n/g, "\n")
+		.replaceAll(/\n{3,}/g, "\n\n")
 		.trim();
 }
 
@@ -62,7 +62,7 @@ export const placeholder =
 /** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
 function sentences(text: string) {
 	const found: string[] = [];
-	for (const part of text.replace(/\s+/g, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/)) {
+	for (const part of text.replaceAll(/\s+/g, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/)) {
 		const previous = found.at(-1);
 		if (previous && /\b[A-Z]\.$/.test(previous)) {
 			found[found.length - 1] = `${previous} ${part}`;
@@ -76,18 +76,18 @@ function sentences(text: string) {
 
 const namedEntities: Record<string, string> = {
 	amp: "&",
-	lt: "<",
-	gt: ">",
-	quot: '"',
 	apos: "'",
-	nbsp: " ",
-	mdash: "—",
-	ndash: "–",
+	gt: ">",
 	hellip: "…",
-	rsquo: "’",
-	lsquo: "‘",
-	rdquo: "”",
 	ldquo: "“",
+	lsquo: "‘",
+	lt: "<",
+	mdash: "—",
+	nbsp: " ",
+	ndash: "–",
+	quot: '"',
+	rdquo: "”",
+	rsquo: "’",
 };
 
 function decodeEntity(entity: string, body: string) {
@@ -118,5 +118,5 @@ export function fuzzyDate(date: { year: number | null; month: number | null; day
 }
 
 export function fromUnixSeconds(seconds: number) {
-	return new Date(seconds * 1_000).toISOString();
+	return new Date(seconds * 1000).toISOString();
 }

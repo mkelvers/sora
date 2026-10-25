@@ -3,11 +3,8 @@
 	import Dropdown from "$lib/components/ui/Dropdown.svelte";
 	import Sheet from "$lib/components/ui/Sheet.svelte";
 	import { cn } from "$lib/utils";
-	import {
-		filterGroups,
-		filters,
-		type CatalogFilters,
-	} from "$routes/(app)/(catalog)/catalog.svelte";
+	import { filterGroups, filters } from "$routes/(app)/(catalog)/catalog.svelte";
+	import type { CatalogFilters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import { CircleIcon, FunnelIcon, ListBulletsIcon, RadioButtonIcon } from "phosphor-svelte";
 
 	let {

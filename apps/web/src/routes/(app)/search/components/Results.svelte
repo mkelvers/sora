@@ -20,9 +20,9 @@
 
 	const search = $derived(
 		searchSeries({
-			q,
 			page,
 			perPage: 24,
+			q,
 		}),
 	);
 	const found = $derived(await search);

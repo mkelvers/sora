@@ -25,8 +25,8 @@
 	} = $props();
 
 	const tabs = new Tabs<T>({
-		value: () => value,
 		onValueChange: (next) => (value = next),
+		value: () => value,
 	});
 </script>
 

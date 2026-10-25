@@ -17,9 +17,9 @@
 
 	const search = $derived(
 		searchSeries({
-			q: term,
 			page: 1,
 			perPage: 6,
+			q: term,
 		}),
 	);
 	const found = $derived(await search);

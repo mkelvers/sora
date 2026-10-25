@@ -6,41 +6,41 @@ describe("parseTmdbHints", () => {
 	test("reads the show and films hinted for each AniList entry", () => {
 		const hints = parseTmdbHints([
 			{
-				type: "TV",
 				anidb_id: 17617,
 				anilist_id: 154587,
 				mal_id: 52991,
+				season: {
+					tmdb: 1,
+					tvdb: 1,
+				},
 				themoviedb_id: {
 					tv: 209867,
 				},
-				season: {
-					tvdb: 1,
-					tmdb: 1,
-				},
+				type: "TV",
 			},
 			{
-				type: "MOVIE",
 				anidb_id: 7,
 				anilist_id: 164,
 				themoviedb_id: {
 					movie: [128],
 				},
+				type: "MOVIE",
 			},
 		]);
 
 		expect([...hints]).toEqual([
 			[
-				154587,
+				154_587,
 				{
-					showId: 209867,
 					movieIds: [],
+					showId: 209867,
 				},
 			],
 			[
 				164,
 				{
-					showId: null,
 					movieIds: [128],
+					showId: null,
 				},
 			],
 		]);
@@ -51,7 +51,7 @@ describe("parseTmdbHints", () => {
 			{
 				anidb_id: 1,
 				themoviedb_id: {
-					tv: 26209,
+					tv: 26_209,
 				},
 			},
 			{
@@ -84,22 +84,22 @@ describe("parseTmdbHints", () => {
 			{
 				anilist_id: 1,
 				themoviedb_id: {
-					tv: 10,
 					movie: [20],
+					tv: 10,
 				},
 			},
 			{
 				anilist_id: 1,
 				themoviedb_id: {
-					tv: 11,
 					movie: [20, 21],
+					tv: 11,
 				},
 			},
 		]);
 
 		expect(hints.get(1)).toEqual({
-			showId: 10,
 			movieIds: [20, 21],
+			showId: 10,
 		});
 	});
 

@@ -26,8 +26,8 @@ export const getSeriesProgress = query(z.string(), (id) => {
 export const getEpisodes = query(
 	z.object({
 		id: z.string(),
-		offset: z.number().int().nonnegative(),
 		limit: z.number().int().positive(),
+		offset: z.number().int().nonnegative(),
 	}),
 	({ id, offset, limit }) =>
 		remoteViewer().sora.request(route.listEpisodes, {
@@ -35,8 +35,8 @@ export const getEpisodes = query(
 				series_id: id,
 			},
 			query: {
-				offset,
 				limit,
+				offset,
 			},
 		}),
 );
@@ -73,8 +73,8 @@ export const markSeries = command(
 
 export const markEpisode = command(
 	z.object({
-		seriesId: z.string(),
 		episode: z.number().int().positive(),
+		seriesId: z.string(),
 		watched: z.boolean(),
 	}),
 	async ({ seriesId, episode, watched }) => {
@@ -82,9 +82,9 @@ export const markEpisode = command(
 
 		await sora.request(watched ? route.markEpisodeWatched : route.markEpisodeUnwatched, {
 			params: {
+				episode,
 				profile_id: profile.id,
 				series_id: seriesId,
-				episode,
 			},
 		});
 		await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);

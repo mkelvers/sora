@@ -18,33 +18,33 @@ export const avatarStyle = pgEnum("avatar_style", ["sprouts", "critters"]);
  * which is never shown or used.
  */
 export const authUser = pgTable("auth_user", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	email: text("email").notNull().unique(),
-	username: text("username").notNull().unique(),
-	displayUsername: text("display_username").notNull(),
-	emailVerified: boolean("email_verified").notNull().default(false),
-	image: text("image"),
 	createdAt: timestamptz("created_at").notNull().defaultNow(),
+	displayUsername: text("display_username").notNull(),
+	email: text("email").notNull().unique(),
+	emailVerified: boolean("email_verified").notNull().default(false),
+	id: text("id").primaryKey(),
+	image: text("image"),
+	name: text("name").notNull(),
 	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+	username: text("username").notNull().unique(),
 });
 
 /** A signed-in device or browser. The token is what clients present. */
 export const authSession = pgTable(
 	"auth_session",
 	{
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+		expiresAt: timestamptz("expires_at").notNull(),
 		id: text("id").primaryKey(),
+		ipAddress: text("ip_address"),
+		token: text("token").notNull().unique(),
+		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+		userAgent: text("user_agent"),
 		userId: text("user_id")
 			.notNull()
 			.references(() => authUser.id, {
 				onDelete: "cascade",
 			}),
-		token: text("token").notNull().unique(),
-		expiresAt: timestamptz("expires_at").notNull(),
-		ipAddress: text("ip_address"),
-		userAgent: text("user_agent"),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
-		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 	},
 	(table) => [index("auth_session_user_idx").on(table.userId)],
 );
@@ -53,23 +53,23 @@ export const authSession = pgTable(
 export const authAccount = pgTable(
 	"auth_account",
 	{
+		accessToken: text("access_token"),
+		accessTokenExpiresAt: timestamptz("access_token_expires_at"),
+		accountId: text("account_id").notNull(),
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
 		id: text("id").primaryKey(),
+		idToken: text("id_token"),
+		password: text("password"),
+		providerId: text("provider_id").notNull(),
+		refreshToken: text("refresh_token"),
+		refreshTokenExpiresAt: timestamptz("refresh_token_expires_at"),
+		scope: text("scope"),
+		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 		userId: text("user_id")
 			.notNull()
 			.references(() => authUser.id, {
 				onDelete: "cascade",
 			}),
-		accountId: text("account_id").notNull(),
-		providerId: text("provider_id").notNull(),
-		accessToken: text("access_token"),
-		refreshToken: text("refresh_token"),
-		idToken: text("id_token"),
-		accessTokenExpiresAt: timestamptz("access_token_expires_at"),
-		refreshTokenExpiresAt: timestamptz("refresh_token_expires_at"),
-		scope: text("scope"),
-		password: text("password"),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
-		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 	},
 	(table) => [index("auth_account_user_idx").on(table.userId)],
 );
@@ -78,12 +78,12 @@ export const authAccount = pgTable(
 export const authVerification = pgTable(
 	"auth_verification",
 	{
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+		expiresAt: timestamptz("expires_at").notNull(),
 		id: text("id").primaryKey(),
 		identifier: text("identifier").notNull(),
-		value: text("value").notNull(),
-		expiresAt: timestamptz("expires_at").notNull(),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
 		updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+		value: text("value").notNull(),
 	},
 	(table) => [index("auth_verification_identifier_idx").on(table.identifier)],
 );
@@ -96,20 +96,20 @@ export const authVerification = pgTable(
 export const profile = pgTable(
 	"profile",
 	{
+		/** The seed of the profile's avatar; new profiles start with their own ID. */
+		avatarSeed: text("avatar_seed").notNull(),
+		/** The DiceBear style of the profile's avatar. */
+		avatarStyle: avatarStyle("avatar_style").notNull(),
+		/** A CSS color for the profile's tile, such as `#4f7cff`. */
+		color: text("color").notNull(),
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
 		id: text("id").primaryKey(),
+		name: text("name").notNull(),
 		userId: text("user_id")
 			.notNull()
 			.references(() => authUser.id, {
 				onDelete: "cascade",
 			}),
-		name: text("name").notNull(),
-		/** A CSS color for the profile's tile, such as `#4f7cff`. */
-		color: text("color").notNull(),
-		/** The DiceBear style of the profile's avatar. */
-		avatarStyle: avatarStyle("avatar_style").notNull(),
-		/** The seed of the profile's avatar; new profiles start with their own ID. */
-		avatarSeed: text("avatar_seed").notNull(),
-		createdAt: timestamptz("created_at").notNull().defaultNow(),
 	},
 	(table) => [index("profile_user_idx").on(table.userId, table.createdAt)],
 );

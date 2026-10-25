@@ -103,10 +103,10 @@ export function planNextCheck(state: AiringState, progress: AiringProgress, now:
 	if (state.status === "FINISHED" || state.status === "CANCELLED") {
 		return retryAt
 			? {
+					attempt,
+					awaitedEpisode,
 					done: false,
 					runAt: retryAt,
-					awaitedEpisode,
-					attempt,
 				}
 			: {
 					done: true,
@@ -115,10 +115,10 @@ export function planNextCheck(state: AiringState, progress: AiringProgress, now:
 
 	const scheduledAt = nextScheduledCheck(state, now);
 	return {
+		attempt,
+		awaitedEpisode,
 		done: false,
 		runAt: retryAt && retryAt < scheduledAt ? retryAt : scheduledAt,
-		awaitedEpisode,
-		attempt,
 	};
 }
 
@@ -153,8 +153,8 @@ function japanDay(date: string | null) {
 
 	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
 	return {
-		start: new Date(start),
 		end: new Date(start + day),
+		start: new Date(start),
 	};
 }
 

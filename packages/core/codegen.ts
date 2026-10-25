@@ -10,11 +10,9 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
  * Run with `bun run graphql:generate` after editing an operation.
  */
 export default {
-	schema: "https://graphql.anilist.co",
 	documents: "src/anilist/operations/*.graphql",
 	generates: {
 		"src/anilist/graphql.generated.ts": {
-			plugins: ["typescript-operations", "typed-document-node"],
 			config: {
 				documentMode: "string",
 				enumsAsTypes: true,
@@ -29,6 +27,8 @@ export default {
 					Json: "unknown",
 				},
 			},
+			plugins: ["typescript-operations", "typed-document-node"],
 		},
 	},
+	schema: "https://graphql.anilist.co",
 } satisfies CodegenConfig;

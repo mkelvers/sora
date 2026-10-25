@@ -1,18 +1,20 @@
 import { describe, expect, test } from "bun:test";
 
 import { anime } from "../../catalog/models/anime.fixture";
-import { recordingCalls, type ProviderCall } from "./calls";
+import { recordingCalls } from "./calls";
+import type { ProviderCall } from "./calls";
 import type { ProviderEpisode, ProviderStream, StreamProvider } from "./provider";
 
 const episode: ProviderEpisode = {
 	id: "fake:1",
+	isFiller: null,
+	languages: ["sub"],
 	number: 1,
 	title: "Episode 1",
-	languages: ["sub"],
-	isFiller: null,
 };
 
 const stream: ProviderStream = {
+	skipSegments: [],
 	videos: [
 		{
 			url: "https://fake.example/master.m3u8",
@@ -22,7 +24,6 @@ const stream: ProviderStream = {
 			subtitles: [],
 		},
 	],
-	skipSegments: [],
 };
 
 /** A provider that answers with `answers`, wrapped so its calls land in `calls`. */
@@ -33,11 +34,11 @@ function recorded(
 	const calls: ProviderCall[] = [];
 	const provider = recordingCalls(
 		{
-			id: "fake",
-			locale: "en",
-			listsLanguages: true,
 			findMedia: async () => null,
+			id: "fake",
 			listEpisodes: async () => [],
+			listsLanguages: true,
+			locale: "en",
 			resolveStream: async () => stream,
 			...answers,
 		},
@@ -48,8 +49,8 @@ function recorded(
 	);
 
 	return {
-		provider,
 		calls,
+		provider,
 	};
 }
 
@@ -87,10 +88,10 @@ describe("recordingCalls", () => {
 		await expect(provider.resolveStream("fake:1", "dub")).rejects.toBe(error);
 		expect(calls).toEqual([
 			expect.objectContaining({
-				provider: "fake",
+				error: "MegaPlay has no dub source for this episode",
 				operation: "resolve_stream",
 				outcome: "failed",
-				error: "MegaPlay has no dub source for this episode",
+				provider: "fake",
 			}),
 		]);
 	});

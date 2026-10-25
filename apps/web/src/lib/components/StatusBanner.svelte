@@ -19,7 +19,7 @@
 		if (!message || tone === "error") {
 			return;
 		}
-		const timeout = setTimeout(() => ondismiss?.(), 4_000);
+		const timeout = setTimeout(() => ondismiss?.(), 4000);
 		return () => clearTimeout(timeout);
 	});
 </script>

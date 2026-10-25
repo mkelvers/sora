@@ -12,8 +12,6 @@ import { providerTransport } from "./transport";
  * apply across all requests from this process.
  */
 export const providerHttp = new HttpClient({
-	timeoutMs: 20_000,
-	transport: providerTransport,
 	rateLimits: {
 		// AniKoto's API allows 60 requests a minute per IP.
 		"anikotoapi.site": {
@@ -26,6 +24,8 @@ export const providerHttp = new HttpClient({
 			intervalMs: 60_000,
 		},
 	},
+	timeoutMs: 20_000,
+	transport: providerTransport,
 });
 
 /** Matches AniList entries to provider catalogues. Results are persisted separately. */
@@ -55,8 +55,8 @@ export function isServedSubtitle(track: { language: string; label: string }) {
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
 export const aniKoto = recordingCalls(
 	new AniKotoStreamProvider(providerHttp, {
-		locale: "en",
 		listsLanguages: true,
+		locale: "en",
 	}),
 );
 
@@ -71,18 +71,18 @@ export const streamProviders: readonly StreamProvider[] = [
 	aniKoto,
 	...[
 		new SdkStreamProvider(new AnimeParadiseProvider(providerHttp), mappingClient, {
-			locale: "en",
 			listsLanguages: true,
+			locale: "en",
 		}),
 		// MegaPlay's lists are made up from AniList's episode count and claim sub
 		// and dub for every episode.
 		new MegaPlayStreamProvider(providerHttp, mappingClient, {
-			locale: "en",
 			listsLanguages: false,
+			locale: "en",
 		}),
 		new SdkStreamProvider(new AllmangaProvider(providerHttp), mappingClient, {
-			locale: "en",
 			listsLanguages: true,
+			locale: "en",
 		}),
 	].map((provider) => recordingCalls(provider)),
 ];

@@ -5,16 +5,12 @@ import { db } from "../database/client";
 import { noArtwork, series, titleArtwork, titleImage } from "../database/schema";
 import { SeriesNotFoundError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
-import {
-	getImages,
-	getSeasonPosters,
-	getShow,
-	tmdbImageUrl,
-	type TmdbImage,
-} from "../tmdb/resources";
+import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";
+import type { TmdbImage } from "../tmdb/resources";
 import { storeBackdropEdges } from "./edges";
 import { getSeries } from "./queries";
-import { parseKey, type SeriesKey } from "./series";
+import { parseKey } from "./series";
+import type { SeriesKey } from "./series";
 
 /** How {@link listSeriesImages} filters and sorts. */
 export interface SeriesImageQuery {
@@ -41,9 +37,9 @@ const languageNames = new Intl.DisplayNames(["en"], {
 
 /** The TMDB size an image is saved in once chosen: the largest one it is shown at. */
 const savedSizes = {
-	poster: "w780",
 	backdrop: "original",
 	logo: "w500",
+	poster: "w780",
 } as const;
 
 function toOverride(change: string | false | null | undefined, type: ImageType) {
@@ -75,10 +71,10 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 	const poster = toOverride(changes.poster_url, "poster");
 	const title = {
 		backdropUrlOverride: toOverride(changes.backdrop_url, "backdrop"),
-		logoUrlOverride: toOverride(changes.logo_url, "logo"),
-		logoScale: changes.logo_scale,
 		logoOffsetX: changes.logo_offset_x,
 		logoOffsetY: changes.logo_offset_y,
+		logoScale: changes.logo_scale,
+		logoUrlOverride: toOverride(changes.logo_url, "logo"),
 	};
 
 	await db.transaction(async (tx) => {
@@ -100,8 +96,8 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 					...title,
 				})
 				.onConflictDoUpdate({
-					target: titleArtwork.key,
 					set: title,
+					target: titleArtwork.key,
 				});
 		}
 	});
@@ -156,8 +152,8 @@ export async function refreshSeriesImages(
 async function imageStateOf(seriesId: string) {
 	const [row] = await db
 		.select({
-			key: series.key,
 			imagesFetchedAt: titleArtwork.imagesFetchedAt,
+			key: series.key,
 		})
 		.from(series)
 		.leftJoin(titleArtwork, eq(titleArtwork.key, series.key))
@@ -186,14 +182,14 @@ function applyQuery(images: StoredImage[], query: SeriesImageQuery): SeriesImage
 async function storedImagesOf(key: string): Promise<StoredImage[]> {
 	return db
 		.select({
-			type: titleImage.type,
-			url: titleImage.url,
-			width: titleImage.width,
 			height: titleImage.height,
 			language: titleImage.language,
+			season_number: titleImage.seasonNumber,
+			type: titleImage.type,
+			url: titleImage.url,
 			vote_average: titleImage.voteAverage,
 			vote_count: titleImage.voteCount,
-			season_number: titleImage.seasonNumber,
+			width: titleImage.width,
 		})
 		.from(titleImage)
 		.where(eq(titleImage.key, key));
@@ -207,14 +203,14 @@ async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 		await tx
 			.insert(titleArtwork)
 			.values({
-				key,
 				imagesFetchedAt: new Date(),
+				key,
 			})
 			.onConflictDoUpdate({
-				target: titleArtwork.key,
 				set: {
 					imagesFetchedAt: new Date(),
 				},
+				target: titleArtwork.key,
 			});
 		await tx.delete(titleImage).where(eq(titleImage.key, key));
 		if (images.length > 0) {
@@ -222,15 +218,15 @@ async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 				.insert(titleImage)
 				.values(
 					images.map((image) => ({
+						height: image.height,
 						key,
+						language: image.language,
+						seasonNumber: image.season_number,
 						type: image.type,
 						url: image.url,
-						width: image.width,
-						height: image.height,
-						language: image.language,
 						voteAverage: image.vote_average,
 						voteCount: image.vote_count,
-						seasonNumber: image.season_number,
+						width: image.width,
 					})),
 				)
 				.onConflictDoNothing();
@@ -288,14 +284,14 @@ function toStoredImage(
 	seasonNumber: number | null,
 ): StoredImage {
 	return {
-		type,
-		url: tmdbImageUrl(image.file_path, "original")!,
-		width: image.width,
 		height: image.height,
 		language: image.iso_639_1,
+		season_number: seasonNumber,
+		type,
+		url: tmdbImageUrl(image.file_path, "original")!,
 		vote_average: image.vote_average,
 		vote_count: image.vote_count,
-		season_number: seasonNumber,
+		width: image.width,
 	};
 }
 

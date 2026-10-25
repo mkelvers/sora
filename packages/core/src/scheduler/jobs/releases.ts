@@ -7,11 +7,8 @@ import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes, providerMapping, series } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
-import {
-	getStoredUnits,
-	refreshProviderUnits,
-	type ProviderUnit,
-} from "../../playback/episodes/episodes";
+import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
+import type { ProviderUnit } from "../../playback/episodes/episodes";
 import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
 import { aniKoto, providerHttp } from "../../playback/providers/registry";
 import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
@@ -81,8 +78,8 @@ async function pickUpAniKotoChanges(logger: Parameters<Task>[1]["logger"]) {
 
 	const done = readAndRefresh(logger);
 	lastLook = {
-		startedAt: Date.now(),
 		done,
+		startedAt: Date.now(),
 	};
 	return done;
 }
@@ -96,8 +93,8 @@ async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
 	const mapped = changes.length
 		? await db
 				.select({
-					anilistId: providerMapping.anilistId,
 					anikotoId: providerMapping.providerMediaId,
+					anilistId: providerMapping.anilistId,
 				})
 				.from(providerMapping)
 				.where(
@@ -199,9 +196,9 @@ const aniKotoPollDelaysMs = [10, 15, 15, 15, 10, 10, 10, 30, 30, 30, 60, 120, 36
 
 const PollAniKotoPayloadSchema = z.object({
 	anilistId: z.number().int().positive(),
+	attempt: z.number().int().nonnegative(),
 	episode: z.number(),
 	language: z.enum(["sub", "dub"]).default("sub"),
-	attempt: z.number().int().nonnegative(),
 });
 
 /**
@@ -259,9 +256,9 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		await scheduleAniKotoPoll(
 			{
 				anilistId,
+				attempt: payload.attempt + 1,
 				episode,
 				language,
-				attempt: payload.attempt + 1,
 			},
 			new Date(Date.now() + delay),
 		);

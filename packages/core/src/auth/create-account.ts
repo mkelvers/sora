@@ -88,21 +88,21 @@ if (password.length < minPasswordLength || password.length > maxPasswordLength) 
 
 const user = await context.internalAdapter.createUser(
 	{
+		displayUsername: input.data.username,
 		email,
+		emailVerified: true,
 		name: input.data.username,
 		username: normalized,
-		displayUsername: input.data.username,
-		emailVerified: true,
 	},
 	{
 		method: "email-password",
 	},
 );
 await context.internalAdapter.linkAccount({
-	userId: user.id,
-	providerId: "credential",
 	accountId: user.id,
 	password: await context.password.hash(password),
+	providerId: "credential",
+	userId: user.id,
 });
 
 console.log(`Created ${input.data.username}.`);

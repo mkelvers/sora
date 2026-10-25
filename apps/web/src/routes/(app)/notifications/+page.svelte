@@ -21,12 +21,12 @@
 
 	const views = [
 		{
-			value: "new",
 			label: "New",
+			value: "new",
 		},
 		{
-			value: "past",
 			label: "Past",
+			value: "past",
 		},
 	] as const;
 

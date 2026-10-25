@@ -36,12 +36,15 @@ const spec = (await response.json()) as Spec;
 function typeOf(parameter: Parameter) {
 	switch (parameter.schema?.type) {
 		case "integer":
-		case "number":
+		case "number": {
 			return "number";
-		case "boolean":
+		}
+		case "boolean": {
 			return "boolean";
-		default:
+		}
+		default: {
 			return "string";
+		}
 	}
 }
 

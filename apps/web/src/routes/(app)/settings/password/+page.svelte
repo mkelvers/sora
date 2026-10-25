@@ -10,26 +10,26 @@
 
 	const fields = [
 		{
-			name: "currentPassword",
-			label: "Current password",
 			autocomplete: "current-password",
+			label: "Current password",
+			name: "currentPassword",
 		},
 		{
-			name: "newPassword",
+			autocomplete: "new-password",
 			label: "New password",
-			autocomplete: "new-password",
+			name: "newPassword",
 		},
 		{
-			name: "confirmPassword",
-			label: "Confirm new password",
 			autocomplete: "new-password",
+			label: "Confirm new password",
+			name: "confirmPassword",
 		},
 	] as const;
 
 	const values = $state({
+		confirmPassword: "",
 		currentPassword: "",
 		newPassword: "",
-		confirmPassword: "",
 	});
 	let pending = $state(false);
 	let dismissed = $state(false);

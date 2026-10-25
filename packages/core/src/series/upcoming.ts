@@ -20,7 +20,7 @@ const upcomingLimit = 12;
 const released: MediaStatus[] = ["FINISHED", "RELEASING"];
 
 /** What a franchise starts with: a show or a film, rather than a special or an OVA. */
-const openingFormats: MediaFormat[] = ["TV", "MOVIE"];
+const openingFormats: Set<MediaFormat> = new Set(["TV", "MOVIE"]);
 
 /**
  * Whether a start date is soon: its day is known, and it falls from today
@@ -155,7 +155,7 @@ async function earliestReleased(anilistId: number) {
 			: [];
 	const earliestOf = (candidates: typeof rows) => {
 		const opening = candidates.filter(
-			(row) => row.format !== null && openingFormats.includes(row.format),
+			(row) => row.format !== null && openingFormats.has(row.format),
 		);
 		return byStartDate((opening.length > 0 ? opening : candidates).map((row) => row.series))[0];
 	};

@@ -25,7 +25,9 @@
 	let columns = $state(1);
 
 	$effect(() => {
-		if (!grid) return;
+		if (!grid) {
+			return;
+		}
 		const element = grid;
 		const observer = new ResizeObserver(
 			() => (columns = getComputedStyle(element).gridTemplateColumns.split(" ").length),
@@ -40,7 +42,9 @@
 		const list = [stop(pageSize)];
 		for (let step = 1; step <= steps; step++) {
 			const end = stop(Math.ceil((pageSize * step) / columns) * columns);
-			if (end > list[list.length - 1]) list.push(end);
+			if (end > list[list.length - 1]) {
+				list.push(end);
+			}
 		}
 		return list;
 	});
@@ -48,8 +52,8 @@
 		stops.map((end, index) => {
 			const offset = stops[index - 1] ?? 0;
 			return {
-				offset,
 				limit: end - offset,
+				offset,
 			};
 		}),
 	);
@@ -58,13 +62,15 @@
 	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
 
 	function mark() {
-		if (selected === null) return;
+		if (selected === null) {
+			return;
+		}
 		const episode = selected;
 		const finished = watched;
 		selected = null;
 		markEpisode({
-			seriesId: series.id,
 			episode,
+			seriesId: series.id,
 			watched: !finished,
 		});
 	}

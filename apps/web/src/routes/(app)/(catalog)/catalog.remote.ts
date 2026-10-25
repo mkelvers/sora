@@ -1,6 +1,7 @@
 import { query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import { route, type SeriesCard } from "@sora/sdk";
+import { route } from "@sora/sdk";
+import type { SeriesCard } from "@sora/sdk";
 import { z } from "zod";
 
 const filters = {
@@ -20,13 +21,13 @@ const request = z.discriminatedUnion("kind", [
 	}),
 	z.object({
 		kind: z.literal("simulcast"),
+		page: z.number().int().positive().max(500),
 		season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]),
 		year: z.number().int().min(1940).max(2100),
-		page: z.number().int().positive().max(500),
 	}),
 	z.object({
-		kind: z.literal("genre"),
 		genre: z.string().min(1).max(100),
+		kind: z.literal("genre"),
 		...filters,
 	}),
 ]);
@@ -35,15 +36,15 @@ type WithoutPage<TRequest> = TRequest extends unknown ? Omit<TRequest, "page"> :
 
 export type CatalogRequest = WithoutPage<z.input<typeof request>>;
 
-export type CatalogItem = {
+export interface CatalogItem {
 	card: SeriesCard;
 	meta?: string;
 	group?: string;
-};
+}
 
 const formats = {
-	TV: ["TV", "TV_SHORT", "ONA"],
 	MOVIE: ["MOVIE"],
+	TV: ["TV", "TV_SHORT", "ONA"],
 } as const;
 
 export const getGenres = query(async () => remoteViewer().sora.request(route.listGenres));
@@ -65,12 +66,12 @@ export const getCatalogPage = query(request, async (input) => {
 		});
 
 		return {
+			hasNextPage: meta.has_next_page,
 			items: results.map((release): CatalogItem => ({
 				card: release.series,
 				meta: release.released_ago,
 				group: release.period,
 			})),
-			hasNextPage: meta.has_next_page,
 			preparing: meta.preparing,
 		};
 	}
@@ -79,27 +80,27 @@ export const getCatalogPage = query(request, async (input) => {
 		query:
 			input.kind === "simulcast"
 				? {
-						sort: "popular",
+						format: [...formats.TV],
 						season: input.season,
 						season_year: input.year,
-						format: [...formats.TV],
+						sort: "popular",
 						...paging,
 					}
 				: {
-						sort: "popular",
-						genres: input.kind === "genre" ? [input.genre] : undefined,
 						audio: input.audio,
 						format: input.format && [...formats[input.format]],
+						genres: input.kind === "genre" ? [input.genre] : undefined,
+						sort: "popular",
 						...paging,
 					},
 	});
 
 	return {
+		hasNextPage: meta.has_next_page,
 		items: results.map((card): CatalogItem => ({
 			card,
 			group: input.kind === "popular" ? "Popular" : undefined,
 		})),
-		hasNextPage: meta.has_next_page,
 		preparing: meta.preparing,
 	};
 });

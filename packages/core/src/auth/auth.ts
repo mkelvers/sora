@@ -27,8 +27,12 @@ import { createProfile } from "./profiles";
  * for any other it counts the address the request connected from.
  */
 export const auth = betterAuth({
+	advanced: {
+		ipAddress: {
+			ipAddressHeaders: ["x-forwarded-for"],
+		},
+	},
 	basePath: "/v1/auth",
-	secret: config.authSecret,
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {
@@ -38,16 +42,6 @@ export const auth = betterAuth({
 			verification: authVerification,
 		},
 	}),
-	emailAndPassword: {
-		enabled: true,
-		disableSignUp: true,
-		minPasswordLength: 8,
-	},
-	session: {
-		// Long-lived, as TVs and phones stay signed in; renewed daily while used.
-		expiresIn: (90 * day) / 1_000,
-		updateAge: day / 1_000,
-	},
 	databaseHooks: {
 		user: {
 			create: {
@@ -59,21 +53,27 @@ export const auth = betterAuth({
 			},
 		},
 	},
-	rateLimit: {
+	emailAndPassword: {
+		disableSignUp: true,
 		enabled: true,
-		window: 60,
-		max: 100,
-		customRules: {
-			"/sign-in/username": {
-				window: 60,
-				max: 5,
-			},
-		},
-	},
-	advanced: {
-		ipAddress: {
-			ipAddressHeaders: ["x-forwarded-for"],
-		},
+		minPasswordLength: 8,
 	},
 	plugins: [bearer(), username()],
+	rateLimit: {
+		customRules: {
+			"/sign-in/username": {
+				max: 5,
+				window: 60,
+			},
+		},
+		enabled: true,
+		max: 100,
+		window: 60,
+	},
+	secret: config.authSecret,
+	session: {
+		// Long-lived, as TVs and phones stay signed in; renewed daily while used.
+		expiresIn: (90 * day) / 1_000,
+		updateAge: day / 1_000,
+	},
 });

@@ -46,8 +46,8 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 		}
 
 		return new Response(null, {
-			status: upstream.status >= 500 ? 502 : upstream.status,
 			headers: unavailable,
+			status: upstream.status >= 500 ? 502 : upstream.status,
 		});
 	}
 
@@ -67,7 +67,7 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 	}
 
 	return new Response(upstream.body, {
-		status: upstream.status,
 		headers: forwarded,
+		status: upstream.status,
 	});
 };

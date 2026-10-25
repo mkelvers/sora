@@ -6,8 +6,8 @@
 	let { params }: PageProps = $props();
 
 	const address = $derived({
-		seriesId: params.id,
 		episode: params.episode,
+		seriesId: params.id,
 	});
 	const [{ series, episode }, preferences, progress] = $derived(
 		await Promise.all([getEpisode(address), getPlaybackPreferences(), getProgress(address)]),

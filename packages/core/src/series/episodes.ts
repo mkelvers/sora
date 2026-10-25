@@ -57,9 +57,9 @@ export async function locateEpisode(seriesId: string, number: number): Promise<L
 	}
 
 	return {
-		seriesId,
-		number,
 		anilistId: row.anilistId,
+		number,
+		seriesId,
 	};
 }
 

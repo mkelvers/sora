@@ -1,4 +1,5 @@
-import { bestPath, shiftTime, type TimelineShift } from "../streams/align";
+import { bestPath, shiftTime } from "../streams/align";
+import type { TimelineShift } from "../streams/align";
 import type { Cue } from "./vtt";
 
 /** One word of speech found in the dub's audio, in seconds on the dub's timeline. */
@@ -132,8 +133,8 @@ export function refineCues(
 	const shifts = baseShifts(picture, voted);
 	const matched = place(cues, cueTokens, words, spoken, picked);
 	return {
-		shifts,
 		anchors: tidy(cues, [...matched, ...placeByTime(cues, cueTokens, words, shifts, matched)]),
+		shifts,
 	};
 }
 
@@ -292,8 +293,8 @@ function pickAnchors(
 
 	const best: { total: number; before: [number, number] | null }[][] = candidates.map((row) =>
 		row.map((candidate) => ({
-			total: candidate.score,
 			before: null,
+			total: candidate.score,
 		})),
 	);
 	let top: [number, number] | null = null;
@@ -347,7 +348,7 @@ function candidatesFor(
 		first < words.length;
 		first += 1
 	) {
-		const start = words[first]!.start;
+		const { start } = words[first]!;
 		if (start > expected + searchSeconds) {
 			break;
 		}
@@ -426,8 +427,8 @@ function place(
 			const token = spoken[index];
 			return !!token && tokens.some((other) => same(other.stem, token.stem));
 		};
-		let first = pick.first;
-		let last = pick.last;
+		let { first } = pick;
+		let { last } = pick;
 		while (first < last && !shared(first)) {
 			first += 1;
 		}
@@ -452,8 +453,8 @@ function showFor(cue: Cue, index: number, words: SpokenWord[], first: number, la
 	);
 	return {
 		cue: index,
-		movedStart,
 		movedEnd: Math.max(words[last]!.end + tail, movedStart + readable),
+		movedStart,
 	};
 }
 
@@ -473,8 +474,8 @@ function placeByTime(
 ) {
 	const runs = phrasesOf(words).map((run) => ({
 		...run,
-		start: words[run.first]!.start,
 		end: words[run.last]!.end,
+		start: words[run.first]!.start,
 	}));
 	const claimedCues = new Set(matched.map((placed) => placed.cue));
 	const free = runs.filter(
@@ -494,8 +495,8 @@ function placeByTime(
 
 		const offset = offsetAt(shifts, cue.start) + typicalLag;
 		const expected = {
-			start: cue.start + offset,
 			end: cue.end + offset,
+			start: cue.start + offset,
 		};
 		let best: { run: (typeof runs)[number]; share: number } | null = null;
 		for (const run of free) {
@@ -522,7 +523,7 @@ function placeByTime(
 		const count = run.last - run.first + 1;
 		const total = claiming.reduce((sum, index) => sum + cues[index]!.text.length, 0);
 		let passed = 0;
-		let first = run.first;
+		let { first } = run;
 		return claiming.map((index, position) => {
 			passed += cues[index]!.text.length;
 			const last =
@@ -555,10 +556,10 @@ function tidy(cues: Cue[], placed: Placed[]) {
 			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
 		}
 		anchors.push({
-			start: cues[next.cue]!.start,
 			end: cues[next.cue]!.end,
-			movedStart: next.movedStart,
 			movedEnd: next.movedEnd,
+			movedStart: next.movedStart,
+			start: cues[next.cue]!.start,
 		});
 		before = next;
 	}
@@ -610,7 +611,7 @@ function sharedWeight(left: Token[], right: Token[]) {
 	let shared = 0;
 	for (const token of left) {
 		const match = right.findIndex((other, index) => free[index] && same(token.stem, other.stem));
-		if (match >= 0) {
+		if (match !== -1) {
 			free[match] = false;
 			shared += Math.min(token.weight, right[match]!.weight);
 		}
@@ -626,13 +627,13 @@ function weightOf(tokens: Token[]) {
 function tokenize(text: string): Token[] {
 	const spokenText = text
 		.toLowerCase()
-		.replace(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/g, " ")
-		.replace(/[’‘]/g, "'");
+		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/g, " ")
+		.replaceAll(/[’‘]/g, "'");
 	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/g) ?? []).map((word) => {
 		const bare = word
 			.replace(/'(?:s|d|ll|re|ve|m)$/, "")
 			.replace(/n't$/, "nt")
-			.replace(/'/g, "");
+			.replaceAll("'", "");
 		return {
 			stem: stemOf(bare),
 			weight: stopWords.has(bare) ? 0.25 : 1,

@@ -38,8 +38,8 @@ export function nextEpisodeAddress(
 	| undefined {
 	if (nextWithinTitle) {
 		return {
-			seriesId: series.id,
 			episode: String(nextWithinTitle),
+			seriesId: series.id,
 		};
 	}
 	if (episode !== series.episode_count) {
@@ -48,8 +48,8 @@ export function nextEpisodeAddress(
 	const next = storyContinuation(series);
 	return next
 		? {
-				seriesId: next.series_id,
 				episode: "1",
+				seriesId: next.series_id,
 			}
 		: undefined;
 }

@@ -13,21 +13,19 @@ import {
 	searchMovies,
 	searchShows,
 } from "../tmdb/resources";
-import { loadEntries, primaryTitlesOf, toMatchSubject, type FranchiseEntry } from "./entries";
+import { loadEntries, primaryTitlesOf, toMatchSubject } from "./entries";
+import type { FranchiseEntry } from "./entries";
 import { getAniKotoEpisodeCount } from "./episodes";
-import { tmdbHintFor, type TmdbHint } from "./hints";
+import { tmdbHintFor } from "./hints";
+import type { TmdbHint } from "./hints";
 import {
 	bestSimilarity,
 	placeAfterInCollection,
 	placeAsMovie,
 	placeInShow,
 	placeInEpisodeGroups,
-	type EpisodeLink,
-	type MatchSubject,
-	type Placement,
-	type PrequelRun,
-	type ShowCandidate,
 } from "./matching";
+import type { EpisodeLink, MatchSubject, Placement, PrequelRun, ShowCandidate } from "./matching";
 
 /** A stored AniList-to-TMDB mapping; `tmdbId` is `null` when no match was found. */
 export type TmdbMapping = typeof tmdbMapping.$inferSelect;
@@ -35,8 +33,8 @@ export type TmdbMapping = typeof tmdbMapping.$inferSelect;
 const EpisodeLinksSchema = z.array(
 	z.object({
 		anilistEpisode: z.number().int(),
-		seasonNumber: z.number().int(),
 		episodeNumber: z.number().int(),
+		seasonNumber: z.number().int(),
 	}),
 );
 
@@ -111,14 +109,14 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
 
 	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
 	const values = {
-		mediaType: placement?.mediaType ?? null,
-		tmdbId: placement?.tmdbId ?? null,
-		seasonNumber: episodes[0]?.seasonNumber ?? null,
 		episodeNumber: episodes[0]?.episodeNumber ?? null,
 		episodes,
+		mediaType: placement?.mediaType ?? null,
 		method: placement?.method ?? null,
-		score: placement?.score ?? null,
 		resolvedAt: new Date(),
+		score: placement?.score ?? null,
+		seasonNumber: episodes[0]?.seasonNumber ?? null,
+		tmdbId: placement?.tmdbId ?? null,
 	};
 
 	const [row] = await db
@@ -128,8 +126,8 @@ async function match(entry: FranchiseEntry, resolving: ReadonlySet<number>): Pro
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: tmdbMapping.anilistId,
 			set: values,
+			target: tmdbMapping.anilistId,
 		})
 		.returning();
 
@@ -165,8 +163,8 @@ async function predecessorMappings(
 		return id !== null && (relation === "PREQUEL" || relation === "PARENT") && !resolving.has(id)
 			? [
 					{
-						relation,
 						id,
+						relation,
 					},
 				]
 			: [];
@@ -182,10 +180,10 @@ async function predecessorMappings(
 		const predecessor = entries.get(edge.id);
 		if (predecessor) {
 			predecessors.push({
-				relation: edge.relation,
 				mapping:
 					(await freshMapping(predecessor)) ??
 					(await match(predecessor, new Set([...resolving, predecessor.id]))),
+				relation: edge.relation,
 			});
 		}
 	}
@@ -237,13 +235,15 @@ async function bestShowPlacement(
 				getShow(showId),
 				getShowEpisodeGroups(showId),
 			]);
-			return { show, episodeGroups };
+			return { episodeGroups, show };
 		}),
 	);
 	let best: Placement | null = null;
 	for (const [index, candidate] of [...candidates.values()].entries()) {
 		const loaded = shows[index];
-		if (!loaded) continue;
+		if (!loaded) {
+			continue;
+		}
 		const { show, episodeGroups } = loaded;
 		const placement = show
 			? (placeInEpisodeGroups(subject, show, episodeGroups) ??

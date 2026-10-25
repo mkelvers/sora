@@ -56,9 +56,9 @@ export async function extractAudio(
 	const ffmpeg = Bun.spawn(
 		["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-vn", "-ac", "1", "-ar", "16000", "-y", path],
 		{
+			stderr: "pipe",
 			stdin: "pipe",
 			stdout: "ignore",
-			stderr: "pipe",
 			timeout: decodeTimeoutMs,
 		},
 	);
@@ -75,7 +75,7 @@ export async function extractAudio(
 		for (let index = 0; index < segments.length; index += 1) {
 			for (let ahead = index; ahead < Math.min(segments.length, index + concurrency); ahead += 1) {
 				// A failed fetch ahead is awaited, and so reported, when its turn comes.
-				void fetchSegment(ahead).catch(() => undefined);
+				void fetchSegment(ahead).catch(() => {});
 			}
 
 			ffmpeg.stdin.write(await fetchSegment(index));
@@ -137,11 +137,11 @@ function target(
 	parent?: string,
 ): StreamTarget {
 	return {
-		url,
-		kind,
-		headers,
-		mirrors: parent ? mirrorsFor(url, parent) : [],
 		accountId: "",
 		expiresAt: 0,
+		headers,
+		kind,
+		mirrors: parent ? mirrorsFor(url, parent) : [],
+		url,
 	};
 }

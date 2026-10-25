@@ -51,7 +51,8 @@ import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 
 import { addressOf, clientAddress } from "./client-address";
-import { onInvalidRequest, sendProblem, type V1Env } from "./errors";
+import { onInvalidRequest, sendProblem } from "./errors";
+import type { V1Env } from "./errors";
 import { offsetLinks, pageMeta } from "./openapi/envelope";
 import * as route from "./openapi/routes";
 import { rateLimit } from "./rate-limit";
@@ -87,14 +88,14 @@ const signInUsername = async (c: Context<V1Env>) => {
 v1.use(
 	"/auth/sign-in/username",
 	rateLimit({
+		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInUsername(c)}`,
 		limit: 10,
 		windowMs: 60_000,
-		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInUsername(c)}`,
 	}),
 	rateLimit({
+		key: async (c) => `sign-in:${await signInUsername(c)}`,
 		limit: 60,
 		windowMs: 60_000,
-		key: async (c) => `sign-in:${await signInUsername(c)}`,
 	}),
 );
 
@@ -154,7 +155,7 @@ v1.use(
 	route.getStream.getRoutingPath(),
 	webClient,
 	rateLimit({
-		limit: 3_000,
+		limit: 3000,
 		windowMs: 60_000,
 	}),
 );
@@ -192,9 +193,9 @@ v1.use(
 );
 
 v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
-	type: "http",
-	scheme: "bearer",
 	description: "The session token from `POST /v1/auth/sign-in/username`.",
+	scheme: "bearer",
+	type: "http",
 });
 
 /** An episode's playback URL, relative to the API's origin. */
@@ -207,8 +208,8 @@ export const v1Routes = v1
 		const { season_year, per_page, ...filters } = c.req.valid("query");
 		const page = await browseSeries({
 			...filters,
-			seasonYear: season_year,
 			perPage: per_page,
+			seasonYear: season_year,
 		});
 		c.header("Cache-Control", "public, max-age=300");
 		return c.json(
@@ -224,9 +225,9 @@ export const v1Routes = v1
 		const { q, season_year, per_page, ...filters } = c.req.valid("query");
 		const page = await browseSeries({
 			...filters,
-			seasonYear: season_year,
 			perPage: per_page,
 			search: q,
+			seasonYear: season_year,
 		});
 		c.header("Cache-Control", "public, max-age=60");
 		return c.json(
@@ -272,9 +273,9 @@ export const v1Routes = v1
 	.openapi(route.listImages, async (c) => {
 		const { type, language, sort } = c.req.valid("query");
 		const images = await listSeriesImages(c.req.valid("param").series_id, {
-			types: type,
 			languages: language,
 			sort,
+			types: type,
 		});
 		return c.json(
 			{
@@ -315,8 +316,8 @@ export const v1Routes = v1
 		const { series_id } = c.req.valid("param");
 		const { offset = 0, limit } = c.req.valid("query");
 		const { episodes, total } = await getSeriesEpisodePage(series_id, {
-			offset,
 			limit: limit ?? Number.MAX_SAFE_INTEGER,
+			offset,
 		});
 		const size = limit ?? Math.max(total - offset, 1);
 		// Unknown audio is filled in once providers are looked up.
@@ -327,13 +328,13 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {
-					series_id,
-					offset,
 					limit: size,
+					offset,
+					series_id,
 					total,
 					...offsetLinks(c.req.url, {
-						offset,
 						limit: size,
+						offset,
 						total,
 					}),
 				},
@@ -377,9 +378,9 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {
+					count: episodes.length,
 					from: from.toISOString(),
 					until: until.toISOString(),
-					count: episodes.length,
 				},
 				results: episodes,
 			},
@@ -458,12 +459,12 @@ export const v1Routes = v1
 		const [playback, adjacent] = await Promise.all([
 			resolvePlayback(
 				{
-					seriesId: series_id,
 					episode,
+					seriesId: series_id,
 				},
 				{
-					streamBaseUrl: streamBaseUrl.href,
 					accountId: c.get("accountId"),
+					streamBaseUrl: streamBaseUrl.href,
 				},
 			),
 			getAdjacentEpisodes(series_id, episode),
@@ -473,13 +474,13 @@ export const v1Routes = v1
 		return c.json(
 			{
 				meta: {
-					series_id,
 					episode,
 					expires_at: playback.expiresAt,
 					next: adjacent.next === null ? null : playbackPath(series_id, adjacent.next),
-					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
 					next_episode: adjacent.next,
+					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
 					previous_episode: adjacent.previous,
+					series_id,
 				},
 				results: playback.media,
 			},
@@ -581,8 +582,8 @@ export const v1Routes = v1
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await getProgress(profile.id, {
-			seriesId: series_id,
 			episode,
+			seriesId: series_id,
 		});
 		return c.json(
 			{
@@ -599,8 +600,8 @@ export const v1Routes = v1
 		const progress = await saveProgress(
 			profile.id,
 			{
-				seriesId: series_id,
 				episode,
+				seriesId: series_id,
 			},
 			c.req.valid("json"),
 		);
@@ -651,8 +652,8 @@ export const v1Routes = v1
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markUnwatched(profile.id, {
-			seriesId: series_id,
 			episode,
+			seriesId: series_id,
 		});
 		return c.body(null, 204);
 	})
@@ -758,13 +759,13 @@ export const v1Routes = v1
 	});
 
 v1.doc31("/openapi.json", {
-	openapi: "3.1.0",
 	info: {
-		title: "Sora API",
-		version: "1",
 		description:
 			"Anime titles as AniList lists them: a show's seasons, films, and OVAs are each a title with its own episodes, found from one another as related titles, and addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
+		title: "Sora API",
+		version: "1",
 	},
+	openapi: "3.1.0",
 	servers: [
 		{
 			url: "/v1",

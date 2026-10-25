@@ -18,7 +18,7 @@ export async function listSeasons(sora: SoraClient) {
 	);
 
 	return {
-		seasons,
 		current: current ?? seasons[0],
+		seasons,
 	};
 }

@@ -104,28 +104,28 @@ export interface Anime extends AnimeCard {
  */
 export function toAnimeCard(media: AnimeCardFragment): AnimeCard {
 	return {
-		id: media.id,
-		malId: media.idMal,
-		title: toTitle(media),
-		coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
-		coverColor: media.coverImage?.color ?? null,
 		bannerUrl: media.bannerImage,
-		format: toAnimeFormat(media.format),
-		status: media.status,
-		season: media.season,
-		seasonYear: media.seasonYear,
-		episodes: media.episodes,
+		coverColor: media.coverImage?.color ?? null,
+		coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
 		durationMinutes: media.duration,
-		score: media.averageScore,
-		popularity: media.popularity,
+		episodes: media.episodes,
+		format: toAnimeFormat(media.format),
 		genres: present(media.genres),
+		id: media.id,
+		isAdult: media.isAdult === true,
+		malId: media.idMal,
 		nextEpisode: media.nextAiringEpisode
 			? {
 					number: media.nextAiringEpisode.episode,
 					airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
 				}
 			: null,
-		isAdult: media.isAdult === true,
+		popularity: media.popularity,
+		score: media.averageScore,
+		season: media.season,
+		seasonYear: media.seasonYear,
+		status: media.status,
+		title: toTitle(media),
 	};
 }
 
@@ -133,18 +133,12 @@ export function toAnimeCard(media: AnimeCardFragment): AnimeCard {
 export function toAnime(media: AnimeDetailsFragment): Anime {
 	return {
 		...toAnimeCard(media),
-		synonyms: present(media.synonyms),
-		description: (media.description && synopsis(media.description)) || null,
-		source: media.source,
 		countryOfOrigin: media.countryOfOrigin,
-		startDate: media.startDate ? fuzzyDate(media.startDate) : null,
+		description: (media.description && synopsis(media.description)) || null,
 		endDate: media.endDate ? fuzzyDate(media.endDate) : null,
-		tags: present(media.tags).map((tag) => ({
-			name: tag.name,
-			rank: tag.rank,
-			spoiler: tag.isMediaSpoiler === true,
-		})),
-		studios: present(media.studios?.nodes).map((studio) => studio.name),
+		recommendations: present(media.recommendations?.nodes).flatMap((node) =>
+			node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
+		),
 		relations: present(media.relations?.edges).flatMap((edge) =>
 			edge.relationType && edge.node?.type === "ANIME"
 				? [
@@ -155,9 +149,15 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
 					]
 				: [],
 		),
-		recommendations: present(media.recommendations?.nodes).flatMap((node) =>
-			node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
-		),
+		source: media.source,
+		startDate: media.startDate ? fuzzyDate(media.startDate) : null,
+		studios: present(media.studios?.nodes).map((studio) => studio.name),
+		synonyms: present(media.synonyms),
+		tags: present(media.tags).map((tag) => ({
+			name: tag.name,
+			rank: tag.rank,
+			spoiler: tag.isMediaSpoiler === true,
+		})),
 	};
 }
 
@@ -173,8 +173,8 @@ function toTitle(media: AnimeCardFragment): AnimeTitle {
 	return {
 		display,
 		english,
-		romaji,
 		native,
+		romaji,
 	};
 }
 
@@ -182,10 +182,12 @@ export function toAnimeFormat(format: MediaFormat | null): AnimeFormat | null {
 	switch (format) {
 		case "MANGA":
 		case "NOVEL":
-		case "ONE_SHOT":
+		case "ONE_SHOT": {
 			throw new TypeError(`Unexpected non-anime format ${format}`);
-		default:
+		}
+		default: {
 			return format;
+		}
 	}
 }
 

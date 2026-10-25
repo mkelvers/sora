@@ -10,14 +10,14 @@ const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 /** `getSources` as MegaPlay sends it, with the source unencrypted. */
 function sources(intro: object | undefined, outro: object | undefined) {
 	return JSON.stringify({
-		sources: {
-			file: "https://cdn.example/master.m3u8",
-		},
-		tracks: [],
-		t: 1,
 		intro,
 		outro,
 		server: 4,
+		sources: {
+			file: "https://cdn.example/master.m3u8",
+		},
+		t: 1,
+		tracks: [],
 	});
 }
 
@@ -44,8 +44,8 @@ function providerServing(pages: Record<string, string>) {
 
 	return {
 		provider: new AniKotoStreamProvider(http, {
-			locale: "en",
 			listsLanguages: true,
+			locale: "en",
 		}),
 		requested,
 	};
@@ -65,7 +65,6 @@ async function skipSegments(
 describe("AniKotoStreamProvider skip segments", () => {
 	test("reads the opening and ending, as for Frieren episode 3", async () => {
 		const { provider } = providerServing({
-			"/stream/s-2/107260/sub": embedPage,
 			"/stream/getSources": sources(
 				{
 					start: 0,
@@ -76,26 +75,27 @@ describe("AniKotoStreamProvider skip segments", () => {
 					end: 1459,
 				},
 			),
+			"/stream/s-2/107260/sub": embedPage,
 		});
 
 		expect(await skipSegments(provider, "anikoto:107260", "sub")).toEqual([
 			{
+				end: 89,
 				kind: "opening",
 				start: 0,
-				end: 89,
 			},
 			{
+				end: 1459,
 				kind: "ending",
 				start: 1370,
-				end: 1459,
 			},
 		]);
 	});
 
 	test("come with the stream, requesting only the embed and its file's sources", async () => {
 		const { provider, requested } = providerServing({
-			"/stream/s-2/107260/dub": embedPage,
 			"/stream/getSources": sources(undefined, undefined),
+			"/stream/s-2/107260/dub": embedPage,
 		});
 
 		await skipSegments(provider, "anikoto:107260", "dub");
@@ -108,7 +108,6 @@ describe("AniKotoStreamProvider skip segments", () => {
 
 	test("treats MegaPlay's 0–0 placeholder as no segment", async () => {
 		const { provider } = providerServing({
-			"/stream/s-2/1/sub": embedPage,
 			"/stream/getSources": sources(
 				{
 					start: 0,
@@ -119,6 +118,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 					end: 0,
 				},
 			),
+			"/stream/s-2/1/sub": embedPage,
 		});
 
 		expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([]);
@@ -126,25 +126,24 @@ describe("AniKotoStreamProvider skip segments", () => {
 
 	test("keeps a known span when the other is missing", async () => {
 		const { provider } = providerServing({
-			"/stream/s-2/1/sub": embedPage,
 			"/stream/getSources": sources(undefined, {
 				start: 1300,
 				end: 1390,
 			}),
+			"/stream/s-2/1/sub": embedPage,
 		});
 
 		expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([
 			{
+				end: 1390,
 				kind: "ending",
 				start: 1300,
-				end: 1390,
 			},
 		]);
 	});
 
 	test("drops a span that ends before it starts", async () => {
 		const { provider } = providerServing({
-			"/stream/s-2/1/sub": embedPage,
 			"/stream/getSources": sources(
 				{
 					start: 90,
@@ -152,6 +151,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 				},
 				undefined,
 			),
+			"/stream/s-2/1/sub": embedPage,
 		});
 
 		expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([]);
@@ -160,7 +160,6 @@ describe("AniKotoStreamProvider skip segments", () => {
 	test("orders spans by start time", async () => {
 		// A cold open can put the opening after an early ending card.
 		const { provider } = providerServing({
-			"/stream/s-2/1/sub": embedPage,
 			"/stream/getSources": sources(
 				{
 					start: 300,
@@ -171,6 +170,7 @@ describe("AniKotoStreamProvider skip segments", () => {
 					end: 40,
 				},
 			),
+			"/stream/s-2/1/sub": embedPage,
 		});
 
 		const segments = await skipSegments(provider, "anikoto:1", "sub");
@@ -190,7 +190,6 @@ describe("AniKotoStreamProvider skip segments", () => {
 
 	test("drops a malformed span without failing the stream", async () => {
 		const { provider } = providerServing({
-			"/stream/s-2/1/sub": embedPage,
 			"/stream/getSources": sources(
 				{
 					start: -5,
@@ -201,13 +200,14 @@ describe("AniKotoStreamProvider skip segments", () => {
 					end: 1390,
 				},
 			),
+			"/stream/s-2/1/sub": embedPage,
 		});
 
 		expect(await skipSegments(provider, "anikoto:1", "sub")).toEqual([
 			{
+				end: 1390,
 				kind: "ending",
 				start: 1300,
-				end: 1390,
 			},
 		]);
 	});
@@ -222,7 +222,6 @@ function seriesResponseOf(
 	languages: (number: number) => readonly string[] = () => ["sub"],
 ) {
 	return JSON.stringify({
-		ok: true,
 		data: {
 			episodes: numbers.map((number) => ({
 				id: 27298 + number,
@@ -237,6 +236,7 @@ function seriesResponseOf(
 				),
 			})),
 		},
+		ok: true,
 	});
 }
 
@@ -264,20 +264,20 @@ function episodeList(links: Record<number, ListedLink | string>) {
 		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
 	});
 	return JSON.stringify({
-		status: 200,
 		result: `<div class="body"><ul class="ep-range">${items.join("\n")}</ul></div>`,
+		status: 200,
 	});
 }
 
 describe("AniKotoStreamProvider.listEpisodes", () => {
 	test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponse,
 			"/ajax/episode/list/1498": episodeList({
 				56: "  ",
 				57: " filler ",
 				58: "active filler",
 			}),
+			"/series/1498": seriesResponse,
 		});
 
 		const units = await provider.listEpisodes("1498");
@@ -315,8 +315,8 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 
 	test("leaves filler unknown rather than false when the episode list has no episodes", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponse,
 			"/ajax/episode/list/1498": episodeList({}),
+			"/series/1498": seriesResponse,
 		});
 
 		const units = await provider.listEpisodes("1498");
@@ -328,9 +328,6 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	test("adds dubs the API leaves out, as in Banished from the Hero's Party episodes 1–3", async () => {
 		const { provider } = providerServing({
-			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) =>
-				number < 4 ? ["sub"] : ["sub", "dub"],
-			),
 			"/ajax/episode/list/6752": episodeList({
 				1: {
 					className: "active",
@@ -346,6 +343,9 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 					dub: "1",
 				},
 			}),
+			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) =>
+				number < 4 ? ["sub"] : ["sub", "dub"],
+			),
 		});
 
 		const units = await provider.listEpisodes("6752");
@@ -360,27 +360,27 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("lists no dub when neither the API nor the episode list has one", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponse,
 			"/ajax/episode/list/1498": episodeList({
 				56: {},
 				57: {},
 				58: {},
 			}),
+			"/series/1498": seriesResponse,
 		});
 
 		const units = await provider.listEpisodes("1498");
 
-		expect(units.every((unit) => unit.languages?.join() === "sub")).toBe(true);
+		expect(units.every((unit) => unit.languages?.join(",") === "sub")).toBe(true);
 	});
 
 	test("keeps a language the API has an embed for when the episode list does not flag it", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponseOf([56], () => ["sub", "dub"]),
 			"/ajax/episode/list/1498": episodeList({
 				56: {
 					dub: "0",
 				},
 			}),
+			"/series/1498": seriesResponseOf([56], () => ["sub", "dub"]),
 		});
 
 		const [unit] = await provider.listEpisodes("1498");
@@ -390,13 +390,13 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("lists a dub-only episode without a sub", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponseOf([56], () => ["dub"]),
 			"/ajax/episode/list/1498": episodeList({
 				56: {
 					sub: "0",
 					dub: "1",
 				},
 			}),
+			"/series/1498": seriesResponseOf([56], () => ["dub"]),
 		});
 
 		const [unit] = await provider.listEpisodes("1498");
@@ -419,13 +419,13 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("keeps the API's languages, and leaves filler unknown, for an episode the list leaves out", async () => {
 		const { provider } = providerServing({
-			"/series/1498": seriesResponseOf([56, 57]),
 			"/ajax/episode/list/1498": episodeList({
 				56: {
 					className: "filler",
 					dub: "1",
 				},
 			}),
+			"/series/1498": seriesResponseOf([56, 57]),
 		});
 
 		const units = await provider.listEpisodes("1498");

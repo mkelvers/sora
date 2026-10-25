@@ -16,8 +16,8 @@
 		[...Map.groupBy(images, (image) => image.language ?? "none")]
 			.map(([code, group]) => ({
 				code,
-				label: group[0].language_name,
 				count: group.length,
+				label: group[0].language_name,
 			}))
 			.toSorted(
 				(a, b) => Number(b.code === "none") - Number(a.code === "none") || b.count - a.count,

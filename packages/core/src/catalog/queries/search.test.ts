@@ -23,43 +23,43 @@ function entry(
 ) {
 	return {
 		anilistId,
-		popularity,
 		english: titles.english ?? null,
-		romaji: titles.romaji ?? null,
 		native: titles.native ?? null,
+		popularity,
+		romaji: titles.romaji ?? null,
 		synonyms: titles.synonyms ?? [],
 	};
 }
 
 // Titles and popularity as AniList lists them.
-const kimetsu = entry(101922, 1_000_000, {
+const kimetsu = entry(101_922, 1_000_000, {
 	english: "Demon Slayer: Kimetsu no Yaiba",
-	romaji: "Kimetsu no Yaiba",
 	native: "鬼滅の刃",
+	romaji: "Kimetsu no Yaiba",
 });
-const mugenTrain = entry(112151, 420_000, {
+const mugenTrain = entry(112_151, 420_000, {
 	english: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
 	romaji: "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
 });
-const onigiri = entry(21612, 9_026, {
+const onigiri = entry(21_612, 9026, {
 	english: "Onigiri",
-	romaji: "Onigiri",
 	native: "鬼斬",
+	romaji: "Onigiri",
 	synonyms: ["Demon Slayer", "Demon Cutter"],
 });
-const attackOnTitan = entry(16498, 1_100_000, {
+const attackOnTitan = entry(16_498, 1_100_000, {
 	english: "Attack on Titan",
-	romaji: "Shingeki no Kyojin",
 	native: "進撃の巨人",
+	romaji: "Shingeki no Kyojin",
 	synonyms: ["AoT", "SnK"],
 });
-const jujutsuKaisen = entry(113415, 900_000, {
+const jujutsuKaisen = entry(113_415, 900_000, {
 	english: "JUJUTSU KAISEN",
-	romaji: "Jujutsu Kaisen",
 	native: "呪術廻戦",
+	romaji: "Jujutsu Kaisen",
 	synonyms: ["JJK", "Sorcery Fight"],
 });
-const jujutsuKaisenZero = entry(131573, 400_000, {
+const jujutsuKaisenZero = entry(131_573, 400_000, {
 	english: "JUJUTSU KAISEN 0",
 	romaji: "Jujutsu Kaisen 0: Jujutsu Kaisen Zero",
 });
@@ -69,29 +69,29 @@ const top = (query: string, candidates: ReturnType<typeof entry>[]) =>
 
 describe("rankCandidates", () => {
 	test("puts the famous show before an obscure title whose synonym is the query", () => {
-		expect(top("demon slayer", [onigiri, mugenTrain, kimetsu])).toBe(101922);
+		expect(top("demon slayer", [onigiri, mugenTrain, kimetsu])).toBe(101_922);
 	});
 
 	test("still finds the obscure title by its own name", () => {
-		expect(top("onigiri", [kimetsu, onigiri])).toBe(21612);
+		expect(top("onigiri", [kimetsu, onigiri])).toBe(21_612);
 	});
 
 	test("puts a show before its film when both start with the query", () => {
-		expect(top("demon slayer kimetsu no yaiba", [mugenTrain, kimetsu])).toBe(101922);
+		expect(top("demon slayer kimetsu no yaiba", [mugenTrain, kimetsu])).toBe(101_922);
 	});
 
 	test("matches romaji, native, and English titles alike", () => {
-		expect(top("shingeki no kyojin", [jujutsuKaisen, attackOnTitan])).toBe(16498);
-		expect(top("進撃の巨人", [jujutsuKaisen, attackOnTitan])).toBe(16498);
+		expect(top("shingeki no kyojin", [jujutsuKaisen, attackOnTitan])).toBe(16_498);
+		expect(top("進撃の巨人", [jujutsuKaisen, attackOnTitan])).toBe(16_498);
 	});
 
 	test("matches an abbreviation listed as a synonym", () => {
-		expect(top("jjk", [attackOnTitan, jujutsuKaisenZero, jujutsuKaisen])).toBe(113415);
+		expect(top("jjk", [attackOnTitan, jujutsuKaisenZero, jujutsuKaisen])).toBe(113_415);
 	});
 
 	test("forgives a typo", () => {
-		expect(top("jujutsu kaisn", [attackOnTitan, jujutsuKaisen])).toBe(113415);
-		expect(top("demon slayr", [onigiri, kimetsu])).toBe(101922);
+		expect(top("jujutsu kaisn", [attackOnTitan, jujutsuKaisen])).toBe(113_415);
+		expect(top("demon slayr", [onigiri, kimetsu])).toBe(101_922);
 	});
 
 	test("finds the far more popular remake when both have the query as their title", () => {
@@ -99,30 +99,30 @@ describe("rankCandidates", () => {
 			english: "Hunter x Hunter",
 			romaji: "HUNTER×HUNTER",
 		});
-		const remake = entry(11061, 843_439, {
+		const remake = entry(11_061, 843_439, {
 			english: "Hunter x Hunter (2011)",
 			romaji: "HUNTER×HUNTER (2011)",
 		});
 
-		expect(top("hunter x hunter", [original, remake])).toBe(11061);
+		expect(top("hunter x hunter", [original, remake])).toBe(11_061);
 	});
 
 	test("finds a title by its full name, disambiguator included, as with Oreimo 2 (ONA)", () => {
-		const ona = entry(18857, 38_944, {
+		const ona = entry(18_857, 38_944, {
 			english: "Oreimo 2 (ONA)",
 			romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai. (ONA)",
 		});
-		const season = entry(13659, 90_000, {
+		const season = entry(13_659, 90_000, {
 			english: "Oreimo 2",
 			romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai.",
 		});
 
 		expect(textScore(normalizeTitle("Oreimo 2 (ONA)"), ona)).toBe(1);
-		expect(top("oreimo 2 ona", [season, ona])).toBe(18857);
+		expect(top("oreimo 2 ona", [season, ona])).toBe(18_857);
 	});
 
 	test("still finds a title by its name without the disambiguator", () => {
-		const remake = entry(11061, 843_439, {
+		const remake = entry(11_061, 843_439, {
 			english: "Hunter x Hunter (2011)",
 		});
 
@@ -157,13 +157,13 @@ describe("rankCandidates", () => {
 	});
 
 	test("ignores punctuation and spacing", () => {
-		const reZero = entry(21355, 700_000, {
+		const reZero = entry(21_355, 700_000, {
 			english: "Re:ZERO -Starting Life in Another World-",
 			romaji: "Re:Zero kara Hajimeru Isekai Seikatsu",
 		});
 
-		expect(top("re zero", [onigiri, reZero])).toBe(21355);
-		expect(top("rezero", [onigiri, reZero])).not.toBe(21612);
+		expect(top("re zero", [onigiri, reZero])).toBe(21_355);
+		expect(top("rezero", [onigiri, reZero])).not.toBe(21_612);
 	});
 });
 
@@ -196,7 +196,7 @@ describe("titleScore", () => {
 describe("popularityWeight", () => {
 	test("grows with popularity, from 0.4 to 1", () => {
 		expect(popularityWeight(0)).toBe(0.4);
-		expect(popularityWeight(9_026)).toBeLessThan(popularityWeight(1_000_000));
+		expect(popularityWeight(9026)).toBeLessThan(popularityWeight(1_000_000));
 		expect(popularityWeight(5_000_000)).toBe(1);
 	});
 });

@@ -24,16 +24,16 @@ export const providerMapping = pgTable(
 	"provider_mapping",
 	{
 		anilistId: integer("anilist_id").notNull(),
-		provider: text("provider").notNull(),
-		providerMediaId: text("provider_media_id"),
-		matchedTitle: text("matched_title"),
-		method: text("method"),
 		/**
 		 * Episodes of the provider's series that belong to earlier parts, for a
 		 * part the provider files under its prequel: the anime's first episode
 		 * is the provider's episode `episodeOffset + 1`.
 		 */
 		episodeOffset: integer("episode_offset").notNull().default(0),
+		matchedTitle: text("matched_title"),
+		method: text("method"),
+		provider: text("provider").notNull(),
+		providerMediaId: text("provider_media_id"),
 		resolvedAt: timestamptz("resolved_at").notNull(),
 	},
 	(table) => [
@@ -53,9 +53,9 @@ export const providerEpisodes = pgTable(
 	"provider_episodes",
 	{
 		anilistId: integer("anilist_id").notNull(),
+		fetchedAt: timestamptz("fetched_at").notNull(),
 		provider: text("provider").notNull(),
 		units: jsonb("units").$type<unknown>().notNull(),
-		fetchedAt: timestamptz("fetched_at").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -107,16 +107,16 @@ export const anikotoSeries = pgTable(
 	{
 		anikotoId: integer("anikoto_id").primaryKey(),
 		anilistId: integer("anilist_id"),
+		episodes: integer("episodes"),
+		/** The AniList format AniKoto's type corresponds to, such as `TV` or `MOVIE`. */
+		format: text("format"),
 		malId: integer("mal_id"),
 		title: text("title").notNull(),
 		/** Every title AniKoto lists: English, romaji, native, and alternatives. */
 		titles: jsonb("titles").$type<string[]>().notNull(),
-		/** The AniList format AniKoto's type corresponds to, such as `TV` or `MOVIE`. */
-		format: text("format"),
-		year: integer("year"),
-		episodes: integer("episodes"),
 		/** When AniKoto last changed the series; its catalogue is ordered by it. */
 		updatedAt: timestamptz("updated_at").notNull(),
+		year: integer("year"),
 	},
 	(table) => [
 		index("anikoto_series_anilist_id_idx").on(table.anilistId),
@@ -138,22 +138,22 @@ export const anikotoSeries = pgTable(
 export const providerCalls = pgTable(
 	"provider_calls",
 	{
-		provider: text("provider").notNull(),
-		/** The provider interface method, such as `resolve_stream`. */
-		operation: text("operation").notNull(),
-		/** Start of the hour the calls began in. */
-		hour: timestamptz("hour").notNull(),
-		ok: integer("ok").notNull().default(0),
-		empty: integer("empty").notNull().default(0),
-		failed: integer("failed").notNull().default(0),
 		/** Time spent in every call of the hour, for average latency. */
 		durationMs: bigint("duration_ms", {
 			mode: "number",
 		})
 			.notNull()
 			.default(0),
+		empty: integer("empty").notNull().default(0),
+		failed: integer("failed").notNull().default(0),
+		/** Start of the hour the calls began in. */
+		hour: timestamptz("hour").notNull(),
 		lastError: text("last_error"),
 		lastErrorAt: timestamptz("last_error_at"),
+		ok: integer("ok").notNull().default(0),
+		/** The provider interface method, such as `resolve_stream`. */
+		operation: text("operation").notNull(),
+		provider: text("provider").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -173,10 +173,10 @@ export const providerCalls = pgTable(
  * see `syncTimetables`.
  */
 export const animeScheduleShow = pgTable("anime_schedule_show", {
-	/** The show's path on AnimeSchedule, such as `yomi-no-tsugai`. */
-	route: text("route").primaryKey(),
 	anilistId: integer("anilist_id"),
 	resolvedAt: timestamptz("resolved_at").notNull(),
+	/** The show's path on AnimeSchedule, such as `yomi-no-tsugai`. */
+	route: text("route").primaryKey(),
 });
 
 /** How an episode in AnimeSchedule's timetable comes out. */
@@ -195,14 +195,14 @@ export type AirType = "raw" | "sub" | "dub";
 export const animeScheduleRelease = pgTable(
 	"anime_schedule_release",
 	{
-		route: text("route").notNull(),
 		airType: text("air_type").$type<AirType>().notNull(),
-		episode: integer("episode").notNull(),
 		airsAt: timestamptz("airs_at").notNull(),
 		/** Whether AnimeSchedule files the show as a donghua, a Chinese animation. */
 		donghua: boolean("donghua").notNull().default(false),
+		episode: integer("episode").notNull(),
 		/** How long an episode runs, in minutes, as AnimeSchedule gives it; null when unknown. */
 		lengthMinutes: integer("length_minutes"),
+		route: text("route").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -223,13 +223,13 @@ export const animeScheduleRelease = pgTable(
  * old.
  */
 export const subtitleRefinement = pgTable("subtitle_refinement", {
+	/** Where each matched cue goes; see `CueAnchor`. */
+	anchors: jsonb("anchors").$type<CueAnchor[] | null>(),
+	attemptedAt: timestamptz("attempted_at").notNull(),
 	/** A hash of the dub's and the sub's playlist paths. */
 	key: text("key").primaryKey(),
 	/** How the sub's timeline maps onto the dub's for cues without an anchor. */
 	shifts: jsonb("shifts").$type<TimelineShift[] | null>(),
-	/** Where each matched cue goes; see `CueAnchor`. */
-	anchors: jsonb("anchors").$type<CueAnchor[] | null>(),
-	attemptedAt: timestamptz("attempted_at").notNull(),
 });
 
 /**
@@ -241,15 +241,15 @@ export const subtitleRefinement = pgTable("subtitle_refinement", {
 export const skipSegmentLength = pgTable(
 	"skip_segment_length",
 	{
+		audio: text("audio").notNull(),
+		episode: integer("episode").notNull(),
+		kind: text("kind").notNull(),
+		seconds: doublePrecision("seconds").notNull(),
 		seriesId: text("series_id")
 			.notNull()
 			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		audio: text("audio").notNull(),
-		kind: text("kind").notNull(),
-		episode: integer("episode").notNull(),
-		seconds: doublePrecision("seconds").notNull(),
 	},
 	(table) => [
 		primaryKey({

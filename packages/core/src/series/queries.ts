@@ -2,10 +2,13 @@ import { day, hour, minute } from "@sora/shared";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import type { z } from "zod";
 
-import { toAnime, toAnimeFormat, type AnimeFormat } from "../catalog/models/anime";
+import { toAnime, toAnimeFormat } from "../catalog/models/anime";
+import type { AnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
-import { browseAnime, type Page } from "../catalog/queries/browse";
-import { BrowseQuerySchema, type BrowseQuery } from "../catalog/queries/browse-query";
+import { browseAnime } from "../catalog/queries/browse";
+import type { Page } from "../catalog/queries/browse";
+import { BrowseQuerySchema } from "../catalog/queries/browse-query";
+import type { BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
@@ -37,7 +40,6 @@ import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
-	type EpisodeListingRow,
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeShown,
@@ -45,6 +47,7 @@ import {
 	releasedAtOf,
 	releasedBetween,
 } from "./episodes";
+import type { EpisodeListingRow } from "./episodes";
 import { franchiseParts, isNamedAfter } from "./franchise";
 import { franchiseRoles } from "./roles";
 import { storedSeriesIds } from "./store";
@@ -62,11 +65,11 @@ type SeriesRow = typeof series.$inferSelect;
 export async function getSeries(seriesId: string): Promise<Series> {
 	const [found] = await db
 		.select({
-			series,
 			edges: {
 				left: imageEdge.left,
 				right: imageEdge.right,
 			},
+			series,
 		})
 		.from(series)
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
@@ -109,8 +112,8 @@ export async function getSeries(seriesId: string): Promise<Series> {
 			overdue ??
 			(isNextEpisodeAhead && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
 				? {
-						number: row.nextEpisodeNumber,
 						airing_at: row.nextEpisodeAiringAt.toISOString(),
+						number: row.nextEpisodeNumber,
 					}
 				: null),
 		backdrop_edges: found.edges,
@@ -140,9 +143,9 @@ async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series[
 
 	const scheduled = await db
 		.select({
-			episode: animeScheduleRelease.episode,
 			airType: animeScheduleRelease.airType,
 			airsAt: animeScheduleRelease.airsAt,
+			episode: animeScheduleRelease.episode,
 		})
 		.from(animeScheduleRelease)
 		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
@@ -168,8 +171,8 @@ async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series[
 			return expected
 				? [
 						{
-							number: episode.number,
 							expected,
+							number: episode.number,
 						},
 					]
 				: [];
@@ -178,8 +181,8 @@ async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series[
 
 	return first
 		? {
-				number: first.number,
 				airing_at: first.expected.toISOString(),
+				number: first.number,
 			}
 		: null;
 }
@@ -225,8 +228,8 @@ export async function getAdjacentEpisodes(
 	const numbers = listed.map((episode) => episode.number);
 
 	return {
-		previous: numbers.findLast((number) => number < episode) ?? null,
 		next: numbers.find((number) => number > episode) ?? null,
+		previous: numbers.findLast((number) => number < episode) ?? null,
 	};
 }
 
@@ -315,15 +318,15 @@ async function describeEpisodes(
 	return episodes.map((episode) => {
 		const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));
 		return {
-			number: episode.number,
-			title: episode.title,
-			overview: episode.overview,
 			air_date: episode.airDate,
 			aired_at: episode.airedAt?.toISOString() ?? null,
-			runtime_minutes: episode.runtimeMinutes,
-			still_url: stillOf.get(episode.number) ?? null,
 			audio: listing?.languages ?? null,
 			filler: listing?.isFiller ?? false,
+			number: episode.number,
+			overview: episode.overview,
+			runtime_minutes: episode.runtimeMinutes,
+			still_url: stillOf.get(episode.number) ?? null,
+			title: episode.title,
 		};
 	});
 }
@@ -390,18 +393,18 @@ export async function browseSeries(query: BrowseQuery): Promise<
 		const ranked = found.map((entry) => entry.anilistId);
 		const pageStart = (page - 1) * perPage;
 		const { seriesIds, missing } = await seriesIdsFor(ranked, {
-			wanted: page * perPage + 1,
 			pageStart,
 			perPage,
+			wanted: page * perPage + 1,
 		});
 		const ordered = ranked.flatMap((anilistId) => seriesIds.get(anilistId) ?? []);
 		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
 		return {
+			hasNextPage: ordered.length > page * perPage,
+			isPreparing: missing.length > 0,
 			items: heard(await cardsOf(ordered.slice(pageStart, page * perPage))),
 			page,
 			perPage,
-			hasNextPage: ordered.length > page * perPage,
-			isPreparing: missing.length > 0,
 			preparing: audio
 				? []
 				: preparingOn(missing, pageStart, perPage, (anilistId) => {
@@ -422,17 +425,17 @@ export async function browseSeries(query: BrowseQuery): Promise<
 	const found = await browseAnime(parsed.data);
 	const anilistIds = found.items.map((anime) => anime.id);
 	const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
-		wanted: Number.POSITIVE_INFINITY,
 		pageStart: 0,
 		perPage: found.perPage,
+		wanted: Number.POSITIVE_INFINITY,
 	});
 	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
 	return {
+		hasNextPage: found.hasNextPage,
+		isPreparing: missing.length > 0,
 		items: heard(await cardsOf(anilistIds.flatMap((anilistId) => seriesIds.get(anilistId) ?? []))),
 		page: found.page,
 		perPage: found.perPage,
-		hasNextPage: found.hasNextPage,
-		isPreparing: missing.length > 0,
 		preparing: audio
 			? []
 			: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
@@ -474,8 +477,8 @@ function preparingOn(
 					{
 						...described,
 						anilist_id: anilistId,
-						title: described.title,
 						position,
+						title: described.title,
 					},
 				]
 			: [];
@@ -535,8 +538,8 @@ async function seriesIdsFor(
 		),
 	);
 	return {
-		seriesIds: found,
 		missing,
+		seriesIds: found,
 	};
 }
 
@@ -582,10 +585,10 @@ export async function listedEpisodeDatesOf(titles: readonly SeriesRow[]) {
 	const [rows, onAniKoto] = await Promise.all([
 		db
 			.select({
-				seriesId: seriesEpisode.seriesId,
-				number: seriesEpisode.number,
 				airDate: seriesEpisode.airDate,
 				airedAt: seriesEpisode.airedAt,
+				number: seriesEpisode.number,
+				seriesId: seriesEpisode.seriesId,
 				tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
 			})
 			.from(seriesEpisode)
@@ -654,8 +657,8 @@ export async function franchiseIds(
 	while (frontier.length > 0) {
 		const edge = {
 			from: series.anilistId,
-			to: seriesRelated.anilistId,
 			relation: seriesRelated.relation,
+			to: seriesRelated.anilistId,
 		};
 		const [outgoing, incoming] = await Promise.all([
 			db
@@ -736,8 +739,8 @@ export async function franchiseIds(
 
 	reached.delete(anilistId);
 	return {
-		ids: [...reached],
 		crossovers: outsiders,
+		ids: [...reached],
 	};
 }
 
@@ -778,8 +781,8 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 		db
 			.select({
 				from: series.anilistId,
-				to: seriesRelated.anilistId,
 				relation: seriesRelated.relation,
+				to: seriesRelated.anilistId,
 			})
 			.from(seriesRelated)
 			.innerJoin(series, eq(series.id, seriesRelated.seriesId))
@@ -792,8 +795,8 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 		db
 			.select({
 				anilistId: animeSearch.anilistId,
-				score: animeSearch.averageScore,
 				popularity: animeSearch.popularity,
+				score: animeSearch.averageScore,
 			})
 			.from(animeSearch)
 			.where(
@@ -818,12 +821,12 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 			return card && isListed
 				? [
 						{
-							seriesId: card.id,
 							anilistId: title.anilistId,
-							title: card.title,
-							format: card.format,
-							startDate: title.startDate,
 							episodeCount: card.episode_count,
+							format: card.format,
+							seriesId: card.id,
+							startDate: title.startDate,
+							title: card.title,
 						},
 					]
 				: [];
@@ -836,11 +839,11 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 					: [],
 		),
 		{
-			currentId: row.anilistId,
-			crossovers: [...crossovers],
 			alternatives: relations
 				.filter(({ relation }) => relation === "ALTERNATIVE")
 				.map(({ from, to }) => [from, to] as const),
+			crossovers: [...crossovers],
+			currentId: row.anilistId,
 			summaries: relations
 				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
 				.map(({ to }) => to),
@@ -855,11 +858,11 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 			return [
 				{
 					anilistId,
-					format: part.format,
-					episodeCount: part.episode_count,
 					durationMinutes: null,
-					score: ratingOf.get(anilistId)?.score ?? null,
+					episodeCount: part.episode_count,
+					format: part.format,
 					popularity: ratingOf.get(anilistId)?.popularity ?? null,
+					score: ratingOf.get(anilistId)?.score ?? null,
 				},
 			];
 		}),
@@ -882,11 +885,11 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 		})
 		.map((part) => ({
 			...part,
+			card: cards.get(part.series_id)!,
 			role:
 				part.role === "extra" && roles.get(anilistIdOf.get(part.series_id)!) === "spin_off"
 					? ("spin_off" as const)
 					: part.role,
-			card: cards.get(part.series_id)!,
 		}));
 }
 
@@ -900,8 +903,8 @@ const releaseWindowMs = 30 * day;
 
 /** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
 export const ReleasesQuerySchema = BrowseQuerySchema.pick({
-	format: true,
 	audio: true,
+	format: true,
 	page: true,
 	perPage: true,
 });
@@ -969,10 +972,10 @@ export async function getLatestReleases(
 				(!found || at.toISOString() >= found.releasedAt)
 			) {
 				found = {
-					seriesId: row.id,
 					anilistId: row.anilistId,
 					episode: episode.number,
 					releasedAt: at.toISOString(),
+					seriesId: row.id,
 				};
 			}
 		}
@@ -1013,6 +1016,8 @@ export async function getLatestReleases(
 	);
 
 	return {
+		hasNextPage: matching.length > page * perPage,
+		isPreparing: false,
 		items: shown.flatMap(({ seriesId, episode, releasedAt }) => {
 			const card = cards.get(seriesId);
 			return card
@@ -1028,24 +1033,22 @@ export async function getLatestReleases(
 		}),
 		page,
 		perPage,
-		hasNextPage: matching.length > page * perPage,
-		isPreparing: false,
 	};
 }
 
 const formatNames: Record<AnimeFormat, string> = {
+	MOVIE: "Movie",
+	MUSIC: "Music",
+	ONA: "ONA",
+	OVA: "OVA",
+	SPECIAL: "Special",
 	TV: "Series",
 	TV_SHORT: "Short",
-	MOVIE: "Movie",
-	SPECIAL: "Special",
-	OVA: "OVA",
-	ONA: "ONA",
-	MUSIC: "Music",
 };
 
 const statusNames: Partial<Record<string, string>> = {
-	RELEASING: "Airing",
 	NOT_YET_RELEASED: "Upcoming",
+	RELEASING: "Airing",
 };
 
 const relativeTime = new Intl.RelativeTimeFormat("en", {
@@ -1059,13 +1062,13 @@ function releaseAge(releasedAt: string, now: number): Pick<Release, "released_ag
 	const hours = Math.floor(age / hour);
 
 	return {
+		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
 		released_ago:
 			minutes < 60
 				? relativeTime.format(-Math.max(1, minutes), "minute")
 				: hours < 24
 					? relativeTime.format(-hours, "hour")
 					: relativeTime.format(-Math.floor(age / day), "day"),
-		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
 	};
 }
 
@@ -1109,29 +1112,16 @@ async function cardsFrom(
 		rows.flatMap((row) => {
 			const audio = new Set(languages.get(row.anilistId) ?? []);
 			const details = anime.get(row.anilistId);
-			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) return [];
+			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
+				return [];
+			}
 			const title = artwork.get(row.key);
 			return [
 				[
 					row.id,
 					{
-						id: row.id,
-						kind: row.kind,
-						format: details?.format ?? null,
-						title: row.title,
-						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
-						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
-						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
-						logo_scale: title?.logoScale ?? 1,
-						logo_offset_x: title?.logoOffsetX ?? 0,
-						logo_offset_y: title?.logoOffsetY ?? 0,
-						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
-						status: row.status,
 						audio: order.filter((language) => audio.has(language)),
-						overview: row.overview ?? details?.description ?? null,
-						score: details?.score ?? null,
-						genres: details?.genres ?? [],
-						episode_count: listed.get(row.id)?.length ?? 0,
+						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
 						details: [
 							row.startDate?.slice(0, 4),
 							details?.format && formatNames[details.format],
@@ -1139,6 +1129,21 @@ async function cardsFrom(
 						]
 							.filter(Boolean)
 							.join(" · "),
+						episode_count: listed.get(row.id)?.length ?? 0,
+						format: details?.format ?? null,
+						genres: details?.genres ?? [],
+						id: row.id,
+						kind: row.kind,
+						logo_offset_x: title?.logoOffsetX ?? 0,
+						logo_offset_y: title?.logoOffsetY ?? 0,
+						logo_scale: title?.logoScale ?? 1,
+						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
+						overview: row.overview ?? details?.description ?? null,
+						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+						score: details?.score ?? null,
+						status: row.status,
+						title: row.title,
+						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
 					},
 				] as const,
 			];

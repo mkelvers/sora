@@ -8,12 +8,12 @@ const track = (
 	kind: "dialogue" | "signs" | null,
 	isDefault = false,
 ): PlaybackMedia["subtitles"][number] => ({
-	url: `${language}-${kind}`,
-	language,
-	label: language,
+	default: isDefault,
 	format: "vtt",
 	kind,
-	default: isDefault,
+	label: language,
+	language,
+	url: `${language}-${kind}`,
 });
 
 const sub = {
@@ -63,8 +63,8 @@ describe("choosePlayback", () => {
 				audio: null,
 				subtitles: {
 					sub: {
-						language: "en",
 						kind: "signs",
+						language: "en",
 					},
 				},
 			}).subtitle?.url,
@@ -74,8 +74,8 @@ describe("choosePlayback", () => {
 				audio: null,
 				subtitles: {
 					sub: {
-						language: "de",
 						kind: "captions",
+						language: "de",
 					},
 				},
 			}).subtitle?.url,

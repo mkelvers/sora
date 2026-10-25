@@ -84,10 +84,10 @@
 		const frame = stage!.getBoundingClientRect();
 		const logo = elements().logo.getBoundingClientRect();
 		box = {
+			height: logo.height,
 			left: logo.left - frame.left,
 			top: logo.top - frame.top,
 			width: logo.width,
-			height: logo.height,
 		};
 	}
 
@@ -154,13 +154,13 @@
 		stage!.setPointerCapture(event.pointerId);
 		drag = {
 			handle: found,
+			hero: hero.getBoundingClientRect(),
+			logo: rect,
 			pointerX: event.clientX,
 			pointerY: event.clientY,
 			scale,
 			x,
 			y,
-			hero: hero.getBoundingClientRect(),
-			logo: rect,
 		};
 	}
 
@@ -209,15 +209,15 @@
 	}
 
 	const moves: Record<string, [number, number]> = {
+		ArrowDown: [0, 1],
 		ArrowLeft: [-1, 0],
 		ArrowRight: [1, 0],
 		ArrowUp: [0, -1],
-		ArrowDown: [0, 1],
 	};
 	const zooms: Record<string, number> = {
 		"+": 1,
-		"=": 1,
 		"-": -1,
+		"=": 1,
 	};
 
 	function nudge(event: KeyboardEvent) {

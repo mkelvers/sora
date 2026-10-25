@@ -36,9 +36,9 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 	const until = new Date(now.getTime() + scheduleAheadMs);
 	const releases = await db
 		.select({
+			airsAt: animeScheduleRelease.airsAt,
 			anilistId: animeScheduleShow.anilistId,
 			episode: animeScheduleRelease.episode,
-			airsAt: animeScheduleRelease.airsAt,
 		})
 		.from(animeScheduleRelease)
 		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
@@ -86,9 +86,9 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 		await scheduleAniKotoPoll(
 			{
 				anilistId,
+				attempt: 0,
 				episode: release.episode,
 				language: "dub",
-				attempt: 0,
 			},
 			new Date(release.airsAt.getTime() + firstLookDelayMs),
 		);

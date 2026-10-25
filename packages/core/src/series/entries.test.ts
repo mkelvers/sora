@@ -9,32 +9,32 @@ import { loadEntries, toMatchSubject } from "./entries";
 /** An AniList entry that knows nothing but its ID. */
 function entry(id: number): FranchiseEntryFragment {
 	return {
+		averageScore: null,
+		bannerImage: null,
+		coverImage: null,
+		duration: null,
+		endDate: null,
+		episodes: null,
+		format: "TV",
+		genres: null,
 		id,
 		idMal: null,
-		synonyms: null,
-		bannerImage: null,
-		format: "TV",
-		status: null,
-		season: null,
-		seasonYear: null,
-		episodes: null,
-		duration: null,
-		averageScore: null,
-		popularity: null,
-		genres: null,
 		isAdult: false,
-		startDate: null,
-		endDate: null,
+		nextAiringEpisode: null,
+		popularity: null,
 		relations: {
 			edges: [],
 		},
+		season: null,
+		seasonYear: null,
+		startDate: null,
+		status: null,
+		synonyms: null,
 		title: {
-			romaji: `Entry ${id}`,
 			english: null,
 			native: null,
+			romaji: `Entry ${id}`,
 		},
-		coverImage: null,
-		nextAiringEpisode: null,
 	};
 }
 
@@ -84,19 +84,19 @@ test("answers a later request for a neighbour from the one that brought it", asy
 test("leaves the length of an entry that has not aired unknown", () => {
 	const upcoming: FranchiseEntryFragment = {
 		...entry(102),
-		status: "NOT_YET_RELEASED",
 		nextAiringEpisode: {
-			episode: 1,
 			airingAt: 0,
+			episode: 1,
 		},
+		status: "NOT_YET_RELEASED",
 	};
 	const airing: FranchiseEntryFragment = {
 		...upcoming,
-		status: "RELEASING",
 		nextAiringEpisode: {
-			episode: 4,
 			airingAt: 0,
+			episode: 4,
 		},
+		status: "RELEASING",
 	};
 
 	expect(toMatchSubject(upcoming, new Date()).episodes).toBeNull();

@@ -25,8 +25,8 @@ const tops: Record<string, number> = {
 
 function draw(style: string, seed: string) {
 	const options = {
-		seed,
 		animationVariant: "fastest",
+		seed,
 	} as const;
 
 	if (style === "critters") {
@@ -59,9 +59,9 @@ export const GET: RequestHandler = ({ params, locals }) => {
 
 	return new Response(draw(params.style, params.seed), {
 		headers: {
-			"Content-Type": "image/svg+xml",
 			"Cache-Control": "private, max-age=31536000, immutable",
 			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+			"Content-Type": "image/svg+xml",
 			"X-Content-Type-Options": "nosniff",
 		},
 	});

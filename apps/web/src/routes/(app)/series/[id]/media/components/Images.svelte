@@ -17,18 +17,18 @@
 	const current = $derived(series[`${media.type}_url`]?.split("/").at(-1));
 
 	const srcsets = {
-		poster: {
-			w342: 342,
-			w500: 500,
-			w780: 780,
-		},
 		backdrop: {
-			w780: 780,
 			w1280: 1280,
+			w780: 780,
 		},
 		logo: {
 			w300: 300,
 			w500: 500,
+		},
+		poster: {
+			w342: 342,
+			w500: 500,
+			w780: 780,
 		},
 	};
 	const sizes = {

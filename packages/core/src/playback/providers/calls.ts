@@ -55,12 +55,12 @@ export function recordingCalls(
 		const finish = async (outcome: CallOutcome, error: Error | null) => {
 			const recorded = await attempt(
 				record({
-					provider: provider.id,
-					operation,
-					outcome,
-					startedAt,
 					durationMs: Math.round(performance.now() - started),
 					error: error ? errorMessage(error) : null,
+					operation,
+					outcome,
+					provider: provider.id,
+					startedAt,
 				}),
 			);
 			if (recorded.error) {
@@ -81,21 +81,21 @@ export function recordingCalls(
 
 	const syncCatalog = provider.syncCatalog?.bind(provider);
 	return {
-		id: provider.id,
-		locale: provider.locale,
-		listsLanguages: provider.listsLanguages,
 		findMedia: (anime) =>
 			observe(
 				"find_media",
 				() => provider.findMedia(anime),
 				(match) => match === null,
 			),
+		id: provider.id,
 		listEpisodes: (mediaId) =>
 			observe(
 				"list_episodes",
 				() => provider.listEpisodes(mediaId),
 				(episodes) => episodes.length === 0,
 			),
+		listsLanguages: provider.listsLanguages,
+		locale: provider.locale,
 		resolveStream: (episodeId, language) =>
 			observe(
 				"resolve_stream",
@@ -114,7 +114,7 @@ export function recordingCalls(
 }
 
 function errorMessage(error: Error) {
-	const message = error.message;
+	const { message } = error;
 	return message.length > maxErrorLength ? `${message.slice(0, maxErrorLength - 1)}…` : message;
 }
 
@@ -124,26 +124,26 @@ async function storeCall(call: ProviderCall) {
 	await db
 		.insert(providerCalls)
 		.values({
-			provider: call.provider,
-			operation: call.operation,
-			hour: new Date(Math.floor(call.startedAt.getTime() / hour) * hour),
-			ok: call.outcome === "ok" ? 1 : 0,
+			durationMs: call.durationMs,
 			empty: call.outcome === "empty" ? 1 : 0,
 			failed: failed ? 1 : 0,
-			durationMs: call.durationMs,
+			hour: new Date(Math.floor(call.startedAt.getTime() / hour) * hour),
 			lastError: call.error,
 			lastErrorAt: failed ? call.startedAt : null,
+			ok: call.outcome === "ok" ? 1 : 0,
+			operation: call.operation,
+			provider: call.provider,
 		})
 		.onConflictDoUpdate({
-			target: [providerCalls.provider, providerCalls.operation, providerCalls.hour],
 			set: {
-				ok: sql`${providerCalls.ok} + excluded.ok`,
+				durationMs: sql`${providerCalls.durationMs} + excluded.duration_ms`,
 				empty: sql`${providerCalls.empty} + excluded.empty`,
 				failed: sql`${providerCalls.failed} + excluded.failed`,
-				durationMs: sql`${providerCalls.durationMs} + excluded.duration_ms`,
 				lastError: sql`coalesce(excluded.last_error, ${providerCalls.lastError})`,
 				lastErrorAt: sql`coalesce(excluded.last_error_at, ${providerCalls.lastErrorAt})`,
+				ok: sql`${providerCalls.ok} + excluded.ok`,
 			},
+			target: [providerCalls.provider, providerCalls.operation, providerCalls.hour],
 		});
 }
 

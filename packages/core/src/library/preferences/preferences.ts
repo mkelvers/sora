@@ -3,18 +3,14 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
-import {
-	PlaybackPreferencesUpdateSchema,
-	SubtitlePreferencesSchema,
-	type PlaybackPreferences,
-	type PlaybackPreferencesUpdate,
-} from "../../models/library";
+import { PlaybackPreferencesUpdateSchema, SubtitlePreferencesSchema } from "../../models/library";
+import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "../../models/library";
 import { LanguageSchema } from "../../models/series";
 
 const defaults: PlaybackPreferences = {
 	audio: null,
-	subtitles: {},
 	auto_skip: false,
+	subtitles: {},
 };
 
 /** A user's playback preferences; the defaults until they pick anything. */
@@ -49,13 +45,12 @@ export async function updatePlaybackPreferences(
 	const [row] = await db
 		.insert(playbackPreference)
 		.values({
-			userId,
 			audio: audio ?? null,
-			subtitles: subtitles ?? {},
 			autoSkip: autoSkip ?? false,
+			subtitles: subtitles ?? {},
+			userId,
 		})
 		.onConflictDoUpdate({
-			target: playbackPreference.userId,
 			set: {
 				...(audio !== undefined && {
 					audio,
@@ -68,6 +63,7 @@ export async function updatePlaybackPreferences(
 				}),
 				updatedAt: sql`now()`,
 			},
+			target: playbackPreference.userId,
 		})
 		.returning();
 
@@ -80,7 +76,7 @@ function toPreferences(row: typeof playbackPreference.$inferSelect): PlaybackPre
 
 	return {
 		audio: audio.success ? audio.data : null,
-		subtitles: subtitles.success ? subtitles.data : {},
 		auto_skip: row.autoSkip,
+		subtitles: subtitles.success ? subtitles.data : {},
 	};
 }

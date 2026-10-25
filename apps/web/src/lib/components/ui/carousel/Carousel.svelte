@@ -4,7 +4,8 @@
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
 
-	import { type CarouselOptions, CarouselState, setCarousel } from "./context.svelte";
+	import { CarouselState, setCarousel } from "./context.svelte";
+	import type { CarouselOptions } from "./context.svelte";
 
 	let {
 		children,

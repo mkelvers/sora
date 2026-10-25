@@ -21,14 +21,14 @@ import { series } from "./series";
 export const featuredPick = pgTable(
 	"featured_pick",
 	{
-		userId: text("user_id").notNull(),
+		position: integer("position").notNull(),
 		rotation: integer("rotation").notNull(),
 		seriesId: text("series_id")
 			.notNull()
 			.references(() => series.id, {
 				onDelete: "cascade",
 			}),
-		position: integer("position").notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -43,18 +43,18 @@ export const featuredPick = pgTable(
  * `getPlaybackPreferences`.
  */
 export const playbackPreference = pgTable("playback_preference", {
-	userId: text("user_id").primaryKey(),
 	/** `sub`, `dub`, or `raw`; `null` plays the first version an episode has. */
 	audio: text("audio"),
+	/** Whether openings and endings are skipped without asking. */
+	autoSkip: boolean("auto_skip").notNull().default(false),
 	/**
 	 * The subtitles picked for each audio, keyed by `sub` or `dub`: a track's
 	 * language and kind, or `null` for none. An audio missing here shows its
 	 * default track.
 	 */
 	subtitles: jsonb("subtitles").$type<unknown>().notNull().default({}),
-	/** Whether openings and endings are skipped without asking. */
-	autoSkip: boolean("auto_skip").notNull().default(false),
 	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+	userId: text("user_id").primaryKey(),
 });
 
 /**
@@ -66,25 +66,25 @@ export const playbackPreference = pgTable("playback_preference", {
 export const episodeProgress = pgTable(
 	"episode_progress",
 	{
-		userId: text("user_id").notNull(),
-		seriesId: text("series_id")
-			.notNull()
-			.references(() => series.id, {
-				onDelete: "cascade",
-			}),
+		durationSeconds: integer("duration_seconds").notNull(),
 		/** The episode's number in the series, from 1. */
 		episode: integer("episode").notNull(),
-		positionSeconds: integer("position_seconds").notNull(),
-		durationSeconds: integer("duration_seconds").notNull(),
 		/** Whether the user stopped where the episode is over; see `Progress.finished`. */
 		finished: boolean("finished").notNull(),
-		/** When the user last played the episode. */
-		watchedAt: timestamptz("watched_at").notNull().defaultNow(),
+		positionSeconds: integer("position_seconds").notNull(),
 		/**
 		 * Whether the row is from the rewatch the user is in the middle of
 		 * rather than from their first viewing. Ending the rewatch deletes it.
 		 */
 		rewatch: boolean("rewatch").notNull().default(false),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		userId: text("user_id").notNull(),
+		/** When the user last played the episode. */
+		watchedAt: timestamptz("watched_at").notNull().defaultNow(),
 	},
 	(table) => [
 		primaryKey({
@@ -112,7 +112,21 @@ export const watchlistStatus = pgEnum("watchlist_status", [
 export const seriesState = pgTable(
 	"series_state",
 	{
-		userId: text("user_id").notNull(),
+		/** When the series was put on the watchlist; `null` when it is not on it. */
+		addedAt: timestamptz("added_at"),
+		/**
+		 * When the user took the series' card out of Continue Watching. The card
+		 * stays out until they play an episode after this; see
+		 * `dismissContinueWatching`.
+		 */
+		dismissedAt: timestamptz("dismissed_at"),
+		/**
+		 * When the user started watching the series again from the start, after
+		 * finishing it. While it is set, their progress is the rewatch's own
+		 * (see `episodeProgress.rewatch`); finishing the last episode again, or
+		 * marking the series watched, clears it. See `startRewatch`.
+		 */
+		rewatchStartedAt: timestamptz("rewatch_started_at"),
 		seriesId: text("series_id")
 			.notNull()
 			.references(() => series.id, {
@@ -124,23 +138,9 @@ export const seriesState = pgTable(
 		 * says. Taking the series off the watchlist keeps the user's progress.
 		 */
 		status: watchlistStatus("status"),
-		/** When the series was put on the watchlist; `null` when it is not on it. */
-		addedAt: timestamptz("added_at"),
 		/** When the status last changed; `null` when it is not on the watchlist. */
 		statusChangedAt: timestamptz("status_changed_at"),
-		/**
-		 * When the user started watching the series again from the start, after
-		 * finishing it. While it is set, their progress is the rewatch's own
-		 * (see `episodeProgress.rewatch`); finishing the last episode again, or
-		 * marking the series watched, clears it. See `startRewatch`.
-		 */
-		rewatchStartedAt: timestamptz("rewatch_started_at"),
-		/**
-		 * When the user took the series' card out of Continue Watching. The card
-		 * stays out until they play an episode after this; see
-		 * `dismissContinueWatching`.
-		 */
-		dismissedAt: timestamptz("dismissed_at"),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -163,9 +163,9 @@ export const seriesState = pgTable(
 export const notificationRead = pgTable(
 	"notification_read",
 	{
-		userId: text("user_id").notNull(),
 		notificationId: text("notification_id").notNull(),
 		readAt: timestamptz("read_at").notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		primaryKey({
@@ -178,9 +178,9 @@ export const notificationRead = pgTable(
 export const notificationDismissal = pgTable(
 	"notification_dismissal",
 	{
-		userId: text("user_id").notNull(),
-		notificationId: text("notification_id").notNull(),
 		dismissedAt: timestamptz("dismissed_at").notNull(),
+		notificationId: text("notification_id").notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		primaryKey({

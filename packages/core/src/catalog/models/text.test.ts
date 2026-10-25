@@ -85,30 +85,30 @@ describe("fuzzyDate", () => {
 	test("uses the most precise prefix available", () => {
 		expect(
 			fuzzyDate({
-				year: 2023,
-				month: 9,
 				day: 29,
+				month: 9,
+				year: 2023,
 			}),
 		).toBe("2023-09-29");
 		expect(
 			fuzzyDate({
-				year: 2023,
-				month: 9,
 				day: null,
+				month: 9,
+				year: 2023,
 			}),
 		).toBe("2023-09");
 		expect(
 			fuzzyDate({
-				year: 2023,
-				month: null,
 				day: null,
+				month: null,
+				year: 2023,
 			}),
 		).toBe("2023");
 		expect(
 			fuzzyDate({
-				year: null,
-				month: 9,
 				day: 29,
+				month: 9,
+				year: null,
 			}),
 		).toBeNull();
 	});

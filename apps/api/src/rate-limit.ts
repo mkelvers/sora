@@ -2,7 +2,8 @@ import { formatRetryAfter } from "@sora/shared";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
-import { sendProblem, type V1Env } from "./errors";
+import { sendProblem } from "./errors";
+import type { V1Env } from "./errors";
 
 /** The most counters one limiter keeps before it sweeps the expired ones. */
 const sweepAbove = 10_000;

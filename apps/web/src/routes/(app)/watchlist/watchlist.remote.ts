@@ -38,10 +38,10 @@ export const setWatchlistStatus = command(
 
 		if (status) {
 			await sora.request(route.setWatchlistStatus, {
-				params,
 				body: {
 					status,
 				},
+				params,
 			});
 		} else {
 			await sora.request(route.removeFromWatchlist, {

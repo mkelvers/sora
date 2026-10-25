@@ -4,13 +4,13 @@ import { catalogSeriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import { episodeProgress, series, seriesState } from "../../database/schema";
 import { InvalidInputError } from "../../errors";
-import {
-	ProgressInputSchema,
-	type ContinueWatching,
-	type NextEpisode,
-	type Progress,
-	type ProgressInput,
-	type SeriesProgress,
+import { ProgressInputSchema } from "../../models/library";
+import type {
+	ContinueWatching,
+	NextEpisode,
+	Progress,
+	ProgressInput,
+	SeriesProgress,
 } from "../../models/library";
 import { locateEpisode } from "../../series/episodes";
 import {
@@ -74,9 +74,9 @@ export async function saveProgress(
 	}
 
 	const values = {
-		positionSeconds: Math.min(parsed.data.position_seconds, parsed.data.duration_seconds),
 		durationSeconds: parsed.data.duration_seconds,
 		finished: parsed.data.finished,
+		positionSeconds: Math.min(parsed.data.position_seconds, parsed.data.duration_seconds),
 	};
 	const [row] = await db
 		.insert(episodeProgress)
@@ -87,12 +87,12 @@ export async function saveProgress(
 			rewatch: await isRewatching(userId, address.seriesId),
 		})
 		.onConflictDoUpdate({
-			target: progressKey,
 			set: {
 				...values,
 				watchedAt: sql`now()`,
 			},
 			setWhere: sql`not ${episodeProgress.finished} or excluded.finished`,
+			target: progressKey,
 		})
 		.returning();
 	if (!row) {
@@ -139,8 +139,8 @@ export async function markWatched(userId: string, seriesId: string, episode?: nu
 		(
 			await db
 				.select({
-					episode: episodeProgress.episode,
 					durationSeconds: episodeProgress.durationSeconds,
+					episode: episodeProgress.episode,
 				})
 				.from(episodeProgress)
 				.where(
@@ -159,24 +159,24 @@ export async function markWatched(userId: string, seriesId: string, episode?: nu
 				const durationSeconds =
 					played.get(candidate.number) ?? (candidate.runtime_minutes ?? 0) * 60;
 				return {
-					userId,
-					seriesId,
-					episode: candidate.number,
-					positionSeconds: durationSeconds,
 					durationSeconds,
+					episode: candidate.number,
 					finished: true,
+					positionSeconds: durationSeconds,
 					rewatch,
+					seriesId,
+					userId,
 				};
 			}),
 		)
 		.onConflictDoUpdate({
-			target: progressKey,
 			set: {
-				positionSeconds: sql`excluded.duration_seconds`,
 				durationSeconds: sql`excluded.duration_seconds`,
 				finished: true,
+				positionSeconds: sql`excluded.duration_seconds`,
 				watchedAt: sql`now()`,
 			},
+			target: progressKey,
 			...(ending && {
 				setWhere: eq(episodeProgress.finished, false),
 			}),
@@ -188,8 +188,8 @@ export async function markWatched(userId: string, seriesId: string, episode?: nu
 	await afterPlayback(
 		userId,
 		{
-			seriesId,
 			episode: last.number,
+			seriesId,
 		},
 		true,
 	);
@@ -299,6 +299,7 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 
 	return {
 		episodes: rows.map(toProgress),
+		finished,
 		next:
 			rewatch && !last
 				? {
@@ -307,7 +308,6 @@ export async function getSeriesProgress(userId: string, seriesId: string): Promi
 						duration_seconds: null,
 					}
 				: (next?.get(seriesId) ?? null),
-		finished,
 		rewatch_started_at: startedAt?.toISOString() ?? null,
 	};
 }
@@ -327,15 +327,15 @@ export async function startRewatch(userId: string, seriesId: string) {
 	await db
 		.insert(seriesState)
 		.values({
-			userId,
-			seriesId,
 			rewatchStartedAt: sql`now()`,
+			seriesId,
+			userId,
 		})
 		.onConflictDoUpdate({
-			target: [seriesState.userId, seriesState.seriesId],
 			set: {
 				rewatchStartedAt: sql`now()`,
 			},
+			target: [seriesState.userId, seriesState.seriesId],
 		});
 }
 
@@ -361,12 +361,12 @@ export async function startRewatch(userId: string, seriesId: string) {
 export async function getContinueWatching(userId: string): Promise<ContinueWatching[]> {
 	const latest = db
 		.selectDistinctOn([episodeProgress.seriesId], {
-			seriesId: episodeProgress.seriesId,
+			dismissedAt: seriesState.dismissedAt,
 			episode: episodeProgress.episode,
 			finished: episodeProgress.finished,
-			watchedAt: episodeProgress.watchedAt,
 			rewatch: episodeProgress.rewatch,
-			dismissedAt: seriesState.dismissedAt,
+			seriesId: episodeProgress.seriesId,
+			watchedAt: episodeProgress.watchedAt,
 		})
 		.from(episodeProgress)
 		.leftJoin(
@@ -390,10 +390,10 @@ export async function getContinueWatching(userId: string): Promise<ContinueWatch
 		.as("latest");
 	const played = await db
 		.select({
-			seriesId: latest.seriesId,
 			episode: latest.episode,
 			finished: latest.finished,
 			rewatch: latest.rewatch,
+			seriesId: latest.seriesId,
 		})
 		.from(latest)
 		.innerJoin(series, eq(series.id, latest.seriesId))
@@ -420,8 +420,8 @@ export async function getContinueWatching(userId: string): Promise<ContinueWatch
 		),
 		db
 			.select({
-				seriesId: episodeProgress.seriesId,
 				finished: sql<number>`count(*)::int`,
+				seriesId: episodeProgress.seriesId,
 			})
 			.from(episodeProgress)
 			.where(
@@ -463,15 +463,15 @@ export async function dismissContinueWatching(userId: string, seriesId: string) 
 	await db
 		.insert(seriesState)
 		.values({
-			userId,
-			seriesId,
 			dismissedAt: sql`now()`,
+			seriesId,
+			userId,
 		})
 		.onConflictDoUpdate({
-			target: [seriesState.userId, seriesState.seriesId],
 			set: {
 				dismissedAt: sql`now()`,
 			},
+			target: [seriesState.userId, seriesState.seriesId],
 		});
 }
 
@@ -488,8 +488,8 @@ export async function removeProgress(userId: string, seriesId: string) {
 		.delete(episodeProgress)
 		.where(and(eq(episodeProgress.userId, userId), eq(episodeProgress.seriesId, seriesId)));
 	await clearSeriesState(userId, seriesId, {
-		rewatch: true,
 		dismissal: true,
+		rewatch: true,
 	});
 }
 
@@ -546,18 +546,18 @@ async function nextEpisodes(
 		played.map(async (last) => {
 			if (!last.finished) {
 				return {
-					seriesId: last.seriesId,
-					rewatch: last.rewatch,
 					episode: last.episode,
+					rewatch: last.rewatch,
+					seriesId: last.seriesId,
 				};
 			}
 
 			const adjacent = await getAdjacentEpisodes(last.seriesId, last.episode);
 
 			return {
-				seriesId: last.seriesId,
-				rewatch: last.rewatch,
 				episode: adjacent.next,
+				rewatch: last.rewatch,
+				seriesId: last.seriesId,
 			};
 		}),
 	);
@@ -566,9 +566,9 @@ async function nextEpisodes(
 			? []
 			: [
 					{
-						seriesId,
-						rewatch,
 						episode,
+						rewatch,
+						seriesId,
 					},
 				],
 	);
@@ -603,9 +603,9 @@ async function nextEpisodes(
 			return [
 				seriesId,
 				{
+					duration_seconds: unfinished?.durationSeconds ?? null,
 					episode,
 					position_seconds: unfinished?.positionSeconds ?? 0,
-					duration_seconds: unfinished?.durationSeconds ?? null,
 				},
 			];
 		}),
@@ -614,11 +614,11 @@ async function nextEpisodes(
 
 function toProgress(row: typeof episodeProgress.$inferSelect): Progress {
 	return {
-		series_id: row.seriesId,
-		episode: row.episode,
-		position_seconds: row.positionSeconds,
 		duration_seconds: row.durationSeconds,
+		episode: row.episode,
 		finished: row.finished,
+		position_seconds: row.positionSeconds,
+		series_id: row.seriesId,
 		watched_at: row.watchedAt.toISOString(),
 	};
 }

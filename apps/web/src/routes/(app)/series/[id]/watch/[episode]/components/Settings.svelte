@@ -26,8 +26,8 @@
 	} = $props();
 
 	const kinds: Record<string, string> = {
-		signs: " (Signs)",
 		captions: " (Captions)",
+		signs: " (Signs)",
 	};
 
 	function pickSubtitle(url: string) {
@@ -40,8 +40,8 @@
 			subtitles: {
 				[selected.audio]: track
 					? {
-							language: track.language,
 							kind: track.kind,
+							language: track.language,
 						}
 					: null,
 			},
@@ -53,7 +53,6 @@
 			? [
 					{
 						label: "Audio",
-						value: selected?.audio ?? "",
 						options: media.map((version) => ({
 							value: version.audio,
 							label: version.label,
@@ -62,6 +61,7 @@
 							onpreferences({
 								audio: value as WatchMedia["audio"],
 							}),
+						value: selected?.audio ?? "",
 					},
 				]
 			: []),
@@ -69,7 +69,6 @@
 			? [
 					{
 						label: "Subtitles",
-						value: subtitle ?? "",
 						options: [
 							{
 								value: "",
@@ -81,17 +80,18 @@
 							})),
 						],
 						select: pickSubtitle,
+						value: subtitle ?? "",
 					},
 				]
 			: []),
 		{
 			label: "Speed",
-			value: String(player.speed),
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
 				value: String(rate),
 				label: rate === 1 ? "Normal" : `${rate}x`,
 			})),
 			select: (value: string) => (player.speed = Number(value)),
+			value: String(player.speed),
 		},
 	]);
 
@@ -107,7 +107,6 @@
 	});
 
 	const popover = new Popover({
-		onOpenChange: () => (submenu = undefined),
 		closeOnOutsideClick: (element) => !(element instanceof Element) || element.isConnected,
 		floatingConfig: {
 			computePosition: {
@@ -115,6 +114,7 @@
 			},
 			offset: 8,
 		},
+		onOpenChange: () => (submenu = undefined),
 	});
 </script>
 

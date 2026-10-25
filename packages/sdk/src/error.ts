@@ -8,8 +8,8 @@ import { attempt, parseRetryAfter, second } from "@sora/shared";
  * `{ message, code }` from the `/v1/auth` endpoints.
  */
 const FailureBodySchema = ProblemSchema.pick({
-	detail: true,
 	code: true,
+	detail: true,
 	errors: true,
 })
 	.partial()
@@ -69,10 +69,10 @@ export class SoraError extends Error {
 				problem?.message ??
 				`The API answered ${response.status} ${response.statusText}`,
 			{
-				status: response.status,
 				code: problem?.code ?? "HTTP_ERROR",
 				errors: problem?.errors,
 				retryAfterSeconds: wait === null ? null : Math.ceil(wait / second),
+				status: response.status,
 			},
 		);
 	}

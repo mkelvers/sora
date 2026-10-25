@@ -6,7 +6,6 @@ import { z } from "zod";
 import type { Actions, PageServerLoad } from "./$types";
 
 const Changes = z.object({
-	name: z.string().trim().min(1).max(40),
 	avatar: z
 		.string()
 		.transform((value) => {
@@ -22,6 +21,7 @@ const Changes = z.object({
 				seed: z.string().trim().min(1).max(64),
 			}),
 		),
+	name: z.string().trim().min(1).max(40),
 });
 
 export const load: PageServerLoad = ({ locals, params }) => {
@@ -35,8 +35,6 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	}
 
 	return {
-		profile,
-		deletable: profiles.length > 1,
 		choices: Array.from(
 			{
 				length: 11,
@@ -46,10 +44,47 @@ export const load: PageServerLoad = ({ locals, params }) => {
 				seed: crypto.randomUUID().slice(0, 8),
 			}),
 		),
+		deletable: profiles.length > 1,
+		profile,
 	};
 };
 
 export const actions: Actions = {
+	delete: async ({ locals, params, cookies, url }) => {
+		if (!locals.viewer) {
+			error(401, "Not signed in");
+		}
+		const viewer = locals.viewer;
+		const deleted = await attempt(
+			viewer.sora.request(route.deleteProfile, {
+				params: {
+					profile_id: params.id,
+				},
+			}),
+			SoraError,
+		);
+		if (deleted.error?.code === "LAST_PROFILE") {
+			return fail(409, {
+				message: "An account keeps at least one profile.",
+			});
+		}
+		if (deleted.error?.status === 404) {
+			error(404, "No such profile");
+		}
+		if (deleted.error) {
+			throw deleted.error;
+		}
+
+		if (viewer.profile?.id === params.id) {
+			cookies.delete("sora_profile", {
+				path: "/",
+			});
+		}
+
+		const target = url.searchParams.get("redirect");
+		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
+	},
+
 	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
@@ -83,41 +118,6 @@ export const actions: Actions = {
 		}
 		if (updated.error) {
 			throw updated.error;
-		}
-
-		const target = url.searchParams.get("redirect");
-		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
-	},
-
-	delete: async ({ locals, params, cookies, url }) => {
-		if (!locals.viewer) {
-			error(401, "Not signed in");
-		}
-		const viewer = locals.viewer;
-		const deleted = await attempt(
-			viewer.sora.request(route.deleteProfile, {
-				params: {
-					profile_id: params.id,
-				},
-			}),
-			SoraError,
-		);
-		if (deleted.error?.code === "LAST_PROFILE") {
-			return fail(409, {
-				message: "An account keeps at least one profile.",
-			});
-		}
-		if (deleted.error?.status === 404) {
-			error(404, "No such profile");
-		}
-		if (deleted.error) {
-			throw deleted.error;
-		}
-
-		if (viewer.profile?.id === params.id) {
-			cookies.delete("sora_profile", {
-				path: "/",
-			});
 		}
 
 		const target = url.searchParams.get("redirect");

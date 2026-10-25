@@ -19,14 +19,14 @@ export function parseTimestamp(value: string) {
 
 	const [, hours = "0", minutes, seconds, milliseconds] = parts;
 	return (
-		Number(hours) * 3_600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1_000
+		Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1000
 	);
 }
 
 export function formatTimestamp(seconds: number) {
-	const milliseconds = Math.round(seconds * 1_000);
+	const milliseconds = Math.round(seconds * 1000);
 	const pad = (value: number, length = 2) => String(value).padStart(length, "0");
-	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1_000) % 60)}.${pad(milliseconds % 1_000, 3)}`;
+	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1000) % 60)}.${pad(milliseconds % 1000, 3)}`;
 }
 
 /** The blocks of a WebVTT file, separated by blank lines. */
@@ -47,9 +47,9 @@ export function readTiming(block: string) {
 	}
 
 	return {
-		start,
 		end,
 		settings: match[3]!,
+		start,
 	};
 }
 
@@ -72,13 +72,13 @@ export function readCues(content: string) {
 		const text = lines
 			.slice(lines.findIndex((line) => line.includes("-->")) + 1)
 			.join(" ")
-			.replace(/<[^>]*>|\{\\[^}]*\}/g, "")
-			.replace(/\s+/g, " ")
+			.replaceAll(/<[^>]*>|\{\\[^}]*\}/g, "")
+			.replaceAll(/\s+/g, " ")
 			.trim();
 		if (text) {
 			cues.push({
-				start: cue.start,
 				end: cue.end,
+				start: cue.start,
 				text,
 			});
 		}

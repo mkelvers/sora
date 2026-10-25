@@ -9,12 +9,12 @@ export const LocaleSchema = z.string().min(1).meta({
 
 export const SkipSegmentSchema = z
 	.object({
+		end: z.number().positive().meta({
+			description: "Seconds from the start of the stream; always after `start`.",
+		}),
 		kind: z.enum(["opening", "ending"]),
 		start: z.number().nonnegative().meta({
 			description: "Seconds from the start of the stream.",
-		}),
-		end: z.number().positive().meta({
-			description: "Seconds from the start of the stream; always after `start`.",
 		}),
 	})
 	.meta({
@@ -23,41 +23,45 @@ export const SkipSegmentSchema = z
 
 /** One way to play an episode. */
 export const PlaybackSourceSchema = z.object({
+	format: z.enum(["hls", "mp4"]),
+	quality: z.enum(["auto", "1080p", "720p", "480p", "360p"]),
 	url: z.url().meta({
 		description:
 			"The stream through Sora's proxy; hand it to the player as is. Expires with the playback.",
 	}),
-	format: z.enum(["hls", "mp4"]),
-	quality: z.enum(["auto", "1080p", "720p", "480p", "360p"]),
 });
 
 export const PlaybackSubtitleSchema = z.object({
-	url: z.url().meta({
+	default: z.boolean().meta({
 		description:
-			"The subtitle file through Sora's proxy; hand it to the player as is. Expires with the playback.",
-	}),
-	language: z.string().meta({
-		description: "BCP 47 language tag.",
-		example: "en",
-	}),
-	label: z.string().meta({
-		description: "The language's English name, for a subtitle menu.",
-		example: "Brazilian Portuguese",
+			"Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. None for raw or a hardsub, which has no English track.",
 	}),
 	format: z.enum(["vtt", "srt", "ass"]).nullable(),
 	kind: z.enum(["dialogue", "signs", "captions"]).nullable().meta({
 		description:
 			"What the track carries, worked out from its name and its cues: `dialogue` is what the characters say, `signs` is text shown on screen and forced subtitles, and `captions` is dialogue with descriptions of sound. Null when that is not clear, in which case a menu should show the track as plain subtitles.",
 	}),
-	default: z.boolean().meta({
+	label: z.string().meta({
+		description: "The language's English name, for a subtitle menu.",
+		example: "Brazilian Portuguese",
+	}),
+	language: z.string().meta({
+		description: "BCP 47 language tag.",
+		example: "en",
+	}),
+	url: z.url().meta({
 		description:
-			"Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. None for raw or a hardsub, which has no English track.",
+			"The subtitle file through Sora's proxy; hand it to the player as is. Expires with the playback.",
 	}),
 });
 
 export const PlaybackMediaSchema = z
 	.object({
 		audio: LanguageSchema,
+		hardsub: z.boolean().meta({
+			description:
+				"Whether the English subtitles are burned into the picture rather than served as a track, so they cannot be styled or turned off; `subtitles` then holds other languages only, if any. A sub with an English track is served when any provider has one. Always false for dub and raw.",
+		}),
 		label: z.string().meta({
 			description: "The audio's name, for an audio menu.",
 			example: "Dub",
@@ -69,18 +73,14 @@ export const PlaybackMediaSchema = z
 		provider: z.string().meta({
 			description: "The provider that serves this version.",
 		}),
-		hardsub: z.boolean().meta({
+		skip_segments: z.array(SkipSegmentSchema).meta({
 			description:
-				"Whether the English subtitles are burned into the picture rather than served as a track, so they cannot be styled or turned off; `subtitles` then holds other languages only, if any. A sub with an English track is served when any provider has one. Always false for dub and raw.",
+				"Opening and ending, in playback order, as the provider's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none.",
 		}),
 		sources: z.array(PlaybackSourceSchema).meta({
 			description: "Ordered best first.",
 		}),
 		subtitles: z.array(PlaybackSubtitleSchema),
-		skip_segments: z.array(SkipSegmentSchema).meta({
-			description:
-				"Opening and ending, in playback order, as the provider's player ships them. Timed against these sources: a dub can be cut differently from its sub. Empty when the provider reports none.",
-		}),
 	})
 	.meta({
 		id: "PlaybackMedia",

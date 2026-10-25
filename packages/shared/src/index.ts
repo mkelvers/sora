@@ -80,8 +80,8 @@ export function attempt<TData, TExpected extends ErrorClass[]>(
 
 	try {
 		return succeeded(work());
-	} catch (thrown) {
-		return failed(thrown);
+	} catch (error) {
+		return failed(error);
 	}
 }
 

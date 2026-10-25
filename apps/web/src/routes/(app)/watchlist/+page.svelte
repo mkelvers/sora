@@ -20,7 +20,7 @@
 	let statusSheet = $state(false);
 	let sortSheet = $state(false);
 
-	const options = [{ value: "all", label: "All" }, ...statuses] as const;
+	const options = [{ label: "All", value: "all" }, ...statuses] as const;
 	const selected = $derived(options.find((option) => option.value === status));
 
 	const matching = $derived(

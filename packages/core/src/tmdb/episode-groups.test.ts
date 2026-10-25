@@ -4,17 +4,18 @@ import { createTmdbClient } from "./client";
 import { getShowEpisodeGroups } from "./resources";
 
 const episode = {
-	id: 1,
-	season_number: 5,
-	episode_number: 13,
-	name: "Smack of Love and Revenge",
-	overview: null,
 	air_date: "2022-10-08",
-	runtime: 24,
-	still_path: null,
+	episode_number: 13,
+	id: 1,
+	name: "Smack of Love and Revenge",
 	order: 0,
+	overview: null,
+	runtime: 24,
+	season_number: 5,
+	still_path: null,
 };
 const responses: Record<string, unknown> = {
+	"/tv/1/episode_groups": { results: [] },
 	"/tv/45790/episode_groups": { results: [{ id: "anime-parts", type: 1 }] },
 	"/tv/episode_group/anime-parts": {
 		groups: [
@@ -26,7 +27,6 @@ const responses: Record<string, unknown> = {
 			},
 		],
 	},
-	"/tv/1/episode_groups": { results: [] },
 };
 /** The paths TMDB was asked for, in order. */
 const requests: string[] = [];
@@ -38,24 +38,24 @@ const { tmdb } = createTmdbClient({
 		return Response.json(responses[path]);
 	},
 	store: {
-		find: async () => undefined,
-		save: async () => undefined,
+		find: async () => {},
+		save: async () => {},
 	},
 });
 
 test("loads episode groups in order and retains canonical episode numbers", async () => {
-	const arrangements = await getShowEpisodeGroups(45790, tmdb);
+	const arrangements = await getShowEpisodeGroups(45_790, tmdb);
 	expect(
 		arrangements.map((groups) =>
 			groups.map((group) => ({
-				name: group.name,
 				episodes: group.episodes.map((entry) => `${entry.season_number}:${entry.episode_number}`),
+				name: group.name,
 			})),
 		),
 	).toEqual([
 		[
-			{ name: "Part 2", episodes: ["5:13", "5:14"] },
-			{ name: "Part 3", episodes: ["5:25"] },
+			{ episodes: ["5:13", "5:14"], name: "Part 2" },
+			{ episodes: ["5:25"], name: "Part 3" },
 		],
 	]);
 	expect(requests).toEqual(["/tv/45790/episode_groups", "/tv/episode_group/anime-parts"]);

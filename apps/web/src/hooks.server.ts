@@ -2,7 +2,8 @@ import { env } from "$env/dynamic/private";
 import { knownProfiles } from "$lib/server/sora";
 import { route, SoraClient, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { error, type Handle, type HandleServerError } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { Handle, HandleServerError } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
@@ -32,8 +33,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 			if (data) {
 				knownProfiles.set(token, {
-					profiles: data,
 					at: Date.now(),
+					profiles: data,
 				});
 			} else {
 				knownProfiles.delete(token);
@@ -45,17 +46,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
 
 			event.locals.viewer = {
-				sora,
-				profiles,
 				profile,
+				profiles,
+				sora,
 			};
 
 			if (profile) {
 				event.cookies.set("sora_profile", profile.id, {
-					path: "/",
 					httpOnly: true,
-					sameSite: "lax",
 					maxAge: 60 * 60,
+					path: "/",
+					sameSite: "lax",
 				});
 			}
 		} else {

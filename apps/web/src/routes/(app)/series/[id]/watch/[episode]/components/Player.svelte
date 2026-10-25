@@ -12,13 +12,13 @@
 		saveProgress,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import { Player } from "$routes/(app)/series/[id]/watch/[episode]/watch.svelte";
-	import {
-		choosePlayback,
-		type Episode,
-		type PlaybackPreferences,
-		type PlaybackPreferencesUpdate,
-		type Progress,
-		type Series,
+	import { choosePlayback } from "@sora/sdk";
+	import type {
+		Episode,
+		PlaybackPreferences,
+		PlaybackPreferencesUpdate,
+		Progress,
+		Series,
 	} from "@sora/sdk";
 	import { attempt } from "@sora/shared";
 	import { ArrowLeftIcon, CircleNotchIcon } from "phosphor-svelte";
@@ -112,12 +112,12 @@
 		const credits = selected?.skip_segments.find((candidate) => candidate.kind === "ending");
 		const { error } = await attempt(
 			saveProgress({
-				seriesId: series.id,
-				episode: episode.number,
-				position_seconds: Math.floor(player.time),
 				duration_seconds: Math.floor(player.duration),
+				episode: episode.number,
 				finished: ended || (!!credits && player.time >= credits.start),
 				leaving,
+				position_seconds: Math.floor(player.time),
+				seriesId: series.id,
 			}),
 		);
 		failure = error ? "Your progress couldn’t be saved." : "";

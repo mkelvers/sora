@@ -4,7 +4,7 @@ import { day, formatRetryAfter, hour, minute, parseRetryAfter, second } from "./
 
 describe("durations", () => {
 	test("are milliseconds", () => {
-		expect(second).toBe(1_000);
+		expect(second).toBe(1000);
 		expect(minute).toBe(60_000);
 		expect(hour).toBe(3_600_000);
 		expect(day).toBe(86_400_000);
@@ -34,7 +34,7 @@ describe("parseRetryAfter", () => {
 
 describe("formatRetryAfter", () => {
 	test("rounds up to whole seconds", () => {
-		expect(formatRetryAfter(1_001)).toBe("2");
+		expect(formatRetryAfter(1001)).toBe("2");
 		expect(formatRetryAfter(30_000)).toBe("30");
 	});
 });

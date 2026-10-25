@@ -87,18 +87,18 @@ export async function storeStill(
 	await db
 		.insert(episodeStill)
 		.values({
-			showId,
-			seasonNumber,
+			chosenAt: new Date(),
 			episodeNumber,
 			path,
-			chosenAt: new Date(),
+			seasonNumber,
+			showId,
 		})
 		.onConflictDoUpdate({
-			target: [episodeStill.showId, episodeStill.seasonNumber, episodeStill.episodeNumber],
 			set: {
-				path,
 				chosenAt: new Date(),
+				path,
 			},
+			target: [episodeStill.showId, episodeStill.seasonNumber, episodeStill.episodeNumber],
 		});
 
 	await db

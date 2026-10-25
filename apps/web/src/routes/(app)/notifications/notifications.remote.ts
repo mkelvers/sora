@@ -38,11 +38,11 @@ export const markNotificationsRead = command(z.array(z.string()).min(1).max(100)
 	const { sora, profile } = remoteViewer();
 
 	await sora.request(route.markNotificationsRead, {
-		params: {
-			profile_id: profile.id,
-		},
 		body: {
 			ids,
+		},
+		params: {
+			profile_id: profile.id,
 		},
 	});
 	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
@@ -53,8 +53,8 @@ export const dismissNotification = command(z.string(), async (id) => {
 
 	await sora.request(route.dismissNotification, {
 		params: {
-			profile_id: profile.id,
 			notification_id: id,
+			profile_id: profile.id,
 		},
 	});
 	await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);

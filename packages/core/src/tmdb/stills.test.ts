@@ -7,11 +7,11 @@ import { blackBars, hasBlackBars, rankStills } from "./stills";
 
 function still(overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage {
 	return {
-		width: 1920,
 		height: 1080,
 		iso_639_1: null,
 		vote_average: 0,
 		vote_count: 0,
+		width: 1920,
 		...overrides,
 	};
 }
@@ -26,9 +26,9 @@ async function frame() {
 	}
 	return sharp(pixels, {
 		raw: {
-			width,
-			height,
 			channels: 3,
+			height,
+			width,
 		},
 	})
 		.png()
@@ -41,17 +41,17 @@ async function withBars(image: Buffer, bars: { top?: number; left?: number }) {
 	const left = bars.left ?? 0;
 	return sharp(image)
 		.extract({
+			height: meta.height! - 2 * top,
 			left,
 			top,
 			width: meta.width! - 2 * left,
-			height: meta.height! - 2 * top,
 		})
 		.extend({
-			top,
+			background: "#000",
 			bottom: top,
 			left,
 			right: left,
-			background: "#000",
+			top,
 		})
 		.jpeg({
 			quality: 70,
@@ -74,8 +74,8 @@ describe("rankStills", () => {
 	test("puts widescreen before other shapes, and large before small", () => {
 		const ranked = rankStills(
 			[
-				still({ file_path: "/square.jpg", width: 1440, height: 1080, vote_average: 5 }),
-				still({ file_path: "/small.jpg", width: 640, height: 360, vote_average: 5 }),
+				still({ file_path: "/square.jpg", height: 1080, vote_average: 5, width: 1440 }),
+				still({ file_path: "/small.jpg", height: 360, vote_average: 5, width: 640 }),
 				still({ file_path: "/wide.jpg", vote_average: 1 }),
 			],
 			null,
@@ -121,9 +121,9 @@ describe("blackBars", () => {
 		}
 		const image = await sharp(pixels, {
 			raw: {
-				width,
-				height,
 				channels: 3,
+				height,
+				width,
 			},
 		})
 			.jpeg()

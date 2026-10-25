@@ -52,10 +52,10 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 
 	const releases = await db
 		.select({
-			anilistId: animeScheduleShow.anilistId,
 			airType: animeScheduleRelease.airType,
-			episode: animeScheduleRelease.episode,
 			airsAt: animeScheduleRelease.airsAt,
+			anilistId: animeScheduleShow.anilistId,
+			episode: animeScheduleRelease.episode,
 		})
 		.from(animeScheduleRelease)
 		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
@@ -93,11 +93,11 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 		const fromSubStream = release.airType === "sub";
 		if (!chosen.get(key)?.fromSubStream) {
 			chosen.set(key, {
+				airType,
+				airsAt: release.airsAt,
 				anilistId: release.anilistId,
 				episode: release.episode,
-				airType,
 				fromSubStream,
-				airsAt: release.airsAt,
 			});
 		}
 	}
@@ -120,10 +120,10 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 		return card
 			? [
 					{
-						series: card,
-						episode: broadcast.episode,
 						air_type: broadcast.airType,
 						airing_at: broadcast.airsAt.toISOString(),
+						episode: broadcast.episode,
+						series: card,
 					},
 				]
 			: [];
@@ -157,17 +157,11 @@ export async function getCalendar(timeZone: string, weeks: number): Promise<Cale
 			.toZonedDateTimeISO(timeZone)
 			.toLocaleString("en", {
 				hour: "2-digit",
-				minute: "2-digit",
 				hourCycle: "h23",
+				minute: "2-digit",
 			});
 
 	return {
-		week: new Intl.DateTimeFormat("en", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).formatRange(monday, sunday),
-		now: clock(now),
 		days: Array.from({ length: 7 }, (_, index) => {
 			const date = monday.add({ days: index });
 			const isToday = date.equals(today.data);
@@ -203,6 +197,12 @@ export async function getCalendar(timeZone: string, weeks: number): Promise<Cale
 				}),
 			};
 		}),
+		now: clock(now),
+		week: new Intl.DateTimeFormat("en", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		}).formatRange(monday, sunday),
 	};
 }
 
@@ -238,8 +238,8 @@ function calendarReleases(versions: ScheduledEpisode[]) {
 	}
 
 	return [...audioByEpisodes].map(([episodes, audio]) => ({
-		series: versions[0]!.series,
 		audio,
 		episodes,
+		series: versions[0]!.series,
 	}));
 }

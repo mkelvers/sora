@@ -4,7 +4,8 @@ import { attempt, day, hour } from "@sora/shared";
 import { z } from "zod";
 
 import { UpstreamUnavailableError } from "../errors";
-import { tmdb, type TmdbPath } from "./client";
+import { tmdb } from "./client";
+import type { TmdbPath } from "./client";
 import { withChosenStills } from "./stills";
 
 /** TMDB sends missing dates and text as `""` or `null`; both become `null`. */
@@ -16,10 +17,10 @@ const OptionalText = z
 const ShowSearchSchema = z.object({
 	results: z.array(
 		z.object({
+			first_air_date: OptionalText,
 			id: z.number().int(),
 			name: z.string(),
 			original_name: z.string(),
-			first_air_date: OptionalText,
 			popularity: z.number(),
 		}),
 	),
@@ -29,34 +30,34 @@ const MovieSearchSchema = z.object({
 	results: z.array(
 		z.object({
 			id: z.number().int(),
-			title: z.string(),
 			original_title: z.string(),
-			release_date: OptionalText,
 			popularity: z.number(),
+			release_date: OptionalText,
+			title: z.string(),
 		}),
 	),
 });
 
 const EpisodeSchema = z.object({
-	id: z.number().int(),
-	season_number: z.number().int(),
+	air_date: OptionalText,
 	episode_number: z.number().int(),
+	id: z.number().int(),
 	name: OptionalText,
 	overview: OptionalText,
-	air_date: OptionalText,
 	runtime: z
 		.number()
 		.nullish()
 		.transform((value) => value ?? null),
+	season_number: z.number().int(),
 	still_path: OptionalText,
 });
 
 const EpisodeGroupSchema = z.object({
 	groups: z.array(
 		z.object({
+			episodes: z.array(EpisodeSchema.extend({ order: z.number().int() })),
 			name: z.string(),
 			order: z.number().int(),
-			episodes: z.array(EpisodeSchema.extend({ order: z.number().int() })),
 		}),
 	),
 });
@@ -80,7 +81,6 @@ const SeasonSchema = z.object({
 const EpisodeChangesSchema = z.object({
 	changes: z.array(
 		z.object({
-			key: z.string(),
 			items: z.array(
 				z.object({
 					action: z.string(),
@@ -92,6 +92,7 @@ const EpisodeChangesSchema = z.object({
 					original_value: z.unknown().optional(),
 				}),
 			),
+			key: z.string(),
 		}),
 	),
 });
@@ -103,13 +104,13 @@ const ChangedImageSchema = z.object({
 });
 
 const ShowFields = {
+	backdrop_path: OptionalText,
+	first_air_date: OptionalText,
 	id: z.number().int(),
 	name: z.string(),
 	original_name: z.string(),
 	overview: OptionalText,
 	poster_path: OptionalText,
-	backdrop_path: OptionalText,
-	first_air_date: OptionalText,
 	seasons: z.array(
 		z.object({
 			season_number: z.number().int(),
@@ -150,10 +151,10 @@ const CollectionSchema = z.object({
 	parts: z.array(
 		z.object({
 			id: z.number().int(),
-			title: z.string(),
 			original_title: z.string(),
-			release_date: OptionalText,
 			popularity: z.number(),
+			release_date: OptionalText,
+			title: z.string(),
 		}),
 	),
 });
@@ -170,17 +171,17 @@ const ImagesSchema = z.object({
 
 const ImageSchema = z.object({
 	file_path: z.string(),
-	width: z.number().int(),
 	height: z.number().int(),
 	iso_639_1: OptionalText,
 	vote_average: z.number(),
 	vote_count: z.number().int(),
+	width: z.number().int(),
 });
 
 const AllImagesSchema = z.object({
 	backdrops: z.array(ImageSchema).default([]),
-	posters: z.array(ImageSchema).default([]),
 	logos: z.array(ImageSchema).default([]),
+	posters: z.array(ImageSchema).default([]),
 });
 
 /** One image of a show, film, or season, in its original size. */
@@ -252,9 +253,9 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
 	const result = await tmdb(
 		"/search/tv",
 		{
-			query,
 			include_adult: false,
 			language: "en-US",
+			query,
 		},
 		ShowSearchSchema,
 		{
@@ -306,9 +307,9 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
 	const result = await tmdb(
 		"/search/movie",
 		{
-			query,
 			include_adult: false,
 			language: "en-US",
+			query,
 		},
 		MovieSearchSchema,
 		{
@@ -397,19 +398,7 @@ export async function getShow(
 	);
 
 	return {
-		id: details.id,
-		name: details.name,
-		originalName: details.original_name,
-		overview: details.overview,
-		posterPath: details.poster_path,
 		backdropPath: details.backdrop_path,
-		firstAirDate: details.first_air_date,
-		seasons: details.seasons.map((season) => ({
-			seasonNumber: season.season_number,
-			name: season.name,
-			overview: season.overview,
-			posterPath: season.poster_path,
-		})),
 		episodes: await withChosenStills(
 			details.id,
 			await Promise.all(
@@ -420,6 +409,18 @@ export async function getShow(
 				),
 			),
 		),
+		firstAirDate: details.first_air_date,
+		id: details.id,
+		name: details.name,
+		originalName: details.original_name,
+		overview: details.overview,
+		posterPath: details.poster_path,
+		seasons: details.seasons.map((season) => ({
+			seasonNumber: season.season_number,
+			name: season.name,
+			overview: season.overview,
+			posterPath: season.poster_path,
+		})),
 	};
 }
 
@@ -505,8 +506,8 @@ export async function withEdits(
 		tmdb(
 			`/tv/episode/${episode.id}/changes`,
 			{
-				start_date: new Date(from).toISOString().slice(0, 10),
 				end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
+				start_date: new Date(from).toISOString().slice(0, 10),
 			},
 			EpisodeChangesSchema,
 			options,
@@ -739,8 +740,8 @@ async function loadImages(path: TmdbPath, maxAgeMs: number): Promise<TmdbImages 
 	];
 	return {
 		backdrops: unique(answers.flatMap((answer) => answer?.backdrops ?? [])),
-		posters: unique(answers.flatMap((answer) => answer?.posters ?? [])),
 		logos: unique(answers.flatMap((answer) => answer?.logos ?? [])),
+		posters: unique(answers.flatMap((answer) => answer?.posters ?? [])),
 	};
 }
 

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { makeWorkerUtils, type Task } from "graphile-worker";
+import { makeWorkerUtils } from "graphile-worker";
+import type { Task } from "graphile-worker";
 
 import { config } from "../../config";
 import { db } from "../../database/client";

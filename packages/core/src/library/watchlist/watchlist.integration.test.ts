@@ -24,55 +24,55 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 	beforeAll(async () => {
 		await db.insert(anime).values({
 			anilistId,
-			refreshedAt: updatedAt,
 			media: {
+				averageScore: null,
+				bannerImage: null,
+				countryOfOrigin: null,
+				coverImage: null,
+				description: null,
+				duration: null,
+				endDate: null,
+				episodes: 120,
+				format: "TV_SHORT",
+				genres: [],
 				id: anilistId,
 				idMal: null,
-				title: {
-					english: "Saved short title",
-					romaji: null,
-					native: null,
-				},
-				format: "TV_SHORT",
-				status: "FINISHED",
-				synonyms: [],
-				description: null,
-				source: null,
-				countryOfOrigin: null,
-				bannerImage: null,
+				isAdult: false,
+				nextAiringEpisode: null,
+				popularity: null,
+				recommendations: null,
+				relations: null,
 				season: null,
 				seasonYear: null,
-				episodes: 120,
-				duration: null,
-				averageScore: null,
-				popularity: null,
-				genres: [],
-				isAdult: false,
+				source: null,
 				startDate: null,
-				endDate: null,
-				tags: [],
+				status: "FINISHED",
 				studios: null,
-				relations: null,
-				recommendations: null,
-				coverImage: null,
-				nextAiringEpisode: null,
+				synonyms: [],
+				tags: [],
+				title: {
+					english: "Saved short title",
+					native: null,
+					romaji: null,
+				},
 			},
+			refreshedAt: updatedAt,
 		});
 		await db.insert(series).values({
-			id,
 			anilistId,
+			id,
 			key: `anilist:${anilistId}`,
 			kind: "standalone",
+			laidOutAt: updatedAt,
 			status: "FINISHED",
 			title: "Saved short title",
-			laidOutAt: updatedAt,
 		});
 		await db.insert(seriesState).values({
-			userId: profile,
+			addedAt,
 			seriesId: id,
 			status: "completed",
-			addedAt,
 			statusChangedAt: updatedAt,
+			userId: profile,
 		});
 	});
 
@@ -88,12 +88,16 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 
 	test("keeps saved dates and a usable detail page while discovery excludes the title", async () => {
 		const [row] = await db.select().from(series).where(eq(series.id, id));
-		if (!row) throw new Error("Missing watchlist test fixture");
+		if (!row) {
+			throw new Error("Missing watchlist test fixture");
+		}
 		expect((await toSeriesCards([row])).size).toBe(0);
 		expect((await toSeriesCards([row], ["another-title"])).size).toBe(0);
 
 		const [entry] = await getWatchlist(profile);
-		if (!entry) throw new Error("Saved short title missing from watchlist");
+		if (!entry) {
+			throw new Error("Saved short title missing from watchlist");
+		}
 		expect(entry.series.id).toBe(id);
 		expect(entry.series.format).toBe("TV_SHORT");
 		expect(entry.added_at).toBe(addedAt.toISOString());
@@ -115,7 +119,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 	});
 
 	test("completes at the stored playable finale instead of AniList's short count", async () => {
-		await db.insert(seriesEpisode).values({ seriesId: id, number: 24 });
+		await db.insert(seriesEpisode).values({ number: 24, seriesId: id });
 		await setWatchlistStatus(profile, id, "watching");
 		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
 		expect((await getWatchlist(profile))[0]?.status).toBe("completed");

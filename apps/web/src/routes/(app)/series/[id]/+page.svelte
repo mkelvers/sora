@@ -22,8 +22,8 @@
 			getSeriesProgress(params.id),
 			getEpisodes({
 				id: params.id,
-				offset: 0,
 				limit: pageSize,
+				offset: 0,
 			}),
 		]),
 	);

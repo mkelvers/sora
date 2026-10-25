@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { franchiseParts, type FranchiseTitle } from "./franchise";
+import { franchiseParts } from "./franchise";
+import type { FranchiseTitle } from "./franchise";
 
 function title(
 	anilistId: number,
@@ -9,12 +10,12 @@ function title(
 	startDate: string,
 ): FranchiseTitle {
 	return {
-		seriesId: `series-${anilistId}`,
 		anilistId,
-		title: name,
-		format,
-		startDate,
 		episodeCount: 12,
+		format,
+		seriesId: `series-${anilistId}`,
+		startDate,
+		title: name,
 	};
 }
 
@@ -27,13 +28,13 @@ describe("franchiseParts", () => {
 		const parts = franchiseParts(
 			[
 				title(481, "Yu-Gi-Oh!", "TV", "2000-04-18"),
-				title(10015, "Yu-Gi-Oh! Zexal", "TV", "2011-04-11"),
-				title(15489, "Yu-Gi-Oh! Zexal II", "TV", "2012-10-07"),
+				title(10_015, "Yu-Gi-Oh! Zexal", "TV", "2011-04-11"),
+				title(15_489, "Yu-Gi-Oh! Zexal II", "TV", "2012-10-07"),
 			],
-			[[10015, 15489]],
+			[[10_015, 15_489]],
 			{
 				crossovers: [481],
-				currentId: 10015,
+				currentId: 10_015,
 			},
 		);
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
@@ -48,9 +49,9 @@ describe("franchiseParts", () => {
 			[
 				title(4975, "Chaos;Head", "TV", "2008-10-09"),
 				title(9253, "Steins;Gate", "TV", "2011-04-06"),
-				title(10863, "Steins;Gate: Egoistic Poriomania", "OVA", "2012-02-22"),
+				title(10_863, "Steins;Gate: Egoistic Poriomania", "OVA", "2012-02-22"),
 			],
-			[[9253, 10863]],
+			[[9253, 10_863]],
 			{
 				crossovers: [4975],
 				currentId: 9253,
@@ -68,20 +69,20 @@ describe("franchiseParts", () => {
 			[
 				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
 				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
-				title(14719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
-				title(20474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
-				title(21778, "Thus Spoke Rohan Kishibe", "OVA", "2017-09-20"),
+				title(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
+				title(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
+				title(21_778, "Thus Spoke Rohan Kishibe", "OVA", "2017-09-20"),
 			],
 			[
 				[665, 666],
-				[14719, 20474],
+				[14_719, 20_474],
 			],
 			{
 				alternatives: [
-					[666, 20474],
-					[665, 20474],
+					[666, 20_474],
+					[665, 20_474],
 				],
-				currentId: 14719,
+				currentId: 14_719,
 			},
 		);
 		expect(titlesOf(parts)).toEqual(["Season 1", "Stardust Crusaders", "Thus Spoke Rohan Kishibe"]);
@@ -93,17 +94,17 @@ describe("franchiseParts", () => {
 			[
 				title(666, "JoJo's Bizarre Adventure", "OVA", "1993-11-19"),
 				title(665, "JoJo's Bizarre Adventure (2000)", "OVA", "2000-05-25"),
-				title(14719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
-				title(20474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
+				title(14_719, "JoJo's Bizarre Adventure (TV)", "TV", "2012-10-06"),
+				title(20_474, "JoJo's Bizarre Adventure: Stardust Crusaders", "TV", "2014-04-05"),
 			],
 			[
 				[665, 666],
-				[14719, 20474],
+				[14_719, 20_474],
 			],
 			{
 				alternatives: [
-					[666, 20474],
-					[665, 20474],
+					[666, 20_474],
+					[665, 20_474],
 				],
 				currentId: 665,
 			},

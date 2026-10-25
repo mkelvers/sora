@@ -12,11 +12,9 @@ const unknown = new Set([404]);
 let failNext = false;
 let rateLimitNext = false;
 async function respond(_input: string, init: RequestInit) {
-	const variables = (
-		JSON.parse(String(init.body)) as {
-			variables: Pages;
-		}
-	).variables;
+	const { variables } = JSON.parse(String(init.body)) as {
+		variables: Pages;
+	};
 	sent.push(variables);
 	if (rateLimitNext) {
 		rateLimitNext = false;
@@ -30,10 +28,10 @@ async function respond(_input: string, init: RequestInit) {
 				],
 			}),
 			{
-				status: 429,
 				headers: {
 					"Retry-After": "1",
 				},
+				status: 429,
 			},
 		);
 	}
@@ -88,8 +86,8 @@ async function respond(_input: string, init: RequestInit) {
 const { anilist, loadMediaById } = createAniListClient({
 	fetch: respond,
 	store: {
-		find: async () => undefined,
-		save: async () => undefined,
+		find: async () => {},
+		save: async () => {},
 	},
 });
 
@@ -97,9 +95,9 @@ beforeEach(() => {
 	sent.length = 0;
 });
 
-type Media = {
+interface Media {
 	id: number;
-};
+}
 type Result = Record<
 	string,
 	| {
@@ -116,6 +114,7 @@ const document = new TypedDocumentString<Result, Pages>(
 function loader(pages: number) {
 	return loadMediaById({
 		document,
+		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
 		pages,
 		variables: (split) =>
 			Object.fromEntries(
@@ -129,7 +128,6 @@ function loader(pages: number) {
 					],
 				).flat(),
 			),
-		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
 	});
 }
 
@@ -170,7 +168,7 @@ test("splits a request over pages of 50, and fills a request before starting ano
 		{
 			length: 130,
 		},
-		(_, index) => 1_000 + index,
+		(_, index) => 1000 + index,
 	);
 
 	const loaded = await load(ids);

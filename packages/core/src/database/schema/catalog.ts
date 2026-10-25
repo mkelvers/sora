@@ -19,10 +19,10 @@ import { jsonb, timestamptz } from "./columns";
  * only while AniList is down.
  */
 export const anilistResponse = pgTable("anilist_response", {
-	key: text("key").primaryKey(),
-	operation: text("operation").notNull(),
 	data: jsonb("data").$type<unknown>().notNull(),
 	fetchedAt: timestamptz("fetched_at").notNull(),
+	key: text("key").primaryKey(),
+	operation: text("operation").notNull(),
 });
 
 /**
@@ -35,10 +35,10 @@ export const anilistResponse = pgTable("anilist_response", {
  * old; an older response of any kind is served while TMDB is down.
  */
 export const tmdbResponse = pgTable("tmdb_response", {
-	key: text("key").primaryKey(),
-	path: text("path").notNull(),
 	data: jsonb("data").$type<unknown>().notNull(),
 	fetchedAt: timestamptz("fetched_at").notNull(),
+	key: text("key").primaryKey(),
+	path: text("path").notNull(),
 });
 
 /**
@@ -52,18 +52,18 @@ export const anime = pgTable(
 	"anime",
 	{
 		anilistId: integer("anilist_id").primaryKey(),
+		/** Generated from `media`, so catalogue visibility never has to read the JSON. */
+		format: text("format").generatedAlwaysAs(sql`media->>'format'`),
 		/**
 		 * The `AnimeDetails` fragment exactly as AniList returned it. Written only
 		 * from codegen-typed responses, so, like `anilist_response`, it is read
 		 * back without re-validation.
 		 */
 		media: jsonb("media").$type<AnimeDetailsFragment>().notNull(),
+		refreshedAt: timestamptz("refreshed_at").notNull(),
+		savedAt: timestamptz("saved_at").notNull().defaultNow(),
 		/** Copied from `media` so the scheduler can find anime that are still airing. */
 		status: text("status").$type<MediaStatus>(),
-		/** Generated from `media`, so catalogue visibility never has to read the JSON. */
-		format: text("format").generatedAlwaysAs(sql`media->>'format'`),
-		savedAt: timestamptz("saved_at").notNull().defaultNow(),
-		refreshedAt: timestamptz("refreshed_at").notNull(),
 	},
 	(table) => [
 		index("anime_status_idx").on(table.status),
@@ -84,29 +84,29 @@ export const animeSearch = pgTable(
 	"anime_search",
 	{
 		anilistId: integer("anilist_id").primaryKey(),
+		averageScore: integer("average_score"),
 		english: text("english"),
-		romaji: text("romaji"),
+		format: text("format").$type<MediaFormat>(),
+		genres: jsonb("genres").$type<string[]>().notNull(),
+		isAdult: boolean("is_adult").notNull(),
 		native: text("native"),
-		synonyms: jsonb("synonyms").$type<string[]>().notNull(),
+		popularity: integer("popularity").notNull(),
+		romaji: text("romaji"),
+		/** How many AniList users have scored it; `null` when AniList has no score distribution for it. */
+		scoreCount: integer("score_count"),
 		/**
 		 * Every title, lowercased with punctuation and accents removed, along
 		 * with its initials, such as `aot` for Attack on Titan. Candidates are
 		 * found by trigram similarity to it, which forgives typos.
 		 */
 		searchText: text("search_text").notNull(),
-		format: text("format").$type<MediaFormat>(),
-		status: text("status").$type<MediaStatus>(),
 		season: text("season").$type<MediaSeason>(),
 		seasonYear: integer("season_year"),
 		/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
 		startDate: text("start_date"),
-		genres: jsonb("genres").$type<string[]>().notNull(),
-		popularity: integer("popularity").notNull(),
+		status: text("status").$type<MediaStatus>(),
+		synonyms: jsonb("synonyms").$type<string[]>().notNull(),
 		trending: integer("trending").notNull(),
-		averageScore: integer("average_score"),
-		/** How many AniList users have scored it; `null` when AniList has no score distribution for it. */
-		scoreCount: integer("score_count"),
-		isAdult: boolean("is_adult").notNull(),
 		/** When AniList last changed the entry. */
 		updatedAt: timestamptz("updated_at").notNull(),
 	},

@@ -38,7 +38,7 @@ export function subtitleStats(content: string): SubtitleStats | null {
 	for (const block of content.split(/\r?\n\r?\n/)) {
 		const lines = block.split(/\r?\n/);
 		const timing = lines.findIndex((line) => line.includes("-->"));
-		if (timing < 0) {
+		if (timing === -1) {
 			continue;
 		}
 
@@ -47,17 +47,14 @@ export function subtitleStats(content: string): SubtitleStats | null {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;
 			end = Math.max(
 				end,
-				Number(hours) * 3_600 +
-					Number(minutes) * 60 +
-					Number(seconds) +
-					Number(milliseconds) / 1_000,
+				Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds) + Number(milliseconds) / 1000,
 			);
 		}
 
 		const text = lines
 			.slice(timing + 1)
 			.join(" ")
-			.replace(/<[^>]*>|\{\\[^}]*\}/g, "")
+			.replaceAll(/<[^>]*>|\{\\[^}]*\}/g, "")
 			.trim();
 		if (!text) {
 			continue;

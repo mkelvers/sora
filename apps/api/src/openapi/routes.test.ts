@@ -27,9 +27,9 @@ test("generates route documentation when core schemas load before OpenAPI", () =
 	expect(result.stderr.toString()).toBe("");
 	expect(result.exitCode).toBe(0);
 	const document = JSON.parse(result.stdout.toString());
-	const current =
+	const { current } =
 		document.paths["/seasons"].get.responses["200"].content["application/json"].schema.properties
-			.meta.allOf[1].properties.current;
+			.meta.allOf[1].properties;
 	expect(current.description).toBe("The season airing now.");
 	expect(document.components.schemas.AnimeSeason.properties.season.enum).toEqual([
 		"WINTER",

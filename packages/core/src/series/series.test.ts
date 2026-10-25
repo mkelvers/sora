@@ -3,41 +3,41 @@ import { describe, expect, test } from "bun:test";
 import { layoutEpisodes } from "./series";
 
 const finished = {
+	durationMinutes: 24,
 	episodes: 3,
 	nextEpisode: null,
-	durationMinutes: 24,
 };
 
 /** A TMDB show whose second season holds the episodes an entry is matched to. */
 const show = {
 	episodes: [1, 2, 3].map((number) => ({
-		id: 9000 + number,
-		season_number: 2,
+		air_date: `2026-01-0${number}`,
 		episode_number: number,
+		id: 9000 + number,
 		name: `Chapter ${number}`,
 		overview: `What happens in chapter ${number}`,
-		air_date: `2026-01-0${number}`,
 		runtime: 23,
+		season_number: 2,
 		still_path: `/still-${number}.jpg`,
 	})),
 };
 
 const links = [1, 2, 3].map((number) => ({
 	anilistEpisode: number,
-	seasonNumber: 2,
 	episodeNumber: number,
+	seasonNumber: 2,
 }));
 
 describe("layoutEpisodes", () => {
 	test("uses AniKoto's playable count before larger AniList counts or stale TMDB links", () => {
 		const episodes = layoutEpisodes(
 			{
-				episodes: 120,
-				playbackEpisodes: 3,
-				nextEpisode: null,
 				durationMinutes: 5,
+				episodes: 120,
+				nextEpisode: null,
+				playbackEpisodes: 3,
 			},
-			[...links, { anilistEpisode: 120, seasonNumber: 2, episodeNumber: 120 }],
+			[...links, { anilistEpisode: 120, episodeNumber: 120, seasonNumber: 2 }],
 			show,
 			null,
 		);
@@ -51,13 +51,13 @@ describe("layoutEpisodes", () => {
 
 		expect(episodes.map((episode) => episode.number)).toEqual([1, 2, 3]);
 		expect(episodes[1]).toMatchObject({
-			title: "Chapter 2",
-			overview: "What happens in chapter 2",
 			airDate: "2026-01-02",
+			overview: "What happens in chapter 2",
 			runtimeMinutes: 23,
+			title: "Chapter 2",
 			tmdb: {
-				seasonNumber: 2,
 				episodeNumber: 2,
+				seasonNumber: 2,
 			},
 		});
 		expect(episodes[1]?.stillUrl).toEndWith("/still-2.jpg");
@@ -67,12 +67,12 @@ describe("layoutEpisodes", () => {
 		const episodes = layoutEpisodes(finished, links.slice(0, 2), show, null);
 
 		expect(episodes[2]).toEqual({
-			number: 3,
-			title: null,
-			overview: null,
 			airDate: null,
+			number: 3,
+			overview: null,
 			runtimeMinutes: 24,
 			stillUrl: null,
+			title: null,
 			tmdb: null,
 		});
 	});
@@ -83,12 +83,12 @@ describe("layoutEpisodes", () => {
 
 	test("counts the episodes aired so far while AniList does not know the total", () => {
 		const airing = {
+			durationMinutes: 24,
 			episodes: null,
 			nextEpisode: {
-				number: 6,
 				airingAt: "2026-10-03T15:00:00.000Z",
+				number: 6,
 			},
-			durationMinutes: 24,
 		};
 
 		expect(layoutEpisodes(airing, [], null, null)).toHaveLength(5);
@@ -96,9 +96,9 @@ describe("layoutEpisodes", () => {
 
 	test("never lays out fewer episodes than were matched to TMDB, or than one", () => {
 		const unknown = {
+			durationMinutes: null,
 			episodes: null,
 			nextEpisode: null,
-			durationMinutes: null,
 		};
 
 		expect(layoutEpisodes(unknown, links, show, null)).toHaveLength(3);
@@ -108,28 +108,28 @@ describe("layoutEpisodes", () => {
 	test("gives a film TMDB lists on its own the film's details", () => {
 		const [episode, ...rest] = layoutEpisodes(
 			{
+				durationMinutes: 100,
 				episodes: 1,
 				nextEpisode: null,
-				durationMinutes: 100,
 			},
 			[],
 			null,
 			{
-				title: "Scarlet Bond",
+				backdrop_path: "/backdrop.jpg",
 				overview: "A film",
 				release_date: "2022-11-25",
 				runtime: 114,
-				backdrop_path: "/backdrop.jpg",
+				title: "Scarlet Bond",
 			},
 		);
 
 		expect(rest).toHaveLength(0);
 		expect(episode).toMatchObject({
-			number: 1,
-			title: "Scarlet Bond",
-			overview: "A film",
 			airDate: "2022-11-25",
+			number: 1,
+			overview: "A film",
 			runtimeMinutes: 114,
+			title: "Scarlet Bond",
 			tmdb: null,
 		});
 		expect(episode?.stillUrl).toEndWith("/backdrop.jpg");
@@ -138,27 +138,27 @@ describe("layoutEpisodes", () => {
 	test("keeps the episodes of a special TMDB lists as a film bare", () => {
 		const episodes = layoutEpisodes(
 			{
+				durationMinutes: 24,
 				episodes: 2,
 				nextEpisode: null,
-				durationMinutes: 24,
 			},
 			[],
 			null,
 			{
-				title: "Specials",
+				backdrop_path: "/backdrop.jpg",
 				overview: "A film",
 				release_date: "2024-09-20",
 				runtime: 47,
-				backdrop_path: "/backdrop.jpg",
+				title: "Specials",
 			},
 		);
 
 		expect(episodes).toHaveLength(2);
 		expect(episodes[0]).toMatchObject({
-			title: null,
 			overview: null,
 			runtimeMinutes: 24,
 			stillUrl: null,
+			title: null,
 		});
 	});
 });

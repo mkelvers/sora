@@ -22,8 +22,8 @@ export async function clearSeriesState(
 			.update(seriesState)
 			.set({
 				...(cleared.watchlist && {
-					status: null,
 					addedAt: null,
+					status: null,
 					statusChangedAt: null,
 				}),
 				...(cleared.rewatch && {

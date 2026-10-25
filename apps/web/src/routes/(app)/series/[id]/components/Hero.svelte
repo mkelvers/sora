@@ -70,8 +70,8 @@
 		const airing = new Date(series.next_episode.airing_at);
 		const aired = airing <= new Date();
 		const day = airing.toLocaleDateString("en-US", {
-			month: "long",
 			day: "numeric",
+			month: "long",
 		});
 		const time = airing.toLocaleTimeString("en-GB", {
 			hour: "2-digit",

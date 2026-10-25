@@ -3,19 +3,19 @@
 
 	export const sorts = [
 		{
-			label: "Last Updated",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.updated_at.localeCompare(left.updated_at),
+			label: "Last Updated",
 		},
 		{
-			label: "Date Added",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				right.added_at.localeCompare(left.added_at),
+			label: "Date Added",
 		},
 		{
-			label: "Alphabetical",
 			compare: (left: WatchlistEntry, right: WatchlistEntry) =>
 				left.series.title.localeCompare(right.series.title),
+			label: "Alphabetical",
 		},
 	];
 </script>

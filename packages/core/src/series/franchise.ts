@@ -71,8 +71,12 @@ export function franchiseParts(
 		for (let frontier = [id]; frontier.length > 0;) {
 			const next = new Set<number>();
 			for (const [left, right] of links) {
-				if (frontier.includes(left) && !ids.has(right)) next.add(right);
-				if (frontier.includes(right) && !ids.has(left)) next.add(left);
+				if (frontier.includes(left) && !ids.has(right)) {
+					next.add(right);
+				}
+				if (frontier.includes(right) && !ids.has(left)) {
+					next.add(left);
+				}
 			}
 			frontier = [...next];
 			frontier.forEach((id) => ids.add(id));
@@ -173,7 +177,9 @@ export function franchiseParts(
 				),
 		);
 		// Malformed cyclic metadata can still be browsed, but never auto-continued.
-		if (ready === -1) cyclic = true;
+		if (ready === -1) {
+			cyclic = true;
+		}
 		seasons.push(...pending.splice(ready === -1 ? 0 : ready, 1));
 	}
 	const others = byRelease.filter(
@@ -196,17 +202,17 @@ export function franchiseParts(
 				? successor.seriesId
 				: null;
 		return {
-			series_id: title.seriesId,
+			episode_count: title.episodeCount,
+			format: title.format,
+			next_series_id:
+				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
 			role: seasons.includes(title)
 				? "season"
 				: omitted.has(title.anilistId)
 					? "alternative"
 					: "extra",
+			series_id: title.seriesId,
 			title: shortTitle(title, base, seasons.includes(title)),
-			format: title.format,
-			episode_count: title.episodeCount,
-			next_series_id:
-				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
 		};
 	});
 }

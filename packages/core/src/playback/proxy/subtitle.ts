@@ -1,4 +1,5 @@
-import { shiftTime, type TimelineShift } from "../streams/align";
+import { shiftTime } from "../streams/align";
+import type { TimelineShift } from "../streams/align";
 import type { CueAnchor } from "../subtitles/refine";
 import { readTiming, splitBlocks, writeTiming } from "../subtitles/vtt";
 

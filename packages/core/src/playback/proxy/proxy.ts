@@ -8,19 +8,10 @@ import { rewritePlaylist } from "./playlist";
 import { readSegment, rememberSegmentOrder } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
-import {
-	signStreamTarget,
-	verifyStreamToken,
-	type StreamTarget,
-	type StreamTargetKind,
-} from "./token";
-import {
-	fetchUpstream,
-	fetchUpstreamBytes,
-	mirrorsFor,
-	StreamUpstreamError,
-	type UpstreamBytes,
-} from "./upstream";
+import { signStreamTarget, verifyStreamToken } from "./token";
+import type { StreamTarget, StreamTargetKind } from "./token";
+import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
+import type { UpstreamBytes } from "./upstream";
 
 /**
  * How long tokens handed to clients stay valid.
@@ -31,7 +22,7 @@ import {
 export const tokenLifetimeMs = 6 * hour;
 
 /** Playlists are buffered for rewriting; anything larger is not a playlist. */
-const maximumPlaylistBytes = 4 * 1_024 * 1_024;
+const maximumPlaylistBytes = 4 * 1024 * 1024;
 
 /**
  * Issues a token that lets an account fetch `url` through {@link proxyStream}.
@@ -57,14 +48,14 @@ export function createStreamToken(
 ) {
 	return signStreamTarget(
 		{
-			url,
-			kind,
-			headers,
-			mirrors,
-			shifts,
-			refinement,
 			accountId,
 			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
+			headers,
+			kind,
+			mirrors,
+			refinement,
+			shifts,
+			url,
 		},
 		config.streamSigningSecret,
 	);
@@ -80,12 +71,12 @@ export async function canFetchStream(
 	const { data, error } = await attempt(
 		fetchUpstream(
 			{
-				url,
-				kind: "subtitle",
-				headers,
-				mirrors,
 				accountId: "",
 				expiresAt: 0,
+				headers,
+				kind: "subtitle",
+				mirrors,
+				url,
 			},
 			null,
 			signal,
@@ -112,12 +103,12 @@ export async function readSubtitle(
 	const { data, error } = await attempt(
 		fetchUpstreamBytes(
 			{
-				url,
-				kind: "subtitle",
-				headers,
-				mirrors,
 				accountId: "",
 				expiresAt: 0,
+				headers,
+				kind: "subtitle",
+				mirrors,
+				url,
 			},
 			undefined,
 		),
@@ -137,12 +128,12 @@ export async function readSubtitle(
  */
 export async function segmentStarts(url: string, headers: Record<string, string>) {
 	const target = {
-		url,
-		kind: "playlist" as const,
-		headers,
-		mirrors: [],
 		accountId: "",
 		expiresAt: 0,
+		headers,
+		kind: "playlist" as const,
+		mirrors: [],
+		url,
 	};
 	let upstream = await fetchUpstream(target, null);
 	let content = await upstream.response.text();
@@ -153,8 +144,8 @@ export async function segmentStarts(url: string, headers: Record<string, string>
 		upstream = await fetchUpstream(
 			{
 				...target,
-				url: variantUrl,
 				mirrors: mirrorsFor(variantUrl, upstream.url),
+				url: variantUrl,
 			},
 			null,
 		);
@@ -207,8 +198,8 @@ export async function proxyStream(
 			headers.set("Content-Type", segment.contentType);
 		}
 		return new Response(segment.bytes, {
-			status: 200,
 			headers,
+			status: 200,
 		});
 	}
 
@@ -223,11 +214,11 @@ export async function proxyStream(
 			const text = new TextDecoder().decode(upstream.bytes);
 			const stored = target.refinement ? await getRefinement(target.refinement) : null;
 			return new Response(retimeWebVtt(text, target.shifts, stored?.refinement?.anchors ?? []), {
-				status: 200,
 				headers: {
-					"Content-Type": "text/vtt; charset=utf-8",
 					"Cache-Control": "private, max-age=3600",
+					"Content-Type": "text/vtt; charset=utf-8",
 				},
+				status: 200,
 			});
 		}
 
@@ -246,8 +237,8 @@ export async function proxyStream(
 		}
 
 		return new Response(upstream.bytes, {
-			status: 200,
 			headers,
+			status: 200,
 		});
 	}
 
@@ -276,8 +267,8 @@ export async function proxyStream(
 	}
 
 	return new Response(upstream.response.body, {
-		status: upstream.response.status,
 		headers,
+		status: upstream.response.status,
 	});
 }
 
@@ -290,8 +281,8 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
 	const first = await reader.read();
 	if (first.done) {
 		return new Response(null, {
-			status: 200,
 			headers,
+			status: 200,
 		});
 	}
 
@@ -305,15 +296,15 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
 		headers.set("Content-Type", "video/mp2t");
 		headers.set("Content-Length", String(segment.byteLength));
 		return new Response(segment, {
-			status: 200,
 			headers,
+			status: 200,
 		});
 	}
 
 	return new Response(
 		new ReadableStream<Uint8Array>({
-			start(controller) {
-				controller.enqueue(first.value);
+			cancel(reason) {
+				return reader.cancel(reason);
 			},
 			async pull(controller) {
 				const chunk = await reader.read();
@@ -323,13 +314,13 @@ async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Header
 					controller.enqueue(chunk.value);
 				}
 			},
-			cancel(reason) {
-				return reader.cancel(reason);
+			start(controller) {
+				controller.enqueue(first.value);
 			},
 		}),
 		{
-			status: 200,
 			headers,
+			status: 200,
 		},
 	);
 }
@@ -349,12 +340,12 @@ async function playlistResponse(target: StreamTarget, upstream: UpstreamBytes) {
 	const segments: StreamTarget[] = [];
 	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) => {
 		const child: StreamTarget = {
-			url,
-			kind,
-			headers: target.headers,
-			mirrors: mirrorsFor(url, upstream.url),
 			accountId: target.accountId,
 			expiresAt: target.expiresAt,
+			headers: target.headers,
+			kind,
+			mirrors: mirrorsFor(url, upstream.url),
+			url,
 		};
 		if (kind === "segment") {
 			segments.push(child);
@@ -364,11 +355,11 @@ async function playlistResponse(target: StreamTarget, upstream: UpstreamBytes) {
 	rememberSegmentOrder(segments);
 
 	return new Response(rewritten, {
-		status: 200,
 		headers: {
 			"Content-Type": "application/vnd.apple.mpegurl",
 			// Live playlists change; media playlists for VOD are cheap to refetch.
 			"Cache-Control": "no-cache",
 		},
+		status: 200,
 	});
 }

@@ -8,10 +8,10 @@ import { createSubscriber } from "svelte/reactivity";
 
 type Source = PlaybackMedia["sources"][number];
 
-type Range = {
+interface Range {
 	start: number;
 	end: number;
-};
+}
 
 const preferences = new Preferences("player");
 
@@ -34,9 +34,7 @@ export class Player {
 
 	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
 	loaded = $derived.by(() => {
-		const range = this.buffered.find((range) => {
-			return range.start <= this.time && this.time <= range.end;
-		});
+		const range = this.buffered.find((range) => range.start <= this.time && this.time <= range.end);
 
 		return range && this.duration > 0 ? range.end / this.duration : 0;
 	});
@@ -135,15 +133,15 @@ export class Player {
 		const action =
 			{
 				" ": toggle,
-				k: toggle,
+				ArrowDown: () => this.nudgeVolume(-0.1),
 				ArrowLeft: () => (this.time -= 10),
 				ArrowRight: () => (this.time += 10),
-				j: () => (this.time -= 10),
-				l: () => (this.time += 10),
 				ArrowUp: () => this.nudgeVolume(0.1),
-				ArrowDown: () => this.nudgeVolume(-0.1),
-				m: () => (this.muted = !this.muted),
 				f: this.toggleFullscreen,
+				j: () => (this.time -= 10),
+				k: toggle,
+				l: () => (this.time += 10),
+				m: () => (this.muted = !this.muted),
 			}[event.key] ??
 			(/^[0-9]$/.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
 
@@ -220,11 +218,11 @@ export class Player {
 			const Hls = loaded.data.default;
 			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 			hls = new Hls({
-				startPosition: start,
-				maxBufferLength: 7200,
-				maxMaxBufferLength: 7200,
-				maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
 				backBufferLength: 60,
+				maxBufferLength: 7200,
+				maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
+				maxMaxBufferLength: 7200,
+				startPosition: start,
 			});
 
 			let recovered = 0;
@@ -253,7 +251,7 @@ export class Player {
 	caption =
 		(shown: boolean): Attachment<HTMLTrackElement> =>
 		(element) => {
-			const track = element.track;
+			const { track } = element;
 			if (!shown) {
 				track.mode = "disabled";
 				return;

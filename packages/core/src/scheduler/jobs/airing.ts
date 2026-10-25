@@ -17,12 +17,13 @@ import {
 	scheduleStoredSeriesRefresh,
 	trackAiringTask,
 } from "../queue";
-import { extendThroughReleased, planNextCheck, type AiringState } from "./airing-plan";
+import { extendThroughReleased, planNextCheck } from "./airing-plan";
+import type { AiringState } from "./airing-plan";
 
 const TrackAiringPayloadSchema = z.object({
 	anilistId: z.number().int().positive(),
-	awaitedEpisode: z.number().nullable(),
 	attempt: z.number().int().nonnegative(),
+	awaitedEpisode: z.number().nullable(),
 });
 
 /**
@@ -90,9 +91,9 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 		await scheduleAniKotoPoll(
 			{
 				anilistId: anime.data.id,
+				attempt: 0,
 				episode: plan.awaitedEpisode,
 				language: "sub",
-				attempt: 0,
 			},
 			new Date(Date.now() + 5 * minute),
 		);
@@ -101,8 +102,8 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	await scheduleAiringCheck(
 		{
 			anilistId: anime.data.id,
-			awaitedEpisode: plan.awaitedEpisode,
 			attempt: plan.attempt,
+			awaitedEpisode: plan.awaitedEpisode,
 		},
 		plan.runAt,
 	);

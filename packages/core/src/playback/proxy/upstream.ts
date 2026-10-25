@@ -1,10 +1,12 @@
-import { lookup, type LookupAddress } from "node:dns";
+import { lookup } from "node:dns";
+import type { LookupAddress } from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
 
-import { attempt, second, type Attempt } from "@sora/shared";
+import { attempt, second } from "@sora/shared";
+import type { Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
 import { isBareImage } from "./segment";
@@ -28,11 +30,11 @@ const maximumRedirects = 5;
  * timeout. A file is streamed, never read in full, so it has no limit.
  */
 const maximumBodyBytes: Record<StreamTargetKind, number> = {
+	file: Number.POSITIVE_INFINITY,
+	key: 64 * 1_024,
 	playlist: 4 * 1_024 * 1_024,
 	segment: 32 * 1_024 * 1_024,
 	subtitle: 4 * 1_024 * 1_024,
-	key: 64 * 1_024,
-	file: Number.POSITIVE_INFINITY,
 };
 
 /** The proxied upstream could not be fetched. Retryable. */
@@ -363,7 +365,7 @@ function assertPublicHttpUrl(value: string) {
 		throw new InvalidStreamTokenError("Stream target must use HTTP");
 	}
 
-	const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+	const host = url.hostname.replaceAll(/^\[|\]$/g, "").toLowerCase();
 	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
@@ -445,9 +447,9 @@ function requestPublicHost(url: string, headers: Headers, signal: AbortSignal): 
 				const empty = status === 204 || status === 205 || status === 304;
 				resolve(
 					new Response(empty ? null : (Readable.toWeb(incoming) as unknown as ReadableStream), {
+						headers: received,
 						status,
 						statusText: incoming.statusMessage,
-						headers: received,
 					}),
 				);
 			},

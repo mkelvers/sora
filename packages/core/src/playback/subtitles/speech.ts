@@ -10,9 +10,9 @@ import type { SpokenWord } from "./refine";
 const SpeechSchema = z.object({
 	words: z.array(
 		z.object({
-			text: z.string(),
-			start: z.number(),
 			end: z.number(),
+			start: z.number(),
+			text: z.string(),
 		}),
 	),
 });
@@ -20,7 +20,7 @@ const SpeechSchema = z.object({
 /** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
 const timeoutMs = 90 * 60 * second;
 
-const script = fileURLToPath(new URL("./transcribe.py", import.meta.url));
+const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
 
 /**
  * The words spoken in a 16 kHz mono WAV file and when, found by running
@@ -37,8 +37,8 @@ export async function transcribe(path: string): Promise<SpokenWord[]> {
 	const child = Bun.spawn(
 		[config.subtitleAlignmentPython, script, path, config.subtitleAlignmentModel],
 		{
-			stdout: "pipe",
 			stderr: "pipe",
+			stdout: "pipe",
 			timeout: timeoutMs,
 		},
 	);

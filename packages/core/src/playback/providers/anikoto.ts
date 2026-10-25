@@ -1,5 +1,6 @@
 import { attempt } from "@sora/shared";
-import { AnikotoProvider, type HttpClient } from "anime-sdk";
+import { AnikotoProvider } from "anime-sdk";
+import type { HttpClient } from "anime-sdk";
 import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
@@ -7,7 +8,8 @@ import type { ContentLanguage } from "../../models/series";
 import { findAniKotoSeries, syncAniKotoCatalog } from "./anikoto-catalog";
 import { resolveMegaPlayEmbed } from "./megaplay";
 import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } from "./provider";
-import { rawEpisodeId, toProviderEpisode, type ProviderTraits } from "./sdk";
+import { rawEpisodeId, toProviderEpisode } from "./sdk";
+import type { ProviderTraits } from "./sdk";
 
 const siteUrl = "https://anikototv.to";
 
@@ -56,10 +58,10 @@ export class AniKotoStreamProvider implements StreamProvider {
 		const match = await findAniKotoSeries(this.http, anime);
 		return (
 			match && {
-				mediaId: match.anikotoId,
-				matchedTitle: match.title,
-				method: match.method,
 				episodeOffset: match.episodeOffset,
+				matchedTitle: match.title,
+				mediaId: match.anikotoId,
+				method: match.method,
 			}
 		);
 	}
@@ -99,8 +101,8 @@ export class AniKotoStreamProvider implements StreamProvider {
 			const languages = new Set([...(episode.languages ?? []), ...entry.languages]);
 			return {
 				...episode,
-				languages: languageOrder.filter((language) => languages.has(language)),
 				isFiller: entry.isFiller,
+				languages: languageOrder.filter((language) => languages.has(language)),
 			};
 		});
 	}
@@ -159,10 +161,10 @@ async function fetchAniKotoEpisodeList(
 
 		const classes = /\bclass="([^"]*)"/.exec(link)?.[1]?.split(/\s+/) ?? [];
 		episodes.set(number, {
+			isFiller: classes.includes("filler"),
 			languages: languageOrder.filter((language) =>
 				new RegExp(`\\bdata-${language}="1"`).test(link),
 			),
-			isFiller: classes.includes("filler"),
 		});
 	}
 

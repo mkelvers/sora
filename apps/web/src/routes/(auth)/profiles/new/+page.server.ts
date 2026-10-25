@@ -13,8 +13,8 @@ export const actions: Actions = {
 
 		if (!parsed.success) {
 			return fail(400, {
-				name,
 				message: "Give the profile a name of up to 40 characters.",
+				name,
 			});
 		}
 
@@ -32,8 +32,8 @@ export const actions: Actions = {
 		);
 		if (rejected?.status === 422) {
 			return fail(400, {
-				name,
 				message: "Give the profile a name of up to 40 characters.",
+				name,
 			});
 		}
 		if (rejected) {

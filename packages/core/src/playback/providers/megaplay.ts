@@ -1,12 +1,14 @@
 import { createDecipheriv } from "node:crypto";
 
-import { labelToBcp47, MegaPlayProvider, type HttpClient, type MappingClient } from "anime-sdk";
+import { labelToBcp47, MegaPlayProvider } from "anime-sdk";
+import type { HttpClient, MappingClient } from "anime-sdk";
 import { z } from "zod";
 
 import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { ProviderStream } from "./provider";
-import { rawEpisodeId, SdkStreamProvider, type ProviderTraits } from "./sdk";
+import { rawEpisodeId, SdkStreamProvider } from "./sdk";
+import type { ProviderTraits } from "./sdk";
 
 /**
  * MegaPlay's player script encrypts the source URL into an `enc` field with
@@ -24,8 +26,8 @@ const encryptionIv = Buffer.from([
  * it knows nothing, so an empty span means no segment.
  */
 const SkipSpanSchema = z.object({
-	start: z.number().nonnegative(),
 	end: z.number().nonnegative(),
+	start: z.number().nonnegative(),
 });
 
 /** MegaPlay's CDNs reject media requests without this referer. */
@@ -43,8 +45,8 @@ const SourcesResponseSchema = z
 			.array(
 				z.object({
 					file: z.string().min(1),
-					label: z.string().optional(),
 					kind: z.string().optional(),
+					label: z.string().optional(),
 				}),
 			)
 			.optional(),
@@ -131,6 +133,7 @@ export async function resolveMegaPlayEmbed(
 	}
 
 	return {
+		skipSegments: skipSegments(body),
 		videos: [
 			{
 				url: file,
@@ -153,7 +156,6 @@ export async function resolveMegaPlayEmbed(
 				),
 			},
 		],
-		skipSegments: skipSegments(body),
 	};
 }
 
@@ -183,12 +185,12 @@ function skipSegments({ intro, outro }: MegaPlaySources): SkipSegment[] {
 /** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */
 const regionSubtags: Record<string, string> = {
 	brazil: "BR",
-	portugal: "PT",
 	"latin america": "419",
-	spain: "ES",
 	mexico: "MX",
-	traditional: "Hant",
+	portugal: "PT",
 	simplified: "Hans",
+	spain: "ES",
+	traditional: "Hant",
 };
 
 /**
@@ -226,7 +228,7 @@ function decryptSourceFile(encrypted: string) {
 	const plain = Buffer.concat([
 		decipher.update(Buffer.from(encrypted, "base64")),
 		decipher.final(),
-	]).toString("utf8");
+	]).toString("utf-8");
 
 	return EncryptedSourceSchema.parse(JSON.parse(plain)).file;
 }

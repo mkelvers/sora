@@ -52,7 +52,7 @@ export async function fetchEpisodeAirings(
 				if (entry) {
 					airings.set(
 						anilistEpisodeKey(entry.mediaId, entry.episode),
-						new Date(entry.airingAt * 1_000),
+						new Date(entry.airingAt * 1000),
 					);
 				}
 			}

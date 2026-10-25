@@ -63,9 +63,9 @@ export class Media {
 			}).updates(
 				getSeries(this.id()).withOverride((current) => ({
 					...current,
-					logo_scale: placement.scale,
 					logo_offset_x: placement.x,
 					logo_offset_y: placement.y,
+					logo_scale: placement.scale,
 				})),
 			),
 			"That placement couldn’t be saved.",

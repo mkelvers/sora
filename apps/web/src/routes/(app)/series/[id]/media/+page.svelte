@@ -31,16 +31,16 @@
 
 	const types = [
 		{
-			value: "poster",
 			label: "Posters",
+			value: "poster",
 		},
 		{
-			value: "backdrop",
 			label: "Backdrops",
+			value: "backdrop",
 		},
 		{
-			value: "logo",
 			label: "Logos",
+			value: "logo",
 		},
 	] as const;
 </script>

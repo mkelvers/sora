@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { nextEpisodeAddress, storyContinuation } from "./series-navigation";
+import type { storyContinuation } from "./series-navigation";
+import { nextEpisodeAddress } from "./series-navigation";
 
 const series = {
-	id: "season-1",
 	episode_count: 26,
+	id: "season-1",
 	seasons: [
 		{ series_id: "season-1", next_series_id: "season-2", episode_count: 26, format: "TV" },
 		{ series_id: "season-2", next_series_id: null, episode_count: 24, format: "TV" },
@@ -13,11 +14,11 @@ const series = {
 
 describe("story playback navigation", () => {
 	test("continues into the next season at the finale", () => {
-		expect(nextEpisodeAddress(series, 26, null)).toEqual({ seriesId: "season-2", episode: "1" });
+		expect(nextEpisodeAddress(series, 26, null)).toEqual({ episode: "1", seriesId: "season-2" });
 	});
 
 	test("prefers the provider's next episode and stops at a listing gap", () => {
-		expect(nextEpisodeAddress(series, 25, 26)).toEqual({ seriesId: "season-1", episode: "26" });
+		expect(nextEpisodeAddress(series, 25, 26)).toEqual({ episode: "26", seriesId: "season-1" });
 		expect(nextEpisodeAddress(series, 25, null)).toBeUndefined();
 	});
 
@@ -42,7 +43,7 @@ describe("story playback navigation", () => {
 
 	test("a side story outside the season picker cannot enter the main path", () => {
 		expect(
-			nextEpisodeAddress({ ...series, id: "side-story", episode_count: 4 }, 4, null),
+			nextEpisodeAddress({ ...series, episode_count: 4, id: "side-story" }, 4, null),
 		).toBeUndefined();
 	});
 });

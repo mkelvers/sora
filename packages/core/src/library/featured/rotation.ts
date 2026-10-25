@@ -13,8 +13,8 @@ export interface FeaturedEntry {
  * known, so that what leads the home page is what people are watching.
  */
 export const currentThresholds = {
-	score: 75,
 	popularity: 60_000,
+	score: 75,
 };
 
 /**
@@ -89,10 +89,10 @@ export function arrange(candidates: readonly string[], isUsable: (id: string) =>
 
 /** FNV-1a, a fast, well-spread 32-bit hash; not for security. */
 function hash(text: string) {
-	let value = 0x811c9dc5;
+	let value = 0x81_1c_9d_c5;
 	for (let index = 0; index < text.length; index++) {
 		value ^= text.charCodeAt(index);
-		value = Math.imul(value, 0x01000193);
+		value = Math.imul(value, 0x01_00_01_93);
 	}
 	return value >>> 0;
 }

@@ -36,20 +36,20 @@ export interface StreamTarget {
 }
 
 const StreamTargetSchema = z.object({
-	u: z.url({
-		protocol: /^https?$/,
-	}),
-	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
+	a: z.string().min(1),
+	e: z.number().int().positive(),
 	h: z.record(z.string(), z.string()),
+	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
 	m: z.array(
 		z.url({
 			protocol: /^https?$/,
 		}),
 	),
-	a: z.string().min(1),
-	e: z.number().int().positive(),
-	t: z.array(z.tuple([z.number(), z.number()])).optional(),
 	r: z.string().min(1).optional(),
+	t: z.array(z.tuple([z.number(), z.number()])).optional(),
+	u: z.url({
+		protocol: /^https?$/,
+	}),
 });
 
 /**
@@ -67,16 +67,16 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
 	const sealed = Buffer.concat([
 		cipher.update(
 			JSON.stringify({
-				u: target.url,
-				k: target.kind,
-				h: target.headers,
-				m: target.mirrors,
 				a: target.accountId,
 				e: target.expiresAt,
-				t: target.shifts?.map(({ from, offset }) => [from, offset]),
+				h: target.headers,
+				k: target.kind,
+				m: target.mirrors,
 				r: target.refinement,
+				t: target.shifts?.map(({ from, offset }) => [from, offset]),
+				u: target.url,
 			}),
-			"utf8",
+			"utf-8",
 		),
 		cipher.final(),
 		cipher.getAuthTag(),
@@ -109,7 +109,7 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 		return Buffer.concat([
 			decipher.update(sealed.subarray(0, sealed.length - tagLength)),
 			decipher.final(),
-		]).toString("utf8");
+		]).toString("utf-8");
 	}, Error);
 	if (unsealError) {
 		throw new InvalidStreamTokenError("Stream token is not valid");
@@ -125,22 +125,22 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 		throw new InvalidStreamTokenError("Stream token payload is invalid");
 	}
 
-	if (parsed.data.e * 1_000 <= now.getTime()) {
+	if (parsed.data.e * 1000 <= now.getTime()) {
 		throw new InvalidStreamTokenError("Stream token has expired");
 	}
 
 	return {
-		url: parsed.data.u,
-		kind: parsed.data.k,
-		headers: parsed.data.h,
-		mirrors: parsed.data.m,
 		accountId: parsed.data.a,
 		expiresAt: parsed.data.e,
+		headers: parsed.data.h,
+		kind: parsed.data.k,
+		mirrors: parsed.data.m,
+		refinement: parsed.data.r,
 		shifts: parsed.data.t?.map(([from, offset]) => ({
 			from,
 			offset,
 		})),
-		refinement: parsed.data.r,
+		url: parsed.data.u,
 	};
 }
 

@@ -1,12 +1,8 @@
 import { STATUS_CODES } from "node:http";
 
 import type { Hook } from "@hono/zod-openapi";
-import {
-	CoreError,
-	PlaybackUnavailableError,
-	UpstreamUnavailableError,
-	type CoreErrorCode,
-} from "@sora/core/errors";
+import { CoreError, PlaybackUnavailableError, UpstreamUnavailableError } from "@sora/core/errors";
+import type { CoreErrorCode } from "@sora/core/errors";
 import { StreamUpstreamError } from "@sora/core/playback";
 import { formatRetryAfter } from "@sora/shared";
 import type { Context } from "hono";
@@ -17,13 +13,13 @@ import type { Problem } from "./openapi/schemas";
 /** The HTTP status for each core failure. Every code must be listed. */
 const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
 	ANIME_NOT_FOUND: 404,
-	SERIES_NOT_FOUND: 404,
 	EPISODE_NOT_FOUND: 404,
-	PROFILE_NOT_FOUND: 404,
-	LAST_PROFILE: 409,
 	INVALID_INPUT: 422,
 	INVALID_STREAM_TOKEN: 403,
+	LAST_PROFILE: 409,
 	PLAYBACK_UNAVAILABLE: 502,
+	PROFILE_NOT_FOUND: 404,
+	SERIES_NOT_FOUND: 404,
 	UPSTREAM_UNAVAILABLE: 503,
 };
 
@@ -50,18 +46,18 @@ export function sendProblem(
 	errors?: Problem["errors"],
 ) {
 	const body: Problem = {
-		type: "about:blank",
-		title: STATUS_CODES[status] ?? "Error",
-		status,
-		detail,
-		instance: c.req.path,
 		code,
+		detail,
 		errors,
+		instance: c.req.path,
+		status,
+		title: STATUS_CODES[status] ?? "Error",
+		type: "about:blank",
 	};
 
 	return c.newResponse(JSON.stringify(body), status, {
-		"Content-Type": "application/problem+json",
 		"Cache-Control": "no-store",
+		"Content-Type": "application/problem+json",
 	});
 }
 
@@ -100,8 +96,8 @@ export const onInvalidRequest: Hook<unknown, V1Env, string, unknown> = (result, 
 			"INVALID_INPUT",
 			"The request is invalid",
 			result.error.issues.map((issue) => ({
-				path: issue.path.join("."),
 				message: issue.message,
+				path: issue.path.join("."),
 			})),
 		);
 	}

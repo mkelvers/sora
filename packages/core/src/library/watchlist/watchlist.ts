@@ -11,9 +11,9 @@ import { statusAfterPlayback } from "./status";
 export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 	const rows = await db
 		.select({
+			addedAt: seriesState.addedAt,
 			series,
 			status: seriesState.status,
-			addedAt: seriesState.addedAt,
 			statusChangedAt: seriesState.statusChangedAt,
 		})
 		.from(seriesState)
@@ -31,9 +31,9 @@ export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 		return card && row.status && row.addedAt && row.statusChangedAt
 			? [
 					{
+						added_at: row.addedAt.toISOString(),
 						series: card,
 						status: row.status,
-						added_at: row.addedAt.toISOString(),
 						updated_at: row.statusChangedAt.toISOString(),
 					},
 				]
@@ -81,20 +81,20 @@ export async function setWatchlistStatus(
 	await db
 		.insert(seriesState)
 		.values({
-			userId,
+			addedAt: sql`now()`,
 			seriesId,
 			status,
-			addedAt: sql`now()`,
 			statusChangedAt: sql`now()`,
+			userId,
 		})
 		.onConflictDoUpdate({
-			target: [seriesState.userId, seriesState.seriesId],
 			set: {
-				status,
 				addedAt: sql`coalesce(${seriesState.addedAt}, now())`,
+				status,
 				statusChangedAt: sql`now()`,
 			},
 			setWhere: sql`${seriesState.status} is distinct from ${status}`,
+			target: [seriesState.userId, seriesState.seriesId],
 		});
 }
 
@@ -127,10 +127,10 @@ export async function updateWatchlistAfterPlayback(
 			.limit(1),
 		db
 			.select({
-				status: series.status,
 				episodes: sql<
 					number | null
 				>`(select max(${seriesEpisode.number}) from ${seriesEpisode} where ${seriesEpisode.seriesId} = ${series.id})`,
+				status: series.status,
 			})
 			.from(series)
 			.where(eq(series.id, seriesId))

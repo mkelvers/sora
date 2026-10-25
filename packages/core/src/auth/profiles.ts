@@ -1,9 +1,9 @@
 import { and, asc, count, eq } from "drizzle-orm";
-import { z } from "zod";
+import type { z } from "zod";
 
 import { db } from "../database/client";
+import type { avatarStyle } from "../database/schema";
 import {
-	avatarStyle,
 	episodeProgress,
 	featuredPick,
 	notificationDismissal,
@@ -14,7 +14,8 @@ import {
 } from "../database/schema";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
 import { newId } from "../ids";
-import { ProfileInputSchema, type Profile, type ProfileInput } from "../models/profile";
+import { ProfileInputSchema } from "../models/profile";
+import type { Profile, ProfileInput } from "../models/profile";
 
 export type AvatarStyle = (typeof avatarStyle.enumValues)[number];
 
@@ -78,12 +79,12 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
 	const [row] = await db
 		.insert(profile)
 		.values({
-			id,
-			userId,
-			name,
-			color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
-			avatarStyle: avatar?.style ?? "sprouts",
 			avatarSeed: avatar?.seed ?? id,
+			avatarStyle: avatar?.style ?? "sprouts",
+			color: color ?? palette[(existing?.total ?? 0) % palette.length]!,
+			id,
+			name,
+			userId,
 		})
 		.returning();
 
@@ -107,8 +108,8 @@ export async function updateProfile(
 		.set({
 			...changes,
 			...(avatar && {
-				avatarStyle: avatar.style,
 				avatarSeed: avatar.seed,
+				avatarStyle: avatar.style,
 			}),
 		})
 		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
@@ -165,13 +166,13 @@ function parse<TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.ou
 
 function toProfile(row: typeof profile.$inferSelect): Profile {
 	return {
+		avatar: {
+			seed: row.avatarSeed,
+			style: row.avatarStyle,
+		},
+		color: row.color,
+		created_at: row.createdAt.toISOString(),
 		id: row.id,
 		name: row.name,
-		color: row.color,
-		avatar: {
-			style: row.avatarStyle,
-			seed: row.avatarSeed,
-		},
-		created_at: row.createdAt.toISOString(),
 	};
 }

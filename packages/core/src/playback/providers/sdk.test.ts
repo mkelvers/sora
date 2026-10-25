@@ -9,15 +9,15 @@ import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 function titled(titles: { english?: string; romaji?: string }, episodes: number | null): Anime {
 	return {
 		...anime(1),
+		episodes,
+		format: "TV",
+		status: "FINISHED",
 		title: {
 			display: titles.english ?? titles.romaji ?? "",
 			english: titles.english ?? null,
-			romaji: titles.romaji ?? null,
 			native: null,
+			romaji: titles.romaji ?? null,
 		},
-		episodes,
-		status: "FINISHED",
-		format: "TV",
 	};
 }
 
@@ -86,8 +86,8 @@ describe("acceptsTitleMatch", () => {
 
 const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
 	id: `episode-${index + 1}`,
-	title: `Episode ${index + 1}`,
 	number: index + 1,
+	title: `Episode ${index + 1}`,
 }));
 
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
@@ -95,11 +95,11 @@ function providerFinding(resolution: MappingResolution | null, units: Promise<IC
 	const fetched: string[] = [];
 	const provider = new SdkStreamProvider(
 		{
-			id: "stub",
 			fetchContentUnits: (id) => {
 				fetched.push(id);
 				return units;
 			},
+			id: "stub",
 			resolveStream: async () => {
 				throw new Error("The stub streams nothing");
 			},
@@ -108,21 +108,21 @@ function providerFinding(resolution: MappingResolution | null, units: Promise<IC
 			resolveProviderMediaId: async () => resolution,
 		},
 		{
-			locale: "en",
 			listsLanguages: true,
+			locale: "en",
 		},
 	);
 	return {
-		provider,
 		fetched,
+		provider,
 	};
 }
 
 const resolved = (method: MappingMethod, matchedTitle: string): MappingResolution => ({
-	providerId: "stub",
-	rawMediaId: "abc",
 	matchedTitle,
 	method,
+	providerId: "stub",
+	rawMediaId: "abc",
 });
 
 describe("SdkStreamProvider.findMedia", () => {
@@ -138,10 +138,10 @@ describe("SdkStreamProvider.findMedia", () => {
 			Promise.resolve([]),
 		);
 		expect(await provider.findMedia(titan)).toEqual({
-			mediaId: "abc",
-			matchedTitle: "Anything At All",
-			method: "provider",
 			episodeOffset: 0,
+			matchedTitle: "Anything At All",
+			mediaId: "abc",
+			method: "provider",
 		});
 		expect(fetched).toEqual([]);
 	});

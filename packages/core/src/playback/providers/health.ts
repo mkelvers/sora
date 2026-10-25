@@ -85,11 +85,10 @@ export async function getProviderHealth(now = new Date()): Promise<ProviderHealt
 	const calls = sql`${providerCalls.ok} + ${providerCalls.empty} + ${providerCalls.failed}`;
 	const rows = await db
 		.select({
-			provider: providerCalls.provider,
-			operation: providerCalls.operation,
-			ok: sql<number>`coalesce(sum(${providerCalls.ok}) filter (where ${inWindow}), 0)`.mapWith(
-				Number,
-			),
+			durationMs:
+				sql<number>`coalesce(sum(${providerCalls.durationMs}) filter (where ${inWindow}), 0)`.mapWith(
+					Number,
+				),
 			empty:
 				sql<number>`coalesce(sum(${providerCalls.empty}) filter (where ${inWindow}), 0)`.mapWith(
 					Number,
@@ -98,21 +97,22 @@ export async function getProviderHealth(now = new Date()): Promise<ProviderHealt
 				sql<number>`coalesce(sum(${providerCalls.failed}) filter (where ${inWindow}), 0)`.mapWith(
 					Number,
 				),
-			durationMs:
-				sql<number>`coalesce(sum(${providerCalls.durationMs}) filter (where ${inWindow}), 0)`.mapWith(
-					Number,
-				),
-			lastOkHour:
-				sql<Date | null>`max(${providerCalls.hour}) filter (where ${providerCalls.ok} > 0)`.mapWith(
-					toDate,
-				),
-			recentCalls: sql<number>`coalesce(sum(${calls}) filter (where ${isRecent}), 0)`.mapWith(
-				Number,
-			),
 			lastError: sql<
 				string | null
 			>`(array_agg(${providerCalls.lastError} order by ${providerCalls.lastErrorAt} desc nulls last))[1]`,
 			lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(toDate),
+			lastOkHour:
+				sql<Date | null>`max(${providerCalls.hour}) filter (where ${providerCalls.ok} > 0)`.mapWith(
+					toDate,
+				),
+			ok: sql<number>`coalesce(sum(${providerCalls.ok}) filter (where ${inWindow}), 0)`.mapWith(
+				Number,
+			),
+			operation: providerCalls.operation,
+			provider: providerCalls.provider,
+			recentCalls: sql<number>`coalesce(sum(${calls}) filter (where ${isRecent}), 0)`.mapWith(
+				Number,
+			),
 		})
 		.from(providerCalls)
 		.groupBy(providerCalls.provider, providerCalls.operation);
@@ -157,11 +157,9 @@ export function summarizeHealth(
 					: "idle";
 
 		return {
-			provider,
-			status,
-			last_ok_at: lastOk?.toISOString() ?? null,
 			last_error: lastError?.lastError ?? null,
 			last_error_at: lastErrorAt?.toISOString() ?? null,
+			last_ok_at: lastOk?.toISOString() ?? null,
 			operations: own
 				.filter((row) => row.ok + row.empty + row.failed > 0)
 				.map((row) => {
@@ -175,6 +173,8 @@ export function summarizeHealth(
 					};
 				})
 				.sort((left, right) => left.operation.localeCompare(right.operation)),
+			provider,
+			status,
 		};
 	});
 }

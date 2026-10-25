@@ -19,7 +19,7 @@ const endpoint = "https://graphql.anilist.co";
  * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
  * with most of the minute's budget still left.
  */
-const viewerSpacingMs = 1_000;
+const viewerSpacingMs = 1000;
 
 /**
  * Requests of each minute's budget kept for requests a viewer is waiting
@@ -232,9 +232,9 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 	async function fetchAndStore<TResult>(key: string, query: string, variables: unknown) {
 		const data = await rateLimited(key, () => execute(query, variables));
 		const values = {
-			operation: operationName(query),
 			data,
 			fetchedAt: new Date(),
+			operation: operationName(query),
 		};
 
 		await store.save(key, values);
@@ -332,8 +332,8 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 					new Promise<TMedia | null>((resolve, reject) => {
 						const batch = open ?? openBatch(priority);
 						batch.wanted.set(id, {
-							resolve,
 							reject,
+							resolve,
 						});
 						queuedIn.set(id, batch);
 						raise(batch, priority);
@@ -479,10 +479,10 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 
 	function limiterState(): LimiterState {
 		return {
-			limit: requestLimit,
-			recentSends,
-			pausedUntil: nextRequestAt,
 			budget,
+			limit: requestLimit,
+			pausedUntil: nextRequestAt,
+			recentSends,
 		};
 	}
 
@@ -513,22 +513,22 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 	async function execute(query: string, variables: unknown) {
 		const response = await attempt(
 			fetch(endpoint, {
-				method: "POST",
-				headers: {
-					Accept: "application/json",
-					"Content-Type": "application/json",
-				},
 				body: JSON.stringify({
 					query,
 					variables,
 				}),
+				headers: {
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				method: "POST",
 				signal: AbortSignal.timeout(requestTimeoutMs),
 			}),
 		);
 		if (response.error) {
 			throw new UpstreamUnavailableError("AniList could not be reached", {
-				retryAfterMs: null,
 				cause: response.error,
+				retryAfterMs: null,
 			});
 		}
 
@@ -552,8 +552,8 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 			throw new UpstreamUnavailableError(
 				`AniList returned a ${response.data.status} response that is not JSON`,
 				{
-					retryAfterMs: null,
 					cause: json.error,
+					retryAfterMs: null,
 				},
 			);
 		}
@@ -563,8 +563,8 @@ export function createAniListClient({ fetch, store }: AniListDependencies) {
 			throw new UpstreamUnavailableError(
 				`AniList returned an invalid ${response.data.status} response`,
 				{
-					retryAfterMs: null,
 					cause: body.error,
+					retryAfterMs: null,
 				},
 			);
 		}
@@ -721,8 +721,8 @@ const databaseStore: ResponseStore = {
 				...values,
 			})
 			.onConflictDoUpdate({
-				target: anilistResponse.key,
 				set: values,
+				target: anilistResponse.key,
 			});
 	},
 };

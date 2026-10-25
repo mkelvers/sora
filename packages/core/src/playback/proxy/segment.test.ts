@@ -43,7 +43,7 @@ describe("disguised segments", () => {
 		]);
 		const jpeg = Uint8Array.from([0xff, 0xd8, 0x47, 0x10, 0xff, 0xd9]);
 
-		const webp = new TextEncoder().encode("RIFF\x56\x0f\x00\x00WEBPVP8 ");
+		const webp = new TextEncoder().encode("RIFF\x56\x0F\x00\x00WEBPVP8 ");
 		const gif = new TextEncoder().encode("GIF89a");
 
 		expect(isBareImage(png)).toBe(true);

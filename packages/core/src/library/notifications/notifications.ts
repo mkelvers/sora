@@ -90,14 +90,14 @@ export function groupNotifications(
 
 			return [
 				{
+					episode_title: last.title,
+					first_episode: first.number,
 					id,
 					kind: first.dubbed ? "dub" : isPremiere ? "premiere" : "episodes",
-					seriesId: first.seriesId,
-					first_episode: first.number,
 					last_episode: last.number,
-					episode_title: last.title,
-					still_url: isPremiere ? first.stillUrl : last.stillUrl,
 					released_at: first.releasedAt.toISOString(),
+					seriesId: first.seriesId,
+					still_url: isPremiere ? first.stillUrl : last.stillUrl,
 					unread: !read.has(id),
 				},
 			];
@@ -226,9 +226,9 @@ export async function getNotifications(
 	const [states, watched] = await Promise.all([
 		db
 			.select({
+				addedAt: seriesState.addedAt,
 				anilistId: series.anilistId,
 				status: seriesState.status,
-				addedAt: seriesState.addedAt,
 			})
 			.from(seriesState)
 			.innerJoin(series, eq(series.id, seriesState.seriesId))
@@ -274,10 +274,10 @@ export async function getNotifications(
 	const cutoffs = new Map(rows.map((row) => [row.id, following.get(row.anilistId)!]));
 
 	const episodeColumns = {
-		seriesId: seriesEpisode.seriesId,
 		number: seriesEpisode.number,
-		title: seriesEpisode.title,
+		seriesId: seriesEpisode.seriesId,
 		stillUrl: effectiveStill,
+		title: seriesEpisode.title,
 	};
 	const [aired, dubs, played, dismissals, reads] = await Promise.all([
 		db
@@ -318,8 +318,8 @@ export async function getNotifications(
 			),
 		db
 			.select({
-				seriesId: episodeProgress.seriesId,
 				episode: episodeProgress.episode,
+				seriesId: episodeProgress.seriesId,
 			})
 			.from(episodeProgress)
 			.where(and(eq(episodeProgress.userId, userId), inArray(episodeProgress.seriesId, seriesIds))),
@@ -378,8 +378,8 @@ export async function getNotifications(
 				? [
 						{
 							...group,
-							series: card,
 							message: notificationMessage(group, card.format === "MOVIE"),
+							series: card,
 						},
 					]
 				: [];
@@ -448,9 +448,9 @@ export async function markNotificationsRead(userId: string, notificationIds: rea
 			.insert(notificationRead)
 			.values(
 				notificationIds.map((notificationId) => ({
-					userId,
 					notificationId,
 					readAt: now,
+					userId,
 				})),
 			)
 			.onConflictDoNothing();
@@ -477,9 +477,9 @@ export async function dismissNotification(userId: string, notificationId: string
 		await tx
 			.insert(notificationDismissal)
 			.values({
-				userId,
-				notificationId,
 				dismissedAt: now,
+				notificationId,
+				userId,
 			})
 			.onConflictDoNothing();
 	});

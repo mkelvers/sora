@@ -31,11 +31,11 @@ export const setArtwork = command(
 	async ({ seriesId, type, url }) => {
 		getSeries(seriesId).set(
 			await remoteViewer().sora.request(route.updateArtwork, {
-				params: {
-					series_id: seriesId,
-				},
 				body: {
 					[`${type}_url`]: url,
+				},
+				params: {
+					series_id: seriesId,
 				},
 			}),
 		);
@@ -44,21 +44,21 @@ export const setArtwork = command(
 
 export const setLogoPlacement = command(
 	z.object({
-		seriesId: z.string(),
 		scale: z.number().min(0.5).max(2),
+		seriesId: z.string(),
 		x: z.number().min(-1).max(1),
 		y: z.number().min(-1).max(1),
 	}),
 	async ({ seriesId, scale, x, y }) => {
 		getSeries(seriesId).set(
 			await remoteViewer().sora.request(route.updateArtwork, {
-				params: {
-					series_id: seriesId,
-				},
 				body: {
-					logo_scale: scale,
 					logo_offset_x: x,
 					logo_offset_y: y,
+					logo_scale: scale,
+				},
+				params: {
+					series_id: seriesId,
 				},
 			}),
 		);

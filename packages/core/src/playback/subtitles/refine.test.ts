@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { refineCues, type SpokenWord } from "./refine";
+import { refineCues } from "./refine";
+import type { SpokenWord } from "./refine";
 import type { Cue } from "./vtt";
 
 /** Distinct made-up words, so a line never shares one with another by accident. */
@@ -11,8 +12,8 @@ function vocabulary(line: number) {
 /** A script of one cue every five seconds, three seconds long. */
 function script(lines: number): Cue[] {
 	return Array.from({ length: lines }, (_, line) => ({
-		start: line * 5,
 		end: line * 5 + 3,
+		start: line * 5,
 		text: vocabulary(line).join(" "),
 	}));
 }
@@ -26,9 +27,9 @@ function speech(cues: Cue[], offset: number, seconds = 1.5, skipping: number[] =
 
 		const words = cue.text.split(" ");
 		return words.map((text, index) => ({
-			text,
-			start: cue.start + offset + (index * seconds) / words.length,
 			end: cue.start + offset + ((index + 1) * seconds) / words.length,
+			start: cue.start + offset + (index * seconds) / words.length,
+			text,
 		}));
 	});
 }
@@ -68,8 +69,8 @@ describe("refineCues", () => {
 	test("leaves a cue nobody says, such as a sign, to the offset", () => {
 		const cues = script(30);
 		cues[10] = {
-			start: 50,
 			end: 53,
+			start: 50,
 			text: "Hidden Inventory",
 		};
 		const refinement = refineCues(cues, speech(cues, 2, 1.5, [10]), null);

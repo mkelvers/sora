@@ -63,10 +63,10 @@ export async function getProviderMedia(
 
 	const match = await provider.findMedia(anime);
 	const values = {
-		providerMediaId: match?.mediaId ?? null,
+		episodeOffset: match?.episodeOffset ?? 0,
 		matchedTitle: match?.matchedTitle ?? null,
 		method: match?.method ?? null,
-		episodeOffset: match?.episodeOffset ?? 0,
+		providerMediaId: match?.mediaId ?? null,
 		resolvedAt: new Date(),
 	};
 
@@ -78,8 +78,8 @@ export async function getProviderMedia(
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: [providerMapping.anilistId, providerMapping.provider],
 			set: values,
+			target: [providerMapping.anilistId, providerMapping.provider],
 		});
 
 	return toProviderMedia(values);
@@ -88,8 +88,8 @@ export async function getProviderMedia(
 function toProviderMedia(mapping: { providerMediaId: string | null; episodeOffset: number }) {
 	return mapping.providerMediaId
 		? {
-				mediaId: mapping.providerMediaId,
 				episodeOffset: mapping.episodeOffset,
+				mediaId: mapping.providerMediaId,
 			}
 		: null;
 }

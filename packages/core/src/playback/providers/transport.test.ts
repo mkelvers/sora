@@ -5,7 +5,6 @@ import { HttpClient } from "anime-sdk";
 import { providerTransport } from "./transport";
 
 const server = Bun.serve({
-	port: 0,
 	fetch: (request) => {
 		const retryAfter = new URL(request.url).searchParams.get("retry_after");
 		return retryAfter === null
@@ -17,6 +16,7 @@ const server = Bun.serve({
 					},
 				});
 	},
+	port: 0,
 });
 
 afterAll(() => server.stop(true));
@@ -49,9 +49,9 @@ describe("providerTransport", () => {
 	test("does not run shell code from a URL when the request fails", async () => {
 		const marker = `${import.meta.dir}/transport-injected.txt`;
 		const http = new HttpClient({
-			timeoutMs: 3_000,
-			retry: false,
 			disableRateLimit: true,
+			retry: false,
+			timeoutMs: 3_000,
 			transport: providerTransport,
 		});
 

@@ -33,6 +33,7 @@ export async function getRefinement(key: string) {
 	}
 
 	return {
+		attemptedAt: row.attemptedAt,
 		/** `null` when the speech did not match the sub's script. */
 		refinement:
 			row.shifts && row.anchors
@@ -41,7 +42,6 @@ export async function getRefinement(key: string) {
 						anchors: row.anchors,
 					}
 				: null,
-		attemptedAt: row.attemptedAt,
 	};
 }
 
@@ -55,9 +55,9 @@ export function isRefinementDue(stored: Awaited<ReturnType<typeof getRefinement>
 /** Stores what listening found for a pair; `null` records that the speech did not match. */
 export async function saveRefinement(key: string, refinement: Refinement | null) {
 	const row = {
-		shifts: refinement?.shifts ?? null,
 		anchors: refinement?.anchors ?? null,
 		attemptedAt: new Date(),
+		shifts: refinement?.shifts ?? null,
 	};
 	await db
 		.insert(subtitleRefinement)
@@ -66,7 +66,7 @@ export async function saveRefinement(key: string, refinement: Refinement | null)
 			...row,
 		})
 		.onConflictDoUpdate({
-			target: subtitleRefinement.key,
 			set: row,
+			target: subtitleRefinement.key,
 		});
 }

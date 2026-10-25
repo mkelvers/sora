@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { groupNotifications, type ReleasedEpisode } from "./notifications";
+import { groupNotifications } from "./notifications";
+import type { ReleasedEpisode } from "./notifications";
 
 const monday = new Date("2026-09-28T15:00:00Z");
 const tuesday = new Date("2026-09-29T15:00:00Z");
@@ -18,13 +19,13 @@ function released(
 			length: to - from + 1,
 		},
 		(_, index) => ({
-			seriesId,
-			number: from + index,
-			title: `Episode ${from + index}`,
-			stillUrl: `still-${from + index}`,
-			releasedAt,
-			watched: false,
 			dubbed: false,
+			number: from + index,
+			releasedAt,
+			seriesId,
+			stillUrl: `still-${from + index}`,
+			title: `Episode ${from + index}`,
+			watched: false,
 			...overrides,
 		}),
 	);
@@ -36,13 +37,13 @@ describe("groupNotifications", () => {
 
 		expect(rest).toEqual([]);
 		expect(notification).toMatchObject({
+			episode_title: "Episode 6",
+			first_episode: 4,
 			id: "slime:4",
 			kind: "episodes",
-			first_episode: 4,
 			last_episode: 6,
-			episode_title: "Episode 6",
-			still_url: "still-6",
 			released_at: monday.toISOString(),
+			still_url: "still-6",
 			unread: true,
 		});
 	});

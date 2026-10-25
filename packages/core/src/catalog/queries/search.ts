@@ -1,12 +1,10 @@
 import { attempt, day, hour, minute } from "@sora/shared";
-import { and, asc, desc, eq, inArray, max, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
-import {
-	SearchIndexPageDocument,
-	type MediaSort,
-	type SearchIndexPageQuery,
-} from "../../anilist/graphql.generated";
+import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
+import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { animeSearch, catalogSync } from "../../database/schema";
 import { UpstreamUnavailableError } from "../../errors";
@@ -131,8 +129,8 @@ async function fetchIndexPage(
 				SearchIndexPageDocument,
 				{
 					page,
-					sort,
 					popularityBelow,
+					sort,
 				},
 				{
 					// Long enough for a failed sync to resume where it stopped.
@@ -163,13 +161,18 @@ function toRow(media: IndexedMedia): typeof animeSearch.$inferInsert {
 
 	return {
 		anilistId: media.id,
+		averageScore: media.averageScore,
 		english,
-		romaji,
-		native,
-		synonyms,
-		searchText: searchText([english, romaji, native, ...synonyms]),
 		format: media.format,
-		status: media.status,
+		genres: (media.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
+		isAdult: media.isAdult === true,
+		native,
+		popularity: media.popularity ?? 0,
+		romaji,
+		scoreCount:
+			media.stats?.scoreDistribution?.reduce((total, bucket) => total + (bucket?.amount ?? 0), 0) ??
+			null,
+		searchText: searchText([english, romaji, native, ...synonyms]),
 		season: media.season,
 		seasonYear: media.seasonYear,
 		startDate: start?.year
@@ -177,14 +180,9 @@ function toRow(media: IndexedMedia): typeof animeSearch.$inferInsert {
 					.flatMap((part) => (part ? [String(part).padStart(2, "0")] : []))
 					.join("-")
 			: null,
-		genres: (media.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
-		popularity: media.popularity ?? 0,
+		status: media.status,
+		synonyms,
 		trending: media.trending ?? 0,
-		averageScore: media.averageScore,
-		scoreCount:
-			media.stats?.scoreDistribution?.reduce((total, bucket) => total + (bucket?.amount ?? 0), 0) ??
-			null,
-		isAdult: media.isAdult === true,
 		updatedAt: new Date((media.updatedAt ?? 0) * 1_000),
 	};
 }
@@ -205,17 +203,17 @@ async function upsert(rows: (typeof animeSearch.$inferInsert)[]) {
 		.insert(animeSearch)
 		.values(rows)
 		.onConflictDoUpdate({
-			target: animeSearch.anilistId,
 			set: Object.fromEntries(keys.map((key) => [key, sql.raw(`excluded.${toSnakeCase(key)}`)])),
 			setWhere: sql.raw(
 				`(${columns.map((column) => `anime_search.${column}`).join(", ")}) is distinct from (${columns.map((column) => `excluded.${column}`).join(", ")})`,
 			),
+			target: animeSearch.anilistId,
 		});
 	return rows.length;
 }
 
 function toSnakeCase(name: string) {
-	return name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+	return name.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
 /**
@@ -246,10 +244,10 @@ export function searchText(titles: readonly (string | null)[]) {
 export function normalizeTitle(title: string) {
 	return title
 		.normalize("NFKD")
-		.replace(/\p{M}/gu, "")
+		.replaceAll(/\p{M}/gu, "")
 		.toLowerCase()
-		.replace(/[×✕]/g, " x ")
-		.replace(/[^\p{L}\p{N}]+/gu, " ")
+		.replaceAll(/[×✕]/g, " x ")
+		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
 		.trim();
 }
 
@@ -267,8 +265,8 @@ async function markFullSync() {
 			...values,
 		})
 		.onConflictDoUpdate({
-			target: catalogSync.catalog,
 			set: values,
+			target: catalogSync.catalog,
 		});
 }
 
@@ -334,7 +332,7 @@ export async function searchAnime(
 					...conditions,
 					isShort
 						? sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`
-						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replace(/[\\%_]/g, (character) => `\\${character}`)}%`})`,
+						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replaceAll(/[\\%_]/g, (character) => `\\${character}`)}%`})`,
 				),
 			)
 			.orderBy(
@@ -385,11 +383,11 @@ function indexConditions(filters: Omit<BrowseQuery, "search" | "page" | "perPage
 
 /** How {@link browseIndex} orders each `sort`, the entry's ID last so pages stay put. */
 const indexOrders: Record<NonNullable<BrowseQuery["sort"]>, SQL[]> = {
-	trending: [desc(animeSearch.trending), desc(animeSearch.popularity)],
+	newest: [sql`${animeSearch.startDate} desc nulls last`, desc(animeSearch.popularity)],
 	popular: [desc(animeSearch.popularity)],
 	score: [sql`${animeSearch.averageScore} desc nulls last`, desc(animeSearch.popularity)],
-	newest: [sql`${animeSearch.startDate} desc nulls last`, desc(animeSearch.popularity)],
 	title: [sql`${animeSearch.romaji} asc nulls last`],
+	trending: [desc(animeSearch.trending), desc(animeSearch.popularity)],
 };
 
 /**
@@ -450,14 +448,14 @@ const sortOrders: Record<
 	NonNullable<BrowseQuery["sort"]>,
 	(left: IndexedRow, right: IndexedRow) => number
 > = {
-	trending: (left, right) => right.trending - left.trending || right.popularity - left.popularity,
-	popular: (left, right) => right.popularity - left.popularity,
-	score: (left, right) =>
-		(right.averageScore ?? -1) - (left.averageScore ?? -1) || right.popularity - left.popularity,
 	newest: (left, right) =>
 		(right.startDate ?? "").localeCompare(left.startDate ?? "") ||
 		right.popularity - left.popularity,
+	popular: (left, right) => right.popularity - left.popularity,
+	score: (left, right) =>
+		(right.averageScore ?? -1) - (left.averageScore ?? -1) || right.popularity - left.popularity,
 	title: (left, right) => (left.romaji ?? "").localeCompare(right.romaji ?? ""),
+	trending: (left, right) => right.trending - left.trending || right.popularity - left.popularity,
 };
 
 /**

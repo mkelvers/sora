@@ -5,10 +5,12 @@ import { AnimeNotFoundError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
 import type { ContentLanguage } from "../../models/series";
 import { scheduleEpisodeLookups } from "../../scheduler/queue";
-import { anilistEpisodeKey, type LocatedEpisode } from "../../series/episodes";
+import { anilistEpisodeKey } from "../../series/episodes";
+import type { LocatedEpisode } from "../../series/episodes";
 import type { StreamProvider } from "../providers/provider";
 import { servedLocale, streamProviders } from "../providers/registry";
-import { getProviderUnits, getStoredUnits, type ProviderUnit, type StoredUnits } from "./episodes";
+import { getProviderUnits, getStoredUnits } from "./episodes";
+import type { ProviderUnit, StoredUnits } from "./episodes";
 
 /** What listing versions reads, asks, and queues through; tests pass their own. */
 export interface VersionDependencies {
@@ -20,10 +22,10 @@ export interface VersionDependencies {
 }
 
 const live: VersionDependencies = {
-	providers: streamProviders,
 	getAnime,
-	getStoredUnits,
 	getProviderUnits,
+	getStoredUnits,
+	providers: streamProviders,
 	scheduleEpisodeLookups,
 };
 
@@ -50,8 +52,8 @@ export interface ListedUnit {
 /** Dub is preferred, then sub, then raw. */
 const languageOrder: Record<ContentLanguage, number> = {
 	dub: 0,
-	sub: 1,
 	raw: 2,
+	sub: 1,
 };
 
 /**
@@ -170,8 +172,8 @@ export async function findEpisodeListings(
 		const versions = versionsOffered(listings);
 		const isKnown = !!listed && !(versions.length === 0 && listed.pending);
 		found.set(anilistEpisodeKey(anilistId, episode), {
-			languages: isKnown ? languagesOf(versions) : null,
 			isFiller: isKnown ? fillerOf(listings) : null,
+			languages: isKnown ? languagesOf(versions) : null,
 		});
 	}
 

@@ -85,10 +85,10 @@ export async function getFeatured(userId: string, now = new Date()): Promise<Ser
 			.insert(featuredPick)
 			.values(
 				added.map((seriesId, index) => ({
-					userId,
+					position: after + 1 + index,
 					rotation,
 					seriesId,
-					position: after + 1 + index,
+					userId,
 				})),
 			)
 			.onConflictDoNothing();
@@ -122,16 +122,16 @@ async function pickTitles(
 		db
 			.select({
 				anilistId: animeSearch.anilistId,
-				seriesId: series.id,
-				key: series.key,
-				startDate: animeSearch.startDate,
-				status: animeSearch.status,
-				score: sql<number>`${animeSearch.averageScore}`,
-				popularity: animeSearch.popularity,
 				isDrawable: sql<boolean>`coalesce(
 					${effectiveBackdrop} is not null and ${effectiveLogo} is not null,
 					false
 				)`,
+				key: series.key,
+				popularity: animeSearch.popularity,
+				score: sql<number>`${animeSearch.averageScore}`,
+				seriesId: series.id,
+				startDate: animeSearch.startDate,
+				status: animeSearch.status,
 			})
 			.from(animeSearch)
 			.leftJoin(series, eq(series.anilistId, animeSearch.anilistId))
@@ -202,8 +202,8 @@ async function pickTitles(
 	].slice(0, featuredCount + spareCandidates);
 	const cards = await cardsOf(ordered);
 	return {
-		picked: arrange(ordered, (id) => isShowable(cards.get(id))),
 		cards,
+		picked: arrange(ordered, (id) => isShowable(cards.get(id))),
 	};
 }
 

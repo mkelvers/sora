@@ -1,21 +1,17 @@
 import { eq } from "drizzle-orm";
 
 import type { MediaRelation } from "../anilist/graphql.generated";
-import { toAnimeCard, type AnimeCard, type AnimeStatus } from "../catalog/models/anime";
+import { toAnimeCard } from "../catalog/models/anime";
+import type { AnimeCard, AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate, placeholder, synopsis } from "../catalog/models/text";
 import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { db } from "../database/client";
 import { series } from "../database/schema";
 import { AnimeNotFoundError } from "../errors";
-import {
-	getLogoPath,
-	getMovie,
-	getShow,
-	tmdbImageUrl,
-	type TmdbMovie,
-	type TmdbShow,
-} from "../tmdb/resources";
-import { franchiseRelations, loadEntries, type FranchiseEntry } from "./entries";
+import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
+import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
+import { franchiseRelations, loadEntries } from "./entries";
+import type { FranchiseEntry } from "./entries";
 import { getAniKotoEpisodeCount } from "./episodes";
 import { mappedEpisodes, resolveMapping } from "./mapping";
 import type { EpisodeLink } from "./matching";
@@ -144,19 +140,20 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 
 	return {
 		anilistId,
-		key,
-		kind: kind === "anilist" ? "standalone" : kind,
-		title: card.title.display,
-		overview: overviewOf(links, show, film) ?? (await anilistOverview(entry, links, show)),
-		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
 		backdropUrl:
 			tmdbImageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ??
 			card.bannerUrl,
-		logoUrl: kind === "anilist" ? null : tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500"),
-		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
-		status: card.status,
 		episodes,
-		useAniListAirings: mapping.method !== "compilation",
+		key,
+		kind: kind === "anilist" ? "standalone" : kind,
+		logoUrl: kind === "anilist" ? null : tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500"),
+		mayGainEpisodes: mayGainEpisodes(entry, new Date()),
+		nextAiring: card.nextEpisode && {
+			episode: card.nextEpisode.number,
+			airingAt: card.nextEpisode.airingAt,
+		},
+		overview: overviewOf(links, show, film) ?? (await anilistOverview(entry, links, show)),
+		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
 		related: (entry.relations?.edges ?? []).flatMap((edge) =>
 			edge?.node?.type === "ANIME" && edge.relationType && franchiseRelations.has(edge.relationType)
 				? [
@@ -167,11 +164,10 @@ export async function buildSeries(anilistId: number): Promise<SeriesLayout> {
 					]
 				: [],
 		),
-		nextAiring: card.nextEpisode && {
-			episode: card.nextEpisode.number,
-			airingAt: card.nextEpisode.airingAt,
-		},
-		mayGainEpisodes: mayGainEpisodes(entry, new Date()),
+		startDate: entry.startDate ? fuzzyDate(entry.startDate) : null,
+		status: card.status,
+		title: card.title.display,
+		useAniListAirings: mapping.method !== "compilation",
 	};
 }
 
@@ -316,12 +312,12 @@ export function layoutEpisodes(
 				: null;
 			const film = number === 1 && count === 1 ? movie : null;
 			return {
-				number,
-				title: tmdb?.name ?? film?.title ?? null,
-				overview: tmdb?.overview ?? film?.overview ?? null,
 				airDate: tmdb?.air_date ?? film?.release_date ?? null,
+				number,
+				overview: tmdb?.overview ?? film?.overview ?? null,
 				runtimeMinutes: tmdb?.runtime ?? film?.runtime ?? card.durationMinutes,
 				stillUrl: tmdbImageUrl(tmdb?.still_path ?? film?.backdrop_path ?? null, "original"),
+				title: tmdb?.name ?? film?.title ?? null,
 				tmdb: tmdb && {
 					seasonNumber: tmdb.season_number,
 					episodeNumber: tmdb.episode_number,

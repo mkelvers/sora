@@ -19,10 +19,10 @@ import { buildSeries } from "./series";
  * Stores run from requests and scheduler jobs at once, and two of one entry
  * must not replace its episodes at the same time.
  */
-const storeLockKey = 0x5e71e5;
+const storeLockKey = 0x5e_71_e5;
 
 /** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
-const episodeInsertBatch = 1_000;
+const episodeInsertBatch = 1000;
 
 /** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
 export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
@@ -32,8 +32,8 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
 
 	const rows = await db
 		.select({
-			id: series.id,
 			anilistId: series.anilistId,
+			id: series.id,
 		})
 		.from(series)
 		.where(inArray(series.anilistId, [...new Set(anilistIds)]));
@@ -73,41 +73,41 @@ export async function storeSeries(anilistId: number): Promise<string> {
 		await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey}, ${anilistId})`);
 
 		const values = {
+			backdropUrl: built.backdropUrl,
 			key: built.key,
 			kind: built.kind,
-			title: built.title,
+			laidOutAt: new Date(),
+			logoUrl: built.logoUrl,
+			nextEpisodeAiringAt: built.nextAiring ? new Date(built.nextAiring.airingAt) : null,
+			nextEpisodeNumber: built.nextAiring?.episode ?? null,
 			overview: built.overview,
 			posterUrl: built.posterUrl,
-			backdropUrl: built.backdropUrl,
-			logoUrl: built.logoUrl,
 			startDate: built.startDate,
 			status: built.status,
-			nextEpisodeNumber: built.nextAiring?.episode ?? null,
-			nextEpisodeAiringAt: built.nextAiring ? new Date(built.nextAiring.airingAt) : null,
-			laidOutAt: new Date(),
+			title: built.title,
 		};
 		const [stored] = await tx
 			.insert(series)
 			.values({
-				id: newId(),
 				anilistId,
+				id: newId(),
 				...values,
 			})
 			.onConflictDoUpdate({
-				target: series.anilistId,
 				set: values,
+				target: series.anilistId,
 			})
 			.returning({
 				id: series.id,
 			});
-		const id = stored!.id;
+		const { id } = stored!;
 
 		const airedBefore = new Map(
 			(
 				await tx
 					.select({
-						number: seriesEpisode.number,
 						airedAt: seriesEpisode.airedAt,
+						number: seriesEpisode.number,
 					})
 					.from(seriesEpisode)
 					.where(eq(seriesEpisode.seriesId, id))
@@ -115,20 +115,20 @@ export async function storeSeries(anilistId: number): Promise<string> {
 		);
 		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
 		const episodes = built.episodes.map((episode) => ({
-			seriesId: id,
-			number: episode.number,
-			title: episode.title,
-			overview: episode.overview,
 			airDate: episode.airDate,
 			airedAt: built.useAniListAirings
 				? (airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
 					airedBefore.get(episode.number) ??
 					null)
 				: null,
+			number: episode.number,
+			overview: episode.overview,
 			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
+			seriesId: id,
 			stillUrl: episode.stillUrl,
-			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
+			title: episode.title,
 			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
+			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
 		}));
 		for (let offset = 0; offset < episodes.length; offset += episodeInsertBatch) {
 			await tx.insert(seriesEpisode).values(episodes.slice(offset, offset + episodeInsertBatch));

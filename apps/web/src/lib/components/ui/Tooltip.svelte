@@ -13,13 +13,13 @@
 	} = $props();
 
 	const tooltip = new Tooltip({
-		openDelay: 0,
 		disableHoverableContent: true,
 		floatingConfig: () => ({
 			computePosition: {
 				placement,
 			},
 		}),
+		openDelay: 0,
 	});
 </script>
 

@@ -39,10 +39,10 @@ export interface Route {
 type Part<TKey extends string, TValue, TRequired extends boolean = false> = [TValue] extends [never]
 	? {}
 	: TRequired extends true
-		? { [TProperty in TKey]: TValue }
+		? Record<TKey, TValue>
 		: {} extends TValue
-			? { [TProperty in TKey]?: TValue }
-			: { [TProperty in TKey]: TValue };
+			? Partial<Record<TKey, TValue>>
+			: Record<TKey, TValue>;
 
 /**
  * What a route is called with: its path `params`, its `query`, and its JSON
@@ -208,7 +208,7 @@ export class SoraClient {
 			body?: unknown;
 		};
 		const url = new URL(
-			`${this.#options.baseUrl}/v1${route.path.replace(/\{(\w+)\}/g, (_, name: string) =>
+			`${this.#options.baseUrl}/v1${route.path.replaceAll(/\{(\w+)\}/g, (_, name: string) =>
 				encodeURIComponent(String(params?.[name])),
 			)}`,
 		);
@@ -223,7 +223,7 @@ export class SoraClient {
 		}
 
 		const response = await (this.#options.fetch ?? fetch)(url, {
-			method: route.method.toUpperCase(),
+			body: body === undefined ? undefined : JSON.stringify(body),
 			headers: {
 				...this.#options.headers,
 				...options?.headers,
@@ -231,7 +231,7 @@ export class SoraClient {
 					"Content-Type": "application/json",
 				}),
 			},
-			body: body === undefined ? undefined : JSON.stringify(body),
+			method: route.method.toUpperCase(),
 			signal: options?.signal,
 		});
 		if (!response.ok) {
@@ -251,9 +251,9 @@ export class SoraClient {
 					parsed ? `: ${parsed.error.message}` : ""
 				}`,
 				{
-					status: response.status,
 					code: "INVALID_RESPONSE",
 					retryAfterSeconds: null,
+					status: response.status,
 				},
 			);
 		}
@@ -275,12 +275,12 @@ export class SoraClient {
 		};
 
 		return {
-			token: signedIn.token,
 			account: {
 				id: signedIn.user.id,
 				name: signedIn.user.name,
 				username: signedIn.user.username,
 			},
+			token: signedIn.token,
 		};
 	}
 
@@ -326,7 +326,7 @@ export class SoraClient {
 		const response = await (this.#options.fetch ?? fetch)(
 			`${this.#options.baseUrl}/v1/auth/${path}`,
 			{
-				method: "POST",
+				body: JSON.stringify(body),
 				headers: {
 					// Better Auth checks the origin of requests that look like a browser's,
 					// as Node's fetch does; this client speaks for the API's own origin.
@@ -336,7 +336,7 @@ export class SoraClient {
 					...options?.headers,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(body),
+				method: "POST",
 				signal: options?.signal,
 			},
 		);

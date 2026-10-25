@@ -1,18 +1,19 @@
 import { describe, expect, test } from "bun:test";
 
 import { InvalidStreamTokenError } from "../../errors";
-import { signStreamTarget, verifyStreamToken, type StreamTarget } from "./token";
+import { signStreamTarget, verifyStreamToken } from "./token";
+import type { StreamTarget } from "./token";
 
 const secret = "test-secret-that-is-at-least-32-characters";
 const target: StreamTarget = {
-	url: "https://cdn.example.com/show/master.m3u8",
-	kind: "playlist",
+	accountId: "account",
+	expiresAt: 2_000_000_000,
 	headers: {
 		Referer: "https://example.com/",
 	},
+	kind: "playlist",
 	mirrors: ["https://mirror.example.com/show/master.m3u8"],
-	accountId: "account",
-	expiresAt: 2_000_000_000,
+	url: "https://cdn.example.com/show/master.m3u8",
 };
 
 describe("stream tokens", () => {
@@ -25,13 +26,13 @@ describe("stream tokens", () => {
 		const retimed: StreamTarget = {
 			...target,
 			kind: "subtitle",
+			refinement: "f00d",
 			shifts: [
 				{
 					from: 0,
 					offset: 2.5,
 				},
 			],
-			refinement: "f00d",
 		};
 
 		expect(verifyStreamToken(signStreamTarget(retimed, secret), secret, new Date(0))).toEqual(
@@ -76,12 +77,12 @@ describe("stream tokens", () => {
 	test("reject a payload someone made up", () => {
 		const forged = Buffer.from(
 			JSON.stringify({
-				u: "http://169.254.169.254/latest/meta-data",
-				k: "file",
-				h: {},
-				m: [],
 				a: "account",
 				e: 2_000_000_000,
+				h: {},
+				k: "file",
+				m: [],
+				u: "http://169.254.169.254/latest/meta-data",
 			}),
 		).toString("base64url");
 
@@ -97,7 +98,7 @@ describe("stream tokens", () => {
 
 	test("reject an expired token", () => {
 		const token = signStreamTarget(target, secret);
-		expect(() => verifyStreamToken(token, secret, new Date(target.expiresAt * 1_000))).toThrow(
+		expect(() => verifyStreamToken(token, secret, new Date(target.expiresAt * 1000))).toThrow(
 			"expired",
 		);
 	});

@@ -1,4 +1,5 @@
-import { run, type Task, type TaskList } from "graphile-worker";
+import { run } from "graphile-worker";
+import type { Task, TaskList } from "graphile-worker";
 
 import { aniListPriority } from "../anilist/client";
 import { config } from "../config";
@@ -157,9 +158,9 @@ export async function startScheduler(): Promise<Scheduler> {
 	// own priority, where they waited behind every layout queued and held up
 	// the pool while costing AniList next to nothing.
 	const lookups = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
 		concurrency: 12,
+		connectionString: config.databaseUrl,
+		events: pools.events,
 		maxPoolSize: 12,
 		taskList: {
 			[lookUpEpisodesTask]: (payload, helpers) =>
@@ -175,28 +176,28 @@ export async function startScheduler(): Promise<Scheduler> {
 	// at the same time share one AniKoto request, and the lists they fetch
 	// rarely wait on AniList.
 	const releases = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
 		concurrency: 4,
+		connectionString: config.databaseUrl,
+		crontab: [
+			`*/30 * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
+			`0 0 * * * ${syncDubScheduleTask} ?id=dub-schedule&fill=1d&priority=-1`,
+		].join("\n"),
+		events: pools.events,
 		maxPoolSize: 4,
 		taskList: prioritized({
 			[watchAniKotoReleasesTask]: watchAniKotoReleases,
 			[pollAniKotoTask]: pollAniKoto,
 			[syncDubScheduleTask]: syncDubSchedule,
 		}),
-		crontab: [
-			`*/30 * * * * ${watchAniKotoReleasesTask} ?priority=-1`,
-			`0 0 * * * ${syncDubScheduleTask} ?id=dub-schedule&fill=1d&priority=-1`,
-		].join("\n"),
 	});
 
 	// Listening to a dub downloads and transcribes a whole episode, which takes
 	// minutes of one processor, so one runs at a time and nothing else shares
 	// its worker.
 	const listening = await run({
-		events: pools.events,
-		connectionString: config.databaseUrl,
 		concurrency: 1,
+		connectionString: config.databaseUrl,
+		events: pools.events,
 		maxPoolSize: 2,
 		taskList: {
 			[refineSubtitlesTask]: refineSubtitles,
@@ -210,7 +211,7 @@ export async function startScheduler(): Promise<Scheduler> {
 			lookups.promise,
 			releases.promise,
 			listening.promise,
-		]).then(() => undefined),
+		]).then(() => {}),
 		stop: async () => {
 			await Promise.all([
 				main.stop(),

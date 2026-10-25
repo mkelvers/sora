@@ -36,8 +36,8 @@ async function respond(_input: string, init: RequestInit) {
 const { anilist } = createAniListClient({
 	fetch: respond,
 	store: {
-		find: async () => undefined,
-		save: async () => undefined,
+		find: async () => {},
+		save: async () => {},
 	},
 });
 
@@ -76,5 +76,5 @@ test("spaces background requests to the limit AniList reports, not the normal on
 	await aniListPriority.run(background, () => fetchMedia(5));
 
 	// Each response says 30 a minute: 2.1 s apart, where the normal 90 would allow 767 ms.
-	expect((sentAt[1] ?? 0) - (sentAt[0] ?? 0)).toBeGreaterThanOrEqual(2_000);
+	expect((sentAt[1] ?? 0) - (sentAt[0] ?? 0)).toBeGreaterThanOrEqual(2000);
 }, 15_000);

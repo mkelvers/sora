@@ -15,13 +15,13 @@ import { fetchUpstreamBytes, StreamUpstreamError } from "./upstream";
 const segmentsAhead = 32;
 
 /** Segments kept in memory, oldest dropped first. */
-const cacheBudgetBytes = 256 * 1_024 * 1_024;
+const cacheBudgetBytes = 256 * 1024 * 1024;
 
 /**
  * What a segment still being fetched ahead counts for against the budget, since
  * its size is not known until it arrives.
  */
-const expectedSegmentBytes = 8 * 1_024 * 1_024;
+const expectedSegmentBytes = 8 * 1024 * 1024;
 
 /** Playlists whose segment order is remembered, oldest dropped first. */
 const rememberedSegments = 20_000;
@@ -51,8 +51,8 @@ export function rememberSegmentOrder(targets: StreamTarget[]) {
 	targets.forEach((target, index) => {
 		positions.delete(target.url);
 		positions.set(target.url, {
-			targets,
 			index,
+			targets,
 		});
 	});
 

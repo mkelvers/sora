@@ -9,18 +9,18 @@ function clientAnswering(answer: () => Response, options: { baseUrl?: string } =
 	const requests: Request[] = [];
 	const sora = new SoraClient({
 		baseUrl: options.baseUrl ?? "https://sora.test",
-		headers: {
-			Authorization: "Bearer token",
-		},
 		fetch: async (input, init) => {
 			requests.push(new Request(input as string, init));
 			return answer();
 		},
+		headers: {
+			Authorization: "Bearer token",
+		},
 	});
 
 	return {
-		sora,
 		requests,
+		sora,
 	};
 }
 
@@ -92,12 +92,12 @@ describe("SoraClient.request", () => {
 		});
 
 		const result = await sora.request(route.setWatchlistStatus, {
+			body: {
+				status: "watching",
+			},
 			params: {
 				profile_id: "P1",
 				series_id: "S1",
-			},
-			body: {
-				status: "watching",
 			},
 		});
 
@@ -116,11 +116,11 @@ describe("SoraClient.request", () => {
 		const { sora } = clientAnswering(() =>
 			Response.json(
 				{
-					type: "about:blank",
-					title: "Not Found",
-					status: 404,
 					code: "SERIES_NOT_FOUND",
 					detail: "Series S1 does not exist",
+					status: 404,
+					title: "Not Found",
+					type: "about:blank",
 				},
 				{
 					status: 404,
@@ -179,7 +179,7 @@ describe("SoraClient.request", () => {
 			),
 		);
 		const { error } = await attempt(
-			sora.signIn({ username: "viewer", password: "wrong-password" }),
+			sora.signIn({ password: "wrong-password", username: "viewer" }),
 			SoraError,
 		);
 
@@ -204,13 +204,13 @@ describe("SoraClient.request", () => {
 	});
 
 	test("keeps validation errors and the retry delay from a problem response", async () => {
-		const errors = [{ path: "email", message: "Invalid email" }];
+		const errors = [{ message: "Invalid email", path: "email" }];
 		const { sora } = clientAnswering(() =>
 			Response.json(
 				{ code: "INVALID_INPUT", detail: "Check the fields", errors },
 				{
-					status: 429,
 					headers: { "Retry-After": "30" },
+					status: 429,
 				},
 			),
 		);
@@ -262,8 +262,8 @@ async function typesAreChecked() {
 	const hasNext: boolean = page.meta.has_next_page;
 	const nothing: void = await sora.request(route.dismissNotification, {
 		params: {
-			profile_id: "P1",
 			notification_id: "S1:2",
+			profile_id: "P1",
 		},
 	});
 

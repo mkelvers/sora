@@ -1,4 +1,5 @@
-import { sql, type SQLWrapper } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
 
 import { anime, series } from "../database/schema";
 

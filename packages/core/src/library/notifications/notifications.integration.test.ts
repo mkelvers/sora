@@ -36,25 +36,25 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 			anilistIds = ids.map((_, index) => base - index);
 			await db.insert(series).values(
 				ids.map((id, index) => ({
-					id,
 					anilistId: anilistIds[index]!,
+					id,
 					key: `anilist:${anilistIds[index]}`,
 					kind: "standalone" as const,
-					title: `Notification test ${index}`,
 					laidOutAt: now,
+					title: `Notification test ${index}`,
 				})),
 			);
 			await db.insert(seriesRelated).values([
-				{ seriesId: first, anilistId: anilistIds[1]!, relation: "SEQUEL", position: 0 },
-				{ seriesId: third, anilistId: anilistIds[1]!, relation: "PREQUEL", position: 0 },
-				{ seriesId: first, anilistId: anilistIds[3]!, relation: "SIDE_STORY", position: 1 },
+				{ anilistId: anilistIds[1]!, position: 0, relation: "SEQUEL", seriesId: first },
+				{ anilistId: anilistIds[1]!, position: 0, relation: "PREQUEL", seriesId: third },
+				{ anilistId: anilistIds[3]!, position: 1, relation: "SIDE_STORY", seriesId: first },
 			]);
 			await db.insert(seriesEpisode).values([
-				{ seriesId: first, number: 1, airedAt: new Date(now.getTime() - 40 * day) },
-				{ seriesId: second, number: 1, airedAt: new Date(now.getTime() - 5 * day) },
-				{ seriesId: second, number: 2, airedAt: releasedAt },
-				{ seriesId: third, number: 2, airedAt: releasedAt },
-				{ seriesId: spinOff, number: 1, airedAt: releasedAt },
+				{ airedAt: new Date(now.getTime() - 40 * day), number: 1, seriesId: first },
+				{ airedAt: new Date(now.getTime() - 5 * day), number: 1, seriesId: second },
+				{ airedAt: releasedAt, number: 2, seriesId: second },
+				{ airedAt: releasedAt, number: 2, seriesId: third },
+				{ airedAt: releasedAt, number: 1, seriesId: spinOff },
 			]);
 			await db.insert(episodeDub).values({
 				anilistId: anilistIds[1]!,
@@ -84,12 +84,12 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("one watched episode follows later episodes and dubs without a watchlist entry", async () => {
 			await db.insert(episodeProgress).values({
-				userId: profile,
-				seriesId: first,
-				episode: 1,
-				positionSeconds: 1440,
 				durationSeconds: 1440,
+				episode: 1,
 				finished: true,
+				positionSeconds: 1440,
+				seriesId: first,
+				userId: profile,
 				watchedAt: followedAt,
 			});
 			const result = await getNotifications(profile, {}, now);
@@ -103,11 +103,11 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("a completed first season follows all releases in unsaved later seasons", async () => {
 			await db.insert(seriesState).values({
-				userId: profile,
+				addedAt: followedAt,
 				seriesId: first,
 				status: "completed",
-				addedAt: followedAt,
 				statusChangedAt: followedAt,
+				userId: profile,
 			});
 			const result = await getNotifications(profile, {}, now);
 			expect(result.items.some((item) => item.id === `${second}:2`)).toBe(true);
@@ -117,11 +117,11 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("a recent dub of an old episode still uses the full episode inventory", async () => {
 			await db.insert(seriesState).values({
-				userId: profile,
+				addedAt: followedAt,
 				seriesId: first,
 				status: "completed",
-				addedAt: followedAt,
 				statusChangedAt: followedAt,
+				userId: profile,
 			});
 			await db.insert(episodeDub).values({
 				anilistId: anilistIds[0]!,
@@ -140,20 +140,20 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("partial playback follows the show even after a later watchlist addition", async () => {
 			await db.insert(episodeProgress).values({
-				userId: profile,
-				seriesId: first,
-				episode: 1,
-				positionSeconds: 120,
 				durationSeconds: 1440,
+				episode: 1,
 				finished: false,
+				positionSeconds: 120,
+				seriesId: first,
+				userId: profile,
 				watchedAt: followedAt,
 			});
 			await db.insert(seriesState).values({
-				userId: profile,
+				addedAt: now,
 				seriesId: first,
 				status: "watching",
-				addedAt: now,
 				statusChangedAt: now,
+				userId: profile,
 			});
 			expect(
 				(await getNotifications(profile, {}, now)).items.some((item) => item.id === `${second}:2`),
@@ -163,18 +163,18 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 		test("a later watchlist addition keeps the earlier follow cutoff for its season", async () => {
 			await db.insert(seriesState).values([
 				{
-					userId: profile,
+					addedAt: followedAt,
 					seriesId: first,
 					status: "watching",
-					addedAt: followedAt,
 					statusChangedAt: followedAt,
+					userId: profile,
 				},
 				{
-					userId: profile,
+					addedAt: now,
 					seriesId: second,
 					status: "plan_to_watch",
-					addedAt: now,
 					statusChangedAt: now,
+					userId: profile,
 				},
 			]);
 			expect(
@@ -184,20 +184,20 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("dropping a watched entry prevents it from starting a follow", async () => {
 			await db.insert(episodeProgress).values({
-				userId: profile,
-				seriesId: first,
-				episode: 1,
-				positionSeconds: 1440,
 				durationSeconds: 1440,
+				episode: 1,
 				finished: true,
+				positionSeconds: 1440,
+				seriesId: first,
+				userId: profile,
 				watchedAt: followedAt,
 			});
 			await db.insert(seriesState).values({
-				userId: profile,
+				addedAt: followedAt,
 				seriesId: first,
 				status: "dropped",
-				addedAt: followedAt,
 				statusChangedAt: now,
+				userId: profile,
 			});
 			expect(await getNotifications(profile, {}, now)).toEqual({ items: [], unread: 0 });
 		});
@@ -205,18 +205,18 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 		test("a dropped sequel is excluded while other connected seasons remain followed", async () => {
 			await db.insert(seriesState).values([
 				{
-					userId: profile,
+					addedAt: followedAt,
 					seriesId: first,
 					status: "completed",
-					addedAt: followedAt,
 					statusChangedAt: followedAt,
+					userId: profile,
 				},
 				{
-					userId: profile,
+					addedAt: followedAt,
 					seriesId: second,
 					status: "dropped",
-					addedAt: followedAt,
 					statusChangedAt: now,
+					userId: profile,
 				},
 			]);
 			const result = await getNotifications(profile, {}, now);
@@ -225,12 +225,12 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 
 		test("watching after the releases does not notify about older episodes or dubs", async () => {
 			await db.insert(episodeProgress).values({
-				userId: profile,
-				seriesId: first,
-				episode: 1,
-				positionSeconds: 120,
 				durationSeconds: 1440,
+				episode: 1,
 				finished: false,
+				positionSeconds: 120,
+				seriesId: first,
+				userId: profile,
 				watchedAt: now,
 			});
 			expect(await getNotifications(profile, {}, now)).toEqual({ items: [], unread: 0 });

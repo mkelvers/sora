@@ -39,8 +39,8 @@
 	let days = $state(false);
 
 	const tabs = new Tabs<string>({
-		value: () => selected,
 		onValueChange: (next) => (selected = next),
+		value: () => selected,
 	});
 </script>
 

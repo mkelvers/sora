@@ -12,7 +12,9 @@ export function mobileBackdrop(image: HTMLImageElement) {
 	let disposed = false;
 
 	async function frame() {
-		if (!mobile.matches || !image.naturalWidth || !image.clientHeight) return;
+		if (!mobile.matches || !image.naturalWidth || !image.clientHeight) {
+			return;
+		}
 
 		const source = image.src;
 		if (analyzedSource !== source) {
@@ -22,7 +24,9 @@ export function mobileBackdrop(image: HTMLImageElement) {
 			canvas.width = 80;
 			canvas.height = 45;
 			const context = canvas.getContext("2d", { willReadFrequently: true });
-			if (!context) return;
+			if (!context) {
+				return;
+			}
 
 			try {
 				// Analyze a small CORS-enabled thumbnail without changing display-image requests.
@@ -30,7 +34,9 @@ export function mobileBackdrop(image: HTMLImageElement) {
 				thumbnail.crossOrigin = "anonymous";
 				thumbnail.src = source.replace("/original/", "/w300/");
 				await thumbnail.decode();
-				if (disposed || image.src !== source) return;
+				if (disposed || image.src !== source) {
+					return;
+				}
 				context.drawImage(thumbnail, 0, 0, canvas.width, canvas.height);
 				const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
 				let contrast = 0;
@@ -47,12 +53,16 @@ export function mobileBackdrop(image: HTMLImageElement) {
 						}
 					}
 				}
-				if (contrast > 0) focus = weighted / contrast / canvas.width;
+				if (contrast > 0) {
+					focus = weighted / contrast / canvas.width;
+				}
 			} catch {
 				// Unavailable thumbnails or CORS pixel access retain the centered crop.
 			}
 		}
-		if (disposed || !mobile.matches) return;
+		if (disposed || !mobile.matches) {
+			return;
+		}
 
 		const scale = Math.max(
 			image.clientWidth / image.naturalWidth,

@@ -16,20 +16,15 @@
 
 ## What is Sora Web?
 
-Sora is an anime streaming and tracking platform. This is its web app: browse,
-search, and watch anime in the browser.
+Sora is an anime streaming and tracking platform. This is its web app: browse, search, and watch anime in the browser.
 
-It talks to the [Sora API](../api) through the
-typed `@sora/sdk`, so a change to the API that breaks the app fails
-type-checking before it ships.
+It talks to the [Sora API](../api) through the typed `@sora/sdk`, so a change to the API that breaks the app fails type-checking before it ships.
 
 ## Getting started
 
-The web app lives in the Sora monorepo as `apps/web` and takes the SDK from its
-Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
+The web app lives in the Sora monorepo as `apps/web` and takes the SDK from its Bun workspace. It needs a running [Sora API](../../README.md#getting-started).
 
-Copy `.env.example` to `.env` in this directory. The local API URL is already filled in;
-copy `WEB_CLIENT_KEY` from `packages/core/.env` so playback requests use the same key.
+Copy `.env.example` to `.env` in this directory. The local API URL is already filled in; copy `WEB_CLIENT_KEY` from `packages/core/.env` so playback requests use the same key.
 
 `bun run dev` from the repository root starts it together with the API.
 

@@ -2,12 +2,12 @@ import { z } from "zod";
 
 export const ProfileAvatarSchema = z
 	.object({
-		style: z.enum(["sprouts", "critters"]).meta({
-			description: "The animated DiceBear style the avatar is drawn in.",
-		}),
 		seed: z.string().trim().min(1).max(64).meta({
 			description: "The DiceBear seed: the same style and seed always draw the same avatar.",
 			example: "7HTQ2LMXB",
+		}),
+		style: z.enum(["sprouts", "critters"]).meta({
+			description: "The animated DiceBear style the avatar is drawn in.",
 		}),
 	})
 	.meta({
@@ -16,18 +16,18 @@ export const ProfileAvatarSchema = z
 
 export const ProfileSchema = z
 	.object({
+		avatar: ProfileAvatarSchema,
+		color: z.string().meta({
+			description: "A CSS color for the profile's tile.",
+			example: "#4f7cff",
+		}),
+		created_at: z.string(),
 		id: z.string().meta({
 			example: "7HTQ2LMXB",
 		}),
 		name: z.string().meta({
 			example: "Maja",
 		}),
-		color: z.string().meta({
-			description: "A CSS color for the profile's tile.",
-			example: "#4f7cff",
-		}),
-		avatar: ProfileAvatarSchema,
-		created_at: z.string(),
 	})
 	.meta({
 		id: "Profile",
@@ -35,7 +35,9 @@ export const ProfileSchema = z
 
 export const ProfileInputSchema = z
 	.object({
-		name: z.string().trim().min(1).max(40),
+		avatar: ProfileAvatarSchema.optional().meta({
+			description: "A sprout seeded with the profile's ID when omitted.",
+		}),
 		color: z
 			.string()
 			.regex(/^#[0-9a-f]{6}$/i)
@@ -43,15 +45,13 @@ export const ProfileInputSchema = z
 			.meta({
 				description: "A hex color such as `#4f7cff`; picked from a palette when omitted.",
 			}),
-		avatar: ProfileAvatarSchema.optional().meta({
-			description: "A sprout seeded with the profile's ID when omitted.",
-		}),
+		name: z.string().trim().min(1).max(40),
 	})
 	.meta({
-		id: "ProfileInput",
 		example: {
 			name: "Maja",
 		},
+		id: "ProfileInput",
 	});
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;

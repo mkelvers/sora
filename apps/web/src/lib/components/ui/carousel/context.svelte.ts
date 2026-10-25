@@ -56,7 +56,7 @@ export class CarouselState {
 	}
 
 	autoplay(delay: number) {
-		const api = this.api;
+		const { api } = this;
 		if (!api || prefersReducedMotion.current) {
 			return;
 		}

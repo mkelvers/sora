@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
-import { animeScheduleRelease, animeScheduleShow, type AirType } from "../database/schema";
+import { animeScheduleRelease, animeScheduleShow } from "../database/schema";
+import type { AirType } from "../database/schema";
 
 const api = "https://animeschedule.net/api/v3";
 
@@ -16,32 +17,32 @@ const headers = {
 
 /** One release in AnimeSchedule's timetable, as far as it is read. */
 const TimetableEntrySchema = z.object({
-	route: z.string().min(1),
 	airType: z.enum(["raw", "sub", "dub"]),
-	episodeNumber: z.number().int().positive(),
-	/** How many episodes before `episodeNumber` come out with it, as in a double-episode premiere. */
-	subtractedEpisodeNumber: z.number().int().nonnegative().optional(),
-	episodeDate: z.iso.datetime({
-		offset: true,
-	}),
 	airingStatus: z.string(),
-	/** Whether the show is a Chinese animation, which AnimeSchedule files apart from anime. */
-	donghua: z.boolean().optional(),
-	/** The length of an episode in minutes; absent or 0 when not known. */
-	lengthMin: z.number().int().nonnegative().nullish(),
-	/** Set, as `Delayed` or `Break`, while the episode is held back; see {@link isHeldBack}. */
-	delayedText: z.string().optional(),
 	/** When the hold starts and ends; `0001-01-01T00:00:00Z` when not known. */
 	delayedFrom: z.iso
 		.datetime({
 			offset: true,
 		})
 		.optional(),
+	/** Set, as `Delayed` or `Break`, while the episode is held back; see {@link isHeldBack}. */
+	delayedText: z.string().optional(),
 	delayedUntil: z.iso
 		.datetime({
 			offset: true,
 		})
 		.optional(),
+	/** Whether the show is a Chinese animation, which AnimeSchedule files apart from anime. */
+	donghua: z.boolean().optional(),
+	episodeDate: z.iso.datetime({
+		offset: true,
+	}),
+	episodeNumber: z.number().int().positive(),
+	/** The length of an episode in minutes; absent or 0 when not known. */
+	lengthMin: z.number().int().nonnegative().nullish(),
+	route: z.string().min(1),
+	/** How many episodes before `episodeNumber` come out with it, as in a double-episode premiere. */
+	subtractedEpisodeNumber: z.number().int().nonnegative().optional(),
 });
 
 /** A date AnimeSchedule sends for one it does not know. */
@@ -138,12 +139,12 @@ export async function fetchTimetable(
 					length: last - first + 1,
 				},
 				(_, index) => ({
-					route: entry.data.route,
 					airType: entry.data.airType,
-					episode: first + index,
 					airsAt: new Date(entry.data.episodeDate),
 					donghua: entry.data.donghua ?? false,
+					episode: first + index,
 					lengthMinutes: entry.data.lengthMin || null,
+					route: entry.data.route,
 				}),
 			);
 		});
@@ -199,16 +200,16 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
 					.insert(animeScheduleRelease)
 					.values(releases)
 					.onConflictDoUpdate({
-						target: [
-							animeScheduleRelease.route,
-							animeScheduleRelease.airType,
-							animeScheduleRelease.episode,
-						],
 						set: {
 							airsAt: sql`excluded.airs_at`,
 							donghua: sql`excluded.donghua`,
 							lengthMinutes: sql`excluded.length_minutes`,
 						},
+						target: [
+							animeScheduleRelease.route,
+							animeScheduleRelease.airType,
+							animeScheduleRelease.episode,
+						],
 					});
 			}
 		});
@@ -288,8 +289,8 @@ async function resolveAnimeScheduleShows(
 				...values,
 			})
 			.onConflictDoUpdate({
-				target: animeScheduleShow.route,
 				set: values,
+				target: animeScheduleShow.route,
 			});
 		resolved.set(route, anilistId);
 	}
@@ -303,7 +304,7 @@ export function isoWeek(date: Date) {
 	thursday.setUTCDate(thursday.getUTCDate() + 3 - ((thursday.getUTCDay() + 6) % 7));
 	const year = thursday.getUTCFullYear();
 	return {
-		year,
 		week: Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / (7 * day)) + 1,
+		year,
 	};
 }

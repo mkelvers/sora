@@ -243,17 +243,17 @@ export function placeInShow(source: MatchSubject, candidate: ShowCandidate): Pla
 					: null;
 				const firstAnilistEpisode = leading ? 2 : 1;
 				best = {
-					mediaType: "tv",
-					tmdbId: candidate.show.id,
 					episodes: [
 						...(leading?.special ? linkRun([leading.special]) : []),
 						...linkRun(picked, firstAnilistEpisode),
 					],
+					mediaType: "tv",
 					method:
 						startOffset !== null && Math.abs(startOffset) <= startWindowDays
 							? "air-date"
 							: "continuation",
 					score,
+					tmdbId: candidate.show.id,
 				};
 			}
 		}
@@ -288,13 +288,16 @@ function placeCompiledShorts(subject: MatchSubject, candidate: ShowCandidate): P
 			candidate.show.name,
 			candidate.show.originalName,
 		]) < 0.95
-	)
+	) {
 		return null;
+	}
 
 	const placements: Placement[] = [];
 	const seasons = new Set(candidate.show.episodes.map((episode) => episode.season_number));
 	for (const season of seasons) {
-		if (season <= 0) continue;
+		if (season <= 0) {
+			continue;
+		}
 		const run = regularTrack(candidate.show.episodes).filter(
 			(episode) => episode.season_number === season,
 		);
@@ -312,16 +315,19 @@ function placeCompiledShorts(subject: MatchSubject, candidate: ShowCandidate): P
 			startOffset > startWindowDays ||
 			endOffset === null ||
 			endOffset > startWindowDays
-		)
+		) {
 			continue;
+		}
 		const minutes = run.reduce((total, episode) => total + (episode.runtime ?? 0), 0);
-		if (!runtimesAgree(minutes, subject.episodes * subject.durationMinutes, 1.2)) continue;
+		if (!runtimesAgree(minutes, subject.episodes * subject.durationMinutes, 1.2)) {
+			continue;
+		}
 		placements.push({
-			mediaType: "tv",
-			tmdbId: candidate.show.id,
 			episodes: linkRun(run),
+			mediaType: "tv",
 			method: "compilation",
 			score: 180,
+			tmdbId: candidate.show.id,
 		});
 	}
 	return placements.length === 1 ? (placements[0] ?? null) : null;
@@ -338,7 +344,9 @@ export function placeInEpisodeGroups(
 	arrangements: readonly (readonly TmdbEpisodeGroup[])[],
 ): Placement | null {
 	const subject = { ...source, episodes: source.playbackEpisodes ?? source.episodes };
-	if (!subject.episodes) return null;
+	if (!subject.episodes) {
+		return null;
+	}
 	const placements = new Map<string, Placement>();
 	for (const groups of arrangements) {
 		for (const [index, group] of groups.entries()) {
@@ -347,14 +355,19 @@ export function placeInEpisodeGroups(
 				[group.name],
 				{ sameNumbers: true },
 			);
-			if (similarity < 0.95) continue;
+			if (similarity < 0.95) {
+				continue;
+			}
 			const episodes = [...group.episodes];
 			let part = /^(.*) part (\d+)$/.exec(normalizeTitle(group.name));
 			for (const next of groups.slice(index + 1)) {
-				if (episodes.length >= subject.episodes || !part) break;
-				const nextPart = /^(.*) part (\d+)$/.exec(normalizeTitle(next.name));
-				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1)
+				if (episodes.length >= subject.episodes || !part) {
 					break;
+				}
+				const nextPart = /^(.*) part (\d+)$/.exec(normalizeTitle(next.name));
+				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
+					break;
+				}
 				episodes.push(...next.episodes);
 				part = nextPart;
 			}
@@ -365,8 +378,9 @@ export function placeInEpisodeGroups(
 				airedBefore(first, subject.airsFrom) ||
 				!datesAgree(subject.startDate, first.air_date, 365) ||
 				!runtimesAgree(medianRuntime(episodes), subject.durationMinutes, regularRuntimeTolerance)
-			)
+			) {
 				continue;
+			}
 			// Groups can lag behind the main show or contain duplicated episodes.
 			const identities = new Set(episodes.map((episode) => episode.id));
 			if (
@@ -380,15 +394,16 @@ export function placeInEpisodeGroups(
 								canonical.episode_number === episode.episode_number,
 						),
 				)
-			)
+			) {
 				continue;
+			}
 			const links = linkRun(episodes);
 			placements.set(JSON.stringify(links), {
-				mediaType: "tv",
-				tmdbId: show.id,
 				episodes: links,
+				mediaType: "tv",
 				method: "episode-group",
 				score: 200 + 20 * similarity,
+				tmdbId: show.id,
 			});
 		}
 	}
@@ -442,11 +457,11 @@ function placeSpecialsByEnd(subject: MatchSubject, candidate: ShowCandidate): Pl
 	}
 
 	return {
-		mediaType: "tv",
-		tmdbId: candidate.show.id,
 		episodes: linkRun(run),
+		mediaType: "tv",
 		method: "air-date",
 		score: minimumShowScore,
+		tmdbId: candidate.show.id,
 	};
 }
 
@@ -496,11 +511,11 @@ function placeByTitle(
 	}
 
 	return {
-		mediaType: "tv",
-		tmdbId: candidate.show.id,
 		episodes: linkRun(track),
+		mediaType: "tv",
 		method: "title",
 		score: minimumShowScore,
+		tmdbId: candidate.show.id,
 	};
 }
 
@@ -561,11 +576,11 @@ function placeRunWithinBroadcast(
 	}
 
 	return {
-		mediaType: "tv",
-		tmdbId: candidate.show.id,
 		episodes: linkRun(run),
+		mediaType: "tv",
 		method: "air-date",
 		score: minimumShowScore,
+		tmdbId: candidate.show.id,
 	};
 }
 
@@ -619,11 +634,11 @@ function placeDelayedStreamingRun(
 	}
 
 	return {
-		mediaType: "tv",
-		tmdbId: candidate.show.id,
 		episodes: linkRun(picked),
+		mediaType: "tv",
 		method: "continuation",
 		score: minimumShowScore + 25,
+		tmdbId: candidate.show.id,
 	};
 }
 
@@ -666,11 +681,11 @@ function placeSpecialByTitle(subject: MatchSubject, candidate: ShowCandidate): P
 	}
 
 	return {
-		mediaType: "tv",
-		tmdbId: candidate.show.id,
 		episodes: linkRun(pick(track, index, subject, null, false)),
+		mediaType: "tv",
 		method: "title",
 		score: minimumShowScore,
+		tmdbId: candidate.show.id,
 	};
 }
 
@@ -708,9 +723,9 @@ export function placeAsMovie(
 	if (hinted) {
 		return {
 			mediaType: "movie",
-			tmdbId: movie.id,
 			method: "hint",
 			score: 200,
+			tmdbId: movie.id,
 		};
 	}
 
@@ -720,9 +735,9 @@ export function placeAsMovie(
 	if (offset !== null && offset <= 31 && similarity >= 0.35) {
 		return {
 			mediaType: "movie",
-			tmdbId: movie.id,
 			method: "release-date",
 			score: 100 - offset + 60 * similarity,
+			tmdbId: movie.id,
 		};
 	}
 
@@ -741,9 +756,9 @@ export function placeAsMovie(
 	) {
 		return {
 			mediaType: "movie",
-			tmdbId: movie.id,
 			method: "title",
 			score: 30 + 60 * primarySimilarity,
+			tmdbId: movie.id,
 		};
 	}
 
@@ -782,9 +797,9 @@ export function placeAfterInCollection(
 	return datesAgree(subject.startDate, next.release_date, titleOnlyReleaseWindowDays)
 		? {
 				mediaType: "movie",
-				tmdbId: next.id,
 				method: "continuation",
 				score: minimumShowScore,
+				tmdbId: next.id,
 			}
 		: null;
 }
@@ -1142,7 +1157,7 @@ function overflowSpecials(
 	subject: MatchSubject,
 	end: number | null,
 ) {
-	const missing = subject.episodes !== null ? subject.episodes - picked.length : 0;
+	const missing = subject.episodes === null ? 0 : subject.episodes - picked.length;
 	const lastAirDay = dayNumber(picked.at(-1)?.air_date ?? null);
 	if (missing <= 0 || end === null || lastAirDay === null) {
 		return [];
@@ -1176,8 +1191,8 @@ function leadingSpecial(episodes: readonly TmdbEpisode[], start: number | null) 
 function linkRun(episodes: readonly TmdbEpisode[], first = 1): EpisodeLink[] {
 	return episodes.map((episode, offset) => ({
 		anilistEpisode: first + offset,
-		seasonNumber: episode.season_number,
 		episodeNumber: episode.episode_number,
+		seasonNumber: episode.season_number,
 	}));
 }
 
@@ -1232,13 +1247,13 @@ function normalizeTitle(title: string) {
 	return title
 		.normalize("NFKC")
 		.toLowerCase()
-		.replace(/&/g, " and ")
-		.replace(/[\p{P}\p{S}]+/gu, " ")
-		.replace(/\s+/g, " ")
+		.replaceAll("&", " and ")
+		.replaceAll(/[\p{P}\p{S}]+/gu, " ")
+		.replaceAll(/\s+/g, " ")
 		.trim();
 }
 
-const romanValues: Record<string, number> = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+const romanValues: Record<string, number> = { c: 100, i: 1, l: 50, v: 5, x: 10 };
 
 /** Canonical numerals only, so "iiii" and "vx" stay words. */
 const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/;

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { summarizeHealth, type OperationRow } from "./health";
+import { summarizeHealth } from "./health";
+import type { OperationRow } from "./health";
 
 const now = new Date("2026-09-25T16:40:00Z");
 const hoursAgo = (hours: number) => new Date(Date.UTC(2026, 8, 25, 16 - hours));
@@ -8,16 +9,16 @@ const hoursAgo = (hours: number) => new Date(Date.UTC(2026, 8, 25, 16 - hours));
 /** A row for `provider`'s `operation` with no calls and nothing on record, overridden by `fields`. */
 function row(provider: string, operation: string, fields: Partial<OperationRow>): OperationRow {
 	return {
-		provider,
-		operation,
-		ok: 0,
+		durationMs: 0,
 		empty: 0,
 		failed: 0,
-		durationMs: 0,
-		lastOkHour: null,
-		recentCalls: 0,
 		lastError: null,
 		lastErrorAt: null,
+		lastOkHour: null,
+		ok: 0,
+		operation,
+		provider,
+		recentCalls: 0,
 		...fields,
 	};
 }
@@ -29,9 +30,9 @@ describe("summarizeHealth", () => {
 		expect(
 			statusOf([
 				row("anikoto", "resolve_stream", {
-					ok: 1,
 					failed: 4,
 					lastOkHour: hoursAgo(3),
+					ok: 1,
 					recentCalls: 5,
 				}),
 			]),
@@ -42,9 +43,9 @@ describe("summarizeHealth", () => {
 		expect(
 			statusOf([
 				row("anikoto", "resolve_stream", {
-					ok: 3,
 					failed: 9,
 					lastOkHour: hoursAgo(4),
+					ok: 3,
 					recentCalls: 5,
 				}),
 			]),
@@ -104,12 +105,12 @@ describe("summarizeHealth", () => {
 			["anikoto", "megaplay"],
 			[
 				row("removed", "resolve_stream", {
-					ok: 1,
 					lastOkHour: hoursAgo(0),
+					ok: 1,
 				}),
 				row("megaplay", "resolve_stream", {
-					ok: 1,
 					lastOkHour: hoursAgo(0),
+					ok: 1,
 				}),
 			],
 			now,
@@ -126,23 +127,23 @@ describe("summarizeHealth", () => {
 			["anikoto"],
 			[
 				row("anikoto", "list_episodes", {
-					lastOkHour: hoursAgo(2),
 					lastError: "older",
 					lastErrorAt: new Date("2026-09-25T15:10:00Z"),
+					lastOkHour: hoursAgo(2),
 				}),
 				row("anikoto", "resolve_stream", {
-					lastOkHour: hoursAgo(5),
 					lastError: "MegaPlay has no dub source for this episode",
 					lastErrorAt: new Date("2026-09-25T16:20:00Z"),
+					lastOkHour: hoursAgo(5),
 				}),
 			],
 			now,
 		);
 
 		expect(health).toMatchObject({
-			last_ok_at: "2026-09-25T14:00:00.000Z",
 			last_error: "MegaPlay has no dub source for this episode",
 			last_error_at: "2026-09-25T16:20:00.000Z",
+			last_ok_at: "2026-09-25T14:00:00.000Z",
 		});
 	});
 
@@ -151,11 +152,11 @@ describe("summarizeHealth", () => {
 			["anikoto"],
 			[
 				row("anikoto", "resolve_stream", {
-					ok: 3,
+					durationMs: 1_000,
 					empty: 0,
 					failed: 1,
-					durationMs: 1_000,
 					lastOkHour: hoursAgo(0),
+					ok: 3,
 				}),
 				// Called only before the last day: still counts toward the latest success.
 				row("anikoto", "find_media", {
@@ -167,11 +168,11 @@ describe("summarizeHealth", () => {
 
 		expect(health?.operations).toEqual([
 			{
-				operation: "resolve_stream",
-				ok: 3,
+				average_ms: 250,
 				empty: 0,
 				failed: 1,
-				average_ms: 250,
+				ok: 3,
+				operation: "resolve_stream",
 			},
 		]);
 	});

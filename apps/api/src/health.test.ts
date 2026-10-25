@@ -5,11 +5,9 @@ import type { ProviderHealth } from "@sora/core/playback";
 import { healthRoutes } from "./health";
 
 const anikoto: ProviderHealth = {
-	provider: "anikoto",
-	status: "failing",
-	last_ok_at: "2026-09-25T12:00:00.000Z",
 	last_error: "MegaPlay has no dub source for this episode",
 	last_error_at: "2026-09-25T16:20:00.000Z",
+	last_ok_at: "2026-09-25T12:00:00.000Z",
 	operations: [
 		{
 			operation: "resolve_stream",
@@ -19,6 +17,8 @@ const anikoto: ProviderHealth = {
 			average_ms: 250,
 		},
 	],
+	provider: "anikoto",
+	status: "failing",
 };
 
 const signedIn = async () => true;
@@ -26,11 +26,11 @@ const signedIn = async () => true;
 async function probe(routes: ReturnType<typeof healthRoutes>) {
 	const response = await routes.request("/");
 	return {
-		status: response.status,
 		body: (await response.json()) as {
 			status: string;
 			providers?: unknown[] | null;
 		},
+		status: response.status,
 	};
 }
 
@@ -40,7 +40,6 @@ describe("/health", () => {
 
 		expect(status).toBe(200);
 		expect(body).toEqual({
-			status: "ok",
 			providers: [
 				{
 					provider: "anikoto",
@@ -58,6 +57,7 @@ describe("/health", () => {
 					],
 				},
 			],
+			status: "ok",
 		});
 	});
 
@@ -69,10 +69,10 @@ describe("/health", () => {
 		});
 
 		expect(await probe(routes)).toEqual({
-			status: 200,
 			body: {
 				status: "ok",
 			},
+			status: 200,
 		});
 		expect(loads).toBe(0);
 	});
@@ -101,11 +101,11 @@ describe("/health", () => {
 		}, signedIn);
 
 		expect(await probe(routes)).toEqual({
-			status: 200,
 			body: {
-				status: "ok",
 				providers: null,
+				status: "ok",
 			},
+			status: 200,
 		});
 		const result = await probe(routes);
 

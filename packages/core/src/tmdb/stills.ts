@@ -199,8 +199,8 @@ export async function showsText(image: Buffer): Promise<boolean> {
 	if (loaded.error) {
 		classifier = null;
 		throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
-			retryAfterMs: null,
 			cause: loaded.error,
+			retryAfterMs: null,
 		});
 	}
 

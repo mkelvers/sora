@@ -19,6 +19,6 @@ export const jsonb = customType<{
 	driverData: unknown;
 }>({
 	dataType: () => "jsonb",
-	toDriver: (value) => value,
 	fromDriver: (value) => value,
+	toDriver: (value) => value,
 });

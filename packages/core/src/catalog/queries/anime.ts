@@ -2,16 +2,14 @@ import { day, hour } from "@sora/shared";
 import { eq, inArray } from "drizzle-orm";
 
 import { anilist, loadMediaById } from "../../anilist/client";
-import {
-	AnimeDetailsDocument,
-	LatestAiringDocument,
-	type AnimeDetailsFragment,
-} from "../../anilist/graphql.generated";
+import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
+import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema";
 import { AnimeNotFoundError } from "../../errors";
 import { startTrackingAiring } from "../../scheduler/queue";
-import { toAnime, toAnimeCard, type Anime, type AnimeCard } from "../models/anime";
+import { toAnime, toAnimeCard } from "../models/anime";
+import type { Anime, AnimeCard } from "../models/anime";
 import { fromUnixSeconds } from "../models/text";
 import type { AiringBroadcast } from "./schedule";
 
@@ -66,12 +64,12 @@ export async function refreshAnime(anilistId: number): Promise<Anime> {
 		.insert(animeTable)
 		.values(values)
 		.onConflictDoUpdate({
-			target: animeTable.anilistId,
 			set: {
 				media: values.media,
-				status: values.status,
 				refreshedAt: values.refreshedAt,
+				status: values.status,
 			},
+			target: animeTable.anilistId,
 		});
 
 	return toAnime(media);
@@ -95,8 +93,9 @@ export function mayGainEpisodes(
 	switch (media.status) {
 		case "RELEASING":
 		case "NOT_YET_RELEASED":
-		case "HIATUS":
+		case "HIATUS": {
 			return true;
+		}
 		case "FINISHED": {
 			const end = media.endDate;
 			if (!end?.year || !end.month || !end.day) {
@@ -105,8 +104,9 @@ export function mayGainEpisodes(
 
 			return now.getTime() - Date.UTC(end.year, end.month - 1, end.day) < recentlyFinishedMs;
 		}
-		default:
+		default: {
 			return false;
+		}
 	}
 }
 
@@ -140,6 +140,8 @@ export async function getStoredAnimeCards(ids: readonly number[]): Promise<Map<n
  */
 const loadAnimeDetails = loadMediaById({
 	document: AnimeDetailsDocument,
+	media: ({ page0, page1, page2, page3 }) =>
+		[page0, page1, page2, page3].flatMap((page) => page?.media ?? []),
 	pages: 4,
 	variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = []]) => ({
 		ids0,
@@ -150,8 +152,6 @@ const loadAnimeDetails = loadMediaById({
 		with2: ids2.length > 0,
 		with3: ids3.length > 0,
 	}),
-	media: ({ page0, page1, page2, page3 }) =>
-		[page0, page1, page2, page3].flatMap((page) => page?.media ?? []),
 });
 
 /**
@@ -176,9 +176,9 @@ export async function fetchLatestAiring(anilistId: number): Promise<AiringBroadc
 	const latest = Page?.airingSchedules?.[0];
 	return latest
 		? {
+				airingAt: fromUnixSeconds(latest.airingAt),
 				anilistId,
 				episode: latest.episode,
-				airingAt: fromUnixSeconds(latest.airingAt),
 			}
 		: null;
 }
@@ -221,7 +221,6 @@ async function settleStatus(media: AnimeDetailsFragment): Promise<AnimeDetailsFr
 	const aired = new Date(Date.parse(latest.airingAt) + japanOffsetMs);
 	return {
 		...media,
-		status: "FINISHED",
 		endDate: media.endDate?.year
 			? media.endDate
 			: {
@@ -229,6 +228,7 @@ async function settleStatus(media: AnimeDetailsFragment): Promise<AnimeDetailsFr
 					month: aired.getUTCMonth() + 1,
 					day: aired.getUTCDate(),
 				},
+		status: "FINISHED",
 	};
 }
 
@@ -236,7 +236,7 @@ function storedAnimeValues(media: AnimeDetailsFragment) {
 	return {
 		anilistId: media.id,
 		media,
-		status: media.status,
 		refreshedAt: new Date(),
+		status: media.status,
 	};
 }
