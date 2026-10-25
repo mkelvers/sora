@@ -377,7 +377,7 @@ const editDistance = (left: string, right: string) => {
 				{
 					length: b.length + 1,
 				},
-				(_, j) => (i === 0 ? j : j === 0 ? i : 0),
+				(_cell, j) => (i === 0 ? j : j === 0 ? i : 0),
 			),
 	);
 	for (let i = 1; i <= a.length; i += 1) {

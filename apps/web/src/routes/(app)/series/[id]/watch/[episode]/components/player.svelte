@@ -99,9 +99,7 @@
 	const loading = $derived(!playback || (selected !== undefined && player.buffering));
 
 	const segment = $derived(
-		selected?.skip_segments.find(
-			(segment) => player.time >= segment.start && player.time < segment.end,
-		),
+		selected?.skip_segments.find((skip) => player.time >= skip.start && player.time < skip.end),
 	);
 
 	const report = async (ended = false, leaving = false) => {
@@ -126,11 +124,11 @@
 	const remember = async (changes: PlaybackPreferencesUpdate) => {
 		const { error } = await attempt(
 			savePlaybackPreferences(changes).updates(
-				getPlaybackPreferences().withOverride((current) => ({
-					...current,
+				getPlaybackPreferences().withOverride((saved) => ({
+					...saved,
 					...changes,
 					subtitles: {
-						...current.subtitles,
+						...saved.subtitles,
 						...changes.subtitles,
 					},
 				})),

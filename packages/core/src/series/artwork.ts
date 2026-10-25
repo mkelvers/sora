@@ -194,8 +194,8 @@ const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 		...(own?.logos ?? []).map((image) => toStoredImage("logo", image, null)),
 		...seasons,
 	].filter((image) => {
-		const key = `${image.type}:${image.url}`;
-		return !seen.has(key) && seen.add(key);
+		const identity = `${image.type}:${image.url}`;
+		return !seen.has(identity) && seen.add(identity);
 	});
 };
 

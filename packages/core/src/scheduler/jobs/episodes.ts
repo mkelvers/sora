@@ -31,10 +31,10 @@ export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
 
 	const failures = await Promise.all(
 		streamProviders.map(async (provider) => {
-			const { error } = await attempt(getProviderUnits(data, provider));
-			if (error) {
+			const { error: lookupError } = await attempt(getProviderUnits(data, provider));
+			if (lookupError) {
 				helpers.logger.warn(
-					`Provider ${provider.id} failed for anime ${anilistId}: ${error.message}`,
+					`Provider ${provider.id} failed for anime ${anilistId}: ${lookupError.message}`,
 				);
 				return [provider.id];
 			}

@@ -110,7 +110,7 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 					{
 						length,
 					},
-					(_, index) => at(line, index),
+					(_value, index) => at(line, index),
 				).toSorted((left, right) => left - right);
 				return {
 					brightest: defined(values[Math.floor(length * 0.98)]),

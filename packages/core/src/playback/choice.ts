@@ -31,8 +31,8 @@ export const choosePlayback = <TMedia extends Pick<PlaybackMedia, "audio" | "sub
 	const version =
 		(preferences.audio &&
 			fallbacks[preferences.audio]
-				.map((audio) => media.find((version) => version.audio === audio))
-				.find((version) => version !== undefined)) ||
+				.map((audio) => media.find((candidate) => candidate.audio === audio))
+				.find((candidate) => candidate !== undefined)) ||
 		media[0];
 	const choice = version && version.audio !== "raw" ? preferences.subtitles[version.audio] : null;
 	let subtitle: TMedia["subtitles"][number] | undefined;

@@ -34,7 +34,7 @@ export class Player {
 
 	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
 	loaded = $derived.by(() => {
-		const range = this.buffered.find((range) => range.start <= this.time && this.time <= range.end);
+		const range = this.buffered.find((span) => span.start <= this.time && this.time <= span.end);
 
 		return range && this.duration > 0 ? range.end / this.duration : 0;
 	});

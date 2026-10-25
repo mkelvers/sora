@@ -19,7 +19,7 @@ export const actions: Actions = {
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
-		const profile = locals.viewer.profiles.find((profile) => profile.id === id);
+		const profile = locals.viewer.profiles.find((candidate) => candidate.id === id);
 
 		if (!profile) {
 			error(404, "No such profile");

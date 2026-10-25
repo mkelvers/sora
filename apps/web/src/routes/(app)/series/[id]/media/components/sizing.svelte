@@ -61,14 +61,14 @@
 		logo: DOMRect;
 	}>();
 
-	const handle = $derived(drag?.handle ?? hovered);
+	const activeHandle = $derived(drag?.handle ?? hovered);
 	const cursor = $derived(
-		handle === "logo"
+		activeHandle === "logo"
 			? drag
 				? "cursor-grabbing"
 				: "cursor-grab"
-			: handle
-				? handle.x === handle.y
+			: activeHandle
+				? activeHandle.x === activeHandle.y
 					? "cursor-nwse-resize"
 					: "cursor-nesw-resize"
 				: undefined,
@@ -124,9 +124,9 @@
 	const hit = (event: PointerEvent, logo: DOMRect): Handle | undefined => {
 		const reach = event.pointerType === "touch" ? 24 : 10;
 		const corner = corners.find(
-			(corner) =>
-				Math.abs(event.clientX - (corner.x < 0 ? logo.left : logo.right)) <= reach &&
-				Math.abs(event.clientY - (corner.y < 0 ? logo.top : logo.bottom)) <= reach,
+			(candidate) =>
+				Math.abs(event.clientX - (candidate.x < 0 ? logo.left : logo.right)) <= reach &&
+				Math.abs(event.clientY - (candidate.y < 0 ? logo.top : logo.bottom)) <= reach,
 		);
 		const inside =
 			event.clientX >= logo.left &&

@@ -35,7 +35,7 @@
 			return;
 		}
 
-		const track = selected.subtitles.find((track) => track.url === url);
+		const track = selected.subtitles.find((candidate) => candidate.url === url);
 		onpreferences({
 			subtitles: {
 				[selected.audio]: track

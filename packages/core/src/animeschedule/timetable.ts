@@ -195,7 +195,7 @@ const resolveAnimeScheduleShows = async (
 		),
 	);
 
-	for (const route of unique.filter((route) => !resolved.has(route))) {
+	for (const route of unique.filter((candidate) => !resolved.has(candidate))) {
 		const response = await attempt(
 			http.get(`${api}/anime/${encodeURIComponent(route)}`, {
 				headers,

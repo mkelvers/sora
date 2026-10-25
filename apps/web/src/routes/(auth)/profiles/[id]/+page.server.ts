@@ -29,7 +29,7 @@ export const load: PageServerLoad = ({ locals, params }) => {
 		error(401, "Not signed in");
 	}
 	const { profiles } = locals.viewer;
-	const profile = profiles.find((profile) => profile.id === params.id);
+	const profile = profiles.find((candidate) => candidate.id === params.id);
 	if (!profile) {
 		error(404, "No such profile");
 	}

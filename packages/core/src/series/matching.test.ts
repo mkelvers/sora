@@ -986,7 +986,7 @@ describe("placeAsMovie", () => {
 
 	test("accepts a hinted film whose premiere predates the entry's broadcast", () => {
 		// Go-toubun no Hanayome Specials: two 24-minute episodes, a 61-minute film on TMDB.
-		const special = subject({
+		const specialEntry = subject({
 			episodes: 2,
 			format: "SPECIAL",
 			startDate: "2023-09-02",
@@ -1001,16 +1001,16 @@ describe("placeAsMovie", () => {
 			runtime: 61,
 		};
 
-		expect(placeAsMovie(special, film)).toBeNull();
-		expect(placeAsMovie(special, film, true)).toMatchObject({
+		expect(placeAsMovie(specialEntry, film)).toBeNull();
+		expect(placeAsMovie(specialEntry, film, true)).toMatchObject({
 			method: "hint",
 			tmdbId: 1_153_706,
 		});
-		expect(placeAsMovie(special, { ...film, runtime: 300 }, true)).toBeNull();
+		expect(placeAsMovie(specialEntry, { ...film, runtime: 300 }, true)).toBeNull();
 	});
 
 	test("accepts a film that runs as long as a special's episodes together", () => {
-		const special = subject({
+		const specialEntry = subject({
 			episodes: 2,
 			format: "SPECIAL",
 			startDate: "2024-09-20",
@@ -1018,7 +1018,7 @@ describe("placeAsMovie", () => {
 		});
 
 		expect(
-			placeAsMovie(special, {
+			placeAsMovie(specialEntry, {
 				...movie({
 					original_title: "五等分の花嫁＊",
 					release_date: "2024-09-20",
@@ -1157,13 +1157,13 @@ describe("bestSimilarity with sameNumbers", () => {
 });
 
 describe("continuesPastLinks", () => {
-	const show = {
+	const listedShow = {
 		episodes: weekly(1, "2026-10-03", 13),
 	};
 
 	test("sees the second episode of a double premiere TMDB listed after the match", () => {
 		expect(
-			continuesPastLinks(show, [
+			continuesPastLinks(listedShow, [
 				{
 					anilistEpisode: 1,
 					episodeNumber: 1,
@@ -1196,7 +1196,7 @@ describe("continuesPastLinks", () => {
 	});
 
 	test("finds nothing for an entry without links", () => {
-		expect(continuesPastLinks(show, [])).toBe(false);
+		expect(continuesPastLinks(listedShow, [])).toBe(false);
 	});
 });
 

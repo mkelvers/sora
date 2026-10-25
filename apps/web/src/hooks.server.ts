@@ -21,9 +21,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const known = knownProfiles.get(token);
 		let profiles = known?.profiles ?? null;
 		if (!known || Date.now() - known.at >= 30_000) {
-			const { data, error } = await attempt(sora.request(route.listProfiles), SoraError);
-			if (error && error.status !== 401) {
-				throw error;
+			const { data, error: listFailure } = await attempt(
+				sora.request(route.listProfiles),
+				SoraError,
+			);
+			if (listFailure && listFailure.status !== 401) {
+				throw listFailure;
 			}
 
 			profiles = data;
@@ -43,7 +46,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		if (profiles) {
 			const chosen = event.cookies.get("sora_profile");
-			const profile = profiles.find((profile) => profile.id === chosen) ?? null;
+			const profile = profiles.find((candidate) => candidate.id === chosen) ?? null;
 
 			event.locals.viewer = {
 				profile,
@@ -98,10 +101,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handleError: HandleServerError = ({ error }) => {
-	if (error instanceof SoraError) {
+export const handleError: HandleServerError = ({ error: thrown }) => {
+	if (thrown instanceof SoraError) {
 		return {
-			message: error.message,
+			message: thrown.message,
 		};
 	}
 };

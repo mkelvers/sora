@@ -55,10 +55,10 @@ export class Library {
 	resume: Map<string, ContinueWatching>;
 
 	constructor() {
-		const statuses = getWatchlistStatuses();
+		const watchlist = getWatchlistStatuses();
 		const continuing = getContinueWatching();
 		this.status = $derived(
-			new Map((statuses.current ?? []).map((entry) => [entry.series_id, entry.status])),
+			new Map((watchlist.current ?? []).map((entry) => [entry.series_id, entry.status])),
 		);
 		this.resume = $derived(
 			new Map((continuing.current ?? []).map((item) => [item.series.id, item])),

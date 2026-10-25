@@ -230,19 +230,19 @@ export const franchiseIds = async (
 	let frontier = [anilistId];
 	let around = 0;
 	while (frontier.length > 0) {
-		const edge = {
+		const columns = {
 			from: series.anilistId,
 			relation: seriesRelated.relation,
 			to: seriesRelated.anilistId,
 		};
 		const [outgoing, incoming] = await Promise.all([
 			db
-				.select(edge)
+				.select(columns)
 				.from(series)
 				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
 				.where(inArray(series.anilistId, frontier)),
 			db
-				.select(edge)
+				.select(columns)
 				.from(seriesRelated)
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(inArray(seriesRelated.anilistId, frontier)),
@@ -272,13 +272,13 @@ export const franchiseIds = async (
 				.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
 				.map(({ from, to }) => `${to}>${from}`),
 		);
-		const edges = rawEdges.map((edge) =>
-			crossovers.has(`${edge.from}>${edge.to}`)
+		const edges = rawEdges.map((rawEdge) =>
+			crossovers.has(`${rawEdge.from}>${rawEdge.to}`)
 				? {
-						...edge,
+						...rawEdge,
 						relation: "OTHER" as const,
 					}
-				: edge,
+				: rawEdge,
 		);
 
 		const rank = (relation: string) =>
@@ -646,11 +646,11 @@ export const getAdjacentEpisodes = async (
 	const row = await loadSeries(seriesId);
 	const listedByRow = await listedEpisodeDatesOf([row]);
 	const listed = listedByRow.get(row.id) ?? [];
-	const numbers = listed.map((episode) => episode.number);
+	const numbers = listed.map((entry) => entry.number);
 
 	return {
-		next: numbers.find((number) => number > episode) ?? null,
-		previous: numbers.findLast((number) => number < episode) ?? null,
+		next: numbers.find((candidate) => candidate > episode) ?? null,
+		previous: numbers.findLast((candidate) => candidate < episode) ?? null,
 	};
 };
 

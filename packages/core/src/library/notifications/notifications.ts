@@ -132,19 +132,19 @@ const followedSeries = async (
 	const seen = new Set(followed.keys());
 	let frontier = [...seen];
 	while (frontier.length > 0 && seen.size <= continuityLimit) {
-		const edge = {
+		const columns = {
 			from: series.anilistId,
 			to: seriesRelated.anilistId,
 		};
 		const continues = inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]);
 		const [outgoing, incoming] = await Promise.all([
 			db
-				.select(edge)
+				.select(columns)
 				.from(series)
 				.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
 				.where(and(continues, inArray(series.anilistId, frontier))),
 			db
-				.select(edge)
+				.select(columns)
 				.from(seriesRelated)
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(and(continues, inArray(seriesRelated.anilistId, frontier))),

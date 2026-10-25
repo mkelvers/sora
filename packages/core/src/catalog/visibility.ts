@@ -14,7 +14,7 @@ export const isCatalogFormat = (format: string | null | undefined) =>
 /** Applies the catalog policy before ranking, pagination, or notification counts. */
 export const catalogFormatAllowed = (format: SQLWrapper) =>
 	sql`(${format} is null or ${format} not in (${sql.join(
-		excludedFormats.map((format) => sql`${format}`),
+		excludedFormats.map((excluded) => sql`${excluded}`),
 		sql`, `,
 	)}))`;
 

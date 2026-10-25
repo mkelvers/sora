@@ -145,7 +145,7 @@ export const franchiseParts = (
 				}
 			}
 			frontier = [...next];
-			frontier.forEach((id) => ids.add(id));
+			frontier.forEach((member) => ids.add(member));
 		}
 		return ids;
 	};
