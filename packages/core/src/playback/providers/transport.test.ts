@@ -10,10 +10,10 @@ const server = Bun.serve({
 		return retryAfter === null
 			? new Response("ok")
 			: new Response("slow down", {
-					status: 429,
 					headers: {
 						"Retry-After": retryAfter,
 					},
+					status: 429,
 				});
 	},
 	port: 0,
@@ -51,7 +51,7 @@ describe("providerTransport", () => {
 		const http = new HttpClient({
 			disableRateLimit: true,
 			retry: false,
-			timeoutMs: 3_000,
+			timeoutMs: 3000,
 			transport: providerTransport,
 		});
 

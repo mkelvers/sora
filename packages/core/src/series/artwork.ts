@@ -42,9 +42,8 @@ const savedSizes = {
 	poster: "w780",
 } as const;
 
-const toOverride = (change: string | false | null | undefined, type: ImageType) => {
-	return change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
-};
+const toOverride = (change: string | false | null | undefined, type: ImageType) =>
+	change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
 
 /**
  * Chooses a series' poster, backdrop, or logo for everyone, in place of the
@@ -129,8 +128,8 @@ const imageStateOf = async (seriesId: string) => {
 	return row;
 };
 
-const storedImagesOf = async (key: string): Promise<StoredImage[]> => {
-	return db
+const storedImagesOf = async (key: string): Promise<StoredImage[]> =>
+	db
 		.select({
 			height: titleImage.height,
 			language: titleImage.language,
@@ -143,24 +142,21 @@ const storedImagesOf = async (key: string): Promise<StoredImage[]> => {
 		})
 		.from(titleImage)
 		.where(eq(titleImage.key, key));
-};
 
 const toStoredImage = (
 	type: ImageType,
 	image: TmdbImage,
 	seasonNumber: number | null,
-): StoredImage => {
-	return {
-		height: image.height,
-		language: image.iso_639_1,
-		season_number: seasonNumber,
-		type,
-		url: tmdbImageUrl(image.file_path, "original")!,
-		vote_average: image.vote_average,
-		vote_count: image.vote_count,
-		width: image.width,
-	};
-};
+): StoredImage => ({
+	height: image.height,
+	language: image.iso_639_1,
+	season_number: seasonNumber,
+	type,
+	url: tmdbImageUrl(image.file_path, "original")!,
+	vote_average: image.vote_average,
+	vote_count: image.vote_count,
+	width: image.width,
+});
 
 /** Every season's posters, specials included. */
 const seasonPostersOf = async (showId: number, maxAgeMs: number): Promise<StoredImage[]> => {
@@ -245,9 +241,8 @@ const storeImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 	return images;
 };
 
-const byArea = (left: StoredImage, right: StoredImage) => {
-	return right.width * right.height - left.width * left.height;
-};
+const byArea = (left: StoredImage, right: StoredImage) =>
+	right.width * right.height - left.width * left.height;
 
 /** A Bayesian average: as if every image also had three votes of 5. */
 const confidence = (image: StoredImage) => {
@@ -255,20 +250,18 @@ const confidence = (image: StoredImage) => {
 	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
 };
 
-const byQuality = (left: StoredImage, right: StoredImage) => {
-	return byArea(left, right) || confidence(right) - confidence(left);
-};
+const byQuality = (left: StoredImage, right: StoredImage) =>
+	byArea(left, right) || confidence(right) - confidence(left);
 
 /**
  * TMDB's rating, pulled toward 5 when few voted, so one 10 does not outrank
  * dozens of 8s; then the larger image.
  */
-const byVotes = (left: StoredImage, right: StoredImage) => {
-	return confidence(right) - confidence(left) || byArea(left, right);
-};
+const byVotes = (left: StoredImage, right: StoredImage) =>
+	confidence(right) - confidence(left) || byArea(left, right);
 
-const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage[] => {
-	return images
+const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage[] =>
+	images
 		.filter((image) => !query.types || query.types.includes(image.type))
 		.filter((image) => !query.languages || query.languages.includes(image.language))
 		.sort(query.sort === "quality" ? byQuality : byVotes)
@@ -278,7 +271,6 @@ const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage
 				? (languageNames.of(image.language) ?? image.language)
 				: "Textless",
 		}));
-};
 
 /**
  * Lists every backdrop, poster, and logo TMDB has for a series' title, in

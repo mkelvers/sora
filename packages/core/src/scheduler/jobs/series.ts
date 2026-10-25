@@ -154,9 +154,7 @@ const recheckAfterMs = (
 		min: number;
 		max: number;
 	},
-) => {
-	return Math.min(bounds.max, Math.max(bounds.min, (missingForMs ?? Infinity) / 10));
-};
+) => Math.min(bounds.max, Math.max(bounds.min, (missingForMs ?? Infinity) / 10));
 
 /** Any stored copy of a show: what the last reader of it fetched. */
 const storedShowAgeMs = 365 * day;
@@ -374,12 +372,11 @@ export const refreshEpisodeListingsTask = "refresh-episode-listings";
 const longestListingWaitMs = 30 * day;
 
 /** Which episodes TMDB lists for a show, by season and number. */
-const episodeKeys = (show: TmdbShow) => {
-	return show.episodes
+const episodeKeys = (show: TmdbShow) =>
+	show.episodes
 		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
 		.sort()
 		.join(",");
-};
 
 /**
  * Asks TMDB again for the shows of stored series with an episode that a

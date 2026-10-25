@@ -128,8 +128,8 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		}),
 	next_episode: z
 		.object({
-			number: z.number().int(),
 			airing_at: z.string(),
+			number: z.number().int(),
 		})
 		.nullable()
 		.meta({
@@ -142,7 +142,7 @@ export const SeriesSchema = SeriesCardSchema.extend({
 	score_count: z.number().int().nullable().meta({
 		description:
 			"How many AniList users have scored it, behind `score`. Null until Sora's search index has it.",
-		example: 610640,
+		example: 610_640,
 	}),
 	seasons: z.array(FranchisePartSchema).meta({
 		description:
@@ -362,7 +362,7 @@ export const ReleaseSchema = z
 export const PreparingTitleSchema = z
 	.object({
 		anilist_id: z.number().int().meta({
-			example: 143653,
+			example: 143_653,
 		}),
 		format: FormatSchema.nullable(),
 		position: z.number().int().nonnegative().meta({

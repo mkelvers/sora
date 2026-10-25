@@ -52,9 +52,8 @@ const StreamTargetSchema = z.object({
 	}),
 });
 
-const keyFrom = (secret: string) => {
-	return createHash("sha256").update(`sora stream token\0${secret}`).digest();
-};
+const keyFrom = (secret: string) =>
+	createHash("sha256").update(`sora stream token\0${secret}`).digest();
 
 /**
  * Encodes a target as an opaque, URL-safe token, encrypted and authenticated

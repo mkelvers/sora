@@ -36,9 +36,9 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {
-			user: authUser,
-			session: authSession,
 			account: authAccount,
+			session: authSession,
+			user: authUser,
 			verification: authVerification,
 		},
 	}),
@@ -73,7 +73,7 @@ export const auth = betterAuth({
 	secret: config.authSecret,
 	session: {
 		// Long-lived, as TVs and phones stay signed in; renewed daily while used.
-		expiresIn: (90 * day) / 1_000,
-		updateAge: day / 1_000,
+		expiresIn: (90 * day) / 1000,
+		updateAge: day / 1000,
 	},
 });

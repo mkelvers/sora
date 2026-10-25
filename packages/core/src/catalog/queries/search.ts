@@ -79,15 +79,14 @@ const fetchIndexPage = async (
  * accents, punctuation, and spacing removed or collapsed, so "Re:ZERO",
  * "re zero", and "Re Zero" compare equal.
  */
-export const normalizeTitle = (title: string) => {
-	return title
+export const normalizeTitle = (title: string) =>
+	title
 		.normalize("NFKD")
 		.replaceAll(/\p{M}/gu, "")
 		.toLowerCase()
 		.replaceAll(/[×✕]/g, " x ")
 		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
 		.trim();
-};
 
 /**
  * The year or format AniList puts in parentheses after a title to tell a
@@ -150,13 +149,12 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		status: media.status,
 		synonyms,
 		trending: media.trending ?? 0,
-		updatedAt: new Date((media.updatedAt ?? 0) * 1_000),
+		updatedAt: new Date((media.updatedAt ?? 0) * 1000),
 	};
 };
 
-const toSnakeCase = (name: string) => {
-	return name.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-};
+const toSnakeCase = (name: string) =>
+	name.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 /**
  * Stores index rows, rewriting a stored row only when something in it
@@ -401,9 +399,7 @@ const editDistance = (left: string, right: string) => {
  * one letter makes another word, one in a word of five letters or more, and
  * two in one of nine or more.
  */
-const allowedTypos = (word: string) => {
-	return word.length >= 9 ? 2 : word.length >= 5 ? 1 : 0;
-};
+const allowedTypos = (word: string) => (word.length >= 9 ? 2 : word.length >= 5 ? 1 : 0);
 
 /**
  * How closely a query resembles a title as a mistyped version of it, from 0
@@ -523,9 +519,8 @@ const sortOrders: Record<
  * match, so a show three times as popular wins over a slightly closer title:
  * "evangelion" finds Neon Genesis Evangelion before the Rebuild films.
  */
-export const popularityWeight = (popularity: number) => {
-	return 0.4 + 0.6 * Math.min(1, Math.log10(Math.max(0, popularity) + 1) / 6.2);
-};
+export const popularityWeight = (popularity: number) =>
+	0.4 + 0.6 * Math.min(1, Math.log10(Math.max(0, popularity) + 1) / 6.2);
 
 /**
  * Orders candidates by how well they answer a query: how closely one of
@@ -630,11 +625,10 @@ export const browseIndex = async (
 	filters: Omit<BrowseQuery, "search" | "page" | "perPage">,
 	limit: number,
 	where?: SQL,
-) => {
-	return db
+) =>
+	db
 		.select()
 		.from(animeSearch)
 		.where(and(...indexConditions(filters), where))
 		.orderBy(...indexOrders[filters.sort ?? "trending"], asc(animeSearch.anilistId))
 		.limit(limit);
-};

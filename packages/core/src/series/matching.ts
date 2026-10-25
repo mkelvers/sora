@@ -155,15 +155,14 @@ const dayNumber = (date: string | null) => {
  * Lowercases, folds full-width characters, and reduces punctuation to single
  * spaces, so "Re:ZERO -Starting Life-" and "Re: Zero Starting Life" compare equal.
  */
-const normalizeTitle = (title: string) => {
-	return title
+const normalizeTitle = (title: string) =>
+	title
 		.normalize("NFKC")
 		.toLowerCase()
 		.replaceAll("&", " and ")
 		.replaceAll(/[\p{P}\p{S}]+/gu, " ")
 		.replaceAll(/\s+/g, " ")
 		.trim();
-};
 
 /** Numbers titles write as words, so "Season Two" and "Second Season" both count as 2. */
 const numberWords = new Map<string, number>(
@@ -216,15 +215,14 @@ const romanValue = (word: string) => {
 };
 
 /** The title's numbers in order, such as `"2"` for "Infinity Castle Part 2". */
-const numbersIn = (title: string) => {
-	return normalizeTitle(title)
+const numbersIn = (title: string) =>
+	normalizeTitle(title)
 		.split(" ")
 		.flatMap((word) => {
 			const written = numberWords.get(word) ?? romanValue(word);
 			return written === null ? (word.match(/\d+/g) ?? []).map(Number) : [written];
 		})
 		.join(" ");
-};
 
 const bigrams = (value: string) => {
 	const grams = new Map<string, number>();
@@ -286,22 +284,19 @@ export const bestSimilarity = (
 };
 
 /** TMDB's regular seasons as one sequence, in broadcast order. */
-const regularTrack = (episodes: readonly TmdbEpisode[]) => {
-	return episodes.filter((episode) => episode.season_number > 0);
-};
+const regularTrack = (episodes: readonly TmdbEpisode[]) =>
+	episodes.filter((episode) => episode.season_number > 0);
 
 /** TMDB's specials season. */
-const specialsTrack = (episodes: readonly TmdbEpisode[]) => {
-	return episodes.filter((episode) => episode.season_number === 0);
-};
+const specialsTrack = (episodes: readonly TmdbEpisode[]) =>
+	episodes.filter((episode) => episode.season_number === 0);
 
 /** The index of `ref` in `track`, or -1 when it is not on it. */
-const indexOfRef = (track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) => {
-	return track.findIndex(
+const indexOfRef = (track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) =>
+	track.findIndex(
 		(episode) =>
 			episode.season_number === ref.seasonNumber && episode.episode_number === ref.episodeNumber,
 	);
-};
 
 /**
  * Whether a prequel's first episode aired well after the subject started.
@@ -321,9 +316,8 @@ const indexAfter = (track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) => {
 };
 
 /** Whether both days are known and at most `days` apart. */
-const withinDays = (day: number | null, other: number | null, days: number) => {
-	return day !== null && other !== null && Math.abs(day - other) <= days;
-};
+const withinDays = (day: number | null, other: number | null, days: number) =>
+	day !== null && other !== null && Math.abs(day - other) <= days;
 
 /**
  * Candidate start positions: episodes airing near the subject's start date,
@@ -356,9 +350,8 @@ const startIndexes = (
 };
 
 /** Formats that run as a series of episodes and may be a regular TMDB season. */
-const isSeriesFormat = (format: AnimeFormat | null) => {
-	return format === "TV" || format === "TV_SHORT" || format === "ONA" || format === null;
-};
+const isSeriesFormat = (format: AnimeFormat | null) =>
+	format === "TV" || format === "TV_SHORT" || format === "ONA" || format === null;
 
 /**
  * Whether a special or OVA may start at `index` of a show's regular seasons,
@@ -375,18 +368,14 @@ const isOwnShowStart = (
 	index: number,
 	start: number | null,
 	candidate: ShowCandidate,
-) => {
-	return (
-		index === 0 &&
-		!candidate.isFranchiseShow &&
-		withinDays(dayNumber(track[index]?.air_date ?? null), start, 1)
-	);
-};
+) =>
+	index === 0 &&
+	!candidate.isFranchiseShow &&
+	withinDays(dayNumber(track[index]?.air_date ?? null), start, 1);
 
 /** Whether an episode aired within the start window of `start`. */
-const airsNear = (episode: TmdbEpisode | undefined, start: number | null) => {
-	return withinDays(dayNumber(episode?.air_date ?? null), start, startWindowDays);
-};
+const airsNear = (episode: TmdbEpisode | undefined, start: number | null) =>
+	withinDays(dayNumber(episode?.air_date ?? null), start, startWindowDays);
 
 /** Whether two episode lengths describe the same kind of content. Unknown lengths agree with anything. */
 const runtimesAgree = (
@@ -558,12 +547,9 @@ const endScore = (end: number | null, lastAirDay: number | null) => {
  * The special that is AniList's leading "episode 0": aired on the entry's
  * start date, a week before TMDB's first regular episode of it.
  */
-const leadingSpecial = (episodes: readonly TmdbEpisode[], start: number | null) => {
-	return (
-		specialsTrack(episodes).find((episode) => withinDays(dayNumber(episode.air_date), start, 1)) ??
-		null
-	);
-};
+const leadingSpecial = (episodes: readonly TmdbEpisode[], start: number | null) =>
+	specialsTrack(episodes).find((episode) => withinDays(dayNumber(episode.air_date), start, 1)) ??
+	null;
 
 /**
  * An extra leading episode AniList counts before TMDB's first matching one,
@@ -605,13 +591,12 @@ const leadingEpisode = (
 };
 
 /** One AniList episode per TMDB episode of a run, numbered from `first`. */
-const linkRun = (episodes: readonly TmdbEpisode[], first = 1): EpisodeLink[] => {
-	return episodes.map((episode, offset) => ({
+const linkRun = (episodes: readonly TmdbEpisode[], first = 1): EpisodeLink[] =>
+	episodes.map((episode, offset) => ({
 		anilistEpisode: first + offset,
 		episodeNumber: episode.episode_number,
 		seasonNumber: episode.season_number,
 	}));
-};
 
 /** How many days apart two dates are, or `null` unless both are full dates. */
 const dayOffset = (left: string | null, right: string | null) => {

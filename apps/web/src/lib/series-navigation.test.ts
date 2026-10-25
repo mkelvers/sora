@@ -7,8 +7,8 @@ const series = {
 	episode_count: 26,
 	id: "season-1",
 	seasons: [
-		{ series_id: "season-1", next_series_id: "season-2", episode_count: 26, format: "TV" },
-		{ series_id: "season-2", next_series_id: null, episode_count: 24, format: "TV" },
+		{ episode_count: 26, format: "TV", next_series_id: "season-2", series_id: "season-1" },
+		{ episode_count: 24, format: "TV", next_series_id: null, series_id: "season-2" },
 	] satisfies Parameters<typeof storyContinuation>[0]["seasons"],
 };
 

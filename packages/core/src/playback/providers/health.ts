@@ -78,13 +78,10 @@ export interface OperationRow {
  * Start of the first hour that counts as recent. Hours are stored by their
  * start, so an hour counts if any of it is within {@link failingAfterMs}.
  */
-const recentFrom = (now: Date) => {
-	return new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
-};
+const recentFrom = (now: Date) =>
+	new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
 
-const toDate = (value: unknown) => {
-	return value === null ? null : new Date(value as string | Date);
-};
+const toDate = (value: unknown) => (value === null ? null : new Date(value as string | Date));
 
 /**
  * Folds per-operation rows into one {@link ProviderHealth} per provider in
@@ -127,11 +124,11 @@ export const summarizeHealth = (
 				.map((row) => {
 					const calls = row.ok + row.empty + row.failed;
 					return {
-						operation: row.operation as ProviderOperation,
-						ok: row.ok,
+						average_ms: Math.round(row.durationMs / calls),
 						empty: row.empty,
 						failed: row.failed,
-						average_ms: Math.round(row.durationMs / calls),
+						ok: row.ok,
+						operation: row.operation as ProviderOperation,
 					};
 				})
 				.sort((left, right) => left.operation.localeCompare(right.operation)),

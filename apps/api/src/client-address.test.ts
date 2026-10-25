@@ -20,15 +20,14 @@ const connection = {
 
 const routes = new Hono().use(clientAddress).get("/", (c) => c.text(addressOf(c.req.raw)));
 
-const ask = (headers: Record<string, string>) => {
-	return routes.request(
+const ask = (headers: Record<string, string>) =>
+	routes.request(
 		"/",
 		{
 			headers,
 		},
 		connection,
 	);
-};
 
 describe("clientAddress", () => {
 	test("replaces an address claimed by a client without the key", async () => {

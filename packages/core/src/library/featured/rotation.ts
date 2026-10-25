@@ -48,27 +48,22 @@ export const featuredCount = 6;
 export const spareCandidates = 12;
 
 /** A date `ms` before `now`, as `YYYY-MM-DD`, to compare with the search index's start dates. */
-export const dateBefore = (now: Date, ms: number) => {
-	return new Date(now.getTime() - ms).toISOString().slice(0, 10);
-};
+export const dateBefore = (now: Date, ms: number) =>
+	new Date(now.getTime() - ms).toISOString().slice(0, 10);
 
 /**
  * Whether an entry is current: well liked and popular, and either still
  * airing or started within {@link currentFor}.
  */
-export const isCurrent = (entry: FeaturedEntry, now: Date) => {
-	return (
-		entry.score >= currentThresholds.score &&
-		entry.popularity >= currentThresholds.popularity &&
-		(entry.status === "RELEASING" ||
-			(entry.startDate !== null && entry.startDate >= dateBefore(now, currentFor)))
-	);
-};
+export const isCurrent = (entry: FeaturedEntry, now: Date) =>
+	entry.score >= currentThresholds.score &&
+	entry.popularity >= currentThresholds.popularity &&
+	(entry.status === "RELEASING" ||
+		(entry.startDate !== null && entry.startDate >= dateBefore(now, currentFor)));
 
 /** The number of the rotation `now` falls in, counted in {@link rotationPeriod}s since the first. */
-export const rotationOf = (now: Date) => {
-	return Math.floor((now.getTime() - rotationStart) / rotationPeriod);
-};
+export const rotationOf = (now: Date) =>
+	Math.floor((now.getTime() - rotationStart) / rotationPeriod);
 
 /** FNV-1a, a fast, well-spread 32-bit hash; not for security. */
 const hash = (text: string) => {
@@ -84,17 +79,15 @@ const hash = (text: string) => {
  * Shuffles candidates anew for each `seed` and rotation, so each profile
  * sees its own order.
  */
-export const rotate = (ids: readonly string[], seed: string, rotation: number): string[] => {
-	return ids
+export const rotate = (ids: readonly string[], seed: string, rotation: number): string[] =>
+	ids
 		.map((id) => ({
 			id,
 			rank: hash(`${seed}:${rotation}:${id}`),
 		}))
 		.sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
 		.map(({ id }) => id);
-};
 
 /** The first {@link featuredCount} candidates `isUsable` accepts, in order. */
-export const arrange = (candidates: readonly string[], isUsable: (id: string) => boolean) => {
-	return [...new Set(candidates)].filter(isUsable).slice(0, featuredCount);
-};
+export const arrange = (candidates: readonly string[], isUsable: (id: string) => boolean) =>
+	[...new Set(candidates)].filter(isUsable).slice(0, featuredCount);

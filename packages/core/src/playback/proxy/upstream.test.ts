@@ -3,16 +3,14 @@ import { describe, expect, test } from "bun:test";
 import { InvalidStreamTokenError } from "../../errors";
 import { fetchUpstream, readBounded, StreamUpstreamError } from "./upstream";
 
-const target = (url: string) => {
-	return {
-		accountId: "account",
-		expiresAt: Math.floor(Date.now() / 1_000) + 60,
-		headers: {},
-		kind: "file" as const,
-		mirrors: [],
-		url,
-	};
-};
+const target = (url: string) => ({
+	accountId: "account",
+	expiresAt: Math.floor(Date.now() / 1_000) + 60,
+	headers: {},
+	kind: "file" as const,
+	mirrors: [],
+	url,
+});
 
 describe("fetchUpstream", () => {
 	test.each([

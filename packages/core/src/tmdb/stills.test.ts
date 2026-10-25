@@ -5,16 +5,14 @@ import sharp from "sharp";
 import type { TmdbImage } from "./resources";
 import { blackBars, hasBlackBars, rankStills } from "./stills";
 
-const still = (overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage => {
-	return {
-		height: 1080,
-		iso_639_1: null,
-		vote_average: 0,
-		vote_count: 0,
-		width: 1920,
-		...overrides,
-	};
-};
+const still = (overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage => ({
+	height: 1080,
+	iso_639_1: null,
+	vote_average: 0,
+	vote_count: 0,
+	width: 1920,
+	...overrides,
+});
 
 /** A busy 16:9 frame: noise over a gradient, so no edge of it is black. */
 const frame = async () => {

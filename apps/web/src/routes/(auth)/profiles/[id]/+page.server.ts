@@ -11,14 +11,14 @@ const Changes = z.object({
 		.transform((value) => {
 			const [style, ...seed] = value.split(":");
 			return {
-				style,
 				seed: seed.join(":"),
+				style,
 			};
 		})
 		.pipe(
 			z.object({
-				style: z.enum(["sprouts", "critters"]),
 				seed: z.string().trim().min(1).max(64),
+				style: z.enum(["sprouts", "critters"]),
 			}),
 		),
 	name: z.string().trim().min(1).max(40),
@@ -40,8 +40,8 @@ export const load: PageServerLoad = ({ locals, params }) => {
 				length: 11,
 			},
 			(_, index) => ({
-				style: index % 2 === 0 ? ("critters" as const) : ("sprouts" as const),
 				seed: crypto.randomUUID().slice(0, 8),
+				style: index % 2 === 0 ? ("critters" as const) : ("sprouts" as const),
 			}),
 		),
 		deletable: profiles.length > 1,
@@ -54,7 +54,7 @@ export const actions: Actions = {
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
-		const viewer = locals.viewer;
+		const { viewer } = locals;
 		const deleted = await attempt(
 			viewer.sora.request(route.deleteProfile, {
 				params: {
@@ -89,14 +89,14 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
 		const changes = Changes.safeParse({
-			name,
 			avatar: form.get("avatar"),
+			name,
 		});
 
 		if (!changes.success) {
 			return fail(400, {
-				name,
 				message: "Give the profile a name of up to 40 characters.",
+				name,
 			});
 		}
 
@@ -106,10 +106,10 @@ export const actions: Actions = {
 
 		const updated = await attempt(
 			locals.viewer.sora.request(route.updateProfile, {
+				body: changes.data,
 				params: {
 					profile_id: params.id,
 				},
-				body: changes.data,
 			}),
 			SoraError,
 		);

@@ -27,13 +27,12 @@
 		return started ? `Continue with ${where}` : `Up next with ${where}`;
 	};
 
-	const remove = (seriesId: string) => {
-		return dismissContinueWatching(seriesId).updates(
+	const remove = (seriesId: string) =>
+		dismissContinueWatching(seriesId).updates(
 			getContinueWatching().withOverride((current) =>
 				current.filter((other) => other.series.id !== seriesId),
 			),
 		);
-	};
 </script>
 
 {#if items.length}

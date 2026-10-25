@@ -7,28 +7,25 @@ const background = 10;
 const now = 1_000_000;
 
 /** `count` requests sent `gapMs` apart, the last `lastAgoMs` before now, oldest first. */
-const sends = (count: number, gapMs: number, lastAgoMs = gapMs) => {
-	return Array.from(
+const sends = (count: number, gapMs: number, lastAgoMs = gapMs) =>
+	Array.from(
 		{
 			length: count,
 		},
 		(_, index) => now - lastAgoMs - (count - 1 - index) * gapMs,
 	);
-};
 
 /** AniList degraded to 30 a minute, with this process's `recentSends` and nothing else known. */
 const degraded = (
 	recentSends: readonly number[],
 	overrides: Partial<LimiterState> = {},
-): LimiterState => {
-	return {
-		budget: null,
-		limit: 30,
-		pausedUntil: 0,
-		recentSends,
-		...overrides,
-	};
-};
+): LimiterState => ({
+	budget: null,
+	limit: 30,
+	pausedUntil: 0,
+	recentSends,
+	...overrides,
+});
 
 describe("waitToSend", () => {
 	test("sends a viewer's request at once while the last minute has room", () => {

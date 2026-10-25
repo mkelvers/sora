@@ -10,11 +10,11 @@ const anikoto: ProviderHealth = {
 	last_ok_at: "2026-09-25T12:00:00.000Z",
 	operations: [
 		{
-			operation: "resolve_stream",
-			ok: 0,
+			average_ms: 250,
 			empty: 0,
 			failed: 4,
-			average_ms: 250,
+			ok: 0,
+			operation: "resolve_stream",
 		},
 	],
 	provider: "anikoto",
@@ -42,10 +42,8 @@ describe("/health", () => {
 		expect(body).toEqual({
 			providers: [
 				{
-					provider: "anikoto",
-					status: "failing",
-					last_ok_at: "2026-09-25T12:00:00.000Z",
 					last_error_at: "2026-09-25T16:20:00.000Z",
+					last_ok_at: "2026-09-25T12:00:00.000Z",
 					operations: [
 						{
 							operation: "resolve_stream",
@@ -55,6 +53,8 @@ describe("/health", () => {
 							average_ms: 250,
 						},
 					],
+					provider: "anikoto",
+					status: "failing",
 				},
 			],
 			status: "ok",

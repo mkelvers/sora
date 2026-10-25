@@ -23,6 +23,4 @@ export const parseRetryAfter = (header: string | null, now = Date.now()) => {
 };
 
 /** The `Retry-After` value for a wait in milliseconds: whole seconds, rounded up. */
-export const formatRetryAfter = (milliseconds: number) => {
-	return String(Math.ceil(milliseconds / second));
-};
+export const formatRetryAfter = (milliseconds: number) => String(Math.ceil(milliseconds / second));

@@ -90,14 +90,13 @@ export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion
  * The languages among `versions`, in the order {@link versionsOffered} sorts
  * them, without their locales.
  */
-export const languagesOf = (versions: readonly EpisodeVersion[]): ContentLanguage[] => {
-	return [...new Set(versions.map((version) => version.language))];
-};
+export const languagesOf = (versions: readonly EpisodeVersion[]): ContentLanguage[] => [
+	...new Set(versions.map((version) => version.language)),
+];
 
 /** The providers whose lists say truthfully which languages the served locale has. */
-const listingSources = (providers: readonly StreamProvider[]) => {
-	return providers.filter((source) => source.listsLanguages && source.locale === servedLocale);
-};
+const listingSources = (providers: readonly StreamProvider[]) =>
+	providers.filter((source) => source.listsLanguages && source.locale === servedLocale);
 
 /**
  * First lookups in flight, keyed by AniList ID, so listings made while one
@@ -114,8 +113,8 @@ const lookUpNow = (
 	anilistId: number,
 	sources: readonly StreamProvider[],
 	dependencies: VersionDependencies,
-): Promise<StoredUnits[]> => {
-	return lookupsInFlight.run(anilistId, async () => {
+): Promise<StoredUnits[]> =>
+	lookupsInFlight.run(anilistId, async () => {
 		const anime = await attempt(
 			dependencies.getAnime(anilistId),
 			AnimeNotFoundError,
@@ -145,7 +144,6 @@ const lookUpNow = (
 		);
 		return found.flat();
 	});
-};
 
 /** Episode lists stored for one anime. */
 interface AnimeListings {

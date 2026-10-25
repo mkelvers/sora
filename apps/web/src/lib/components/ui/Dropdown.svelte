@@ -28,10 +28,10 @@
 			computePosition: {
 				placement: alignment === "left" ? "bottom-start" : "bottom-end",
 			},
-			offset: 0,
 			flip: {
 				mainAxis: false,
 			},
+			offset: 0,
 		}),
 		focus: {
 			onClose: null,
@@ -42,12 +42,14 @@
 				return;
 			}
 
-			setTimeout(() =>
-				document
-					.querySelector<HTMLElement>(`#${popover.ids.popover} [aria-checked="true"]`)
-					?.focus({
-						preventScroll: true,
-					}),
+			setTimeout(
+				() =>
+					document
+						.querySelector<HTMLElement>(`#${popover.ids.popover} [aria-checked="true"]`)
+						?.focus({
+							preventScroll: true,
+						}),
+				0,
 			);
 		},
 	});

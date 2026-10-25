@@ -20,7 +20,7 @@ const upcomingLimit = 12;
 const released: MediaStatus[] = ["FINISHED", "RELEASING"];
 
 /** What a franchise starts with: a show or a film, rather than a special or an OVA. */
-const openingFormats: Set<MediaFormat> = new Set(["TV", "MOVIE"]);
+const openingFormats = new Set<MediaFormat>(["TV", "MOVIE"]);
 
 /**
  * Whether a start date is soon: its day is known, and it falls from today
@@ -50,8 +50,8 @@ const earliestReleased = async (anilistId: number) => {
 		franchise.length > 0
 			? await db
 					.select({
-						series,
 						format: animeSearch.format,
+						series,
 					})
 					.from(series)
 					.leftJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
@@ -100,13 +100,13 @@ const earliestReleased = async (anilistId: number) => {
 export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSeries[]> => {
 	const unreleased = await db
 		.select({
+			popularity: animeSearch.popularity,
 			series,
 			startDate: sql<{
 				year: number | null;
 				month: number | null;
 				day: number | null;
 			} | null>`${anime.media}->'startDate'`,
-			popularity: animeSearch.popularity,
 		})
 		.from(series)
 		.innerJoin(anime, eq(anime.anilistId, series.anilistId))
@@ -143,10 +143,10 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 		const row = caughtUpOn ?? entry.series;
 		const known = listed.get(row.id);
 		listed.set(row.id, {
-			row,
-			startDate: known && known.startDate < startDate ? known.startDate : startDate,
 			popularity: Math.max(entry.popularity, known?.popularity ?? 0),
 			returning: caughtUpOn !== null,
+			row,
+			startDate: known && known.startDate < startDate ? known.startDate : startDate,
 		});
 	}
 
@@ -163,9 +163,9 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 		return card
 			? [
 					{
+						returning: title.returning,
 						series: card,
 						start_date: title.startDate,
-						returning: title.returning,
 					},
 				]
 			: [];

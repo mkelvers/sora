@@ -212,14 +212,13 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 			const slots = [...Map.groupBy(airing, (episode) => episode.airing_at)];
 
 			return {
+				count: airing.length,
 				date: date.toString(),
-				today: isToday,
-				name: date.toLocaleString("en", { weekday: "long" }),
-				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),
 				label: date.toLocaleString("en", { weekday: "long", month: "long", day: "numeric" }),
 				month_day: date.toLocaleString("en", { month: "long", day: "numeric" }),
+				name: date.toLocaleString("en", { weekday: "long" }),
 				number: date.day,
-				count: airing.length,
+				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),
 				slots: slots.map(([at, group], position) => {
 					const aired = Date.parse(at) <= now;
 					const previous = slots[position - 1];
@@ -233,12 +232,13 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 						),
 					};
 				}),
+				today: isToday,
 			};
 		}),
 		now: clock(now),
 		week: new Intl.DateTimeFormat("en", {
-			month: "short",
 			day: "numeric",
+			month: "short",
 			year: "numeric",
 		}).formatRange(monday, sunday),
 	};

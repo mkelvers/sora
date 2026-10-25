@@ -4,9 +4,7 @@ import type { ClassValue } from "clsx";
 import type { Attachment } from "svelte/attachments";
 import { twMerge } from "tailwind-merge";
 
-export const cn = (...inputs: ClassValue[]) => {
-	return twMerge(clsx(inputs));
-};
+export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export const audioLabel = (audio: SeriesCard["audio"] | null | undefined) => {
 	const sub = !!audio?.includes("sub");
@@ -19,9 +17,7 @@ export const audioLabel = (audio: SeriesCard["audio"] | null | undefined) => {
 	return sub ? "Subtitled" : dub ? "Dubbed" : "";
 };
 
-export const episodes = (count: number) => {
-	return `${count} ${count === 1 ? "Episode" : "Episodes"}`;
-};
+export const episodes = (count: number) => `${count} ${count === 1 ? "Episode" : "Episodes"}`;
 
 export const pollWhileVisible = (refresh: () => void, intervalMs = 30_000) => {
 	const check = () => {
@@ -38,8 +34,9 @@ export const pollWhileVisible = (refresh: () => void, intervalMs = 30_000) => {
 	};
 };
 
-export const onVisible = (callback: () => void, rootMargin: string): Attachment => {
-	return (node) => {
+export const onVisible =
+	(callback: () => void, rootMargin: string): Attachment =>
+	(node) => {
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries.some((entry) => entry.isIntersecting)) {
@@ -54,7 +51,6 @@ export const onVisible = (callback: () => void, rootMargin: string): Attachment 
 		observer.observe(node);
 		return () => observer.disconnect();
 	};
-};
 
 const tmdbBucket = /^(https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//;
 
@@ -70,9 +66,7 @@ export type TmdbSize =
 	| "w1280"
 	| "original";
 
-export const tmdbImage = (url: string, size: TmdbSize) => {
-	return url.replace(tmdbBucket, `$1${size}/`);
-};
+export const tmdbImage = (url: string, size: TmdbSize) => url.replace(tmdbBucket, `$1${size}/`);
 
 export const tmdbSrcset = (url: string, sizes: Partial<Record<TmdbSize, number>>) => {
 	if (!tmdbBucket.test(url)) {

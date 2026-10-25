@@ -7,21 +7,19 @@ const now = new Date("2026-09-25T16:40:00Z");
 const hoursAgo = (hours: number) => new Date(Date.UTC(2026, 8, 25, 16 - hours));
 
 /** A row for `provider`'s `operation` with no calls and nothing on record, overridden by `fields`. */
-const row = (provider: string, operation: string, fields: Partial<OperationRow>): OperationRow => {
-	return {
-		durationMs: 0,
-		empty: 0,
-		failed: 0,
-		lastError: null,
-		lastErrorAt: null,
-		lastOkHour: null,
-		ok: 0,
-		operation,
-		provider,
-		recentCalls: 0,
-		...fields,
-	};
-};
+const row = (provider: string, operation: string, fields: Partial<OperationRow>): OperationRow => ({
+	durationMs: 0,
+	empty: 0,
+	failed: 0,
+	lastError: null,
+	lastErrorAt: null,
+	lastOkHour: null,
+	ok: 0,
+	operation,
+	provider,
+	recentCalls: 0,
+	...fields,
+});
 
 const statusOf = (rows: OperationRow[]) => summarizeHealth(["anikoto"], rows, now)[0]?.status;
 
@@ -152,7 +150,7 @@ describe("summarizeHealth", () => {
 			["anikoto"],
 			[
 				row("anikoto", "resolve_stream", {
-					durationMs: 1_000,
+					durationMs: 1000,
 					empty: 0,
 					failed: 1,
 					lastOkHour: hoursAgo(0),

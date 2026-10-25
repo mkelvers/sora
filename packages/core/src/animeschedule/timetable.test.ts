@@ -36,17 +36,15 @@ const entry = (
 	episodeDate: string,
 	airType = "raw",
 	airingStatus = "unaired",
-) => {
-	return {
-		airType,
-		airingStatus,
-		episodeDate,
-		episodeNumber,
-		episodes: 24,
-		route,
-		title: route,
-	};
-};
+) => ({
+	airType,
+	airingStatus,
+	episodeDate,
+	episodeNumber,
+	episodes: 24,
+	route,
+	title: route,
+});
 
 describe("fetchTimetable", () => {
 	test("asks for the week's whole timetable in UTC with the app's token", async () => {

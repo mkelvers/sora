@@ -151,9 +151,8 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 };
 
 /** Whether {@link blackBars} finds bars thick enough to see. */
-export const hasBlackBars = async (image: Buffer): Promise<boolean> => {
-	return (await blackBars(image)) >= thinnestBar;
-};
+export const hasBlackBars = async (image: Buffer): Promise<boolean> =>
+	(await blackBars(image)) >= thinnestBar;
 
 const stillModel = "Xenova/clip-vit-base-patch32";
 

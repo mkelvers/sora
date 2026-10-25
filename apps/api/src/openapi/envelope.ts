@@ -10,12 +10,11 @@ import type { PreparingTitle } from "@sora/core/contract";
 export const envelopeOf = <TResults extends z.ZodType, TMeta extends z.ZodType>(
 	results: TResults,
 	meta: TMeta,
-) => {
-	return z.object({
+) =>
+	z.object({
 		meta,
 		results,
 	});
-};
 
 /** Paging for a list that has more than one page. */
 export const PageMetaSchema = z

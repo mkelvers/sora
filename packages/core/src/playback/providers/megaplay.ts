@@ -210,12 +210,11 @@ export const resolveMegaPlayEmbed = async (
 		skipSegments: skipSegments(body),
 		videos: [
 			{
-				url: file,
 				format: new URL(file).pathname.endsWith(".m3u8") ? "hls" : "mp4",
-				quality: "auto",
 				headers: {
 					Referer: mediaReferer,
 				},
+				quality: "auto",
 				subtitles: (body.tracks ?? []).flatMap((track) =>
 					track.kind === "captions" && track.label
 						? [
@@ -228,6 +227,7 @@ export const resolveMegaPlayEmbed = async (
 							]
 						: [],
 				),
+				url: file,
 			},
 		],
 	};

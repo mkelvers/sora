@@ -70,9 +70,7 @@ export const locateEpisode = async (seriesId: string, number: number): Promise<L
 export const carriedByAniKoto = sql`(exists (select 1 from ${anikotoSeries} where ${anikotoSeries.anilistId} = ${animeSearch.anilistId}) or exists (select 1 from ${providerMapping} where ${providerMapping.provider} = ${aniKoto.id} and ${providerMapping.providerMediaId} is not null and ${providerMapping.anilistId} = ${animeSearch.anilistId}))`;
 
 /** The key an AniList episode is filed under, such as in {@link AniKotoEpisodes}. */
-export const anilistEpisodeKey = (anilistId: number, episode: number) => {
-	return `${anilistId}:${episode}`;
-};
+export const anilistEpisodeKey = (anilistId: number, episode: number) => `${anilistId}:${episode}`;
 
 /** What {@link isEpisodeReleased} needs to know about a series. */
 export interface ReleaseSchedule {
@@ -103,8 +101,8 @@ export const episodeReleasedAt = sql<Date>`coalesce(${seriesEpisode.airedAt}, ($
  * then applies {@link episodeReleasedAt} exactly: asking for the latter alone
  * computes it for every episode stored.
  */
-export const releasedBetween = (since: Date, until: Date) => {
-	return and(
+export const releasedBetween = (since: Date, until: Date) =>
+	and(
 		or(
 			and(gte(seriesEpisode.airedAt, since), lte(seriesEpisode.airedAt, until)),
 			and(
@@ -116,17 +114,13 @@ export const releasedBetween = (since: Date, until: Date) => {
 		gte(episodeReleasedAt, since),
 		lte(episodeReleasedAt, until),
 	);
-};
 
 /**
  * When an episode came out, as {@link episodeReleasedAt} says, or `null`
  * when it has neither an airing time nor an air date.
  */
-export const releasedAtOf = (episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) => {
-	return (
-		episode.airedAt ?? (episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`))
-	);
-};
+export const releasedAtOf = (episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) =>
+	episode.airedAt ?? (episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`));
 
 /**
  * Whether an episode has been released: it is not at or past the series'
@@ -240,11 +234,10 @@ export const isEpisodeAvailable = (
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
 	now = new Date(),
-) => {
-	return onAniKoto.lookedUp.has(title.anilistId)
+) =>
+	onAniKoto.lookedUp.has(title.anilistId)
 		? onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number))
 		: isEpisodeReleased(title, episode, now);
-};
 
 /**
  * Whether a series lists an episode: it is available (see

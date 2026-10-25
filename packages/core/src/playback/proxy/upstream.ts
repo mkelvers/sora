@@ -31,10 +31,10 @@ const maximumRedirects = 5;
  */
 const maximumBodyBytes: Record<StreamTargetKind, number> = {
 	file: Number.POSITIVE_INFINITY,
-	key: 64 * 1_024,
-	playlist: 4 * 1_024 * 1_024,
-	segment: 32 * 1_024 * 1_024,
-	subtitle: 4 * 1_024 * 1_024,
+	key: 64 * 1024,
+	playlist: 4 * 1024 * 1024,
+	segment: 32 * 1024 * 1024,
+	subtitle: 4 * 1024 * 1024,
 };
 
 /** The proxied upstream could not be fetched. Retryable. */
@@ -132,12 +132,8 @@ const publicLookup: typeof lookup = ((
  * Makes one request without following redirects, like `fetch(url, { redirect:
  * "manual" })`, but connecting only to public addresses.
  */
-const requestPublicHost = (
-	url: string,
-	headers: Headers,
-	signal: AbortSignal,
-): Promise<Response> => {
-	return new Promise((resolve, reject) => {
+const requestPublicHost = (url: string, headers: Headers, signal: AbortSignal): Promise<Response> =>
+	new Promise((resolve, reject) => {
 		const target = new URL(url);
 		const outgoing = Object.fromEntries(headers);
 		const send = target.protocol === "https:" ? https.request : http.request;
@@ -178,7 +174,6 @@ const requestPublicHost = (
 		request.on("error", reject);
 		request.end();
 	});
-};
 
 const fetchFollowingRedirects = async (
 	start: string,

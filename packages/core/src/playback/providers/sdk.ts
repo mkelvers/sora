@@ -92,15 +92,13 @@ export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEp
 };
 
 /** An `anime-sdk` episode as a {@link ProviderEpisode}. */
-export const toProviderEpisode = (unit: IContentUnit): ProviderEpisode => {
-	return {
-		id: unit.id,
-		isFiller: unit.isFiller ?? null,
-		languages: unit.availableLanguages ?? null,
-		number: unit.number,
-		title: unit.title,
-	};
-};
+export const toProviderEpisode = (unit: IContentUnit): ProviderEpisode => ({
+	id: unit.id,
+	isFiller: unit.isFiller ?? null,
+	languages: unit.availableLanguages ?? null,
+	number: unit.number,
+	title: unit.title,
+});
 
 /**
  * A {@link StreamProvider} backed by an `anime-sdk` provider: series are
@@ -181,16 +179,16 @@ export class SdkStreamProvider implements StreamProvider {
 		return {
 			skipSegments: [],
 			videos: streams.map((stream) => ({
-				url: stream.sourceUrl,
 				format: stream.isHLS ? "hls" : "mp4",
-				quality: stream.quality,
 				headers: stream.headers ?? {},
+				quality: stream.quality,
 				subtitles: (stream.subtitles ?? []).map((track) => ({
 					url: track.url,
 					language: track.language,
 					label: track.label,
 					format: track.format ?? null,
 				})),
+				url: stream.sourceUrl,
 			})),
 		};
 	}

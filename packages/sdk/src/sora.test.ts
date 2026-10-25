@@ -24,14 +24,13 @@ const clientAnswering = (answer: () => Response, options: { baseUrl?: string } =
 	};
 };
 
-const genres = () => {
-	return Response.json({
+const genres = () =>
+	Response.json({
 		meta: {
 			count: 2,
 		},
 		results: ["Action", "Comedy"],
 	});
-};
 
 describe("SoraClient.request", () => {
 	test("resolves to a response's results, and requestWithMeta to the whole body", async () => {

@@ -72,9 +72,9 @@ const settleStatus = async (media: AnimeDetailsFragment): Promise<AnimeDetailsFr
 		endDate: media.endDate?.year
 			? media.endDate
 			: {
-					year: aired.getUTCFullYear(),
-					month: aired.getUTCMonth() + 1,
 					day: aired.getUTCDate(),
+					month: aired.getUTCMonth() + 1,
+					year: aired.getUTCFullYear(),
 				},
 		status: "FINISHED",
 	};
@@ -113,14 +113,12 @@ const fetchAnimeDetails = async (anilistId: number) => {
 	return settleStatus(media);
 };
 
-const storedAnimeValues = (media: AnimeDetailsFragment) => {
-	return {
-		anilistId: media.id,
-		media,
-		refreshedAt: new Date(),
-		status: media.status,
-	};
-};
+const storedAnimeValues = (media: AnimeDetailsFragment) => ({
+	anilistId: media.id,
+	media,
+	refreshedAt: new Date(),
+	status: media.status,
+});
 
 /**
  * Finales often reach providers a day or more after they air, while AniList

@@ -33,8 +33,8 @@ const decodeEntity = (entity: string, body: string) => {
 
 	return namedEntities[body.toLowerCase()] ?? entity;
 };
-export const plainText = (value: string) => {
-	return value
+export const plainText = (value: string) =>
+	value
 		.replaceAll(/<br\s*\/?>/gi, "\n")
 		.replaceAll(/<[^>]+>/g, "")
 		.replaceAll(
@@ -48,7 +48,6 @@ export const plainText = (value: string) => {
 		.replaceAll(/[ \t]+\n/g, "\n")
 		.replaceAll(/\n{3,}/g, "\n\n")
 		.trim();
-};
 
 /** The longest a {@link synopsis} runs. */
 const synopsisLength = 320;
@@ -119,6 +118,4 @@ export const fuzzyDate = (date: {
 	return date.day ? `${month}-${String(date.day).padStart(2, "0")}` : month;
 };
 
-export const fromUnixSeconds = (seconds: number) => {
-	return new Date(seconds * 1000).toISOString();
-};
+export const fromUnixSeconds = (seconds: number) => new Date(seconds * 1000).toISOString();

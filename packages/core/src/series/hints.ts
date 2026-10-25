@@ -139,14 +139,11 @@ const downloadHints = async () => {
 	return hints.data;
 };
 
-const sameHint = (left: TmdbHint | undefined, right: TmdbHint) => {
-	return (
-		left !== undefined &&
-		left.showId === right.showId &&
-		left.movieIds.length === right.movieIds.length &&
-		left.movieIds.every((id, index) => id === right.movieIds[index])
-	);
-};
+const sameHint = (left: TmdbHint | undefined, right: TmdbHint) =>
+	left !== undefined &&
+	left.showId === right.showId &&
+	left.movieIds.length === right.movieIds.length &&
+	left.movieIds.every((id, index) => id === right.movieIds[index]);
 
 /**
  * Brings the stored hints in line with the current list: new and changed

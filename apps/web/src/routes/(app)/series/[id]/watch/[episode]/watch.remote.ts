@@ -148,8 +148,8 @@ export const savePlaybackPreferences = command(
 		auto_skip: z.boolean().optional(),
 		subtitles: z
 			.object({
-				sub: SubtitleChoice.optional(),
 				dub: SubtitleChoice.optional(),
+				sub: SubtitleChoice.optional(),
 			})
 			.optional(),
 	}),

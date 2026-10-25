@@ -13,7 +13,10 @@ const phosphorWeights: Plugin = {
 			return;
 		}
 
-		return code.replace(/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/g, "");
+		return code.replaceAll(
+			/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/g,
+			"",
+		);
 	},
 };
 
@@ -25,42 +28,42 @@ export default defineConfig({
 		phosphorWeights,
 		tailwindcss(),
 		sveltekit({
-			compilerOptions: {
-				runes: ({ filename }) =>
-					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
-				experimental: {
-					async: true,
-				},
-			},
-			experimental: {
-				remoteFunctions: true,
-			},
 			adapter: adapter({
 				precompress: true,
 			}),
 			alias: {
 				$routes: "src/routes",
 			},
+			compilerOptions: {
+				experimental: {
+					async: true,
+				},
+				runes: ({ filename }) =>
+					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
+			},
 			csp: {
-				mode: "auto",
 				directives: {
+					"base-uri": ["self"],
+					"connect-src": ["self"],
 					"default-src": ["self"],
+					"font-src": ["self", "data:"],
+					"form-action": ["self"],
+					"frame-ancestors": ["none"],
+					"img-src": ["self", "data:", "blob:", "https://image.tmdb.org", "https://s4.anilist.co"],
+					"media-src": ["self", "blob:"],
+					"object-src": ["none"],
 					"script-src": ["self"],
 					"script-src-attr": [
 						"unsafe-hashes",
 						"sha256-7dQwUgLau1NFCCGjfn9FsYptB6ZtWxJin6VohGIu20I=",
 					],
 					"style-src": ["self", "unsafe-inline"],
-					"img-src": ["self", "data:", "blob:", "https://image.tmdb.org", "https://s4.anilist.co"],
-					"font-src": ["self", "data:"],
-					"media-src": ["self", "blob:"],
-					"connect-src": ["self"],
 					"worker-src": ["self", "blob:"],
-					"object-src": ["none"],
-					"base-uri": ["self"],
-					"form-action": ["self"],
-					"frame-ancestors": ["none"],
 				},
+				mode: "auto",
+			},
+			experimental: {
+				remoteFunctions: true,
 			},
 		}),
 		sveltePhosphorOptimize(),

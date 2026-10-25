@@ -55,11 +55,10 @@ const resultsPerQuery = 5;
 
 const inFlight = new InFlight<number, TmdbMapping>();
 
-const mappingLifetimeMs = (entry: FranchiseEntry, stored: TmdbMapping) => {
-	return stored.tmdbId !== null && entry.status === "FINISHED"
+const mappingLifetimeMs = (entry: FranchiseEntry, stored: TmdbMapping) =>
+	stored.tmdbId !== null && entry.status === "FINISHED"
 		? finishedMappingLifetimeMs
 		: volatileMappingLifetimeMs;
-};
 
 const freshMapping = async (entry: FranchiseEntry) => {
 	const [stored] = await db
@@ -306,9 +305,8 @@ const bestShowPlacement = async (
  * Specials and OVAs are sometimes released as TMDB movies, whatever their
  * episode count. The movie's runtime must still match their total length.
  */
-const isShortRelease = (subject: MatchSubject) => {
-	return subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA";
-};
+const isShortRelease = (subject: MatchSubject) =>
+	subject.format === "SPECIAL" || subject.format === "OVA" || subject.format === "ONA";
 
 const match = async (
 	entry: FranchiseEntry,

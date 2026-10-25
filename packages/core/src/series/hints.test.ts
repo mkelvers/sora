@@ -6,15 +6,15 @@ describe("parseTmdbHints", () => {
 	test("reads the show and films hinted for each AniList entry", () => {
 		const hints = parseTmdbHints([
 			{
-				anidb_id: 17617,
-				anilist_id: 154587,
-				mal_id: 52991,
+				anidb_id: 17_617,
+				anilist_id: 154_587,
+				mal_id: 52_991,
 				season: {
 					tmdb: 1,
 					tvdb: 1,
 				},
 				themoviedb_id: {
-					tv: 209867,
+					tv: 209_867,
 				},
 				type: "TV",
 			},
@@ -33,7 +33,7 @@ describe("parseTmdbHints", () => {
 				154_587,
 				{
 					movieIds: [],
-					showId: 209867,
+					showId: 209_867,
 				},
 			],
 			[

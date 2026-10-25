@@ -73,12 +73,10 @@
 				: undefined,
 	);
 
-	const elements = () => {
-		return {
-			hero: stage!.querySelector<HTMLElement>(".series-hero")!,
-			logo: stage!.querySelector<HTMLImageElement>("[data-hero-logo]")!,
-		};
-	};
+	const elements = () => ({
+		hero: stage!.querySelector<HTMLElement>(".series-hero")!,
+		logo: stage!.querySelector<HTMLImageElement>("[data-hero-logo]")!,
+	});
 
 	const measure = () => {
 		const frame = stage!.getBoundingClientRect();

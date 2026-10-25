@@ -8,20 +8,16 @@ const title = (
 	name: string,
 	format: FranchiseTitle["format"],
 	startDate: string,
-): FranchiseTitle => {
-	return {
-		anilistId,
-		episodeCount: 12,
-		format,
-		seriesId: `series-${anilistId}`,
-		startDate,
-		title: name,
-	};
-};
+): FranchiseTitle => ({
+	anilistId,
+	episodeCount: 12,
+	format,
+	seriesId: `series-${anilistId}`,
+	startDate,
+	title: name,
+});
 
-const titlesOf = (parts: ReturnType<typeof franchiseParts>) => {
-	return parts.map((part) => part.title);
-};
+const titlesOf = (parts: ReturnType<typeof franchiseParts>) => parts.map((part) => part.title);
 
 describe("franchiseParts", () => {
 	test("keeps a crossover that the opening title is named after at the start", () => {

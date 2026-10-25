@@ -17,11 +17,11 @@ const stream: ProviderStream = {
 	skipSegments: [],
 	videos: [
 		{
-			url: "https://fake.example/master.m3u8",
 			format: "hls",
-			quality: "auto",
 			headers: {},
+			quality: "auto",
 			subtitles: [],
+			url: "https://fake.example/master.m3u8",
 		},
 	],
 };

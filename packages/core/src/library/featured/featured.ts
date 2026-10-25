@@ -26,8 +26,8 @@ const featuredFormats = ["TV", "MOVIE"] as const;
 const backfillPerPick = 20;
 
 /** The cards of stored series, keyed by series ID. */
-const cardsOf = async (seriesIds: readonly string[]) => {
-	return seriesIds.length > 0
+const cardsOf = async (seriesIds: readonly string[]) =>
+	seriesIds.length > 0
 		? toSeriesCards(
 				await db
 					.select()
@@ -35,12 +35,10 @@ const cardsOf = async (seriesIds: readonly string[]) => {
 					.where(inArray(series.id, [...seriesIds])),
 			)
 		: new Map<string, SeriesCard>();
-};
 
 /** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
-const isShowable = (card: SeriesCard | undefined) => {
-	return card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
-};
+const isShowable = (card: SeriesCard | undefined) =>
+	card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
 
 /**
  * Picks titles to feature for a rotation from the search index, leaving out

@@ -69,8 +69,8 @@ export const getCatalogPage = query(request, async (input) => {
 			hasNextPage: meta.has_next_page,
 			items: results.map((release): CatalogItem => ({
 				card: release.series,
-				meta: release.released_ago,
 				group: release.period,
+				meta: release.released_ago,
 			})),
 			preparing: meta.preparing,
 		};

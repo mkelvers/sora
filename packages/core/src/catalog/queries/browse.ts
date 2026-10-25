@@ -111,16 +111,14 @@ export const getGenres = async (): Promise<string[]> => {
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;
 
 /** The season `now` falls in: winter is January to March, and so on. Counted in UTC. */
-export const currentSeason = (now = new Date()): AnimeSeason => {
-	return {
-		season: seasonOrder[Math.floor(now.getUTCMonth() / 3)]!,
-		year: now.getUTCFullYear(),
-	};
-};
+export const currentSeason = (now = new Date()): AnimeSeason => ({
+	season: seasonOrder[Math.floor(now.getUTCMonth() / 3)]!,
+	year: now.getUTCFullYear(),
+});
 
 /** The season after `season`. */
-export const nextSeason = (season: AnimeSeason): AnimeSeason => {
-	return season.season === "FALL"
+export const nextSeason = (season: AnimeSeason): AnimeSeason =>
+	season.season === "FALL"
 		? {
 				season: "WINTER",
 				year: season.year + 1,
@@ -129,7 +127,6 @@ export const nextSeason = (season: AnimeSeason): AnimeSeason => {
 				season: seasonOrder[seasonOrder.indexOf(season.season) + 1]!,
 				year: season.year,
 			};
-};
 
 /**
  * Every season some anime started in, the latest first, up to the season

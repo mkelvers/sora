@@ -110,9 +110,8 @@ export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null =>
 };
 
 /** Drops GraphQL list holes; a null list is treated as empty. */
-const present = <T>(values: readonly (T | null)[] | null | undefined): T[] => {
-	return values ? values.filter((value): value is T => value !== null) : [];
-};
+const present = <T>(values: readonly (T | null)[] | null | undefined): T[] =>
+	values ? values.filter((value): value is T => value !== null) : [];
 
 const toTitle = (media: AnimeCardFragment): AnimeTitle => {
 	const english = media.title?.english ?? null;
@@ -137,61 +136,57 @@ const toTitle = (media: AnimeCardFragment): AnimeTitle => {
  * @throws {TypeError} when AniList returns media with no title at all, which
  *   would violate AniList's own data rules.
  */
-export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => {
-	return {
-		bannerUrl: media.bannerImage,
-		coverColor: media.coverImage?.color ?? null,
-		coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
-		durationMinutes: media.duration,
-		episodes: media.episodes,
-		format: toAnimeFormat(media.format),
-		genres: present(media.genres),
-		id: media.id,
-		isAdult: media.isAdult === true,
-		malId: media.idMal,
-		nextEpisode: media.nextAiringEpisode
-			? {
-					number: media.nextAiringEpisode.episode,
-					airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
-				}
-			: null,
-		popularity: media.popularity,
-		score: media.averageScore,
-		season: media.season,
-		seasonYear: media.seasonYear,
-		status: media.status,
-		title: toTitle(media),
-	};
-};
+export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => ({
+	bannerUrl: media.bannerImage,
+	coverColor: media.coverImage?.color ?? null,
+	coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
+	durationMinutes: media.duration,
+	episodes: media.episodes,
+	format: toAnimeFormat(media.format),
+	genres: present(media.genres),
+	id: media.id,
+	isAdult: media.isAdult === true,
+	malId: media.idMal,
+	nextEpisode: media.nextAiringEpisode
+		? {
+				number: media.nextAiringEpisode.episode,
+				airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
+			}
+		: null,
+	popularity: media.popularity,
+	score: media.averageScore,
+	season: media.season,
+	seasonYear: media.seasonYear,
+	status: media.status,
+	title: toTitle(media),
+});
 
 /** Converts an AniList details fragment into the domain model. */
-export const toAnime = (media: AnimeDetailsFragment): Anime => {
-	return {
-		...toAnimeCard(media),
-		countryOfOrigin: media.countryOfOrigin,
-		description: (media.description && synopsis(media.description)) || null,
-		endDate: media.endDate ? fuzzyDate(media.endDate) : null,
-		recommendations: present(media.recommendations?.nodes).flatMap((node) =>
-			node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
-		),
-		relations: present(media.relations?.edges).flatMap((edge) =>
-			edge.relationType && edge.node?.type === "ANIME"
-				? [
-						{
-							type: edge.relationType,
-							anime: toAnimeCard(edge.node),
-						},
-					]
-				: [],
-		),
-		source: media.source,
-		startDate: media.startDate ? fuzzyDate(media.startDate) : null,
-		studios: present(media.studios?.nodes).map((studio) => studio.name),
-		synonyms: present(media.synonyms),
-		tags: present(media.tags).map((tag) => ({
-			name: tag.name,
-			rank: tag.rank,
-			spoiler: tag.isMediaSpoiler === true,
-		})),
-	};
-};
+export const toAnime = (media: AnimeDetailsFragment): Anime => ({
+	...toAnimeCard(media),
+	countryOfOrigin: media.countryOfOrigin,
+	description: (media.description && synopsis(media.description)) || null,
+	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
+	recommendations: present(media.recommendations?.nodes).flatMap((node) =>
+		node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
+	),
+	relations: present(media.relations?.edges).flatMap((edge) =>
+		edge.relationType && edge.node?.type === "ANIME"
+			? [
+					{
+						type: edge.relationType,
+						anime: toAnimeCard(edge.node),
+					},
+				]
+			: [],
+	),
+	source: media.source,
+	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
+	studios: present(media.studios?.nodes).map((studio) => studio.name),
+	synonyms: present(media.synonyms),
+	tags: present(media.tags).map((tag) => ({
+		name: tag.name,
+		rank: tag.rank,
+		spoiler: tag.isMediaSpoiler === true,
+	})),
+});

@@ -86,9 +86,7 @@ interface QueuedRequest {
 export const aniListPriority = new AsyncLocalStorage<number>();
 
 /** The priority requests made here are queued at; see {@link aniListPriority}. */
-const currentAniListPriority = () => {
-	return aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY;
-};
+const currentAniListPriority = () => aniListPriority.getStore() ?? Number.NEGATIVE_INFINITY;
 
 /**
  * An operation that loads AniList media by ID in pages of 50, AniList's cap,
@@ -179,13 +177,12 @@ const sortedKeys = (_key: string, value: unknown) => {
  * Object keys are sorted so `{ a, b }` and `{ b, a }` share a stored response, and the
  * query text is included so editing an operation leaves its stored responses behind.
  */
-const responseKey = (query: string, variables: unknown) => {
-	return createHash("sha256")
+const responseKey = (query: string, variables: unknown) =>
+	createHash("sha256")
 		.update(query)
 		.update("\0")
 		.update(JSON.stringify(variables, sortedKeys) ?? "null")
 		.digest("hex");
-};
 
 const operationName = (query: string) => {
 	const name = /\b(?:query|mutation)\s+(\w+)/.exec(query)?.[1];
@@ -322,14 +319,12 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 	};
 
-	const limiterState = (): LimiterState => {
-		return {
-			budget,
-			limit: requestLimit,
-			pausedUntil: nextRequestAt,
-			recentSends,
-		};
-	};
+	const limiterState = (): LimiterState => ({
+		budget,
+		limit: requestLimit,
+		pausedUntil: nextRequestAt,
+		recentSends,
+	});
 
 	const drain = async () => {
 		if (isDraining) {
@@ -374,8 +369,8 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 * Serializes upstream calls, sending the most urgent waiting one next; see
 	 * {@link aniListPriority}, as soon as {@link waitToSend} allows.
 	 */
-	const rateLimited = <T>(key: string, task: () => Promise<T>): Promise<T> => {
-		return new Promise<T>((resolve, reject) => {
+	const rateLimited = <T>(key: string, task: () => Promise<T>): Promise<T> =>
+		new Promise<T>((resolve, reject) => {
 			enqueue({
 				key,
 				priority: currentAniListPriority(),
@@ -383,7 +378,6 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			});
 			void drain();
 		});
-	};
 
 	/**
 	 * Follows the per-minute limit and remaining budget AniList reports in its

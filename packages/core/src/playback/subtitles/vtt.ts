@@ -30,9 +30,7 @@ export const formatTimestamp = (seconds: number) => {
 };
 
 /** The blocks of a WebVTT file, separated by blank lines. */
-export const splitBlocks = (content: string) => {
-	return content.split(/\r?\n\r?\n/);
-};
+export const splitBlocks = (content: string) => content.split(/\r?\n\r?\n/);
 
 /**
  * The start and end of a block's cue timing line, in seconds, and what

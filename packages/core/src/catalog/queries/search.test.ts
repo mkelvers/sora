@@ -20,16 +20,14 @@ const entry = (
 		native?: string;
 		synonyms?: string[];
 	},
-) => {
-	return {
-		anilistId,
-		english: titles.english ?? null,
-		native: titles.native ?? null,
-		popularity,
-		romaji: titles.romaji ?? null,
-		synonyms: titles.synonyms ?? [],
-	};
-};
+) => ({
+	anilistId,
+	english: titles.english ?? null,
+	native: titles.native ?? null,
+	popularity,
+	romaji: titles.romaji ?? null,
+	synonyms: titles.synonyms ?? [],
+});
 
 // Titles and popularity as AniList lists them.
 const kimetsu = entry(101_922, 1_000_000, {

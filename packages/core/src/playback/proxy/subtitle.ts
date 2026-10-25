@@ -43,12 +43,8 @@ const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
  * other cue keeps its length and moves by the shift at its start, and is
  * dropped when that would put it before the video.
  */
-export const retimeWebVtt = (
-	content: string,
-	shifts: TimelineShift[],
-	anchors: CueAnchor[] = [],
-) => {
-	return splitBlocks(content)
+export const retimeWebVtt = (content: string, shifts: TimelineShift[], anchors: CueAnchor[] = []) =>
+	splitBlocks(content)
 		.flatMap((block) => {
 			const cue = readTiming(block);
 			if (!cue) {
@@ -68,4 +64,3 @@ export const retimeWebVtt = (
 			return [writeTiming(block, moved, cue.end + moved - cue.start)];
 		})
 		.join("\n\n");
-};

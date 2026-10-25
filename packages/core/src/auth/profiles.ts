@@ -31,18 +31,16 @@ const palette = [
 	"#3e63dd",
 ];
 
-const toProfile = (row: typeof profile.$inferSelect): Profile => {
-	return {
-		avatar: {
-			seed: row.avatarSeed,
-			style: row.avatarStyle,
-		},
-		color: row.color,
-		created_at: row.createdAt.toISOString(),
-		id: row.id,
-		name: row.name,
-	};
-};
+const toProfile = (row: typeof profile.$inferSelect): Profile => ({
+	avatar: {
+		seed: row.avatarSeed,
+		style: row.avatarStyle,
+	},
+	color: row.color,
+	created_at: row.createdAt.toISOString(),
+	id: row.id,
+	name: row.name,
+});
 
 /** Lists an account's profiles, oldest first. */
 export const listProfiles = async (userId: string): Promise<Profile[]> => {

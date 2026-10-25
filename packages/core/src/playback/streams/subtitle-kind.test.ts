@@ -14,14 +14,13 @@ const track = (cues: { start: number; text: string }[]) => {
 	].join("\n\n");
 };
 
-const every = (seconds: number, count: number, text: (index: number) => string) => {
-	return track(
+const every = (seconds: number, count: number, text: (index: number) => string) =>
+	track(
 		Array.from({ length: count }, (_, index) => ({
 			start: index * seconds,
 			text: text(index),
 		})),
 	);
-};
 
 const dialogue = every(4, 360, (index) => `Line ${index}`);
 const signs = every(90, 14, (index) => `<b>Title ${index}</b>`);

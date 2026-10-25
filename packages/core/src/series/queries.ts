@@ -100,9 +100,8 @@ export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 };
 
 /** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
-const effectiveArtwork = (override: string | null, laidOut: string | null) => {
-	return override === noArtwork ? null : (override ?? laidOut);
-};
+const effectiveArtwork = (override: string | null, laidOut: string | null) =>
+	override === noArtwork ? null : (override ?? laidOut);
 
 const formatNames: Record<AnimeFormat, string> = {
 	MOVIE: "Movie",
@@ -194,9 +193,8 @@ const cardsFrom = async (
 export const toSeriesCards = async (
 	rows: readonly SeriesRow[],
 	includeHiddenIds: readonly string[] = [],
-): Promise<Map<string, SeriesCard>> => {
-	return cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
-};
+): Promise<Map<string, SeriesCard>> =>
+	cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
 
 /** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
 const franchiseLimit = 60;
@@ -864,8 +862,8 @@ const preparingOn = (
 				title: string | null;
 		  })
 		| undefined,
-): PreparingTitle[] => {
-	return missing.flatMap(({ anilistId, place }) => {
+): PreparingTitle[] =>
+	missing.flatMap(({ anilistId, place }) => {
 		const described = describe(anilistId);
 		const position = place - pageStart;
 		return described?.title && position >= 0 && position < perPage
@@ -879,7 +877,6 @@ const preparingOn = (
 				]
 			: [];
 	});
-};
 
 /**
  * Searches and filters the catalog, returning one card per AniList entry:
@@ -948,8 +945,8 @@ export const browseSeries = async (
 						const entry = indexed.get(anilistId);
 						return (
 							entry && {
-								title: entry.english ?? entry.romaji ?? entry.native,
 								format: toAnimeFormat(entry.format),
+								title: entry.english ?? entry.romaji ?? entry.native,
 								year:
 									entry.seasonYear ??
 									(entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
@@ -979,8 +976,8 @@ export const browseSeries = async (
 					const anime = cards.get(anilistId);
 					return (
 						anime && {
-							title: anime.title.display,
 							format: anime.format,
+							title: anime.title.display,
 							year: anime.seasonYear,
 						}
 					);
@@ -989,13 +986,12 @@ export const browseSeries = async (
 };
 
 /** Stored series in release order, the earliest first; those undated last. */
-export const byStartDate = (rows: readonly SeriesRow[]) => {
-	return rows.toSorted(
+export const byStartDate = (rows: readonly SeriesRow[]) =>
+	rows.toSorted(
 		(left, right) =>
 			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999") ||
 			left.anilistId - right.anilistId,
 	);
-};
 
 /** How far back {@link getLatestReleases} looks. */
 const releaseWindowMs = 30 * day;
@@ -1143,9 +1139,9 @@ export const getLatestReleases = async (
 			return card
 				? [
 						{
-							series: card,
 							episode,
 							released_at: releasedAt,
+							series: card,
 							...releaseAge(releasedAt, now.getTime()),
 						},
 					]

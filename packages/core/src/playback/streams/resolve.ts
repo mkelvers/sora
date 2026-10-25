@@ -247,13 +247,10 @@ const kindRank = {
 };
 
 /** English first, then dialogue before signs before captions, then by language. */
-const compareSubtitles = (left: PlaybackSubtitle, right: PlaybackSubtitle) => {
-	return (
-		Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
-		kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
-		left.label.localeCompare(right.label)
-	);
-};
+const compareSubtitles = (left: PlaybackSubtitle, right: PlaybackSubtitle) =>
+	Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
+	kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
+	left.label.localeCompare(right.label);
 
 const toPlaybackMedia = (
 	videos: ProviderVideo[],
@@ -287,8 +284,8 @@ const toPlaybackMedia = (
 					url: streamUrl(track.url, "subtitle", video.headers, {
 						accountId,
 						mirrors: mirrorsFor(track.url, video.url),
-						shifts,
 						refinement,
+						shifts,
 					}),
 				});
 			}
@@ -311,12 +308,11 @@ const audioLabels: Record<ContentLanguage, string> = {
  * Marks the English dialogue track, which sorts first, as the one a player
  * shows from the start. English that is only signs or captions is not.
  */
-const withDefault = (subtitles: PlaybackSubtitle[]) => {
-	return subtitles.map((track, index) => ({
+const withDefault = (subtitles: PlaybackSubtitle[]) =>
+	subtitles.map((track, index) => ({
 		...track,
 		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
 	}));
-};
 
 /**
  * Resolves one version of an AniList episode from the first provider that

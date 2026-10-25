@@ -7,8 +7,8 @@ const title = (
 	anilistId: number,
 	format: RoleTitle["format"],
 	overrides: Partial<RoleTitle> = {},
-) => {
-	return {
+) =>
+	({
 		anilistId,
 		durationMinutes: 24,
 		episodeCount: 1,
@@ -16,8 +16,7 @@ const title = (
 		popularity: 5000,
 		score: 70,
 		...overrides,
-	} satisfies RoleTitle;
-};
+	}) satisfies RoleTitle;
 
 describe("franchiseRoles", () => {
 	const indigo = title(1, "TV", { episodeCount: 82 });

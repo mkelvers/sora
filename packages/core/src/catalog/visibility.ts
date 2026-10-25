@@ -8,17 +8,15 @@ import { anime, series } from "../database/schema";
  */
 export const excludedFormats = ["TV_SHORT"] as const;
 
-export const isCatalogFormat = (format: string | null | undefined) => {
-	return !excludedFormats.some((excluded) => excluded === format);
-};
+export const isCatalogFormat = (format: string | null | undefined) =>
+	!excludedFormats.some((excluded) => excluded === format);
 
 /** Applies the catalog policy before ranking, pagination, or notification counts. */
-export const catalogFormatAllowed = (format: SQLWrapper) => {
-	return sql`(${format} is null or ${format} not in (${sql.join(
+export const catalogFormatAllowed = (format: SQLWrapper) =>
+	sql`(${format} is null or ${format} not in (${sql.join(
 		excludedFormats.map((format) => sql`${format}`),
 		sql`, `,
 	)}))`;
-};
 
 /**
  * Uses stored metadata, including for titles not yet mirrored in the search index.

@@ -23,16 +23,14 @@ const target = (
 	kind: StreamTarget["kind"],
 	headers: Record<string, string>,
 	parent?: string,
-): StreamTarget => {
-	return {
-		accountId: "",
-		expiresAt: 0,
-		headers,
-		kind,
-		mirrors: parent ? mirrorsFor(url, parent) : [],
-		url,
-	};
-};
+): StreamTarget => ({
+	accountId: "",
+	expiresAt: 0,
+	headers,
+	kind,
+	mirrors: parent ? mirrorsFor(url, parent) : [],
+	url,
+});
 
 const readPlaylist = async (url: string, headers: Record<string, string>, parent?: string) => {
 	const upstream = await fetchUpstreamBytes(target(url, "playlist", headers, parent));

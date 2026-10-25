@@ -48,14 +48,13 @@ const typeOf = (parameter: Parameter) => {
 	}
 };
 
-const members = (parameters: Parameter[], location: Parameter["in"]) => {
-	return parameters
+const members = (parameters: Parameter[], location: Parameter["in"]) =>
+	parameters
 		.filter((parameter) => parameter.in === location)
 		.map(
 			(parameter) =>
 				`${JSON.stringify(parameter.name)}${parameter.required ? "" : "?"}: ${typeOf(parameter)};`,
 		);
-};
 
 const operations = Object.entries(spec.paths)
 	.filter(([, item]) => item.get)

@@ -149,9 +149,7 @@ const phrasesOf = (words: SpokenWord[]) => {
 	return phrases;
 };
 
-const weightOf = (tokens: Token[]) => {
-	return tokens.reduce((sum, token) => sum + token.weight, 0);
-};
+const weightOf = (tokens: Token[]) => tokens.reduce((sum, token) => sum + token.weight, 0);
 
 const editDistance = (left: string, right: string) => {
 	let row = Array.from({ length: right.length + 1 }, (_, index) => index);
@@ -202,9 +200,8 @@ const sharedWeight = (left: Token[], right: Token[]) => {
  * How alike two sets of words are, 0 to 1: twice the weight of the words
  * they share over the weight of both. Little words count for less.
  */
-const dice = (left: Token[], right: Token[]) => {
-	return (2 * sharedWeight(left, right)) / (weightOf(left) + weightOf(right) || 1);
-};
+const dice = (left: Token[], right: Token[]) =>
+	(2 * sharedWeight(left, right)) / (weightOf(left) + weightOf(right) || 1);
 
 const median = (values: number[]) => {
 	const sorted = values.toSorted((a, b) => a - b);
@@ -392,9 +389,7 @@ const candidatesFor = (
 };
 
 /** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
-const offsetAt = (shifts: TimelineShift[], time: number) => {
-	return shiftTime(shifts, time) - time;
-};
+const offsetAt = (shifts: TimelineShift[], time: number) => shiftTime(shifts, time) - time;
 
 /**
  * The run of spoken words each cue is said in, in order, chosen to share the
@@ -446,9 +441,8 @@ const pickAnchors = (
 };
 
 /** Cues with enough words to tell what they say. */
-const speakingCues = (cueTokens: Token[][]) => {
-	return cueTokens.filter((tokens) => weightOf(tokens) >= 1).length;
-};
+const speakingCues = (cueTokens: Token[][]) =>
+	cueTokens.filter((tokens) => weightOf(tokens) >= 1).length;
 
 /**
  * The offsets for cues without an anchor. The picture's are exact, so they
@@ -515,8 +509,8 @@ const place = (
 	words: SpokenWord[],
 	spoken: (Token | null)[],
 	picked: Pick[],
-) => {
-	return picked.map((pick): Placed => {
+) =>
+	picked.map((pick): Placed => {
 		const tokens = cueTokens[pick.cue]!;
 		const shared = (index: number) => {
 			const token = spoken[index];
@@ -533,7 +527,6 @@ const place = (
 
 		return showFor(cues[pick.cue]!, pick.cue, words, first, last);
 	});
-};
 
 /**
  * The placed cues as anchors, in cue order, each ending before the next
@@ -560,9 +553,8 @@ const tidy = (cues: Cue[], placed: Placed[]) => {
 	return anchors.toSorted((a, b) => a.start - b.start);
 };
 
-const overlapSeconds = (startA: number, endA: number, startB: number, endB: number) => {
-	return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
-};
+const overlapSeconds = (startA: number, endA: number, startB: number, endB: number) =>
+	Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
 
 /**
  * Places cues whose words the dub does not share, such as when its script

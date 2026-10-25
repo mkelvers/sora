@@ -311,11 +311,10 @@ const formatAgreement = (format: AnimeFormat | null, candidate: string | null): 
 		: -2;
 };
 
-const animeTitles = (anime: Anime) => {
-	return [anime.title.english, anime.title.romaji, anime.title.native, ...anime.synonyms].flatMap(
+const animeTitles = (anime: Anime) =>
+	[anime.title.english, anime.title.romaji, anime.title.native, ...anime.synonyms].flatMap(
 		(title) => (title ? [title] : []),
 	);
-};
 
 type StoredSeries = typeof anikotoSeries.$inferSelect;
 
@@ -379,14 +378,13 @@ export const bestIdMatch = <TCandidate extends StoredSeries>(
  * unlike `anime-sdk`'s `normalizeTitle`, "Season 2" stays, so a sequel never
  * equals its first season.
  */
-export const strictTitle = (title: string) => {
-	return title
+export const strictTitle = (title: string) =>
+	title
 		.normalize("NFKD")
 		.replaceAll(/\p{M}/gu, "")
 		.toLowerCase()
 		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
 		.trim();
-};
 
 /** Series with exactly one of the anime's titles, the same format, and a year no more than one apart. */
 const exactTitleMatches = async (anime: Anime): Promise<StoredSeries[]> => {

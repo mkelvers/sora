@@ -7,51 +7,50 @@ import type {
 import { loadEntries, toMatchSubject } from "./entries";
 
 /** An AniList entry that knows nothing but its ID. */
-const entry = (id: number): FranchiseEntryFragment => {
-	return {
-		averageScore: null,
-		bannerImage: null,
-		coverImage: null,
-		duration: null,
-		endDate: null,
-		episodes: null,
-		format: "TV",
-		genres: null,
-		id,
-		idMal: null,
-		isAdult: false,
-		nextAiringEpisode: null,
-		popularity: null,
-		relations: {
-			edges: [],
-		},
-		season: null,
-		seasonYear: null,
-		startDate: null,
-		status: null,
-		synonyms: null,
-		title: {
-			english: null,
-			native: null,
-			romaji: `Entry ${id}`,
-		},
-	};
-};
+const entry = (id: number): FranchiseEntryFragment => ({
+	averageScore: null,
+	bannerImage: null,
+	coverImage: null,
+	duration: null,
+	endDate: null,
+	episodes: null,
+	format: "TV",
+	genres: null,
+	id,
+	idMal: null,
+	isAdult: false,
+	nextAiringEpisode: null,
+	popularity: null,
+	relations: {
+		edges: [],
+	},
+	season: null,
+	seasonYear: null,
+	startDate: null,
+	status: null,
+	synonyms: null,
+	title: {
+		english: null,
+		native: null,
+		romaji: `Entry ${id}`,
+	},
+});
 
 /** An entry with `relatedIds` as its neighbours, as AniList sends it. */
-const withNeighbours = (id: number, relatedIds: number[]): FranchiseEntryWithNeighboursFragment => {
-	return {
-		...entry(id),
-		neighbours: {
-			edges: relatedIds.map((related) => ({
-				node: {
-					...entry(related),
-					type: "ANIME",
-				},
-			})),
-		},
-	};
-};
+const withNeighbours = (
+	id: number,
+	relatedIds: number[],
+): FranchiseEntryWithNeighboursFragment => ({
+	...entry(id),
+	neighbours: {
+		edges: relatedIds.map((related) => ({
+			node: {
+				...entry(related),
+				type: "ANIME",
+			},
+		})),
+	},
+});
 
 /** A loader that answers every ID with an entry, entry 1 with entry 2 as its neighbour. */
 const loader = () =>

@@ -70,10 +70,9 @@ const useProviders = (list: FakeProvider[]) => {
 						skipSegments: fake.skipSegments?.[language] ?? [],
 						videos: [
 							{
-								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
 								format: "hls",
-								quality: "auto",
 								headers: {},
+								quality: "auto",
 								subtitles: fake.noSubtitles
 									? []
 									: [
@@ -96,6 +95,7 @@ const useProviders = (list: FakeProvider[]) => {
 												format: "vtt" as const,
 											})),
 										],
+								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
 							},
 						],
 					};
@@ -122,21 +122,21 @@ const dependencies: PlaybackDependencies = {
 	getProviderUnits: async (_anime, provider) => [
 		{
 			id: `${provider.id}:3`,
+			isFiller: null,
+			languages: units.get(provider.id) ?? null,
 			number: 3,
 			title: "Episode 3",
-			languages: units.get(provider.id) ?? null,
-			isFiller: null,
 		},
 	],
 	getRefinement: async (key) => refinements.get(key) ?? null,
 	locateEpisode: async (seriesId) => ({
-		seriesId,
 		anilistId: 154587,
 		number: 3,
+		seriesId,
 	}),
 	normalizeSkipSegments: async (_seriesId, _episode, _audio, segments) => segments,
 	providers,
-	requestRefinement: async () => undefined,
+	requestRefinement: async () => {},
 	segmentStarts: async (url) => timelines.get(url) ?? [],
 };
 
@@ -231,16 +231,16 @@ describe("resolvePlayback", () => {
 				skipSegments: {
 					dub: [
 						{
+							end: 230,
 							kind: "opening",
 							start: 154,
-							end: 230,
 						},
 					],
 					sub: [
 						{
+							end: 215,
 							kind: "opening",
 							start: 138,
-							end: 215,
 						},
 					],
 				},

@@ -22,13 +22,11 @@ const frieren = {
 };
 
 /** An AniList entry with what matching reads; the rest is left blank. */
-const animeWith = (fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime => {
-	return {
-		...anime(fields.id),
-		status: "FINISHED",
-		...fields,
-	};
-};
+const animeWith = (fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime => ({
+	...anime(fields.id),
+	status: "FINISHED",
+	...fields,
+});
 
 /** A stored AniKoto series, as the mirror holds it. */
 const series = (
@@ -36,27 +34,25 @@ const series = (
 		anikotoId: number;
 		title: string;
 	},
-) => {
-	return {
-		anilistId: null,
-		episodes: null,
-		format: null,
-		malId: null,
-		titles: [fields.title],
-		updatedAt: new Date(0),
-		year: null,
-		...fields,
-	};
-};
+) => ({
+	anilistId: null,
+	episodes: null,
+	format: null,
+	malId: null,
+	titles: [fields.title],
+	updatedAt: new Date(0),
+	year: null,
+	...fields,
+});
 
 describe("parseCatalogSeries", () => {
 	test("reads IDs, format, and every title", () => {
 		expect(parseCatalogSeries(frieren)).toEqual({
 			anikotoId: 6351,
-			anilistId: 154587,
+			anilistId: 154_587,
 			episodes: 28,
 			format: "TV",
-			malId: 52991,
+			malId: 52_991,
 			title: "Frieren: Beyond Journey's End",
 			titles: ["Frieren: Beyond Journey's End", "Sousou no Frieren", "葬送のフリーレン"],
 			updatedAt: new Date("2024-10-18T09:15:13Z"),
@@ -129,16 +125,16 @@ describe("bestIdMatch", () => {
 			anikotoId: 1551,
 			episodes: 26,
 			format: "TV",
-			malId: 38000,
+			malId: 38_000,
 			title: "Demon Slayer: Kimetsu no Yaiba",
 			titles: ["Demon Slayer: Kimetsu no Yaiba", "Kimetsu no Yaiba"],
 			year: 2019,
 		});
 		const film = series({
 			anikotoId: 6780,
-			anilistId: 101922,
+			anilistId: 101_922,
 			format: "MOVIE",
-			malId: 38000,
+			malId: 38_000,
 			title: "Demon Slayer: Sibling's Bond",
 			titles: ["Demon Slayer: Sibling's Bond", "Kimetsu no Yaiba Kyōdai no Kizuna"],
 			year: 2019,
@@ -149,8 +145,8 @@ describe("bestIdMatch", () => {
 				animeWith({
 					episodes: 26,
 					format: "TV",
-					id: 101922,
-					malId: 38000,
+					id: 101_922,
+					malId: 38_000,
 					seasonYear: 2019,
 					title: {
 						display: "Demon Slayer: Kimetsu no Yaiba",
@@ -167,10 +163,10 @@ describe("bestIdMatch", () => {
 	test("trusts a matching MyAnimeList ID over AniKoto's wrong AniList ID, as for DAN DA DAN", () => {
 		const dandadan = series({
 			anikotoId: 4,
-			anilistId: 132029,
+			anilistId: 132_029,
 			episodes: 12,
 			format: "TV",
-			malId: 57334,
+			malId: 57_334,
 			title: "Dandadan",
 			year: 2024,
 		});
@@ -180,8 +176,8 @@ describe("bestIdMatch", () => {
 				animeWith({
 					episodes: 12,
 					format: "TV",
-					id: 171018,
-					malId: 57334,
+					id: 171_018,
+					malId: 57_334,
 					seasonYear: 2024,
 				}),
 				[dandadan],
@@ -193,7 +189,7 @@ describe("bestIdMatch", () => {
 		const shared = {
 			episodes: 12,
 			format: "TV",
-			malId: 51705,
+			malId: 51_705,
 			year: 2023,
 		};
 
@@ -202,8 +198,8 @@ describe("bestIdMatch", () => {
 				animeWith({
 					episodes: 12,
 					format: "TV",
-					id: 153930,
-					malId: 51705,
+					id: 153_930,
+					malId: 51_705,
 					seasonYear: 2023,
 				}),
 				[
@@ -227,14 +223,14 @@ describe("bestIdMatch", () => {
 			bestIdMatch(
 				animeWith({
 					format: "MOVIE",
-					id: 195200,
-					malId: 62546,
+					id: 195_200,
+					malId: 62_546,
 				}),
 				[
 					series({
 						anikotoId: 1,
 						format: "TV",
-						malId: 62546,
+						malId: 62_546,
 						title: "Demon Slayer: Kimetsu no Yaiba",
 					}),
 				],
@@ -247,14 +243,14 @@ describe("bestIdMatch", () => {
 			bestIdMatch(
 				animeWith({
 					format: "ONA",
-					id: 177709,
-					malId: 58939,
+					id: 177_709,
+					malId: 58_939,
 				}),
 				[
 					series({
 						anikotoId: 7498,
 						format: "TV",
-						malId: 58939,
+						malId: 58_939,
 						title: "Sakamoto Days",
 					}),
 				],

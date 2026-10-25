@@ -14,12 +14,11 @@ const retryAfterMs = 7 * day;
  * What identifies one dub and the sub its subtitles come from. Stream URLs
  * expire and hosts rotate, but a stream's path stays the same.
  */
-export const refinementKey = (subPlaylistUrl: string, dubPlaylistUrl: string) => {
-	return createHash("sha256")
+export const refinementKey = (subPlaylistUrl: string, dubPlaylistUrl: string) =>
+	createHash("sha256")
 		.update(`${new URL(dubPlaylistUrl).pathname}\n${new URL(subPlaylistUrl).pathname}`)
 		.digest("hex")
 		.slice(0, 32);
-};
 
 /** What is stored for a pair, or `null` when it was never tried. */
 export const getRefinement = async (key: string) => {
@@ -38,19 +37,16 @@ export const getRefinement = async (key: string) => {
 		refinement:
 			row.shifts && row.anchors
 				? {
-						shifts: row.shifts,
 						anchors: row.anchors,
+						shifts: row.shifts,
 					}
 				: null,
 	};
 };
 
 /** Whether a pair has not been listened to, or failed long enough ago to try again. */
-export const isRefinementDue = (stored: Awaited<ReturnType<typeof getRefinement>>) => {
-	return (
-		!stored || (!stored.refinement && Date.now() - stored.attemptedAt.getTime() >= retryAfterMs)
-	);
-};
+export const isRefinementDue = (stored: Awaited<ReturnType<typeof getRefinement>>) =>
+	!stored || (!stored.refinement && Date.now() - stored.attemptedAt.getTime() >= retryAfterMs);
 
 /** Stores what listening found for a pair; `null` records that the speech did not match. */
 export const saveRefinement = async (key: string, refinement: Refinement | null) => {

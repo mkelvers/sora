@@ -54,8 +54,8 @@
 					{
 						label: "Audio",
 						options: media.map((version) => ({
-							value: version.audio,
 							label: version.label,
+							value: version.audio,
 						})),
 						select: (value: string) =>
 							onpreferences({
@@ -71,12 +71,12 @@
 						label: "Subtitles",
 						options: [
 							{
-								value: "",
 								label: "Off",
+								value: "",
 							},
 							...selected.subtitles.map((track) => ({
-								value: track.url,
 								label: `${track.label}${kinds[track.kind ?? ""] ?? ""}`,
+								value: track.url,
 							})),
 						],
 						select: pickSubtitle,
@@ -87,8 +87,8 @@
 		{
 			label: "Speed",
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
-				value: String(rate),
 				label: rate === 1 ? "Normal" : `${rate}x`,
+				value: String(rate),
 			})),
 			select: (value: string) => (player.speed = Number(value)),
 			value: String(player.speed),

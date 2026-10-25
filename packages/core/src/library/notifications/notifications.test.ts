@@ -13,8 +13,8 @@ const released = (
 	to: number,
 	releasedAt: Date,
 	overrides: Partial<ReleasedEpisode> = {},
-): ReleasedEpisode[] => {
-	return Array.from(
+): ReleasedEpisode[] =>
+	Array.from(
 		{
 			length: to - from + 1,
 		},
@@ -29,7 +29,6 @@ const released = (
 			...overrides,
 		}),
 	);
-};
 
 describe("groupNotifications", () => {
 	test("makes one notification of the episodes of a series that came out together", () => {

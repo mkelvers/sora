@@ -7,66 +7,66 @@
 		{
 			compoundVariants: [
 				{
-					variant: ["primary", "secondary"],
-					size: "md",
 					class: "h-11 px-5 text-sm",
-				},
-				{
+					size: "md",
 					variant: ["primary", "secondary"],
-					size: "sm",
+				},
+				{
 					class: "h-9 px-3 text-xs",
+					size: "sm",
+					variant: ["primary", "secondary"],
 				},
 				{
-					variant: "ghost",
-					size: "md",
 					class: "h-11 px-3 text-sm",
-				},
-				{
+					size: "md",
 					variant: "ghost",
-					size: "sm",
+				},
+				{
 					class: "h-9 px-2 text-xs",
+					size: "sm",
+					variant: "ghost",
 				},
 				{
-					variant: ["primary", "secondary", "ghost", "icon"],
-					size: "md",
-					square: true,
 					class: "w-11",
-				},
-				{
+					size: "md",
+					square: true,
 					variant: ["primary", "secondary", "ghost", "icon"],
-					size: "sm",
-					square: true,
+				},
+				{
 					class: "w-9",
-				},
-				{
-					variant: "icon",
-					size: "md",
-					class: "size-11",
-				},
-				{
-					variant: "icon",
 					size: "sm",
-					class: "size-9",
-				},
-				{
-					variant: "item",
-					size: "md",
-					class: "min-h-11 py-3 max-sm:min-h-13",
-				},
-				{
-					variant: "item",
-					size: "sm",
-					class: "min-h-9 px-2",
-				},
-				{
-					variant: "nav",
 					square: true,
-					class: "w-14",
+					variant: ["primary", "secondary", "ghost", "icon"],
 				},
 				{
+					class: "size-11",
+					size: "md",
+					variant: "icon",
+				},
+				{
+					class: "size-9",
+					size: "sm",
+					variant: "icon",
+				},
+				{
+					class: "min-h-11 py-3 max-sm:min-h-13",
+					size: "md",
 					variant: "item",
-					tone: "danger",
+				},
+				{
+					class: "min-h-9 px-2",
+					size: "sm",
+					variant: "item",
+				},
+				{
+					class: "w-14",
+					square: true,
+					variant: "nav",
+				},
+				{
 					class: "text-danger",
+					tone: "danger",
+					variant: "item",
 				},
 			],
 			defaultVariants: {

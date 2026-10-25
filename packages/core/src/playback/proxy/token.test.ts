@@ -66,8 +66,8 @@ describe("stream tokens", () => {
 
 	test("reject a tampered token", () => {
 		const [vector, sealed] = signStreamTarget(target, secret).split(".");
-		const bytes = Buffer.from(sealed!, "base64url");
-		bytes[3] = bytes[3]! ^ 1;
+		const bytes = Buffer.from(sealed ?? "", "base64url");
+		bytes.writeUInt8((bytes.readUInt8(3) + 1) % 256, 3);
 
 		expect(() =>
 			verifyStreamToken(`${vector}.${bytes.toString("base64url")}`, secret, new Date(0)),

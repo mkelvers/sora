@@ -5,15 +5,13 @@ import {
 } from "$routes/(app)/notifications/notifications.remote";
 import { getWatchlist, getWatchlistStatuses } from "$routes/(app)/watchlist/watchlist.remote";
 
-export const refreshStatus = () => {
-	return Promise.all([
+export const refreshStatus = () =>
+	Promise.all([
 		getWatchlist().refresh(),
 		getWatchlistStatuses().refresh(),
 		getNotifications().refresh(),
 		getUnreadNotifications().refresh(),
 	]);
-};
 
-export const refreshTracking = () => {
-	return Promise.all([getContinueWatching().refresh(), refreshStatus()]);
-};
+export const refreshTracking = () =>
+	Promise.all([getContinueWatching().refresh(), refreshStatus()]);

@@ -83,9 +83,7 @@ const remember = (id: number, entry: FranchiseEntry | null) => {
 };
 
 /** Whether an entry is served at all: adult media and music videos never are. */
-const isServed = (entry: FranchiseEntry) => {
-	return !entry.isAdult && entry.format !== "MUSIC";
-};
+const isServed = (entry: FranchiseEntry) => !entry.isAdult && entry.format !== "MUSIC";
 
 /** Fetches entries and remembers them and their neighbours. */
 const fetchAndRemember = async (ids: readonly number[], load: typeof loadFranchiseEntries) => {
@@ -152,13 +150,12 @@ export const loadEntries = async (
 };
 
 /** IDs of the anime the entry is related to by one of `relations`. */
-export const idsRelatedBy = (entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) => {
-	return (entry.relations?.edges ?? []).flatMap((edge) =>
+export const idsRelatedBy = (entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) =>
+	(entry.relations?.edges ?? []).flatMap((edge) =>
 		edge?.node?.type === "ANIME" && edge.relationType && relations.has(edge.relationType)
 			? [edge.node.id]
 			: [],
 	);
-};
 
 /** The entry's distinct English, romaji, and native titles, in that order. */
 export const primaryTitlesOf = (entry: FranchiseEntry) => {

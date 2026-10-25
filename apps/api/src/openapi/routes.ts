@@ -52,11 +52,8 @@ import {
 const { shape: browse } = BrowseQuerySchema;
 
 /** A comma-separated query value, such as `genres=Action,Comedy`, as a list. */
-const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(
-	list: TList,
-	example: string,
-) => {
-	return z
+const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(list: TList, example: string) =>
+	z
 		.string()
 		.transform((value) =>
 			value
@@ -70,7 +67,6 @@ const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(
 			example,
 			type: "string",
 		});
-};
 
 /**
  * The core's browse filters as query parameters in snake_case, without the
@@ -170,10 +166,10 @@ export const getSeries = createRoute({
 					.transform((value) => value === "true")
 					.optional()
 					.openapi({
-						type: "boolean",
 						description:
 							"Whether the title carries its episodes, as `listEpisodes` lists them, so a title's page needs one request.",
 						example: true,
+						type: "boolean",
 					}),
 			})
 			.strict(),
@@ -210,9 +206,6 @@ export const listImages = createRoute({
 		}),
 		query: z
 			.object({
-				type: commaSeparated(z.array(ImageTypeSchema), "backdrop,poster").openapi({
-					description: "Only these types; every type when omitted.",
-				}),
 				language: commaSeparated(
 					z
 						.array(z.string().regex(/^(?:[a-z]{2}|none)$/))
@@ -225,6 +218,9 @@ export const listImages = createRoute({
 				sort: z.enum(["votes", "quality"]).optional().openapi({
 					description:
 						"`votes`: TMDB users' rating, weighted by how many voted, then size (the default). `quality`: the largest original first, then votes.",
+				}),
+				type: commaSeparated(z.array(ImageTypeSchema), "backdrop,poster").openapi({
+					description: "Only these types; every type when omitted.",
 				}),
 			})
 			.strict(),
@@ -296,11 +292,11 @@ export const listEpisodes = createRoute({
 	request: {
 		params: SeriesParams,
 		query: z.object({
-			offset: z.coerce.number().int().min(0).optional().openapi({
-				description: "How many episodes to skip; 0 when omitted.",
-			}),
 			limit: z.coerce.number().int().min(1).max(500).optional().openapi({
 				description: "At most this many episodes; all the rest when omitted.",
+			}),
+			offset: z.coerce.number().int().min(0).optional().openapi({
+				description: "How many episodes to skip; 0 when omitted.",
 			}),
 		}),
 	},
@@ -423,8 +419,8 @@ export const listReleases = createRoute({
 	request: {
 		query: z
 			.object({
-				format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
 				audio: browse.audio,
+				format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
 				page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
 				per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
 			})
@@ -513,8 +509,8 @@ export const getStream = createRoute({
 		params: z.object({
 			token: z.string().openapi({
 				param: {
-					name: "token",
 					in: "path",
+					name: "token",
 				},
 			}),
 		}),
@@ -1102,12 +1098,12 @@ export const dismissNotification = createRoute({
 				.string()
 				.min(1)
 				.openapi({
-					param: {
-						name: "notification_id",
-						in: "path",
-					},
 					description: "The notification's `id`.",
 					example: "EWBMBNIV4:13",
+					param: {
+						in: "path",
+						name: "notification_id",
+					},
 				}),
 		}),
 	},

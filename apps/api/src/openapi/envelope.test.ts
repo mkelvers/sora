@@ -44,17 +44,17 @@ describe("pageMeta", () => {
 			preparing: [
 				{
 					anilist_id: 143653,
-					title: "Insomniacs After School",
 					format: "TV",
-					year: 2023,
 					position: 0,
+					title: "Insomniacs After School",
+					year: 2023,
 				},
 			],
 		});
 
 		expect(meta.preparing_titles).toEqual([
 			{
-				anilist_id: 143653,
+				anilist_id: 143_653,
 				format: "TV",
 				position: 0,
 				title: "Insomniacs After School",

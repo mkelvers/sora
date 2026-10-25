@@ -113,15 +113,15 @@ const ShowFields = {
 	poster_path: OptionalText,
 	seasons: z.array(
 		z.object({
-			season_number: z.number().int(),
-			name: OptionalText,
-			overview: OptionalText,
-			poster_path: OptionalText,
 			episode_count: z
 				.number()
 				.int()
 				.nullish()
 				.transform((value) => value ?? 0),
+			name: OptionalText,
+			overview: OptionalText,
+			poster_path: OptionalText,
+			season_number: z.number().int(),
 		}),
 	),
 };
@@ -321,15 +321,14 @@ export const searchMovies = async (query: string): Promise<TmdbMovieResult[]> =>
 };
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
-const showPageSchema = (seasons: readonly number[]) => {
-	return z.object({
+const showPageSchema = (seasons: readonly number[]) =>
+	z.object({
 		...ShowFields,
 		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
 	}) as z.ZodObject<
 		typeof ShowFields &
 			Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>
 	>;
-};
 
 /**
  * The episodes a show counts for `seasonNumber` past those its appended
@@ -551,10 +550,10 @@ export const getShow = async (
 		overview: details.overview,
 		posterPath: details.poster_path,
 		seasons: details.seasons.map((season) => ({
-			seasonNumber: season.season_number,
 			name: season.name,
 			overview: season.overview,
 			posterPath: season.poster_path,
+			seasonNumber: season.season_number,
 		})),
 	};
 };
@@ -564,8 +563,8 @@ export const getShow = async (
  *
  * @returns The movie, or `null` when TMDB does not know the ID.
  */
-export const getMovie = (movieId: number): Promise<TmdbMovie | null> => {
-	return tmdb(
+export const getMovie = (movieId: number): Promise<TmdbMovie | null> =>
+	tmdb(
 		`/movie/${movieId}`,
 		{
 			language: "en-US",
@@ -575,7 +574,6 @@ export const getMovie = (movieId: number): Promise<TmdbMovie | null> => {
 			maxAgeMs: day,
 		},
 	);
-};
 
 /**
  * Loads the films of a TMDB collection, such as a franchise's film series.
@@ -708,9 +706,7 @@ export const getImages = (
 		/** How old a stored response may be; a day by default. */
 		maxAgeMs?: number;
 	} = {},
-): Promise<TmdbImages | null> => {
-	return loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
-};
+): Promise<TmdbImages | null> => loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
 
 const EpisodeStillsSchema = z.object({
 	stills: z.array(ImageSchema).default([]),
@@ -767,6 +763,4 @@ export const getSeasonPosters = async (
 export const tmdbImageUrl = (
 	path: string | null,
 	size: "w300" | "w500" | "w780" | "w1280" | "original",
-) => {
-	return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
-};
+) => (path ? `https://image.tmdb.org/t/p/${size}${path}` : null);

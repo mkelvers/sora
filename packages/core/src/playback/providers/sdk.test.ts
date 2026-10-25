@@ -6,20 +6,18 @@ import type { Anime } from "../../catalog/models/anime";
 import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 
-const titled = (titles: { english?: string; romaji?: string }, episodes: number | null): Anime => {
-	return {
-		...anime(1),
-		episodes,
-		format: "TV",
-		status: "FINISHED",
-		title: {
-			display: titles.english ?? titles.romaji ?? "",
-			english: titles.english ?? null,
-			native: null,
-			romaji: titles.romaji ?? null,
-		},
-	};
-};
+const titled = (titles: { english?: string; romaji?: string }, episodes: number | null): Anime => ({
+	...anime(1),
+	episodes,
+	format: "TV",
+	status: "FINISHED",
+	title: {
+		display: titles.english ?? titles.romaji ?? "",
+		english: titles.english ?? null,
+		native: null,
+		romaji: titles.romaji ?? null,
+	},
+});
 
 const titan = titled(
 	{

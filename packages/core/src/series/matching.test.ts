@@ -12,9 +12,8 @@ import {
 } from "./matching";
 import type { MatchSubject, ShowCandidate } from "./matching";
 
-const addDays = (date: string, days: number) => {
-	return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-};
+const addDays = (date: string, days: number) =>
+	new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 /** A weekly run of TMDB episodes, numbered from `first`. Dates are `null` when `start` is. */
 const weekly = (
@@ -44,18 +43,16 @@ const weekly = (
 	);
 };
 
-const special = (episode: number, airDate: string, runtime: number): TmdbEpisode => {
-	return {
-		air_date: airDate,
-		episode_number: episode,
-		id: episode,
-		name: null,
-		overview: null,
-		runtime,
-		season_number: 0,
-		still_path: null,
-	};
-};
+const special = (episode: number, airDate: string, runtime: number): TmdbEpisode => ({
+	air_date: airDate,
+	episode_number: episode,
+	id: episode,
+	name: null,
+	overview: null,
+	runtime,
+	season_number: 0,
+	still_path: null,
+});
 
 const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
 	const titles = overrides.titles ?? ["Example"];
@@ -72,44 +69,38 @@ const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
 	};
 };
 
-const show = (episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate => {
-	return {
-		isFranchiseShow: false,
-		prequel: null,
-		show: {
-			episodes,
-			id: 1,
-			name: "Example",
-			originalName: "Example",
-		},
-		...overrides,
-	};
-};
+const show = (episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
+	isFranchiseShow: false,
+	prequel: null,
+	show: {
+		episodes,
+		id: 1,
+		name: "Example",
+		originalName: "Example",
+	},
+	...overrides,
+});
 
 /** A prequel run through a season up to `episode`, from the season's first episode. */
-const endingAt = (season: number, episode: number) => {
-	return {
-		first: {
-			episodeNumber: 1,
-			seasonNumber: season,
-		},
-		last: {
-			episodeNumber: episode,
-			seasonNumber: season,
-		},
-	};
-};
+const endingAt = (season: number, episode: number) => ({
+	first: {
+		episodeNumber: 1,
+		seasonNumber: season,
+	},
+	last: {
+		episodeNumber: episode,
+		seasonNumber: season,
+	},
+});
 
-const movie = (overrides: Partial<TmdbMovieResult>): TmdbMovieResult => {
-	return {
-		id: 1,
-		original_title: "Example",
-		popularity: 1,
-		release_date: null,
-		title: "Example",
-		...overrides,
-	};
-};
+const movie = (overrides: Partial<TmdbMovieResult>): TmdbMovieResult => ({
+	id: 1,
+	original_title: "Example",
+	popularity: 1,
+	release_date: null,
+	title: "Example",
+	...overrides,
+});
 
 const range = (placement: ReturnType<typeof placeInShow>) => {
 	if (placement?.mediaType !== "tv") {
@@ -135,7 +126,7 @@ describe("placeInShow", () => {
 		const candidate = show(weekly(1, "2016-07-11", 24, { runtime: 23 }), {
 			show: {
 				episodes: weekly(1, "2016-07-11", 24, { runtime: 23 }),
-				id: 67676,
+				id: 67_676,
 				name: "The Disastrous Life of Saiki K.",
 				originalName: "斉木楠雄のΨ難",
 			},
@@ -773,7 +764,7 @@ describe("placeInShow by special name", () => {
 				named(3, "2020-01-22", "The Path of the Ball"),
 				named(4, "2020-03-04", "Puppet Theatre"),
 			],
-			id: 60863,
+			id: 60_863,
 			name: "Haikyu!!",
 			originalName: "ハイキュー!!",
 		},
@@ -858,7 +849,7 @@ describe("placeInShow by the end of a run of specials", () => {
 				special(15, "2022-11-22", 22),
 				...specials,
 			],
-			id: 100049,
+			id: 100_049,
 			name: "TONIKAWA: Over The Moon For You",
 			originalName: "トニカクカワイイ",
 		},
@@ -1003,7 +994,7 @@ describe("placeAsMovie", () => {
 		});
 		const film = {
 			...movie({
-				id: 1153706,
+				id: 1_153_706,
 				release_date: "2023-07-14",
 				title: "The Quintessential Quintuplets∽",
 			}),
@@ -1013,7 +1004,7 @@ describe("placeAsMovie", () => {
 		expect(placeAsMovie(special, film)).toBeNull();
 		expect(placeAsMovie(special, film, true)).toMatchObject({
 			method: "hint",
-			tmdbId: 1153706,
+			tmdbId: 1_153_706,
 		});
 		expect(placeAsMovie(special, { ...film, runtime: 300 }, true)).toBeNull();
 	});
@@ -1068,12 +1059,12 @@ describe("placeAfterInCollection", () => {
 	// Haikyu!! Final Arc Collection: the second film has no release date yet.
 	const parts = [
 		movie({
-			id: 1012199,
+			id: 1_012_199,
 			release_date: null,
 			title: "HAIKYU!! VS The Little Giant",
 		}),
 		movie({
-			id: 1012201,
+			id: 1_012_201,
 			release_date: "2024-02-16",
 			title: "HAIKYU!! The Dumpster Battle",
 		}),
@@ -1088,7 +1079,7 @@ describe("placeAfterInCollection", () => {
 		expect(placeAfterInCollection(littleGiant, 1_012_201, parts)).toMatchObject({
 			mediaType: "movie",
 			method: "continuation",
-			tmdbId: 1012199,
+			tmdbId: 1_012_199,
 		});
 	});
 

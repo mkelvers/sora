@@ -86,9 +86,7 @@ const layoutInputs = ({
 	tags: _tags,
 	recommendations: _recommendations,
 	...inputs
-}: Anime) => {
-	return inputs;
-};
+}: Anime) => inputs;
 
 /**
  * The latest episode AniList says has aired, or `null` when unknown or none.

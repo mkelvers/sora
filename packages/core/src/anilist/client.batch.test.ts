@@ -111,8 +111,8 @@ const document = new TypedDocumentString<Result, Pages>(
 );
 
 /** A loader of `pages` pages, its variables named as the operations name theirs. */
-const loader = (pages: number) => {
-	return loadMediaById({
+const loader = (pages: number) =>
+	loadMediaById({
 		document,
 		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
 		pages,
@@ -129,7 +129,6 @@ const loader = (pages: number) => {
 				).flat(),
 			),
 	});
-};
 
 const background = 10;
 

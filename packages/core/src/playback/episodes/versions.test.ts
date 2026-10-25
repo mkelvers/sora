@@ -31,46 +31,44 @@ let queuedPriorities: string[] = [];
 let asks = 0;
 
 /** Dependencies backed by the providers in `list`, recording what they are asked. */
-const useProviders = (list: FakeProvider[]): VersionDependencies => {
-	return {
-		getAnime: async (id) => anime(id),
-		getProviderUnits: (_anime, target) => {
-			asks += 1;
-			return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
+const useProviders = (list: FakeProvider[]): VersionDependencies => ({
+	getAnime: async (id) => anime(id),
+	getProviderUnits: (_anime, target) => {
+		asks += 1;
+		return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
+	},
+	getStoredUnits: async (anilistIds) =>
+		[...new Set(anilistIds)].flatMap((anilistId) =>
+			list.flatMap((candidate) => {
+				const units = candidate.units(anilistId);
+				return units
+					? [
+							{
+								anilistId,
+								provider: candidate.id,
+								units,
+							},
+						]
+					: [];
+			}),
+		),
+	providers: list.map(({ id, locale, listsLanguages }) => ({
+		id,
+		locale,
+		listsLanguages,
+		findMedia: async () => null,
+		listEpisodes: async () => [],
+		resolveStream: async () => {
+			throw new Error(`${id} streams nothing in these tests`);
 		},
-		getStoredUnits: async (anilistIds) =>
-			[...new Set(anilistIds)].flatMap((anilistId) =>
-				list.flatMap((candidate) => {
-					const units = candidate.units(anilistId);
-					return units
-						? [
-								{
-									anilistId,
-									provider: candidate.id,
-									units,
-								},
-							]
-						: [];
-				}),
-			),
-		providers: list.map(({ id, locale, listsLanguages }) => ({
-			id,
-			locale,
-			listsLanguages,
-			findMedia: async () => null,
-			listEpisodes: async () => [],
-			resolveStream: async () => {
-				throw new Error(`${id} streams nothing in these tests`);
-			},
-		})),
-		scheduleEpisodeLookups: async (anilistIds, priority) => {
-			queuedLookups.push(...anilistIds);
-			if (anilistIds.length > 0) {
-				queuedPriorities.push(priority);
-			}
-		},
-	};
-};
+	})),
+	scheduleEpisodeLookups: async (anilistIds, priority) => {
+		queuedLookups.push(...anilistIds);
+		if (anilistIds.length > 0) {
+			queuedPriorities.push(priority);
+		}
+	},
+});
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
 const findEpisodeLanguages = async (...args: Parameters<typeof findEpisodeListings>) => {
@@ -129,7 +127,7 @@ const notLookedUp = (id: string, locale: string, answer?: ProviderUnit[]): FakeP
 
 		return answer;
 	},
-	units: () => undefined,
+	units: () => {},
 });
 
 const firstEpisode = [

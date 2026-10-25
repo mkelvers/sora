@@ -13,7 +13,7 @@ const now = new Date("2026-09-27T16:00:00Z");
 
 /** AniList entry 178789 with nothing announced, which TMDB lists in a show. */
 const title = {
-	anilistId: 178789,
+	anilistId: 178_789,
 	kind: "tv" as const,
 	nextEpisodeAiringAt: null,
 	nextEpisodeNumber: null,
@@ -28,12 +28,10 @@ const episode = {
 };
 
 /** AniKoto, looked up for entry 178789, carrying `episodes` of it. */
-const onAniKoto = (...episodes: number[]) => {
-	return {
-		carried: new Set(episodes.map((number) => anilistEpisodeKey(178_789, number))),
-		lookedUp: new Set([178_789]),
-	};
-};
+const onAniKoto = (...episodes: number[]) => ({
+	carried: new Set(episodes.map((number) => anilistEpisodeKey(178_789, number))),
+	lookedUp: new Set([178_789]),
+});
 
 const notLookedUp = {
 	carried: new Set<string>(),

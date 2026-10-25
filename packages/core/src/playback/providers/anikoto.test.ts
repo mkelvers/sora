@@ -8,8 +8,8 @@ const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
 /** `getSources` as MegaPlay sends it, with the source unencrypted. */
-const sources = (intro: object | undefined, outro: object | undefined) => {
-	return JSON.stringify({
+const sources = (intro: object | undefined, outro: object | undefined) =>
+	JSON.stringify({
 		intro,
 		outro,
 		server: 4,
@@ -19,7 +19,6 @@ const sources = (intro: object | undefined, outro: object | undefined) => {
 		t: 1,
 		tracks: [],
 	});
-};
 
 /**
  * A provider whose HTTP requests are answered by `pages`, keyed by path, and
@@ -67,12 +66,12 @@ describe("AniKotoStreamProvider skip segments", () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(
 				{
-					start: 0,
 					end: 89,
+					start: 0,
 				},
 				{
-					start: 1370,
 					end: 1459,
+					start: 1370,
 				},
 			),
 			"/stream/s-2/107260/sub": embedPage,
@@ -110,12 +109,12 @@ describe("AniKotoStreamProvider skip segments", () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(
 				{
-					start: 0,
 					end: 0,
+					start: 0,
 				},
 				{
-					start: 0,
 					end: 0,
+					start: 0,
 				},
 			),
 			"/stream/s-2/1/sub": embedPage,
@@ -127,8 +126,8 @@ describe("AniKotoStreamProvider skip segments", () => {
 	test("keeps a known span when the other is missing", async () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(undefined, {
-				start: 1300,
 				end: 1390,
+				start: 1300,
 			}),
 			"/stream/s-2/1/sub": embedPage,
 		});
@@ -146,8 +145,8 @@ describe("AniKotoStreamProvider skip segments", () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(
 				{
-					start: 90,
 					end: 10,
+					start: 90,
 				},
 				undefined,
 			),
@@ -162,12 +161,12 @@ describe("AniKotoStreamProvider skip segments", () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(
 				{
-					start: 300,
 					end: 390,
+					start: 300,
 				},
 				{
-					start: 10,
 					end: 40,
+					start: 10,
 				},
 			),
 			"/stream/s-2/1/sub": embedPage,
@@ -192,12 +191,12 @@ describe("AniKotoStreamProvider skip segments", () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(
 				{
-					start: -5,
 					end: 90,
+					start: -5,
 				},
 				{
-					start: 1300,
 					end: 1390,
+					start: 1300,
 				},
 			),
 			"/stream/s-2/1/sub": embedPage,
@@ -220,8 +219,8 @@ describe("AniKotoStreamProvider skip segments", () => {
 const seriesResponseOf = (
 	numbers: readonly number[],
 	languages: (number: number) => readonly string[] = () => ["sub"],
-) => {
-	return JSON.stringify({
+) =>
+	JSON.stringify({
 		data: {
 			episodes: numbers.map((number) => ({
 				id: 27298 + number,
@@ -238,7 +237,6 @@ const seriesResponseOf = (
 		},
 		ok: true,
 	});
-};
 
 const seriesResponse = seriesResponseOf([56, 57, 58]);
 
@@ -392,8 +390,8 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 		const { provider } = providerServing({
 			"/ajax/episode/list/1498": episodeList({
 				56: {
-					sub: "0",
 					dub: "1",
+					sub: "0",
 				},
 			}),
 			"/series/1498": seriesResponseOf([56], () => ["dub"]),

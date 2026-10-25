@@ -148,8 +148,8 @@ export const layoutEpisodes = (
 				stillUrl: tmdbImageUrl(tmdb?.still_path ?? film?.backdrop_path ?? null, "original"),
 				title: tmdb?.name ?? film?.title ?? null,
 				tmdb: tmdb && {
-					seasonNumber: tmdb.season_number,
 					episodeNumber: tmdb.episode_number,
+					seasonNumber: tmdb.season_number,
 				},
 			};
 		},
@@ -315,8 +315,8 @@ export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 		logoUrl: kind === "anilist" ? null : tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500"),
 		mayGainEpisodes: mayGainEpisodes(entry, new Date()),
 		nextAiring: card.nextEpisode && {
-			episode: card.nextEpisode.number,
 			airingAt: card.nextEpisode.airingAt,
+			episode: card.nextEpisode.number,
 		},
 		overview: overviewOf(links, show, film) ?? (await anilistOverview(entry, links, show)),
 		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,

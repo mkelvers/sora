@@ -31,21 +31,18 @@ export interface TrackAiringPayload {
  * Each anime has at most one pending airing check, identified by this key.
  * It is also written in SQL by `reviveAiringChecks`.
  */
-const airingJobKey = (anilistId: number) => {
-	return `airing:${anilistId}`;
-};
+const airingJobKey = (anilistId: number) => `airing:${anilistId}`;
 
 /**
  * Builds the payload in SQL, since the driver would send a serialized
  * payload as a JSON string rather than an object.
  */
-const payloadJson = (payload: TrackAiringPayload) => {
-	return sql`json_build_object(
+const payloadJson = (payload: TrackAiringPayload) =>
+	sql`json_build_object(
     'anilistId', ${payload.anilistId}::int,
     'awaitedEpisode', ${payload.awaitedEpisode}::float8,
     'attempt', ${payload.attempt}::int
   )`;
-};
 
 /**
  * Schedules the next airing check for an anime, replacing any pending one.
@@ -178,19 +175,16 @@ export const seriesStorePriority = (priority: SeriesStorePriority, rank = ranked
 };
 
 /** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
-const keptPriority = (jobKey: string | SQL, priority: number) => {
-	return sql`least(
+const keptPriority = (jobKey: string | SQL, priority: number) =>
+	sql`least(
     ${priority}::int,
     coalesce(
       (select jobs.priority from graphile_worker.jobs where jobs.key = ${jobKey} and jobs.locked_at is null),
       ${priority}::int
     )
   )`;
-};
 
-const seriesJobKey = (anilistId: number) => {
-	return `series:${anilistId}`;
-};
+const seriesJobKey = (anilistId: number) => `series:${anilistId}`;
 
 /**
  * The task a job runs as at `priority`: `waitedOn` when a viewer is waiting
@@ -198,9 +192,8 @@ const seriesJobKey = (anilistId: number) => {
  * such jobs, and one already there stays when it is queued again at a lower
  * priority, since it keeps its priority too.
  */
-const taskAt = (priority: SQL, task: string, waitedOn: string) => {
-	return sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
-};
+const taskAt = (priority: SQL, task: string, waitedOn: string) =>
+	sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
 
 /**
  * Queues laying out and storing the series an AniList entry belongs to.

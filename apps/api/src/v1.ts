@@ -199,9 +199,8 @@ v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
 });
 
 /** An episode's playback URL, relative to the API's origin. */
-const playbackPath = (seriesId: string, episode: number) => {
-	return `/v1/series/${seriesId}/episodes/${episode}/playback`;
-};
+const playbackPath = (seriesId: string, episode: number) =>
+	`/v1/series/${seriesId}/episodes/${episode}/playback`;
 
 export const v1Routes = v1
 	.openapi(route.browseSeries, async (c) => {

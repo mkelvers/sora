@@ -56,7 +56,7 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 	}
 };
 
-type Settle = {
+interface Settle {
 	/**
 	 * Settles a promise into an {@link Attempt} instead of rejecting.
 	 *
@@ -85,7 +85,7 @@ type Settle = {
 		work: () => TData extends PromiseLike<unknown> ? never : TData,
 		...expected: TExpected
 	): Attempt<TData, Caught<TExpected>>;
-};
+}
 
 export const attempt = settle as Settle;
 

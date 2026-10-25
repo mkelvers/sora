@@ -61,15 +61,14 @@ const waitedOnTasks: Record<string, Task> = {
 };
 
 /** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
-const prioritized = (tasks: Record<string, Task>): TaskList => {
-	return Object.fromEntries(
+const prioritized = (tasks: Record<string, Task>): TaskList =>
+	Object.fromEntries(
 		Object.entries(tasks).map(([name, task]): [string, Task] => [
 			name,
 			(payload, helpers) =>
 				aniListPriority.run(helpers.job.priority, async () => task(payload, helpers)),
 		]),
 	);
-};
 
 /**
  * Starts the background scheduler, which follows every airing anime, stores

@@ -52,16 +52,14 @@ const isRewatching = async (userId: string, seriesId: string): Promise<boolean> 
 	return !!state?.rewatchStartedAt;
 };
 
-const toProgress = (row: typeof episodeProgress.$inferSelect): Progress => {
-	return {
-		duration_seconds: row.durationSeconds,
-		episode: row.episode,
-		finished: row.finished,
-		position_seconds: row.positionSeconds,
-		series_id: row.seriesId,
-		watched_at: row.watchedAt.toISOString(),
-	};
-};
+const toProgress = (row: typeof episodeProgress.$inferSelect): Progress => ({
+	duration_seconds: row.durationSeconds,
+	episode: row.episode,
+	finished: row.finished,
+	position_seconds: row.positionSeconds,
+	series_id: row.seriesId,
+	watched_at: row.watchedAt.toISOString(),
+});
 
 /**
  * A user's progress in an episode, in the rewatch they are in the middle
@@ -436,9 +434,9 @@ export const getSeriesProgress = async (
 		next:
 			rewatch && !last
 				? {
+						duration_seconds: null,
 						episode: 1,
 						position_seconds: 0,
-						duration_seconds: null,
 					}
 				: (next?.get(seriesId) ?? null),
 		rewatch_started_at: startedAt?.toISOString() ?? null,

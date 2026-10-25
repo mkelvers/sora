@@ -45,8 +45,8 @@ export const createStreamToken = (
 		shifts?: TimelineShift[];
 		refinement?: string;
 	},
-) => {
-	return signStreamTarget(
+) =>
+	signStreamTarget(
 		{
 			accountId,
 			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1_000),
@@ -59,7 +59,6 @@ export const createStreamToken = (
 		},
 		config.streamSigningSecret,
 	);
-};
 
 /** Whether the proxy could serve `url` right now, from its own host or a mirror. */
 export const canFetchStream = async (
