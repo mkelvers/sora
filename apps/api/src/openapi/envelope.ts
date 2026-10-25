@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { PreparingTitleSchema } from "@sora/core/contract";
-import type { PreparingTitle } from "@sora/core/contract";
+import { PreparingTitleSchema } from "@sora/core/models/series";
+import type { PreparingTitle } from "@sora/core/models/series";
 
 /**
  * The body of every successful JSON response: facts about the response, such

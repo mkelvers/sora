@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import type { Problem } from "@sora/api";
-import { ProblemSchema } from "@sora/api/contract";
+import { ProblemSchema } from "@sora/api/schemas";
+import type { Problem } from "@sora/api/schemas";
 import { attempt, parseRetryAfter, second } from "@sora/shared";
 
 /**

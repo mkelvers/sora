@@ -5,8 +5,9 @@
 	"license": "AGPL-3.0-only",
 	"type": "module",
 	"exports": {
-		".": "./src/main.ts",
-		"./contract": "./src/contract.ts"
+		"./contract": "./src/openapi/routes.ts",
+		"./models": "./src/models.ts",
+		"./schemas": "./src/openapi/schemas.ts"
 	},
 	"scripts": {
 		"check": "tsc --noEmit -p .",

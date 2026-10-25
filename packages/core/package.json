@@ -6,7 +6,6 @@
 	"type": "module",
 	"exports": {
 		"./auth": "./src/auth/index.ts",
-		"./contract": "./src/contract.ts",
 		"./playback/choice": "./src/playback/choice.ts",
 		"./catalog": "./src/catalog/index.ts",
 		"./playback": "./src/playback/index.ts",
@@ -14,7 +13,9 @@
 		"./series": "./src/series/index.ts",
 		"./errors": "./src/errors/index.ts",
 		"./database": "./src/database/client.ts",
-		"./scheduler": "./src/scheduler/index.ts"
+		"./scheduler": "./src/scheduler/index.ts",
+		"./models/*": "./src/models/*.ts",
+		"./catalog/browse-query": "./src/catalog/queries/browse-query.ts"
 	},
 	"scripts": {
 		"check": "tsc --noEmit -p .",

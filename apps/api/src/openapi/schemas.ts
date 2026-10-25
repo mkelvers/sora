@@ -1,7 +1,7 @@
 /**
  * The pieces of the OpenAPI document that belong to the API rather than to a
  * model: the problem body, path parameters, request bodies, and the meta of
- * a response. The models themselves are the core's (`@sora/core/contract`).
+ * a response. The models themselves are the core's (`@sora/core/models`).
  */
 import { z } from "@hono/zod-openapi";
 

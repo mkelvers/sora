@@ -47,11 +47,6 @@ const app = new Hono()
 	)
 	.onError(onError);
 
-/** The body of every error response. */
-export type { Problem } from "./openapi/schemas";
-
-export type * from "./models";
-
 const server = Bun.serve({
 	fetch: app.fetch,
 	hostname: process.env.HOST ?? "127.0.0.1",

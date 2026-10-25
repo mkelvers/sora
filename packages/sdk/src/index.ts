@@ -15,7 +15,7 @@ export {
 	type SoraClientOptions,
 } from "./sora";
 /** The API's routes, which {@link SoraClient.request} calls. */
-export * as route from "@sora/api/contract";
+export { route } from "@sora/api/contract";
 /** The rule a player picks the version and subtitles to show by. */
 export { choosePlayback } from "@sora/core/playback/choice";
 export type {
@@ -43,4 +43,4 @@ export type {
 	WatchlistEntry,
 	WatchlistStatus,
 	WatchlistStatusEntry,
-} from "@sora/api";
+} from "@sora/api/models";

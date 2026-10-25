@@ -54,7 +54,7 @@ import { addressOf, clientAddress } from "./client-address";
 import { onInvalidRequest, sendProblem } from "./errors";
 import type { V1Env } from "./errors";
 import { offsetLinks, pageMeta } from "./openapi/envelope";
-import * as route from "./openapi/routes";
+import { route } from "./openapi/routes";
 import { rateLimit } from "./rate-limit";
 
 /**

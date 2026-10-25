@@ -7,12 +7,12 @@ test("generates route documentation when core schemas load before OpenAPI", () =
 			process.execPath,
 			"-e",
 			`
-			await import("@sora/core/contract");
+			await import("@sora/core/models/series");
 			const { OpenAPIHono } = await import("@hono/zod-openapi");
-			const routes = await import("./routes.ts");
+			const { route } = await import("./routes.ts");
 			const app = new OpenAPIHono();
-			for (const route of Object.values(routes)) {
-				app.openAPIRegistry.registerPath(route);
+			for (const definition of Object.values(route)) {
+				app.openAPIRegistry.registerPath(definition);
 			}
 			const document = app.getOpenAPI31Document({
 				openapi: "3.1.0",

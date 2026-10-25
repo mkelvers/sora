@@ -9,28 +9,28 @@ import type { PlaybackMetaSchema } from "./openapi/schemas";
 
 export type {
 	AnimeSeason,
-	ContinueWatching,
 	Episode,
 	FranchisePart,
-	NextEpisode,
-	Notification,
-	PlaybackMedia,
-	PlaybackPreferences,
-	PlaybackPreferencesUpdate,
-	Profile,
-	ProfileAvatar,
-	Progress,
 	Release,
 	ScheduledEpisode,
 	Series,
 	SeriesCard,
 	SeriesImage,
-	SeriesProgress,
-	SkipSegment,
 	UpcomingSeries,
+} from "@sora/core/models/series";
+export type {
+	ContinueWatching,
+	NextEpisode,
+	Notification,
+	PlaybackPreferences,
+	PlaybackPreferencesUpdate,
+	Progress,
+	SeriesProgress,
 	WatchlistEntry,
 	WatchlistStatus,
 	WatchlistStatusEntry,
-} from "@sora/core/contract";
+} from "@sora/core/models/library";
+export type { PlaybackMedia, SkipSegment } from "@sora/core/models/playback";
+export type { Profile, ProfileAvatar } from "@sora/core/models/profile";
 
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
