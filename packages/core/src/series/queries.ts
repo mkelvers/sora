@@ -118,6 +118,50 @@ const statusNames: Partial<Record<string, string>> = {
 	RELEASING: "Airing",
 };
 
+/** The artwork a card shows: the chosen image or the laid-out one, and where the logo sits. */
+const artworkOf = (row: SeriesRow, title: typeof titleArtwork.$inferSelect | undefined) => ({
+	backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
+	logo_offset_x: title?.logoOffsetX ?? 0,
+	logo_offset_y: title?.logoOffsetY ?? 0,
+	logo_scale: title?.logoScale ?? 1,
+	logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
+	poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+});
+
+/** A card's line of year, format, and status. */
+const detailsLineOf = (row: SeriesRow, format: AnimeFormat | null | undefined) =>
+	[row.startDate?.slice(0, 4), format && formatNames[format], row.status && statusNames[row.status]]
+		.filter(Boolean)
+		.join(" · ");
+
+/** A stored series as a card, from what is known of its anime, chosen artwork, audio, and episodes. */
+const cardOf = (
+	row: SeriesRow,
+	known: {
+		audio: ContentLanguage[];
+		details: ReturnType<typeof toAnime> | undefined;
+		episodeCount: number;
+		title: typeof titleArtwork.$inferSelect | undefined;
+	},
+): SeriesCard => {
+	const { audio, details, episodeCount, title } = known;
+	return {
+		audio,
+		...artworkOf(row, title),
+		details: detailsLineOf(row, details?.format),
+		episode_count: episodeCount,
+		format: details?.format ?? null,
+		genres: details?.genres ?? [],
+		id: row.id,
+		kind: row.kind,
+		overview: row.overview ?? details?.description ?? null,
+		score: details?.score ?? null,
+		status: row.status,
+		title: row.title,
+		year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
+	};
+};
+
 /** {@link toSeriesCards} with the rows' episodes already listed. */
 const cardsFrom = async (
 	rows: readonly SeriesRow[],
@@ -143,41 +187,20 @@ const cardsFrom = async (
 
 	return new Map(
 		rows.flatMap((row) => {
-			const audio = new Set(languages.get(row.anilistId));
 			const details = anime.get(row.anilistId);
 			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
 				return [];
 			}
-			const title = artwork.get(row.key);
+			const audio = new Set(languages.get(row.anilistId));
 			return [
 				[
 					row.id,
-					{
+					cardOf(row, {
 						audio: order.filter((language) => audio.has(language)),
-						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
-						details: [
-							row.startDate?.slice(0, 4),
-							details?.format && formatNames[details.format],
-							row.status && statusNames[row.status],
-						]
-							.filter(Boolean)
-							.join(" · "),
-						episode_count: listed.get(row.id)?.length ?? 0,
-						format: details?.format ?? null,
-						genres: details?.genres ?? [],
-						id: row.id,
-						kind: row.kind,
-						logo_offset_x: title?.logoOffsetX ?? 0,
-						logo_offset_y: title?.logoOffsetY ?? 0,
-						logo_scale: title?.logoScale ?? 1,
-						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
-						overview: row.overview ?? details?.description ?? null,
-						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
-						score: details?.score ?? null,
-						status: row.status,
-						title: row.title,
-						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
-					},
+						details,
+						episodeCount: listed.get(row.id)?.length ?? 0,
+						title: artwork.get(row.key),
+					}),
 				] as const,
 			];
 		}),
