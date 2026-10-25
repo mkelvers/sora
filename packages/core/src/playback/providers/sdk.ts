@@ -9,11 +9,11 @@ import type { ProviderEpisode, ProviderMatch, ProviderStream, StreamProvider } f
 export type SdkProvider = Pick<BaseProvider, "id" | "fetchContentUnits" | "resolveStream">;
 
 /** What this asks of `anime-sdk`'s mapping client, which fits. */
-export interface ProviderMapping {
-	resolveProviderMediaId(
+export interface ProviderMapping<TProvider extends SdkProvider = BaseProvider> {
+	resolveProviderMediaId: (
 		metadata: IMediaMetadata,
-		provider: SdkProvider,
-	): Promise<MappingResolution | null>;
+		provider: TProvider,
+	) => Promise<MappingResolution | null>;
 }
 
 /** What a provider serves, which `anime-sdk` does not describe. */
@@ -106,16 +106,19 @@ export const toProviderEpisode = (unit: IContentUnit): ProviderEpisode => ({
  * the provider as it ships. Providers that need more override the methods
  * they differ in.
  */
-export class SdkStreamProvider implements StreamProvider {
+export class SdkStreamProvider<
+	TProvider extends SdkProvider = BaseProvider,
+> implements StreamProvider {
 	readonly id: string;
 	readonly locale: string;
 	readonly listsLanguages: boolean;
 
-	constructor(
-		protected readonly sdk: SdkProvider,
-		private readonly mapping: ProviderMapping,
-		traits: ProviderTraits,
-	) {
+	protected readonly sdk: TProvider;
+	private readonly mapping: ProviderMapping<TProvider>;
+
+	constructor(sdk: TProvider, mapping: ProviderMapping<TProvider>, traits: ProviderTraits) {
+		this.sdk = sdk;
+		this.mapping = mapping;
 		this.id = sdk.id;
 		this.locale = traits.locale;
 		this.listsLanguages = traits.listsLanguages;

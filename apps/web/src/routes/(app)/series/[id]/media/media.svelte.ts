@@ -10,7 +10,11 @@ export class Media {
 	refreshing = $state(false);
 	error = $state<string>();
 
-	constructor(private id: () => string) {}
+	private readonly id: () => string;
+
+	constructor(id: () => string) {
+		this.id = id;
+	}
 
 	get type() {
 		return this.#type;

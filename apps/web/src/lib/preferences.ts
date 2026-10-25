@@ -2,7 +2,11 @@ import { browser } from "$app/environment";
 import { attempt } from "@sora/shared";
 
 export class Preferences {
-	constructor(private namespace: string) {}
+	private readonly namespace: string;
+
+	constructor(namespace: string) {
+		this.namespace = namespace;
+	}
 
 	get(key: string): unknown {
 		if (!browser) {

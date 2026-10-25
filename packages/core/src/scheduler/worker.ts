@@ -51,7 +51,7 @@ import {
 export interface Scheduler {
 	/** Settles once every worker has stopped. */
 	promise: Promise<void>;
-	stop(): Promise<void>;
+	stop: () => Promise<void>;
 }
 
 /** Tasks for work a viewer is waiting on; see {@link storeSeriesNowTask}. */

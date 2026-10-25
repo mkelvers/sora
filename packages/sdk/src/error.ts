@@ -56,7 +56,7 @@ export class SoraError extends Error {
 		status: number;
 		statusText: string;
 		headers: Headers;
-		json(): Promise<unknown>;
+		json: () => Promise<unknown>;
 	}): Promise<SoraError> {
 		// A proxy can return HTML or unrelated JSON; only use fields we recognize.
 		const body = await attempt(response.json());

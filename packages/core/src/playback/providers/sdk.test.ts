@@ -5,6 +5,7 @@ import type { IContentUnit, MappingMethod, MappingResolution } from "anime-sdk";
 import type { Anime } from "../../catalog/models/anime";
 import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
+import type { SdkProvider } from "./sdk";
 
 const titled = (titles: { english?: string; romaji?: string }, episodes: number | null): Anime => ({
 	...anime(1),
@@ -91,7 +92,7 @@ const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
 const providerFinding = (resolution: MappingResolution | null, units: Promise<IContentUnit[]>) => {
 	const fetched: string[] = [];
-	const provider = new SdkStreamProvider(
+	const provider = new SdkStreamProvider<SdkProvider>(
 		{
 			fetchContentUnits: (id) => {
 				fetched.push(id);

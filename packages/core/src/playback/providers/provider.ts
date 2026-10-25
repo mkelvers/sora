@@ -82,7 +82,7 @@ export interface StreamProvider {
 	 * @returns `null` when the provider has no confident match.
 	 * @throws {Error} when the provider cannot be asked.
 	 */
-	findMedia(anime: Anime): Promise<ProviderMatch | null>;
+	findMedia: (anime: Anime) => Promise<ProviderMatch | null>;
 
 	/**
 	 * Lists the episodes of a series {@link findMedia} matched, in the
@@ -90,7 +90,7 @@ export interface StreamProvider {
 	 *
 	 * @throws {Error} when the provider cannot be asked.
 	 */
-	listEpisodes(mediaId: string): Promise<ProviderEpisode[]>;
+	listEpisodes: (mediaId: string) => Promise<ProviderEpisode[]>;
 
 	/**
 	 * Resolves one episode in one language into upstream videos.
@@ -98,7 +98,7 @@ export interface StreamProvider {
 	 * @param episodeId - A {@link ProviderEpisode.id} from {@link listEpisodes}.
 	 * @throws {Error} when the provider has no stream for it or cannot be asked.
 	 */
-	resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream>;
+	resolveStream: (episodeId: string, language: ContentLanguage) => Promise<ProviderStream>;
 
 	/**
 	 * Brings a provider's local copy of its catalogue up to date, for
@@ -107,5 +107,5 @@ export interface StreamProvider {
 	 *
 	 * @returns A summary for the scheduler's log.
 	 */
-	syncCatalog?(options: { full: boolean }): Promise<string>;
+	syncCatalog?: (options: { full: boolean }) => Promise<string>;
 }

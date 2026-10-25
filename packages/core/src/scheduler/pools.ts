@@ -25,7 +25,7 @@ const deadAfterMs = 2 * minute;
 export interface PoolWatch {
 	/** Passed to each of the scheduler's `run()` calls, so its pools are known. */
 	events: WorkerEvents;
-	stop(): Promise<void>;
+	stop: () => Promise<void>;
 }
 
 /**

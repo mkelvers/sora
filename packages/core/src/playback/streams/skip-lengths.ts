@@ -53,7 +53,7 @@ export interface SkipSource {
 	/** Every episode the provider lists, numbered as the series numbers them. */
 	episodes: number[];
 	/** The segments the provider ships with an episode; `null` when it cannot be streamed. */
-	skipSegments(episode: number): Promise<SkipSegment[] | null>;
+	skipSegments: (episode: number) => Promise<SkipSegment[] | null>;
 }
 
 /**

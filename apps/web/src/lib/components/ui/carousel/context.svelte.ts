@@ -17,10 +17,13 @@ export class CarouselState {
 	#restart?: () => void;
 	#toggle?: () => void;
 
-	constructor(
-		readonly options: () => CarouselOptions,
-		readonly plugins: () => EmblaPluginType[],
-	) {}
+	readonly options: () => CarouselOptions;
+	readonly plugins: () => EmblaPluginType[];
+
+	constructor(options: () => CarouselOptions, plugins: () => EmblaPluginType[]) {
+		this.options = options;
+		this.plugins = plugins;
+	}
 
 	attach(api: EmblaCarouselType) {
 		if (this.api === api) {

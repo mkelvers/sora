@@ -238,12 +238,11 @@ export const resolveMegaPlayEmbed = async (
  * whose streams go through {@link resolveMegaPlayEmbed}.
  */
 export class MegaPlayStreamProvider extends SdkStreamProvider {
-	constructor(
-		private readonly http: HttpClient,
-		mapping: MappingClient,
-		traits: ProviderTraits,
-	) {
+	private readonly http: HttpClient;
+
+	constructor(http: HttpClient, mapping: MappingClient, traits: ProviderTraits) {
 		super(new MegaPlayProvider(http), mapping, traits);
+		this.http = http;
 	}
 
 	override resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {

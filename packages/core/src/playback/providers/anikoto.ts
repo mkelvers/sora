@@ -84,11 +84,10 @@ export class AniKotoStreamProvider implements StreamProvider {
 	readonly locale: string;
 	readonly listsLanguages: boolean;
 	private readonly sdk: AnikotoProvider;
+	private readonly http: HttpClient;
 
-	constructor(
-		private readonly http: HttpClient,
-		traits: ProviderTraits,
-	) {
+	constructor(http: HttpClient, traits: ProviderTraits) {
+		this.http = http;
 		this.sdk = new AnikotoProvider(http);
 		this.locale = traits.locale;
 		this.listsLanguages = traits.listsLanguages;
