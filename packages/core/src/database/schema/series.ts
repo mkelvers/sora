@@ -175,6 +175,32 @@ export const seriesEpisode = pgTable(
 	],
 );
 
+/**
+ * The still chosen for a TMDB episode among those TMDB lists for it: the
+ * best-voted one that has no language, no black bars, and no text a model
+ * can read, else the best-voted one there is (see `chooseStill`). A null
+ * `path` records that TMDB lists none, so the series' backdrop stands in; it
+ * is asked again once the episode's recheck falls due.
+ *
+ * Keyed by TMDB's numbering, as `getShow` reads it, so every layout of the
+ * show reads the same choice.
+ */
+export const episodeStill = pgTable(
+	"episode_still",
+	{
+		showId: integer("show_id").notNull(),
+		seasonNumber: integer("season_number").notNull(),
+		episodeNumber: integer("episode_number").notNull(),
+		path: text("path"),
+		chosenAt: timestamptz("chosen_at").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.showId, table.seasonNumber, table.episodeNumber],
+		}),
+	],
+);
+
 export const imageType = pgEnum("image_type", ["poster", "backdrop", "logo"]);
 
 /**
