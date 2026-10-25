@@ -9,27 +9,11 @@ const tsSyncByte = 0x47;
  * CDNs among them) prepend to MPEG-TS segments to disguise them as images.
  * Only the first bytes are needed.
  */
-export function isDisguisedSegment(head: Uint8Array) {
+export const isDisguisedSegment = (head: Uint8Array) => {
 	const png = pngSignature.every((byte, index) => head[index] === byte);
 	const jpeg = head[0] === 0xff && head[1] === 0xd8;
 	return png || jpeg;
-}
-
-/**
- * Whether a segment is an image and nothing else: what blocked hosts send
- * in its place, in the format its extension names, as opposed to a
- * disguised transport stream.
- */
-export function isBareImage<Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) {
-	if (isDisguisedSegment(bytes)) {
-		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
-	}
-
-	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
-	const webp = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
-	const gif = ascii(0, 4) === "GIF8";
-	return webp || gif;
-}
+};
 
 /**
  * Removes a prepended image from a disguised MPEG-TS segment.
@@ -40,9 +24,9 @@ export function isBareImage<Backing extends ArrayBufferLike>(bytes: Uint8Array<B
  *
  * @returns the segment unchanged when no transport stream is found.
  */
-export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(
+export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
 	bytes: Uint8Array<Backing>,
-) {
+) => {
 	const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
 	if (end !== -1) {
 		return bytes.subarray(end + pngEnd.length);
@@ -59,4 +43,20 @@ export function unwrapDisguisedSegment<Backing extends ArrayBufferLike>(
 	}
 
 	return bytes;
-}
+};
+
+/**
+ * Whether a segment is an image and nothing else: what blocked hosts send
+ * in its place, in the format its extension names, as opposed to a
+ * disguised transport stream.
+ */
+export const isBareImage = <Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) => {
+	if (isDisguisedSegment(bytes)) {
+		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
+	}
+
+	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+	const webp = ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+	const gif = ascii(0, 4) === "GIF8";
+	return webp || gif;
+};

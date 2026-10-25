@@ -7,7 +7,7 @@ import { seriesState } from "../database/schema";
  * Clears some of what a user decided about a series (see `seriesState`),
  * and deletes the row once nothing is left in it.
  */
-export async function clearSeriesState(
+export const clearSeriesState = async (
 	userId: string,
 	seriesId: string,
 	cleared: {
@@ -15,7 +15,7 @@ export async function clearSeriesState(
 		rewatch?: boolean;
 		dismissal?: boolean;
 	},
-) {
+) => {
 	const ofSeries = and(eq(seriesState.userId, userId), eq(seriesState.seriesId, seriesId));
 	await db.transaction(async (tx) => {
 		await tx
@@ -45,4 +45,4 @@ export async function clearSeriesState(
 				),
 			);
 	});
-}
+};

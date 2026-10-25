@@ -53,7 +53,10 @@ const widestBar = 0.4;
  *
  * and then TMDB's own pick comes first, then the larger one.
  */
-export function rankStills(stills: readonly TmdbImage[], defaultPath: string | null): TmdbImage[] {
+export const rankStills = (
+	stills: readonly TmdbImage[],
+	defaultPath: string | null,
+): TmdbImage[] => {
 	const tier = (still: TmdbImage) => [
 		Number(still.iso_639_1 !== null),
 		Number(Math.abs(still.width / still.height - widescreen) > widescreenTolerance),
@@ -75,7 +78,7 @@ export function rankStills(stills: readonly TmdbImage[], defaultPath: string | n
 			right.width - left.width
 		);
 	});
-}
+};
 
 /**
  * The share of the frame that black bars take up along its widest edge:
@@ -86,7 +89,7 @@ export function rankStills(stills: readonly TmdbImage[], defaultPath: string | n
  * stills with them and wrongly flags one black-backed drawing; on 150 stills
  * given 1.33:1 to 2.35:1 bars, it finds every one at least 2% thick.
  */
-export async function blackBars(image: Buffer): Promise<number> {
+export const blackBars = async (image: Buffer): Promise<number> => {
 	const { data } = await sharp(image)
 		.resize(measuredWidth, measuredHeight, {
 			fit: "fill",
@@ -145,12 +148,12 @@ export async function blackBars(image: Buffer): Promise<number> {
 		depth(columns),
 		depth(columns.toReversed()),
 	);
-}
+};
 
 /** Whether {@link blackBars} finds bars thick enough to see. */
-export async function hasBlackBars(image: Buffer): Promise<boolean> {
+export const hasBlackBars = async (image: Buffer): Promise<boolean> => {
 	return (await blackBars(image)) >= thinnestBar;
-}
+};
 
 const stillModel = "Xenova/clip-vit-base-patch32";
 
@@ -172,15 +175,15 @@ const stillLabels = [
  */
 const sceneShare = 0.75;
 
-let classifier: ReturnType<typeof loadClassifier> | null = null;
-
-function loadClassifier() {
+const loadClassifier = () => {
 	if (config.stillModelDir) {
 		env.cacheDir = config.stillModelDir;
 	}
 
 	return pipeline("zero-shot-image-classification", stillModel);
-}
+};
+
+let classifier: ReturnType<typeof loadClassifier> | null = null;
 
 /**
  * Whether a still is a title card, a logo, or other text rather than a
@@ -193,7 +196,7 @@ function loadClassifier() {
  *
  * @throws {@link UpstreamUnavailableError} when the model cannot be loaded.
  */
-export async function showsText(image: Buffer): Promise<boolean> {
+export const showsText = async (image: Buffer): Promise<boolean> => {
 	classifier ??= loadClassifier();
 	const loaded = await attempt(classifier);
 	if (loaded.error) {
@@ -210,17 +213,17 @@ export async function showsText(image: Buffer): Promise<boolean> {
 	);
 	const scene = [scored].flat().find((score) => score.label === sceneLabel);
 	return (scene?.score ?? 0) < sceneShare;
-}
+};
 
 /**
  * Gives each episode the still stored for it by `chooseStill`, in place of
  * TMDB's own pick, and none when none was fit to show. An episode with
  * nothing stored keeps TMDB's pick until one is.
  */
-export async function withChosenStills(
+export const withChosenStills = async (
 	showId: number,
 	episodes: TmdbEpisode[],
-): Promise<TmdbEpisode[]> {
+): Promise<TmdbEpisode[]> => {
 	const chosen = await db.select().from(episodeStill).where(eq(episodeStill.showId, showId));
 	const paths = new Map(
 		chosen.map((row) => [`${row.seasonNumber}:${row.episodeNumber}`, row.path]),
@@ -235,4 +238,4 @@ export async function withChosenStills(
 				}
 			: episode;
 	});
-}
+};

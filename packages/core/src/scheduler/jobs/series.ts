@@ -148,15 +148,15 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
  * written soon after an episode airs is asked about often, and what has been
  * missing for days or years, and so is unlikely to come today, rarely.
  */
-function recheckAfterMs(
+const recheckAfterMs = (
 	missingForMs: number | null,
 	bounds: {
 		min: number;
 		max: number;
 	},
-) {
+) => {
 	return Math.min(bounds.max, Math.max(bounds.min, (missingForMs ?? Infinity) / 10));
-}
+};
 
 /** Any stored copy of a show: what the last reader of it fetched. */
 const storedShowAgeMs = 365 * day;
@@ -186,6 +186,64 @@ export const refreshEpisodeDetailsTask = "refresh-episode-details";
  * what the run before got.
  */
 const detailsRunEveryMs = 12 * minute;
+
+/**
+ * Copies TMDB's details of `episodes` onto a stored series' episodes, as a
+ * layout would derive them (see `layoutEpisodes`). Returns how many
+ * episodes changed.
+ */
+const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpisode[]) => {
+	const tmdbEpisodes = new Map(
+		episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
+	);
+	const stored = await db
+		.select({
+			airDate: seriesEpisode.airDate,
+			number: seriesEpisode.number,
+			overview: seriesEpisode.overview,
+			runtimeMinutes: seriesEpisode.runtimeMinutes,
+			stillUrl: seriesEpisode.stillUrl,
+			title: seriesEpisode.title,
+			tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
+			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
+		})
+		.from(seriesEpisode)
+		.where(and(eq(seriesEpisode.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
+
+	let changed = 0;
+	for (const episode of stored) {
+		const tmdbEpisode = tmdbEpisodes.get(
+			`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`,
+		);
+		if (!tmdbEpisode) {
+			continue;
+		}
+
+		const details = {
+			title: tmdbEpisode.name,
+			overview: tmdbEpisode.overview,
+			airDate: tmdbEpisode.air_date,
+			// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
+			runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
+			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
+		};
+		if (
+			Object.entries(details).every(
+				([name, value]) => episode[name as keyof typeof details] === value,
+			)
+		) {
+			continue;
+		}
+
+		await db
+			.update(seriesEpisode)
+			.set(details)
+			.where(and(eq(seriesEpisode.seriesId, seriesId), eq(seriesEpisode.number, episode.number)));
+		changed += 1;
+	}
+
+	return changed;
+};
 
 /**
  * Fills in the title, overview, runtime, and still TMDB got for an episode
@@ -314,6 +372,14 @@ export const refreshEpisodeListingsTask = "refresh-episode-listings";
 
 /** How long a show whose episode TMDB has not listed for years goes unasked. */
 const longestListingWaitMs = 30 * day;
+
+/** Which episodes TMDB lists for a show, by season and number. */
+const episodeKeys = (show: TmdbShow) => {
+	return show.episodes
+		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
+		.sort()
+		.join(",");
+};
 
 /**
  * Asks TMDB again for the shows of stored series with an episode that a
@@ -536,69 +602,3 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 		`Asked TMDB for ${fetched} of ${showIds.size} shows it is behind on, filled in ${updated} episodes, and queued ${queued} of ${behind.length} series to be laid out again`,
 	);
 };
-
-/** Which episodes TMDB lists for a show, by season and number. */
-function episodeKeys(show: TmdbShow) {
-	return show.episodes
-		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
-		.sort()
-		.join(",");
-}
-
-/**
- * Copies TMDB's details of `episodes` onto a stored series' episodes, as a
- * layout would derive them (see `layoutEpisodes`). Returns how many
- * episodes changed.
- */
-async function copyEpisodeDetails(seriesId: string, episodes: readonly TmdbEpisode[]) {
-	const tmdbEpisodes = new Map(
-		episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
-	);
-	const stored = await db
-		.select({
-			airDate: seriesEpisode.airDate,
-			number: seriesEpisode.number,
-			overview: seriesEpisode.overview,
-			runtimeMinutes: seriesEpisode.runtimeMinutes,
-			stillUrl: seriesEpisode.stillUrl,
-			title: seriesEpisode.title,
-			tmdbEpisodeNumber: seriesEpisode.tmdbEpisodeNumber,
-			tmdbSeasonNumber: seriesEpisode.tmdbSeasonNumber,
-		})
-		.from(seriesEpisode)
-		.where(and(eq(seriesEpisode.seriesId, seriesId), isNotNull(seriesEpisode.tmdbEpisodeNumber)));
-
-	let changed = 0;
-	for (const episode of stored) {
-		const tmdbEpisode = tmdbEpisodes.get(
-			`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`,
-		);
-		if (!tmdbEpisode) {
-			continue;
-		}
-
-		const details = {
-			title: tmdbEpisode.name,
-			overview: tmdbEpisode.overview,
-			airDate: tmdbEpisode.air_date,
-			// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
-			runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
-			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
-		};
-		if (
-			Object.entries(details).every(
-				([name, value]) => episode[name as keyof typeof details] === value,
-			)
-		) {
-			continue;
-		}
-
-		await db
-			.update(seriesEpisode)
-			.set(details)
-			.where(and(eq(seriesEpisode.seriesId, seriesId), eq(seriesEpisode.number, episode.number)));
-		changed += 1;
-	}
-
-	return changed;
-}

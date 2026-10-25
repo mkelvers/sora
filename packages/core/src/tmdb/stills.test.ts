@@ -5,7 +5,7 @@ import sharp from "sharp";
 import type { TmdbImage } from "./resources";
 import { blackBars, hasBlackBars, rankStills } from "./stills";
 
-function still(overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage {
+const still = (overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): TmdbImage => {
 	return {
 		height: 1080,
 		iso_639_1: null,
@@ -14,10 +14,10 @@ function still(overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): Tm
 		width: 1920,
 		...overrides,
 	};
-}
+};
 
 /** A busy 16:9 frame: noise over a gradient, so no edge of it is black. */
-async function frame() {
+const frame = async () => {
 	const width = 1280;
 	const height = 720;
 	const pixels = Buffer.alloc(width * height * 3);
@@ -33,9 +33,9 @@ async function frame() {
 	})
 		.png()
 		.toBuffer();
-}
+};
 
-async function withBars(image: Buffer, bars: { top?: number; left?: number }) {
+const withBars = async (image: Buffer, bars: { top?: number; left?: number }) => {
 	const meta = await sharp(image).metadata();
 	const top = bars.top ?? 0;
 	const left = bars.left ?? 0;
@@ -57,7 +57,7 @@ async function withBars(image: Buffer, bars: { top?: number; left?: number }) {
 			quality: 70,
 		})
 		.toBuffer();
-}
+};
 
 describe("rankStills", () => {
 	test("puts stills without a language before those with one, whatever the votes", () => {

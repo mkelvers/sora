@@ -69,6 +69,42 @@ const hiatusCheckIntervalMs = 7 * day;
 /** Japan Standard Time, which AniList's dates are in, is UTC+9. */
 const japanOffsetMs = 9 * hour;
 
+/** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
+const japanDay = (date: string | null) => {
+	const match = date ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(date) : null;
+	if (!match) {
+		return null;
+	}
+
+	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
+	return {
+		end: new Date(start + day),
+		start: new Date(start),
+	};
+};
+
+/** The next check that does not depend on a missing release. */
+const nextScheduledCheck = (state: AiringState, now: Date): Date => {
+	if (state.nextAiringAt) {
+		// A broadcast time in the past means AniList has not caught up yet.
+		return state.nextAiringAt > now
+			? state.nextAiringAt
+			: new Date(now.getTime() + premiereDayCheckIntervalMs);
+	}
+
+	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
+	if (premiereDay && now < premiereDay.end) {
+		return now < premiereDay.start
+			? premiereDay.start
+			: new Date(now.getTime() + premiereDayCheckIntervalMs);
+	}
+
+	return new Date(
+		now.getTime() +
+			(state.status === "HIATUS" ? hiatusCheckIntervalMs : unscheduledCheckIntervalMs),
+	);
+};
+
 /**
  * Decides when to check an anime again.
  *
@@ -84,7 +120,11 @@ const japanOffsetMs = 9 * hour;
  * episode has been released, or has been waited on for
  * {@link maximumReleaseAttempts} checks.
  */
-export function planNextCheck(state: AiringState, progress: AiringProgress, now: Date): AiringPlan {
+export const planNextCheck = (
+	state: AiringState,
+	progress: AiringProgress,
+	now: Date,
+): AiringPlan => {
 	const behind =
 		state.latestAiredEpisode !== null &&
 		(state.latestReleasedEpisode ?? 0) < state.latestAiredEpisode;
@@ -120,43 +160,7 @@ export function planNextCheck(state: AiringState, progress: AiringProgress, now:
 		done: false,
 		runAt: retryAt && retryAt < scheduledAt ? retryAt : scheduledAt,
 	};
-}
-
-/** The next check that does not depend on a missing release. */
-function nextScheduledCheck(state: AiringState, now: Date): Date {
-	if (state.nextAiringAt) {
-		// A broadcast time in the past means AniList has not caught up yet.
-		return state.nextAiringAt > now
-			? state.nextAiringAt
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
-	if (premiereDay && now < premiereDay.end) {
-		return now < premiereDay.start
-			? premiereDay.start
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
-	}
-
-	return new Date(
-		now.getTime() +
-			(state.status === "HIATUS" ? hiatusCheckIntervalMs : unscheduledCheckIntervalMs),
-	);
-}
-
-/** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
-function japanDay(date: string | null) {
-	const match = date ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(date) : null;
-	if (!match) {
-		return null;
-	}
-
-	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
-	return {
-		end: new Date(start + day),
-		start: new Date(start),
-	};
-}
+};
 
 /**
  * Extends the latest aired episode AniList knows through the episodes
@@ -170,11 +174,11 @@ function japanDay(date: string | null) {
  * @param latest - The latest aired episode AniList knows.
  * @param released - The episodes the timetable lists as released.
  */
-export function extendThroughReleased(latest: number, released: readonly number[]) {
+export const extendThroughReleased = (latest: number, released: readonly number[]) => {
 	const episodes = new Set(released);
 	let through = latest;
 	while (episodes.has(through + 1)) {
 		through += 1;
 	}
 	return through;
-}
+};

@@ -18,22 +18,22 @@
 		items: ContinueWatching[];
 	} = $props();
 
-	function label(item: ContinueWatching, where: string) {
+	const label = (item: ContinueWatching, where: string) => {
 		const started = item.position_seconds > 0;
 		if (!where) {
 			return started ? "Continue Watching" : "Up Next";
 		}
 
 		return started ? `Continue with ${where}` : `Up next with ${where}`;
-	}
+	};
 
-	function remove(seriesId: string) {
+	const remove = (seriesId: string) => {
 		return dismissContinueWatching(seriesId).updates(
 			getContinueWatching().withOverride((current) =>
 				current.filter((other) => other.series.id !== seriesId),
 			),
 		);
-	}
+	};
 </script>
 
 {#if items.length}

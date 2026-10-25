@@ -33,7 +33,7 @@ if (!response.ok) {
 
 const spec = (await response.json()) as Spec;
 
-function typeOf(parameter: Parameter) {
+const typeOf = (parameter: Parameter) => {
 	switch (parameter.schema?.type) {
 		case "integer":
 		case "number": {
@@ -46,16 +46,16 @@ function typeOf(parameter: Parameter) {
 			return "string";
 		}
 	}
-}
+};
 
-function members(parameters: Parameter[], location: Parameter["in"]) {
+const members = (parameters: Parameter[], location: Parameter["in"]) => {
 	return parameters
 		.filter((parameter) => parameter.in === location)
 		.map(
 			(parameter) =>
 				`${JSON.stringify(parameter.name)}${parameter.required ? "" : "?"}: ${typeOf(parameter)};`,
 		);
-}
+};
 
 const operations = Object.entries(spec.paths)
 	.filter(([, item]) => item.get)

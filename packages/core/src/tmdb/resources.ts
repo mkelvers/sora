@@ -202,6 +202,14 @@ export type TmdbEpisode = z.infer<typeof EpisodeSchema>;
 /** A TMDB movie's details. */
 export type TmdbMovie = z.infer<typeof MovieSchema>;
 
+/** A season's own name, synopsis, and artwork, such as "Mugen Train Arc". */
+interface TmdbSeason {
+	seasonNumber: number;
+	name: string | null;
+	overview: string | null;
+	posterPath: string | null;
+}
+
 /** A TMDB show with every episode of every season, including specials (season 0). */
 export interface TmdbShow {
 	id: number;
@@ -215,14 +223,6 @@ export interface TmdbShow {
 	seasons: TmdbSeason[];
 	/** Every episode, ordered by season and then episode number. */
 	episodes: TmdbEpisode[];
-}
-
-/** A season's own name, synopsis, and artwork, such as "Mugen Train Arc". */
-interface TmdbSeason {
-	seasonNumber: number;
-	name: string | null;
-	overview: string | null;
-	posterPath: string | null;
 }
 
 /** TMDB caps `append_to_response` at 20 sub-requests. */
@@ -249,7 +249,7 @@ export const editsWindowMs = changeLogSpanMs - 2 * day;
 const unnamedEpisode = /^episode \d+$/i;
 
 /** Searches TMDB TV shows by title. Returns the first page, best matches first. */
-export async function searchShows(query: string): Promise<TmdbShowResult[]> {
+export const searchShows = async (query: string): Promise<TmdbShowResult[]> => {
 	const result = await tmdb(
 		"/search/tv",
 		{
@@ -264,7 +264,7 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
 	);
 
 	return result?.results ?? [];
-}
+};
 
 /**
  * Loads a show's alternative episode arrangements through TMDB's episode
@@ -274,10 +274,10 @@ export async function searchShows(query: string): Promise<TmdbShowResult[]> {
  *
  * @param request - Fetches from TMDB; tests pass a client of their own.
  */
-export async function getShowEpisodeGroups(
+export const getShowEpisodeGroups = async (
 	showId: number,
 	request: typeof tmdb = tmdb,
-): Promise<TmdbEpisodeGroup[][]> {
+): Promise<TmdbEpisodeGroup[][]> => {
 	const listed = await request(`/tv/${showId}/episode_groups`, {}, EpisodeGroupsSchema, {
 		maxAgeMs: showLifetimeMs,
 	});
@@ -300,10 +300,10 @@ export async function getShowEpisodeGroups(
 				]
 			: [],
 	);
-}
+};
 
 /** Searches TMDB movies by title. Returns the first page, best matches first. */
-export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
+export const searchMovies = async (query: string): Promise<TmdbMovieResult[]> => {
 	const result = await tmdb(
 		"/search/movie",
 		{
@@ -318,7 +318,142 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
 	);
 
 	return result?.results ?? [];
-}
+};
+
+/** A show's details plus the appended `season/N` objects for the requested seasons. */
+const showPageSchema = (seasons: readonly number[]) => {
+	return z.object({
+		...ShowFields,
+		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
+	}) as z.ZodObject<
+		typeof ShowFields &
+			Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>
+	>;
+};
+
+/**
+ * The episodes a show counts for `seasonNumber` past those its appended
+ * season lists, each loaded on its own, since TMDB keeps a single episode
+ * apart from its season too. They are taken to follow the last one listed,
+ * or to start at 1, as TMDB numbers a season's episodes; the first TMDB does
+ * not know ends them, so a season numbered otherwise costs one request.
+ */
+const missingEpisodes = async (
+	showId: number,
+	seasons: readonly {
+		season_number: number;
+		episode_count: number;
+	}[],
+	seasonNumber: number,
+	listed: readonly TmdbEpisode[],
+	options: {
+		maxAgeMs: number;
+	},
+): Promise<TmdbEpisode[]> => {
+	const counted =
+		seasons.find((season) => season.season_number === seasonNumber)?.episode_count ?? 0;
+	const after = Math.max(0, ...listed.map((episode) => episode.episode_number));
+	const found: TmdbEpisode[] = [];
+	for (let number = after + 1; listed.length + found.length < counted; number += 1) {
+		const episode = await tmdb(
+			`/tv/${showId}/season/${seasonNumber}/episode/${number}`,
+			{
+				language: "en-US",
+			},
+			EpisodeSchema,
+			options,
+		);
+		if (!episode) {
+			break;
+		}
+
+		found.push(episode);
+	}
+
+	return found;
+};
+
+/**
+ * Fills in the title, overview, runtime, and still an episode lacks from the
+ * English edits in its change log, when it aired within {@link editsWindowMs}.
+ * TMDB's air date is in the airing country's calendar, which can be a day
+ * ahead of UTC.
+ *
+ * TMDB keeps a change log for ten minutes, where it keeps the episode itself
+ * for hours. The log is asked for from the day before the air date on, for
+ * as long as TMDB serves one: the same request for as long as the episode is
+ * read, so one stored copy serves every reader, and `maxAgeMs` alone decides
+ * when TMDB is asked again. The range may end in the future, and has to end
+ * after today for today's edits to be in it.
+ *
+ * A change log TMDB fails to serve leaves the episode as it is: the show is
+ * still worth having, and the next read asks again.
+ */
+export const withEdits = async (
+	episode: TmdbEpisode,
+	options: {
+		/** How old a stored copy of the change log may be. */
+		maxAgeMs: number;
+	},
+): Promise<TmdbEpisode> => {
+	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
+	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
+	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
+	if (
+		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
+		episode.air_date === null ||
+		episode.air_date < since ||
+		episode.air_date > until
+	) {
+		return episode;
+	}
+
+	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
+	const { data, error } = await attempt(
+		tmdb(
+			`/tv/episode/${episode.id}/changes`,
+			{
+				end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
+				start_date: new Date(from).toISOString().slice(0, 10),
+			},
+			EpisodeChangesSchema,
+			options,
+		),
+		UpstreamUnavailableError,
+	);
+	if (error || !data) {
+		return episode;
+	}
+
+	const edits = (key: string) =>
+		(data.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
+			left.time.localeCompare(right.time),
+		);
+	const text = (key: string) => {
+		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
+		return typeof value === "string" && value !== "" ? value : null;
+	};
+	// A runtime is filed under the language of whoever wrote it.
+	const runtime = edits("runtime").at(-1)?.value;
+	const stills = new Set<string>();
+	for (const edit of edits("images")) {
+		const added = ChangedImageSchema.safeParse(edit.value);
+		const removed = ChangedImageSchema.safeParse(edit.original_value);
+		if (edit.action === "deleted" && removed.success) {
+			stills.delete(removed.data.backdrop.file_path);
+		} else if (added.success) {
+			stills.add(added.data.backdrop.file_path);
+		}
+	}
+
+	return {
+		...episode,
+		name: (isUnnamed ? text("name") : null) ?? episode.name,
+		overview: episode.overview ?? text("overview"),
+		runtime: episode.runtime ?? (typeof runtime === "number" && runtime > 0 ? runtime : null),
+		still_path: episode.still_path ?? [...stills].at(0) ?? null,
+	};
+};
 
 /**
  * Loads a TMDB show with all of its episodes.
@@ -342,13 +477,13 @@ export async function searchMovies(query: string): Promise<TmdbMovieResult[]> {
  *
  * @returns The show, or `null` when TMDB does not know the ID.
  */
-export async function getShow(
+export const getShow = async (
 	showId: number,
 	options: {
 		/** How old a stored response may be; by default {@link showLifetimeMs}. */
 		maxAgeMs?: number;
 	} = {},
-): Promise<TmdbShow | null> {
+): Promise<TmdbShow | null> => {
 	const episodes: TmdbEpisode[] = [];
 	let details: z.infer<ReturnType<typeof showPageSchema>> | null = null;
 
@@ -422,138 +557,14 @@ export async function getShow(
 			posterPath: season.poster_path,
 		})),
 	};
-}
-
-/**
- * The episodes a show counts for `seasonNumber` past those its appended
- * season lists, each loaded on its own, since TMDB keeps a single episode
- * apart from its season too. They are taken to follow the last one listed,
- * or to start at 1, as TMDB numbers a season's episodes; the first TMDB does
- * not know ends them, so a season numbered otherwise costs one request.
- */
-async function missingEpisodes(
-	showId: number,
-	seasons: readonly {
-		season_number: number;
-		episode_count: number;
-	}[],
-	seasonNumber: number,
-	listed: readonly TmdbEpisode[],
-	options: {
-		maxAgeMs: number;
-	},
-): Promise<TmdbEpisode[]> {
-	const counted =
-		seasons.find((season) => season.season_number === seasonNumber)?.episode_count ?? 0;
-	const after = Math.max(0, ...listed.map((episode) => episode.episode_number));
-	const found: TmdbEpisode[] = [];
-	for (let number = after + 1; listed.length + found.length < counted; number += 1) {
-		const episode = await tmdb(
-			`/tv/${showId}/season/${seasonNumber}/episode/${number}`,
-			{
-				language: "en-US",
-			},
-			EpisodeSchema,
-			options,
-		);
-		if (!episode) {
-			break;
-		}
-
-		found.push(episode);
-	}
-
-	return found;
-}
-
-/**
- * Fills in the title, overview, runtime, and still an episode lacks from the
- * English edits in its change log, when it aired within {@link editsWindowMs}.
- * TMDB's air date is in the airing country's calendar, which can be a day
- * ahead of UTC.
- *
- * TMDB keeps a change log for ten minutes, where it keeps the episode itself
- * for hours. The log is asked for from the day before the air date on, for
- * as long as TMDB serves one: the same request for as long as the episode is
- * read, so one stored copy serves every reader, and `maxAgeMs` alone decides
- * when TMDB is asked again. The range may end in the future, and has to end
- * after today for today's edits to be in it.
- *
- * A change log TMDB fails to serve leaves the episode as it is: the show is
- * still worth having, and the next read asks again.
- */
-export async function withEdits(
-	episode: TmdbEpisode,
-	options: {
-		/** How old a stored copy of the change log may be. */
-		maxAgeMs: number;
-	},
-): Promise<TmdbEpisode> {
-	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
-	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
-	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
-	if (
-		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
-		episode.air_date === null ||
-		episode.air_date < since ||
-		episode.air_date > until
-	) {
-		return episode;
-	}
-
-	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
-	const { data, error } = await attempt(
-		tmdb(
-			`/tv/episode/${episode.id}/changes`,
-			{
-				end_date: new Date(from + changeLogSpanMs).toISOString().slice(0, 10),
-				start_date: new Date(from).toISOString().slice(0, 10),
-			},
-			EpisodeChangesSchema,
-			options,
-		),
-		UpstreamUnavailableError,
-	);
-	if (error || !data) {
-		return episode;
-	}
-
-	const edits = (key: string) =>
-		(data.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
-			left.time.localeCompare(right.time),
-		);
-	const text = (key: string) => {
-		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
-		return typeof value === "string" && value !== "" ? value : null;
-	};
-	// A runtime is filed under the language of whoever wrote it.
-	const runtime = edits("runtime").at(-1)?.value;
-	const stills = new Set<string>();
-	for (const edit of edits("images")) {
-		const added = ChangedImageSchema.safeParse(edit.value);
-		const removed = ChangedImageSchema.safeParse(edit.original_value);
-		if (edit.action === "deleted" && removed.success) {
-			stills.delete(removed.data.backdrop.file_path);
-		} else if (added.success) {
-			stills.add(added.data.backdrop.file_path);
-		}
-	}
-
-	return {
-		...episode,
-		name: (isUnnamed ? text("name") : null) ?? episode.name,
-		overview: episode.overview ?? text("overview"),
-		runtime: episode.runtime ?? (typeof runtime === "number" && runtime > 0 ? runtime : null),
-		still_path: episode.still_path ?? [...stills].at(0) ?? null,
-	};
-}
+};
 
 /**
  * Loads a TMDB movie's details.
  *
  * @returns The movie, or `null` when TMDB does not know the ID.
  */
-export function getMovie(movieId: number): Promise<TmdbMovie | null> {
+export const getMovie = (movieId: number): Promise<TmdbMovie | null> => {
 	return tmdb(
 		`/movie/${movieId}`,
 		{
@@ -564,7 +575,7 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
 			maxAgeMs: day,
 		},
 	);
-}
+};
 
 /**
  * Loads the films of a TMDB collection, such as a franchise's film series.
@@ -572,7 +583,7 @@ export function getMovie(movieId: number): Promise<TmdbMovie | null> {
  * @returns The collection's films in TMDB's order, or `[]` when TMDB does
  *   not know the ID.
  */
-export async function getCollectionParts(collectionId: number): Promise<TmdbMovieResult[]> {
+export const getCollectionParts = async (collectionId: number): Promise<TmdbMovieResult[]> => {
 	const collection = await tmdb(
 		`/collection/${collectionId}`,
 		{
@@ -585,7 +596,7 @@ export async function getCollectionParts(collectionId: number): Promise<TmdbMovi
 	);
 
 	return collection?.parts ?? [];
-}
+};
 
 /**
  * Finds the logo (the title artwork drawn over a backdrop) of a show or film.
@@ -596,7 +607,10 @@ export async function getCollectionParts(collectionId: number): Promise<TmdbMovi
  *
  * @returns The logo's image path, or `null` when TMDB has none.
  */
-export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promise<string | null> {
+export const getLogoPath = async (
+	mediaType: "tv" | "movie",
+	id: number,
+): Promise<string | null> => {
 	const images = await tmdb(
 		`/${mediaType}/${id}/images`,
 		{
@@ -617,73 +631,7 @@ export async function getLogoPath(mediaType: "tv" | "movie", id: number): Promis
 		);
 
 	return logos[0]?.file_path ?? null;
-}
-
-/**
- * Loads every backdrop, poster, and logo of a show or film, in every
- * language: without `include_image_language`, TMDB filters none out.
- *
- * With `maxAgeMs: 0`, TMDB's own cache is bypassed too; see {@link loadImages}.
- *
- * @returns The images, or `null` when TMDB does not know the ID.
- */
-export function getImages(
-	mediaType: "tv" | "movie",
-	id: number,
-	options: {
-		/** How old a stored response may be; a day by default. */
-		maxAgeMs?: number;
-	} = {},
-): Promise<TmdbImages | null> {
-	return loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
-}
-
-const EpisodeStillsSchema = z.object({
-	stills: z.array(ImageSchema).default([]),
-});
-
-/**
- * Loads every still TMDB lists for an episode, in every language, and
- * always from TMDB: the answer is a choice made once and stored (see
- * `chooseStill`), not one read again.
- *
- * @returns The stills; empty when TMDB does not know the episode.
- */
-export async function getEpisodeStills(
-	showId: number,
-	seasonNumber: number,
-	episodeNumber: number,
-): Promise<TmdbImage[]> {
-	const listed = await tmdb(
-		`/tv/${showId}/season/${seasonNumber}/episode/${episodeNumber}/images`,
-		{},
-		EpisodeStillsSchema,
-		{
-			maxAgeMs: 0,
-			store: false,
-		},
-	);
-	return listed?.stills ?? [];
-}
-
-/**
- * Loads a show season's posters, in every language. Empty when TMDB does not
- * know the season. With `maxAgeMs: 0`, TMDB's own cache is bypassed too.
- */
-export async function getSeasonPosters(
-	showId: number,
-	seasonNumber: number,
-	options: {
-		/** How old a stored response may be; a day by default. */
-		maxAgeMs?: number;
-	} = {},
-): Promise<TmdbImage[]> {
-	const images = await loadImages(
-		`/tv/${showId}/season/${seasonNumber}/images`,
-		options.maxAgeMs ?? day,
-	);
-	return images?.posters ?? [];
-}
+};
 
 /** TMDB honours this many languages of an `include_image_language` list, counting `null`. */
 const languagesPerImageRequest = 5;
@@ -696,7 +644,7 @@ const languagesPerImageRequest = 5;
  * `null` and a nonce. An image in a language the title had none in yet is
  * still missed until that cache expires.
  */
-async function loadImages(path: TmdbPath, maxAgeMs: number): Promise<TmdbImages | null> {
+const loadImages = async (path: TmdbPath, maxAgeMs: number): Promise<TmdbImages | null> => {
 	const cached = await tmdb(path, {}, AllImagesSchema, {
 		maxAgeMs,
 	});
@@ -743,27 +691,82 @@ async function loadImages(path: TmdbPath, maxAgeMs: number): Promise<TmdbImages 
 		logos: unique(answers.flatMap((answer) => answer?.logos ?? [])),
 		posters: unique(answers.flatMap((answer) => answer?.posters ?? [])),
 	};
-}
+};
 
-/** A show's details plus the appended `season/N` objects for the requested seasons. */
-function showPageSchema(seasons: readonly number[]) {
-	return z.object({
-		...ShowFields,
-		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
-	}) as z.ZodObject<
-		typeof ShowFields &
-			Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>
-	>;
-}
+/**
+ * Loads every backdrop, poster, and logo of a show or film, in every
+ * language: without `include_image_language`, TMDB filters none out.
+ *
+ * With `maxAgeMs: 0`, TMDB's own cache is bypassed too; see {@link loadImages}.
+ *
+ * @returns The images, or `null` when TMDB does not know the ID.
+ */
+export const getImages = (
+	mediaType: "tv" | "movie",
+	id: number,
+	options: {
+		/** How old a stored response may be; a day by default. */
+		maxAgeMs?: number;
+	} = {},
+): Promise<TmdbImages | null> => {
+	return loadImages(`/${mediaType}/${id}/images`, options.maxAgeMs ?? day);
+};
+
+const EpisodeStillsSchema = z.object({
+	stills: z.array(ImageSchema).default([]),
+});
+
+/**
+ * Loads every still TMDB lists for an episode, in every language, and
+ * always from TMDB: the answer is a choice made once and stored (see
+ * `chooseStill`), not one read again.
+ *
+ * @returns The stills; empty when TMDB does not know the episode.
+ */
+export const getEpisodeStills = async (
+	showId: number,
+	seasonNumber: number,
+	episodeNumber: number,
+): Promise<TmdbImage[]> => {
+	const listed = await tmdb(
+		`/tv/${showId}/season/${seasonNumber}/episode/${episodeNumber}/images`,
+		{},
+		EpisodeStillsSchema,
+		{
+			maxAgeMs: 0,
+			store: false,
+		},
+	);
+	return listed?.stills ?? [];
+};
+
+/**
+ * Loads a show season's posters, in every language. Empty when TMDB does not
+ * know the season. With `maxAgeMs: 0`, TMDB's own cache is bypassed too.
+ */
+export const getSeasonPosters = async (
+	showId: number,
+	seasonNumber: number,
+	options: {
+		/** How old a stored response may be; a day by default. */
+		maxAgeMs?: number;
+	} = {},
+): Promise<TmdbImage[]> => {
+	const images = await loadImages(
+		`/tv/${showId}/season/${seasonNumber}/images`,
+		options.maxAgeMs ?? day,
+	);
+	return images?.posters ?? [];
+};
 
 /**
  * Builds a TMDB image URL.
  *
  * @param size - A TMDB size bucket such as `w780` or `original`.
  */
-export function tmdbImageUrl(
+export const tmdbImageUrl = (
 	path: string | null,
 	size: "w300" | "w500" | "w780" | "w1280" | "original",
-) {
+) => {
 	return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
-}
+};

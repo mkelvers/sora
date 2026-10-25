@@ -24,10 +24,10 @@ const cacheMs = 60_000;
  * @param load Reads the providers' health.
  * @param signedIn Whether a request's headers carry a session.
  */
-export function healthRoutes(
+export const healthRoutes = (
 	load: () => Promise<ProviderHealth[]> = getProviderHealth,
 	signedIn: (headers: Headers) => Promise<boolean> = async () => false,
-) {
+) => {
 	let cached: {
 		at: number;
 		providers: Promise<ProviderHealth[] | null>;
@@ -71,4 +71,4 @@ export function healthRoutes(
 			status: "ok",
 		});
 	});
-}
+};

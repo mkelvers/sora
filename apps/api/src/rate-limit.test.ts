@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import type { V1Env } from "./errors";
 import { rateLimit } from "./rate-limit";
 
-function app(limit: number, windowMs = 60_000) {
+const app = (limit: number, windowMs = 60_000) => {
 	return new Hono<V1Env>()
 		.use(async (c, next) => {
 			c.set("accountId", c.req.header("x-account") ?? "a");
@@ -18,15 +18,15 @@ function app(limit: number, windowMs = 60_000) {
 			}),
 		)
 		.get("/", (c) => c.text("ok"));
-}
+};
 
-function get(routes: ReturnType<typeof app>, account = "a") {
+const get = (routes: ReturnType<typeof app>, account = "a") => {
 	return routes.request("/", {
 		headers: {
 			"x-account": account,
 		},
 	});
-}
+};
 
 describe("rateLimit", () => {
 	test("answers 429 with Retry-After past the limit, per account", async () => {

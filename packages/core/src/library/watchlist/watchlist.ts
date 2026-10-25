@@ -8,7 +8,7 @@ import { clearSeriesState } from "../state";
 import { statusAfterPlayback } from "./status";
 
 /** Lists a user's watchlist, the most recently changed first. */
-export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
+export const getWatchlist = async (userId: string): Promise<WatchlistEntry[]> => {
 	const rows = await db
 		.select({
 			addedAt: seriesState.addedAt,
@@ -39,13 +39,13 @@ export async function getWatchlist(userId: string): Promise<WatchlistEntry[]> {
 				]
 			: [];
 	});
-}
+};
 
 /**
  * Lists the status of every title on a user's watchlist without loading
  * their cards, for callers that only need to know what is listed.
  */
-export async function getWatchlistStatuses(userId: string): Promise<WatchlistStatusEntry[]> {
+export const getWatchlistStatuses = async (userId: string): Promise<WatchlistStatusEntry[]> => {
 	const rows = await db
 		.select({
 			seriesId: seriesState.seriesId,
@@ -64,7 +64,7 @@ export async function getWatchlistStatuses(userId: string): Promise<WatchlistSta
 				]
 			: [],
 	);
-}
+};
 
 /**
  * Puts a series on a user's watchlist with a status, or changes the status
@@ -72,11 +72,11 @@ export async function getWatchlistStatuses(userId: string): Promise<WatchlistSta
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
-export async function setWatchlistStatus(
+export const setWatchlistStatus = async (
 	userId: string,
 	seriesId: string,
 	status: WatchlistStatus,
-) {
+) => {
 	await assertSeriesExists(seriesId);
 	await db
 		.insert(seriesState)
@@ -96,27 +96,27 @@ export async function setWatchlistStatus(
 			setWhere: sql`${seriesState.status} is distinct from ${status}`,
 			target: [seriesState.userId, seriesState.seriesId],
 		});
-}
+};
 
 /** Takes a series off a user's watchlist. Their progress in it stays. */
-export async function removeFromWatchlist(userId: string, seriesId: string) {
+export const removeFromWatchlist = async (userId: string, seriesId: string) => {
 	await clearSeriesState(userId, seriesId, {
 		watchlist: true,
 	});
-}
+};
 
 /**
  * Moves a series' watchlist status on after the user played one of its
  * episodes, as {@link statusAfterPlayback} says. Called by `saveProgress`.
  */
-export async function updateWatchlistAfterPlayback(
+export const updateWatchlistAfterPlayback = async (
 	userId: string,
 	seriesId: string,
 	playback: {
 		episode: number;
 		finished: boolean;
 	},
-) {
+) => {
 	const [[current], [title]] = await Promise.all([
 		db
 			.select({
@@ -145,4 +145,4 @@ export async function updateWatchlistAfterPlayback(
 	if (next !== null && next !== current?.status) {
 		await setWatchlistStatus(userId, seriesId, next);
 	}
-}
+};

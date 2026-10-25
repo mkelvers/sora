@@ -23,7 +23,7 @@ const tops: Record<string, number> = {
 	tulip: 21,
 };
 
-function draw(style: string, seed: string) {
+const draw = (style: string, seed: string) => {
 	const options = {
 		animationVariant: "fastest",
 		seed,
@@ -46,7 +46,7 @@ function draw(style: string, seed: string) {
 		translateX: -1.5,
 		translateY: -((top + 109.5) / 2 - 50),
 	}).toString();
-}
+};
 
 export const GET: RequestHandler = ({ params, locals }) => {
 	if (!locals.viewer) {

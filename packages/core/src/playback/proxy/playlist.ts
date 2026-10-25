@@ -3,6 +3,22 @@ import type { StreamTargetKind } from "./token";
 /** Produces the replacement URI for one upstream resource referenced by a playlist. */
 export type PlaylistUriSigner = (url: string, kind: StreamTargetKind) => string;
 
+const tagUriKind = (tag: string): StreamTargetKind | null => {
+	if (tag.startsWith("#EXT-X-MEDIA:") || tag.startsWith("#EXT-X-I-FRAME-STREAM-INF:")) {
+		return "playlist";
+	}
+
+	if (tag.startsWith("#EXT-X-MAP:")) {
+		return "segment";
+	}
+
+	if (tag.startsWith("#EXT-X-KEY:") || tag.startsWith("#EXT-X-SESSION-KEY:")) {
+		return "key";
+	}
+
+	return null;
+};
+
 /**
  * Rewrites every URI in an HLS playlist through `sign`.
  *
@@ -17,7 +33,7 @@ export type PlaylistUriSigner = (url: string, kind: StreamTargetKind) => string;
  * rewritePlaylist(text, "https://cdn.example/show/index.m3u8", (url, kind) => sign(url, kind));
  * ```
  */
-export function rewritePlaylist(content: string, playlistUrl: string, sign: PlaylistUriSigner) {
+export const rewritePlaylist = (content: string, playlistUrl: string, sign: PlaylistUriSigner) => {
 	const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/m.test(content);
 	const lineKind: StreamTargetKind = isMaster ? "playlist" : "segment";
 	const resolve = (uri: string) => new URL(uri, playlistUrl).toString();
@@ -45,20 +61,4 @@ export function rewritePlaylist(content: string, playlistUrl: string, sign: Play
 			);
 		})
 		.join("\n");
-}
-
-function tagUriKind(tag: string): StreamTargetKind | null {
-	if (tag.startsWith("#EXT-X-MEDIA:") || tag.startsWith("#EXT-X-I-FRAME-STREAM-INF:")) {
-		return "playlist";
-	}
-
-	if (tag.startsWith("#EXT-X-MAP:")) {
-		return "segment";
-	}
-
-	if (tag.startsWith("#EXT-X-KEY:") || tag.startsWith("#EXT-X-SESSION-KEY:")) {
-		return "key";
-	}
-
-	return null;
-}
+};

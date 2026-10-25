@@ -15,10 +15,10 @@ export const knownProfiles = new Map<
 	}
 >();
 
-export function remoteViewer() {
+export const remoteViewer = () => {
 	const viewer = getRequestEvent().locals.viewer!;
 	return {
 		profile: viewer.profile!,
 		sora: viewer.sora,
 	};
-}
+};

@@ -13,8 +13,19 @@ const defaults: PlaybackPreferences = {
 	subtitles: {},
 };
 
+const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
+	const audio = LanguageSchema.safeParse(row.audio);
+	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
+
+	return {
+		audio: audio.success ? audio.data : null,
+		auto_skip: row.autoSkip,
+		subtitles: subtitles.success ? subtitles.data : {},
+	};
+};
+
 /** A user's playback preferences; the defaults until they pick anything. */
-export async function getPlaybackPreferences(userId: string): Promise<PlaybackPreferences> {
+export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPreferences> => {
 	const [row] = await db
 		.select()
 		.from(playbackPreference)
@@ -22,7 +33,7 @@ export async function getPlaybackPreferences(userId: string): Promise<PlaybackPr
 		.limit(1);
 
 	return row ? toPreferences(row) : defaults;
-}
+};
 
 /**
  * Changes a user's playback preferences and returns them as they now stand.
@@ -30,10 +41,10 @@ export async function getPlaybackPreferences(userId: string): Promise<PlaybackPr
  * @throws {@link InvalidInputError} when the update fails
  *   {@link PlaybackPreferencesUpdateSchema}.
  */
-export async function updatePlaybackPreferences(
+export const updatePlaybackPreferences = async (
 	userId: string,
 	update: PlaybackPreferencesUpdate,
-): Promise<PlaybackPreferences> {
+): Promise<PlaybackPreferences> => {
 	const parsed = PlaybackPreferencesUpdateSchema.safeParse(update);
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid playback preferences", {
@@ -68,15 +79,4 @@ export async function updatePlaybackPreferences(
 		.returning();
 
 	return toPreferences(row!);
-}
-
-function toPreferences(row: typeof playbackPreference.$inferSelect): PlaybackPreferences {
-	const audio = LanguageSchema.safeParse(row.audio);
-	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
-
-	return {
-		audio: audio.success ? audio.data : null,
-		auto_skip: row.autoSkip,
-		subtitles: subtitles.success ? subtitles.data : {},
-	};
-}
+};

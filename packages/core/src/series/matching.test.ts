@@ -12,8 +12,12 @@ import {
 } from "./matching";
 import type { MatchSubject, ShowCandidate } from "./matching";
 
+const addDays = (date: string, days: number) => {
+	return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+};
+
 /** A weekly run of TMDB episodes, numbered from `first`. Dates are `null` when `start` is. */
-function weekly(
+const weekly = (
 	season: number,
 	start: string | null,
 	count: number,
@@ -21,7 +25,7 @@ function weekly(
 		first?: number;
 		runtime?: number;
 	} = {},
-): TmdbEpisode[] {
+): TmdbEpisode[] => {
 	const first = options.first ?? 1;
 	return Array.from(
 		{
@@ -38,9 +42,9 @@ function weekly(
 			still_path: null,
 		}),
 	);
-}
+};
 
-function special(episode: number, airDate: string, runtime: number): TmdbEpisode {
+const special = (episode: number, airDate: string, runtime: number): TmdbEpisode => {
 	return {
 		air_date: airDate,
 		episode_number: episode,
@@ -51,13 +55,9 @@ function special(episode: number, airDate: string, runtime: number): TmdbEpisode
 		season_number: 0,
 		still_path: null,
 	};
-}
+};
 
-function addDays(date: string, days: number) {
-	return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-}
-
-function subject(overrides: Partial<MatchSubject>): MatchSubject {
+const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
 	const titles = overrides.titles ?? ["Example"];
 	return {
 		format: "TV",
@@ -70,9 +70,9 @@ function subject(overrides: Partial<MatchSubject>): MatchSubject {
 		...overrides,
 		titles,
 	};
-}
+};
 
-function show(episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate {
+const show = (episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): ShowCandidate => {
 	return {
 		isFranchiseShow: false,
 		prequel: null,
@@ -84,10 +84,10 @@ function show(episodes: TmdbEpisode[], overrides: Partial<ShowCandidate> = {}): 
 		},
 		...overrides,
 	};
-}
+};
 
 /** A prequel run through a season up to `episode`, from the season's first episode. */
-function endingAt(season: number, episode: number) {
+const endingAt = (season: number, episode: number) => {
 	return {
 		first: {
 			episodeNumber: 1,
@@ -98,9 +98,9 @@ function endingAt(season: number, episode: number) {
 			seasonNumber: season,
 		},
 	};
-}
+};
 
-function movie(overrides: Partial<TmdbMovieResult>): TmdbMovieResult {
+const movie = (overrides: Partial<TmdbMovieResult>): TmdbMovieResult => {
 	return {
 		id: 1,
 		original_title: "Example",
@@ -109,9 +109,9 @@ function movie(overrides: Partial<TmdbMovieResult>): TmdbMovieResult {
 		title: "Example",
 		...overrides,
 	};
-}
+};
 
-function range(placement: ReturnType<typeof placeInShow>) {
+const range = (placement: ReturnType<typeof placeInShow>) => {
 	if (placement?.mediaType !== "tv") {
 		return null;
 	}
@@ -119,7 +119,7 @@ function range(placement: ReturnType<typeof placeInShow>) {
 	return placement.episodes.map(
 		(link) => `${link.anilistEpisode}:S${link.seasonNumber}E${link.episodeNumber}`,
 	);
-}
+};
 
 describe("placeInShow", () => {
 	test("matches Saiki K.'s 120 shorts to the 24 compiled playback episodes", () => {

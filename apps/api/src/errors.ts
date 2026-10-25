@@ -32,7 +32,7 @@ export interface V1Env {
 }
 
 /** Sends a {@link Problem}. */
-export function sendProblem(
+export const sendProblem = (
 	c: Context,
 	status: ContentfulStatusCode,
 	code:
@@ -44,7 +44,7 @@ export function sendProblem(
 		| "INTERNAL_ERROR",
 	detail: string,
 	errors?: Problem["errors"],
-) {
+) => {
 	const body: Problem = {
 		code,
 		detail,
@@ -59,13 +59,13 @@ export function sendProblem(
 		"Cache-Control": "no-store",
 		"Content-Type": "application/problem+json",
 	});
-}
+};
 
 /**
  * The app's error handler. Core errors map through {@link statusByCode};
  * anything else is a defect, logged and answered with a generic 500.
  */
-export function onError(error: unknown, c: Context) {
+export const onError = (error: unknown, c: Context) => {
 	if (!(error instanceof CoreError)) {
 		console.error(`${c.req.method} ${c.req.path} failed`, error);
 		return sendProblem(c, 500, "INTERNAL_ERROR", "Something went wrong on our side");
@@ -82,7 +82,7 @@ export function onError(error: unknown, c: Context) {
 	}
 
 	return response;
-}
+};
 
 /**
  * Answers a request that fails its route's contract with a 422

@@ -3,7 +3,11 @@ import { describe, expect, test } from "bun:test";
 import { franchiseRoles } from "./roles";
 import type { RoleRelation, RoleTitle } from "./roles";
 
-function title(anilistId: number, format: RoleTitle["format"], overrides: Partial<RoleTitle> = {}) {
+const title = (
+	anilistId: number,
+	format: RoleTitle["format"],
+	overrides: Partial<RoleTitle> = {},
+) => {
 	return {
 		anilistId,
 		durationMinutes: 24,
@@ -13,7 +17,7 @@ function title(anilistId: number, format: RoleTitle["format"], overrides: Partia
 		score: 70,
 		...overrides,
 	} satisfies RoleTitle;
-}
+};
 
 describe("franchiseRoles", () => {
 	const indigo = title(1, "TV", { episodeCount: 82 });

@@ -7,7 +7,33 @@
  * `asHtml: false`, label their parts (`OVA 1:`), and often end with
  * `(Source: Crunchyroll)` or a note on how the release was sold.
  */
-export function plainText(value: string) {
+const namedEntities: Record<string, string> = {
+	amp: "&",
+	apos: "'",
+	gt: ">",
+	hellip: "…",
+	ldquo: "“",
+	lsquo: "‘",
+	lt: "<",
+	mdash: "—",
+	nbsp: " ",
+	ndash: "–",
+	quot: '"',
+	rdquo: "”",
+	rsquo: "’",
+};
+const decodeEntity = (entity: string, body: string) => {
+	if (body.startsWith("#x") || body.startsWith("#X")) {
+		return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
+	}
+
+	if (body.startsWith("#")) {
+		return String.fromCodePoint(Number.parseInt(body.slice(1), 10));
+	}
+
+	return namedEntities[body.toLowerCase()] ?? entity;
+};
+export const plainText = (value: string) => {
 	return value
 		.replaceAll(/<br\s*\/?>/gi, "\n")
 		.replaceAll(/<[^>]+>/g, "")
@@ -22,10 +48,29 @@ export function plainText(value: string) {
 		.replaceAll(/[ \t]+\n/g, "\n")
 		.replaceAll(/\n{3,}/g, "\n\n")
 		.trim();
-}
+};
 
 /** The longest a {@link synopsis} runs. */
 const synopsisLength = 320;
+
+/** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
+const sentences = (text: string) => {
+	const found: string[] = [];
+	for (const part of text.replaceAll(/\s+/g, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/)) {
+		const previous = found.at(-1);
+		if (previous && /\b[A-Z]\.$/.test(previous)) {
+			found[found.length - 1] = `${previous} ${part}`;
+		} else {
+			found.push(part);
+		}
+	}
+
+	return found;
+};
+
+/** A sentence that only names the release, such as `The second season of Frieren.` */
+export const placeholder =
+	/^(?:the )?(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of\b[^.!?]*[.!?]?$/i;
 
 /**
  * A synopsis cut down to its premise: AniList's or TMDB's text as
@@ -35,7 +80,7 @@ const synopsisLength = 320;
  * cut at a word. A sentence that only names the release is left out
  * when the text has more to say.
  */
-export function synopsis(value: string) {
+export const synopsis = (value: string) => {
 	const all = sentences(plainText(value));
 	const story = all.filter((sentence) => !placeholder.test(sentence));
 	const [first = "", ...rest] = story.length > 0 ? story : all;
@@ -53,57 +98,14 @@ export function synopsis(value: string) {
 	}
 
 	return summary;
-}
-
-/** A sentence that only names the release, such as `The second season of Frieren.` */
-export const placeholder =
-	/^(?:the )?(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of\b[^.!?]*[.!?]?$/i;
-
-/** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
-function sentences(text: string) {
-	const found: string[] = [];
-	for (const part of text.replaceAll(/\s+/g, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/)) {
-		const previous = found.at(-1);
-		if (previous && /\b[A-Z]\.$/.test(previous)) {
-			found[found.length - 1] = `${previous} ${part}`;
-		} else {
-			found.push(part);
-		}
-	}
-
-	return found;
-}
-
-const namedEntities: Record<string, string> = {
-	amp: "&",
-	apos: "'",
-	gt: ">",
-	hellip: "…",
-	ldquo: "“",
-	lsquo: "‘",
-	lt: "<",
-	mdash: "—",
-	nbsp: " ",
-	ndash: "–",
-	quot: '"',
-	rdquo: "”",
-	rsquo: "’",
 };
 
-function decodeEntity(entity: string, body: string) {
-	if (body.startsWith("#x") || body.startsWith("#X")) {
-		return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
-	}
-
-	if (body.startsWith("#")) {
-		return String.fromCodePoint(Number.parseInt(body.slice(1), 10));
-	}
-
-	return namedEntities[body.toLowerCase()] ?? entity;
-}
-
 /** Formats an AniList fuzzy date as the most precise ISO 8601 prefix available. */
-export function fuzzyDate(date: { year: number | null; month: number | null; day: number | null }) {
+export const fuzzyDate = (date: {
+	year: number | null;
+	month: number | null;
+	day: number | null;
+}) => {
 	if (!date.year) {
 		return null;
 	}
@@ -115,8 +117,8 @@ export function fuzzyDate(date: { year: number | null; month: number | null; day
 
 	const month = `${year}-${String(date.month).padStart(2, "0")}`;
 	return date.day ? `${month}-${String(date.day).padStart(2, "0")}` : month;
-}
+};
 
-export function fromUnixSeconds(seconds: number) {
+export const fromUnixSeconds = (seconds: number) => {
 	return new Date(seconds * 1000).toISOString();
-}
+};

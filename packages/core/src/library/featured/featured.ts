@@ -25,99 +25,34 @@ const featuredFormats = ["TV", "MOVIE"] as const;
 /** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
 const backfillPerPick = 20;
 
-/**
- * Titles to feature on a profile's home page: what is popular right now, a
- * season or film that is airing or started in the last six months and is well
- * liked, never an old favourite without a new season. The seasons of one
- * show share its backdrop and logo, so a show is featured through its newest
- * current season.
- *
- * They are picked once a day, at 06:00 UTC (see `rotationStart`), in each
- * profile's own order, and kept for the day: a title that can no longer be
- * shown gives its place to another, as does one the profile dropped from its
- * watchlist. A title is rested for a week (`restRotations`) after it was
- * featured, and shown again only when too few others are current to fill the
- * place.
- *
- * Reads only the database: candidates come from the search index.
- * Long-running titles such as Detective Conan are left out, as are those
- * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
- * scheduler, a few with each pick, so later picks find them.
- */
-export async function getFeatured(userId: string, now = new Date()): Promise<SeriesCard[]> {
-	const rotation = rotationOf(now);
-	const picks = await db
-		.select()
-		.from(featuredPick)
-		.where(
-			and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - restRotations)),
-		)
-		.orderBy(asc(featuredPick.position));
-
-	const dropped = await db
-		.select({
-			seriesId: seriesState.seriesId,
-		})
-		.from(seriesState)
-		.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
-	const unwanted = new Set(dropped.map((row) => row.seriesId));
-
-	const current = picks.filter((pick) => pick.rotation === rotation);
-	const kept = current.map((pick) => pick.seriesId);
-	const keptCards = await cardsOf(kept);
-	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
-	const wanted = featuredCount - shown.length;
-	if (wanted <= 0) {
-		return shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []);
-	}
-
-	const { picked, cards } = await pickTitles(
-		userId,
-		rotation,
-		now,
-		new Set([...kept, ...unwanted]),
-		new Set(picks.filter((pick) => pick.rotation !== rotation).map((pick) => pick.seriesId)),
-	);
-	const added = picked.slice(0, wanted);
-	if (added.length > 0) {
-		const after = Math.max(-1, ...current.map((pick) => pick.position));
-		await db
-			.insert(featuredPick)
-			.values(
-				added.map((seriesId, index) => ({
-					position: after + 1 + index,
-					rotation,
-					seriesId,
-					userId,
-				})),
+/** The cards of stored series, keyed by series ID. */
+const cardsOf = async (seriesIds: readonly string[]) => {
+	return seriesIds.length > 0
+		? toSeriesCards(
+				await db
+					.select()
+					.from(series)
+					.where(inArray(series.id, [...seriesIds])),
 			)
-			.onConflictDoNothing();
-	}
-	if (current.length === 0) {
-		await db
-			.delete(featuredPick)
-			.where(
-				and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - restRotations)),
-			);
-	}
+		: new Map<string, SeriesCard>();
+};
 
-	return [
-		...shown.flatMap((id) => keptCards.get(id) ?? []),
-		...added.flatMap((id) => cards.get(id) ?? []),
-	];
-}
+/** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
+const isShowable = (card: SeriesCard | undefined) => {
+	return card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
+};
 
 /**
  * Picks titles to feature for a rotation from the search index, leaving out
  * `excluded` and putting `rested` last, with their cards.
  */
-async function pickTitles(
+const pickTitles = async (
 	userId: string,
 	rotation: number,
 	now: Date,
 	excluded: ReadonlySet<string>,
 	rested: ReadonlySet<string>,
-) {
+) => {
 	const [entries, longRunning] = await Promise.all([
 		db
 			.select({
@@ -205,21 +140,86 @@ async function pickTitles(
 		cards,
 		picked: arrange(ordered, (id) => isShowable(cards.get(id))),
 	};
-}
+};
 
-/** The cards of stored series, keyed by series ID. */
-async function cardsOf(seriesIds: readonly string[]) {
-	return seriesIds.length > 0
-		? toSeriesCards(
-				await db
-					.select()
-					.from(series)
-					.where(inArray(series.id, [...seriesIds])),
+/**
+ * Titles to feature on a profile's home page: what is popular right now, a
+ * season or film that is airing or started in the last six months and is well
+ * liked, never an old favourite without a new season. The seasons of one
+ * show share its backdrop and logo, so a show is featured through its newest
+ * current season.
+ *
+ * They are picked once a day, at 06:00 UTC (see `rotationStart`), in each
+ * profile's own order, and kept for the day: a title that can no longer be
+ * shown gives its place to another, as does one the profile dropped from its
+ * watchlist. A title is rested for a week (`restRotations`) after it was
+ * featured, and shown again only when too few others are current to fill the
+ * place.
+ *
+ * Reads only the database: candidates come from the search index.
+ * Long-running titles such as Detective Conan are left out, as are those
+ * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
+ * scheduler, a few with each pick, so later picks find them.
+ */
+export const getFeatured = async (userId: string, now = new Date()): Promise<SeriesCard[]> => {
+	const rotation = rotationOf(now);
+	const picks = await db
+		.select()
+		.from(featuredPick)
+		.where(
+			and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - restRotations)),
+		)
+		.orderBy(asc(featuredPick.position));
+
+	const dropped = await db
+		.select({
+			seriesId: seriesState.seriesId,
+		})
+		.from(seriesState)
+		.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
+	const unwanted = new Set(dropped.map((row) => row.seriesId));
+
+	const current = picks.filter((pick) => pick.rotation === rotation);
+	const kept = current.map((pick) => pick.seriesId);
+	const keptCards = await cardsOf(kept);
+	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
+	const wanted = featuredCount - shown.length;
+	if (wanted <= 0) {
+		return shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []);
+	}
+
+	const { picked, cards } = await pickTitles(
+		userId,
+		rotation,
+		now,
+		new Set([...kept, ...unwanted]),
+		new Set(picks.filter((pick) => pick.rotation !== rotation).map((pick) => pick.seriesId)),
+	);
+	const added = picked.slice(0, wanted);
+	if (added.length > 0) {
+		const after = Math.max(-1, ...current.map((pick) => pick.position));
+		await db
+			.insert(featuredPick)
+			.values(
+				added.map((seriesId, index) => ({
+					position: after + 1 + index,
+					rotation,
+					seriesId,
+					userId,
+				})),
 			)
-		: new Map<string, SeriesCard>();
-}
+			.onConflictDoNothing();
+	}
+	if (current.length === 0) {
+		await db
+			.delete(featuredPick)
+			.where(
+				and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - restRotations)),
+			);
+	}
 
-/** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
-function isShowable(card: SeriesCard | undefined) {
-	return card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
-}
+	return [
+		...shown.flatMap((id) => keptCards.get(id) ?? []),
+		...added.flatMap((id) => cards.get(id) ?? []),
+	];
+};

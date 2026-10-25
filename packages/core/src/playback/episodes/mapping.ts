@@ -30,6 +30,15 @@ export interface ProviderMedia {
 	episodeOffset: number;
 }
 
+const toProviderMedia = (mapping: { providerMediaId: string | null; episodeOffset: number }) => {
+	return mapping.providerMediaId
+		? {
+				episodeOffset: mapping.episodeOffset,
+				mediaId: mapping.providerMediaId,
+			}
+		: null;
+};
+
 /**
  * Resolves where an anime is in a provider's catalogue, using the stored
  * mapping when it is still valid. Returns `null` when the provider has no
@@ -38,13 +47,13 @@ export interface ProviderMedia {
  * @param options.retryUnmatched - Search again even if a failed match is
  *   younger than a day, for anime that may have just premiered.
  */
-export async function getProviderMedia(
+export const getProviderMedia = async (
 	anime: Anime,
 	provider: StreamProvider,
 	options: {
 		retryUnmatched: boolean;
 	},
-): Promise<ProviderMedia | null> {
+): Promise<ProviderMedia | null> => {
 	const [stored] = await db
 		.select()
 		.from(providerMapping)
@@ -83,13 +92,4 @@ export async function getProviderMedia(
 		});
 
 	return toProviderMedia(values);
-}
-
-function toProviderMedia(mapping: { providerMediaId: string | null; episodeOffset: number }) {
-	return mapping.providerMediaId
-		? {
-				episodeOffset: mapping.episodeOffset,
-				mediaId: mapping.providerMediaId,
-			}
-		: null;
-}
+};

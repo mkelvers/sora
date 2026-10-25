@@ -30,7 +30,7 @@ export interface SubtitleStats {
 }
 
 /** Reads the cues of a WebVTT file, or `null` when there are too few to judge. */
-export function subtitleStats(content: string): SubtitleStats | null {
+export const subtitleStats = (content: string): SubtitleStats | null => {
 	let cues = 0;
 	let sound = 0;
 	let end = 0;
@@ -75,7 +75,7 @@ export function subtitleStats(content: string): SubtitleStats | null {
 		minutes: end / 60,
 		soundShare: sound / cues,
 	};
-}
+};
 
 /**
  * Tells what a WebVTT track carries from its cues alone, since providers do
@@ -86,7 +86,7 @@ export function subtitleStats(content: string): SubtitleStats | null {
  * descriptions marks dialogue. Anything in between, such as signs and songs
  * together, is `null` rather than a guess.
  */
-export function classifySubtitle(content: string): SubtitleKind | null {
+export const classifySubtitle = (content: string): SubtitleKind | null => {
 	const stats = subtitleStats(content);
 	if (!stats) {
 		return null;
@@ -104,7 +104,7 @@ export function classifySubtitle(content: string): SubtitleKind | null {
 	}
 
 	return null;
-}
+};
 
 const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/i;
 const signsLabel = /\bsigns?\b|\bforced\b|on-screen/i;
@@ -118,7 +118,7 @@ const signsLabel = /\bsigns?\b|\bforced\b|on-screen/i;
  *
  * @param content - The WebVTT file, or `null` when it could not be read.
  */
-export function subtitleKind(label: string, content: string | null): SubtitleKind | null {
+export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
 	const measured = content === null ? null : classifySubtitle(content);
 	const named = captionsLabel.test(label) ? "captions" : signsLabel.test(label) ? "signs" : null;
 
@@ -127,4 +127,4 @@ export function subtitleKind(label: string, content: string | null): SubtitleKin
 	}
 
 	return measured === null || measured === named ? named : null;
-}
+};

@@ -91,62 +91,125 @@ interface Token {
 	weight: number;
 }
 
+const stemOf = (word: string) => {
+	if (word.length > 5 && word.endsWith("ing")) {
+		return word.slice(0, -3);
+	}
+	if (word.length > 4 && word.endsWith("ed")) {
+		return word.slice(0, -2);
+	}
+	if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) {
+		return word.slice(0, -1);
+	}
+	return word;
+};
+
+/** Words of a line, without sound descriptions, markup, or punctuation, reduced to their stems. */
+const tokenize = (text: string): Token[] => {
+	const spokenText = text
+		.toLowerCase()
+		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/g, " ")
+		.replaceAll(/[’‘]/g, "'");
+	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/g) ?? []).map((word) => {
+		const bare = word
+			.replace(/'(?:s|d|ll|re|ve|m)$/, "")
+			.replace(/n't$/, "nt")
+			.replaceAll("'", "");
+		return {
+			stem: stemOf(bare),
+			weight: stopWords.has(bare) ? 0.25 : 1,
+		};
+	});
+};
+
+interface Phrase {
+	first: number;
+	last: number;
+}
+
+/** Runs of words with no pause or sentence end between them, as indexes into `words`. */
+const phrasesOf = (words: SpokenWord[]) => {
+	const phrases: Phrase[] = [];
+	let first = 0;
+	for (let index = 0; index < words.length; index += 1) {
+		const next = words[index + 1];
+		const ends =
+			!next ||
+			next.start - words[index]!.end > 0.35 ||
+			/[.?!…]["')\]]?$/.test(words[index]!.text.trim()) ||
+			index - first >= 24;
+		if (ends) {
+			phrases.push({
+				first,
+				last: index,
+			});
+			first = index + 1;
+		}
+	}
+	return phrases;
+};
+
+const weightOf = (tokens: Token[]) => {
+	return tokens.reduce((sum, token) => sum + token.weight, 0);
+};
+
+const editDistance = (left: string, right: string) => {
+	let row = Array.from({ length: right.length + 1 }, (_, index) => index);
+	for (let i = 1; i <= left.length; i += 1) {
+		const next = [i];
+		for (let j = 1; j <= right.length; j += 1) {
+			next[j] = Math.min(
+				row[j]! + 1,
+				next[j - 1]! + 1,
+				row[j - 1]! + (left[i - 1] === right[j - 1] ? 0 : 1),
+			);
+		}
+		row = next;
+	}
+	return row[right.length]!;
+};
+
+/** Whether two stems are one word, allowing for a mishearing in a long one. */
+const same = (left: string, right: string) => {
+	if (left === right) {
+		return true;
+	}
+
+	const shortest = Math.min(left.length, right.length);
+	const allowed = shortest >= 8 ? 2 : shortest >= 5 ? 1 : 0;
+	return (
+		allowed > 0 &&
+		Math.abs(left.length - right.length) <= allowed &&
+		editDistance(left, right) <= allowed
+	);
+};
+
+/** The weight of the words two sets have in common. */
+const sharedWeight = (left: Token[], right: Token[]) => {
+	const free = right.map(() => true);
+	let shared = 0;
+	for (const token of left) {
+		const match = right.findIndex((other, index) => free[index] && same(token.stem, other.stem));
+		if (match !== -1) {
+			free[match] = false;
+			shared += Math.min(token.weight, right[match]!.weight);
+		}
+	}
+	return shared;
+};
+
 /**
- * Moves each cue of the sub's subtitles to when the dub says it.
- *
- * Cue text and the dub's speech come from different scripts, so cues are
- * matched to what is said by the words they share. First, the offset between
- * the timelines is found from cues and phrases that match closely wherever
- * they are, which needs no help from the picture and so also works when the
- * encodes could not be aligned by their segments. Then each cue is matched,
- * in order, to the run of spoken words near where it should be that it
- * shares most words with, and takes that run's start and end. A cue with no
- * speech to match, such as a sign, is left to the offset.
- *
- * @param cues - The sub's English dialogue cues, in order.
- * @param words - Speech found in the dub's audio, in order.
- * @param picture - How the encodes' picture aligns, when it could be told.
- * @returns `null` when too few cues match the speech for the dub to be the
- *   same script.
+ * How alike two sets of words are, 0 to 1: twice the weight of the words
+ * they share over the weight of both. Little words count for less.
  */
-export function refineCues(
-	cues: Cue[],
-	words: SpokenWord[],
-	picture: TimelineShift[] | null,
-): Refinement | null {
-	const spoken = words.map((word) => tokenize(word.text)[0] ?? null);
-	const cueTokens = cues.map((cue) => tokenize(cue.text));
+const dice = (left: Token[], right: Token[]) => {
+	return (2 * sharedWeight(left, right)) / (weightOf(left) + weightOf(right) || 1);
+};
 
-	const voted = voteOffsets(cues, cueTokens, words, spoken);
-	if (!voted) {
-		return null;
-	}
-
-	const picked = pickAnchors(cues, cueTokens, words, spoken, voted);
-	if (
-		picked.length < minimumAnchors ||
-		picked.length < minimumAnchorShare * speakingCues(cueTokens)
-	) {
-		return null;
-	}
-
-	const shifts = baseShifts(picture, voted);
-	const matched = place(cues, cueTokens, words, spoken, picked);
-	return {
-		anchors: tidy(cues, [...matched, ...placeByTime(cues, cueTokens, words, shifts, matched)]),
-		shifts,
-	};
-}
-
-/** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
-function offsetAt(shifts: TimelineShift[], time: number) {
-	return shiftTime(shifts, time) - time;
-}
-
-/** Cues with enough words to tell what they say. */
-function speakingCues(cueTokens: Token[][]) {
-	return cueTokens.filter((tokens) => weightOf(tokens) >= 1).length;
-}
+const median = (values: number[]) => {
+	const sorted = values.toSorted((a, b) => a - b);
+	return sorted[Math.floor(sorted.length / 2)]!;
+};
 
 /**
  * Offsets between the timelines that many cues agree on, as the offset
@@ -154,12 +217,12 @@ function speakingCues(cueTokens: Token[][]) {
  * the same, wherever on the dub's timeline the phrase is, and followed along
  * the episode so an offset can change where the dub cuts or adds footage.
  */
-function voteOffsets(
+const voteOffsets = (
 	cues: Cue[],
 	cueTokens: Token[][],
 	words: SpokenWord[],
 	spoken: (Token | null)[],
-): TimelineShift[] | null {
+): TimelineShift[] | null => {
 	const phrases = phrasesOf(words);
 	const phraseTokens = phrases.map((phrase) =>
 		spoken.slice(phrase.first, phrase.last + 1).flatMap((token) => (token ? [token] : [])),
@@ -235,34 +298,22 @@ function voteOffsets(
 		}
 	});
 	return shifts;
-}
+};
 
-interface Phrase {
-	first: number;
-	last: number;
-}
-
-/** Runs of words with no pause or sentence end between them, as indexes into `words`. */
-function phrasesOf(words: SpokenWord[]) {
-	const phrases: Phrase[] = [];
-	let first = 0;
-	for (let index = 0; index < words.length; index += 1) {
-		const next = words[index + 1];
-		const ends =
-			!next ||
-			next.start - words[index]!.end > 0.35 ||
-			/[.?!…]["')\]]?$/.test(words[index]!.text.trim()) ||
-			index - first >= 24;
-		if (ends) {
-			phrases.push({
-				first,
-				last: index,
-			});
-			first = index + 1;
+/** The index of the first word starting at or after `time`. */
+const firstStartingAfter = (words: SpokenWord[], time: number) => {
+	let low = 0;
+	let high = words.length;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (words[middle]!.start < time) {
+			low = middle + 1;
+		} else {
+			high = middle;
 		}
 	}
-	return phrases;
-}
+	return low;
+};
 
 interface Pick {
 	cue: number;
@@ -275,66 +326,17 @@ interface Candidate extends Pick {
 }
 
 /**
- * The run of spoken words each cue is said in, in order, chosen to share the
- * most words overall: a cue picks from runs near where the offset puts it,
- * and a cue picks only after the cues before it, so lines keep their order.
- * Cues that match nothing well are skipped.
- */
-function pickAnchors(
-	cues: Cue[],
-	cueTokens: Token[][],
-	words: SpokenWord[],
-	spoken: (Token | null)[],
-	voted: TimelineShift[],
-) {
-	const candidates = cues.map((cue, index) =>
-		candidatesFor(cue, index, cueTokens[index]!, words, spoken, offsetAt(voted, cue.start)),
-	);
-
-	const best: { total: number; before: [number, number] | null }[][] = candidates.map((row) =>
-		row.map((candidate) => ({
-			before: null,
-			total: candidate.score,
-		})),
-	);
-	let top: [number, number] | null = null;
-	for (let cue = 0; cue < cues.length; cue += 1) {
-		for (const [index, candidate] of candidates[cue]!.entries()) {
-			const entry = best[cue]![index]!;
-			for (let earlier = Math.max(0, cue - lookback); earlier < cue; earlier += 1) {
-				for (const [other, previous] of candidates[earlier]!.entries()) {
-					const total = best[earlier]![other]!.total + candidate.score;
-					if (previous.last <= candidate.first && total > entry.total) {
-						entry.total = total;
-						entry.before = [earlier, other];
-					}
-				}
-			}
-			if (!top || entry.total > best[top[0]]![top[1]]!.total) {
-				top = [cue, index];
-			}
-		}
-	}
-
-	const picked: Pick[] = [];
-	for (let at = top; at; at = best[at[0]]![at[1]]!.before) {
-		picked.unshift(candidates[at[0]]![at[1]]!);
-	}
-	return picked;
-}
-
-/**
  * The runs of spoken words near where a cue should be, best first, that
  * share enough words with it.
  */
-function candidatesFor(
+const candidatesFor = (
 	cue: Cue,
 	index: number,
 	tokens: Token[],
 	words: SpokenWord[],
 	spoken: (Token | null)[],
 	offset: number,
-) {
+) => {
 	const weight = weightOf(tokens);
 	if (weight < 0.5) {
 		return [];
@@ -387,22 +389,115 @@ function candidatesFor(
 	}
 
 	return found.sort((a, b) => b.score - a.score).slice(0, candidatesPerCue);
-}
+};
 
-/** The index of the first word starting at or after `time`. */
-function firstStartingAfter(words: SpokenWord[], time: number) {
-	let low = 0;
-	let high = words.length;
-	while (low < high) {
-		const middle = (low + high) >> 1;
-		if (words[middle]!.start < time) {
-			low = middle + 1;
-		} else {
-			high = middle;
+/** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
+const offsetAt = (shifts: TimelineShift[], time: number) => {
+	return shiftTime(shifts, time) - time;
+};
+
+/**
+ * The run of spoken words each cue is said in, in order, chosen to share the
+ * most words overall: a cue picks from runs near where the offset puts it,
+ * and a cue picks only after the cues before it, so lines keep their order.
+ * Cues that match nothing well are skipped.
+ */
+const pickAnchors = (
+	cues: Cue[],
+	cueTokens: Token[][],
+	words: SpokenWord[],
+	spoken: (Token | null)[],
+	voted: TimelineShift[],
+) => {
+	const candidates = cues.map((cue, index) =>
+		candidatesFor(cue, index, cueTokens[index]!, words, spoken, offsetAt(voted, cue.start)),
+	);
+
+	const best: { total: number; before: [number, number] | null }[][] = candidates.map((row) =>
+		row.map((candidate) => ({
+			before: null,
+			total: candidate.score,
+		})),
+	);
+	let top: [number, number] | null = null;
+	for (let cue = 0; cue < cues.length; cue += 1) {
+		for (const [index, candidate] of candidates[cue]!.entries()) {
+			const entry = best[cue]![index]!;
+			for (let earlier = Math.max(0, cue - lookback); earlier < cue; earlier += 1) {
+				for (const [other, previous] of candidates[earlier]!.entries()) {
+					const total = best[earlier]![other]!.total + candidate.score;
+					if (previous.last <= candidate.first && total > entry.total) {
+						entry.total = total;
+						entry.before = [earlier, other];
+					}
+				}
+			}
+			if (!top || entry.total > best[top[0]]![top[1]]!.total) {
+				top = [cue, index];
+			}
 		}
 	}
-	return low;
-}
+
+	const picked: Pick[] = [];
+	for (let at = top; at; at = best[at[0]]![at[1]]!.before) {
+		picked.unshift(candidates[at[0]]![at[1]]!);
+	}
+	return picked;
+};
+
+/** Cues with enough words to tell what they say. */
+const speakingCues = (cueTokens: Token[][]) => {
+	return cueTokens.filter((tokens) => weightOf(tokens) >= 1).length;
+};
+
+/**
+ * The offsets for cues without an anchor. The picture's are exact, so they
+ * stand wherever the speech agrees with them to within
+ * {@link pictureTolerance}; otherwise the speech's offset does, less the
+ * lead cues have over speech.
+ */
+const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => {
+	const boundaries = [
+		...new Set([
+			0,
+			...voted.map((shift) => shift.from),
+			...(picture ?? []).map((shift) => shift.from),
+		]),
+	].sort((a, b) => a - b);
+
+	const shifts: TimelineShift[] = [];
+	for (const from of boundaries) {
+		const heard = offsetAt(voted, from);
+		const seen = picture ? offsetAt(picture, from) : null;
+		const offset =
+			seen !== null && Math.abs(seen - heard) <= pictureTolerance ? seen : heard - typicalLag;
+		if (shifts.at(-1)?.offset !== offset) {
+			shifts.push({
+				from,
+				offset,
+			});
+		}
+	}
+	return shifts;
+};
+
+/**
+ * When a cue shows if its line is the words `first` to `last`: from a
+ * little before the first to a little after the last, and no shorter than it
+ * takes to read, though never longer than it was.
+ */
+const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
+	const movedStart = Math.max(0, words[first]!.start - lead);
+	const readable = Math.min(
+		cue.end - cue.start,
+		Math.max(minimumShowSeconds, cue.text.length / readingRate),
+	);
+	return {
+		cue: index,
+		movedEnd: Math.max(words[last]!.end + tail, movedStart + readable),
+		movedStart,
+	};
+};
 
 interface Placed {
 	cue: number;
@@ -414,13 +509,13 @@ interface Placed {
  * Where each picked cue goes: the start of its first shared word and the end
  * of its last; see {@link showFor}.
  */
-function place(
+const place = (
 	cues: Cue[],
 	cueTokens: Token[][],
 	words: SpokenWord[],
 	spoken: (Token | null)[],
 	picked: Pick[],
-) {
+) => {
 	return picked.map((pick): Placed => {
 		const tokens = cueTokens[pick.cue]!;
 		const shared = (index: number) => {
@@ -438,25 +533,36 @@ function place(
 
 		return showFor(cues[pick.cue]!, pick.cue, words, first, last);
 	});
-}
+};
 
 /**
- * When a cue shows if its line is the words `first` to `last`: from a
- * little before the first to a little after the last, and no shorter than it
- * takes to read, though never longer than it was.
+ * The placed cues as anchors, in cue order, each ending before the next
+ * starts so cues placed by different means do not overlap. Cues that show
+ * together in the sub, such as a sign over a line of speech, keep doing so.
  */
-function showFor(cue: Cue, index: number, words: SpokenWord[], first: number, last: number) {
-	const movedStart = Math.max(0, words[first]!.start - lead);
-	const readable = Math.min(
-		cue.end - cue.start,
-		Math.max(minimumShowSeconds, cue.text.length / readingRate),
-	);
-	return {
-		cue: index,
-		movedEnd: Math.max(words[last]!.end + tail, movedStart + readable),
-		movedStart,
-	};
-}
+const tidy = (cues: Cue[], placed: Placed[]) => {
+	const anchors: CueAnchor[] = [];
+	let before: Placed | null = null;
+	for (const next of placed.toSorted((a, b) => a.cue - b.cue)) {
+		const previous = anchors.at(-1);
+		const together = before && cues[next.cue]!.start < cues[before.cue]!.end - 0.05;
+		if (previous && !together && next.movedStart < previous.movedEnd) {
+			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
+		}
+		anchors.push({
+			end: cues[next.cue]!.end,
+			movedEnd: next.movedEnd,
+			movedStart: next.movedStart,
+			start: cues[next.cue]!.start,
+		});
+		before = next;
+	}
+	return anchors.toSorted((a, b) => a.start - b.start);
+};
+
+const overlapSeconds = (startA: number, endA: number, startB: number, endB: number) => {
+	return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
+};
 
 /**
  * Places cues whose words the dub does not share, such as when its script
@@ -465,13 +571,13 @@ function showFor(cue: Cue, index: number, words: SpokenWord[], first: number, la
  * Cues that share a run, because the sub breaks a sentence up where the dub
  * does not, split it between them by their length.
  */
-function placeByTime(
+const placeByTime = (
 	cues: Cue[],
 	cueTokens: Token[][],
 	words: SpokenWord[],
 	shifts: TimelineShift[],
 	matched: Placed[],
-) {
+) => {
 	const runs = phrasesOf(words).map((run) => ({
 		...run,
 		end: words[run.last]!.end,
@@ -535,157 +641,51 @@ function placeByTime(
 			return placed;
 		});
 	});
-}
-
-function overlapSeconds(startA: number, endA: number, startB: number, endB: number) {
-	return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
-}
+};
 
 /**
- * The placed cues as anchors, in cue order, each ending before the next
- * starts so cues placed by different means do not overlap. Cues that show
- * together in the sub, such as a sign over a line of speech, keep doing so.
+ * Moves each cue of the sub's subtitles to when the dub says it.
+ *
+ * Cue text and the dub's speech come from different scripts, so cues are
+ * matched to what is said by the words they share. First, the offset between
+ * the timelines is found from cues and phrases that match closely wherever
+ * they are, which needs no help from the picture and so also works when the
+ * encodes could not be aligned by their segments. Then each cue is matched,
+ * in order, to the run of spoken words near where it should be that it
+ * shares most words with, and takes that run's start and end. A cue with no
+ * speech to match, such as a sign, is left to the offset.
+ *
+ * @param cues - The sub's English dialogue cues, in order.
+ * @param words - Speech found in the dub's audio, in order.
+ * @param picture - How the encodes' picture aligns, when it could be told.
+ * @returns `null` when too few cues match the speech for the dub to be the
+ *   same script.
  */
-function tidy(cues: Cue[], placed: Placed[]) {
-	const anchors: CueAnchor[] = [];
-	let before: Placed | null = null;
-	for (const next of placed.toSorted((a, b) => a.cue - b.cue)) {
-		const previous = anchors.at(-1);
-		const together = before && cues[next.cue]!.start < cues[before.cue]!.end - 0.05;
-		if (previous && !together && next.movedStart < previous.movedEnd) {
-			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
-		}
-		anchors.push({
-			end: cues[next.cue]!.end,
-			movedEnd: next.movedEnd,
-			movedStart: next.movedStart,
-			start: cues[next.cue]!.start,
-		});
-		before = next;
-	}
-	return anchors.toSorted((a, b) => a.start - b.start);
-}
+export const refineCues = (
+	cues: Cue[],
+	words: SpokenWord[],
+	picture: TimelineShift[] | null,
+): Refinement | null => {
+	const spoken = words.map((word) => tokenize(word.text)[0] ?? null);
+	const cueTokens = cues.map((cue) => tokenize(cue.text));
 
-/**
- * The offsets for cues without an anchor. The picture's are exact, so they
- * stand wherever the speech agrees with them to within
- * {@link pictureTolerance}; otherwise the speech's offset does, less the
- * lead cues have over speech.
- */
-function baseShifts(picture: TimelineShift[] | null, voted: TimelineShift[]) {
-	const boundaries = [
-		...new Set([
-			0,
-			...voted.map((shift) => shift.from),
-			...(picture ?? []).map((shift) => shift.from),
-		]),
-	].sort((a, b) => a - b);
-
-	const shifts: TimelineShift[] = [];
-	for (const from of boundaries) {
-		const heard = offsetAt(voted, from);
-		const seen = picture ? offsetAt(picture, from) : null;
-		const offset =
-			seen !== null && Math.abs(seen - heard) <= pictureTolerance ? seen : heard - typicalLag;
-		if (shifts.at(-1)?.offset !== offset) {
-			shifts.push({
-				from,
-				offset,
-			});
-		}
-	}
-	return shifts;
-}
-
-/**
- * How alike two sets of words are, 0 to 1: twice the weight of the words
- * they share over the weight of both. Little words count for less.
- */
-function dice(left: Token[], right: Token[]) {
-	return (2 * sharedWeight(left, right)) / (weightOf(left) + weightOf(right) || 1);
-}
-
-/** The weight of the words two sets have in common. */
-function sharedWeight(left: Token[], right: Token[]) {
-	const free = right.map(() => true);
-	let shared = 0;
-	for (const token of left) {
-		const match = right.findIndex((other, index) => free[index] && same(token.stem, other.stem));
-		if (match !== -1) {
-			free[match] = false;
-			shared += Math.min(token.weight, right[match]!.weight);
-		}
-	}
-	return shared;
-}
-
-function weightOf(tokens: Token[]) {
-	return tokens.reduce((sum, token) => sum + token.weight, 0);
-}
-
-/** Words of a line, without sound descriptions, markup, or punctuation, reduced to their stems. */
-function tokenize(text: string): Token[] {
-	const spokenText = text
-		.toLowerCase()
-		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/g, " ")
-		.replaceAll(/[’‘]/g, "'");
-	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/g) ?? []).map((word) => {
-		const bare = word
-			.replace(/'(?:s|d|ll|re|ve|m)$/, "")
-			.replace(/n't$/, "nt")
-			.replaceAll("'", "");
-		return {
-			stem: stemOf(bare),
-			weight: stopWords.has(bare) ? 0.25 : 1,
-		};
-	});
-}
-
-function stemOf(word: string) {
-	if (word.length > 5 && word.endsWith("ing")) {
-		return word.slice(0, -3);
-	}
-	if (word.length > 4 && word.endsWith("ed")) {
-		return word.slice(0, -2);
-	}
-	if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) {
-		return word.slice(0, -1);
-	}
-	return word;
-}
-
-/** Whether two stems are one word, allowing for a mishearing in a long one. */
-function same(left: string, right: string) {
-	if (left === right) {
-		return true;
+	const voted = voteOffsets(cues, cueTokens, words, spoken);
+	if (!voted) {
+		return null;
 	}
 
-	const shortest = Math.min(left.length, right.length);
-	const allowed = shortest >= 8 ? 2 : shortest >= 5 ? 1 : 0;
-	return (
-		allowed > 0 &&
-		Math.abs(left.length - right.length) <= allowed &&
-		editDistance(left, right) <= allowed
-	);
-}
-
-function editDistance(left: string, right: string) {
-	let row = Array.from({ length: right.length + 1 }, (_, index) => index);
-	for (let i = 1; i <= left.length; i += 1) {
-		const next = [i];
-		for (let j = 1; j <= right.length; j += 1) {
-			next[j] = Math.min(
-				row[j]! + 1,
-				next[j - 1]! + 1,
-				row[j - 1]! + (left[i - 1] === right[j - 1] ? 0 : 1),
-			);
-		}
-		row = next;
+	const picked = pickAnchors(cues, cueTokens, words, spoken, voted);
+	if (
+		picked.length < minimumAnchors ||
+		picked.length < minimumAnchorShare * speakingCues(cueTokens)
+	) {
+		return null;
 	}
-	return row[right.length]!;
-}
 
-function median(values: number[]) {
-	const sorted = values.toSorted((a, b) => a - b);
-	return sorted[Math.floor(sorted.length / 2)]!;
-}
+	const shifts = baseShifts(picture, voted);
+	const matched = place(cues, cueTokens, words, spoken, picked);
+	return {
+		anchors: tidy(cues, [...matched, ...placeByTime(cues, cueTokens, words, shifts, matched)]),
+		shifts,
+	};
+};

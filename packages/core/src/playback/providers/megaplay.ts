@@ -74,12 +74,12 @@ type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
  *
  * @throws when the embed or its sources cannot be read.
  */
-async function fetchMegaPlaySources(
+const fetchMegaPlaySources = async (
 	http: HttpClient,
 	embedUrl: string,
 	embedReferer: string,
 	language: ContentLanguage,
-): Promise<MegaPlaySources> {
+): Promise<MegaPlaySources> => {
 	const embedPage = await (
 		await http.get(embedUrl, {
 			headers: {
@@ -108,7 +108,81 @@ async function fetchMegaPlaySources(
 	});
 
 	return SourcesResponseSchema.parse(await response.json());
-}
+};
+
+/**
+ * Decrypts MegaPlay's `enc` field into the source file URL. Node's base64
+ * decoder accepts both the standard and URL-safe alphabets MegaPlay mixes.
+ */
+const decryptSourceFile = (encrypted: string) => {
+	const decipher = createDecipheriv("aes-256-cbc", encryptionKey, encryptionIv);
+	const plain = Buffer.concat([
+		decipher.update(Buffer.from(encrypted, "base64")),
+		decipher.final(),
+	]).toString("utf-8");
+
+	return EncryptedSourceSchema.parse(JSON.parse(plain)).file;
+};
+
+/**
+ * The payload's opening and ending. MegaPlay sends `0`–`0` for a span it does
+ * not know, and one that ends before it starts is as useless.
+ */
+const skipSegments = ({ intro, outro }: MegaPlaySources): SkipSegment[] => {
+	const segments: SkipSegment[] = [];
+	if (intro && intro.end > intro.start) {
+		segments.push({
+			kind: "opening",
+			...intro,
+		});
+	}
+	if (outro && outro.end > outro.start) {
+		segments.push({
+			kind: "ending",
+			...outro,
+		});
+	}
+
+	// A cold open can put the opening after an early ending card.
+	return segments.sort((left, right) => left.start - right.start);
+};
+
+/** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */
+const regionSubtags: Record<string, string> = {
+	brazil: "BR",
+	"latin america": "419",
+	mexico: "MX",
+	portugal: "PT",
+	simplified: "Hans",
+	spain: "ES",
+	traditional: "Hant",
+};
+
+/**
+ * The BCP 47 tag for a MegaPlay subtitle label.
+ *
+ * MegaPlay names regional variants as `Portuguese (- Portuguese(Brazil))`,
+ * which `labelToBcp47` does not know and would cut to `po`. The language part
+ * goes through `labelToBcp47`; a known region is added as its subtag, and an
+ * unknown one is dropped, leaving the plain language. Other notes after the
+ * language, such as `German (German - (Forced))` or `English 2`, are dropped
+ * too.
+ */
+export const subtitleLanguage = (label: string) => {
+	const regional = /^(.+?)\s*\(\s*-\s*.*\(([^()]+)\)\s*\)$/.exec(label.trim());
+	if (!regional?.[1] || !regional[2]) {
+		return labelToBcp47(
+			label
+				.replace(/\s*\(.*$/, "")
+				.replace(/\s+\d+$/, "")
+				.trim(),
+		);
+	}
+
+	const language = labelToBcp47(regional[1]);
+	const region = regionSubtags[regional[2].trim().toLowerCase()];
+	return region ? `${language}-${region}` : language;
+};
 
 /**
  * Resolves a MegaPlay embed page into its stream, with the opening and ending
@@ -119,12 +193,12 @@ async function fetchMegaPlaySources(
  *
  * @throws when the embed or its sources cannot be read.
  */
-export async function resolveMegaPlayEmbed(
+export const resolveMegaPlayEmbed = async (
 	http: HttpClient,
 	embedUrl: string,
 	embedReferer: string,
 	language: ContentLanguage,
-): Promise<ProviderStream> {
+): Promise<ProviderStream> => {
 	const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language);
 
 	const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
@@ -157,81 +231,7 @@ export async function resolveMegaPlayEmbed(
 			},
 		],
 	};
-}
-
-/**
- * The payload's opening and ending. MegaPlay sends `0`–`0` for a span it does
- * not know, and one that ends before it starts is as useless.
- */
-function skipSegments({ intro, outro }: MegaPlaySources): SkipSegment[] {
-	const segments: SkipSegment[] = [];
-	if (intro && intro.end > intro.start) {
-		segments.push({
-			kind: "opening",
-			...intro,
-		});
-	}
-	if (outro && outro.end > outro.start) {
-		segments.push({
-			kind: "ending",
-			...outro,
-		});
-	}
-
-	// A cold open can put the opening after an early ending card.
-	return segments.sort((left, right) => left.start - right.start);
-}
-
-/** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */
-const regionSubtags: Record<string, string> = {
-	brazil: "BR",
-	"latin america": "419",
-	mexico: "MX",
-	portugal: "PT",
-	simplified: "Hans",
-	spain: "ES",
-	traditional: "Hant",
 };
-
-/**
- * The BCP 47 tag for a MegaPlay subtitle label.
- *
- * MegaPlay names regional variants as `Portuguese (- Portuguese(Brazil))`,
- * which `labelToBcp47` does not know and would cut to `po`. The language part
- * goes through `labelToBcp47`; a known region is added as its subtag, and an
- * unknown one is dropped, leaving the plain language. Other notes after the
- * language, such as `German (German - (Forced))` or `English 2`, are dropped
- * too.
- */
-export function subtitleLanguage(label: string) {
-	const regional = /^(.+?)\s*\(\s*-\s*.*\(([^()]+)\)\s*\)$/.exec(label.trim());
-	if (!regional?.[1] || !regional[2]) {
-		return labelToBcp47(
-			label
-				.replace(/\s*\(.*$/, "")
-				.replace(/\s+\d+$/, "")
-				.trim(),
-		);
-	}
-
-	const language = labelToBcp47(regional[1]);
-	const region = regionSubtags[regional[2].trim().toLowerCase()];
-	return region ? `${language}-${region}` : language;
-}
-
-/**
- * Decrypts MegaPlay's `enc` field into the source file URL. Node's base64
- * decoder accepts both the standard and URL-safe alphabets MegaPlay mixes.
- */
-function decryptSourceFile(encrypted: string) {
-	const decipher = createDecipheriv("aes-256-cbc", encryptionKey, encryptionIv);
-	const plain = Buffer.concat([
-		decipher.update(Buffer.from(encrypted, "base64")),
-		decipher.final(),
-	]).toString("utf-8");
-
-	return EncryptedSourceSchema.parse(JSON.parse(plain)).file;
-}
 
 /**
  * MegaPlay, whose episode lists are made up from AniList's episode count and

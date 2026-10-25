@@ -18,6 +18,61 @@ const attempts = 5;
 /** How long ffmpeg may take to decode an episode's audio. */
 const decodeTimeoutMs = 20 * 60 * second;
 
+const target = (
+	url: string,
+	kind: StreamTarget["kind"],
+	headers: Record<string, string>,
+	parent?: string,
+): StreamTarget => {
+	return {
+		accountId: "",
+		expiresAt: 0,
+		headers,
+		kind,
+		mirrors: parent ? mirrorsFor(url, parent) : [],
+		url,
+	};
+};
+
+const readPlaylist = async (url: string, headers: Record<string, string>, parent?: string) => {
+	const upstream = await fetchUpstreamBytes(target(url, "playlist", headers, parent));
+	return {
+		text: new TextDecoder().decode(upstream.bytes),
+		url: upstream.url,
+	};
+};
+
+/** The playlist listing a stream's segments: the lowest bitrate variant of a master playlist. */
+const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
+	const master = await readPlaylist(url, headers);
+	const variants = [
+		...master.text.matchAll(/^#EXT-X-STREAM-INF:([^\n]*)\n\s*([^#\s][^\n]*)/gm),
+	].map(([, attributes, uri]) => ({
+		bandwidth: Number(/BANDWIDTH=(\d+)/.exec(attributes!)?.[1] ?? Number.POSITIVE_INFINITY),
+		url: new URL(uri!.trim(), master.url).toString(),
+	}));
+	const lowest = variants.toSorted((a, b) => a.bandwidth - b.bandwidth)[0];
+	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
+};
+
+const readWithRetries = async (
+	url: string,
+	playlistUrl: string,
+	headers: Record<string, string>,
+) => {
+	for (let attempt = 1; ; attempt += 1) {
+		try {
+			const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
+			return unwrapDisguisedSegment(upstream.bytes);
+		} catch (error) {
+			if (attempt === attempts) {
+				throw error;
+			}
+			await Bun.sleep(attempt * 1.5 * second);
+		}
+	}
+};
+
 /**
  * Writes the audio of an HLS stream to a 16 kHz mono WAV file, the form
  * speech recognition takes, without writing the video to disk.
@@ -31,11 +86,11 @@ const decodeTimeoutMs = 20 * 60 * second;
  * @throws {@link SubtitleRefinementError} when the stream is encrypted, a
  *   segment cannot be fetched, or ffmpeg fails.
  */
-export async function extractAudio(
+export const extractAudio = async (
 	playlistUrl: string,
 	headers: Record<string, string>,
 	path: string,
-) {
+) => {
 	const media = await mediaPlaylist(playlistUrl, headers);
 	if (/^#EXT-X-KEY:(?!METHOD=NONE)/m.test(media.text)) {
 		throw new SubtitleRefinementError("The stream is encrypted");
@@ -93,55 +148,4 @@ export async function extractAudio(
 	if ((await ffmpeg.exited) !== 0) {
 		throw new SubtitleRefinementError(`ffmpeg failed: ${await failure}`);
 	}
-}
-
-/** The playlist listing a stream's segments: the lowest bitrate variant of a master playlist. */
-async function mediaPlaylist(url: string, headers: Record<string, string>) {
-	const master = await readPlaylist(url, headers);
-	const variants = [
-		...master.text.matchAll(/^#EXT-X-STREAM-INF:([^\n]*)\n\s*([^#\s][^\n]*)/gm),
-	].map(([, attributes, uri]) => ({
-		bandwidth: Number(/BANDWIDTH=(\d+)/.exec(attributes!)?.[1] ?? Number.POSITIVE_INFINITY),
-		url: new URL(uri!.trim(), master.url).toString(),
-	}));
-	const lowest = variants.toSorted((a, b) => a.bandwidth - b.bandwidth)[0];
-	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
-}
-
-async function readPlaylist(url: string, headers: Record<string, string>, parent?: string) {
-	const upstream = await fetchUpstreamBytes(target(url, "playlist", headers, parent));
-	return {
-		text: new TextDecoder().decode(upstream.bytes),
-		url: upstream.url,
-	};
-}
-
-async function readWithRetries(url: string, playlistUrl: string, headers: Record<string, string>) {
-	for (let attempt = 1; ; attempt += 1) {
-		try {
-			const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
-			return unwrapDisguisedSegment(upstream.bytes);
-		} catch (error) {
-			if (attempt === attempts) {
-				throw error;
-			}
-			await Bun.sleep(attempt * 1.5 * second);
-		}
-	}
-}
-
-function target(
-	url: string,
-	kind: StreamTarget["kind"],
-	headers: Record<string, string>,
-	parent?: string,
-): StreamTarget {
-	return {
-		accountId: "",
-		expiresAt: 0,
-		headers,
-		kind,
-		mirrors: parent ? mirrorsFor(url, parent) : [],
-		url,
-	};
-}
+};

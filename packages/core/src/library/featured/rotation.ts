@@ -46,33 +46,43 @@ export const featuredCount = 6;
 export const spareCandidates = 12;
 
 /** A date `ms` before `now`, as `YYYY-MM-DD`, to compare with the search index's start dates. */
-export function dateBefore(now: Date, ms: number) {
+export const dateBefore = (now: Date, ms: number) => {
 	return new Date(now.getTime() - ms).toISOString().slice(0, 10);
-}
+};
 
 /**
  * Whether an entry is current: well liked and popular, and either still
  * airing or started within {@link currentFor}.
  */
-export function isCurrent(entry: FeaturedEntry, now: Date) {
+export const isCurrent = (entry: FeaturedEntry, now: Date) => {
 	return (
 		entry.score >= currentThresholds.score &&
 		entry.popularity >= currentThresholds.popularity &&
 		(entry.status === "RELEASING" ||
 			(entry.startDate !== null && entry.startDate >= dateBefore(now, currentFor)))
 	);
-}
+};
 
 /** The number of the rotation `now` falls in, counted in {@link rotationPeriod}s since the first. */
-export function rotationOf(now: Date) {
+export const rotationOf = (now: Date) => {
 	return Math.floor((now.getTime() - rotationStart) / rotationPeriod);
-}
+};
+
+/** FNV-1a, a fast, well-spread 32-bit hash; not for security. */
+const hash = (text: string) => {
+	let value = 0x81_1c_9d_c5;
+	for (let index = 0; index < text.length; index++) {
+		value ^= text.charCodeAt(index);
+		value = Math.imul(value, 0x01_00_01_93);
+	}
+	return value >>> 0;
+};
 
 /**
  * Shuffles candidates anew for each `seed` and rotation, so each profile
  * sees its own order.
  */
-export function rotate(ids: readonly string[], seed: string, rotation: number): string[] {
+export const rotate = (ids: readonly string[], seed: string, rotation: number): string[] => {
 	return ids
 		.map((id) => ({
 			id,
@@ -80,20 +90,10 @@ export function rotate(ids: readonly string[], seed: string, rotation: number): 
 		}))
 		.sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
 		.map(({ id }) => id);
-}
+};
 
 /** The first {@link featuredCount} candidates `isUsable` accepts, in order. */
-export function arrange(candidates: readonly string[], isUsable: (id: string) => boolean) {
+export const arrange = (candidates: readonly string[], isUsable: (id: string) => boolean) => {
 	return [...new Set(candidates)].filter(isUsable).slice(0, featuredCount);
-}
-
-/** FNV-1a, a fast, well-spread 32-bit hash; not for security. */
-function hash(text: string) {
-	let value = 0x81_1c_9d_c5;
-	for (let index = 0; index < text.length; index++) {
-		value ^= text.charCodeAt(index);
-		value = Math.imul(value, 0x01_00_01_93);
-	}
-	return value >>> 0;
-}
+};
 import { day, hour } from "@sora/shared";

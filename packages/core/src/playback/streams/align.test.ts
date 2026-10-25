@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { alignTimelines, shiftTime } from "./align";
 
 /** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
-function boundaries(seed: number, count = 300) {
+const boundaries = (seed: number, count = 300) => {
 	const times = [0];
 	let state = seed;
 	for (let index = 1; index < count; index++) {
@@ -11,7 +11,7 @@ function boundaries(seed: number, count = 300) {
 		times.push(times.at(-1)! + 1 + (state % 9000) / 1000);
 	}
 	return times;
-}
+};
 
 describe("alignTimelines", () => {
 	test("finds a constant offset", () => {

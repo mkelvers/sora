@@ -1,7 +1,7 @@
 import type { Anime } from "./anime";
 
 /** An anime that knows nothing but its AniList ID, for tests. */
-export function anime(id: number): Anime {
+export const anime = (id: number): Anime => {
 	return {
 		bannerUrl: null,
 		countryOfOrigin: null,
@@ -36,4 +36,4 @@ export function anime(id: number): Anime {
 			romaji: null,
 		},
 	};
-}
+};

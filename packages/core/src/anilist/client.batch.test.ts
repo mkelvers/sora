@@ -11,7 +11,7 @@ const sent: Pages[] = [];
 const unknown = new Set([404]);
 let failNext = false;
 let rateLimitNext = false;
-async function respond(_input: string, init: RequestInit) {
+const respond = async (_input: string, init: RequestInit) => {
 	const { variables } = JSON.parse(String(init.body)) as {
 		variables: Pages;
 	};
@@ -81,7 +81,7 @@ async function respond(_input: string, init: RequestInit) {
 			},
 		},
 	);
-}
+};
 
 const { anilist, loadMediaById } = createAniListClient({
 	fetch: respond,
@@ -111,7 +111,7 @@ const document = new TypedDocumentString<Result, Pages>(
 );
 
 /** A loader of `pages` pages, its variables named as the operations name theirs. */
-function loader(pages: number) {
+const loader = (pages: number) => {
 	return loadMediaById({
 		document,
 		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
@@ -129,7 +129,7 @@ function loader(pages: number) {
 				).flat(),
 			),
 	});
-}
+};
 
 const background = 10;
 

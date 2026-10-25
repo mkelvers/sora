@@ -25,6 +25,84 @@ export interface ProviderTraits {
 }
 
 /**
+ * Describes an anime in the shape `anime-sdk`'s mapping client matches on:
+ * titles and synonyms for fuzzy search, year and episode count as
+ * discriminators, and AniList/MAL IDs for exact lookups.
+ */
+const toSdkMetadata = (anime: Anime): IMediaMetadata => {
+	const startYear = anime.startDate ? Number(anime.startDate.slice(0, 4)) : undefined;
+
+	return {
+		catalogType: "ANIME",
+		episodeCount: anime.episodes ?? undefined,
+		format: anime.format ?? undefined,
+		id: `anilist:${anime.id}`,
+		mappings: {
+			anilist: anime.id,
+			mal: anime.malId ?? undefined,
+		},
+		providerId: "anilist",
+		synonyms: anime.synonyms,
+		title: {
+			english: anime.title.english ?? undefined,
+			native: anime.title.native ?? undefined,
+			romaji: anime.title.romaji ?? undefined,
+		},
+		year: anime.seasonYear ?? startYear,
+	};
+};
+
+/** The least a provider's title may resemble the anime's for a title match. */
+const minimumTitleSimilarity = 0.78;
+
+/** How many episodes more than the anime's count a provider's list may have. */
+const episodeCountTolerance = 3;
+
+/**
+ * Whether a series found by searching titles is the anime.
+ *
+ * The title must be about as alike as `anime-sdk` asks and number the same
+ * instalment ("Season 2" never matches "Season 3"). When AniList knows how
+ * many episodes the anime has, the provider's list may not run past them: a
+ * longer list is a whole series holding the anime's special, film or one
+ * season among others, and playing it would number the episodes wrong. A
+ * shorter list, or none, is kept; the title is right and the provider is only
+ * missing episodes.
+ */
+export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEpisodes: number) => {
+	const titles = [
+		anime.title.english,
+		anime.title.romaji,
+		anime.title.native,
+		...anime.synonyms,
+	].flatMap((title) => (title ? [title] : []));
+	if (
+		bestSimilarity(titles, [matchedTitle], {
+			sameNumbers: true,
+		}) < minimumTitleSimilarity
+	) {
+		return false;
+	}
+
+	if (anime.episodes === null) {
+		return true;
+	}
+
+	return providerEpisodes <= anime.episodes + episodeCountTolerance;
+};
+
+/** An `anime-sdk` episode as a {@link ProviderEpisode}. */
+export const toProviderEpisode = (unit: IContentUnit): ProviderEpisode => {
+	return {
+		id: unit.id,
+		isFiller: unit.isFiller ?? null,
+		languages: unit.availableLanguages ?? null,
+		number: unit.number,
+		title: unit.title,
+	};
+};
+
+/**
  * A {@link StreamProvider} backed by an `anime-sdk` provider: series are
  * matched by `anime-sdk`'s mapping client, and episodes and streams come from
  * the provider as it ships. Providers that need more override the methods
@@ -122,85 +200,7 @@ export class SdkStreamProvider implements StreamProvider {
  * The provider's raw ID within an episode ID, which `anime-sdk` prefixes
  * with the provider ID.
  */
-export function rawEpisodeId(providerId: string, episodeId: string) {
+export const rawEpisodeId = (providerId: string, episodeId: string) => {
 	const prefix = `${providerId}:`;
 	return episodeId.startsWith(prefix) ? episodeId.slice(prefix.length) : episodeId;
-}
-
-/** An `anime-sdk` episode as a {@link ProviderEpisode}. */
-export function toProviderEpisode(unit: IContentUnit): ProviderEpisode {
-	return {
-		id: unit.id,
-		isFiller: unit.isFiller ?? null,
-		languages: unit.availableLanguages ?? null,
-		number: unit.number,
-		title: unit.title,
-	};
-}
-
-/**
- * Describes an anime in the shape `anime-sdk`'s mapping client matches on:
- * titles and synonyms for fuzzy search, year and episode count as
- * discriminators, and AniList/MAL IDs for exact lookups.
- */
-function toSdkMetadata(anime: Anime): IMediaMetadata {
-	const startYear = anime.startDate ? Number(anime.startDate.slice(0, 4)) : undefined;
-
-	return {
-		catalogType: "ANIME",
-		episodeCount: anime.episodes ?? undefined,
-		format: anime.format ?? undefined,
-		id: `anilist:${anime.id}`,
-		mappings: {
-			anilist: anime.id,
-			mal: anime.malId ?? undefined,
-		},
-		providerId: "anilist",
-		synonyms: anime.synonyms,
-		title: {
-			english: anime.title.english ?? undefined,
-			native: anime.title.native ?? undefined,
-			romaji: anime.title.romaji ?? undefined,
-		},
-		year: anime.seasonYear ?? startYear,
-	};
-}
-
-/** The least a provider's title may resemble the anime's for a title match. */
-const minimumTitleSimilarity = 0.78;
-
-/** How many episodes more than the anime's count a provider's list may have. */
-const episodeCountTolerance = 3;
-
-/**
- * Whether a series found by searching titles is the anime.
- *
- * The title must be about as alike as `anime-sdk` asks and number the same
- * instalment ("Season 2" never matches "Season 3"). When AniList knows how
- * many episodes the anime has, the provider's list may not run past them: a
- * longer list is a whole series holding the anime's special, film or one
- * season among others, and playing it would number the episodes wrong. A
- * shorter list, or none, is kept; the title is right and the provider is only
- * missing episodes.
- */
-export function acceptsTitleMatch(anime: Anime, matchedTitle: string, providerEpisodes: number) {
-	const titles = [
-		anime.title.english,
-		anime.title.romaji,
-		anime.title.native,
-		...anime.synonyms,
-	].flatMap((title) => (title ? [title] : []));
-	if (
-		bestSimilarity(titles, [matchedTitle], {
-			sameNumbers: true,
-		}) < minimumTitleSimilarity
-	) {
-		return false;
-	}
-
-	if (anime.episodes === null) {
-		return true;
-	}
-
-	return providerEpisodes <= anime.episodes + episodeCountTolerance;
-}
+};

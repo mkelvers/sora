@@ -29,7 +29,7 @@ const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
  * @throws {@link SubtitleRefinementError} when no Python is configured or
  *   transcribing fails.
  */
-export async function transcribe(path: string): Promise<SpokenWord[]> {
+export const transcribe = async (path: string): Promise<SpokenWord[]> => {
 	if (!config.subtitleAlignmentPython) {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}
@@ -52,4 +52,4 @@ export async function transcribe(path: string): Promise<SpokenWord[]> {
 	}
 
 	return SpeechSchema.parse(JSON.parse(output)).words;
-}
+};

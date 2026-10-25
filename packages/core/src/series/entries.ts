@@ -50,44 +50,6 @@ const recentEntries = new Map<
 	}
 >();
 
-/**
- * Loads franchise entries by AniList ID. Each also brings the entries
- * related to it, which are kept for later calls, so walking a franchise
- * costs one request for every two steps.
- *
- * IDs asked for while a request waits its turn share it, up to 250, so the
- * layouts of many titles at once, as a search starts, cost a request or two
- * rather than one each; see {@link loadMediaById}.
- *
- * Unknown, adult, and music-video IDs are left out: music videos are not
- * watchable series, and adult media is never served.
- *
- * @param load - Fetches entries from AniList; tests pass their own.
- */
-export async function loadEntries(
-	ids: Iterable<number>,
-	load: typeof loadFranchiseEntries = loadFranchiseEntries,
-): Promise<Map<number, FranchiseEntry>> {
-	const wanted = [...new Set(ids)];
-	const missing = wanted.filter((id) => {
-		const recent = recentEntries.get(id);
-		return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
-	});
-	if (missing.length > 0) {
-		await fetchAndRemember(missing, load);
-	}
-
-	const entries = new Map<number, FranchiseEntry>();
-	for (const id of wanted) {
-		const entry = recentEntries.get(id)?.entry;
-		if (entry) {
-			entries.set(id, entry);
-		}
-	}
-
-	return entries;
-}
-
 const loadFranchiseEntries = loadMediaById({
 	document: FranchiseEntriesDocument,
 	media: ({ page0, page1, page2, page3, page4 }) =>
@@ -106,8 +68,27 @@ const loadFranchiseEntries = loadMediaById({
 	}),
 });
 
+const remember = (id: number, entry: FranchiseEntry | null) => {
+	recentEntries.delete(id);
+	recentEntries.set(id, {
+		entry,
+		loadedAt: Date.now(),
+	});
+
+	// Maps iterate in insertion order, so the first key is the oldest.
+	const oldest = recentEntries.keys().next();
+	if (recentEntries.size > recentEntryLimit && !oldest.done) {
+		recentEntries.delete(oldest.value);
+	}
+};
+
+/** Whether an entry is served at all: adult media and music videos never are. */
+const isServed = (entry: FranchiseEntry) => {
+	return !entry.isAdult && entry.format !== "MUSIC";
+};
+
 /** Fetches entries and remembers them and their neighbours. */
-async function fetchAndRemember(ids: readonly number[], load: typeof loadFranchiseEntries) {
+const fetchAndRemember = async (ids: readonly number[], load: typeof loadFranchiseEntries) => {
 	const loaded = await load(ids);
 	const asked = new Set(ids);
 	for (const id of ids) {
@@ -130,42 +111,70 @@ async function fetchAndRemember(ids: readonly number[], load: typeof loadFranchi
 			}
 		}
 	}
-}
+};
 
-/** Whether an entry is served at all: adult media and music videos never are. */
-function isServed(entry: FranchiseEntry) {
-	return !entry.isAdult && entry.format !== "MUSIC";
-}
-
-function remember(id: number, entry: FranchiseEntry | null) {
-	recentEntries.delete(id);
-	recentEntries.set(id, {
-		entry,
-		loadedAt: Date.now(),
+/**
+ * Loads franchise entries by AniList ID. Each also brings the entries
+ * related to it, which are kept for later calls, so walking a franchise
+ * costs one request for every two steps.
+ *
+ * IDs asked for while a request waits its turn share it, up to 250, so the
+ * layouts of many titles at once, as a search starts, cost a request or two
+ * rather than one each; see {@link loadMediaById}.
+ *
+ * Unknown, adult, and music-video IDs are left out: music videos are not
+ * watchable series, and adult media is never served.
+ *
+ * @param load - Fetches entries from AniList; tests pass their own.
+ */
+export const loadEntries = async (
+	ids: Iterable<number>,
+	load: typeof loadFranchiseEntries = loadFranchiseEntries,
+): Promise<Map<number, FranchiseEntry>> => {
+	const wanted = [...new Set(ids)];
+	const missing = wanted.filter((id) => {
+		const recent = recentEntries.get(id);
+		return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
 	});
-
-	// Maps iterate in insertion order, so the first key is the oldest.
-	const oldest = recentEntries.keys().next();
-	if (recentEntries.size > recentEntryLimit && !oldest.done) {
-		recentEntries.delete(oldest.value);
+	if (missing.length > 0) {
+		await fetchAndRemember(missing, load);
 	}
-}
+
+	const entries = new Map<number, FranchiseEntry>();
+	for (const id of wanted) {
+		const entry = recentEntries.get(id)?.entry;
+		if (entry) {
+			entries.set(id, entry);
+		}
+	}
+
+	return entries;
+};
 
 /** IDs of the anime the entry is related to by one of `relations`. */
-export function idsRelatedBy(entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) {
+export const idsRelatedBy = (entry: FranchiseEntry, relations: ReadonlySet<MediaRelation>) => {
 	return (entry.relations?.edges ?? []).flatMap((edge) =>
 		edge?.node?.type === "ANIME" && edge.relationType && relations.has(edge.relationType)
 			? [edge.node.id]
 			: [],
 	);
-}
+};
+
+/** The entry's distinct English, romaji, and native titles, in that order. */
+export const primaryTitlesOf = (entry: FranchiseEntry) => {
+	const titles = [entry.title?.english, entry.title?.romaji, entry.title?.native].filter(
+		(title): title is string => Boolean(title),
+	);
+
+	return [...new Set(titles)];
+};
 
 /**
  * Describes an entry in the shape the matching rules compare.
  *
  * @param now - When matching runs, which an entry that has not aired yet cannot have aired before.
  */
-export function toMatchSubject(entry: FranchiseEntry, now: Date): MatchSubject {
+export const toMatchSubject = (entry: FranchiseEntry, now: Date): MatchSubject => {
 	const primaryTitles = primaryTitlesOf(entry);
 	const synonyms = (entry.synonyms ?? []).filter(
 		(synonym): synonym is string => Boolean(synonym) && !primaryTitles.includes(synonym ?? ""),
@@ -189,13 +198,4 @@ export function toMatchSubject(entry: FranchiseEntry, now: Date): MatchSubject {
 		airsFrom: entry.status === "NOT_YET_RELEASED" ? now.toISOString().slice(0, 10) : null,
 		durationMinutes: entry.duration,
 	};
-}
-
-/** The entry's distinct English, romaji, and native titles, in that order. */
-export function primaryTitlesOf(entry: FranchiseEntry) {
-	const titles = [entry.title?.english, entry.title?.romaji, entry.title?.native].filter(
-		(title): title is string => Boolean(title),
-	);
-
-	return [...new Set(titles)];
-}
+};

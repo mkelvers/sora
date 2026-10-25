@@ -16,7 +16,7 @@ const idLength = 9;
 const unbiasedByteLimit = 256 - (256 % alphabet.length);
 
 /** Creates a new ID, such as `GYZJ43JMR`. */
-export function newId() {
+export const newId = () => {
 	let id = "";
 	while (id.length < idLength) {
 		for (const byte of crypto.getRandomValues(new Uint8Array(idLength * 2))) {
@@ -27,4 +27,4 @@ export function newId() {
 	}
 
 	return id;
-}
+};

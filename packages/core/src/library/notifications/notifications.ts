@@ -66,11 +66,11 @@ export type NotificationGroup = Omit<Notification, "series" | "message"> & {
  * @param dismissed - The IDs of the notifications the profile deleted.
  * @param read - The IDs of the notifications the profile marked read.
  */
-export function groupNotifications(
+export const groupNotifications = (
 	episodes: readonly ReleasedEpisode[],
 	dismissed: ReadonlySet<string> = new Set(),
 	read: ReadonlySet<string> = new Set(),
-): NotificationGroup[] {
+): NotificationGroup[] => {
 	const moments = new Map<string, ReleasedEpisode[]>();
 	for (const episode of episodes) {
 		const moment = `${episode.seriesId}:${episode.releasedAt.getTime()}:${episode.dubbed}`;
@@ -106,7 +106,7 @@ export function groupNotifications(
 			(left, right) =>
 				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
 		);
-}
+};
 
 /**
  * Finds the series a profile follows, including connected seasons, as
@@ -121,10 +121,10 @@ export function groupNotifications(
  * @param followed - The AniList ID of each saved or played series and when it was followed.
  * @param excluded - AniList IDs not to notify about, such as those the profile dropped.
  */
-async function followedSeries(
+const followedSeries = async (
 	followed: ReadonlyMap<number, Date>,
 	excluded: ReadonlySet<number>,
-): Promise<Map<number, Date>> {
+): Promise<Map<number, Date>> => {
 	const neighbours = new Map<number, Set<number>>();
 	const link = (from: number, to: number) => {
 		neighbours.set(from, (neighbours.get(from) ?? new Set()).add(to));
@@ -186,7 +186,39 @@ async function followedSeries(
 	}
 
 	return followedFrom;
-}
+};
+
+/** Describes the release and what the profile can watch, without promotional copy. */
+const notificationMessage = (
+	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
+	movie: boolean,
+) => {
+	const count = group.last_episode - group.first_episode + 1;
+	const range = `${group.first_episode} through ${group.last_episode}`;
+	const title = group.episode_title ? `, "${group.episode_title}",` : "";
+
+	if (group.kind === "dub") {
+		if (movie) {
+			return "The English dub is now available. You can choose the dubbed version when you start the film.";
+		}
+		return count === 1
+			? `The English dub of episode ${group.last_episode}${title} is now available. You can switch to English audio in the player for this episode.`
+			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
+	}
+
+	if (group.kind === "premiere") {
+		if (movie) {
+			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
+		}
+		return count > 1
+			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
+			: `The season has started. Episode 1${title} is now available to watch, and you can open the season's page to see its episode list.`;
+	}
+
+	return count > 1
+		? `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`
+		: `Episode ${group.last_episode}${title} is now available to watch. You can find it in the episode list on the season's page.`;
+};
 
 /**
  * Lists what came out in the last 30 days for a profile's saved or played
@@ -210,14 +242,14 @@ async function followedSeries(
  *
  * Reads only the database.
  */
-export async function getNotifications(
+export const getNotifications = async (
 	userId: string,
 	options: {
 		/** @defaultValue 30 */
 		limit?: number;
 	} = {},
 	now = new Date(),
-): Promise<Notifications> {
+): Promise<Notifications> => {
 	const nothing = {
 		items: [],
 		unread: 0,
@@ -386,39 +418,7 @@ export async function getNotifications(
 		}),
 		unread: all.filter((group) => group.unread).length,
 	};
-}
-
-/** Describes the release and what the profile can watch, without promotional copy. */
-function notificationMessage(
-	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
-	movie: boolean,
-) {
-	const count = group.last_episode - group.first_episode + 1;
-	const range = `${group.first_episode} through ${group.last_episode}`;
-	const title = group.episode_title ? `, "${group.episode_title}",` : "";
-
-	if (group.kind === "dub") {
-		if (movie) {
-			return "The English dub is now available. You can choose the dubbed version when you start the film.";
-		}
-		return count === 1
-			? `The English dub of episode ${group.last_episode}${title} is now available. You can switch to English audio in the player for this episode.`
-			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
-	}
-
-	if (group.kind === "premiere") {
-		if (movie) {
-			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
-		}
-		return count > 1
-			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
-			: `The season has started. Episode 1${title} is now available to watch, and you can open the season's page to see its episode list.`;
-	}
-
-	return count > 1
-		? `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`
-		: `Episode ${group.last_episode}${title} is now available to watch. You can find it in the episode list on the season's page.`;
-}
+};
 
 /**
  * Marks some of a profile's notifications read. One that is not listed, or
@@ -429,7 +429,7 @@ function notificationMessage(
  *
  * @param notificationIds - Each a `Notification.id`.
  */
-export async function markNotificationsRead(userId: string, notificationIds: readonly string[]) {
+export const markNotificationsRead = async (userId: string, notificationIds: readonly string[]) => {
 	if (notificationIds.length === 0) {
 		return;
 	}
@@ -455,7 +455,7 @@ export async function markNotificationsRead(userId: string, notificationIds: rea
 			)
 			.onConflictDoNothing();
 	});
-}
+};
 
 /**
  * Deletes one of a profile's notifications, so it is never listed again.
@@ -463,7 +463,7 @@ export async function markNotificationsRead(userId: string, notificationIds: rea
  *
  * @param notificationId - A `Notification.id`.
  */
-export async function dismissNotification(userId: string, notificationId: string) {
+export const dismissNotification = async (userId: string, notificationId: string) => {
 	const now = new Date();
 	await db.transaction(async (tx) => {
 		await tx
@@ -483,4 +483,4 @@ export async function dismissNotification(userId: string, notificationId: string
 			})
 			.onConflictDoNothing();
 	});
-}
+};

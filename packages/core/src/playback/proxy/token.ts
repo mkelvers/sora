@@ -52,6 +52,10 @@ const StreamTargetSchema = z.object({
 	}),
 });
 
+const keyFrom = (secret: string) => {
+	return createHash("sha256").update(`sora stream token\0${secret}`).digest();
+};
+
 /**
  * Encodes a target as an opaque, URL-safe token, encrypted and authenticated
  * with a key made from `secret`.
@@ -61,7 +65,7 @@ const StreamTargetSchema = z.object({
  * being rejected. That is also what prevents the proxy from being used to
  * fetch arbitrary URLs.
  */
-export function signStreamTarget(target: StreamTarget, secret: string) {
+export const signStreamTarget = (target: StreamTarget, secret: string) => {
 	const initializationVector = randomBytes(12);
 	const cipher = createCipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
 	const sealed = Buffer.concat([
@@ -83,7 +87,9 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
 	]);
 
 	return `${initializationVector.toString("base64url")}.${sealed.toString("base64url")}`;
-}
+};
+
+const tagLength = 16;
 
 /**
  * Decrypts and authenticates a token produced by {@link signStreamTarget}.
@@ -91,7 +97,11 @@ export function signStreamTarget(target: StreamTarget, secret: string) {
  * @throws {@link InvalidStreamTokenError} when the token is malformed, was
  *   not made with `secret`, or has expired.
  */
-export function verifyStreamToken(token: string, secret: string, now = new Date()): StreamTarget {
+export const verifyStreamToken = (
+	token: string,
+	secret: string,
+	now = new Date(),
+): StreamTarget => {
 	const [encodedVector, encodedSealed, ...rest] = token.split(".");
 	if (!encodedVector || !encodedSealed || rest.length > 0) {
 		throw new InvalidStreamTokenError("Malformed stream token");
@@ -142,10 +152,4 @@ export function verifyStreamToken(token: string, secret: string, now = new Date(
 		})),
 		url: parsed.data.u,
 	};
-}
-
-const tagLength = 16;
-
-function keyFrom(secret: string) {
-	return createHash("sha256").update(`sora stream token\0${secret}`).digest();
-}
+};

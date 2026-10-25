@@ -30,7 +30,7 @@ const maximumPlaylistBytes = 4 * 1024 * 1024;
  * Clients never see the upstream URL or headers: the token is opaque and the
  * proxy applies them.
  */
-export function createStreamToken(
+export const createStreamToken = (
 	url: string,
 	kind: StreamTargetKind,
 	headers: Record<string, string>,
@@ -45,7 +45,7 @@ export function createStreamToken(
 		shifts?: TimelineShift[];
 		refinement?: string;
 	},
-) {
+) => {
 	return signStreamTarget(
 		{
 			accountId,
@@ -59,15 +59,15 @@ export function createStreamToken(
 		},
 		config.streamSigningSecret,
 	);
-}
+};
 
 /** Whether the proxy could serve `url` right now, from its own host or a mirror. */
-export async function canFetchStream(
+export const canFetchStream = async (
 	url: string,
 	headers: Record<string, string>,
 	mirrors: string[],
 	signal?: AbortSignal,
-) {
+) => {
 	const { data, error } = await attempt(
 		fetchUpstream(
 			{
@@ -88,18 +88,18 @@ export async function canFetchStream(
 	}
 	await data.response.body?.cancel();
 	return true;
-}
+};
 
 /**
  * A subtitle file's text, from its own host or a mirror.
  *
  * @returns `null` when neither can serve it right now.
  */
-export async function readSubtitle(
+export const readSubtitle = async (
 	url: string,
 	headers: Record<string, string>,
 	mirrors: string[],
-) {
+) => {
 	const { data, error } = await attempt(
 		fetchUpstreamBytes(
 			{
@@ -118,7 +118,7 @@ export async function readSubtitle(
 		return null;
 	}
 	return new TextDecoder().decode(data.bytes);
-}
+};
 
 /**
  * The start time of every segment of an HLS stream, in seconds; the first
@@ -126,7 +126,7 @@ export async function readSubtitle(
  *
  * @throws {@link StreamUpstreamError} when a playlist cannot be fetched.
  */
-export async function segmentStarts(url: string, headers: Record<string, string>) {
+export const segmentStarts = async (url: string, headers: Record<string, string>) => {
 	const target = {
 		accountId: "",
 		expiresAt: 0,
@@ -159,7 +159,99 @@ export async function segmentStarts(url: string, headers: Record<string, string>
 		elapsed += Number(duration);
 	}
 	return starts;
-}
+};
+
+const playlistResponse = async (target: StreamTarget, upstream: UpstreamBytes) => {
+	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
+		throw new StreamUpstreamError("Upstream playlist is too large", null);
+	}
+
+	const content = new TextDecoder().decode(upstream.bytes);
+	if (!content.trimStart().startsWith("#EXTM3U")) {
+		throw new StreamUpstreamError("Upstream did not return an HLS playlist", null);
+	}
+
+	// Children inherit the parent's headers and expiry, so a playlist cannot be
+	// used to mint tokens that outlive the one the client was given.
+	const segments: StreamTarget[] = [];
+	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) => {
+		const child: StreamTarget = {
+			accountId: target.accountId,
+			expiresAt: target.expiresAt,
+			headers: target.headers,
+			kind,
+			mirrors: mirrorsFor(url, upstream.url),
+			url,
+		};
+		if (kind === "segment") {
+			segments.push(child);
+		}
+		return signStreamTarget(child, config.streamSigningSecret);
+	});
+	rememberSegmentOrder(segments);
+
+	return new Response(rewritten, {
+		headers: {
+			"Content-Type": "application/vnd.apple.mpegurl",
+			// Live playlists change; media playlists for VOD are cheap to refetch.
+			"Cache-Control": "no-cache",
+		},
+		status: 200,
+	});
+};
+
+/**
+ * Streams a segment through unchanged unless it starts with a disguising
+ * image header, in which case it is buffered and the image removed.
+ */
+const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Headers) => {
+	const reader = body.getReader();
+	const first = await reader.read();
+	if (first.done) {
+		return new Response(null, {
+			headers,
+			status: 200,
+		});
+	}
+
+	if (isDisguisedSegment(first.value)) {
+		const chunks = [first.value];
+		for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+			chunks.push(chunk.value);
+		}
+
+		const segment = unwrapDisguisedSegment(Buffer.concat(chunks));
+		headers.set("Content-Type", "video/mp2t");
+		headers.set("Content-Length", String(segment.byteLength));
+		return new Response(segment, {
+			headers,
+			status: 200,
+		});
+	}
+
+	return new Response(
+		new ReadableStream<Uint8Array>({
+			cancel(reason) {
+				return reader.cancel(reason);
+			},
+			async pull(controller) {
+				const chunk = await reader.read();
+				if (chunk.done) {
+					controller.close();
+				} else {
+					controller.enqueue(chunk.value);
+				}
+			},
+			start(controller) {
+				controller.enqueue(first.value);
+			},
+		}),
+		{
+			headers,
+			status: 200,
+		},
+	);
+};
 
 /**
  * Serves one proxied stream resource.
@@ -174,7 +266,7 @@ export async function segmentStarts(url: string, headers: Record<string, string>
  *   token, or one issued to another account.
  * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
  */
-export async function proxyStream(
+export const proxyStream = async (
 	token: string,
 	request: {
 		/** The signed-in account asking; the token must have been issued to it. */
@@ -182,7 +274,7 @@ export async function proxyStream(
 		range: string | null;
 		signal?: AbortSignal;
 	},
-): Promise<Response> {
+): Promise<Response> => {
 	const target = verifyStreamToken(token, config.streamSigningSecret);
 	if (target.accountId !== request.accountId) {
 		throw new InvalidStreamTokenError("Stream token was issued to another account");
@@ -270,96 +362,4 @@ export async function proxyStream(
 		headers,
 		status: upstream.response.status,
 	});
-}
-
-/**
- * Streams a segment through unchanged unless it starts with a disguising
- * image header, in which case it is buffered and the image removed.
- */
-async function segmentResponse(body: ReadableStream<Uint8Array>, headers: Headers) {
-	const reader = body.getReader();
-	const first = await reader.read();
-	if (first.done) {
-		return new Response(null, {
-			headers,
-			status: 200,
-		});
-	}
-
-	if (isDisguisedSegment(first.value)) {
-		const chunks = [first.value];
-		for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-			chunks.push(chunk.value);
-		}
-
-		const segment = unwrapDisguisedSegment(Buffer.concat(chunks));
-		headers.set("Content-Type", "video/mp2t");
-		headers.set("Content-Length", String(segment.byteLength));
-		return new Response(segment, {
-			headers,
-			status: 200,
-		});
-	}
-
-	return new Response(
-		new ReadableStream<Uint8Array>({
-			cancel(reason) {
-				return reader.cancel(reason);
-			},
-			async pull(controller) {
-				const chunk = await reader.read();
-				if (chunk.done) {
-					controller.close();
-				} else {
-					controller.enqueue(chunk.value);
-				}
-			},
-			start(controller) {
-				controller.enqueue(first.value);
-			},
-		}),
-		{
-			headers,
-			status: 200,
-		},
-	);
-}
-
-async function playlistResponse(target: StreamTarget, upstream: UpstreamBytes) {
-	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
-		throw new StreamUpstreamError("Upstream playlist is too large", null);
-	}
-
-	const content = new TextDecoder().decode(upstream.bytes);
-	if (!content.trimStart().startsWith("#EXTM3U")) {
-		throw new StreamUpstreamError("Upstream did not return an HLS playlist", null);
-	}
-
-	// Children inherit the parent's headers and expiry, so a playlist cannot be
-	// used to mint tokens that outlive the one the client was given.
-	const segments: StreamTarget[] = [];
-	const rewritten = rewritePlaylist(content, upstream.url, (url, kind) => {
-		const child: StreamTarget = {
-			accountId: target.accountId,
-			expiresAt: target.expiresAt,
-			headers: target.headers,
-			kind,
-			mirrors: mirrorsFor(url, upstream.url),
-			url,
-		};
-		if (kind === "segment") {
-			segments.push(child);
-		}
-		return signStreamTarget(child, config.streamSigningSecret);
-	});
-	rememberSegmentOrder(segments);
-
-	return new Response(rewritten, {
-		headers: {
-			"Content-Type": "application/vnd.apple.mpegurl",
-			// Live playlists change; media playlists for VOD are cheap to refetch.
-			"Cache-Control": "no-cache",
-		},
-		status: 200,
-	});
-}
+};

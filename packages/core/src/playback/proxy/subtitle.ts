@@ -6,41 +6,8 @@ import { readTiming, splitBlocks, writeTiming } from "../subtitles/vtt";
 /** How much of a cue an anchor's cue must overlap for them to be the same line. */
 const sameCueOverlap = 0.6;
 
-/**
- * Moves every cue of a WebVTT file onto another encode's timeline, such as a
- * sub's subtitles onto its dub.
- *
- * A cue with an anchor, which is a cue of the sub's English dialogue that
- * was matched to what the dub says, goes where the anchor puts it. That
- * covers the same cue in other languages, which providers time alike. Any
- * other cue keeps its length and moves by the shift at its start, and is
- * dropped when that would put it before the video.
- */
-export function retimeWebVtt(content: string, shifts: TimelineShift[], anchors: CueAnchor[] = []) {
-	return splitBlocks(content)
-		.flatMap((block) => {
-			const cue = readTiming(block);
-			if (!cue) {
-				return [block];
-			}
-
-			const anchor = anchorFor(anchors, cue.start, cue.end);
-			if (anchor) {
-				return [writeTiming(block, anchor.movedStart, anchor.movedEnd)];
-			}
-
-			const moved = shiftTime(shifts, cue.start);
-			if (moved < 0) {
-				return [];
-			}
-
-			return [writeTiming(block, moved, cue.end + moved - cue.start)];
-		})
-		.join("\n\n");
-}
-
 /** The anchor, from ascending `anchors`, whose cue is this one. */
-function anchorFor(anchors: CueAnchor[], start: number, end: number) {
+const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
 	let low = 0;
 	let high = anchors.length;
 	while (low < high) {
@@ -64,4 +31,41 @@ function anchorFor(anchors: CueAnchor[], start: number, end: number) {
 		}
 	}
 	return best;
-}
+};
+
+/**
+ * Moves every cue of a WebVTT file onto another encode's timeline, such as a
+ * sub's subtitles onto its dub.
+ *
+ * A cue with an anchor, which is a cue of the sub's English dialogue that
+ * was matched to what the dub says, goes where the anchor puts it. That
+ * covers the same cue in other languages, which providers time alike. Any
+ * other cue keeps its length and moves by the shift at its start, and is
+ * dropped when that would put it before the video.
+ */
+export const retimeWebVtt = (
+	content: string,
+	shifts: TimelineShift[],
+	anchors: CueAnchor[] = [],
+) => {
+	return splitBlocks(content)
+		.flatMap((block) => {
+			const cue = readTiming(block);
+			if (!cue) {
+				return [block];
+			}
+
+			const anchor = anchorFor(anchors, cue.start, cue.end);
+			if (anchor) {
+				return [writeTiming(block, anchor.movedStart, anchor.movedEnd)];
+			}
+
+			const moved = shiftTime(shifts, cue.start);
+			if (moved < 0) {
+				return [];
+			}
+
+			return [writeTiming(block, moved, cue.end + moved - cue.start)];
+		})
+		.join("\n\n");
+};

@@ -60,6 +60,17 @@ const waitedOnTasks: Record<string, Task> = {
 	[lookUpEpisodesNowTask]: lookUpEpisodes,
 };
 
+/** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
+const prioritized = (tasks: Record<string, Task>): TaskList => {
+	return Object.fromEntries(
+		Object.entries(tasks).map(([name, task]): [string, Task] => [
+			name,
+			(payload, helpers) =>
+				aniListPriority.run(helpers.job.priority, async () => task(payload, helpers)),
+		]),
+	);
+};
+
 /**
  * Starts the background scheduler, which follows every airing anime, stores
  * each new episode once a provider carries it, watches AniKoto for new
@@ -75,7 +86,7 @@ const waitedOnTasks: Record<string, Task> = {
  * of them. Stop it with `stop()`; by default it also stops on SIGINT and
  * SIGTERM.
  */
-export async function startScheduler(): Promise<Scheduler> {
+export const startScheduler = async (): Promise<Scheduler> => {
 	// Pools that stop without shutting down keep their jobs locked; see watchPools.
 	const pools = watchPools();
 	const main = await run({
@@ -223,15 +234,4 @@ export async function startScheduler(): Promise<Scheduler> {
 			await pools.stop();
 		},
 	};
-}
-
-/** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
-function prioritized(tasks: Record<string, Task>): TaskList {
-	return Object.fromEntries(
-		Object.entries(tasks).map(([name, task]): [string, Task] => [
-			name,
-			(payload, helpers) =>
-				aniListPriority.run(helpers.job.priority, async () => task(payload, helpers)),
-		]),
-	);
-}
+};

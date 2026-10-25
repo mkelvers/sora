@@ -8,7 +8,7 @@ export const day = 24 * hour;
  * How long a `Retry-After` header asks to wait, in milliseconds, whether it
  * holds seconds or an HTTP date. `null` when it is absent or unreadable.
  */
-export function parseRetryAfter(header: string | null, now = Date.now()) {
+export const parseRetryAfter = (header: string | null, now = Date.now()) => {
 	if (header === null || header.trim() === "") {
 		return null;
 	}
@@ -20,9 +20,9 @@ export function parseRetryAfter(header: string | null, now = Date.now()) {
 
 	const date = new Date(header).getTime();
 	return Number.isNaN(date) ? null : Math.max(0, date - now);
-}
+};
 
 /** The `Retry-After` value for a wait in milliseconds: whole seconds, rounded up. */
-export function formatRetryAfter(milliseconds: number) {
+export const formatRetryAfter = (milliseconds: number) => {
 	return String(Math.ceil(milliseconds / second));
-}
+};

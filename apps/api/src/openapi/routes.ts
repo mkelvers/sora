@@ -52,7 +52,10 @@ import {
 const { shape: browse } = BrowseQuerySchema;
 
 /** A comma-separated query value, such as `genres=Action,Comedy`, as a list. */
-function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList, example: string) {
+const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(
+	list: TList,
+	example: string,
+) => {
 	return z
 		.string()
 		.transform((value) =>
@@ -67,7 +70,7 @@ function commaSeparated<TList extends z.ZodType<unknown, string[]>>(list: TList,
 			example,
 			type: "string",
 		});
-}
+};
 
 /**
  * The core's browse filters as query parameters in snake_case, without the

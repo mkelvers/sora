@@ -54,7 +54,7 @@ const unknownDate = "0001-01-01T00:00:00Z";
  * `delayed-air` in the week it was due and only by `delayedText` in the
  * weeks between, so a listed time within the hold is not when it airs.
  */
-function isHeldBack(entry: z.infer<typeof TimetableEntrySchema>) {
+const isHeldBack = (entry: z.infer<typeof TimetableEntrySchema>) => {
 	if (entry.airingStatus === "delayed-air") {
 		return true;
 	}
@@ -70,7 +70,7 @@ function isHeldBack(entry: z.infer<typeof TimetableEntrySchema>) {
 			? Date.parse(entry.delayedUntil)
 			: null;
 	return (from === null || airsAt >= from) && (until === null || airsAt < until);
-}
+};
 
 /** One show, as far as it is read: its links elsewhere, such as `anilist.co/anime/195600/…`. */
 const AnimeSchema = z.object({
@@ -109,13 +109,13 @@ export interface TimetableRelease {
  *
  * @throws when AnimeSchedule cannot be read.
  */
-export async function fetchTimetable(
+export const fetchTimetable = async (
 	http: HttpClient,
 	week: {
 		year: number;
 		week: number;
 	},
-): Promise<TimetableRelease[]> {
+): Promise<TimetableRelease[]> => {
 	const response = await http.get(
 		`${api}/timetables/all?year=${week.year}&week=${week.week}&tz=UTC`,
 		{
@@ -148,10 +148,94 @@ export async function fetchTimetable(
 				}),
 			);
 		});
-}
+};
 
 /** The weeks {@link syncTimetables} keeps, counted from this week. */
 const syncedWeeks = [-1, 0, 1];
+
+/** The ISO week `date` falls in, in UTC: weeks start on Monday, and week 1 holds the year's first Thursday. */
+export const isoWeek = (date: Date) => {
+	const thursday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+	thursday.setUTCDate(thursday.getUTCDate() + 3 - ((thursday.getUTCDay() + 6) % 7));
+	const year = thursday.getUTCFullYear();
+	return {
+		week: Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / (7 * day)) + 1,
+		year,
+	};
+};
+
+/**
+ * The AniList entry of each AnimeSchedule show, as the show links it, or
+ * `null` when it links none.
+ *
+ * Stored links are reused; a show not stored yet is looked up once, a
+ * request each, since the API matches several AniList IDs only when one
+ * show has them all. One linking nothing is looked up again after
+ * {@link unlinkedShowLifetimeMs}, and one that cannot be looked up is left
+ * out.
+ */
+const resolveAnimeScheduleShows = async (
+	http: HttpClient,
+	routes: readonly string[],
+): Promise<Map<string, number | null>> => {
+	const unique = [...new Set(routes)];
+	if (unique.length === 0) {
+		return new Map();
+	}
+
+	const stored = await db
+		.select()
+		.from(animeScheduleShow)
+		.where(inArray(animeScheduleShow.route, unique));
+	const resolved = new Map(
+		stored.flatMap((show) =>
+			show.anilistId !== null || show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
+				? [[show.route, show.anilistId] as const]
+				: [],
+		),
+	);
+
+	for (const route of unique.filter((route) => !resolved.has(route))) {
+		const response = await attempt(
+			http.get(`${api}/anime/${encodeURIComponent(route)}`, {
+				headers,
+			}),
+		);
+		if (response.error) {
+			console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
+			continue;
+		}
+
+		const body = await attempt(response.data.json());
+		const show = AnimeSchema.safeParse(body.data);
+		if (!show.success) {
+			console.warn(`AnimeSchedule show ${route} could not be read`);
+			continue;
+		}
+
+		const link = show.data.websites?.aniList;
+		const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
+		const anilistId = id ? Number(id) : null;
+
+		const values = {
+			anilistId,
+			resolvedAt: new Date(),
+		};
+		await db
+			.insert(animeScheduleShow)
+			.values({
+				route,
+				...values,
+			})
+			.onConflictDoUpdate({
+				set: values,
+				target: animeScheduleShow.route,
+			});
+		resolved.set(route, anilistId);
+	}
+
+	return resolved;
+};
 
 /**
  * Stores AnimeSchedule's timetable from last week to next week in
@@ -164,7 +248,7 @@ const syncedWeeks = [-1, 0, 1];
  * @returns The AniList entries of the stored episodes.
  * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
-export async function syncTimetables(http: HttpClient, now = new Date()): Promise<number[]> {
+export const syncTimetables = async (http: HttpClient, now = new Date()): Promise<number[]> => {
 	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
@@ -223,88 +307,4 @@ export async function syncTimetables(http: HttpClient, now = new Date()): Promis
 	}
 
 	return [...anilistIds];
-}
-
-/**
- * The AniList entry of each AnimeSchedule show, as the show links it, or
- * `null` when it links none.
- *
- * Stored links are reused; a show not stored yet is looked up once, a
- * request each, since the API matches several AniList IDs only when one
- * show has them all. One linking nothing is looked up again after
- * {@link unlinkedShowLifetimeMs}, and one that cannot be looked up is left
- * out.
- */
-async function resolveAnimeScheduleShows(
-	http: HttpClient,
-	routes: readonly string[],
-): Promise<Map<string, number | null>> {
-	const unique = [...new Set(routes)];
-	if (unique.length === 0) {
-		return new Map();
-	}
-
-	const stored = await db
-		.select()
-		.from(animeScheduleShow)
-		.where(inArray(animeScheduleShow.route, unique));
-	const resolved = new Map(
-		stored.flatMap((show) =>
-			show.anilistId !== null || show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
-				? [[show.route, show.anilistId] as const]
-				: [],
-		),
-	);
-
-	for (const route of unique.filter((route) => !resolved.has(route))) {
-		const response = await attempt(
-			http.get(`${api}/anime/${encodeURIComponent(route)}`, {
-				headers,
-			}),
-		);
-		if (response.error) {
-			console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
-			continue;
-		}
-
-		const body = await attempt(response.data.json());
-		const show = AnimeSchema.safeParse(body.data);
-		if (!show.success) {
-			console.warn(`AnimeSchedule show ${route} could not be read`);
-			continue;
-		}
-
-		const link = show.data.websites?.aniList;
-		const id = link ? /anilist\.co\/anime\/(\d+)/.exec(link)?.[1] : undefined;
-		const anilistId = id ? Number(id) : null;
-
-		const values = {
-			anilistId,
-			resolvedAt: new Date(),
-		};
-		await db
-			.insert(animeScheduleShow)
-			.values({
-				route,
-				...values,
-			})
-			.onConflictDoUpdate({
-				set: values,
-				target: animeScheduleShow.route,
-			});
-		resolved.set(route, anilistId);
-	}
-
-	return resolved;
-}
-
-/** The ISO week `date` falls in, in UTC: weeks start on Monday, and week 1 holds the year's first Thursday. */
-export function isoWeek(date: Date) {
-	const thursday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-	thursday.setUTCDate(thursday.getUTCDate() + 3 - ((thursday.getUTCDay() + 6) % 7));
-	const year = thursday.getUTCFullYear();
-	return {
-		week: Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / (7 * day)) + 1,
-		year,
-	};
-}
+};

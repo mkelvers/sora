@@ -27,10 +27,10 @@ const stream: ProviderStream = {
 };
 
 /** A provider that answers with `answers`, wrapped so its calls land in `calls`. */
-function recorded(
+const recorded = (
 	answers: Partial<StreamProvider>,
 	record?: (call: ProviderCall) => Promise<void>,
-) {
+) => {
 	const calls: ProviderCall[] = [];
 	const provider = recordingCalls(
 		{
@@ -52,7 +52,7 @@ function recorded(
 		calls,
 		provider,
 	};
-}
+};
 
 /** Each recorded call as `operation:outcome`. */
 const outcomes = (calls: ProviderCall[]) =>

@@ -18,6 +18,77 @@ const maximumCandidates = 32;
 /** Below this share of matching boundaries, the encodes are not the same episode. */
 const minimumMatched = 0.5;
 
+/** The value in ascending `sorted` closest to `time`. */
+const nearest = (sorted: number[], time: number) => {
+	let low = 0;
+	let high = sorted.length;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (sorted[middle]! < time) {
+			low = middle + 1;
+		} else {
+			high = middle;
+		}
+	}
+
+	const before = sorted[low - 1] ?? -Infinity;
+	const after = sorted[low] ?? Infinity;
+	return time - before <= after - time ? before : after;
+};
+
+/** Offsets many boundary pairs agree on, most agreed first, each refined to the mean of its pairs. */
+const candidateOffsets = (source: number[], target: number[]) => {
+	const votes = new Map<number, number>();
+	for (const from of source) {
+		for (const to of target) {
+			const bucket = Math.round((to - from) * 10);
+			votes.set(bucket, (votes.get(bucket) ?? 0) + 1);
+		}
+	}
+
+	const buckets: number[] = [];
+	for (const [bucket] of [...votes]
+		.filter(([, count]) => count >= minimumVotes)
+		.sort((a, b) => b[1] - a[1])) {
+		if (buckets.length === maximumCandidates) {
+			break;
+		}
+		if (buckets.every((other) => Math.abs(other - bucket) > 3)) {
+			buckets.push(bucket);
+		}
+	}
+
+	return buckets.flatMap((bucket) => {
+		const rough = bucket / 10;
+		const pairs = source
+			.map((time) => nearest(target, time + rough) - time)
+			.filter((offset) => Math.abs(offset - rough) <= tolerance);
+		return pairs.length > 0 ? [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length] : [];
+	});
+};
+
+/**
+ * The candidate per row that matches most rows overall, paying `switchPenalty`
+ * per change (Viterbi).
+ */
+export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPenalty) => {
+	let scores = matches[0]!.map(Number);
+	const cameFrom: number[][] = [];
+
+	for (const row of matches.slice(1)) {
+		const leader = scores.indexOf(Math.max(...scores));
+		const switched = scores[leader]! - switchPenalty;
+		cameFrom.push(scores.map((stay, choice) => (stay >= switched ? choice : leader)));
+		scores = scores.map((stay, choice) => Math.max(stay, switched) + Number(row[choice]));
+	}
+
+	const path = [scores.indexOf(Math.max(...scores))];
+	for (const step of cameFrom.toReversed()) {
+		path.unshift(step[path[0]!]!);
+	}
+	return path;
+};
+
 /**
  * Maps one encode's timeline onto another's, such as a sub's onto its dub's,
  * from their HLS segment boundaries.
@@ -35,7 +106,7 @@ const minimumMatched = 0.5;
  * @returns The shifts in order of `from`, or `null` when too few boundaries
  *   match for the encodes to be the same picture.
  */
-export function alignTimelines(source: number[], target: number[]): TimelineShift[] | null {
+export const alignTimelines = (source: number[], target: number[]): TimelineShift[] | null => {
 	if (source.length === 0 || target.length === 0) {
 		return null;
 	}
@@ -68,81 +139,10 @@ export function alignTimelines(source: number[], target: number[]): TimelineShif
 		}
 	});
 	return shifts;
-}
+};
 
 /** Where a time on the source timeline lands on the target's. */
-export function shiftTime(shifts: TimelineShift[], time: number) {
+export const shiftTime = (shifts: TimelineShift[], time: number) => {
 	const shift = shifts.findLast((candidate) => candidate.from <= time) ?? shifts[0];
 	return shift ? time + shift.offset : time;
-}
-
-/** Offsets many boundary pairs agree on, most agreed first, each refined to the mean of its pairs. */
-function candidateOffsets(source: number[], target: number[]) {
-	const votes = new Map<number, number>();
-	for (const from of source) {
-		for (const to of target) {
-			const bucket = Math.round((to - from) * 10);
-			votes.set(bucket, (votes.get(bucket) ?? 0) + 1);
-		}
-	}
-
-	const buckets: number[] = [];
-	for (const [bucket] of [...votes]
-		.filter(([, count]) => count >= minimumVotes)
-		.sort((a, b) => b[1] - a[1])) {
-		if (buckets.length === maximumCandidates) {
-			break;
-		}
-		if (buckets.every((other) => Math.abs(other - bucket) > 3)) {
-			buckets.push(bucket);
-		}
-	}
-
-	return buckets.flatMap((bucket) => {
-		const rough = bucket / 10;
-		const pairs = source
-			.map((time) => nearest(target, time + rough) - time)
-			.filter((offset) => Math.abs(offset - rough) <= tolerance);
-		return pairs.length > 0 ? [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length] : [];
-	});
-}
-
-/**
- * The candidate per row that matches most rows overall, paying `switchPenalty`
- * per change (Viterbi).
- */
-export function bestPath(matches: boolean[][], switchPenalty = defaultSwitchPenalty) {
-	let scores = matches[0]!.map(Number);
-	const cameFrom: number[][] = [];
-
-	for (const row of matches.slice(1)) {
-		const leader = scores.indexOf(Math.max(...scores));
-		const switched = scores[leader]! - switchPenalty;
-		cameFrom.push(scores.map((stay, choice) => (stay >= switched ? choice : leader)));
-		scores = scores.map((stay, choice) => Math.max(stay, switched) + Number(row[choice]));
-	}
-
-	const path = [scores.indexOf(Math.max(...scores))];
-	for (const step of cameFrom.toReversed()) {
-		path.unshift(step[path[0]!]!);
-	}
-	return path;
-}
-
-/** The value in ascending `sorted` closest to `time`. */
-function nearest(sorted: number[], time: number) {
-	let low = 0;
-	let high = sorted.length;
-	while (low < high) {
-		const middle = (low + high) >> 1;
-		if (sorted[middle]! < time) {
-			low = middle + 1;
-		} else {
-			high = middle;
-		}
-	}
-
-	const before = sorted[low - 1] ?? -Infinity;
-	const after = sorted[low] ?? Infinity;
-	return time - before <= after - time ? before : after;
-}
+};

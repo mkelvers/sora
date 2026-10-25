@@ -44,7 +44,7 @@ const shortEpisodeMinutes = 15;
  *
  * @throws {@link InvalidInputError} when the window is empty or longer than 14 days.
  */
-export async function getAiringSchedule(from: Date, until: Date): Promise<ScheduledEpisode[]> {
+export const getAiringSchedule = async (from: Date, until: Date): Promise<ScheduledEpisode[]> => {
 	const windowMs = until.getTime() - from.getTime();
 	if (!(windowMs > 0 && windowMs <= maximumScheduleWindowMs)) {
 		throw new InvalidInputError("The schedule window must be between 0 and 14 days long");
@@ -128,7 +128,45 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
 				]
 			: [];
 	});
-}
+};
+
+/**
+ * One title's episodes at one time as calendar entries: one for its subbed
+ * and one for its dubbed episodes, or a single one when they are the same.
+ */
+const calendarReleases = (versions: ScheduledEpisode[]) => {
+	const audioByEpisodes = new Map<string, ("sub" | "dub")[]>();
+	for (const airType of ["sub", "dub"] as const) {
+		const numbers = versions
+			.filter((version) => version.air_type === airType)
+			.map((version) => version.episode)
+			.toSorted((left, right) => left - right);
+		if (!numbers.length) {
+			continue;
+		}
+
+		const runs: [number, number][] = [];
+		for (const number of numbers) {
+			const run = runs.at(-1);
+			if (run?.[1] === number - 1) {
+				run[1] = number;
+			} else {
+				runs.push([number, number]);
+			}
+		}
+
+		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
+			.map(([first, last]) => (first === last ? first : `${first}–${last}`))
+			.join(", ")}`;
+		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
+	}
+
+	return [...audioByEpisodes].map(([episodes, audio]) => ({
+		audio,
+		episodes,
+		series: versions[0]!.series,
+	}));
+};
 
 /**
  * A week of {@link getAiringSchedule} laid out as a calendar in a time zone:
@@ -139,7 +177,7 @@ export async function getAiringSchedule(from: Date, until: Date): Promise<Schedu
  * @param weeks - How many weeks after this one; negative for earlier weeks.
  * @throws {@link InvalidInputError} when the time zone is unknown.
  */
-export async function getCalendar(timeZone: string, weeks: number): Promise<Calendar> {
+export const getCalendar = async (timeZone: string, weeks: number): Promise<Calendar> => {
 	const today = attempt(() => Temporal.Now.plainDateISO(timeZone), RangeError);
 	if (today.error) {
 		throw new InvalidInputError(`Unknown time zone ${timeZone}`);
@@ -204,42 +242,4 @@ export async function getCalendar(timeZone: string, weeks: number): Promise<Cale
 			year: "numeric",
 		}).formatRange(monday, sunday),
 	};
-}
-
-/**
- * One title's episodes at one time as calendar entries: one for its subbed
- * and one for its dubbed episodes, or a single one when they are the same.
- */
-function calendarReleases(versions: ScheduledEpisode[]) {
-	const audioByEpisodes = new Map<string, ("sub" | "dub")[]>();
-	for (const airType of ["sub", "dub"] as const) {
-		const numbers = versions
-			.filter((version) => version.air_type === airType)
-			.map((version) => version.episode)
-			.toSorted((left, right) => left - right);
-		if (!numbers.length) {
-			continue;
-		}
-
-		const runs: [number, number][] = [];
-		for (const number of numbers) {
-			const run = runs.at(-1);
-			if (run?.[1] === number - 1) {
-				run[1] = number;
-			} else {
-				runs.push([number, number]);
-			}
-		}
-
-		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
-			.map(([first, last]) => (first === last ? first : `${first}–${last}`))
-			.join(", ")}`;
-		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
-	}
-
-	return [...audioByEpisodes].map(([episodes, audio]) => ({
-		audio,
-		episodes,
-		series: versions[0]!.series,
-	}));
-}
+};

@@ -53,6 +53,6 @@ export async function migrateDatabase() {
 }
 
 /** Closes the connection pool so the process can exit cleanly. */
-export async function closeDatabase() {
+export const closeDatabase = async () => {
 	await db.$client.close();
-}
+};

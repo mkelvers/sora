@@ -7,7 +7,7 @@ import type { AiringState } from "./airing-plan";
 
 const now = new Date("2026-09-23T12:00:00Z");
 
-function state(overrides: Partial<AiringState>): AiringState {
+const state = (overrides: Partial<AiringState>): AiringState => {
 	return {
 		latestAiredEpisode: null,
 		latestReleasedEpisode: null,
@@ -16,7 +16,7 @@ function state(overrides: Partial<AiringState>): AiringState {
 		status: "RELEASING",
 		...overrides,
 	};
-}
+};
 
 const fresh = {
 	attempt: 0,

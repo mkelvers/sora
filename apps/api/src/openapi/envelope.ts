@@ -7,15 +7,15 @@ import type { PreparingTitle } from "@sora/core/contract";
  * as paging, under `meta`, and what was asked for under `results`.
  * `results` is an object for one resource and an array for a list.
  */
-export function envelopeOf<TResults extends z.ZodType, TMeta extends z.ZodType>(
+export const envelopeOf = <TResults extends z.ZodType, TMeta extends z.ZodType>(
 	results: TResults,
 	meta: TMeta,
-) {
+) => {
 	return z.object({
 		meta,
 		results,
 	});
-}
+};
 
 /** Paging for a list that has more than one page. */
 export const PageMetaSchema = z
@@ -59,14 +59,14 @@ export const OffsetMetaSchema = z
 	.openapi("OffsetMeta");
 
 /** The links to the `limit` items either side of the ones from `offset`, keeping the rest of the query. */
-export function offsetLinks(
+export const offsetLinks = (
 	url: string,
 	page: {
 		offset: number;
 		limit: number;
 		total: number;
 	},
-) {
+) => {
 	const link = (offset: number) => {
 		const target = new URL(url);
 		target.searchParams.set("offset", String(offset));
@@ -77,7 +77,7 @@ export function offsetLinks(
 		next: page.offset + page.limit < page.total ? link(page.offset + page.limit) : null,
 		previous: page.offset > 0 ? link(Math.max(page.offset - page.limit, 0)) : null,
 	};
-}
+};
 
 /** The size of a list that is always returned whole. */
 export const CountMetaSchema = z
@@ -90,7 +90,7 @@ export const CountMetaSchema = z
  * The meta of a page: its paging, and links to the pages next to it that
  * keep the rest of the request's query.
  */
-export function pageMeta(
+export const pageMeta = (
 	url: string,
 	page: {
 		page: number;
@@ -99,7 +99,7 @@ export function pageMeta(
 		isPreparing: boolean;
 		preparing?: PreparingTitle[];
 	},
-): z.infer<typeof PageMetaSchema> {
+): z.infer<typeof PageMetaSchema> => {
 	const pageUrl = (number: number) => {
 		const target = new URL(url);
 		target.searchParams.set("page", String(number));
@@ -115,4 +115,4 @@ export function pageMeta(
 		preparing_titles: page.preparing ?? [],
 		previous: page.page > 1 ? pageUrl(page.page - 1) : null,
 	};
-}
+};

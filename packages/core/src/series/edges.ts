@@ -48,89 +48,7 @@ export const effectiveStill = sql<
 	string | null
 >`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
-/**
- * Measures the edges of a series' backdrop as readers see it, unless they
- * are stored already. See {@link storeImageEdges}.
- */
-export async function storeBackdropEdges(seriesId: string): Promise<boolean> {
-	const [row] = await db
-		.select({
-			url: effectiveBackdrop,
-		})
-		.from(series)
-		.where(eq(series.id, seriesId))
-		.limit(1);
-
-	return row?.url ? storeImageEdges(row.url) : false;
-}
-
-/**
- * Measures every backdrop readers see whose edges are not stored, such as
- * those that failed to load when their series was stored. Returns how many
- * were stored and how many failed again.
- */
-export async function storeMissingBackdropEdges(): Promise<{
-	stored: number;
-	failed: number;
-}> {
-	const rows = await db
-		.selectDistinct({
-			url: effectiveBackdrop,
-		})
-		.from(series)
-		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
-		.where(isNull(imageEdge.url));
-
-	let stored = 0;
-	for (const { url } of rows) {
-		if (url && (await storeImageEdges(url))) {
-			stored += 1;
-		}
-	}
-
-	return {
-		failed: rows.filter((row) => row.url).length - stored,
-		stored,
-	};
-}
-
-/**
- * Measures the average colour down an image's left and right edges and
- * stores it under the image's URL, unless it is stored already. Returns
- * whether it is stored.
- *
- * Never throws: an image that fails to load or decode is left for
- * {@link storeMissingBackdropEdges} to measure again.
- */
-async function storeImageEdges(url: string): Promise<boolean> {
-	const [stored] = await db
-		.select({
-			url: imageEdge.url,
-		})
-		.from(imageEdge)
-		.where(eq(imageEdge.url, url))
-		.limit(1);
-	if (stored) {
-		return true;
-	}
-
-	const { data, error } = await attempt(measureEdges(url));
-	if (error) {
-		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
-		return false;
-	}
-
-	await db
-		.insert(imageEdge)
-		.values({
-			url,
-			...data,
-		})
-		.onConflictDoNothing();
-	return true;
-}
-
-async function measureEdges(url: string): Promise<ImageEdges> {
+const measureEdges = async (url: string): Promise<ImageEdges> => {
 	const small = url.replace(/(\/image\.tmdb\.org\/t\/p\/)[^/]+/, `$1w${measuredWidth}`);
 	const response = await fetch(small, {
 		signal: AbortSignal.timeout(10_000),
@@ -175,4 +93,86 @@ async function measureEdges(url: string): Promise<ImageEdges> {
 		left: average(0),
 		right: average(info.width - edgeColumns),
 	};
-}
+};
+
+/**
+ * Measures the average colour down an image's left and right edges and
+ * stores it under the image's URL, unless it is stored already. Returns
+ * whether it is stored.
+ *
+ * Never throws: an image that fails to load or decode is left for
+ * {@link storeMissingBackdropEdges} to measure again.
+ */
+const storeImageEdges = async (url: string): Promise<boolean> => {
+	const [stored] = await db
+		.select({
+			url: imageEdge.url,
+		})
+		.from(imageEdge)
+		.where(eq(imageEdge.url, url))
+		.limit(1);
+	if (stored) {
+		return true;
+	}
+
+	const { data, error } = await attempt(measureEdges(url));
+	if (error) {
+		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
+		return false;
+	}
+
+	await db
+		.insert(imageEdge)
+		.values({
+			url,
+			...data,
+		})
+		.onConflictDoNothing();
+	return true;
+};
+
+/**
+ * Measures the edges of a series' backdrop as readers see it, unless they
+ * are stored already. See {@link storeImageEdges}.
+ */
+export const storeBackdropEdges = async (seriesId: string): Promise<boolean> => {
+	const [row] = await db
+		.select({
+			url: effectiveBackdrop,
+		})
+		.from(series)
+		.where(eq(series.id, seriesId))
+		.limit(1);
+
+	return row?.url ? storeImageEdges(row.url) : false;
+};
+
+/**
+ * Measures every backdrop readers see whose edges are not stored, such as
+ * those that failed to load when their series was stored. Returns how many
+ * were stored and how many failed again.
+ */
+export const storeMissingBackdropEdges = async (): Promise<{
+	stored: number;
+	failed: number;
+}> => {
+	const rows = await db
+		.selectDistinct({
+			url: effectiveBackdrop,
+		})
+		.from(series)
+		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
+		.where(isNull(imageEdge.url));
+
+	let stored = 0;
+	for (const { url } of rows) {
+		if (url && (await storeImageEdges(url))) {
+			stored += 1;
+		}
+	}
+
+	return {
+		failed: rows.filter((row) => row.url).length - stored,
+		stored,
+	};
+};

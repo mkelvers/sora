@@ -25,7 +25,7 @@ import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
  *   has the entry.
  * @throws when AniKoto fails.
  */
-async function refreshAniKotoEpisodes(anilistId: number): Promise<ProviderUnit[] | null> {
+const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[] | null> => {
 	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
 	if (error) {
 		return null;
@@ -42,7 +42,7 @@ async function refreshAniKotoEpisodes(anilistId: number): Promise<ProviderUnit[]
 	}
 
 	return units;
-}
+};
 
 /**
  * How far back {@link pickUpAniKotoChanges} reads AniKoto's changes: past
@@ -57,34 +57,7 @@ let lastLook: {
 	done: Promise<void>;
 } | null = null;
 
-/**
- * Fetches again the AniKoto episode lists of stored entries whose AniKoto
- * series changed since their list was last fetched, or, for an entry
- * AniKoto did not carry, since it was last looked for.
- *
- * AniKoto's changes (see {@link readRecentAniKotoChanges}) cost one
- * request, or a few after a burst, however many series changed. A new
- * episode changes its series, and so does a new dub, though not its
- * episode: Daemons of the Shadow Realm, finished a week earlier, changed 20
- * minutes after its episode 23 dub was out.
- *
- * Looks within a minute of one another, such as those for several episodes
- * that aired together, share one.
- */
-async function pickUpAniKotoChanges(logger: Parameters<Task>[1]["logger"]) {
-	if (lastLook && Date.now() - lastLook.startedAt < minute) {
-		return lastLook.done;
-	}
-
-	const done = readAndRefresh(logger);
-	lastLook = {
-		done,
-		startedAt: Date.now(),
-	};
-	return done;
-}
-
-async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
+const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 	const changes = await readRecentAniKotoChanges(
 		providerHttp,
 		new Date(Date.now() - changeWindowMs),
@@ -167,7 +140,34 @@ async function readAndRefresh(logger: Parameters<Task>[1]["logger"]) {
 		}
 		logger.info(`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`);
 	}
-}
+};
+
+/**
+ * Fetches again the AniKoto episode lists of stored entries whose AniKoto
+ * series changed since their list was last fetched, or, for an entry
+ * AniKoto did not carry, since it was last looked for.
+ *
+ * AniKoto's changes (see {@link readRecentAniKotoChanges}) cost one
+ * request, or a few after a burst, however many series changed. A new
+ * episode changes its series, and so does a new dub, though not its
+ * episode: Daemons of the Shadow Realm, finished a week earlier, changed 20
+ * minutes after its episode 23 dub was out.
+ *
+ * Looks within a minute of one another, such as those for several episodes
+ * that aired together, share one.
+ */
+const pickUpAniKotoChanges = async (logger: Parameters<Task>[1]["logger"]) => {
+	if (lastLook && Date.now() - lastLook.startedAt < minute) {
+		return lastLook.done;
+	}
+
+	const done = readAndRefresh(logger);
+	lastLook = {
+		done,
+		startedAt: Date.now(),
+	};
+	return done;
+};
 
 /** The graphile-worker task that picks up what AniKoto changed. */
 export const watchAniKotoReleasesTask = "watch-anikoto-releases";

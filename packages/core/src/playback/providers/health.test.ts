@@ -7,7 +7,7 @@ const now = new Date("2026-09-25T16:40:00Z");
 const hoursAgo = (hours: number) => new Date(Date.UTC(2026, 8, 25, 16 - hours));
 
 /** A row for `provider`'s `operation` with no calls and nothing on record, overridden by `fields`. */
-function row(provider: string, operation: string, fields: Partial<OperationRow>): OperationRow {
+const row = (provider: string, operation: string, fields: Partial<OperationRow>): OperationRow => {
 	return {
 		durationMs: 0,
 		empty: 0,
@@ -21,7 +21,7 @@ function row(provider: string, operation: string, fields: Partial<OperationRow>)
 		recentCalls: 0,
 		...fields,
 	};
-}
+};
 
 const statusOf = (rows: OperationRow[]) => summarizeHealth(["anikoto"], rows, now)[0]?.status;
 

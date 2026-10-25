@@ -25,7 +25,7 @@ interface RateLimitOptions {
  *
  * `Retry-After` says how many seconds remain in the window.
  */
-export function rateLimit({ limit, windowMs, key }: RateLimitOptions) {
+export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 	const windows = new Map<
 		string,
 		{
@@ -68,4 +68,4 @@ export function rateLimit({ limit, windowMs, key }: RateLimitOptions) {
 
 		await next();
 	});
-}
+};

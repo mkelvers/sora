@@ -79,6 +79,12 @@ export class LastProfileError extends CoreError {
 	}
 }
 
+/** One provider's reason for not serving a stream. */
+export interface ProviderAttempt {
+	provider: string;
+	reason: string;
+}
+
 /**
  * Every configured provider failed to produce a playable stream.
  *
@@ -92,12 +98,6 @@ export class PlaybackUnavailableError extends CoreError {
 		super("PLAYBACK_UNAVAILABLE", `No provider could play series ${seriesId} episode ${episode}`);
 		this.attempts = attempts;
 	}
-}
-
-/** One provider's reason for not serving a stream. */
-export interface ProviderAttempt {
-	provider: string;
-	reason: string;
 }
 
 /**

@@ -23,7 +23,7 @@ const anikoto: ProviderHealth = {
 
 const signedIn = async () => true;
 
-async function probe(routes: ReturnType<typeof healthRoutes>) {
+const probe = async (routes: ReturnType<typeof healthRoutes>) => {
 	const response = await routes.request("/");
 	return {
 		body: (await response.json()) as {
@@ -32,7 +32,7 @@ async function probe(routes: ReturnType<typeof healthRoutes>) {
 		},
 		status: response.status,
 	};
-}
+};
 
 describe("/health", () => {
 	test("stays ok while a provider fails, and reports providers in snake_case without error messages", async () => {

@@ -37,7 +37,7 @@ const ListEntrySchema = z.object({
 });
 
 /** The TMDB titles hinted for an AniList entry, or `null` when there are none. */
-export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
+export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> => {
 	const [row] = await db
 		.select({
 			movieIds: tmdbHint.movieIds,
@@ -55,7 +55,7 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
 				showId: row.showId,
 			}
 		: null;
-}
+};
 
 /**
  * Reads the list's hints by AniList ID.
@@ -66,7 +66,7 @@ export async function tmdbHintFor(anilistId: number): Promise<TmdbHint | null> {
  *
  * @throws {@link TypeError} when `list` is not an array.
  */
-export function parseTmdbHints(list: unknown): Map<number, TmdbHint> {
+export const parseTmdbHints = (list: unknown): Map<number, TmdbHint> => {
 	if (!Array.isArray(list)) {
 		throw new TypeError("The Fribb/anime-lists list is not an array");
 	}
@@ -90,7 +90,63 @@ export function parseTmdbHints(list: unknown): Map<number, TmdbHint> {
 	}
 
 	return hints;
-}
+};
+
+/**
+ * Downloads Fribb/anime-lists' merged list, minified. Its generator rebuilds
+ * it about weekly from anime-offline-database, which links AniList to AniDB,
+ * and the Anime-Lists project, which links AniDB to TMDB.
+ */
+const downloadHints = async () => {
+	const response = await attempt(
+		fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
+			signal: AbortSignal.timeout(60_000),
+		}),
+	);
+	if (response.error) {
+		throw new UpstreamUnavailableError(
+			"GitHub could not be reached for the Fribb/anime-lists list",
+			{
+				cause: response.error,
+				retryAfterMs: null,
+			},
+		);
+	}
+	if (!response.data.ok) {
+		throw new UpstreamUnavailableError(
+			`GitHub answered ${response.data.status} for the Fribb/anime-lists list`,
+			{
+				retryAfterMs: null,
+			},
+		);
+	}
+
+	const list = await attempt(response.data.json());
+	if (list.error) {
+		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
+			cause: list.error,
+			retryAfterMs: null,
+		});
+	}
+
+	const hints = attempt(() => parseTmdbHints(list.data), TypeError);
+	if (hints.error) {
+		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
+			cause: hints.error,
+			retryAfterMs: null,
+		});
+	}
+	return hints.data;
+};
+
+const sameHint = (left: TmdbHint | undefined, right: TmdbHint) => {
+	return (
+		left !== undefined &&
+		left.showId === right.showId &&
+		left.movieIds.length === right.movieIds.length &&
+		left.movieIds.every((id, index) => id === right.movieIds[index])
+	);
+};
 
 /**
  * Brings the stored hints in line with the current list: new and changed
@@ -101,7 +157,7 @@ export function parseTmdbHints(list: unknown): Map<number, TmdbHint> {
  *   or read, or holds far fewer hints than are stored; the stored hints are
  *   then kept as they are.
  */
-export async function syncTmdbHints(): Promise<number[]> {
+export const syncTmdbHints = async (): Promise<number[]> => {
 	const fetched = await downloadHints();
 	const storedRows = await db.select().from(tmdbHint);
 	const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));
@@ -146,60 +202,4 @@ export async function syncTmdbHints(): Promise<number[]> {
 	});
 
 	return [...changed.map(([anilistId]) => anilistId), ...removed];
-}
-
-/**
- * Downloads Fribb/anime-lists' merged list, minified. Its generator rebuilds
- * it about weekly from anime-offline-database, which links AniList to AniDB,
- * and the Anime-Lists project, which links AniDB to TMDB.
- */
-async function downloadHints() {
-	const response = await attempt(
-		fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
-			signal: AbortSignal.timeout(60_000),
-		}),
-	);
-	if (response.error) {
-		throw new UpstreamUnavailableError(
-			"GitHub could not be reached for the Fribb/anime-lists list",
-			{
-				cause: response.error,
-				retryAfterMs: null,
-			},
-		);
-	}
-	if (!response.data.ok) {
-		throw new UpstreamUnavailableError(
-			`GitHub answered ${response.data.status} for the Fribb/anime-lists list`,
-			{
-				retryAfterMs: null,
-			},
-		);
-	}
-
-	const list = await attempt(response.data.json());
-	if (list.error) {
-		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
-			cause: list.error,
-			retryAfterMs: null,
-		});
-	}
-
-	const hints = attempt(() => parseTmdbHints(list.data), TypeError);
-	if (hints.error) {
-		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
-			cause: hints.error,
-			retryAfterMs: null,
-		});
-	}
-	return hints.data;
-}
-
-function sameHint(left: TmdbHint | undefined, right: TmdbHint) {
-	return (
-		left !== undefined &&
-		left.showId === right.showId &&
-		left.movieIds.length === right.movieIds.length &&
-		left.movieIds.every((id, index) => id === right.movieIds[index])
-	);
-}
+};

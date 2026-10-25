@@ -47,7 +47,7 @@ export const ProblemSchema = z
 export type Problem = z.infer<typeof ProblemSchema>;
 
 /** A problem response for the given status, for route definitions. */
-export function problem(description: string) {
+export const problem = (description: string) => {
 	return {
 		content: {
 			"application/problem+json": {
@@ -56,10 +56,10 @@ export function problem(description: string) {
 		},
 		description,
 	};
-}
+};
 
 /** A JSON response for the given schema, for route definitions. */
-export function json<TSchema extends z.ZodType>(schema: TSchema, description: string) {
+export const json = <TSchema extends z.ZodType>(schema: TSchema, description: string) => {
 	return {
 		content: {
 			"application/json": {
@@ -68,7 +68,7 @@ export function json<TSchema extends z.ZodType>(schema: TSchema, description: st
 		},
 		description,
 	};
-}
+};
 
 export const SeriesIdParam = z.string().openapi({
 	description: "Sora series ID.",

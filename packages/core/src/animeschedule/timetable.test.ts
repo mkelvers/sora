@@ -30,13 +30,13 @@ beforeEach(() => {
 });
 
 /** A timetable entry as AnimeSchedule's API sends it, trimmed to a few of its fields. */
-function entry(
+const entry = (
 	route: string,
 	episodeNumber: number,
 	episodeDate: string,
 	airType = "raw",
 	airingStatus = "unaired",
-) {
+) => {
 	return {
 		airType,
 		airingStatus,
@@ -46,7 +46,7 @@ function entry(
 		route,
 		title: route,
 	};
-}
+};
 
 describe("fetchTimetable", () => {
 	test("asks for the week's whole timetable in UTC with the app's token", async () => {

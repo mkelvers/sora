@@ -13,7 +13,7 @@ const minimumEpisodes = 3;
  * The length the most episodes report, to the second. `null` with too few
  * episodes, or when two lengths are tied for most.
  */
-export function usualLength(lengths: number[]) {
+export const usualLength = (lengths: number[]) => {
 	if (lengths.length < minimumEpisodes) {
 		return null;
 	}
@@ -26,10 +26,10 @@ export function usualLength(lengths: number[]) {
 
 	const [first, second] = [...counts].sort((left, right) => right[1] - left[1]);
 	return first && first[1] !== second?.[1] ? first[0] : null;
-}
+};
 
 /** A segment brought to `usual` seconds from its start, whatever its length is now. */
-export function withLength(segment: SkipSegment, usual: number | null): SkipSegment {
+export const withLength = (segment: SkipSegment, usual: number | null): SkipSegment => {
 	if (usual === null || Math.round(segment.end - segment.start) === usual) {
 		return segment;
 	}
@@ -38,7 +38,7 @@ export function withLength(segment: SkipSegment, usual: number | null): SkipSegm
 		...segment,
 		end: segment.start + usual,
 	};
-}
+};
 
 /** How many sibling episodes are asked of a provider at once. */
 const learnConcurrency = 6;
@@ -61,13 +61,13 @@ export interface SkipSource {
  * episode has no segment of is remembered as 0, so the episode counts as seen.
  * With `keep`, a length already stored stays.
  */
-async function remember(
+const remember = async (
 	seriesId: string,
 	episode: number,
 	audio: ContentLanguage,
 	segments: SkipSegment[],
 	keep: boolean,
-) {
+) => {
 	await db
 		.insert(skipSegmentLength)
 		.values(
@@ -93,18 +93,18 @@ async function remember(
 				skipSegmentLength.episode,
 			],
 		});
-}
+};
 
 /**
  * Asks the provider for the episodes of the series not yet remembered, so a
  * series whose episodes were never played has a usual length from the first.
  */
-async function learn(
+const learn = async (
 	seriesId: string,
 	episode: number,
 	audio: ContentLanguage,
 	source: SkipSource,
-) {
+) => {
 	const seen = await db
 		.selectDistinct({
 			episode: skipSegmentLength.episode,
@@ -126,7 +126,7 @@ async function learn(
 		new Promise((resolve) => setTimeout(resolve, learnDeadlineMs)),
 	]);
 	queue.length = 0;
-}
+};
 
 /**
  * Remembers the length of an episode's segments and brings each to the
@@ -141,13 +141,13 @@ async function learn(
  * Lengths are remembered as reported, so the usual one never follows an
  * earlier correction.
  */
-export async function normalizeSkipSegments(
+export const normalizeSkipSegments = async (
 	seriesId: string,
 	episode: number,
 	audio: ContentLanguage,
 	segments: SkipSegment[],
 	source?: SkipSource,
-) {
+) => {
 	await remember(seriesId, episode, audio, segments, false);
 	if (segments.length === 0) {
 		return segments;
@@ -175,4 +175,4 @@ export async function normalizeSkipSegments(
 			return withLength(segment, usualLength(rows.map((row) => row.seconds)));
 		}),
 	);
-}
+};

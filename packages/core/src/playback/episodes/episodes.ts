@@ -30,6 +30,124 @@ const ProviderUnitsSchema = z.array(
 );
 
 /**
+ * Records the dubs in AniKoto's episode list of an anime that are not
+ * recorded yet, before the list replaces the stored one.
+ *
+ * A dub that appeared on an episode the stored list already had came out
+ * now. One nobody saw come out has no time: the list is the first stored
+ * for the anime, or the dub arrived together with its episode, which the
+ * episode coming out already tells.
+ */
+const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now: Date) => {
+	const dubbed = units.filter(
+		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
+	);
+	if (dubbed.length === 0) {
+		return;
+	}
+
+	const [recorded, [stored]] = await Promise.all([
+		db
+			.select({
+				episode: episodeDub.episode,
+			})
+			.from(episodeDub)
+			.where(eq(episodeDub.anilistId, anilistId)),
+		db
+			.select({
+				units: providerEpisodes.units,
+			})
+			.from(providerEpisodes)
+			.where(
+				and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, aniKoto.id)),
+			)
+			.limit(1),
+	]);
+	const known = new Set(recorded.map((row) => row.episode));
+	const previous = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+	const carried = new Set(previous?.success ? previous.data.map((unit) => unit.number) : []);
+
+	const fresh = dubbed.filter((unit) => !known.has(unit.number));
+	if (fresh.length > 0) {
+		await db
+			.insert(episodeDub)
+			.values(
+				fresh.map((unit) => ({
+					anilistId,
+					episode: unit.number,
+					releasedAt: carried.has(unit.number) ? now : null,
+				})),
+			)
+			.onConflictDoNothing();
+	}
+};
+
+/**
+ * Fetches `provider`'s episode units for `anime` and stores them, replacing
+ * any stored list.
+ *
+ * Nothing is stored when the provider does not carry the anime, so a later
+ * request asks again once the provider mapping is retried.
+ *
+ * @param options.retryUnmatched - Search the provider's catalogue again even
+ *   if it recently had no match, for anime that may have just premiered.
+ * @throws when the provider itself fails.
+ */
+export const refreshProviderUnits = async (
+	anime: Anime,
+	provider: StreamProvider,
+	options: {
+		retryUnmatched: boolean;
+	},
+): Promise<ProviderUnit[]> => {
+	const media = await getProviderMedia(anime, provider, options);
+	if (!media) {
+		return [];
+	}
+
+	const { mediaId, episodeOffset } = media;
+	const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
+		// A part filed under its prequel's series keeps only its own episodes,
+		// numbered from 1; a later part may follow them in the same series.
+		.filter(
+			(unit) =>
+				episodeOffset === 0 ||
+				(unit.number > episodeOffset &&
+					(anime.episodes === null || unit.number <= episodeOffset + anime.episodes)),
+		)
+		.map((unit) => ({
+			id: unit.id,
+			isFiller: unit.isFiller,
+			languages: unit.languages,
+			number: unit.number - episodeOffset,
+			title: unit.title,
+		}))
+		.sort((left, right) => left.number - right.number);
+
+	const values = {
+		fetchedAt: new Date(),
+		units,
+	};
+	if (provider.id === aniKoto.id) {
+		await recordDubs(anime.id, units, values.fetchedAt);
+	}
+
+	await db
+		.insert(providerEpisodes)
+		.values({
+			anilistId: anime.id,
+			provider: provider.id,
+			...values,
+		})
+		.onConflictDoUpdate({
+			set: values,
+			target: [providerEpisodes.anilistId, providerEpisodes.provider],
+		});
+
+	return units;
+};
+
+/**
  * Returns `provider`'s episode units for `anime`.
  *
  * A stored list is served as is: the airing scheduler refreshes the lists of
@@ -38,10 +156,10 @@ const ProviderUnitsSchema = z.array(
  *
  * @throws when the provider itself fails; callers decide whether to fall back.
  */
-export async function getProviderUnits(
+export const getProviderUnits = async (
 	anime: Anime,
 	provider: StreamProvider,
-): Promise<ProviderUnit[]> {
+): Promise<ProviderUnit[]> => {
 	const [stored] = await db
 		.select({
 			units: providerEpisodes.units,
@@ -60,7 +178,7 @@ export async function getProviderUnits(
 	return refreshProviderUnits(anime, provider, {
 		retryUnmatched: false,
 	});
-}
+};
 
 /** What is stored about one provider's episodes of one anime. */
 export interface StoredUnits {
@@ -77,10 +195,10 @@ export interface StoredUnits {
  *
  * @param providers - Reads only these providers' lists, which skips parsing the others.
  */
-export async function getStoredUnits(
+export const getStoredUnits = async (
 	anilistIds: readonly number[],
 	providers?: readonly string[],
-): Promise<StoredUnits[]> {
+): Promise<StoredUnits[]> => {
 	if (anilistIds.length === 0) {
 		return [];
 	}
@@ -129,122 +247,4 @@ export async function getStoredUnits(
 			units: [],
 		})),
 	];
-}
-
-/**
- * Fetches `provider`'s episode units for `anime` and stores them, replacing
- * any stored list.
- *
- * Nothing is stored when the provider does not carry the anime, so a later
- * request asks again once the provider mapping is retried.
- *
- * @param options.retryUnmatched - Search the provider's catalogue again even
- *   if it recently had no match, for anime that may have just premiered.
- * @throws when the provider itself fails.
- */
-export async function refreshProviderUnits(
-	anime: Anime,
-	provider: StreamProvider,
-	options: {
-		retryUnmatched: boolean;
-	},
-): Promise<ProviderUnit[]> {
-	const media = await getProviderMedia(anime, provider, options);
-	if (!media) {
-		return [];
-	}
-
-	const { mediaId, episodeOffset } = media;
-	const units: ProviderUnit[] = (await provider.listEpisodes(mediaId))
-		// A part filed under its prequel's series keeps only its own episodes,
-		// numbered from 1; a later part may follow them in the same series.
-		.filter(
-			(unit) =>
-				episodeOffset === 0 ||
-				(unit.number > episodeOffset &&
-					(anime.episodes === null || unit.number <= episodeOffset + anime.episodes)),
-		)
-		.map((unit) => ({
-			id: unit.id,
-			isFiller: unit.isFiller,
-			languages: unit.languages,
-			number: unit.number - episodeOffset,
-			title: unit.title,
-		}))
-		.sort((left, right) => left.number - right.number);
-
-	const values = {
-		fetchedAt: new Date(),
-		units,
-	};
-	if (provider.id === aniKoto.id) {
-		await recordDubs(anime.id, units, values.fetchedAt);
-	}
-
-	await db
-		.insert(providerEpisodes)
-		.values({
-			anilistId: anime.id,
-			provider: provider.id,
-			...values,
-		})
-		.onConflictDoUpdate({
-			set: values,
-			target: [providerEpisodes.anilistId, providerEpisodes.provider],
-		});
-
-	return units;
-}
-
-/**
- * Records the dubs in AniKoto's episode list of an anime that are not
- * recorded yet, before the list replaces the stored one.
- *
- * A dub that appeared on an episode the stored list already had came out
- * now. One nobody saw come out has no time: the list is the first stored
- * for the anime, or the dub arrived together with its episode, which the
- * episode coming out already tells.
- */
-async function recordDubs(anilistId: number, units: readonly ProviderUnit[], now: Date) {
-	const dubbed = units.filter(
-		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
-	);
-	if (dubbed.length === 0) {
-		return;
-	}
-
-	const [recorded, [stored]] = await Promise.all([
-		db
-			.select({
-				episode: episodeDub.episode,
-			})
-			.from(episodeDub)
-			.where(eq(episodeDub.anilistId, anilistId)),
-		db
-			.select({
-				units: providerEpisodes.units,
-			})
-			.from(providerEpisodes)
-			.where(
-				and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, aniKoto.id)),
-			)
-			.limit(1),
-	]);
-	const known = new Set(recorded.map((row) => row.episode));
-	const previous = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
-	const carried = new Set(previous?.success ? previous.data.map((unit) => unit.number) : []);
-
-	const fresh = dubbed.filter((unit) => !known.has(unit.number));
-	if (fresh.length > 0) {
-		await db
-			.insert(episodeDub)
-			.values(
-				fresh.map((unit) => ({
-					anilistId,
-					episode: unit.number,
-					releasedAt: carried.has(unit.number) ? now : null,
-				})),
-			)
-			.onConflictDoNothing();
-	}
-}
+};

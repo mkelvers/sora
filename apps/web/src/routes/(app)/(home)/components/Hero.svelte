@@ -27,11 +27,11 @@
 
 	let held = $state(-1);
 
-	function near(index: number, active: number) {
+	const near = (index: number, active: number) => {
 		return [0, 1, featured.length - 1].includes(
 			(index - active + featured.length) % featured.length,
 		);
-	}
+	};
 </script>
 
 {#if featured.length}

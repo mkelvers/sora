@@ -25,7 +25,9 @@ const storeLockKey = 0x5e_71_e5;
 const episodeInsertBatch = 1000;
 
 /** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
-export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Map<number, string>> {
+export const storedSeriesIds = async (
+	anilistIds: readonly number[],
+): Promise<Map<number, string>> => {
 	if (anilistIds.length === 0) {
 		return new Map();
 	}
@@ -39,7 +41,36 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
 		.where(inArray(series.anilistId, [...new Set(anilistIds)]));
 
 	return new Map(rows.map((row) => [row.anilistId, row.id]));
-}
+};
+
+/**
+ * The entries among `anilistIds` that are not stored yet and are worth
+ * storing as titles of a franchise: those AniKoto carries, which can be
+ * watched, and those airing or yet to come out, which will be. Storing every
+ * related entry would follow AniList's relations through specials and
+ * extras nothing streams.
+ */
+const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<number[]> => {
+	if (anilistIds.length === 0) {
+		return [];
+	}
+
+	const stored = await storedSeriesIds(anilistIds);
+	const rows = await db
+		.select({
+			anilistId: animeSearch.anilistId,
+		})
+		.from(animeSearch)
+		.where(
+			and(
+				inArray(animeSearch.anilistId, [...new Set(anilistIds)]),
+				not(animeSearch.isAdult),
+				sql`${animeSearch.format} is distinct from 'MUSIC'`,
+				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
+			),
+		);
+	return rows.map((row) => row.anilistId).filter((anilistId) => !stored.has(anilistId));
+};
 
 /**
  * Lays out an AniList entry as a series and stores it, replacing the stored
@@ -60,7 +91,7 @@ export async function storedSeriesIds(anilistIds: readonly number[]): Promise<Ma
  *   belongs to adult media.
  * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
  */
-export async function storeSeries(anilistId: number): Promise<string> {
+export const storeSeries = async (anilistId: number): Promise<string> => {
 	const built = await buildSeries(anilistId);
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);
@@ -166,33 +197,4 @@ export async function storeSeries(anilistId: number): Promise<string> {
 	}
 
 	return seriesId;
-}
-
-/**
- * The entries among `anilistIds` that are not stored yet and are worth
- * storing as titles of a franchise: those AniKoto carries, which can be
- * watched, and those airing or yet to come out, which will be. Storing every
- * related entry would follow AniList's relations through specials and
- * extras nothing streams.
- */
-async function relatedWorthStoring(anilistIds: readonly number[]): Promise<number[]> {
-	if (anilistIds.length === 0) {
-		return [];
-	}
-
-	const stored = await storedSeriesIds(anilistIds);
-	const rows = await db
-		.select({
-			anilistId: animeSearch.anilistId,
-		})
-		.from(animeSearch)
-		.where(
-			and(
-				inArray(animeSearch.anilistId, [...new Set(anilistIds)]),
-				not(animeSearch.isAdult),
-				sql`${animeSearch.format} is distinct from 'MUSIC'`,
-				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
-			),
-		);
-	return rows.map((row) => row.anilistId).filter((anilistId) => !stored.has(anilistId));
-}
+};

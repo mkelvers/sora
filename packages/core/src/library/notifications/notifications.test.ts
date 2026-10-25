@@ -7,13 +7,13 @@ const monday = new Date("2026-09-28T15:00:00Z");
 const tuesday = new Date("2026-09-29T15:00:00Z");
 
 /** Episodes `from` to `to` of a series, released at `releasedAt`. */
-function released(
+const released = (
 	seriesId: string,
 	from: number,
 	to: number,
 	releasedAt: Date,
 	overrides: Partial<ReleasedEpisode> = {},
-): ReleasedEpisode[] {
+): ReleasedEpisode[] => {
 	return Array.from(
 		{
 			length: to - from + 1,
@@ -29,7 +29,7 @@ function released(
 			...overrides,
 		}),
 	);
-}
+};
 
 describe("groupNotifications", () => {
 	test("makes one notification of the episodes of a series that came out together", () => {

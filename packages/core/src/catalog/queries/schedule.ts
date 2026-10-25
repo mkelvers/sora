@@ -29,9 +29,9 @@ const airingsBatchSize = 50;
  * @returns Broadcast times keyed by {@link anilistEpisodeKey}.
  * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
  */
-export async function fetchEpisodeAirings(
+export const fetchEpisodeAirings = async (
 	anilistIds: readonly number[],
-): Promise<Map<string, Date>> {
+): Promise<Map<string, Date>> => {
 	const ids = [...new Set(anilistIds)];
 	const airings = new Map<string, Date>();
 	for (let offset = 0; offset < ids.length; offset += airingsBatchSize) {
@@ -64,4 +64,4 @@ export async function fetchEpisodeAirings(
 	}
 
 	return airings;
-}
+};

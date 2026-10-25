@@ -17,6 +17,31 @@ import { readCues } from "./vtt";
 /** A track with fewer cues than this is not a script to match speech against. */
 const minimumCues = 40;
 
+/** The cues of the sub's English dialogue track, or none when it has no such track. */
+const englishDialogue = async (
+	videos: NonNullable<Awaited<ReturnType<typeof resolveStreams>>["sub"]>,
+) => {
+	const kinds = await subtitleKinds(videos);
+	const tracks = videos
+		.flatMap((video) =>
+			video.subtitles
+				.filter((track) => isServedSubtitle(track) && track.format === "vtt")
+				.map((track) => ({
+					track,
+					video,
+				})),
+		)
+		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
+
+	for (const { track, video } of tracks) {
+		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
+		if (content) {
+			return readCues(content);
+		}
+	}
+	return [];
+};
+
 /**
  * Listens to an episode's dub and finds when each line of the sub's English
  * subtitles is said; see {@link refineCues}.
@@ -28,10 +53,10 @@ const minimumCues = 40;
  * @throws {@link SubtitleRefinementError} when the episode cannot be streamed
  *   in both versions right now, or the audio cannot be read or transcribed.
  */
-export async function listenToDub(
+export const listenToDub = async (
 	request: { seriesId: string; episode: number },
 	key: string,
-): Promise<Refinement | null> {
+): Promise<Refinement | null> => {
 	const { sub, dub } = await resolveStreams(request);
 	const subVideo = sub?.find((video) => video.format === "hls");
 	const dubVideo = dub?.find((video) => video.format === "hls");
@@ -59,29 +84,4 @@ export async function listenToDub(
 			recursive: true,
 		});
 	}
-}
-
-/** The cues of the sub's English dialogue track, or none when it has no such track. */
-async function englishDialogue(
-	videos: NonNullable<Awaited<ReturnType<typeof resolveStreams>>["sub"]>,
-) {
-	const kinds = await subtitleKinds(videos);
-	const tracks = videos
-		.flatMap((video) =>
-			video.subtitles
-				.filter((track) => isServedSubtitle(track) && track.format === "vtt")
-				.map((track) => ({
-					track,
-					video,
-				})),
-		)
-		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
-
-	for (const { track, video } of tracks) {
-		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
-		if (content) {
-			return readCues(content);
-		}
-	}
-	return [];
-}
+};

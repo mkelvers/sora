@@ -31,16 +31,28 @@ export interface TrackAiringPayload {
  * Each anime has at most one pending airing check, identified by this key.
  * It is also written in SQL by `reviveAiringChecks`.
  */
-function airingJobKey(anilistId: number) {
+const airingJobKey = (anilistId: number) => {
 	return `airing:${anilistId}`;
-}
+};
+
+/**
+ * Builds the payload in SQL, since the driver would send a serialized
+ * payload as a JSON string rather than an object.
+ */
+const payloadJson = (payload: TrackAiringPayload) => {
+	return sql`json_build_object(
+    'anilistId', ${payload.anilistId}::int,
+    'awaitedEpisode', ${payload.awaitedEpisode}::float8,
+    'attempt', ${payload.attempt}::int
+  )`;
+};
 
 /**
  * Schedules the next airing check for an anime, replacing any pending one.
  *
  * Called by the tracker at the end of each run.
  */
-export async function scheduleAiringCheck(payload: TrackAiringPayload, runAt: Date) {
+export const scheduleAiringCheck = async (payload: TrackAiringPayload, runAt: Date) => {
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},
@@ -51,7 +63,7 @@ export async function scheduleAiringCheck(payload: TrackAiringPayload, runAt: Da
       priority => ${airingCheckPriority}::int
     )
   `);
-}
+};
 
 /**
  * Starts tracking an anime that has not finished airing.
@@ -59,7 +71,7 @@ export async function scheduleAiringCheck(payload: TrackAiringPayload, runAt: Da
  * Does nothing when the anime already has a check, so a pending check keeps
  * its time and progress.
  */
-export async function startTrackingAiring(anilistId: number) {
+export const startTrackingAiring = async (anilistId: number) => {
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${trackAiringTask},
@@ -73,7 +85,7 @@ export async function startTrackingAiring(anilistId: number) {
       priority => ${airingCheckPriority}::int
     )
   `);
-}
+};
 
 /** The graphile-worker task that watches AniKoto for one aired episode. */
 export const pollAniKotoTask = "poll-anikoto";
@@ -95,7 +107,7 @@ export interface PollAniKotoPayload {
  * {@link airingCheckPriority}, since a viewer may be waiting on the
  * episode.
  */
-export async function scheduleAniKotoPoll(payload: PollAniKotoPayload, runAt: Date) {
+export const scheduleAniKotoPoll = async (payload: PollAniKotoPayload, runAt: Date) => {
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${pollAniKotoTask},
@@ -111,19 +123,7 @@ export async function scheduleAniKotoPoll(payload: PollAniKotoPayload, runAt: Da
       priority => ${airingCheckPriority}::int
     )
   `);
-}
-
-/**
- * Builds the payload in SQL, since the driver would send a serialized
- * payload as a JSON string rather than an object.
- */
-function payloadJson(payload: TrackAiringPayload) {
-	return sql`json_build_object(
-    'anilistId', ${payload.anilistId}::int,
-    'awaitedEpisode', ${payload.awaitedEpisode}::float8,
-    'attempt', ${payload.attempt}::int
-  )`;
-}
+};
 
 /** The graphile-worker task that lays out and stores the series of one AniList entry. */
 export const storeSeriesTask = "store-series";
@@ -171,11 +171,36 @@ const rankedPlaces = 6;
  * below `waiting`, so it keeps the workers and AniList requests kept for
  * viewers.
  */
-export function seriesStorePriority(priority: SeriesStorePriority, rank = rankedPlaces - 1) {
+export const seriesStorePriority = (priority: SeriesStorePriority, rank = rankedPlaces - 1) => {
 	const urgency =
 		priority === "waiting" ? Math.min(rankedPlaces - 1, Math.max(0, rankedPlaces - 1 - rank)) : 0;
 	return seriesStorePriorities[priority] - urgency;
-}
+};
+
+/** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
+const keptPriority = (jobKey: string | SQL, priority: number) => {
+	return sql`least(
+    ${priority}::int,
+    coalesce(
+      (select jobs.priority from graphile_worker.jobs where jobs.key = ${jobKey} and jobs.locked_at is null),
+      ${priority}::int
+    )
+  )`;
+};
+
+const seriesJobKey = (anilistId: number) => {
+	return `series:${anilistId}`;
+};
+
+/**
+ * The task a job runs as at `priority`: `waitedOn` when a viewer is waiting
+ * on it, so a job raised to `waiting` moves to the workers kept free for
+ * such jobs, and one already there stays when it is queued again at a lower
+ * priority, since it keeps its priority too.
+ */
+const taskAt = (priority: SQL, task: string, waitedOn: string) => {
+	return sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
+};
 
 /**
  * Queues laying out and storing the series an AniList entry belongs to.
@@ -189,11 +214,11 @@ export function seriesStorePriority(priority: SeriesStorePriority, rank = ranked
  *   lays that title out before the looser matches it also found, which
  *   share AniList's limited requests.
  */
-export async function scheduleSeriesStore(
+export const scheduleSeriesStore = async (
 	anilistId: number,
 	priority: SeriesStorePriority,
 	rank?: number,
-) {
+) => {
 	const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriority(priority, rank));
 	await db.execute(sql`
     select graphile_worker.add_job(
@@ -204,7 +229,7 @@ export async function scheduleSeriesStore(
       priority => ${kept}
     )
   `);
-}
+};
 
 /**
  * Queues laying out the series of an AniList entry again, if it is stored.
@@ -212,10 +237,10 @@ export async function scheduleSeriesStore(
  * did not list before, reach the stored series, and when what the layout is
  * derived from changed.
  */
-export async function scheduleStoredSeriesRefresh(
+export const scheduleStoredSeriesRefresh = async (
 	anilistId: number,
 	priority: Exclude<SeriesStorePriority, "waiting"> = "current",
-) {
+) => {
 	const kept = keptPriority(seriesJobKey(anilistId), seriesStorePriorities[priority]);
 	await db.execute(sql`
     select graphile_worker.add_job(
@@ -227,32 +252,7 @@ export async function scheduleStoredSeriesRefresh(
     )
     where exists (select 1 from series where anilist_id = ${anilistId})
   `);
-}
-
-/** The higher of `priority` and that of a job already waiting under `jobKey`, since replacing a job resets its priority. */
-function keptPriority(jobKey: string | SQL, priority: number) {
-	return sql`least(
-    ${priority}::int,
-    coalesce(
-      (select jobs.priority from graphile_worker.jobs where jobs.key = ${jobKey} and jobs.locked_at is null),
-      ${priority}::int
-    )
-  )`;
-}
-
-/**
- * The task a job runs as at `priority`: `waitedOn` when a viewer is waiting
- * on it, so a job raised to `waiting` moves to the workers kept free for
- * such jobs, and one already there stays when it is queued again at a lower
- * priority, since it keeps its priority too.
- */
-function taskAt(priority: SQL, task: string, waitedOn: string) {
-	return sql`case when ${priority} <= ${seriesStorePriorities.waiting}::int then ${waitedOn} else ${task} end`;
-}
-
-function seriesJobKey(anilistId: number) {
-	return `series:${anilistId}`;
-}
+};
 
 /** The graphile-worker task that looks one AniList entry up on every stream provider. */
 export const lookUpEpisodesTask = "look-up-episodes";
@@ -270,10 +270,10 @@ export const lookUpEpisodesNowTask = "look-up-episodes-now";
  * episodes, `current` when its card is shown, `backfill` when its series was
  * just stored.
  */
-export async function scheduleEpisodeLookups(
+export const scheduleEpisodeLookups = async (
 	anilistIds: readonly number[],
 	priority: SeriesStorePriority,
-) {
+) => {
 	if (anilistIds.length === 0) {
 		return;
 	}
@@ -296,7 +296,7 @@ export async function scheduleEpisodeLookups(
       from unnest(${ids}) as listed(anilist_id)
     ) as entry
   `);
-}
+};
 
 /** The graphile-worker task that times a dub's subtitles to its speech. */
 export const refineSubtitlesTask = "refine-subtitles";
@@ -313,7 +313,7 @@ export interface RefineSubtitlesPayload {
  * one at a time in their own queue and behind everything else, since each
  * downloads and transcribes a whole episode, and give up after a few tries.
  */
-export async function requestRefinement(payload: RefineSubtitlesPayload) {
+export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
 	await db.execute(sql`
     select graphile_worker.add_job(
       identifier => ${refineSubtitlesTask},
@@ -329,4 +329,4 @@ export async function requestRefinement(payload: RefineSubtitlesPayload) {
       priority => 10
     )
   `);
-}
+};

@@ -31,7 +31,7 @@ let queuedPriorities: string[] = [];
 let asks = 0;
 
 /** Dependencies backed by the providers in `list`, recording what they are asked. */
-function useProviders(list: FakeProvider[]): VersionDependencies {
+const useProviders = (list: FakeProvider[]): VersionDependencies => {
 	return {
 		getAnime: async (id) => anime(id),
 		getProviderUnits: (_anime, target) => {
@@ -70,13 +70,13 @@ function useProviders(list: FakeProvider[]): VersionDependencies {
 			}
 		},
 	};
-}
+};
 
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
-async function findEpisodeLanguages(...args: Parameters<typeof findEpisodeListings>) {
+const findEpisodeLanguages = async (...args: Parameters<typeof findEpisodeListings>) => {
 	const found = await findEpisodeListings(...args);
 	return new Map([...found].map(([key, listing]) => [key, listing.languages]));
-}
+};
 
 const unit = (
 	number: number,

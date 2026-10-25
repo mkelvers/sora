@@ -54,534 +54,28 @@ import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
 
-/**
- * Loads a title's page: its details and the other titles of its franchise.
- *
- * Reads only the database: titles are laid out when first found, and the
- * scheduler keeps them current.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function getSeries(seriesId: string): Promise<Series> {
-	const [found] = await db
-		.select({
-			edges: {
-				left: imageEdge.left,
-				right: imageEdge.right,
-			},
-			series,
-		})
-		.from(series)
-		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
-		.where(eq(series.id, seriesId))
-		.limit(1);
-	if (!found) {
-		throw new SeriesNotFoundError(seriesId);
-	}
-
-	const row = found.series;
-
-	const [anime, cards, franchise, overdue, [indexed]] = await Promise.all([
-		getAnime(row.anilistId),
-		toSeriesCards([row], [row.id]),
-		franchiseOf(row),
-		overdueEpisode(row),
-		db
-			.select({
-				scoreCount: animeSearch.scoreCount,
-			})
-			.from(animeSearch)
-			.where(eq(animeSearch.anilistId, row.anilistId))
-			.limit(1),
-	]);
-
-	const current = franchise.find((part) => part.series_id === row.id);
-	const seasons = franchise.filter((part) => part.role === "season");
-	const isNextEpisodeAhead =
-		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
-	return {
-		...cards.get(row.id)!,
-		start_date: row.startDate,
-		genres: anime.genres,
-		tags: anime.tags,
-		studios: anime.studios,
-		score_count: indexed?.scoreCount ?? null,
-		// An aired episode still to come out is next until it is listed, ahead of
-		// the one AniList announces after it.
-		next_episode:
-			overdue ??
-			(isNextEpisodeAhead && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
-				? {
-						airing_at: row.nextEpisodeAiringAt.toISOString(),
-						number: row.nextEpisodeNumber,
-					}
-				: null),
-		backdrop_edges: found.edges,
-		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
-		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
-	};
-}
-
-/**
- * The first of a series' awaited episodes (see {@link isEpisodeAwaited})
- * still expected to come out, with when it is expected (see
- * {@link expectedRelease}), or `null` when none is.
- */
-async function overdueEpisode(row: SeriesRow, now = new Date()): Promise<Series["next_episode"]> {
-	const [episodes, onAniKoto] = await Promise.all([
-		db
-			.select()
-			.from(seriesEpisode)
-			.where(eq(seriesEpisode.seriesId, row.id))
-			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes([row.anilistId]),
-	]);
-	const awaited = episodes.filter((episode) => isEpisodeAwaited(row, episode, onAniKoto, now));
-	if (awaited.length === 0) {
-		return null;
-	}
-
-	const scheduled = await db
-		.select({
-			airType: animeScheduleRelease.airType,
-			airsAt: animeScheduleRelease.airsAt,
-			episode: animeScheduleRelease.episode,
-		})
-		.from(animeScheduleRelease)
-		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
-		.where(
-			and(
-				eq(animeScheduleShow.anilistId, row.anilistId),
-				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
-			),
-		);
-	// A subbed stream's time counts over the broadcast's.
-	const scheduledAt = new Map<number, Date>();
-	for (const release of scheduled.toSorted(
-		(left, right) => Number(left.airType === "sub") - Number(right.airType === "sub"),
-	)) {
-		scheduledAt.set(release.episode, release.airsAt);
-	}
-
-	const [first] = awaited
-		.flatMap((episode) => {
-			const expected = episode.airedAt
-				? expectedRelease(episode.airedAt, scheduledAt.get(episode.number) ?? null, now)
-				: null;
-			return expected
-				? [
-						{
-							expected,
-							number: episode.number,
-						},
-					]
-				: [];
-		})
-		.toSorted((left, right) => left.expected.getTime() - right.expected.getTime());
-
-	return first
-		? {
-				airing_at: first.expected.toISOString(),
-				number: first.number,
-			}
-		: null;
-}
-
-/**
- * Checks that a series is stored, for operations that take a series ID but
- * do not read the series itself.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function assertSeriesExists(seriesId: string) {
-	const [stored] = await db
-		.select({
-			id: series.id,
-		})
-		.from(series)
-		.where(eq(series.id, seriesId))
-		.limit(1);
-	if (!stored) {
-		throw new SeriesNotFoundError(seriesId);
-	}
-}
-
-/**
- * The episodes before and after one, for moving through a title in order.
- *
- * Only the episodes the title lists count (see {@link isEpisodeShown}), so
- * `next` is never an episode AniKoto does not carry yet. Each is `null` at
- * either end: playing never runs on into another title, such as the next
- * season.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function getAdjacentEpisodes(
-	seriesId: string,
-	episode: number,
-): Promise<{
-	previous: number | null;
-	next: number | null;
-}> {
-	const row = await loadSeries(seriesId);
-	const listed = (await listedEpisodeDatesOf([row])).get(row.id) ?? [];
-	const numbers = listed.map((episode) => episode.number);
-
-	return {
-		next: numbers.find((number) => number > episode) ?? null,
-		previous: numbers.findLast((number) => number < episode) ?? null,
-	};
-}
-
-/**
- * Lists a title's episodes, numbered from 1, with the audio each can be
- * watched in and whether each is filler.
- *
- * AniKoto decides which episodes exist: an episode is listed once AniKoto
- * carries it and it has its details, as {@link isEpisodeShown} lays out.
- *
- * Both come from providers' stored episode lists, so a listing reads only
- * the database. An anime no provider has been looked up for yet is queued
- * for the scheduler, and its episodes' audio is `null` until it has run;
- * the scheduler keeps the lists current as the anime airs.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function getSeriesEpisodes(seriesId: string): Promise<Episode[]> {
-	const row = await loadSeries(seriesId);
-	const listed = await listedEpisodesOf([row]);
-
-	return describeEpisodes(row, listed.get(seriesId) ?? []);
-}
-
-/**
- * A slice of {@link getSeriesEpisodes}: `limit` episodes after skipping
- * `offset`, and how many episodes the title lists in all. Only the slice's
- * episodes are looked up for their audio and fillers.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-export async function getSeriesEpisodePage(
-	seriesId: string,
-	window: {
-		offset: number;
-		limit: number;
-	},
-): Promise<{
-	episodes: Episode[];
-	total: number;
-}> {
-	const row = await loadSeries(seriesId);
-	const listed = (await listedEpisodesOf([row])).get(seriesId) ?? [];
-
-	return {
-		episodes: await describeEpisodes(
-			row,
-			listed.slice(window.offset, window.offset + window.limit),
-		),
-		total: listed.length,
-	};
-}
-
-async function describeEpisodes(
-	row: SeriesRow,
-	episodes: (typeof seriesEpisode.$inferSelect)[],
-): Promise<Episode[]> {
-	const first = episodes.at(0);
-	const last = episodes.at(-1);
-	const [stills, listings] = await Promise.all([
-		!first || !last
-			? []
-			: db
-					.select({
-						number: seriesEpisode.number,
-						stillUrl: effectiveStill,
-					})
-					.from(seriesEpisode)
-					.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
-					.where(
-						and(
-							eq(seriesEpisode.seriesId, row.id),
-							gte(seriesEpisode.number, first.number),
-							lte(seriesEpisode.number, last.number),
-						),
-					),
-		findEpisodeListings(
-			episodes.map((episode) => ({
-				anilistId: row.anilistId,
-				episode: episode.number,
-			})),
-		),
-	]);
-	const stillOf = new Map(stills.map((still) => [still.number, still.stillUrl]));
-
-	return episodes.map((episode) => {
-		const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));
-		return {
-			air_date: episode.airDate,
-			aired_at: episode.airedAt?.toISOString() ?? null,
-			audio: listing?.languages ?? null,
-			filler: listing?.isFiller ?? false,
-			number: episode.number,
-			overview: episode.overview,
-			runtime_minutes: episode.runtimeMinutes,
-			still_url: stillOf.get(episode.number) ?? null,
-			title: episode.title,
-		};
-	});
-}
-
-/**
- * One episode of a series, as {@link getSeriesEpisodes} lists it.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link EpisodeNotFoundError} when the series does not list the episode.
- */
-export async function getSeriesEpisode(seriesId: string, number: number): Promise<Episode> {
-	const episode = (await getSeriesEpisodes(seriesId)).find((episode) => episode.number === number);
-	if (!episode) {
-		throw new EpisodeNotFoundError(seriesId, number);
-	}
-
-	return episode;
-}
-
-/**
- * Searches and filters the catalog, returning one card per AniList entry:
- * a show's seasons, films, and OVAs are each a title of their own.
- *
- * Both are answered from the local search index, AniList's catalogue
- * mirrored, so they never wait on AniList or its rate limit. A text search
- * is ranked by how well titles match and how popular they are (see
- * {@link searchAnime}). Browsing without one orders the entries by `sort`
- * and lists only those AniKoto carries, since only they can be watched (see
- * {@link browseIndex}). Until the index has been filled once, browsing
- * follows AniList's page of entries instead.
- *
- * Reads only stored titles, so a search never waits on AniList or TMDB. An
- * entry that is not stored yet is queued for the scheduler and left out of
- * `items` until it is, with `isPreparing` set so the client can ask again.
- * Those on the page are listed in `preparing`, with what the search index
- * knows of them and where they are expected, so a client can show them at
- * once rather than a page that comes back short.
- *
- * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
- * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed
- *   before the index is filled.
- */
-export async function browseSeries(query: BrowseQuery): Promise<
-	Page<SeriesCard> & {
-		preparing: PreparingTitle[];
-	}
-> {
-	const parsed = BrowseQuerySchema.safeParse(query);
-	if (!parsed.success) {
-		throw new InvalidInputError("Invalid browse query", {
-			cause: parsed.error,
-		});
-	}
-
-	const { search, page, perPage, audio, ...filters } = parsed.data;
-	const heard = (cards: SeriesCard[]) =>
-		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
-	if (await hasSearchIndex()) {
-		// One entry more than the page holds tells whether another page follows.
-		const found =
-			search === undefined
-				? await browseIndex(filters, page * perPage + 1, carriedByAniKoto)
-				: await searchAnime(search, filters);
-		const ranked = found.map((entry) => entry.anilistId);
-		const pageStart = (page - 1) * perPage;
-		const { seriesIds, missing } = await seriesIdsFor(ranked, {
-			pageStart,
-			perPage,
-			wanted: page * perPage + 1,
-		});
-		const ordered = ranked.flatMap((anilistId) => seriesIds.get(anilistId) ?? []);
-		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
-		return {
-			hasNextPage: ordered.length > page * perPage,
-			isPreparing: missing.length > 0,
-			items: heard(await cardsOf(ordered.slice(pageStart, page * perPage))),
-			page,
-			perPage,
-			preparing: audio
-				? []
-				: preparingOn(missing, pageStart, perPage, (anilistId) => {
-						const entry = indexed.get(anilistId);
-						return (
-							entry && {
-								title: entry.english ?? entry.romaji ?? entry.native,
-								format: toAnimeFormat(entry.format),
-								year:
-									entry.seasonYear ??
-									(entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
-							}
-						);
-					}),
-		};
-	}
-
-	const found = await browseAnime(parsed.data);
-	const anilistIds = found.items.map((anime) => anime.id);
-	const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
-		pageStart: 0,
-		perPage: found.perPage,
-		wanted: Number.POSITIVE_INFINITY,
-	});
-	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
-	return {
-		hasNextPage: found.hasNextPage,
-		isPreparing: missing.length > 0,
-		items: heard(await cardsOf(anilistIds.flatMap((anilistId) => seriesIds.get(anilistId) ?? []))),
-		page: found.page,
-		perPage: found.perPage,
-		preparing: audio
-			? []
-			: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
-					const anime = cards.get(anilistId);
-					return (
-						anime && {
-							title: anime.title.display,
-							format: anime.format,
-							year: anime.seasonYear,
-						}
-					);
-				}),
-	};
-}
-
-/**
- * The titles not stored yet among a page's places, where they are expected
- * on it, described by `describe`. Entries it knows nothing about are left
- * out.
- */
-function preparingOn(
-	missing: readonly {
-		anilistId: number;
-		place: number;
-	}[],
-	pageStart: number,
-	perPage: number,
-	describe: (anilistId: number) =>
-		| (Omit<PreparingTitle, "anilist_id" | "position" | "title"> & {
-				title: string | null;
-		  })
-		| undefined,
-): PreparingTitle[] {
-	return missing.flatMap(({ anilistId, place }) => {
-		const described = describe(anilistId);
-		const position = place - pageStart;
-		return described?.title && position >= 0 && position < perPage
-			? [
-					{
-						...described,
-						anilist_id: anilistId,
-						position,
-						title: described.title,
-					},
-				]
-			: [];
-	});
-}
-
-/** Cards for stored series, in the given order. */
-async function cardsOf(seriesIds: readonly string[]) {
-	const rows = await db
-		.select()
-		.from(series)
-		.where(inArray(series.id, [...seriesIds]));
-	const cards = await toSeriesCards(rows);
-	return seriesIds.flatMap((id) => cards.get(id) ?? []);
-}
-
-/**
- * Finds the stored series of each entry, and queues for the scheduler the
- * entries among the first `window.wanted` that are not stored yet.
- *
- * The viewer is taken to be waiting on the page they asked for, the
- * `window.perPage` places from `window.pageStart`: entries there are laid
- * out ahead of anything else, and those further down after airing checks.
- * Suggestions ask for a small page, so a query typed letter by letter does
- * not queue every faint match of each prefix ahead of new episodes.
- *
- * @returns Each stored entry's series, and the entries the page wanted that
- *   are still being prepared, with their places.
- */
-async function seriesIdsFor(
-	anilistIds: readonly number[],
-	window: {
-		wanted: number;
-		pageStart: number;
-		perPage: number;
-	},
-) {
-	const found = await storedSeriesIds(anilistIds);
-	const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) =>
-		found.has(anilistId)
-			? []
-			: [
-					{
-						anilistId,
-						place,
-					},
-				],
+/** The rows each title lists (see {@link isEpisodeShown}), grouped by series ID. */
+const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
+	titles: readonly SeriesRow[],
+	rows: readonly TRow[],
+	onAniKoto: Awaited<ReturnType<typeof loadAniKotoEpisodes>>,
+) => {
+	const now = new Date();
+	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
+	return new Map(
+		titles.map((title) => [
+			title.id,
+			(bySeries.get(title.id) ?? []).filter((row) => isEpisodeShown(title, row, onAniKoto, now)),
+		]),
 	);
-
-	const isWaitedOn = (place: number) =>
-		place >= window.pageStart && place < window.pageStart + window.perPage;
-	await Promise.all(
-		missing.map(({ anilistId, place }) =>
-			isWaitedOn(place)
-				? scheduleSeriesStore(anilistId, "waiting", place - window.pageStart)
-				: scheduleSeriesStore(anilistId, "current"),
-		),
-	);
-	return {
-		missing,
-		seriesIds: found,
-	};
-}
-
-/**
- * A stored series' row.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- */
-async function loadSeries(seriesId: string) {
-	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
-	if (!row) {
-		throw new SeriesNotFoundError(seriesId);
-	}
-
-	return row;
-}
-
-/** The episodes each title lists, of several series at once, keyed by series ID. */
-export async function listedEpisodesOf(titles: readonly SeriesRow[]) {
-	const [rows, onAniKoto] = await Promise.all([
-		db
-			.select()
-			.from(seriesEpisode)
-			.where(
-				inArray(
-					seriesEpisode.seriesId,
-					titles.map((title) => title.id),
-				),
-			)
-			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
-	]);
-
-	return keepListed(titles, rows, onAniKoto);
-}
+};
 
 /**
  * {@link listedEpisodesOf} with only what telling whether and when an episode
  * came out takes, for callers that count episodes or look at their dates:
  * titles' titles and overviews are the bulk of a long series' rows.
  */
-export async function listedEpisodeDatesOf(titles: readonly SeriesRow[]) {
+export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 	const [rows, onAniKoto] = await Promise.all([
 		db
 			.select({
@@ -603,23 +97,106 @@ export async function listedEpisodeDatesOf(titles: readonly SeriesRow[]) {
 	]);
 
 	return keepListed(titles, rows, onAniKoto);
-}
+};
 
-/** The rows each title lists (see {@link isEpisodeShown}), grouped by series ID. */
-function keepListed<TRow extends EpisodeListingRow & { seriesId: string }>(
-	titles: readonly SeriesRow[],
-	rows: readonly TRow[],
-	onAniKoto: Awaited<ReturnType<typeof loadAniKotoEpisodes>>,
-) {
-	const now = new Date();
-	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
+/** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
+const effectiveArtwork = (override: string | null, laidOut: string | null) => {
+	return override === noArtwork ? null : (override ?? laidOut);
+};
+
+const formatNames: Record<AnimeFormat, string> = {
+	MOVIE: "Movie",
+	MUSIC: "Music",
+	ONA: "ONA",
+	OVA: "OVA",
+	SPECIAL: "Special",
+	TV: "Series",
+	TV_SHORT: "Short",
+};
+
+const statusNames: Partial<Record<string, string>> = {
+	NOT_YET_RELEASED: "Upcoming",
+	RELEASING: "Airing",
+};
+
+/** {@link toSeriesCards} with the rows' episodes already listed. */
+const cardsFrom = async (
+	rows: readonly SeriesRow[],
+	listed: Awaited<ReturnType<typeof listedEpisodeDatesOf>>,
+	includeHiddenIds: readonly string[] = [],
+): Promise<Map<string, SeriesCard>> => {
+	const anilistIds = rows.map((row) => row.anilistId);
+	const keys = [...new Set(rows.map((row) => row.key))];
+	const [stored, languages, chosen] = await Promise.all([
+		db
+			.select({
+				anilistId: animeTable.anilistId,
+				media: animeTable.media,
+			})
+			.from(animeTable)
+			.where(inArray(animeTable.anilistId, anilistIds)),
+		findAnimeLanguages(anilistIds),
+		db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)),
+	]);
+	const anime = new Map(stored.map((row) => [row.anilistId, toAnime(row.media)]));
+	const artwork = new Map(chosen.map((row) => [row.key, row]));
+	const order: ContentLanguage[] = ["dub", "sub", "raw"];
+
 	return new Map(
-		titles.map((title) => [
-			title.id,
-			(bySeries.get(title.id) ?? []).filter((row) => isEpisodeShown(title, row, onAniKoto, now)),
-		]),
+		rows.flatMap((row) => {
+			const audio = new Set(languages.get(row.anilistId) ?? []);
+			const details = anime.get(row.anilistId);
+			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
+				return [];
+			}
+			const title = artwork.get(row.key);
+			return [
+				[
+					row.id,
+					{
+						audio: order.filter((language) => audio.has(language)),
+						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
+						details: [
+							row.startDate?.slice(0, 4),
+							details?.format && formatNames[details.format],
+							row.status && statusNames[row.status],
+						]
+							.filter(Boolean)
+							.join(" · "),
+						episode_count: listed.get(row.id)?.length ?? 0,
+						format: details?.format ?? null,
+						genres: details?.genres ?? [],
+						id: row.id,
+						kind: row.kind,
+						logo_offset_x: title?.logoOffsetX ?? 0,
+						logo_offset_y: title?.logoOffsetY ?? 0,
+						logo_scale: title?.logoScale ?? 1,
+						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
+						overview: row.overview ?? details?.description ?? null,
+						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
+						score: details?.score ?? null,
+						status: row.status,
+						title: row.title,
+						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
+					},
+				] as const,
+			];
+		}),
 	);
-}
+};
+
+/**
+ * Builds visible cards of stored series rows, keyed by series ID, with each
+ * title's audio and listed episodes. Catalogue-hidden formats are omitted unless
+ * their IDs are explicitly included for a saved watchlist or selected title.
+ * Reads only the database.
+ */
+export const toSeriesCards = async (
+	rows: readonly SeriesRow[],
+	includeHiddenIds: readonly string[] = [],
+): Promise<Map<string, SeriesCard>> => {
+	return cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
+};
 
 /** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
 const franchiseLimit = 60;
@@ -647,9 +224,9 @@ const franchiseLimit = 60;
  * universe with the entry but are not part of its story, so they never decide
  * where the franchise starts.
  */
-export async function franchiseIds(
+export const franchiseIds = async (
 	anilistId: number,
-): Promise<{ ids: number[]; crossovers: Set<number> }> {
+): Promise<{ ids: number[]; crossovers: Set<number> }> => {
 	const reached = new Set([anilistId]);
 	const outsiders = new Set<number>();
 	let frontier = [anilistId];
@@ -742,16 +319,7 @@ export async function franchiseIds(
 		crossovers: outsiders,
 		ids: [...reached],
 	};
-}
-
-/** Stored series in release order, the earliest first; those undated last. */
-export function byStartDate(rows: readonly SeriesRow[]) {
-	return rows.toSorted(
-		(left, right) =>
-			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999") ||
-			left.anilistId - right.anilistId,
-	);
-}
+};
 
 /**
  * The stored titles of a series' franchise (see {@link franchiseIds}), this
@@ -764,7 +332,7 @@ export function byStartDate(rows: readonly SeriesRow[]) {
  * status, which reads "not yet released" until its airing check runs, often
  * well after the first episode can be watched.
  */
-async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
+const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	const { ids, crossovers } = await franchiseIds(row.anilistId);
 	const rows = await db.select().from(series).where(inArray(series.anilistId, ids));
 	const titles = [
@@ -891,12 +459,543 @@ async function franchiseOf(row: SeriesRow): Promise<FranchisePart[]> {
 					? ("spin_off" as const)
 					: part.role,
 		}));
-}
+};
 
-/** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
-function effectiveArtwork(override: string | null, laidOut: string | null) {
-	return override === noArtwork ? null : (override ?? laidOut);
-}
+/**
+ * The first of a series' awaited episodes (see {@link isEpisodeAwaited})
+ * still expected to come out, with when it is expected (see
+ * {@link expectedRelease}), or `null` when none is.
+ */
+const overdueEpisode = async (
+	row: SeriesRow,
+	now = new Date(),
+): Promise<Series["next_episode"]> => {
+	const [episodes, onAniKoto] = await Promise.all([
+		db
+			.select()
+			.from(seriesEpisode)
+			.where(eq(seriesEpisode.seriesId, row.id))
+			.orderBy(asc(seriesEpisode.number)),
+		loadAniKotoEpisodes([row.anilistId]),
+	]);
+	const awaited = episodes.filter((episode) => isEpisodeAwaited(row, episode, onAniKoto, now));
+	if (awaited.length === 0) {
+		return null;
+	}
+
+	const scheduled = await db
+		.select({
+			airType: animeScheduleRelease.airType,
+			airsAt: animeScheduleRelease.airsAt,
+			episode: animeScheduleRelease.episode,
+		})
+		.from(animeScheduleRelease)
+		.innerJoin(animeScheduleShow, eq(animeScheduleShow.route, animeScheduleRelease.route))
+		.where(
+			and(
+				eq(animeScheduleShow.anilistId, row.anilistId),
+				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
+			),
+		);
+	// A subbed stream's time counts over the broadcast's.
+	const scheduledAt = new Map<number, Date>();
+	for (const release of scheduled.toSorted(
+		(left, right) => Number(left.airType === "sub") - Number(right.airType === "sub"),
+	)) {
+		scheduledAt.set(release.episode, release.airsAt);
+	}
+
+	const [first] = awaited
+		.flatMap((episode) => {
+			const expected = episode.airedAt
+				? expectedRelease(episode.airedAt, scheduledAt.get(episode.number) ?? null, now)
+				: null;
+			return expected
+				? [
+						{
+							expected,
+							number: episode.number,
+						},
+					]
+				: [];
+		})
+		.toSorted((left, right) => left.expected.getTime() - right.expected.getTime());
+
+	return first
+		? {
+				airing_at: first.expected.toISOString(),
+				number: first.number,
+			}
+		: null;
+};
+
+/**
+ * Loads a title's page: its details and the other titles of its franchise.
+ *
+ * Reads only the database: titles are laid out when first found, and the
+ * scheduler keeps them current.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export const getSeries = async (seriesId: string): Promise<Series> => {
+	const [found] = await db
+		.select({
+			edges: {
+				left: imageEdge.left,
+				right: imageEdge.right,
+			},
+			series,
+		})
+		.from(series)
+		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
+		.where(eq(series.id, seriesId))
+		.limit(1);
+	if (!found) {
+		throw new SeriesNotFoundError(seriesId);
+	}
+
+	const row = found.series;
+
+	const [anime, cards, franchise, overdue, [indexed]] = await Promise.all([
+		getAnime(row.anilistId),
+		toSeriesCards([row], [row.id]),
+		franchiseOf(row),
+		overdueEpisode(row),
+		db
+			.select({
+				scoreCount: animeSearch.scoreCount,
+			})
+			.from(animeSearch)
+			.where(eq(animeSearch.anilistId, row.anilistId))
+			.limit(1),
+	]);
+
+	const current = franchise.find((part) => part.series_id === row.id);
+	const seasons = franchise.filter((part) => part.role === "season");
+	const isNextEpisodeAhead =
+		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
+	return {
+		...cards.get(row.id)!,
+		start_date: row.startDate,
+		genres: anime.genres,
+		tags: anime.tags,
+		studios: anime.studios,
+		score_count: indexed?.scoreCount ?? null,
+		// An aired episode still to come out is next until it is listed, ahead of
+		// the one AniList announces after it.
+		next_episode:
+			overdue ??
+			(isNextEpisodeAhead && row.nextEpisodeNumber !== null && row.nextEpisodeAiringAt
+				? {
+						airing_at: row.nextEpisodeAiringAt.toISOString(),
+						number: row.nextEpisodeNumber,
+					}
+				: null),
+		backdrop_edges: found.edges,
+		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
+		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
+	};
+};
+
+/**
+ * Checks that a series is stored, for operations that take a series ID but
+ * do not read the series itself.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export const assertSeriesExists = async (seriesId: string) => {
+	const [stored] = await db
+		.select({
+			id: series.id,
+		})
+		.from(series)
+		.where(eq(series.id, seriesId))
+		.limit(1);
+	if (!stored) {
+		throw new SeriesNotFoundError(seriesId);
+	}
+};
+
+/**
+ * A stored series' row.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+const loadSeries = async (seriesId: string) => {
+	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+	if (!row) {
+		throw new SeriesNotFoundError(seriesId);
+	}
+
+	return row;
+};
+
+/**
+ * The episodes before and after one, for moving through a title in order.
+ *
+ * Only the episodes the title lists count (see {@link isEpisodeShown}), so
+ * `next` is never an episode AniKoto does not carry yet. Each is `null` at
+ * either end: playing never runs on into another title, such as the next
+ * season.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export const getAdjacentEpisodes = async (
+	seriesId: string,
+	episode: number,
+): Promise<{
+	previous: number | null;
+	next: number | null;
+}> => {
+	const row = await loadSeries(seriesId);
+	const listed = (await listedEpisodeDatesOf([row])).get(row.id) ?? [];
+	const numbers = listed.map((episode) => episode.number);
+
+	return {
+		next: numbers.find((number) => number > episode) ?? null,
+		previous: numbers.findLast((number) => number < episode) ?? null,
+	};
+};
+
+/** The episodes each title lists, of several series at once, keyed by series ID. */
+export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
+	const [rows, onAniKoto] = await Promise.all([
+		db
+			.select()
+			.from(seriesEpisode)
+			.where(
+				inArray(
+					seriesEpisode.seriesId,
+					titles.map((title) => title.id),
+				),
+			)
+			.orderBy(asc(seriesEpisode.number)),
+		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+	]);
+
+	return keepListed(titles, rows, onAniKoto);
+};
+
+const describeEpisodes = async (
+	row: SeriesRow,
+	episodes: (typeof seriesEpisode.$inferSelect)[],
+): Promise<Episode[]> => {
+	const first = episodes.at(0);
+	const last = episodes.at(-1);
+	const [stills, listings] = await Promise.all([
+		!first || !last
+			? []
+			: db
+					.select({
+						number: seriesEpisode.number,
+						stillUrl: effectiveStill,
+					})
+					.from(seriesEpisode)
+					.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
+					.where(
+						and(
+							eq(seriesEpisode.seriesId, row.id),
+							gte(seriesEpisode.number, first.number),
+							lte(seriesEpisode.number, last.number),
+						),
+					),
+		findEpisodeListings(
+			episodes.map((episode) => ({
+				anilistId: row.anilistId,
+				episode: episode.number,
+			})),
+		),
+	]);
+	const stillOf = new Map(stills.map((still) => [still.number, still.stillUrl]));
+
+	return episodes.map((episode) => {
+		const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));
+		return {
+			air_date: episode.airDate,
+			aired_at: episode.airedAt?.toISOString() ?? null,
+			audio: listing?.languages ?? null,
+			filler: listing?.isFiller ?? false,
+			number: episode.number,
+			overview: episode.overview,
+			runtime_minutes: episode.runtimeMinutes,
+			still_url: stillOf.get(episode.number) ?? null,
+			title: episode.title,
+		};
+	});
+};
+
+/**
+ * Lists a title's episodes, numbered from 1, with the audio each can be
+ * watched in and whether each is filler.
+ *
+ * AniKoto decides which episodes exist: an episode is listed once AniKoto
+ * carries it and it has its details, as {@link isEpisodeShown} lays out.
+ *
+ * Both come from providers' stored episode lists, so a listing reads only
+ * the database. An anime no provider has been looked up for yet is queued
+ * for the scheduler, and its episodes' audio is `null` until it has run;
+ * the scheduler keeps the lists current as the anime airs.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export const getSeriesEpisodes = async (seriesId: string): Promise<Episode[]> => {
+	const row = await loadSeries(seriesId);
+	const listed = await listedEpisodesOf([row]);
+
+	return describeEpisodes(row, listed.get(seriesId) ?? []);
+};
+
+/**
+ * A slice of {@link getSeriesEpisodes}: `limit` episodes after skipping
+ * `offset`, and how many episodes the title lists in all. Only the slice's
+ * episodes are looked up for their audio and fillers.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ */
+export const getSeriesEpisodePage = async (
+	seriesId: string,
+	window: {
+		offset: number;
+		limit: number;
+	},
+): Promise<{
+	episodes: Episode[];
+	total: number;
+}> => {
+	const row = await loadSeries(seriesId);
+	const listed = (await listedEpisodesOf([row])).get(seriesId) ?? [];
+
+	return {
+		episodes: await describeEpisodes(
+			row,
+			listed.slice(window.offset, window.offset + window.limit),
+		),
+		total: listed.length,
+	};
+};
+
+/**
+ * One episode of a series, as {@link getSeriesEpisodes} lists it.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link EpisodeNotFoundError} when the series does not list the episode.
+ */
+export const getSeriesEpisode = async (seriesId: string, number: number): Promise<Episode> => {
+	const episode = (await getSeriesEpisodes(seriesId)).find((episode) => episode.number === number);
+	if (!episode) {
+		throw new EpisodeNotFoundError(seriesId, number);
+	}
+
+	return episode;
+};
+
+/**
+ * Finds the stored series of each entry, and queues for the scheduler the
+ * entries among the first `window.wanted` that are not stored yet.
+ *
+ * The viewer is taken to be waiting on the page they asked for, the
+ * `window.perPage` places from `window.pageStart`: entries there are laid
+ * out ahead of anything else, and those further down after airing checks.
+ * Suggestions ask for a small page, so a query typed letter by letter does
+ * not queue every faint match of each prefix ahead of new episodes.
+ *
+ * @returns Each stored entry's series, and the entries the page wanted that
+ *   are still being prepared, with their places.
+ */
+const seriesIdsFor = async (
+	anilistIds: readonly number[],
+	window: {
+		wanted: number;
+		pageStart: number;
+		perPage: number;
+	},
+) => {
+	const found = await storedSeriesIds(anilistIds);
+	const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) =>
+		found.has(anilistId)
+			? []
+			: [
+					{
+						anilistId,
+						place,
+					},
+				],
+	);
+
+	const isWaitedOn = (place: number) =>
+		place >= window.pageStart && place < window.pageStart + window.perPage;
+	await Promise.all(
+		missing.map(({ anilistId, place }) =>
+			isWaitedOn(place)
+				? scheduleSeriesStore(anilistId, "waiting", place - window.pageStart)
+				: scheduleSeriesStore(anilistId, "current"),
+		),
+	);
+	return {
+		missing,
+		seriesIds: found,
+	};
+};
+
+/** Cards for stored series, in the given order. */
+const cardsOf = async (seriesIds: readonly string[]) => {
+	const rows = await db
+		.select()
+		.from(series)
+		.where(inArray(series.id, [...seriesIds]));
+	const cards = await toSeriesCards(rows);
+	return seriesIds.flatMap((id) => cards.get(id) ?? []);
+};
+
+/**
+ * The titles not stored yet among a page's places, where they are expected
+ * on it, described by `describe`. Entries it knows nothing about are left
+ * out.
+ */
+const preparingOn = (
+	missing: readonly {
+		anilistId: number;
+		place: number;
+	}[],
+	pageStart: number,
+	perPage: number,
+	describe: (anilistId: number) =>
+		| (Omit<PreparingTitle, "anilist_id" | "position" | "title"> & {
+				title: string | null;
+		  })
+		| undefined,
+): PreparingTitle[] => {
+	return missing.flatMap(({ anilistId, place }) => {
+		const described = describe(anilistId);
+		const position = place - pageStart;
+		return described?.title && position >= 0 && position < perPage
+			? [
+					{
+						...described,
+						anilist_id: anilistId,
+						position,
+						title: described.title,
+					},
+				]
+			: [];
+	});
+};
+
+/**
+ * Searches and filters the catalog, returning one card per AniList entry:
+ * a show's seasons, films, and OVAs are each a title of their own.
+ *
+ * Both are answered from the local search index, AniList's catalogue
+ * mirrored, so they never wait on AniList or its rate limit. A text search
+ * is ranked by how well titles match and how popular they are (see
+ * {@link searchAnime}). Browsing without one orders the entries by `sort`
+ * and lists only those AniKoto carries, since only they can be watched (see
+ * {@link browseIndex}). Until the index has been filled once, browsing
+ * follows AniList's page of entries instead.
+ *
+ * Reads only stored titles, so a search never waits on AniList or TMDB. An
+ * entry that is not stored yet is queued for the scheduler and left out of
+ * `items` until it is, with `isPreparing` set so the client can ask again.
+ * Those on the page are listed in `preparing`, with what the search index
+ * knows of them and where they are expected, so a client can show them at
+ * once rather than a page that comes back short.
+ *
+ * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
+ * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed
+ *   before the index is filled.
+ */
+export const browseSeries = async (
+	query: BrowseQuery,
+): Promise<
+	Page<SeriesCard> & {
+		preparing: PreparingTitle[];
+	}
+> => {
+	const parsed = BrowseQuerySchema.safeParse(query);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid browse query", {
+			cause: parsed.error,
+		});
+	}
+
+	const { search, page, perPage, audio, ...filters } = parsed.data;
+	const heard = (cards: SeriesCard[]) =>
+		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
+	if (await hasSearchIndex()) {
+		// One entry more than the page holds tells whether another page follows.
+		const found =
+			search === undefined
+				? await browseIndex(filters, page * perPage + 1, carriedByAniKoto)
+				: await searchAnime(search, filters);
+		const ranked = found.map((entry) => entry.anilistId);
+		const pageStart = (page - 1) * perPage;
+		const { seriesIds, missing } = await seriesIdsFor(ranked, {
+			pageStart,
+			perPage,
+			wanted: page * perPage + 1,
+		});
+		const ordered = ranked.flatMap((anilistId) => seriesIds.get(anilistId) ?? []);
+		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
+		return {
+			hasNextPage: ordered.length > page * perPage,
+			isPreparing: missing.length > 0,
+			items: heard(await cardsOf(ordered.slice(pageStart, page * perPage))),
+			page,
+			perPage,
+			preparing: audio
+				? []
+				: preparingOn(missing, pageStart, perPage, (anilistId) => {
+						const entry = indexed.get(anilistId);
+						return (
+							entry && {
+								title: entry.english ?? entry.romaji ?? entry.native,
+								format: toAnimeFormat(entry.format),
+								year:
+									entry.seasonYear ??
+									(entry.startDate ? Number(entry.startDate.slice(0, 4)) : null),
+							}
+						);
+					}),
+		};
+	}
+
+	const found = await browseAnime(parsed.data);
+	const anilistIds = found.items.map((anime) => anime.id);
+	const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
+		pageStart: 0,
+		perPage: found.perPage,
+		wanted: Number.POSITIVE_INFINITY,
+	});
+	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
+	return {
+		hasNextPage: found.hasNextPage,
+		isPreparing: missing.length > 0,
+		items: heard(await cardsOf(anilistIds.flatMap((anilistId) => seriesIds.get(anilistId) ?? []))),
+		page: found.page,
+		perPage: found.perPage,
+		preparing: audio
+			? []
+			: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
+					const anime = cards.get(anilistId);
+					return (
+						anime && {
+							title: anime.title.display,
+							format: anime.format,
+							year: anime.seasonYear,
+						}
+					);
+				}),
+	};
+};
+
+/** Stored series in release order, the earliest first; those undated last. */
+export const byStartDate = (rows: readonly SeriesRow[]) => {
+	return rows.toSorted(
+		(left, right) =>
+			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999") ||
+			left.anilistId - right.anilistId,
+	);
+};
 
 /** How far back {@link getLatestReleases} looks. */
 const releaseWindowMs = 30 * day;
@@ -911,6 +1010,27 @@ export const ReleasesQuerySchema = BrowseQuerySchema.pick({
 
 export type ReleasesQuery = z.input<typeof ReleasesQuerySchema>;
 
+const relativeTime = new Intl.RelativeTimeFormat("en", {
+	numeric: "always",
+});
+
+/** How long ago a release came out, in words, and the stretch of time it falls in. */
+const releaseAge = (releasedAt: string, now: number): Pick<Release, "released_ago" | "period"> => {
+	const age = Math.max(0, now - Date.parse(releasedAt));
+	const minutes = Math.floor(age / minute);
+	const hours = Math.floor(age / hour);
+
+	return {
+		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
+		released_ago:
+			minutes < 60
+				? relativeTime.format(-Math.max(1, minutes), "minute")
+				: hours < 24
+					? relativeTime.format(-hours, "hour")
+					: relativeTime.format(-Math.floor(age / day), "day"),
+	};
+};
+
 /**
  * The titles with an episode out in the last 30 days, each with its latest
  * episode that can be watched, the latest first.
@@ -922,10 +1042,10 @@ export type ReleasesQuery = z.input<typeof ReleasesQuerySchema>;
  *
  * @throws {@link InvalidInputError} when the query fails {@link ReleasesQuerySchema}.
  */
-export async function getLatestReleases(
+export const getLatestReleases = async (
 	query: ReleasesQuery,
 	now = new Date(),
-): Promise<Page<Release>> {
+): Promise<Page<Release>> => {
 	const parsed = ReleasesQuerySchema.safeParse(query);
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid releases query", {
@@ -1034,119 +1154,4 @@ export async function getLatestReleases(
 		page,
 		perPage,
 	};
-}
-
-const formatNames: Record<AnimeFormat, string> = {
-	MOVIE: "Movie",
-	MUSIC: "Music",
-	ONA: "ONA",
-	OVA: "OVA",
-	SPECIAL: "Special",
-	TV: "Series",
-	TV_SHORT: "Short",
 };
-
-const statusNames: Partial<Record<string, string>> = {
-	NOT_YET_RELEASED: "Upcoming",
-	RELEASING: "Airing",
-};
-
-const relativeTime = new Intl.RelativeTimeFormat("en", {
-	numeric: "always",
-});
-
-/** How long ago a release came out, in words, and the stretch of time it falls in. */
-function releaseAge(releasedAt: string, now: number): Pick<Release, "released_ago" | "period"> {
-	const age = Math.max(0, now - Date.parse(releasedAt));
-	const minutes = Math.floor(age / minute);
-	const hours = Math.floor(age / hour);
-
-	return {
-		period: age < day ? "Last 24 hours" : age < 7 * day ? "This past week" : "Earlier",
-		released_ago:
-			minutes < 60
-				? relativeTime.format(-Math.max(1, minutes), "minute")
-				: hours < 24
-					? relativeTime.format(-hours, "hour")
-					: relativeTime.format(-Math.floor(age / day), "day"),
-	};
-}
-
-/**
- * Builds visible cards of stored series rows, keyed by series ID, with each
- * title's audio and listed episodes. Catalogue-hidden formats are omitted unless
- * their IDs are explicitly included for a saved watchlist or selected title.
- * Reads only the database.
- */
-export async function toSeriesCards(
-	rows: readonly SeriesRow[],
-	includeHiddenIds: readonly string[] = [],
-): Promise<Map<string, SeriesCard>> {
-	return cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
-}
-
-/** {@link toSeriesCards} with the rows' episodes already listed. */
-async function cardsFrom(
-	rows: readonly SeriesRow[],
-	listed: Awaited<ReturnType<typeof listedEpisodeDatesOf>>,
-	includeHiddenIds: readonly string[] = [],
-): Promise<Map<string, SeriesCard>> {
-	const anilistIds = rows.map((row) => row.anilistId);
-	const keys = [...new Set(rows.map((row) => row.key))];
-	const [stored, languages, chosen] = await Promise.all([
-		db
-			.select({
-				anilistId: animeTable.anilistId,
-				media: animeTable.media,
-			})
-			.from(animeTable)
-			.where(inArray(animeTable.anilistId, anilistIds)),
-		findAnimeLanguages(anilistIds),
-		db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)),
-	]);
-	const anime = new Map(stored.map((row) => [row.anilistId, toAnime(row.media)]));
-	const artwork = new Map(chosen.map((row) => [row.key, row]));
-	const order: ContentLanguage[] = ["dub", "sub", "raw"];
-
-	return new Map(
-		rows.flatMap((row) => {
-			const audio = new Set(languages.get(row.anilistId) ?? []);
-			const details = anime.get(row.anilistId);
-			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
-				return [];
-			}
-			const title = artwork.get(row.key);
-			return [
-				[
-					row.id,
-					{
-						audio: order.filter((language) => audio.has(language)),
-						backdrop_url: effectiveArtwork(title?.backdropUrlOverride ?? null, row.backdropUrl),
-						details: [
-							row.startDate?.slice(0, 4),
-							details?.format && formatNames[details.format],
-							row.status && statusNames[row.status],
-						]
-							.filter(Boolean)
-							.join(" · "),
-						episode_count: listed.get(row.id)?.length ?? 0,
-						format: details?.format ?? null,
-						genres: details?.genres ?? [],
-						id: row.id,
-						kind: row.kind,
-						logo_offset_x: title?.logoOffsetX ?? 0,
-						logo_offset_y: title?.logoOffsetY ?? 0,
-						logo_scale: title?.logoScale ?? 1,
-						logo_url: effectiveArtwork(title?.logoUrlOverride ?? null, row.logoUrl),
-						overview: row.overview ?? details?.description ?? null,
-						poster_url: effectiveArtwork(row.posterUrlOverride, row.posterUrl),
-						score: details?.score ?? null,
-						status: row.status,
-						title: row.title,
-						year: row.startDate ? Number(row.startDate.slice(0, 4)) : null,
-					},
-				] as const,
-			];
-		}),
-	);
-}

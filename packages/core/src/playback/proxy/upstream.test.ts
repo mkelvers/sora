@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { InvalidStreamTokenError } from "../../errors";
 import { fetchUpstream, readBounded, StreamUpstreamError } from "./upstream";
 
-function target(url: string) {
+const target = (url: string) => {
 	return {
 		accountId: "account",
 		expiresAt: Math.floor(Date.now() / 1_000) + 60,
@@ -12,7 +12,7 @@ function target(url: string) {
 		mirrors: [],
 		url,
 	};
-}
+};
 
 describe("fetchUpstream", () => {
 	test.each([

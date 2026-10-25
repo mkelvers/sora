@@ -47,41 +47,11 @@ const sideStoryRelations = new Set<MediaRelation>(["SIDE_STORY", "PARENT"]);
 const spinOffRelations = new Set<MediaRelation>(["SPIN_OFF", "CHARACTER"]);
 const recapRelations = new Set<MediaRelation>(["SUMMARY", "COMPILATION"]);
 
-/**
- * Gives every title exactly one {@link FranchiseRole}.
- *
- * `main` holds the AniList IDs already on the main story path (the seasons
- * {@link franchiseParts} lists). Everything else is decided by how AniList
- * relates it to them, then by format and runtime:
- *
- * 1. Music, and titles marked as another title's summary, are never listed.
- * 2. A title on the main path is a `season`.
- * 3. An alternative to a main title is an `alternative`.
- * 4. A sequel or prequel of a main title is an `extra`, however little it is
- *    rated: it continues the story.
- * 5. Anything else, linked or not, is `noise` unless it has a real runtime and
- *    is rated or watched enough. A runtime AniList does not give is not held
- *    against the title. What passes is a `spin_off` when it shares only the
- *    world or characters, and otherwise an `extra`.
- */
-export function franchiseRoles(
-	titles: readonly RoleTitle[],
-	relations: readonly RoleRelation[],
-	main: ReadonlySet<number>,
-): Map<number, FranchiseRole> {
-	const roles = new Map<number, FranchiseRole>();
-	for (const title of titles) {
-		roles.set(title.anilistId, roleOf(title, relations, main));
-	}
-
-	return roles;
-}
-
-function roleOf(
+const roleOf = (
 	title: RoleTitle,
 	relations: readonly RoleRelation[],
 	main: ReadonlySet<number>,
-): FranchiseRole {
+): FranchiseRole => {
 	if (title.format === "MUSIC") {
 		return "noise";
 	}
@@ -126,4 +96,34 @@ function roleOf(
 		touching.some((type) => spinOffRelations.has(type))
 		? "spin_off"
 		: "extra";
-}
+};
+
+/**
+ * Gives every title exactly one {@link FranchiseRole}.
+ *
+ * `main` holds the AniList IDs already on the main story path (the seasons
+ * {@link franchiseParts} lists). Everything else is decided by how AniList
+ * relates it to them, then by format and runtime:
+ *
+ * 1. Music, and titles marked as another title's summary, are never listed.
+ * 2. A title on the main path is a `season`.
+ * 3. An alternative to a main title is an `alternative`.
+ * 4. A sequel or prequel of a main title is an `extra`, however little it is
+ *    rated: it continues the story.
+ * 5. Anything else, linked or not, is `noise` unless it has a real runtime and
+ *    is rated or watched enough. A runtime AniList does not give is not held
+ *    against the title. What passes is a `spin_off` when it shares only the
+ *    world or characters, and otherwise an `extra`.
+ */
+export const franchiseRoles = (
+	titles: readonly RoleTitle[],
+	relations: readonly RoleRelation[],
+	main: ReadonlySet<number>,
+): Map<number, FranchiseRole> => {
+	const roles = new Map<number, FranchiseRole>();
+	for (const title of titles) {
+		roles.set(title.anilistId, roleOf(title, relations, main));
+	}
+
+	return roles;
+};

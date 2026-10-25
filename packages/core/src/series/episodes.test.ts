@@ -28,12 +28,12 @@ const episode = {
 };
 
 /** AniKoto, looked up for entry 178789, carrying `episodes` of it. */
-function onAniKoto(...episodes: number[]) {
+const onAniKoto = (...episodes: number[]) => {
 	return {
 		carried: new Set(episodes.map((number) => anilistEpisodeKey(178_789, number))),
 		lookedUp: new Set([178_789]),
 	};
-}
+};
 
 const notLookedUp = {
 	carried: new Set<string>(),

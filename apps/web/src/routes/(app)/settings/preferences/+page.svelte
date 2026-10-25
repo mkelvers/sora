@@ -23,10 +23,10 @@
 
 	let saved = $state(false);
 
-	async function save(changes: Parameters<typeof savePlaybackPreferences>[0]) {
+	const save = async (changes: Parameters<typeof savePlaybackPreferences>[0]) => {
 		await savePlaybackPreferences(changes);
 		saved = true;
-	}
+	};
 </script>
 
 <svelte:head>

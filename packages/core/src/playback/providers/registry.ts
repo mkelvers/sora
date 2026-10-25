@@ -43,14 +43,14 @@ const mappingClient = new MappingClient(providerHttp, {
 export const servedLocale = "en";
 
 /** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
-export function isServedSubtitle(track: { language: string; label: string }) {
+export const isServedSubtitle = (track: { language: string; label: string }) => {
 	const language = track.language.trim().toLowerCase();
 	return (
 		/^en(?:-|_|$)/.test(language) ||
 		language.startsWith("english") ||
 		/^english\b/i.test(track.label.trim())
 	);
-}
+};
 
 /** AniKoto, which playback tries first, and which decides what episodes seasons list. */
 export const aniKoto = recordingCalls(

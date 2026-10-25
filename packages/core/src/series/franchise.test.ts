@@ -3,12 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { franchiseParts } from "./franchise";
 import type { FranchiseTitle } from "./franchise";
 
-function title(
+const title = (
 	anilistId: number,
 	name: string,
 	format: FranchiseTitle["format"],
 	startDate: string,
-): FranchiseTitle {
+): FranchiseTitle => {
 	return {
 		anilistId,
 		episodeCount: 12,
@@ -17,11 +17,11 @@ function title(
 		startDate,
 		title: name,
 	};
-}
+};
 
-function titlesOf(parts: ReturnType<typeof franchiseParts>) {
+const titlesOf = (parts: ReturnType<typeof franchiseParts>) => {
 	return parts.map((part) => part.title);
-}
+};
 
 describe("franchiseParts", () => {
 	test("keeps a crossover that the opening title is named after at the start", () => {

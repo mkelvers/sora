@@ -8,7 +8,7 @@ const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
 /** `getSources` as MegaPlay sends it, with the source unencrypted. */
-function sources(intro: object | undefined, outro: object | undefined) {
+const sources = (intro: object | undefined, outro: object | undefined) => {
 	return JSON.stringify({
 		intro,
 		outro,
@@ -19,13 +19,13 @@ function sources(intro: object | undefined, outro: object | undefined) {
 		t: 1,
 		tracks: [],
 	});
-}
+};
 
 /**
  * A provider whose HTTP requests are answered by `pages`, keyed by path, and
  * the URLs it requested.
  */
-function providerServing(pages: Record<string, string>) {
+const providerServing = (pages: Record<string, string>) => {
 	const requested: string[] = [];
 	const http = new HttpClient({
 		retry: false,
@@ -49,18 +49,18 @@ function providerServing(pages: Record<string, string>) {
 		}),
 		requested,
 	};
-}
+};
 
 /** The skip segments shipped with the stream `provider` resolves. */
-async function skipSegments(
+const skipSegments = async (
 	provider: AniKotoStreamProvider,
 	episodeId: string,
 	language: "sub" | "dub",
-) {
+) => {
 	const stream = await provider.resolveStream(episodeId, language);
 
 	return stream.skipSegments;
-}
+};
 
 describe("AniKotoStreamProvider skip segments", () => {
 	test("reads the opening and ending, as for Frieren episode 3", async () => {
@@ -217,10 +217,10 @@ describe("AniKotoStreamProvider skip segments", () => {
  * AniKoto's series API, listing `numbers` with an embed for each language
  * in `languages`. Its episodes default to 56–58 of Naruto: Shippuden, sub only.
  */
-function seriesResponseOf(
+const seriesResponseOf = (
 	numbers: readonly number[],
 	languages: (number: number) => readonly string[] = () => ["sub"],
-) {
+) => {
 	return JSON.stringify({
 		data: {
 			episodes: numbers.map((number) => ({
@@ -238,7 +238,7 @@ function seriesResponseOf(
 		},
 		ok: true,
 	});
-}
+};
 
 const seriesResponse = seriesResponseOf([56, 57, 58]);
 
@@ -250,7 +250,7 @@ interface ListedLink {
 }
 
 /** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
-function episodeList(links: Record<number, ListedLink | string>) {
+const episodeList = (links: Record<number, ListedLink | string>) => {
 	const items = Object.entries(links).map(([number, link]) => {
 		const {
 			className = "",
@@ -267,7 +267,7 @@ function episodeList(links: Record<number, ListedLink | string>) {
 		result: `<div class="body"><ul class="ep-range">${items.join("\n")}</ul></div>`,
 		status: 200,
 	});
-}
+};
 
 describe("AniKotoStreamProvider.listEpisodes", () => {
 	test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {

@@ -6,7 +6,7 @@ import type { Anime } from "../../catalog/models/anime";
 import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 
-function titled(titles: { english?: string; romaji?: string }, episodes: number | null): Anime {
+const titled = (titles: { english?: string; romaji?: string }, episodes: number | null): Anime => {
 	return {
 		...anime(1),
 		episodes,
@@ -19,7 +19,7 @@ function titled(titles: { english?: string; romaji?: string }, episodes: number 
 			romaji: titles.romaji ?? null,
 		},
 	};
-}
+};
 
 const titan = titled(
 	{
@@ -91,7 +91,7 @@ const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
 }));
 
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
-function providerFinding(resolution: MappingResolution | null, units: Promise<IContentUnit[]>) {
+const providerFinding = (resolution: MappingResolution | null, units: Promise<IContentUnit[]>) => {
 	const fetched: string[] = [];
 	const provider = new SdkStreamProvider(
 		{
@@ -116,7 +116,7 @@ function providerFinding(resolution: MappingResolution | null, units: Promise<IC
 		fetched,
 		provider,
 	};
-}
+};
 
 const resolved = (method: MappingMethod, matchedTitle: string): MappingResolution => ({
 	matchedTitle,

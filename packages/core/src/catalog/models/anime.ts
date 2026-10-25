@@ -96,13 +96,48 @@ export interface Anime extends AnimeCard {
 	recommendations: AnimeCard[];
 }
 
+export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null => {
+	switch (format) {
+		case "MANGA":
+		case "NOVEL":
+		case "ONE_SHOT": {
+			throw new TypeError(`Unexpected non-anime format ${format}`);
+		}
+		default: {
+			return format;
+		}
+	}
+};
+
+/** Drops GraphQL list holes; a null list is treated as empty. */
+const present = <T>(values: readonly (T | null)[] | null | undefined): T[] => {
+	return values ? values.filter((value): value is T => value !== null) : [];
+};
+
+const toTitle = (media: AnimeCardFragment): AnimeTitle => {
+	const english = media.title?.english ?? null;
+	const romaji = media.title?.romaji ?? null;
+	const native = media.title?.native ?? null;
+	const display = english ?? romaji ?? native;
+	if (!display) {
+		throw new TypeError(`AniList media ${media.id} has no title`);
+	}
+
+	return {
+		display,
+		english,
+		native,
+		romaji,
+	};
+};
+
 /**
  * Converts an AniList card fragment into the domain model.
  *
  * @throws {TypeError} when AniList returns media with no title at all, which
  *   would violate AniList's own data rules.
  */
-export function toAnimeCard(media: AnimeCardFragment): AnimeCard {
+export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => {
 	return {
 		bannerUrl: media.bannerImage,
 		coverColor: media.coverImage?.color ?? null,
@@ -127,10 +162,10 @@ export function toAnimeCard(media: AnimeCardFragment): AnimeCard {
 		status: media.status,
 		title: toTitle(media),
 	};
-}
+};
 
 /** Converts an AniList details fragment into the domain model. */
-export function toAnime(media: AnimeDetailsFragment): Anime {
+export const toAnime = (media: AnimeDetailsFragment): Anime => {
 	return {
 		...toAnimeCard(media),
 		countryOfOrigin: media.countryOfOrigin,
@@ -159,39 +194,4 @@ export function toAnime(media: AnimeDetailsFragment): Anime {
 			spoiler: tag.isMediaSpoiler === true,
 		})),
 	};
-}
-
-function toTitle(media: AnimeCardFragment): AnimeTitle {
-	const english = media.title?.english ?? null;
-	const romaji = media.title?.romaji ?? null;
-	const native = media.title?.native ?? null;
-	const display = english ?? romaji ?? native;
-	if (!display) {
-		throw new TypeError(`AniList media ${media.id} has no title`);
-	}
-
-	return {
-		display,
-		english,
-		native,
-		romaji,
-	};
-}
-
-export function toAnimeFormat(format: MediaFormat | null): AnimeFormat | null {
-	switch (format) {
-		case "MANGA":
-		case "NOVEL":
-		case "ONE_SHOT": {
-			throw new TypeError(`Unexpected non-anime format ${format}`);
-		}
-		default: {
-			return format;
-		}
-	}
-}
-
-/** Drops GraphQL list holes; a null list is treated as empty. */
-function present<T>(values: readonly (T | null)[] | null | undefined): T[] {
-	return values ? values.filter((value): value is T => value !== null) : [];
-}
+};

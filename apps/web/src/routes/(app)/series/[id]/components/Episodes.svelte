@@ -61,7 +61,7 @@
 	let selected = $state<number | null>(null);
 	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
 
-	function mark() {
+	const mark = () => {
 		if (selected === null) {
 			return;
 		}
@@ -73,7 +73,7 @@
 			seriesId: series.id,
 			watched: !finished,
 		});
-	}
+	};
 </script>
 
 <ol

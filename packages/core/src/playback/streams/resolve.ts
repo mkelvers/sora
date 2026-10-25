@@ -144,164 +144,179 @@ const qualityRank: Record<StreamQuality, number> = {
 };
 
 /**
- * Resolves playable streams for one episode in every English version
- * providers offer it in, such as dub and sub, at once. Each version comes
- * from the first English provider that can stream it; a version none can
- * stream right now is left out. A sub keeps every subtitle track its
- * provider has, and always has English ones: a provider with English tracks
- * is preferred, and otherwise the first whose English subtitles are burned in
- * is served, marked `hardsub`.
- *
- * Each version carries the opening and ending its provider's player ships
- * with the stream, so they need no requests of their own.
- *
- * Upstream URLs are never exposed; clients receive proxy URLs so upstream
- * headers and hosts stay on the server. They expire with their tokens.
- *
- * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link EpisodeNotFoundError} when the series has no such episode,
- *   or no provider lists it.
- * @throws {@link PlaybackUnavailableError} when providers list the episode but
- *   none can currently stream any version of it.
+ * `resolving`, or an empty result once `deadlineMs` passes. What is still
+ * running then is left to finish unused. A version given up on counts as
+ * listed, so the failure is "unavailable, try again" rather than "no such
+ * episode".
  */
-export async function resolvePlayback(
-	request: PlaybackRequest,
-	options: PlaybackOptions,
-	dependencies: PlaybackDependencies = live,
-): Promise<Playback> {
-	const parsed = PlaybackRequestSchema.safeParse(request);
-	if (!parsed.success) {
-		throw new InvalidInputError("Invalid playback request", {
-			cause: parsed.error,
-		});
-	}
-
-	const { seriesId, episode } = parsed.data;
-	// Taken before any token is made, so every token outlives it.
-	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
-	const streamUrl: StreamUrl = (...token) =>
-		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
-	const results = await resolveVersions(
-		parsed.data,
-		streamUrl,
-		options.accountId,
-		options.deadlineMs ?? playbackDeadlineMs,
-		dependencies,
-	);
-	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
-	const dub = results.find((result) => result.version?.audio === "dub");
-	if (sub?.version && sub.videos && dub?.version && dub.videos) {
-		const refined = await storedRefinement(sub.videos, dub.videos, parsed.data, dependencies);
-		const shifts =
-			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
-		dub.version.subtitles = await subtitlesForDub(
-			sub.videos,
-			dub.videos,
-			streamUrl,
-			options.accountId,
-			shifts,
-			refined?.refinement ? refined.key : undefined,
+const beforeDeadline = async (
+	resolving: Promise<VersionResult>,
+	{ language, locale }: EpisodeVersion,
+	deadlineMs: number,
+) => {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const gaveUp = new Promise<VersionResult>((resolve) => {
+		timer = setTimeout(
+			() =>
+				resolve({
+					attempts: [
+						{
+							provider: "all",
+							reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
+						},
+					],
+					listed: true,
+					version: null,
+				}),
+			deadlineMs,
 		);
-		dub.version.skip_segments = skipSegmentsForDub(
-			sub.version.skip_segments,
-			dub.version.skip_segments,
-			shifts,
-		);
+	});
+	try {
+		return await Promise.race([resolving, gaveUp]);
+	} finally {
+		clearTimeout(timer);
 	}
-
-	const media = results.flatMap((result) => (result.version ? [result.version] : []));
-	await Promise.all(
-		results.map(async ({ version, skipSource }) => {
-			if (version) {
-				version.skip_segments = await dependencies.normalizeSkipSegments(
-					seriesId,
-					episode,
-					version.audio,
-					version.skip_segments,
-					skipSource,
-				);
-			}
-		}),
-	);
-	if (media.length > 0) {
-		return {
-			episode,
-			expiresAt,
-			media,
-			seriesId,
-		};
-	}
-
-	if (!results.some((result) => result.listed)) {
-		throw new EpisodeNotFoundError(seriesId, episode);
-	}
-
-	throw new PlaybackUnavailableError(
-		seriesId,
-		episode,
-		results.flatMap((result) => result.attempts),
-	);
-}
+};
 
 /**
- * The upstream videos of an episode's sub and dub, for work that listens to
- * them rather than plays them. `null` for a version no provider can stream,
- * and for a sub whose English subtitles are burned in.
+ * Whether any of a provider's videos can be fetched, so it is watchable. A
+ * host that accepts connections and never answers would otherwise fail every
+ * play with a gateway timeout while the next provider sat unused.
  */
-export async function resolveStreams(
-	request: PlaybackRequest,
-	dependencies: PlaybackDependencies = live,
-) {
-	const parsed = PlaybackRequestSchema.parse(request);
-	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
-	return {
-		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
-		sub:
-			results.find((result) => result.version?.audio === "sub" && !result.version.hardsub)
-				?.videos ?? null,
-	};
-}
-
-/** Resolves every version of an episode at once; see {@link resolvePlayback}. */
-async function resolveVersions(
-	{ seriesId, episode }: z.output<typeof PlaybackRequestSchema>,
-	streamUrl: StreamUrl,
-	accountId: string,
-	deadlineMs: number,
-	dependencies: PlaybackDependencies,
-) {
-	const located = await dependencies.locateEpisode(seriesId, episode);
-	const [anime, offered] = await Promise.all([
-		dependencies.getAnime(located.anilistId),
-		dependencies.getEpisodeVersions(located),
-	]);
-
-	// Versions share each provider's episode list.
-	const lists = new Map<string, Promise<ProviderUnit[]>>();
-	const unitsOf = (provider: StreamProvider) => {
-		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
-		lists.set(provider.id, list);
-		return list;
-	};
-
-	const served = offered.filter(
-		(version) =>
-			(version.locale === null || version.locale === servedLocale) &&
-			!alwaysTried.some(
-				(tried) => tried.language === version.language && tried.locale === version.locale,
-			),
-	);
-	return Promise.all(
-		[...alwaysTried, ...served].map((version) =>
-			beforeDeadline(
-				resolveVersion(version, located.number, unitsOf, streamUrl, accountId, dependencies),
-				version,
-				deadlineMs,
+const videoLoads = async (videos: ProviderVideo[], dependencies: PlaybackDependencies) => {
+	const loads = await Promise.all(
+		videos.map((video) =>
+			dependencies.canFetchStream(
+				video.url,
+				video.headers,
+				[],
+				AbortSignal.timeout(videoProbeTimeoutMs),
 			),
 		),
 	);
-}
+	return loads.includes(true);
+};
+
+/**
+ * Whether a sub's English subtitles can be fetched, so it is watchable. Tracks
+ * fall back to the video's host, which often carries them when theirs is
+ * unreachable. A sub without English tracks has them burned in, so passes.
+ */
+const englishSubtitlesLoad = async (
+	videos: ProviderVideo[],
+	dependencies: PlaybackDependencies,
+) => {
+	const english = videos.flatMap((video) =>
+		video.subtitles.filter(isServedSubtitle).map((track) => ({
+			track,
+			video,
+		})),
+	);
+	if (english.length === 0) {
+		return true;
+	}
+
+	const loads = await Promise.all(
+		english.map(({ track, video }) =>
+			dependencies.canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)),
+		),
+	);
+	return loads.includes(true);
+};
+
+const languageNames = new Intl.DisplayNames(["en"], {
+	type: "language",
+});
+
+/**
+ * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
+ * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
+ */
+const languageName = (tag: string) => {
+	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
+	if (error) {
+		return null;
+	}
+	return data && data !== tag ? data : null;
+};
+
+const kindRank = {
+	captions: 2,
+	dialogue: 0,
+	signs: 1,
+};
+
+/** English first, then dialogue before signs before captions, then by language. */
+const compareSubtitles = (left: PlaybackSubtitle, right: PlaybackSubtitle) => {
+	return (
+		Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
+		kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
+		left.label.localeCompare(right.label)
+	);
+};
+
+const toPlaybackMedia = (
+	videos: ProviderVideo[],
+	streamUrl: StreamUrl,
+	kinds: Map<string, SubtitleKind | null>,
+	accountId: string,
+	shifts?: TimelineShift[],
+	refinement?: string,
+) => {
+	const sources = [...videos]
+		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
+		.map((video) => ({
+			format: video.format,
+			quality: video.quality,
+			url: streamUrl(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
+				accountId,
+			}),
+		}));
+
+	// Providers attach the same subtitle tracks to every quality variant.
+	const subtitles = new Map<string, PlaybackSubtitle>();
+	for (const video of videos) {
+		for (const track of video.subtitles) {
+			if (!subtitles.has(track.url)) {
+				subtitles.set(track.url, {
+					default: false,
+					format: track.format,
+					kind: kinds.get(track.url) ?? null,
+					label: languageName(track.language) ?? track.label,
+					language: track.language,
+					url: streamUrl(track.url, "subtitle", video.headers, {
+						accountId,
+						mirrors: mirrorsFor(track.url, video.url),
+						shifts,
+						refinement,
+					}),
+				});
+			}
+		}
+	}
+
+	return {
+		sources,
+		subtitles: [...subtitles.values()].sort(compareSubtitles),
+	};
+};
+
+const audioLabels: Record<ContentLanguage, string> = {
+	dub: "Dub",
+	raw: "Raw",
+	sub: "Sub",
+};
+
+/**
+ * Marks the English dialogue track, which sorts first, as the one a player
+ * shows from the start. English that is only signs or captions is not.
+ */
+const withDefault = (subtitles: PlaybackSubtitle[]) => {
+	return subtitles.map((track, index) => ({
+		...track,
+		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
+	}));
+};
 
 /**
  * Resolves one version of an AniList episode from the first provider that
@@ -309,14 +324,14 @@ async function resolveVersions(
  * version, in priority order, then those whose list leaves it out, since
  * lists can be stale or incomplete.
  */
-async function resolveVersion(
+const resolveVersion = async (
 	{ language, locale }: EpisodeVersion,
 	anilistEpisode: number,
 	unitsOf: (provider: StreamProvider) => Promise<ProviderUnit[]>,
 	streamUrl: StreamUrl,
 	accountId: string,
 	dependencies: PlaybackDependencies,
-): Promise<VersionResult> {
+): Promise<VersionResult> => {
 	const attempts: ProviderAttempt[] = [];
 	const fail = (provider: StreamProvider, reason: string) =>
 		attempts.push({
@@ -464,83 +479,59 @@ async function resolveVersion(
 		listed,
 		version: hardsubbed?.version ?? null,
 	};
-}
+};
 
-/**
- * `resolving`, or an empty result once `deadlineMs` passes. What is still
- * running then is left to finish unused. A version given up on counts as
- * listed, so the failure is "unavailable, try again" rather than "no such
- * episode".
- */
-async function beforeDeadline(
-	resolving: Promise<VersionResult>,
-	{ language, locale }: EpisodeVersion,
+/** Resolves every version of an episode at once; see {@link resolvePlayback}. */
+const resolveVersions = async (
+	{ seriesId, episode }: z.output<typeof PlaybackRequestSchema>,
+	streamUrl: StreamUrl,
+	accountId: string,
 	deadlineMs: number,
-) {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const gaveUp = new Promise<VersionResult>((resolve) => {
-		timer = setTimeout(
-			() =>
-				resolve({
-					attempts: [
-						{
-							provider: "all",
-							reason: `${language}${locale ? ` (${locale})` : ""}: no answer within ${deadlineMs / second} seconds`,
-						},
-					],
-					listed: true,
-					version: null,
-				}),
-			deadlineMs,
-		);
-	});
-	try {
-		return await Promise.race([resolving, gaveUp]);
-	} finally {
-		clearTimeout(timer);
-	}
-}
+	dependencies: PlaybackDependencies,
+) => {
+	const located = await dependencies.locateEpisode(seriesId, episode);
+	const [anime, offered] = await Promise.all([
+		dependencies.getAnime(located.anilistId),
+		dependencies.getEpisodeVersions(located),
+	]);
 
-/**
- * How the sub's timeline maps onto the dub's, found by aligning the two
- * encodes' segment boundaries (see {@link alignTimelines}). `null` when either
- * is not HLS, a playlist cannot be read, or the encodes do not align.
- */
-export async function timelineShifts(
-	sub: ProviderVideo[],
-	dub: ProviderVideo[],
-	dependencies: PlaybackDependencies = live,
-) {
-	const subVideo = sub.find((video) => video.format === "hls");
-	const dubVideo = dub.find((video) => video.format === "hls");
-	if (!subVideo || !dubVideo) {
-		return null;
-	}
+	// Versions share each provider's episode list.
+	const lists = new Map<string, Promise<ProviderUnit[]>>();
+	const unitsOf = (provider: StreamProvider) => {
+		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
+		lists.set(provider.id, list);
+		return list;
+	};
 
-	const starts = await attempt(
-		Promise.all([
-			dependencies.segmentStarts(subVideo.url, subVideo.headers),
-			dependencies.segmentStarts(dubVideo.url, dubVideo.headers),
-		]),
-		StreamUpstreamError,
+	const served = offered.filter(
+		(version) =>
+			(version.locale === null || version.locale === servedLocale) &&
+			!alwaysTried.some(
+				(tried) => tried.language === version.language && tried.locale === version.locale,
+			),
 	);
-	if (starts.error) {
-		return null;
-	}
-	return alignTimelines(...starts.data);
-}
+	return Promise.all(
+		[...alwaysTried, ...served].map((version) =>
+			beforeDeadline(
+				resolveVersion(version, located.number, unitsOf, streamUrl, accountId, dependencies),
+				version,
+				deadlineMs,
+			),
+		),
+	);
+};
 
 /**
  * What listening to the dub found for this pair of encodes, and asks the
  * scheduler to listen when nothing has been found yet, or a failed try is
  * old enough to repeat. `null` when either is not HLS.
  */
-async function storedRefinement(
+const storedRefinement = async (
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
 	request: PlaybackRequest,
 	dependencies: PlaybackDependencies,
-) {
+) => {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
 	if (!subVideo || !dubVideo) {
@@ -558,7 +549,36 @@ async function storedRefinement(
 		key,
 		refinement: stored?.refinement ?? null,
 	};
-}
+};
+
+/**
+ * How the sub's timeline maps onto the dub's, found by aligning the two
+ * encodes' segment boundaries (see {@link alignTimelines}). `null` when either
+ * is not HLS, a playlist cannot be read, or the encodes do not align.
+ */
+export const timelineShifts = async (
+	sub: ProviderVideo[],
+	dub: ProviderVideo[],
+	dependencies: PlaybackDependencies = live,
+) => {
+	const subVideo = sub.find((video) => video.format === "hls");
+	const dubVideo = dub.find((video) => video.format === "hls");
+	if (!subVideo || !dubVideo) {
+		return null;
+	}
+
+	const starts = await attempt(
+		Promise.all([
+			dependencies.segmentStarts(subVideo.url, subVideo.headers),
+			dependencies.segmentStarts(dubVideo.url, dubVideo.headers),
+		]),
+		StreamUpstreamError,
+	);
+	if (starts.error) {
+		return null;
+	}
+	return alignTimelines(...starts.data);
+};
 
 /**
  * The sub's WebVTT subtitles moved onto the dub's timeline by `shifts`, and
@@ -566,14 +586,14 @@ async function storedRefinement(
  * are left out when the encodes do not align. With a `refinement`, cues
  * that were matched to the dub's speech go where it says them.
  */
-async function subtitlesForDub(
+const subtitlesForDub = async (
 	sub: ProviderVideo[],
 	dub: ProviderVideo[],
 	streamUrl: StreamUrl,
 	accountId: string,
 	shifts: TimelineShift[] | null,
 	refinement?: string,
-) {
+) => {
 	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
 	const retimed = shifts
 		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts, refinement).subtitles.filter(
@@ -588,7 +608,7 @@ async function subtitlesForDub(
 	);
 
 	return withDefault([...retimed, ...own].sort(compareSubtitles));
-}
+};
 
 /**
  * The dub's opening and ending on its own timeline.
@@ -598,11 +618,11 @@ async function subtitlesForDub(
  * can be a whole second. Those move by `shifts`; spans that differ from the
  * sub's were timed to the dub and stay.
  */
-function skipSegmentsForDub(
+const skipSegmentsForDub = (
 	sub: SkipSegment[],
 	dub: SkipSegment[],
 	shifts: TimelineShift[] | null,
-) {
+) => {
 	const shared =
 		sub.length === dub.length &&
 		sub.every((segment, index) => {
@@ -621,141 +641,124 @@ function skipSegmentsForDub(
 		kind: segment.kind,
 		start: moved(segment.start),
 	}));
-}
+};
 
-function toPlaybackMedia(
-	videos: ProviderVideo[],
-	streamUrl: StreamUrl,
-	kinds: Map<string, SubtitleKind | null>,
-	accountId: string,
-	shifts?: TimelineShift[],
-	refinement?: string,
-) {
-	const sources = [...videos]
-		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
-		.map((video) => ({
-			format: video.format,
-			quality: video.quality,
-			url: streamUrl(video.url, video.format === "hls" ? "playlist" : "file", video.headers, {
-				accountId,
-			}),
-		}));
+/**
+ * Resolves playable streams for one episode in every English version
+ * providers offer it in, such as dub and sub, at once. Each version comes
+ * from the first English provider that can stream it; a version none can
+ * stream right now is left out. A sub keeps every subtitle track its
+ * provider has, and always has English ones: a provider with English tracks
+ * is preferred, and otherwise the first whose English subtitles are burned in
+ * is served, marked `hardsub`.
+ *
+ * Each version carries the opening and ending its provider's player ships
+ * with the stream, so they need no requests of their own.
+ *
+ * Upstream URLs are never exposed; clients receive proxy URLs so upstream
+ * headers and hosts stay on the server. They expire with their tokens.
+ *
+ * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link EpisodeNotFoundError} when the series has no such episode,
+ *   or no provider lists it.
+ * @throws {@link PlaybackUnavailableError} when providers list the episode but
+ *   none can currently stream any version of it.
+ */
+export const resolvePlayback = async (
+	request: PlaybackRequest,
+	options: PlaybackOptions,
+	dependencies: PlaybackDependencies = live,
+): Promise<Playback> => {
+	const parsed = PlaybackRequestSchema.safeParse(request);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid playback request", {
+			cause: parsed.error,
+		});
+	}
 
-	// Providers attach the same subtitle tracks to every quality variant.
-	const subtitles = new Map<string, PlaybackSubtitle>();
-	for (const video of videos) {
-		for (const track of video.subtitles) {
-			if (!subtitles.has(track.url)) {
-				subtitles.set(track.url, {
-					default: false,
-					format: track.format,
-					kind: kinds.get(track.url) ?? null,
-					label: languageName(track.language) ?? track.label,
-					language: track.language,
-					url: streamUrl(track.url, "subtitle", video.headers, {
-						accountId,
-						mirrors: mirrorsFor(track.url, video.url),
-						shifts,
-						refinement,
-					}),
-				});
+	const { seriesId, episode } = parsed.data;
+	// Taken before any token is made, so every token outlives it.
+	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
+	const streamUrl: StreamUrl = (...token) =>
+		`${options.streamBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
+	const results = await resolveVersions(
+		parsed.data,
+		streamUrl,
+		options.accountId,
+		options.deadlineMs ?? playbackDeadlineMs,
+		dependencies,
+	);
+	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
+	const dub = results.find((result) => result.version?.audio === "dub");
+	if (sub?.version && sub.videos && dub?.version && dub.videos) {
+		const refined = await storedRefinement(sub.videos, dub.videos, parsed.data, dependencies);
+		const shifts =
+			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
+		dub.version.subtitles = await subtitlesForDub(
+			sub.videos,
+			dub.videos,
+			streamUrl,
+			options.accountId,
+			shifts,
+			refined?.refinement ? refined.key : undefined,
+		);
+		dub.version.skip_segments = skipSegmentsForDub(
+			sub.version.skip_segments,
+			dub.version.skip_segments,
+			shifts,
+		);
+	}
+
+	const media = results.flatMap((result) => (result.version ? [result.version] : []));
+	await Promise.all(
+		results.map(async ({ version, skipSource }) => {
+			if (version) {
+				version.skip_segments = await dependencies.normalizeSkipSegments(
+					seriesId,
+					episode,
+					version.audio,
+					version.skip_segments,
+					skipSource,
+				);
 			}
-		}
+		}),
+	);
+	if (media.length > 0) {
+		return {
+			episode,
+			expiresAt,
+			media,
+			seriesId,
+		};
 	}
 
+	if (!results.some((result) => result.listed)) {
+		throw new EpisodeNotFoundError(seriesId, episode);
+	}
+
+	throw new PlaybackUnavailableError(
+		seriesId,
+		episode,
+		results.flatMap((result) => result.attempts),
+	);
+};
+
+/**
+ * The upstream videos of an episode's sub and dub, for work that listens to
+ * them rather than plays them. `null` for a version no provider can stream,
+ * and for a sub whose English subtitles are burned in.
+ */
+export const resolveStreams = async (
+	request: PlaybackRequest,
+	dependencies: PlaybackDependencies = live,
+) => {
+	const parsed = PlaybackRequestSchema.parse(request);
+	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
 	return {
-		sources,
-		subtitles: [...subtitles.values()].sort(compareSubtitles),
+		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
+		sub:
+			results.find((result) => result.version?.audio === "sub" && !result.version.hardsub)
+				?.videos ?? null,
 	};
-}
-
-const kindRank = {
-	captions: 2,
-	dialogue: 0,
-	signs: 1,
 };
-
-/** English first, then dialogue before signs before captions, then by language. */
-function compareSubtitles(left: PlaybackSubtitle, right: PlaybackSubtitle) {
-	return (
-		Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
-		kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
-		left.label.localeCompare(right.label)
-	);
-}
-
-/**
- * Marks the English dialogue track, which sorts first, as the one a player
- * shows from the start. English that is only signs or captions is not.
- */
-function withDefault(subtitles: PlaybackSubtitle[]) {
-	return subtitles.map((track, index) => ({
-		...track,
-		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
-	}));
-}
-
-/**
- * Whether any of a provider's videos can be fetched, so it is watchable. A
- * host that accepts connections and never answers would otherwise fail every
- * play with a gateway timeout while the next provider sat unused.
- */
-async function videoLoads(videos: ProviderVideo[], dependencies: PlaybackDependencies) {
-	const loads = await Promise.all(
-		videos.map((video) =>
-			dependencies.canFetchStream(
-				video.url,
-				video.headers,
-				[],
-				AbortSignal.timeout(videoProbeTimeoutMs),
-			),
-		),
-	);
-	return loads.includes(true);
-}
-
-/**
- * Whether a sub's English subtitles can be fetched, so it is watchable. Tracks
- * fall back to the video's host, which often carries them when theirs is
- * unreachable. A sub without English tracks has them burned in, so passes.
- */
-async function englishSubtitlesLoad(videos: ProviderVideo[], dependencies: PlaybackDependencies) {
-	const english = videos.flatMap((video) =>
-		video.subtitles.filter(isServedSubtitle).map((track) => ({
-			track,
-			video,
-		})),
-	);
-	if (english.length === 0) {
-		return true;
-	}
-
-	const loads = await Promise.all(
-		english.map(({ track, video }) =>
-			dependencies.canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)),
-		),
-	);
-	return loads.includes(true);
-}
-
-const audioLabels: Record<ContentLanguage, string> = {
-	dub: "Dub",
-	raw: "Raw",
-	sub: "Sub",
-};
-
-const languageNames = new Intl.DisplayNames(["en"], {
-	type: "language",
-});
-
-/**
- * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
- * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
- */
-function languageName(tag: string) {
-	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
-	if (error) {
-		return null;
-	}
-	return data && data !== tag ? data : null;
-}

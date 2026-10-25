@@ -10,6 +10,18 @@ import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
 /** How many stills of an episode are looked at, best ranked first, before the best ranked is taken. */
 const stillsLooked = 8;
 
+const loadStill = async (path: string): Promise<Buffer> => {
+	const url = tmdbImageUrl(path, "w780")!;
+	const response = await fetch(url, {
+		signal: AbortSignal.timeout(10_000),
+	});
+	if (!response.ok) {
+		throw new Error(`${url} answered ${response.status}`);
+	}
+
+	return Buffer.from(await response.arrayBuffer());
+};
+
 /**
  * Chooses the still of a TMDB episode: the best ranked (see `rankStills`)
  * of those TMDB lists for it that has no language, no black bars, and no
@@ -27,12 +39,12 @@ const stillsLooked = 8;
  * @throws {@link UpstreamUnavailableError} when stills are listed but none
  *   could be loaded.
  */
-export async function chooseStill(
+export const chooseStill = async (
 	showId: number,
 	seasonNumber: number,
 	episodeNumber: number,
 	defaultPath: string | null,
-): Promise<string | null> {
+): Promise<string | null> => {
 	const ranked = rankStills(
 		await getEpisodeStills(showId, seasonNumber, episodeNumber),
 		defaultPath,
@@ -59,31 +71,19 @@ export async function chooseStill(
 	}
 
 	return ranked[0]?.file_path ?? defaultPath;
-}
-
-async function loadStill(path: string): Promise<Buffer> {
-	const url = tmdbImageUrl(path, "w780")!;
-	const response = await fetch(url, {
-		signal: AbortSignal.timeout(10_000),
-	});
-	if (!response.ok) {
-		throw new Error(`${url} answered ${response.status}`);
-	}
-
-	return Buffer.from(await response.arrayBuffer());
-}
+};
 
 /**
  * Stores the chosen still of a TMDB episode, `null` for none, and puts it on
  * the stored episodes of every series laid out from that show, so readers
  * see it before the series is laid out again.
  */
-export async function storeStill(
+export const storeStill = async (
 	showId: number,
 	seasonNumber: number,
 	episodeNumber: number,
 	path: string | null,
-): Promise<void> {
+): Promise<void> => {
 	await db
 		.insert(episodeStill)
 		.values({
@@ -121,4 +121,4 @@ export async function storeStill(
 				eq(seriesEpisode.tmdbEpisodeNumber, episodeNumber),
 			),
 		);
-}
+};

@@ -31,22 +31,35 @@ const palette = [
 	"#3e63dd",
 ];
 
+const toProfile = (row: typeof profile.$inferSelect): Profile => {
+	return {
+		avatar: {
+			seed: row.avatarSeed,
+			style: row.avatarStyle,
+		},
+		color: row.color,
+		created_at: row.createdAt.toISOString(),
+		id: row.id,
+		name: row.name,
+	};
+};
+
 /** Lists an account's profiles, oldest first. */
-export async function listProfiles(userId: string): Promise<Profile[]> {
+export const listProfiles = async (userId: string): Promise<Profile[]> => {
 	const rows = await db
 		.select()
 		.from(profile)
 		.where(eq(profile.userId, userId))
 		.orderBy(asc(profile.createdAt), asc(profile.id));
 	return rows.map(toProfile);
-}
+};
 
 /**
  * Loads one of an account's profiles.
  *
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  */
-export async function getProfile(userId: string, profileId: string): Promise<Profile> {
+export const getProfile = async (userId: string, profileId: string): Promise<Profile> => {
 	const [row] = await db
 		.select()
 		.from(profile)
@@ -57,7 +70,18 @@ export async function getProfile(userId: string, profileId: string): Promise<Pro
 	}
 
 	return toProfile(row);
-}
+};
+
+const parse = <TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.output<TSchema> => {
+	const parsed = schema.safeParse(input);
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid profile", {
+			cause: parsed.error,
+		});
+	}
+
+	return parsed.data;
+};
 
 /**
  * Adds a profile to an account; there is no limit. Without a color, the
@@ -66,7 +90,7 @@ export async function getProfile(userId: string, profileId: string): Promise<Pro
  *
  * @throws {@link InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
-export async function createProfile(userId: string, input: ProfileInput): Promise<Profile> {
+export const createProfile = async (userId: string, input: ProfileInput): Promise<Profile> => {
 	const { name, color, avatar } = parse(ProfileInputSchema, input);
 	const id = newId();
 	const [existing] = await db
@@ -89,7 +113,7 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
 		.returning();
 
 	return toProfile(row!);
-}
+};
 
 /**
  * Renames a profile, or changes its color or avatar.
@@ -97,11 +121,11 @@ export async function createProfile(userId: string, input: ProfileInput): Promis
  * @throws {@link InvalidInputError} when the input is invalid.
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  */
-export async function updateProfile(
+export const updateProfile = async (
 	userId: string,
 	profileId: string,
 	input: Partial<ProfileInput>,
-): Promise<Profile> {
+): Promise<Profile> => {
 	const { avatar, ...changes } = parse(ProfileInputSchema.partial(), input);
 	const [row] = await db
 		.update(profile)
@@ -119,7 +143,7 @@ export async function updateProfile(
 	}
 
 	return toProfile(row);
-}
+};
 
 /**
  * Deletes a profile with its watchlist, progress, rewatches, preferences,
@@ -128,7 +152,7 @@ export async function updateProfile(
  * @throws {@link ProfileNotFoundError} when the account has no such profile.
  * @throws {@link LastProfileError} when it is the account's only profile.
  */
-export async function deleteProfile(userId: string, profileId: string) {
+export const deleteProfile = async (userId: string, profileId: string) => {
 	await getProfile(userId, profileId);
 	await db.transaction(async (tx) => {
 		// Locks the account's profiles, so two deletions at once cannot remove the last two.
@@ -151,28 +175,4 @@ export async function deleteProfile(userId: string, profileId: string) {
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});
-}
-
-function parse<TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.output<TSchema> {
-	const parsed = schema.safeParse(input);
-	if (!parsed.success) {
-		throw new InvalidInputError("Invalid profile", {
-			cause: parsed.error,
-		});
-	}
-
-	return parsed.data;
-}
-
-function toProfile(row: typeof profile.$inferSelect): Profile {
-	return {
-		avatar: {
-			seed: row.avatarSeed,
-			style: row.avatarStyle,
-		},
-		color: row.color,
-		created_at: row.createdAt.toISOString(),
-		id: row.id,
-		name: row.name,
-	};
-}
+};

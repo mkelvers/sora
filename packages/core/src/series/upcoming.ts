@@ -29,7 +29,7 @@ const openingFormats: Set<MediaFormat> = new Set(["TV", "MOVIE"]);
  *
  * @param startDate - `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as `fuzzyDate` formats it.
  */
-export function startsSoon(startDate: string | null, now: Date): startDate is string {
+export const startsSoon = (startDate: string | null, now: Date): startDate is string => {
 	if (startDate?.length !== 10) {
 		return false;
 	}
@@ -37,7 +37,51 @@ export function startsSoon(startDate: string | null, now: Date): startDate is st
 	const today = now.toISOString().slice(0, 10);
 	const until = new Date(now.getTime() + soonMs).toISOString().slice(0, 10);
 	return startDate >= today && startDate <= until;
-}
+};
+
+/**
+ * The title of an entry's franchise to start catching up on: the earliest
+ * show or film that is out, or the earliest of anything out when none is.
+ * `null` when nothing of the franchise is out.
+ */
+const earliestReleased = async (anilistId: number) => {
+	const { ids: franchise, crossovers } = await franchiseIds(anilistId);
+	const rows =
+		franchise.length > 0
+			? await db
+					.select({
+						series,
+						format: animeSearch.format,
+					})
+					.from(series)
+					.leftJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
+					.where(
+						and(
+							inArray(series.anilistId, franchise),
+							inArray(series.status, released),
+							catalogFormatAllowed(animeSearch.format),
+							catalogSeriesAllowed,
+						),
+					)
+			: [];
+	const earliestOf = (candidates: typeof rows) => {
+		const opening = candidates.filter(
+			(row) => row.format !== null && openingFormats.has(row.format),
+		);
+		return byStartDate((opening.length > 0 ? opening : candidates).map((row) => row.series))[0];
+	};
+	// A crossover shares the universe, not the story, so catching up never
+	// starts there unless the franchise's own earliest title is named after it.
+	const own = rows.filter((row) => !crossovers.has(row.series.anilistId));
+	const start = earliestOf(own.length > 0 ? own : rows);
+	const named = start
+		? rows.filter(
+				(row) =>
+					crossovers.has(row.series.anilistId) && isNamedAfter(start.title, row.series.title),
+			)
+		: [];
+	return (named.length > 0 ? earliestOf([...own, ...named]) : start) ?? null;
+};
 
 /**
  * Lists the titles starting soon (see {@link startsSoon}), whatever they
@@ -53,7 +97,7 @@ export function startsSoon(startDate: string | null, now: Date): startDate is st
  * listed. Reads only the database, so only stored titles are listed; the
  * scheduler stores this season's and the next's ahead of time.
  */
-export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSeries[]> {
+export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSeries[]> => {
 	const unreleased = await db
 		.select({
 			series,
@@ -126,48 +170,4 @@ export async function getUpcomingSeries(now = new Date()): Promise<UpcomingSerie
 				]
 			: [];
 	});
-}
-
-/**
- * The title of an entry's franchise to start catching up on: the earliest
- * show or film that is out, or the earliest of anything out when none is.
- * `null` when nothing of the franchise is out.
- */
-async function earliestReleased(anilistId: number) {
-	const { ids: franchise, crossovers } = await franchiseIds(anilistId);
-	const rows =
-		franchise.length > 0
-			? await db
-					.select({
-						series,
-						format: animeSearch.format,
-					})
-					.from(series)
-					.leftJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-					.where(
-						and(
-							inArray(series.anilistId, franchise),
-							inArray(series.status, released),
-							catalogFormatAllowed(animeSearch.format),
-							catalogSeriesAllowed,
-						),
-					)
-			: [];
-	const earliestOf = (candidates: typeof rows) => {
-		const opening = candidates.filter(
-			(row) => row.format !== null && openingFormats.has(row.format),
-		);
-		return byStartDate((opening.length > 0 ? opening : candidates).map((row) => row.series))[0];
-	};
-	// A crossover shares the universe, not the story, so catching up never
-	// starts there unless the franchise's own earliest title is named after it.
-	const own = rows.filter((row) => !crossovers.has(row.series.anilistId));
-	const start = earliestOf(own.length > 0 ? own : rows);
-	const named = start
-		? rows.filter(
-				(row) =>
-					crossovers.has(row.series.anilistId) && isNamedAfter(start.title, row.series.title),
-			)
-		: [];
-	return (named.length > 0 ? earliestOf([...own, ...named]) : start) ?? null;
-}
+};

@@ -5,7 +5,7 @@ import { attempt } from "@sora/shared";
 import { route, SoraClient, SoraError } from "./index";
 
 /** A client whose requests are answered by `answer`, and recorded. */
-function clientAnswering(answer: () => Response, options: { baseUrl?: string } = {}) {
+const clientAnswering = (answer: () => Response, options: { baseUrl?: string } = {}) => {
 	const requests: Request[] = [];
 	const sora = new SoraClient({
 		baseUrl: options.baseUrl ?? "https://sora.test",
@@ -22,16 +22,16 @@ function clientAnswering(answer: () => Response, options: { baseUrl?: string } =
 		requests,
 		sora,
 	};
-}
+};
 
-function genres() {
+const genres = () => {
 	return Response.json({
 		meta: {
 			count: 2,
 		},
 		results: ["Action", "Comedy"],
 	});
-}
+};
 
 describe("SoraClient.request", () => {
 	test("resolves to a response's results, and requestWithMeta to the whole body", async () => {
@@ -248,7 +248,7 @@ describe("SoraClient.request", () => {
 });
 
 /** Never called: it only has to compile, which `bun run check` makes sure of. */
-async function typesAreChecked() {
+const typesAreChecked = async () => {
 	const sora = new SoraClient({
 		baseUrl: "https://sora.test",
 	});
@@ -284,5 +284,5 @@ async function typesAreChecked() {
 	const wrong: number = await sora.request(route.listGenres);
 
 	return [names, hasNext, nothing, wrong];
-}
+};
 void typesAreChecked;

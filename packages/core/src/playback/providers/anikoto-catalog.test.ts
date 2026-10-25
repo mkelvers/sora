@@ -22,21 +22,21 @@ const frieren = {
 };
 
 /** An AniList entry with what matching reads; the rest is left blank. */
-function animeWith(fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime {
+const animeWith = (fields: Partial<Anime> & Pick<Anime, "id" | "malId" | "format">): Anime => {
 	return {
 		...anime(fields.id),
 		status: "FINISHED",
 		...fields,
 	};
-}
+};
 
 /** A stored AniKoto series, as the mirror holds it. */
-function series(
+const series = (
 	fields: Partial<NonNullable<ReturnType<typeof parseCatalogSeries>>> & {
 		anikotoId: number;
 		title: string;
 	},
-) {
+) => {
 	return {
 		anilistId: null,
 		episodes: null,
@@ -47,7 +47,7 @@ function series(
 		year: null,
 		...fields,
 	};
-}
+};
 
 describe("parseCatalogSeries", () => {
 	test("reads IDs, format, and every title", () => {

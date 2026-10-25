@@ -22,10 +22,10 @@ export interface Playback {
  * - Stopping partway changes nothing, and a series off the watchlist stays
  *   off it until its finale is finished.
  */
-export function statusAfterPlayback(
+export const statusAfterPlayback = (
 	current: WatchlistStatus | null,
 	playback: Playback,
-): WatchlistStatus | null {
+): WatchlistStatus | null => {
 	if (current === "completed") {
 		return current;
 	}
@@ -39,4 +39,4 @@ export function statusAfterPlayback(
 	}
 
 	return current;
-}
+};

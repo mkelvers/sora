@@ -5,13 +5,13 @@ import { on } from "svelte/events";
  * where subjects remain visible above the hero's logo and bottom fade.
  * This estimates composition from contrast; it does not detect faces.
  */
-export function mobileBackdrop(image: HTMLImageElement) {
+export const mobileBackdrop = (image: HTMLImageElement) => {
 	const mobile = matchMedia("(width < 40rem)");
 	let focus = 0.5;
 	let analyzedSource: string | undefined;
 	let disposed = false;
 
-	async function frame() {
+	const frame = async () => {
 		if (!mobile.matches || !image.naturalWidth || !image.clientHeight) {
 			return;
 		}
@@ -75,7 +75,7 @@ export function mobileBackdrop(image: HTMLImageElement) {
 			"--mobile-backdrop-position",
 			`${Math.min(1, Math.max(0, position)) * 100}%`,
 		);
-	}
+	};
 
 	const offLoad = on(image, "load", frame);
 	const offMobile = on(mobile, "change", frame);
@@ -90,4 +90,4 @@ export function mobileBackdrop(image: HTMLImageElement) {
 		observer.disconnect();
 		image.style.removeProperty("--mobile-backdrop-position");
 	};
-}
+};

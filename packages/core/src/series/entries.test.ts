@@ -7,7 +7,7 @@ import type {
 import { loadEntries, toMatchSubject } from "./entries";
 
 /** An AniList entry that knows nothing but its ID. */
-function entry(id: number): FranchiseEntryFragment {
+const entry = (id: number): FranchiseEntryFragment => {
 	return {
 		averageScore: null,
 		bannerImage: null,
@@ -36,10 +36,10 @@ function entry(id: number): FranchiseEntryFragment {
 			romaji: `Entry ${id}`,
 		},
 	};
-}
+};
 
 /** An entry with `relatedIds` as its neighbours, as AniList sends it. */
-function withNeighbours(id: number, relatedIds: number[]): FranchiseEntryWithNeighboursFragment {
+const withNeighbours = (id: number, relatedIds: number[]): FranchiseEntryWithNeighboursFragment => {
 	return {
 		...entry(id),
 		neighbours: {
@@ -51,7 +51,7 @@ function withNeighbours(id: number, relatedIds: number[]): FranchiseEntryWithNei
 			})),
 		},
 	};
-}
+};
 
 /** A loader that answers every ID with an entry, entry 1 with entry 2 as its neighbour. */
 const loader = () =>

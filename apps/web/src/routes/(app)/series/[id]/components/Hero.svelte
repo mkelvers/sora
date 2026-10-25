@@ -87,11 +87,11 @@
 			: `Next episode airs ${day} at ${time}`;
 	});
 
-	async function rewatch(event: MouseEvent) {
+	const rewatch = async (event: MouseEvent) => {
 		event.preventDefault();
 		await startRewatch(series.id);
 		await goto(`/series/${series.id}/watch/1`);
-	}
+	};
 </script>
 
 <header

@@ -21,13 +21,13 @@
 		onoptions: () => void;
 	} = $props();
 
-	function duration(minutes: number) {
+	const duration = (minutes: number) => {
 		const total = Math.round(minutes);
 		const hours = Math.floor(total / 60);
 		const rest = total % 60;
 
 		return hours === 0 ? `${rest}m` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
-	}
+	};
 
 	const id = $props.id();
 	const movie = $derived(series.format === "MOVIE");

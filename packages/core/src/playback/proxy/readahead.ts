@@ -47,7 +47,7 @@ let fetchingAhead = 0;
  * Remembers the order of a media playlist's segments, so that serving one
  * can start fetching the ones after it.
  */
-export function rememberSegmentOrder(targets: StreamTarget[]) {
+export const rememberSegmentOrder = (targets: StreamTarget[]) => {
 	targets.forEach((target, index) => {
 		positions.delete(target.url);
 		positions.set(target.url, {
@@ -62,59 +62,42 @@ export function rememberSegmentOrder(targets: StreamTarget[]) {
 		}
 		positions.delete(url);
 	}
-}
+};
 
-/**
- * Serves a whole segment from memory when it was fetched ahead, otherwise
- * fetches it, and starts fetching the segments that follow.
- *
- * Fetches are shared between callers and are not tied to any one request, so
- * a player that gives up on a segment does not cancel what others wait for.
- *
- * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
- */
-export async function readSegment(target: StreamTarget) {
-	const segment = load(target);
-	fetchAhead(target);
-	return segment;
-}
+const download = async (target: StreamTarget): Promise<Segment> => {
+	const { bytes: body, headers } = await fetchUpstreamBytes(target);
+	const disguised = isDisguisedSegment(body);
+	const contentType = headers.get("Content-Type");
 
-function fetchAhead(target: StreamTarget) {
-	const position = positions.get(target.url);
-	if (!position) {
-		return;
+	return {
+		bytes: disguised ? unwrapDisguisedSegment(body) : body,
+		// Strict players (AVPlayer, ExoPlayer) reject the image type disguised
+		// segments arrive with, so restore the real one.
+		contentType:
+			disguised || (contentType && /^(image|text)\//i.test(contentType))
+				? "video/mp2t"
+				: contentType,
+	};
+};
+
+const evict = (keep: string) => {
+	for (const url of segments.keys()) {
+		if (cachedBytes <= cacheBudgetBytes) {
+			break;
+		}
+
+		const size = sizes.get(url);
+		if (url === keep || size === undefined) {
+			continue;
+		}
+
+		segments.delete(url);
+		sizes.delete(url);
+		cachedBytes -= size;
 	}
+};
 
-	for (const next of position.targets.slice(
-		position.index + 1,
-		position.index + 1 + segmentsAhead,
-	)) {
-		void loadAhead(next);
-	}
-}
-
-/**
- * Loads a segment before the player asks for it, unless it is already loading
- * or the budget has no room for another. An upstream failure is left for the
- * player's own request, which tries again.
- */
-async function loadAhead(target: StreamTarget) {
-	if (
-		segments.has(target.url) ||
-		cachedBytes + fetchingAhead * expectedSegmentBytes > cacheBudgetBytes
-	) {
-		return;
-	}
-
-	fetchingAhead += 1;
-	const { error } = await attempt(load(target));
-	fetchingAhead -= 1;
-	if (error && !(error instanceof StreamUpstreamError)) {
-		console.error(`Fetching ${target.url} ahead failed: ${error.message}`);
-	}
-}
-
-function load(target: StreamTarget) {
+const load = (target: StreamTarget) => {
 	const cached = segments.get(target.url);
 	if (cached) {
 		segments.delete(target.url);
@@ -140,37 +123,54 @@ function load(target: StreamTarget) {
 		},
 	);
 	return pending;
-}
+};
 
-function evict(keep: string) {
-	for (const url of segments.keys()) {
-		if (cachedBytes <= cacheBudgetBytes) {
-			break;
-		}
-
-		const size = sizes.get(url);
-		if (url === keep || size === undefined) {
-			continue;
-		}
-
-		segments.delete(url);
-		sizes.delete(url);
-		cachedBytes -= size;
+/**
+ * Loads a segment before the player asks for it, unless it is already loading
+ * or the budget has no room for another. An upstream failure is left for the
+ * player's own request, which tries again.
+ */
+const loadAhead = async (target: StreamTarget) => {
+	if (
+		segments.has(target.url) ||
+		cachedBytes + fetchingAhead * expectedSegmentBytes > cacheBudgetBytes
+	) {
+		return;
 	}
-}
 
-async function download(target: StreamTarget): Promise<Segment> {
-	const { bytes: body, headers } = await fetchUpstreamBytes(target);
-	const disguised = isDisguisedSegment(body);
-	const contentType = headers.get("Content-Type");
+	fetchingAhead += 1;
+	const { error } = await attempt(load(target));
+	fetchingAhead -= 1;
+	if (error && !(error instanceof StreamUpstreamError)) {
+		console.error(`Fetching ${target.url} ahead failed: ${error.message}`);
+	}
+};
 
-	return {
-		bytes: disguised ? unwrapDisguisedSegment(body) : body,
-		// Strict players (AVPlayer, ExoPlayer) reject the image type disguised
-		// segments arrive with, so restore the real one.
-		contentType:
-			disguised || (contentType && /^(image|text)\//i.test(contentType))
-				? "video/mp2t"
-				: contentType,
-	};
-}
+const fetchAhead = (target: StreamTarget) => {
+	const position = positions.get(target.url);
+	if (!position) {
+		return;
+	}
+
+	for (const next of position.targets.slice(
+		position.index + 1,
+		position.index + 1 + segmentsAhead,
+	)) {
+		void loadAhead(next);
+	}
+};
+
+/**
+ * Serves a whole segment from memory when it was fetched ahead, otherwise
+ * fetches it, and starts fetching the segments that follow.
+ *
+ * Fetches are shared between callers and are not tied to any one request, so
+ * a player that gives up on a segment does not cancel what others wait for.
+ *
+ * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
+ */
+export const readSegment = async (target: StreamTarget) => {
+	const segment = load(target);
+	fetchAhead(target);
+	return segment;
+};

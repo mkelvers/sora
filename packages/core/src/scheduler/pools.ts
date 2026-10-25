@@ -29,86 +29,10 @@ export interface PoolWatch {
 }
 
 /**
- * Keeps the scheduler's graphile-worker pools marked alive in
- * `scheduler_pool`, and releases the jobs of pools that are not.
- *
- * A pool that stops without a graceful shutdown keeps the jobs it had
- * locked for graphile-worker's four hours. That happens whenever a process
- * dies, and in development each time `bun --watch` restarts the scheduler,
- * which leaves layouts a viewer waits on locked by a pool that is gone.
- *
- * Every {@link heartbeatMs}, each scheduler marks its own pools alive, then
- * releases the jobs locked more than {@link deadAfterMs} ago by pools that
- * have not been marked alive that long, whichever scheduler they belonged
- * to. It does so once at start too, so a restart releases what the process
- * it replaces left locked.
- */
-export function watchPools(): PoolWatch {
-	const events: WorkerEvents = new EventEmitter();
-	const poolIds = new Set<string>();
-	events.on("pool:create", ({ workerPool }) => {
-		poolIds.add(workerPool.id);
-	});
-	events.on("pool:release", ({ workerPool }) => {
-		poolIds.delete(workerPool.id);
-	});
-
-	let running = Promise.resolve();
-	const tick = () => {
-		running = running.then(async () => {
-			const { error } = await attempt(beat());
-			if (error) {
-				logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
-			}
-		});
-	};
-
-	const beat = async () => {
-		const now = new Date();
-		if (poolIds.size > 0) {
-			await db
-				.insert(schedulerPool)
-				.values(
-					[...poolIds].map((poolId) => ({
-						heartbeatAt: now,
-						poolId,
-					})),
-				)
-				.onConflictDoUpdate({
-					set: {
-						heartbeatAt: now,
-					},
-					target: schedulerPool.poolId,
-				});
-		}
-
-		await releaseDeadPools(now);
-		await db
-			.delete(schedulerPool)
-			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
-	};
-
-	const timer = setInterval(tick, heartbeatMs);
-	// Pools are created as `run()` resolves; give them a moment to be known first.
-	setTimeout(tick, 1000);
-
-	return {
-		events,
-		stop: async () => {
-			clearInterval(timer);
-			await running;
-			if (poolIds.size > 0) {
-				await db.delete(schedulerPool).where(inArray(schedulerPool.poolId, [...poolIds]));
-			}
-		},
-	};
-}
-
-/**
  * Releases the jobs and queues locked more than {@link deadAfterMs} before
  * `now` by pools no heartbeat has marked alive since then.
  */
-async function releaseDeadPools(now: Date) {
+const releaseDeadPools = async (now: Date) => {
 	const cutoff = new Date(now.getTime() - deadAfterMs);
 	const dead = await db.execute<{
 		poolId: string;
@@ -135,4 +59,80 @@ async function releaseDeadPools(now: Date) {
 		)}]::text[])`,
 	);
 	logger.info(`Released the jobs of ${poolIds.length} pools that stopped: ${poolIds.join(", ")}`);
-}
+};
+
+/**
+ * Keeps the scheduler's graphile-worker pools marked alive in
+ * `scheduler_pool`, and releases the jobs of pools that are not.
+ *
+ * A pool that stops without a graceful shutdown keeps the jobs it had
+ * locked for graphile-worker's four hours. That happens whenever a process
+ * dies, and in development each time `bun --watch` restarts the scheduler,
+ * which leaves layouts a viewer waits on locked by a pool that is gone.
+ *
+ * Every {@link heartbeatMs}, each scheduler marks its own pools alive, then
+ * releases the jobs locked more than {@link deadAfterMs} ago by pools that
+ * have not been marked alive that long, whichever scheduler they belonged
+ * to. It does so once at start too, so a restart releases what the process
+ * it replaces left locked.
+ */
+export const watchPools = (): PoolWatch => {
+	const events: WorkerEvents = new EventEmitter();
+	const poolIds = new Set<string>();
+	events.on("pool:create", ({ workerPool }) => {
+		poolIds.add(workerPool.id);
+	});
+	events.on("pool:release", ({ workerPool }) => {
+		poolIds.delete(workerPool.id);
+	});
+
+	let running = Promise.resolve();
+
+	const beat = async () => {
+		const now = new Date();
+		if (poolIds.size > 0) {
+			await db
+				.insert(schedulerPool)
+				.values(
+					[...poolIds].map((poolId) => ({
+						heartbeatAt: now,
+						poolId,
+					})),
+				)
+				.onConflictDoUpdate({
+					set: {
+						heartbeatAt: now,
+					},
+					target: schedulerPool.poolId,
+				});
+		}
+
+		await releaseDeadPools(now);
+		await db
+			.delete(schedulerPool)
+			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
+	};
+	const tick = () => {
+		running = running.then(async () => {
+			const { error } = await attempt(beat());
+			if (error) {
+				logger.warn(`Could not mark scheduler pools alive: ${error.message}`);
+			}
+		});
+	};
+
+	const timer = setInterval(tick, heartbeatMs);
+	// Pools are created as `run()` resolves; give them a moment to be known first.
+	setTimeout(tick, 1000);
+
+	return {
+		events,
+		stop: async () => {
+			clearInterval(timer);
+			await running;
+			if (poolIds.size > 0) {
+				await db.delete(schedulerPool).where(inArray(schedulerPool.poolId, [...poolIds]));
+			}
+		},
+	};
+};

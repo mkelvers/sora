@@ -41,7 +41,7 @@ const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
 
-function useProviders(list: FakeProvider[]) {
+const useProviders = (list: FakeProvider[]) => {
 	units.clear();
 	providers.splice(
 		0,
@@ -103,7 +103,7 @@ function useProviders(list: FakeProvider[]) {
 			};
 		}),
 	);
-}
+};
 
 /** Segment start times `segmentStarts` hands out, by playlist URL. */
 const timelines = new Map<string, number[]>();
@@ -159,13 +159,13 @@ const dub = (locale = "en"): EpisodeVersion => ({
 });
 
 /** Each resolved version as `language/locale@provider`. */
-async function resolvedVersions() {
+const resolvedVersions = async () => {
 	const playback = await resolvePlayback(request, options, dependencies);
 	return playback.media.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
-}
+};
 
 /** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
-function boundaries(seed: number) {
+const boundaries = (seed: number) => {
 	const times = [0];
 	let state = seed;
 	for (let index = 1; index < 300; index++) {
@@ -173,7 +173,7 @@ function boundaries(seed: number) {
 		times.push(times.at(-1)! + 1 + (state % 9000) / 1000);
 	}
 	return times;
-}
+};
 
 beforeEach(() => {
 	resolved.length = 0;
@@ -269,7 +269,7 @@ describe("resolvePlayback", () => {
 			},
 		];
 
-		async function dubbedSkipSegments(dubOffset: number | null, dubSpans = spans) {
+		const dubbedSkipSegments = async (dubOffset: number | null, dubSpans = spans) => {
 			useProviders([
 				{
 					id: "anikoto",
@@ -292,7 +292,7 @@ describe("resolvePlayback", () => {
 			const playback = await resolvePlayback(request, options, dependencies);
 			const [dubbed, subbed] = playback.media;
 			return [dubbed?.skip_segments, subbed?.skip_segments];
-		}
+		};
 
 		test("moves them onto the dub's timeline by how far its encode is from the sub's", async () => {
 			const [dubbed, subbed] = await dubbedSkipSegments(-1);

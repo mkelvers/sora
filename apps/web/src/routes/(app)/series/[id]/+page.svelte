@@ -42,21 +42,21 @@
 	let choosing = $state(false);
 	let options = $state(false);
 
-	function detail(part: FranchisePart) {
+	const detail = (part: FranchisePart) => {
 		if (part.format === "MOVIE") {
 			return "Movie";
 		}
 
 		return part.episode_count ? episodes(part.episode_count) : "Coming soon";
-	}
+	};
 
-	function mark() {
+	const mark = () => {
 		options = false;
 		markSeries({
 			seriesId: series.id,
 			watched: !progress.finished,
 		});
-	}
+	};
 </script>
 
 <svelte:head>

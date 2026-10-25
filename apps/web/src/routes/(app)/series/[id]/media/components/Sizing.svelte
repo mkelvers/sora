@@ -73,14 +73,14 @@
 				: undefined,
 	);
 
-	function elements() {
+	const elements = () => {
 		return {
 			hero: stage!.querySelector<HTMLElement>(".series-hero")!,
 			logo: stage!.querySelector<HTMLImageElement>("[data-hero-logo]")!,
 		};
-	}
+	};
 
-	function measure() {
+	const measure = () => {
 		const frame = stage!.getBoundingClientRect();
 		const logo = elements().logo.getBoundingClientRect();
 		box = {
@@ -89,7 +89,7 @@
 			top: logo.top - frame.top,
 			width: logo.width,
 		};
-	}
+	};
 
 	$effect(() => {
 		void [scale, x, y];
@@ -98,7 +98,7 @@
 		}
 	});
 
-	function track(node: HTMLElement) {
+	const track = (node: HTMLElement) => {
 		stage = node;
 		const observer = new ResizeObserver(() => {
 			const { hero, logo } = elements();
@@ -112,17 +112,17 @@
 			observer.disconnect();
 			stage = undefined;
 		};
-	}
+	};
 
-	function save() {
+	const save = () => {
 		media.place({
 			scale,
 			x,
 			y,
 		});
-	}
+	};
 
-	function hit(event: PointerEvent, logo: DOMRect): Handle | undefined {
+	const hit = (event: PointerEvent, logo: DOMRect): Handle | undefined => {
 		const reach = event.pointerType === "touch" ? 24 : 10;
 		const corner = corners.find(
 			(corner) =>
@@ -135,9 +135,9 @@
 			event.clientY >= logo.top &&
 			event.clientY <= logo.bottom;
 		return corner ?? (inside ? "logo" : undefined);
-	}
+	};
 
-	function start(event: PointerEvent) {
+	const start = (event: PointerEvent) => {
 		if (event.button !== 0) {
 			return;
 		}
@@ -162,9 +162,9 @@
 			x,
 			y,
 		};
-	}
+	};
 
-	function move(event: PointerEvent) {
+	const move = (event: PointerEvent) => {
 		if (!drag) {
 			measure();
 			hovered = hit(event, elements().logo.getBoundingClientRect());
@@ -199,14 +199,14 @@
 		const factor = scale / drag.scale;
 		x = unit(drag.x + (handle.x < 0 ? logo.width * (1 - factor) : 0) / hero.width);
 		y = unit(drag.y + (handle.y > 0 ? logo.height * (factor - 1) : 0) / hero.width);
-	}
+	};
 
-	function end() {
+	const end = () => {
 		if (drag) {
 			drag = undefined;
 			save();
 		}
-	}
+	};
 
 	const moves: Record<string, [number, number]> = {
 		ArrowDown: [0, 1],
@@ -220,7 +220,7 @@
 		"=": 1,
 	};
 
-	function nudge(event: KeyboardEvent) {
+	const nudge = (event: KeyboardEvent) => {
 		const direction = moves[event.key];
 		const zoom = zooms[event.key];
 		if (!direction && !zoom) {
@@ -235,7 +235,7 @@
 		} else {
 			scale = zoomed(scale + zoom * 0.05);
 		}
-	}
+	};
 </script>
 
 <div class="mx-auto w-[min(100cqw,calc(100cqh*16/9))]">

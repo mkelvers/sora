@@ -104,7 +104,7 @@
 		),
 	);
 
-	async function report(ended = false, leaving = false) {
+	const report = async (ended = false, leaving = false) => {
 		if (!(player.duration >= 1) || player.time <= 0) {
 			return;
 		}
@@ -121,9 +121,9 @@
 			}),
 		);
 		failure = error ? "Your progress couldn’t be saved." : "";
-	}
+	};
 
-	async function remember(changes: PlaybackPreferencesUpdate) {
+	const remember = async (changes: PlaybackPreferencesUpdate) => {
 		const { error } = await attempt(
 			savePlaybackPreferences(changes).updates(
 				getPlaybackPreferences().withOverride((current) => ({
@@ -137,7 +137,7 @@
 			),
 		);
 		failure = error ? "Your player settings couldn’t be saved." : "";
-	}
+	};
 
 	$effect(() => {
 		const timer = setInterval(() => {

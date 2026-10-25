@@ -21,13 +21,13 @@ const fallbacks = {
  * again as soon as the preferences change, without resolving the episode
  * again.
  */
-export function choosePlayback<TMedia extends Pick<PlaybackMedia, "audio" | "subtitles">>(
+export const choosePlayback = <TMedia extends Pick<PlaybackMedia, "audio" | "subtitles">>(
 	media: readonly TMedia[],
 	preferences: Pick<PlaybackPreferences, "audio" | "subtitles">,
 ): {
 	media: TMedia | undefined;
 	subtitle: TMedia["subtitles"][number] | undefined;
-} {
+} => {
 	const version =
 		(preferences.audio &&
 			fallbacks[preferences.audio]
@@ -52,4 +52,4 @@ export function choosePlayback<TMedia extends Pick<PlaybackMedia, "audio" | "sub
 		media: version,
 		subtitle,
 	};
-}
+};

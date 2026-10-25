@@ -65,11 +65,11 @@ const server = Bun.serve({
 
 console.log(`Sora API listening on ${server.url}`);
 
-async function shutdown() {
+const shutdown = async () => {
 	await server.stop();
 	await closeDatabase();
 	process.exit(0);
-}
+};
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

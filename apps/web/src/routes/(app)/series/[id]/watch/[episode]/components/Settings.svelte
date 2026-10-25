@@ -30,7 +30,7 @@
 		signs: " (Signs)",
 	};
 
-	function pickSubtitle(url: string) {
+	const pickSubtitle = (url: string) => {
 		if (!selected || selected.audio === "raw") {
 			return;
 		}
@@ -46,7 +46,7 @@
 					: null,
 			},
 		});
-	}
+	};
 
 	const menus = $derived([
 		...(media.length

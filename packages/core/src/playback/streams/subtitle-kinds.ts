@@ -15,7 +15,7 @@ const knownLimit = 5000;
  * its name alone and tried again next time, so an outage never fixes a
  * guess in place.
  */
-export async function subtitleKinds(videos: ProviderVideo[]) {
+export const subtitleKinds = async (videos: ProviderVideo[]) => {
 	const kinds = new Map<string, SubtitleKind | null>();
 	const tracks = new Map<string, { label: string; format: string | null; video: ProviderVideo }>();
 	for (const video of videos) {
@@ -56,4 +56,4 @@ export async function subtitleKinds(videos: ProviderVideo[]) {
 	);
 
 	return kinds;
-}
+};

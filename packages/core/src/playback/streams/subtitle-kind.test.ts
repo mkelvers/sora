@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { classifySubtitle, subtitleKind, subtitleStats } from "./subtitle-kind";
 
-function track(cues: { start: number; text: string }[]) {
+const track = (cues: { start: number; text: string }[]) => {
 	const stamp = (seconds: number) => {
 		const minutes = Math.floor(seconds / 60);
 		return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
@@ -12,16 +12,16 @@ function track(cues: { start: number; text: string }[]) {
 		"WEBVTT",
 		...cues.map((cue) => `${stamp(cue.start)} --> ${stamp(cue.start + 2)}\n${cue.text}`),
 	].join("\n\n");
-}
+};
 
-function every(seconds: number, count: number, text: (index: number) => string) {
+const every = (seconds: number, count: number, text: (index: number) => string) => {
 	return track(
 		Array.from({ length: count }, (_, index) => ({
 			start: index * seconds,
 			text: text(index),
 		})),
 	);
-}
+};
 
 const dialogue = every(4, 360, (index) => `Line ${index}`);
 const signs = every(90, 14, (index) => `<b>Title ${index}</b>`);

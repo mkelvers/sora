@@ -28,6 +28,68 @@ export interface FranchiseOptions {
 }
 
 /**
+ * `title` after `prefix`, matching letters and digits case-insensitively and
+ * skipping everything else, with the punctuation and spaces it then starts
+ * with removed; `null` when `title` does not start with `prefix`.
+ */
+const withoutPrefix = (title: string, prefix: string) => {
+	const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
+	const wanted = [...prefix.toLowerCase()].filter(isWordCharacter);
+	const characters = [...title];
+	let index = 0;
+	for (const expected of wanted) {
+		while (index < characters.length && !isWordCharacter(characters[index]!)) {
+			index += 1;
+		}
+
+		if (characters[index]?.toLowerCase() !== expected) {
+			return null;
+		}
+
+		index += 1;
+	}
+
+	if (index < characters.length && isWordCharacter(characters[index]!)) {
+		return null;
+	}
+
+	return characters
+		.slice(index)
+		.join("")
+		.replace(/^[^\p{L}\p{N}]+/u, "");
+};
+
+/** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
+export const isNamedAfter = (title: string, original: string) => {
+	const plain = (name: string) => name.replace(/\s*\(TV\)$/i, "");
+	return withoutPrefix(plain(title), plain(original)) !== null;
+};
+
+const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
+	// Keep the title's own numbering, including untranslated sequel names.
+	const numbered = isSeason
+		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/i)
+		: null;
+	if (numbered) {
+		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
+	}
+	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base);
+	if (rest === null) {
+		return title.title;
+	}
+
+	const named = rest.replace(/^the movie\b[\s:.-]*/i, "").replace(/[\s~-]+$/, "");
+	if (/^\d{4}\)?$/.test(named)) {
+		return title.title;
+	}
+	if (named) {
+		return named;
+	}
+
+	return title.format && seasonFormats.has(title.format) ? "Season 1" : title.title;
+};
+
+/**
  * Lists the default adaptation's story entries, then its other related stories.
  * Sequel pairs must point from prequel to sequel. Story entries follow these
  * relationships, with release dates breaking ties; films and specials that
@@ -40,11 +102,11 @@ export interface FranchiseOptions {
  * role `alternative`, so it can be selected without entering recommendations.
  * `next_series_id` is only supplied for an unambiguous, available direct sequel.
  */
-export function franchiseParts(
+export const franchiseParts = (
 	titles: readonly FranchiseTitle[],
 	sequels: readonly (readonly [number, number])[],
 	options: FranchiseOptions = {},
-): Omit<FranchisePart, "card">[] {
+): Omit<FranchisePart, "card">[] => {
 	const byRelease = [...new Map(titles.map((title) => [title.anilistId, title])).values()].toSorted(
 		(left, right) => (left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
 	);
@@ -215,66 +277,4 @@ export function franchiseParts(
 			title: shortTitle(title, base, seasons.includes(title)),
 		};
 	});
-}
-
-/** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
-export function isNamedAfter(title: string, original: string) {
-	const plain = (name: string) => name.replace(/\s*\(TV\)$/i, "");
-	return withoutPrefix(plain(title), plain(original)) !== null;
-}
-
-function shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {
-	// Keep the title's own numbering, including untranslated sequel names.
-	const numbered = isSeason
-		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/i)
-		: null;
-	if (numbered) {
-		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
-	}
-	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/i, ""), base);
-	if (rest === null) {
-		return title.title;
-	}
-
-	const named = rest.replace(/^the movie\b[\s:.-]*/i, "").replace(/[\s~-]+$/, "");
-	if (/^\d{4}\)?$/.test(named)) {
-		return title.title;
-	}
-	if (named) {
-		return named;
-	}
-
-	return title.format && seasonFormats.has(title.format) ? "Season 1" : title.title;
-}
-
-/**
- * `title` after `prefix`, matching letters and digits case-insensitively and
- * skipping everything else, with the punctuation and spaces it then starts
- * with removed; `null` when `title` does not start with `prefix`.
- */
-function withoutPrefix(title: string, prefix: string) {
-	const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
-	const wanted = [...prefix.toLowerCase()].filter(isWordCharacter);
-	const characters = [...title];
-	let index = 0;
-	for (const expected of wanted) {
-		while (index < characters.length && !isWordCharacter(characters[index]!)) {
-			index += 1;
-		}
-
-		if (characters[index]?.toLowerCase() !== expected) {
-			return null;
-		}
-
-		index += 1;
-	}
-
-	if (index < characters.length && isWordCharacter(characters[index]!)) {
-		return null;
-	}
-
-	return characters
-		.slice(index)
-		.join("")
-		.replace(/^[^\p{L}\p{N}]+/u, "");
-}
+};

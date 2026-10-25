@@ -42,9 +42,9 @@ const savedSizes = {
 	poster: "w780",
 } as const;
 
-function toOverride(change: string | false | null | undefined, type: ImageType) {
+const toOverride = (change: string | false | null | undefined, type: ImageType) => {
 	return change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
-}
+};
 
 /**
  * Chooses a series' poster, backdrop, or logo for everyone, in place of the
@@ -56,7 +56,10 @@ function toOverride(change: string | false | null | undefined, type: ImageType) 
  *
  * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
  */
-export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges): Promise<Series> {
+export const setSeriesArtwork = async (
+	seriesId: string,
+	changes: ArtworkChanges,
+): Promise<Series> => {
 	const [row] = await db
 		.select({
 			key: series.key,
@@ -107,49 +110,9 @@ export async function setSeriesArtwork(seriesId: string, changes: ArtworkChanges
 	}
 
 	return getSeries(seriesId);
-}
+};
 
-/**
- * Lists every backdrop, poster, and logo TMDB has for a series' title, in
- * every language, plus each season's posters for a show, so a season's own
- * can be chosen for it. Titles TMDB does not list have none.
- *
- * The first listing for a title fetches them from TMDB and stores them
- * (see `titleImage`); later ones, for any series of the title, read what was
- * stored, until {@link refreshSeriesImages} fetches them again.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link UpstreamUnavailableError} when TMDB fails on the first listing.
- */
-export async function listSeriesImages(
-	seriesId: string,
-	query: SeriesImageQuery = {},
-): Promise<SeriesImage[]> {
-	const row = await imageStateOf(seriesId);
-	const images = row.imagesFetchedAt
-		? await storedImagesOf(row.key)
-		: await storeImages(row.key as SeriesKey, day);
-
-	return applyQuery(images, query);
-}
-
-/**
- * Fetches a series' title's images from TMDB again, past TMDB's own cache,
- * and replaces the stored ones, so artwork added on TMDB since can be
- * chosen. Returns them as {@link listSeriesImages} does.
- *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link UpstreamUnavailableError} when TMDB fails; the stored images are kept.
- */
-export async function refreshSeriesImages(
-	seriesId: string,
-	query: SeriesImageQuery = {},
-): Promise<SeriesImage[]> {
-	const row = await imageStateOf(seriesId);
-	return applyQuery(await storeImages(row.key as SeriesKey, 0), query);
-}
-
-async function imageStateOf(seriesId: string) {
+const imageStateOf = async (seriesId: string) => {
 	const [row] = await db
 		.select({
 			imagesFetchedAt: titleArtwork.imagesFetchedAt,
@@ -164,22 +127,9 @@ async function imageStateOf(seriesId: string) {
 	}
 
 	return row;
-}
+};
 
-function applyQuery(images: StoredImage[], query: SeriesImageQuery): SeriesImage[] {
-	return images
-		.filter((image) => !query.types || query.types.includes(image.type))
-		.filter((image) => !query.languages || query.languages.includes(image.language))
-		.sort(query.sort === "quality" ? byQuality : byVotes)
-		.map((image) => ({
-			...image,
-			language_name: image.language
-				? (languageNames.of(image.language) ?? image.language)
-				: "Textless",
-		}));
-}
-
-async function storedImagesOf(key: string): Promise<StoredImage[]> {
+const storedImagesOf = async (key: string): Promise<StoredImage[]> => {
 	return db
 		.select({
 			height: titleImage.height,
@@ -193,10 +143,69 @@ async function storedImagesOf(key: string): Promise<StoredImage[]> {
 		})
 		.from(titleImage)
 		.where(eq(titleImage.key, key));
-}
+};
+
+const toStoredImage = (
+	type: ImageType,
+	image: TmdbImage,
+	seasonNumber: number | null,
+): StoredImage => {
+	return {
+		height: image.height,
+		language: image.iso_639_1,
+		season_number: seasonNumber,
+		type,
+		url: tmdbImageUrl(image.file_path, "original")!,
+		vote_average: image.vote_average,
+		vote_count: image.vote_count,
+		width: image.width,
+	};
+};
+
+/** Every season's posters, specials included. */
+const seasonPostersOf = async (showId: number, maxAgeMs: number): Promise<StoredImage[]> => {
+	// A refresh also finds seasons added since; otherwise the show's usual lifetime will do.
+	const show = await getShow(showId, maxAgeMs === 0 ? { maxAgeMs } : {});
+	const perSeason = await Promise.all(
+		(show?.seasons ?? []).map(async ({ seasonNumber }) =>
+			(
+				await getSeasonPosters(showId, seasonNumber, {
+					maxAgeMs,
+				})
+			).map((image) => toStoredImage("poster", image, seasonNumber)),
+		),
+	);
+	return perSeason.flat();
+};
+
+const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> => {
+	const [kind, id] = parseKey(key);
+	if (kind !== "tv" && kind !== "movie") {
+		return [];
+	}
+
+	const [own, seasons] = await Promise.all([
+		getImages(kind, id, {
+			maxAgeMs,
+		}),
+		kind === "tv" ? seasonPostersOf(id, maxAgeMs) : [],
+	]);
+
+	// A season's poster is often the show's too; list it once, as the show's.
+	const seen = new Set<string>();
+	return [
+		...(own?.posters ?? []).map((image) => toStoredImage("poster", image, null)),
+		...(own?.backdrops ?? []).map((image) => toStoredImage("backdrop", image, null)),
+		...(own?.logos ?? []).map((image) => toStoredImage("logo", image, null)),
+		...seasons,
+	].filter((image) => {
+		const key = `${image.type}:${image.url}`;
+		return !seen.has(key) && seen.add(key);
+	});
+};
 
 /** Fetches a title's images from TMDB, no older than `maxAgeMs`, and stores them in place of the old. */
-async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> {
+const storeImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> => {
 	const images = await fetchImages(key, maxAgeMs);
 
 	await db.transaction(async (tx) => {
@@ -234,85 +243,79 @@ async function storeImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 	});
 
 	return images;
-}
+};
 
-async function fetchImages(key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> {
-	const [kind, id] = parseKey(key);
-	if (kind !== "tv" && kind !== "movie") {
-		return [];
-	}
+const byArea = (left: StoredImage, right: StoredImage) => {
+	return right.width * right.height - left.width * left.height;
+};
 
-	const [own, seasons] = await Promise.all([
-		getImages(kind, id, {
-			maxAgeMs,
-		}),
-		kind === "tv" ? seasonPostersOf(id, maxAgeMs) : [],
-	]);
+/** A Bayesian average: as if every image also had three votes of 5. */
+const confidence = (image: StoredImage) => {
+	const priorVotes = 3;
+	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
+};
 
-	// A season's poster is often the show's too; list it once, as the show's.
-	const seen = new Set<string>();
-	return [
-		...(own?.posters ?? []).map((image) => toStoredImage("poster", image, null)),
-		...(own?.backdrops ?? []).map((image) => toStoredImage("backdrop", image, null)),
-		...(own?.logos ?? []).map((image) => toStoredImage("logo", image, null)),
-		...seasons,
-	].filter((image) => {
-		const key = `${image.type}:${image.url}`;
-		return !seen.has(key) && seen.add(key);
-	});
-}
-
-/** Every season's posters, specials included. */
-async function seasonPostersOf(showId: number, maxAgeMs: number): Promise<StoredImage[]> {
-	// A refresh also finds seasons added since; otherwise the show's usual lifetime will do.
-	const show = await getShow(showId, maxAgeMs === 0 ? { maxAgeMs } : {});
-	const perSeason = await Promise.all(
-		(show?.seasons ?? []).map(async ({ seasonNumber }) =>
-			(
-				await getSeasonPosters(showId, seasonNumber, {
-					maxAgeMs,
-				})
-			).map((image) => toStoredImage("poster", image, seasonNumber)),
-		),
-	);
-	return perSeason.flat();
-}
-
-function toStoredImage(
-	type: ImageType,
-	image: TmdbImage,
-	seasonNumber: number | null,
-): StoredImage {
-	return {
-		height: image.height,
-		language: image.iso_639_1,
-		season_number: seasonNumber,
-		type,
-		url: tmdbImageUrl(image.file_path, "original")!,
-		vote_average: image.vote_average,
-		vote_count: image.vote_count,
-		width: image.width,
-	};
-}
+const byQuality = (left: StoredImage, right: StoredImage) => {
+	return byArea(left, right) || confidence(right) - confidence(left);
+};
 
 /**
  * TMDB's rating, pulled toward 5 when few voted, so one 10 does not outrank
  * dozens of 8s; then the larger image.
  */
-function byVotes(left: StoredImage, right: StoredImage) {
+const byVotes = (left: StoredImage, right: StoredImage) => {
 	return confidence(right) - confidence(left) || byArea(left, right);
-}
+};
 
-function byQuality(left: StoredImage, right: StoredImage) {
-	return byArea(left, right) || confidence(right) - confidence(left);
-}
+const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage[] => {
+	return images
+		.filter((image) => !query.types || query.types.includes(image.type))
+		.filter((image) => !query.languages || query.languages.includes(image.language))
+		.sort(query.sort === "quality" ? byQuality : byVotes)
+		.map((image) => ({
+			...image,
+			language_name: image.language
+				? (languageNames.of(image.language) ?? image.language)
+				: "Textless",
+		}));
+};
 
-function byArea(left: StoredImage, right: StoredImage) {
-	return right.width * right.height - left.width * left.height;
-}
+/**
+ * Lists every backdrop, poster, and logo TMDB has for a series' title, in
+ * every language, plus each season's posters for a show, so a season's own
+ * can be chosen for it. Titles TMDB does not list have none.
+ *
+ * The first listing for a title fetches them from TMDB and stores them
+ * (see `titleImage`); later ones, for any series of the title, read what was
+ * stored, until {@link refreshSeriesImages} fetches them again.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link UpstreamUnavailableError} when TMDB fails on the first listing.
+ */
+export const listSeriesImages = async (
+	seriesId: string,
+	query: SeriesImageQuery = {},
+): Promise<SeriesImage[]> => {
+	const row = await imageStateOf(seriesId);
+	const images = row.imagesFetchedAt
+		? await storedImagesOf(row.key)
+		: await storeImages(row.key as SeriesKey, day);
 
-/** A Bayesian average: as if every image also had three votes of 5. */
-function confidence(image: StoredImage) {
-	const priorVotes = 3;
-	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
-}
+	return applyQuery(images, query);
+};
+
+/**
+ * Fetches a series' title's images from TMDB again, past TMDB's own cache,
+ * and replaces the stored ones, so artwork added on TMDB since can be
+ * chosen. Returns them as {@link listSeriesImages} does.
+ *
+ * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {@link UpstreamUnavailableError} when TMDB fails; the stored images are kept.
+ */
+export const refreshSeriesImages = async (
+	seriesId: string,
+	query: SeriesImageQuery = {},
+): Promise<SeriesImage[]> => {
+	const row = await imageStateOf(seriesId);
+	return applyQuery(await storeImages(row.key as SeriesKey, 0), query);
+};

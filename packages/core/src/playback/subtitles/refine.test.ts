@@ -5,21 +5,26 @@ import type { SpokenWord } from "./refine";
 import type { Cue } from "./vtt";
 
 /** Distinct made-up words, so a line never shares one with another by accident. */
-function vocabulary(line: number) {
+const vocabulary = (line: number) => {
 	return Array.from({ length: 5 }, (_, index) => `zq${line * 7 + index}x`);
-}
+};
 
 /** A script of one cue every five seconds, three seconds long. */
-function script(lines: number): Cue[] {
+const script = (lines: number): Cue[] => {
 	return Array.from({ length: lines }, (_, line) => ({
 		end: line * 5 + 3,
 		start: line * 5,
 		text: vocabulary(line).join(" "),
 	}));
-}
+};
 
 /** The dub saying each line of `cues`, `offset` seconds later and for `seconds`, word by word. */
-function speech(cues: Cue[], offset: number, seconds = 1.5, skipping: number[] = []): SpokenWord[] {
+const speech = (
+	cues: Cue[],
+	offset: number,
+	seconds = 1.5,
+	skipping: number[] = [],
+): SpokenWord[] => {
 	return cues.flatMap((cue, line) => {
 		if (skipping.includes(line)) {
 			return [];
@@ -32,7 +37,7 @@ function speech(cues: Cue[], offset: number, seconds = 1.5, skipping: number[] =
 			text,
 		}));
 	});
-}
+};
 
 describe("refineCues", () => {
 	test("moves each cue to when its words are spoken, with a little lead and tail", () => {

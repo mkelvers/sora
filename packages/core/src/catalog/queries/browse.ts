@@ -47,7 +47,7 @@ const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>,
  *
  * @throws {@link InvalidInputError} when the query fails {@link BrowseQuerySchema}.
  */
-export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> {
+export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> => {
 	const parsed = BrowseQuerySchema.safeParse(query);
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid browse query", {
@@ -90,10 +90,10 @@ export async function browseAnime(query: BrowseQuery): Promise<Page<AnimeCard>> 
 		page: input.page,
 		perPage: input.perPage,
 	};
-}
+};
 
 /** Lists the genre names accepted by {@link browseAnime}. */
-export async function getGenres(): Promise<string[]> {
+export const getGenres = async (): Promise<string[]> => {
 	const { GenreCollection } = await anilist(
 		GenresDocument,
 		{},
@@ -106,20 +106,20 @@ export async function getGenres(): Promise<string[]> {
 	return (GenreCollection ?? []).filter(
 		(genre): genre is string => genre !== null && genre !== "Hentai",
 	);
-}
+};
 
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;
 
 /** The season `now` falls in: winter is January to March, and so on. Counted in UTC. */
-export function currentSeason(now = new Date()): AnimeSeason {
+export const currentSeason = (now = new Date()): AnimeSeason => {
 	return {
 		season: seasonOrder[Math.floor(now.getUTCMonth() / 3)]!,
 		year: now.getUTCFullYear(),
 	};
-}
+};
 
 /** The season after `season`. */
-export function nextSeason(season: AnimeSeason): AnimeSeason {
+export const nextSeason = (season: AnimeSeason): AnimeSeason => {
 	return season.season === "FALL"
 		? {
 				season: "WINTER",
@@ -129,7 +129,7 @@ export function nextSeason(season: AnimeSeason): AnimeSeason {
 				season: seasonOrder[seasonOrder.indexOf(season.season) + 1]!,
 				year: season.year,
 			};
-}
+};
 
 /**
  * Every season some anime started in, the latest first, up to the season
@@ -137,7 +137,7 @@ export function nextSeason(season: AnimeSeason): AnimeSeason {
  * served, so seasons with only adult media are left out. Reads only the
  * search index.
  */
-export async function listSeasons(now = new Date()): Promise<AnimeSeason[]> {
+export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 	const next = nextSeason(currentSeason(now));
 	const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
 
@@ -171,4 +171,4 @@ export async function listSeasons(now = new Date()): Promise<AnimeSeason[]> {
 		})
 		.filter((season) => position(season) <= position(next))
 		.toSorted((left, right) => position(right) - position(left));
-}
+};

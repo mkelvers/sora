@@ -7,7 +7,7 @@ import { TypedDocumentString } from "./graphql.generated";
 const sent: number[] = [];
 /** When each request was sent. */
 const sentAt: number[] = [];
-async function respond(_input: string, init: RequestInit) {
+const respond = async (_input: string, init: RequestInit) => {
 	sent.push(
 		(
 			JSON.parse(String(init.body)) as {
@@ -31,7 +31,7 @@ async function respond(_input: string, init: RequestInit) {
 			},
 		},
 	);
-}
+};
 
 const { anilist } = createAniListClient({
 	fetch: respond,
