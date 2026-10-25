@@ -138,48 +138,53 @@ const publicLookup = ((
  * Makes one request without following redirects, like `fetch(url, { redirect:
  * "manual" })`, but connecting only to public addresses.
  */
-const requestPublicHost = (url: string, headers: Headers, signal: AbortSignal): Promise<Response> =>
-	new Promise((resolve, reject) => {
-		const target = new URL(url);
-		const outgoing = Object.fromEntries(headers);
-		const send = target.protocol === "https:" ? https.request : http.request;
+const requestPublicHost = (
+	url: string,
+	headers: Headers,
+	signal: AbortSignal,
+): Promise<Response> => {
+	const { promise, resolve, reject } = Promise.withResolvers<Response>();
+	const target = new URL(url);
+	const outgoing = Object.fromEntries(headers);
+	const send = target.protocol === "https:" ? https.request : http.request;
 
-		const request = send(
-			target,
-			{
-				headers: {
-					Accept: "*/*",
-					"Accept-Encoding": "identity",
-					"User-Agent": `Bun/${Bun.version}`,
-					...outgoing,
-				},
-				lookup: publicLookup,
-				signal,
+	const request = send(
+		target,
+		{
+			headers: {
+				Accept: "*/*",
+				"Accept-Encoding": "identity",
+				"User-Agent": `Bun/${Bun.version}`,
+				...outgoing,
 			},
-			(incoming) => {
-				const received = new Headers();
-				for (const [name, value] of Object.entries(incoming.headers)) {
-					for (const each of Array.isArray(value) ? value : [value]) {
-						if (each !== undefined) {
-							received.append(name, each);
-						}
+			lookup: publicLookup,
+			signal,
+		},
+		(incoming) => {
+			const received = new Headers();
+			for (const [name, value] of Object.entries(incoming.headers)) {
+				for (const each of Array.isArray(value) ? value : [value]) {
+					if (each !== undefined) {
+						received.append(name, each);
 					}
 				}
+			}
 
-				const status = incoming.statusCode ?? 502;
-				const empty = status === 204 || status === 205 || status === 304;
-				resolve(
-					new Response(empty ? null : (Readable.toWeb(incoming) as unknown as ReadableStream), {
-						headers: received,
-						status,
-						statusText: incoming.statusMessage,
-					}),
-				);
-			},
-		);
-		request.on("error", reject);
-		request.end();
-	});
+			const status = incoming.statusCode ?? 502;
+			const empty = status === 204 || status === 205 || status === 304;
+			resolve(
+				new Response(empty ? null : (Readable.toWeb(incoming) as unknown as ReadableStream), {
+					headers: received,
+					status,
+					statusText: incoming.statusMessage,
+				}),
+			);
+		},
+	);
+	request.on("error", reject);
+	request.end();
+	return promise;
+};
 
 const fetchFollowingRedirects = async (
 	start: string,
@@ -382,70 +387,70 @@ export const fetchUpstreamBytes = async (
 	const losers = new AbortController();
 	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
 
-	return await new Promise((resolve, reject) => {
-		let launched = 0;
-		let failed = 0;
-		let settled = false;
-		let hedge: ReturnType<typeof setTimeout> | undefined;
-		let primaryFailure: unknown;
+	const { promise, resolve, reject } = Promise.withResolvers<UpstreamBytes>();
+	let launched = 0;
+	let failed = 0;
+	let settled = false;
+	let hedge: ReturnType<typeof setTimeout> | undefined;
+	let primaryFailure: unknown;
 
-		const settle = async (read: Promise<Attempt<UpstreamBytes>>, retry: () => void) => {
-			const { data, error } = await read;
-			if (settled) {
-				return;
-			}
-			if (!error) {
-				settled = true;
-				clearTimeout(hedge);
-				losers.abort();
-				resolve(data);
-				return;
-			}
-			if (!(error instanceof StreamUpstreamError)) {
-				settled = true;
-				clearTimeout(hedge);
-				losers.abort();
-				reject(error);
-				return;
-			}
-
-			primaryFailure ??= error;
-			failed += 1;
-			if (failed === candidates.length) {
-				settled = true;
-				clearTimeout(hedge);
-				reject(primaryFailure);
-				return;
-			}
-			retry();
-		};
-
-		const launch = () => {
+	const settle = async (read: Promise<Attempt<UpstreamBytes>>, retry: () => void) => {
+		const { data, error } = await read;
+		if (settled) {
+			return;
+		}
+		if (!error) {
+			settled = true;
 			clearTimeout(hedge);
-			if (settled || launched >= candidates.length) {
-				return;
+			losers.abort();
+			resolve(data);
+			return;
+		}
+		if (!(error instanceof StreamUpstreamError)) {
+			settled = true;
+			clearTimeout(hedge);
+			losers.abort();
+			reject(error);
+			return;
+		}
+
+		primaryFailure ??= error;
+		failed += 1;
+		if (failed === candidates.length) {
+			settled = true;
+			clearTimeout(hedge);
+			reject(primaryFailure);
+			return;
+		}
+		retry();
+	};
+
+	const launch = () => {
+		clearTimeout(hedge);
+		if (settled || launched >= candidates.length) {
+			return;
+		}
+
+		const candidate = defined(candidates[launched]);
+		launched += 1;
+		const position = launched;
+		hedge = setTimeout(launch, hedgeDelayMs);
+
+		const answered = () => {
+			if (!settled && position === launched) {
+				clearTimeout(hedge);
+				hedge = setTimeout(launch, bodyHedgeMs);
 			}
-
-			const candidate = defined(candidates[launched]);
-			launched += 1;
-			const position = launched;
-			hedge = setTimeout(launch, hedgeDelayMs);
-
-			const answered = () => {
-				if (!settled && position === launched) {
-					clearTimeout(hedge);
-					hedge = setTimeout(launch, bodyHedgeMs);
-				}
-			};
-
-			void settle(
-				attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
-				launch,
-			);
 		};
 
-		launch();
-	});
+		void settle(
+			attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
+			launch,
+		);
+	};
+
+	launch();
+	return await promise;
 };
 
 /**

@@ -357,8 +357,8 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			// Counted until AniList's response reports the budget itself.
 			if (budget && sentAt < budget.resetAt) {
 				budget = {
-					...budget,
 					remaining: budget.remaining - 1,
+					resetAt: budget.resetAt,
 				};
 			}
 			await request?.send();
