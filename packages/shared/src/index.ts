@@ -101,4 +101,5 @@ export const defined = <TValue>(value: TValue | null | undefined): TValue => {
 	return value;
 };
 
+export * from "./sequence";
 export * from "./time";
