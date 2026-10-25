@@ -46,32 +46,32 @@ const fetchIndexPage = async (
 	page: number,
 	sort: MediaSort[],
 	popularityBelow: number | undefined,
-) => {
-	for (let tries = 1; ; tries += 1) {
-		const { data, error } = await attempt(
-			anilist(
-				SearchIndexPageDocument,
-				{
-					page,
-					popularityBelow,
-					sort,
-				},
-				{
-					// Long enough for a failed sync to resume where it stopped.
-					maxAgeMs: hour,
-				},
-			),
-			UpstreamUnavailableError,
-		);
-		if (!error) {
-			return data;
-		}
-		if (tries >= pageAttempts) {
-			throw error;
-		}
-
-		await Bun.sleep(error.retryAfterMs ?? minute);
+	tries = 1,
+): Promise<SearchIndexPageQuery> => {
+	const { data, error } = await attempt(
+		anilist(
+			SearchIndexPageDocument,
+			{
+				page,
+				popularityBelow,
+				sort,
+			},
+			{
+				// Long enough for a failed sync to resume where it stopped.
+				maxAgeMs: hour,
+			},
+		),
+		UpstreamUnavailableError,
+	);
+	if (!error) {
+		return data;
 	}
+	if (tries >= pageAttempts) {
+		throw error;
+	}
+
+	await Bun.sleep(error.retryAfterMs ?? minute);
+	return await fetchIndexPage(page, sort, popularityBelow, tries + 1);
 };
 
 /**
@@ -233,10 +233,11 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 
 	let pages = 0;
 	let stored = 0;
-	let popularityBelow: number | undefined;
-	for (;;) {
+	const readWindow = async (
+		popularityBelow: number | undefined,
+	): Promise<{ pages: number; stored: number }> => {
 		let leastPopular: number | undefined;
-		for (let page = 1; page <= pagesPerWindow; page += 1) {
+		const readPage = async (page: number): Promise<{ pages: number; stored: number } | null> => {
 			const { Page } = await fetchIndexPage(page, sort, popularityBelow);
 			pages += 1;
 
@@ -255,6 +256,13 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 					stored,
 				};
 			}
+
+			return page >= pagesPerWindow ? null : await readPage(page + 1);
+		};
+
+		const finished = await readPage(1);
+		if (finished) {
+			return finished;
 		}
 
 		// An incremental sync that has not caught up after a whole window has
@@ -272,8 +280,9 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 				`More than ${pagesPerWindow * 50} anime share popularity ${leastPopular}; the search index cannot page past them`,
 			);
 		}
-		popularityBelow = nextBelow;
-	}
+		return await readWindow(nextBelow);
+	};
+	return await readWindow(undefined);
 };
 
 /** Once complete, the index is only ever brought up to date, never emptied. */

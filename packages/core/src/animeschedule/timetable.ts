@@ -1,4 +1,4 @@
-import { attempt, day } from "@sora/shared";
+import { attempt, day, inSequence } from "@sora/shared";
 import type { HttpClient } from "anime-sdk";
 import { and, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -195,44 +195,47 @@ const resolveAnimeScheduleShows = async (
 		),
 	);
 
-	for (const route of unique.filter((candidate) => !resolved.has(candidate))) {
-		const response = await attempt(
-			http.get(`${api}/anime/${encodeURIComponent(route)}`, {
-				headers,
-			}),
-		);
-		if (response.error) {
-			console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
-			continue;
-		}
+	await inSequence(
+		unique.filter((candidate) => !resolved.has(candidate)),
+		async (route) => {
+			const response = await attempt(
+				http.get(`${api}/anime/${encodeURIComponent(route)}`, {
+					headers,
+				}),
+			);
+			if (response.error) {
+				console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
+				return;
+			}
 
-		const body = await attempt(response.data.json());
-		const show = AnimeSchema.safeParse(body.data);
-		if (!show.success) {
-			console.warn(`AnimeSchedule show ${route} could not be read`);
-			continue;
-		}
+			const body = await attempt(response.data.json());
+			const show = AnimeSchema.safeParse(body.data);
+			if (!show.success) {
+				console.warn(`AnimeSchedule show ${route} could not be read`);
+				return;
+			}
 
-		const link = show.data.websites?.aniList;
-		const id = link ? /anilist\.co\/anime\/(?<id>\d+)/u.exec(link)?.[1] : undefined;
-		const anilistId = id ? Number(id) : null;
+			const link = show.data.websites?.aniList;
+			const id = link ? /anilist\.co\/anime\/(?<id>\d+)/u.exec(link)?.[1] : undefined;
+			const anilistId = id ? Number(id) : null;
 
-		const values = {
-			anilistId,
-			resolvedAt: new Date(),
-		};
-		await db
-			.insert(animeScheduleShow)
-			.values({
-				route,
-				...values,
-			})
-			.onConflictDoUpdate({
-				set: values,
-				target: animeScheduleShow.route,
-			});
-		resolved.set(route, anilistId);
-	}
+			const values = {
+				anilistId,
+				resolvedAt: new Date(),
+			};
+			await db
+				.insert(animeScheduleShow)
+				.values({
+					route,
+					...values,
+				})
+				.onConflictDoUpdate({
+					set: values,
+					target: animeScheduleShow.route,
+				});
+			resolved.set(route, anilistId);
+		},
+	);
 
 	return resolved;
 };
@@ -253,7 +256,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();
 
-	for (const offset of syncedWeeks) {
+	await inSequence(syncedWeeks, async (offset) => {
 		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
 		const nextMonday = new Date(monday.getTime() + 7 * day);
 		const timetable = await fetchTimetable(http, isoWeek(monday));
@@ -304,7 +307,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 				anilistIds.add(anilistId);
 			}
 		}
-	}
+	});
 
 	return [...anilistIds];
 };

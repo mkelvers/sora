@@ -1,4 +1,4 @@
-import { day } from "@sora/shared";
+import { day, inSequence, firstInSequence } from "@sora/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -110,20 +110,22 @@ const predecessorMappings = async (
 	}
 
 	const entries = await loadEntries(edges.map((edge) => edge.id));
-	const predecessors: Predecessor[] = [];
-	for (const edge of edges) {
+	const predecessors = await inSequence(edges, async (edge): Promise<Predecessor[]> => {
 		const predecessor = entries.get(edge.id);
-		if (predecessor) {
-			predecessors.push({
+		if (!predecessor) {
+			return [];
+		}
+		return [
+			{
 				mapping:
 					(await freshMapping(predecessor)) ??
 					(await resolve(predecessor, new Set([...resolving, predecessor.id]))),
 				relation: edge.relation,
-			});
-		}
-	}
+			},
+		];
+	});
 
-	return predecessors;
+	return predecessors.flat();
 };
 
 /** Weighs the hinted movies and those found by the subject's titles, and returns the best confident match. */
@@ -159,38 +161,32 @@ const bestMoviePlacement = async (
 
 	// Search results leave out runtimes, which tell a bonus short from the
 	// film it was released with, so the best are checked against the details.
-	for (const [movieId] of [...placements].toSorted(
-		([, left], [, right]) => right.score - left.score,
-	)) {
-		const movie = await getMovie(movieId);
-		const confirmed = movie && placeAsMovie(subject, movie, hintedIds.has(movie.id));
-		if (confirmed) {
-			return confirmed;
-		}
-	}
+	const confirmed = await firstInSequence(
+		[...placements].toSorted(([, left], [, right]) => right.score - left.score),
+		async ([movieId]) => {
+			const movie = await getMovie(movieId);
+			return movie && placeAsMovie(subject, movie, hintedIds.has(movie.id));
+		},
+	);
 
-	return null;
+	return confirmed ?? null;
 };
 
 /** Places a sequel film after the film its prequel maps to, in that film's TMDB collection. */
 const collectionPlacement = async (subject: MatchSubject, predecessors: readonly Predecessor[]) => {
-	for (const { relation, mapping } of predecessors) {
+	const placement = await firstInSequence(predecessors, async ({ relation, mapping }) => {
 		if (relation !== "PREQUEL" || mapping.mediaType !== "movie" || mapping.tmdbId === null) {
-			continue;
+			return null;
 		}
 
 		const mappedMovie = await getMovie(mapping.tmdbId);
 		const collectionId = mappedMovie?.belongs_to_collection?.id;
-		const placement =
-			collectionId === undefined
-				? null
-				: placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
-		if (placement) {
-			return placement;
-		}
-	}
+		return collectionId === undefined
+			? null
+			: placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
+	});
 
-	return null;
+	return placement ?? null;
 };
 
 /**

@@ -1,4 +1,4 @@
-import { attempt, hour } from "@sora/shared";
+import { attempt, hour, inSequence } from "@sora/shared";
 import { bestSimilarity } from "anime-sdk";
 import type { HttpClient } from "anime-sdk";
 import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
@@ -185,7 +185,7 @@ export const syncAniKotoCatalog = async (
 	let isEverySeriesRead = true;
 	let pages = 0;
 	let stored = 0;
-	for (let page = 1; ; page += 1) {
+	const readPage = async (page: number): Promise<{ pages: number; stored: number }> => {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
 			signal: options.signal,
 		});
@@ -213,7 +213,10 @@ export const syncAniKotoCatalog = async (
 				stored,
 			};
 		}
-	}
+
+		return await readPage(page + 1);
+	};
+	return await readPage(1);
 };
 
 /** A series AniKoto changed, as its catalogue listing gives it. */
@@ -245,7 +248,7 @@ export const readRecentAniKotoChanges = async (
 	since: Date,
 ): Promise<AniKotoChange[]> => {
 	const changes: AniKotoChange[] = [];
-	for (let page = 1; page <= recentPageLimit; page += 1) {
+	const readPage = async (page: number): Promise<void> => {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
 		const body = await response.json();
 		const rows = CatalogPageSchema.parse(body).data.flatMap(
@@ -261,10 +264,11 @@ export const readRecentAniKotoChanges = async (
 		);
 
 		const oldest = rows.at(-1);
-		if (!oldest || oldest.updatedAt < since) {
-			break;
+		if (oldest && oldest.updatedAt >= since && page < recentPageLimit) {
+			await readPage(page + 1);
 		}
-	}
+	};
+	await readPage(1);
 
 	return changes;
 };
@@ -457,7 +461,7 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		),
 	];
 	const found = new Set<number>();
-	for (const query of queries) {
+	await inSequence(queries, async (query) => {
 		const response = await http.get(
 			`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
 		);
@@ -467,7 +471,7 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		for (const [, id] of html.matchAll(/data-tip="(?<id>\d+)"/gu)) {
 			found.add(Number(id));
 		}
-	}
+	});
 
 	const stored =
 		found.size === 0
@@ -480,19 +484,14 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 					.where(inArray(anikotoSeries.anikotoId, [...found]));
 	const known = new Set(stored.map((row) => row.anikotoId));
 
-	const rows: (typeof anikotoSeries.$inferInsert)[] = [];
-	for (const id of [...found]
-		.filter((candidate) => !known.has(candidate))
-		.slice(0, lookupCandidateLimit)) {
+	const candidates = [...found].filter((candidate) => !known.has(candidate));
+	const fetched = await inSequence(candidates.slice(0, lookupCandidateLimit), async (id) => {
 		const response = await http.get(`${apiUrl}/series/${id}`);
 		const parsed = SeriesResponseSchema.safeParse(await response.json());
-		const row = parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
-		if (row) {
-			rows.push(row);
-		}
-	}
+		return parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
+	});
 
-	await upsert(rows);
+	await upsert(fetched.flatMap((row) => (row ? [row] : [])));
 };
 
 /**
