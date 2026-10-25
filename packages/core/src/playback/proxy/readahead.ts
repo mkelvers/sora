@@ -74,7 +74,7 @@ const download = async (target: StreamTarget): Promise<Segment> => {
 		// Strict players (AVPlayer, ExoPlayer) reject the image type disguised
 		// segments arrive with, so restore the real one.
 		contentType:
-			disguised || (contentType && /^(image|text)\//iu.test(contentType))
+			disguised || (contentType && /^(?:image|text)\//iu.test(contentType))
 				? "video/mp2t"
 				: contentType,
 	};

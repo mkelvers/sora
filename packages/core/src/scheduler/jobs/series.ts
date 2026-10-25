@@ -479,7 +479,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const showIds = new Map(
 		behind.flatMap(({ series_id, key }) => {
-			const showId = /^(?:tv|shorts):(\d+)$/u.exec(key)?.[1];
+			const showId = /^(?:tv|shorts):(?<id>\d+)$/u.exec(key)?.[1];
 			return showId ? [[series_id, Number(showId)] as const] : [];
 		}),
 	);

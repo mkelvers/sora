@@ -137,7 +137,7 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 	let upstream = await fetchUpstream(target, null);
 	let content = await upstream.response.text();
 
-	const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*([^#\s][^\n]*)/u.exec(content)?.[1];
+	const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u.exec(content)?.[1];
 	if (variant) {
 		const variantUrl = new URL(variant.trim(), upstream.url).toString();
 		upstream = await fetchUpstream(
@@ -153,7 +153,7 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 
 	const starts: number[] = [];
 	let elapsed = 0;
-	for (const [, duration] of content.matchAll(/^#EXTINF:([\d.]+)/gmu)) {
+	for (const [, duration] of content.matchAll(/^#EXTINF:(?<duration>[\d.]+)/gmu)) {
 		starts.push(elapsed);
 		elapsed += Number(duration);
 	}
@@ -348,7 +348,7 @@ export const proxyStream = async (
 	// Some hosts disguise TS segments as images to pass CDN filters. Strict
 	// players (AVPlayer, ExoPlayer) reject that type, so restore the real one.
 	const contentType = headers.get("Content-Type");
-	if (target.kind === "segment" && contentType && /^(image|text)\//iu.test(contentType)) {
+	if (target.kind === "segment" && contentType && /^(?:image|text)\//iu.test(contentType)) {
 		headers.set("Content-Type", "video/mp2t");
 	}
 

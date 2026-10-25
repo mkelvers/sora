@@ -58,12 +58,12 @@ export interface Upstream {
 const isPrivateAddress = (address: string) => {
 	const version = isIP(address);
 	if (version === 4) {
-		return /^(0|10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./u.test(
+		return /^(?:0|10|127|169\.254|172\.(?:1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./u.test(
 			address,
 		);
 	}
 
-	return version === 6 && /^(::1?$|f[cd]|fe[89ab]|ff|::ffff:)/iu.test(address);
+	return version === 6 && /^(?:::1?$|f[cd]|fe[89ab]|ff|::ffff:)/iu.test(address);
 };
 
 /**

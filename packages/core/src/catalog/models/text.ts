@@ -38,7 +38,7 @@ export const plainText = (value: string) =>
 		.replaceAll(/<br\s*\/?>/giu, "\n")
 		.replaceAll(/<[^>]+>/gu, "")
 		.replaceAll(
-			/&(#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/giu,
+			/&(?<entity>#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/giu,
 			decodeEntity,
 		)
 		.replace(/\s*[([]\s*(?:source|written by)\s*:[\s\S]*$/iu, "")

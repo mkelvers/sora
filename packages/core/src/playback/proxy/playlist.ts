@@ -34,7 +34,7 @@ const tagUriKind = (tag: string): StreamTargetKind | null => {
  * ```
  */
 export const rewritePlaylist = (content: string, playlistUrl: string, sign: PlaylistUriSigner) => {
-	const isMaster = /^#EXT-X-(STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/mu.test(content);
+	const isMaster = /^#EXT-X-(?:STREAM-INF|MEDIA|I-FRAME-STREAM-INF):/mu.test(content);
 	const lineKind: StreamTargetKind = isMaster ? "playlist" : "segment";
 	const resolve = (uri: string) => new URL(uri, playlistUrl).toString();
 
@@ -56,7 +56,7 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 			}
 
 			return line.replace(
-				/URI="([^"]+)"/u,
+				/URI="(?<uri>[^"]+)"/u,
 				(_match, uri: string) => `URI="${sign(resolve(uri), kind)}"`,
 			);
 		})

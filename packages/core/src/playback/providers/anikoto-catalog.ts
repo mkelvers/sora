@@ -464,7 +464,7 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		// AniKoto's default order ranks spin-offs above the main series.
 		const html = await response.text();
 
-		for (const [, id] of html.matchAll(/data-tip="(\d+)"/gu)) {
+		for (const [, id] of html.matchAll(/data-tip="(?<id>\d+)"/gu)) {
 			found.add(Number(id));
 		}
 	}

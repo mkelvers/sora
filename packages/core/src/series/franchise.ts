@@ -68,7 +68,9 @@ export const isNamedAfter = (title: string, original: string) => {
 const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
 	// Keep the title's own numbering, including untranslated sequel names.
 	const numbered = isSeason
-		? title.title.match(/\b(?:Season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(\d+))?$/iu)
+		? title.title.match(
+				/\b(?:Season\s+(?<season>\d+)|(?<ordinal>\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(?<part>\d+))?$/iu,
+			)
 		: null;
 	if (numbered) {
 		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;

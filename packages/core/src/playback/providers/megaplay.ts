@@ -93,7 +93,8 @@ const fetchMegaPlaySources = async (
 	}
 
 	const fileId =
-		/<title>\s*File\s+(\d+)\s*-/iu.exec(embedPage)?.[1] ?? /data-id="(\d+)"/u.exec(embedPage)?.[1];
+		/<title>\s*File\s+(?<id>\d+)\s*-/iu.exec(embedPage)?.[1] ??
+		/data-id="(?<id>\d+)"/u.exec(embedPage)?.[1];
 	if (!fileId) {
 		throw new Error("MegaPlay embed page has no file ID");
 	}
@@ -169,7 +170,7 @@ const regionSubtags: Record<string, string> = {
  * too.
  */
 export const subtitleLanguage = (label: string) => {
-	const regional = /^(.+?)\s*\(\s*-\s*.*\(([^()]+)\)\s*\)$/u.exec(label.trim());
+	const regional = /^(?<language>.+?)\s*\(\s*-\s*.*\((?<region>[^()]+)\)\s*\)$/u.exec(label.trim());
 	if (!regional?.[1] || !regional[2]) {
 		return labelToBcp47(
 			label

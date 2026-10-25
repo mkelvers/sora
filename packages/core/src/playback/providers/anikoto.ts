@@ -57,12 +57,12 @@ const fetchAniKotoEpisodeList = async (
 
 	const episodes = new Map<number, ListedEpisode>();
 	for (const link of links) {
-		const number = Number(/\bdata-num="([^"]*)"/u.exec(link)?.[1]);
+		const number = Number(/\bdata-num="(?<number>[^"]*)"/u.exec(link)?.[1]);
 		if (!Number.isFinite(number)) {
 			continue;
 		}
 
-		const classes = /\bclass="([^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
+		const classes = /\bclass="(?<classes>[^"]*)"/u.exec(link)?.[1]?.split(/\s+/u) ?? [];
 		episodes.set(number, {
 			isFiller: classes.includes("filler"),
 			languages: languageOrder.filter((language) =>

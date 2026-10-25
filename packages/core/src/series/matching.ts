@@ -143,7 +143,7 @@ const titleOnlyReleaseWindowDays = 120;
 
 /** Days since the Unix epoch for a full `YYYY-MM-DD` date; partial dates yield `null`. */
 const dayNumber = (date: string | null) => {
-	const match = date ? /^(\d{4})-(\d{2})-(\d{2})/u.exec(date) : null;
+	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/u.exec(date) : null;
 	if (!match) {
 		return null;
 	}
@@ -669,7 +669,7 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 };
 
 const yearOf = (date: string | null) => {
-	const match = date ? /^(\d{4})/u.exec(date) : null;
+	const match = date ? /^(?<year>\d{4})/u.exec(date) : null;
 	return match ? Number(match[1]) : null;
 };
 
@@ -1123,12 +1123,12 @@ export const placeInEpisodeGroups = (
 				continue;
 			}
 			const episodes = [...group.episodes];
-			let part = /^(.*) part (\d+)$/u.exec(normalizeTitle(group.name));
+			let part = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(group.name));
 			for (const next of groups.slice(index + 1)) {
 				if (episodes.length >= subject.episodes || !part) {
 					break;
 				}
-				const nextPart = /^(.*) part (\d+)$/u.exec(normalizeTitle(next.name));
+				const nextPart = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(next.name));
 				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
 					break;
 				}

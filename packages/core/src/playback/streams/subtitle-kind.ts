@@ -42,7 +42,10 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 			continue;
 		}
 
-		const stamp = /-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})\.(\d{3})/u.exec(lines[timing]!);
+		const stamp =
+			/-->\s*(?:(?<hours>\d+):)?(?<minutes>\d{1,2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})/u.exec(
+				lines[timing]!,
+			);
 		if (stamp) {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;
 			end = Math.max(

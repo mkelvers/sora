@@ -49,7 +49,7 @@ export const effectiveStill = sql<
 >`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
 const measureEdges = async (url: string): Promise<ImageEdges> => {
-	const small = url.replace(/(\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${measuredWidth}`);
+	const small = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${measuredWidth}`);
 	const response = await fetch(small, {
 		signal: AbortSignal.timeout(10_000),
 	});

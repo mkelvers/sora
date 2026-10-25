@@ -5,14 +5,15 @@ export interface Cue {
 	text: string;
 }
 
-const timing = /^(\S+)\s+-->\s+(\S+)(.*)$/mu;
+const timing = /^(?<start>\S+)\s+-->\s+(?<end>\S+)(?<settings>.*)$/mu;
 
 /**
  * Seconds in a WebVTT timestamp, `hh:mm:ss.ttt` or `mm:ss.ttt`, or `null` when
  * it is neither.
  */
 export const parseTimestamp = (value: string) => {
-	const parts = /^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/u.exec(value);
+	const parts =
+		/^(?:(?<hours>\d+):)?(?<minutes>\d{2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})$/u.exec(value);
 	if (!parts) {
 		return null;
 	}
