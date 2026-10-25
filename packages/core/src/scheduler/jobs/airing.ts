@@ -1,4 +1,4 @@
-import { attempt, minute } from "@sora/shared";
+import { attempt, minute, inSequence } from "@sora/shared";
 import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -63,7 +63,7 @@ const readAniKotoEpisodes = async (anilistId: number) => {
  * them. A failing provider is logged and skipped, and keeps its stored list.
  */
 const refreshProviderEpisodes = async (anime: Anime, logger: Parameters<Task>[1]["logger"]) => {
-	for (const provider of streamProviders) {
+	await inSequence(streamProviders, async (provider) => {
 		const { error } = await attempt(
 			refreshProviderUnits(anime, provider, {
 				retryUnmatched: true,
@@ -72,7 +72,7 @@ const refreshProviderEpisodes = async (anime: Anime, logger: Parameters<Task>[1]
 		if (error) {
 			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${error.message}`);
 		}
-	}
+	});
 };
 
 /**

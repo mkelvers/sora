@@ -1,4 +1,4 @@
-import { hour, minute } from "@sora/shared";
+import { hour, minute, inSequence } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -64,11 +64,10 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 	]);
 	const storedIds = new Set(stored.map((entry) => entry.anilistId));
 
-	let scheduled = 0;
-	for (const release of releases) {
+	const uncarried = releases.flatMap((release) => {
 		const { anilistId } = release;
 		if (!anilistId || !storedIds.has(anilistId)) {
-			continue;
+			return [];
 		}
 
 		const isCarried = units.some(
@@ -79,11 +78,17 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 					(unit) => unit.number >= release.episode && unit.languages?.includes("dub"),
 				),
 		);
-		if (isCarried) {
-			continue;
-		}
-
-		await scheduleAniKotoPoll(
+		return isCarried
+			? []
+			: [
+					{
+						anilistId,
+						release,
+					},
+				];
+	});
+	await inSequence(uncarried, ({ anilistId, release }) =>
+		scheduleAniKotoPoll(
 			{
 				anilistId,
 				attempt: 0,
@@ -91,9 +96,9 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 				language: "dub",
 			},
 			new Date(release.airsAt.getTime() + firstLookDelayMs),
-		);
-		scheduled += 1;
-	}
+		),
+	);
+	const scheduled = uncarried.length;
 
 	helpers.logger.info(
 		`Scheduled looks on AniKoto for ${scheduled} of ${releases.length} dubs AnimeSchedule expects`,

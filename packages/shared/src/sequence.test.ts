@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { firstInSequence, inSequence } from "./sequence";
+import { firstInSequence, inParallel, inSequence } from "./sequence";
 
 describe("inSequence", () => {
 	test("starts each item once the one before it has finished, and keeps the order", async () => {
@@ -55,5 +55,42 @@ describe("firstInSequence", () => {
 
 	test("resolves to undefined when none gives a result", async () => {
 		expect(await firstInSequence([1, 2], () => Promise.resolve(undefined))).toBeUndefined();
+	});
+});
+
+describe("inParallel", () => {
+	test("never runs more than the limit at once, and runs every item", async () => {
+		let running = 0;
+		let peak = 0;
+		const done: number[] = [];
+
+		await inParallel([1, 2, 3, 4, 5, 6], 2, async (item) => {
+			running += 1;
+			peak = Math.max(peak, running);
+			await Bun.sleep(5);
+			running -= 1;
+			done.push(item);
+		});
+
+		expect(peak).toBe(2);
+		expect(done.toSorted()).toEqual([1, 2, 3, 4, 5, 6]);
+	});
+
+	test("starts no more items once the signal aborts", async () => {
+		const stop = new AbortController();
+		const started: number[] = [];
+
+		await inParallel(
+			[1, 2, 3, 4],
+			1,
+			async (item) => {
+				started.push(item);
+				stop.abort();
+				await Bun.sleep(1);
+			},
+			stop.signal,
+		);
+
+		expect(started).toEqual([1]);
 	});
 });

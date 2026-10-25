@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, inParallel } from "@sora/shared";
 import { and, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
@@ -114,18 +114,20 @@ const learn = async (
 	const known = new Set(seen.map((row) => row.episode));
 	const missing = source.episodes.filter((number) => number !== episode && !known.has(number));
 
-	const queue = [...missing];
-	const worker = async () => {
-		for (let number = queue.shift(); number !== undefined; number = queue.shift()) {
-			const { data } = await attempt(source.skipSegments(number));
-			await remember(seriesId, number, audio, data ?? [], true);
-		}
-	};
+	const deadline = new AbortController();
 	await Promise.race([
-		Promise.all(Array.from({ length: learnConcurrency }, worker)),
+		inParallel(
+			missing,
+			learnConcurrency,
+			async (number) => {
+				const { data } = await attempt(source.skipSegments(number));
+				await remember(seriesId, number, audio, data ?? [], true);
+			},
+			deadline.signal,
+		),
 		Bun.sleep(learnDeadlineMs),
 	]);
-	queue.length = 0;
+	deadline.abort();
 };
 
 /**

@@ -1,4 +1,4 @@
-import { attempt, hour, minute } from "@sora/shared";
+import { attempt, hour, minute, inSequence } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
@@ -127,20 +127,20 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 	]);
 	const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
 
-	for (const { anilistId } of stored) {
+	await inSequence(stored, async ({ anilistId }) => {
 		const checked = checkedAt.get(anilistId);
 		const changed = updatedAt.get(anilistId);
 		if (checked && changed && checked >= changed) {
-			continue;
+			return;
 		}
 
 		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
 		if (error) {
 			logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
-			continue;
+			return;
 		}
 		logger.info(`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`);
-	}
+	});
 };
 
 /**

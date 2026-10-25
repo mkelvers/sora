@@ -36,3 +36,27 @@ export const firstInSequence = <TItem, TResult>(
 	};
 	return step(0);
 };
+
+/**
+ * Runs `work` for every item with at most `concurrency` running at once,
+ * each worker taking the next item when it finishes one. Resolves once all
+ * are done. No more items start after `signal` aborts; those running finish.
+ */
+export const inParallel = async <TItem>(
+	items: readonly TItem[],
+	concurrency: number,
+	work: (item: TItem) => Promise<void>,
+	signal?: AbortSignal,
+): Promise<void> => {
+	let next = 0;
+	const worker = async (): Promise<void> => {
+		if (signal?.aborted || next >= items.length) {
+			return;
+		}
+		const item = items[next] as TItem;
+		next += 1;
+		await work(item);
+		await worker();
+	};
+	await Promise.all(Array.from({ length: concurrency }, worker));
+};

@@ -1,4 +1,4 @@
-import { attempt, day } from "@sora/shared";
+import { attempt, day, inParallel } from "@sora/shared";
 import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
@@ -61,34 +61,24 @@ export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
 
 	let chosen = 0;
 	let failed = 0;
-	const queue = [...rows];
-	await Promise.all(
-		Array.from(
-			{
-				length: concurrency,
-			},
-			async () => {
-				for (let row = queue.shift(); row; row = queue.shift()) {
-					const defaultPath =
-						row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/u, "") ?? null;
-					const result = await attempt(
-						chooseStill(row.show_id, row.season_number, row.episode_number, defaultPath),
-						UpstreamUnavailableError,
-					);
-					if (result.error) {
-						failed += 1;
-						helpers.logger.warn(
-							`Could not choose a still for ${row.show_id} ${row.season_number}x${row.episode_number}: ${result.error.message}`,
-						);
-						continue;
-					}
+	await inParallel([...rows], concurrency, async (row) => {
+		const defaultPath =
+			row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/u, "") ?? null;
+		const result = await attempt(
+			chooseStill(row.show_id, row.season_number, row.episode_number, defaultPath),
+			UpstreamUnavailableError,
+		);
+		if (result.error) {
+			failed += 1;
+			helpers.logger.warn(
+				`Could not choose a still for ${row.show_id} ${row.season_number}x${row.episode_number}: ${result.error.message}`,
+			);
+			return;
+		}
 
-					await storeStill(row.show_id, row.season_number, row.episode_number, result.data);
-					chosen += 1;
-				}
-			},
-		),
-	);
+		await storeStill(row.show_id, row.season_number, row.episode_number, result.data);
+		chosen += 1;
+	});
 
 	if (chosen + failed > 0) {
 		helpers.logger.info(`Chose ${chosen} episode stills; ${failed} failed`);

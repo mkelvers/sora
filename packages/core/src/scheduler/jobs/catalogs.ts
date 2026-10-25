@@ -1,4 +1,4 @@
-import { attempt } from "@sora/shared";
+import { attempt, inSequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -24,10 +24,9 @@ export const syncProviderCatalogsTask = "sync-provider-catalogs";
 export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 	const payload = SyncProviderCatalogsPayloadSchema.parse(rawPayload);
 
-	const failed: string[] = [];
-	for (const provider of streamProviders) {
+	const outcomes = await inSequence(streamProviders, async (provider) => {
 		if (!provider.syncCatalog) {
-			continue;
+			return [];
 		}
 
 		const { data, error } = await attempt(
@@ -37,11 +36,12 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 		);
 		if (error) {
 			helpers.logger.warn(`Provider ${provider.id} failed to sync its catalogue: ${error.message}`);
-			failed.push(provider.id);
-			continue;
+			return [provider.id];
 		}
 		helpers.logger.info(data);
-	}
+		return [];
+	});
+	const failed = outcomes.flat();
 
 	if (failed.length > 0) {
 		throw new Error(`Syncing catalogues failed on ${failed.join(", ")}`);

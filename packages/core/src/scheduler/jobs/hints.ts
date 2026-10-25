@@ -1,3 +1,4 @@
+import { inSequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 
 import { syncTmdbHints } from "../../series/hints";
@@ -19,9 +20,7 @@ export const syncTmdbHintsTask = "sync-tmdb-hints";
 export const syncTmdbHintsJob: Task = async (_payload, helpers) => {
 	const changed = await syncTmdbHints();
 	const expired = await expireMappingsAgainstHints(changed);
-	for (const anilistId of expired) {
-		await scheduleStoredSeriesRefresh(anilistId, "backfill");
-	}
+	await inSequence(expired, (anilistId) => scheduleStoredSeriesRefresh(anilistId, "backfill"));
 
 	helpers.logger.info(
 		`${changed.length} TMDB hints changed; matching ${expired.length} entries again`,
