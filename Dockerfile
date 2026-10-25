@@ -32,6 +32,11 @@ RUN apt-get update \
 	&& HF_HOME=/opt/whisper/models /opt/whisper/bin/python -c "from faster_whisper import WhisperModel; WhisperModel('small.en', device='cpu', compute_type='int8')" \
 	&& chown -R bun /opt/whisper/models
 ENV SUBTITLE_ALIGNMENT_PYTHON=/opt/whisper/bin/python HF_HOME=/opt/whisper/models
+# Reads episode stills for title cards and text, so none is shown with them; fetched at build time too.
+RUN cd packages/core \
+	&& bun -e "import { env, pipeline } from '@huggingface/transformers'; env.cacheDir = '/opt/clip'; await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32')" \
+	&& chown -R bun /opt/clip
+ENV STILL_MODEL_DIR=/opt/clip
 USER bun
 CMD ["bun", "apps/scheduler/src/main.ts"]
 

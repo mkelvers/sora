@@ -27,6 +27,7 @@
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",
+		"@huggingface/transformers": "^4.3.1",
 		"@sora/shared": "workspace:*",
 		"anime-sdk": "^1.1.0",
 		"better-auth": "^1.7.6",
