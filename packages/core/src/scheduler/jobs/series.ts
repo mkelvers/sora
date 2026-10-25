@@ -613,7 +613,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 			: [];
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
-	const outcomes = await inSequence([...behind], async (row) => {
+	const outcomes = await inSequence(behind as unknown as BehindSeries[], async (row) => {
 		const showId = showIds.get(row.series_id);
 		return showId === undefined
 			? await relayoutUnshown(row)
