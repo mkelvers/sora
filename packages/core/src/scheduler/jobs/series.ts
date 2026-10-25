@@ -392,7 +392,7 @@ const episodeKeys = (show: TmdbShow) =>
 		.join(",");
 
 /** A stored series with an episode TMDB is behind on, and how long ago each lack began. */
-interface BehindSeries {
+interface BehindSeries extends Record<string, unknown> {
 	series_id: string;
 	key: string;
 	anilist_id: number;
@@ -575,7 +575,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     ${airedLately}
     and (${isUnnamed} or ${seriesEpisode.overview} is null or ${seriesEpisode.stillUrl} is null)
   )`;
-	const behind = await db.execute<BehindSeries & Record<string, unknown>>(sql`
+	const behind = await db.execute<BehindSeries>(sql`
     select
       ${series.id} as series_id,
       ${series.key} as key,
