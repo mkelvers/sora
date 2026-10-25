@@ -23,7 +23,7 @@ const nearest = (sorted: number[], time: number) => {
 	let low = 0;
 	let high = sorted.length;
 	while (low < high) {
-		const middle = (low + high) >> 1;
+		const middle = Math.floor((low + high) / 2);
 		if (sorted[middle]! < time) {
 			low = middle + 1;
 		} else {

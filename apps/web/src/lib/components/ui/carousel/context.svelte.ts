@@ -95,7 +95,7 @@ export class CarouselState {
 				clearTimeout(timer);
 				timer = undefined;
 				remaining = delay;
-				this.cycle++;
+				this.cycle += 1;
 				resume();
 			};
 

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { day, hour } from "@sora/shared";
 
 /** One AniList entry of a title, as the search index knows it. */
@@ -65,15 +67,8 @@ export const isCurrent = (entry: FeaturedEntry, now: Date) =>
 export const rotationOf = (now: Date) =>
 	Math.floor((now.getTime() - rotationStart) / rotationPeriod);
 
-/** FNV-1a, a fast, well-spread 32-bit hash; not for security. */
-const hash = (text: string) => {
-	let value = 0x81_1c_9d_c5;
-	for (let index = 0; index < text.length; index++) {
-		value ^= text.charCodeAt(index);
-		value = Math.imul(value, 0x01_00_01_93);
-	}
-	return value >>> 0;
-};
+/** A well-spread 32-bit hash of `text`; not for security. */
+const hash = (text: string) => createHash("sha1").update(text).digest().readUInt32BE(0);
 
 /**
  * Shuffles candidates anew for each `seed` and rotation, so each profile

@@ -11,7 +11,7 @@ const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
 	let low = 0;
 	let high = anchors.length;
 	while (low < high) {
-		const middle = (low + high) >> 1;
+		const middle = Math.floor((low + high) / 2);
 		if (anchors[middle]!.start < start) {
 			low = middle + 1;
 		} else {

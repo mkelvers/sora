@@ -168,7 +168,7 @@ const resolvedVersions = async () => {
 const boundaries = (seed: number) => {
 	const times = [0];
 	let state = seed;
-	for (let index = 1; index < 300; index++) {
+	for (let index = 1; index < 300; index += 1) {
 		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
 		times.push(times.at(-1)! + 1 + (state % 9000) / 1000);
 	}

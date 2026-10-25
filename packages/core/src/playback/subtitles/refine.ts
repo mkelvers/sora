@@ -302,7 +302,7 @@ const firstStartingAfter = (words: SpokenWord[], time: number) => {
 	let low = 0;
 	let high = words.length;
 	while (low < high) {
-		const middle = (low + high) >> 1;
+		const middle = Math.floor((low + high) / 2);
 		if (words[middle]!.start < time) {
 			low = middle + 1;
 		} else {

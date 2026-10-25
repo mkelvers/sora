@@ -40,7 +40,7 @@
 		const stop = (target: number) =>
 			series.episode_count - target <= tail ? series.episode_count : target;
 		const list = [stop(pageSize)];
-		for (let step = 1; step <= steps; step++) {
+		for (let step = 1; step <= steps; step += 1) {
 			const end = stop(Math.ceil((pageSize * step) / columns) * columns);
 			if (end > (list.at(-1) ?? 0)) {
 				list.push(end);
@@ -96,7 +96,7 @@
 	<Button
 		variant="ghost"
 		class="mx-auto mt-8 flex h-11 w-full max-w-5xl bg-[#213944] text-foreground hover:bg-[#2f5161]"
-		onclick={() => steps++}
+		onclick={() => (steps += 1)}
 	>
 		Show More
 	</Button>

@@ -41,10 +41,10 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 				const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
 				let contrast = 0;
 				let weighted = 0;
-				for (let y = 1; y < 30; y++) {
-					for (let x = 1; x < canvas.width - 1; x++) {
+				for (let y = 1; y < 30; y += 1) {
+					for (let x = 1; x < canvas.width - 1; x += 1) {
 						const pixel = (y * canvas.width + x) * 4;
-						for (let channel = 0; channel < 3; channel++) {
+						for (let channel = 0; channel < 3; channel += 1) {
 							const detail =
 								Math.abs(data[pixel + channel] - data[pixel - 4 + channel]) +
 								Math.abs(data[pixel + channel] - data[pixel - canvas.width * 4 + channel]);

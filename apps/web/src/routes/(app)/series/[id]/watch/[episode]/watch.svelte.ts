@@ -235,7 +235,7 @@ export class Player {
 					hls?.recoverMediaError();
 				} else if (performance.now() - this.#reloaded > 30_000) {
 					this.#reloaded = performance.now();
-					this.#reloads++;
+					this.#reloads += 1;
 				}
 			});
 			hls.loadSource(url);
