@@ -12,8 +12,7 @@ import type { BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
 import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
-import { anime as animeTable } from "../database/schema/catalog";
-import { animeSearch } from "../database/schema/catalog";
+import { anime as animeTable, animeSearch } from "../database/schema/catalog";
 import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
 import {
 	imageEdge,
