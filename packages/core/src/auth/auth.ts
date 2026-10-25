@@ -27,10 +27,8 @@ import { createProfile } from "./profiles";
  * for any other it counts the address the request connected from.
  */
 export const auth = betterAuth({
-	baseURL: config.authUrl,
 	basePath: "/v1/auth",
 	secret: config.authSecret,
-	trustedOrigins: config.authTrustedOrigins,
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {

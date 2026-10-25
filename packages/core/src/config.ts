@@ -20,22 +20,6 @@ const EnvironmentSchema = z.object({
 	ANIME_SCHEDULE_API_KEY: z.string().min(1),
 	/** Secret for signing session tokens. Changing it signs every device out. */
 	AUTH_SECRET: z.string().min(32),
-	/** The API's public origin, which Better Auth builds its URLs from. */
-	AUTH_URL: z.url().default("http://localhost:3000"),
-	/**
-	 * Other origins allowed to sign in, comma-separated: for example the
-	 * internal URL a web server reaches the API by, when it differs from
-	 * `AUTH_URL`.
-	 */
-	AUTH_TRUSTED_ORIGINS: z
-		.string()
-		.default("")
-		.transform((value) =>
-			value
-				.split(",")
-				.map((origin) => origin.trim())
-				.filter(Boolean),
-		),
 	/**
 	 * A Python with `faster-whisper` installed, such as `/opt/whisper/bin/python`.
 	 * With it, and ffmpeg on the `PATH`, the scheduler listens to each dub once
@@ -63,8 +47,6 @@ export const config = {
 	tmdbReadAccessToken: environment.TMDB_READ_ACCESS_TOKEN,
 	animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 	authSecret: environment.AUTH_SECRET,
-	authUrl: environment.AUTH_URL,
-	authTrustedOrigins: environment.AUTH_TRUSTED_ORIGINS,
 	subtitleAlignmentPython: environment.SUBTITLE_ALIGNMENT_PYTHON ?? null,
 	subtitleAlignmentModel: environment.SUBTITLE_ALIGNMENT_MODEL,
 };
