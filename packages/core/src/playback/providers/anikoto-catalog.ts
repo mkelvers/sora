@@ -132,7 +132,8 @@ const aniKotoProviderId = "anikoto";
 /**
  * Drops the stored mappings that AniKoto's catalogue now contradicts: an
  * AniList entry mapped to one series while another names it, and the mapped
- * one does not. AniKoto files a split-cour or later stage under a series of
+ * one names a different entry. A mapped series that names none is kept,
+ * since AniKoto may have split one title across several series. AniKoto files a split-cour or later stage under a series of
  * its own after the first mapping was made (Steel Ball Run 2nd - 3rd STAGE
  * stayed on its 1-episode first stage for a month), and a stored match is
  * otherwise trusted for 30 days. The next look finds the entry again.
@@ -155,10 +156,11 @@ const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert
         where named.anilist_id = ${providerMapping.anilistId}
           and named.anikoto_id <> ${providerMapping.providerMediaId}
       )`,
-			sql`not exists (
+			sql`exists (
         select 1 from ${anikotoSeries}
         where ${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}
-          and ${anikotoSeries.anilistId} = ${providerMapping.anilistId}
+          and ${anikotoSeries.anilistId} is not null
+          and ${anikotoSeries.anilistId} <> ${providerMapping.anilistId}
       )`,
 		),
 	);
