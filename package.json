@@ -32,8 +32,10 @@
 			"esbuild": "~0.25.4"
 		},
 		"@graphql-tools/utils": "^12.0.1",
-		"braces": "file:./vendor/braces",
 		"cookie": "^0.7.2"
 	},
-	"packageManager": "bun@1.4.0"
+	"packageManager": "bun@1.4.0",
+	"patchedDependencies": {
+		"braces@3.0.3": "patches/braces@3.0.3.patch"
+	}
 }

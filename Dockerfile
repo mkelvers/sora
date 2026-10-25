@@ -7,7 +7,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/shared/package.json packages/shared/package.json
-COPY vendor/braces vendor/braces
+COPY patches patches
 RUN bun install --frozen-lockfile
 COPY . .
 ENV NODE_ENV=production
