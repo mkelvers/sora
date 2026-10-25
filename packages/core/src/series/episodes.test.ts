@@ -6,7 +6,6 @@ import {
 	expectedRelease,
 	isEpisodeAwaited,
 	isEpisodeReleased,
-	isEpisodeShown,
 } from "./episodes";
 
 const now = new Date("2026-09-27T16:00:00Z");
@@ -85,26 +84,9 @@ describe("isEpisodeAvailable", () => {
 		).toBe(true);
 	});
 
-	test("goes by the release dates until AniKoto has been looked up", () => {
-		expect(isEpisodeAvailable(title, episode, notLookedUp, now)).toBe(true);
-		expect(isEpisodeAvailable(title, episode, notLookedUp, new Date("2026-09-27T14:00:00Z"))).toBe(
-			false,
-		);
-	});
-});
-
-describe("isEpisodeShown", () => {
-	test("lists an episode AniKoto carries and TMDB lists", () => {
-		expect(isEpisodeShown(title, episode, onAniKoto(14), now)).toBe(true);
-	});
-
-	test("leaves out an episode TMDB lists that AniKoto does not carry yet", () => {
-		expect(isEpisodeShown(title, episode, onAniKoto(13), now)).toBe(false);
-	});
-
-	test("leaves out an episode AniKoto carries until TMDB lists it", () => {
+	test("is an episode AniKoto carries that TMDB does not list yet", () => {
 		expect(
-			isEpisodeShown(
+			isEpisodeAvailable(
 				title,
 				{
 					...episode,
@@ -113,47 +95,14 @@ describe("isEpisodeShown", () => {
 				onAniKoto(14),
 				now,
 			),
-		).toBe(false);
+		).toBe(true);
 	});
 
-	test("lists a film, or an episode of a title TMDB does not list, once AniKoto carries it", () => {
-		const unlisted = {
-			...episode,
-			tmdbEpisodeNumber: null,
-		};
-		expect(
-			isEpisodeShown(
-				{
-					...title,
-					kind: "movie",
-				},
-				unlisted,
-				onAniKoto(14),
-				now,
-			),
-		).toBe(true);
-		expect(
-			isEpisodeShown(
-				{
-					...title,
-					kind: "standalone",
-				},
-				unlisted,
-				onAniKoto(14),
-				now,
-			),
-		).toBe(true);
-		expect(
-			isEpisodeShown(
-				{
-					...title,
-					kind: "standalone",
-				},
-				unlisted,
-				onAniKoto(13),
-				now,
-			),
-		).toBe(false);
+	test("goes by the release dates until AniKoto has been looked up", () => {
+		expect(isEpisodeAvailable(title, episode, notLookedUp, now)).toBe(true);
+		expect(isEpisodeAvailable(title, episode, notLookedUp, new Date("2026-09-27T14:00:00Z"))).toBe(
+			false,
+		);
 	});
 });
 
@@ -176,7 +125,7 @@ describe("isEpisodeAwaited", () => {
 		).toBe(true);
 	});
 
-	test("is an episode AniKoto carries until TMDB lists it", () => {
+	test("is not an episode AniKoto carries, whether or not TMDB lists it", () => {
 		expect(
 			isEpisodeAwaited(
 				title,
@@ -187,7 +136,7 @@ describe("isEpisodeAwaited", () => {
 				onAniKoto(13, 14),
 				now,
 			),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	test("is not an episode its series lists, nor one still to air", () => {

@@ -40,7 +40,7 @@ import {
 	carriedByAniKoto,
 	expectedRelease,
 	isEpisodeAwaited,
-	isEpisodeShown,
+	isEpisodeAvailable,
 	loadAniKotoEpisodes,
 	releasedAtOf,
 	releasedBetween,
@@ -52,7 +52,7 @@ import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
 
-/** The rows each title lists (see {@link isEpisodeShown}), grouped by series ID. */
+/** The rows each title lists (see {@link isEpisodeAvailable}), grouped by series ID. */
 const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
 	titles: readonly SeriesRow[],
 	rows: readonly TRow[],
@@ -63,7 +63,9 @@ const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
 	return new Map(
 		titles.map((title) => [
 			title.id,
-			(bySeries.get(title.id) ?? []).filter((row) => isEpisodeShown(title, row, onAniKoto, now)),
+			(bySeries.get(title.id) ?? []).filter((row) =>
+				isEpisodeAvailable(title, row, onAniKoto, now),
+			),
 		]),
 	);
 };
@@ -660,7 +662,7 @@ const loadSeries = async (seriesId: string) => {
 /**
  * The episodes before and after one, for moving through a title in order.
  *
- * Only the episodes the title lists count (see {@link isEpisodeShown}), so
+ * Only the episodes the title lists count (see {@link isEpisodeAvailable}), so
  * `next` is never an episode AniKoto does not carry yet. Each is `null` at
  * either end: playing never runs on into another title, such as the next
  * season.
@@ -757,7 +759,7 @@ const describeEpisodes = async (
  * watched in and whether each is filler.
  *
  * AniKoto decides which episodes exist: an episode is listed once AniKoto
- * carries it and it has its details, as {@link isEpisodeShown} lays out.
+ * carries it, as {@link isEpisodeAvailable} lays out.
  *
  * Both come from providers' stored episode lists, so a listing reads only
  * the database. An anime no provider has been looked up for yet is queued
@@ -1070,7 +1072,7 @@ const releaseAge = (releasedAt: string, now: number): Pick<Release, "released_ag
  * The titles with an episode out in the last 30 days, each with its latest
  * episode that can be watched, the latest first.
  *
- * An episode counts once its title lists it (see {@link isEpisodeShown}),
+ * An episode counts once its title lists it (see {@link isEpisodeAvailable}),
  * so an episode that has aired but that AniKoto does not carry yet is left
  * out until it does. `format` and `audio` apply to the title's AniList
  * entry. Reads only the database.

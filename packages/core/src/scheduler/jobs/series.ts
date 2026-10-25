@@ -154,7 +154,7 @@ const recheckAfterMs = (
 /** Any stored copy of a show: what the last reader of it fetched. */
 const storedShowAgeMs = 365 * day;
 
-/** Whether AniKoto carries a stored episode, which a series lists it for (see `isEpisodeShown`). */
+/** Whether AniKoto carries a stored episode, which a series lists it for (see `isEpisodeAvailable`). */
 const onAniKoto = sql`exists (
     select 1
     from ${providerEpisodes}, jsonb_array_elements(${providerEpisodes.units}) as unit
@@ -501,8 +501,8 @@ const refreshShow = async (
  * Asks TMDB again for the shows of stored series with an episode that a
  * series lists, or would, and that TMDB is behind on:
  *
- * - one AniKoto carries that TMDB does not list, which a series does not
- *   list until TMDB does (see `isEpisodeShown`), however long that takes.
+ * - one AniKoto carries that TMDB does not list, which a series lists
+ *   without details until TMDB does, however long that takes.
  *   The show is asked for as often as {@link recheckAfterMs} says: hourly
  *   for an episode that just aired, and monthly for the many specials and
  *   recaps TMDB has not listed in years and mostly never will. Listing it

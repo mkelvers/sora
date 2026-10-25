@@ -8,7 +8,6 @@ import { series, seriesEpisode } from "../database/schema/series";
 import { EpisodeNotFoundError, SeriesNotFoundError } from "../errors";
 import { getStoredUnits } from "../playback/episodes/episodes";
 import { aniKoto } from "../playback/providers/registry";
-import type { SeriesKind } from "./series";
 
 /**
  * An episode of a series together with the AniList entry it belongs to.
@@ -73,7 +72,7 @@ export interface ReleaseSchedule {
 	nextEpisodeAiringAt: Date | null;
 }
 
-/** What {@link isEpisodeAvailable} and {@link isEpisodeShown} need to know about an episode. */
+/** What {@link isEpisodeAvailable} needs to know about an episode. */
 export interface EpisodeListingRow {
 	number: number;
 	/** `YYYY-MM-DD`. */
@@ -216,8 +215,10 @@ export const getAniKotoEpisodeCount = async (anilistId: number): Promise<number 
 };
 
 /**
- * Whether an episode can be watched: AniKoto, the source of truth for which
- * episodes exist, carries it.
+ * Whether a series lists an episode: AniKoto, the source of truth for which
+ * episodes exist, carries it. An episode TMDB has no details for yet is
+ * listed with what AniList knows, and gains its title, overview and still
+ * once TMDB writes them (see `refreshEpisodeDetails`).
  *
  * Until AniKoto has been looked up for the series' entry, the episode counts
  * as available once {@link isEpisodeReleased} says it has been released.
@@ -235,29 +236,6 @@ export const isEpisodeAvailable = (
 		: isEpisodeReleased(title, episode, now);
 
 /**
- * Whether a series lists an episode: it is available (see
- * {@link isEpisodeAvailable}) and has its details.
- *
- * An episode of an entry TMDB lists in a show has its details once TMDB
- * lists the episode; until then the scheduler lays the series out again to
- * look for them (see `refreshEpisodeListings`). A film has the details of
- * the film itself, and an entry TMDB does not list has only what AniList
- * knows.
- */
-export const isEpisodeShown = (
-	title: ReleaseSchedule & {
-		anilistId: number;
-		kind: SeriesKind;
-	},
-	episode: EpisodeListingRow,
-	onAniKoto: AniKotoEpisodes,
-	now = new Date(),
-) => {
-	const hasDetails = episode.tmdbEpisodeNumber !== null || title.kind !== "tv";
-	return hasDetails && isEpisodeAvailable(title, episode, onAniKoto, now);
-};
-
-/**
  * How long after an episode is expected it is still waited for. AniKoto has
  * most subs within about an hour of when they are expected, and those of
  * long-running shows hours later; one it does not have by then stops
@@ -267,7 +245,7 @@ const releaseGraceMs = 12 * hour;
 
 /**
  * Whether an episode has aired but is still to come out: AniList says it
- * aired, the series does not list it yet (see {@link isEpisodeShown}), and
+ * aired, the series does not list it yet (see {@link isEpisodeAvailable}), and
  * it is the one AniKoto gets next, being the first or following an episode
  * AniKoto carries.
  *
@@ -278,7 +256,6 @@ const releaseGraceMs = 12 * hour;
 export const isEpisodeAwaited = (
 	title: ReleaseSchedule & {
 		anilistId: number;
-		kind: SeriesKind;
 	},
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
@@ -293,7 +270,7 @@ export const isEpisodeAwaited = (
 		onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number - 1));
 
 	return (
-		episode.airedAt <= now && isNextOnAniKoto && !isEpisodeShown(title, episode, onAniKoto, now)
+		episode.airedAt <= now && isNextOnAniKoto && !isEpisodeAvailable(title, episode, onAniKoto, now)
 	);
 };
 
