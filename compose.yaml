@@ -4,6 +4,7 @@ name: sora
 services:
   database:
     image: postgres:18-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: sora
       POSTGRES_PASSWORD: sora
