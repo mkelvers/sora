@@ -122,7 +122,7 @@ export const refreshProviderUnits = async (
 			number: unit.number - episodeOffset,
 			title: unit.title,
 		}))
-		.sort((left, right) => left.number - right.number);
+		.toSorted((left, right) => left.number - right.number);
 
 	const values = {
 		fetchedAt: new Date(),

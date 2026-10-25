@@ -216,7 +216,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		options: TmdbRequestOptions,
 	): Promise<z.infer<TSchema> | null> => {
 		const url = new URL(`${endpoint}${path}`);
-		for (const [name, value] of Object.entries(query as Params).sort(([left], [right]) =>
+		for (const [name, value] of Object.entries(query as Params).toSorted(([left], [right]) =>
 			left.localeCompare(right),
 		)) {
 			if (value !== undefined) {

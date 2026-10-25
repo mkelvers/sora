@@ -261,7 +261,7 @@ const toPlaybackMedia = (
 	refinement?: string,
 ) => {
 	const sources = [...videos]
-		.sort((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
+		.toSorted((left, right) => qualityRank[left.quality] - qualityRank[right.quality])
 		.map((video) => ({
 			format: video.format,
 			quality: video.quality,
@@ -294,7 +294,7 @@ const toPlaybackMedia = (
 
 	return {
 		sources,
-		subtitles: [...subtitles.values()].sort(compareSubtitles),
+		subtitles: [...subtitles.values()].toSorted(compareSubtitles),
 	};
 };
 
@@ -603,7 +603,7 @@ const subtitlesForDub = async (
 		(track) => track.format === "vtt" && (track.kind === "signs" || track.kind === "captions"),
 	);
 
-	return withDefault([...retimed, ...own].sort(compareSubtitles));
+	return withDefault([...retimed, ...own].toSorted(compareSubtitles));
 };
 
 /**

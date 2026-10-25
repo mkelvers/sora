@@ -500,7 +500,7 @@ const medianRuntime = (episodes: readonly TmdbEpisode[]) => {
 	const runtimes = episodes
 		.map((episode) => episode.runtime)
 		.filter((runtime): runtime is number => runtime !== null && runtime > 0)
-		.sort((left, right) => left - right);
+		.toSorted((left, right) => left - right);
 
 	return runtimes[Math.floor(runtimes.length / 2)] ?? null;
 };
@@ -1268,7 +1268,7 @@ export const placeAfterInCollection = (
 	prequelId: number,
 	parts: readonly TmdbMovieResult[],
 ): Placement | null => {
-	const ordered = [...parts].sort(
+	const ordered = [...parts].toSorted(
 		(left, right) =>
 			(left.release_date ?? "9999").localeCompare(right.release_date ?? "9999") ||
 			left.id - right.id,

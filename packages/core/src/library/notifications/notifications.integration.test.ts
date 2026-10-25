@@ -93,8 +93,8 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 				watchedAt: followedAt,
 			});
 			const result = await getNotifications(profile, {}, now);
-			expect(result.items.map((item) => item.id).sort()).toEqual(
-				[`${second}:1`, `${second}:2`, `${second}:2:dub`, `${third}:2`].sort(),
+			expect(result.items.map((item) => item.id).toSorted()).toEqual(
+				[`${second}:1`, `${second}:2`, `${second}:2:dub`, `${third}:2`].toSorted(),
 			);
 			expect(await db.select().from(seriesState).where(eq(seriesState.userId, profile))).toEqual(
 				[],

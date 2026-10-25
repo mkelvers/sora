@@ -264,7 +264,7 @@ const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage
 	images
 		.filter((image) => !query.types || query.types.includes(image.type))
 		.filter((image) => !query.languages || query.languages.includes(image.language))
-		.sort(query.sort === "quality" ? byQuality : byVotes)
+		.toSorted(query.sort === "quality" ? byQuality : byVotes)
 		.map((image) => ({
 			...image,
 			language_name: image.language

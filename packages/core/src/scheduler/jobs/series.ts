@@ -375,7 +375,7 @@ const longestListingWaitMs = 30 * day;
 const episodeKeys = (show: TmdbShow) =>
 	show.episodes
 		.map((episode) => `${episode.season_number}:${episode.episode_number}`)
-		.sort()
+		.toSorted()
 		.join(",");
 
 /**

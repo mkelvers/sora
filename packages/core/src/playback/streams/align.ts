@@ -50,7 +50,7 @@ const candidateOffsets = (source: number[], target: number[]) => {
 	const buckets: number[] = [];
 	for (const [bucket] of [...votes]
 		.filter(([, count]) => count >= minimumVotes)
-		.sort((a, b) => b[1] - a[1])) {
+		.toSorted((a, b) => b[1] - a[1])) {
 		if (buckets.length === maximumCandidates) {
 			break;
 		}

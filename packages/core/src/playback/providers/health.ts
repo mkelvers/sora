@@ -131,7 +131,7 @@ export const summarizeHealth = (
 						operation: row.operation as ProviderOperation,
 					};
 				})
-				.sort((left, right) => left.operation.localeCompare(right.operation)),
+				.toSorted((left, right) => left.operation.localeCompare(right.operation)),
 			provider,
 			status,
 		};

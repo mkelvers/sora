@@ -145,7 +145,7 @@ const skipSegments = ({ intro, outro }: MegaPlaySources): SkipSegment[] => {
 	}
 
 	// A cold open can put the opening after an early ending card.
-	return segments.sort((left, right) => left.start - right.start);
+	return segments.toSorted((left, right) => left.start - right.start);
 };
 
 /** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */

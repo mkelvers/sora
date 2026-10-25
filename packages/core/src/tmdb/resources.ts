@@ -292,10 +292,10 @@ export const getShowEpisodeGroups = async (
 		detail
 			? [
 					[...detail.groups]
-						.sort((left, right) => left.order - right.order)
+						.toSorted((left, right) => left.order - right.order)
 						.map((group) => ({
 							...group,
-							episodes: [...group.episodes].sort((left, right) => left.order - right.order),
+							episodes: [...group.episodes].toSorted((left, right) => left.order - right.order),
 						})),
 				]
 			: [],
@@ -526,7 +526,7 @@ export const getShow = async (
 		}
 	}
 
-	episodes.sort(
+	episodes.toSorted(
 		(left, right) =>
 			left.season_number - right.season_number || left.episode_number - right.episode_number,
 	);
@@ -622,7 +622,7 @@ export const getLogoPath = async (
 
 	const logos = (images?.logos ?? [])
 		.filter((logo) => logo.iso_639_1 === "en" || !logo.iso_639_1)
-		.sort(
+		.toSorted(
 			(left, right) =>
 				Number(right.iso_639_1 === "en") - Number(left.iso_639_1 === "en") ||
 				right.vote_average - left.vote_average,

@@ -550,7 +550,7 @@ export const rankCandidates = <TCandidate extends SearchCandidate>(
 			candidate,
 			score: textScore(normalized, candidate) * popularityWeight(candidate.popularity),
 		}))
-		.sort(
+		.toSorted(
 			(left, right) =>
 				right.score - left.score || right.candidate.popularity - left.candidate.popularity,
 		)
@@ -606,7 +606,7 @@ export const searchAnime = async (
 		(candidate) => textScore(normalized, candidate) >= minimumMatch,
 	);
 	return filters.sort
-		? [...matches].sort(sortOrders[filters.sort])
+		? [...matches].toSorted(sortOrders[filters.sort])
 		: rankCandidates(query, matches);
 };
 

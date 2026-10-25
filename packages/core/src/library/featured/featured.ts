@@ -95,7 +95,7 @@ const pickTitles = async (
 	const current = entries.filter((entry) => isCurrent(entry, now));
 	const unstored = current
 		.filter((entry) => entry.seriesId === null)
-		.sort((a, b) => b.popularity - a.popularity)
+		.toSorted((a, b) => b.popularity - a.popularity)
 		.slice(0, backfillPerPick);
 	for (const { anilistId } of unstored) {
 		await scheduleSeriesStore(anilistId, "backfill");

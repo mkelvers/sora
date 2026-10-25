@@ -239,7 +239,7 @@ const voteOffsets = (
 				score: dice(tokens, defined(phraseTokens[other])),
 			}))
 			.filter((vote) => vote.score >= voteScore)
-			.sort((a, b) => b.score - a.score)
+			.toSorted((a, b) => b.score - a.score)
 			.slice(0, 2)
 			.map((vote) => vote.offset);
 	});
@@ -260,7 +260,7 @@ const voteOffsets = (
 				[key, count + (buckets.get(key - 1) ?? 0) + (buckets.get(key + 1) ?? 0)] as const,
 		)
 		.filter(([, count]) => count >= minimumVotes)
-		.sort((a, b) => b[1] - a[1])) {
+		.toSorted((a, b) => b[1] - a[1])) {
 		if (picked.length === maximumOffsets) {
 			break;
 		}
@@ -390,7 +390,7 @@ const candidatesFor = (
 		}
 	}
 
-	return found.sort((a, b) => b.score - a.score).slice(0, candidatesPerCue);
+	return found.toSorted((a, b) => b.score - a.score).slice(0, candidatesPerCue);
 };
 
 /** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
@@ -462,7 +462,7 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
 			...voted.map((shift) => shift.from),
 			...(picture ?? []).map((shift) => shift.from),
 		]),
-	].sort((a, b) => a - b);
+	].toSorted((a, b) => a - b);
 
 	const shifts: TimelineShift[] = [];
 	for (const from of boundaries) {

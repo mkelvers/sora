@@ -24,7 +24,7 @@ export const usualLength = (lengths: number[]) => {
 		counts.set(whole, (counts.get(whole) ?? 0) + 1);
 	}
 
-	const [first, second] = [...counts].sort((left, right) => right[1] - left[1]);
+	const [first, second] = [...counts].toSorted((left, right) => right[1] - left[1]);
 	return first && first[1] !== second?.[1] ? first[0] : null;
 };
 

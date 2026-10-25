@@ -167,7 +167,7 @@ const sortedKeys = (_key: string, value: unknown) => {
 	}
 
 	return Object.fromEntries(
-		Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
+		Object.entries(value).toSorted(([left], [right]) => left.localeCompare(right)),
 	);
 };
 
@@ -594,7 +594,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				open = null;
 			}
 
-			const ids = [...batch.wanted.keys()].sort((left, right) => left - right);
+			const ids = [...batch.wanted.keys()].toSorted((left, right) => left - right);
 			for (const id of ids) {
 				queuedIn.delete(id);
 			}

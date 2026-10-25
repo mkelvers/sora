@@ -159,7 +159,9 @@ const bestMoviePlacement = async (
 
 	// Search results leave out runtimes, which tell a bonus short from the
 	// film it was released with, so the best are checked against the details.
-	for (const [movieId] of [...placements].sort(([, left], [, right]) => right.score - left.score)) {
+	for (const [movieId] of [...placements].toSorted(
+		([, left], [, right]) => right.score - left.score,
+	)) {
 		const movie = await getMovie(movieId);
 		const confirmed = movie && placeAsMovie(subject, movie, hintedIds.has(movie.id));
 		if (confirmed) {
@@ -226,7 +228,7 @@ const searchedShowIds = async (subject: MatchSubject, queries: readonly string[]
 	}
 
 	return [...results]
-		.sort(([, left], [, right]) => right - left)
+		.toSorted(([, left], [, right]) => right - left)
 		.slice(0, searchedShowLimit)
 		.map(([id]) => id);
 };

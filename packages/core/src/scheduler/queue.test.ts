@@ -7,7 +7,7 @@ describe("seriesStorePriority", () => {
 	test("runs a viewer's top result ahead of the looser matches found with it", () => {
 		const priorities = [0, 1, 2, 3, 4, 5].map((rank) => seriesStorePriority("waiting", rank));
 
-		expect(priorities).toEqual([...priorities].sort((left, right) => left - right));
+		expect(priorities).toEqual([...priorities].toSorted((left, right) => left - right));
 		expect(new Set(priorities).size).toBe(6);
 	});
 

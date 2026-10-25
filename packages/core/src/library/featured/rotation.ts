@@ -80,7 +80,7 @@ export const rotate = (ids: readonly string[], seed: string, rotation: number): 
 			id,
 			rank: hash(`${seed}:${rotation}:${id}`),
 		}))
-		.sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
+		.toSorted((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
 		.map(({ id }) => id);
 
 /** The first {@link featuredCount} candidates `isUsable` accepts, in order. */

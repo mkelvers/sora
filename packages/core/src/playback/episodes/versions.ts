@@ -79,7 +79,7 @@ export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion
 		}
 	}
 
-	return [...versions.values()].sort(
+	return [...versions.values()].toSorted(
 		(left, right) =>
 			languageOrder[left.language] - languageOrder[right.language] ||
 			(left.locale ?? "").localeCompare(right.locale ?? ""),
