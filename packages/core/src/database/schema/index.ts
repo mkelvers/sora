@@ -1,7 +1,6 @@
 /**
  * Persistence schema for the core.
  *
- * @remarks
  * Anime metadata is not split into relational columns. Each anime is stored
  * as the AniList fragment it was fetched with, so a schema change upstream
  * means regenerating the GraphQL types, not migrating data.

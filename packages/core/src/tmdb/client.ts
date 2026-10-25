@@ -38,7 +38,7 @@ export interface TmdbRequestOptions {
 	 * Whether the response is stored (see `tmdbResponse`). A request that never
 	 * repeats, such as one carrying a nonce, should not be.
 	 *
-	 * @defaultValue true
+	 * Defaults to true.
 	 */
 	store?: boolean;
 }
@@ -200,7 +200,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 	 * unavailable, an older stored response is served rather than failing.
 	 *
 	 * @returns The validated response, or `null` when TMDB answers 404.
-	 * @throws {@link UpstreamUnavailableError} when TMDB fails or returns data
+	 * @throws {UpstreamUnavailableError} when TMDB fails or returns data
 	 *   that does not match `schema`, and no usable response is stored.
 	 *
 	 * @example

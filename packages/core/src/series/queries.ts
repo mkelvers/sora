@@ -534,7 +534,7 @@ const overdueEpisode = async (
  * Reads only the database: titles are laid out when first found, and the
  * scheduler keeps them current.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const getSeries = async (seriesId: string): Promise<Series> => {
 	const [found] = await db
@@ -600,7 +600,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
  * Checks that a series is stored, for operations that take a series ID but
  * do not read the series itself.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const assertSeriesExists = async (seriesId: string) => {
 	const [stored] = await db
@@ -618,7 +618,7 @@ export const assertSeriesExists = async (seriesId: string) => {
 /**
  * A stored series' row.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 const loadSeries = async (seriesId: string) => {
 	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
@@ -637,7 +637,7 @@ const loadSeries = async (seriesId: string) => {
  * either end: playing never runs on into another title, such as the next
  * season.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const getAdjacentEpisodes = async (
 	seriesId: string,
@@ -736,7 +736,7 @@ const describeEpisodes = async (
  * for the scheduler, and its episodes' audio is `null` until it has run;
  * the scheduler keeps the lists current as the anime airs.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const getSeriesEpisodes = async (seriesId: string): Promise<Episode[]> => {
 	const row = await loadSeries(seriesId);
@@ -750,7 +750,7 @@ export const getSeriesEpisodes = async (seriesId: string): Promise<Episode[]> =>
  * `offset`, and how many episodes the title lists in all. Only the slice's
  * episodes are looked up for their audio and fillers.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const getSeriesEpisodePage = async (
 	seriesId: string,
@@ -778,8 +778,8 @@ export const getSeriesEpisodePage = async (
 /**
  * One episode of a series, as {@link getSeriesEpisodes} lists it.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link EpisodeNotFoundError} when the series does not list the episode.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {EpisodeNotFoundError} when the series does not list the episode.
  */
 export const getSeriesEpisode = async (seriesId: string, number: number): Promise<Episode> => {
 	const episodes = await getSeriesEpisodes(seriesId);
@@ -901,8 +901,8 @@ const preparingOn = (
  * knows of them and where they are expected, so a client can show them at
  * once rather than a page that comes back short.
  *
- * @throws {@link InvalidInputError} when the query fails `BrowseQuerySchema`.
- * @throws {@link UpstreamUnavailableError} when AniList cannot be browsed
+ * @throws {InvalidInputError} when the query fails `BrowseQuerySchema`.
+ * @throws {UpstreamUnavailableError} when AniList cannot be browsed
  *   before the index is filled.
  */
 export const browseSeries = async (
@@ -1047,7 +1047,7 @@ const releaseAge = (releasedAt: string, now: number): Pick<Release, "released_ag
  * out until it does. `format` and `audio` apply to the title's AniList
  * entry. Reads only the database.
  *
- * @throws {@link InvalidInputError} when the query fails {@link ReleasesQuerySchema}.
+ * @throws {InvalidInputError} when the query fails {@link ReleasesQuerySchema}.
  */
 export const getLatestReleases = async (
 	query: ReleasesQuery,

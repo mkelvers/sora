@@ -177,7 +177,7 @@ export class SoraClient {
 	 * Calls a route and resolves to the `results` of its response, or to
 	 * nothing for a route that answers with none.
 	 *
-	 * @throws {@link SoraError} when the API answers with an error, or with
+	 * @throws {SoraError} when the API answers with an error, or with
 	 *   a body that does not match the contract (code `INVALID_RESPONSE`).
 	 */
 	async request<TRoute extends Route>(
@@ -196,7 +196,7 @@ export class SoraClient {
 	 * Calls a route and resolves to its whole response, `{ meta, results }`:
 	 * the meta carries paging, when stream URLs expire, and the like.
 	 *
-	 * @throws {@link SoraError} as {@link SoraClient.request} does.
+	 * @throws {SoraError} as {@link SoraClient.request} does.
 	 */
 	async requestWithMeta<TRoute extends Route>(
 		route: TRoute,
@@ -264,7 +264,7 @@ export class SoraClient {
 	/**
 	 * Signs an account in.
 	 *
-	 * @throws {@link SoraError} with code `INVALID_USERNAME_OR_PASSWORD` when the
+	 * @throws {SoraError} with code `INVALID_USERNAME_OR_PASSWORD` when the
 	 *   credentials are wrong.
 	 */
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
@@ -288,7 +288,7 @@ export class SoraClient {
 	 * Changes the signed-in account's password and ends every session, this
 	 * client's included. Use the returned token from here on.
 	 *
-	 * @throws {@link SoraError} with code `INVALID_PASSWORD` when
+	 * @throws {SoraError} with code `INVALID_PASSWORD` when
 	 *   `currentPassword` is wrong.
 	 */
 	async changePassword(
@@ -320,7 +320,7 @@ export class SoraClient {
 	/**
 	 * Calls one of Better Auth's endpoints under `/v1/auth`, which answer outside the `{ meta, results }` envelope.
 	 *
-	 * @throws {@link SoraError} when the endpoint answers with an error.
+	 * @throws {SoraError} when the endpoint answers with an error.
 	 */
 	async #auth(path: string, body: object, options: RequestOptions | undefined): Promise<Response> {
 		const response = await (this.#options.fetch ?? fetch)(

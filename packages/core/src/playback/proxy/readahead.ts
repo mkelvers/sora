@@ -167,7 +167,7 @@ const fetchAhead = (target: StreamTarget) => {
  * Fetches are shared between callers and are not tied to any one request, so
  * a player that gives up on a segment does not cancel what others wait for.
  *
- * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
+ * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
 export const readSegment = async (target: StreamTarget) => {
 	const segment = load(target);

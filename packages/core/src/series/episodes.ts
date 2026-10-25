@@ -31,8 +31,8 @@ export interface LocatedEpisode {
 /**
  * Finds the AniList entry an episode of a series belongs to.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link EpisodeNotFoundError} when the series has no such episode.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {EpisodeNotFoundError} when the series has no such episode.
  */
 export const locateEpisode = async (seriesId: string, number: number): Promise<LocatedEpisode> => {
 	const [row] = await db

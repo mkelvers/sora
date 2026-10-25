@@ -42,7 +42,6 @@ const environment = EnvironmentSchema.parse(process.env);
 /**
  * Validated process configuration for the core.
  *
- * @remarks
  * Parsed once when first imported. A missing or malformed variable throws at
  * startup instead of failing later inside a request.
  */

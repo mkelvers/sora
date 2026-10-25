@@ -498,7 +498,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 * call. Identical concurrent requests share one upstream call. When AniList
 	 * is unavailable, an older stored response is served rather than failing.
 	 *
-	 * @throws {@link UpstreamUnavailableError} when AniList fails and no response is stored.
+	 * @throws {UpstreamUnavailableError} when AniList fails and no response is stored.
 	 *
 	 * @example
 	 * ```ts
@@ -557,7 +557,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 *
 	 * @returns A function resolving to the media AniList has among `ids`, by
 	 *   ID; unknown IDs are left out.
-	 * @throws {@link UpstreamUnavailableError} from the returned function when
+	 * @throws {UpstreamUnavailableError} from the returned function when
 	 *   AniList fails, or keeps answering with 429s.
 	 */
 	const loadMediaById = <

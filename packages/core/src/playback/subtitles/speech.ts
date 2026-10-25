@@ -26,7 +26,7 @@ const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
  * The words spoken in a 16 kHz mono WAV file and when, found by running
  * `faster-whisper` through the Python in `SUBTITLE_ALIGNMENT_PYTHON`.
  *
- * @throws {@link SubtitleRefinementError} when no Python is configured or
+ * @throws {SubtitleRefinementError} when no Python is configured or
  *   transcribing fails.
  */
 export const transcribe = async (path: string): Promise<SpokenWord[]> => {

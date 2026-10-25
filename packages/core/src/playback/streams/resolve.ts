@@ -655,11 +655,11 @@ const skipSegmentsForDub = (
  * Upstream URLs are never exposed; clients receive proxy URLs so upstream
  * headers and hosts stay on the server. They expire with their tokens.
  *
- * @throws {@link InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link EpisodeNotFoundError} when the series has no such episode,
+ * @throws {InvalidInputError} when the request fails {@link PlaybackRequestSchema}.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {EpisodeNotFoundError} when the series has no such episode,
  *   or no provider lists it.
- * @throws {@link PlaybackUnavailableError} when providers list the episode but
+ * @throws {PlaybackUnavailableError} when providers list the episode but
  *   none can currently stream any version of it.
  */
 export const resolvePlayback = async (

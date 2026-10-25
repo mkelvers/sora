@@ -270,9 +270,9 @@ const anilistOverview = async (
  * the stored layout. Matches are stored, so laying out a known entry again
  * mostly reuses them.
  *
- * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
+ * @throws {AnimeNotFoundError} when the ID is unknown to AniList or
  *   belongs to adult media.
- * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
+ * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 	const loaded = await loadEntries([anilistId]);

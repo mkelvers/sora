@@ -70,7 +70,7 @@ export const getWatchlistStatuses = async (userId: string): Promise<WatchlistSta
  * Puts a series on a user's watchlist with a status, or changes the status
  * of one already there. Picking the status it has changes nothing.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const setWatchlistStatus = async (
 	userId: string,

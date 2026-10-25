@@ -39,7 +39,6 @@ interface AiringEpisode {
 /**
  * The compact form of an anime, for lists, grids, and carousels.
  *
- * @remarks
  * All catalog models are plain JSON-safe values, so any transport can return
  * them unchanged.
  */

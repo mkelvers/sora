@@ -27,7 +27,7 @@ const airingsBatchSize = 50;
  * episodes in the result.
  *
  * @returns Broadcast times keyed by {@link anilistEpisodeKey}.
- * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const fetchEpisodeAirings = async (
 	anilistIds: readonly number[],

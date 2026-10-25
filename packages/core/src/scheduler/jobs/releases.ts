@@ -23,7 +23,7 @@ import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
  *
  * @returns The episodes AniKoto carries, or `null` when AniList no longer
  *   has the entry.
- * @throws when AniKoto fails.
+ * @throws {Error} when AniKoto fails.
  */
 const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[] | null> => {
 	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);

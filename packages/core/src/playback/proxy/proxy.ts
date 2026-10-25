@@ -123,7 +123,7 @@ export const readSubtitle = async (
  * The start time of every segment of an HLS stream, in seconds; the first
  * variant's for a multivariant playlist.
  *
- * @throws {@link StreamUpstreamError} when a playlist cannot be fetched.
+ * @throws {StreamUpstreamError} when a playlist cannot be fetched.
  */
 export const segmentStarts = async (url: string, headers: Record<string, string>) => {
 	const target = {
@@ -261,9 +261,9 @@ const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Header
  *
  * `Range` is forwarded so players can seek in progressive files.
  *
- * @throws {@link InvalidStreamTokenError} for a forged, malformed, or expired
+ * @throws {InvalidStreamTokenError} for a forged, malformed, or expired
  *   token, or one issued to another account.
- * @throws {@link StreamUpstreamError} when the upstream and its mirrors fail.
+ * @throws {StreamUpstreamError} when the upstream and its mirrors fail.
  */
 export const proxyStream = async (
 	token: string,

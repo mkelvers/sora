@@ -72,7 +72,7 @@ type MegaPlaySources = z.infer<typeof SourcesResponseSchema>;
  * @param embedUrl - The `megaplay.buzz/stream/...` embed for one episode and language.
  * @param embedReferer - The page that embeds the player; MegaPlay checks it.
  *
- * @throws when the embed or its sources cannot be read.
+ * @throws {Error} when the embed or its sources cannot be read.
  */
 const fetchMegaPlaySources = async (
 	http: HttpClient,
@@ -191,7 +191,7 @@ export const subtitleLanguage = (label: string) => {
  * @param embedUrl - The `megaplay.buzz/stream/...` embed for one episode and language.
  * @param embedReferer - The page that embeds the player; MegaPlay checks it.
  *
- * @throws when the embed or its sources cannot be read.
+ * @throws {Error} when the embed or its sources cannot be read.
  */
 export const resolveMegaPlayEmbed = async (
 	http: HttpClient,

@@ -161,7 +161,7 @@ export class SdkStreamProvider implements StreamProvider {
 	 * asked for and always serve one: AnimeParadise answers a dub request with
 	 * its Japanese-audio sub, which must not pass for a dub.
 	 *
-	 * @throws when no video is in `language`.
+	 * @throws {Error} when no video is in `language`.
 	 */
 	async resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
 		const resolved = await this.sdk.resolveStream(episodeId, language);

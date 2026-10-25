@@ -373,7 +373,7 @@ const match = async (
  * between them, so a wrong hint is no more trusted than a search result.
  * Concurrent calls for the same entry share one resolution.
  *
- * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
+ * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export const resolveMapping = async (entry: FranchiseEntry): Promise<TmdbMapping> => {
 	const stored = await freshMapping(entry);

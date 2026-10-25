@@ -107,7 +107,7 @@ export interface TimetableRelease {
  * {@link isHeldBack}. An entry that does not match
  * {@link TimetableEntrySchema} is left out rather than failing the rest.
  *
- * @throws when AnimeSchedule cannot be read.
+ * @throws {Error} when AnimeSchedule cannot be read.
  */
 export const fetchTimetable = async (
 	http: HttpClient,
@@ -246,7 +246,7 @@ const resolveAnimeScheduleShows = async (
  * Asks AnimeSchedule's API three times, plus once for each new show.
  *
  * @returns The AniList entries of the stored episodes.
- * @throws when AnimeSchedule cannot be read; weeks read before then stay stored.
+ * @throws {Error} when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
 export const syncTimetables = async (http: HttpClient, now = new Date()): Promise<number[]> => {
 	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());

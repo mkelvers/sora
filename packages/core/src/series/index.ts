@@ -8,8 +8,6 @@
  * is laid out when first found; after that the scheduler keeps it current
  * as it airs. The titles of a franchise are found from one another as
  * AniList relates them.
- *
- * @packageDocumentation
  */
 export { logoPlacement } from "../models/series";
 export {

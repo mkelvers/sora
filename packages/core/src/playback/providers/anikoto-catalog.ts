@@ -160,7 +160,7 @@ const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
  *
  * @param options.full - Read the whole catalogue, as when it was never synced.
  * @returns How many pages were read and how many series were stored.
- * @throws when AniKoto's API fails; series stored before the failure are kept.
+ * @throws {Error} when AniKoto's API fails; series stored before the failure are kept.
  */
 export const syncAniKotoCatalog = async (
 	http: HttpClient,
@@ -238,7 +238,7 @@ const recentPageLimit = 5;
  * The series are stored in the mirror too, so a series that just premiered
  * can be matched without waiting for the hourly sync.
  *
- * @throws when AniKoto's API fails.
+ * @throws {Error} when AniKoto's API fails.
  */
 export const readRecentAniKotoChanges = async (
 	http: HttpClient,
@@ -564,7 +564,7 @@ const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatc
  *
  * @returns The AniKoto series ID and how it was matched, or `null` when
  *   AniKoto has no series for the anime.
- * @throws when the mirror has no match and AniKoto's search fails.
+ * @throws {Error} when the mirror has no match and AniKoto's search fails.
  */
 export const findAniKotoSeries = async (
 	http: HttpClient,

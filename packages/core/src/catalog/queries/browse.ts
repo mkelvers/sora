@@ -45,7 +45,7 @@ const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>,
  * const page = await browseAnime({ season: "FALL", seasonYear: 2026, sort: "popular" });
  * ```
  *
- * @throws {@link InvalidInputError} when the query fails {@link BrowseQuerySchema}.
+ * @throws {InvalidInputError} when the query fails {@link BrowseQuerySchema}.
  */
 export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> => {
 	const parsed = BrowseQuerySchema.safeParse(query);

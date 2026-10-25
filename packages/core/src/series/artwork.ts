@@ -22,7 +22,7 @@ export interface SeriesImageQuery {
 	 * - `votes`: TMDB users' rating, the more votes the surer, then size.
 	 * - `quality`: the largest original first, then votes.
 	 *
-	 * @defaultValue "votes"
+	 * Defaults to "votes".
 	 */
 	sort?: "votes" | "quality";
 }
@@ -53,7 +53,7 @@ const toOverride = (change: string | false | null | undefined, type: ImageType) 
  * them (see `titleArtwork`). The choice outlives laying the series out
  * again. Returns the series as {@link getSeries} loads it.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const setSeriesArtwork = async (
 	seriesId: string,
@@ -280,8 +280,8 @@ const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage
  * (see `titleImage`); later ones, for any series of the title, read what was
  * stored, until {@link refreshSeriesImages} fetches them again.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link UpstreamUnavailableError} when TMDB fails on the first listing.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UpstreamUnavailableError} when TMDB fails on the first listing.
  */
 export const listSeriesImages = async (
 	seriesId: string,
@@ -300,8 +300,8 @@ export const listSeriesImages = async (
  * and replaces the stored ones, so artwork added on TMDB since can be
  * chosen. Returns them as {@link listSeriesImages} does.
  *
- * @throws {@link SeriesNotFoundError} when the ID does not identify a series.
- * @throws {@link UpstreamUnavailableError} when TMDB fails; the stored images are kept.
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {UpstreamUnavailableError} when TMDB fails; the stored images are kept.
  */
 export const refreshSeriesImages = async (
 	seriesId: string,

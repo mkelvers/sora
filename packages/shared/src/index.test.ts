@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import { attempt, defined } from "./index";
 
-class NotFound extends Error {}
+class NotFoundError extends Error {
+	constructor() {
+		super("Not found");
+		this.name = "NotFoundError";
+	}
+}
 
 describe("attempt", () => {
 	test("gives the value of a promise that resolves", async () => {
@@ -26,18 +31,18 @@ describe("attempt", () => {
 	});
 
 	test("gives back only the error classes named", async () => {
-		const { error } = await attempt(Promise.reject(new NotFound()), NotFound, RangeError);
-		const typed: NotFound | RangeError | null = error;
-		expect(typed).toBeInstanceOf(NotFound);
+		const { error } = await attempt(Promise.reject(new NotFoundError()), NotFoundError, RangeError);
+		const typed: NotFoundError | RangeError | null = error;
+		expect(typed).toBeInstanceOf(NotFoundError);
 	});
 
 	test("rejects with an error of a class not named", async () => {
 		const unexpected = new TypeError("bug");
-		await expect(attempt(Promise.reject(unexpected), NotFound)).rejects.toBe(unexpected);
+		await expect(attempt(Promise.reject(unexpected), NotFoundError)).rejects.toBe(unexpected);
 		expect(() =>
 			attempt(() => {
 				throw unexpected;
-			}, NotFound),
+			}, NotFoundError),
 		).toThrow(unexpected);
 	});
 

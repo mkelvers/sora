@@ -189,7 +189,7 @@ let classifier: ReturnType<typeof loadClassifier> | null = null;
  * It misses a logo over a scene, which the language TMDB gives such a still
  * catches (see `rankStills`).
  *
- * @throws {@link UpstreamUnavailableError} when the model cannot be loaded.
+ * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
 export const showsText = async (image: Buffer): Promise<boolean> => {
 	classifier ??= loadClassifier();

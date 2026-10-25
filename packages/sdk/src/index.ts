@@ -1,7 +1,5 @@
 /**
  * The Sora SDK: a typed client for the Sora API.
- *
- * @packageDocumentation
  */
 export { SoraError } from "./error";
 export {

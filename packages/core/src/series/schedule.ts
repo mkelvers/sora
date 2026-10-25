@@ -42,7 +42,7 @@ const shortEpisodeMinutes = 15;
  * week; see `syncTimetables`. Only stored titles are listed: the scheduler
  * queues the rest as it stores the timetable, and they appear once stored.
  *
- * @throws {@link InvalidInputError} when the window is empty or longer than 14 days.
+ * @throws {InvalidInputError} when the window is empty or longer than 14 days.
  */
 export const getAiringSchedule = async (from: Date, until: Date): Promise<ScheduledEpisode[]> => {
 	const windowMs = until.getTime() - from.getTime();
@@ -175,7 +175,7 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
  * when they are the same ones.
  *
  * @param weeks - How many weeks after this one; negative for earlier weeks.
- * @throws {@link InvalidInputError} when the time zone is unknown.
+ * @throws {InvalidInputError} when the time zone is unknown.
  */
 export const getCalendar = async (timeZone: string, weeks: number): Promise<Calendar> => {
 	const today = attempt(() => Temporal.Now.plainDateISO(timeZone), RangeError);

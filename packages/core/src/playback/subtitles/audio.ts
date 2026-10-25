@@ -83,7 +83,7 @@ const readWithRetries = async (
  *
  * @param playlistUrl - The stream's master or media playlist.
  * @param path - Where to write the WAV file.
- * @throws {@link SubtitleRefinementError} when the stream is encrypted, a
+ * @throws {SubtitleRefinementError} when the stream is encrypted, a
  *   segment cannot be fetched, or ffmpeg fails.
  */
 export const extractAudio = async (

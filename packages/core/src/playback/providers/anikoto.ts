@@ -37,7 +37,7 @@ interface ListedEpisode {
 
  *
  * @returns Each listed episode's languages and filler flag, by number.
- * @throws when the list cannot be read or lists no episodes.
+ * @throws {Error} when the list cannot be read or lists no episodes.
  */
 const fetchAniKotoEpisodeList = async (
 	http: HttpClient,

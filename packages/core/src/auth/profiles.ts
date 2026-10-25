@@ -56,7 +56,7 @@ export const listProfiles = async (userId: string): Promise<Profile[]> => {
 /**
  * Loads one of an account's profiles.
  *
- * @throws {@link ProfileNotFoundError} when the account has no such profile.
+ * @throws {ProfileNotFoundError} when the account has no such profile.
  */
 export const getProfile = async (userId: string, profileId: string): Promise<Profile> => {
 	const [row] = await db
@@ -87,7 +87,7 @@ const parse = <TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.ou
  * next one from the palette is used; without an avatar, a sprout seeded
  * with the profile's ID.
  *
- * @throws {@link InvalidInputError} when the input fails {@link ProfileInputSchema}.
+ * @throws {InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
 export const createProfile = async (userId: string, input: ProfileInput): Promise<Profile> => {
 	const { name, color, avatar } = parse(ProfileInputSchema, input);
@@ -117,8 +117,8 @@ export const createProfile = async (userId: string, input: ProfileInput): Promis
 /**
  * Renames a profile, or changes its color or avatar.
  *
- * @throws {@link InvalidInputError} when the input is invalid.
- * @throws {@link ProfileNotFoundError} when the account has no such profile.
+ * @throws {InvalidInputError} when the input is invalid.
+ * @throws {ProfileNotFoundError} when the account has no such profile.
  */
 export const updateProfile = async (
 	userId: string,
@@ -148,8 +148,8 @@ export const updateProfile = async (
  * Deletes a profile with its watchlist, progress, rewatches, preferences,
  * and featured titles.
  *
- * @throws {@link ProfileNotFoundError} when the account has no such profile.
- * @throws {@link LastProfileError} when it is the account's only profile.
+ * @throws {ProfileNotFoundError} when the account has no such profile.
+ * @throws {LastProfileError} when it is the account's only profile.
  */
 export const deleteProfile = async (userId: string, profileId: string) => {
 	await getProfile(userId, profileId);

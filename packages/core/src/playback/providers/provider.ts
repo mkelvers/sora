@@ -80,7 +80,7 @@ export interface StreamProvider {
 	 * Finds an anime in the provider's catalogue.
 	 *
 	 * @returns `null` when the provider has no confident match.
-	 * @throws when the provider cannot be asked.
+	 * @throws {Error} when the provider cannot be asked.
 	 */
 	findMedia(anime: Anime): Promise<ProviderMatch | null>;
 
@@ -88,7 +88,7 @@ export interface StreamProvider {
 	 * Lists the episodes of a series {@link findMedia} matched, in the
 	 * provider's numbering.
 	 *
-	 * @throws when the provider cannot be asked.
+	 * @throws {Error} when the provider cannot be asked.
 	 */
 	listEpisodes(mediaId: string): Promise<ProviderEpisode[]>;
 
@@ -96,7 +96,7 @@ export interface StreamProvider {
 	 * Resolves one episode in one language into upstream videos.
 	 *
 	 * @param episodeId - A {@link ProviderEpisode.id} from {@link listEpisodes}.
-	 * @throws when the provider has no stream for it or cannot be asked.
+	 * @throws {Error} when the provider has no stream for it or cannot be asked.
 	 */
 	resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream>;
 

@@ -93,7 +93,7 @@ const tagLength = 16;
 /**
  * Decrypts and authenticates a token produced by {@link signStreamTarget}.
  *
- * @throws {@link InvalidStreamTokenError} when the token is malformed, was
+ * @throws {InvalidStreamTokenError} when the token is malformed, was
  *   not made with `secret`, or has expired.
  */
 export const verifyStreamToken = (

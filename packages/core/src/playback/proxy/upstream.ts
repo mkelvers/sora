@@ -43,6 +43,7 @@ export class StreamUpstreamError extends CoreError {
 
 	constructor(message: string, status: number | null, options?: ErrorOptions) {
 		super("UPSTREAM_UNAVAILABLE", message, options);
+		this.name = "StreamUpstreamError";
 		this.status = status;
 	}
 }
@@ -74,7 +75,7 @@ const isPrivateAddress = (address: string) => {
  * Tokens are signed, but playlist URIs come from third-party servers, so a
  * hostile playlist could otherwise point the proxy at internal services.
  *
- * @throws {@link InvalidStreamTokenError} for a URL that is not public.
+ * @throws {InvalidStreamTokenError} for a URL that is not public.
  */
 const assertPublicHttpUrl = (value: string) => {
 	const url = new URL(value);
@@ -228,7 +229,7 @@ const fetchFollowingRedirects = async (
  * Fetches a target, falling back to its mirrors in order when the primary
  * host is unreachable or answers with an error.
  *
- * @throws {@link StreamUpstreamError} with the primary host's failure when
+ * @throws {StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
  */
 export const fetchUpstream = async (
@@ -276,7 +277,7 @@ export interface UpstreamBytes {
 /**
  * Reads a response's whole body, giving up as soon as it passes `maximumBytes`.
  *
- * @throws {@link StreamUpstreamError} when the body is larger than `maximumBytes`.
+ * @throws {StreamUpstreamError} when the body is larger than `maximumBytes`.
  */
 export const readBounded = async (response: Response, maximumBytes: number) => {
 	if (Number(response.headers.get("Content-Length")) > maximumBytes) {
@@ -362,7 +363,7 @@ const readCandidate = async (
  * without the whole body, and the first to finish wins, so a stalled host
  * costs a few seconds instead of the whole timeout.
  *
- * @throws {@link StreamUpstreamError} with the primary host's failure when
+ * @throws {StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
  */
 export const fetchUpstreamBytes = async (

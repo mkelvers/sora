@@ -88,9 +88,9 @@ const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<numbe
  * out again as it airs, and the entry is queued to be looked up on
  * providers.
  *
- * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList or
+ * @throws {AnimeNotFoundError} when the ID is unknown to AniList or
  *   belongs to adult media.
- * @throws {@link UpstreamUnavailableError} when AniList or TMDB fail.
+ * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export const storeSeries = async (anilistId: number): Promise<string> => {
 	const built = await buildSeries(anilistId);

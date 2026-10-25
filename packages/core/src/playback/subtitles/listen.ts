@@ -50,7 +50,7 @@ const englishDialogue = async (
  *   was made for. The pair may have changed since, such as when a provider
  *   went down, and then nothing is stored under it.
  * @returns `null` when the dub's speech does not match the sub's script.
- * @throws {@link SubtitleRefinementError} when the episode cannot be streamed
+ * @throws {SubtitleRefinementError} when the episode cannot be streamed
  *   in both versions right now, or the audio cannot be read or transcribed.
  */
 export const listenToDub = async (

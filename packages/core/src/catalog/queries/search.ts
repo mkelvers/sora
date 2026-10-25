@@ -214,7 +214,7 @@ const markFullSync = async () => {
  * reaches ones already stored.
  *
  * @returns How many pages were read and how many entries were stored.
- * @throws {@link UpstreamUnavailableError} when AniList fails; entries
+ * @throws {UpstreamUnavailableError} when AniList fails; entries
  *   stored before the failure are kept, and a retry resumes from the stored pages.
  */
 export const syncSearchIndex = async (options: { full: boolean }) => {

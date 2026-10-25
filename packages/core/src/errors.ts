@@ -38,6 +38,7 @@ export class AnimeNotFoundError extends CoreError {
 
 	constructor(anilistId: number) {
 		super("ANIME_NOT_FOUND", `Anime ${anilistId} does not exist`);
+		this.name = "AnimeNotFoundError";
 		this.anilistId = anilistId;
 	}
 }
@@ -48,6 +49,7 @@ export class SeriesNotFoundError extends CoreError {
 
 	constructor(seriesId: string) {
 		super("SERIES_NOT_FOUND", `Series ${seriesId} does not exist`);
+		this.name = "SeriesNotFoundError";
 		this.seriesId = seriesId;
 	}
 }
@@ -56,6 +58,7 @@ export class SeriesNotFoundError extends CoreError {
 export class EpisodeNotFoundError extends CoreError {
 	constructor(seriesId: string, episode: number) {
 		super("EPISODE_NOT_FOUND", `Series ${seriesId} has no playable episode ${episode}`);
+		this.name = "EpisodeNotFoundError";
 	}
 }
 
@@ -65,6 +68,7 @@ export class ProfileNotFoundError extends CoreError {
 
 	constructor(profileId: string) {
 		super("PROFILE_NOT_FOUND", `Profile ${profileId} does not exist`);
+		this.name = "ProfileNotFoundError";
 		this.profileId = profileId;
 	}
 }
@@ -75,6 +79,7 @@ export class LastProfileError extends CoreError {
 
 	constructor(profileId: string) {
 		super("LAST_PROFILE", `Profile ${profileId} is the account's last profile`);
+		this.name = "LastProfileError";
 		this.profileId = profileId;
 	}
 }
@@ -96,6 +101,7 @@ export class PlaybackUnavailableError extends CoreError {
 
 	constructor(seriesId: string, episode: number, attempts: readonly ProviderAttempt[]) {
 		super("PLAYBACK_UNAVAILABLE", `No provider could play series ${seriesId} episode ${episode}`);
+		this.name = "PlaybackUnavailableError";
 		this.attempts = attempts;
 	}
 }
@@ -118,6 +124,7 @@ export class UpstreamUnavailableError extends CoreError {
 		super("UPSTREAM_UNAVAILABLE", message, {
 			cause: options.cause,
 		});
+		this.name = "UpstreamUnavailableError";
 		this.retryAfterMs = options.retryAfterMs;
 	}
 }
@@ -126,6 +133,7 @@ export class UpstreamUnavailableError extends CoreError {
 export class InvalidStreamTokenError extends CoreError {
 	constructor(reason: string) {
 		super("INVALID_STREAM_TOKEN", reason);
+		this.name = "InvalidStreamTokenError";
 	}
 }
 
@@ -133,5 +141,6 @@ export class InvalidStreamTokenError extends CoreError {
 export class InvalidInputError extends CoreError {
 	constructor(message: string, options?: ErrorOptions) {
 		super("INVALID_INPUT", message, options);
+		this.name = "InvalidInputError";
 	}
 }

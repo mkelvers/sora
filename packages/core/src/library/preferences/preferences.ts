@@ -39,7 +39,7 @@ export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPr
 /**
  * Changes a user's playback preferences and returns them as they now stand.
  *
- * @throws {@link InvalidInputError} when the update fails
+ * @throws {InvalidInputError} when the update fails
  *   {@link PlaybackPreferencesUpdateSchema}.
  */
 export const updatePlaybackPreferences = async (

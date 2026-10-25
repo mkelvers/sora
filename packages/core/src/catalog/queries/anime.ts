@@ -20,7 +20,7 @@ import type { AiringBroadcast } from "./schedule";
  * Unlike the entry's next airing episode, this still knows an episode aired
  * when AniList has nothing announced after it, or moved its broadcast.
  *
- * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadcast | null> => {
 	const { Page } = await anilist(
@@ -54,7 +54,7 @@ const japanOffsetMs = 9 * hour;
  * finished already; its end date, when AniList has none yet, is the day in
  * Japan that episode aired.
  *
- * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 const settleStatus = async (media: AnimeDetailsFragment): Promise<AnimeDetailsFragment> => {
 	if (media.status !== "RELEASING" || !media.episodes || media.nextAiringEpisode) {
@@ -102,7 +102,7 @@ const loadAnimeDetails = loadMediaById({
 	}),
 });
 
-/** @throws {@link AnimeNotFoundError} for unknown and adult anime. */
+/** @throws {AnimeNotFoundError} for unknown and adult anime. */
 const fetchAnimeDetails = async (anilistId: number) => {
 	const details = await loadAnimeDetails([anilistId]);
 	const media = details.get(anilistId);
@@ -163,9 +163,9 @@ export const mayGainEpisodes = (
  * airing, or finished recently, is handed to the airing scheduler, which keeps
  * the stored copy current until its final episode is out.
  *
- * @throws {@link AnimeNotFoundError} when the ID is unknown to AniList, or
+ * @throws {AnimeNotFoundError} when the ID is unknown to AniList, or
  *   belongs to adult media, which the catalog never serves.
- * @throws {@link UpstreamUnavailableError} when the anime is not stored yet
+ * @throws {UpstreamUnavailableError} when the anime is not stored yet
  *   and AniList cannot be reached.
  */
 export const getAnime = async (anilistId: number): Promise<Anime> => {
@@ -196,8 +196,8 @@ export const getAnime = async (anilistId: number): Promise<Anime> => {
  *
  * Only the airing scheduler calls this; nothing else updates a stored anime.
  *
- * @throws {@link AnimeNotFoundError} when AniList no longer serves the anime.
- * @throws {@link UpstreamUnavailableError} when AniList cannot be reached.
+ * @throws {AnimeNotFoundError} when AniList no longer serves the anime.
+ * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const refreshAnime = async (anilistId: number): Promise<Anime> => {
 	const media = await fetchAnimeDetails(anilistId);

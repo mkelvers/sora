@@ -64,7 +64,7 @@ export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> =
  * skipped. Should two entries name the same AniList ID, the first show wins
  * and the films of both are kept.
  *
- * @throws {@link TypeError} when `list` is not an array.
+ * @throws {TypeError} when `list` is not an array.
  */
 export const parseTmdbHints = (list: unknown): Map<number, TmdbHint> => {
 	if (!Array.isArray(list)) {
@@ -150,7 +150,7 @@ const sameHint = (left: TmdbHint | undefined, right: TmdbHint) =>
  * hints are written, and hints the list no longer has are removed.
  *
  * @returns The AniList IDs whose hint changed, removed ones included.
- * @throws {@link UpstreamUnavailableError} when the list cannot be downloaded
+ * @throws {UpstreamUnavailableError} when the list cannot be downloaded
  *   or read, or holds far fewer hints than are stored; the stored hints are
  *   then kept as they are.
  */

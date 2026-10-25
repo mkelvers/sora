@@ -251,7 +251,7 @@ const notificationMessage = (
 export const getNotifications = async (
 	userId: string,
 	options: {
-		/** @defaultValue 30 */
+		/** Defaults to 30. */
 		limit?: number;
 	} = {},
 	now = new Date(),

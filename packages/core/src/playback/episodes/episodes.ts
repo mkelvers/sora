@@ -91,7 +91,7 @@ const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now
  *
  * @param options.retryUnmatched - Search the provider's catalogue again even
  *   if it recently had no match, for anime that may have just premiered.
- * @throws when the provider itself fails.
+ * @throws {Error} when the provider itself fails.
  */
 export const refreshProviderUnits = async (
 	anime: Anime,
@@ -155,7 +155,7 @@ export const refreshProviderUnits = async (
  * anime that are still airing, and a finished anime's list does not change.
  * An anime the provider does not carry yields an empty list.
  *
- * @throws when the provider itself fails; callers decide whether to fall back.
+ * @throws {Error} when the provider itself fails; callers decide whether to fall back.
  */
 export const getProviderUnits = async (
 	anime: Anime,

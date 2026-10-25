@@ -4,8 +4,6 @@
  *
  * Streams come from third-party scrapers via `anime-sdk`. Providers are tried
  * in priority order, and clients only ever receive signed proxy URLs.
- *
- * @packageDocumentation
  */
 export { isWebClientKey } from "./proxy/client-key";
 export { proxyStream } from "./proxy/proxy";

@@ -36,7 +36,7 @@ const loadStill = async (path: string): Promise<Buffer> => {
  * @param defaultPath - TMDB's own pick for the episode, which wins ties and
  *   stands when TMDB lists no stills.
  * @returns The still's path, or `null` when TMDB has none for the episode.
- * @throws {@link UpstreamUnavailableError} when stills are listed but none
+ * @throws {UpstreamUnavailableError} when stills are listed but none
  *   could be loaded.
  */
 export const chooseStill = async (
