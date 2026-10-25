@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
-import { anikotoSeries } from "../../database/schema/playback";
+import { anikotoSeries, providerMapping } from "../../database/schema/playback";
 import { AnimeNotFoundError } from "../../errors";
 
 const apiUrl = "https://anikotoapi.site";
@@ -126,6 +126,44 @@ export const parseCatalogSeries = (item: unknown): typeof anikotoSeries.$inferIn
 	return parsed.success ? toRow(parsed.data) : null;
 };
 
+/** The ID AniKoto's mappings are stored under in `provider_mapping`. */
+const aniKotoProviderId = "anikoto";
+
+/**
+ * Drops the stored mappings that AniKoto's catalogue now contradicts: an
+ * AniList entry mapped to one series while another names it, and the mapped
+ * one does not. AniKoto files a split-cour or later stage under a series of
+ * its own after the first mapping was made (Steel Ball Run 2nd - 3rd STAGE
+ * stayed on its 1-episode first stage for a month), and a stored match is
+ * otherwise trusted for 30 days. The next look finds the entry again.
+ */
+const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
+	const named = rows.flatMap((row) =>
+		row.anilistId === null || row.anilistId === undefined
+			? []
+			: [sql`(${row.anilistId}::int, ${String(row.anikotoId)}::text)`],
+	);
+	if (named.length === 0) {
+		return;
+	}
+
+	await db.delete(providerMapping).where(
+		and(
+			eq(providerMapping.provider, aniKotoProviderId),
+			sql`exists (
+        select 1 from (values ${sql.join(named, sql`, `)}) as named(anilist_id, anikoto_id)
+        where named.anilist_id = ${providerMapping.anilistId}
+          and named.anikoto_id <> ${providerMapping.providerMediaId}
+      )`,
+			sql`not exists (
+        select 1 from ${anikotoSeries}
+        where ${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}
+          and ${anikotoSeries.anilistId} = ${providerMapping.anilistId}
+      )`,
+		),
+	);
+};
+
 const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
 	if (rows.length === 0) {
 		return 0;
@@ -147,6 +185,7 @@ const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
 			},
 			target: anikotoSeries.anikotoId,
 		});
+	await dropContradictedMappings(rows);
 	return rows.length;
 };
 
