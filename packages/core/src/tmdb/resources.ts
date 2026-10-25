@@ -634,6 +634,11 @@ export const getLogoPath = async (
 /** TMDB honours this many languages of an `include_image_language` list, counting `null`. */
 const languagesPerImageRequest = 5;
 
+// Every batch has the textless images; keep each image once.
+const unique = (images: TmdbImage[]) => [
+	...new Map(images.map((image) => [image.file_path, image])).values(),
+];
+
 /**
  * Loads an `/images` resource. With `maxAgeMs: 0` it is asked for again past
  * TMDB's own cache, which serves the same answer for hours and ignores
@@ -680,10 +685,6 @@ const loadImages = async (path: TmdbPath, maxAgeMs: number): Promise<TmdbImages 
 		),
 	);
 
-	// Every batch has the textless images; keep each image once.
-	const unique = (images: TmdbImage[]) => [
-		...new Map(images.map((image) => [image.file_path, image])).values(),
-	];
 	return {
 		backdrops: unique(answers.flatMap((answer) => answer?.backdrops ?? [])),
 		logos: unique(answers.flatMap((answer) => answer?.logos ?? [])),

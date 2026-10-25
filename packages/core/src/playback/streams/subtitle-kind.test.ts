@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import { classifySubtitle, subtitleKind, subtitleStats } from "./subtitle-kind";
 
-const track = (cues: { start: number; text: string }[]) => {
-	const stamp = (seconds: number) => {
-		const minutes = Math.floor(seconds / 60);
-		return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
-	};
+const stamp = (seconds: number) => {
+	const minutes = Math.floor(seconds / 60);
+	return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
+};
 
+const track = (cues: { start: number; text: string }[]) => {
 	return [
 		"WEBVTT",
 		...cues.map((cue) => `${stamp(cue.start)} --> ${stamp(cue.start + 2)}\n${cue.text}`),

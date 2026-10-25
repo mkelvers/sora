@@ -129,6 +129,8 @@ export const nextSeason = (season: AnimeSeason): AnimeSeason =>
 				year: season.year,
 			};
 
+const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
+
 /**
  * Every season some anime started in, the latest first, up to the season
  * after `now`'s, whose titles are announced by then. Adult media is never
@@ -137,7 +139,6 @@ export const nextSeason = (season: AnimeSeason): AnimeSeason =>
  */
 export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 	const next = nextSeason(currentSeason(now));
-	const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
 
 	const rows = await db
 		.selectDistinct({

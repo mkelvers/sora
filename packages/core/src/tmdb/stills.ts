@@ -40,6 +40,12 @@ const thinnestBar = 0.02;
 /** A black edge wider than this share of the frame is a dark frame, not a bar. */
 const widestBar = 0.4;
 
+const tier = (still: TmdbImage) => [
+	Number(still.iso_639_1 !== null),
+	Number(Math.abs(still.width / still.height - widescreen) > widescreenTolerance),
+	Number(still.width < smallestWidth),
+];
+
 /**
  * Orders a TMDB episode's stills, best first. A still is better when:
  *
@@ -57,12 +63,6 @@ export const rankStills = (
 	stills: readonly TmdbImage[],
 	defaultPath: string | null,
 ): TmdbImage[] => {
-	const tier = (still: TmdbImage) => [
-		Number(still.iso_639_1 !== null),
-		Number(Math.abs(still.width / still.height - widescreen) > widescreenTolerance),
-		Number(still.width < smallestWidth),
-	];
-
 	return stills.toSorted((left, right) => {
 		const leftTier = tier(left);
 		const rightTier = tier(right);
@@ -79,6 +79,39 @@ export const rankStills = (
 		);
 	});
 };
+
+const depth = (edge: { brightest: number; mean: number }[]) => {
+	let bar = 0;
+	while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
+		bar += 1;
+	}
+	if (bar === 0 || bar > edge.length * widestBar) {
+		return 0;
+	}
+
+	const inside = Math.max(...edge.slice(Math.max(0, bar - 2), bar).map((line) => line.mean));
+	const outside = Math.max(...edge.slice(bar, bar + 2).map((line) => line.mean));
+	return outside - inside >= barStep ? bar / edge.length : 0;
+};
+
+const lines = (count: number, length: number, at: (line: number, index: number) => number) =>
+	Array.from(
+		{
+			length: count,
+		},
+		(_, line) => {
+			const values = Array.from(
+				{
+					length,
+				},
+				(_value, index) => at(line, index),
+			).toSorted((left, right) => left - right);
+			return {
+				brightest: defined(values[Math.floor(length * 0.98)]),
+				mean: values.reduce((sum, value) => sum + value, 0) / length,
+			};
+		},
+	);
 
 /**
  * The share of the frame that black bars take up along its widest edge:
@@ -99,38 +132,6 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 		.toBuffer({
 			resolveWithObject: true,
 		});
-
-	const lines = (count: number, length: number, at: (line: number, index: number) => number) =>
-		Array.from(
-			{
-				length: count,
-			},
-			(_, line) => {
-				const values = Array.from(
-					{
-						length,
-					},
-					(_value, index) => at(line, index),
-				).toSorted((left, right) => left - right);
-				return {
-					brightest: defined(values[Math.floor(length * 0.98)]),
-					mean: values.reduce((sum, value) => sum + value, 0) / length,
-				};
-			},
-		);
-	const depth = (edge: { brightest: number; mean: number }[]) => {
-		let bar = 0;
-		while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
-			bar += 1;
-		}
-		if (bar === 0 || bar > edge.length * widestBar) {
-			return 0;
-		}
-
-		const inside = Math.max(...edge.slice(Math.max(0, bar - 2), bar).map((line) => line.mean));
-		const outside = Math.max(...edge.slice(bar, bar + 2).map((line) => line.mean));
-		return outside - inside >= barStep ? bar / edge.length : 0;
-	};
 
 	const rows = lines(measuredHeight, measuredWidth, (line, index) =>
 		defined(data[line * measuredWidth + index]),

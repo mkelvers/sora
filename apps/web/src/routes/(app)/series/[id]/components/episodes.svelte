@@ -36,9 +36,9 @@
 		return () => observer.disconnect();
 	});
 
+	const stop = (target: number) =>
+		series.episode_count - target <= tail ? series.episode_count : target;
 	const stops = $derived.by(() => {
-		const stop = (target: number) =>
-			series.episode_count - target <= tail ? series.episode_count : target;
 		const list = [stop(pageSize)];
 		for (let step = 1; step <= steps; step += 1) {
 			const end = stop(Math.ceil((pageSize * step) / columns) * columns);

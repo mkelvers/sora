@@ -25,9 +25,10 @@ export const parseTimestamp = (value: string) => {
 	);
 };
 
+const pad = (value: number, length = 2) => String(value).padStart(length, "0");
+
 export const formatTimestamp = (seconds: number) => {
 	const milliseconds = Math.round(seconds * 1000);
-	const pad = (value: number, length = 2) => String(value).padStart(length, "0");
 	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1000) % 60)}.${pad(milliseconds % 1000, 3)}`;
 };
 

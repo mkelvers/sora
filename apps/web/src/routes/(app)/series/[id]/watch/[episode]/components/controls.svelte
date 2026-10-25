@@ -28,10 +28,11 @@
 		children?: Snippet;
 	} = $props();
 
+	const pad = (value: number) => String(value).padStart(2, "0");
+
 	const clock = (seconds: number) => {
 		const total = Math.floor(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
 		const hours = Math.floor(total / 3600);
-		const pad = (value: number) => String(value).padStart(2, "0");
 
 		return hours
 			? `${hours}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`

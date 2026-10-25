@@ -29,13 +29,14 @@ export interface FranchiseOptions {
 	crossovers?: readonly number[];
 }
 
+const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
+
 /**
  * `title` after `prefix`, matching letters and digits case-insensitively and
  * skipping everything else, with the punctuation and spaces it then starts
  * with removed; `null` when `title` does not start with `prefix`.
  */
 const withoutPrefix = (title: string, prefix: string) => {
-	const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
 	const wanted = [...prefix.toLowerCase()].filter(isWordCharacter);
 	const characters = [...title];
 	let index = 0;
@@ -61,9 +62,10 @@ const withoutPrefix = (title: string, prefix: string) => {
 		.replace(/^[^\p{L}\p{N}]+/u, "");
 };
 
+const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
+
 /** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
 export const isNamedAfter = (title: string, original: string) => {
-	const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
 	return withoutPrefix(plain(title), plain(original)) !== null;
 };
 

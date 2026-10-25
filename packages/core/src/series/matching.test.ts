@@ -746,31 +746,32 @@ describe("placeInShow", () => {
 	});
 });
 
-describe("placeInShow by special name", () => {
-	// Haikyu!!: TMDB dates Land vs. Air twelve days after AniList, and Lev
-	// Appears four months after, beyond the air-date window.
-	const named = (episode: number, airDate: string, name: string) => ({
-		...special(episode, airDate, 24),
-		name,
-	});
-	const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
-		isFranchiseShow: true,
-		prequel: null,
-		show: {
-			episodes: [
-				...weekly(1, "2014-04-06", 3),
-				named(1, "2015-03-04", "Lev Appears!"),
-				named(2, "2020-01-22", "Land vs. Air"),
-				named(3, "2020-01-22", "The Path of the Ball"),
-				named(4, "2020-03-04", "Puppet Theatre"),
-			],
-			id: 60_863,
-			name: "Haikyu!!",
-			originalName: "ハイキュー!!",
-		},
-		...overrides,
-	});
+// Haikyu!!: TMDB dates Land vs. Air twelve days after AniList, and Lev
+// Appears four months after, beyond the air-date window.
+const named = (episode: number, airDate: string, name: string) => ({
+	...special(episode, airDate, 24),
+	name,
+});
 
+const haikyu = (overrides: Partial<ShowCandidate> = {}): ShowCandidate => ({
+	isFranchiseShow: true,
+	prequel: null,
+	show: {
+		episodes: [
+			...weekly(1, "2014-04-06", 3),
+			named(1, "2015-03-04", "Lev Appears!"),
+			named(2, "2020-01-22", "Land vs. Air"),
+			named(3, "2020-01-22", "The Path of the Ball"),
+			named(4, "2020-03-04", "Puppet Theatre"),
+		],
+		id: 60_863,
+		name: "Haikyu!!",
+		originalName: "ハイキュー!!",
+	},
+	...overrides,
+});
+
+describe("placeInShow by special name", () => {
 	test("finds an OVA among its franchise's specials by what its title adds to the show's", () => {
 		const placement = placeInShow(
 			subject({
@@ -1123,9 +1124,9 @@ describe("titleSimilarity", () => {
 	});
 });
 
-describe("bestSimilarity with sameNumbers", () => {
-	const same = (a: string, b: string) => bestSimilarity([a], [b], { sameNumbers: true }) > 0;
+const same = (a: string, b: string) => bestSimilarity([a], [b], { sameNumbers: true }) > 0;
 
+describe("bestSimilarity with sameNumbers", () => {
 	test("tells roman numerals apart", () => {
 		expect(same("Overlord II", "Overlord III")).toBe(false);
 		expect(same("Overlord III", "Overlord III")).toBe(true);

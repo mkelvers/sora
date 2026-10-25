@@ -229,15 +229,15 @@ describe("languagesOf", () => {
 	});
 });
 
-describe("fillerOf", () => {
-	const listedAs = (isFiller: boolean | null): ListedUnit => ({
-		source: {
-			listsLanguages: true,
-			locale: "en",
-		},
-		unit: unit(1, ["sub"], isFiller),
-	});
+const listedAs = (isFiller: boolean | null): ListedUnit => ({
+	source: {
+		listsLanguages: true,
+		locale: "en",
+	},
+	unit: unit(1, ["sub"], isFiller),
+});
 
+describe("fillerOf", () => {
 	test("calls an episode filler when any provider does", () => {
 		expect(fillerOf([listedAs(false), listedAs(true)])).toBe(true);
 	});

@@ -45,6 +45,14 @@ const series = (
 	...fields,
 });
 
+const format = (type: string) =>
+	parseCatalogSeries({
+		...frieren,
+		terms_by_type: {
+			type: [type],
+		},
+	})?.format;
+
 describe("parseCatalogSeries", () => {
 	test("reads IDs, format, and every title", () => {
 		expect(parseCatalogSeries(frieren)).toEqual({
@@ -76,14 +84,6 @@ describe("parseCatalogSeries", () => {
 	});
 
 	test("maps AniKoto's types to AniList formats", () => {
-		const format = (type: string) =>
-			parseCatalogSeries({
-				...frieren,
-				terms_by_type: {
-					type: [type],
-				},
-			})?.format;
-
 		expect(format("Movie")).toBe("MOVIE");
 		expect(format("TV Special")).toBe("SPECIAL");
 		expect(format("TV_SHORT")).toBe("TV_SHORT");

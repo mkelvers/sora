@@ -13,6 +13,8 @@ import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catal
 import { aniKoto, providerHttp } from "../../playback/providers/registry";
 import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
 
+const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
+
 /**
  * Fetches AniKoto's episode list of one stored AniList entry again, and
  * queues its series to be laid out again when AniKoto gained an episode.
@@ -31,7 +33,6 @@ const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[]
 		return null;
 	}
 
-	const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
 	const storedUnits = await getStoredUnits([anilistId]);
 	const [stored] = storedUnits.filter((entry) => entry.provider === aniKoto.id);
 	const units = await refreshProviderUnits(data, aniKoto, {

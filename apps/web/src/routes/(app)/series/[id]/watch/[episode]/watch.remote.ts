@@ -46,6 +46,8 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 	};
 });
 
+const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
+
 export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const playback = await attempt(
 		remoteViewer().sora.requestWithMeta(route.getPlayback, {
@@ -65,7 +67,6 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 	}
 
 	const { results, meta } = playback.data;
-	const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
 
 	return {
 		media: results.map(({ provider: _provider, locale: _locale, hardsub: _hardsub, ...media }) => ({

@@ -199,6 +199,13 @@ export const toSeriesCards = async (
 /** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
 const franchiseLimit = 60;
 
+const rank = (relation: string) => {
+	if (relation === "SEQUEL" || relation === "PREQUEL") {
+		return 0;
+	}
+	return relation === "OTHER" ? 2 : 1;
+};
+
 /**
  * The AniList entries of an entry's franchise, itself left out, the closest
  * related first.
@@ -281,12 +288,6 @@ export const franchiseIds = async (
 				: rawEdge,
 		);
 
-		const rank = (relation: string) => {
-			if (relation === "SEQUEL" || relation === "PREQUEL") {
-				return 0;
-			}
-			return relation === "OTHER" ? 2 : 1;
-		};
 		const storyIds = new Set(
 			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
 		);
