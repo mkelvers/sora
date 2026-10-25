@@ -16,6 +16,8 @@
  *
  * Nothing here performs I/O; see `mapping.ts` for how candidates are found.
  */
+import { defined } from "@sora/shared";
+
 import type { AnimeFormat } from "../catalog/models/anime";
 import type { TmdbEpisode, TmdbEpisodeGroup, TmdbMovieResult, TmdbShow } from "../tmdb/resources";
 
@@ -391,6 +393,34 @@ const runtimesAgree = (
 };
 
 /**
+ * Whether a run of episodes stops before one airing on `airDay`: it is past
+ * the entry's end and does not continue the broadcast of a counted series,
+ * or it follows a long break while neither the count nor the end is known.
+ */
+const endsRun = (
+	airDay: number | null,
+	previousDay: number | null,
+	subject: MatchSubject,
+	end: number | null,
+	countsEpisodes: boolean,
+) => {
+	const isPastEnd = airDay !== null && end !== null && airDay > end + endGraceDays;
+	const continuesBroadcast =
+		airDay !== null && previousDay !== null && airDay - previousDay <= broadcastBreakDays;
+	if (isPastEnd && !(countsEpisodes && continuesBroadcast)) {
+		return true;
+	}
+
+	return (
+		airDay !== null &&
+		previousDay !== null &&
+		subject.episodes === null &&
+		end === null &&
+		airDay - previousDay > broadcastBreakDays
+	);
+};
+
+/**
  * Collects the episodes from `index` that belong to the subject: up to its
  * episode count, and otherwise not past its end date. When both are unknown
  * the run ends at the first long broadcast break.
@@ -422,20 +452,7 @@ const pick = (
 		}
 
 		const airDay = dayNumber(episode.air_date);
-		const isPastEnd = airDay !== null && end !== null && airDay > end + endGraceDays;
-		const continuesBroadcast =
-			airDay !== null && previousDay !== null && airDay - previousDay <= broadcastBreakDays;
-		if (isPastEnd && !(countsEpisodes && continuesBroadcast)) {
-			break;
-		}
-
-		const isBreak =
-			airDay !== null &&
-			previousDay !== null &&
-			subject.episodes === null &&
-			end === null &&
-			airDay - previousDay > broadcastBreakDays;
-		if (isBreak) {
+		if (endsRun(airDay, previousDay, subject, end, countsEpisodes)) {
 			break;
 		}
 
@@ -606,24 +623,75 @@ const dayOffset = (left: string | null, right: string | null) => {
 };
 
 /**
+ * The counts that tell a show may compile the entry's shorts, when the
+ * entry's format, counts, and primary title allow it: its episodes are a
+ * whole multiple of the episodes AniKoto carries.
+ */
+const compilationCounts = (subject: MatchSubject, candidate: ShowCandidate) => {
+	const { durationMinutes, episodes, playbackEpisodes } = subject;
+	if (subject.format !== "TV_SHORT" || !episodes || !playbackEpisodes || !durationMinutes) {
+		return null;
+	}
+	if (episodes <= playbackEpisodes || episodes % playbackEpisodes !== 0) {
+		return null;
+	}
+
+	const similarity = bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), [
+		candidate.show.name,
+		candidate.show.originalName,
+	]);
+	return similarity < 0.95
+		? null
+		: {
+				durationMinutes,
+				episodes,
+				playbackEpisodes,
+			};
+};
+
+/**
+ * One season of a show as the compilation of the entry's shorts: exactly the
+ * episodes AniKoto carries, numbered from 1, each with a runtime, starting
+ * and ending within the start window of the entry's dates.
+ */
+const compiledSeasonRun = (
+	candidate: ShowCandidate,
+	season: number,
+	subject: MatchSubject,
+	playbackEpisodes: number,
+) => {
+	const run = regularTrack(candidate.show.episodes).filter(
+		(episode) => episode.season_number === season,
+	);
+	const [first] = run;
+	const last = run.at(-1);
+	const startOffset = dayOffset(subject.startDate, first?.air_date ?? null);
+	const endOffset = dayOffset(subject.endDate, last?.air_date ?? null);
+	if (
+		!first ||
+		!last ||
+		run.length !== playbackEpisodes ||
+		run.some((episode, index) => episode.episode_number !== index + 1 || !episode.runtime) ||
+		airedBefore(first, subject.airsFrom) ||
+		startOffset === null ||
+		startOffset > startWindowDays ||
+		endOffset === null ||
+		endOffset > startWindowDays
+	) {
+		return null;
+	}
+	return run;
+};
+
+/**
  * Short broadcasts may be bundled into the full episodes AniKoto carries.
  * Require the same primary title, a complete TMDB season with AniKoto's count,
  * matching broadcast dates, and a matching total runtime. Never infer a bundle
  * solely from a similar title or a shorter provider listing.
  */
 const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): Placement | null => {
-	if (
-		subject.format !== "TV_SHORT" ||
-		!subject.episodes ||
-		!subject.playbackEpisodes ||
-		!subject.durationMinutes ||
-		subject.episodes <= subject.playbackEpisodes ||
-		subject.episodes % subject.playbackEpisodes !== 0 ||
-		bestSimilarity(subject.titles.slice(0, subject.primaryTitleCount), [
-			candidate.show.name,
-			candidate.show.originalName,
-		]) < 0.95
-	) {
+	const counts = compilationCounts(subject, candidate);
+	if (!counts) {
 		return null;
 	}
 
@@ -633,28 +701,12 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 		if (season <= 0) {
 			continue;
 		}
-		const run = regularTrack(candidate.show.episodes).filter(
-			(episode) => episode.season_number === season,
-		);
-		const [first] = run;
-		const last = run.at(-1);
-		const startOffset = dayOffset(subject.startDate, first?.air_date ?? null);
-		const endOffset = dayOffset(subject.endDate, last?.air_date ?? null);
-		if (
-			!first ||
-			!last ||
-			run.length !== subject.playbackEpisodes ||
-			run.some((episode, index) => episode.episode_number !== index + 1 || !episode.runtime) ||
-			airedBefore(first, subject.airsFrom) ||
-			startOffset === null ||
-			startOffset > startWindowDays ||
-			endOffset === null ||
-			endOffset > startWindowDays
-		) {
+		const run = compiledSeasonRun(candidate, season, subject, counts.playbackEpisodes);
+		if (!run) {
 			continue;
 		}
 		const minutes = run.reduce((total, episode) => total + (episode.runtime ?? 0), 0);
-		if (!runtimesAgree(minutes, subject.episodes * subject.durationMinutes, 1.2)) {
+		if (!runtimesAgree(minutes, counts.episodes * counts.durationMinutes, 1.2)) {
 			continue;
 		}
 		placements.push({
@@ -671,6 +723,31 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 const yearOf = (date: string | null) => {
 	const match = date ? /^(?<year>\d{4})/u.exec(date) : null;
 	return match ? Number(match[1]) : null;
+};
+
+/** Whether the entry's primary titles and the show's names agree, numbers included. */
+const namesAgreeNumbered = (subject: MatchSubject, candidate: ShowCandidate) =>
+	bestSimilarity(
+		subject.titles.slice(0, subject.primaryTitleCount),
+		[candidate.show.name, candidate.show.originalName],
+		{ sameNumbers: true },
+	) >= 0.9;
+
+/**
+ * Whether a first season started when the entry did: within a month of its
+ * start (four months for ONAs), or, for a whole show, in the same year.
+ */
+const startsAlike = (
+	subject: MatchSubject,
+	track: readonly TmdbEpisode[],
+	regularCount: number,
+	offset: number | null,
+) => {
+	if (offset !== null && offset <= (subject.format === "ONA" ? 120 : 31)) {
+		return true;
+	}
+	const year = yearOf(track[0]?.air_date ?? null);
+	return track.length === regularCount && year !== null && year === yearOf(subject.startDate);
 };
 
 /**
@@ -698,21 +775,13 @@ const placeByTitle = (
 	const matches =
 		isSeriesFormat(subject.format) &&
 		nameSimilarity >= 0.9 &&
-		(track.length === regular.length ||
-			bestSimilarity(
-				subject.titles.slice(0, subject.primaryTitleCount),
-				[candidate.show.name, candidate.show.originalName],
-				{ sameNumbers: true },
-			) >= 0.9) &&
+		(track.length === regular.length || namesAgreeNumbered(subject, candidate)) &&
 		subject.episodes !== null &&
 		track.length === subject.episodes &&
 		track[0] !== undefined &&
 		!airedBefore(track[0], subject.airsFrom) &&
 		runtimesAgree(medianRuntime(track), subject.durationMinutes, regularRuntimeTolerance) &&
-		((offset !== null && offset <= (subject.format === "ONA" ? 120 : 31)) ||
-			(track.length === regular.length &&
-				yearOf(track[0]?.air_date ?? null) !== null &&
-				yearOf(track[0]?.air_date ?? null) === yearOf(subject.startDate)));
+		startsAlike(subject, track, regular.length, offset);
 
 	if (!matches) {
 		return null;
@@ -952,6 +1021,116 @@ const placeSpecialsByEnd = (subject: MatchSubject, candidate: ShowCandidate): Pl
 	};
 };
 
+/** What {@link placeRunAt} weighs a run of one track of a show against. */
+interface RunContext {
+	candidate: ShowCandidate;
+	end: number | null;
+	isRegular: boolean;
+	nameSimilarity: number;
+	start: number | null;
+	subject: MatchSubject;
+	track: readonly TmdbEpisode[];
+}
+
+/**
+ * The episodes run from `index` of a track that could be the entry's, with
+ * the first and last of them; `null` when they cannot be.
+ */
+const runFrom = (context: RunContext, index: number, isContinuation: boolean) => {
+	const { candidate, end, isRegular, start, subject, track } = context;
+	const mayTakeRegularEpisodes =
+		isSeriesFormat(subject.format) ||
+		isOwnShowStart(track, index, start, candidate) ||
+		// An OVA series continuing its franchise's show must also air when
+		// that episode did; an OVA released between seasons is not the next season.
+		(isContinuation && airsNear(track[index], start));
+	if (isRegular && !mayTakeRegularEpisodes) {
+		return null;
+	}
+
+	const picked = pick(track, index, subject, end, isRegular);
+	if (isRegular) {
+		picked.push(...overflowSpecials(candidate.show.episodes, picked, subject, end));
+	}
+
+	const isPartialOva =
+		!isSeriesFormat(subject.format) &&
+		subject.episodes !== null &&
+		picked.length < subject.episodes;
+	if (isRegular && isPartialOva) {
+		// An OVA released all at once cannot be a run of weekly episodes
+		// that mostly air after it ended.
+		return null;
+	}
+
+	const [first] = picked;
+	const last = picked.at(-1);
+	if (first && airedBefore(first, subject.airsFrom)) {
+		// A season that has not aired yet cannot be episodes that have.
+		return null;
+	}
+
+	const isWrongLength =
+		isRegular &&
+		!runtimesAgree(medianRuntime(picked), subject.durationMinutes, regularRuntimeTolerance);
+	if (!first || !last || isWrongLength) {
+		return null;
+	}
+
+	return {
+		first,
+		last,
+		picked,
+	};
+};
+
+/**
+ * The placement of the run from `index` of a track, when it could be the
+ * entry's and scores at least {@link minimumShowScore}; else `null`.
+ */
+const placeRunAt = (context: RunContext, index: number, isContinuation: boolean) => {
+	const { candidate, end, isRegular, nameSimilarity, start, subject } = context;
+	const run = runFrom(context, index, isContinuation);
+	if (!run) {
+		return null;
+	}
+
+	const { first, last, picked } = run;
+	const firstAirDay = dayNumber(first.air_date);
+	const lastAirDay = dayNumber(last.air_date);
+	const startOffset = start !== null && firstAirDay !== null ? firstAirDay - start : null;
+
+	const evidence =
+		startScore(startOffset, isContinuation) + (isContinuation ? 40 : 0) + endScore(end, lastAirDay);
+	const coverage = subject.episodes ? Math.min(picked.length / subject.episodes, 1) : 1;
+	const score =
+		evidence * (0.5 + 0.5 * coverage) +
+		(isRegular ? 10 : 0) +
+		(candidate.isFranchiseShow ? 25 : 0) +
+		20 * nameSimilarity;
+	if (score < minimumShowScore) {
+		return null;
+	}
+
+	const leading = isRegular
+		? leadingEpisode(candidate.show.episodes, picked, subject, startOffset)
+		: null;
+	const placement: Placement = {
+		episodes: [
+			...(leading?.special ? linkRun([leading.special]) : []),
+			...linkRun(picked, leading ? 2 : 1),
+		],
+		mediaType: "tv",
+		method:
+			startOffset !== null && Math.abs(startOffset) <= startWindowDays
+				? "air-date"
+				: "continuation",
+		score,
+		tmdbId: candidate.show.id,
+	};
+	return placement;
+};
+
 /**
  * Finds the best position for `subject` in a TMDB show.
  *
@@ -993,79 +1172,13 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 				continue;
 			}
 
-			const isContinuation = index === continuation;
-			const mayTakeRegularEpisodes =
-				isSeriesFormat(subject.format) ||
-				isOwnShowStart(track, index, start, candidate) ||
-				// An OVA series continuing its franchise's show must also air when
-				// that episode did; an OVA released between seasons is not the next season.
-				(isContinuation && airsNear(track[index], start));
-			if (isRegular && !mayTakeRegularEpisodes) {
-				continue;
-			}
-
-			const picked = pick(track, index, subject, end, isRegular);
-			if (isRegular) {
-				picked.push(...overflowSpecials(candidate.show.episodes, picked, subject, end));
-			}
-
-			const isPartialOva =
-				!isSeriesFormat(subject.format) &&
-				subject.episodes !== null &&
-				picked.length < subject.episodes;
-			if (isRegular && isPartialOva) {
-				// An OVA released all at once cannot be a run of weekly episodes
-				// that mostly air after it ended.
-				continue;
-			}
-
-			const [first] = picked;
-			const last = picked.at(-1);
-			if (first && airedBefore(first, subject.airsFrom)) {
-				// A season that has not aired yet cannot be episodes that have.
-				continue;
-			}
-
-			const isWrongLength =
-				isRegular &&
-				!runtimesAgree(medianRuntime(picked), subject.durationMinutes, regularRuntimeTolerance);
-			if (!first || !last || isWrongLength) {
-				continue;
-			}
-
-			const firstAirDay = dayNumber(first.air_date);
-			const lastAirDay = dayNumber(last.air_date);
-			const startOffset = start !== null && firstAirDay !== null ? firstAirDay - start : null;
-
-			const evidence =
-				startScore(startOffset, isContinuation) +
-				(isContinuation ? 40 : 0) +
-				endScore(end, lastAirDay);
-			const coverage = subject.episodes ? Math.min(picked.length / subject.episodes, 1) : 1;
-			const score =
-				evidence * (0.5 + 0.5 * coverage) +
-				(isRegular ? 10 : 0) +
-				(candidate.isFranchiseShow ? 25 : 0) +
-				20 * nameSimilarity;
-
-			if (score >= minimumShowScore && (!best || score > best.score)) {
-				const leading = isRegular
-					? leadingEpisode(candidate.show.episodes, picked, subject, startOffset)
-					: null;
-				const firstAnilistEpisode = leading ? 2 : 1;
-				best = {
-					episodes: [
-						...(leading?.special ? linkRun([leading.special]) : []),
-						...linkRun(picked, firstAnilistEpisode),
-					],
-					mediaType: "tv",
-					method:
-						startOffset !== null && Math.abs(startOffset) <= startWindowDays
-							? "air-date"
-							: "continuation",
-					score,
-					tmdbId: candidate.show.id,
-				};
+			const placement = placeRunAt(
+				{ candidate, end, isRegular, nameSimilarity, start, subject, track },
+				index,
+				index === continuation,
+			);
+			if (placement && (!best || placement.score > best.score)) {
+				best = placement;
 			}
 		}
 	}
@@ -1098,6 +1211,44 @@ const datesAgree = (left: string | null, right: string | null, windowDays: numbe
 };
 
 /**
+ * The episodes of the group at `index`, with those of the numbered parts
+ * after it that carry on from it, while fewer than `wanted` are taken.
+ */
+const combinedParts = (groups: readonly TmdbEpisodeGroup[], index: number, wanted: number) => {
+	const group = defined(groups[index]);
+	const episodes = [...group.episodes];
+	let part = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(group.name));
+	for (const next of groups.slice(index + 1)) {
+		if (episodes.length >= wanted || !part) {
+			break;
+		}
+		const nextPart = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(next.name));
+		if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
+			break;
+		}
+		episodes.push(...next.episodes);
+		part = nextPart;
+	}
+	return episodes;
+};
+
+/** Whether every episode is one of the show's, once; groups can lag behind the main show or repeat episodes. */
+const areCanonical = (episodes: readonly TmdbEpisode[], canonical: readonly TmdbEpisode[]) => {
+	const identities = new Set(episodes.map((episode) => episode.id));
+	return (
+		identities.size === episodes.length &&
+		episodes.every((episode) =>
+			canonical.some(
+				(known) =>
+					known.id === episode.id &&
+					known.season_number === episode.season_number &&
+					known.episode_number === episode.episode_number,
+			),
+		)
+	);
+};
+
+/**
  * Matches named TMDB arcs or release parts against primary AniList titles.
  * Consecutive numbered parts may combine when AniList combines their count.
  * Conflicting arrangements stay unresolved instead of choosing an order.
@@ -1122,19 +1273,7 @@ export const placeInEpisodeGroups = (
 			if (similarity < 0.95) {
 				continue;
 			}
-			const episodes = [...group.episodes];
-			let part = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(group.name));
-			for (const next of groups.slice(index + 1)) {
-				if (episodes.length >= subject.episodes || !part) {
-					break;
-				}
-				const nextPart = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(next.name));
-				if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
-					break;
-				}
-				episodes.push(...next.episodes);
-				part = nextPart;
-			}
+			const episodes = combinedParts(groups, index, subject.episodes);
 			const [first] = episodes;
 			if (
 				!first ||
@@ -1145,20 +1284,7 @@ export const placeInEpisodeGroups = (
 			) {
 				continue;
 			}
-			// Groups can lag behind the main show or contain duplicated episodes.
-			const identities = new Set(episodes.map((episode) => episode.id));
-			if (
-				identities.size !== episodes.length ||
-				episodes.some(
-					(episode) =>
-						!show.episodes.some(
-							(canonical) =>
-								canonical.id === episode.id &&
-								canonical.season_number === episode.season_number &&
-								canonical.episode_number === episode.episode_number,
-						),
-				)
-			) {
+			if (!areCanonical(episodes, show.episodes)) {
 				continue;
 			}
 			const links = linkRun(episodes);
