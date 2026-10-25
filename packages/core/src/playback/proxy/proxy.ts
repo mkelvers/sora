@@ -253,6 +253,57 @@ const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Header
 	);
 };
 
+/** A whole segment, served from the read-ahead. */
+const wholeSegmentResponse = async (target: StreamTarget) => {
+	const segment = await readSegment(target);
+	const headers = new Headers({
+		"Cache-Control": "private, max-age=3600",
+		"Content-Length": String(segment.bytes.byteLength),
+	});
+	if (segment.contentType) {
+		headers.set("Content-Type", segment.contentType);
+	}
+	return new Response(segment.bytes, {
+		headers,
+		status: 200,
+	});
+};
+
+/** A subtitle or key, read whole, retimed when the token asks for it. */
+const smallFileResponse = async (target: StreamTarget, signal: AbortSignal | undefined) => {
+	const upstream = await fetchUpstreamBytes(target, signal);
+	if (target.kind === "subtitle" && target.shifts) {
+		const text = new TextDecoder().decode(upstream.bytes);
+		const stored = target.refinement ? await getRefinement(target.refinement) : null;
+		return new Response(retimeWebVtt(text, target.shifts, stored?.refinement?.anchors ?? []), {
+			headers: {
+				"Cache-Control": "private, max-age=3600",
+				"Content-Type": "text/vtt; charset=utf-8",
+			},
+			status: 200,
+		});
+	}
+
+	const headers = new Headers({
+		"Cache-Control": "private, max-age=3600",
+		"Content-Length": String(upstream.bytes.byteLength),
+	});
+	const contentType = upstream.headers.get("Content-Type");
+	if (contentType) {
+		headers.set("Content-Type", contentType);
+	}
+
+	// Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
+	if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
+		headers.set("Content-Type", "text/vtt; charset=utf-8");
+	}
+
+	return new Response(upstream.bytes, {
+		headers,
+		status: 200,
+	});
+};
+
 /**
  * Serves one proxied stream resource.
  *
@@ -281,18 +332,7 @@ export const proxyStream = async (
 	}
 
 	if (target.kind === "segment" && !request.range) {
-		const segment = await readSegment(target);
-		const headers = new Headers({
-			"Cache-Control": "private, max-age=3600",
-			"Content-Length": String(segment.bytes.byteLength),
-		});
-		if (segment.contentType) {
-			headers.set("Content-Type", segment.contentType);
-		}
-		return new Response(segment.bytes, {
-			headers,
-			status: 200,
-		});
+		return await wholeSegmentResponse(target);
 	}
 
 	if (target.kind === "playlist") {
@@ -301,37 +341,7 @@ export const proxyStream = async (
 	}
 
 	if (target.kind === "subtitle" || target.kind === "key") {
-		const upstream = await fetchUpstreamBytes(target, request.signal);
-		if (target.kind === "subtitle" && target.shifts) {
-			const text = new TextDecoder().decode(upstream.bytes);
-			const stored = target.refinement ? await getRefinement(target.refinement) : null;
-			return new Response(retimeWebVtt(text, target.shifts, stored?.refinement?.anchors ?? []), {
-				headers: {
-					"Cache-Control": "private, max-age=3600",
-					"Content-Type": "text/vtt; charset=utf-8",
-				},
-				status: 200,
-			});
-		}
-
-		const headers = new Headers({
-			"Cache-Control": "private, max-age=3600",
-			"Content-Length": String(upstream.bytes.byteLength),
-		});
-		const contentType = upstream.headers.get("Content-Type");
-		if (contentType) {
-			headers.set("Content-Type", contentType);
-		}
-
-		// Hosts serve WebVTT as octet-stream, which browsers may refuse for <track>.
-		if (target.kind === "subtitle" && new URL(target.url).pathname.endsWith(".vtt")) {
-			headers.set("Content-Type", "text/vtt; charset=utf-8");
-		}
-
-		return new Response(upstream.bytes, {
-			headers,
-			status: 200,
-		});
+		return await smallFileResponse(target, request.signal);
 	}
 
 	const upstream = await fetchUpstream(target, request.range, request.signal);

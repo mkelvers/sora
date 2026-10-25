@@ -379,6 +379,50 @@ const missingEpisodes = async (
 };
 
 /**
+ * Whether an episode aired lately, within the time its change log is read
+ * for, and lacks a title, overview, or still the change log may hold.
+ */
+const airedLatelyAndLacking = (episode: TmdbEpisode, isUnnamed: boolean) => {
+	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
+	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
+	return !(
+		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
+		episode.air_date === null ||
+		episode.air_date < since ||
+		episode.air_date > until
+	);
+};
+
+/** What an episode's change log holds: English text by field, the last runtime, and the stills it adds. */
+const readChangeLog = (changes: z.infer<typeof EpisodeChangesSchema>["changes"]) => {
+	const edits = (key: string) =>
+		(changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
+			left.time.localeCompare(right.time),
+		);
+	const text = (key: string) => {
+		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
+		return typeof value === "string" && value !== "" ? value : null;
+	};
+	// A runtime is filed under the language of whoever wrote it.
+	const runtime = edits("runtime").at(-1)?.value;
+	const stills = new Set<string>();
+	for (const edit of edits("images")) {
+		const added = ChangedImageSchema.safeParse(edit.value);
+		const removed = ChangedImageSchema.safeParse(edit.original_value);
+		if (edit.action === "deleted" && removed.success) {
+			stills.delete(removed.data.backdrop.file_path);
+		} else if (added.success) {
+			stills.add(added.data.backdrop.file_path);
+		}
+	}
+	return {
+		runtime,
+		stills,
+		text,
+	};
+};
+
+/**
  * Fills in the title, overview, runtime, and still an episode lacks from the
  * English edits in its change log, when it aired within {@link editsWindowMs}.
  * TMDB's air date is in the airing country's calendar, which can be a day
@@ -402,14 +446,7 @@ export const withEdits = async (
 	},
 ): Promise<TmdbEpisode> => {
 	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
-	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
-	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
-	if (
-		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
-		episode.air_date === null ||
-		episode.air_date < since ||
-		episode.air_date > until
-	) {
+	if (!airedLatelyAndLacking(episode, isUnnamed)) {
 		return episode;
 	}
 
@@ -430,26 +467,7 @@ export const withEdits = async (
 		return episode;
 	}
 
-	const edits = (key: string) =>
-		(data.changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
-			left.time.localeCompare(right.time),
-		);
-	const text = (key: string) => {
-		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
-		return typeof value === "string" && value !== "" ? value : null;
-	};
-	// A runtime is filed under the language of whoever wrote it.
-	const runtime = edits("runtime").at(-1)?.value;
-	const stills = new Set<string>();
-	for (const edit of edits("images")) {
-		const added = ChangedImageSchema.safeParse(edit.value);
-		const removed = ChangedImageSchema.safeParse(edit.original_value);
-		if (edit.action === "deleted" && removed.success) {
-			stills.delete(removed.data.backdrop.file_path);
-		} else if (added.success) {
-			stills.add(added.data.backdrop.file_path);
-		}
-	}
+	const { runtime, stills, text } = readChangeLog(data.changes);
 
 	return {
 		...episode,
