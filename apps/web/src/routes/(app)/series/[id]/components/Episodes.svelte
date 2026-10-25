@@ -42,7 +42,7 @@
 		const list = [stop(pageSize)];
 		for (let step = 1; step <= steps; step++) {
 			const end = stop(Math.ceil((pageSize * step) / columns) * columns);
-			if (end > list.at(-1)) {
+			if (end > (list.at(-1) ?? 0)) {
 				list.push(end);
 			}
 		}
@@ -57,7 +57,7 @@
 			};
 		}),
 	);
-	const loaded = $derived(stops.at(-1));
+	const loaded = $derived(stops.at(-1) ?? 0);
 	let selected = $state<number | null>(null);
 	const watched = $derived(selected !== null && !!played.get(selected)?.finished);
 
