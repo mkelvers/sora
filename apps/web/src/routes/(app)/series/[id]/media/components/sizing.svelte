@@ -67,7 +67,7 @@
 			return drag ? "cursor-grabbing" : "cursor-grab";
 		}
 		if (!activeHandle) {
-			return undefined;
+			return;
 		}
 		return activeHandle.x === activeHandle.y ? "cursor-nwse-resize" : "cursor-nesw-resize";
 	});

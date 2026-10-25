@@ -7,7 +7,7 @@ import { TypedDocumentString } from "./graphql.generated";
 const sent: number[] = [];
 /** When each request was sent. */
 const sentAt: number[] = [];
-const respond = async (_input: string, init: RequestInit) => {
+const respond = (_input: string, init: RequestInit) => {
 	sent.push(
 		(
 			JSON.parse(String(init.body)) as {
@@ -18,18 +18,20 @@ const respond = async (_input: string, init: RequestInit) => {
 		).variables.id,
 	);
 	sentAt.push(performance.now());
-	return new Response(
-		JSON.stringify({
-			data: {
-				Media: null,
+	return Promise.resolve(
+		new Response(
+			JSON.stringify({
+				data: {
+					Media: null,
+				},
+			}),
+			{
+				headers: {
+					"x-ratelimit-limit": "30",
+					"x-ratelimit-remaining": "29",
+				},
 			},
-		}),
-		{
-			headers: {
-				"x-ratelimit-limit": "30",
-				"x-ratelimit-remaining": "29",
-			},
-		},
+		),
 	);
 };
 

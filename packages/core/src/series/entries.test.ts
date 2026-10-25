@@ -54,9 +54,8 @@ const withNeighbours = (
 
 /** A loader that answers every ID with an entry, entry 1 with entry 2 as its neighbour. */
 const loader = () =>
-	mock(
-		async (ids: Iterable<number>) =>
-			new Map([...ids].map((id) => [id, withNeighbours(id, id === 1 ? [2] : [])])),
+	mock((ids: Iterable<number>) =>
+		Promise.resolve(new Map([...ids].map((id) => [id, withNeighbours(id, id === 1 ? [2] : [])]))),
 	);
 
 test("asks AniList only for entries it has not loaded recently", async () => {

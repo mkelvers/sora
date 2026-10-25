@@ -158,7 +158,7 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
  */
 const pickUpAniKotoChanges = async (logger: Parameters<Task>[1]["logger"]) => {
 	if (lastLook && Date.now() - lastLook.startedAt < minute) {
-		return lastLook.done;
+		return await lastLook.done;
 	}
 
 	const done = readAndRefresh(logger);
@@ -166,7 +166,7 @@ const pickUpAniKotoChanges = async (logger: Parameters<Task>[1]["logger"]) => {
 		done,
 		startedAt: Date.now(),
 	};
-	return done;
+	return await done;
 };
 
 /** The graphile-worker task that picks up what AniKoto changed. */

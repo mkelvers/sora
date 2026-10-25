@@ -376,7 +376,7 @@ export const fetchUpstreamBytes = async (
 	const losers = new AbortController();
 	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
 
-	return new Promise((resolve, reject) => {
+	return await new Promise((resolve, reject) => {
 		let launched = 0;
 		let failed = 0;
 		let settled = false;

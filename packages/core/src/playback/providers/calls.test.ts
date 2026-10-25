@@ -34,17 +34,18 @@ const recorded = (
 	const calls: ProviderCall[] = [];
 	const provider = recordingCalls(
 		{
-			findMedia: async () => null,
+			findMedia: () => Promise.resolve(null),
 			id: "fake",
-			listEpisodes: async () => [],
+			listEpisodes: () => Promise.resolve([]),
 			listsLanguages: true,
 			locale: "en",
-			resolveStream: async () => stream,
+			resolveStream: () => Promise.resolve(stream),
 			...answers,
 		},
 		record ??
-			(async (call) => {
+			((call) => {
 				calls.push(call);
+				return Promise.resolve();
 			}),
 	);
 
@@ -61,7 +62,7 @@ const outcomes = (calls: ProviderCall[]) =>
 describe("recordingCalls", () => {
 	test("records a result as ok and passes it through", async () => {
 		const { provider, calls } = recorded({
-			listEpisodes: async () => [episode],
+			listEpisodes: () => Promise.resolve([episode]),
 		});
 
 		expect(await provider.listEpisodes("1")).toEqual([episode]);
@@ -80,9 +81,7 @@ describe("recordingCalls", () => {
 	test("records a thrown error as failed with its message, and rethrows it", async () => {
 		const error = new Error("MegaPlay has no dub source for this episode");
 		const { provider, calls } = recorded({
-			resolveStream: async () => {
-				throw error;
-			},
+			resolveStream: () => Promise.reject(error),
 		});
 
 		await expect(provider.resolveStream("fake:1", "dub")).rejects.toBe(error);
@@ -98,9 +97,7 @@ describe("recordingCalls", () => {
 
 	test("cuts long error messages, such as ones quoting a whole page", async () => {
 		const { provider, calls } = recorded({
-			listEpisodes: async () => {
-				throw new Error("x".repeat(10_000));
-			},
+			listEpisodes: () => Promise.reject(new Error("x".repeat(10_000))),
 		});
 
 		await expect(provider.listEpisodes("1")).rejects.toThrow();
@@ -119,11 +116,9 @@ describe("recordingCalls", () => {
 	test("never fails a call because recording it failed", async () => {
 		const { provider } = recorded(
 			{
-				listEpisodes: async () => [episode],
+				listEpisodes: () => Promise.resolve([episode]),
 			},
-			async () => {
-				throw new Error("database is down");
-			},
+			() => Promise.reject(new Error("database is down")),
 		);
 
 		expect(await provider.listEpisodes("1")).toEqual([episode]);
@@ -132,7 +127,7 @@ describe("recordingCalls", () => {
 	test("offers syncCatalog only when the provider has one", async () => {
 		const { provider: without } = recorded({});
 		const { provider: withSync, calls } = recorded({
-			syncCatalog: async () => "Synced 3 series",
+			syncCatalog: () => Promise.resolve("Synced 3 series"),
 		});
 
 		expect(without.syncCatalog).toBeUndefined();

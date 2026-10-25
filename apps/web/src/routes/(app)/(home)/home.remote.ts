@@ -6,7 +6,7 @@ import { z } from "zod";
 export const getContinueWatching = query(async () => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.listContinueWatching, {
+	return await sora.request(route.listContinueWatching, {
 		params: {
 			profile_id: profile.id,
 		},

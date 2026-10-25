@@ -160,7 +160,7 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 	return starts;
 };
 
-const playlistResponse = async (target: StreamTarget, upstream: UpstreamBytes) => {
+const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
 	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
 		throw new StreamUpstreamError("Upstream playlist is too large", null);
 	}

@@ -129,7 +129,7 @@ const imageStateOf = async (seriesId: string) => {
 };
 
 const storedImagesOf = async (key: string): Promise<StoredImage[]> =>
-	db
+	await db
 		.select({
 			height: titleImage.height,
 			language: titleImage.language,

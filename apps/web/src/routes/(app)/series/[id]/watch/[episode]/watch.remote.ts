@@ -87,7 +87,7 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 export const getPlaybackPreferences = query(async () => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.getPlaybackPreferences, {
+	return await sora.request(route.getPlaybackPreferences, {
 		params: {
 			profile_id: profile.id,
 		},
@@ -97,7 +97,7 @@ export const getPlaybackPreferences = query(async () => {
 export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.getProgress, {
+	return await sora.request(route.getProgress, {
 		params: {
 			episode,
 			profile_id: profile.id,

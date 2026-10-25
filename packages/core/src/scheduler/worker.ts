@@ -66,7 +66,7 @@ const prioritized = (tasks: Record<string, Task>): TaskList =>
 		Object.entries(tasks).map(([name, task]): [string, Task] => [
 			name,
 			(payload, helpers) =>
-				aniListPriority.run(helpers.job.priority, async () => task(payload, helpers)),
+				aniListPriority.run(helpers.job.priority, async () => await task(payload, helpers)),
 		]),
 	);
 
@@ -176,7 +176,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			[lookUpEpisodesTask]: (payload, helpers) =>
 				aniListPriority.run(
 					Math.min(helpers.job.priority, seriesStorePriority("current")),
-					async () => lookUpEpisodes(payload, helpers),
+					async () => await lookUpEpisodes(payload, helpers),
 				),
 		},
 	});

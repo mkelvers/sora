@@ -635,7 +635,7 @@ export const browseIndex = async (
 	limit: number,
 	where?: SQL,
 ) =>
-	db
+	await db
 		.select()
 		.from(animeSearch)
 		.where(and(...indexConditions(filters), where))

@@ -172,5 +172,5 @@ const fetchAhead = (target: StreamTarget) => {
 export const readSegment = async (target: StreamTarget) => {
 	const segment = load(target);
 	fetchAhead(target);
-	return segment;
+	return await segment;
 };

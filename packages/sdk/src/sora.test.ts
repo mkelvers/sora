@@ -9,9 +9,9 @@ const clientAnswering = (answer: () => Response, options: { baseUrl?: string } =
 	const requests: Request[] = [];
 	const sora = new SoraClient({
 		baseUrl: options.baseUrl ?? "https://sora.test",
-		fetch: async (input, init) => {
+		fetch: (input, init) => {
 			requests.push(new Request(input as string, init));
-			return answer();
+			return Promise.resolve(answer());
 		},
 		headers: {
 			Authorization: "Bearer token",

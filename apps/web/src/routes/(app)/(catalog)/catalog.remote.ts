@@ -47,7 +47,7 @@ const formats = {
 	TV: ["TV", "TV_SHORT", "ONA"],
 } as const;
 
-export const getGenres = query(async () => remoteViewer().sora.request(route.listGenres));
+export const getGenres = query(async () => await remoteViewer().sora.request(route.listGenres));
 
 export const getCatalogPage = query(request, async (input) => {
 	const { sora } = remoteViewer();

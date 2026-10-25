@@ -14,12 +14,12 @@ const asked: {
 
 const http = new HttpClient({
 	transport: {
-		fetch: async (url, init) => {
+		fetch: (url, init) => {
 			asked.push({
 				headers: init.headers,
 				url,
 			});
-			return Response.json(timetable);
+			return Promise.resolve(Response.json(timetable));
 		},
 	},
 });

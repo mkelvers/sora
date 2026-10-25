@@ -59,7 +59,7 @@ describe("attempt", () => {
 
 test("takes asynchronous work only as a promise", () => {
 	// @ts-expect-error A function returning a promise is passed as the promise.
-	attempt(async () => 1);
+	attempt(() => Promise.resolve(1));
 });
 
 describe("defined", () => {

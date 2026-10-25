@@ -32,10 +32,10 @@ const responses: Record<string, unknown> = {
 const requests: string[] = [];
 
 const { tmdb } = createTmdbClient({
-	fetch: async (url) => {
+	fetch: (url) => {
 		const path = url.pathname.replace("/3", "");
 		requests.push(path);
-		return Response.json(responses[path]);
+		return Promise.resolve(Response.json(responses[path]));
 	},
 	store: {
 		find: async () => {},

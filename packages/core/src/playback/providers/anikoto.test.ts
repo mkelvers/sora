@@ -29,14 +29,16 @@ const providerServing = (pages: Record<string, string>) => {
 	const http = new HttpClient({
 		retry: false,
 		transport: {
-			fetch: async (url) => {
+			fetch: (url) => {
 				requested.push(url);
 				const page = pages[new URL(url).pathname];
-				return page === undefined
-					? new Response("Not found", {
-							status: 404,
-						})
-					: new Response(page);
+				return Promise.resolve(
+					page === undefined
+						? new Response("Not found", {
+								status: 404,
+							})
+						: new Response(page),
+				);
 			},
 		},
 	});

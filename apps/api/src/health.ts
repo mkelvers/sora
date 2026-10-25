@@ -26,7 +26,7 @@ const cacheMs = 60_000;
  */
 export const healthRoutes = (
 	load: () => Promise<ProviderHealth[]> = getProviderHealth,
-	signedIn: (headers: Headers) => Promise<boolean> = async () => false,
+	signedIn: (headers: Headers) => Promise<boolean> = () => Promise.resolve(false),
 ) => {
 	let cached: {
 		at: number;

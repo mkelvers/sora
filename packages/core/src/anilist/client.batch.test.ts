@@ -11,44 +11,48 @@ const sent: Pages[] = [];
 const unknown = new Set([404]);
 let failNext = false;
 let rateLimitNext = false;
-const respond = async (_input: string, init: RequestInit) => {
+const respond = (_input: string, init: RequestInit) => {
 	const { variables } = JSON.parse(String(init.body)) as {
 		variables: Pages;
 	};
 	sent.push(variables);
 	if (rateLimitNext) {
 		rateLimitNext = false;
-		return new Response(
-			JSON.stringify({
-				errors: [
-					{
-						message: "Too Many Requests.",
-						status: 429,
+		return Promise.resolve(
+			new Response(
+				JSON.stringify({
+					errors: [
+						{
+							message: "Too Many Requests.",
+							status: 429,
+						},
+					],
+				}),
+				{
+					headers: {
+						"Retry-After": "1",
 					},
-				],
-			}),
-			{
-				headers: {
-					"Retry-After": "1",
+					status: 429,
 				},
-				status: 429,
-			},
+			),
 		);
 	}
 
 	if (failNext) {
 		failNext = false;
-		return new Response(
-			JSON.stringify({
-				errors: [
-					{
-						message: "Internal error",
-					},
-				],
-			}),
-			{
-				status: 500,
-			},
+		return Promise.resolve(
+			new Response(
+				JSON.stringify({
+					errors: [
+						{
+							message: "Internal error",
+						},
+					],
+				}),
+				{
+					status: 500,
+				},
+			),
 		);
 	}
 
@@ -70,16 +74,18 @@ const respond = async (_input: string, init: RequestInit) => {
 				: [],
 		),
 	);
-	return new Response(
-		JSON.stringify({
-			data,
-		}),
-		{
-			headers: {
-				"x-ratelimit-limit": "90",
-				"x-ratelimit-remaining": "80",
+	return Promise.resolve(
+		new Response(
+			JSON.stringify({
+				data,
+			}),
+			{
+				headers: {
+					"x-ratelimit-limit": "90",
+					"x-ratelimit-remaining": "80",
+				},
 			},
-		},
+		),
 	);
 };
 

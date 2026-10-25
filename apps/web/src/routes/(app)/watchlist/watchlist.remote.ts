@@ -7,7 +7,7 @@ import { z } from "zod";
 export const getWatchlist = query(async () => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.listWatchlist, {
+	return await sora.request(route.listWatchlist, {
 		params: {
 			profile_id: profile.id,
 		},
@@ -17,7 +17,7 @@ export const getWatchlist = query(async () => {
 export const getWatchlistStatuses = query(async () => {
 	const { sora, profile } = remoteViewer();
 
-	return sora.request(route.listWatchlistStatuses, {
+	return await sora.request(route.listWatchlistStatuses, {
 		params: {
 			profile_id: profile.id,
 		},

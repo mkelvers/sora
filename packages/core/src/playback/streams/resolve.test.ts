@@ -51,9 +51,9 @@ const useProviders = (list: FakeProvider[]) => {
 		...list.map((fake) => {
 			units.set(fake.id, fake.languages);
 			return {
-				findMedia: async () => null,
+				findMedia: () => Promise.resolve(null),
 				id: fake.id,
-				listEpisodes: async () => [],
+				listEpisodes: () => Promise.resolve([]),
 				listsLanguages: true,
 				locale: fake.locale,
 				resolveStream: async (
@@ -114,32 +114,34 @@ const timelines = new Map<string, number[]>();
 const refinements = new Map<string, Awaited<ReturnType<typeof getRefinement>>>();
 
 const dependencies: PlaybackDependencies = {
-	canFetchStream: async (url) => !url.includes(".unreachable."),
+	canFetchStream: (url) => Promise.resolve(!url.includes(".unreachable.")),
 	createStreamToken: (url, _kind, _headers, options) =>
 		options?.shifts
 			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
 			: `token:${url}`,
-	getAnime: async (id) => anime(id),
-	getEpisodeVersions: async () => offered,
-	getProviderUnits: async (_anime, provider) => [
-		{
-			id: `${provider.id}:3`,
-			isFiller: null,
-			languages: units.get(provider.id) ?? null,
+	getAnime: (id) => Promise.resolve(anime(id)),
+	getEpisodeVersions: () => Promise.resolve(offered),
+	getProviderUnits: (_anime, provider) =>
+		Promise.resolve([
+			{
+				id: `${provider.id}:3`,
+				isFiller: null,
+				languages: units.get(provider.id) ?? null,
+				number: 3,
+				title: "Episode 3",
+			},
+		]),
+	getRefinement: (key) => Promise.resolve(refinements.get(key) ?? null),
+	locateEpisode: (seriesId) =>
+		Promise.resolve({
+			anilistId: 154_587,
 			number: 3,
-			title: "Episode 3",
-		},
-	],
-	getRefinement: async (key) => refinements.get(key) ?? null,
-	locateEpisode: async (seriesId) => ({
-		anilistId: 154_587,
-		number: 3,
-		seriesId,
-	}),
-	normalizeSkipSegments: async (_seriesId, _episode, _audio, segments) => segments,
+			seriesId,
+		}),
+	normalizeSkipSegments: (_seriesId, _episode, _audio, segments) => Promise.resolve(segments),
 	providers,
 	requestRefinement: async () => {},
-	segmentStarts: async (url) => timelines.get(url) ?? [],
+	segmentStarts: (url) => Promise.resolve(timelines.get(url) ?? []),
 };
 
 const request = {

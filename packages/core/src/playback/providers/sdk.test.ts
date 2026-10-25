@@ -98,12 +98,10 @@ const providerFinding = (resolution: MappingResolution | null, units: Promise<IC
 				return units;
 			},
 			id: "stub",
-			resolveStream: async () => {
-				throw new Error("The stub streams nothing");
-			},
+			resolveStream: () => Promise.reject(new Error("The stub streams nothing")),
 		},
 		{
-			resolveProviderMediaId: async () => resolution,
+			resolveProviderMediaId: () => Promise.resolve(resolution),
 		},
 		{
 			listsLanguages: true,

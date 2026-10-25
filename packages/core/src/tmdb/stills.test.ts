@@ -16,22 +16,24 @@ const still = (overrides: Partial<TmdbImage> & Pick<TmdbImage, "file_path">): Tm
 });
 
 /** A busy 16:9 frame: noise over a gradient, so no edge of it is black. */
-const frame = async () => {
+const frame = () => {
 	const width = 1280;
 	const height = 720;
 	const pixels = Buffer.alloc(width * height * 3);
 	for (let index = 0; index < pixels.length; index += 1) {
 		pixels[index] = 60 + ((index * 7919) % 120);
 	}
-	return sharp(pixels, {
-		raw: {
-			channels: 3,
-			height,
-			width,
-		},
-	})
-		.png()
-		.toBuffer();
+	return Promise.resolve(
+		sharp(pixels, {
+			raw: {
+				channels: 3,
+				height,
+				width,
+			},
+		})
+			.png()
+			.toBuffer(),
+	);
 };
 
 const withBars = async (image: Buffer, bars: { top?: number; left?: number }) => {

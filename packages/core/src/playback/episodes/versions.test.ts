@@ -32,41 +32,42 @@ let asks = 0;
 
 /** Dependencies backed by the providers in `list`, recording what they are asked. */
 const useProviders = (list: FakeProvider[]): VersionDependencies => ({
-	getAnime: async (id) => anime(id),
+	getAnime: (id) => Promise.resolve(anime(id)),
 	getProviderUnits: (_anime, target) => {
 		asks += 1;
 		return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
 	},
-	getStoredUnits: async (anilistIds) =>
-		[...new Set(anilistIds)].flatMap((anilistId) =>
-			list.flatMap((candidate) => {
-				const units = candidate.units(anilistId);
-				return units
-					? [
-							{
-								anilistId,
-								provider: candidate.id,
-								units,
-							},
-						]
-					: [];
-			}),
+	getStoredUnits: (anilistIds) =>
+		Promise.resolve(
+			[...new Set(anilistIds)].flatMap((anilistId) =>
+				list.flatMap((candidate) => {
+					const units = candidate.units(anilistId);
+					return units
+						? [
+								{
+									anilistId,
+									provider: candidate.id,
+									units,
+								},
+							]
+						: [];
+				}),
+			),
 		),
 	providers: list.map(({ id, locale, listsLanguages }) => ({
-		findMedia: async () => null,
+		findMedia: () => Promise.resolve(null),
 		id,
-		listEpisodes: async () => [],
+		listEpisodes: () => Promise.resolve([]),
 		listsLanguages,
 		locale,
-		resolveStream: async () => {
-			throw new Error(`${id} streams nothing in these tests`);
-		},
+		resolveStream: () => Promise.reject(new Error(`${id} streams nothing in these tests`)),
 	})),
-	scheduleEpisodeLookups: async (anilistIds, priority) => {
+	scheduleEpisodeLookups: (anilistIds, priority) => {
 		queuedLookups.push(...anilistIds);
 		if (anilistIds.length > 0) {
 			queuedPriorities.push(priority);
 		}
+		return Promise.resolve();
 	},
 });
 
@@ -107,7 +108,7 @@ const provider = (
 	units: ProviderUnit[],
 	listsLanguages = true,
 ): FakeProvider => ({
-	ask: async () => units,
+	ask: () => Promise.resolve(units),
 	id,
 	listsLanguages,
 	locale,
@@ -120,12 +121,12 @@ const provider = (
  */
 const notLookedUp = (id: string, locale: string, answer?: ProviderUnit[]): FakeProvider => ({
 	...provider(id, locale, []),
-	ask: async () => {
+	ask: () => {
 		if (!answer) {
-			throw new Error(`${id} is down`);
+			return Promise.reject(new Error(`${id} is down`));
 		}
 
-		return answer;
+		return Promise.resolve(answer);
 	},
 	units: () => {},
 });
@@ -452,9 +453,7 @@ describe("findEpisodeLanguages", () => {
 		const dependencies = useProviders([
 			{
 				...provider("anikoto", "en", []),
-				ask: async () => {
-					throw new Error("AniKoto is down");
-				},
+				ask: () => Promise.reject(new Error("AniKoto is down")),
 				units: (anilistId) => (anilistId === 1 ? [unit(1, ["sub", "dub"])] : undefined),
 			},
 		]);
