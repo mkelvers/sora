@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+	boolean,
 	doublePrecision,
 	index,
 	integer,
@@ -125,6 +126,8 @@ export const series = pgTable(
 export const titleArtwork = pgTable("title_artwork", {
 	/** In place of the laid-out one; {@link noArtwork} for none at all, null keeps the laid-out one. */
 	backdropUrlOverride: text("backdrop_url_override"),
+	/** Never featured on the home page, for a title whose best backdrop is still not good enough to lead it. */
+	hiddenFromFeatured: boolean("hidden_from_featured").notNull().default(false),
 	/** When {@link titleImage} last got the title's images from TMDB; `null` until it first has. */
 	imagesFetchedAt: timestamptz("images_fetched_at"),
 	key: text("key").primaryKey(),
@@ -215,6 +218,8 @@ export const titleImage = pgTable(
 	"title_image",
 	{
 		height: integer("height").notNull(),
+		/** Whether the image is a collage of panels rather than one picture; null until it was looked at (see `isCollage`). */
+		isCollage: boolean("is_collage"),
 		key: text("key")
 			.notNull()
 			.references(() => titleArtwork.key, {

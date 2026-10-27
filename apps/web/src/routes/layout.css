@@ -169,14 +169,14 @@
 			background-image:
 				linear-gradient(
 					to right,
-					rgb(0 0 0 / 0.88) 0,
-					rgb(0 0 0 / 0.82) 44rem,
-					rgb(0 0 0 / 0.6) 52rem,
-					rgb(0 0 0 / 0.3) 58rem,
-					rgb(0 0 0 / 0.1) 64rem,
+					rgb(0 0 0 / 0.82) 0,
+					rgb(0 0 0 / 0.74) 32rem,
+					rgb(0 0 0 / 0.5) 42rem,
+					rgb(0 0 0 / 0.28) 52rem,
+					rgb(0 0 0 / 0.1) 62rem,
 					transparent 72rem
 				),
-				linear-gradient(to left, rgb(0 0 0 / 0.18), transparent 12%);
+				linear-gradient(to left, rgb(0 0 0 / 0.08), transparent 8%);
 		}
 
 		&::after {

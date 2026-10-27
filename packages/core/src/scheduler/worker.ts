@@ -15,6 +15,7 @@ import { pruneDeadJobsJob, pruneDeadJobsTask } from "./jobs/dead-jobs";
 import { syncDubSchedule, syncDubScheduleTask } from "./jobs/dubs";
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
+import { storeFeaturedImagesJob, storeFeaturedImagesTask } from "./jobs/featured-images";
 import { syncTmdbHintsJob, syncTmdbHintsTask } from "./jobs/hints";
 import { pollAniKoto, watchAniKotoReleases, watchAniKotoReleasesTask } from "./jobs/releases";
 import {
@@ -117,6 +118,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
 			`35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`,
 			`55 * * * * ${storeMissingBackdropEdgesTask} ?fill=1h&priority=-1`,
+			`40 * * * * ${storeFeaturedImagesTask} ?priority=-1`,
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
 		].join("\n"),
@@ -137,6 +139,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				[backfillSeriesTask]: backfillSeries,
 				[syncTmdbHintsTask]: syncTmdbHintsJob,
 				[storeMissingBackdropEdgesTask]: storeMissingBackdropEdgesJob,
+				[storeFeaturedImagesTask]: storeFeaturedImagesJob,
 				[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
 				[syncTimetablesTask]: syncTimetablesJob,
 			},

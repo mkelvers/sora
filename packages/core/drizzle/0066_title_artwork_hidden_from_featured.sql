@@ -1,0 +1,1 @@
+ALTER TABLE "title_artwork" ADD COLUMN "hidden_from_featured" boolean DEFAULT false NOT NULL;

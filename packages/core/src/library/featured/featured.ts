@@ -4,7 +4,7 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { featuredPick, seriesState } from "../../database/schema/library";
-import { series } from "../../database/schema/series";
+import { series, seriesRelated, titleArtwork, titleImage } from "../../database/schema/series";
 import type { SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
@@ -24,6 +24,35 @@ import {
 
 /** Formats worth featuring: shows and films, not music videos, specials, or OVAs. */
 const featuredFormats = ["TV", "MOVIE"] as const;
+
+/** The smallest backdrop worth leading the home page: 4K, so it stays sharp full-bleed. */
+export const minBackdropSize = {
+	height: 2160,
+	width: 3840,
+} as const;
+
+/**
+ * Whether the backdrop readers see is a 4K one without text on it, and one
+ * picture rather than a collage of panels. TMDB's default is often smaller,
+ * has the title printed on it, or is a collage, so a title only qualifies
+ * once its images are stored and looked at (see `storeFeaturedImagesJob`). Nothing here chooses a
+ * backdrop: a title whose shown one is not good enough is left out until
+ * someone chooses a better one.
+ */
+const hasCleanBackdrop = sql<boolean>`exists (
+	select 1 from ${titleImage}
+	where not coalesce(
+			(select ${titleArtwork.hiddenFromFeatured} from ${titleArtwork} where ${titleArtwork.key} = ${series.key}),
+			false
+		)
+		and ${titleImage.key} = ${series.key}
+		and ${titleImage.type} = 'backdrop'
+		and ${titleImage.url} = ${effectiveBackdrop}
+		and ${titleImage.language} is null
+		and ${titleImage.isCollage} = false
+		and ${titleImage.width} >= ${minBackdropSize.width}
+		and ${titleImage.height} >= ${minBackdropSize.height}
+)`;
 
 /** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
 const backfillPerPick = 20;
@@ -54,12 +83,12 @@ const pickTitles = async (
 	excluded: ReadonlySet<string>,
 	rested: ReadonlySet<string>,
 ) => {
-	const [entries, longRunning] = await Promise.all([
+	const [entries, longRunning, spinOffs] = await Promise.all([
 		db
 			.select({
 				anilistId: animeSearch.anilistId,
 				isDrawable: sql<boolean>`coalesce(
-					${effectiveBackdrop} is not null and ${effectiveLogo} is not null,
+					${effectiveLogo} is not null and ${hasCleanBackdrop},
 					false
 				)`,
 				key: series.key,
@@ -92,6 +121,13 @@ const pickTitles = async (
 					lt(animeSearch.startDate, dateBefore(now, longRunningAfter)),
 				),
 			),
+		db
+			.selectDistinct({
+				key: series.key,
+			})
+			.from(series)
+			.innerJoin(seriesRelated, eq(seriesRelated.seriesId, series.id))
+			.where(eq(seriesRelated.relation, "PARENT")),
 	]);
 
 	const current = entries.filter((entry) => isCurrent(entry, now));
@@ -102,7 +138,7 @@ const pickTitles = async (
 	await inSequence(unstored, ({ anilistId }) => scheduleSeriesStore(anilistId, "backfill"));
 
 	// The seasons of a show are matched to one TMDB title, which names the show.
-	const skipped = new Set(longRunning.map((row) => row.key));
+	const skipped = new Set([...longRunning, ...spinOffs].map((row) => row.key));
 	const newest = new Map<string, (typeof current)[number]>();
 	for (const entry of current) {
 		if (
@@ -156,7 +192,9 @@ const pickTitles = async (
  * place.
  *
  * Reads only the database: candidates come from the search index.
- * Long-running titles such as Detective Conan are left out, as are those
+ * Long-running titles such as Detective Conan are left out, as are spin-offs
+ * and side stories that AniList gives a parent story, such as My Hero
+ * Academia: Vigilantes, which readers know by the show it belongs to, and those
  * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
  * scheduler, a few with each pick, so later picks find them.
  */

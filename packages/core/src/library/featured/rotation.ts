@@ -25,7 +25,7 @@ export const currentThresholds = {
  * How recently an entry must have started to count as current, unless it is
  * still airing: a new season or film, never an old favourite.
  */
-const currentFor = 365 * day;
+export const currentFor = 365 * day;
 
 /**
  * How long an entry may have aired without end before its title counts as

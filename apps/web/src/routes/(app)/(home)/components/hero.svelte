@@ -98,17 +98,17 @@
 					>
 						<a
 							href="/series/{slide.id}"
-							class="pointer-events-auto flex h-24 w-full max-w-xs items-end justify-center px-10 max-sm:mx-auto sm:h-32 sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:h-64 xl:w-fit short:h-20"
+							class="pointer-events-auto flex h-[calc(clamp(5rem,8vw,11.5rem)*var(--logo-scale))] w-full max-w-xs items-end justify-center px-10 max-sm:mx-auto sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:w-fit"
 							aria-hidden="true"
 							tabindex="-1"
+							style:--logo-scale={slide.logo_scale}
 						>
 							{#if slide.logo_url && near(index, carousel.active)}
 								<img
 									src={tmdbImage(slide.logo_url, "w500")}
 									alt="{slide.title} logo"
 									decoding="async"
-									class="max-h-[calc(6rem*var(--logo-scale))] max-w-full object-contain object-bottom drop-shadow-xl/50 sm:max-h-[calc(8rem*var(--logo-scale))] sm:max-w-[calc(24rem*var(--logo-scale))] sm:object-bottom-left xl:max-h-[calc(16rem*var(--logo-scale))] xl:max-w-[calc(32rem*var(--logo-scale))] short:max-h-[calc(5rem*var(--logo-scale))]"
-									style:--logo-scale={slide.logo_scale}
+									class="h-[calc(clamp(5rem,8vw,11.5rem)*var(--logo-scale))] max-w-[min(90vw,calc(65vw*var(--logo-scale)))] object-contain object-bottom drop-shadow-xl/50 sm:max-w-[min(90vw,calc(28rem*var(--logo-scale)))] sm:object-bottom-left xl:max-w-[min(90vw,calc(32rem*var(--logo-scale)))]"
 								/>
 							{/if}
 						</a>
