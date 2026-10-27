@@ -17,15 +17,15 @@ export interface FeaturedEntry {
  * known, so that what leads the home page is what people are watching.
  */
 export const currentThresholds = {
-	popularity: 60_000,
-	score: 75,
+	popularity: 30_000,
+	score: 70,
 };
 
 /**
  * How recently an entry must have started to count as current, unless it is
  * still airing: a new season or film, never an old favourite.
  */
-const currentFor = 180 * day;
+const currentFor = 365 * day;
 
 /**
  * How long an entry may have aired without end before its title counts as

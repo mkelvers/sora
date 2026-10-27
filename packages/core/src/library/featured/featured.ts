@@ -143,7 +143,7 @@ const pickTitles = async (
 
 /**
  * Titles to feature on a profile's home page: what is popular right now, a
- * season or film that is airing or started in the last six months and is well
+ * season or film that is airing or started in the last year and is well
  * liked, never an old favourite without a new season. The seasons of one
  * show share its backdrop and logo, so a show is featured through its newest
  * current season.

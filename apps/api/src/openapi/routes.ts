@@ -300,7 +300,7 @@ export const route = {
 
 	getFeatured: createRoute({
 		description:
-			"Up to six titles to feature on the profile's home page: what is popular right now, seasons and films that are airing or started in the last six months and are well liked, never old favourites without a new season. They are picked every day at 06:00 UTC, in each profile's own order, and kept all day. A title is rested for a week after it was featured unless too few others are current. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
+			"Up to six titles to feature on the profile's home page: what is popular right now, seasons and films that are airing or started in the last year and are well liked, never old favourites without a new season. They are picked every day at 06:00 UTC, in each profile's own order, and kept all day. A title is rested for a week after it was featured unless too few others are current. Long-running titles are left out, as are those without a backdrop and logo, and those nothing streams.",
 		method: "get",
 		operationId: "getFeatured",
 		path: "/profiles/{profile_id}/featured",
