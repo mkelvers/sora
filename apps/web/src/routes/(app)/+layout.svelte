@@ -3,6 +3,7 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import { mascots } from "$lib/mascots";
 	import { attempt } from "@sora/shared";
+	import { untrack } from "svelte";
 
 	import Header from "./components/header.svelte";
 	import { Library, setLibrary } from "./library.svelte";
@@ -15,7 +16,9 @@
 	$effect(() => {
 		const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		if (data.timeZone !== zone) {
-			attempt(setTimeZone(zone).then(() => invalidate("sora:time-zone")));
+			untrack(() => {
+				attempt(setTimeZone(zone).then(() => invalidate("sora:time-zone")));
+			});
 		}
 	});
 </script>
