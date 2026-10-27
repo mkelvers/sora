@@ -1,0 +1,1 @@
+ALTER TABLE "title_image" ADD COLUMN "is_collage" boolean;
