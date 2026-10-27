@@ -61,7 +61,7 @@ describe("isCurrent", () => {
 				{
 					popularity: 260_000,
 					score: 86,
-					startDate: "2026-01-09",
+					startDate: "2025-06-09",
 					status: "FINISHED",
 				},
 				now,
