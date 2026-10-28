@@ -13,8 +13,8 @@ import { isCollage } from "../../series/collage";
 /** The graphile-worker task that stores the images of titles the home page may feature. */
 export const storeFeaturedImagesTask = "store-featured-images";
 
-/** Titles stored per run; each takes a few TMDB requests. */
-const titlesPerRun = 10;
+/** Titles stored per run, more than the home page ever has current, so one run catches up after a deploy. */
+const titlesPerRun = 150;
 
 /**
  * Stores the TMDB images of every current, well-liked, popular title that has

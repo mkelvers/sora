@@ -118,7 +118,8 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`10,40 * * * * ${backfillSeriesTask} ?priority=-1`,
 			`35 5 * * * ${syncTmdbHintsTask} ?id=tmdb-hints&fill=1d&priority=-1`,
 			`55 * * * * ${storeMissingBackdropEdgesTask} ?fill=1h&priority=-1`,
-			`40 * * * * ${storeFeaturedImagesTask} ?priority=-1`,
+			// Often and in a queue of its own: a deploy is caught up within minutes, a run that is still going is never doubled, and one with nothing to do is a single query.
+			`*/10 * * * * ${storeFeaturedImagesTask} ?queue=featured-images&priority=-1`,
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
 		].join("\n"),
