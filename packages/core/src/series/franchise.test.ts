@@ -371,4 +371,31 @@ describe("franchiseParts", () => {
 		);
 		expect(parts.find((part) => part.series_id === "series-2")?.role).not.toBe("season");
 	});
+
+	test("keeps the story together across a film with nothing to watch", () => {
+		const titles = [
+			title(1, "Rascal Does Not Dream of Bunny Girl Senpai", "TV", "2018-10-04"),
+			title(2, "Rascal Does Not Dream of a Dreaming Girl", "MOVIE", "2019-06-15"),
+			title(3, "Rascal Does Not Dream of a Sister Venturing Out", "MOVIE", "2023-06-23"),
+			title(4, "Rascal Does Not Dream of a Knapsack Kid", "MOVIE", "2023-12-01"),
+			title(5, "Rascal Does Not Dream of Santa Claus", "TV", "2025-07-05"),
+		];
+		const parts = franchiseParts(
+			titles,
+			[
+				[1, 2],
+				[2, 3],
+				[3, 4],
+				[4, 5],
+			],
+			{ unlisted: [3, 4] },
+		);
+
+		expect(parts.map((part) => [part.title, part.role])).toEqual([
+			["Season 1", "season"],
+			["Rascal Does Not Dream of a Dreaming Girl", "season"],
+			["Rascal Does Not Dream of Santa Claus", "season"],
+		]);
+		expect(parts[1]?.next_series_id).toBe("series-5");
+	});
 });

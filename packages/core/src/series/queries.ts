@@ -405,29 +405,29 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 			),
 	]);
 
+	const isListed = (title: SeriesRow) => {
+		const card = cards.get(title.id);
+		return (
+			title.id === row.id ||
+			(card !== undefined &&
+				card.format !== "MUSIC" &&
+				(card.episode_count > 0 ||
+					(title.status === "NOT_YET_RELEASED" &&
+						card.format !== null &&
+						["TV", "TV_SHORT", "ONA"].includes(card.format))))
+		);
+	};
 	const parts = franchiseParts(
-		titles.flatMap((title) => {
+		titles.map((title) => {
 			const card = cards.get(title.id);
-			const isListed =
-				title.id === row.id ||
-				(card !== undefined &&
-					card.format !== "MUSIC" &&
-					(card.episode_count > 0 ||
-						(title.status === "NOT_YET_RELEASED" &&
-							card.format !== null &&
-							["TV", "TV_SHORT", "ONA"].includes(card.format))));
-			return card && isListed
-				? [
-						{
-							anilistId: title.anilistId,
-							episodeCount: card.episode_count,
-							format: card.format,
-							seriesId: card.id,
-							startDate: title.startDate,
-							title: card.title,
-						},
-					]
-				: [];
+			return {
+				anilistId: title.anilistId,
+				episodeCount: card?.episode_count ?? 0,
+				format: card?.format ?? null,
+				seriesId: title.id,
+				startDate: title.startDate,
+				title: card?.title ?? title.title,
+			};
 		}),
 		relations.flatMap(({ from, to, relation }) => {
 			if (relation === "SEQUEL") {
@@ -444,6 +444,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 			summaries: relations
 				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
 				.map(({ to }) => to),
+			unlisted: titles.filter((title) => !isListed(title)).map((title) => title.anilistId),
 		},
 	);
 

@@ -27,6 +27,12 @@ export interface FranchiseOptions {
 	currentId?: number;
 	/** Titles that share the universe without being part of the story; they never start it. */
 	crossovers?: readonly number[];
+	/**
+	 * Titles with nothing to watch, such as a film AniKoto does not carry yet.
+	 * They still link the titles around them into one story but are never
+	 * listed, and `next_series_id` skips over them.
+	 */
+	unlisted?: readonly number[];
 }
 
 const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
@@ -300,7 +306,10 @@ export const franchiseParts = (
 	options: FranchiseOptions = {},
 ): Omit<FranchisePart, "card">[] => {
 	const byRelease = byReleaseDate(titles);
-	const selected = startOf(byRelease, options.crossovers);
+	const selected = startOf(
+		byRelease.filter((title) => !options.unlisted?.includes(title.anilistId)),
+		options.crossovers,
+	);
 	const current = byRelease.find((title) => title.anilistId === options.currentId);
 	const base = plain(selected?.title ?? "");
 	const links = [...sequels];
@@ -339,36 +348,47 @@ export const franchiseParts = (
 	const others = byRelease.filter(
 		(title) => !seasons.includes(title) && !omitted.has(title.anilistId),
 	);
-	return [
-		...seasons,
-		...others,
-		...(current && omitted.has(current.anilistId) ? [current] : []),
-	].map((title) => {
-		const following = new Set(
-			sequels
-				.filter(([from, to]) => from === title.anilistId && !omitted.has(to))
-				.map(([, to]) => to),
-		);
-		const successors = seasons.filter((part) => following.has(part.anilistId));
-		const successor = successors.length === 1 ? successors[0] : undefined;
-		const next =
-			successor && seasons.indexOf(successor) > seasons.indexOf(title) && successor.episodeCount > 0
-				? successor.seriesId
-				: null;
-		let role: "alternative" | "extra" | "season" = "extra";
-		if (seasons.includes(title)) {
-			role = "season";
-		} else if (omitted.has(title.anilistId)) {
-			role = "alternative";
-		}
-		return {
-			episode_count: title.episodeCount,
-			format: title.format,
-			next_series_id:
-				!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
-			role,
-			series_id: title.seriesId,
-			title: shortTitle(title, base, seasons.includes(title)),
-		};
-	});
+	const unlisted = new Set(options.unlisted);
+	const followers = (id: number, seen: Set<number>): number[] =>
+		sequels
+			.filter(([from, to]) => from === id && !omitted.has(to))
+			.flatMap(([, to]) => {
+				if (!unlisted.has(to)) {
+					return [to];
+				}
+				if (seen.has(to)) {
+					return [];
+				}
+				seen.add(to);
+				return followers(to, seen);
+			});
+	const listed = seasons.filter((title) => !unlisted.has(title.anilistId));
+	return [...seasons, ...others, ...(current && omitted.has(current.anilistId) ? [current] : [])]
+		.filter((title) => !unlisted.has(title.anilistId))
+		.map((title) => {
+			const following = new Set(followers(title.anilistId, new Set()));
+			const successors = listed.filter((part) => following.has(part.anilistId));
+			const successor = successors.length === 1 ? successors[0] : undefined;
+			const next =
+				successor &&
+				seasons.indexOf(successor) > seasons.indexOf(title) &&
+				successor.episodeCount > 0
+					? successor.seriesId
+					: null;
+			let role: "alternative" | "extra" | "season" = "extra";
+			if (seasons.includes(title)) {
+				role = "season";
+			} else if (omitted.has(title.anilistId)) {
+				role = "alternative";
+			}
+			return {
+				episode_count: title.episodeCount,
+				format: title.format,
+				next_series_id:
+					!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
+				role,
+				series_id: title.seriesId,
+				title: shortTitle(title, base, seasons.includes(title)),
+			};
+		});
 };
