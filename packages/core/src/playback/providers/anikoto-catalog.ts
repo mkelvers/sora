@@ -1,7 +1,19 @@
 import { attempt, hour, inSequence } from "@sora/shared";
 import { bestSimilarity } from "anime-sdk";
 import type { HttpClient } from "anime-sdk";
-import { and, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
+import {
+	and,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	lte,
+	max,
+	notExists,
+	notInArray,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime, AnimeFormat } from "../../catalog/models/anime";
@@ -166,6 +178,31 @@ const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert
 	);
 };
 
+/**
+ * Drops the stored mappings to series AniKoto no longer lists, so the next
+ * look finds the anime's entry again. AniKoto re-files a title under a new
+ * series and removes the old one or the new one (Rascal Does Not Dream of a
+ * Sister Venturing Out was re-matched to a series that no longer exists),
+ * and a mapping to a series the mirror dropped is otherwise trusted for 30
+ * days with no episodes behind it.
+ */
+const dropMappingsToMissingSeries = async () => {
+	await db.delete(providerMapping).where(
+		and(
+			eq(providerMapping.provider, aniKotoProviderId),
+			isNotNull(providerMapping.providerMediaId),
+			notExists(
+				db
+					.select({
+						one: sql`1`,
+					})
+					.from(anikotoSeries)
+					.where(sql`${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}`),
+			),
+		),
+	);
+};
+
 const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
 	if (rows.length === 0) {
 		return 0;
@@ -247,6 +284,7 @@ export const syncAniKotoCatalog = async (
 			// A series that failed to parse was not seen, but may still be listed.
 			if (full && isLastPage && isEverySeriesRead) {
 				await db.delete(anikotoSeries).where(notInArray(anikotoSeries.anikotoId, seen));
+				await dropMappingsToMissingSeries();
 			}
 
 			return {
