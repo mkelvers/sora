@@ -83,6 +83,40 @@ const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now
 };
 
 /**
+ * How far past the end of a finished anime a provider's episode numbers may
+ * jump before the rest are taken for strays.
+ */
+const strayGap = 10;
+
+/**
+ * `units` cut off at the first jump of more than {@link strayGap} episodes
+ * that lands past the total AniList counts for a finished anime.
+ *
+ * A provider's API sometimes returns a stray episode far from the rest for a
+ * moment (Rascal Does Not Dream of a Dreaming Girl, a film, listed an
+ * "Episode 192"), and the stored list is not asked again once the anime has
+ * finished. A list that runs on without such a jump is kept however long it
+ * is, since providers file several of AniList's entries under one series.
+ *
+ * @param units - Sorted by number.
+ */
+export const withoutStrayEpisodes = <TUnit extends { number: number }>(
+	units: readonly TUnit[],
+	anime: Pick<Anime, "episodes" | "status">,
+): TUnit[] => {
+	const { episodes: total, status } = anime;
+	if (status !== "FINISHED" || total === null) {
+		return [...units];
+	}
+
+	const stray = units.findIndex(
+		(unit, index) =>
+			unit.number > total && unit.number - (units[index - 1]?.number ?? 0) > strayGap,
+	);
+	return stray === -1 ? [...units] : units.slice(0, stray);
+};
+
+/**
  * Fetches `provider`'s episode units for `anime` and stores them, replacing
  * any stored list.
  *
@@ -107,7 +141,7 @@ export const refreshProviderUnits = async (
 
 	const { mediaId, episodeOffset } = media;
 	const listedUnits = await provider.listEpisodes(mediaId);
-	const units: ProviderUnit[] = listedUnits
+	const mapped: ProviderUnit[] = listedUnits
 		// A part filed under its prequel's series keeps only its own episodes,
 		// numbered from 1; a later part may follow them in the same series.
 		.filter(
@@ -124,6 +158,7 @@ export const refreshProviderUnits = async (
 			title: unit.title,
 		}))
 		.toSorted((left, right) => left.number - right.number);
+	const units = withoutStrayEpisodes(mapped, anime);
 
 	const values = {
 		fetchedAt: new Date(),
