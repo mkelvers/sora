@@ -23,6 +23,7 @@
 
 	const episodes = $derived(
 		getEpisodes({
+			backdrop: series.backdrop_url,
 			id: series.id,
 			limit,
 			offset,
