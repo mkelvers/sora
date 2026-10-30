@@ -46,7 +46,7 @@ export const setArtwork = command(
 	z.object({
 		seriesId: z.string(),
 		type: z.enum(["poster", "backdrop", "logo"]),
-		url: z.union([z.url(), z.literal(false)]),
+		url: z.union([z.url(), z.string().startsWith("/api/backdrops/"), z.literal(false)]),
 	}),
 	async ({ seriesId, type, url }) => {
 		getSeries(seriesId).set(

@@ -180,16 +180,15 @@ export const SeriesImageSchema = z
 		type: ImageTypeSchema,
 		upscale: z.enum(["pending", "done", "failed"]).nullable().meta({
 			description:
-				"Where upscaling this backdrop stands (see `upscaleBackdrop`); null when it was not asked for, and always for posters and logos.",
+				"Where upscaling this backdrop stands (see `upscaleBackdrop`); `done` when the upscaled one is listed too. Null when it was not asked for, and always for posters, logos, and upscaled backdrops.",
 		}),
-		upscaled_url: z.string().nullable().meta({
+		upscaled: z.boolean().meta({
 			description:
-				"The upscaled backdrop, relative to the web app's origin, once `upscale` is `done`; the title's `backdrop_url` is this when it is chosen.",
-			example: "/api/backdrops/3f2c0c6e-6a0a-4d0b-9f0e-5a0c1d7b2e11",
+				"Whether this is a backdrop upscaled from another of the title's (see `upscaleBackdrop`), whose `url` is then relative to the web app's origin and has the original's language and votes.",
 		}),
 		url: z.string().meta({
 			description:
-				"The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file.",
+				"The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file. An upscaled backdrop has no other sizes.",
 			example: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
 		}),
 		vote_average: z.number(),
@@ -413,19 +412,31 @@ export type AnimeTag = z.infer<typeof AnimeTagSchema>;
  */
 export const artworkHosts = ["image.tmdb.org", "s4.anilist.co"];
 
+const artworkImage = z.union([
+	z
+		.url({
+			protocol: /^https$/u,
+		})
+		.max(2048)
+		.refine((value) => artworkHosts.includes(new URL(value).hostname), {
+			message: `The image must be on ${artworkHosts.join(" or ")}`,
+		}),
+	z.literal(false),
+]);
+
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
-const ArtworkUrlSchema = z
-	.union([
-		z
-			.url({
-				protocol: /^https$/u,
-			})
-			.max(2048)
-			.refine((value) => artworkHosts.includes(new URL(value).hostname), {
-				message: `The image must be on ${artworkHosts.join(" or ")}`,
-			}),
-		z.literal(false),
-	])
+const ArtworkUrlSchema = artworkImage.nullable().optional();
+
+/**
+ * Where the web app serves an upscaled backdrop (see `upscaledBackdropUrl`),
+ * which a title may choose too, if the title has it.
+ */
+const upscaledBackdropPattern =
+	/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+/** {@link ArtworkUrlSchema}, or an upscaled backdrop. */
+const BackdropUrlSchema = z
+	.union([artworkImage, z.string().regex(upscaledBackdropPattern)])
 	.nullable()
 	.optional();
 
@@ -455,7 +466,7 @@ const LogoOffsetSchema = z
  */
 export const ArtworkChangesSchema = z
 	.object({
-		backdrop_url: ArtworkUrlSchema,
+		backdrop_url: BackdropUrlSchema,
 		logo_offset_x: LogoOffsetSchema.meta({
 			description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
 		}),

@@ -36,4 +36,23 @@ describe("ArtworkChangesSchema", () => {
 			}).success,
 		).toBe(true);
 	});
+
+	test("accepts an upscaled backdrop only as a backdrop", () => {
+		const path = "/api/backdrops/3f2c0c6e-6a0a-4d0b-9f0e-5a0c1d7b2e11";
+		expect(
+			ArtworkChangesSchema.safeParse({
+				backdrop_url: path,
+			}).success,
+		).toBe(true);
+		expect(
+			ArtworkChangesSchema.safeParse({
+				poster_url: path,
+			}).success,
+		).toBe(false);
+		expect(
+			ArtworkChangesSchema.safeParse({
+				backdrop_url: "/api/backdrops/../../etc/passwd",
+			}).success,
+		).toBe(false);
+	});
 });

@@ -26,9 +26,11 @@ const storedQuality = 92;
 export const upscalesOf = async (key: string) => {
 	const rows = await db
 		.select({
+			height: titleBackdropUpscale.height,
 			id: titleBackdropUpscale.id,
 			sourceUrl: titleBackdropUpscale.sourceUrl,
 			status: titleBackdropUpscale.status,
+			width: titleBackdropUpscale.width,
 		})
 		.from(titleBackdropUpscale)
 		.where(eq(titleBackdropUpscale.key, key));

@@ -1,9 +1,15 @@
 import { day, defined } from "@sora/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "../database/client";
-import { noArtwork, series, titleArtwork, titleImage } from "../database/schema/series";
-import { SeriesNotFoundError } from "../errors";
+import {
+	noArtwork,
+	series,
+	titleArtwork,
+	titleBackdropUpscale,
+	titleImage,
+} from "../database/schema/series";
+import { InvalidInputError, SeriesNotFoundError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
 import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbImage } from "../tmdb/resources";
@@ -12,7 +18,7 @@ import { getSeries } from "./queries";
 import { parseKey } from "./series";
 import type { SeriesKey } from "./series";
 import { upscalesOf } from "./upscale";
-import { upscaledBackdropUrl } from "./upscaled-backdrop";
+import { upscaleIdOf, upscaledBackdropUrl } from "./upscaled-backdrop";
 
 /** How {@link listSeriesImages} filters and sorts. */
 export interface SeriesImageQuery {
@@ -31,7 +37,7 @@ export interface SeriesImageQuery {
 
 /** Stores `false`, no artwork, as {@link noArtwork}. */
 /** An image as stored, before {@link applyQuery} names its language. */
-type StoredImage = Omit<SeriesImage, "language_name" | "upscale" | "upscaled_url">;
+type StoredImage = Omit<SeriesImage, "language_name" | "upscale" | "upscaled">;
 
 const languageNames = new Intl.DisplayNames(["en"], {
 	type: "language",
@@ -46,6 +52,42 @@ const savedSizes = {
 
 const toOverride = (change: string | false | null | undefined, type: ImageType) =>
 	change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
+
+/**
+ * Checks that an upscaled backdrop in `changes` is one of the title's, ready,
+ * and that no poster or logo is one.
+ */
+const requireOwnUpscales = async (key: string, changes: ArtworkChanges) => {
+	if (
+		[changes.poster_url, changes.logo_url].some(
+			(url) => typeof url === "string" && upscaleIdOf(url) !== null,
+		)
+	) {
+		throw new InvalidInputError("Only a backdrop can be an upscaled one");
+	}
+
+	const id = typeof changes.backdrop_url === "string" ? upscaleIdOf(changes.backdrop_url) : null;
+	if (id === null) {
+		return;
+	}
+
+	const [upscale] = await db
+		.select({
+			id: titleBackdropUpscale.id,
+		})
+		.from(titleBackdropUpscale)
+		.where(
+			and(
+				eq(titleBackdropUpscale.id, id),
+				eq(titleBackdropUpscale.key, key),
+				eq(titleBackdropUpscale.status, "done"),
+			),
+		)
+		.limit(1);
+	if (!upscale) {
+		throw new InvalidInputError("That is not an upscaled backdrop of the title");
+	}
+};
 
 /**
  * Chooses a series' poster, backdrop, or logo for everyone, in place of the
@@ -71,6 +113,8 @@ export const setSeriesArtwork = async (
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
+
+	await requireOwnUpscales(row.key, changes);
 
 	const poster = toOverride(changes.poster_url, "poster");
 	const title = {
@@ -267,21 +311,39 @@ const applyQuery = async (
 	query: SeriesImageQuery,
 ): Promise<SeriesImage[]> => {
 	const upscales = await upscalesOf(key);
-	return images
+	const listed = images.flatMap((image): SeriesImage[] => {
+		const upscale = image.type === "backdrop" ? upscales.get(image.url) : undefined;
+		const named = {
+			...image,
+			language_name: image.language
+				? (languageNames.of(image.language) ?? image.language)
+				: "Textless",
+		};
+		const original = {
+			...named,
+			upscale: upscale?.status ?? null,
+			upscaled: false,
+		};
+		// An upscaled backdrop is listed as one of its own, with its original's votes and language.
+		return upscale?.status === "done" && upscale.width && upscale.height
+			? [
+					original,
+					{
+						...named,
+						height: upscale.height,
+						upscale: null,
+						upscaled: true,
+						url: upscaledBackdropUrl(upscale.id),
+						width: upscale.width,
+					},
+				]
+			: [original];
+	});
+
+	return listed
 		.filter((image) => !query.types || query.types.includes(image.type))
 		.filter((image) => !query.languages || query.languages.includes(image.language))
-		.toSorted(query.sort === "quality" ? byQuality : byVotes)
-		.map((image) => {
-			const upscale = image.type === "backdrop" ? upscales.get(image.url) : undefined;
-			return {
-				...image,
-				language_name: image.language
-					? (languageNames.of(image.language) ?? image.language)
-					: "Textless",
-				upscale: upscale?.status ?? null,
-				upscaled_url: upscale?.status === "done" ? upscaledBackdropUrl(upscale.id) : null,
-			};
-		});
+		.toSorted(query.sort === "quality" ? byQuality : byVotes);
 };
 
 /**

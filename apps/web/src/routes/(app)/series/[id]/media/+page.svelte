@@ -15,6 +15,7 @@
 	import Filters from "./components/filters.svelte";
 	import Images from "./components/images.svelte";
 	import Sizing from "./components/sizing.svelte";
+	import Upscale from "./components/upscale.svelte";
 	import { Media } from "./media.svelte";
 
 	let { params }: PageProps = $props();
@@ -81,19 +82,23 @@
 		panelClass={arranging ? "flex min-h-0 flex-1 flex-col" : undefined}
 	>
 		{#snippet actions()}
-			<Button
-				variant="ghost"
-				class="ml-auto"
-				disabled={media.refreshing}
-				onclick={() => media.refresh()}
-			>
-				<ArrowsClockwiseIcon
-					size="1rem"
-					weight="bold"
-					class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
-				/>
-				<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
-			</Button>
+			<div class="ml-auto flex items-center">
+				{#if media.type === "backdrop"}
+					<svelte:boundary>
+						{#snippet pending()}{/snippet}
+
+						<Upscale {series} {media} />
+					</svelte:boundary>
+				{/if}
+				<Button variant="ghost" disabled={media.refreshing} onclick={() => media.refresh()}>
+					<ArrowsClockwiseIcon
+						size="1rem"
+						weight="bold"
+						class={cn(media.refreshing && "animate-spin motion-reduce:animate-none")}
+					/>
+					<span class="max-sm:sr-only">{media.refreshing ? "Refreshing" : "Refresh"}</span>
+				</Button>
+			</div>
 		{/snippet}
 
 		{#snippet children()}
