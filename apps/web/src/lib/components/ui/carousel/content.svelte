@@ -22,7 +22,7 @@
 	use:useEmblaCarousel={{
 		options: {
 			...carousel.options(),
-			watchDrag: () => carousel.scrollable,
+			watchDrag: (_, event) => carousel.scrollable && !(event instanceof MouseEvent),
 			watchFocus: () => carousel.scrollable,
 		},
 		plugins: carousel.plugins(),

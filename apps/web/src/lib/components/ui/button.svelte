@@ -68,6 +68,10 @@
 					tone: "danger",
 					variant: "item",
 				},
+				{
+					class: "text-accent hover:text-accent",
+					tone: "accent",
+				},
 			],
 			defaultVariants: {
 				size: "md",
@@ -84,7 +88,7 @@
 					true: "px-0",
 				},
 				tone: {
-					accent: "text-accent hover:text-accent hover:brightness-125",
+					accent: "hover:brightness-125",
 					danger: "hover:text-danger focus-visible:text-danger",
 				},
 				variant: {
