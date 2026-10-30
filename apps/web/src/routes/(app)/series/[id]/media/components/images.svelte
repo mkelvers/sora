@@ -4,7 +4,6 @@
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
 	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
-	import { maxUpscaledSourceWidth } from "@sora/sdk";
 	import type { Series } from "@sora/sdk";
 	import { SparkleIcon } from "phosphor-svelte";
 
@@ -71,10 +70,6 @@
 	<div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
 		{#if upscaledChosen}
 			<p class="text-xs text-subtle">Showing the upscaled backdrop.</p>
-		{:else if selected.width >= maxUpscaledSourceWidth}
-			<p class="text-xs text-subtle">
-				This backdrop is {selected.width}×{selected.height}, large enough to need no upscaling.
-			</p>
 		{:else}
 			<Button
 				variant="secondary"
@@ -99,7 +94,7 @@
 				{:else if selected.upscale === "failed"}
 					Upscaling failed.
 				{:else if !selected.upscale}
-					Doubles the size of the chosen backdrop.
+					Sharpens the chosen backdrop with AI.
 				{/if}
 			</p>
 		{/if}

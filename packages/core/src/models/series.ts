@@ -429,12 +429,6 @@ const ArtworkUrlSchema = z
 	.nullable()
 	.optional();
 
-/**
- * Backdrops at least this wide are not upscaled: doubling them would leave
- * a picture of tens of megabytes that no screen shows at full size.
- */
-export const maxUpscaledSourceWidth = 2560;
-
 /** Shared bounds for artwork validation and the client's logo placement controls. */
 export const logoPlacement = {
 	offset: {

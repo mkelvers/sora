@@ -6,12 +6,18 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, SeriesNotFoundError } from "../errors";
-import { maxUpscaledSourceWidth } from "../models/series";
 import { requestUpscale } from "../scheduler/queue";
 import { isCollage } from "./collage";
 import { storeImageEdges } from "./edges";
 import { upscale } from "./realesrgan";
 import { upscaledBackdropUrl } from "./upscaled-backdrop";
+
+/**
+ * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
+ * shows it. A larger original is cleaned up at twice its size and then
+ * brought back down to this, which is what removes its blur.
+ */
+const maxUpscaledWidth = 3840;
 
 /** JPEG quality an upscaled backdrop is stored at. */
 const storedQuality = 92;
@@ -56,7 +62,7 @@ const chooseUpscale = async (key: string, sourceUrl: string, id: string) => {
  * failed, tries again.
  *
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
- * @throws {InvalidInputError} when the URL is not one of the title's backdrops, or is too large to upscale.
+ * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
  */
 export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 	const [row] = await db
@@ -81,11 +87,6 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 		.limit(1);
 	if (!image) {
 		throw new InvalidInputError("That is not one of the title's backdrops");
-	}
-	if (image.width >= maxUpscaledSourceWidth) {
-		throw new InvalidInputError(
-			`Backdrops ${maxUpscaledSourceWidth}px wide or more are large enough already`,
-		);
 	}
 
 	const [stored] = await db
@@ -203,6 +204,11 @@ export const upscaleBackdrop = async (id: string) => {
 
 		const png = await upscale(new Uint8Array(await response.arrayBuffer()));
 		const { data, info } = await sharp(png)
+			.resize({
+				kernel: "lanczos3",
+				width: maxUpscaledWidth,
+				withoutEnlargement: true,
+			})
 			.jpeg({
 				mozjpeg: true,
 				quality: storedQuality,

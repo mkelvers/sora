@@ -1161,7 +1161,7 @@ export const route = {
 
 	upscaleBackdrop: createRoute({
 		description:
-			"Asks for one of the title's backdrops to be upscaled to twice its size, so it stays sharp on large screens. It takes minutes and is made in the background: poll `listImages` for `upscale` of the backdrop to become `done`. Then, when the original is still the title's chosen backdrop, the upscaled one is chosen in its place. Asking again for a backdrop that is queued or done changes nothing; for one that failed, tries again. Only backdrops under 2560 pixels wide can be upscaled.",
+			"Asks for one of the title's backdrops to be restored with an AI upscaler, so it looks sharp instead of blurry: it is cleaned up at twice its size and kept at up to 4K wide. It takes minutes and is made in the background: poll `listImages` for `upscale` of the backdrop to become `done`. Then, when the original is still the title's chosen backdrop, the upscaled one is chosen in its place. Asking again for a backdrop that is queued or done changes nothing; for one that failed, tries again.",
 		method: "post",
 		operationId: "upscaleBackdrop",
 		path: "/series/{series_id}/images/upscale",
@@ -1181,7 +1181,7 @@ export const route = {
 		responses: {
 			200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
-			422: problem("The URL is not one of the title's backdrops, or it is too large to upscale."),
+			422: problem("The URL is not one of the title's backdrops."),
 		},
 		summary: "Upscale a backdrop",
 		tags: ["Series"],
