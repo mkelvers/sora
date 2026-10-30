@@ -4,11 +4,18 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { featuredPick, seriesState } from "../../database/schema/library";
-import { series, seriesRelated, titleArtwork, titleImage } from "../../database/schema/series";
+import {
+	series,
+	seriesRelated,
+	titleArtwork,
+	titleBackdropUpscale,
+	titleImage,
+} from "../../database/schema/series";
 import type { SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
 import { toSeriesCards } from "../../series/queries";
+import { upscaledBackdropUrl } from "../../series/upscaled-backdrop";
 import {
 	arrange,
 	dateBefore,
@@ -33,7 +40,9 @@ export const minBackdropSize = {
 
 /**
  * Whether the backdrop readers see is a 4K one without text on it, and one
- * picture rather than a collage of panels. TMDB's default is often smaller,
+ * picture rather than a collage of panels. An upscaled backdrop (see
+ * `titleBackdropUpscale`) is its original with a larger size: it counts by
+ * the original's language and collage check and its own size. TMDB's default is often smaller,
  * has the title printed on it, or is a collage, so a title only qualifies
  * once its images are stored and looked at (see `storeFeaturedImagesJob`). Nothing here chooses a
  * backdrop: a title whose shown one is not good enough is left out until
@@ -41,17 +50,30 @@ export const minBackdropSize = {
  */
 const hasCleanBackdrop = sql<boolean>`exists (
 	select 1 from ${titleImage}
+	left join ${titleBackdropUpscale}
+		on ${titleBackdropUpscale.key} = ${titleImage.key}
+		and ${titleBackdropUpscale.sourceUrl} = ${titleImage.url}
+		and ${titleBackdropUpscale.status} = 'done'
 	where not coalesce(
 			(select ${titleArtwork.hiddenFromFeatured} from ${titleArtwork} where ${titleArtwork.key} = ${series.key}),
 			false
 		)
 		and ${titleImage.key} = ${series.key}
 		and ${titleImage.type} = 'backdrop'
-		and ${titleImage.url} = ${effectiveBackdrop}
+		and (
+			${titleImage.url} = ${effectiveBackdrop}
+			or ${upscaledBackdropUrl("")}::text || ${titleBackdropUpscale.id}::text = ${effectiveBackdrop}
+		)
 		and ${titleImage.language} is null
 		and ${titleImage.isCollage} = false
-		and ${titleImage.width} >= ${minBackdropSize.width}
-		and ${titleImage.height} >= ${minBackdropSize.height}
+		and coalesce(
+			case when ${upscaledBackdropUrl("")}::text || ${titleBackdropUpscale.id}::text = ${effectiveBackdrop} then ${titleBackdropUpscale.width} end,
+			${titleImage.width}
+		) >= ${minBackdropSize.width}
+		and coalesce(
+			case when ${upscaledBackdropUrl("")}::text || ${titleBackdropUpscale.id}::text = ${effectiveBackdrop} then ${titleBackdropUpscale.height} end,
+			${titleImage.height}
+		) >= ${minBackdropSize.height}
 )`;
 
 /** Titles not stored yet that one pick queues for the scheduler, the most popular first. */

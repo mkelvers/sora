@@ -1,3 +1,4 @@
+import { attempt } from "@sora/shared";
 import { and, eq } from "drizzle-orm";
 import sharp from "sharp";
 
@@ -7,6 +8,7 @@ import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, SeriesNotFoundError } from "../errors";
 import { maxUpscaledSourceWidth } from "../models/series";
 import { requestUpscale } from "../scheduler/queue";
+import { isCollage } from "./collage";
 import { storeImageEdges } from "./edges";
 import { upscale } from "./realesrgan";
 import { upscaledBackdropUrl } from "./upscaled-backdrop";
@@ -125,6 +127,42 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 	}
 };
 
+/**
+ * Tells whether the original is a collage, if that was not looked at yet:
+ * the home page looks only at originals already 4K, but an upscale may
+ * reach 4K from a smaller one, and it is a collage if its original is.
+ * Never throws; the home page then leaves the title out until it is known.
+ */
+const lookAtOriginal = async (key: string, sourceUrl: string) => {
+	const [image] = await db
+		.select({
+			isCollage: titleImage.isCollage,
+		})
+		.from(titleImage)
+		.where(
+			and(eq(titleImage.key, key), eq(titleImage.type, "backdrop"), eq(titleImage.url, sourceUrl)),
+		)
+		.limit(1);
+	if (!image || image.isCollage !== null) {
+		return;
+	}
+
+	const { data, error } = await attempt(isCollage(sourceUrl));
+	if (error) {
+		console.warn(`Could not look at ${sourceUrl}: ${error.message}`);
+		return;
+	}
+
+	await db
+		.update(titleImage)
+		.set({
+			isCollage: data,
+		})
+		.where(
+			and(eq(titleImage.key, key), eq(titleImage.type, "backdrop"), eq(titleImage.url, sourceUrl)),
+		);
+};
+
 const fail = async (id: string, failure: string) => {
 	await db
 		.update(titleBackdropUpscale)
@@ -188,5 +226,6 @@ export const upscaleBackdrop = async (id: string) => {
 		return;
 	}
 
+	await lookAtOriginal(row.key, row.sourceUrl);
 	await chooseUpscale(row.key, row.sourceUrl, id);
 };
