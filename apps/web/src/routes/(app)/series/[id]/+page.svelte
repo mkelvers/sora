@@ -16,11 +16,12 @@
 
 	let { params }: PageProps = $props();
 
-	const [series, progress] = $derived(
+	const series = $derived(await getSeries(params.id));
+	const [progress] = $derived(
 		await Promise.all([
-			getSeries(params.id),
 			getSeriesProgress(params.id),
 			getEpisodes({
+				backdrop: series.backdrop_url,
 				id: params.id,
 				limit: pageSize,
 				offset: 0,

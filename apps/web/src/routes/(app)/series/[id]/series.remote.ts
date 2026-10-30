@@ -25,6 +25,7 @@ export const getSeriesProgress = query(z.string(), (id) => {
 
 export const getEpisodes = query(
 	z.object({
+		backdrop: z.string().nullable(),
 		id: z.string(),
 		limit: z.number().int().positive(),
 		offset: z.number().int().nonnegative(),
