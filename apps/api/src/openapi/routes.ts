@@ -36,6 +36,7 @@ import {
 	SeriesImageSchema,
 	SeriesSchema,
 	UpcomingSeriesSchema,
+	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
 
 import { CountMetaSchema, envelopeOf, OffsetMetaSchema, PageMetaSchema } from "./envelope";
@@ -253,6 +254,39 @@ export const route = {
 		security: signedIn,
 		summary: "Delete a notification",
 		tags: ["Profiles"],
+	}),
+
+	getBackdrop: createRoute({
+		description:
+			"An upscaled backdrop, as `upscaleBackdrop` made it. The web app serves it at `/api/backdrops/{id}`, which is where `SeriesImage.upscaled_url` points.",
+		method: "get",
+		operationId: "getBackdrop",
+		path: "/backdrops/{id}",
+		request: {
+			params: z.object({
+				id: z.uuid().openapi({
+					param: {
+						in: "path",
+						name: "id",
+					},
+				}),
+			}),
+		},
+		responses: {
+			200: {
+				content: {
+					"image/jpeg": {
+						schema: z.string().openapi({
+							format: "binary",
+						}),
+					},
+				},
+				description: "The backdrop.",
+			},
+			404: problem("No such upscaled backdrop, or it is not ready."),
+		},
+		summary: "An upscaled backdrop",
+		tags: ["Series"],
 	}),
 
 	getCalendar: createRoute({
@@ -1123,5 +1157,33 @@ export const route = {
 		security: signedIn,
 		summary: "Rename or recolor a profile",
 		tags: ["Profiles"],
+	}),
+
+	upscaleBackdrop: createRoute({
+		description:
+			"Asks for one of the title's backdrops to be upscaled to twice its size, so it stays sharp on large screens. It takes minutes and is made in the background: poll `listImages` for `upscale` of the backdrop to become `done`. Then, when the original is still the title's chosen backdrop, the upscaled one is chosen in its place. Asking again for a backdrop that is queued or done changes nothing; for one that failed, tries again. Only backdrops under 2560 pixels wide can be upscaled.",
+		method: "post",
+		operationId: "upscaleBackdrop",
+		path: "/series/{series_id}/images/upscale",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: UpscaleBackdropSchema,
+					},
+				},
+				required: true,
+			},
+			params: z.object({
+				series_id: SeriesIdParam,
+			}),
+		},
+		responses: {
+			200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			404: problem("No such title."),
+			422: problem("The URL is not one of the title's backdrops, or it is too large to upscale."),
+		},
+		summary: "Upscale a backdrop",
+		tags: ["Series"],
 	}),
 };

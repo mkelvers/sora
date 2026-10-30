@@ -2,7 +2,7 @@ import { getSeries } from "$routes/(app)/series/[id]/series.remote";
 import type { SeriesImage } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 
-import { refreshImages, setArtwork, setLogoPlacement } from "./media.remote";
+import { refreshImages, setArtwork, setLogoPlacement, upscaleBackdrop } from "./media.remote";
 
 export class Media {
 	#type = $state<SeriesImage["type"]>("poster");
@@ -73,6 +73,16 @@ export class Media {
 				})),
 			),
 			"That placement couldn’t be saved.",
+		);
+	}
+
+	async upscale(url: string) {
+		await this.#save(
+			upscaleBackdrop({
+				seriesId: this.id(),
+				url,
+			}),
+			"That backdrop couldn’t be upscaled.",
 		);
 	}
 

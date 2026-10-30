@@ -9,7 +9,7 @@
  * as it airs. The titles of a franchise are found from one another as
  * AniList relates them.
  */
-export { logoPlacement } from "../models/series";
+export { logoPlacement, maxUpscaledSourceWidth } from "../models/series";
 export {
 	listSeriesImages,
 	refreshSeriesImages,
@@ -17,6 +17,8 @@ export {
 	type SeriesImageQuery,
 } from "./artwork";
 export type { ImageEdges } from "./edges";
+export { requestBackdropUpscale } from "./upscale";
+export { getUpscaledBackdrop } from "./upscaled-backdrop";
 export {
 	browseSeries,
 	getAdjacentEpisodes,

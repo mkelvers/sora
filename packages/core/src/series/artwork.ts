@@ -11,6 +11,8 @@ import { storeBackdropEdges } from "./edges";
 import { getSeries } from "./queries";
 import { parseKey } from "./series";
 import type { SeriesKey } from "./series";
+import { upscalesOf } from "./upscale";
+import { upscaledBackdropUrl } from "./upscaled-backdrop";
 
 /** How {@link listSeriesImages} filters and sorts. */
 export interface SeriesImageQuery {
@@ -29,7 +31,7 @@ export interface SeriesImageQuery {
 
 /** Stores `false`, no artwork, as {@link noArtwork}. */
 /** An image as stored, before {@link applyQuery} names its language. */
-type StoredImage = Omit<SeriesImage, "language_name">;
+type StoredImage = Omit<SeriesImage, "language_name" | "upscale" | "upscaled_url">;
 
 const languageNames = new Intl.DisplayNames(["en"], {
 	type: "language",
@@ -259,17 +261,28 @@ const byQuality = (left: StoredImage, right: StoredImage) =>
 const byVotes = (left: StoredImage, right: StoredImage) =>
 	confidence(right) - confidence(left) || byArea(left, right);
 
-const applyQuery = (images: StoredImage[], query: SeriesImageQuery): SeriesImage[] =>
-	images
+const applyQuery = async (
+	key: string,
+	images: StoredImage[],
+	query: SeriesImageQuery,
+): Promise<SeriesImage[]> => {
+	const upscales = await upscalesOf(key);
+	return images
 		.filter((image) => !query.types || query.types.includes(image.type))
 		.filter((image) => !query.languages || query.languages.includes(image.language))
 		.toSorted(query.sort === "quality" ? byQuality : byVotes)
-		.map((image) => ({
-			...image,
-			language_name: image.language
-				? (languageNames.of(image.language) ?? image.language)
-				: "Textless",
-		}));
+		.map((image) => {
+			const upscale = image.type === "backdrop" ? upscales.get(image.url) : undefined;
+			return {
+				...image,
+				language_name: image.language
+					? (languageNames.of(image.language) ?? image.language)
+					: "Textless",
+				upscale: upscale?.status ?? null,
+				upscaled_url: upscale?.status === "done" ? upscaledBackdropUrl(upscale.id) : null,
+			};
+		});
+};
 
 /**
  * Lists every backdrop, poster, and logo TMDB has for a series' title, in
@@ -292,7 +305,7 @@ export const listSeriesImages = async (
 		? await storedImagesOf(row.key)
 		: await storeImages(row.key as SeriesKey, day);
 
-	return applyQuery(images, query);
+	return await applyQuery(row.key, images, query);
 };
 
 /**
@@ -308,5 +321,5 @@ export const refreshSeriesImages = async (
 	query: SeriesImageQuery = {},
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
-	return applyQuery(await storeImages(row.key as SeriesKey, 0), query);
+	return await applyQuery(row.key, await storeImages(row.key as SeriesKey, 0), query);
 };

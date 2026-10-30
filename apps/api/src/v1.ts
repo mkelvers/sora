@@ -41,8 +41,10 @@ import {
 	getSeriesEpisodePage,
 	getSeriesEpisodes,
 	getUpcomingSeries,
+	getUpscaledBackdrop,
 	listSeriesImages,
 	refreshSeriesImages,
+	requestBackdropUpscale,
 	setSeriesArtwork,
 } from "@sora/core/series";
 import { attempt, day } from "@sora/shared";
@@ -178,6 +180,13 @@ v1.use(
 	}),
 );
 v1.use(
+	route.upscaleBackdrop.getRoutingPath(),
+	rateLimit({
+		limit: 6,
+		windowMs: 60_000,
+	}),
+);
+v1.use(
 	route.listImages.getRoutingPath(),
 	rateLimit({
 		limit: 60,
@@ -298,6 +307,36 @@ export const v1Routes = v1
 			},
 			200,
 		);
+	})
+
+	.openapi(route.upscaleBackdrop, async (c) => {
+		const { series_id: seriesId } = c.req.valid("param");
+		await requestBackdropUpscale(seriesId, c.req.valid("json").url);
+		const images = await listSeriesImages(seriesId);
+		return c.json(
+			{
+				meta: {
+					count: images.length,
+				},
+				results: images,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getBackdrop, async (c) => {
+		const image = await getUpscaledBackdrop(c.req.valid("param").id);
+		if (!image) {
+			return sendProblem(c, 404, "NOT_FOUND", "No such backdrop");
+		}
+
+		return new Response(Buffer.from(image), {
+			headers: {
+				// An upscale is never changed once made.
+				"Cache-Control": "private, max-age=31536000, immutable",
+				"Content-Type": "image/jpeg",
+			},
+		});
 	})
 
 	.openapi(route.updateArtwork, async (c) => {

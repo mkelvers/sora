@@ -18,6 +18,8 @@ export {
 export { route } from "@sora/api/contract";
 /** The rule a player picks the version and subtitles to show by. */
 export { choosePlayback } from "@sora/core/playback/choice";
+/** Backdrops at least this wide cannot be upscaled. */
+export { maxUpscaledSourceWidth } from "@sora/core/models/series";
 export type {
 	AnimeSeason,
 	ContinueWatching,

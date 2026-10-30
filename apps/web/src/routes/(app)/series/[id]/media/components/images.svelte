@@ -1,8 +1,12 @@
 <script lang="ts">
+	import Button from "$lib/components/ui/button.svelte";
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
+	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+	import { maxUpscaledSourceWidth } from "@sora/sdk";
 	import type { Series } from "@sora/sdk";
+	import { SparkleIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -15,6 +19,31 @@
 	const images = $derived(await getImages(series.id));
 	const shown = $derived(media.apply(images));
 	const current = $derived(series[`${media.type}_url`]?.split("/").at(-1));
+	const selected = $derived(
+		media.type === "backdrop"
+			? shown.find(
+					(image) =>
+						current === image.url.split("/").at(-1) ||
+						(image.upscaled_url && current === image.upscaled_url.split("/").at(-1)),
+				)
+			: undefined,
+	);
+	const upscaledChosen = $derived(
+		!!selected?.upscaled_url && current === selected.upscaled_url.split("/").at(-1),
+	);
+	const upscaling = $derived(images.some((image) => image.upscale === "pending"));
+
+	$effect(() => {
+		if (!upscaling) {
+			return;
+		}
+
+		const timer = setInterval(() => {
+			getImages(series.id).refresh();
+			getSeries(series.id).refresh();
+		}, 5000);
+		return () => clearInterval(timer);
+	});
 
 	const srcsets = {
 		backdrop: {
@@ -37,6 +66,37 @@
 		wide: "(min-width: 80rem) 25vw, (min-width: 64rem) 35vw, (min-width: 40rem) 45vw, 90vw",
 	};
 </script>
+
+{#if selected && selected.width < maxUpscaledSourceWidth && !upscaledChosen}
+	<div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+		<Button
+			variant="secondary"
+			size="sm"
+			disabled={selected.upscale === "pending"}
+			onclick={() => media.upscale(selected.url)}
+		>
+			<SparkleIcon size="1rem" weight="bold" />
+			{#if selected.upscale === "pending"}
+				Upscaling
+			{:else if selected.upscale === "done"}
+				Use upscaled
+			{:else if selected.upscale === "failed"}
+				Try upscaling again
+			{:else}
+				Upscale
+			{/if}
+		</Button>
+		<p class="text-xs text-subtle" aria-live="polite">
+			{#if selected.upscale === "pending"}
+				This takes a few minutes. You can leave the page.
+			{:else if selected.upscale === "failed"}
+				Upscaling failed.
+			{:else if !selected.upscale}
+				Doubles the size of the chosen backdrop.
+			{/if}
+		</p>
+	</div>
+{/if}
 
 <ul
 	aria-label="Available {media.type}s"

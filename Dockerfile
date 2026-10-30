@@ -37,6 +37,17 @@ RUN cd packages/core \
 	&& bun -e "import { env, pipeline } from '@huggingface/transformers'; env.cacheDir = '/opt/clip'; await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32')" \
 	&& chown -R bun /opt/clip
 ENV STILL_MODEL_DIR=/opt/clip
+# Upscales backdrops on request. Without a graphics card, Mesa's software
+# Vulkan driver runs it on the processor, which takes minutes per backdrop.
+USER root
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends ca-certificates curl unzip libvulkan1 mesa-vulkan-drivers libgomp1 \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& curl -fsSL -o /tmp/realesrgan.zip https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip \
+	&& unzip -q /tmp/realesrgan.zip -d /opt/realesrgan \
+	&& rm /tmp/realesrgan.zip \
+	&& chmod +x /opt/realesrgan/realesrgan-ncnn-vulkan
+ENV REALESRGAN_BINARY=/opt/realesrgan/realesrgan-ncnn-vulkan
 USER bun
 CMD ["bun", "apps/scheduler/src/main.ts"]
 

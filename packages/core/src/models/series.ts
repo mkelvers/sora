@@ -178,6 +178,15 @@ export const SeriesImageSchema = z
 			description: "TMDB's number of the season a poster is for; null for the title's own.",
 		}),
 		type: ImageTypeSchema,
+		upscale: z.enum(["pending", "done", "failed"]).nullable().meta({
+			description:
+				"Where upscaling this backdrop stands (see `upscaleBackdrop`); null when it was not asked for, and always for posters and logos.",
+		}),
+		upscaled_url: z.string().nullable().meta({
+			description:
+				"The upscaled backdrop, relative to the web app's origin, once `upscale` is `done`; the title's `backdrop_url` is this when it is chosen.",
+			example: "/api/backdrops/3f2c0c6e-6a0a-4d0b-9f0e-5a0c1d7b2e11",
+		}),
 		url: z.string().meta({
 			description:
 				"The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file.",
@@ -191,6 +200,21 @@ export const SeriesImageSchema = z
 	})
 	.meta({
 		id: "SeriesImage",
+	});
+
+export const UpscaleBackdropSchema = z
+	.object({
+		url: z.url({
+			protocol: /^https$/u,
+		}),
+	})
+	.strict()
+	.meta({
+		description: "The backdrop to upscale, as `listImages` lists it.",
+		example: {
+			url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
+		},
+		id: "UpscaleBackdrop",
 	});
 
 export const UpcomingSeriesSchema = z
@@ -404,6 +428,12 @@ const ArtworkUrlSchema = z
 	])
 	.nullable()
 	.optional();
+
+/**
+ * Backdrops at least this wide are not upscaled: doubling them would leave
+ * a picture of tens of megabytes that no screen shows at full size.
+ */
+export const maxUpscaledSourceWidth = 2560;
 
 /** Shared bounds for artwork validation and the client's logo placement controls. */
 export const logoPlacement = {

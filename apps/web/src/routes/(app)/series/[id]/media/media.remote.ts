@@ -22,6 +22,26 @@ export const refreshImages = command(z.string(), async (seriesId) => {
 	);
 });
 
+export const upscaleBackdrop = command(
+	z.object({
+		seriesId: z.string(),
+		url: z.url(),
+	}),
+	async ({ seriesId, url }) => {
+		getImages(seriesId).set(
+			await remoteViewer().sora.request(route.upscaleBackdrop, {
+				body: {
+					url,
+				},
+				params: {
+					series_id: seriesId,
+				},
+			}),
+		);
+		await getSeries(seriesId).refresh();
+	},
+);
+
 export const setArtwork = command(
 	z.object({
 		seriesId: z.string(),

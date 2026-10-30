@@ -22,3 +22,13 @@ export const jsonb = customType<{
 	fromDriver: (value) => value,
 	toDriver: (value) => value,
 });
+
+/** A `bytea` column, read and written as a `Uint8Array`. */
+export const bytea = customType<{
+	data: Uint8Array;
+	driverData: Uint8Array;
+}>({
+	dataType: () => "bytea",
+	fromDriver: (value) => value,
+	toDriver: (value) => value,
+});

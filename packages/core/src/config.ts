@@ -8,6 +8,11 @@ const EnvironmentSchema = z.object({
 	/** PostgreSQL connection string used by the database module. */
 	DATABASE_URL: z.url(),
 	/**
+	 * The `realesrgan-ncnn-vulkan` executable, next to its `models` folder,
+	 * which upscales backdrops. Without it, upscaling a backdrop fails.
+	 */
+	REALESRGAN_BINARY: z.string().min(1).optional(),
+	/**
 	 * Where the image model that finds text on episode stills is kept. Left
 	 * out, it is fetched into the dependency's own folder on first use, and
 	 * again whenever that folder is replaced, as by a new container.
@@ -49,6 +54,7 @@ export const config = {
 	animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 	authSecret: environment.AUTH_SECRET,
 	databaseUrl: environment.DATABASE_URL,
+	realesrganBinary: environment.REALESRGAN_BINARY ?? null,
 	stillModelDir: environment.STILL_MODEL_DIR ?? null,
 	streamSigningSecret: environment.STREAM_SIGNING_SECRET,
 	subtitleAlignmentModel: environment.SUBTITLE_ALIGNMENT_MODEL,

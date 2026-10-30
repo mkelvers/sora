@@ -36,6 +36,7 @@ import {
 import { chooseEpisodeStillsJob, chooseEpisodeStillsTask } from "./jobs/stills";
 import { refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
+import { upscaleBackdropJob } from "./jobs/upscale";
 import { watchPools } from "./pools";
 import type { PoolWatch } from "./pools";
 import {
@@ -47,6 +48,7 @@ import {
 	storeSeriesNowTask,
 	storeSeriesTask,
 	trackAiringTask,
+	upscaleBackdropTask,
 } from "./queue";
 
 /** The running scheduler. */
@@ -226,6 +228,20 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		},
 	});
 
+	// Upscaling a backdrop keeps a processor busy for minutes, so one runs at
+	// a time, in a worker of its own.
+	const upscaling = await run({
+		concurrency: 1,
+		connectionString: config.databaseUrl,
+		maxPoolSize: 2,
+		taskList: {
+			[upscaleBackdropTask]: (payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return upscaleBackdropJob(payload, helpers);
+			},
+		},
+	});
+
 	return {
 		promise: (async () => {
 			await Promise.all([
@@ -234,6 +250,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				lookups.promise,
 				releases.promise,
 				listening.promise,
+				upscaling.promise,
 			]);
 			await pools.stop();
 		})(),
@@ -244,6 +261,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				lookups.stop(),
 				releases.stop(),
 				listening.stop(),
+				upscaling.stop(),
 			]);
 			await pools.stop();
 		},
