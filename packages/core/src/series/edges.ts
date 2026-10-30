@@ -10,6 +10,7 @@ import {
 	seriesEpisode,
 	titleArtwork,
 } from "../database/schema/series";
+import { getUpscaledBackdrop, upscaleIdOf } from "./upscaled-backdrop";
 
 /** An image's average colour down its left and right edges, each `#rrggbb`. */
 export interface ImageEdges {
@@ -54,7 +55,18 @@ export const effectiveStill = sql<
 	string | null
 >`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
-const measureEdges = async (url: string): Promise<ImageEdges> => {
+/** An image's bytes: an upscaled backdrop's from the database, any other from its host at {@link measuredWidth}. */
+const imageBytes = async (url: string): Promise<Uint8Array> => {
+	const upscaleId = upscaleIdOf(url);
+	if (upscaleId) {
+		const stored = await getUpscaledBackdrop(upscaleId);
+		if (!stored) {
+			throw new Error(`${url} is not stored`);
+		}
+
+		return stored;
+	}
+
 	const small = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${measuredWidth}`);
 	const response = await fetch(small, {
 		signal: AbortSignal.timeout(10_000),
@@ -63,7 +75,11 @@ const measureEdges = async (url: string): Promise<ImageEdges> => {
 		throw new Error(`${small} answered ${response.status}`);
 	}
 
-	const { data, info } = await sharp(Buffer.from(await response.arrayBuffer()))
+	return new Uint8Array(await response.arrayBuffer());
+};
+
+const measureEdges = async (url: string): Promise<ImageEdges> => {
+	const { data, info } = await sharp(await imageBytes(url))
 		.resize({
 			width: measuredWidth,
 			withoutEnlargement: true,
@@ -109,7 +125,7 @@ const measureEdges = async (url: string): Promise<ImageEdges> => {
  * Never throws: an image that fails to load or decode is left for
  * {@link storeMissingBackdropEdges} to measure again.
  */
-const storeImageEdges = async (url: string): Promise<boolean> => {
+export const storeImageEdges = async (url: string): Promise<boolean> => {
 	const [stored] = await db
 		.select({
 			url: imageEdge.url,

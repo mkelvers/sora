@@ -17,6 +17,8 @@ export {
 	type SeriesImageQuery,
 } from "./artwork";
 export type { ImageEdges } from "./edges";
+export { requestBackdropUpscale } from "./upscale";
+export { getUpscaledBackdrop } from "./upscaled-backdrop";
 export {
 	browseSeries,
 	getAdjacentEpisodes,

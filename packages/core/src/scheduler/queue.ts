@@ -323,3 +323,31 @@ export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
     )
   `);
 };
+
+/** The graphile-worker task that upscales one backdrop; see `titleBackdropUpscale`. */
+export const upscaleBackdropTask = "upscale-backdrop";
+
+/** Which upscale {@link upscaleBackdropTask} makes. */
+export interface UpscaleBackdropPayload {
+	id: string;
+}
+
+/**
+ * Asks for a backdrop to be upscaled, unless that is already queued. Jobs run
+ * one at a time in their own queue, since each keeps a processor busy for
+ * minutes, and are not retried: a failure is shown to whoever asked, who may
+ * ask again.
+ */
+export const requestUpscale = async (payload: UpscaleBackdropPayload) => {
+	await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${upscaleBackdropTask},
+      payload => json_build_object('id', ${payload.id}::text),
+      queue_name => 'upscale-backdrop',
+      job_key => ${`upscale-backdrop:${payload.id}`},
+      job_key_mode => 'unsafe_dedupe',
+      max_attempts => 1,
+      priority => 0
+    )
+  `);
+};

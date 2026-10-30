@@ -8,10 +8,12 @@ import {
 	pgTable,
 	primaryKey,
 	text,
+	unique,
+	uuid,
 } from "drizzle-orm/pg-core";
 
 import type { MediaRelation, MediaStatus } from "../../anilist/graphql.generated";
-import { jsonb, timestamptz } from "./columns";
+import { bytea, jsonb, timestamptz } from "./columns";
 
 export const tmdbMediaType = pgEnum("tmdb_media_type", ["tv", "movie"]);
 
@@ -241,6 +243,39 @@ export const titleImage = pgTable(
 			columns: [table.key, table.type, table.url],
 		}),
 	],
+);
+
+/** Where an upscale of a title's backdrop stands; see {@link titleBackdropUpscale}. */
+export type UpscaleStatus = "pending" | "done" | "failed";
+
+/**
+ * A backdrop of a TMDB title, upscaled so it stays sharp at the largest size
+ * it is shown at: the original is `sourceUrl` of {@link titleImage}, the
+ * upscaled picture is kept here as `image`. It is made by the scheduler once
+ * someone asks (see `requestBackdropUpscale`) and chosen as the title's
+ * backdrop (see {@link titleArtwork}) when it is ready.
+ */
+export const titleBackdropUpscale = pgTable(
+	"title_backdrop_upscale",
+	{
+		createdAt: timestamptz("created_at").notNull().defaultNow(),
+		/** Why the last try failed; null otherwise. */
+		failure: text("failure"),
+		height: integer("height"),
+		id: uuid("id").primaryKey().defaultRandom(),
+		/** A JPEG; null until `status` is done. */
+		image: bytea("image"),
+		key: text("key")
+			.notNull()
+			.references(() => titleArtwork.key, {
+				onDelete: "cascade",
+			}),
+		/** The original on TMDB's image host, as {@link titleImage} lists it. */
+		sourceUrl: text("source_url").notNull(),
+		status: text("status").$type<UpscaleStatus>().notNull().default("pending"),
+		width: integer("width"),
+	},
+	(table) => [unique("title_backdrop_upscale_source_idx").on(table.key, table.sourceUrl)],
 );
 
 /**

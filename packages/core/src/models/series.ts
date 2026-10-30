@@ -178,9 +178,17 @@ export const SeriesImageSchema = z
 			description: "TMDB's number of the season a poster is for; null for the title's own.",
 		}),
 		type: ImageTypeSchema,
+		upscale: z.enum(["pending", "done", "failed"]).nullable().meta({
+			description:
+				"Where upscaling this backdrop stands (see `upscaleBackdrop`); `done` when the upscaled one is listed too. Null when it was not asked for, and always for posters, logos, and upscaled backdrops.",
+		}),
+		upscaled: z.boolean().meta({
+			description:
+				"Whether this is a backdrop upscaled from another of the title's (see `upscaleBackdrop`), whose `url` is then relative to the web app's origin and has the original's language and votes.",
+		}),
 		url: z.string().meta({
 			description:
-				"The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file.",
+				"The original size. Swap `/original/` for a TMDB size bucket, such as `/w780/`, for a smaller file. An upscaled backdrop has no other sizes.",
 			example: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
 		}),
 		vote_average: z.number(),
@@ -191,6 +199,21 @@ export const SeriesImageSchema = z
 	})
 	.meta({
 		id: "SeriesImage",
+	});
+
+export const UpscaleBackdropSchema = z
+	.object({
+		url: z.url({
+			protocol: /^https$/u,
+		}),
+	})
+	.strict()
+	.meta({
+		description: "The backdrop to upscale, as `listImages` lists it.",
+		example: {
+			url: "https://image.tmdb.org/t/p/original/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
+		},
+		id: "UpscaleBackdrop",
 	});
 
 export const UpcomingSeriesSchema = z
@@ -389,19 +412,31 @@ export type AnimeTag = z.infer<typeof AnimeTagSchema>;
  */
 export const artworkHosts = ["image.tmdb.org", "s4.anilist.co"];
 
+const artworkImage = z.union([
+	z
+		.url({
+			protocol: /^https$/u,
+		})
+		.max(2048)
+		.refine((value) => URL.canParse(value) && artworkHosts.includes(new URL(value).hostname), {
+			message: `The image must be on ${artworkHosts.join(" or ")}`,
+		}),
+	z.literal(false),
+]);
+
 /** An image to use for a title's artwork, or `null` to go back to the one Sora chose. */
-const ArtworkUrlSchema = z
-	.union([
-		z
-			.url({
-				protocol: /^https$/u,
-			})
-			.max(2048)
-			.refine((value) => artworkHosts.includes(new URL(value).hostname), {
-				message: `The image must be on ${artworkHosts.join(" or ")}`,
-			}),
-		z.literal(false),
-	])
+const ArtworkUrlSchema = artworkImage.nullable().optional();
+
+/**
+ * Where the web app serves an upscaled backdrop (see `upscaledBackdropUrl`),
+ * which a title may choose too, if the title has it.
+ */
+const upscaledBackdropPattern =
+	/^\/api\/backdrops\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+/** {@link ArtworkUrlSchema}, or an upscaled backdrop. */
+const BackdropUrlSchema = z
+	.union([artworkImage, z.string().regex(upscaledBackdropPattern)])
 	.nullable()
 	.optional();
 
@@ -431,7 +466,7 @@ const LogoOffsetSchema = z
  */
 export const ArtworkChangesSchema = z
 	.object({
-		backdrop_url: ArtworkUrlSchema,
+		backdrop_url: BackdropUrlSchema,
 		logo_offset_x: LogoOffsetSchema.meta({
 			description: `How far right to move the logo from its usual place on the series page, in widths of its hero, from ${logoPlacement.offset.min} to ${logoPlacement.offset.max}.`,
 		}),

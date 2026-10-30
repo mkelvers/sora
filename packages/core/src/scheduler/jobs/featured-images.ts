@@ -69,6 +69,7 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 		const clean = data.filter(
 			(image) =>
 				image.type === "backdrop" &&
+				!image.upscaled &&
 				image.language === null &&
 				image.width >= minBackdropSize.width &&
 				image.height >= minBackdropSize.height,
