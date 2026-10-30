@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		error(403, "Choose a profile first");
 	}
 
-	const [featured, trending, upcoming] = await Promise.all([
+	const [featured, trending, recommended] = await Promise.all([
 		viewer.sora.request(route.getFeatured, {
 			params: {
 				profile_id: viewer.profile.id,
@@ -22,7 +22,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				sort: "trending",
 			},
 		}),
-		viewer.sora.request(route.listUpcoming),
+		viewer.sora.request(route.listRecommendations, {
+			params: {
+				profile_id: viewer.profile.id,
+			},
+		}),
 		getContinueWatching(),
 	]);
 
@@ -34,18 +38,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: "trending",
 				title: "Trending Now",
 			},
-			{
-				cards: upcoming.filter((title) => title.returning).map((title) => title.series),
-				hint: "Catch up on previous episodes before the new season premiere!",
-				id: "catch-up",
-				title: "Catch Up Before the New Season",
-			},
-			{
-				cards: upcoming.filter((title) => !title.returning).map((title) => title.series),
-				hint: "Your new favorite shows from the upcoming season",
-				id: "coming-soon",
-				title: "Coming Soon: Add to Your Watchlist",
-			},
+			...recommended.map((row) => ({
+				cards: row.series,
+				id: row.id,
+				title: row.title,
+			})),
 		],
 	};
 };

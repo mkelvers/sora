@@ -35,6 +35,7 @@ import {
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesSchema,
+	RecommendationRowSchema,
 	UpcomingSeriesSchema,
 	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
@@ -705,6 +706,25 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "List the account's profiles",
+		tags: ["Profiles"],
+	}),
+
+	listRecommendations: createRoute({
+		description:
+			"Rows of titles for the profile's home page, each with a heading that says why it is there: `Because you watched` one of its recent titles, more of its favourite genres, and for any profile the best liked titles and films. Never a title the profile played or listed, in any status, nor another season of one, and a title appears in one row only. A row has at least 8 titles, so a profile with little history gets fewer rows rather than short ones.",
+		method: "get",
+		operationId: "listRecommendations",
+		path: "/profiles/{profile_id}/recommendations",
+		request: {
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(envelopeOf(z.array(RecommendationRowSchema), CountMetaSchema), "The rows."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Rows of titles recommended to the profile",
 		tags: ["Profiles"],
 	}),
 

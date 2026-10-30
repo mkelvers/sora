@@ -498,6 +498,21 @@ export type FranchisePart = z.infer<typeof FranchisePartSchema>;
 export type Series = z.infer<typeof SeriesSchema>;
 export type ImageType = z.infer<typeof ImageTypeSchema>;
 export type SeriesImage = z.infer<typeof SeriesImageSchema>;
+export const RecommendationRowSchema = z
+	.object({
+		id: z.string().meta({
+			description: "Names the row, such as `highly-rated`; stable for the same reason.",
+		}),
+		series: z.array(SeriesCardSchema),
+		title: z.string().meta({
+			description: "What the row is, as a heading: why its titles are listed.",
+			example: "Because you watched Frieren",
+		}),
+	})
+	.meta({
+		id: "RecommendationRow",
+	});
+
 export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
 export type Episode = z.infer<typeof EpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
@@ -505,3 +520,6 @@ export type Calendar = z.infer<typeof CalendarSchema>;
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
 export type Release = z.infer<typeof ReleaseSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
+
+export type RecommendationRow = z.infer<typeof RecommendationRowSchema>;
+export type Recommendations = RecommendationRow[];

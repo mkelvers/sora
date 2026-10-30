@@ -16,6 +16,7 @@ import {
 	getNotifications,
 	getPlaybackPreferences,
 	getProgress,
+	getRecommendations,
 	getSeriesProgress,
 	getWatchlist,
 	getWatchlistStatuses,
@@ -712,6 +713,20 @@ export const v1Routes = v1
 					count: shows.length,
 				},
 				results: shows,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listRecommendations, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const rows = await getRecommendations(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: rows.length,
+				},
+				results: rows,
 			},
 			200,
 		);

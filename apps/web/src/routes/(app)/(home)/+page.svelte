@@ -43,11 +43,6 @@
 			<h2 id={row.id} class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-20">
 				{row.title}
 			</h2>
-			{#if row.hint}
-				<p class="mt-1 px-5 text-sm text-muted sm:px-10 sm:text-base lg:px-20">
-					{row.hint}
-				</p>
-			{/if}
 
 			<Carousel
 				class="mt-5 min-w-0"

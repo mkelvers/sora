@@ -26,6 +26,7 @@ export {
 	startRewatch,
 	type EpisodeAddress,
 } from "./progress/progress";
+export { getRecommendations } from "./recommendations/recommendations";
 export {
 	getWatchlist,
 	getWatchlistStatuses,
