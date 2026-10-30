@@ -67,34 +67,42 @@
 	};
 </script>
 
-{#if selected && selected.width < maxUpscaledSourceWidth && !upscaledChosen}
+{#if selected}
 	<div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-		<Button
-			variant="secondary"
-			size="sm"
-			disabled={selected.upscale === "pending"}
-			onclick={() => media.upscale(selected.url)}
-		>
-			<SparkleIcon size="1rem" weight="bold" />
-			{#if selected.upscale === "pending"}
-				Upscaling
-			{:else if selected.upscale === "done"}
-				Use upscaled
-			{:else if selected.upscale === "failed"}
-				Try upscaling again
-			{:else}
-				Upscale
-			{/if}
-		</Button>
-		<p class="text-xs text-subtle" aria-live="polite">
-			{#if selected.upscale === "pending"}
-				This takes a few minutes. You can leave the page.
-			{:else if selected.upscale === "failed"}
-				Upscaling failed.
-			{:else if !selected.upscale}
-				Doubles the size of the chosen backdrop.
-			{/if}
-		</p>
+		{#if upscaledChosen}
+			<p class="text-xs text-subtle">Showing the upscaled backdrop.</p>
+		{:else if selected.width >= maxUpscaledSourceWidth}
+			<p class="text-xs text-subtle">
+				This backdrop is {selected.width}×{selected.height}, large enough to need no upscaling.
+			</p>
+		{:else}
+			<Button
+				variant="secondary"
+				size="sm"
+				disabled={selected.upscale === "pending"}
+				onclick={() => media.upscale(selected.url)}
+			>
+				<SparkleIcon size="1rem" weight="bold" />
+				{#if selected.upscale === "pending"}
+					Upscaling
+				{:else if selected.upscale === "done"}
+					Use upscaled
+				{:else if selected.upscale === "failed"}
+					Try upscaling again
+				{:else}
+					Upscale
+				{/if}
+			</Button>
+			<p class="text-xs text-subtle" aria-live="polite">
+				{#if selected.upscale === "pending"}
+					This takes a few minutes. You can leave the page.
+				{:else if selected.upscale === "failed"}
+					Upscaling failed.
+				{:else if !selected.upscale}
+					Doubles the size of the chosen backdrop.
+				{/if}
+			</p>
+		{/if}
 	</div>
 {/if}
 
