@@ -67,9 +67,12 @@ const sentences = (text: string) => {
 	return found;
 };
 
-/** A sentence that only names the release, such as `The second season of Frieren.` */
+/**
+ * A sentence that only names the release or how it relates to another, such
+ * as `The second season of Frieren.` or `Sequel to Tokyo Revengers.`
+ */
 export const placeholder =
-	/^(?:the )?(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of\b[^.!?]*[.!?]?$/iu;
+	/^(?:the )?(?:(?:(?:first|second|third|fourth|fifth|sixth|final|\d+(?:st|nd|rd|th)) (?:season|part|cour)|(?:season|part|cour) \d+) of|(?:sequel|prequel|continuation|remake|recap|adaptation|spin-?off|side[- ]story|compilation)(?: (?:movie|film|series))? (?:to|of|for))\b[^.!?]*[.!?]?$/iu;
 
 /**
  * A synopsis cut down to its premise: AniList's or TMDB's text as

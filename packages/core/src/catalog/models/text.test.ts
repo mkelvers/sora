@@ -71,6 +71,9 @@ describe("placeholder", () => {
 		expect(placeholder.test("Part 3 of Tensei Shitara Slime Datta Ken 4th Season.")).toBe(true);
 		expect(placeholder.test("The second season of Witch Watch.")).toBe(true);
 		expect(placeholder.test("Second season of Nezumi-kun no Chokki (TV)")).toBe(true);
+		expect(placeholder.test("Sequel to Tokyo Revengers: Tenjiku-hen.")).toBe(true);
+		expect(placeholder.test("Continuation of Frieren")).toBe(true);
+		expect(placeholder.test("Adaptation of the light novel.")).toBe(true);
 	});
 
 	test("leaves a story alone", () => {
@@ -78,6 +81,7 @@ describe("placeholder", () => {
 			false,
 		);
 		expect(placeholder.test("Rimuru becomes a Demon Lord.")).toBe(false);
+		expect(placeholder.test("Sequel to the war, Rimuru rules. He wins.")).toBe(false);
 	});
 });
 
