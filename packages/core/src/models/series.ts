@@ -418,7 +418,7 @@ const artworkImage = z.union([
 			protocol: /^https$/u,
 		})
 		.max(2048)
-		.refine((value) => artworkHosts.includes(new URL(value).hostname), {
+		.refine((value) => URL.canParse(value) && artworkHosts.includes(new URL(value).hostname), {
 			message: `The image must be on ${artworkHosts.join(" or ")}`,
 		}),
 	z.literal(false),
