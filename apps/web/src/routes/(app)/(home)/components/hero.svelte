@@ -89,7 +89,7 @@
 					{@const listed = library.status.has(slide.id)}
 					<article
 						class={cn(
-							"col-start-1 row-start-1 min-w-0 transition-opacity duration-500 motion-reduce:transition-none",
+							"col-start-1 row-start-1 min-w-0 self-end transition-opacity duration-500 motion-reduce:transition-none",
 							index !== carousel.active && "opacity-0",
 						)}
 						aria-label={slide.title}
@@ -133,11 +133,13 @@
 							{/if}
 						</p>
 
-						<p
-							class="mt-2 hidden min-h-18 max-w-full px-5 text-sm leading-6 font-normal text-pretty text-muted antialiased sm:max-w-xl sm:px-10 lg:mt-3 lg:min-h-28 lg:max-w-3xl lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
-						>
-							{slide.overview}
-						</p>
+						{#if slide.overview}
+							<p
+								class="mt-2 hidden max-w-full px-5 text-sm leading-6 font-normal text-pretty text-muted antialiased sm:max-w-xl sm:px-10 lg:mt-3 lg:max-w-3xl lg:px-20 lg:text-base lg:leading-7 xl:line-clamp-4 short:hidden"
+							>
+								{slide.overview}
+							</p>
+						{/if}
 
 						<div
 							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 sm:px-10 lg:mt-7 lg:px-20"
