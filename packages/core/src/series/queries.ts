@@ -230,6 +230,19 @@ const rank = (relation: string) => {
 };
 
 /**
+ * AniList relations that are wrong, as pairs of AniList IDs: they would chain
+ * two stories that are not one franchise. Followed in neither direction.
+ * The Legend of Hei 2 is listed as the prequel of the Luoxiaohei web series,
+ * which is a separate TMDB title and shares no episodes with the films.
+ */
+const unrelated: readonly (readonly [number, number])[] = [[166_475, 102_663]];
+
+const isUnrelated = (from: number, to: number) =>
+	unrelated.some(
+		([left, right]) => (from === left && to === right) || (from === right && to === left),
+	);
+
+/**
  * The AniList entries of an entry's franchise, itself left out, the closest
  * related first.
  *
@@ -280,7 +293,7 @@ export const franchiseIds = async (
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(inArray(seriesRelated.anilistId, frontier)),
 		]);
-		const rawEdges = [...outgoing, ...incoming];
+		const rawEdges = [...outgoing, ...incoming].filter(({ from, to }) => !isUnrelated(from, to));
 		const listers = [
 			...new Set(rawEdges.filter(({ relation }) => relation === "OTHER").map(({ from }) => from)),
 		];
