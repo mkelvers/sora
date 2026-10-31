@@ -9,13 +9,14 @@ import { anilistEpisodeKey } from "../../series/episodes";
 import type { LocatedEpisode } from "../../series/episodes";
 import type { StreamProvider } from "../providers/provider";
 import { servedLocale, streamProviders } from "../providers/registry";
-import { getProviderUnits, getStoredUnits } from "./episodes";
+import { getProviderUnits, getStoredLanguages, getStoredUnits } from "./episodes";
 import type { ProviderUnit, StoredUnits } from "./episodes";
 
 /** What listing versions reads, asks, and queues through; tests pass their own. */
 export interface VersionDependencies {
 	providers: readonly StreamProvider[];
 	getAnime: typeof getAnime;
+	getStoredLanguages: typeof getStoredLanguages;
 	getStoredUnits: typeof getStoredUnits;
 	getProviderUnits: typeof getProviderUnits;
 	scheduleEpisodeLookups: typeof scheduleEpisodeLookups;
@@ -24,6 +25,7 @@ export interface VersionDependencies {
 const live: VersionDependencies = {
 	getAnime,
 	getProviderUnits,
+	getStoredLanguages,
 	getStoredUnits,
 	providers: streamProviders,
 	scheduleEpisodeLookups,
@@ -304,29 +306,45 @@ export const findEpisodeListings = async (
 };
 
 /**
- * The languages any episode of each anime can be watched in, dub before sub
- * before raw, from the providers' stored episode lists.
+ * The languages each anime is offered in by the providers that list
+ * languages truthfully, dub before sub before raw; an anime nothing lists
+ * gets none.
  *
- * Reads only the database. An anime some provider has not been looked up
- * for yet is queued for the scheduler ahead of its backfill, since its card
- * is being shown; until then it has only the languages already looked up.
+ * Reads the languages stored with the providers' episode lists, not the
+ * lists, so it is cheap for long watchlists and pages of cards. An anime a
+ * provider has not been looked up on yet is left to the scheduler.
  */
 export const findAnimeLanguages = async (
 	anilistIds: readonly number[],
 	dependencies: VersionDependencies = live,
 ): Promise<Map<number, ContentLanguage[]>> => {
-	const listed = await readAnimeListings(
-		anilistIds,
-		{
-			lookUpUnknown: false,
-			priority: "current",
-		},
-		dependencies,
+	const sources = listingSources(dependencies.providers);
+	const ids = [...new Set(anilistIds)];
+	const stored = await dependencies.getStoredLanguages(
+		ids,
+		sources.map((source) => source.id),
 	);
+	const looked = new Map<number, Set<string>>();
+	const offered = new Map<number, Set<ContentLanguage>>();
+	for (const entry of stored) {
+		looked.set(entry.anilistId, (looked.get(entry.anilistId) ?? new Set()).add(entry.provider));
+		offered.set(
+			entry.anilistId,
+			new Set([...(offered.get(entry.anilistId) ?? []), ...entry.languages]),
+		);
+	}
+
+	await dependencies.scheduleEpisodeLookups(
+		ids.filter((anilistId) => sources.some((source) => !looked.get(anilistId)?.has(source.id))),
+		"current",
+	);
+
 	return new Map(
-		[...listed].map(([anilistId, { listings }]) => [
+		ids.map((anilistId) => [
 			anilistId,
-			languagesOf(versionsOffered(listings)),
+			[...(offered.get(anilistId) ?? [])].toSorted(
+				(left, right) => languageOrder[left] - languageOrder[right],
+			),
 		]),
 	);
 };

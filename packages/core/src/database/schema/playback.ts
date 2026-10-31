@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
 	bigint,
 	boolean,
@@ -54,6 +55,22 @@ export const providerEpisodes = pgTable(
 	{
 		anilistId: integer("anilist_id").notNull(),
 		fetchedAt: timestamptz("fetched_at").notNull(),
+		/**
+		 * The audio languages any episode in `units` offers, dub before sub before
+		 * raw. Postgres keeps it in step with `units`, so a card can show a
+		 * title's audio without reading and parsing every episode.
+		 */
+		languages: text("languages")
+			.array()
+			.$type<("dub" | "sub" | "raw")[]>()
+			.notNull()
+			.generatedAlwaysAs(
+				sql`array_remove(array[
+					case when units @> '[{"languages":["dub"]}]'::jsonb then 'dub' end,
+					case when units @> '[{"languages":["sub"]}]'::jsonb then 'sub' end,
+					case when units @> '[{"languages":["raw"]}]'::jsonb then 'raw' end
+				]::text[], null)`,
+			),
 		provider: text("provider").notNull(),
 		units: jsonb("units").$type<unknown>().notNull(),
 	},

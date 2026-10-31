@@ -37,6 +37,25 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 		asks += 1;
 		return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
 	},
+	getStoredLanguages: (anilistIds, providers) =>
+		Promise.resolve(
+			[...new Set(anilistIds)].flatMap((anilistId) =>
+				list.flatMap((candidate) => {
+					const units = candidate.units(anilistId);
+					return units && providers.includes(candidate.id)
+						? [
+								{
+									anilistId,
+									languages: (["dub", "sub", "raw"] as const).filter((language) =>
+										units.some((unit) => unit.languages?.includes(language)),
+									),
+									provider: candidate.id,
+								},
+							]
+						: [];
+				}),
+			),
+		),
 	getStoredUnits: (anilistIds) =>
 		Promise.resolve(
 			[...new Set(anilistIds)].flatMap((anilistId) =>

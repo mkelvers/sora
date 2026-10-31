@@ -5,6 +5,7 @@ import type { Anime } from "../../catalog/models/anime";
 import { db } from "../../database/client";
 import { episodeDub, providerEpisodes, providerMapping } from "../../database/schema/playback";
 import { LanguageSchema } from "../../models/series";
+import type { ContentLanguage } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { aniKoto } from "../providers/registry";
 import { getProviderMedia } from "./mapping";
@@ -223,6 +224,69 @@ export interface StoredUnits {
 	/** The provider's episode list, empty when the provider does not carry the anime. */
 	units: ProviderUnit[];
 }
+
+/** What is stored about the languages one provider's episodes of one anime are offered in. */
+export interface StoredLanguages {
+	anilistId: number;
+	provider: string;
+	/** Empty when the provider does not carry the anime. */
+	languages: ContentLanguage[];
+}
+
+/**
+ * Reads which languages the stored episode lists of the given anime are
+ * offered in, without reading the lists themselves or asking any provider.
+ * A provider with no entry for an anime has not been looked up yet; one
+ * that does not carry it is listed with no languages.
+ *
+ * @param providers - Reads only these providers' lists.
+ */
+export const getStoredLanguages = async (
+	anilistIds: readonly number[],
+	providers: readonly string[],
+): Promise<StoredLanguages[]> => {
+	if (anilistIds.length === 0 || providers.length === 0) {
+		return [];
+	}
+
+	const ids = [...new Set(anilistIds)];
+	const [listed, unmatched] = await Promise.all([
+		db
+			.select({
+				anilistId: providerEpisodes.anilistId,
+				languages: providerEpisodes.languages,
+				provider: providerEpisodes.provider,
+			})
+			.from(providerEpisodes)
+			.where(
+				and(
+					inArray(providerEpisodes.anilistId, ids),
+					inArray(providerEpisodes.provider, [...providers]),
+				),
+			),
+		db
+			.select({
+				anilistId: providerMapping.anilistId,
+				provider: providerMapping.provider,
+			})
+			.from(providerMapping)
+			.where(
+				and(
+					inArray(providerMapping.anilistId, ids),
+					isNull(providerMapping.providerMediaId),
+					inArray(providerMapping.provider, [...providers]),
+				),
+			),
+	]);
+
+	return [
+		...listed,
+		...unmatched.map((row) => ({
+			...row,
+			languages: [],
+		})),
+	];
+};
 
 /**
  * Reads the stored episode lists of the given anime, without asking any
