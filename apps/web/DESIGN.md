@@ -52,6 +52,8 @@ App pages use the `page` utility for padding and minimum height, then a centred 
 
 Sizes are `md` (44px, default) and `sm` (36px). `square` makes a primary, secondary or ghost button icon-only. `tone="danger"` works on every variant. The Select `heading` variant is the `text` role.
 
+**Switch** is plain by default. Pass `icons` on settings pages to draw a cross on the thumb when off and a check when on. A settings row is a `text-sm font-bold` label with the switch on the right and a `text-xs text-muted` description under it; rows in a section sit `space-y-6` apart and sections `space-y-12`.
+
 **Dropdown** takes the same `variant` and `square` for its trigger. **Field** is the labelled text input with its error and password toggle; use it for every form field. **Tabs** switch views within a page. **Sheet** is the mobile stand-in for a dropdown.
 
 `class` on a primitive is for layout only: width, flex, margin, position, visibility. If a call site needs a different colour, height, weight or case, that's a missing variant; add it to the primitive so every page gets it.

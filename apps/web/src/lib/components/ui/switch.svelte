@@ -1,17 +1,21 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
+	import { CheckIcon, XIcon } from "phosphor-svelte";
 	import type { Snippet } from "svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
 
 	type Props = Omit<HTMLInputAttributes, "type" | "checked" | "children" | "role"> & {
 		checked?: boolean;
 		role?: "switch" | "menuitemcheckbox";
+		/** Draws a cross on the thumb when off and a check when on, for settings pages. */
+		icons?: boolean;
 		children: Snippet;
 	};
 
 	let {
 		checked = $bindable(false),
 		role = "switch",
+		icons = false,
 		class: className,
 		children,
 		onkeydown,
@@ -35,9 +39,31 @@
 			}
 		}}
 	/>
-	<span
-		class="flex flex-1 items-center peer-disabled:cursor-not-allowed peer-disabled:opacity-50 after:ml-auto after:h-5 after:w-9 after:shrink-0 after:rounded-full after:border-2 after:border-muted after:bg-[radial-gradient(circle_closest-side,currentColor_92%,transparent)] after:bg-size-[0.75rem_0.75rem] after:bg-position-[left_0.125rem_center] after:bg-no-repeat after:text-muted after:transition-[background-position,border-color,color] after:duration-150 peer-checked:after:border-accent-secondary peer-checked:after:bg-position-[right_0.125rem_center] peer-checked:after:text-accent-secondary peer-focus-visible:after:outline-2 peer-focus-visible:after:outline-offset-2 peer-focus-visible:after:outline-accent"
-	>
+	<span class="flex-1 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
 		{@render children()}
+	</span>
+	<span
+		aria-hidden="true"
+		class={cn(
+			"relative shrink-0 rounded-full border-2 border-muted text-muted transition-colors duration-150 peer-checked:border-accent-secondary peer-checked:text-accent-secondary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:opacity-50",
+			icons ? "h-6 w-11" : "h-5 w-9",
+		)}
+	>
+		<span
+			class={cn(
+				"absolute top-1/2 left-0.5 grid -translate-y-1/2 place-items-center rounded-full bg-current transition-transform duration-150 motion-reduce:transition-none",
+				icons
+					? "size-4 [input:checked~span>&]:translate-x-5"
+					: "size-3 [input:checked~span>&]:translate-x-4",
+			)}
+		>
+			{#if icons}
+				{#if checked}
+					<CheckIcon size="0.625rem" weight="bold" class="text-canvas" />
+				{:else}
+					<XIcon size="0.625rem" weight="bold" class="text-canvas" />
+				{/if}
+			{/if}
+		</span>
 	</span>
 </label>

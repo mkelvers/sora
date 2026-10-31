@@ -53,13 +53,14 @@
 )}
 	<div>
 		<Switch
+			icons
 			class="text-sm font-bold"
 			{checked}
 			onchange={(event) => change(event.currentTarget.checked)}
 		>
 			{label}
 		</Switch>
-		<p class="mt-2 max-w-sm text-sm text-muted">{description}</p>
+		<p class="mt-1.5 max-w-sm text-xs leading-relaxed text-muted">{description}</p>
 	</div>
 {/snippet}
 
@@ -71,8 +72,8 @@
 		</p>
 
 		{#if preferences.current && profile.current}
-			<div class="mt-14 space-y-14">
-				<div class="space-y-8">
+			<div class="mt-12 space-y-12">
+				<div class="space-y-6">
 					<h3 class="text-lg font-bold">Playback</h3>
 					<div>
 						<p class="text-xs font-bold text-subtle">Preferred Audio</p>
@@ -91,7 +92,7 @@
 									})
 							}
 						/>
-						<p class="mt-2 max-w-sm text-sm text-muted">
+						<p class="mt-1.5 max-w-sm text-xs leading-relaxed text-muted">
 							The version Sora plays first when an episode offers it. You can still switch in the
 							player.
 						</p>
@@ -111,7 +112,7 @@
 					)}
 				</div>
 
-				<div class="space-y-8">
+				<div class="space-y-6">
 					<h3 class="text-lg font-bold">Episodes</h3>
 					{@render setting(
 						"Hide Spoilers in Episode Lists",
@@ -121,10 +122,10 @@
 					)}
 				</div>
 
-				<div class="space-y-8">
+				<div class="space-y-6">
 					<div>
 						<h3 class="text-lg font-bold">Notifications</h3>
-						<p class="mt-2 text-sm text-muted">
+						<p class="mt-1.5 text-xs leading-relaxed text-muted">
 							For titles on your Watchlist and ones you've watched. Turn all three off to mute them.
 						</p>
 					</div>
