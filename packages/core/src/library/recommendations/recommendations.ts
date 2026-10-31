@@ -249,7 +249,7 @@ export const getRecommendations = async (userId: string): Promise<Recommendation
 				sharing: Math.min(2, favourite.genres.length),
 			},
 			id: `because-${index}`,
-			title: `Because you watched ${favourite.title}`,
+			title: `Because You Watched ${favourite.title}`,
 		})),
 		...taste.genres.slice(0, genreRows).map((genre) => ({
 			filter: {
@@ -257,7 +257,7 @@ export const getRecommendations = async (userId: string): Promise<Recommendation
 				order: "popularity" as const,
 			},
 			id: `genre-${genre.toLowerCase().replaceAll(/\W+/gu, "-")}`,
-			title: `More ${genre.toLowerCase()} for you`,
+			title: `More ${genre} for You`,
 		})),
 		{
 			filter: {
@@ -266,7 +266,7 @@ export const getRecommendations = async (userId: string): Promise<Recommendation
 				order: "score",
 			},
 			id: "highly-rated",
-			title: "Highly rated",
+			title: "Highly Rated",
 		},
 		{
 			filter: {
@@ -274,7 +274,7 @@ export const getRecommendations = async (userId: string): Promise<Recommendation
 				order: "popularity",
 			},
 			id: "films",
-			title: "Films worth watching",
+			title: "Films Worth Watching",
 		},
 	];
 	const pools = await Promise.all(specs.map(({ filter }) => candidates(filter, taste.seen)));

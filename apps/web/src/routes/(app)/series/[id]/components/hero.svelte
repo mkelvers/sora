@@ -244,7 +244,8 @@
 					onclick={play.rewatch ? rewatch : undefined}
 				>
 					<PlayIcon size="1.55em" weight="bold" />
-					<span class="truncate">{play.label}</span>
+					<span class="truncate max-sm:hidden">{play.label}</span>
+					<span class="truncate sm:hidden">{play.label.replace(" Watching", "")}</span>
 				</Button>
 				<WatchlistMenu {series} />
 			{:else}
