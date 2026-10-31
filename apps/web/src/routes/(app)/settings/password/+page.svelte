@@ -49,7 +49,7 @@
 	description="Changing your password signs you out of your other devices."
 >
 	<form
-		class="max-w-sm"
+		class="mx-auto max-w-sm"
 		method="POST"
 		novalidate
 		aria-busy={pending}

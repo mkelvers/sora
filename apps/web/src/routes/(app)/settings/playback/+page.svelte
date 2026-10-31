@@ -52,18 +52,15 @@
 	description="How episodes play and appear for {page.data.viewer.profile.name}."
 >
 	{#if playback.current && profile.current}
-		<Row
-			label="Preferred Audio"
-			stacked
-			description="The version Sora plays first when an episode offers it. You can still switch in the player."
-		>
+		<div>
+			<p class="text-xs text-subtle">Preferred audio</p>
 			<Select
 				variant="field"
 				label="Preferred audio"
 				options={playback.current.audio === "raw"
 					? [...audios, { value: "raw", label: "Raw" }]
 					: audios}
-				class="w-full sm:w-36"
+				class="mt-2 h-10 border-0 border-b border-border px-0 text-base font-medium hover:border-border hover:text-accent-secondary aria-expanded:border-border aria-expanded:text-accent-secondary"
 				bind:value={
 					() => playback.current?.audio ?? "dub",
 					(value) =>
@@ -72,7 +69,10 @@
 						})
 				}
 			/>
-		</Row>
+			<p class="mt-2 text-sm leading-relaxed text-muted">
+				The version Sora plays first when an episode offers it. You can still switch in the player.
+			</p>
+		</div>
 
 		<Row
 			label="Skip Openings and Endings"
