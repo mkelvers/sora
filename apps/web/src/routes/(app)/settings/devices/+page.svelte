@@ -9,7 +9,7 @@
 		DesktopIcon,
 		DeviceMobileIcon,
 		DeviceTabletIcon,
-		QuestionIcon,
+		GlobeSimpleIcon,
 		TelevisionSimpleIcon,
 	} from "phosphor-svelte";
 
@@ -20,7 +20,7 @@
 		phone: DeviceMobileIcon,
 		tablet: DeviceTabletIcon,
 		tv: TelevisionSimpleIcon,
-		unknown: QuestionIcon,
+		unknown: GlobeSimpleIcon,
 	} as const;
 
 	const shownAtFirst = 5;
@@ -55,10 +55,18 @@
 		return "just now";
 	};
 
+	const day = (iso: string) =>
+		new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+		}).format(new Date(iso));
+
+	const nameOf = (entry: SignedInDevice) =>
+		entry.kind === "unknown" ? `Signed in ${day(entry.signed_in_at)}` : entry.device;
+
 	const signOut = async (device: SignedInDevice) => {
 		busy = device.id;
 		await signOutDevice(device.id);
-		message = `${device.device} signed out.`;
+		message = `${nameOf(device)} signed out.`;
 		busy = null;
 	};
 
@@ -89,7 +97,7 @@
 			<Icon size="1.5rem" aria-hidden="true" />
 		</span>
 		<div class="min-w-0 flex-1">
-			<p class="truncate text-base leading-6 font-semibold">{entry.device}</p>
+			<p class="truncate text-base leading-6 font-semibold">{nameOf(entry)}</p>
 			<p class="text-sm break-words text-muted">
 				{#if entry.current}
 					<span class="text-accent-secondary">This device</span>
@@ -107,7 +115,7 @@
 				variant="ghost"
 				size="sm"
 				loading={busy === entry.id}
-				aria-label="Sign out {entry.device}"
+				aria-label="Sign out {nameOf(entry)}"
 				onclick={() => signOut(entry)}
 			>
 				Sign Out
@@ -137,10 +145,10 @@
 			</ul>
 		{/if}
 
-		<div class="space-y-6">
-			<div class="flex items-center justify-between gap-4">
-				<h3 class="text-lg font-bold">Other Devices</h3>
-				{#if others.length}
+		{#if others.length}
+			<div class="space-y-6">
+				<div class="flex items-center justify-between gap-4">
+					<h3 class="text-lg font-bold">Other Devices</h3>
 					<Button
 						variant="ghost"
 						size="sm"
@@ -150,10 +158,8 @@
 					>
 						Sign Out All
 					</Button>
-				{/if}
-			</div>
+				</div>
 
-			{#if others.length}
 				<ul class="space-y-6">
 					{#each listed as entry (entry.id)}
 						{@render device(entry)}
@@ -164,9 +170,7 @@
 						{showAll ? "Show Fewer" : `Show ${others.length - shownAtFirst} More`}
 					</Button>
 				{/if}
-			{:else}
-				<p class="text-sm text-muted">You're not signed in anywhere else.</p>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	{/if}
 </Panel>

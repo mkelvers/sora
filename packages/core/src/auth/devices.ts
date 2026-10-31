@@ -6,6 +6,37 @@ import type { SignedInDevice } from "../models/device";
 import { describeDevice, deviceKind, presentAddress } from "./device";
 
 /**
+ * Records what browser the current session is, when the session was signed in
+ * before sign-ins recorded one, so it is named from then on. A session whose
+ * stored `User-Agent` already names a browser or system is left alone.
+ */
+const rememberUserAgent = async (
+	accountId: string,
+	sessionId: string,
+	userAgent: string | null,
+) => {
+	if (!userAgent) {
+		return;
+	}
+
+	const [current] = await db
+		.select({
+			userAgent: authSession.userAgent,
+		})
+		.from(authSession)
+		.where(and(eq(authSession.id, sessionId), eq(authSession.userId, accountId)))
+		.limit(1);
+	if (current && deviceKind(current.userAgent) === "unknown") {
+		await db
+			.update(authSession)
+			.set({
+				userAgent,
+			})
+			.where(and(eq(authSession.id, sessionId), eq(authSession.userId, accountId)));
+	}
+};
+
+/**
  * The devices an account is signed in on, the one used most recently first:
  * its sessions that have not expired. `currentSessionId` marks the one the
  * request came from.
@@ -13,7 +44,9 @@ import { describeDevice, deviceKind, presentAddress } from "./device";
 export const listDevices = async (
 	accountId: string,
 	currentSessionId: string,
+	currentUserAgent: string | null = null,
 ): Promise<SignedInDevice[]> => {
+	await rememberUserAgent(accountId, currentSessionId, currentUserAgent);
 	const rows = await db
 		.select()
 		.from(authSession)

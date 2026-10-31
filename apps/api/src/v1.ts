@@ -553,7 +553,13 @@ export const v1Routes = v1
 	)
 
 	.openapi(route.listDevices, async (c) => {
-		const devices = await listDevices(c.get("accountId"), c.get("sessionId"));
+		// Only the web app, which proves itself with its key, may say what browser a person is on.
+		const fromWebApp = isWebClientKey(c.req.header("X-Sora-Client-Key"));
+		const devices = await listDevices(
+			c.get("accountId"),
+			c.get("sessionId"),
+			fromWebApp ? (c.req.header("X-Sora-User-Agent") ?? null) : null,
+		);
 		return c.json(
 			{
 				meta: {
