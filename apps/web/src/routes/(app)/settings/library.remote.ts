@@ -1,4 +1,4 @@
-import { command } from "$app/server";
+import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
 import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
@@ -25,4 +25,13 @@ export const importLibrary = command(
 
 		return report;
 	},
+);
+
+export const getImportOptions = query(
+	async () => await remoteViewer().sora.request(route.getImportOptions),
+);
+
+export const authorizeImport = command(
+	route.authorizeImport.request.body.content["application/json"].schema,
+	async (input) => await remoteViewer().sora.request(route.authorizeImport, { body: input }),
 );

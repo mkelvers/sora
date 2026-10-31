@@ -51,11 +51,76 @@ export const LibraryExportSchema = z
 		id: "LibraryExport",
 	});
 
+export const ImportAuthorizationSchema = z
+	.object({
+		code: z.string().min(1).max(4000).meta({
+			description: "The one-time code the site gave back after the person agreed.",
+		}),
+		code_verifier: z.string().min(43).max(128).meta({
+			description:
+				"The secret the person's browser made when it started connecting, sent to prove it is the same browser.",
+		}),
+		redirect_uri: z.url().meta({
+			description:
+				"The address the site sent them back to; it must be the one they were sent from.",
+		}),
+	})
+	.meta({
+		id: "ImportAuthorization",
+	});
+
+export const ImportOptionsSchema = z
+	.object({
+		anilist_account: z.boolean().meta({
+			description: "Whether people can connect an AniList account to import from.",
+		}),
+		myanimelist_account: z.boolean().meta({
+			description: "Whether people can connect a MyAnimeList account to import from.",
+		}),
+	})
+	.meta({
+		id: "ImportOptions",
+	});
+
+export const ImportAuthorizeRequestSchema = z
+	.object({
+		code_challenge: z.string().min(43).max(128).meta({
+			description:
+				"For MyAnimeList, the `code_verifier` itself: it only supports the plain method.",
+		}),
+		redirect_uri: z.url(),
+		source: z.enum(["anilist_account", "myanimelist_account"]),
+		state: z.string().min(8).max(200).meta({
+			description: "Something only the person's browser knows, which the site sends back.",
+		}),
+	})
+	.meta({
+		id: "ImportAuthorizeRequest",
+	});
+
+export const ImportAuthorizationUrlSchema = z
+	.object({
+		url: z.url().meta({
+			description: "Where to send the person to agree.",
+		}),
+	})
+	.meta({
+		id: "ImportAuthorizationUrl",
+	});
+
 export const LibraryImportSchema = z
 	.discriminatedUnion("source", [
 		z.object({
 			document: LibraryExportSchema,
 			source: z.literal("sora"),
+		}),
+		z.object({
+			authorization: ImportAuthorizationSchema,
+			source: z.literal("anilist_account"),
+		}),
+		z.object({
+			authorization: ImportAuthorizationSchema,
+			source: z.literal("myanimelist_account"),
 		}),
 		z.object({
 			source: z.literal("anilist"),
@@ -106,6 +171,8 @@ export const LibraryImportReportSchema = z
 		id: "LibraryImportReport",
 	});
 
+export type ImportAuthorization = z.infer<typeof ImportAuthorizationSchema>;
+export type ImportOptions = z.infer<typeof ImportOptionsSchema>;
 export type LibraryExport = z.infer<typeof LibraryExportSchema>;
 export type LibraryImport = z.infer<typeof LibraryImportSchema>;
 export type LibraryImportReport = z.infer<typeof LibraryImportReportSchema>;

@@ -11,8 +11,9 @@ import type { LibraryExport, LibraryImport, LibraryImportReport } from "../../mo
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { episodeReleasedAt } from "../../series/episodes";
 import { storedSeriesIds } from "../../series/store";
+import { readAniListAccount, readMyAnimeListAccount } from "./oauth";
 import { fromMyAnimeList, parseMyAnimeListExport, readAniListUser } from "./sources";
-import type { ListEntry } from "./sources";
+import type { ListEntry, MalEntry } from "./sources";
 
 /** Rows written by one statement, so none outgrows the database's parameter limit. */
 const batchSize = 1000;
@@ -281,6 +282,27 @@ const fromFile = (file: LibraryExport): Addition[] => {
 	return [...additions.values()];
 };
 
+/** Adds MyAnimeList titles, and reports those Sora has no AniList entry for. */
+const applyMyAnimeList = async (
+	userId: string,
+	entries: readonly MalEntry[],
+	now: Date,
+): Promise<LibraryImportReport> => {
+	const { matched, unmatched } = await fromMyAnimeList(entries);
+	const report = await applyAdditions(userId, fromList(matched, now), now);
+	return {
+		...report,
+		not_in_sora: [
+			...report.not_in_sora,
+			...unmatched.map((entry) => ({
+				anilist_id: null,
+				title: entry.title,
+			})),
+		].slice(0, reportedTitles),
+		not_in_sora_count: report.not_in_sora_count + unmatched.length,
+	};
+};
+
 /**
  * Puts what a file or another site's list holds into a profile: a Sora
  * export, an AniList user's public list, or a MyAnimeList export. It only
@@ -310,21 +332,17 @@ export const importLibrary = async (
 	if (data.source === "sora") {
 		return await applyAdditions(userId, fromFile(data.document), now);
 	}
-	if (data.source === "anilist") {
-		return await applyAdditions(userId, fromList(await readAniListUser(data.username), now), now);
+	if (data.source === "anilist" || data.source === "anilist_account") {
+		const entries =
+			data.source === "anilist"
+				? await readAniListUser(data.username)
+				: await readAniListAccount(data.authorization);
+		return await applyAdditions(userId, fromList(entries, now), now);
 	}
 
-	const { matched, unmatched } = await fromMyAnimeList(parseMyAnimeListExport(data.xml));
-	const report = await applyAdditions(userId, fromList(matched, now), now);
-	return {
-		...report,
-		not_in_sora: [
-			...report.not_in_sora,
-			...unmatched.map((entry) => ({
-				anilist_id: null,
-				title: entry.title,
-			})),
-		].slice(0, reportedTitles),
-		not_in_sora_count: report.not_in_sora_count + unmatched.length,
-	};
+	const malEntries =
+		data.source === "myanimelist"
+			? parseMyAnimeListExport(data.xml)
+			: await readMyAnimeListAccount(data.authorization);
+	return await applyMyAnimeList(userId, malEntries, now);
 };

@@ -13,3 +13,10 @@ query UserAnimeList($userName: String!) {
 		}
 	}
 }
+
+# The user a token belongs to, to read their list, private or not.
+query ViewerName {
+	Viewer {
+		name
+	}
+}

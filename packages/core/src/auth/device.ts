@@ -56,3 +56,28 @@ export const presentAddress = (address: string | null): string | null => {
 	const written = url?.hostname.slice(1, -1) ?? address;
 	return written === "::" ? null : written;
 };
+
+export type DeviceKind = "computer" | "phone" | "tablet" | "tv" | "unknown";
+
+/**
+ * What sort of device a `User-Agent` is from, for the icon beside it. An
+ * Android that does not say `Mobile` is a tablet.
+ */
+export const deviceKind = (userAgent: string | null): DeviceKind => {
+	const text = userAgent === null ? "" : userAgent;
+	const system = systems.find(([pattern]) => pattern.test(text))?.[1];
+	if (system === "TV") {
+		return "tv";
+	}
+	if (system === "iPad") {
+		return "tablet";
+	}
+	if (system === "iPhone") {
+		return "phone";
+	}
+	if (system === "Android") {
+		return /\bMobile\b/u.test(text) ? "phone" : "tablet";
+	}
+
+	return system ? "computer" : "unknown";
+};

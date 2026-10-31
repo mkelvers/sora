@@ -29,6 +29,7 @@ export type {
 	PlaybackMeta,
 	PlaybackPreferences,
 	ProfilePreferences,
+	ImportOptions,
 	LibraryExport,
 	LibraryImport,
 	LibraryImportReport,

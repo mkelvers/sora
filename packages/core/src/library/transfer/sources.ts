@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
 import { UserAnimeListDocument } from "../../anilist/graphql.generated";
+import type { UserAnimeListQuery } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { InvalidInputError } from "../../errors";
 import type { WatchlistStatus } from "../../models/library";
@@ -39,8 +40,32 @@ const malStatuses: Record<string, WatchlistStatus> = {
 	dropped: "dropped",
 	"on hold": "watching",
 	"on-hold": "watching",
+	on_hold: "watching",
 	"plan to watch": "plan_to_watch",
+	plan_to_watch: "plan_to_watch",
 	watching: "watching",
+};
+
+/** The entries of an AniList list collection, leaving out any with a status Sora has no equivalent for. */
+export const aniListEntries = (
+	collection: UserAnimeListQuery["MediaListCollection"],
+): ListEntry[] => {
+	const entries: ListEntry[] = [];
+	for (const list of collection?.lists ?? []) {
+		for (const entry of list?.entries ?? []) {
+			const status = entry?.status ? aniListStatuses[entry.status] : undefined;
+			if (entry?.media && status) {
+				entries.push({
+					anilistId: entry.media.id,
+					status,
+					through: status === "completed" ? null : (entry.progress ?? 0),
+					title: null,
+				});
+			}
+		}
+	}
+
+	return entries;
 };
 
 /**
@@ -64,22 +89,7 @@ export const readAniListUser = async (username: string): Promise<ListEntry[]> =>
 		throw new InvalidInputError("That AniList user does not exist or keeps their list private.");
 	}
 
-	const entries: ListEntry[] = [];
-	for (const list of MediaListCollection?.lists ?? []) {
-		for (const entry of list?.entries ?? []) {
-			const status = entry?.status ? aniListStatuses[entry.status] : undefined;
-			if (entry?.media && status) {
-				entries.push({
-					anilistId: entry.media.id,
-					status,
-					through: status === "completed" ? null : (entry.progress ?? 0),
-					title: null,
-				});
-			}
-		}
-	}
-
-	return entries;
+	return aniListEntries(MediaListCollection);
 };
 
 const animeBlock = /<anime>(?<body>[\s\S]*?)<\/anime>/gu;
@@ -99,6 +109,27 @@ export interface MalEntry {
 }
 
 /**
+ * A MyAnimeList list entry as Sora keeps it; `null` for a status Sora has no
+ * equivalent for. `watched` is how many episodes MyAnimeList says were watched.
+ */
+export const toMalEntry = (entry: {
+	malId: number;
+	title: string | null;
+	status: string;
+	watched: number;
+}): MalEntry | null => {
+	const status = malStatuses[entry.status.trim().toLowerCase()];
+	return status
+		? {
+				malId: entry.malId,
+				status,
+				through: status === "completed" ? null : entry.watched,
+				title: entry.title,
+			}
+		: null;
+};
+
+/**
  * Reads the anime of a MyAnimeList `animelist` XML export, the file MyAnimeList
  * makes under Profile, Export. A title with a status Sora does not know is
  * left out.
@@ -108,19 +139,19 @@ export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
 	for (const match of xml.matchAll(animeBlock)) {
 		const block = match.groups?.body ?? "";
 		const id = malFields.id.exec(block)?.groups?.value;
-		const rawStatus = malFields.status.exec(block)?.groups?.value?.trim().toLowerCase();
-		const status = rawStatus ? malStatuses[rawStatus] : undefined;
-		if (!id || !status) {
-			continue;
+		const status = malFields.status.exec(block)?.groups?.value;
+		const entry =
+			id && status
+				? toMalEntry({
+						malId: Number(id),
+						status,
+						title: malFields.title.exec(block)?.groups?.value?.trim() || null,
+						watched: Number(malFields.watched.exec(block)?.groups?.value ?? 0),
+					})
+				: null;
+		if (entry) {
+			entries.push(entry);
 		}
-
-		entries.push({
-			malId: Number(id),
-			status,
-			through:
-				status === "completed" ? null : Number(malFields.watched.exec(block)?.groups?.value ?? 0),
-			title: malFields.title.exec(block)?.groups?.value?.trim() || null,
-		});
 	}
 
 	return entries;

@@ -14,6 +14,7 @@ import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
 	dismissContinueWatching,
 	dismissNotification,
+	authorizationUrl,
 	exportLibrary,
 	getContinueWatching,
 	getFeatured,
@@ -23,6 +24,7 @@ import {
 	getProgress,
 	getRecommendations,
 	importLibrary,
+	importOptions,
 	getSeriesProgress,
 	getWatchlist,
 	getWatchlistStatuses,
@@ -674,6 +676,33 @@ export const v1Routes = v1
 			{
 				meta: {},
 				results: preferences,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getImportOptions, (c) =>
+		c.json(
+			{
+				meta: {},
+				results: importOptions(),
+			},
+			200,
+		),
+	)
+
+	.openapi(route.authorizeImport, (c) => {
+		const { source, redirect_uri, state, code_challenge } = c.req.valid("json");
+		return c.json(
+			{
+				meta: {},
+				results: {
+					url: authorizationUrl(source, {
+						codeChallenge: code_challenge,
+						redirectUri: redirect_uri,
+						state,
+					}),
+				},
 			},
 			200,
 		);

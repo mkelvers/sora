@@ -3,7 +3,7 @@ import { and, desc, eq, gt, ne } from "drizzle-orm";
 import { db } from "../database/client";
 import { authSession } from "../database/schema/auth";
 import type { SignedInDevice } from "../models/device";
-import { describeDevice, presentAddress } from "./device";
+import { describeDevice, deviceKind, presentAddress } from "./device";
 
 /**
  * The devices an account is signed in on, the one used most recently first:
@@ -25,6 +25,7 @@ export const listDevices = async (
 		device: describeDevice(row.userAgent),
 		id: row.id,
 		ip_address: presentAddress(row.ipAddress),
+		kind: deviceKind(row.userAgent),
 		last_active_at: row.updatedAt.toISOString(),
 		signed_in_at: row.createdAt.toISOString(),
 	}));

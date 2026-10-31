@@ -43,6 +43,9 @@ import {
 	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
 import {
+	ImportAuthorizationUrlSchema,
+	ImportAuthorizeRequestSchema,
+	ImportOptionsSchema,
 	LibraryExportSchema,
 	LibraryImportReportSchema,
 	LibraryImportSchema,
@@ -146,6 +149,32 @@ const ProfileEpisodeParams = ProfileParams.extend({
  * Importing this starts no server and touches no database.
  */
 export const route = {
+	authorizeImport: createRoute({
+		description:
+			"Where to send the person to connect an AniList or MyAnimeList account and agree to Sora reading their list. The browser makes `state` and `code_challenge` itself and keeps them: when the site sends the person back to `redirect_uri` with a `code`, they go to `importLibrary` with it, together with the secret `code_challenge` was made from (`code_verifier`). Sora uses the code once and keeps nothing.",
+		method: "post",
+		operationId: "authorizeImport",
+		path: "/library/import-authorization",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: ImportAuthorizeRequestSchema,
+					},
+				},
+				required: true,
+			},
+		},
+		responses: {
+			200: json(envelopeOf(ImportAuthorizationUrlSchema, EmptyMetaSchema), "Where to send them."),
+			401: problem("Not signed in."),
+			422: problem("The body is invalid, or that account is not set up on this Sora."),
+		},
+		security: signedIn,
+		summary: "Start connecting an account to import from",
+		tags: ["Profiles"],
+	}),
+
 	browseSeries: createRoute({
 		description:
 			"Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
@@ -376,6 +405,21 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "Titles to feature",
+		tags: ["Profiles"],
+	}),
+
+	getImportOptions: createRoute({
+		description:
+			"Which accounts people can connect to import from on this Sora. An account is on when its client is set up; otherwise the list is imported from a username or a file.",
+		method: "get",
+		operationId: "getImportOptions",
+		path: "/library/import-options",
+		responses: {
+			200: json(envelopeOf(ImportOptionsSchema, EmptyMetaSchema), "What is set up."),
+			401: problem("Not signed in."),
+		},
+		security: signedIn,
+		summary: "Which accounts can be connected to import from",
 		tags: ["Profiles"],
 	}),
 

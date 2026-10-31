@@ -16,6 +16,9 @@ export const SignedInDeviceSchema = z
 			description: "The address it signed in from, when known.",
 			example: "203.0.113.7",
 		}),
+		kind: z.enum(["computer", "phone", "tablet", "tv", "unknown"]).meta({
+			description: "What sort of device it is, for an icon.",
+		}),
 		last_active_at: z.string().meta({
 			description:
 				"When it last used the account, as an ISO 8601 timestamp. Kept up to a day behind.",

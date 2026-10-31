@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { describeDevice, presentAddress } from "./device";
+import { describeDevice, deviceKind, presentAddress } from "./device";
 
 describe("describeDevice", () => {
 	test("names the browser and the system", () => {
@@ -54,5 +54,27 @@ describe("presentAddress", () => {
 		expect(presentAddress("0000:0000:0000:0000:0000:0000:0000:0000")).toBeNull();
 		expect(presentAddress("unknown")).toBeNull();
 		expect(presentAddress(null)).toBeNull();
+	});
+});
+
+describe("deviceKind", () => {
+	test("tells a phone, a tablet, a computer and a TV apart", () => {
+		expect(deviceKind("Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) Safari/604.1")).toBe(
+			"phone",
+		);
+		expect(deviceKind("Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) Safari/604.1")).toBe("tablet");
+		expect(deviceKind("Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari/537.36")).toBe(
+			"phone",
+		);
+		expect(deviceKind("Mozilla/5.0 (Linux; Android 14; SM-X900) Safari/537.36")).toBe("tablet");
+		expect(
+			deviceKind("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/17.4 Safari/605.1"),
+		).toBe("computer");
+		expect(deviceKind("Mozilla/5.0 (SMART-TV; Linux; Tizen 7.0)")).toBe("tv");
+	});
+
+	test("does not know what a server's HTTP client is", () => {
+		expect(deviceKind("Bun/1.4.4")).toBe("unknown");
+		expect(deviceKind(null)).toBe("unknown");
 	});
 });

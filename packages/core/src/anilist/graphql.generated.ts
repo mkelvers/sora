@@ -255,6 +255,11 @@ export type UserAnimeListQueryVariables = Exact<{
 
 export type UserAnimeListQuery = { MediaListCollection: { lists: Array<{ entries: Array<{ status: MediaListStatus | null, progress: number | null, media: { id: number } | null } | null> | null } | null> | null } | null };
 
+export type ViewerNameQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ViewerNameQuery = { Viewer: { name: string } | null };
+
 export type EpisodeAiringsQueryVariables = Exact<{
   ids: Array<number> | number;
   page: number;
@@ -885,6 +890,13 @@ export const UserAnimeListDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UserAnimeListQuery, UserAnimeListQueryVariables>;
+export const ViewerNameDocument = new TypedDocumentString(`
+    query ViewerName {
+  Viewer {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<ViewerNameQuery, ViewerNameQueryVariables>;
 export const EpisodeAiringsDocument = new TypedDocumentString(`
     query EpisodeAirings($ids: [Int!]!, $page: Int!) {
   Page(page: $page, perPage: 50) {

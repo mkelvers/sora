@@ -1,12 +1,26 @@
 import { z } from "zod";
 
 const EnvironmentSchema = z.object({
+	/**
+	 * An AniList API client, registered at https://anilist.co/settings/developer
+	 * with the redirect URL `https://<your web address>/settings/library`. With
+	 * both, people can connect their AniList account to import their list.
+	 */
+	ANILIST_CLIENT_ID: z.string().min(1).optional(),
+	ANILIST_CLIENT_SECRET: z.string().min(1).optional(),
 	/** AnimeSchedule application token, used to learn when dubs come out. */
 	ANIME_SCHEDULE_API_KEY: z.string().min(1),
 	/** Secret for signing session tokens. Changing it signs every device out. */
 	AUTH_SECRET: z.string().min(32),
 	/** PostgreSQL connection string used by the database module. */
 	DATABASE_URL: z.url(),
+	/**
+	 * A MyAnimeList API client, registered at https://myanimelist.net/apiconfig
+	 * with the same redirect URL. The secret is only needed when the client
+	 * has one. With the ID, people can connect their MyAnimeList account.
+	 */
+	MAL_CLIENT_ID: z.string().min(1).optional(),
+	MAL_CLIENT_SECRET: z.string().min(1).optional(),
 	/**
 	 * The `realesrgan-ncnn-vulkan` executable, next to its `models` folder,
 	 * which upscales backdrops. Without it, upscaling a backdrop fails.
@@ -51,9 +65,22 @@ const environment = EnvironmentSchema.parse(process.env);
  * startup instead of failing later inside a request.
  */
 export const config = {
+	aniListOAuth:
+		environment.ANILIST_CLIENT_ID && environment.ANILIST_CLIENT_SECRET
+			? {
+					clientId: environment.ANILIST_CLIENT_ID,
+					clientSecret: environment.ANILIST_CLIENT_SECRET,
+				}
+			: null,
 	animeScheduleApiKey: environment.ANIME_SCHEDULE_API_KEY,
 	authSecret: environment.AUTH_SECRET,
 	databaseUrl: environment.DATABASE_URL,
+	myAnimeListOAuth: environment.MAL_CLIENT_ID
+		? {
+				clientId: environment.MAL_CLIENT_ID,
+				clientSecret: environment.MAL_CLIENT_SECRET ?? null,
+			}
+		: null,
 	realesrganBinary: environment.REALESRGAN_BINARY ?? null,
 	stillModelDir: environment.STILL_MODEL_DIR ?? null,
 	streamSigningSecret: environment.STREAM_SIGNING_SECRET,
