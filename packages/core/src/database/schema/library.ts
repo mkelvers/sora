@@ -47,12 +47,28 @@ export const playbackPreference = pgTable("playback_preference", {
 	audio: text("audio"),
 	/** Whether openings and endings are skipped without asking. */
 	autoSkip: boolean("auto_skip").notNull().default(false),
+	/** Whether the next episode starts by itself when one ends. */
+	autoplayNext: boolean("autoplay_next").notNull().default(true),
 	/**
 	 * The subtitles picked for each audio, keyed by `sub` or `dub`: a track's
 	 * language and kind, or `null` for none. An audio missing here shows its
 	 * default track.
 	 */
 	subtitles: jsonb("subtitles").$type<unknown>().notNull().default({}),
+	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+	userId: text("user_id").primaryKey(),
+});
+
+/** What one profile chose about how Sora looks and what it tells them, apart from playback. */
+export const profilePreference = pgTable("profile_preference", {
+	/** Whether episodes the profile has not watched hide their picture, title and summary. */
+	hideSpoilers: boolean("hide_spoilers").notNull().default(false),
+	/** Whether a dub coming out for a title the profile follows is a notification. */
+	notifyDubs: boolean("notify_dubs").notNull().default(true),
+	/** Whether new episodes of a title the profile follows are notifications. */
+	notifyEpisodes: boolean("notify_episodes").notNull().default(true),
+	/** Whether a season or film premiering for a title the profile follows is a notification. */
+	notifyPremieres: boolean("notify_premieres").notNull().default(true),
 	updatedAt: timestamptz("updated_at").notNull().defaultNow(),
 	userId: text("user_id").primaryKey(),
 });

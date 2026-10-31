@@ -3,6 +3,7 @@
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import Image from "$lib/components/ui/image.svelte";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
+	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
 	import type { Episode, Progress, Series } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
@@ -33,15 +34,17 @@
 	};
 
 	const id = $props.id();
+	const library = getLibrary();
 	const movie = $derived(series.format === "MOVIE");
 	const watched = $derived(!!progress?.finished);
 	const started = $derived(progress && !watched && progress.position_seconds > 0 ? progress : null);
+	const concealed = $derived(library.hideSpoilers && !watched && !started && !movie);
 	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
 	const playable = $derived(episode.audio?.length !== 0);
 	const heading = $derived(
 		movie
 			? (episode.title ?? series.title)
-			: `E${episode.number}${episode.title ? ` – ${episode.title}` : ""}`,
+			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`,
 	);
 	const badge = $derived.by(() => {
 		if (watched) {
@@ -60,7 +63,7 @@
 	});
 	const action = $derived(`${verb}${movie ? "" : ` E${episode.number}`}`);
 	const released = $derived(episode.aired_at ?? episode.air_date);
-	const image = $derived(episode.still_url ?? series.backdrop_url);
+	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));
 </script>
 
 <li class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10 sm:min-h-56">
@@ -140,7 +143,7 @@
 					</time>
 				</p>
 			{/if}
-			{#if episode.overview}
+			{#if episode.overview && !concealed}
 				<p class="mt-2 line-clamp-5 text-sm leading-snug text-foreground">
 					{episode.overview}
 				</p>

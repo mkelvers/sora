@@ -2,6 +2,7 @@ import type { ContinueWatching, SeriesCard, WatchlistStatus } from "@sora/sdk";
 import { createContext } from "svelte";
 
 import { getContinueWatching } from "./(home)/home.remote";
+import { getProfilePreferences } from "./settings/settings.remote";
 import {
 	getWatchlist,
 	getWatchlistStatuses,
@@ -53,16 +54,19 @@ export const statuses = [
 export class Library {
 	status: Map<string, WatchlistStatus>;
 	resume: Map<string, ContinueWatching>;
+	hideSpoilers: boolean;
 
 	constructor() {
 		const watchlist = getWatchlistStatuses();
 		const continuing = getContinueWatching();
+		const preferences = getProfilePreferences();
 		this.status = $derived(
 			new Map((watchlist.current ?? []).map((entry) => [entry.series_id, entry.status])),
 		);
 		this.resume = $derived(
 			new Map((continuing.current ?? []).map((item) => [item.series.id, item])),
 		);
+		this.hideSpoilers = $derived(preferences.current?.hide_spoilers ?? false);
 	}
 
 	toggle(series: SeriesCard) {

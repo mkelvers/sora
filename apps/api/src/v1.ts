@@ -15,6 +15,7 @@ import {
 	getFeatured,
 	getNotifications,
 	getPlaybackPreferences,
+	getProfilePreferences,
 	getProgress,
 	getRecommendations,
 	getSeriesProgress,
@@ -29,6 +30,7 @@ import {
 	setWatchlistStatus,
 	startRewatch,
 	updatePlaybackPreferences,
+	updateProfilePreferences,
 } from "@sora/core/library";
 import { isWebClientKey, proxyStream, resolvePlayback } from "@sora/core/playback";
 import {
@@ -608,6 +610,30 @@ export const v1Routes = v1
 	.openapi(route.updatePlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await updatePlaybackPreferences(profile.id, c.req.valid("json"));
+		return c.json(
+			{
+				meta: {},
+				results: preferences,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.getProfilePreferences, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const preferences = await getProfilePreferences(profile.id);
+		return c.json(
+			{
+				meta: {},
+				results: preferences,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.updateProfilePreferences, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const preferences = await updateProfilePreferences(profile.id, c.req.valid("json"));
 		return c.json(
 			{
 				meta: {},

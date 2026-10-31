@@ -37,6 +37,9 @@ export const PlaybackPreferencesSchema = z
 		auto_skip: z.boolean().meta({
 			description: "Whether openings and endings are skipped without asking.",
 		}),
+		autoplay_next: z.boolean().meta({
+			description: "Whether the next episode starts by itself when one ends.",
+		}),
 		subtitles: SubtitlePreferencesSchema,
 	})
 	.meta({
@@ -198,6 +201,7 @@ export const PlaybackPreferencesUpdateSchema = z
 	.object({
 		audio: LanguageSchema.nullable().optional(),
 		auto_skip: z.boolean().optional(),
+		autoplay_next: z.boolean().optional(),
 		subtitles: SubtitlePreferencesSchema.optional().meta({
 			description: "Changes the subtitles of the audio given, leaving the other's as they are.",
 		}),
@@ -209,6 +213,44 @@ export const PlaybackPreferencesUpdateSchema = z
 			},
 		},
 		id: "PlaybackPreferencesUpdate",
+	});
+
+export const ProfilePreferencesSchema = z
+	.object({
+		hide_spoilers: z.boolean().meta({
+			description:
+				"Whether episodes the profile has not watched hide their picture, title and summary in episode lists.",
+		}),
+		notifications: z
+			.object({
+				dubs: z.boolean().meta({
+					description: "Whether a dub coming out is a notification.",
+				}),
+				episodes: z.boolean().meta({
+					description: "Whether new episodes are notifications.",
+				}),
+				premieres: z.boolean().meta({
+					description: "Whether a season or film premiering is a notification.",
+				}),
+			})
+			.meta({
+				description:
+					"Which releases of titles the profile follows are notifications. All off mutes them.",
+			}),
+	})
+	.meta({
+		id: "ProfilePreferences",
+	});
+
+export const ProfilePreferencesUpdateSchema = z
+	.object({
+		hide_spoilers: z.boolean().optional(),
+		notifications: ProfilePreferencesSchema.shape.notifications.partial().optional().meta({
+			description: "Changes the kinds given, leaving the others as they are.",
+		}),
+	})
+	.meta({
+		id: "ProfilePreferencesUpdate",
 	});
 
 export const ProgressInputSchema = z
@@ -229,6 +271,8 @@ export const ProgressInputSchema = z
 		id: "ProgressInput",
 	});
 
+export type ProfilePreferences = z.infer<typeof ProfilePreferencesSchema>;
+export type ProfilePreferencesUpdate = z.input<typeof ProfilePreferencesUpdateSchema>;
 export type PlaybackPreferencesUpdate = z.input<typeof PlaybackPreferencesUpdateSchema>;
 export type ProgressInput = z.input<typeof ProgressInputSchema>;
 export type SubtitleChoice = z.infer<typeof SubtitleChoiceSchema>;

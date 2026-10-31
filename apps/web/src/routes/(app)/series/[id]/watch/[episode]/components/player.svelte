@@ -221,6 +221,10 @@
 		}}
 		onended={() => {
 			report(true);
+			if (!preferences.autoplay_next) {
+				return;
+			}
+
 			goto(next ?? back, {
 				replace: true,
 				reset: false,

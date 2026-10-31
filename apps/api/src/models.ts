@@ -24,6 +24,8 @@ export type {
 	Notification,
 	PlaybackPreferences,
 	PlaybackPreferencesUpdate,
+	ProfilePreferences,
+	ProfilePreferencesUpdate,
 	Progress,
 	SeriesProgress,
 	WatchlistEntry,

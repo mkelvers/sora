@@ -28,6 +28,7 @@ export type {
 	PlaybackMedia,
 	PlaybackMeta,
 	PlaybackPreferences,
+	ProfilePreferences,
 	PlaybackPreferencesUpdate,
 	Profile,
 	ProfileAvatar,

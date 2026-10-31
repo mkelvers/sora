@@ -13,6 +13,7 @@ export {
 	markNotificationsRead,
 	type Notifications,
 } from "./notifications/notifications";
+export { getProfilePreferences, updateProfilePreferences } from "./preferences/profile";
 export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
 export {
 	dismissContinueWatching,

@@ -15,6 +15,7 @@ import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
 import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
+import { getProfilePreferences } from "../preferences/profile";
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
 export interface Notifications {
@@ -397,11 +398,20 @@ export const getNotifications = async (
 			watched: playedKeys.has(`${row.seriesId}:${row.number}`),
 		}));
 
+	const { hide_spoilers: hideSpoilers, notifications: wanted } =
+		await getProfilePreferences(userId);
+	const kinds: Record<NotificationGroup["kind"], boolean> = {
+		dub: wanted.dubs,
+		episodes: wanted.episodes,
+		premiere: wanted.premieres,
+	};
 	const all = groupNotifications(
 		episodes,
 		new Set(dismissals.map((row) => row.notificationId)),
 		new Set(reads.map((row) => row.notificationId)),
-	);
+	)
+		.filter((group) => kinds[group.kind])
+		.map((group) => (hideSpoilers ? { ...group, episode_title: null } : group));
 	const groups = all.slice(0, options.limit ?? 30);
 	const shownIds = new Set(groups.map((group) => group.seriesId));
 	const cards = await toSeriesCards(rows.filter((row) => shownIds.has(row.id)));

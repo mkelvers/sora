@@ -15,6 +15,8 @@ import {
 	NotificationSchema,
 	PlaybackPreferencesUpdateSchema,
 	PlaybackPreferencesSchema,
+	ProfilePreferencesSchema,
+	ProfilePreferencesUpdateSchema,
 	ProgressInputSchema,
 	ProgressSchema,
 	SeriesProgressSchema,
@@ -422,6 +424,25 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "How the profile likes episodes to play",
+		tags: ["Profiles"],
+	}),
+
+	getProfilePreferences: createRoute({
+		description:
+			"How the profile wants Sora to look and what it wants to hear about: whether unwatched episodes hide their picture, title and summary, and which kinds of release are notifications. The defaults until it picks anything: nothing hidden and every kind on.",
+		method: "get",
+		operationId: "getProfilePreferences",
+		path: "/profiles/{profile_id}/preferences",
+		request: {
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(envelopeOf(ProfilePreferencesSchema, EmptyMetaSchema), "The preferences."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "The profile's display and notification preferences",
 		tags: ["Profiles"],
 	}),
 
@@ -1176,6 +1197,37 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "Rename or recolor a profile",
+		tags: ["Profiles"],
+	}),
+
+	updateProfilePreferences: createRoute({
+		description:
+			"Changes only what is given. Notification kinds change one by one: turning off dubs leaves the other kinds as they are.",
+		method: "patch",
+		operationId: "updateProfilePreferences",
+		path: "/profiles/{profile_id}/preferences",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: ProfilePreferencesUpdateSchema,
+					},
+				},
+				required: true,
+			},
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(
+				envelopeOf(ProfilePreferencesSchema, EmptyMetaSchema),
+				"The preferences as they now stand.",
+			),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+			422: problem("The body is invalid."),
+		},
+		security: signedIn,
+		summary: "Change the profile's display and notification preferences",
 		tags: ["Profiles"],
 	}),
 

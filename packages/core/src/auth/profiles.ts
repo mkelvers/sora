@@ -11,6 +11,7 @@ import {
 	notificationDismissal,
 	notificationRead,
 	playbackPreference,
+	profilePreference,
 	seriesState,
 } from "../database/schema/library";
 import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../errors";
@@ -171,6 +172,7 @@ export const deleteProfile = async (userId: string, profileId: string) => {
 		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
 		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
 		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
+		await tx.delete(profilePreference).where(eq(profilePreference.userId, profileId));
 		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
 		await tx.delete(profile).where(eq(profile.id, profileId));
 	});

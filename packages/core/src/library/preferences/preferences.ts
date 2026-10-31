@@ -11,6 +11,7 @@ import { LanguageSchema } from "../../models/series";
 const defaults: PlaybackPreferences = {
 	audio: null,
 	auto_skip: false,
+	autoplay_next: true,
 	subtitles: {},
 };
 
@@ -21,6 +22,7 @@ const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPre
 	return {
 		audio: audio.success ? audio.data : null,
 		auto_skip: row.autoSkip,
+		autoplay_next: row.autoplayNext,
 		subtitles: subtitles.success ? subtitles.data : {},
 	};
 };
@@ -53,12 +55,13 @@ export const updatePlaybackPreferences = async (
 		});
 	}
 
-	const { audio, subtitles, auto_skip: autoSkip } = parsed.data;
+	const { audio, subtitles, auto_skip: autoSkip, autoplay_next: autoplayNext } = parsed.data;
 	const [row] = await db
 		.insert(playbackPreference)
 		.values({
 			audio: audio ?? null,
 			autoSkip: autoSkip ?? false,
+			autoplayNext: autoplayNext ?? true,
 			subtitles: subtitles ?? {},
 			userId,
 		})
@@ -72,6 +75,9 @@ export const updatePlaybackPreferences = async (
 				}),
 				...(autoSkip !== undefined && {
 					autoSkip,
+				}),
+				...(autoplayNext !== undefined && {
+					autoplayNext,
 				}),
 				updatedAt: sql`now()`,
 			},
