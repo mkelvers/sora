@@ -8,6 +8,7 @@
  * with {@link getProfile}.
  */
 export { auth } from "./auth";
+export { listDevices, signOutDevice, signOutOtherDevices } from "./devices";
 export {
 	createProfile,
 	deleteProfile,

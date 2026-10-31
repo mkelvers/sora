@@ -29,6 +29,7 @@ export type {
 	PlaybackMeta,
 	PlaybackPreferences,
 	ProfilePreferences,
+	SignedInDevice,
 	PlaybackPreferencesUpdate,
 	Profile,
 	ProfileAvatar,

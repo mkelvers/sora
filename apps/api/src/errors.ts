@@ -28,6 +28,8 @@ export interface V1Env {
 	Variables: {
 		/** The signed-in account, on routes that require one. */
 		accountId: string;
+		/** The session the request is signed in with, beside `accountId`. */
+		sessionId: string;
 	};
 }
 

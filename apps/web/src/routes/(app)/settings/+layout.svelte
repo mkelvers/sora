@@ -26,6 +26,10 @@
 					href: "/settings/password",
 					label: "Password",
 				},
+				{
+					href: "/settings/devices",
+					label: "Devices",
+				},
 			],
 		},
 	];

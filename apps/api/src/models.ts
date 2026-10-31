@@ -33,6 +33,7 @@ export type {
 	WatchlistStatusEntry,
 } from "@sora/core/models/library";
 export type { PlaybackMedia, SkipSegment } from "@sora/core/models/playback";
+export type { SignedInDevice } from "@sora/core/models/device";
 export type { Profile, ProfileAvatar } from "@sora/core/models/profile";
 
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;

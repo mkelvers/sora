@@ -42,6 +42,7 @@ export const actions: Actions = {
 		const { data, error } = await attempt(
 			sora.signIn(credentials.data, {
 				headers: {
+					"User-Agent": request.headers.get("user-agent") ?? "",
 					"X-Forwarded-For": getClientAddress(),
 					"X-Sora-Client-Key": WEB_CLIENT_KEY,
 				},

@@ -4,7 +4,10 @@ import {
 	createProfile,
 	deleteProfile,
 	getProfile,
+	listDevices,
 	listProfiles,
+	signOutDevice,
+	signOutOtherDevices,
 	updateProfile,
 } from "@sora/core/auth";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
@@ -117,6 +120,7 @@ const signedIn = createMiddleware<V1Env>(async (c, proceed) => {
 	}
 
 	c.set("accountId", session.user.id);
+	c.set("sessionId", session.session.id);
 	c.header("Cache-Control", "private, no-store");
 	await proceed();
 });
@@ -536,6 +540,29 @@ export const v1Routes = v1
 			signal: c.req.raw.signal,
 		}),
 	)
+
+	.openapi(route.listDevices, async (c) => {
+		const devices = await listDevices(c.get("accountId"), c.get("sessionId"));
+		return c.json(
+			{
+				meta: {
+					count: devices.length,
+				},
+				results: devices,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.signOutDevice, async (c) => {
+		await signOutDevice(c.get("accountId"), c.req.valid("param").device_id);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.signOutOtherDevices, async (c) => {
+		await signOutOtherDevices(c.get("accountId"), c.get("sessionId"));
+		return c.body(null, 204);
+	})
 
 	.openapi(route.listProfiles, async (c) => {
 		const profiles = await listProfiles(c.get("accountId"));
