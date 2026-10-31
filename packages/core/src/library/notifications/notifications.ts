@@ -13,7 +13,7 @@ import { episodeDub } from "../../database/schema/playback";
 import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
 import type { Notification } from "../../models/library";
 import { effectiveStill } from "../../series/edges";
-import { episodeReleasedAt } from "../../series/episodes";
+import { episodeReleasedAt, releasedBetween } from "../../series/episodes";
 import { listedEpisodeDatesOf, toSeriesCards } from "../../series/queries";
 
 /** A profile's latest notifications, and how many of all its notifications are unread. */
@@ -328,13 +328,7 @@ export const getNotifications = async (
 			})
 			.from(seriesEpisode)
 			.innerJoin(series, eq(series.id, seriesEpisode.seriesId))
-			.where(
-				and(
-					inArray(seriesEpisode.seriesId, seriesIds),
-					gt(episodeReleasedAt, since),
-					lte(episodeReleasedAt, now),
-				),
-			),
+			.where(and(inArray(seriesEpisode.seriesId, seriesIds), releasedBetween(since, now))),
 		db
 			.select({
 				...episodeColumns,
