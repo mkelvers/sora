@@ -9,7 +9,7 @@
 		role?: "switch" | "menuitemcheckbox";
 		/** Draws a cross on the thumb when off and a check when on, for settings pages. */
 		icons?: boolean;
-		children: Snippet;
+		children?: Snippet;
 	};
 
 	let {
@@ -39,9 +39,11 @@
 			}
 		}}
 	/>
-	<span class="flex-1 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
-		{@render children()}
-	</span>
+	{#if children}
+		<span class="flex-1 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+			{@render children()}
+		</span>
+	{/if}
 	<span
 		aria-hidden="true"
 		class={cn(

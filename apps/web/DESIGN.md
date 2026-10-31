@@ -52,7 +52,9 @@ App pages use the `page` utility for padding and minimum height, then a centred 
 
 Sizes are `md` (44px, default) and `sm` (36px). `square` makes a primary, secondary or ghost button icon-only. `tone="danger"` works on every variant. The Select `heading` variant is the `text` role.
 
-**Switch** is plain by default. Pass `icons` on settings pages to draw a cross on the thumb when off and a check when on. A settings row is a `text-sm font-bold` label with the switch on the right and a `text-xs text-muted` description under it; rows in a section sit `space-y-6` apart and sections `space-y-12`.
+**Switch** is plain by default. Pass `icons` on settings pages to draw a cross on the thumb when off and a check when on.
+
+**Settings** pages are one `Panel` (title `text-xl font-bold`, then a `text-sm text-muted` description) holding `Row`s. A row is a `text-base font-semibold` label with a `text-sm text-muted` description under it on the left and the control on the right, so every setting has the same anatomy; a select or other wide control sits under the text on phones (`stacked`). Rows are `space-y-8` apart. Settings are grouped into pages by what a person looks for (Playback, Notifications, Password), not by one catch-all; a page needs no section headings, and a section with one setting is a label with nothing to label. The sidebar groups pages by scope: Profile for what follows the person watching, Account for what belongs to the login.
 
 **Dropdown** takes the same `variant` and `square` for its trigger. **Field** is the labelled text input with its error and password toggle; use it for every form field. **Tabs** switch views within a page. **Sheet** is the mobile stand-in for a dropdown.
 

@@ -7,11 +7,15 @@
 
 	const groups = [
 		{
-			label: "General",
+			label: "Profile",
 			sections: [
 				{
-					href: "/settings/preferences",
-					label: "Preferences",
+					href: "/settings/playback",
+					label: "Playback",
+				},
+				{
+					href: "/settings/notifications",
+					label: "Notifications",
 				},
 			],
 		},
@@ -35,13 +39,13 @@
 			<div class="flex shrink-0 flex-col gap-8 md:w-56">
 				{#each groups as group (group.label)}
 					<nav aria-labelledby="settings-{group.label}">
-						<h2 id="settings-{group.label}" class="text-lg font-bold">{group.label}</h2>
-						<ul class="mt-3 space-y-1">
+						<h2 id="settings-{group.label}" class="text-sm text-subtle">{group.label}</h2>
+						<ul class="mt-2 space-y-1">
 							{#each group.sections as section (section.href)}
 								<li>
 									<a
 										href={section.href}
-										class="block py-2 text-sm text-muted outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-[current]:text-accent"
+										class="block py-2 text-base text-muted outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-[current]:text-accent"
 										aria-current={page.url.pathname === section.href ? "page" : undefined}
 									>
 										{section.label}

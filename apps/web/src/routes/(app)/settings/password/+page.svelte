@@ -3,6 +3,7 @@
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Field from "$lib/components/ui/field.svelte";
+	import Panel from "$routes/(app)/settings/components/panel.svelte";
 
 	import type { PageProps } from "./$types";
 
@@ -43,54 +44,50 @@
 
 <StatusBanner {message} ondismiss={() => (dismissed = true)} />
 
-<section class="bg-raised px-5 py-12 sm:py-16" aria-labelledby="change-password">
-	<div class="mx-auto max-w-sm">
-		<h2 id="change-password" class="text-center text-2xl font-bold">Change Password</h2>
-		<p class="mt-3 text-center text-sm text-muted">
-			Changing your password signs you out of your other devices.
-		</p>
+<Panel
+	title="Change Password"
+	description="Changing your password signs you out of your other devices."
+>
+	<form
+		class="max-w-sm"
+		method="POST"
+		novalidate
+		aria-busy={pending}
+		use:enhance={() => {
+			pending = true;
+			dismissed = false;
+			return async ({ update, result }) => {
+				await update({
+					reset: false,
+				});
+				if (result.type === "success") {
+					values.currentPassword = "";
+					values.newPassword = "";
+					values.confirmPassword = "";
+				} else if (form?.errors?.currentPassword) {
+					values.currentPassword = "";
+				}
+				pending = false;
+			};
+		}}
+	>
+		<div class="space-y-8">
+			{#each fields as field (field.name)}
+				<Field
+					name={field.name}
+					label={field.label}
+					type="password"
+					autocomplete={field.autocomplete}
+					required
+					class="[&_input]:h-10 [&_input]:border-0 [&_input]:border-b [&_input]:border-border [&_input]:pl-0 [&_input]:text-base [&_input]:font-medium [&_input:not([aria-invalid])]:hover:border-border [&_input:not([aria-invalid])]:focus-visible:border-border [&_label]:text-xs [&_label]:text-subtle"
+					error={form?.errors?.[field.name]}
+					bind:value={values[field.name]}
+				/>
+			{/each}
+		</div>
 
-		<form
-			class="mt-10"
-			method="POST"
-			novalidate
-			aria-busy={pending}
-			use:enhance={() => {
-				pending = true;
-				dismissed = false;
-				return async ({ update, result }) => {
-					await update({
-						reset: false,
-					});
-					if (result.type === "success") {
-						values.currentPassword = "";
-						values.newPassword = "";
-						values.confirmPassword = "";
-					} else if (form?.errors?.currentPassword) {
-						values.currentPassword = "";
-					}
-					pending = false;
-				};
-			}}
-		>
-			<div class="space-y-8">
-				{#each fields as field (field.name)}
-					<Field
-						name={field.name}
-						label={field.label}
-						type="password"
-						autocomplete={field.autocomplete}
-						required
-						class="[&_input]:h-10 [&_input]:border-0 [&_input]:border-b [&_input]:border-border [&_input]:pl-0 [&_input]:text-base [&_input]:font-medium [&_input:not([aria-invalid])]:hover:border-border [&_input:not([aria-invalid])]:focus-visible:border-border [&_label]:text-xs [&_label]:text-subtle"
-						error={form?.errors?.[field.name]}
-						bind:value={values[field.name]}
-					/>
-				{/each}
-			</div>
-
-			<Button type="submit" variant="primary" class="mt-10 w-full" loading={pending}>
-				Change Password
-			</Button>
-		</form>
-	</div>
-</section>
+		<Button type="submit" variant="primary" class="mt-10 w-full" loading={pending}>
+			Change Password
+		</Button>
+	</form>
+</Panel>
