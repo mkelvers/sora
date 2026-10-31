@@ -42,6 +42,11 @@ import {
 	UpcomingSeriesSchema,
 	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
+import {
+	LibraryExportSchema,
+	LibraryImportReportSchema,
+	LibraryImportSchema,
+} from "@sora/core/models/transfer";
 
 import { CountMetaSchema, envelopeOf, OffsetMetaSchema, PageMetaSchema } from "./envelope";
 import {
@@ -257,6 +262,25 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "Delete a notification",
+		tags: ["Profiles"],
+	}),
+
+	exportLibrary: createRoute({
+		description:
+			"The profile's watchlist and its history of played episodes as one document, by AniList ID so it can move between Sora installs. Hand it back to `importLibrary` to restore it.",
+		method: "get",
+		operationId: "exportLibrary",
+		path: "/profiles/{profile_id}/library/export",
+		request: {
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(envelopeOf(LibraryExportSchema, EmptyMetaSchema), "The document."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Export the profile's watchlist and history",
 		tags: ["Profiles"],
 	}),
 
@@ -607,6 +631,35 @@ export const route = {
 		},
 		summary: "Fetch a stream resource",
 		tags: ["Playback"],
+	}),
+
+	importLibrary: createRoute({
+		description:
+			"Adds what another place keeps to the profile: a document from `exportLibrary`, an AniList user's public anime list, or a MyAnimeList `animelist` export. It only adds. A title already on the watchlist keeps its status, an episode already played keeps where it was, and importing the same thing twice changes nothing the second time. From another site, each title is put on the watchlist with its status (on hold and rewatching count as watching) and the episodes up to the ones watched are marked watched; a completed title has every released episode marked. Titles Sora does not hold yet are listed in the report and queued to be added, so importing again later takes them.",
+		method: "post",
+		operationId: "importLibrary",
+		path: "/profiles/{profile_id}/library/import",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: LibraryImportSchema,
+					},
+				},
+				required: true,
+			},
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(envelopeOf(LibraryImportReportSchema, EmptyMetaSchema), "What was added."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+			422: problem("The body is invalid, or the AniList user is unknown or private."),
+			503: problem("AniList could not be reached."),
+		},
+		security: signedIn,
+		summary: "Import a watchlist and history",
+		tags: ["Profiles"],
 	}),
 
 	listContinueWatching: createRoute({

@@ -1,0 +1,15 @@
+# One user's whole anime list, as AniList shows it to anyone for a public
+# list: every entry with its status and how many episodes were watched.
+query UserAnimeList($userName: String!) {
+	MediaListCollection(userName: $userName, type: ANIME) {
+		lists {
+			entries {
+				status
+				progress
+				media {
+					id
+				}
+			}
+		}
+	}
+}

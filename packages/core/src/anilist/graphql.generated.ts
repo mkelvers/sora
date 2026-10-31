@@ -26,6 +26,21 @@ export type MediaFormat =
   /** Anime which are under 15 minutes in length and broadcast on television */
   | 'TV_SHORT';
 
+/** Media list watching/reading status enum. */
+export type MediaListStatus =
+  /** Finished watching/reading */
+  | 'COMPLETED'
+  /** Currently watching/reading */
+  | 'CURRENT'
+  /** Stopped watching/reading before completing */
+  | 'DROPPED'
+  /** Paused watching/reading */
+  | 'PAUSED'
+  /** Planning to watch/read */
+  | 'PLANNING'
+  /** Re-watching/reading */
+  | 'REPEATING';
+
 /** Type of relation media has to its parent. */
 export type MediaRelation =
   /** An adaption of this media into a different format */
@@ -232,6 +247,13 @@ export type NewEntriesQueryVariables = Exact<{
 
 
 export type NewEntriesQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ synonyms: Array<string | null> | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { id: number, type: MediaType | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null> | null } | null };
+
+export type UserAnimeListQueryVariables = Exact<{
+  userName: string;
+}>;
+
+
+export type UserAnimeListQuery = { MediaListCollection: { lists: Array<{ entries: Array<{ status: MediaListStatus | null, progress: number | null, media: { id: number } | null } | null> | null } | null> | null } | null };
 
 export type EpisodeAiringsQueryVariables = Exact<{
   ids: Array<number> | number;
@@ -848,6 +870,21 @@ fragment FranchiseEntry on Media {
     }
   }
 }`) as unknown as TypedDocumentString<NewEntriesQuery, NewEntriesQueryVariables>;
+export const UserAnimeListDocument = new TypedDocumentString(`
+    query UserAnimeList($userName: String!) {
+  MediaListCollection(userName: $userName, type: ANIME) {
+    lists {
+      entries {
+        status
+        progress
+        media {
+          id
+        }
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<UserAnimeListQuery, UserAnimeListQueryVariables>;
 export const EpisodeAiringsDocument = new TypedDocumentString(`
     query EpisodeAirings($ids: [Int!]!, $page: Int!) {
   Page(page: $page, perPage: 50) {

@@ -55,6 +55,7 @@ FROM dependencies AS web
 WORKDIR /app/apps/web
 RUN SORA_API_URL=http://127.0.0.1:3000 bun run --bun build
 USER bun
-ENV HOST=0.0.0.0 PORT=3000
+# Room for a library import: a long history is a few megabytes of JSON.
+ENV HOST=0.0.0.0 PORT=3000 BODY_SIZE_LIMIT=25M
 EXPOSE 3000
 CMD ["bun", "build/index.js"]

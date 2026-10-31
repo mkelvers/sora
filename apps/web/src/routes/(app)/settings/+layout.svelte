@@ -17,6 +17,10 @@
 					href: "/settings/notifications",
 					label: "Notifications",
 				},
+				{
+					href: "/settings/library",
+					label: "Import and Export",
+				},
 			],
 		},
 		{

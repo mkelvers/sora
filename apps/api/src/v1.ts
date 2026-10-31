@@ -14,6 +14,7 @@ import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
 import {
 	dismissContinueWatching,
 	dismissNotification,
+	exportLibrary,
 	getContinueWatching,
 	getFeatured,
 	getNotifications,
@@ -21,6 +22,7 @@ import {
 	getProfilePreferences,
 	getProgress,
 	getRecommendations,
+	importLibrary,
 	getSeriesProgress,
 	getWatchlist,
 	getWatchlistStatuses,
@@ -188,6 +190,13 @@ v1.use(
 );
 v1.use(
 	route.upscaleBackdrop.getRoutingPath(),
+	rateLimit({
+		limit: 6,
+		windowMs: 60_000,
+	}),
+);
+v1.use(
+	route.importLibrary.getRoutingPath(),
 	rateLimit({
 		limit: 6,
 		windowMs: 60_000,
@@ -665,6 +674,30 @@ export const v1Routes = v1
 			{
 				meta: {},
 				results: preferences,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.exportLibrary, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const library = await exportLibrary(profile.id);
+		return c.json(
+			{
+				meta: {},
+				results: library,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.importLibrary, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const report = await importLibrary(profile.id, c.req.valid("json"));
+		return c.json(
+			{
+				meta: {},
+				results: report,
 			},
 			200,
 		);
