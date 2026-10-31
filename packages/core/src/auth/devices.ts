@@ -3,7 +3,7 @@ import { and, desc, eq, gt, ne } from "drizzle-orm";
 import { db } from "../database/client";
 import { authSession } from "../database/schema/auth";
 import type { SignedInDevice } from "../models/device";
-import { describeDevice, deviceKind, presentAddress } from "./device";
+import { describeDevice, deviceDetails, deviceKind, presentAddress } from "./device";
 
 /**
  * Records what browser the current session is, when the session was signed in
@@ -54,6 +54,7 @@ export const listDevices = async (
 		.orderBy(desc(authSession.updatedAt));
 
 	return rows.map((row) => ({
+		...deviceDetails(row.userAgent),
 		current: row.id === currentSessionId,
 		device: describeDevice(row.userAgent),
 		id: row.id,

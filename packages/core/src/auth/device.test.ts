@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { describeDevice, deviceKind, presentAddress } from "./device";
+import { describeDevice, deviceDetails, deviceKind, presentAddress } from "./device";
 
 describe("describeDevice", () => {
 	test("names the browser and the system", () => {
@@ -76,5 +76,39 @@ describe("deviceKind", () => {
 	test("does not know what a server's HTTP client is", () => {
 		expect(deviceKind("Bun/1.4.4")).toBe("unknown");
 		expect(deviceKind(null)).toBe("unknown");
+	});
+});
+
+describe("deviceDetails", () => {
+	test("reads the versions a User-Agent tells truthfully", () => {
+		expect(
+			deviceDetails(
+				"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:131.0) Gecko/20100101 Firefox/131.0",
+			),
+		).toEqual({
+			browser: "Firefox",
+			browser_version: "131",
+			system: "macOS",
+			system_version: null,
+		});
+		expect(
+			deviceDetails(
+				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Version/17.4 Mobile/15E148 Safari/604.1",
+			),
+		).toEqual({
+			browser: "Safari",
+			browser_version: "17.4",
+			system: "iPhone",
+			system_version: "17.4",
+		});
+	});
+
+	test("says nothing for an unknown client", () => {
+		expect(deviceDetails(null)).toEqual({
+			browser: null,
+			browser_version: null,
+			system: null,
+			system_version: null,
+		});
 	});
 });

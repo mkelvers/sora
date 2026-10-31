@@ -17,6 +17,11 @@
 					variant: ["primary", "secondary"],
 				},
 				{
+					class: "h-9 px-0 text-sm",
+					size: "sm",
+					variant: "plain",
+				},
+				{
 					class: "h-11 px-3 text-sm",
 					size: "md",
 					variant: "ghost",
@@ -97,6 +102,8 @@
 					icon: "text-muted hover:text-foreground aria-expanded:text-foreground",
 					item: "w-full justify-start px-5 text-left text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:bg-hover focus-visible:text-foreground focus-visible:-outline-offset-2 aria-checked:text-foreground aria-expanded:text-foreground aria-pressed:bg-hover aria-pressed:text-foreground aria-[current]:text-foreground max-sm:text-base",
 					nav: "h-full px-4 text-sm font-medium text-muted hover:bg-hover hover:text-foreground focus-visible:-outline-offset-2 aria-expanded:bg-hover aria-expanded:text-foreground",
+					plain:
+						"font-medium text-foreground hover:text-accent-secondary aria-expanded:text-accent-secondary",
 					primary:
 						"bg-accent font-bold tracking-wide text-on-accent uppercase hover:brightness-110",
 					secondary:

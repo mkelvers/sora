@@ -2,6 +2,14 @@ import { z } from "zod";
 
 export const SignedInDeviceSchema = z
 	.object({
+		browser: z.string().nullable().meta({
+			description: "The browser's name, when the sign-in said.",
+			example: "Firefox",
+		}),
+		browser_version: z.string().nullable().meta({
+			description: "The browser's major version, when the sign-in said.",
+			example: "131",
+		}),
 		current: z.boolean().meta({
 			description: "Whether this is the device the request came from.",
 		}),
@@ -27,6 +35,15 @@ export const SignedInDeviceSchema = z
 		signed_in_at: z.string().meta({
 			description: "When it signed in, as an ISO 8601 timestamp.",
 			example: "2026-10-01T18:00:00.000Z",
+		}),
+		system: z.string().nullable().meta({
+			description: "The operating system's name, when the sign-in said.",
+			example: "macOS",
+		}),
+		system_version: z.string().nullable().meta({
+			description:
+				"The operating system's version, only where the browser reports it truthfully (iOS, iPadOS, Android).",
+			example: "17.4",
 		}),
 	})
 	.meta({

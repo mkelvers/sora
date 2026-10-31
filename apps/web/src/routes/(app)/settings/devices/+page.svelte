@@ -60,6 +60,30 @@
 			dateStyle: "medium",
 		}).format(new Date(iso));
 
+	const stamp = (iso: string) =>
+		new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+			hour12: false,
+			timeStyle: "short",
+		}).format(new Date(iso));
+
+	const withVersion = (name: string | null, version: string | null) => {
+		if (!name) {
+			return null;
+		}
+
+		return version ? `${name} ${version}` : name;
+	};
+
+	const facts = (entry: SignedInDevice) =>
+		[
+			["Browser", withVersion(entry.browser, entry.browser_version)],
+			["System", withVersion(entry.system, entry.system_version)],
+			["Signed in", stamp(entry.signed_in_at)],
+			["Last active", stamp(entry.last_active_at)],
+			["IP address", entry.ip_address],
+		].filter((fact): fact is [string, string] => fact[1] !== null);
+
 	const nameOf = (entry: SignedInDevice) =>
 		entry.kind === "unknown" ? `Signed in ${day(entry.signed_in_at)}` : entry.device;
 
@@ -87,40 +111,44 @@
 
 {#snippet device(entry: SignedInDevice)}
 	{@const Icon = icons[entry.kind]}
-	<li class="flex items-center gap-4">
-		<span
-			class={cn(
-				"grid size-11 shrink-0 place-items-center bg-surface text-muted",
-				entry.current && "text-accent-secondary",
-			)}
-		>
-			<Icon size="1.5rem" aria-hidden="true" />
-		</span>
-		<div class="min-w-0 flex-1">
-			<p class="truncate text-base leading-6 font-semibold">{nameOf(entry)}</p>
-			<p class="text-sm break-words text-muted">
-				{#if entry.current}
-					<span class="text-accent-secondary">This device</span>
-				{:else}
-					Active {since(entry.last_active_at)}
-				{/if}
-				{#if entry.ip_address}
-					<span aria-hidden="true">•</span>
-					{entry.ip_address}
-				{/if}
-			</p>
+	<li>
+		<div class="flex items-center gap-4">
+			<Icon
+				size="1.75rem"
+				class={cn("shrink-0 text-muted", entry.current && "text-accent-secondary")}
+				aria-hidden="true"
+			/>
+			<div class="min-w-0 flex-1">
+				<p class="truncate text-base leading-6 font-semibold">{nameOf(entry)}</p>
+				<p class="text-sm text-muted">
+					{#if entry.current}
+						<span class="text-accent-secondary">This device</span>
+					{:else}
+						Active {since(entry.last_active_at)}
+					{/if}
+				</p>
+			</div>
+			{#if !entry.current}
+				<Button
+					variant="plain"
+					size="sm"
+					class="-mt-1.5 w-24 justify-end"
+					loading={busy === entry.id}
+					aria-label="Sign out {nameOf(entry)}"
+					onclick={() => signOut(entry)}
+				>
+					Sign out
+				</Button>
+			{/if}
 		</div>
-		{#if !entry.current}
-			<Button
-				variant="ghost"
-				size="sm"
-				loading={busy === entry.id}
-				aria-label="Sign out {nameOf(entry)}"
-				onclick={() => signOut(entry)}
-			>
-				Sign Out
-			</Button>
-		{/if}
+		<dl class="mt-4 ml-11 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+			{#each facts(entry) as [term, value] (term)}
+				<div class="min-w-0">
+					<dt class="text-muted">{term}</dt>
+					<dd class="mt-0.5 font-medium break-words tabular-nums">{value}</dd>
+				</div>
+			{/each}
+		</dl>
 	</li>
 {/snippet}
 
@@ -140,27 +168,28 @@
 		{/each}
 	{:else}
 		{#if here}
-			<ul>
+			<ul class="space-y-8">
 				{@render device(here)}
 			</ul>
 		{/if}
 
 		{#if others.length}
-			<div class="space-y-6">
+			<div class="space-y-5">
 				<div class="flex items-center justify-between gap-4">
-					<h3 class="text-lg font-bold">Other Devices</h3>
+					<h3 class="text-lg font-bold">Other devices</h3>
 					<Button
-						variant="ghost"
+						variant="plain"
 						size="sm"
+						class="w-24 justify-end"
 						tone="danger"
 						loading={busy === "others"}
 						onclick={signOutOthers}
 					>
-						Sign Out All
+						Sign out all
 					</Button>
 				</div>
 
-				<ul class="space-y-6">
+				<ul class="space-y-8">
 					{#each listed as entry (entry.id)}
 						{@render device(entry)}
 					{/each}

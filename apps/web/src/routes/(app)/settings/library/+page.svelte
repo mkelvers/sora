@@ -5,24 +5,22 @@
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Panel from "$routes/(app)/settings/components/panel.svelte";
-	import Row from "$routes/(app)/settings/components/row.svelte";
 	import type { LibraryImportReport } from "@sora/sdk";
 	import { attempt } from "@sora/shared";
+	import { DownloadSimpleIcon, FileArrowUpIcon } from "phosphor-svelte";
 
 	import { authorizeImport, getImportOptions, importLibrary } from "../library.remote";
 	import { begin, returnedFrom } from "./connection";
 	import type { AccountSource } from "./connection";
 
-	/** The sites a list can be connected from, with their marks on their own colours. */
+	/** The sites a list can be connected from, with their marks. */
 	const catalogue = [
 		{
-			color: "#02a9ff",
 			icon: anilist,
 			id: "anilist_account",
 			name: "AniList",
 		},
 		{
-			color: "#2e51a2",
 			icon: myanimelist,
 			id: "myanimelist_account",
 			name: "MyAnimeList",
@@ -33,8 +31,8 @@
 
 	const options = getImportOptions();
 
-	let picked = $state<AccountSource | null>(null);
 	let busy = $state<"connect" | "import" | "file" | null>(null);
+	let connecting = $state<AccountSource | null>(null);
 	let report = $state<LibraryImportReport | null>(null);
 	let announced = $state(false);
 	let problem = $state("");
@@ -43,9 +41,6 @@
 	const ready = $derived(options.current !== undefined);
 	const providers = $derived(
 		catalogue.filter((provider) => options.current?.[provider.id] === true),
-	);
-	const selected = $derived(
-		providers.find((provider) => provider.id === picked) ?? providers.at(0),
 	);
 
 	const redirectUri = () => `${location.origin}${location.pathname}`;
@@ -68,12 +63,9 @@
 		announced = true;
 	};
 
-	const connect = async () => {
-		if (!selected) {
-			return;
-		}
-
+	const connect = async (selected: (typeof catalogue)[number]) => {
 		busy = "connect";
+		connecting = selected.id;
 		problem = "";
 		const { challenge, state } = begin(selected.id);
 		const { data, error } = await attempt(
@@ -87,6 +79,7 @@
 		);
 		if (error) {
 			busy = null;
+			connecting = null;
 			problem = `Connecting to ${selected.name} isn't available right now.`;
 			return;
 		}
@@ -175,87 +168,63 @@
 
 <Panel
 	title="Import and Export"
-	description="Take your Watchlist and history with you, or bring them in from somewhere else."
+	description="Bring your Watchlist and history in, or take them with you."
 >
-	<section class="space-y-6" aria-labelledby="import-heading">
-		<div>
-			<h3 id="import-heading" class="text-lg font-bold">Import</h3>
-			<p class="mt-2 text-sm leading-relaxed text-muted">
-				{#if providers.length}
-					Sign in to the site you keep your list on and Sora brings it over. It only adds to what
-					you have: a title already on your Watchlist keeps its status, and episodes you've watched
-					stay as they are.
-				{:else}
-					It only adds to what you have: a title already on your Watchlist keeps its status, and
-					episodes you've watched stay as they are.
-				{/if}
-			</p>
-		</div>
+	<section class="space-y-8" aria-labelledby="import-heading">
+		<h3 id="import-heading" class="text-lg font-bold">Import</h3>
 
 		{#if !ready}
-			<div class="grid grid-cols-2 gap-4" aria-hidden="true">
-				<Skeleton class="h-20" />
-				<Skeleton class="h-20" />
+			<div class="space-y-8" aria-hidden="true">
+				<Skeleton class="h-12" />
+				<Skeleton class="h-12" />
 			</div>
-		{:else if providers.length}
-			<fieldset class="grid gap-4 border-0 p-0 sm:grid-cols-2">
-				<legend class="sr-only">Import from</legend>
-				{#each providers as provider (provider.id)}
-					<label
-						class="flex cursor-pointer items-center gap-4 border-2 border-border bg-surface p-4 transition-colors has-checked:border-accent-secondary has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent"
+		{:else}
+			{#each providers as provider (provider.id)}
+				<div class="flex items-start justify-between gap-6">
+					<div class="flex min-w-0 items-start gap-4">
+						<img src={provider.icon} alt="" class="mt-0.5 size-6 shrink-0" />
+						<div class="min-w-0">
+							<p class="text-base leading-6 font-semibold">{provider.name}</p>
+							<p class="mt-1 text-sm leading-relaxed text-muted" aria-live="polite">
+								{busy === "import" && connecting === provider.id
+									? "Reading your list. This can take a moment."
+									: "Sign in and Sora brings your list over."}
+							</p>
+						</div>
+					</div>
+					<Button
+						variant="plain"
+						size="sm"
+						class="-mt-1.5 w-24 justify-end"
+						loading={connecting === provider.id}
+						disabled={busy !== null}
+						aria-label="Connect {provider.name}"
+						onclick={() => connect(provider)}
 					>
-						<input
-							type="radio"
-							name="provider"
-							class="peer sr-only"
-							value={provider.id}
-							checked={selected?.id === provider.id}
-							onchange={() => (picked = provider.id)}
-						/>
-						<span
-							class="grid size-11 shrink-0 place-items-center"
-							style:background-color={provider.color}
-						>
-							<img src={provider.icon} alt="" class="size-6" />
-						</span>
-						<span class="text-base font-semibold">{provider.name}</span>
-					</label>
-				{/each}
-			</fieldset>
+						Connect
+					</Button>
+				</div>
+			{/each}
 
-			<div class="space-y-3">
+			<div class="flex items-start justify-between gap-6">
+				<div class="flex min-w-0 items-start gap-4">
+					<FileArrowUpIcon size="1.5rem" class="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+					<div class="min-w-0">
+						<p class="text-base leading-6 font-semibold">File</p>
+						<p class="mt-1 text-sm leading-relaxed text-muted">
+							A MyAnimeList export, or a file you downloaded from Export.
+						</p>
+					</div>
+				</div>
 				<Button
-					variant="primary"
-					class="w-full"
-					loading={busy === "connect" || busy === "import"}
-					disabled={busy !== null}
-					onclick={connect}
-				>
-					Connect {selected?.name}
-				</Button>
-				<p class="text-sm text-muted" aria-live="polite">
-					{#if busy === "import"}
-						Reading your list from {selected?.name}. This can take a moment.
-					{:else}
-						You'll sign in on {selected?.name} and come straight back.
-					{/if}
-				</p>
-			</div>
-		{/if}
-
-		{#if ready}
-			<Row
-				label="Import From File"
-				description="A MyAnimeList export, or a file you downloaded from Export."
-			>
-				<Button
-					variant="secondary"
+					variant="plain"
 					size="sm"
+					class="-mt-1.5 w-24 justify-end"
 					loading={busy === "file"}
 					disabled={busy !== null}
 					onclick={() => fileInput?.click()}
 				>
-					Choose File
+					Choose file
 				</Button>
 				<input
 					bind:this={fileInput}
@@ -266,7 +235,7 @@
 					aria-hidden="true"
 					onchange={chooseFile}
 				/>
-			</Row>
+			</div>
 		{/if}
 
 		{#if problem}
@@ -325,21 +294,28 @@
 		{/if}
 	</section>
 
-	<section class="space-y-6" aria-labelledby="export-heading">
+	<section class="space-y-8" aria-labelledby="export-heading">
 		<h3 id="export-heading" class="text-lg font-bold">Export</h3>
-		<Row
-			label="Watchlist and History"
-			description="Everything you've saved and watched, as one file you can import again anywhere."
-		>
+		<div class="flex items-start justify-between gap-6">
+			<div class="flex min-w-0 items-start gap-4">
+				<DownloadSimpleIcon size="1.5rem" class="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+				<div class="min-w-0">
+					<p class="text-base leading-6 font-semibold">Watchlist and history</p>
+					<p class="mt-1 text-sm leading-relaxed text-muted">
+						One file you can import again anywhere.
+					</p>
+				</div>
+			</div>
 			<Button
-				variant="secondary"
+				variant="plain"
 				size="sm"
+				class="-mt-1.5 w-24 justify-end"
 				href="/settings/library/export"
 				download
 				data-sveltekit-reload
 			>
 				Download
 			</Button>
-		</Row>
+		</div>
 	</section>
 </Panel>
