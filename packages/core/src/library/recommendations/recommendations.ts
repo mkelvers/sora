@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNotNull, max, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, max, notInArray, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
@@ -101,7 +101,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 
 	const seen = new Set(rows.map((row) => row.key));
 	const weights = new Map<string, number>();
-	const liked: (Taste["liked"][number] & { at: number })[] = [];
+	const liked: (Taste["liked"][number] & { key: string })[] = [];
 	const likedKeys = new Set<string>();
 	for (const row of rows.toSorted(
 		(left, right) => (signals.get(right.id)?.at ?? 0) - (signals.get(left.id)?.at ?? 0),
@@ -119,10 +119,29 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 		if (genres.length > 0 && !likedKeys.has(row.key)) {
 			likedKeys.add(row.key);
 			liked.push({
-				at: signal.at,
 				genres,
+				key: row.key,
 				title: row.title,
 			});
+		}
+	}
+
+	const names = await db
+		.select({
+			key: series.key,
+			startDate: series.startDate,
+			title: series.title,
+		})
+		.from(series)
+		.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
+		.where(
+			and(inArray(series.key, [...likedKeys]), inArray(animeSearch.format, ["TV", "ONA", "MOVIE"])),
+		)
+		.orderBy(asc(series.startDate));
+	const showNames = new Map<string, string>();
+	for (const { key, title } of names) {
+		if (!showNames.has(key)) {
+			showNames.set(key, title);
 		}
 	}
 
@@ -130,7 +149,10 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 		genres: [...weights.entries()]
 			.toSorted((left, right) => right[1] - left[1])
 			.map(([name]) => name),
-		liked,
+		liked: liked.map(({ genres, key, title }) => ({
+			genres,
+			title: showNames.get(key) ?? title,
+		})),
 		seen,
 	};
 };
