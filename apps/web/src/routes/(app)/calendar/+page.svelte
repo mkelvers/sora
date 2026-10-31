@@ -27,7 +27,7 @@
 
 	const calendar = $derived(
 		await getCalendar({
-			timeZone: data.timeZone,
+			timeZone: data.timeZone ?? "UTC",
 			weeks: shown.weeks,
 		}),
 	);
