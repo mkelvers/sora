@@ -493,6 +493,7 @@ export const ArtworkChangesSchema = z
 	});
 
 export type ArtworkChanges = z.input<typeof ArtworkChangesSchema>;
+export type FeaturedCard = z.infer<typeof FeaturedCardSchema>;
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
 export type FranchisePart = z.infer<typeof FranchisePartSchema>;
 export type Series = z.infer<typeof SeriesSchema>;
@@ -523,3 +524,12 @@ export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 
 export type RecommendationRow = z.infer<typeof RecommendationRowSchema>;
 export type Recommendations = RecommendationRow[];
+
+export const FeaturedCardSchema = SeriesCardSchema.extend({
+	start_id: z.string().meta({
+		description:
+			"The season to open for the profile: the first one released of the show that the profile has not completed, or the title itself when it has completed them all.",
+	}),
+}).meta({
+	id: "FeaturedCard",
+});

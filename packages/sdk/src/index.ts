@@ -43,6 +43,7 @@ export type {
 	Release,
 	ScheduledEpisode,
 	Series,
+	FeaturedCard,
 	SeriesCard,
 	SeriesImage,
 	SeriesProgress,

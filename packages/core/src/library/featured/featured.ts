@@ -11,7 +11,7 @@ import {
 	titleBackdropUpscale,
 	titleImage,
 } from "../../database/schema/series";
-import type { SeriesCard } from "../../models/series";
+import type { FeaturedCard, SeriesCard } from "../../models/series";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
 import { toSeriesCards } from "../../series/queries";
@@ -93,6 +93,61 @@ const cardsOf = async (seriesIds: readonly string[]) =>
 /** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
 const isShowable = (card: SeriesCard | undefined) =>
 	card !== undefined && !!card.backdrop_url && !!card.logo_url && card.audio.length > 0;
+
+/**
+ * Where each featured card opens: the first season of its show, by release,
+ * that the profile has not completed, so a title it never watched starts at
+ * its beginning. A show it completed in full opens at the card itself.
+ */
+const withStarts = async (
+	userId: string,
+	cards: readonly SeriesCard[],
+): Promise<FeaturedCard[]> => {
+	if (cards.length === 0) {
+		return [];
+	}
+	const keys = await db
+		.select({
+			key: series.key,
+		})
+		.from(series)
+		.where(
+			inArray(
+				series.id,
+				cards.map((card) => card.id),
+			),
+		);
+	const seasons = await db
+		.select({
+			completed: sql<boolean>`${seriesState.status} = 'completed'`,
+			id: series.id,
+			key: series.key,
+		})
+		.from(series)
+		.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
+		.leftJoin(seriesState, and(eq(seriesState.seriesId, series.id), eq(seriesState.userId, userId)))
+		.where(
+			and(
+				inArray(
+					series.key,
+					keys.map((row) => row.key),
+				),
+				inArray(animeSearch.format, [...featuredFormats]),
+			),
+		)
+		.orderBy(asc(animeSearch.startDate));
+	const starts = new Map<string, string>();
+	const keyOf = new Map(seasons.map((season) => [season.id, season.key]));
+	for (const season of seasons) {
+		if (!season.completed && !starts.has(season.key)) {
+			starts.set(season.key, season.id);
+		}
+	}
+	return cards.map((card) => ({
+		...card,
+		start_id: starts.get(keyOf.get(card.id) ?? "") ?? card.id,
+	}));
+};
 
 /**
  * Picks titles to feature for a rotation from the search index, leaving out
@@ -220,7 +275,7 @@ const pickTitles = async (
  * without a backdrop and logo to draw, and those nothing streams. Candidates not stored yet are queued for the
  * scheduler, a few with each pick, so later picks find them.
  */
-export const getFeatured = async (userId: string, now = new Date()): Promise<SeriesCard[]> => {
+export const getFeatured = async (userId: string, now = new Date()): Promise<FeaturedCard[]> => {
 	const rotation = rotationOf(now);
 	const picks = await db
 		.select()
@@ -244,7 +299,10 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Ser
 	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
 	const wanted = featuredCount - shown.length;
 	if (wanted <= 0) {
-		return shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []);
+		return withStarts(
+			userId,
+			shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []),
+		);
 	}
 
 	const { picked, cards } = await pickTitles(
@@ -277,8 +335,8 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Ser
 			);
 	}
 
-	return [
+	return withStarts(userId, [
 		...shown.flatMap((id) => keptCards.get(id) ?? []),
 		...added.flatMap((id) => cards.get(id) ?? []),
-	];
+	]);
 };

@@ -11,7 +11,7 @@
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
-	import type { SeriesCard } from "@sora/sdk";
+	import type { FeaturedCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
 	import { BookmarkSimpleIcon, PauseIcon, PlayIcon } from "phosphor-svelte";
 	import { prefersReducedMotion } from "svelte/motion";
@@ -19,7 +19,7 @@
 	let {
 		featured,
 	}: {
-		featured: SeriesCard[];
+		featured: FeaturedCard[];
 	} = $props();
 
 	const library = getLibrary();
@@ -50,7 +50,7 @@
 						inert={index !== carousel.active}
 					>
 						<a
-							href="/series/{slide.id}"
+							href="/series/{slide.start_id}"
 							class="col-start-1 row-start-1 grid max-sm:h-[100vw] max-sm:max-h-full max-sm:self-start max-sm:mask-[linear-gradient(to_bottom,black_65%,transparent)]"
 							aria-label={slide.title}
 							tabindex={index === carousel.active ? undefined : -1}
@@ -97,7 +97,7 @@
 						inert={index !== carousel.active}
 					>
 						<a
-							href="/series/{slide.id}"
+							href="/series/{slide.start_id}"
 							class="pointer-events-auto flex h-[calc(clamp(5rem,8vw,11.5rem)*var(--logo-scale))] w-full max-w-xs items-end justify-center px-10 max-sm:mx-auto sm:max-w-lg sm:justify-start sm:px-10 lg:px-20 xl:w-fit"
 							aria-hidden="true"
 							tabindex="-1"
@@ -145,7 +145,11 @@
 							class="pointer-events-auto mt-5 flex items-center gap-2 px-5 sm:px-10 lg:mt-7 lg:px-20"
 						>
 							{#if slide.episode_count > 0}
-								<Button href="/series/{slide.id}/watch/1" variant="primary" class="max-sm:flex-1">
+								<Button
+									href="/series/{slide.start_id}/watch/1"
+									variant="primary"
+									class="max-sm:flex-1"
+								>
 									<PlayIcon size="1.2rem" weight="bold" />
 									{slide.format === "MOVIE" ? "Start Watching" : "Start Watching E1"}
 								</Button>

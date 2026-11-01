@@ -35,6 +35,7 @@ import {
 	ReleaseSchema,
 	ScheduledEpisodeSchema,
 	CalendarSchema,
+	FeaturedCardSchema,
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesSchema,
@@ -428,7 +429,7 @@ export const route = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
+			200: json(envelopeOf(z.array(FeaturedCardSchema), CountMetaSchema), "The titles."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
