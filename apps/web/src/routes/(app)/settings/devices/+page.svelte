@@ -135,7 +135,7 @@
 				<p class="truncate text-base leading-6 font-semibold">{nameOf(entry)}</p>
 				<p class="text-sm text-muted">
 					{#if entry.current}
-						<span class="text-accent-secondary">This device</span>
+						<span class="text-accent-secondary">Active now</span>
 					{:else}
 						Active {since(entry.last_active_at)}
 					{/if}
@@ -180,8 +180,9 @@
 			</div>
 		{/each}
 	{:else}
-		<div class="space-y-8">
-			<div class="-mt-6 flex justify-end md:mt-0">
+		<section class="space-y-4" aria-labelledby="this-device-heading">
+			<div class="flex items-center justify-between gap-4">
+				<h3 id="this-device-heading" class="text-lg font-bold">This device</h3>
 				<Button
 					variant="text"
 					class="px-0 sm:hidden"
@@ -218,30 +219,28 @@
 			</div>
 
 			{#if here}
-				<ul class="space-y-8">
+				<ul>
 					{@render device(here)}
 				</ul>
 			{/if}
+		</section>
 
-			{#if others.length}
-				<div class="space-y-5">
-					<div class="flex items-center justify-between gap-4">
-						<h3 class="text-lg font-bold">Other devices</h3>
-					</div>
+		{#if others.length}
+			<section class="space-y-6" aria-labelledby="other-devices-heading">
+				<h3 id="other-devices-heading" class="text-lg font-bold">Other devices</h3>
 
-					<ul class="space-y-8">
-						{#each listed as entry (entry.id)}
-							{@render device(entry)}
-						{/each}
-					</ul>
-					{#if others.length > shownAtFirst}
-						<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
-							{showAll ? "Show Fewer" : `Show ${others.length - shownAtFirst} More`}
-						</Button>
-					{/if}
-				</div>
-			{/if}
-		</div>
+				<ul class="space-y-8">
+					{#each listed as entry (entry.id)}
+						{@render device(entry)}
+					{/each}
+				</ul>
+				{#if others.length > shownAtFirst}
+					<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
+						{showAll ? "Show fewer" : `Show ${others.length - shownAtFirst} more`}
+					</Button>
+				{/if}
+			</section>
+		{/if}
 	{/if}
 </Panel>
 
