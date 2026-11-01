@@ -1,11 +1,12 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
 	import Image from "$lib/components/ui/image.svelte";
+	import Star from "$lib/components/ui/star.svelte";
 	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { audioLabel, episodes, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";
-	import { BookmarkSimpleIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
 		card,
@@ -111,7 +112,7 @@
 				<p id="{id}-score" class="mt-3 flex items-center gap-1 text-sm text-muted">
 					<span class="sr-only">Score</span>
 					{(card.score / 10).toFixed(1)}
-					<StarIcon size="1em" weight="fill" />
+					<Star filled />
 				</p>
 			{/if}
 			<p id="{id}-episodes" class="mt-3 flex flex-col gap-0.5 text-xs font-semibold text-muted">

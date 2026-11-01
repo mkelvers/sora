@@ -11,8 +11,9 @@
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series, SeriesProgress } from "@sora/sdk";
-	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, StarIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
+	import RatingMenu from "./rating-menu.svelte";
 	import WatchlistMenu from "./watchlist-menu.svelte";
 
 	let {
@@ -207,31 +208,7 @@
 			<div
 				class="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm sm:justify-start lg:gap-2.5"
 			>
-				<span class="flex items-center gap-0.5" aria-hidden="true">
-					{#each { length: 5 }, index (index)}
-						<span class="relative size-6 shrink-0">
-							<StarIcon size="1.5rem" class="text-muted" />
-							<span
-								class="absolute inset-y-0 left-0 overflow-hidden"
-								style:width="{Math.min(Math.max(rating - index, 0), 1) * 100}%"
-							>
-								<StarIcon size="1.5rem" weight="fill" class="max-w-none text-muted" />
-							</span>
-						</span>
-					{/each}
-				</span>
-				<span class="hidden text-border-strong sm:inline" aria-hidden="true">|</span>
-				<span class="font-medium text-muted">
-					<span class="max-sm:sr-only">Average rating:</span>
-					<strong class="text-foreground">
-						{rating.toFixed(1)}
-						{#if series.score_count}
-							({series.score_count.toLocaleString("en-US", {
-								notation: "compact",
-							})})
-						{/if}
-					</strong>
-				</span>
+				<RatingMenu {series} {rating} />
 			</div>
 		{/if}
 
