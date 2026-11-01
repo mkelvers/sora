@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, max, notInArray, sql } fro
 
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
-import { episodeProgress, seriesState } from "../../database/schema/library";
+import { episodeProgress, seriesRating, seriesState } from "../../database/schema/library";
 import { series, seriesRelated } from "../../database/schema/series";
 import type { Recommendations } from "../../models/series";
 import { toSeriesCards } from "../../series/queries";
@@ -38,6 +38,19 @@ const tasteWeight = {
 	watching: 2,
 } as const;
 
+/**
+ * What a rating says about taste, by stars, replacing what playing or listing
+ * the title said: five stars is the strongest like, three is mild, and one or
+ * two stars count against its genres and keep it from being a favourite.
+ */
+const ratingWeight = {
+	1: -2,
+	2: -1,
+	3: 1,
+	4: 3,
+	5: 4,
+} as const;
+
 interface Taste {
 	/** Every title key the profile has played or listed, which is never recommended. */
 	seen: Set<string>;
@@ -49,7 +62,7 @@ interface Taste {
 
 /** What the profile's watchlist and playback say about what it likes. */
 const tasteOf = async (userId: string): Promise<Taste> => {
-	const [played, states] = await Promise.all([
+	const [played, states, rated] = await Promise.all([
 		db
 			.select({
 				at: max(episodeProgress.watchedAt),
@@ -66,6 +79,14 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			})
 			.from(seriesState)
 			.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status))),
+		db
+			.select({
+				at: seriesRating.ratedAt,
+				rating: seriesRating.rating,
+				seriesId: seriesRating.seriesId,
+			})
+			.from(seriesRating)
+			.where(eq(seriesRating.userId, userId)),
 	]);
 
 	const signals = new Map<string, { at: number; weight: number }>();
@@ -82,6 +103,14 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 
 	for (const row of states) {
 		note(row.seriesId, row.at, tasteWeight[row.status ?? "played"]);
+	}
+
+	for (const row of rated) {
+		const known = signals.get(row.seriesId);
+		signals.set(row.seriesId, {
+			at: Math.max(known?.at ?? 0, row.at.getTime()),
+			weight: ratingWeight[row.rating as keyof typeof ratingWeight] ?? 0,
+		});
 	}
 
 	if (signals.size === 0) {
@@ -116,7 +145,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			weights.set(genre, (weights.get(genre) ?? 0) + signal.weight);
 		}
 
-		if (genres.length > 0 && !likedKeys.has(row.key)) {
+		if (signal.weight > 0 && genres.length > 0 && !likedKeys.has(row.key)) {
 			likedKeys.add(row.key);
 			liked.push({
 				genres,
@@ -147,6 +176,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 
 	return {
 		genres: [...weights.entries()]
+			.filter(([, weight]) => weight > 0)
 			.toSorted((left, right) => right[1] - left[1])
 			.map(([name]) => name),
 		liked: liked.map(({ genres, key, title }) => ({

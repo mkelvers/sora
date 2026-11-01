@@ -505,6 +505,13 @@
       "when": 1793532677283,
       "tag": "0071_import_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1793535073603,
+      "tag": "0072_series_rating",
+      "breakpoints": true
     }
   ]
 }

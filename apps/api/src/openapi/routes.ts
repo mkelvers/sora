@@ -20,6 +20,7 @@ import {
 	ProfilePreferencesUpdateSchema,
 	ProgressInputSchema,
 	ProgressSchema,
+	RatingSchema,
 	SeriesProgressSchema,
 	WatchlistEntrySchema,
 	WatchlistStatusEntrySchema,
@@ -561,6 +562,26 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "How far the profile is into an episode",
+		tags: ["Profiles"],
+	}),
+
+	getRating: createRoute({
+		description: "The stars the profile gave the title, or null when it has not rated it.",
+		method: "get",
+		operationId: "getRating",
+		path: "/profiles/{profile_id}/series/{series_id}/rating",
+		request: {
+			params: ProfileParams.extend({
+				series_id: SeriesIdParam,
+			}),
+		},
+		responses: {
+			200: json(envelopeOf(RatingSchema, EmptyMetaSchema), "The rating."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Get the profile's rating of a title",
 		tags: ["Profiles"],
 	}),
 
@@ -1174,6 +1195,28 @@ export const route = {
 		tags: ["Profiles"],
 	}),
 
+	removeRating: createRoute({
+		description: "Takes back the profile's rating of the title.",
+		method: "delete",
+		operationId: "removeRating",
+		path: "/profiles/{profile_id}/series/{series_id}/rating",
+		request: {
+			params: ProfileParams.extend({
+				series_id: SeriesIdParam,
+			}),
+		},
+		responses: {
+			204: {
+				description: "Removed.",
+			},
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Take back a rating",
+		tags: ["Profiles"],
+	}),
+
 	saveProgress: createRoute({
 		description:
 			"Replaces what was remembered for the episode. A player sends it every few seconds while the episode plays, and when it is paused, left, or ends, and says each time whether the episode is over at that point. Stopping at second 0 of an unfinished episode is not remembered, since opening an episode is not watching it, and a finished episode stays as it was unless it is finished again. During a rewatch (see `startRewatch`) this is the rewatch's progress.",
@@ -1221,6 +1264,40 @@ export const route = {
 		},
 		summary: "Search series",
 		tags: ["Series"],
+	}),
+
+	setRating: createRoute({
+		description:
+			"Rates the title from 1 to 5 stars for the profile, or changes an earlier rating. How many stars say whether the profile liked it, which shapes what `listRecommendations` offers.",
+		method: "put",
+		operationId: "setRating",
+		path: "/profiles/{profile_id}/series/{series_id}/rating",
+		request: {
+			body: {
+				content: {
+					"application/json": {
+						schema: z.object({
+							rating: z.number().int().min(1).max(5),
+						}),
+					},
+				},
+				required: true,
+			},
+			params: ProfileParams.extend({
+				series_id: SeriesIdParam,
+			}),
+		},
+		responses: {
+			204: {
+				description: "Set.",
+			},
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile, or the series does not exist."),
+			422: problem("The body is invalid."),
+		},
+		security: signedIn,
+		summary: "Rate a title",
+		tags: ["Profiles"],
 	}),
 
 	setWatchlistStatus: createRoute({

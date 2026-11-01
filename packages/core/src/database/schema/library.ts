@@ -171,6 +171,32 @@ export const seriesState = pgTable(
 );
 
 /**
+ * How many stars, 1 to 5, one user gave a series. It says what they liked:
+ * recommendations weigh a series by it (see `getRecommendations`). Rating a
+ * series again replaces the stars; the user's other choices about it live in
+ * {@link seriesState}.
+ */
+export const seriesRating = pgTable(
+	"series_rating",
+	{
+		ratedAt: timestamptz("rated_at").notNull().defaultNow(),
+		rating: integer("rating").notNull(),
+		seriesId: text("series_id")
+			.notNull()
+			.references(() => series.id, {
+				onDelete: "cascade",
+			}),
+		userId: text("user_id").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.seriesId],
+		}),
+		check("series_rating_stars_check", sql`${table.rating} between 1 and 5`),
+	],
+);
+
+/**
  * An account on another site a profile connected to import from, kept so
  * the page can say which one it is and let the profile disconnect it. No
  * access is kept: connecting again asks the site for a new code.

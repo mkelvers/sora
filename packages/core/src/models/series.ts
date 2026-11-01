@@ -144,6 +144,15 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			"How many AniList users have scored it, behind `score`. Null until Sora's search index has it.",
 		example: 610_640,
 	}),
+	score_stars: z
+		.array(z.number().int())
+		.length(5)
+		.nullable()
+		.meta({
+			description:
+				"How many AniList users gave it each star, from one star to five, behind `score`. Null until Sora's search index has it.",
+			example: [8120, 9300, 41_200, 168_000, 384_020],
+		}),
 	seasons: z.array(FranchisePartSchema).meta({
 		description:
 			"The franchise's main seasons and story continuations in prequel/sequel order, with this title first when it is an extra or alternative outside that continuity.",
@@ -493,8 +502,8 @@ export const ArtworkChangesSchema = z
 	});
 
 export type ArtworkChanges = z.input<typeof ArtworkChangesSchema>;
-export type FeaturedCard = z.infer<typeof FeaturedCardSchema>;
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
+export type FeaturedCard = z.infer<typeof FeaturedCardSchema>;
 export type FranchisePart = z.infer<typeof FranchisePartSchema>;
 export type Series = z.infer<typeof SeriesSchema>;
 export type ImageType = z.infer<typeof ImageTypeSchema>;

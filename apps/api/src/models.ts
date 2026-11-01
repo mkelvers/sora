@@ -28,6 +28,7 @@ export type {
 	ProfilePreferences,
 	ProfilePreferencesUpdate,
 	Progress,
+	Rating,
 	SeriesProgress,
 	WatchlistEntry,
 	WatchlistStatus,

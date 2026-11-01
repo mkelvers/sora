@@ -116,6 +116,20 @@ export const searchText = (titles: readonly (string | null)[]) => {
 	return [...normalized, ...new Set(initials)].join(" | ");
 };
 
+/** How many scores AniList's ten buckets (10 to 100, ascending) put on each star: two buckets to a star. */
+const starsOf = (
+	distribution: readonly ({ amount: number | null } | null)[] | null | undefined,
+) => {
+	if (!distribution || distribution.length !== 10) {
+		return null;
+	}
+
+	return Array.from(
+		{ length: 5 },
+		(_, star) => (distribution[star * 2]?.amount ?? 0) + (distribution[star * 2 + 1]?.amount ?? 0),
+	);
+};
+
 const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 	const english = media.title?.english ?? null;
 	const romaji = media.title?.romaji ?? null;
@@ -138,6 +152,7 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		scoreCount:
 			media.stats?.scoreDistribution?.reduce((total, bucket) => total + (bucket?.amount ?? 0), 0) ??
 			null,
+		scoreStars: starsOf(media.stats?.scoreDistribution),
 		searchText: searchText([english, romaji, native, ...synonyms]),
 		season: media.season,
 		seasonYear: media.seasonYear,

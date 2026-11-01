@@ -95,6 +95,12 @@ export const animeSearch = pgTable(
 		/** How many AniList users have scored it; `null` when AniList has no score distribution for it. */
 		scoreCount: integer("score_count"),
 		/**
+		 * How many AniList users scored it with each star, from one star to five:
+		 * AniList's ten score buckets in pairs. `null` when AniList has no score
+		 * distribution for it.
+		 */
+		scoreStars: jsonb("score_stars").$type<number[]>(),
+		/**
 		 * Every title, lowercased with punctuation and accents removed, along
 		 * with its initials, such as `aot` for Attack on Titan. Candidates are
 		 * found by trigram similarity to it, which forgives typos.

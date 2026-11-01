@@ -18,6 +18,7 @@ import {
 	exportLibrary,
 	getContinueWatching,
 	getFeatured,
+	getRating,
 	getNotifications,
 	getPlaybackPreferences,
 	getProfilePreferences,
@@ -35,6 +36,8 @@ import {
 	markUnwatched,
 	markWatched,
 	removeFromWatchlist,
+	removeRating,
+	setRating,
 	removeProgress,
 	saveProgress,
 	setWatchlistStatus,
@@ -922,6 +925,32 @@ export const v1Routes = v1
 			},
 			200,
 		);
+	})
+
+	.openapi(route.getRating, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		return c.json(
+			{
+				meta: {},
+				results: await getRating(profile.id, series_id),
+			},
+			200,
+		);
+	})
+
+	.openapi(route.setRating, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await setRating(profile.id, series_id, c.req.valid("json").rating);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.removeRating, async (c) => {
+		const { profile_id, series_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await removeRating(profile.id, series_id);
+		return c.body(null, 204);
 	})
 
 	.openapi(route.setWatchlistStatus, async (c) => {

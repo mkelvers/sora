@@ -106,6 +106,18 @@ export const WatchlistStatusSchema = z
 		id: "WatchlistStatus",
 	});
 
+export const RatingSchema = z
+	.object({
+		rating: z.number().int().min(1).max(5).nullable().meta({
+			description:
+				"The stars, 1 to 5, the profile gave the title, or null when it has not rated it.",
+			example: 4,
+		}),
+	})
+	.meta({
+		id: "Rating",
+	});
+
 export const WatchlistEntrySchema = z
 	.object({
 		added_at: z.string().meta({
@@ -281,6 +293,7 @@ export type Progress = z.infer<typeof ProgressSchema>;
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
+export type Rating = z.infer<typeof RatingSchema>;
 export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
 export type WatchlistStatusEntry = z.infer<typeof WatchlistStatusEntrySchema>;
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;

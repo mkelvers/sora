@@ -607,6 +607,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 		db
 			.select({
 				scoreCount: animeSearch.scoreCount,
+				scoreStars: animeSearch.scoreStars,
 			})
 			.from(animeSearch)
 			.where(eq(animeSearch.anilistId, row.anilistId))
@@ -633,6 +634,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 				: null),
 		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
 		score_count: indexed?.scoreCount ?? null,
+		score_stars: indexed?.scoreStars ?? null,
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
 		start_date: row.startDate,
 		studios: anime.studios,
