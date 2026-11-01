@@ -5,7 +5,6 @@
 	import Image from "$lib/components/ui/image.svelte";
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
-	import { storyContinuation } from "$lib/series-navigation";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getLibrary } from "$routes/(app)/library.svelte";
@@ -31,16 +30,39 @@
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
 
+	const seasonLabel = (seriesId: string) => {
+		const index = series.seasons.findIndex((part) => part.series_id === seriesId);
+		const part = series.seasons[index];
+		return index > 0 && part?.role === "season" ? ` ${part.title}` : "";
+	};
+
+	const done = $derived(
+		!!progress?.finished ||
+			(library.status.get(series.id) === "completed" &&
+				!progress?.rewatch_started_at &&
+				!progress?.next),
+	);
+
+	const following = $derived(
+		series.seasons.slice(series.seasons.findIndex((part) => part.series_id === series.id) + 1),
+	);
+
 	const play = $derived.by(() => {
-		let continuation = progress?.finished ? storyContinuation(series) : undefined;
-		while (continuation && library.status.get(continuation.series_id) === "completed") {
-			continuation = storyContinuation({ id: continuation.series_id, seasons: series.seasons });
-		}
-		if (continuation) {
-			const episode = library.resume.get(continuation.series_id)?.episode ?? 1;
+		const later = done
+			? following.find(
+					(part) =>
+						part.role === "season" &&
+						part.episode_count > 0 &&
+						library.status.get(part.series_id) !== "completed",
+				)
+			: undefined;
+		if (later) {
+			const started = library.resume.get(later.series_id)?.episode;
+			const episode = started ?? 1;
+			const verb = started ? "Continue" : "Start";
 			return {
-				href: `/series/${continuation.series_id}/watch/${episode}`,
-				label: `Continue Watching${continuation.format === "MOVIE" ? "" : ` E${episode}`}`,
+				href: `/series/${later.series_id}/watch/${episode}`,
+				label: `${verb} Watching${seasonLabel(later.series_id)}${later.format === "MOVIE" ? "" : ` E${episode}`}`,
 				rewatch: false,
 			};
 		}
@@ -50,8 +72,8 @@
 		}
 
 		const episode = resume ?? 1;
-		const suffix = series.format === "MOVIE" ? "" : ` E${episode}`;
-		const rewatch = !resume && !!progress?.episodes.length;
+		const suffix = `${seasonLabel(series.id)}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
+		const rewatch = !resume && (done || !!progress?.episodes.length);
 		let label = `Start Watching${suffix}`;
 		if (resume) {
 			label = `Continue Watching${suffix}`;
@@ -64,6 +86,12 @@
 			rewatch,
 		};
 	});
+
+	const announced = $derived(
+		play?.rewatch || !play
+			? following.findLast((part) => part.role === "season" && part.episode_count === 0)
+			: undefined,
+	);
 
 	const next = $derived.by(() => {
 		if (!series.next_episode) {
@@ -175,6 +203,10 @@
 
 		{#if next}
 			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">{next}</p>
+		{:else if announced}
+			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">
+				You're caught up. {announced.title} hasn't been released yet.
+			</p>
 		{/if}
 
 		<p
