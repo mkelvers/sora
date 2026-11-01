@@ -182,9 +182,13 @@
 		<h1
 			class={cn(
 				"mx-auto w-fit sm:mx-0",
+				series.logo_url && "sm:mb-[max(0cqw,calc(var(--logo-y)*100cqw))]",
 				!series.logo_url &&
 					"max-w-2xl text-2xl leading-tight font-bold text-white sm:text-3xl lg:text-4xl",
 			)}
+			style:--logo-scale={series.logo_scale}
+			style:--logo-x={series.logo_offset_x}
+			style:--logo-y={series.logo_offset_y}
 		>
 			{#if series.logo_url}
 				<img
@@ -192,9 +196,6 @@
 					alt={series.title}
 					data-hero-logo
 					class="h-[calc(clamp(5rem,8cqw,11.5rem)*var(--logo-scale))] max-w-[min(90cqw,calc(65cqw*var(--logo-scale)))] translate-x-[calc(var(--logo-x)*100cqw)] translate-y-[calc(var(--logo-y)*100cqw)] object-contain object-center max-sm:translate-none sm:object-left @min-[40rem]:max-w-[min(90cqw,calc(28rem*var(--logo-scale)))] @5xl:max-w-[min(90cqw,calc(32rem*var(--logo-scale)))]"
-					style:--logo-scale={series.logo_scale}
-					style:--logo-x={series.logo_offset_x}
-					style:--logo-y={series.logo_offset_y}
 				/>
 			{:else}
 				{series.title}
@@ -202,9 +203,9 @@
 		</h1>
 
 		{#if next}
-			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">{next}</p>
+			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base lg:mt-8">{next}</p>
 		{:else if announced}
-			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base">
+			<p class="mt-5 text-sm font-semibold text-[#ece1c2] sm:mt-6 sm:text-base lg:mt-8">
 				You're caught up. {announced.title} hasn't been released yet.
 			</p>
 		{/if}
@@ -212,7 +213,7 @@
 		<p
 			class={cn(
 				"flex flex-wrap items-center justify-center gap-y-1 text-sm text-muted sm:justify-start",
-				next ? "mt-5 lg:mt-7" : "mt-5 sm:mt-10 lg:mt-11",
+				next || announced ? "mt-6" : "mt-5 sm:mt-10 lg:mt-11",
 			)}
 		>
 			{#if series.audio.length}
