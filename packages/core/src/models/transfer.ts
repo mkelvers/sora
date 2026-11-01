@@ -34,6 +34,10 @@ export const LibraryExportSchema = z
 				z.object({
 					added_at: z.string(),
 					anilist_id: z.number().int().positive(),
+					changed_at: z.string().optional().meta({
+						description:
+							"When the status last changed, which orders the watchlist. Files from before it existed lack it; an import then uses `added_at`.",
+					}),
 					status: WatchlistStatusSchema,
 					title: z.string().meta({
 						description: "For reading the file; an import goes by `anilist_id`.",

@@ -6,6 +6,29 @@ import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { exportLibrary, importLibrary } from "./transfer";
 
+const removeProfile = async (userId: string) => {
+	await db.delete(episodeProgress).where(eq(episodeProgress.userId, userId));
+	await db.delete(seriesState).where(eq(seriesState.userId, userId));
+};
+
+const datesOf = async (userId: string) => {
+	const rows = await db
+		.select({
+			addedAt: seriesState.addedAt,
+			changedAt: seriesState.statusChangedAt,
+			seriesId: seriesState.seriesId,
+		})
+		.from(seriesState)
+		.where(eq(seriesState.userId, userId));
+	return new Map(rows.map((row) => [row.seriesId, row]));
+};
+
+const isoOf = (
+	dates: Awaited<ReturnType<typeof datesOf>>,
+	title: { seriesId: string } | undefined,
+	field: "addedAt" | "changedAt",
+) => dates.get(title?.seriesId ?? "")?.[field]?.toISOString();
+
 interface Title {
 	anilistId: number;
 	malId: number;
@@ -144,6 +167,55 @@ describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import a
 		expect(report.episodes_added).toBe(third?.released ?? -1);
 		expect(report.not_in_sora_count).toBe(1);
 		expect(report.not_in_sora[0]).toEqual({ anilist_id: null, title: "Not held" });
+	});
+
+	test("keeps the dates a list gives instead of the time of the import", async () => {
+		const dated = `transfer-test-${crypto.randomUUID()}`;
+		try {
+			const [first, second, third] = titles;
+			const xml = `<myanimelist>
+				<anime><series_animedb_id>${first?.malId}</series_animedb_id><my_status>Completed</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2019-03-04</my_start_date><my_finish_date>2019-04-01</my_finish_date></anime>
+				<anime><series_animedb_id>${second?.malId}</series_animedb_id><my_status>Watching</my_status><my_watched_episodes>1</my_watched_episodes><my_start_date>2021-00-00</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
+				<anime><series_animedb_id>${third?.malId}</series_animedb_id><my_status>Plan to Watch</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2999-01-01</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
+			</myanimelist>`;
+			const before = new Date();
+			await importLibrary(dated, { source: "myanimelist", xml });
+			const byId = await datesOf(dated);
+
+			expect(isoOf(byId, first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
+			expect(isoOf(byId, first, "changedAt")).toBe("2019-04-01T00:00:00.000Z");
+			expect(isoOf(byId, second, "addedAt")).toBe("2021-01-01T00:00:00.000Z");
+			const future = new Date(isoOf(byId, third, "addedAt") ?? 0).getTime();
+			expect(future).toBeGreaterThanOrEqual(before.getTime());
+			expect(future).toBeLessThanOrEqual(Date.now());
+		} finally {
+			await removeProfile(dated);
+		}
+	});
+
+	test("round trips when each title's status last changed", async () => {
+		const [title] = titles;
+		const changed = new Date("2024-02-03T04:05:06.000Z");
+		await db
+			.update(seriesState)
+			.set({ statusChangedAt: changed })
+			.where(and(eq(seriesState.userId, profile), eq(seriesState.seriesId, title?.seriesId ?? "")));
+		const exported = await exportLibrary(profile);
+		expect(
+			exported.watchlist.find((entry) => entry.anilist_id === title?.anilistId)?.changed_at,
+		).toBe(changed.toISOString());
+
+		const other = `transfer-test-${crypto.randomUUID()}`;
+		try {
+			await importLibrary(other, { document: exported, source: "sora" });
+			const [row] = await db
+				.select({ changedAt: seriesState.statusChangedAt })
+				.from(seriesState)
+				.where(and(eq(seriesState.userId, other), eq(seriesState.seriesId, title?.seriesId ?? "")));
+			expect(row?.changedAt?.toISOString()).toBe(changed.toISOString());
+		} finally {
+			await removeProfile(other);
+		}
 	});
 
 	test("rejects an import that is not valid", async () => {

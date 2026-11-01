@@ -253,7 +253,7 @@ export type UserAnimeListQueryVariables = Exact<{
 }>;
 
 
-export type UserAnimeListQuery = { MediaListCollection: { lists: Array<{ entries: Array<{ status: MediaListStatus | null, progress: number | null, media: { id: number } | null } | null> | null } | null> | null } | null };
+export type UserAnimeListQuery = { MediaListCollection: { lists: Array<{ entries: Array<{ status: MediaListStatus | null, progress: number | null, createdAt: number | null, updatedAt: number | null, startedAt: { year: number | null, month: number | null, day: number | null } | null, completedAt: { year: number | null, month: number | null, day: number | null } | null, media: { id: number } | null } | null> | null } | null> | null } | null };
 
 export type ViewerNameQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -882,6 +882,18 @@ export const UserAnimeListDocument = new TypedDocumentString(`
       entries {
         status
         progress
+        createdAt
+        updatedAt
+        startedAt {
+          year
+          month
+          day
+        }
+        completedAt {
+          year
+          month
+          day
+        }
         media {
           id
         }

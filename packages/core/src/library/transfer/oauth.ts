@@ -211,8 +211,11 @@ const MalPageSchema = z.object({
 		z.object({
 			list_status: z
 				.object({
+					finish_date: z.string().nullish(),
 					num_episodes_watched: z.number().int().nonnegative().optional(),
+					start_date: z.string().nullish(),
 					status: z.string(),
+					updated_at: z.string().nullish(),
 				})
 				.optional(),
 			node: z.object({
@@ -302,9 +305,12 @@ export const readMyAnimeListAccount = async (
 			const status = item.list_status?.status;
 			const entry = status
 				? toMalEntry({
+						finished: item.list_status?.finish_date,
 						malId: item.node.id,
+						started: item.list_status?.start_date,
 						status,
 						title: item.node.title ?? null,
+						updated: item.list_status?.updated_at,
 						watched: item.list_status?.num_episodes_watched ?? 0,
 					})
 				: null;

@@ -50,8 +50,13 @@ const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 const unreachable: Fetcher = () => Promise.reject(new Error("offline"));
 
-const item = (id: number, status: string, watched: number) => ({
-	list_status: { num_episodes_watched: watched, status },
+const item = (
+	id: number,
+	status: string,
+	watched: number,
+	dates: { start_date?: string; finish_date?: string; updated_at?: string } = {},
+) => ({
+	list_status: { num_episodes_watched: watched, status, ...dates },
 	node: { id, title: `Title ${id}` },
 });
 
@@ -107,9 +112,29 @@ describe("readAniListAccount", () => {
 				lists: [
 					{
 						entries: [
-							{ media: { id: 1 }, progress: 4, status: "CURRENT" },
-							{ media: { id: 2 }, progress: 12, status: "COMPLETED" },
-							{ media: { id: 3 }, progress: 0, status: "PLANNING" },
+							{
+								createdAt: 1_617_970_746,
+								media: { id: 1 },
+								progress: 4,
+								status: "CURRENT",
+								updatedAt: 1_622_412_501,
+							},
+							{
+								completedAt: { day: 3, month: 2, year: 2020 },
+								createdAt: 0,
+								media: { id: 2 },
+								progress: 12,
+								startedAt: { day: null, month: null, year: 2020 },
+								status: "COMPLETED",
+								updatedAt: 0,
+							},
+							{
+								createdAt: 0,
+								media: { id: 3 },
+								progress: 0,
+								status: "PLANNING",
+								updatedAt: 0,
+							},
 						],
 					},
 				],
@@ -127,9 +152,30 @@ describe("readAniListAccount", () => {
 		const entries = await readAniListAccount(authorization, fetcher, clients);
 
 		expect(entries).toEqual([
-			{ anilistId: 1, status: "watching", through: 4, title: null },
-			{ anilistId: 2, status: "completed", through: null, title: null },
-			{ anilistId: 3, status: "plan_to_watch", through: 0, title: null },
+			{
+				addedAt: new Date("2021-04-09T12:19:06Z"),
+				anilistId: 1,
+				changedAt: new Date("2021-05-30T22:08:21Z"),
+				status: "watching",
+				through: 4,
+				title: null,
+			},
+			{
+				addedAt: new Date("2020-01-01T00:00:00Z"),
+				anilistId: 2,
+				changedAt: new Date("2020-02-03T00:00:00Z"),
+				status: "completed",
+				through: null,
+				title: null,
+			},
+			{
+				addedAt: null,
+				anilistId: 3,
+				changedAt: null,
+				status: "plan_to_watch",
+				through: 0,
+				title: null,
+			},
 		]);
 		expect(calls[0]?.url).toBe("https://anilist.co/api/v2/oauth/token");
 		expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
@@ -177,7 +223,16 @@ describe("readMyAnimeListAccount", () => {
 				data: [item(10, "watching", 3), item(11, "on_hold", 5)],
 				paging: { next: "https://api.myanimelist.net/v2/users/@me/animelist?offset=1000" },
 			}),
-			json({ data: [item(12, "completed", 24), item(13, "plan_to_watch", 0)] }),
+			json({
+				data: [
+					item(12, "completed", 24, {
+						finish_date: "2020-05",
+						start_date: "2020-04-02",
+						updated_at: "2020-06-01T10:00:00+00:00",
+					}),
+					item(13, "plan_to_watch", 0),
+				],
+			}),
 		);
 
 		const entries = await readMyAnimeListAccount(authorization, fetcher, clients);
@@ -188,6 +243,10 @@ describe("readMyAnimeListAccount", () => {
 			[12, "completed", null],
 			[13, "plan_to_watch", 0],
 		]);
+		expect(entries[2]?.addedAt).toEqual(new Date("2020-04-02T00:00:00Z"));
+		expect(entries[2]?.changedAt).toEqual(new Date("2020-06-01T10:00:00Z"));
+		expect(entries[3]?.addedAt).toBeNull();
+		expect(entries[3]?.changedAt).toBeNull();
 		const form = new URLSearchParams(String(calls[0]?.init?.body));
 		expect(Object.fromEntries(form)).toEqual({
 			client_id: "mal-id",

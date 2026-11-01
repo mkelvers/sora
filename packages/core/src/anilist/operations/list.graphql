@@ -1,11 +1,25 @@
 # One user's whole anime list, as AniList shows it to anyone for a public
-# list: every entry with its status and how many episodes were watched.
+# list: every entry with its status, how many episodes were watched and the
+# dates AniList keeps for it. createdAt and updatedAt are Unix seconds, 0 for
+# entries AniList has no date for; startedAt and completedAt are fuzzy dates.
 query UserAnimeList($userName: String!) {
 	MediaListCollection(userName: $userName, type: ANIME) {
 		lists {
 			entries {
 				status
 				progress
+				createdAt
+				updatedAt
+				startedAt {
+					year
+					month
+					day
+				}
+				completedAt {
+					year
+					month
+					day
+				}
 				media {
 					id
 				}

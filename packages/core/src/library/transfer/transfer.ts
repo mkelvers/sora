@@ -32,6 +32,7 @@ export const exportLibrary = async (userId: string, now = new Date()): Promise<L
 			.select({
 				addedAt: seriesState.addedAt,
 				anilistId: series.anilistId,
+				changedAt: seriesState.statusChangedAt,
 				status: seriesState.status,
 				title: series.title,
 			})
@@ -74,6 +75,7 @@ export const exportLibrary = async (userId: string, now = new Date()): Promise<L
 						{
 							added_at: row.addedAt.toISOString(),
 							anilist_id: row.anilistId,
+							changed_at: (row.changedAt ?? row.addedAt).toISOString(),
 							status: row.status,
 							title: row.title,
 						},
@@ -89,6 +91,8 @@ interface Addition {
 	title: string | null;
 	status: WatchlistStatus | null;
 	addedAt: Date;
+	/** When the status last changed; the day it was added if the source has no later date. */
+	changedAt: Date;
 	/** Episodes from the first to watch through; `null` for every episode released. */
 	through: number | null | undefined;
 	/** Episodes exactly as a file recorded them. */
@@ -128,7 +132,7 @@ const applyAdditions = async (
 							addedAt: addition.addedAt,
 							seriesId: addition.seriesId,
 							status: addition.status,
-							statusChangedAt: addition.addedAt,
+							statusChangedAt: addition.changedAt,
 							userId,
 						},
 					]
@@ -240,10 +244,17 @@ const applyAdditions = async (
 	};
 };
 
+/**
+ * A date a list gave, no later than `now`: a clock set wrong on the other
+ * side must not put a title ahead of everything the person does next.
+ */
+const notAfter = (date: Date | null, now: Date) => (date && date < now ? date : now);
+
 const fromList = (entries: readonly ListEntry[], now: Date): Addition[] =>
 	entries.map((entry) => ({
-		addedAt: now,
+		addedAt: notAfter(entry.addedAt, now),
 		anilistId: entry.anilistId,
+		changedAt: notAfter(entry.changedAt ?? entry.addedAt, now),
 		played: [],
 		status: entry.status,
 		through: entry.through,
@@ -261,6 +272,7 @@ const fromFile = (file: LibraryExport): Addition[] => {
 		const added: Addition = {
 			addedAt: new Date(),
 			anilistId,
+			changedAt: new Date(),
 			played: [],
 			status: null,
 			through: undefined,
@@ -273,6 +285,7 @@ const fromFile = (file: LibraryExport): Addition[] => {
 		const addition = of(entry.anilist_id, entry.title);
 		addition.status = entry.status;
 		addition.addedAt = new Date(entry.added_at);
+		addition.changedAt = new Date(entry.changed_at ?? entry.added_at);
 	}
 
 	for (const row of file.history) {

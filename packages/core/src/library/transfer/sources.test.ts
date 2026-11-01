@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseMyAnimeListExport } from "./sources";
+import { fromDayText, listDates, parseMyAnimeListExport } from "./sources";
 
 const entry = (fields: Record<string, string>) =>
 	`<anime>${Object.entries(fields)
@@ -25,12 +25,16 @@ describe("parseMyAnimeListExport", () => {
 
 		expect(parseMyAnimeListExport(xml)).toEqual([
 			{
+				addedAt: null,
+				changedAt: null,
 				malId: 5114,
 				status: "watching",
 				through: 7,
 				title: "Fullmetal Alchemist: Brotherhood",
 			},
 			{
+				addedAt: null,
+				changedAt: null,
 				malId: 9253,
 				status: "plan_to_watch",
 				through: 0,
@@ -89,5 +93,79 @@ describe("parseMyAnimeListExport", () => {
 				"<myanimelist><manga><manga_mangadb_id>1</manga_mangadb_id></manga></myanimelist>",
 			),
 		).toEqual([]);
+	});
+});
+
+describe("MyAnimeList export dates", () => {
+	test("reads when a title was started and finished", () => {
+		const [watched] = parseMyAnimeListExport(
+			entry({
+				my_finish_date: "2020-03-09",
+				my_start_date: "2020-02-01",
+				my_status: "Completed",
+				my_watched_episodes: "12",
+				series_animedb_id: "1",
+				series_title: "A",
+			}),
+		);
+
+		expect(watched?.addedAt).toEqual(new Date("2020-02-01T00:00:00Z"));
+		expect(watched?.changedAt).toEqual(new Date("2020-03-09T00:00:00Z"));
+	});
+
+	test("treats MyAnimeList's all-zero date as no date", () => {
+		const [watched] = parseMyAnimeListExport(
+			entry({
+				my_finish_date: "0000-00-00",
+				my_start_date: "0000-00-00",
+				my_status: "Watching",
+				my_watched_episodes: "1",
+				series_animedb_id: "1",
+				series_title: "A",
+			}),
+		);
+
+		expect(watched?.addedAt).toBeNull();
+		expect(watched?.changedAt).toBeNull();
+	});
+});
+
+describe("fromDayText", () => {
+	test("fills a missing month or day with the first", () => {
+		expect(fromDayText("2020")).toEqual(new Date("2020-01-01T00:00:00Z"));
+		expect(fromDayText("2020-05")).toEqual(new Date("2020-05-01T00:00:00Z"));
+		expect(fromDayText("2020-05-00")).toEqual(new Date("2020-05-01T00:00:00Z"));
+	});
+
+	test("returns nothing for no date", () => {
+		expect(fromDayText("0000-00-00")).toBeNull();
+		expect(fromDayText("")).toBeNull();
+		expect(fromDayText(null)).toBeNull();
+		expect(fromDayText("soon")).toBeNull();
+	});
+});
+
+describe("listDates", () => {
+	const created = new Date("2021-01-01T00:00:00Z");
+	const started = new Date("2021-02-01T00:00:00Z");
+	const updated = new Date("2021-06-01T00:00:00Z");
+
+	test("adds at creation, else the first date there is, and changes at the latest", () => {
+		expect(listDates({ created, started, updated })).toEqual({
+			addedAt: created,
+			changedAt: updated,
+		});
+		expect(listDates({ started, updated })).toEqual({
+			addedAt: started,
+			changedAt: updated,
+		});
+		expect(listDates({ updated })).toEqual({ addedAt: updated, changedAt: updated });
+	});
+
+	test("has neither date when the list gives none", () => {
+		expect(listDates({ created: null, updated: null })).toEqual({
+			addedAt: null,
+			changedAt: null,
+		});
 	});
 });
