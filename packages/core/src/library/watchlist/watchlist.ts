@@ -1,7 +1,7 @@
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, ne, notExists, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { seriesState } from "../../database/schema/library";
+import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
@@ -118,7 +118,7 @@ export const updateWatchlistAfterPlayback = async (
 		finished: boolean;
 	},
 ) => {
-	const [[current], [title]] = await Promise.all([
+	const [[current], [title], [unfinished]] = await Promise.all([
 		db
 			.select({
 				status: seriesState.status,
@@ -136,11 +136,38 @@ export const updateWatchlistAfterPlayback = async (
 			.from(series)
 			.where(eq(series.id, seriesId))
 			.limit(1),
+		db
+			.select({
+				count: sql<number>`count(*)::int`,
+			})
+			.from(seriesEpisode)
+			.where(
+				and(
+					eq(seriesEpisode.seriesId, seriesId),
+					ne(seriesEpisode.number, playback.episode),
+					notExists(
+						db
+							.select({
+								one: sql`1`,
+							})
+							.from(episodeProgress)
+							.where(
+								and(
+									eq(episodeProgress.userId, userId),
+									eq(episodeProgress.seriesId, seriesId),
+									eq(episodeProgress.episode, seriesEpisode.number),
+									eq(episodeProgress.finished, true),
+								),
+							),
+					),
+				),
+			),
 	]);
 	const next = statusAfterPlayback(current?.status ?? null, {
 		finished: playback.finished,
 		isFinale:
 			title?.status === "FINISHED" && title.episodes !== null && playback.episode >= title.episodes,
+		playedThrough: (unfinished?.count ?? 0) === 0,
 	});
 
 	if (next !== null && next !== current?.status) {

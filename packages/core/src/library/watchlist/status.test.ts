@@ -5,14 +5,22 @@ import { statusAfterPlayback } from "./status";
 const finished = {
 	finished: true,
 	isFinale: false,
+	playedThrough: true,
 };
 const finale = {
 	finished: true,
 	isFinale: true,
+	playedThrough: true,
 };
 const partway = {
 	finished: false,
 	isFinale: false,
+	playedThrough: true,
+};
+const skippedAhead = {
+	finished: true,
+	isFinale: true,
+	playedThrough: false,
 };
 
 describe("statusAfterPlayback", () => {
@@ -27,6 +35,12 @@ describe("statusAfterPlayback", () => {
 
 	test("completes a series when its finale is finished", () => {
 		expect(statusAfterPlayback("watching", finale)).toBe("completed");
+	});
+
+	test("leaves the status alone when the finale is finished without the episodes before it", () => {
+		expect(statusAfterPlayback("watching", skippedAhead)).toBe("watching");
+		expect(statusAfterPlayback("plan_to_watch", skippedAhead)).toBe("watching");
+		expect(statusAfterPlayback(null, skippedAhead)).toBeNull();
 	});
 
 	test("adds a series off the watchlist as completed when its finale is finished", () => {

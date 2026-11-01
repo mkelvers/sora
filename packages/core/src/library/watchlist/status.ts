@@ -8,6 +8,8 @@ export interface Playback {
 	 * airing, and the episode's number is the episode count AniList gives it.
 	 */
 	isFinale: boolean;
+	/** Whether every other listed episode has been finished too. */
+	playedThrough: boolean;
 }
 
 /**
@@ -16,7 +18,8 @@ export interface Playback {
  *
  * - A completed series stays completed, so a rewatch never undoes it.
  * - Finishing the finale completes the series, and puts it on the
- *   watchlist when it was not.
+ *   watchlist when it was not, but only after every other episode was
+ *   finished too. Jumping to the finale alone says nothing about the rest.
  * - Finishing any other episode of a series on the watchlist makes it
  *   `watching`, whatever it was.
  * - Stopping partway changes nothing, and a series off the watchlist stays
@@ -30,7 +33,7 @@ export const statusAfterPlayback = (
 		return current;
 	}
 
-	if (playback.finished && playback.isFinale) {
+	if (playback.finished && playback.isFinale && playback.playedThrough) {
 		return "completed";
 	}
 

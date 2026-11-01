@@ -129,4 +129,12 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 		const [completed] = await getWatchlist(profile);
 		expect(completed?.status).toBe("completed");
 	});
+
+	test("does not complete when the finale is finished without the episodes before it", async () => {
+		await db.insert(seriesEpisode).values({ number: 23, seriesId: id });
+		await setWatchlistStatus(profile, id, "watching");
+		await updateWatchlistAfterPlayback(profile, id, { episode: 24, finished: true });
+		const [entry] = await getWatchlist(profile);
+		expect(entry?.status).toBe("watching");
+	});
 });
