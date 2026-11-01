@@ -23,8 +23,11 @@ import {
 	getProfilePreferences,
 	getProgress,
 	getRecommendations,
+	disconnectImport,
 	importLibrary,
 	importOptions,
+	listImportConnections,
+	undoImport,
 	getSeriesProgress,
 	getWatchlist,
 	getWatchlistStatuses,
@@ -733,6 +736,39 @@ export const v1Routes = v1
 			{
 				meta: {},
 				results: report,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.listImportConnections, async (c) => {
+		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
+		const connections = await listImportConnections(profile.id);
+		return c.json(
+			{
+				meta: {
+					count: connections.length,
+				},
+				results: connections,
+			},
+			200,
+		);
+	})
+
+	.openapi(route.disconnectImport, async (c) => {
+		const { profile_id, source } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		await disconnectImport(profile.id, source);
+		return c.body(null, 204);
+	})
+
+	.openapi(route.undoImport, async (c) => {
+		const { profile_id, import_id } = c.req.valid("param");
+		const profile = await getProfile(c.get("accountId"), profile_id);
+		return c.json(
+			{
+				meta: {},
+				results: await undoImport(profile.id, import_id),
 			},
 			200,
 		);

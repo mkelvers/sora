@@ -36,7 +36,9 @@ export type { PlaybackMedia, SkipSegment } from "@sora/core/models/playback";
 export type { SignedInDevice } from "@sora/core/models/device";
 export type {
 	ImportAuthorization,
+	ImportConnection,
 	ImportOptions,
+	ImportUndo,
 	LibraryExport,
 	LibraryImport,
 	LibraryImportReport,

@@ -83,7 +83,7 @@
 			},
 			variants: {
 				loading: {
-					true: "before:size-3.5 before:animate-spin before:border-2 before:border-current before:border-t-transparent disabled:opacity-100",
+					true: "before:size-3.5 before:animate-spin before:rounded-full before:border-2 before:border-current before:border-t-transparent disabled:opacity-100",
 				},
 				size: {
 					md: "",

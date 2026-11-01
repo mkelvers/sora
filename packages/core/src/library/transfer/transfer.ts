@@ -2,12 +2,23 @@ import { inSequence } from "@sora/shared";
 import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { episodeProgress, seriesState } from "../../database/schema/library";
+import {
+	episodeProgress,
+	importConnection,
+	importRecord,
+	seriesState,
+} from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import { InvalidInputError } from "../../errors";
 import type { WatchlistStatus } from "../../models/library";
 import { LibraryImportSchema } from "../../models/transfer";
-import type { LibraryExport, LibraryImport, LibraryImportReport } from "../../models/transfer";
+import type {
+	ImportConnection,
+	ImportUndo,
+	LibraryExport,
+	LibraryImport,
+	LibraryImportReport,
+} from "../../models/transfer";
 import { scheduleSeriesStore } from "../../scheduler/queue";
 import { episodeReleasedAt } from "../../series/episodes";
 import { storedSeriesIds } from "../../series/store";
@@ -122,8 +133,9 @@ const applyAdditions = async (
 		return seriesId === undefined ? [] : [{ ...addition, seriesId }];
 	});
 
-	let watchlistAdded = 0;
-	let episodesAdded = 0;
+	const addedSeriesIds: string[] = [];
+	const addedEpisodes: [string, number, boolean][] = [];
+	let importId: string | null = null;
 	await db.transaction(async (tx) => {
 		const listed = present.flatMap((addition) =>
 			addition.status
@@ -154,7 +166,7 @@ const applyAdditions = async (
 				.returning({
 					seriesId: seriesState.seriesId,
 				});
-			watchlistAdded += written.length;
+			addedSeriesIds.push(...written.map((row) => row.seriesId));
 		});
 
 		const recorded = present.flatMap((addition) =>
@@ -221,9 +233,28 @@ const applyAdditions = async (
 				.onConflictDoNothing()
 				.returning({
 					episode: episodeProgress.episode,
+					rewatch: episodeProgress.rewatch,
+					seriesId: episodeProgress.seriesId,
 				});
-			episodesAdded += written.length;
+			addedEpisodes.push(
+				...written.map((row): [string, number, boolean] => [
+					row.seriesId,
+					row.episode,
+					row.rewatch,
+				]),
+			);
 		});
+
+		await tx.delete(importRecord).where(eq(importRecord.userId, userId));
+		if (addedSeriesIds.length || addedEpisodes.length) {
+			importId = crypto.randomUUID();
+			await tx.insert(importRecord).values({
+				episodes: addedEpisodes,
+				id: importId,
+				seriesIds: addedSeriesIds,
+				userId,
+			});
+		}
 	});
 
 	await Promise.all(
@@ -233,14 +264,15 @@ const applyAdditions = async (
 	);
 
 	return {
-		episodes_added: episodesAdded,
+		episodes_added: addedEpisodes.length,
+		import_id: importId,
 		not_in_sora: missing.slice(0, reportedTitles).map((addition) => ({
 			anilist_id: addition.anilistId,
 			title: addition.title,
 		})),
 		not_in_sora_count: missing.length,
-		watchlist_added: watchlistAdded,
-		watchlist_kept: present.filter((addition) => addition.status).length - watchlistAdded,
+		watchlist_added: addedSeriesIds.length,
+		watchlist_kept: present.filter((addition) => addition.status).length - addedSeriesIds.length,
 	};
 };
 
@@ -316,6 +348,25 @@ const applyMyAnimeList = async (
 	};
 };
 
+type AccountSource = ImportConnection["source"];
+
+const rememberConnection = async (userId: string, source: AccountSource, accountName: string) => {
+	await db
+		.insert(importConnection)
+		.values({
+			accountName,
+			source,
+			userId,
+		})
+		.onConflictDoUpdate({
+			set: {
+				accountName,
+				connectedAt: new Date(),
+			},
+			target: [importConnection.userId, importConnection.source],
+		});
+};
+
 /**
  * Puts what a file or another site's list holds into a profile: a Sora
  * export, an AniList user's public list, or a MyAnimeList export. It only
@@ -345,17 +396,110 @@ export const importLibrary = async (
 	if (data.source === "sora") {
 		return await applyAdditions(userId, fromFile(data.document), now);
 	}
-	if (data.source === "anilist" || data.source === "anilist_account") {
-		const entries =
-			data.source === "anilist"
-				? await readAniListUser(data.username)
-				: await readAniListAccount(data.authorization);
+	if (data.source === "anilist") {
+		return await applyAdditions(userId, fromList(await readAniListUser(data.username), now), now);
+	}
+	if (data.source === "anilist_account") {
+		const { account, entries } = await readAniListAccount(data.authorization);
+		await rememberConnection(userId, data.source, account);
 		return await applyAdditions(userId, fromList(entries, now), now);
 	}
+	if (data.source === "myanimelist_account") {
+		const { account, entries } = await readMyAnimeListAccount(data.authorization);
+		await rememberConnection(userId, data.source, account);
+		return await applyMyAnimeList(userId, entries, now);
+	}
 
-	const malEntries =
-		data.source === "myanimelist"
-			? parseMyAnimeListExport(data.xml)
-			: await readMyAnimeListAccount(data.authorization);
-	return await applyMyAnimeList(userId, malEntries, now);
+	return await applyMyAnimeList(userId, parseMyAnimeListExport(data.xml), now);
+};
+
+/** The accounts a profile connected to import from. */
+export const listImportConnections = async (userId: string): Promise<ImportConnection[]> => {
+	const rows = await db.select().from(importConnection).where(eq(importConnection.userId, userId));
+	return rows.map((row) => ({
+		account_name: row.accountName,
+		connected_at: row.connectedAt.toISOString(),
+		source: row.source as AccountSource,
+	}));
+};
+
+/** Forgets a connected account. What it imported stays; one never connected is left alone. */
+export const disconnectImport = async (userId: string, source: AccountSource) => {
+	await db
+		.delete(importConnection)
+		.where(and(eq(importConnection.userId, userId), eq(importConnection.source, source)));
+};
+
+/**
+ * Takes back what an import added: the titles it put on the watchlist and
+ * the episodes it marked watched. Only the profile's latest import can be
+ * undone; `importId` that is not it, or already undone, undoes nothing.
+ */
+export const undoImport = async (userId: string, importId: string): Promise<ImportUndo> => {
+	const undone: ImportUndo = {
+		episodes_removed: 0,
+		watchlist_removed: 0,
+	};
+	await db.transaction(async (tx) => {
+		const [record] = await tx
+			.select()
+			.from(importRecord)
+			.where(and(eq(importRecord.userId, userId), eq(importRecord.id, importId)))
+			.limit(1);
+		if (!record) {
+			return;
+		}
+
+		const seriesIds = record.seriesIds as string[];
+		const episodes = record.episodes as [string, number, boolean][];
+		await inSequence(chunks(episodes), async (batch) => {
+			const rows = JSON.stringify(
+				batch.map(([seriesId, episode, rewatch]) => ({
+					e: episode,
+					r: rewatch,
+					s: seriesId,
+				})),
+			);
+			const removed = await tx.execute(sql`
+				delete from episode_progress as progress
+				using jsonb_to_recordset(${rows}::jsonb) as added(s text, e int, r boolean)
+				where progress.user_id = ${userId}
+					and progress.series_id = added.s
+					and progress.episode = added.e
+					and progress.rewatch = added.r
+				returning 1
+			`);
+			undone.episodes_removed += removed.length;
+		});
+
+		await inSequence(chunks(seriesIds), async (batch) => {
+			const cleared = await tx
+				.update(seriesState)
+				.set({
+					addedAt: null,
+					status: null,
+					statusChangedAt: null,
+				})
+				.where(and(eq(seriesState.userId, userId), inArray(seriesState.seriesId, batch)))
+				.returning({
+					seriesId: seriesState.seriesId,
+				});
+			undone.watchlist_removed += cleared.length;
+			await tx
+				.delete(seriesState)
+				.where(
+					and(
+						eq(seriesState.userId, userId),
+						inArray(seriesState.seriesId, batch),
+						isNull(seriesState.status),
+						isNull(seriesState.rewatchStartedAt),
+						isNull(seriesState.dismissedAt),
+					),
+				);
+		});
+
+		await tx.delete(importRecord).where(eq(importRecord.userId, userId));
+	});
+
+	return undone;
 };

@@ -149,7 +149,9 @@ describe("readAniListAccount", () => {
 			json(list),
 		);
 
-		const entries = await readAniListAccount(authorization, fetcher, clients);
+		const { account, entries } = await readAniListAccount(authorization, fetcher, clients);
+
+		expect(account).toBe("someone");
 
 		expect(entries).toEqual([
 			{
@@ -219,6 +221,7 @@ describe("readMyAnimeListAccount", () => {
 	test("trades the code with the verifier, then reads every page", async () => {
 		const { calls, fetcher } = answering(
 			json({ access_token: "tok" }),
+			json({ name: "someone" }),
 			json({
 				data: [item(10, "watching", 3), item(11, "on_hold", 5)],
 				paging: { next: "https://api.myanimelist.net/v2/users/@me/animelist?offset=1000" },
@@ -235,7 +238,9 @@ describe("readMyAnimeListAccount", () => {
 			}),
 		);
 
-		const entries = await readMyAnimeListAccount(authorization, fetcher, clients);
+		const { account, entries } = await readMyAnimeListAccount(authorization, fetcher, clients);
+
+		expect(account).toBe("someone");
 
 		expect(entries.map((entry) => [entry.malId, entry.status, entry.through])).toEqual([
 			[10, "watching", 3],
@@ -256,13 +261,17 @@ describe("readMyAnimeListAccount", () => {
 			grant_type: "authorization_code",
 			redirect_uri: authorization.redirect_uri,
 		});
-		expect(calls).toHaveLength(3);
+		expect(calls).toHaveLength(4);
 		expect(new Headers(calls[1]?.init?.headers).get("Authorization")).toBe("Bearer tok");
-		expect(calls[2]?.url).toContain("offset=1000");
+		expect(calls[3]?.url).toContain("offset=1000");
 	});
 
 	test("leaves the secret out when the client has none", async () => {
-		const { calls, fetcher } = answering(json({ access_token: "tok" }), json({ data: [] }));
+		const { calls, fetcher } = answering(
+			json({ access_token: "tok" }),
+			json({ name: "someone" }),
+			json({ data: [] }),
+		);
 
 		await readMyAnimeListAccount(authorization, fetcher, {
 			...clients,
@@ -278,14 +287,22 @@ describe("readMyAnimeListAccount", () => {
 			readMyAnimeListAccount(authorization, refused.fetcher, clients),
 		).rejects.toBeInstanceOf(InvalidInputError);
 
-		const invalid = answering(json({ access_token: "tok" }), new Response("", { status: 401 }));
+		const invalid = answering(
+			json({ access_token: "tok" }),
+			json({ name: "someone" }),
+			new Response("", { status: 401 }),
+		);
 		await expect(
 			readMyAnimeListAccount(authorization, invalid.fetcher, clients),
 		).rejects.toBeInstanceOf(InvalidInputError);
 	});
 
 	test("stops at an answer it does not understand", async () => {
-		const { fetcher } = answering(json({ access_token: "tok" }), json({ unexpected: true }));
+		const { fetcher } = answering(
+			json({ access_token: "tok" }),
+			json({ name: "someone" }),
+			json({ unexpected: true }),
+		);
 
 		await expect(readMyAnimeListAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
 			UpstreamUnavailableError,

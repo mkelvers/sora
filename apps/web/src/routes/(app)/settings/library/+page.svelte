@@ -9,8 +9,15 @@
 	import { attempt } from "@sora/shared";
 	import { DownloadSimpleIcon, FileArrowUpIcon } from "phosphor-svelte";
 
-	import { authorizeImport, getImportOptions, importLibrary } from "../library.remote";
-	import { begin, returnedFrom } from "./connection";
+	import {
+		authorizeImport,
+		disconnectImport,
+		getImportConnections,
+		getImportOptions,
+		importLibrary,
+		undoImport,
+	} from "../library.remote";
+	import { begin, handoverKey, returnedFrom } from "./connection";
 	import type { AccountSource } from "./connection";
 
 	/** The sites a list can be connected from, with their marks. */
@@ -30,12 +37,23 @@
 	const maxFileBytes = 20_000_000;
 
 	const options = getImportOptions();
+	const connections = getImportConnections();
 
 	let busy = $state<"connect" | "import" | "file" | null>(null);
 	let connecting = $state<AccountSource | null>(null);
-	let report = $state<LibraryImportReport | null>(null);
-	let announced = $state(false);
-	let problem = $state("");
+	let announcement = $state<{
+		message: string;
+		importId: string | null;
+		tone: "error" | "success";
+	} | null>(null);
+
+	const fail = (message: string) => {
+		announcement = {
+			importId: null,
+			message,
+			tone: "error",
+		};
+	};
 	let fileInput = $state<HTMLInputElement>();
 
 	const ready = $derived(options.current !== undefined);
@@ -43,62 +61,94 @@
 		catalogue.filter((provider) => options.current?.[provider.id] === true),
 	);
 
+	const connectedAs = (id: AccountSource) =>
+		connections.current?.find((connection) => connection.source === id)?.account_name;
+
 	const redirectUri = () => `${location.origin}${location.pathname}`;
+
+	const count = (number: number, noun: string) =>
+		`${number.toLocaleString("en-US")} ${noun}${number === 1 ? "" : "s"}`;
+
+	const summary = (report: LibraryImportReport) => {
+		const titles = report.watchlist_added ? count(report.watchlist_added, "title") : null;
+		const episodes = report.episodes_added ? count(report.episodes_added, "episode") : null;
+		const missing = report.not_in_sora_count
+			? ` ${report.not_in_sora_count.toLocaleString("en-US")} not in Sora yet; Sora is adding them.`
+			: "";
+		if (titles && episodes) {
+			return `All done. Added ${titles} to your Watchlist and marked ${episodes} as watched.${missing}`;
+		}
+		if (titles) {
+			return `All done. Added ${titles} to your Watchlist.${missing}`;
+		}
+		if (episodes) {
+			return `All done. Marked ${episodes} as watched.${missing}`;
+		}
+
+		return `You're all caught up. Everything in that list is already here.${missing}`;
+	};
 
 	const run = async (input: Parameters<typeof importLibrary>[0], kind: "import" | "file") => {
 		busy = kind;
-		problem = "";
-		report = null;
+		announcement = null;
 		const { data, error } = await attempt(importLibrary(input), Error);
 		busy = null;
+		connecting = null;
 		if (error) {
-			problem =
+			fail(
 				kind === "import"
 					? "That couldn't be imported. Connect again and it should work."
-					: "That file couldn't be imported. Check it's the right one and try again.";
+					: "That file couldn't be imported. Check it's the right one and try again.",
+			);
 			return;
 		}
 
-		report = data;
-		announced = true;
+		announcement = {
+			importId: data.import_id,
+			message: summary(data),
+			tone: "success",
+		};
 	};
 
-	const connect = async (selected: (typeof catalogue)[number]) => {
-		busy = "connect";
-		connecting = selected.id;
-		problem = "";
-		const { challenge, state } = begin(selected.id);
-		const { data, error } = await attempt(
-			authorizeImport({
-				code_challenge: challenge,
-				redirect_uri: redirectUri(),
-				source: selected.id,
-				state,
-			}),
-			Error,
-		);
-		if (error) {
-			busy = null;
-			connecting = null;
-			problem = `Connecting to ${selected.name} isn't available right now.`;
+	const undo = async () => {
+		const importId = announcement?.importId;
+		if (!importId) {
 			return;
 		}
 
-		location.href = data.url;
+		announcement = null;
+		const { error } = await attempt(undoImport(importId), Error);
+		announcement = {
+			importId: null,
+			message: error ? "That couldn't be undone." : "Import undone.",
+			tone: error ? "error" : "success",
+		};
 	};
 
-	$effect(() => {
-		const returned = returnedFrom(location.search);
+	const disconnect = async (id: AccountSource) => {
+		await disconnectImport(id);
+	};
+
+	const popupFeatures = "popup,width=520,height=720";
+	const closedGraceMs = 2000;
+	let popup: Window | null = null;
+
+	const finishConnecting = (search: string) => {
+		const returned = returnedFrom(search);
 		if (!returned) {
 			return;
 		}
 
-		history.replaceState(history.state, "", location.pathname);
 		if (returned.kind === "refused") {
-			problem = "You didn't agree, so nothing was imported.";
+			busy = null;
+			connecting = null;
+			fail("You didn't agree, so nothing was imported.");
 		} else if (returned.kind === "unknown") {
-			problem = "That connection couldn't be checked. Try connecting again.";
+			busy = null;
+			connecting = null;
+			fail("That connection couldn't be checked. Try connecting again.");
 		} else {
+			connecting = returned.source;
 			run(
 				{
 					authorization: {
@@ -111,6 +161,82 @@
 				"import",
 			);
 		}
+	};
+
+	/**
+	 * Signs in on the site in a small window, so this page never reloads. A
+	 * browser that blocks the window gets the whole page sent there instead.
+	 */
+	const connect = async (selected: (typeof catalogue)[number]) => {
+		busy = "connect";
+		connecting = selected.id;
+		popup = window.open("", "", popupFeatures);
+		const { challenge, state } = begin(selected.id, popup !== null);
+		const { data, error } = await attempt(
+			authorizeImport({
+				code_challenge: challenge,
+				redirect_uri: redirectUri(),
+				source: selected.id,
+				state,
+			}),
+			Error,
+		);
+		if (error) {
+			popup?.close();
+			popup = null;
+			busy = null;
+			connecting = null;
+			fail(`Connecting to ${selected.name} isn't available right now.`);
+			return;
+		}
+		if (!popup) {
+			location.href = data.url;
+			return;
+		}
+
+		popup.location.href = data.url;
+	};
+
+	$effect(() => {
+		const params = new URLSearchParams(location.search);
+		if (!params.has("code") && !params.has("error")) {
+			return;
+		}
+		history.replaceState(history.state, "", location.pathname);
+		finishConnecting(location.search);
+	});
+
+	const onReturn = (event: StorageEvent) => {
+		const waiting = busy === "connect" && connecting !== null;
+		if (event.key !== handoverKey || !event.newValue || !waiting) {
+			return;
+		}
+
+		popup = null;
+		attempt(() => localStorage.removeItem(handoverKey), DOMException);
+		finishConnecting(event.newValue);
+	};
+
+	$effect(() => {
+		window.addEventListener("storage", onReturn);
+		let closedSince: number | null = null;
+		const watchClosed = setInterval(() => {
+			if (!popup?.closed) {
+				closedSince = null;
+				return;
+			}
+
+			closedSince ??= Date.now();
+			if (Date.now() - closedSince > closedGraceMs && busy === "connect") {
+				popup = null;
+				busy = null;
+				connecting = null;
+			}
+		}, 500);
+		return () => {
+			window.removeEventListener("storage", onReturn);
+			clearInterval(watchClosed);
+		};
 	});
 
 	const readText = async (chosen: File) =>
@@ -128,16 +254,15 @@
 			return;
 		}
 
-		problem = "";
-		report = null;
+		announcement = null;
 		if (chosen.size > maxFileBytes) {
-			problem = "That file is too large to import. The limit is 20 MB.";
+			fail("That file is too large to import. The limit is 20 MB.");
 			return;
 		}
 
 		const { data: text, error } = await attempt(readText(chosen), Error);
 		if (error) {
-			problem = "That file couldn't be read.";
+			fail("That file couldn't be read.");
 			return;
 		}
 
@@ -149,22 +274,24 @@
 
 		const { data: document, error: syntax } = attempt(() => JSON.parse(text), SyntaxError);
 		if (start !== "{" || syntax) {
-			problem = "That isn't a MyAnimeList export or a file downloaded from Export.";
+			fail("That isn't a MyAnimeList export or a file downloaded from Export.");
 			return;
 		}
 
 		await run({ document, source: "sora" }, "file");
 	};
-
-	const count = (number: number, noun: string) =>
-		`${number.toLocaleString("en-US")} ${noun}${number === 1 ? "" : "s"}`;
 </script>
 
 <svelte:head>
 	<title>Import and Export - Settings - Sora</title>
 </svelte:head>
 
-<StatusBanner message={announced ? "Import finished." : ""} ondismiss={() => (announced = false)} />
+<StatusBanner
+	message={announcement?.message ?? ""}
+	tone={announcement?.tone}
+	action={announcement?.importId ? { label: "Undo", onclick: undo } : undefined}
+	ondismiss={() => (announcement = null)}
+/>
 
 <Panel
 	title="Import and Export"
@@ -180,16 +307,33 @@
 			</div>
 		{:else}
 			{#each providers as provider (provider.id)}
+				{@const account = connectedAs(provider.id)}
 				<div class="flex items-start justify-between gap-6">
 					<div class="flex min-w-0 items-start gap-4">
 						<img src={provider.icon} alt="" class="mt-0.5 size-6 shrink-0" />
 						<div class="min-w-0">
 							<p class="text-base leading-6 font-semibold">{provider.name}</p>
-							<p class="mt-1 text-sm leading-relaxed text-muted" aria-live="polite">
-								{busy === "import" && connecting === provider.id
-									? "Reading your list. This can take a moment."
-									: "Sign in and Sora brings your list over."}
+							<p class="mt-1 text-sm leading-relaxed break-words text-muted" aria-live="polite">
+								{#if connecting === provider.id && busy === "import"}
+									Reading your list. This can take a moment.
+								{:else if account}
+									Connected as {account}.
+								{:else}
+									Sign in and Sora brings your list over.
+								{/if}
 							</p>
+							{#if account}
+								<Button
+									variant="plain"
+									size="sm"
+									class="mt-1 h-auto w-auto text-sm font-normal text-muted underline underline-offset-2"
+									disabled={busy !== null}
+									aria-label="Disconnect {provider.name}"
+									onclick={() => disconnect(provider.id)}
+								>
+									Disconnect
+								</Button>
+							{/if}
 						</div>
 					</div>
 					<Button
@@ -198,10 +342,10 @@
 						class="-mt-1.5 w-24 justify-end"
 						loading={connecting === provider.id}
 						disabled={busy !== null}
-						aria-label="Connect {provider.name}"
+						aria-label="{account ? 'Import from' : 'Connect'} {provider.name}"
 						onclick={() => connect(provider)}
 					>
-						Connect
+						{account ? "Import" : "Connect"}
 					</Button>
 				</div>
 			{/each}
@@ -235,61 +379,6 @@
 					aria-hidden="true"
 					onchange={chooseFile}
 				/>
-			</div>
-		{/if}
-
-		{#if problem}
-			<p class="text-sm text-danger" role="alert">{problem}</p>
-		{/if}
-
-		{#if report}
-			<div class="bg-surface p-6" aria-live="polite">
-				<p class="text-base font-semibold">Import finished</p>
-				<dl class="mt-5 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-6">
-					<div>
-						<dt class="text-sm text-muted">Added to Watchlist</dt>
-						<dd class="mt-1 text-2xl font-bold tabular-nums">
-							{report.watchlist_added.toLocaleString("en-US")}
-						</dd>
-					</div>
-					<div>
-						<dt class="text-sm text-muted">Episodes marked</dt>
-						<dd class="mt-1 text-2xl font-bold tabular-nums">
-							{report.episodes_added.toLocaleString("en-US")}
-						</dd>
-					</div>
-					{#if report.not_in_sora_count}
-						<div>
-							<dt class="text-sm text-muted">Not in Sora yet</dt>
-							<dd class="mt-1 text-2xl font-bold tabular-nums">
-								{report.not_in_sora_count.toLocaleString("en-US")}
-							</dd>
-						</div>
-					{/if}
-				</dl>
-				{#if report.watchlist_kept}
-					<p class="mt-5 text-sm leading-relaxed text-muted">
-						{count(report.watchlist_kept, "title")} already on your Watchlist stayed as
-						{report.watchlist_kept === 1 ? "it was" : "they were"}.
-					</p>
-				{/if}
-				{#if report.not_in_sora_count}
-					<p class="mt-3 text-sm leading-relaxed text-muted">
-						{#if report.not_in_sora.some((title) => title.anilist_id !== null)}
-							Sora is adding them. Import again later to take them.
-						{:else}
-							Sora can't match them to AniList yet.
-						{/if}
-					</p>
-					<details class="mt-2 text-sm text-muted">
-						<summary class="cursor-pointer hover:text-foreground">Show titles</summary>
-						<ul class="mt-2 space-y-1">
-							{#each report.not_in_sora as title, index (index)}
-								<li>{title.title ?? `AniList ${title.anilist_id}`}</li>
-							{/each}
-						</ul>
-					</details>
-				{/if}
 			</div>
 		{/if}
 	</section>

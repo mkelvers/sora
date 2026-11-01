@@ -171,6 +171,41 @@ export const seriesState = pgTable(
 );
 
 /**
+ * An account on another site a profile connected to import from, kept so
+ * the page can say which one it is and let the profile disconnect it. No
+ * access is kept: connecting again asks the site for a new code.
+ */
+export const importConnection = pgTable(
+	"import_connection",
+	{
+		accountName: text("account_name").notNull(),
+		connectedAt: timestamptz("connected_at").notNull().defaultNow(),
+		/** `anilist_account` or `myanimelist_account`. */
+		source: text("source").notNull(),
+		userId: text("user_id").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.userId, table.source],
+		}),
+	],
+);
+
+/**
+ * What a profile's latest import added, so it can be undone. A new import
+ * replaces it: only the last one is ever undone.
+ */
+export const importRecord = pgTable("import_record", {
+	createdAt: timestamptz("created_at").notNull().defaultNow(),
+	/** The `[series ID, episode, rewatch]` of every episode row the import inserted. */
+	episodes: jsonb("episodes").$type<unknown>().notNull(),
+	id: text("id").notNull(),
+	/** The series the import put on the watchlist. */
+	seriesIds: jsonb("series_ids").$type<unknown>().notNull(),
+	userId: text("user_id").primaryKey(),
+});
+
+/**
  * The notifications one user marked read. A notification is not stored:
  * `getNotifications` works out what came out from saved or played series and the
  * episodes' release times, so only the user's marks are. A mark is deleted

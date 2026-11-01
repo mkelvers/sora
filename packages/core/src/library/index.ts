@@ -14,7 +14,13 @@ export {
 	type Notifications,
 } from "./notifications/notifications";
 export { authorizationUrl, importOptions } from "./transfer/oauth";
-export { exportLibrary, importLibrary } from "./transfer/transfer";
+export {
+	disconnectImport,
+	exportLibrary,
+	importLibrary,
+	listImportConnections,
+	undoImport,
+} from "./transfer/transfer";
 export { getProfilePreferences, updateProfilePreferences } from "./preferences/profile";
 export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
 export {

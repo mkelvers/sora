@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { episodeProgress, seriesState } from "../../database/schema/library";
-import { exportLibrary, importLibrary } from "./transfer";
+import { episodeProgress, importRecord, seriesState } from "../../database/schema/library";
+import { exportLibrary, importLibrary, undoImport } from "./transfer";
 
 const removeProfile = async (userId: string) => {
 	await db.delete(episodeProgress).where(eq(episodeProgress.userId, userId));
@@ -220,5 +220,31 @@ describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import a
 
 	test("rejects an import that is not valid", async () => {
 		await expect(importLibrary(profile, { source: "anilist", username: "" })).rejects.toThrow();
+	});
+
+	test("undoes the latest import, once", async () => {
+		const other = `${profile}-undo`;
+		try {
+			const report = await importLibrary(other, file(true));
+			expect(report.import_id).not.toBeNull();
+
+			expect(await undoImport(other, "someone-elses")).toEqual({
+				episodes_removed: 0,
+				watchlist_removed: 0,
+			});
+			expect(await undoImport(other, report.import_id ?? "")).toEqual({
+				episodes_removed: 1,
+				watchlist_removed: 2,
+			});
+			const remaining = await exportLibrary(other);
+			expect(remaining.watchlist).toHaveLength(0);
+			expect(await undoImport(other, report.import_id ?? "")).toEqual({
+				episodes_removed: 0,
+				watchlist_removed: 0,
+			});
+		} finally {
+			await removeProfile(other);
+			await db.delete(importRecord).where(eq(importRecord.userId, other));
+		}
 	});
 });

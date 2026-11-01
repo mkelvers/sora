@@ -26,6 +26,7 @@ const myAnimeList = {
 	authorize: "https://myanimelist.net/v1/oauth2/authorize",
 	list: "https://api.myanimelist.net/v2/users/@me/animelist?fields=list_status&limit=1000&nsfw=true",
 	token: "https://myanimelist.net/v1/oauth2/token",
+	user: "https://api.myanimelist.net/v2/users/@me",
 };
 
 /** The most pages of a MyAnimeList list read, 1000 titles each, so a broken `next` cannot loop. */
@@ -90,6 +91,12 @@ export const authorizationUrl = (
 	return url.toString();
 };
 
+/** A connected account's list, and the name it goes by on the site. */
+export interface AccountList<Entry> {
+	account: string;
+	entries: Entry[];
+}
+
 /** The configured clients; tests pass their own. */
 export interface Clients {
 	aniListOAuth: { clientId: string; clientSecret: string } | null;
@@ -150,7 +157,7 @@ export const readAniListAccount = async (
 	authorization: Authorization,
 	fetcher: Fetcher = fetch,
 	clients: Clients = config,
-): Promise<ListEntry[]> => {
+): Promise<AccountList<ListEntry>> => {
 	if (!clients.aniListOAuth) {
 		throw notSetUp();
 	}
@@ -203,8 +210,15 @@ export const readAniListAccount = async (
 	const list = await query<UserAnimeListQuery>(UserAnimeListDocument, {
 		userName: name,
 	});
-	return aniListEntries(list?.MediaListCollection ?? null);
+	return {
+		account: name,
+		entries: aniListEntries(list?.MediaListCollection ?? null),
+	};
 };
+
+const MalUserSchema = z.object({
+	name: z.string().min(1),
+});
 
 const MalPageSchema = z.object({
 	data: z.array(
@@ -242,7 +256,7 @@ export const readMyAnimeListAccount = async (
 	authorization: Authorization,
 	fetcher: Fetcher = fetch,
 	clients: Clients = config,
-): Promise<MalEntry[]> => {
+): Promise<AccountList<MalEntry>> => {
 	if (!clients.myAnimeListOAuth) {
 		throw notSetUp();
 	}
@@ -269,6 +283,27 @@ export const readMyAnimeListAccount = async (
 		}),
 	);
 
+	const headers = {
+		Accept: "application/json",
+		Authorization: `Bearer ${token}`,
+	};
+	const me = await send(fetcher, myAnimeList.user, {
+		headers,
+	});
+	if (me.status === 401) {
+		throw expired();
+	}
+	if (!me.ok) {
+		throw new UpstreamUnavailableError("MyAnimeList could not be reached.", {
+			retryAfterMs: null,
+		});
+	}
+
+	const user = MalUserSchema.safeParse(await me.json());
+	if (!user.success) {
+		throw expired(user.error);
+	}
+
 	const entries: MalEntry[] = [];
 	const readPage = async (url: string, page: number): Promise<void> => {
 		if (page >= maxListPages) {
@@ -276,10 +311,7 @@ export const readMyAnimeListAccount = async (
 		}
 
 		const response = await send(fetcher, url, {
-			headers: {
-				Accept: "application/json",
-				Authorization: `Bearer ${token}`,
-			},
+			headers,
 		});
 		if (response.status === 401) {
 			throw expired();
@@ -326,5 +358,8 @@ export const readMyAnimeListAccount = async (
 	};
 	await readPage(myAnimeList.list, 0);
 
-	return entries;
+	return {
+		account: user.data.name,
+		entries,
+	};
 };

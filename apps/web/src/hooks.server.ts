@@ -1,11 +1,33 @@
 import { SORA_API_URL, WEB_CLIENT_KEY } from "$app/env/private";
 import { knownProfiles } from "$lib/server/sora";
+import { handoverKey, startedInPopup } from "$routes/(app)/settings/library/connection";
 import { route, SoraClient, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 
-export const handle: Handle = async ({ event, resolve }) => {
+/**
+ * What the site sends a connection popup back to: nothing of Sora's, only a
+ * hand-over of the code to the page that opened it and a closing of itself, so
+ * the popup never shows the app.
+ */
+const handover = () =>
+	new Response(
+		`<!doctype html><meta charset="utf-8"><title>Sora</title><meta name="color-scheme" content="dark"><body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#000;color:#9a9a9a;font:14px system-ui,sans-serif"><p>Done. You can close this window.</p><script>try{localStorage.setItem(${JSON.stringify(handoverKey)},location.search)}catch{}window.close()</script>`,
+		{
+			headers: {
+				"Cache-Control": "no-store",
+				"Content-Type": "text/html; charset=utf-8",
+			},
+		},
+	);
+
+const returnsToPopup = (url: URL) =>
+	url.pathname === "/settings/library" &&
+	(url.searchParams.has("code") || url.searchParams.has("error")) &&
+	startedInPopup(url.search);
+
+const withViewer: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
 	const token = event.cookies.get("sora_session");
@@ -100,6 +122,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	return response;
 };
+
+export const handle: Handle = (input) =>
+	returnsToPopup(input.event.url) ? handover() : withViewer(input);
 
 export const handleError: HandleServerError = ({ error: thrown }) => {
 	if (thrown instanceof SoraError) {

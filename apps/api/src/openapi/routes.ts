@@ -45,7 +45,9 @@ import {
 import {
 	ImportAuthorizationUrlSchema,
 	ImportAuthorizeRequestSchema,
+	ImportConnectionSchema,
 	ImportOptionsSchema,
+	ImportUndoSchema,
 	LibraryExportSchema,
 	LibraryImportReportSchema,
 	LibraryImportSchema,
@@ -236,6 +238,33 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "Delete a profile",
+		tags: ["Profiles"],
+	}),
+
+	disconnectImport: createRoute({
+		description: "Forgets a connected account. What it already imported stays on the profile.",
+		method: "delete",
+		operationId: "disconnectImport",
+		path: "/profiles/{profile_id}/library/connections/{source}",
+		request: {
+			params: ProfileParams.extend({
+				source: ImportConnectionSchema.shape.source.openapi({
+					param: {
+						in: "path",
+						name: "source",
+					},
+				}),
+			}),
+		},
+		responses: {
+			204: {
+				description: "Disconnected, or was not connected.",
+			},
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Disconnect an account",
 		tags: ["Profiles"],
 	}),
 
@@ -828,6 +857,28 @@ export const route = {
 		tags: ["Series"],
 	}),
 
+	listImportConnections: createRoute({
+		description:
+			"The AniList and MyAnimeList accounts the profile connected to import from, with the name each goes by on its site. Sora keeps no access to them: importing again asks the site for a new code.",
+		method: "get",
+		operationId: "listImportConnections",
+		path: "/profiles/{profile_id}/library/connections",
+		request: {
+			params: ProfileParams,
+		},
+		responses: {
+			200: json(
+				envelopeOf(z.array(ImportConnectionSchema), CountMetaSchema),
+				"The connected accounts.",
+			),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "List the accounts connected to import from",
+		tags: ["Profiles"],
+	}),
+
 	listProfiles: createRoute({
 		description:
 			"Every profile of the signed-in account, oldest first. A new account starts with one.",
@@ -1266,6 +1317,36 @@ export const route = {
 		},
 		security: signedIn,
 		summary: "Watch a title again from the start",
+		tags: ["Profiles"],
+	}),
+
+	undoImport: createRoute({
+		description:
+			"Takes back what `importLibrary` added: the titles it put on the watchlist and the episodes it marked watched. Only the profile's latest import can be undone, once; any other `import_id` undoes nothing.",
+		method: "post",
+		operationId: "undoImport",
+		path: "/profiles/{profile_id}/library/imports/{import_id}/undo",
+		request: {
+			params: ProfileParams.extend({
+				import_id: z
+					.string()
+					.min(1)
+					.openapi({
+						description: "The report's `import_id`.",
+						param: {
+							in: "path",
+							name: "import_id",
+						},
+					}),
+			}),
+		},
+		responses: {
+			200: json(envelopeOf(ImportUndoSchema, EmptyMetaSchema), "What was taken back."),
+			401: problem("Not signed in."),
+			404: problem("The account has no such profile."),
+		},
+		security: signedIn,
+		summary: "Undo an import",
 		tags: ["Profiles"],
 	}),
 

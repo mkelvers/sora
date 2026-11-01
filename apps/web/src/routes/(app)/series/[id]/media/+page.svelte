@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Skeleton from "$lib/components/snippets/skeleton.svelte";
+	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Tabs from "$lib/components/ui/tabs.svelte";
 	import { cn } from "$lib/utils";
@@ -49,6 +50,12 @@
 <svelte:head>
 	<title>{series.title} Media - Sora</title>
 </svelte:head>
+
+<StatusBanner
+	message={media.error ?? ""}
+	tone="error"
+	ondismiss={() => (media.error = undefined)}
+/>
 
 <div
 	class={cn(
@@ -124,10 +131,6 @@
 						</Button>
 					</div>
 
-					{#if media.error}
-						<p class="mt-4 text-sm text-danger" role="alert">{media.error}</p>
-					{/if}
-
 					<div class="@container-size mt-4 min-h-0 flex-1">
 						<svelte:boundary>
 							{#snippet pending()}
@@ -158,10 +161,6 @@
 					</aside>
 
 					<section aria-label="Choose {media.type}">
-						{#if media.error}
-							<p class="mb-6 text-sm text-danger" role="alert">{media.error}</p>
-						{/if}
-
 						<svelte:boundary>
 							{#snippet pending()}
 								<ul

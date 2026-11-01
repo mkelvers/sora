@@ -498,6 +498,13 @@
       "when": 1793442790228,
       "tag": "0070_profile_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793532677283,
+      "tag": "0071_import_connections",
+      "breakpoints": true
     }
   ]
 }

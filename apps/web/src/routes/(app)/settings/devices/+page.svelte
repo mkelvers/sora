@@ -2,10 +2,13 @@
 	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
+	import Dropdown from "$lib/components/ui/dropdown.svelte";
+	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { cn } from "$lib/utils";
 	import Panel from "$routes/(app)/settings/components/panel.svelte";
 	import type { SignedInDevice } from "@sora/sdk";
 	import {
+		CaretDownIcon,
 		DesktopIcon,
 		DeviceMobileIcon,
 		DeviceTabletIcon,
@@ -31,6 +34,8 @@
 	let message = $state("");
 	let busy = $state<string | null>(null);
 	let showAll = $state(false);
+	let choosing = $state(false);
+	let logoutForm = $state<HTMLFormElement>();
 
 	const here = $derived(devices.find((device) => device.current));
 	const others = $derived(devices.filter((device) => !device.current));
@@ -94,7 +99,15 @@
 		busy = null;
 	};
 
+	const signOutEverywhere = async () => {
+		choosing = false;
+		busy = "everywhere";
+		await signOutOtherDevices();
+		logoutForm?.requestSubmit();
+	};
+
 	const signOutOthers = async () => {
+		choosing = false;
 		busy = "others";
 		await signOutOtherDevices();
 		message = "Every other device signed out.";
@@ -167,39 +180,76 @@
 			</div>
 		{/each}
 	{:else}
-		{#if here}
-			<ul class="space-y-8">
-				{@render device(here)}
-			</ul>
-		{/if}
+		<div class="space-y-8">
+			<div class="-mt-6 flex justify-end md:mt-0">
+				<Button
+					variant="text"
+					class="px-0 sm:hidden"
+					aria-haspopup="dialog"
+					aria-controls="sign-out-menu"
+					aria-expanded={choosing}
+					loading={busy === "others" || busy === "everywhere"}
+					onclick={() => (choosing = true)}
+				>
+					Sign out
+					<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
+				</Button>
+				<div class="max-sm:hidden">
+					<Dropdown variant="text" label="Sign out of devices">
+						{#snippet trigger()}
+							Sign out
+							<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
+						{/snippet}
 
-		{#if others.length}
-			<div class="space-y-5">
-				<div class="flex items-center justify-between gap-4">
-					<h3 class="text-lg font-bold">Other devices</h3>
-					<Button
-						variant="plain"
-						size="sm"
-						class="w-24 justify-end"
-						tone="danger"
-						loading={busy === "others"}
-						onclick={signOutOthers}
-					>
-						Sign out all
-					</Button>
+						{#snippet children()}
+							<div role="menu" aria-label="Sign out of devices">
+								{#if others.length}
+									<Button role="menuitem" variant="item" onclick={signOutOthers}>
+										Sign out other devices
+									</Button>
+								{/if}
+								<Button role="menuitem" variant="item" tone="danger" onclick={signOutEverywhere}>
+									Sign out all devices
+								</Button>
+							</div>
+						{/snippet}
+					</Dropdown>
 				</div>
-
-				<ul class="space-y-8">
-					{#each listed as entry (entry.id)}
-						{@render device(entry)}
-					{/each}
-				</ul>
-				{#if others.length > shownAtFirst}
-					<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
-						{showAll ? "Show Fewer" : `Show ${others.length - shownAtFirst} More`}
-					</Button>
-				{/if}
 			</div>
-		{/if}
+
+			{#if here}
+				<ul class="space-y-8">
+					{@render device(here)}
+				</ul>
+			{/if}
+
+			{#if others.length}
+				<div class="space-y-5">
+					<div class="flex items-center justify-between gap-4">
+						<h3 class="text-lg font-bold">Other devices</h3>
+					</div>
+
+					<ul class="space-y-8">
+						{#each listed as entry (entry.id)}
+							{@render device(entry)}
+						{/each}
+					</ul>
+					{#if others.length > shownAtFirst}
+						<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
+							{showAll ? "Show Fewer" : `Show ${others.length - shownAtFirst} More`}
+						</Button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	{/if}
 </Panel>
+
+<Sheet bind:open={choosing} id="sign-out-menu" title="Sign out">
+	{#if others.length}
+		<Button variant="item" onclick={signOutOthers}>Sign out other devices</Button>
+	{/if}
+	<Button variant="item" tone="danger" onclick={signOutEverywhere}>Sign out all devices</Button>
+</Sheet>
+
+<form bind:this={logoutForm} method="POST" action="/logout" hidden></form>

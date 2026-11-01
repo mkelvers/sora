@@ -10,6 +10,15 @@ interface Pending {
 	verifier: string;
 }
 
+/** Marks a connection started in a popup, so the page the site sends the popup back to knows to hand over and close. */
+const popupStatePrefix = "popup-";
+
+export const startedInPopup = (search: string) =>
+	new URLSearchParams(search).get("state")?.startsWith(popupStatePrefix) === true;
+
+/** Where the popup leaves what the site sent it back with, for the page that opened it. */
+export const handoverKey = "sora:import-return";
+
 const storageKey = "sora:import-connection";
 
 const random = (bytes: number) =>
@@ -38,11 +47,12 @@ const forget = () => {
  * Starts connecting an account: makes the secrets this browser alone knows
  * and keeps them for when the person comes back. `verifier` is also the
  * code challenge, since MyAnimeList only supports the plain method.
+ * `inPopup` is remembered in the `state` the site sends back.
  */
-export const begin = (source: AccountSource) => {
+export const begin = (source: AccountSource, inPopup: boolean) => {
 	const pending: Pending = {
 		source,
-		state: random(16),
+		state: `${inPopup ? popupStatePrefix : ""}${random(16)}`,
 		verifier: random(32),
 	};
 	attempt(() => sessionStorage.setItem(storageKey, JSON.stringify(pending)), DOMException);

@@ -55,6 +55,8 @@ export const LibraryExportSchema = z
 		id: "LibraryExport",
 	});
 
+const ImportSourceSchema = z.enum(["anilist_account", "myanimelist_account"]);
+
 export const ImportAuthorizationSchema = z
 	.object({
 		code: z.string().min(1).max(4000).meta({
@@ -93,7 +95,7 @@ export const ImportAuthorizeRequestSchema = z
 				"For MyAnimeList, the `code_verifier` itself: it only supports the plain method.",
 		}),
 		redirect_uri: z.url(),
-		source: z.enum(["anilist_account", "myanimelist_account"]),
+		source: ImportSourceSchema,
 		state: z.string().min(8).max(200).meta({
 			description: "Something only the person's browser knows, which the site sends back.",
 		}),
@@ -143,10 +145,43 @@ export const LibraryImportSchema = z
 		id: "LibraryImport",
 	});
 
+export const ImportConnectionSchema = z
+	.object({
+		account_name: z.string().meta({
+			description: "The account's name on the site.",
+			example: "someone",
+		}),
+		connected_at: z.string().meta({
+			description: "When it was connected, as an ISO 8601 timestamp.",
+			example: "2026-11-01T10:00:00.000Z",
+		}),
+		source: ImportSourceSchema,
+	})
+	.meta({
+		id: "ImportConnection",
+	});
+
+export const ImportUndoSchema = z
+	.object({
+		episodes_removed: z.number().int().meta({
+			description: "Episodes taken off the history again.",
+		}),
+		watchlist_removed: z.number().int().meta({
+			description: "Titles taken off the watchlist again.",
+		}),
+	})
+	.meta({
+		id: "ImportUndo",
+	});
+
 export const LibraryImportReportSchema = z
 	.object({
 		episodes_added: z.number().int().meta({
 			description: "Episodes marked watched that were not before.",
+		}),
+		import_id: z.string().nullable().meta({
+			description:
+				"Names the import so `undoImport` can take back what it added. Null when it added nothing.",
 		}),
 		not_in_sora: z
 			.array(
@@ -176,6 +211,8 @@ export const LibraryImportReportSchema = z
 	});
 
 export type ImportAuthorization = z.infer<typeof ImportAuthorizationSchema>;
+export type ImportConnection = z.infer<typeof ImportConnectionSchema>;
+export type ImportUndo = z.infer<typeof ImportUndoSchema>;
 export type ImportOptions = z.infer<typeof ImportOptionsSchema>;
 export type LibraryExport = z.infer<typeof LibraryExportSchema>;
 export type LibraryImport = z.infer<typeof LibraryImportSchema>;
