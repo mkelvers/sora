@@ -9,6 +9,7 @@
 	import type { SignedInDevice } from "@sora/sdk";
 	import {
 		CaretDownIcon,
+		DotsThreeIcon,
 		DesktopIcon,
 		DeviceMobileIcon,
 		DeviceTabletIcon,
@@ -184,16 +185,16 @@
 			<div class="flex items-center justify-between gap-4">
 				<h3 id="this-device-heading" class="text-lg font-bold">This device</h3>
 				<Button
-					variant="text"
-					class="px-0 sm:hidden"
+					variant="icon"
+					class="-mr-3 sm:hidden"
+					aria-label="Sign out"
 					aria-haspopup="dialog"
 					aria-controls="sign-out-menu"
 					aria-expanded={choosing}
 					loading={busy === "others" || busy === "everywhere"}
 					onclick={() => (choosing = true)}
 				>
-					Sign out
-					<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
+					<DotsThreeIcon size="1.75rem" weight="bold" aria-hidden="true" />
 				</Button>
 				<div class="max-sm:hidden">
 					<Dropdown variant="text" label="Sign out of devices">
