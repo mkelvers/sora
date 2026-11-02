@@ -23,6 +23,8 @@
 		progress?: SeriesProgress;
 	} = $props();
 
+	const SEASON_PREFIX = /^Season\s+/iu;
+
 	let more = $state(false);
 
 	const library = getLibrary();
@@ -33,7 +35,7 @@
 	const seasonLabel = (seriesId: string) => {
 		const index = series.seasons.findIndex((part) => part.series_id === seriesId);
 		const part = series.seasons[index];
-		return index > 0 && part?.role === "season" ? ` ${part.title}` : "";
+		return index > 0 && part?.role === "season" ? ` ${part.title.replace(SEASON_PREFIX, "S")}` : "";
 	};
 
 	const done = $derived(
