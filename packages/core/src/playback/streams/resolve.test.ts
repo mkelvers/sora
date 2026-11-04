@@ -142,6 +142,7 @@ const dependencies: PlaybackDependencies = {
 	providers,
 	requestRefinement: async () => {},
 	segmentStarts: (url) => Promise.resolve(timelines.get(url) ?? []),
+	warmStream: () => Promise.resolve(),
 };
 
 const request = {
