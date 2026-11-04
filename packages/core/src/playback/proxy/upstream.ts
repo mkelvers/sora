@@ -20,8 +20,12 @@ const segmentTimeoutMs = 45 * second;
 /** How long a host may go without answering before the next candidate also starts. */
 const hedgeDelayMs = 1.5 * second;
 
-/** How long a host that answered may take to send a segment before the next candidate also starts. */
-const segmentHedgeMs = 12 * second;
+/**
+ * How long a host that answered may go without sending a byte of a segment
+ * before the next candidate also starts. A host that keeps sending, however
+ * slowly, is left to finish.
+ */
+const segmentStallMs = 4 * second;
 const maximumRedirects = 5;
 
 /**
@@ -291,10 +295,15 @@ export interface UpstreamBytes {
 
 /**
  * Reads a response's whole body, giving up as soon as it passes `maximumBytes`.
+ * `received` is called each time bytes arrive.
  *
  * @throws {StreamUpstreamError} when the body is larger than `maximumBytes`.
  */
-export const readBounded = async (response: Response, maximumBytes: number) => {
+export const readBounded = async (
+	response: Response,
+	maximumBytes: number,
+	received?: () => void,
+) => {
 	if (Number(response.headers.get("Content-Length")) > maximumBytes) {
 		await response.body?.cancel();
 		throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
@@ -309,6 +318,7 @@ export const readBounded = async (response: Response, maximumBytes: number) => {
 			throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
 		}
 		chunks.push(chunk);
+		received?.();
 	}
 
 	const bytes = new Uint8Array(total);
@@ -331,7 +341,7 @@ const readCandidate = async (
 	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
 	answered();
 
-	const body = await attempt(readBounded(upstream.response, maximumBodyBytes[kind]));
+	const body = await attempt(readBounded(upstream.response, maximumBodyBytes[kind], answered));
 	if (body.error) {
 		if (body.error instanceof StreamUpstreamError) {
 			throw body.error;
@@ -369,8 +379,8 @@ const readCandidate = async (
  * Hosts sometimes never answer, or send their headers and then never the
  * body, which only reading it shows. The next candidate starts once the
  * previous one fails, or after a while without headers or, once they came,
- * without the whole body, and the first to finish wins, so a stalled host
- * costs a few seconds instead of the whole timeout.
+ * without another byte of the body, and the first to finish wins, so a
+ * stalled host costs a few seconds instead of the whole timeout.
  *
  * @throws {StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
@@ -382,7 +392,7 @@ export const fetchUpstreamBytes = async (
 	const candidates = [target.url, ...target.mirrors];
 	const headers = new Headers(target.headers);
 	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
-	const bodyHedgeMs = target.kind === "segment" ? segmentHedgeMs : hedgeDelayMs;
+	const bodyHedgeMs = target.kind === "segment" ? segmentStallMs : hedgeDelayMs;
 	const losers = new AbortController();
 	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
 
