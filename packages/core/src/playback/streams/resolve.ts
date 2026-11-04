@@ -17,7 +17,13 @@ import { getEpisodeVersions } from "../episodes/versions";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
-import { canFetchStream, createStreamToken, segmentStarts, tokenLifetimeMs } from "../proxy/proxy";
+import {
+	canFetchStream,
+	createStreamToken,
+	segmentStarts,
+	tokenLifetimeMs,
+	warmStream,
+} from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime } from "./align";
@@ -62,6 +68,7 @@ export interface PlaybackDependencies {
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
 	normalizeSkipSegments: typeof normalizeSkipSegments;
+	warmStream: typeof warmStream;
 }
 
 const live: PlaybackDependencies = {
@@ -76,6 +83,7 @@ const live: PlaybackDependencies = {
 	providers: streamProviders,
 	requestRefinement,
 	segmentStarts,
+	warmStream,
 };
 
 /** The URL of a stream token for `createStreamToken`'s arguments. */
@@ -689,6 +697,15 @@ export const resolvePlayback = async (
 		options.deadlineMs ?? playbackDeadlineMs,
 		dependencies,
 	);
+	// The first version is the one played by default, so its first segments are
+	// loaded while the rest of the playback is put together and the player starts.
+	const defaultVideo = results
+		.find((result) => result.version)
+		?.videos?.find((candidate) => candidate.format === "hls");
+	if (defaultVideo) {
+		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
+	}
+
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
 	if (sub?.version && sub.videos && dub?.version && dub.videos) {

@@ -162,6 +162,16 @@ const fetchAhead = (target: StreamTarget) => {
 };
 
 /**
+ * Loads segments before anyone has asked for them, such as the first ones of
+ * a stream about to be played. Only what the budget has room for is loaded.
+ */
+export const warmSegments = (targets: StreamTarget[]) => {
+	for (const target of targets) {
+		void loadAhead(target);
+	}
+};
+
+/**
  * Serves a whole segment from memory when it was fetched ahead, otherwise
  * fetches it, and starts fetching the segments that follow.
  *

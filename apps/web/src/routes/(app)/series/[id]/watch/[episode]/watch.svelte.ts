@@ -1,3 +1,4 @@
+import { browser } from "$app/env";
 import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
@@ -14,6 +15,19 @@ interface Range {
 }
 
 const preferences = new Preferences("player");
+
+const forwardBufferSeconds = 120;
+const backBufferSeconds = 30;
+const megabyte = 1000 * 1000;
+const bufferMegabytesPerGigabyte = 25;
+const maximumBufferMegabytes = 200;
+const firstByteTimeoutMs = 30_000;
+
+const loadHls = () => attempt(import("hls.js"));
+
+if (browser) {
+	loadHls();
+}
 
 const subscribeFullscreen = createSubscriber((update) => {
 	on(document, "fullscreenchange", update);
@@ -207,7 +221,7 @@ export class Player {
 		let detached = false;
 
 		void (async () => {
-			const loaded = await attempt(import("hls.js"));
+			const loaded = await loadHls();
 			if (detached) {
 				return;
 			}
@@ -219,10 +233,27 @@ export class Player {
 			const Hls = loaded.data.default;
 			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 			hls = new Hls({
-				backBufferLength: 60,
-				maxBufferLength: 7200,
-				maxBufferSize: Math.min(memory * 250, 2000) * 1000 * 1000,
-				maxMaxBufferLength: 7200,
+				backBufferLength: backBufferSeconds,
+				fragLoadPolicy: {
+					default: {
+						errorRetry: {
+							maxNumRetry: 6,
+							maxRetryDelayMs: 4000,
+							retryDelayMs: 500,
+						},
+						maxLoadTimeMs: 120_000,
+						maxTimeToFirstByteMs: firstByteTimeoutMs,
+						timeoutRetry: {
+							maxNumRetry: 4,
+							maxRetryDelayMs: 0,
+							retryDelayMs: 0,
+						},
+					},
+				},
+				maxBufferLength: forwardBufferSeconds,
+				maxBufferSize:
+					Math.min(memory * bufferMegabytesPerGigabyte, maximumBufferMegabytes) * megabyte,
+				maxMaxBufferLength: forwardBufferSeconds,
 				startPosition: start,
 			});
 

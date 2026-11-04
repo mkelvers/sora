@@ -51,6 +51,23 @@ describe("readBounded", () => {
 		await expect(readBounded(response, 4)).rejects.toBeInstanceOf(StreamUpstreamError);
 	});
 
+	test("reports each arrival of bytes", async () => {
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new Uint8Array(4));
+				controller.enqueue(new Uint8Array(4));
+				controller.enqueue(new Uint8Array(4));
+				controller.close();
+			},
+		});
+		let arrivals = 0;
+		const bytes = await readBounded(new Response(body), 64, () => {
+			arrivals += 1;
+		});
+		expect(bytes.byteLength).toBe(12);
+		expect(arrivals).toBe(3);
+	});
+
 	test("stops reading a body that passes the limit without announcing it", async () => {
 		let sent = 0;
 		const body = new ReadableStream<Uint8Array>({

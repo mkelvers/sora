@@ -5,7 +5,7 @@ import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
 import { rewritePlaylist } from "./playlist";
-import { readSegment, rememberSegmentOrder } from "./readahead";
+import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken } from "./token";
@@ -158,6 +158,78 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 		elapsed += Number(duration);
 	}
 	return starts;
+};
+
+/** How many segments of a stream are loaded before it is played, an init section counting as one. */
+const warmedSegments = 3;
+
+/**
+ * Starts loading the first segments of a stream that is about to be played, so
+ * that the player's first requests find them ready. Only a stream with a
+ * single quality is warmed: with several, the player picks one, and a guess
+ * would load segments nobody asks for. Failures are left to the player's own
+ * requests.
+ */
+export const warmStream = async (url: string, headers: Record<string, string>) => {
+	const target = {
+		accountId: "",
+		expiresAt: 0,
+		headers,
+		kind: "playlist" as const,
+		mirrors: [],
+		url,
+	};
+	const { data: master, error } = await attempt(fetchUpstreamBytes(target), StreamUpstreamError);
+	if (error) {
+		return;
+	}
+
+	let playlist = {
+		content: new TextDecoder().decode(master.bytes),
+		url: master.url,
+	};
+	const variants = [
+		...playlist.content.matchAll(/#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu),
+	];
+	if (variants.length > 1) {
+		return;
+	}
+
+	const variant = variants[0]?.groups?.uri;
+	if (variant) {
+		const variantUrl = new URL(variant.trim(), master.url).toString();
+		const { data: media, error: variantFailure } = await attempt(
+			fetchUpstreamBytes({
+				...target,
+				mirrors: mirrorsFor(variantUrl, master.url),
+				url: variantUrl,
+			}),
+			StreamUpstreamError,
+		);
+		if (variantFailure) {
+			return;
+		}
+		playlist = {
+			content: new TextDecoder().decode(media.bytes),
+			url: media.url,
+		};
+	}
+
+	const segments: StreamTarget[] = [];
+	rewritePlaylist(playlist.content, playlist.url, (segmentUrl, kind) => {
+		if (kind === "segment") {
+			segments.push({
+				accountId: "",
+				expiresAt: 0,
+				headers,
+				kind,
+				mirrors: mirrorsFor(segmentUrl, playlist.url),
+				url: segmentUrl,
+			});
+		}
+		return segmentUrl;
+	});
+	warmSegments(segments.slice(0, warmedSegments));
 };
 
 const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
