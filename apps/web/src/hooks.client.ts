@@ -5,8 +5,15 @@ import { z } from "zod";
 z.config({ jitless: true });
 
 export const handleError: HandleClientError = (caught) => {
-	if (caught.kind !== "unknown" && caught.error.status === 401) {
-		const here = encodeURIComponent(location.pathname + location.search);
+	if (caught.kind === "unknown") {
+		return;
+	}
+
+	const here = encodeURIComponent(location.pathname + location.search);
+	if (caught.error.status === 401) {
 		location.assign(`/login?redirect=${here}`);
+	}
+	if (caught.error.status === 403 && caught.error.message === "Choose a profile first") {
+		location.assign(`/profiles?redirect=${here}`);
 	}
 };

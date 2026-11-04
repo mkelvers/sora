@@ -1,3 +1,4 @@
+import { profileCookie } from "$lib/server/sora";
 import { error, redirect } from "@sveltejs/kit";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -25,12 +26,7 @@ export const actions: Actions = {
 			error(404, "No such profile");
 		}
 
-		cookies.set("sora_profile", profile.id, {
-			httpOnly: true,
-			maxAge: 60 * 60,
-			path: "/",
-			sameSite: "lax",
-		});
+		cookies.set("sora_profile", profile.id, profileCookie);
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);
 		const path = target.pathname + target.search;
