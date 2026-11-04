@@ -40,10 +40,13 @@ export const withLength = (segment: SkipSegment, usual: number | null): SkipSegm
 	};
 };
 
-/** How many sibling episodes are asked of a provider at once. */
-const learnConcurrency = 6;
+/**
+ * How many sibling episodes are asked of a provider at once. Few, since a
+ * provider answers a burst with 429 and a wait that playback would share.
+ */
+const learnConcurrency = 2;
 
-/** How long learning the other episodes may hold playback, in milliseconds. */
+/** How long one pass of learning the other episodes runs, in milliseconds. */
 const learnDeadlineMs = 8000;
 
 const kinds = ["opening", "ending"] as const satisfies readonly SkipSegment["kind"][];
@@ -130,15 +133,41 @@ const learn = async (
 	deadline.abort();
 };
 
+const learning = new Map<string, Promise<void>>();
+
+/**
+ * Starts {@link learn} without waiting for it, unless the series is already
+ * being learned. Playback must not wait on it: a series with a hundred
+ * episodes means a hundred provider requests, which held the first play for
+ * up to {@link learnDeadlineMs} and drew 429s that held it longer.
+ */
+const learnInBackground = (
+	seriesId: string,
+	episode: number,
+	audio: ContentLanguage,
+	source: SkipSource,
+) => {
+	const key = `${seriesId}/${audio}`;
+	if (learning.has(key)) {
+		return;
+	}
+
+	const run = async () => {
+		await attempt(learn(seriesId, episode, audio, source));
+		learning.delete(key);
+	};
+	learning.set(key, run());
+};
+
 /**
  * Remembers the length of an episode's segments and brings each to the
  * length the series' other episodes report. A provider that times one
  * episode's opening past the music keeps the skip button up over the
  * episode; its start is trusted, its length is not.
  *
- * The first time a series is seen, the provider is asked for its other
- * episodes, so an outlier is corrected on its first play rather than after
- * enough episodes were watched.
+ * The provider is asked for the series' other episodes in the background, a
+ * pass at a time while the series is played, so an outlier is corrected from
+ * the next play on rather than by making the first one wait.
  *
  * Lengths are remembered as reported, so the usual one never follows an
  * earlier correction.
@@ -155,7 +184,7 @@ export const normalizeSkipSegments = async (
 		return segments;
 	}
 	if (source) {
-		await attempt(learn(seriesId, episode, audio, source));
+		learnInBackground(seriesId, episode, audio, source);
 	}
 
 	return Promise.all(
