@@ -1,9 +1,10 @@
 import { SORA_API_URL, WEB_CLIENT_KEY } from "$app/env/private";
-import { knownProfiles } from "$lib/server/sora";
+import { knownProfiles, profileCookie } from "$lib/server/sora";
 import { handoverKey, startedInPopup } from "$routes/(app)/settings/library/connection";
 import { route, SoraClient, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
-import { error } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 
 /**
@@ -27,6 +28,59 @@ const returnsToPopup = (url: URL) =>
 	(url.searchParams.has("code") || url.searchParams.has("error")) &&
 	startedInPopup(url.search);
 
+const openPaths = ["/api", "/login", "/logout", "/profiles"];
+
+/**
+ * Where a page request without a signed-in profile goes. Pages that reset
+ * their layout, like the player, skip the app layout's redirect, so the hook
+ * has to send everyone there itself instead of letting their queries fail.
+ */
+const redirectionFor = (event: RequestEvent) => {
+	const isPage =
+		event.request.method === "GET" &&
+		!event.isDataRequest &&
+		!event.isRemoteRequest &&
+		!openPaths.some((path) => event.url.pathname.startsWith(path));
+	if (!isPage) {
+		return null;
+	}
+
+	const here = encodeURIComponent(event.url.pathname + event.url.search);
+	if (!event.locals.viewer) {
+		return `/login?redirect=${here}`;
+	}
+	if (!event.locals.viewer.profile) {
+		return `/profiles?redirect=${here}`;
+	}
+	return null;
+};
+
+const listProfiles = async (sora: SoraClient, token: string) => {
+	const known = knownProfiles.get(token);
+	if (known && Date.now() - known.at < 30_000) {
+		return known.profiles;
+	}
+
+	const { data, error: listFailure } = await attempt(sora.request(route.listProfiles), SoraError);
+	if (listFailure && listFailure.status !== 401) {
+		throw listFailure;
+	}
+
+	if (knownProfiles.size > 500) {
+		knownProfiles.clear();
+	}
+	if (data) {
+		knownProfiles.set(token, {
+			at: Date.now(),
+			profiles: data,
+		});
+	} else {
+		knownProfiles.delete(token);
+	}
+
+	return data;
+};
+
 const withViewer: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
@@ -40,31 +94,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 			},
 		});
 
-		const known = knownProfiles.get(token);
-		let profiles = known?.profiles ?? null;
-		if (!known || Date.now() - known.at >= 30_000) {
-			const { data, error: listFailure } = await attempt(
-				sora.request(route.listProfiles),
-				SoraError,
-			);
-			if (listFailure && listFailure.status !== 401) {
-				throw listFailure;
-			}
-
-			profiles = data;
-
-			if (knownProfiles.size > 500) {
-				knownProfiles.clear();
-			}
-			if (data) {
-				knownProfiles.set(token, {
-					at: Date.now(),
-					profiles: data,
-				});
-			} else {
-				knownProfiles.delete(token);
-			}
-		}
+		const profiles = await listProfiles(sora, token);
 
 		if (profiles) {
 			const chosen = event.cookies.get("sora_profile");
@@ -77,12 +107,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 			};
 
 			if (profile) {
-				event.cookies.set("sora_profile", profile.id, {
-					httpOnly: true,
-					maxAge: 60 * 60,
-					path: "/",
-					sameSite: "lax",
-				});
+				event.cookies.set("sora_profile", profile.id, profileCookie);
 			}
 		} else {
 			event.cookies.delete("sora_session", {
@@ -92,6 +117,11 @@ const withViewer: Handle = async ({ event, resolve }) => {
 				path: "/",
 			});
 		}
+	}
+
+	const destination = redirectionFor(event);
+	if (destination) {
+		redirect(303, destination);
 	}
 
 	if (event.isRemoteRequest) {
