@@ -85,6 +85,25 @@
 					},
 				]
 			: []),
+		...(player.qualities.length > 1
+			? [
+					{
+						label: "Quality",
+						options: [
+							{
+								label: player.chosen || !player.playing ? "Auto" : `Auto (${player.playing}p)`,
+								value: "auto",
+							},
+							...player.qualities.map(({ height }) => ({
+								label: `${height}p`,
+								value: String(height),
+							})),
+						],
+						select: (value: string) => player.pickQuality(value === "auto" ? null : Number(value)),
+						value: player.chosen ? String(player.chosen.height) : "auto",
+					},
+				]
+			: []),
 		{
 			label: "Speed",
 			options: [0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => ({
