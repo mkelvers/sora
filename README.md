@@ -57,6 +57,8 @@ bun run auth:create-account yourname
 
 The root `Dockerfile` has `web`, `api`, and `scheduler` targets, run with PostgreSQL 18 on a persistent volume. Route `/` to web and `/v1` to the API on one domain. The environment variables for production are documented in the `.env.example` files.
 
+The optional portfolio endpoint `GET /v1/public/now-watching` requires `Authorization: Bearer <PORTFOLIO_TOKEN>`. Set `PORTFOLIO_TOKEN` and `NOW_WATCHING_PROFILE_ID` on the API container, as documented in `packages/core/.env.example`. Without the token it returns 404; without a profile it returns an empty list. It publishes only up to three display titles from unfinished viewing activity within 30 days, including active rewatches. Keep the token private and rotate it on both servers together.
+
 ## Credits
 
 Sora makes no anime data and hosts no video.

@@ -43,3 +43,5 @@ export {
 	removeFromWatchlist,
 	setWatchlistStatus,
 } from "./watchlist/watchlist";
+
+export { getNowWatching } from "./progress/now-watching";
