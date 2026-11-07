@@ -419,11 +419,6 @@ const resolveVersion = async (
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
 			// resolvePlayback retimes them to the dub's once both are resolved.
 			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
-			thumbnails: stream.thumbnails
-				? streamUrl(stream.thumbnails, "thumbnails", defined(stream.videos[0]).headers, {
-						accountId,
-					})
-				: null,
 		};
 
 		// A sub without English tracks has them burned in. Later providers may

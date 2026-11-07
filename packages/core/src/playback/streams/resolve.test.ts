@@ -32,8 +32,6 @@ interface FakeProvider {
 	unreachableVideo?: boolean;
 	/** The skip segments its player ships with each language's stream. */
 	skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
-	/** Whether its streams come with seek-bar previews. */
-	thumbnails?: boolean;
 	/** Subtitle tracks only one language's stream carries, by their labels. */
 	extraSubtitles?: Partial<Record<ContentLanguage, string[]>>;
 }
@@ -72,9 +70,6 @@ const useProviders = (list: FakeProvider[]) => {
 					}
 					return {
 						skipSegments: fake.skipSegments?.[language] ?? [],
-						thumbnails: fake.thumbnails
-							? `https://${fake.id}.example/${language}/thumbnails.vtt`
-							: undefined,
 						videos: [
 							{
 								format: "hls",
@@ -193,32 +188,6 @@ beforeEach(() => {
 });
 
 describe("resolvePlayback", () => {
-	test("serves seek-bar previews through the proxy, and none for a stream without them", async () => {
-		useProviders([
-			{
-				id: "anikoto",
-				languages: ["sub", "dub"],
-				locale: "en",
-				thumbnails: true,
-			},
-		]);
-		const withPreviews = await resolvePlayback(request, options, dependencies);
-		expect(withPreviews.media.map((version) => version.thumbnails)).toEqual([
-			"https://sora.example/v1/streams/token%3Ahttps%3A%2F%2Fanikoto.example%2Fdub%2Fthumbnails.vtt",
-			"https://sora.example/v1/streams/token%3Ahttps%3A%2F%2Fanikoto.example%2Fsub%2Fthumbnails.vtt",
-		]);
-
-		useProviders([
-			{
-				id: "anikoto",
-				languages: ["sub", "dub"],
-				locale: "en",
-			},
-		]);
-		const without = await resolvePlayback(request, options, dependencies);
-		expect(without.media.map((version) => version.thumbnails)).toEqual([null, null]);
-	});
-
 	test("serves English dub and sub together, never another locale", async () => {
 		useProviders([
 			{

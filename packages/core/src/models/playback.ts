@@ -81,10 +81,6 @@ export const PlaybackMediaSchema = z
 			description: "Ordered best first.",
 		}),
 		subtitles: z.array(PlaybackSubtitleSchema),
-		thumbnails: z.url().nullable().meta({
-			description:
-				"Seek-bar previews: a WebVTT file through Sora's proxy whose cues each name a region of a sprite image as `<sprite>#xywh=x,y,width,height`. Sprite URIs are relative to this file; hand both to the player as they are. `null` when the provider has none. Expires with the playback.",
-		}),
 	})
 	.meta({
 		id: "PlaybackMedia",
