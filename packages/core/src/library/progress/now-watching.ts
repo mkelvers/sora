@@ -3,8 +3,13 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
+import { getContinueWatching } from "./progress";
 
-/** Titles from the profile's active viewing, played within 30 days and not completed. */
+/**
+ * Titles from the profile's active viewing, played within 30 days and not
+ * completed, that are also on its Continue Watching list. A series with
+ * progress that the profile dismissed or has nothing left to play in is left out.
+ */
 export const getNowWatching = async (profileId: string): Promise<string[]> => {
 	const activity = db
 		.select({
@@ -27,15 +32,16 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 		)
 		.groupBy(episodeProgress.seriesId)
 		.as("activity");
-	const rows = await db
-		.select({ title: series.title })
-		.from(activity)
-		.innerJoin(series, eq(series.id, activity.seriesId))
-		.leftJoin(
-			seriesState,
-			and(eq(seriesState.userId, profileId), eq(seriesState.seriesId, series.id)),
-		)
-		.where(sql`
+	const [rows, continueWatching] = await Promise.all([
+		db
+			.select({ id: series.id, title: series.title })
+			.from(activity)
+			.innerJoin(series, eq(series.id, activity.seriesId))
+			.leftJoin(
+				seriesState,
+				and(eq(seriesState.userId, profileId), eq(seriesState.seriesId, series.id)),
+			)
+			.where(sql`
       ${activity.watchedAt} >= now() - interval '30 days'
       and (${seriesState.status} is distinct from 'completed' or ${seriesState.rewatchStartedAt} is not null)
       and not (
@@ -54,7 +60,12 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
         )
       )
     `)
-		.orderBy(desc(activity.watchedAt), series.id)
-		.limit(3);
-	return rows.map((row) => row.title);
+			.orderBy(desc(activity.watchedAt), series.id),
+		getContinueWatching(profileId),
+	]);
+	const onList = new Set(continueWatching.map((entry) => entry.series.id));
+	return rows
+		.filter((row) => onList.has(row.id))
+		.slice(0, 3)
+		.map((row) => row.title);
 };

@@ -104,6 +104,14 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 		await db.delete(series).where(inArray(series.id, [idAt(8), idAt(0), idAt(1)]));
 		expect(await getNowWatching(profile)).toEqual(["Third", "Fourth"]);
 		expect(await getNowWatching(`${profile}-missing`)).toEqual([]);
+	});
+
+	test("excludes series with progress that are not on Continue Watching", async () => {
+		await db
+			.insert(seriesState)
+			.values({ dismissedAt: new Date(), seriesId: idAt(2), userId: profile });
+		expect(await getNowWatching(profile)).toEqual(["Fourth"]);
+		await db.delete(seriesState).where(eq(seriesState.seriesId, idAt(2)));
 		await db.delete(episodeProgress).where(eq(episodeProgress.userId, profile));
 		expect(await getNowWatching(profile)).toEqual([]);
 	});
