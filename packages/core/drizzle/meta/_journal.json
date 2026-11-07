@@ -512,6 +512,13 @@
       "when": 1793535073603,
       "tag": "0072_series_rating",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794066063961,
+      "tag": "0073_playback_quality",
+      "breakpoints": true
     }
   ]
 }

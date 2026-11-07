@@ -59,7 +59,12 @@
 
 	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
 
-	const player = new Player(untrack(() => start));
+	const player = new Player(
+		untrack(() => start),
+		untrack(() => preferences.quality),
+	);
+
+	$effect(() => player.setQuality(preferences.quality));
 
 	let failure = $state("");
 	let nearing = $state(false);

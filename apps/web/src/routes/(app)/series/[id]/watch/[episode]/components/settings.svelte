@@ -99,7 +99,10 @@
 								value: String(height),
 							})),
 						],
-						select: (value: string) => player.pickQuality(value === "auto" ? null : Number(value)),
+						select: (value: string) =>
+							onpreferences({
+								quality: value === "auto" ? null : Number(value),
+							}),
 						value: player.chosen ? String(player.chosen.height) : "auto",
 					},
 				]

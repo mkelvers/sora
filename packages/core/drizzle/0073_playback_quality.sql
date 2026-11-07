@@ -1,0 +1,1 @@
+ALTER TABLE "playback_preference" ADD COLUMN "quality" integer;

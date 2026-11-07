@@ -105,7 +105,7 @@ export class Player {
 	#reloaded = -Infinity;
 	#instance: Hls | undefined;
 
-	constructor(start: number) {
+	constructor(start: number, quality: number | null) {
 		this.time = start;
 		this.#resume = start;
 
@@ -114,18 +114,20 @@ export class Player {
 		this.volume = typeof volume === "number" && volume >= 0 && volume <= 1 ? volume : 1;
 		this.muted = preferences.get("muted") === true;
 		this.speed = typeof speed === "number" && speed > 0 ? speed : 1;
-		const quality = preferences.get("quality");
-		this.quality = typeof quality === "number" && quality > 0 ? quality : null;
+		this.quality = quality;
 	}
 
 	remember = () => {
 		preferences.set("volume", this.volume);
 		preferences.set("muted", this.muted);
 		preferences.set("speed", this.speed);
-		preferences.set("quality", this.quality);
 	};
 
-	pickQuality = (height: number | null) => {
+	setQuality = (height: number | null) => {
+		if (height === this.quality) {
+			return;
+		}
+
 		this.quality = height;
 		if (this.#instance) {
 			this.#instance.nextLevel = this.chosen?.level ?? -1;
