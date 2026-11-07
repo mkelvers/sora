@@ -71,13 +71,14 @@ import { createMiddleware } from "hono/factory";
 import { addressOf, clientAddress } from "./client-address";
 import { onInvalidRequest, sendProblem } from "./errors";
 import type { V1Env } from "./errors";
+import { nowWatchingRoutes } from "./now-watching";
 import { offsetLinks, pageMeta } from "./openapi/envelope";
 import { route } from "./openapi/routes";
 import { rateLimit } from "./rate-limit";
 
 /**
  * Version 1 of the API: the handlers for the contracts in `openapi/routes.ts`.
- * Every successful JSON response is `{ meta, results }`: the core's models,
+ * Session routes return `{ meta, results }`: the core's models,
  * in snake_case, under `results`, and facts about the response, such as
  * paging or the IDs it is for, under `meta`.
  *
@@ -87,6 +88,8 @@ import { rateLimit } from "./rate-limit";
 const v1 = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 });
+
+v1.route("/", nowWatchingRoutes());
 
 v1.use("/auth/*", clientAddress);
 
@@ -135,7 +138,7 @@ const signedIn = createMiddleware<V1Env>(async (c, proceed) => {
 	await proceed();
 });
 
-// Everything but sign-in needs an account, the contract and the stream proxy
+// The portfolio route above uses its own secret. Everything below but sign-in needs an account, the contract and the stream proxy
 // included, so nobody anonymous can make the server look anything up, and each
 // account is held to a generous ceiling.
 v1.use(
@@ -1000,7 +1003,7 @@ export const v1Routes = v1
 v1.doc31("/openapi.json", {
 	info: {
 		description:
-			"Anime titles as AniList lists them: a show's seasons, films, and OVAs are each a title with its own episodes, found from one another as related titles, and addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
+			"Anime titles as AniList lists them: a show's seasons, films, and OVAs are each a title with its own episodes, found from one another as related titles, and addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. The portfolio endpoint alone returns `{ titles }` with its own bearer secret. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",
 		title: "Sora API",
 		version: "1",
 	},
