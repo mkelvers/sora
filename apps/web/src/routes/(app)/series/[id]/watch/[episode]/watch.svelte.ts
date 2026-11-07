@@ -20,6 +20,69 @@ interface Quality {
 	level: number;
 }
 
+interface Frame {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export interface Preview {
+	start: number;
+	end: number;
+	image: string;
+	frame: Frame | null;
+}
+
+const stamp = /^(?:(?<hours>\d+):)?(?<minutes>\d+):(?<seconds>\d+(?:\.\d+)?)$/u;
+const region = /^#xywh=(?<x>\d+),(?<y>\d+),(?<width>\d+),(?<height>\d+)$/u;
+
+const seconds = (text: string) => {
+	const { hours, minutes, seconds: rest } = stamp.exec(text.trim())?.groups ?? {};
+	return minutes && rest
+		? Number(hours ?? 0) * 3600 + Number(minutes) * 60 + Number(rest)
+		: Number.NaN;
+};
+
+const frameOf = (hash: string): Frame | null => {
+	const { x, y, width, height } = region.exec(hash)?.groups ?? {};
+	return x && y && width && height
+		? {
+				height: Number(height),
+				width: Number(width),
+				x: Number(x),
+				y: Number(y),
+			}
+		: null;
+};
+
+const cueOf = (block: string, base: URL): Preview | undefined => {
+	const lines = block.split(/\r?\n/u);
+	const index = lines.findIndex((line) => line.includes("-->"));
+	const [from, to] = lines[index]?.split("-->") ?? [];
+	const payload = lines[index + 1]?.trim();
+	const start = seconds(from ?? "");
+	const end = seconds(to ?? "");
+	if (!payload || !URL.canParse(payload, base) || !(start >= 0 && end > start)) {
+		return undefined;
+	}
+
+	const url = new URL(payload, base);
+	const frame = frameOf(url.hash);
+	url.hash = "";
+	return {
+		end,
+		frame,
+		image: `${url.pathname}${url.search}`,
+		start,
+	};
+};
+
+export const previewsOf = (text: string, file: string) => {
+	const base = new URL(file, location.href);
+	return text.split(/\r?\n\r?\n/u).flatMap((block) => cueOf(block, base) ?? []);
+};
+
 const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;

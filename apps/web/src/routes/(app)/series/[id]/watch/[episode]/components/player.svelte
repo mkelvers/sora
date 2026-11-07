@@ -303,7 +303,7 @@
 	<footer
 		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Controls {player} {previous} {next}>
+		<Controls {player} {previous} {next} thumbnails={selected?.thumbnails}>
 			<Settings
 				media={playback?.media ?? []}
 				{selected}

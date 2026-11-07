@@ -13,9 +13,19 @@ import type { TimelineShift } from "../streams/align";
  * - `segment`: a media segment or initialization section, streamed through.
  * - `subtitle`: a subtitle file, streamed through, or retimed by `shifts`.
  * - `key`: an HLS decryption key, streamed through.
+ * - `thumbnails`: a WebVTT file of seek-bar previews whose sprite images are
+ *   rewritten to new tokens.
+ * - `image`: a sprite image of seek-bar previews, streamed through.
  * - `file`: a progressive (non-HLS) video file, streamed with range support.
  */
-export type StreamTargetKind = "playlist" | "segment" | "subtitle" | "key" | "file";
+export type StreamTargetKind =
+	| "playlist"
+	| "segment"
+	| "subtitle"
+	| "key"
+	| "file"
+	| "thumbnails"
+	| "image";
 
 /** An upstream resource the proxy is authorized to fetch. */
 export interface StreamTarget {
@@ -39,7 +49,7 @@ const StreamTargetSchema = z.object({
 	a: z.string().min(1),
 	e: z.number().int().positive(),
 	h: z.record(z.string(), z.string()),
-	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
+	k: z.enum(["playlist", "segment", "subtitle", "key", "file", "thumbnails", "image"]),
 	m: z.array(
 		z.url({
 			protocol: /^https?$/u,

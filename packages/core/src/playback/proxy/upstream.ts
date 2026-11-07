@@ -35,10 +35,12 @@ const maximumRedirects = 5;
  */
 const maximumBodyBytes: Record<StreamTargetKind, number> = {
 	file: Number.POSITIVE_INFINITY,
+	image: 8 * 1024 * 1024,
 	key: 64 * 1024,
 	playlist: 4 * 1024 * 1024,
 	segment: 32 * 1024 * 1024,
 	subtitle: 4 * 1024 * 1024,
+	thumbnails: 1024 * 1024,
 };
 
 /** The proxied upstream could not be fetched. Retryable. */

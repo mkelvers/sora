@@ -8,6 +8,7 @@ import { rewritePlaylist } from "./playlist";
 import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
+import { rewriteThumbnails } from "./thumbnails";
 import { signStreamTarget, verifyStreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
@@ -271,6 +272,36 @@ const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
 	});
 };
 
+const thumbnailsResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
+	const content = new TextDecoder().decode(upstream.bytes);
+	if (!content.trimStart().startsWith("WEBVTT")) {
+		throw new StreamUpstreamError("Upstream did not return a WebVTT file", null);
+	}
+
+	// Sprites inherit the file's headers and expiry, as playlist children do.
+	const rewritten = rewriteThumbnails(content, upstream.url, (url) =>
+		signStreamTarget(
+			{
+				accountId: target.accountId,
+				expiresAt: target.expiresAt,
+				headers: target.headers,
+				kind: "image",
+				mirrors: mirrorsFor(url, upstream.url),
+				url,
+			},
+			config.streamSigningSecret,
+		),
+	);
+
+	return new Response(rewritten, {
+		headers: {
+			"Cache-Control": "private, max-age=3600",
+			"Content-Type": "text/vtt; charset=utf-8",
+		},
+		status: 200,
+	});
+};
+
 /**
  * Streams a segment through unchanged unless it starts with a disguising
  * image header, in which case it is buffered and the image removed.
@@ -412,7 +443,12 @@ export const proxyStream = async (
 		return playlistResponse(target, upstream);
 	}
 
-	if (target.kind === "subtitle" || target.kind === "key") {
+	if (target.kind === "thumbnails") {
+		const upstream = await fetchUpstreamBytes(target, request.signal);
+		return thumbnailsResponse(target, upstream);
+	}
+
+	if (target.kind === "subtitle" || target.kind === "key" || target.kind === "image") {
 		return await smallFileResponse(target, request.signal);
 	}
 
