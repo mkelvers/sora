@@ -10,8 +10,10 @@ const imageLine = /^(?<uri>[^\s#]+)(?<region>#xywh=\d+,\d+,\d+,\d+)?$/u;
 /**
  * Rewrites the image of every cue in a WebVTT thumbnails file through `sign`,
  * keeping a sprite cue's `#xywh` region. Relative URIs are resolved against
- * `fileUrl` first. Timings, cue identifiers, notes and any payload that is
- * not an image are kept as they are.
+ * `fileUrl` first. An image is signed once however many cues use it, so cues
+ * on one sprite sheet share one URL, which a browser loads and caches once.
+ * Timings, cue identifiers, notes and any payload that is not an image are
+ * kept as they are.
  *
  * @example
  * ```ts
@@ -20,6 +22,7 @@ const imageLine = /^(?<uri>[^\s#]+)(?<region>#xywh=\d+,\d+,\d+,\d+)?$/u;
  */
 export const rewriteThumbnails = (content: string, fileUrl: string, sign: SpriteUriSigner) => {
 	let payload = false;
+	const signed = new Map<string, string>();
 
 	return content
 		.split(/\r?\n/u)
@@ -41,7 +44,10 @@ export const rewriteThumbnails = (content: string, fileUrl: string, sign: Sprite
 				return line;
 			}
 
-			return `${sign(new URL(uri, fileUrl).toString())}${region}`;
+			const url = new URL(uri, fileUrl).toString();
+			const token = signed.get(url) ?? sign(url);
+			signed.set(url, token);
+			return `${token}${region}`;
 		})
 		.join("\n");
 };

@@ -33,6 +33,29 @@ describe("rewriteThumbnails", () => {
 		);
 	});
 
+	test("signs a sprite once however many cues use it", () => {
+		const content = [
+			"WEBVTT",
+			"",
+			"00:00:00.000 --> 00:00:05.000",
+			"sprite_0.webp#xywh=0,0,160,90",
+			"",
+			"00:00:05.000 --> 00:00:10.000",
+			"sprite_0.webp#xywh=160,0,160,90",
+			"",
+			"00:00:10.000 --> 00:00:15.000",
+			"sprite_1.webp#xywh=0,0,160,90",
+		].join("\n");
+		let count = 0;
+
+		const rewritten = rewriteThumbnails(content, file, () => `token${(count += 1)}`);
+
+		expect(rewritten).toContain("token1#xywh=0,0,160,90");
+		expect(rewritten).toContain("token1#xywh=160,0,160,90");
+		expect(rewritten).toContain("token2#xywh=0,0,160,90");
+		expect(count).toBe(2);
+	});
+
 	test("signs the whole image of a cue that has no region", () => {
 		const content = [
 			"WEBVTT",

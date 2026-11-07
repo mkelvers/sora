@@ -120,13 +120,16 @@
 		{@const width = Math.min(previewWidth, pointer.width)}
 		{@const scale = frame ? width / frame.width : 1}
 		<div
-			class="pointer-events-none absolute bottom-full z-10 mb-1 bg-black shadow-lg shadow-black/50"
+			class="pointer-events-none absolute bottom-full z-10 mb-2 flex flex-col items-center gap-2"
 			style:left="{Math.min(Math.max(pointer.x - width / 2, 0), pointer.width - width)}px"
 			style:width="{width}px"
 			aria-hidden="true"
 		>
 			{#if frame}
-				<div class="relative overflow-hidden" style:height="{frame.height * scale}px">
+				<div
+					class="relative w-full overflow-hidden shadow-lg shadow-black/50"
+					style:height="{frame.height * scale}px"
+				>
 					<img
 						src={preview.image}
 						alt=""
@@ -135,11 +138,13 @@
 					/>
 				</div>
 			{:else}
-				<div class="aspect-video overflow-hidden">
+				<div class="aspect-video w-full overflow-hidden shadow-lg shadow-black/50">
 					<img src={preview.image} alt="" class="size-full object-cover" />
 				</div>
 			{/if}
-			<p class="py-1 text-center text-xs tabular-nums">{clock(pointer.time)}</p>
+			<p class="bg-white px-2 py-0.5 text-sm font-semibold text-black tabular-nums">
+				{clock(pointer.time)}
+			</p>
 		</div>
 	{/if}
 </div>
