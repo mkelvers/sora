@@ -208,7 +208,6 @@ export const resolveMegaPlayEmbed = async (
 
 	return {
 		skipSegments: skipSegments(body),
-		thumbnails: body.tracks?.find((track) => track.kind === "thumbnails")?.file,
 		videos: [
 			{
 				format: new URL(file).pathname.endsWith(".m3u8") ? "hls" : "mp4",

@@ -79,7 +79,6 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 				...track,
 				url: proxied(track.url),
 			})),
-			thumbnails: media.thumbnails ? proxied(media.thumbnails) : null,
 		})),
 		next: meta.next_episode,
 		previous: meta.previous_episode,
