@@ -75,7 +75,6 @@ export class Player {
 	cues = $state<VTTCue[]>([]);
 	qualities = $state<Quality[]>([]);
 	quality = $state<number | null>(null);
-	playing = $state<number | null>(null);
 
 	chosen = $derived.by(() => {
 		const { quality } = this;
@@ -314,10 +313,6 @@ export class Player {
 					hls.nextLevel = this.chosen.level;
 				}
 			});
-			hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-				const height = hls?.levels[data.level]?.height;
-				this.playing = height || null;
-			});
 
 			let recovered = 0;
 			hls.on(Hls.Events.ERROR, (_, data) => {
@@ -341,7 +336,6 @@ export class Player {
 			hls?.destroy();
 			this.#instance = undefined;
 			this.qualities = [];
-			this.playing = null;
 		};
 	}
 

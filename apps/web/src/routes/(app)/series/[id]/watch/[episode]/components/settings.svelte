@@ -101,10 +101,7 @@
 						label: "Quality",
 						options: [
 							{
-								label:
-									player.chosen || !player.playing
-										? "Auto"
-										: `Auto (${qualityLabel(player.playing)})`,
+								label: "Auto",
 								value: "auto",
 							},
 							...player.qualities.map(({ height }) => ({
