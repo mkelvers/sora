@@ -79,6 +79,7 @@ export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) =
 				...track,
 				url: proxied(track.url),
 			})),
+			thumbnails: media.thumbnails ? proxied(media.thumbnails) : null,
 		})),
 		next: meta.next_episode,
 		previous: meta.previous_episode,
@@ -148,6 +149,7 @@ export const savePlaybackPreferences = command(
 		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
 		auto_skip: z.boolean().optional(),
 		autoplay_next: z.boolean().optional(),
+		quality: z.number().int().positive().nullable().optional(),
 		subtitles: z
 			.object({
 				dub: SubtitleChoice.optional(),

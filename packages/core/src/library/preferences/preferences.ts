@@ -12,6 +12,7 @@ const defaults: PlaybackPreferences = {
 	audio: null,
 	auto_skip: false,
 	autoplay_next: true,
+	quality: null,
 	subtitles: {},
 };
 
@@ -23,6 +24,7 @@ const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPre
 		audio: audio.success ? audio.data : null,
 		auto_skip: row.autoSkip,
 		autoplay_next: row.autoplayNext,
+		quality: row.quality,
 		subtitles: subtitles.success ? subtitles.data : {},
 	};
 };
@@ -55,13 +57,20 @@ export const updatePlaybackPreferences = async (
 		});
 	}
 
-	const { audio, subtitles, auto_skip: autoSkip, autoplay_next: autoplayNext } = parsed.data;
+	const {
+		audio,
+		subtitles,
+		auto_skip: autoSkip,
+		autoplay_next: autoplayNext,
+		quality,
+	} = parsed.data;
 	const [row] = await db
 		.insert(playbackPreference)
 		.values({
 			audio: audio ?? null,
 			autoSkip: autoSkip ?? false,
 			autoplayNext: autoplayNext ?? true,
+			quality: quality ?? null,
 			subtitles: subtitles ?? {},
 			userId,
 		})
@@ -78,6 +87,9 @@ export const updatePlaybackPreferences = async (
 				}),
 				...(autoplayNext !== undefined && {
 					autoplayNext,
+				}),
+				...(quality !== undefined && {
+					quality,
 				}),
 				updatedAt: sql`now()`,
 			},

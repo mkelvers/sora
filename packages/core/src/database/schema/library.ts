@@ -49,6 +49,8 @@ export const playbackPreference = pgTable("playback_preference", {
 	autoSkip: boolean("auto_skip").notNull().default(false),
 	/** Whether the next episode starts by itself when one ends. */
 	autoplayNext: boolean("autoplay_next").notNull().default(true),
+	/** The tallest picture, in pixels, to play when a stream has it; `null` picks automatically. */
+	quality: integer("quality"),
 	/**
 	 * The subtitles picked for each audio, keyed by `sub` or `dub`: a track's
 	 * language and kind, or `null` for none. An audio missing here shows its

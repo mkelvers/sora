@@ -3,6 +3,7 @@ import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import type Hls from "hls.js";
+import type { Level } from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
@@ -14,6 +15,74 @@ interface Range {
 	end: number;
 }
 
+interface Quality {
+	height: number;
+	level: number;
+}
+
+interface Frame {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export interface Preview {
+	start: number;
+	end: number;
+	image: string;
+	frame: Frame | null;
+}
+
+const stamp = /^(?:(?<hours>\d+):)?(?<minutes>\d+):(?<seconds>\d+(?:\.\d+)?)$/u;
+const region = /^#xywh=(?<x>\d+),(?<y>\d+),(?<width>\d+),(?<height>\d+)$/u;
+
+const seconds = (text: string) => {
+	const { hours, minutes, seconds: rest } = stamp.exec(text.trim())?.groups ?? {};
+	return minutes && rest
+		? Number(hours ?? 0) * 3600 + Number(minutes) * 60 + Number(rest)
+		: Number.NaN;
+};
+
+const frameOf = (hash: string): Frame | null => {
+	const { x, y, width, height } = region.exec(hash)?.groups ?? {};
+	return x && y && width && height
+		? {
+				height: Number(height),
+				width: Number(width),
+				x: Number(x),
+				y: Number(y),
+			}
+		: null;
+};
+
+const cueOf = (block: string, base: URL): Preview | undefined => {
+	const lines = block.split(/\r?\n/u);
+	const index = lines.findIndex((line) => line.includes("-->"));
+	const [from, to] = lines[index]?.split("-->") ?? [];
+	const payload = lines[index + 1]?.trim();
+	const start = seconds(from ?? "");
+	const end = seconds(to ?? "");
+	if (!payload || !URL.canParse(payload, base) || !(start >= 0 && end > start)) {
+		return undefined;
+	}
+
+	const url = new URL(payload, base);
+	const frame = frameOf(url.hash);
+	url.hash = "";
+	return {
+		end,
+		frame,
+		image: `${url.pathname}${url.search}`,
+		start,
+	};
+};
+
+export const previewsOf = (text: string, file: string) => {
+	const base = new URL(file, location.href);
+	return text.split(/\r?\n\r?\n/u).flatMap((block) => cueOf(block, base) ?? []);
+};
+
 const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;
@@ -22,6 +91,7 @@ const megabyte = 1000 * 1000;
 const bufferMegabytesPerGigabyte = 25;
 const maximumBufferMegabytes = 200;
 const firstByteTimeoutMs = 30_000;
+const startBandwidthBitsPerSecond = 10_000_000;
 
 const loadHls = () => attempt(import("hls.js"));
 
@@ -32,6 +102,22 @@ if (browser) {
 const subscribeFullscreen = createSubscriber((update) => {
 	on(document, "fullscreenchange", update);
 });
+
+const qualitiesOf = (levels: Level[]) => {
+	const best = new Map<number, number>();
+	for (const [index, level] of levels.entries()) {
+		if (level.height > 0) {
+			best.set(level.height, index);
+		}
+	}
+
+	return [...best]
+		.map(([height, level]): Quality => ({
+			height,
+			level,
+		}))
+		.toSorted((left, right) => right.height - left.height);
+};
 
 const playDirect = (video: HTMLVideoElement, url: string, start: number) => {
 	video.src = url;
@@ -50,6 +136,17 @@ export class Player {
 	readyState = $state(0);
 	idle = $state(false);
 	cues = $state<VTTCue[]>([]);
+	qualities = $state<Quality[]>([]);
+	quality = $state<number | null>(null);
+
+	chosen = $derived.by(() => {
+		const { quality } = this;
+		if (quality === null) {
+			return;
+		}
+
+		return this.qualities.find((candidate) => candidate.height <= quality) ?? this.qualities.at(-1);
+	});
 
 	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
 	loaded = $derived.by(() => {
@@ -68,8 +165,9 @@ export class Player {
 	#resume: number | undefined;
 	#reloads = $state(0);
 	#reloaded = -Infinity;
+	#instance: Hls | undefined;
 
-	constructor(start: number) {
+	constructor(start: number, quality: number | null) {
 		this.time = start;
 		this.#resume = start;
 
@@ -78,12 +176,24 @@ export class Player {
 		this.volume = typeof volume === "number" && volume >= 0 && volume <= 1 ? volume : 1;
 		this.muted = preferences.get("muted") === true;
 		this.speed = typeof speed === "number" && speed > 0 ? speed : 1;
+		this.quality = quality;
 	}
 
 	remember = () => {
 		preferences.set("volume", this.volume);
 		preferences.set("muted", this.muted);
 		preferences.set("speed", this.speed);
+	};
+
+	setQuality = (height: number | null) => {
+		if (height === this.quality) {
+			return;
+		}
+
+		this.quality = height;
+		if (this.#instance) {
+			this.#instance.nextLevel = this.chosen?.level ?? -1;
+		}
 	};
 
 	get fullscreen() {
@@ -233,6 +343,7 @@ export class Player {
 			const Hls = loaded.data.default;
 			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 			hls = new Hls({
+				abrEwmaDefaultEstimate: startBandwidthBitsPerSecond,
 				backBufferLength: backBufferSeconds,
 				fragLoadPolicy: {
 					default: {
@@ -256,6 +367,15 @@ export class Player {
 				maxMaxBufferLength: forwardBufferSeconds,
 				startPosition: start,
 			});
+			this.#instance = hls;
+
+			hls.on(Hls.Events.MANIFEST_PARSED, () => {
+				const levels = hls?.levels ?? [];
+				this.qualities = qualitiesOf(levels);
+				if (hls && this.chosen) {
+					hls.nextLevel = this.chosen.level;
+				}
+			});
 
 			let recovered = 0;
 			hls.on(Hls.Events.ERROR, (_, data) => {
@@ -277,6 +397,8 @@ export class Player {
 		return () => {
 			detached = true;
 			hls?.destroy();
+			this.#instance = undefined;
+			this.qualities = [];
 		};
 	}
 

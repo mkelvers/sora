@@ -31,6 +31,16 @@
 		signs: " (Signs)",
 	};
 
+	const ultraHeight = 2160;
+	const highHeight = 720;
+
+	const qualityLabel = (height: number) => {
+		if (height >= ultraHeight) {
+			return `${height}p 4K`;
+		}
+		return height >= highHeight ? `${height}p HD` : `${height}p`;
+	};
+
 	const pickSubtitle = (url: string) => {
 		if (!selected || selected.audio === "raw") {
 			return;
@@ -82,6 +92,28 @@
 						],
 						select: pickSubtitle,
 						value: subtitle ?? "",
+					},
+				]
+			: []),
+		...(player.qualities.length > 1
+			? [
+					{
+						label: "Quality",
+						options: [
+							{
+								label: "Auto",
+								value: "auto",
+							},
+							...player.qualities.map(({ height }) => ({
+								label: qualityLabel(height),
+								value: String(height),
+							})),
+						],
+						select: (value: string) =>
+							onpreferences({
+								quality: value === "auto" ? null : Number(value),
+							}),
+						value: player.chosen ? String(player.chosen.height) : "auto",
 					},
 				]
 			: []),

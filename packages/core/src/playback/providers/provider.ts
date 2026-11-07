@@ -56,6 +56,11 @@ export interface ProviderStream {
 	videos: ProviderVideo[];
 	/** Opening and ending, in playback order, timed against these videos. Empty when the provider reports none. */
 	skipSegments: SkipSegment[];
+	/**
+	 * A WebVTT file of seek-bar previews, each cue naming a region of a sprite
+	 * image (`sprite.webp#xywh=160,0,160,90`). Absent when the provider has none.
+	 */
+	thumbnails?: string | undefined;
 }
 
 /**

@@ -40,6 +40,11 @@ export const PlaybackPreferencesSchema = z
 		autoplay_next: z.boolean().meta({
 			description: "Whether the next episode starts by itself when one ends.",
 		}),
+		quality: z.number().int().positive().nullable().meta({
+			description:
+				"The tallest picture to play, in pixels of height, such as `1080`. A stream without it plays the next lower one. `null` lets the player choose by connection speed, starting from the best.",
+			example: 1080,
+		}),
 		subtitles: SubtitlePreferencesSchema,
 	})
 	.meta({
@@ -214,6 +219,7 @@ export const PlaybackPreferencesUpdateSchema = z
 		audio: LanguageSchema.nullable().optional(),
 		auto_skip: z.boolean().optional(),
 		autoplay_next: z.boolean().optional(),
+		quality: z.number().int().positive().nullable().optional(),
 		subtitles: SubtitlePreferencesSchema.optional().meta({
 			description: "Changes the subtitles of the audio given, leaving the other's as they are.",
 		}),

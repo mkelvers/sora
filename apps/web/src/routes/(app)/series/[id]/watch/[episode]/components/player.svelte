@@ -59,7 +59,12 @@
 
 	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
 
-	const player = new Player(untrack(() => start));
+	const player = new Player(
+		untrack(() => start),
+		untrack(() => preferences.quality),
+	);
+
+	$effect(() => player.setQuality(preferences.quality));
 
 	let failure = $state("");
 	let nearing = $state(false);
@@ -298,7 +303,7 @@
 	<footer
 		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Controls {player} {previous} {next}>
+		<Controls {player} {previous} {next} thumbnails={selected?.thumbnails}>
 			<Settings
 				media={playback?.media ?? []}
 				{selected}
