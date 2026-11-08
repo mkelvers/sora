@@ -48,7 +48,7 @@
 </script>
 
 <svelte:head>
-	<title>{series.title} Media - Sora</title>
+	<title>{series.title} Artwork - Sora</title>
 </svelte:head>
 
 <StatusBanner
@@ -72,7 +72,7 @@
 		>
 			<CaretLeftIcon size="1.5rem" weight="bold" />
 		</Button>
-		<h1 class="text-2xl font-bold">Media</h1>
+		<h1 class="text-2xl font-bold">Artwork</h1>
 	</header>
 
 	<Tabs

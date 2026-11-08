@@ -15,38 +15,40 @@
 	<title>{q ? `Search Results for ${q}` : "Search Anime"} - Sora</title>
 </svelte:head>
 
-<div class="flex page flex-col">
+<div class="page overflow-x-clip">
 	{#if q}
-		<h1 class="sr-only">Search results for {q}</h1>
+		<section class="mx-auto w-full max-w-264" aria-labelledby="search-title">
+			<h1 id="search-title" class="mb-8 text-2xl font-bold">Search Results for “{q}”</h1>
 
-		<ul
-			class="grid flex-1 grid-cols-2 gap-x-4 gap-y-8 xs:grid-cols-3 md:grid-cols-4 md:gap-x-9 md:gap-y-12 xl:grid-cols-5 wide:grid-cols-6 hero:grid-cols-7"
-		>
-			{#each { length: count }, index (index)}
-				<svelte:boundary>
-					<Results {q} page={index + 1} last={index + 1 === count} onmore={() => (count += 1)} />
+			<ul
+				class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
+			>
+				{#each { length: count }, index (index)}
+					<svelte:boundary>
+						<Results {q} page={index + 1} last={index + 1 === count} onmore={() => (count += 1)} />
 
-					{#snippet pending()}
-						{#each { length: 12 }, index (index)}
-							<li>
-								<Skeleton class="aspect-2/3" />
-								<Skeleton class="mt-3 h-4 w-4/5" />
+						{#snippet pending()}
+							{#each { length: 12 }, index (index)}
+								<li>
+									<Skeleton class="aspect-2/3" />
+									<Skeleton class="mt-3 h-4 w-4/5" />
+								</li>
+							{/each}
+						{/snippet}
+
+						{#snippet failed(_, reset)}
+							<li class="col-span-full flex items-center gap-4 text-muted">
+								<p>These results couldn’t be loaded.</p>
+								<Button variant="ghost" onclick={reset}>Try Again</Button>
 							</li>
-						{/each}
-					{/snippet}
-
-					{#snippet failed(_, reset)}
-						<li class="col-span-full flex items-center gap-4 text-muted">
-							<p>These results couldn’t be loaded.</p>
-							<Button variant="ghost" onclick={reset}>Try Again</Button>
-						</li>
-					{/snippet}
-				</svelte:boundary>
-			{/each}
-		</ul>
+						{/snippet}
+					</svelte:boundary>
+				{/each}
+			</ul>
+		</section>
 	{:else}
 		<h1 class="sr-only">Search</h1>
-		<div class="grid flex-1 place-items-center">
+		<div class="grid min-h-full flex-1 place-items-center">
 			<EmptyState
 				class="w-full max-w-7xl py-16 sm:px-12 sm:py-22"
 				mascot={mascots.search}

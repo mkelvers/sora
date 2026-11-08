@@ -171,7 +171,7 @@
 				{/snippet}
 				{#snippet children()}
 					<div role="group" aria-label="More">
-						<Button href="/series/{series.id}/media" variant="item">View Media Options</Button>
+						<Button href="/series/{series.id}/media" variant="item">Change Artwork</Button>
 					</div>
 				{/snippet}
 			</Dropdown>
@@ -277,6 +277,6 @@
 
 <Sheet bind:open={more} id="series-more" title="More">
 	<Button href="/series/{series.id}/media" variant="item" onclick={() => (more = false)}>
-		View Media Options
+		Change Artwork
 	</Button>
 </Sheet>

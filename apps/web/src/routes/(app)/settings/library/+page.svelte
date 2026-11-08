@@ -368,7 +368,7 @@
 					disabled={busy !== null}
 					onclick={() => fileInput?.click()}
 				>
-					Choose file
+					Choose File
 				</Button>
 				<input
 					bind:this={fileInput}
@@ -389,7 +389,7 @@
 			<div class="flex min-w-0 items-start gap-4">
 				<DownloadSimpleIcon size="1.5rem" class="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
 				<div class="min-w-0">
-					<p class="text-base leading-6 font-semibold">Watchlist and history</p>
+					<p class="text-base leading-6 font-semibold">Watchlist and History</p>
 					<p class="mt-1 text-sm leading-relaxed text-muted">
 						One file you can import again anywhere.
 					</p>

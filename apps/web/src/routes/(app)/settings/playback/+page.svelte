@@ -53,10 +53,10 @@
 >
 	{#if playback.current && profile.current}
 		<div>
-			<p class="text-xs text-subtle">Preferred audio</p>
+			<p class="text-xs text-subtle">Preferred Audio</p>
 			<Select
 				variant="field"
-				label="Preferred audio"
+				label="Preferred Audio"
 				options={playback.current.audio === "raw"
 					? [...audios, { value: "raw", label: "Raw" }]
 					: audios}

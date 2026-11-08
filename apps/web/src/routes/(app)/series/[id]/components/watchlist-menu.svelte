@@ -5,7 +5,7 @@
 	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { getLibrary, statuses } from "$routes/(app)/library.svelte";
 	import type { SeriesCard } from "@sora/sdk";
-	import { BookmarkSimpleIcon, PencilSimpleIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, ListChecksIcon } from "phosphor-svelte";
 
 	let {
 		series,
@@ -45,7 +45,7 @@
 	aria-expanded={choosing}
 	onclick={() => (choosing = true)}
 >
-	<PencilSimpleIcon size="1.5rem" weight="bold" />
+	<ListChecksIcon size="1.5rem" weight="bold" />
 </Button>
 
 <Tooltip text="Change Watchlist Status">
@@ -69,7 +69,7 @@
 				label={statusLabel ? `${statusLabel}, Change Watchlist Status` : "Change Watchlist Status"}
 			>
 				{#snippet trigger()}
-					<PencilSimpleIcon size="1.5rem" weight="bold" />
+					<ListChecksIcon size="1.5rem" weight="bold" />
 				{/snippet}
 
 				{#snippet children()}
