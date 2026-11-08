@@ -44,6 +44,13 @@
 	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
 	const key = $derived(`${series.id}/${episode.number}`);
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
+	const label = $derived(`E${episode.number}`);
+	const heading = $derived.by(() => {
+		if (series.format === "MOVIE") {
+			return title;
+		}
+		return episode.title ? `${label} – ${episode.title}` : label;
+	});
 	const back = $derived(`/series/${series.id}`);
 	const previous = $derived(
 		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
@@ -295,7 +302,7 @@
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
 		<div class="min-w-0">
-			<h1 class="text-lg font-normal sm:text-xl">{episode.number}. {title}</h1>
+			<h1 class="text-lg font-normal sm:text-xl">{heading}</h1>
 			<p class="mt-0.5 text-sm text-foreground/90">{series.title}</p>
 		</div>
 	</header>

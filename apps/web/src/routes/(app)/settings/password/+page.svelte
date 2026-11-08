@@ -12,17 +12,17 @@
 	const fields = [
 		{
 			autocomplete: "current-password",
-			label: "Current password",
+			label: "Current Password",
 			name: "currentPassword",
 		},
 		{
 			autocomplete: "new-password",
-			label: "New password",
+			label: "New Password",
 			name: "newPassword",
 		},
 		{
 			autocomplete: "new-password",
-			label: "Confirm new password",
+			label: "Confirm New Password",
 			name: "confirmPassword",
 		},
 	] as const;

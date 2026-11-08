@@ -23,10 +23,7 @@
 
 	const play = $derived.by(() => {
 		if (!card.episode_count) {
-			return {
-				href: `/series/${card.id}`,
-				label: "Play",
-			};
+			return null;
 		}
 
 		const resume = library.resume.get(card.id);
@@ -128,20 +125,22 @@
 		</div>
 
 		<div class="pointer-events-auto mt-auto flex items-center gap-2 pt-3">
-			<Tooltip text={play.label}>
-				{#snippet children(trigger)}
-					<Button
-						{...trigger}
-						href={play.href}
-						variant="icon"
-						tone="accent"
-						size="sm"
-						aria-label={play.label}
-					>
-						<PlayIcon size="1.55rem" weight="bold" />
-					</Button>
-				{/snippet}
-			</Tooltip>
+			{#if play}
+				<Tooltip text={play.label}>
+					{#snippet children(trigger)}
+						<Button
+							{...trigger}
+							href={play.href}
+							variant="icon"
+							tone="accent"
+							size="sm"
+							aria-label={play.label}
+						>
+							<PlayIcon size="1.55rem" weight="bold" />
+						</Button>
+					{/snippet}
+				</Tooltip>
+			{/if}
 
 			<Tooltip text={listed ? "Remove from Watchlist" : "Add to Watchlist"}>
 				{#snippet children(trigger)}

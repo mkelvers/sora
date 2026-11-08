@@ -148,10 +148,10 @@
 					size="sm"
 					class="-mt-1.5 w-24 justify-end"
 					loading={busy === entry.id}
-					aria-label="Sign out {nameOf(entry)}"
+					aria-label="Sign Out {nameOf(entry)}"
 					onclick={() => signOut(entry)}
 				>
-					Sign out
+					Sign Out
 				</Button>
 			{/if}
 		</div>
@@ -183,11 +183,11 @@
 	{:else}
 		<section class="space-y-4" aria-labelledby="this-device-heading">
 			<div class="flex items-center justify-between gap-4">
-				<h3 id="this-device-heading" class="text-lg font-bold">This device</h3>
+				<h3 id="this-device-heading" class="text-lg font-bold">This Device</h3>
 				<Button
 					variant="icon"
 					class="-mr-3 sm:hidden"
-					aria-label="Sign out"
+					aria-label="Sign Out"
 					aria-haspopup="dialog"
 					aria-controls="sign-out-menu"
 					aria-expanded={choosing}
@@ -197,21 +197,21 @@
 					<DotsThreeIcon size="1.75rem" weight="bold" aria-hidden="true" />
 				</Button>
 				<div class="max-sm:hidden">
-					<Dropdown variant="text" label="Sign out of devices">
+					<Dropdown variant="text" label="Sign Out of Devices">
 						{#snippet trigger()}
-							Sign out
+							Sign Out
 							<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
 						{/snippet}
 
 						{#snippet children()}
-							<div role="menu" aria-label="Sign out of devices">
+							<div role="menu" aria-label="Sign Out of Devices">
 								{#if others.length}
 									<Button role="menuitem" variant="item" onclick={signOutOthers}>
-										Sign out other devices
+										Sign Out Other Devices
 									</Button>
 								{/if}
 								<Button role="menuitem" variant="item" tone="danger" onclick={signOutEverywhere}>
-									Sign out all devices
+									Sign Out All Devices
 								</Button>
 							</div>
 						{/snippet}
@@ -228,7 +228,7 @@
 
 		{#if others.length}
 			<section class="space-y-6" aria-labelledby="other-devices-heading">
-				<h3 id="other-devices-heading" class="text-lg font-bold">Other devices</h3>
+				<h3 id="other-devices-heading" class="text-lg font-bold">Other Devices</h3>
 
 				<ul class="space-y-8">
 					{#each listed as entry (entry.id)}
@@ -245,11 +245,11 @@
 	{/if}
 </Panel>
 
-<Sheet bind:open={choosing} id="sign-out-menu" title="Sign out">
+<Sheet bind:open={choosing} id="sign-out-menu" title="Sign Out">
 	{#if others.length}
-		<Button variant="item" onclick={signOutOthers}>Sign out other devices</Button>
+		<Button variant="item" onclick={signOutOthers}>Sign Out Other Devices</Button>
 	{/if}
-	<Button variant="item" tone="danger" onclick={signOutEverywhere}>Sign out all devices</Button>
+	<Button variant="item" tone="danger" onclick={signOutEverywhere}>Sign Out All Devices</Button>
 </Sheet>
 
 <form bind:this={logoutForm} method="POST" action="/logout" hidden></form>
