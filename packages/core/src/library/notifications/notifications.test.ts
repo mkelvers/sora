@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { defined } from "@sora/shared";
 
-import { groupNotifications } from "./notifications";
+import { announcementNotifications, groupNotifications, startsWhen } from "./notifications";
 import type { ReleasedEpisode } from "./notifications";
 
 const monday = new Date("2026-09-28T15:00:00Z");
@@ -122,5 +122,69 @@ describe("groupNotifications", () => {
 		const groups = groupNotifications(episodes, new Set(["slime:4"]), new Set(["frieren:9"]));
 
 		expect(groups.map((group) => [group.id, group.unread])).toEqual([["frieren:9", false]]);
+	});
+});
+
+describe("announcementNotifications", () => {
+	test("makes one notification per announced season, keyed apart from its premiere", () => {
+		const groups = announcementNotifications(
+			[
+				{
+					seriesId: "season-4",
+					storedAt: monday,
+				},
+				{
+					seriesId: "film",
+					storedAt: tuesday,
+				},
+			],
+			new Set(),
+			new Set(["film:announced"]),
+		);
+
+		expect(groups).toEqual([
+			{
+				episode_title: null,
+				first_episode: null,
+				id: "season-4:announced",
+				kind: "announced",
+				last_episode: null,
+				released_at: monday.toISOString(),
+				seriesId: "season-4",
+				still_url: null,
+				unread: true,
+			},
+			expect.objectContaining({
+				id: "film:announced",
+				unread: false,
+			}),
+		]);
+	});
+
+	test("leaves out deleted announcements", () => {
+		const groups = announcementNotifications(
+			[
+				{
+					seriesId: "season-4",
+					storedAt: monday,
+				},
+			],
+			new Set(["season-4:announced"]),
+		);
+
+		expect(groups).toEqual([]);
+	});
+});
+
+describe("startsWhen", () => {
+	test("words a start date as precisely as AniList knows it", () => {
+		expect(startsWhen("2027")).toBe("in 2027");
+		expect(startsWhen("2027-04")).toBe("in April 2027");
+		expect(startsWhen("2027-04-04")).toBe("on April 4, 2027");
+	});
+
+	test("has nothing to say without a start date", () => {
+		expect(startsWhen(null)).toBeNull();
+		expect(startsWhen("")).toBeNull();
 	});
 });

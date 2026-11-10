@@ -113,6 +113,46 @@ export const groupNotifications = (
 		);
 };
 
+/** A connected season that was announced, as {@link announcementNotifications} reads it. */
+export interface AnnouncedSeries {
+	seriesId: string;
+	/** When Sora first stored the series, which stands in for when it was announced. */
+	storedAt: Date;
+}
+
+/**
+ * Makes an `announced` notification of each announced season.
+ * Its ID is its series and `announced`, so its premiere is a notification of
+ * its own. One the profile deleted is left out.
+ *
+ * @param dismissed - The IDs of the notifications the profile deleted.
+ * @param read - The IDs of the notifications the profile marked read.
+ */
+export const announcementNotifications = (
+	announced: readonly AnnouncedSeries[],
+	dismissed: ReadonlySet<string> = new Set(),
+	read: ReadonlySet<string> = new Set(),
+): NotificationGroup[] =>
+	announced.flatMap(({ seriesId, storedAt }): NotificationGroup[] => {
+		const id = `${seriesId}:announced`;
+		if (dismissed.has(id)) {
+			return [];
+		}
+		return [
+			{
+				episode_title: null,
+				first_episode: null,
+				id,
+				kind: "announced",
+				last_episode: null,
+				released_at: storedAt.toISOString(),
+				seriesId,
+				still_url: null,
+				unread: !read.has(id),
+			},
+		];
+	});
+
 /**
  * Finds the series a profile follows, including connected seasons, as
  * AniList relates them by sequel and prequel. Each uses the earliest
@@ -198,21 +238,59 @@ const followedSeries = async (
 	return followedFrom;
 };
 
+/**
+ * When a title is set to start, in words, from AniList's fuzzy `startDate`:
+ * "in 2027", "in April 2027", or "on April 4, 2027". Null without one.
+ */
+export const startsWhen = (startDate: string | null): string | null => {
+	const [year, month, dayOfMonth] = (startDate ?? "").split("-").map(Number);
+	if (!year) {
+		return null;
+	}
+	if (!month) {
+		return `in ${year}`;
+	}
+	const date = new Date(Date.UTC(year, month - 1, dayOfMonth || 1));
+	const format = new Intl.DateTimeFormat("en-US", {
+		...(dayOfMonth && {
+			day: "numeric",
+		}),
+		month: "long",
+		timeZone: "UTC",
+		year: "numeric",
+	});
+	return `${dayOfMonth ? "on" : "in"} ${format.format(date)}`;
+};
+
 /** Describes the release and what the profile can watch, without promotional copy. */
 const notificationMessage = (
 	group: Pick<Notification, "kind" | "first_episode" | "last_episode" | "episode_title">,
-	movie: boolean,
+	title: {
+		movie: boolean;
+		startDate: string | null;
+	},
 ) => {
-	const count = group.last_episode - group.first_episode + 1;
-	const range = `${group.first_episode} through ${group.last_episode}`;
-	const title = group.episode_title ? `, "${group.episode_title}",` : "";
+	const { movie } = title;
+	if (group.kind === "announced") {
+		const announced = movie ? "A new film has been announced." : "A new season has been announced.";
+		const starts = startsWhen(title.startDate);
+		return starts
+			? `${announced} It is set to start ${starts}.`
+			: `${announced} No start date has been set yet.`;
+	}
+
+	const first = group.first_episode ?? 1;
+	const last = group.last_episode ?? first;
+	const count = last - first + 1;
+	const range = `${first} through ${last}`;
+	const episodeTitle = group.episode_title ? `, "${group.episode_title}",` : "";
 
 	if (group.kind === "dub") {
 		if (movie) {
 			return "The English dub is now available. You can choose the dubbed version when you start the film.";
 		}
 		return count === 1
-			? `The English dub of episode ${group.last_episode}${title} is now available. You can switch to English audio in the player for this episode.`
+			? `The English dub of episode ${last}${episodeTitle} is now available. You can switch to English audio in the player for this episode.`
 			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
 	}
 
@@ -222,12 +300,12 @@ const notificationMessage = (
 		}
 		return count > 1
 			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
-			: `The season has started. Episode 1${title} is now available to watch, and you can open the season's page to see its episode list.`;
+			: `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
 	}
 
 	return count > 1
 		? `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`
-		: `Episode ${group.last_episode}${title} is now available to watch. You can find it in the episode list on the season's page.`;
+		: `Episode ${last}${episodeTitle} is now available to watch. You can find it in the episode list on the season's page.`;
 };
 
 /**
@@ -245,6 +323,11 @@ const notificationMessage = (
  * - A saved or played series notifies of episodes and dubs released after
  *   the earliest watchlist or recorded playback time in its connected seasons.
  * - Sequels and prequels notify of all releases, not only their premieres.
+ * - A sequel or prequel that has not started and is not on the watchlist
+ *   notifies that it was announced, counted from when it was first stored
+ *   (see {@link announcementNotifications}). AniList adds an entry once a
+ *   season is announced, and the daily discovery stores it. The notification
+ *   goes once the season starts, when its premiere takes over.
  * - A dropped series neither starts following nor receives notifications,
  *   even if it has playback progress. Other connected seasons can still be followed.
  * - A notification goes once the profile plays one of its episodes or
@@ -314,6 +397,21 @@ export const getNotifications = async (
 		.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
 	const seriesIds = rows.map((row) => row.id);
 	const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
+	const saved = new Set(states.map((state) => state.anilistId));
+	const announced = rows.flatMap((row): AnnouncedSeries[] =>
+		row.status === "NOT_YET_RELEASED" &&
+		!saved.has(row.anilistId) &&
+		row.createdAt > defined(cutoffs.get(row.id)) &&
+		row.createdAt > since &&
+		row.createdAt <= now
+			? [
+					{
+						seriesId: row.id,
+						storedAt: row.createdAt,
+					},
+				]
+			: [],
+	);
 
 	const episodeColumns = {
 		number: seriesEpisode.number,
@@ -382,7 +480,7 @@ export const getNotifications = async (
 			dubbed: true,
 		})),
 	].filter((row) => row.releasedAt > defined(cutoffs.get(row.seriesId)));
-	if (releases.length === 0) {
+	if (releases.length === 0 && announced.length === 0) {
 		return nothing;
 	}
 
@@ -401,20 +499,28 @@ export const getNotifications = async (
 	const { hide_spoilers: hideSpoilers, notifications: wanted } =
 		await getProfilePreferences(userId);
 	const kinds: Record<NotificationGroup["kind"], boolean> = {
+		announced: wanted.premieres,
 		dub: wanted.dubs,
 		episodes: wanted.episodes,
 		premiere: wanted.premieres,
 	};
-	const all = groupNotifications(
-		episodes,
-		new Set(dismissals.map((row) => row.notificationId)),
-		new Set(reads.map((row) => row.notificationId)),
-	)
+	const dismissed = new Set(dismissals.map((row) => row.notificationId));
+	const read = new Set(reads.map((row) => row.notificationId));
+	const all = [
+		...groupNotifications(episodes, dismissed, read),
+		...announcementNotifications(announced, dismissed, read),
+	]
+		.toSorted(
+			(left, right) =>
+				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
+		)
 		.filter((group) => kinds[group.kind])
 		.map((group) => (hideSpoilers ? { ...group, episode_title: null } : group));
 	const groups = all.slice(0, options.limit ?? 30);
 	const shownIds = new Set(groups.map((group) => group.seriesId));
-	const cards = await toSeriesCards(rows.filter((row) => shownIds.has(row.id)));
+	const shownRows = rows.filter((row) => shownIds.has(row.id));
+	const startDates = new Map(shownRows.map((row) => [row.id, row.startDate]));
+	const cards = await toSeriesCards(shownRows);
 
 	return {
 		items: groups.flatMap(({ seriesId, ...group }): Notification[] => {
@@ -423,7 +529,10 @@ export const getNotifications = async (
 				? [
 						{
 							...group,
-							message: notificationMessage(group, card.format === "MOVIE"),
+							message: notificationMessage(group, {
+								movie: card.format === "MOVIE",
+								startDate: startDates.get(seriesId) ?? null,
+							}),
 							series: card,
 						},
 					]

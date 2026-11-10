@@ -34,7 +34,7 @@
 	{#if profile.current}
 		<Row
 			label="New Seasons and Films"
-			description="A new season or film of a title you follow comes out."
+			description="A new season or film of a title you follow is announced or comes out."
 			controlId="notify-premieres"
 		>
 			{#snippet children({ describedby })}
