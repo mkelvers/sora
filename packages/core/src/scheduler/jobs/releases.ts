@@ -12,6 +12,7 @@ import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/ep
 import type { ProviderUnit } from "../../playback/episodes/episodes";
 import { readRecentAniKotoChanges } from "../../playback/providers/anikoto-catalog";
 import { aniKoto, providerHttp } from "../../playback/providers/registry";
+import { parsePayload } from "../payload";
 import { scheduleAniKotoPoll, scheduleStoredSeriesRefresh } from "../queue";
 
 const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
@@ -217,7 +218,7 @@ const PollAniKotoPayloadSchema = z.object({
  * AniKoto fails counts as not finding the episode.
  */
 export const pollAniKoto: Task = async (rawPayload, helpers) => {
-	const payload = PollAniKotoPayloadSchema.parse(rawPayload);
+	const payload = parsePayload(PollAniKotoPayloadSchema, rawPayload);
 	const { anilistId, episode, language } = payload;
 
 	const [mapping] = await db

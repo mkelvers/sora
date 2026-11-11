@@ -9,6 +9,7 @@ import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
 import { carriedByAniKoto } from "../../series/episodes";
+import { parsePayload } from "../payload";
 import { scheduleSeriesStore, seriesStorePriority, storeSeriesTask } from "../queue";
 
 const SyncSearchIndexPayloadSchema = z
@@ -40,7 +41,7 @@ export const syncSearchIndexTask = "sync-search-index";
  * nothing stored, reads the whole catalogue: about 400 requests.
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
-	const payload = SyncSearchIndexPayloadSchema.parse(rawPayload);
+	const payload = parsePayload(SyncSearchIndexPayloadSchema, rawPayload);
 	const { pages, stored } = await syncSearchIndex({
 		full: payload?.full === true,
 	});

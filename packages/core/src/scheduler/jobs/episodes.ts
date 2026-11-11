@@ -6,6 +6,7 @@ import { getAnime } from "../../catalog/queries/anime";
 import { AnimeNotFoundError } from "../../errors";
 import { getProviderUnits } from "../../playback/episodes/episodes";
 import { streamProviders } from "../../playback/providers/registry";
+import { parsePayload } from "../payload";
 
 const LookUpEpisodesPayloadSchema = z.object({
 	anilistId: z.number().int().positive(),
@@ -21,7 +22,7 @@ const LookUpEpisodesPayloadSchema = z.object({
  * the others are stored, so graphile-worker retries it with backoff.
  */
 export const lookUpEpisodes: Task = async (rawPayload, helpers) => {
-	const { anilistId } = LookUpEpisodesPayloadSchema.parse(rawPayload);
+	const { anilistId } = parsePayload(LookUpEpisodesPayloadSchema, rawPayload);
 
 	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
 	if (error) {

@@ -20,6 +20,7 @@ import { storedSeriesIds, storeSeries } from "../../series/store";
 import { editsWindowMs, getShow, tmdbImageUrl, withEdits } from "../../tmdb/resources";
 import type { TmdbEpisode, TmdbShow } from "../../tmdb/resources";
 import { withChosenStills } from "../../tmdb/stills";
+import { parsePayload } from "../payload";
 import { scheduleSeriesStore, scheduleStoredSeriesRefresh } from "../queue";
 
 const StoreSeriesPayloadSchema = z.object({
@@ -37,7 +38,7 @@ const StoreSeriesPayloadSchema = z.object({
  * queued: that layout already has what the job was queued for.
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
-	const { anilistId } = StoreSeriesPayloadSchema.parse(rawPayload);
+	const { anilistId } = parsePayload(StoreSeriesPayloadSchema, rawPayload);
 	const [laidOut] = await db
 		.select({
 			seriesId: series.id,
