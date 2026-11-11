@@ -9,10 +9,12 @@ const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<
 	aboutSeries({
 		ageRating: null,
 		audio: [],
+		awardReach: new Map(),
 		awards: [],
 		certification: null,
 		descriptors: [],
 		keywords: [],
+		seasonStarts: [],
 		subtitles: [],
 		...fields,
 		anime: {
@@ -20,6 +22,12 @@ const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<
 			...fields.anime,
 		},
 	});
+
+const award = (name: string, year: number | null, won: boolean) => ({
+	name,
+	won,
+	year,
+});
 
 describe("aboutSeries", () => {
 	test("names the original language for a sub and English for a dub", () => {
@@ -43,47 +51,33 @@ describe("aboutSeries", () => {
 		).toEqual(["English", "Arabic", "Brazilian Portuguese", "Latin American Spanish", "Spanish"]);
 	});
 
-	test("words the awards given for this title, the latest first, a win over its nomination", () => {
-		expect(
+	test("words the awards a season was given oldest first, a year's nominations before its wins", () => {
+		const awards = [
+			award("Tokyo Anime Award", 2014, true),
+			award("Crunchyroll Anime Awards", 2017, true),
+			award("Japan Expo Awards", null, false),
+			award("Tokyo Anime Award", 2014, false),
+			award("Crunchyroll Anime Awards", 2018, true),
+			award("Anime Trending Awards", 2013, true),
+		];
+		const season = (startDate: string, seasonStarts: number[]) =>
 			about({
 				anime: {
-					endDate: "2013-09-28",
-					startDate: "2013-04-07",
-					status: "FINISHED",
+					startDate,
 				},
-				awards: [
-					{
-						name: "Seiyu Awards",
-						won: true,
-						year: 2014,
-					},
-					{
-						name: "3rd Crunchyroll Anime Awards",
-						won: true,
-						year: 2015,
-					},
-					{
-						name: "Seiyu Awards",
-						won: false,
-						year: 2014,
-					},
-					{
-						name: "7th Crunchyroll Anime Awards",
-						won: true,
-						year: 2023,
-					},
-					{
-						name: "Japan Expo Awards",
-						won: false,
-						year: null,
-					},
-				],
-			}).awards,
-		).toEqual([
-			"2015 Crunchyroll Anime Awards Winner",
-			"2014 Seiyu Awards Winner",
+				awards,
+				seasonStarts,
+			}).awards;
+
+		expect(season("2013-04-07", [2017])).toEqual([
+			"2013 Anime Trending Awards Winner",
+			"2014 Tokyo Anime Award Nominee",
+			"2014 Tokyo Anime Award Winner",
+			"2017 Crunchyroll Anime Awards Winner",
 			"Japan Expo Awards Nominee",
 		]);
+		expect(season("2017-04-01", [2013])).toEqual(["2018 Crunchyroll Anime Awards Winner"]);
+		expect(season("2013-04-07", [])).toHaveLength(6);
 	});
 
 	test("rates by MyAnimeList, warning of what the rating and strong tags say", () => {
@@ -187,26 +181,45 @@ describe("aboutSeries", () => {
 		).toBe("© Mizuho Kusanagi/Studio Pierrot");
 	});
 
-	test("picks this year's award, a win over a nomination", () => {
+	test("keeps the most notable awards: renowned ones, wins, then those given to more titles", () => {
+		expect(
+			about({
+				awardReach: new Map([
+					["Anime Trending Awards", 810],
+					["Chicago Film Critics Association Awards", 6],
+					["Phoenix Film Critics Society Awards", 3],
+				]),
+				awards: [
+					award("Chicago Film Critics Association Awards", 2003, true),
+					award("Academy Awards", 2003, true),
+					award("Phoenix Film Critics Society Awards", 2003, true),
+					award("Anime Trending Awards", 2002, true),
+					award("Mainichi Film Concours", 2002, true),
+					award("Awards of the Japanese Academy", 2002, false),
+					award("BAFTA Awards", 2004, false),
+					award("Annie Awards", 2003, true),
+				],
+			}).awards,
+		).toEqual([
+			"2002 Anime Trending Awards Winner",
+			"2002 Awards of the Japanese Academy Nominee",
+			"2002 Mainichi Film Concours Winner",
+			"2003 Academy Awards Winner",
+			"2003 Annie Awards Winner",
+			"2004 BAFTA Awards Nominee",
+		]);
+	});
+
+	test("picks this year's most notable award, a win over a nomination", () => {
 		const year = new Date().getUTCFullYear();
 		expect(
 			about({
+				awardReach: new Map([["Anime Trending Awards", 810]]),
 				awards: [
-					{
-						name: "Seiyu Awards",
-						won: false,
-						year,
-					},
-					{
-						name: "10th Crunchyroll Anime Awards",
-						won: true,
-						year,
-					},
-					{
-						name: "Tokyo Anime Award",
-						won: true,
-						year: year - 1,
-					},
+					award("Anime Trending Awards", year, true),
+					award("Crunchyroll Anime Awards", year, false),
+					award("Crunchyroll Anime Awards", year, true),
+					award("Tokyo Anime Award", year - 1, true),
 				],
 			}).current_award,
 		).toBe(`${year} Crunchyroll Anime Awards Winner`);

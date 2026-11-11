@@ -1,5 +1,5 @@
 import { day, hour, minute, defined } from "@sora/shared";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
@@ -28,7 +28,9 @@ import {
 	seriesRelated,
 	titleArtwork,
 	titleFacts,
+	tmdbMapping,
 } from "../database/schema/series";
+import type { TitleAward } from "../database/schema/series";
 import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
 import type {
 	ContentLanguage,
@@ -580,6 +582,28 @@ const overdueEpisode = async (
 		: null;
 };
 
+/**
+ * How many stored titles each of `awards` was given to, by name, which tells
+ * anime's own awards from those that once named an anime.
+ */
+const awardReachOf = async (awards: readonly TitleAward[]) => {
+	const names = [...new Set(awards.map((award) => award.name))];
+	if (names.length === 0) {
+		return new Map<string, number>();
+	}
+
+	const rows = await db.execute<{
+		name: string;
+		titles: number;
+	}>(sql`
+    select award ->> 'name' as name, count(distinct ${titleFacts.key})::int as titles
+    from ${titleFacts}, jsonb_array_elements(${titleFacts.awards}) as award
+    where award ->> 'name' in ${names}
+    group by 1
+  `);
+	return new Map(rows.map((row) => [row.name, row.titles]));
+};
+
 /** How long after a probe found no subtitles a series is looked at again. */
 const subtitleProbeRetryMs = 7 * day;
 
@@ -633,12 +657,31 @@ const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[])
 		await requestSubtitleProbe(row.id);
 	}
 
+	const awards = facts?.awards ?? [];
+	const [awardReach, seasons] = await Promise.all([
+		awardReachOf(awards),
+		db
+			.select({
+				startDate: series.startDate,
+			})
+			.from(series)
+			.innerJoin(tmdbMapping, eq(tmdbMapping.anilistId, series.anilistId))
+			.where(
+				and(
+					eq(series.key, row.key),
+					ne(series.id, row.id),
+					or(isNull(tmdbMapping.seasonNumber), ne(tmdbMapping.seasonNumber, 0)),
+				),
+			),
+	]);
 	return {
 		ageRating: rated?.rating ?? null,
-		awards: facts?.awards ?? [],
+		awardReach,
+		awards,
 		certification: facts?.certification ?? null,
 		descriptors: facts?.descriptors ?? [],
 		keywords: facts?.keywords ?? [],
+		seasonStarts: seasons.flatMap((season) => Number(season.startDate?.slice(0, 4)) || []),
 		subtitles: subtitles?.languages ?? [],
 	};
 };

@@ -144,22 +144,22 @@ export const titleArtwork = pgTable("title_artwork", {
 	logoUrlOverride: text("logo_url_override"),
 });
 
-/** An award a title won or was nominated for, as Wikidata names it. */
+/** An award a title won or was nominated for, as IMDb names it. */
 export interface TitleAward {
-	/** In English, such as `7th Crunchyroll Anime Awards`. */
+	/** The award's event, such as `Crunchyroll Anime Awards`, without the country IMDb names some with. */
 	name: string;
-	/** When it was given; null when Wikidata does not say. */
+	/** The year of the ceremony; null when IMDb does not say. */
 	year: number | null;
 	/** Won, rather than nominated for. */
 	won: boolean;
 }
 
 /**
- * What TMDB and, through the Wikidata item TMDB links, Wikidata say about a
- * TMDB title, keyed by the `SeriesKey` its series share, as
- * {@link titleArtwork} is: the title's US certification, what ratings and
- * keywords say it shows, and the awards it won or was nominated for. Kept by the scheduler and fetched again after a
- * month; see `storeTitleFacts`.
+ * What TMDB and, through the IMDb title TMDB links, IMDb say about a TMDB
+ * title, keyed by the `SeriesKey` its series share, as {@link titleArtwork}
+ * is: the title's US certification, what ratings and keywords say it shows,
+ * and the awards it won or was nominated for. Kept by the scheduler and
+ * fetched again after a month; see `storeTitleFacts`.
  */
 export const titleFacts = pgTable("title_facts", {
 	awards: jsonb("awards").$type<TitleAward[]>().notNull(),
@@ -174,14 +174,14 @@ export const titleFacts = pgTable("title_facts", {
 		.notNull()
 		.default(sql`'{}'`),
 	fetchedAt: timestamptz("fetched_at").notNull(),
+	/** The IMDb title TMDB links the title to, such as `tt2560140`. */
+	imdbId: text("imdb_id"),
 	key: text("key").primaryKey(),
 	/** TMDB's keywords for the title, such as `combat` or `gore`. */
 	keywords: text("keywords")
 		.array()
 		.notNull()
 		.default(sql`'{}'`),
-	/** The Wikidata item TMDB links the title to, such as `Q22126305`. */
-	wikidataId: text("wikidata_id"),
 });
 
 /**

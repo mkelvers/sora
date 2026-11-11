@@ -19,7 +19,15 @@ export interface AboutSources {
 	descriptors: readonly string[];
 	/** TMDB's keywords for its TMDB title. */
 	keywords: readonly string[];
+	/** What IMDb says it won or was nominated for; see `titleFacts.awards`. */
 	awards: readonly TitleAward[];
+	/** How many stored titles each of its awards was given to, by name. */
+	awardReach: ReadonlyMap<string, number>;
+	/**
+	 * The years the other titles laid out from its TMDB title started in,
+	 * other than its specials, such as the other seasons of its show.
+	 */
+	seasonStarts: readonly number[];
 }
 
 /** The original language of anime from each country AniList files anime under. */
@@ -63,72 +71,117 @@ const subtitleLanguages = (tags: readonly string[]) => {
 	return [...new Set(sorted.map((language) => language.name))];
 };
 
-/** An ordinal before an award's name, as in `7th Crunchyroll Anime Awards`. */
-const ordinal = /^\d+(?:st|nd|rd|th)\s+/u;
-const namesYear = /\b\d{4}\b/u;
-
-/** How many years after a title ends its awards may still be given, as film awards often are. */
-const awardYearsAfter = 2;
+/** A `YYYY…` date's year, or `null`. */
+const yearOf = (date: string | null) => Number(date?.slice(0, 4)) || null;
 
 /**
  * Whether an award was given for this title rather than another season of
- * its show: Wikidata files awards per show, so only those given from the
- * year it started to {@link awardYearsAfter} after it ended count. An award
- * without a year always does.
+ * its show. IMDb files awards per show, and a year's awards honour what
+ * aired before them, so each year's go to the latest season that started
+ * in an earlier year; those of the year the show started, and those without
+ * a year, go to its first. A title that is all of its TMDB title gets every
+ * award.
  */
-const givenFor = (anime: Anime) => {
-	const start = Number(anime.startDate?.slice(0, 4));
-	if (!start) {
+const givenFor = (sources: AboutSources) => {
+	const start = yearOf(sources.anime.startDate);
+	if (!start || sources.seasonStarts.length === 0) {
 		return () => true;
 	}
-	const ended = Number(anime.endDate?.slice(0, 4));
-	const end = anime.status === "FINISHED" && ended ? ended : new Date().getUTCFullYear();
-	return (award: TitleAward) =>
-		award.year === null || (award.year >= start && award.year <= end + awardYearsAfter);
+	const starts = [...sources.seasonStarts, start];
+	const first = Math.min(...starts);
+	return (award: TitleAward) => {
+		const before = starts.filter((year) => award.year !== null && year < award.year);
+		return (before.length > 0 ? Math.max(...before) : first) === start;
+	};
 };
 
-/**
- * Each award given for the title (see {@link givenFor}) as a line, such as
- * `2014 Tokyo Anime Award Winner`, the latest first. The ordinal of a yearly
- * award gives way to its year, and a nomination for an award it won that
- * year is left out.
- */
-const awardLines = (anime: Anime, awards: readonly TitleAward[]) => {
-	const given = awards.filter(givenFor(anime));
-	const won = new Set(
-		given.filter((award) => award.won).map((award) => `${award.name}:${award.year}`),
-	);
-	return [
-		...new Set(
-			given
-				.filter((award) => award.won || !won.has(`${award.name}:${award.year}`))
-				.toSorted(
-					(left, right) =>
-						(right.year ?? 0) - (left.year ?? 0) ||
-						Number(right.won) - Number(left.won) ||
-						left.name.localeCompare(right.name),
-				)
-				.map((award) => {
-					const name = award.year ? award.name.replace(ordinal, "") : award.name;
-					const year = award.year && !namesYear.test(name) ? `${award.year} ` : "";
-					return `${year}${name} ${award.won ? "Winner" : "Nominee"}`;
-				}),
-		),
-	];
-};
+/** The most awards a title lists; the more notable are kept. */
+const shownAwards = 6;
 
 /**
- * The award it won this year, else the one it is nominated for, as
- * {@link awardLines} words it; `null` when this year has none.
+ * Awards known well beyond their field, the most renowned first, as IMDb
+ * names them: film's and television's, then animation's, then anime's.
+ * Others rank by how many stored titles they were given to.
  */
-const currentAward = (anime: Anime, awards: readonly TitleAward[]) => {
+const renownedAwards = [
+	"Academy Awards",
+	"Golden Globes",
+	"BAFTA Awards",
+	"Primetime Emmy Awards",
+	"International Emmy Awards",
+	"Cannes Film Festival",
+	"Venice Film Festival",
+	"Berlin International Film Festival",
+	"Annie Awards",
+	"Annecy International Animated Film Festival",
+	"Awards of the Japanese Academy",
+	"Crunchyroll Anime Awards",
+	"Tokyo Anime Award",
+	"Mainichi Film Concours",
+	"Japan Media Arts Festival",
+	"Kinema Junpo Awards",
+	"Blue Ribbon Awards",
+	"Ottawa International Animation Festival",
+	"Hiroshima International Animation Festival",
+];
+
+/** Where an award sorts among {@link renownedAwards}; after them when it is not one. */
+const renown = (award: TitleAward) => {
+	const index = renownedAwards.indexOf(award.name);
+	return index === -1 ? renownedAwards.length : index;
+};
+
+/** Where an award without a year sorts: after every year. */
+const undated = Number.POSITIVE_INFINITY;
+
+/** An award as a line, such as `2026 Crunchyroll Anime Awards Winner`. */
+const awardLine = (award: TitleAward) =>
+	`${award.year ? `${award.year} ` : ""}${award.name} ${award.won ? "Winner" : "Nominee"}`;
+
+/**
+ * Orders awards the most notable first: a renowned award (see
+ * {@link renownedAwards}) before others, wins before nominations, the more
+ * renowned before the less, then those given to more stored titles, which
+ * puts anime's own awards ahead of a film critics' circle that once named an
+ * anime film, then the latest.
+ */
+const byNotability =
+	(reach: ReadonlyMap<string, number>) => (left: TitleAward, right: TitleAward) =>
+		Number(renownedAwards.includes(right.name)) - Number(renownedAwards.includes(left.name)) ||
+		Number(right.won) - Number(left.won) ||
+		renown(left) - renown(right) ||
+		(reach.get(right.name) ?? 0) - (reach.get(left.name) ?? 0) ||
+		(right.year ?? 0) - (left.year ?? 0);
+
+/**
+ * The {@link shownAwards} most notable awards given for the title (see
+ * {@link givenFor}) as lines, oldest first, as Crunchyroll lists them: a
+ * year's nominations before its wins. Those without a year come last.
+ */
+const awardLines = (sources: AboutSources) =>
+	sources.awards
+		.filter(givenFor(sources))
+		.toSorted(byNotability(sources.awardReach))
+		.slice(0, shownAwards)
+		.toSorted(
+			(left, right) =>
+				(left.year ?? undated) - (right.year ?? undated) ||
+				left.name.localeCompare(right.name) ||
+				Number(left.won) - Number(right.won),
+		)
+		.map(awardLine);
+
+/**
+ * The most notable award given for the title this year as a line; `null`
+ * when this year has none.
+ */
+const currentAward = (sources: AboutSources) => {
 	const year = new Date().getUTCFullYear();
-	return (
-		awardLines(
-			anime,
-			awards.filter((award) => award.year === year),
-		)[0] ?? null
-	);
+	const given = givenFor(sources);
+	const [current] = sources.awards
+		.filter((award) => award.year === year && given(award))
+		.toSorted(byNotability(sources.awardReach));
+	return current ? awardLine(current) : null;
 };
 
 /** Ages each MyAnimeList rating is for, and what it warns of. */
@@ -404,9 +457,9 @@ const creditLine = (anime: Anime) => {
 /** A title's about section, worded for display; see `SeriesSchema`. */
 export const aboutSeries = (sources: AboutSources) => ({
 	audio_languages: audioLanguages(sources.anime, sources.audio),
-	awards: awardLines(sources.anime, sources.awards),
+	awards: awardLines(sources),
 	content_rating: contentRating(sources),
 	credit: creditLine(sources.anime),
-	current_award: currentAward(sources.anime, sources.awards),
+	current_award: currentAward(sources),
 	subtitle_languages: subtitleLanguages(sources.subtitles),
 });

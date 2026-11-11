@@ -20,7 +20,7 @@ export const refreshStaleAnimeJob: Task = async (_payload, helpers) => {
 /** The graphile-worker task that keeps titles' ratings and awards; see `storeTitleFacts`. */
 export const storeTitleFactsTask = "store-title-facts";
 
-/** Fetches TMDB's certification and Wikidata's awards for titles that have none, or old ones. */
+/** Fetches TMDB's certification and IMDb's awards for titles that have none, or old ones. */
 export const storeTitleFactsJob: Task = async (_payload, helpers) => {
 	const { stored, awarded } = await storeTitleFacts();
 	if (stored > 0) {

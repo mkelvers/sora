@@ -32,26 +32,9 @@ const titlesPerRun = 500;
 /** TMDB requests at once; TMDB allows about 50 a second. */
 const tmdbConcurrency = 8;
 
-/** The most entities Wikidata's `wbgetentities` returns to one request. */
-const entitiesPerRequest = 50;
-
-/**
- * Wikimedia turns away requests without a `User-Agent` that names the
- * client. It names the app, never whoever runs it.
- */
-const wikidataHeaders = {
-	"User-Agent": "Sora/1.0 (self-hosted anime catalogue)",
-};
-
-/** How long Wikidata requests wait after the one before. */
-const wikidataSpacingMs = second;
-
-/** A 429 from Wikidata is waited out and retried this many times. */
-const wikidataRetries = 3;
-
 const ExternalIdsSchema = z
 	.object({
-		wikidata_id: z.string().nullish(),
+		imdb_id: z.string().nullish(),
 	})
 	.optional();
 
@@ -111,7 +94,7 @@ interface TmdbFacts {
 	certification: string | null;
 	descriptors: string[];
 	keywords: string[];
-	wikidataId: string | null;
+	imdbId: string | null;
 }
 
 /** Each name once, trimmed, in the order first given. */
@@ -142,8 +125,8 @@ const fetchShowFacts = async (showId: number): Promise<TmdbFacts | null> => {
 	return {
 		certification: ratings.find((rating) => rating.iso_3166_1 === "US")?.rating.trim() || null,
 		descriptors: distinct(ratings.flatMap((rating) => rating.descriptors ?? [])),
+		imdbId: show.external_ids?.imdb_id || null,
 		keywords: distinct(show.keywords?.results.map((keyword) => keyword.name) ?? []),
-		wikidataId: show.external_ids?.wikidata_id || null,
 	};
 };
 
@@ -172,14 +155,14 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
 				.find((release) => release.country === "US" && release.certification.trim())
 				?.certification.trim() ?? null,
 		descriptors: distinct(releases.flatMap((release) => release.descriptors ?? [])),
+		imdbId: movie.external_ids?.imdb_id || null,
 		keywords: distinct(movie.keywords?.keywords.map((keyword) => keyword.name) ?? []),
-		wikidataId: movie.external_ids?.wikidata_id || null,
 	};
 };
 
 /**
  * A title's US certification, every country's rating descriptors, its
- * keywords, and its Wikidata item from TMDB, in one request, or `null` when
+ * keywords, and its IMDb ID from TMDB, in one request, or `null` when
  * TMDB does not know the title.
  */
 const fetchTmdbFacts = (key: SeriesKey) => {
@@ -187,186 +170,153 @@ const fetchTmdbFacts = (key: SeriesKey) => {
 	return kind === "tv" ? fetchShowFacts(id) : fetchMovieFacts(id);
 };
 
-const SnakSchema = z.object({
-	datavalue: z
-		.object({
-			value: z.unknown(),
-		})
+/** Titles asked of IMDb in one request. */
+const titlesPerImdbRequest = 25;
+
+/** How long IMDb requests wait after the one before. */
+const imdbSpacingMs = second;
+
+/** A 429 from IMDb is waited out and retried this many times. */
+const imdbRetries = 3;
+
+/**
+ * IMDb's GraphQL API, which its own site reads. It is not offered to others
+ * and has no documentation, so a change on IMDb's side shows here first as a
+ * schema error; nothing else depends on it.
+ */
+const imdbEndpoint = "https://caching.graphql.imdb.com/";
+
+/** It names the app, never whoever runs it. */
+const imdbHeaders = {
+	"User-Agent": "Sora/1.0 (self-hosted anime catalogue)",
+	"content-type": "application/json",
+	"x-imdb-client-name": "imdb-web-next",
+};
+
+/**
+ * The most nominations IMDb returns for one title. Only long-running
+ * Western shows have more, and an anime title rarely has more than a hundred.
+ */
+const nominationsPerTitle = 250;
+
+const NominationsSchema = z.object({
+	awardNominations: z.object({
+		edges: z.array(
+			z.object({
+				node: z.object({
+					award: z.object({
+						event: z.object({
+							text: z.string(),
+						}),
+						year: z.number().int().nullable(),
+					}),
+					isWinner: z.boolean(),
+				}),
+			}),
+		),
+	}),
+});
+
+const ImdbResponseSchema = z.object({
+	data: z.record(z.string(), NominationsSchema.nullable()).nullable(),
+	errors: z
+		.array(
+			z.object({
+				message: z.string(),
+			}),
+		)
 		.optional(),
 });
 
-const ItemValueSchema = z.object({
-	id: z.string(),
-});
-
-const TimeValueSchema = z.object({
-	time: z.string(),
-});
-
-const StatementSchema = z.object({
-	mainsnak: SnakSchema,
-	qualifiers: z.record(z.string(), z.array(SnakSchema)).optional(),
-});
-
-const EntitiesSchema = z.object({
-	entities: z.record(
-		z.string(),
-		z.object({
-			claims: z.record(z.string(), z.array(StatementSchema)).optional(),
-			labels: z
-				.record(
-					z.string(),
-					z.object({
-						value: z.string(),
-					}),
-				)
-				.optional(),
-		}),
-	),
-});
-
 /**
- * Wikidata entities by ID, `props` of each.
+ * One IMDb GraphQL query for the award nominations of each of `ids` IMDb
+ * knows, by the ID asked for, which IMDb may have merged into another.
  *
- * @throws {Error} when Wikidata fails.
+ * @throws {Error} when IMDb fails or answers with errors alone.
  */
-const fetchEntities = async (ids: readonly string[], props: "claims" | "labels") => {
-	const url = new URL("https://www.wikidata.org/w/api.php");
-	url.search = new URLSearchParams({
-		action: "wbgetentities",
-		format: "json",
-		ids: ids.join("|"),
-		languages: "en",
-		props,
-	}).toString();
+const fetchNominations = async (ids: readonly string[]) => {
+	const titles = ids
+		.map(
+			(id, index) =>
+				`t${index}: title(id: ${JSON.stringify(id)}) { awardNominations(first: ${nominationsPerTitle}) { edges { node { isWinner award { year event { text } } } } } }`,
+		)
+		.join(" ");
 	const request = async (retries: number): Promise<Response> => {
-		// One request at a time, a second apart, as Wikimedia asks of bots.
-		await sleep(wikidataSpacingMs);
-		const response = await fetch(url, {
-			headers: wikidataHeaders,
-			signal: AbortSignal.timeout(15 * second),
+		await sleep(imdbSpacingMs);
+		const response = await fetch(imdbEndpoint, {
+			body: JSON.stringify({
+				query: `{ ${titles} }`,
+			}),
+			headers: imdbHeaders,
+			method: "POST",
+			signal: AbortSignal.timeout(30 * second),
 		});
 		if (response.status === 429 && retries > 0) {
 			await sleep(parseRetryAfter(response.headers.get("Retry-After")) ?? minute);
 			return await request(retries - 1);
 		}
 		if (!response.ok) {
-			throw new Error(`Wikidata returned ${response.status}`);
+			throw new Error(`IMDb returned ${response.status}`);
 		}
 		return response;
 	};
 
-	const response = await request(wikidataRetries);
-	return EntitiesSchema.parse(await response.json()).entities;
-};
-
-/** Wikidata's properties for an award a work won (`P166`) and one it was nominated for (`P1411`). */
-const awardProperties = {
-	P1411: false,
-	P166: true,
-} as const;
-
-/** Wikidata's qualifier for when an award was given (`P585`, point in time). */
-const pointInTime = "P585";
-
-/**
- * Names that are an award's own. Works on Wikidata are also credited as
- * having "received" companies, conventions, magazines, and generic kinds of
- * award ("anime award"), none of which name an award in capitals.
- */
-const awardName = /\b(?:Awards?|Prize|Grand Prix)\b/u;
-
-/** An award statement before its award is named. */
-interface AwardStatement {
-	item: string;
-	awardId: string;
-	won: boolean;
-	year: number | null;
-}
-
-const yearOf = (snak: z.infer<typeof SnakSchema> | undefined) => {
-	const parsed = TimeValueSchema.safeParse(snak?.datavalue?.value);
-	const year = parsed.success
-		? Number(/^[+-]?(?<year>\d{4})/u.exec(parsed.data.time)?.[1])
-		: Number.NaN;
-	return Number.isInteger(year) ? year : null;
-};
-
-/** The award statements of each of `items`, a request per {@link entitiesPerRequest}. */
-const fetchAwardStatements = async (items: readonly string[]) => {
-	const groups = await inSequence(chunked(items, entitiesPerRequest), async (group) => {
-		const entities = await fetchEntities(group, "claims");
-		return group.flatMap((item) =>
-			Object.entries(awardProperties).flatMap(([property, won]) =>
-				(entities[item]?.claims?.[property] ?? []).flatMap((statement): AwardStatement[] => {
-					const award = ItemValueSchema.safeParse(statement.mainsnak.datavalue?.value);
-					return award.success
-						? [
-								{
-									awardId: award.data.id,
-									item,
-									won,
-									year: yearOf(statement.qualifiers?.[pointInTime]?.[0]),
-								},
-							]
-						: [];
-				}),
-			),
+	const response = await request(imdbRetries);
+	const { data, errors } = ImdbResponseSchema.parse(await response.json());
+	if (!data) {
+		throw new Error(
+			`IMDb answered with errors: ${errors?.map((error) => error.message).join("; ")}`,
 		);
-	});
-	return groups.flat();
-};
-
-/** The English names of the awards among `ids` that are named as one (see {@link awardName}). */
-const fetchAwardNames = async (ids: readonly string[]) => {
-	const groups = await inSequence(chunked(ids, entitiesPerRequest), async (group) => {
-		const entities = await fetchEntities(group, "labels");
-		return Object.entries(entities).flatMap(([id, entity]) => {
-			const name = entity.labels?.en?.value.trim();
-			return name && awardName.test(name) ? [[id, name] as const] : [];
-		});
-	});
-	return new Map(groups.flat());
-};
-
-/**
- * The awards Wikidata says each of `items` won or was nominated for, by
- * item, each named in English. Statements whose award is not named as an
- * award (see {@link awardName}) are left out, and so are repeats.
- *
- * @throws {Error} when Wikidata fails.
- */
-const fetchAwards = async (items: readonly string[]) => {
-	const statements = await fetchAwardStatements(items);
-	const names = await fetchAwardNames([
-		...new Set(statements.map((statement) => statement.awardId)),
-	]);
-
-	const awards = new Map<string, Map<string, TitleAward>>();
-	for (const { item, awardId, won, year } of statements) {
-		const name = names.get(awardId);
-		if (name) {
-			const own = awards.get(item) ?? new Map<string, TitleAward>();
-			own.set(`${name}:${year}:${won}`, {
-				name,
-				won,
-				year,
-			});
-			awards.set(item, own);
-		}
 	}
-
-	return new Map([...awards].map(([item, own]) => [item, [...own.values()]]));
+	return ids.flatMap((id, index) => {
+		const title = data[`t${index}`];
+		return title ? [[id, title] as const] : [];
+	});
 };
 
 /**
- * Stores what TMDB and Wikidata say about stored titles TMDB lists (see
+ * The country IMDb names some awards with, as in `Academy Awards, USA`,
+ * which the award is known without.
+ */
+const awardCountry = /,\s+\p{Lu}[\p{L}\s.]*$/u;
+
+/** An award's event as IMDb names it, without its country. */
+const awardName = (event: string) => event.trim().replace(awardCountry, "");
+
+/**
+ * The awards IMDb lists each of `ids` as having won or been nominated for,
+ * by IMDb ID: each award once a year as won, and once as nominated for when
+ * any of its nominations that year did not win. A title IMDb does not know
+ * has none.
+ *
+ * @throws {Error} when IMDb fails.
+ */
+const fetchAwards = async (ids: readonly string[]) => {
+	const groups = await inSequence(chunked(ids, titlesPerImdbRequest), fetchNominations);
+	return new Map(
+		groups.flat().map(([id, title]): [string, TitleAward[]] => {
+			const awards = new Map<string, TitleAward>();
+			for (const { node } of title.awardNominations.edges) {
+				const name = awardName(node.award.event.text);
+				awards.set(`${name}:${node.award.year}:${node.isWinner}`, {
+					name,
+					won: node.isWinner,
+					year: node.award.year,
+				});
+			}
+			return [id, [...awards.values()]];
+		}),
+	);
+};
+
+/**
+ * Stores what TMDB and IMDb say about stored titles TMDB lists (see
  * `titleFacts`): those with none stored first, then those whose are older
  * than {@link factsLifetimeMs}, {@link titlesPerRun} at most. Costs a TMDB
- * request per title and a few Wikidata requests per run. A title TMDB fails
- * on is left for the next run.
+ * request per title and an IMDb request per {@link titlesPerImdbRequest}.
+ * A title TMDB fails on is left for the next run.
  *
- * @throws {Error} when Wikidata fails; nothing of the run is stored then.
+ * @throws {Error} when IMDb fails; nothing of the run is stored then.
  */
 export const storeTitleFacts = async () => {
 	const due = await db
@@ -400,23 +350,23 @@ export const storeTitleFacts = async () => {
 			data ?? {
 				certification: null,
 				descriptors: [],
+				imdbId: null,
 				keywords: [],
-				wikidataId: null,
 			},
 		);
 	});
 
-	const items = [...new Set([...fetched.values()].flatMap((facts) => facts.wikidataId ?? []))];
-	const awards = await fetchAwards(items);
+	const ids = [...new Set([...fetched.values()].flatMap((facts) => facts.imdbId ?? []))];
+	const awards = await fetchAwards(ids);
 	const now = new Date();
 	const rows = [...fetched].map(([key, facts]) => ({
-		awards: (facts.wikidataId && awards.get(facts.wikidataId)) || [],
+		awards: (facts.imdbId && awards.get(facts.imdbId)) || [],
 		certification: facts.certification,
 		descriptors: facts.descriptors,
 		fetchedAt: now,
+		imdbId: facts.imdbId,
 		key,
 		keywords: facts.keywords,
-		wikidataId: facts.wikidataId,
 	}));
 	if (rows.length > 0) {
 		await db
@@ -428,8 +378,8 @@ export const storeTitleFacts = async () => {
 					certification: sql`excluded.certification`,
 					descriptors: sql`excluded.descriptors`,
 					fetchedAt: sql`excluded.fetched_at`,
+					imdbId: sql`excluded.imdb_id`,
 					keywords: sql`excluded.keywords`,
-					wikidataId: sql`excluded.wikidata_id`,
 				},
 				target: titleFacts.key,
 			});
