@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { eq, inArray } from "drizzle-orm";
 
-import { closeDatabase, db } from "../../database/client";
+import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import { getNowWatching } from "./now-watching";
@@ -89,11 +89,7 @@ describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio ti
 	});
 
 	afterAll(async () => {
-		try {
-			await db.delete(series).where(inArray(series.id, ids));
-		} finally {
-			await closeDatabase();
-		}
+		await db.delete(series).where(inArray(series.id, ids));
 	});
 
 	test("returns at most three titles by active viewing recency, including rewatches", async () => {

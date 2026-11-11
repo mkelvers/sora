@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { closeDatabase, db } from "../../database/client";
+import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
@@ -79,13 +79,8 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 	});
 
 	afterAll(async () => {
-		try {
-			await db.delete(series).where(eq(series.id, id));
-			await db.delete(anime).where(eq(anime.anilistId, anilistId));
-			await db.execute(sql`select graphile_worker.remove_job(${`episodes:${anilistId}`})`);
-		} finally {
-			await closeDatabase();
-		}
+		await db.delete(series).where(eq(series.id, id));
+		await db.delete(anime).where(eq(anime.anilistId, anilistId));
 	});
 
 	test("keeps saved dates and a usable detail page while discovery excludes the title", async () => {

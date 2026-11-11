@@ -1,14 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-import { and, eq, sql } from "drizzle-orm";
+import { day } from "@sora/shared";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../database/client";
+import { anime } from "../../database/schema/catalog";
 import { episodeProgress, importRecord, seriesState } from "../../database/schema/library";
+import { series, seriesEpisode } from "../../database/schema/series";
 import { exportLibrary, importLibrary, undoImport } from "./transfer";
 
 const removeProfile = async (userId: string) => {
 	await db.delete(episodeProgress).where(eq(episodeProgress.userId, userId));
 	await db.delete(seriesState).where(eq(seriesState.userId, userId));
+	await db.delete(importRecord).where(eq(importRecord.userId, userId));
 };
 
 const datesOf = async (userId: string) => {
@@ -36,42 +40,103 @@ interface Title {
 	seriesId: string;
 }
 
-// Opt in against a local database with migrations applied and stored series.
-// The fixture profile is removed even when an assertion fails.
+// Opt in against a migrated local database. Unlike other fixtures, these
+// titles have positive AniList IDs, since a Sora library file accepts no
+// others; they lie beyond any real AniList or MyAnimeList ID, queue no
+// scheduler jobs, and are removed with the fixture profile even when an
+// assertion fails.
 describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import and export", () => {
 	const profile = `transfer-test-${crypto.randomUUID()}`;
 	const now = new Date();
-	let titles: Title[] = [];
+	const firstAniListId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
+	const firstMalId = 900_000_000 + Math.floor(Math.random() * 90_000_000);
+	const titles: Title[] = [3, 4, 5].map((released, index) => ({
+		anilistId: firstAniListId + index,
+		malId: firstMalId + index,
+		released,
+		seriesId: `${profile}-${index}`,
+	}));
 
 	beforeAll(async () => {
-		const rows = await db.execute<{
-			anilist_id: number;
-			mal_id: number;
-			released: number;
-			series_id: string;
-		}>(sql`
-			select s.id as series_id, s.anilist_id, (a.media->>'idMal')::int as mal_id, count(e.number)::int as released
-			from series s
-			join anime a on a.anilist_id = s.anilist_id
-			join series_episode e on e.series_id = s.id and e.aired_at < now()
-			where a.media->>'idMal' is not null
-			group by 1, 2, 3
-			having count(e.number) between 2 and 30
-			order by s.anilist_id
-			limit 3
-		`);
-		titles = [...rows].map((row) => ({
-			anilistId: row.anilist_id,
-			malId: row.mal_id,
-			released: row.released,
-			seriesId: row.series_id,
-		}));
-		expect(titles).toHaveLength(3);
+		await db.insert(anime).values(
+			titles.map((title) => ({
+				anilistId: title.anilistId,
+				media: {
+					averageScore: null,
+					bannerImage: null,
+					countryOfOrigin: null,
+					coverImage: null,
+					description: null,
+					duration: null,
+					endDate: null,
+					episodes: title.released,
+					format: "TV" as const,
+					genres: [],
+					id: title.anilistId,
+					idMal: title.malId,
+					isAdult: false,
+					nextAiringEpisode: null,
+					popularity: null,
+					recommendations: null,
+					relations: null,
+					season: null,
+					seasonYear: null,
+					source: null,
+					startDate: null,
+					status: "FINISHED" as const,
+					studios: null,
+					synonyms: [],
+					tags: [],
+					title: {
+						english: `Transfer test ${title.anilistId}`,
+						native: null,
+						romaji: null,
+					},
+				},
+				refreshedAt: now,
+			})),
+		);
+		await db.insert(series).values(
+			titles.map((title) => ({
+				anilistId: title.anilistId,
+				id: title.seriesId,
+				key: `anilist:${title.anilistId}`,
+				kind: "standalone" as const,
+				laidOutAt: now,
+				status: "FINISHED" as const,
+				title: `Transfer test ${title.anilistId}`,
+			})),
+		);
+		await db.insert(seriesEpisode).values(
+			titles.flatMap((title) =>
+				Array.from(
+					{
+						length: title.released,
+					},
+					(_, index) => ({
+						airedAt: new Date(now.getTime() - (title.released - index) * day),
+						number: index + 1,
+						seriesId: title.seriesId,
+					}),
+				),
+			),
+		);
 	});
 
 	afterAll(async () => {
-		await db.delete(episodeProgress).where(eq(episodeProgress.userId, profile));
-		await db.delete(seriesState).where(eq(seriesState.userId, profile));
+		await removeProfile(profile);
+		await db.delete(series).where(
+			inArray(
+				series.id,
+				titles.map((title) => title.seriesId),
+			),
+		);
+		await db.delete(anime).where(
+			inArray(
+				anime.anilistId,
+				titles.map((title) => title.anilistId),
+			),
+		);
 	});
 
 	const file = (history: boolean) => ({
@@ -244,7 +309,6 @@ describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import a
 			});
 		} finally {
 			await removeProfile(other);
-			await db.delete(importRecord).where(eq(importRecord.userId, other));
 		}
 	});
 });

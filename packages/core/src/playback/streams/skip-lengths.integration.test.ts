@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-import { and, eq, gte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { closeDatabase, db } from "../../database/client";
+import { db } from "../../database/client";
 import { skipSegmentLength } from "../../database/schema/playback";
 import { series } from "../../database/schema/series";
 import { normalizeSkipSegments } from "./skip-lengths";
@@ -10,37 +10,25 @@ import { normalizeSkipSegments } from "./skip-lengths";
 const firstTestEpisode = 9000;
 const waitingMs = 1000;
 
-// Opt in against a migrated local database with at least one series. Only
-// rows for episode numbers no real series reaches are written and removed.
+// Opt in against a migrated local database. The fixture series and its skip
+// lengths are removed even when an assertion fails.
 describe.skipIf(process.env.SORA_SKIP_LENGTH_INTEGRATION !== "1")("normalizeSkipSegments", () => {
-	let seriesId = "";
-
-	const cleanUp = async () => {
-		if (seriesId) {
-			await db
-				.delete(skipSegmentLength)
-				.where(
-					and(
-						eq(skipSegmentLength.seriesId, seriesId),
-						gte(skipSegmentLength.episode, firstTestEpisode),
-					),
-				);
-		}
-	};
+	const seriesId = `skip-length-test-${crypto.randomUUID()}`;
 
 	beforeAll(async () => {
-		const [first] = await db
-			.select({
-				id: series.id,
-			})
-			.from(series)
-			.limit(1);
-		seriesId = first?.id ?? "";
+		await db.insert(series).values({
+			anilistId: -Math.floor(Math.random() * 1_000_000_000) - 1,
+			id: seriesId,
+			key: seriesId,
+			kind: "standalone",
+			laidOutAt: new Date(),
+			title: "Skip length test",
+		});
 	});
 
 	afterAll(async () => {
-		await cleanUp();
-		await closeDatabase();
+		await db.delete(skipSegmentLength).where(eq(skipSegmentLength.seriesId, seriesId));
+		await db.delete(series).where(eq(series.id, seriesId));
 	});
 
 	test("does not wait for the provider's other episodes", async () => {
