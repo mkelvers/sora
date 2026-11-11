@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { Hono } from "hono";
 
-import { nowWatchingRoutes } from "./now-watching";
+import { nowWatchingRoutes } from "./handlers";
 
 const environment = { NOW_WATCHING_PROFILE_ID: "owner", PORTFOLIO_TOKEN: "portfolio-test-secret" };
 const path = "/v1/public/now-watching";
@@ -78,7 +78,7 @@ test("the mounted v1 endpoint bypasses session authentication", () => {
 			process.execPath,
 			"-e",
 			`
-      const { v1Routes } = await import("./v1.ts");
+      const { v1Routes } = await import("../../v1.ts");
       const { Hono } = await import("hono");
       const app = new Hono().route("/v1", v1Routes);
       const response = await app.request("/v1/public/now-watching", {

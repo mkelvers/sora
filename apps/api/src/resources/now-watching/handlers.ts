@@ -4,10 +4,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { getNowWatching } from "@sora/core/library";
 import { z } from "zod";
 
-import { sendProblem } from "./errors";
-import type { V1Env } from "./errors";
-import { route } from "./openapi/routes";
-import { rateLimit } from "./rate-limit";
+import { sendProblem } from "../../errors";
+import type { V1Env } from "../../errors";
+import { rateLimit } from "../../rate-limit";
+import { nowWatchingRoute } from "./contract";
 
 const EnvironmentSchema = z.object({
 	NOW_WATCHING_PROFILE_ID: z.string().optional(),
@@ -25,7 +25,7 @@ export const nowWatchingRoutes = (
 		scheme: "bearer",
 		type: "http",
 	});
-	app.use(route.getNowWatching.getRoutingPath(), async (c, proceed) => {
+	app.use(nowWatchingRoute.getNowWatching.getRoutingPath(), async (c, proceed) => {
 		c.header("Cache-Control", "no-store");
 		if (!environment.PORTFOLIO_TOKEN) {
 			return sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`);
@@ -40,14 +40,14 @@ export const nowWatchingRoutes = (
 		await proceed();
 	});
 	app.use(
-		route.getNowWatching.getRoutingPath(),
+		nowWatchingRoute.getNowWatching.getRoutingPath(),
 		rateLimit({
 			key: () => "portfolio",
 			limit: 60,
 			windowMs: 60_000,
 		}),
 	);
-	return app.openapi(route.getNowWatching, async (c) =>
+	return app.openapi(nowWatchingRoute.getNowWatching, async (c) =>
 		c.json(
 			{
 				titles: environment.NOW_WATCHING_PROFILE_ID
