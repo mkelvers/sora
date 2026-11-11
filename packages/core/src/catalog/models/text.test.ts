@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { fuzzyDate, placeholder, plainText, synopsis } from "./text";
+import { aboutLength, fuzzyDate, placeholder, plainText, synopsis } from "./text";
 
 describe("plainText", () => {
 	test("converts line breaks, strips tags, and decodes entities", () => {
@@ -21,6 +21,17 @@ describe("plainText", () => {
 });
 
 describe("synopsis", () => {
+	test("runs one paragraph of whole sentences up to the length it is given", () => {
+		const text =
+			"Socially inept, Koyuki keeps a wall between herself and other people.\n<BR><BR>\nThen she meets Minato, a boy who keeps closing the distance.\n<BR><BR>\n(Source: Margaret, translated)";
+		expect(synopsis(text, aboutLength)).toBe(
+			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.",
+		);
+		expect(synopsis(text, 80)).toBe(
+			"Socially inept, Koyuki keeps a wall between herself and other people.",
+		);
+	});
+
 	test("keeps a text that already fits", () => {
 		const text =
 			"Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn to an alternate world. But he turns out to be reborn a slime!";

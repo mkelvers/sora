@@ -77,7 +77,6 @@ describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import a
 					isAdult: false,
 					nextAiringEpisode: null,
 					popularity: null,
-					producers: null,
 					recommendations: null,
 					relations: null,
 					season: null,

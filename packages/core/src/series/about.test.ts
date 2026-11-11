@@ -14,6 +14,7 @@ const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<
 		certification: null,
 		descriptors: [],
 		keywords: [],
+		overview: null,
 		seasonStarts: [],
 		subtitles: [],
 		...fields,
@@ -224,5 +225,23 @@ describe("aboutSeries", () => {
 			}).current_award,
 		).toBe(`${year} Crunchyroll Anime Awards Winner`);
 		expect(about().current_award).toBeNull();
+	});
+
+	test("shows the synopsis that says more: AniList's about-length one, else the stored one", () => {
+		const blurb =
+			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.";
+		expect(
+			about({
+				anime: {
+					blurb,
+				},
+				overview: "Koyuki keeps everyone at arm's length.",
+			}).synopsis,
+		).toBe(blurb);
+		expect(
+			about({
+				overview: "Koyuki keeps everyone at arm's length.",
+			}).synopsis,
+		).toBe("Koyuki keeps everyone at arm's length.");
 	});
 });

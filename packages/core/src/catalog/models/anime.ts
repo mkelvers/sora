@@ -7,7 +7,7 @@ import type {
 	MediaSource,
 	MediaStatus,
 } from "../../anilist/graphql.generated";
-import { fromUnixSeconds, fuzzyDate, synopsis } from "./text";
+import { aboutLength, fromUnixSeconds, fuzzyDate, synopsis } from "./text";
 
 export type AnimeFormat = Exclude<MediaFormat, "MANGA" | "NOVEL" | "ONE_SHOT">;
 export type AnimeStatus = MediaStatus;
@@ -91,6 +91,8 @@ export interface Anime extends AnimeCard {
 	synonyms: string[];
 	/** Plain-text synopsis cut down to its premise (see {@link synopsis}). */
 	description: string | null;
+	/** Plain-text synopsis for an about section, of about 90 words at most (see {@link synopsis}). */
+	blurb: string | null;
 	source: AnimeSource | null;
 	countryOfOrigin: string | null;
 	/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
@@ -175,13 +177,20 @@ export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => ({
 	title: toTitle(media),
 });
 
+/** The companies credited with an anime: its studios when `main`, else the rest. */
+const companies = (media: AnimeDetailsFragment, main: boolean) =>
+	present(media.studios?.edges).flatMap((edge) =>
+		edge.isMain === main && edge.node ? [edge.node.name] : [],
+	);
+
 /** Converts an AniList details fragment into the domain model. */
 export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	...toAnimeCard(media),
+	blurb: (media.description && synopsis(media.description, aboutLength)) || null,
 	countryOfOrigin: media.countryOfOrigin,
 	description: (media.description && synopsis(media.description)) || null,
 	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
-	producers: present(media.producers?.nodes).map((producer) => producer.name),
+	producers: companies(media, false),
 	recommendations: present(media.recommendations?.nodes).flatMap((node) =>
 		node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
 	),
@@ -208,7 +217,7 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 			: [];
 	}),
 	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
-	studios: present(media.studios?.nodes).map((studio) => studio.name),
+	studios: companies(media, true),
 	synonyms: present(media.synonyms),
 	tags: present(media.tags).map((tag) => ({
 		name: tag.name,

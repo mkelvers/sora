@@ -49,8 +49,14 @@ export const plainText = (value: string) =>
 		.replaceAll(/\n{3,}/gu, "\n\n")
 		.trim();
 
-/** The longest a {@link synopsis} runs. */
+/** The longest a {@link synopsis} runs unless told otherwise, in characters. */
 const synopsisLength = 320;
+
+/**
+ * The longest a synopsis for an about section runs, in characters: about 90
+ * words, the most a one-paragraph synopsis holds before it reads as a summary.
+ */
+export const aboutLength = 560;
 
 /** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
 const sentences = (text: string) => {
@@ -76,24 +82,24 @@ export const placeholder =
 
 /**
  * A synopsis cut down to its premise: AniList's or TMDB's text as
- * {@link plainText}, with as many of its opening sentences as fit in
- * {@link synopsisLength}. The opening sets up the story; what follows is
+ * {@link plainText}, in one paragraph, with as many of its opening sentences
+ * as fit in `length` characters, {@link synopsisLength} unless told otherwise. The opening sets up the story; what follows is
  * mostly cast lists and subplots. A first sentence too long on its own is
  * cut at a word. A sentence that only names the release is left out
  * when the text has more to say.
  */
-export const synopsis = (value: string) => {
+export const synopsis = (value: string, length = synopsisLength) => {
 	const all = sentences(plainText(value));
 	const story = all.filter((sentence) => !placeholder.test(sentence));
 	const [first = "", ...rest] = story.length > 0 ? story : all;
-	if (first.length > synopsisLength) {
-		const word = first.lastIndexOf(" ", synopsisLength - 1);
-		return `${first.slice(0, word > 0 ? word : synopsisLength - 1).trimEnd()}…`;
+	if (first.length > length) {
+		const word = first.lastIndexOf(" ", length - 1);
+		return `${first.slice(0, word > 0 ? word : length - 1).trimEnd()}…`;
 	}
 
 	let summary = first;
 	for (const sentence of rest) {
-		if (summary.length + 1 + sentence.length > synopsisLength) {
+		if (summary.length + 1 + sentence.length > length) {
 			break;
 		}
 		summary = `${summary} ${sentence}`;
