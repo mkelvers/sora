@@ -14,6 +14,7 @@ import {
 import { AnimeNotFoundError } from "../../errors";
 import { getStoredUnits, refreshProviderUnits } from "../../playback/episodes/episodes";
 import { aniKoto, streamProviders } from "../../playback/providers/registry";
+import { parsePayload } from "../payload";
 import {
 	airingCheckPriority,
 	scheduleAiringCheck,
@@ -149,7 +150,7 @@ const latestAiredEpisode = async (anime: Anime): Promise<AiringState["latestAire
  * AniList outage is handled.
  */
 export const trackAiring: Task = async (rawPayload, helpers) => {
-	const payload = TrackAiringPayloadSchema.parse(rawPayload);
+	const payload = parsePayload(TrackAiringPayloadSchema, rawPayload);
 
 	const before = await attempt(getAnime(payload.anilistId), AnimeNotFoundError);
 	if (before.error) {

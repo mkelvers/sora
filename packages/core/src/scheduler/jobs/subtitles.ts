@@ -5,6 +5,7 @@ import { config } from "../../config";
 import { SubtitleRefinementError } from "../../playback/subtitles/audio";
 import { listenToDub } from "../../playback/subtitles/listen";
 import { getRefinement, isRefinementDue, saveRefinement } from "../../playback/subtitles/store";
+import { parsePayload } from "../payload";
 
 const PayloadSchema = z.object({
 	episode: z.number().int().positive(),
@@ -23,7 +24,7 @@ export const refineSubtitles: Task = async (payload) => {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}
 
-	const { seriesId, episode, key } = PayloadSchema.parse(payload);
+	const { seriesId, episode, key } = parsePayload(PayloadSchema, payload);
 	if (!isRefinementDue(await getRefinement(key))) {
 		return;
 	}
