@@ -609,6 +609,8 @@ const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[])
 			.select({
 				awards: titleFacts.awards,
 				certification: titleFacts.certification,
+				descriptors: titleFacts.descriptors,
+				keywords: titleFacts.keywords,
 			})
 			.from(titleFacts)
 			.where(eq(titleFacts.key, row.key))
@@ -635,6 +637,8 @@ const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[])
 		ageRating: rated?.rating ?? null,
 		awards: facts?.awards ?? [],
 		certification: facts?.certification ?? null,
+		descriptors: facts?.descriptors ?? [],
+		keywords: facts?.keywords ?? [],
 		subtitles: subtitles?.languages ?? [],
 	};
 };

@@ -11,6 +11,8 @@ const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<
 		audio: [],
 		awards: [],
 		certification: null,
+		descriptors: [],
+		keywords: [],
 		subtitles: [],
 		...fields,
 		anime: {
@@ -122,6 +124,22 @@ describe("aboutSeries", () => {
 			descriptors: [],
 		});
 		expect(about({ certification: "NR" }).content_rating).toBeNull();
+	});
+
+	test("warns of what TMDB's keywords and ratings' descriptors say it shows", () => {
+		expect(
+			about({
+				anime: {
+					genres: ["Adventure", "Horror"],
+				},
+				certification: "TV-14",
+				descriptors: ["Violence / Horror", "Negative examples"],
+				keywords: ["Combat", "magic", "smoking", "political intrigue\u00A0"],
+			}).content_rating,
+		).toEqual({
+			age: "14+",
+			descriptors: ["Fear", "Smoking", "Violence"],
+		});
 	});
 
 	test("credits the original work's creator, then the studios, as a copyright notice does", () => {

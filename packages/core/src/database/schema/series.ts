@@ -157,16 +157,29 @@ export interface TitleAward {
 /**
  * What TMDB and, through the Wikidata item TMDB links, Wikidata say about a
  * TMDB title, keyed by the `SeriesKey` its series share, as
- * {@link titleArtwork} is: the title's US certification and the awards it
- * won or was nominated for. Kept by the scheduler and fetched again after a
+ * {@link titleArtwork} is: the title's US certification, what ratings and
+ * keywords say it shows, and the awards it won or was nominated for. Kept by the scheduler and fetched again after a
  * month; see `storeTitleFacts`.
  */
 export const titleFacts = pgTable("title_facts", {
 	awards: jsonb("awards").$type<TitleAward[]>().notNull(),
 	/** The US certification TMDB lists, such as `TV-MA` or `PG-13`; null when it lists none. */
 	certification: text("certification"),
+	/**
+	 * What any country's rating of the title warns of, as TMDB lists it, such
+	 * as `Violence` or `Fear`; few countries' ratings carry any.
+	 */
+	descriptors: text("descriptors")
+		.array()
+		.notNull()
+		.default(sql`'{}'`),
 	fetchedAt: timestamptz("fetched_at").notNull(),
 	key: text("key").primaryKey(),
+	/** TMDB's keywords for the title, such as `combat` or `gore`. */
+	keywords: text("keywords")
+		.array()
+		.notNull()
+		.default(sql`'{}'`),
 	/** The Wikidata item TMDB links the title to, such as `Q22126305`. */
 	wikidataId: text("wikidata_id"),
 });

@@ -15,6 +15,10 @@ export interface AboutSources {
 	ageRating: AgeRating | null;
 	/** TMDB's US certification of its TMDB title. */
 	certification: string | null;
+	/** What any country's rating of its TMDB title warns of; see `titleFacts.descriptors`. */
+	descriptors: readonly string[];
+	/** TMDB's keywords for its TMDB title. */
+	keywords: readonly string[];
 	awards: readonly TitleAward[];
 }
 
@@ -156,24 +160,130 @@ const certificationAges: Record<string, string> = {
 	"TV-Y7": "7+",
 };
 
-/** AniList tags that warn of something, and the warning. */
-const advisoryTags: Record<string, string> = {
-	Drugs: "Drug use",
-	Gore: "Gore",
-	Nudity: "Nudity",
-	Rape: "Sexual violence",
-	Suicide: "Suicide",
-	Torture: "Torture",
+/** AniList tags that warn of something, and the warnings. */
+const advisoryTags: Record<string, string[]> = {
+	Assassins: ["Violence"],
+	"Battle Royale": ["Violence"],
+	"Body Horror": ["Gore"],
+	Cannibalism: ["Gore"],
+	"Cosmic Horror": ["Fear"],
+	"Death Game": ["Violence"],
+	Drugs: ["Drug use"],
+	Gambling: ["Gambling"],
+	Gore: ["Gore", "Violence"],
+	Guns: ["Violence"],
+	"Martial Arts": ["Violence"],
+	Nudity: ["Nudity"],
+	Rape: ["Sexual violence"],
+	Suicide: ["Suicide"],
+	Swordplay: ["Violence"],
+	Terrorism: ["Violence"],
+	Torture: ["Torture", "Violence"],
+	War: ["Violence"],
 };
 
 /** How strongly a tag must apply, 0–100, to warn of it; below, it only comes up. */
 const advisoryRank = 50;
 
+/** AniList genres that warn of something, and the warnings. */
+const advisoryGenres: Record<string, string[]> = {
+	Ecchi: ["Sexual content"],
+	Horror: ["Fear"],
+};
+
+/** TMDB keywords that warn of something, lowercased, and the warnings. */
+const advisoryKeywords: Record<string, string[]> = {
+	alcohol: ["Alcohol"],
+	alcoholism: ["Alcohol"],
+	assassin: ["Violence"],
+	assassination: ["Violence"],
+	battle: ["Violence"],
+	blood: ["Gore"],
+	bloodshed: ["Gore", "Violence"],
+	"body horror": ["Gore"],
+	brutality: ["Violence"],
+	cannibalism: ["Gore"],
+	cigarette: ["Smoking"],
+	combat: ["Violence"],
+	cursing: ["Profanity"],
+	decapitation: ["Gore"],
+	dismemberment: ["Gore"],
+	drinking: ["Alcohol"],
+	"drug abuse": ["Drug use"],
+	"drug addiction": ["Drug use"],
+	"drug dealer": ["Drug use"],
+	"drug use": ["Drug use"],
+	drugs: ["Drug use"],
+	drunk: ["Alcohol"],
+	drunkenness: ["Alcohol"],
+	ecchi: ["Sexual content"],
+	erotic: ["Sexual content"],
+	"fan service": ["Sexual content"],
+	fanservice: ["Sexual content"],
+	fight: ["Violence"],
+	fighting: ["Violence"],
+	"foul language": ["Profanity"],
+	gambling: ["Gambling"],
+	gore: ["Gore", "Violence"],
+	gunfight: ["Violence"],
+	horror: ["Fear"],
+	killing: ["Violence"],
+	"martial arts": ["Violence"],
+	massacre: ["Violence"],
+	murder: ["Violence"],
+	mutilation: ["Gore"],
+	naked: ["Nudity"],
+	nudity: ["Nudity"],
+	profanity: ["Profanity"],
+	rape: ["Sexual violence"],
+	"self harm": ["Self-harm"],
+	"serial killer": ["Violence"],
+	sex: ["Sexual content"],
+	"sexual abuse": ["Sexual violence"],
+	"sexual assault": ["Sexual violence"],
+	"sexual content": ["Sexual content"],
+	"sexual violence": ["Sexual violence"],
+	shootout: ["Violence"],
+	slaughter: ["Violence"],
+	smoking: ["Smoking"],
+	splatter: ["Gore"],
+	suicide: ["Suicide"],
+	"suicide attempt": ["Suicide"],
+	swearing: ["Profanity"],
+	"sword fight": ["Violence"],
+	swordplay: ["Violence"],
+	tobacco: ["Smoking"],
+	topless: ["Nudity"],
+	torture: ["Torture", "Violence"],
+	violence: ["Violence"],
+	war: ["Violence"],
+};
+
+/**
+ * What ratings' descriptors on TMDB warn of, lowercased; a descriptor may
+ * name two, as in `Violence / Horror`.
+ */
+const advisoryDescriptors: Record<string, string[]> = {
+	"drug use": ["Drug use"],
+	drugs: ["Drug use"],
+	fear: ["Fear"],
+	horror: ["Fear"],
+	injury: ["Violence"],
+	language: ["Profanity"],
+	nudity: ["Nudity"],
+	sex: ["Sexual content"],
+	sexuality: ["Sexual content"],
+	threat: ["Fear"],
+	violence: ["Violence"],
+};
+
+const descriptorParts = /\s*\/\s*/u;
+
 /**
  * The age a title is for and what it warns of: MyAnimeList's rating, else
- * TMDB's US certification, and the warnings the rating stands for, plus the
- * AniList tags that apply strongly (see {@link advisoryTags}) and the ecchi
- * genre. `null` when nothing is known.
+ * TMDB's US certification, and the warnings the rating stands for, plus
+ * those of any country's rating on TMDB, of TMDB's keywords, of the AniList
+ * tags that apply strongly, and of its genres. `null` when nothing is known.
  */
 const contentRating = (sources: AboutSources) => {
 	const rated = sources.ageRating ? ageRatings[sources.ageRating] : null;
@@ -183,11 +293,18 @@ const contentRating = (sources: AboutSources) => {
 	const descriptors = [
 		...new Set([
 			...(rated?.descriptors ?? []),
-			...sources.anime.tags.flatMap((tag) => {
-				const warning = advisoryTags[tag.name];
-				return warning && !tag.spoiler && (tag.rank ?? 0) >= advisoryRank ? [warning] : [];
-			}),
-			...(sources.anime.genres.includes("Ecchi") ? ["Sexual content"] : []),
+			...sources.descriptors.flatMap((descriptor) =>
+				descriptor
+					.split(descriptorParts)
+					.flatMap((part) => advisoryDescriptors[part.trim().toLowerCase()] ?? []),
+			),
+			...sources.keywords.flatMap(
+				(keyword) => advisoryKeywords[keyword.trim().toLowerCase()] ?? [],
+			),
+			...sources.anime.tags.flatMap((tag) =>
+				!tag.spoiler && (tag.rank ?? 0) >= advisoryRank ? (advisoryTags[tag.name] ?? []) : [],
+			),
+			...sources.anime.genres.flatMap((genre) => advisoryGenres[genre] ?? []),
 		]),
 	].toSorted((left, right) => left.localeCompare(right));
 

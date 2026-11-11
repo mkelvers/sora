@@ -55,11 +55,19 @@ const ExternalIdsSchema = z
 	})
 	.optional();
 
+const KeywordSchema = z.object({
+	name: z.string(),
+});
+
+/** Descriptors are on some countries' ratings only, such as `["Violence", "Fear"]`. */
+const DescriptorsSchema = z.array(z.string()).optional();
+
 const ShowFactsSchema = z.object({
 	content_ratings: z
 		.object({
 			results: z.array(
 				z.object({
+					descriptors: DescriptorsSchema,
 					iso_3166_1: z.string(),
 					rating: z.string(),
 				}),
@@ -67,10 +75,20 @@ const ShowFactsSchema = z.object({
 		})
 		.optional(),
 	external_ids: ExternalIdsSchema,
+	keywords: z
+		.object({
+			results: z.array(KeywordSchema),
+		})
+		.optional(),
 });
 
 const MovieFactsSchema = z.object({
 	external_ids: ExternalIdsSchema,
+	keywords: z
+		.object({
+			keywords: z.array(KeywordSchema),
+		})
+		.optional(),
 	release_dates: z
 		.object({
 			results: z.array(
@@ -79,6 +97,7 @@ const MovieFactsSchema = z.object({
 					release_dates: z.array(
 						z.object({
 							certification: z.string(),
+							descriptors: DescriptorsSchema,
 						}),
 					),
 				}),
@@ -87,60 +106,85 @@ const MovieFactsSchema = z.object({
 		.optional(),
 });
 
-/** What TMDB knows of a title: its US certification and its Wikidata item. */
+/** What TMDB knows of a title; see `titleFacts`. */
 interface TmdbFacts {
 	certification: string | null;
+	descriptors: string[];
+	keywords: string[];
 	wikidataId: string | null;
 }
 
-/**
- * A title's US certification and Wikidata item from TMDB, in one request,
- * or `null` when TMDB does not know the title. Not stored, since the facts
- * are.
- */
-const fetchTmdbFacts = async (key: SeriesKey): Promise<TmdbFacts | null> => {
-	const [kind, id] = parseKey(key);
-	const options = {
-		maxAgeMs: 0,
-		store: false,
-	};
-	if (kind === "tv") {
-		const show = await tmdb(
-			`/tv/${id}`,
-			{
-				append_to_response: "content_ratings,external_ids",
-			},
-			ShowFactsSchema,
-			options,
-		);
-		return (
-			show && {
-				certification:
-					show.content_ratings?.results
-						.find((rating) => rating.iso_3166_1 === "US")
-						?.rating.trim() || null,
-				wikidataId: show.external_ids?.wikidata_id || null,
-			}
-		);
+/** Each name once, trimmed, in the order first given. */
+const distinct = (names: readonly string[]) => [
+	...new Set(names.flatMap((name) => (name.trim() ? [name.trim()] : []))),
+];
+
+/** Asks TMDB once for what the facts take; never stored, since the facts are. */
+const factsRequest = {
+	maxAgeMs: 0,
+	store: false,
+};
+
+const fetchShowFacts = async (showId: number): Promise<TmdbFacts | null> => {
+	const show = await tmdb(
+		`/tv/${showId}`,
+		{
+			append_to_response: "content_ratings,external_ids,keywords",
+		},
+		ShowFactsSchema,
+		factsRequest,
+	);
+	if (!show) {
+		return null;
 	}
 
+	const ratings = show.content_ratings?.results ?? [];
+	return {
+		certification: ratings.find((rating) => rating.iso_3166_1 === "US")?.rating.trim() || null,
+		descriptors: distinct(ratings.flatMap((rating) => rating.descriptors ?? [])),
+		keywords: distinct(show.keywords?.results.map((keyword) => keyword.name) ?? []),
+		wikidataId: show.external_ids?.wikidata_id || null,
+	};
+};
+
+const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
 	const movie = await tmdb(
-		`/movie/${id}`,
+		`/movie/${movieId}`,
 		{
-			append_to_response: "release_dates,external_ids",
+			append_to_response: "release_dates,external_ids,keywords",
 		},
 		MovieFactsSchema,
-		options,
+		factsRequest,
 	);
-	const us = movie?.release_dates?.results.find((release) => release.iso_3166_1 === "US");
-	return (
-		movie && {
-			certification:
-				us?.release_dates.find((release) => release.certification.trim())?.certification.trim() ??
-				null,
-			wikidataId: movie.external_ids?.wikidata_id || null,
-		}
+	if (!movie) {
+		return null;
+	}
+
+	const releases = (movie.release_dates?.results ?? []).flatMap((country) =>
+		country.release_dates.map((release) => ({
+			...release,
+			country: country.iso_3166_1,
+		})),
 	);
+	return {
+		certification:
+			releases
+				.find((release) => release.country === "US" && release.certification.trim())
+				?.certification.trim() ?? null,
+		descriptors: distinct(releases.flatMap((release) => release.descriptors ?? [])),
+		keywords: distinct(movie.keywords?.keywords.map((keyword) => keyword.name) ?? []),
+		wikidataId: movie.external_ids?.wikidata_id || null,
+	};
+};
+
+/**
+ * A title's US certification, every country's rating descriptors, its
+ * keywords, and its Wikidata item from TMDB, in one request, or `null` when
+ * TMDB does not know the title.
+ */
+const fetchTmdbFacts = (key: SeriesKey) => {
+	const [kind, id] = parseKey(key);
+	return kind === "tv" ? fetchShowFacts(id) : fetchMovieFacts(id);
 };
 
 const SnakSchema = z.object({
@@ -355,6 +399,8 @@ export const storeTitleFacts = async () => {
 			key,
 			data ?? {
 				certification: null,
+				descriptors: [],
+				keywords: [],
 				wikidataId: null,
 			},
 		);
@@ -366,8 +412,10 @@ export const storeTitleFacts = async () => {
 	const rows = [...fetched].map(([key, facts]) => ({
 		awards: (facts.wikidataId && awards.get(facts.wikidataId)) || [],
 		certification: facts.certification,
+		descriptors: facts.descriptors,
 		fetchedAt: now,
 		key,
+		keywords: facts.keywords,
 		wikidataId: facts.wikidataId,
 	}));
 	if (rows.length > 0) {
@@ -378,7 +426,9 @@ export const storeTitleFacts = async () => {
 				set: {
 					awards: sql`excluded.awards`,
 					certification: sql`excluded.certification`,
+					descriptors: sql`excluded.descriptors`,
 					fetchedAt: sql`excluded.fetched_at`,
+					keywords: sql`excluded.keywords`,
 					wikidataId: sql`excluded.wikidata_id`,
 				},
 				target: titleFacts.key,
