@@ -1,4 +1,3 @@
-import { env, pipeline, RawImage } from "@huggingface/transformers";
 import { attempt, defined } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
@@ -167,12 +166,21 @@ const stillLabels = [
  */
 const sceneShare = 0.75;
 
-const loadClassifier = () => {
+/**
+ * Loads CLIP. `@huggingface/transformers` is imported here rather than at the
+ * top, as only the scheduler reads stills: the API reaches this module but
+ * never calls {@link showsText}, so its image ships without onnxruntime.
+ */
+const loadClassifier = async () => {
+	const { env, pipeline, RawImage } = await import("@huggingface/transformers");
 	if (config.stillModelDir) {
 		env.cacheDir = config.stillModelDir;
 	}
 
-	return pipeline("zero-shot-image-classification", stillModel);
+	return {
+		RawImage,
+		classify: await pipeline("zero-shot-image-classification", stillModel),
+	};
 };
 
 let classifier: ReturnType<typeof loadClassifier> | null = null;
@@ -199,7 +207,8 @@ export const showsText = async (image: Buffer): Promise<boolean> => {
 		});
 	}
 
-	const scored = await loaded.data(
+	const { classify, RawImage } = loaded.data;
+	const scored = await classify(
 		await RawImage.fromBlob(new Blob([new Uint8Array(image)])),
 		stillLabels,
 	);

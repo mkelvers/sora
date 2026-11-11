@@ -13,8 +13,11 @@ COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY patches patches
 
+# Only the scheduler runs CLIP on episode stills (packages/core/src/tmdb/stills.ts
+# imports it lazily), so the API drops transformers and its ~430 MB onnxruntime.
 FROM manifests AS api-dependencies
-RUN bun install --production --frozen-lockfile --filter @sora/api
+RUN bun install --production --frozen-lockfile --filter @sora/api \
+	&& rm -rf node_modules/.bun/@huggingface+transformers@* node_modules/.bun/onnxruntime-*
 
 FROM manifests AS scheduler-dependencies
 RUN bun install --production --frozen-lockfile --filter @sora/scheduler
