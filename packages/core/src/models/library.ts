@@ -180,31 +180,34 @@ export const NotificationSchema = z
 		episode_title: z.string().nullable().meta({
 			description: "The title of `last_episode`.",
 		}),
-		first_episode: z.number().int().meta({
-			description: "The first episode that came out, or was dubbed, from 1.",
+		first_episode: z.number().int().nullable().meta({
+			description: "The first episode that came out, or was dubbed, from 1; null for `announced`.",
 		}),
 		id: z.string().meta({
 			description: "Stable for as long as the notification is listed.",
 			example: "EWBMBNIV4:13",
 		}),
-		kind: z.enum(["premiere", "episodes", "dub"]).meta({
+		kind: z.enum(["announced", "premiere", "episodes", "dub"]).meta({
 			description:
-				"`premiere` when the title's first episode came out; `episodes` when a title that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
+				"`announced` when a sequel or prequel of a followed title was announced and has not started; `premiere` when the title's first episode came out; `episodes` when a title that was out already gained episodes; `dub` when episodes that were out already were dubbed in English.",
 		}),
-		last_episode: z.number().int().meta({
-			description: "The last such episode; the same as `first_episode` when there was one.",
+		last_episode: z.number().int().nullable().meta({
+			description:
+				"The last such episode; the same as `first_episode` when there was one; null for `announced`.",
 		}),
 		message: z.string().meta({
 			description: "What came out, as a sentence to show under the title.",
 			example: "Episode 13 is out. Settle in and catch up.",
 		}),
 		released_at: z.string().meta({
-			description: "When it came out, as an ISO 8601 timestamp.",
+			description:
+				"When it came out, or for `announced` when Sora first stored the announced title, as an ISO 8601 timestamp.",
 			example: "2026-10-04T13:30:00.000Z",
 		}),
 		series: SeriesCardSchema,
 		still_url: z.string().nullable().meta({
-			description: "A still of `last_episode`, or of the first episode for a premiere.",
+			description:
+				"A still of `last_episode`, or of the first episode for a premiere; null for `announced`.",
 		}),
 		unread: z.boolean().meta({
 			description: "Whether the profile has not marked it read.",
@@ -248,7 +251,7 @@ export const ProfilePreferencesSchema = z
 					description: "Whether new episodes are notifications.",
 				}),
 				premieres: z.boolean().meta({
-					description: "Whether a season or film premiering is a notification.",
+					description: "Whether a season or film being announced or premiering is a notification.",
 				}),
 			})
 			.meta({

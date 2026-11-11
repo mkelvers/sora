@@ -216,6 +216,87 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 			expect(result.items.map((item) => item.id)).toEqual([`${third}:2`]);
 		});
 
+		/** Stores an announced season after `third`, runs `check`, then removes it. */
+		const withAnnounced = async (
+			storedAt: Date,
+			check: (announced: string) => Promise<void>,
+		): Promise<void> => {
+			const announced = `${profile}-announced`;
+			const anilistId = defined(anilistIds.at(-1)) - 1;
+			await db.insert(series).values({
+				anilistId,
+				createdAt: storedAt,
+				id: announced,
+				key: `anilist:${anilistId}`,
+				kind: "standalone",
+				laidOutAt: storedAt,
+				startDate: "2027-04",
+				status: "NOT_YET_RELEASED",
+				title: "Notification test announced",
+			});
+			await db.insert(seriesRelated).values({
+				anilistId: defined(anilistIds[2]),
+				position: 0,
+				relation: "PREQUEL",
+				seriesId: announced,
+			});
+			try {
+				await check(announced);
+			} finally {
+				await db.delete(seriesState).where(eq(seriesState.seriesId, announced));
+				await db.delete(series).where(eq(series.id, announced));
+			}
+		};
+
+		const completeFirst = async () => {
+			await db.insert(seriesState).values({
+				addedAt: followedAt,
+				seriesId: first,
+				status: "completed",
+				statusChangedAt: followedAt,
+				userId: profile,
+			});
+		};
+
+		test("an announced sequel notifies until it starts", async () => {
+			await completeFirst();
+			await withAnnounced(releasedAt, async (announced) => {
+				const result = await getNotifications(profile, {}, now);
+				expect(result.items.find((item) => item.series.id === announced)).toMatchObject({
+					first_episode: null,
+					id: `${announced}:announced`,
+					kind: "announced",
+					last_episode: null,
+					message: "A new season has been announced. It is set to start in April 2027.",
+					released_at: releasedAt.toISOString(),
+					unread: true,
+				});
+
+				await db.update(series).set({ status: "RELEASING" }).where(eq(series.id, announced));
+				const started = await getNotifications(profile, {}, now);
+				expect(started.items.some((item) => item.kind === "announced")).toBe(false);
+			});
+		});
+
+		test("an announcement stored before the follow, or of a saved title, does not notify", async () => {
+			await completeFirst();
+			await withAnnounced(new Date(followedAt.getTime() - day), async () => {
+				const result = await getNotifications(profile, {}, now);
+				expect(result.items.some((item) => item.kind === "announced")).toBe(false);
+			});
+			await withAnnounced(releasedAt, async (announced) => {
+				await db.insert(seriesState).values({
+					addedAt: now,
+					seriesId: announced,
+					status: "plan_to_watch",
+					statusChangedAt: now,
+					userId: profile,
+				});
+				const result = await getNotifications(profile, {}, now);
+				expect(result.items.some((item) => item.kind === "announced")).toBe(false);
+			});
+		});
+
 		test("watching after the releases does not notify about older episodes or dubs", async () => {
 			await db.insert(episodeProgress).values({
 				durationSeconds: 1440,
