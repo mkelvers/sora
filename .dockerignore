@@ -10,3 +10,7 @@
 decisions.tsv
 .claude
 .DS_Store
+**/*.test.ts
+.github
+.githooks
+.vscode
