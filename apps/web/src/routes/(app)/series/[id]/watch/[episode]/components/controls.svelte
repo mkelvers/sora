@@ -20,15 +20,11 @@
 		player,
 		previous,
 		next,
-		series,
-		episode,
 		children,
 	}: {
 		player: Player;
 		previous?: string;
 		next?: string;
-		series: string;
-		episode: string;
 		children?: Snippet;
 	} = $props();
 
@@ -167,10 +163,7 @@
 		{clock(player.duration)}
 	</p>
 
-	<h1 class="mx-4 min-w-0 flex-1 truncate text-center text-sm max-sm:sr-only">
-		<strong class="font-semibold">{series}</strong>
-		<span class="ml-1.5 text-foreground/70">{episode}</span>
-	</h1>
+	<div class="flex-1" aria-hidden="true"></div>
 
 	{@render children?.()}
 
