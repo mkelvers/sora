@@ -305,16 +305,16 @@
 		<Button href={back} variant="icon" aria-label="Back to {series.title}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
-		<div class="min-w-0 sm:hidden" aria-hidden="true">
-			<p class="truncate text-base font-semibold">{series.title}</p>
-			<p class="truncate text-sm text-foreground/80">{heading}</p>
-		</div>
+		<h1 class="min-w-0">
+			<span class="block truncate text-base font-semibold">{series.title}</span>
+			<span class="block truncate text-sm text-foreground/80">{heading}</span>
+		</h1>
 	</header>
 
 	<footer
 		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Controls {player} {previous} {next} series={series.title} episode={heading}>
+		<Controls {player} {previous} {next}>
 			<Settings
 				media={playback?.media ?? []}
 				{selected}
