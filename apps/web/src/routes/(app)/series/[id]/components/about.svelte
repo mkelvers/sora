@@ -33,9 +33,9 @@
 					<dd class="inline">
 						{#if series.content_rating.age}
 							<span
-								class="mr-1 inline-block bg-border px-1 align-[0.1em] text-[0.6875rem] leading-4 font-bold text-foreground italic"
+								class="mr-1.5 inline-block -skew-x-12 bg-border px-1.5 align-[0.1em] text-[0.6875rem] leading-4 font-bold text-foreground"
 							>
-								{series.content_rating.age}
+								<span class="inline-block skew-x-12 italic">{series.content_rating.age}</span>
 							</span>
 						{/if}
 						{series.content_rating.descriptors.join(", ")}
