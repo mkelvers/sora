@@ -3,13 +3,12 @@ import { afterAll, expect, test } from "bun:test";
 import { SQL } from "bun";
 
 import { config } from "../config";
-import { closeDatabase, migrateDatabase, migrationLockKey } from "./client";
+import { migrateDatabase, migrationLockKey } from "./client";
 
 const other = new SQL(config.databaseUrl);
 
 afterAll(async () => {
 	await other.close();
-	await closeDatabase();
 });
 
 test("migrating waits while another replica holds the lock", async () => {

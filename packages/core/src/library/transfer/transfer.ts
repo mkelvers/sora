@@ -462,7 +462,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 			);
 			const removed = await tx.execute(sql`
 				delete from episode_progress as progress
-				using jsonb_to_recordset(${rows}::jsonb) as added(s text, e int, r boolean)
+				using jsonb_to_recordset(${rows}::text::jsonb) as added(s text, e int, r boolean)
 				where progress.user_id = ${userId}
 					and progress.series_id = added.s
 					and progress.episode = added.e

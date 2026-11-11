@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { day, defined, inSequence } from "@sora/shared";
-import { eq, inArray, sql } from "drizzle-orm";
+import { day, defined } from "@sora/shared";
+import { eq, inArray } from "drizzle-orm";
 
-import { closeDatabase, db } from "../../database/client";
+import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
 import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
@@ -64,17 +64,10 @@ describe.skipIf(process.env.SORA_NOTIFICATION_INTEGRATION !== "1")(
 		});
 
 		afterAll(async () => {
-			try {
-				if (anilistIds.length) {
-					await db.delete(episodeDub).where(inArray(episodeDub.anilistId, anilistIds));
-					await inSequence(anilistIds, async (anilistId) => {
-						await db.execute(sql`select graphile_worker.remove_job(${`episodes:${anilistId}`})`);
-					});
-				}
-				await db.delete(series).where(inArray(series.id, ids));
-			} finally {
-				await closeDatabase();
+			if (anilistIds.length) {
+				await db.delete(episodeDub).where(inArray(episodeDub.anilistId, anilistIds));
 			}
+			await db.delete(series).where(inArray(series.id, ids));
 		});
 
 		test("one watched episode follows later episodes and dubs without a watchlist entry", async () => {
