@@ -1,9 +1,25 @@
 <script lang="ts">
+	import { onNavigate } from "$app/navigation";
 	import favicon from "$lib/assets/favicon.png";
+	import { prefersReducedMotion } from "svelte/motion";
 
 	import "./layout.css";
 
 	let { children } = $props();
+
+	onNavigate((navigation) => {
+		const samePage = navigation.from?.url.pathname === navigation.to?.url.pathname;
+		if (!document.startViewTransition || prefersReducedMotion.current || samePage) {
+			return;
+		}
+
+		const { promise, resolve } = Promise.withResolvers<undefined>();
+		document.startViewTransition(async () => {
+			resolve(undefined);
+			await navigation.complete;
+		});
+		return promise;
+	});
 </script>
 
 <svelte:head>
