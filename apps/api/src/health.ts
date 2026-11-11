@@ -1,74 +1,66 @@
+import type { FailingJobs } from "@sora/core/models/scheduler";
 import { getProviderHealth } from "@sora/core/playback";
 import type { ProviderHealth } from "@sora/core/playback";
+import { getFailingJobs } from "@sora/core/scheduler/failures";
 import { attempt } from "@sora/shared";
 import { Hono } from "hono";
 
-/** Load balancers probe often; provider health is read at most this often per instance. */
-const cacheMs = 60_000;
+/** Reads one part of the signed-in report, or `null` with a warning when it cannot be read. */
+const read = async <TData>(what: string, load: () => Promise<TData>) => {
+	const { data, error } = await attempt(load());
+	if (error) {
+		console.warn(`Could not read ${what}: ${error.message}`);
+		return null;
+	}
+	return data;
+};
 
 /**
  * `/health`: always `200` with `status: "ok"` while the process serves
  * requests, so load balancers keep it in rotation. Requests from a signed-in
- * account also get how each stream provider has been doing; everyone else
- * gets the status alone, as provider names and timings are nobody else's
- * business.
+ * account also get how each stream provider has been doing and which
+ * scheduler tasks have failing jobs; everyone else gets the status alone, as
+ * provider names, timings and tasks are nobody else's business.
  *
- * A failing provider does not make the API unhealthy: playback falls back to
- * the others, and taking instances out of rotation would not fix a scraper.
- * `providers` is `null` when provider health cannot be read.
+ * Neither failing providers nor failing jobs make the API unhealthy:
+ * playback falls back to other providers, the scheduler runs elsewhere, and
+ * taking instances out of rotation would fix neither. `providers` and
+ * `failing_jobs` are each `null` when they cannot be read.
  *
- * Errors are reported by time only: their messages come from scrapers and
- * can quote upstream URLs and pages. They are in `provider_calls` and the
- * scheduler's warnings.
+ * Both are read on every signed-in request, uncached: each is one small
+ * aggregate query, and anonymous probes read neither.
  *
- * @param load Reads the providers' health.
- * @param signedIn Whether a request's headers carry a session.
+ * Errors are reported by time or count only: their messages come from
+ * scrapers and upstream APIs and can quote upstream URLs and pages. They are
+ * in `provider_calls`, graphile-worker's `jobs` view and the scheduler's
+ * warnings.
  */
-export const healthRoutes = (
-	load: () => Promise<ProviderHealth[]> = getProviderHealth,
-	signedIn: (headers: Headers) => Promise<boolean> = () => Promise.resolve(false),
-) => {
-	let cached: {
-		at: number;
-		providers: Promise<ProviderHealth[] | null>;
-	} | null = null;
-
-	const providers = () => {
-		if (!cached || Date.now() - cached.at >= cacheMs) {
-			const at = Date.now();
-			const read = async () => {
-				const { data, error } = await attempt(load());
-				if (!error) {
-					return data;
-				}
-
-				console.warn(`Could not read provider health: ${error.message}`);
-				// Not cached: the next probe tries again, unless a later
-				// request already replaced this entry with a fresher one.
-				if (cached?.at === at) {
-					cached = null;
-				}
-				return null;
-			};
-			cached = {
-				at,
-				providers: read(),
-			};
-		}
-		return cached.providers;
-	};
-
-	return new Hono().get("/", async (c) => {
+export const healthRoutes = ({
+	failingJobs = getFailingJobs,
+	providers = getProviderHealth,
+	signedIn = () => Promise.resolve(false),
+}: {
+	/** Reads the scheduler's failing jobs per task. */
+	failingJobs?: () => Promise<FailingJobs[]>;
+	/** Reads the providers' health. */
+	providers?: () => Promise<ProviderHealth[]>;
+	/** Whether a request's headers carry a session. */
+	signedIn?: (headers: Headers) => Promise<boolean>;
+} = {}) =>
+	new Hono().get("/", async (c) => {
 		if (!(await signedIn(c.req.raw.headers))) {
 			return c.json({
 				status: "ok",
 			});
 		}
 
-		const health = await providers();
+		const [health, jobs] = await Promise.all([
+			read("provider health", providers),
+			read("failing scheduler jobs", failingJobs),
+		]);
 		return c.json({
+			failing_jobs: jobs,
 			providers: health?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,
 			status: "ok",
 		});
 	});
-};

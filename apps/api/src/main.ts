@@ -4,7 +4,8 @@
  *
  * Every route is versioned under `/v1`, whose OpenAPI document is served at
  * `/v1/openapi.json` for signed-in accounts; `/health` is for load balancers
- * and tells signed-in accounts how each stream provider has been doing. Errors are RFC 9457 problems.
+ * and tells signed-in accounts how each stream provider has been doing and
+ * which scheduler tasks have failing jobs. Errors are RFC 9457 problems.
  *
  * It listens on `HOST` (default `127.0.0.1`, so only this machine reaches
  * it); set `HOST=0.0.0.0` to serve other machines, such as in a container.
@@ -35,11 +36,13 @@ const app = new Hono()
 	.route("/v1", v1Routes)
 	.route(
 		"/health",
-		healthRoutes(undefined, async (headers) => {
-			const session = await auth.api.getSession({
-				headers,
-			});
-			return session !== null;
+		healthRoutes({
+			signedIn: async (headers) => {
+				const session = await auth.api.getSession({
+					headers,
+				});
+				return session !== null;
+			},
 		}),
 	)
 	.notFound((c) =>
