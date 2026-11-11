@@ -48,6 +48,7 @@ export type {
 	SeriesImage,
 	SeriesProgress,
 	SkipSegment,
+	Tag,
 	UpcomingSeries,
 	WatchlistEntry,
 	WatchlistStatus,

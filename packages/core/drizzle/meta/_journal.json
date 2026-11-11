@@ -540,6 +540,13 @@
       "when": 1794412640683,
       "tag": "0076_title_facts_imdb",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794440149922,
+      "tag": "0077_catalog_filters",
+      "breakpoints": true
     }
   ]
 }

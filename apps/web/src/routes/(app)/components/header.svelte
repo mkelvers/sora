@@ -5,8 +5,8 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
-	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
-	import { slug } from "$routes/(app)/(catalog)/genres/slug";
+	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { getGenres, getTags } from "$routes/(app)/(catalog)/catalog.remote";
 	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
@@ -33,8 +33,34 @@
 
 	const unread = getUnreadNotifications();
 	const genres = getGenres();
+	const tags = getTags();
 
-	let categories = $state(false);
+	const categories = $derived([
+		{
+			id: "genres",
+			label: "Genres",
+			links: (genres.current ?? []).map((genre) => ({
+				href: browseHref({
+					genres: [genre],
+				}),
+				label: genre,
+			})),
+		},
+		{
+			id: "demographics",
+			label: "Demographics",
+			links: (tags.current ?? [])
+				.filter((tag) => tag.group === "demographic")
+				.map((tag) => ({
+					href: browseHref({
+						tags: [tag.name],
+					}),
+					label: tag.name,
+				})),
+		},
+	]);
+
+	let expanded = $state(false);
 
 	const sections = [
 		{
@@ -58,10 +84,21 @@
 			href: "/calendar",
 			label: "Release Calendar",
 		},
+		{
+			href: "/browse",
+			label: "Browse All",
+		},
+		{
+			href: "/categories",
+			label: "All Categories",
+		},
 	];
 
 	const current = (href: string) => {
-		const { pathname } = page.url;
+		const { pathname, search } = page.url;
+		if (href.includes("?")) {
+			return pathname + search === href ? "page" : undefined;
+		}
 		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
 	};
 
@@ -101,32 +138,41 @@
 							<Button
 								variant="item"
 								class="justify-between font-normal aria-expanded:text-muted"
-								aria-expanded={categories}
-								aria-controls="menu-genres"
+								aria-expanded={expanded}
+								aria-controls="menu-categories"
 								onclick={(event: MouseEvent) => {
 									event.stopPropagation();
-									categories = !categories;
+									expanded = !expanded;
 								}}
 							>
 								Categories
 								<CaretDownIcon
 									size="1rem"
 									weight="fill"
-									class={cn("transition-transform", categories && "rotate-180")}
+									class={cn("transition-transform", expanded && "rotate-180")}
 								/>
 							</Button>
-							{#if categories}
-								<ul id="menu-genres" class="bg-[rgb(65_65_65/0.502)]">
-									{#each genres.current ?? [] as genre (genre)}
+							{#if expanded}
+								<ul id="menu-categories" class="bg-[rgb(65_65_65/0.502)]">
+									{#each categories as category (category.id)}
 										<li>
-											<Button
-												href="/genres/{slug(genre)}"
-												variant="item"
-												class="pl-9"
-												aria-current={current(`/genres/${slug(genre)}`)}
-											>
-												{genre}
-											</Button>
+											<h2 id="menu-{category.id}" class="px-9 pt-3 pb-1 text-sm text-subtle">
+												{category.label}
+											</h2>
+											<ul aria-labelledby="menu-{category.id}">
+												{#each category.links as link (link.href)}
+													<li>
+														<Button
+															href={link.href}
+															variant="item"
+															class="pl-9"
+															aria-current={current(link.href)}
+														>
+															{link.label}
+														</Button>
+													</li>
+												{/each}
+											</ul>
 										</li>
 									{/each}
 								</ul>
@@ -177,22 +223,24 @@
 								</li>
 							{/each}
 						</ul>
-						<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
-							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
-							<ul class="grid grid-cols-2 lg:grid-cols-3">
-								{#each genres.current ?? [] as genre (genre)}
-									<li>
-										<Button
-											href="/genres/{slug(genre)}"
-											variant="item"
-											aria-current={current(`/genres/${slug(genre)}`)}
-										>
-											{genre}
-										</Button>
-									</li>
-								{/each}
-							</ul>
-						</section>
+						<div class="min-w-0 flex-1 py-2">
+							{#each categories as category (category.id)}
+								<section aria-labelledby="header-{category.id}">
+									<h2 id="header-{category.id}" class="px-5 pt-2 pb-1 text-sm text-subtle">
+										{category.label}
+									</h2>
+									<ul class="grid grid-cols-2 lg:grid-cols-3">
+										{#each category.links as link (link.href)}
+											<li>
+												<Button href={link.href} variant="item" aria-current={current(link.href)}>
+													{link.label}
+												</Button>
+											</li>
+										{/each}
+									</ul>
+								</section>
+							{/each}
+						</div>
 					{/snippet}
 				</Dropdown>
 			</li>

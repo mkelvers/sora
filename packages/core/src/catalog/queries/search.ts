@@ -1,14 +1,20 @@
 import { attempt, day, hour, minute, defined } from "@sora/shared";
-import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
 import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
 import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
-import { animeSearch, catalogSync } from "../../database/schema/catalog";
+import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
-import { catalogFormatAllowed } from "../visibility";
+import {
+	catalogFormatAllowed,
+	matureGenres,
+	matureTagRank,
+	matureTags,
+	tagMinimumRank,
+} from "../visibility";
 import type { BrowseQuery } from "./browse-query";
 
 /**
@@ -130,6 +136,10 @@ const starsOf = (
 	);
 };
 
+const studioNames = (media: IndexedMedia) => [
+	...new Set((media.studios?.nodes ?? []).flatMap((studio) => (studio ? [studio.name] : []))),
+];
+
 const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 	const english = media.title?.english ?? null;
 	const romaji = media.title?.romaji ?? null;
@@ -142,7 +152,10 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 	return {
 		anilistId: media.id,
 		averageScore: media.averageScore,
+		country: media.countryOfOrigin,
+		duration: media.duration,
 		english,
+		episodes: media.episodes,
 		format: media.format,
 		genres: (media.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
 		isAdult: media.isAdult === true,
@@ -156,16 +169,79 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		searchText: searchText([english, romaji, native, ...synonyms]),
 		season: media.season,
 		seasonYear: media.seasonYear,
+		source: media.source,
 		startDate: start?.year
 			? [start.year, start.month, start.month ? start.day : null]
 					.flatMap((part) => (part ? [String(part).padStart(2, "0")] : []))
 					.join("-")
 			: null,
 		status: media.status,
+		studios: studioNames(media),
 		synonyms,
 		trending: media.trending ?? 0,
 		updatedAt: new Date((media.updatedAt ?? 0) * 1000),
 	};
+};
+
+const toTagRows = (media: IndexedMedia): (typeof animeSearchTag.$inferInsert)[] => [
+	...new Map(
+		(media.tags ?? []).flatMap((tag) =>
+			tag
+				? [
+						[
+							tag.name,
+							{
+								adult: tag.isAdult === true,
+								anilistId: media.id,
+								rank: tag.rank ?? 0,
+								spoiler: tag.isMediaSpoiler === true,
+								tag: tag.name,
+							},
+						] as const,
+					]
+				: [],
+		),
+	).values(),
+];
+
+/**
+ * Stores the tags of the given entries, removing those AniList no longer
+ * lists for them and rewriting a stored one only when it changed.
+ */
+const storeTags = async (anilistIds: number[], rows: (typeof animeSearchTag.$inferInsert)[]) => {
+	if (anilistIds.length === 0) {
+		return;
+	}
+
+	const kept = rows.map((row) => `${row.anilistId}:${row.tag}`);
+	await db.transaction(async (tx) => {
+		await tx
+			.delete(animeSearchTag)
+			.where(
+				and(
+					inArray(animeSearchTag.anilistId, anilistIds),
+					kept.length > 0
+						? notInArray(sql`${animeSearchTag.anilistId} || ':' || ${animeSearchTag.tag}`, kept)
+						: undefined,
+				),
+			);
+		if (rows.length === 0) {
+			return;
+		}
+
+		await tx
+			.insert(animeSearchTag)
+			.values(rows)
+			.onConflictDoUpdate({
+				set: {
+					adult: sql`excluded.adult`,
+					rank: sql`excluded.rank`,
+					spoiler: sql`excluded.spoiler`,
+				},
+				setWhere: sql`(${animeSearchTag.rank}, ${animeSearchTag.spoiler}, ${animeSearchTag.adult}) is distinct from (excluded.rank, excluded.spoiler, excluded.adult)`,
+				target: [animeSearchTag.anilistId, animeSearchTag.tag],
+			});
+	});
 };
 
 const toSnakeCase = (name: string) =>
@@ -256,8 +332,13 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 			const { Page } = await fetchIndexPage(page, sort, popularityBelow);
 			pages += 1;
 
-			const rows = (Page?.media ?? []).flatMap((media) => (media ? [toRow(media)] : []));
+			const media = (Page?.media ?? []).flatMap((entry) => (entry ? [entry] : []));
+			const rows = media.map(toRow);
 			stored += await upsert(rows);
+			await storeTags(
+				rows.map((row) => row.anilistId),
+				media.flatMap(toTagRows),
+			);
 			leastPopular = rows.at(-1)?.popularity ?? leastPopular;
 
 			const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
@@ -328,6 +409,67 @@ export type SearchCandidate = Pick<
 	"anilistId" | "english" | "romaji" | "native" | "synonyms" | "popularity"
 >;
 
+/** The conditions of the tag filters: those a title must carry, those it must not, and mature content. */
+const tagConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
+	const conditions: SQL[] = [];
+	for (const tag of filters.tags ?? []) {
+		conditions.push(
+			sql`exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.tag} = ${tag} and ${animeSearchTag.rank} >= ${tagMinimumRank} and not ${animeSearchTag.spoiler})`,
+		);
+	}
+	if (filters.excludedTags?.length) {
+		conditions.push(
+			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${inArray(animeSearchTag.tag, filters.excludedTags)} and ${animeSearchTag.rank} >= ${tagMinimumRank})`,
+		);
+	}
+	if (filters.hideMature) {
+		conditions.push(
+			...matureGenres.map(
+				(genre) => sql`not ${animeSearch.genres} @> ${JSON.stringify([genre])}::text::jsonb`,
+			),
+			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.rank} >= ${matureTagRank} and (${animeSearchTag.adult} or ${inArray(animeSearchTag.tag, [...matureTags])}))`,
+		);
+	}
+	return conditions;
+};
+
+/** The conditions of the filters on how a title was made and released. */
+const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
+	const conditions: SQL[] = [];
+	if (filters.studios?.length) {
+		conditions.push(
+			or(
+				...filters.studios.map(
+					(studio) => sql`${animeSearch.studios} @> ${JSON.stringify([studio])}::text::jsonb`,
+				),
+			) ?? sql`false`,
+		);
+	}
+	if (filters.sources?.length) {
+		conditions.push(inArray(animeSearch.source, filters.sources));
+	}
+	if (filters.countries?.length) {
+		conditions.push(inArray(animeSearch.country, filters.countries));
+	}
+	const released = sql`coalesce(${animeSearch.seasonYear}, left(${animeSearch.startDate}, 4)::integer)`;
+	if (filters.yearFrom) {
+		conditions.push(sql`${released} >= ${filters.yearFrom}`);
+	}
+	if (filters.yearTo) {
+		conditions.push(sql`${released} <= ${filters.yearTo}`);
+	}
+	if (filters.minEpisodes) {
+		conditions.push(gte(animeSearch.episodes, filters.minEpisodes));
+	}
+	if (filters.maxEpisodes) {
+		conditions.push(lte(animeSearch.episodes, filters.maxEpisodes));
+	}
+	if (filters.minScore !== undefined) {
+		conditions.push(gte(animeSearch.averageScore, filters.minScore));
+	}
+	return conditions;
+};
+
 /**
  * The index rows the browse filters allow. Adult and short TV entries are
  * excluded. Music videos are returned only when `format` asks for them.
@@ -355,6 +497,7 @@ const indexConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage
 	if (filters.genres?.length) {
 		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::text::jsonb`);
 	}
+	conditions.push(...tagConditions(filters), ...releaseConditions(filters));
 	return conditions;
 };
 

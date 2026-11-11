@@ -16,6 +16,7 @@ export {
 	setSeriesArtwork,
 	type SeriesImageQuery,
 } from "./artwork";
+export { listStudios, listTags } from "./categories";
 export type { ImageEdges } from "./edges";
 export { requestBackdropUpscale } from "./upscale";
 export { getUpscaledBackdrop } from "./upscaled-backdrop";

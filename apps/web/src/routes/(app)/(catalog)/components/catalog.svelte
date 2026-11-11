@@ -25,7 +25,7 @@
 
 <div class="page overflow-x-clip">
 	<section class="mx-auto w-full max-w-264" aria-labelledby="catalog-title">
-		<div class="mb-8 flex items-center justify-between gap-2 sm:gap-4">
+		<div class="mb-8 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
 			<div class="flex flex-col items-start">
 				<h1 id="catalog-title" class="text-2xl font-bold">{title}</h1>
 				{@render summary?.()}
@@ -34,7 +34,9 @@
 		</div>
 
 		<svelte:boundary>
-			<CatalogResults {request} {title} {empty} />
+			{#key JSON.stringify(request)}
+				<CatalogResults {request} {title} {empty} />
+			{/key}
 
 			{#snippet pending()}
 				<ul

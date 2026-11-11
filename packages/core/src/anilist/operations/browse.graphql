@@ -35,3 +35,12 @@ query BrowseAnime(
 query Genres {
 	GenreCollection
 }
+
+query Tags {
+	MediaTagCollection {
+		name
+		description
+		category
+		isAdult
+	}
+}

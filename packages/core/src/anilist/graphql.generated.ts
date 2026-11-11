@@ -217,6 +217,11 @@ export type GenresQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GenresQuery = { GenreCollection: Array<string | null> | null };
 
+export type TagsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TagsQuery = { MediaTagCollection: Array<{ name: string, description: string | null, category: string | null, isAdult: boolean | null } | null> | null };
+
 export type AnimeCardFragment = { id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null };
 
 export type AnimeDetailsFragment = { synonyms: Array<string | null> | null, description: string | null, source: MediaSource | null, countryOfOrigin: string | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, startDate: { year: number | null, month: number | null, day: number | null } | null, endDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null } | null> | null, studios: { edges: Array<{ isMain: boolean, node: { name: string } | null } | null> | null } | null, staff: { edges: Array<{ role: string | null, node: { name: { full: string | null } | null } | null } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, recommendations: { nodes: Array<{ mediaRecommendation: { type: MediaType | null, id: number, idMal: number | null, bannerImage: string | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, episodes: number | null, duration: number | null, averageScore: number | null, popularity: number | null, genres: Array<string | null> | null, isAdult: boolean | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null } | null } | null> | null } | null, title: { romaji: string | null, english: string | null, native: string | null } | null, coverImage: { extraLarge: string | null, large: string | null, color: string | null } | null, nextAiringEpisode: { airingAt: number, episode: number } | null };
@@ -282,7 +287,7 @@ export type SearchIndexPageQueryVariables = Exact<{
 }>;
 
 
-export type SearchIndexPageQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ id: number, synonyms: Array<string | null> | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, genres: Array<string | null> | null, popularity: number | null, trending: number | null, averageScore: number | null, isAdult: boolean | null, updatedAt: number | null, title: { romaji: string | null, english: string | null, native: string | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, stats: { scoreDistribution: Array<{ amount: number | null } | null> | null } | null } | null> | null } | null };
+export type SearchIndexPageQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ id: number, synonyms: Array<string | null> | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, genres: Array<string | null> | null, source: MediaSource | null, countryOfOrigin: string | null, episodes: number | null, duration: number | null, popularity: number | null, trending: number | null, averageScore: number | null, isAdult: boolean | null, updatedAt: number | null, title: { romaji: string | null, english: string | null, native: string | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null, isAdult: boolean | null } | null> | null, studios: { nodes: Array<{ name: string } | null> | null } | null, stats: { scoreDistribution: Array<{ amount: number | null } | null> | null } | null } | null> | null } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -740,6 +745,16 @@ export const GenresDocument = new TypedDocumentString(`
   GenreCollection
 }
     `) as unknown as TypedDocumentString<GenresQuery, GenresQueryVariables>;
+export const TagsDocument = new TypedDocumentString(`
+    query Tags {
+  MediaTagCollection {
+    name
+    description
+    category
+    isAdult
+  }
+}
+    `) as unknown as TypedDocumentString<TagsQuery, TagsQueryVariables>;
 export const FranchiseEntriesDocument = new TypedDocumentString(`
     query FranchiseEntries($ids0: [Int!]!, $ids1: [Int!]!, $ids2: [Int!]!, $ids3: [Int!]!, $ids4: [Int!]!, $with1: Boolean!, $with2: Boolean!, $with3: Boolean!, $with4: Boolean!) {
   page0: Page(page: 1, perPage: 50) {
@@ -981,6 +996,21 @@ export const SearchIndexPageDocument = new TypedDocumentString(`
         day
       }
       genres
+      tags {
+        name
+        rank
+        isMediaSpoiler
+        isAdult
+      }
+      studios(isMain: true) {
+        nodes {
+          name
+        }
+      }
+      source
+      countryOfOrigin
+      episodes
+      duration
       popularity
       trending
       averageScore

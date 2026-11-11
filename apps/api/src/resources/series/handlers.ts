@@ -1,5 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import type { z } from "@hono/zod-openapi";
 import { currentSeason, getGenres, listSeasons } from "@sora/core/catalog";
+import type { BrowseQuery } from "@sora/core/catalog";
 import {
 	browseSeries,
 	getAiringSchedule,
@@ -12,6 +14,8 @@ import {
 	getUpcomingSeries,
 	getUpscaledBackdrop,
 	listSeriesImages,
+	listStudios,
+	listTags,
 	refreshSeriesImages,
 	requestBackdropUpscale,
 	setSeriesArtwork,
@@ -23,17 +27,37 @@ import type { V1Env } from "../../errors";
 import { offsetLinks, pageMeta } from "../../openapi/envelope";
 import { seriesRoute } from "./contract";
 
+/** The browse filters of a `browseSeries` or `searchSeries` query, as the core takes them. */
+const browseQuery = ({
+	excluded_tags,
+	hide_mature,
+	max_episodes,
+	min_episodes,
+	min_score,
+	per_page,
+	season_year,
+	year_from,
+	year_to,
+	...filters
+}: z.output<typeof seriesRoute.browseSeries.request.query>): BrowseQuery => ({
+	...filters,
+	excludedTags: excluded_tags,
+	hideMature: hide_mature,
+	maxEpisodes: max_episodes,
+	minEpisodes: min_episodes,
+	minScore: min_score,
+	perPage: per_page,
+	seasonYear: season_year,
+	yearFrom: year_from,
+	yearTo: year_to,
+});
+
 /** The handlers for {@link seriesRoute}. */
 export const seriesRoutes = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
 	.openapi(seriesRoute.browseSeries, async (c) => {
-		const { season_year, per_page, ...filters } = c.req.valid("query");
-		const page = await browseSeries({
-			...filters,
-			perPage: per_page,
-			seasonYear: season_year,
-		});
+		const page = await browseSeries(browseQuery(c.req.valid("query")));
 		c.header("Cache-Control", "public, max-age=300");
 		return c.json(
 			{
@@ -45,12 +69,10 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	})
 
 	.openapi(seriesRoute.searchSeries, async (c) => {
-		const { q, season_year, per_page, ...filters } = c.req.valid("query");
+		const { q, ...filters } = c.req.valid("query");
 		const page = await browseSeries({
-			...filters,
-			perPage: per_page,
+			...browseQuery(filters),
 			search: q,
-			seasonYear: season_year,
 		});
 		c.header("Cache-Control", "public, max-age=60");
 		return c.json(
@@ -217,6 +239,34 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 					count: genres.length,
 				},
 				results: genres,
+			},
+			200,
+		);
+	})
+
+	.openapi(seriesRoute.listTags, async (c) => {
+		const tags = await listTags();
+		c.header("Cache-Control", "public, max-age=86400");
+		return c.json(
+			{
+				meta: {
+					count: tags.length,
+				},
+				results: tags,
+			},
+			200,
+		);
+	})
+
+	.openapi(seriesRoute.listStudios, async (c) => {
+		const studios = await listStudios(c.req.valid("query").q);
+		c.header("Cache-Control", "public, max-age=3600");
+		return c.json(
+			{
+				meta: {
+					count: studios.length,
+				},
+				results: studios,
 			},
 			200,
 		);

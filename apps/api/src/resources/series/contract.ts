@@ -11,6 +11,7 @@ import {
 	SeriesCardSchema,
 	SeriesImageSchema,
 	SeriesSchema,
+	TagSchema,
 	UpcomingSeriesSchema,
 	UpscaleBackdropSchema,
 } from "@sora/core/models/series";
@@ -57,17 +58,43 @@ const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(list: TList,
  * misspelled one would otherwise return the unfiltered catalog.
  */
 const BrowseParams = BrowseQuerySchema.omit({
+	excludedTags: true,
+	hideMature: true,
+	maxEpisodes: true,
+	minEpisodes: true,
+	minScore: true,
 	perPage: true,
 	search: true,
 	seasonYear: true,
+	yearFrom: true,
+	yearTo: true,
 })
 	.strict()
 	.extend({
+		countries: commaSeparated(browse.countries.unwrap(), "JP,KR"),
+		excluded_tags: commaSeparated(browse.excludedTags.unwrap(), "Harem"),
 		format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
 		genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
+		hide_mature: z
+			.enum(["true", "false"])
+			.transform((value) => value === "true")
+			.optional()
+			.openapi({
+				description: browse.hideMature.description,
+				example: true,
+				type: "boolean",
+			}),
+		max_episodes: z.coerce.number().pipe(browse.maxEpisodes.unwrap()).optional(),
+		min_episodes: z.coerce.number().pipe(browse.minEpisodes.unwrap()).optional(),
+		min_score: z.coerce.number().pipe(browse.minScore.unwrap()).optional(),
 		page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
 		per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
 		season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
+		sources: commaSeparated(browse.sources.unwrap(), "MANGA,LIGHT_NOVEL"),
+		studios: commaSeparated(browse.studios.unwrap(), "MAPPA,WIT STUDIO"),
+		tags: commaSeparated(browse.tags.unwrap(), "Isekai,Female Protagonist"),
+		year_from: z.coerce.number().pipe(browse.yearFrom.unwrap()).optional(),
+		year_to: z.coerce.number().pipe(browse.yearTo.unwrap()).optional(),
 	});
 
 /** {@link BrowseParams} with the search text, which is required. */
@@ -383,6 +410,41 @@ export const seriesRoute = {
 			),
 		},
 		summary: "List anime seasons",
+		tags: ["Series"],
+	}),
+	listStudios: createRoute({
+		description:
+			"The main studios of titles Sora can play, those with the most titles first, at most 30. Pass one to `browseSeries` in `studios`.",
+		method: "get",
+		operationId: "listStudios",
+		path: "/studios",
+		request: {
+			query: z
+				.object({
+					q: z.string().trim().min(1).max(100).optional().openapi({
+						description: "Only studios whose name contains this, ignoring case.",
+						example: "wit",
+					}),
+				})
+				.strict(),
+		},
+		responses: {
+			200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Studio names."),
+			422: problem("The query is invalid."),
+		},
+		summary: "List studios",
+		tags: ["Series"],
+	}),
+	listTags: createRoute({
+		description:
+			"Every tag titles can be browsed by, such as Isekai or Seinen, grouped by what they describe. Tags no title Sora can play carries are left out. Pass names to `browseSeries` in `tags` or `excluded_tags`.",
+		method: "get",
+		operationId: "listTags",
+		path: "/tags",
+		responses: {
+			200: json(envelopeOf(z.array(TagSchema), CountMetaSchema), "The tags."),
+		},
+		summary: "List tags",
 		tags: ["Series"],
 	}),
 	listUpcoming: createRoute({
