@@ -227,17 +227,17 @@ describe("aboutSeries", () => {
 		expect(about().current_award).toBeNull();
 	});
 
-	test("shows AniList's whole synopsis, else the stored one", () => {
-		const whole =
-			"Koyuki keeps a wall between herself and others.\n\nThis is the story of four young people.";
+	test("shows the synopsis that says more: AniList's about-length one, else the stored one", () => {
+		const blurb =
+			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.";
 		expect(
 			about({
 				anime: {
-					story: whole,
+					blurb,
 				},
 				overview: "Koyuki keeps everyone at arm's length.",
 			}).synopsis,
-		).toBe(whole);
+		).toBe(blurb);
 		expect(
 			about({
 				overview: "Koyuki keeps everyone at arm's length.",

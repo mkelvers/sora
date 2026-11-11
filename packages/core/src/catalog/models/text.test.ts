@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { fuzzyDate, placeholder, plainText, story, synopsis } from "./text";
+import { aboutLength, fuzzyDate, placeholder, plainText, synopsis } from "./text";
 
 describe("plainText", () => {
 	test("converts line breaks, strips tags, and decodes entities", () => {
@@ -21,6 +21,17 @@ describe("plainText", () => {
 });
 
 describe("synopsis", () => {
+	test("runs one paragraph of whole sentences up to the length it is given", () => {
+		const text =
+			"Socially inept, Koyuki keeps a wall between herself and other people.\n<BR><BR>\nThen she meets Minato, a boy who keeps closing the distance.\n<BR><BR>\n(Source: Margaret, translated)";
+		expect(synopsis(text, aboutLength)).toBe(
+			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.",
+		);
+		expect(synopsis(text, 80)).toBe(
+			"Socially inept, Koyuki keeps a wall between herself and other people.",
+		);
+	});
+
 	test("keeps a text that already fits", () => {
 		const text =
 			"Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn to an alternate world. But he turns out to be reborn a slime!";
@@ -63,22 +74,6 @@ describe("synopsis", () => {
 		const result = synopsis(`${"word ".repeat(100).trim()}.`);
 		expect(result.endsWith("word…")).toBe(true);
 		expect(result.length).toBeLessThanOrEqual(320);
-	});
-});
-
-describe("story", () => {
-	test("keeps every paragraph and drops the source and the sentences naming the release", () => {
-		expect(
-			story(
-				"The second season of Ramparts of Ice. Koyuki keeps a wall between herself and others.\n<BR><BR>\nThis is the story of four confused young people!\n<BR><BR>\n(Source: Margaret, translated)",
-			),
-		).toBe(
-			"Koyuki keeps a wall between herself and others.\n\nThis is the story of four confused young people!",
-		);
-	});
-
-	test("is null when the text only names the release", () => {
-		expect(story("Part 3 of Tensei Shitara Slime Datta Ken 4th Season.")).toBeNull();
 	});
 });
 

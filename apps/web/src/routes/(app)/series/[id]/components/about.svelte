@@ -26,7 +26,7 @@
 	]}
 >
 	{#if series.synopsis}
-		<p class="text-sm leading-6 whitespace-pre-line lg:text-base lg:leading-6">{series.synopsis}</p>
+		<p class="text-sm leading-6 lg:text-base lg:leading-6">{series.synopsis}</p>
 	{/if}
 
 	<div class="text-sm leading-6 text-muted lg:col-start-2">

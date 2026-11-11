@@ -207,7 +207,7 @@ export const SeriesSchema = SeriesCardSchema.extend({
 	}),
 	synopsis: z.string().nullable().meta({
 		description:
-			"Its whole synopsis for its about section, in paragraphs split by a blank line: AniList's, else `overview` when AniList's only names the release.",
+			"Its synopsis for its about section, one paragraph of about 90 words at most: AniList's, else `overview` when that says more.",
 		example:
 			"The adventure is over but life goes on for an elf mage just beginning to learn what living is all about.",
 	}),

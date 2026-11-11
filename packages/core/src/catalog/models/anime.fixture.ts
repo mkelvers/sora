@@ -3,6 +3,7 @@ import type { Anime } from "./anime";
 /** An anime that knows nothing but its AniList ID, for tests. */
 export const anime = (id: number): Anime => ({
 	bannerUrl: null,
+	blurb: null,
 	countryOfOrigin: null,
 	coverColor: null,
 	coverUrl: null,
@@ -27,7 +28,6 @@ export const anime = (id: number): Anime => ({
 	staff: [],
 	startDate: null,
 	status: null,
-	story: null,
 	studios: [],
 	synonyms: [],
 	tags: [],

@@ -51,21 +51,19 @@ fragment AnimeDetails on Media {
 		rank
 		isMediaSpoiler
 	}
-	studios(isMain: true) {
-		nodes {
-			id
-			name
-		}
-	}
-	# The companies behind it other than its studios: its production committee,
-	# which the publisher of what it adapts sits on.
-	producers: studios(isMain: false) {
-		nodes {
-			name
+	# Every company credited: its studios (`isMain`), then the rest, its
+	# production committee, which the publisher of what it adapts sits on.
+	# Asked for once: AniList answers every alias of `studios` in a query with
+	# the first one's results, whatever their arguments.
+	studios {
+		edges {
+			isMain
+			node {
+				name
+			}
 		}
 	}
 	# Credits, most relevant first: the first 25 hold the original creator.
-	# With the producers, adds 9 to the 103 a page of 50 costs.
 	staff(perPage: 25, sort: RELEVANCE) {
 		edges {
 			role

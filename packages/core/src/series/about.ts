@@ -457,17 +457,18 @@ const creditLine = (anime: Anime) => {
 };
 
 /**
- * The fullest synopsis known: AniList's whole one, else the stored one,
- * which stands in for AniList's when that only names the release.
+ * The synopsis that says more: AniList's, cut to one paragraph of about 90
+ * words, or the stored one, which stands in for AniList's when that only
+ * names the release.
  */
-const fullSynopsis = (sources: AboutSources) => {
+const aboutSynopsis = (sources: AboutSources) => {
 	const { overview } = sources;
-	const { story } = sources.anime;
-	if (!story) {
+	const { blurb } = sources.anime;
+	if (!blurb) {
 		return overview;
 	}
 
-	return overview && overview.length > story.length ? overview : story;
+	return overview && overview.length > blurb.length ? overview : blurb;
 };
 
 /** A title's about section, worded for display; see `SeriesSchema`. */
@@ -478,5 +479,5 @@ export const aboutSeries = (sources: AboutSources) => ({
 	credit: creditLine(sources.anime),
 	current_award: currentAward(sources),
 	subtitle_languages: subtitleLanguages(sources.subtitles),
-	synopsis: fullSynopsis(sources),
+	synopsis: aboutSynopsis(sources),
 });
