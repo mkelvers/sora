@@ -85,10 +85,18 @@
 								label: "Off",
 								value: "",
 							},
-							...selected.subtitles.map((track) => ({
-								label: `${track.label}${kinds[track.kind ?? ""] ?? ""}`,
-								value: track.url,
-							})),
+							...selected.subtitles.map((track, index, tracks) => {
+								const label = `${track.label}${kinds[track.kind ?? ""] ?? ""}`;
+								const same = tracks
+									.slice(0, index)
+									.filter(
+										(other) => other.label === track.label && other.kind === track.kind,
+									).length;
+								return {
+									label: same ? `${label} ${same + 1}` : label,
+									value: track.url,
+								};
+							}),
 						],
 						select: pickSubtitle,
 						value: subtitle ?? "",
@@ -130,6 +138,8 @@
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
+	const columns = 8;
+	const wide = $derived((open?.options.length ?? 0) > columns);
 
 	let content = $state<HTMLElement>();
 
@@ -168,7 +178,10 @@
 	bind:this={content}
 	role="menu"
 	aria-label={open?.label ?? "Settings"}
-	class="inset-auto m-0 max-h-(--melt-popover-available-height) min-w-60 flex-col overflow-y-auto border-none bg-raised/95 text-sm shadow-lg select-none open:flex"
+	class={cn(
+		"inset-auto m-0 max-h-[min(var(--melt-popover-available-height),28rem)] min-w-60 flex-col overflow-y-auto overscroll-contain border-none bg-raised/95 text-sm shadow-lg select-none open:flex",
+		wide && "sm:w-104",
+	)}
 	onkeydown={moveMenuFocus}
 	onpointermove={(event) => {
 		const target = (event.target as HTMLElement).closest<HTMLElement>("button, label");
@@ -183,7 +196,7 @@
 	{#if open}
 		<Button
 			variant="item"
-			class="pl-3"
+			class="sticky top-0 z-10 shrink-0 bg-raised pl-3 font-semibold text-foreground"
 			role="menuitem"
 			aria-label="Back to settings"
 			onclick={() => (submenu = undefined)}
@@ -191,19 +204,26 @@
 			<CaretLeftIcon size="1.25rem" />
 			{open.label}
 		</Button>
-		{#each open.options as option (option.value)}
-			<Button
-				role="menuitemradio"
-				aria-checked={option.value === open.value}
-				variant="item"
-				onclick={() => {
-					open.select(option.value);
-					submenu = undefined;
-				}}
-			>
-				{option.label}
-			</Button>
-		{/each}
+		<div
+			class={cn("grid grid-cols-1", wide && "sm:grid-cols-2")}
+			role="group"
+			aria-label={open.label}
+		>
+			{#each open.options as option (option.value)}
+				<Button
+					role="menuitemradio"
+					aria-checked={option.value === open.value}
+					variant="item"
+					class="min-w-0"
+					onclick={() => {
+						open.select(option.value);
+						submenu = undefined;
+					}}
+				>
+					<span class="truncate">{option.label}</span>
+				</Button>
+			{/each}
+		</div>
 	{:else}
 		<Switch
 			role="menuitemcheckbox"

@@ -1,4 +1,5 @@
 import { browser } from "$app/env";
+import { goto } from "$app/navigation";
 import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
@@ -104,7 +105,20 @@ export class Player {
 	#reloaded = -Infinity;
 	#instance: Hls | undefined;
 
-	constructor(start: number, quality: number | null) {
+	#episodes: () => {
+		next?: string;
+		previous?: string;
+	};
+
+	constructor(
+		start: number,
+		quality: number | null,
+		episodes: () => {
+			next?: string;
+			previous?: string;
+		},
+	) {
+		this.#episodes = episodes;
 		this.time = start;
 		this.#resume = start;
 
@@ -196,6 +210,7 @@ export class Player {
 		}
 
 		const toggle = () => (this.paused = !this.paused);
+		const { next, previous } = this.#episodes();
 		const action =
 			{
 				" ": toggle,
@@ -203,6 +218,8 @@ export class Player {
 				ArrowLeft: () => (this.time -= 10),
 				ArrowRight: () => (this.time += 10),
 				ArrowUp: () => this.nudgeVolume(0.1),
+				N: next ? () => goto(next) : undefined,
+				P: previous ? () => goto(previous) : undefined,
 				f: this.toggleFullscreen,
 				j: () => (this.time -= 10),
 				k: toggle,

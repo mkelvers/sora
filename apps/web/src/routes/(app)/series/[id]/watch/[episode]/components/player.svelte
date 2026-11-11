@@ -69,6 +69,10 @@
 	const player = new Player(
 		untrack(() => start),
 		untrack(() => preferences.quality),
+		() => ({
+			next,
+			previous,
+		}),
 	);
 
 	$effect(() => player.setQuality(preferences.quality));
@@ -296,21 +300,21 @@
 	</div>
 
 	<header
-		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.85),rgb(0_0_0/0.4)_60%,transparent)] px-4 pt-4 pb-12 transition-opacity duration-200 text-shadow-md in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
+		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.6),transparent)] px-4 pt-4 pb-10 transition-opacity duration-200 text-shadow-md in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0 sm:bg-[linear-gradient(rgb(0_0_0/0.45),transparent)]"
 	>
 		<Button href={back} variant="icon" aria-label="Back to {series.title}">
 			<ArrowLeftIcon size="1.5rem" weight="bold" />
 		</Button>
-		<div class="min-w-0">
-			<h1 class="text-lg font-normal sm:text-xl">{heading}</h1>
-			<p class="mt-0.5 text-sm text-foreground/90">{series.title}</p>
+		<div class="min-w-0 sm:hidden" aria-hidden="true">
+			<p class="truncate text-base font-semibold">{series.title}</p>
+			<p class="truncate text-sm text-foreground/80">{heading}</p>
 		</div>
 	</header>
 
 	<footer
 		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
 	>
-		<Controls {player} {previous} {next}>
+		<Controls {player} {previous} {next} series={series.title} episode={heading}>
 			<Settings
 				media={playback?.media ?? []}
 				{selected}

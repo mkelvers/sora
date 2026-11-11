@@ -74,7 +74,7 @@
 	});
 </script>
 
-<header class="fixed inset-x-0 top-0 z-50 h-14 bg-raised">
+<header class="fixed inset-x-0 top-0 z-50 h-14 bg-raised [view-transition-name:site-header]">
 	<nav class="group/nav flex h-full items-center justify-end" aria-label="Primary">
 		<div class="h-full sm:hidden">
 			<Dropdown

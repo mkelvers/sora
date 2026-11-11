@@ -103,6 +103,22 @@
 		font-synthesis: none;
 		overflow-wrap: anywhere;
 		text-rendering: optimizeLegibility;
+
+		@media (min-width: 80rem) and (max-width: 104.99rem) {
+			font-size: 93.75%;
+		}
+
+		@media (min-width: 130rem) {
+			font-size: 112.5%;
+		}
+
+		@media (min-width: 160rem) {
+			font-size: 125%;
+		}
+
+		@media (min-width: 200rem) {
+			font-size: 150%;
+		}
 	}
 
 	img,
@@ -158,8 +174,32 @@
 	}
 }
 
+@layer base {
+	::view-transition-old(root) {
+		animation: view-out 80ms cubic-bezier(0.23, 1, 0.32, 1) both;
+	}
+
+	::view-transition-new(root) {
+		animation: view-in 140ms cubic-bezier(0.23, 1, 0.32, 1) both;
+	}
+
+	@keyframes view-out {
+		to {
+			opacity: 0;
+		}
+	}
+
+	@keyframes view-in {
+		from {
+			opacity: 0;
+		}
+	}
+}
+
 @layer components {
 	.home-hero-slide {
+		clip-path: inset(0 0 2px 0);
+
 		&::before {
 			content: "";
 			z-index: 10;
@@ -207,15 +247,24 @@
 				radial-gradient(ellipse at 100% 0%, rgb(0 0 0 / 0.45), transparent 38%),
 				radial-gradient(ellipse at 100% 100%, rgb(0 0 0 / 0.45), transparent 38%),
 				linear-gradient(to left, rgb(0 0 0 / 0.4), transparent 14%),
-				linear-gradient(to right, rgb(0 0 0 / 0.58), transparent 38%);
+				linear-gradient(
+					to right,
+					rgb(0 0 0 / 0.78) 0,
+					rgb(0 0 0 / 0.66) 24rem,
+					rgb(0 0 0 / 0.36) 40rem,
+					rgb(0 0 0 / 0.12) 52rem,
+					transparent 62rem
+				);
 		}
 
 		&::after {
 			background-image: linear-gradient(
 				to top,
 				rgb(0 0 0 / 1) 0%,
-				rgb(0 0 0 / 0.72) 9%,
-				transparent 34%
+				rgb(0 0 0 / 0.86) 10%,
+				rgb(0 0 0 / 0.6) 24%,
+				rgb(0 0 0 / 0.26) 40%,
+				transparent 56%
 			);
 		}
 	}
