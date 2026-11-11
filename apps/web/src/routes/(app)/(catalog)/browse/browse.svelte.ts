@@ -87,29 +87,10 @@ export const lengths = [
 		value: "medium",
 	},
 	{
-		label: "27 episodes or more",
+		label: "27+ episodes",
 		max: undefined,
 		min: 27,
 		value: "long",
-	},
-] as const;
-
-export const tagGroups = [
-	{
-		label: "Demographics",
-		value: "demographic",
-	},
-	{
-		label: "Themes",
-		value: "theme",
-	},
-	{
-		label: "Settings",
-		value: "setting",
-	},
-	{
-		label: "Cast",
-		value: "cast",
 	},
 ] as const;
 

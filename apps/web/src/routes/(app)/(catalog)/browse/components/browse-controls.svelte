@@ -5,12 +5,9 @@
 	import { cn } from "$lib/utils";
 	import { browseHref, noFilters, sorts } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
-	import { CaretDownIcon, FunnelIcon, ListBulletsIcon } from "phosphor-svelte";
+	import { FunnelIcon, ListBulletsIcon } from "phosphor-svelte";
 
-	import GenreOptions from "./genre-options.svelte";
-	import MoreOptions from "./more-options.svelte";
-	import StudioOptions from "./studio-options.svelte";
-	import TagOptions from "./tag-options.svelte";
+	import FilterOptions from "./filter-options.svelte";
 
 	let {
 		filters,
@@ -25,7 +22,7 @@
 	let draft = $state<BrowseFilters>(noFilters);
 
 	const current = $derived(sorts.find((sort) => sort.value === filters.sort) ?? sorts[0]);
-	const narrowed = $derived(
+	const filtered = $derived(
 		!!filters.audio ||
 			!!filters.format ||
 			filters.decade !== undefined ||
@@ -34,12 +31,9 @@
 			filters.sources.length > 0 ||
 			filters.hideMature,
 	);
-	const filtered = $derived(
-		narrowed || filters.genres.length > 0 || filters.tags.length > 0 || filters.studios.length > 0,
-	);
 </script>
 
-<div class="flex flex-wrap items-center gap-1 max-sm:hidden">
+<div class="flex items-center gap-1 max-sm:hidden">
 	<Dropdown variant="toolbar" class="w-52" label="Sort anime, {current.label} selected">
 		{#snippet trigger()}
 			<ListBulletsIcon size="1.2rem" weight="bold" />
@@ -65,51 +59,20 @@
 		{/snippet}
 	</Dropdown>
 
-	<Dropdown variant="toolbar" class="w-[min(28rem,calc(100vw-2rem))]" label="Filter by genre">
-		{#snippet trigger()}
-			<span class={cn(filters.genres.length && "text-accent-secondary")}>Genres</span>
-			<CaretDownIcon size="1rem" weight="fill" />
-		{/snippet}
-
-		{#snippet children()}
-			<GenreOptions {filters} {onchange} scope="menu" />
-		{/snippet}
-	</Dropdown>
-
-	<Dropdown variant="toolbar" class="w-72" label="Filter by tag">
-		{#snippet trigger()}
-			<span class={cn(filters.tags.length && "text-accent-secondary")}>Tags</span>
-			<CaretDownIcon size="1rem" weight="fill" />
-		{/snippet}
-
-		{#snippet children()}
-			<TagOptions {filters} {onchange} scope="menu" />
-		{/snippet}
-	</Dropdown>
-
-	<Dropdown variant="toolbar" class="w-72" label="Filter by studio">
-		{#snippet trigger()}
-			<span class={cn(filters.studios.length && "text-accent-secondary")}>Studios</span>
-			<CaretDownIcon size="1rem" weight="fill" />
-		{/snippet}
-
-		{#snippet children()}
-			<StudioOptions {filters} {onchange} scope="menu" />
-		{/snippet}
-	</Dropdown>
-
 	<Dropdown
 		variant="toolbar"
-		class="max-h-[min(70vh,40rem)] w-60 scrollbar-thin overflow-y-auto"
+		class="max-h-[calc(100dvh-10rem)] w-[min(52rem,calc(100vw-2rem))] scrollbar-thin overflow-y-auto"
 		label="Filter anime"
 	>
 		{#snippet trigger()}
-			<FunnelIcon size="1.2rem" weight="bold" class={cn(narrowed && "text-accent-secondary")} />
-			<span class={cn(narrowed && "text-accent-secondary")}>Filter</span>
+			<FunnelIcon size="1.2rem" weight="bold" class={cn(filtered && "text-accent-secondary")} />
+			<span class={cn(filtered && "text-accent-secondary")}>Filter</span>
 		{/snippet}
 
 		{#snippet children()}
-			<MoreOptions {filters} {onchange} scope="menu" />
+			<div role="group" aria-label="Filter anime" class="grid grid-cols-2 py-2 lg:grid-cols-4">
+				<FilterOptions {filters} {onchange} scope="menu" />
+			</div>
 		{/snippet}
 	</Dropdown>
 </div>
@@ -157,13 +120,7 @@
 </Sheet>
 
 <Sheet bind:open={filtering} id="browse-filter" title="Filter">
-	<p class="px-5 pt-3 pb-2 text-base font-bold text-foreground">Genres</p>
-	<GenreOptions filters={draft} onchange={(next) => (draft = next)} scope="sheet" />
-	<p class="px-5 pt-3 text-base font-bold text-foreground">Tags</p>
-	<TagOptions filters={draft} onchange={(next) => (draft = next)} scope="sheet" />
-	<p class="px-5 pt-3 text-base font-bold text-foreground">Studios</p>
-	<StudioOptions filters={draft} onchange={(next) => (draft = next)} scope="sheet" />
-	<MoreOptions filters={draft} onchange={(next) => (draft = next)} scope="sheet" />
+	<FilterOptions filters={draft} onchange={(next) => (draft = next)} scope="sheet" />
 
 	{#snippet footer()}
 		<Button

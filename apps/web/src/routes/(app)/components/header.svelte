@@ -6,7 +6,7 @@
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
 	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
-	import { getGenres, getTags } from "$routes/(app)/(catalog)/catalog.remote";
+	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
 	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
@@ -33,34 +33,8 @@
 
 	const unread = getUnreadNotifications();
 	const genres = getGenres();
-	const tags = getTags();
 
-	const categories = $derived([
-		{
-			id: "genres",
-			label: "Genres",
-			links: (genres.current ?? []).map((genre) => ({
-				href: browseHref({
-					genres: [genre],
-				}),
-				label: genre,
-			})),
-		},
-		{
-			id: "demographics",
-			label: "Demographics",
-			links: (tags.current ?? [])
-				.filter((tag) => tag.group === "demographic")
-				.map((tag) => ({
-					href: browseHref({
-						tags: [tag.name],
-					}),
-					label: tag.name,
-				})),
-		},
-	]);
-
-	let expanded = $state(false);
+	let categories = $state(false);
 
 	const sections = [
 		{
@@ -78,19 +52,22 @@
 		},
 	];
 
+	const overviews = [
+		{
+			href: "/browse",
+			label: "Browse all anime",
+		},
+		{
+			href: "/categories",
+			label: "All categories",
+		},
+	];
+
 	const links = [
 		...sections,
 		{
 			href: "/calendar",
 			label: "Release Calendar",
-		},
-		{
-			href: "/browse",
-			label: "Browse All",
-		},
-		{
-			href: "/categories",
-			label: "All Categories",
 		},
 	];
 
@@ -138,45 +115,41 @@
 							<Button
 								variant="item"
 								class="justify-between font-normal aria-expanded:text-muted"
-								aria-expanded={expanded}
-								aria-controls="menu-categories"
+								aria-expanded={categories}
+								aria-controls="menu-genres"
 								onclick={(event: MouseEvent) => {
 									event.stopPropagation();
-									expanded = !expanded;
+									categories = !categories;
 								}}
 							>
 								Categories
 								<CaretDownIcon
 									size="1rem"
 									weight="fill"
-									class={cn("transition-transform", expanded && "rotate-180")}
+									class={cn("transition-transform", categories && "rotate-180")}
 								/>
 							</Button>
-							{#if expanded}
-								<ul id="menu-categories" class="bg-[rgb(65_65_65/0.502)]">
-									{#each categories as category (category.id)}
+							{#if categories}
+								<ul id="menu-genres" class="bg-[rgb(65_65_65/0.502)]">
+									{#each genres.current ?? [] as genre (genre)}
+										{@const href = browseHref({
+											genres: [genre],
+										})}
 										<li>
-											<h2 id="menu-{category.id}" class="px-9 pt-3 pb-1 text-sm text-subtle">
-												{category.label}
-											</h2>
-											<ul aria-labelledby="menu-{category.id}">
-												{#each category.links as link (link.href)}
-													<li>
-														<Button
-															href={link.href}
-															variant="item"
-															class="pl-9"
-															aria-current={current(link.href)}
-														>
-															{link.label}
-														</Button>
-													</li>
-												{/each}
-											</ul>
+											<Button {href} variant="item" class="pl-9" aria-current={current(href)}>
+												{genre}
+											</Button>
 										</li>
 									{/each}
 								</ul>
 							{/if}
+						</li>
+						<li class="flex flex-wrap gap-x-6 px-5 pt-2">
+							{#each overviews as overview (overview.href)}
+								<Button href={overview.href} variant="link" aria-current={current(overview.href)}>
+									{overview.label}
+								</Button>
+							{/each}
 						</li>
 					</ul>
 				{/snippet}
@@ -203,42 +176,44 @@
 				</li>
 			{/each}
 			<li class="h-full">
-				<Dropdown
-					variant="nav"
-					alignment="left"
-					class="w-[min(48rem,calc(100vw-2rem))] bg-surface open:flex-row"
-				>
+				<Dropdown variant="nav" alignment="left" class="w-[min(48rem,calc(100vw-2rem))] bg-surface">
 					{#snippet trigger()}
 						Categories
 						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
 					{#snippet children()}
-						<ul class="w-56 shrink-0 py-2">
-							{#each links as section (section.href)}
-								<li>
-									<Button href={section.href} variant="item" aria-current={current(section.href)}>
-										{section.label}
-									</Button>
-								</li>
-							{/each}
-						</ul>
-						<div class="min-w-0 flex-1 py-2">
-							{#each categories as category (category.id)}
-								<section aria-labelledby="header-{category.id}">
-									<h2 id="header-{category.id}" class="px-5 pt-2 pb-1 text-sm text-subtle">
-										{category.label}
-									</h2>
-									<ul class="grid grid-cols-2 lg:grid-cols-3">
-										{#each category.links as link (link.href)}
-											<li>
-												<Button href={link.href} variant="item" aria-current={current(link.href)}>
-													{link.label}
-												</Button>
-											</li>
-										{/each}
-									</ul>
-								</section>
+						<div class="flex">
+							<ul class="w-56 shrink-0 py-2">
+								{#each links as section (section.href)}
+									<li>
+										<Button href={section.href} variant="item" aria-current={current(section.href)}>
+											{section.label}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+							<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
+								<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
+								<ul class="grid grid-cols-2 lg:grid-cols-3">
+									{#each genres.current ?? [] as genre (genre)}
+										{@const href = browseHref({
+											genres: [genre],
+										})}
+										<li>
+											<Button {href} variant="item" aria-current={current(href)}>
+												{genre}
+											</Button>
+										</li>
+									{/each}
+								</ul>
+							</section>
+						</div>
+						<div class="flex gap-8 px-5 pb-3">
+							{#each overviews as overview (overview.href)}
+								<Button href={overview.href} variant="link" aria-current={current(overview.href)}>
+									{overview.label}
+								</Button>
 							{/each}
 						</div>
 					{/snippet}
