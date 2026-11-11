@@ -117,6 +117,20 @@ const awardLines = (anime: Anime, awards: readonly TitleAward[]) => {
 	];
 };
 
+/**
+ * The award it won this year, else the one it is nominated for, as
+ * {@link awardLines} words it; `null` when this year has none.
+ */
+const currentAward = (anime: Anime, awards: readonly TitleAward[]) => {
+	const year = new Date().getUTCFullYear();
+	return (
+		awardLines(
+			anime,
+			awards.filter((award) => award.year === year),
+		)[0] ?? null
+	);
+};
+
 /** Ages each MyAnimeList rating is for, and what it warns of. */
 const ageRatings: Record<AgeRating, { age: string; descriptors: string[] }> = {
 	G: {
@@ -320,10 +334,52 @@ const contentRating = (sources: AboutSources) => {
 const creatorRole = /^Original (?:Creator|Story)\b/u;
 
 /**
- * A credit line in the style of a copyright notice, such as `© Mizuho
- * Kusanagi/Studio Pierrot`: who created the original work, as AniList
- * credits them, then the studios that made the anime. Assembled from
- * credits, not the rights holders' own notice, which no provider carries.
+ * Publishers of manga, light novels, and games that sit on the production
+ * committees of what they publish, as AniList names them.
+ */
+const publishers = new Set([
+	"Akita Shoten",
+	"AlphaPolis",
+	"ASCII Media Works",
+	"Coamix",
+	"Earth Star Entertainment",
+	"Enterbrain",
+	"Fujimi Shobo",
+	"Futabasha",
+	"Hakusensha",
+	"Hobby Japan",
+	"Houbunsha",
+	"Ichijinsha",
+	"Imagica Infos",
+	"Kadokawa",
+	"KADOKAWA",
+	"Kadokawa Shoten",
+	"Kodansha",
+	"Mag Garden",
+	"Media Factory",
+	"Micro Magazine",
+	"Overlap",
+	"SB Creative",
+	"Shinchosha",
+	"Shogakukan",
+	"Shueisha",
+	"Shufu to Seikatsusha",
+	"Shufunotomo",
+	"Square Enix",
+	"Takeshobo",
+	"TO Books",
+]);
+
+/**
+ * A copyright line in the pattern anime carry, such as `© Mizuho Kusanagi,
+ * Hakusensha/“Yona of the Dawn” Production Committee`: who created the
+ * original work, its publisher when it sits on the production committee
+ * (see {@link publishers}), then the committee, which is named after the
+ * title. An anime not from Japan has no committee and names its studios
+ * instead, and one adapting nothing names its studios as the creator.
+ *
+ * Assembled from AniList's credits: no provider carries the rights holders'
+ * own notice, so the committee's name is the usual one, not a quoted one.
  */
 const creditLine = (anime: Anime) => {
 	const creators = [
@@ -331,8 +387,16 @@ const creditLine = (anime: Anime) => {
 			anime.staff.filter((credit) => creatorRole.test(credit.role)).map((credit) => credit.name),
 		),
 	];
-	const parties = [creators, anime.studios].flatMap((names) =>
-		names.length > 0 ? [names.join(", ")] : [],
+	const publisher = anime.producers.find((producer) => publishers.has(producer));
+	const studios = anime.studios.join(", ");
+	const owners = [
+		...(creators.length > 0 ? creators : anime.studios),
+		...(publisher ? [publisher] : []),
+	];
+	const japanese = (anime.countryOfOrigin ?? "JP") === "JP";
+	const maker = japanese ? `“${anime.title.display}” Production Committee` : studios;
+	const parties = [owners.join(", "), ...(maker === owners.join(", ") ? [] : [maker])].filter(
+		Boolean,
 	);
 	return parties.length > 0 ? `© ${parties.join("/")}` : null;
 };
@@ -343,5 +407,6 @@ export const aboutSeries = (sources: AboutSources) => ({
 	awards: awardLines(sources.anime, sources.awards),
 	content_rating: contentRating(sources),
 	credit: creditLine(sources.anime),
+	current_award: currentAward(sources.anime, sources.awards),
 	subtitle_languages: subtitleLanguages(sources.subtitles),
 });

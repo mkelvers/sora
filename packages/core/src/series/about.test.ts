@@ -142,25 +142,74 @@ describe("aboutSeries", () => {
 		});
 	});
 
-	test("credits the original work's creator, then the studios, as a copyright notice does", () => {
+	test("words the copyright as author, publisher, and production committee", () => {
+		const yona = {
+			producers: ["TOKYO MX", "Hakusensha", "VAP"],
+			staff: [
+				{
+					name: "Mizuho Kusanagi",
+					role: "Original Creator",
+				},
+				{
+					name: "Kazuhiro Yoneda",
+					role: "Director",
+				},
+			],
+			studios: ["Studio Pierrot"],
+			title: {
+				display: "Yona of the Dawn",
+				english: "Yona of the Dawn",
+				native: null,
+				romaji: null,
+			},
+		};
+
+		expect(about({ anime: yona }).credit).toBe(
+			"© Mizuho Kusanagi, Hakusensha/“Yona of the Dawn” Production Committee",
+		);
 		expect(
 			about({
 				anime: {
-					staff: [
-						{
-							name: "Mizuho Kusanagi",
-							role: "Original Creator",
-						},
-						{
-							name: "Kazuhiro Yoneda",
-							role: "Director",
-						},
-					],
-					studios: ["Studio Pierrot"],
+					...yona,
+					producers: [],
+					staff: [],
+				},
+			}).credit,
+		).toBe("© Studio Pierrot/“Yona of the Dawn” Production Committee");
+		expect(
+			about({
+				anime: {
+					...yona,
+					countryOfOrigin: "CN",
+					producers: [],
 				},
 			}).credit,
 		).toBe("© Mizuho Kusanagi/Studio Pierrot");
-		expect(about({ anime: { studios: ["Kyoto Animation"] } }).credit).toBe("© Kyoto Animation");
-		expect(about().credit).toBeNull();
+	});
+
+	test("picks this year's award, a win over a nomination", () => {
+		const year = new Date().getUTCFullYear();
+		expect(
+			about({
+				awards: [
+					{
+						name: "Seiyu Awards",
+						won: false,
+						year,
+					},
+					{
+						name: "10th Crunchyroll Anime Awards",
+						won: true,
+						year,
+					},
+					{
+						name: "Tokyo Anime Award",
+						won: true,
+						year: year - 1,
+					},
+				],
+			}).current_award,
+		).toBe(`${year} Crunchyroll Anime Awards Winner`);
+		expect(about().current_award).toBeNull();
 	});
 });

@@ -241,8 +241,8 @@ export const refreshStaleAnime = async () => {
 			anilistId: animeTable.anilistId,
 		})
 		.from(animeTable)
-		// `staff` is the newest field the fragment asks for.
-		.where(sql`not (${animeTable.media} ? 'staff')`)
+		// `producers` is the newest field the fragment asks for.
+		.where(sql`not (${animeTable.media} ? 'producers')`)
 		.limit(staleBatch);
 	const gone: number[] = [];
 	await Promise.all(
@@ -257,7 +257,7 @@ export const refreshStaleAnime = async () => {
 		await db
 			.update(animeTable)
 			.set({
-				media: sql`${animeTable.media} || '{"staff":{"edges":[]}}'::jsonb`,
+				media: sql`${animeTable.media} || '{"producers":{"nodes":[]},"staff":{"edges":[]}}'::jsonb`,
 			})
 			.where(inArray(animeTable.anilistId, gone));
 	}

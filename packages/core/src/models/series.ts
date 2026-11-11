@@ -155,8 +155,13 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		}),
 	credit: z.string().nullable().meta({
 		description:
-			"A credit line in the style of a copyright notice: who created the original work, then the studios that made the title. Assembled from AniList's credits, not the rights holders' own notice.",
-		example: "© Hajime Isayama/WIT STUDIO",
+			"A copyright line in the pattern anime carry: who created the original work, its publisher, and the production committee. Assembled from AniList's credits, not the rights holders' own notice.",
+		example: "© Hajime Isayama, Kodansha/“Attack on Titan” Production Committee",
+	}),
+	current_award: z.string().nullable().meta({
+		description:
+			"The award it won this year, else the one it is nominated for, to show with its title; null when this year has none.",
+		example: "2026 Crunchyroll Anime Awards Winner",
 	}),
 	next_episode: z
 		.object({

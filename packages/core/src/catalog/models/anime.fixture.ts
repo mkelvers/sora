@@ -17,6 +17,7 @@ export const anime = (id: number): Anime => ({
 	malId: null,
 	nextEpisode: null,
 	popularity: null,
+	producers: [],
 	recommendations: [],
 	relations: [],
 	score: null,

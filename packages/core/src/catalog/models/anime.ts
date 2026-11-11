@@ -98,6 +98,12 @@ export interface Anime extends AnimeCard {
 	endDate: string | null;
 	tags: AnimeTag[];
 	studios: string[];
+	/**
+	 * The companies behind it other than its studios, such as the publisher
+	 * of what it adapts; empty until the stored copy is fetched again with
+	 * them (see `refreshStaleAnime`).
+	 */
+	producers: string[];
 	/** The most relevant credits, at most 25; empty until the stored copy is fetched again with them (see `refreshStaleAnime`). */
 	staff: AnimeCredit[];
 	relations: AnimeRelation[];
@@ -175,6 +181,7 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	countryOfOrigin: media.countryOfOrigin,
 	description: (media.description && synopsis(media.description)) || null,
 	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
+	producers: present(media.producers?.nodes).map((producer) => producer.name),
 	recommendations: present(media.recommendations?.nodes).flatMap((node) =>
 		node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
 	),

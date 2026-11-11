@@ -42,6 +42,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 				isAdult: false,
 				nextAiringEpisode: null,
 				popularity: null,
+				producers: null,
 				recommendations: null,
 				relations: null,
 				season: null,
