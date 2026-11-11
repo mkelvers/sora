@@ -8,7 +8,7 @@
 	],
 	"type": "module",
 	"scripts": {
-		"dev": "docker compose up -d --wait && turbo run dev",
+		"dev": "bun install --frozen-lockfile && docker compose up -d --wait && turbo run dev",
 		"build": "turbo run build",
 		"check": "turbo run check",
 		"test": "turbo run test",
