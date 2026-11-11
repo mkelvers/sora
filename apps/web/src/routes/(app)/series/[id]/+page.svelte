@@ -9,6 +9,7 @@
 	import { CaretDownIcon, DotsThreeVerticalIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
+	import About from "./components/about.svelte";
 	import Episodes, { pageSize } from "./components/episodes.svelte";
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
@@ -73,11 +74,7 @@
 	<Hero {series} {progress} />
 
 	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8">
-		{#if series.overview}
-			<section aria-label="Synopsis" class="max-w-3xl text-xs leading-5 lg:text-sm lg:leading-6">
-				<p>{series.overview}</p>
-			</section>
-		{/if}
+		<About {series} />
 	</div>
 
 	<div class="px-5 sm:px-10 lg:px-16">

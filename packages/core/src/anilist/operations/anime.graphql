@@ -1,6 +1,6 @@
 # Anime details by ID. A page holds at most 50, so the IDs are split over
 # aliased pages, each taking its own; pages past the first are left out when
-# not needed. Each page costs 103 of the 500 query complexity AniList allows
+# not needed. Each page costs 112 of the 500 query complexity AniList allows
 # a request, so four fit.
 query AnimeDetails(
 	$ids0: [Int!]!

@@ -1,5 +1,5 @@
 import { day, hour, minute, defined } from "@sora/shared";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
@@ -13,7 +13,13 @@ import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/sea
 import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime as animeTable, animeSearch } from "../database/schema/catalog";
-import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
+import {
+	anikotoSeries,
+	animeScheduleRelease,
+	animeScheduleShow,
+	providerMapping,
+	seriesSubtitles,
+} from "../database/schema/playback";
 import {
 	imageEdge,
 	noArtwork,
@@ -21,7 +27,10 @@ import {
 	seriesEpisode,
 	seriesRelated,
 	titleArtwork,
+	titleFacts,
+	tmdbMapping,
 } from "../database/schema/series";
+import type { TitleAward } from "../database/schema/series";
 import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
 import type {
 	ContentLanguage,
@@ -33,7 +42,8 @@ import type {
 	SeriesCard,
 } from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
-import { scheduleSeriesStore } from "../scheduler/queue";
+import { requestSubtitleProbe, scheduleSeriesStore } from "../scheduler/queue";
+import { aboutSeries } from "./about";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
@@ -573,6 +583,110 @@ const overdueEpisode = async (
 };
 
 /**
+ * How many stored titles each of `awards` was given to, by name, which tells
+ * anime's own awards from those that once named an anime.
+ */
+const awardReachOf = async (awards: readonly TitleAward[]) => {
+	const names = [...new Set(awards.map((award) => award.name))];
+	if (names.length === 0) {
+		return new Map<string, number>();
+	}
+
+	const rows = await db.execute<{
+		name: string;
+		titles: number;
+	}>(sql`
+    select award ->> 'name' as name, count(distinct ${titleFacts.key})::int as titles
+    from ${titleFacts}, jsonb_array_elements(${titleFacts.awards}) as award
+    where award ->> 'name' in ${names}
+    group by 1
+  `);
+	return new Map(rows.map((row) => [row.name, row.titles]));
+};
+
+/** How long after a probe found no subtitles a series is looked at again. */
+const subtitleProbeRetryMs = 7 * day;
+
+/**
+ * What a title's about section is made of beyond its anime: MyAnimeList's
+ * rating of the AniKoto series it streams from, its TMDB title's facts, and
+ * the subtitles its streams were seen with. A title with a sub whose
+ * subtitles were never looked at, or found none a while ago, is queued to
+ * be looked at; the page shows them the next time it is read.
+ */
+const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[]) => {
+	const [[rated], [facts], [subtitles]] = await Promise.all([
+		db
+			.select({
+				rating: anikotoSeries.rating,
+			})
+			.from(providerMapping)
+			.innerJoin(
+				anikotoSeries,
+				sql`${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}`,
+			)
+			.where(
+				and(eq(providerMapping.anilistId, row.anilistId), eq(providerMapping.provider, "anikoto")),
+			)
+			.limit(1),
+		db
+			.select({
+				awards: titleFacts.awards,
+				certification: titleFacts.certification,
+				descriptors: titleFacts.descriptors,
+				keywords: titleFacts.keywords,
+			})
+			.from(titleFacts)
+			.where(eq(titleFacts.key, row.key))
+			.limit(1),
+		db
+			.select({
+				checkedAt: seriesSubtitles.checkedAt,
+				languages: seriesSubtitles.languages,
+			})
+			.from(seriesSubtitles)
+			.where(eq(seriesSubtitles.seriesId, row.id))
+			.limit(1),
+	]);
+
+	const unchecked =
+		!subtitles ||
+		(subtitles.languages.length === 0 &&
+			subtitles.checkedAt.getTime() < Date.now() - subtitleProbeRetryMs);
+	if (audio.includes("sub") && unchecked) {
+		await requestSubtitleProbe(row.id);
+	}
+
+	const awards = facts?.awards ?? [];
+	const [awardReach, seasons] = await Promise.all([
+		awardReachOf(awards),
+		db
+			.select({
+				startDate: series.startDate,
+			})
+			.from(series)
+			.innerJoin(tmdbMapping, eq(tmdbMapping.anilistId, series.anilistId))
+			.where(
+				and(
+					eq(series.key, row.key),
+					ne(series.id, row.id),
+					or(isNull(tmdbMapping.seasonNumber), ne(tmdbMapping.seasonNumber, 0)),
+				),
+			),
+	]);
+	return {
+		ageRating: rated?.rating ?? null,
+		awardReach,
+		awards,
+		certification: facts?.certification ?? null,
+		descriptors: facts?.descriptors ?? [],
+		keywords: facts?.keywords ?? [],
+		seasonStarts: seasons.flatMap((season) => Number(season.startDate?.slice(0, 4)) || []),
+		subtitles: subtitles?.languages ?? [],
+	};
+};
+
+/**
  * Loads a title's page: its details and the other titles of its franchise.
  *
  * Reads only the database: titles are laid out when first found, and the
@@ -614,12 +728,19 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 			.limit(1),
 	]);
 
+	const card = defined(cards.get(row.id));
+	const about = await aboutSourcesOf(row, card.audio);
 	const current = franchise.find((part) => part.series_id === row.id);
 	const seasons = franchise.filter((part) => part.role === "season");
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
-		...defined(cards.get(row.id)),
+		...card,
+		...aboutSeries({
+			...about,
+			anime,
+			audio: card.audio,
+		}),
 		backdrop_edges: found.edges,
 		genres: anime.genres,
 		// An aired episode still to come out is next until it is listed, ahead of

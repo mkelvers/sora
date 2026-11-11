@@ -1,7 +1,11 @@
+import { attempt } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { config } from "../../config";
+import { EpisodeNotFoundError, SeriesNotFoundError } from "../../errors";
+import { probeSubtitleLanguages } from "../../playback/streams/resolve";
+import { recordSubtitleLanguages } from "../../playback/streams/subtitle-languages";
 import { SubtitleRefinementError } from "../../playback/subtitles/audio";
 import { listenToDub } from "../../playback/subtitles/listen";
 import { getRefinement, isRefinementDue, saveRefinement } from "../../playback/subtitles/store";
@@ -37,4 +41,34 @@ export const refineSubtitles: Task = async (payload) => {
 		key,
 	);
 	await saveRefinement(key, refinement);
+};
+
+const ProbePayloadSchema = z.object({
+	seriesId: z.string().min(1),
+});
+
+/**
+ * Looks at which subtitle languages a series' first episode streams with,
+ * for a series nobody has played yet; see `probeSubtitleLanguages`. A series
+ * without a first episode stores none, so it is not asked about again.
+ */
+export const probeSubtitles: Task = async (payload, helpers) => {
+	const { seriesId } = parsePayload(ProbePayloadSchema, payload);
+	const { data, error } = await attempt(
+		probeSubtitleLanguages({
+			episode: 1,
+			seriesId,
+		}),
+		EpisodeNotFoundError,
+		SeriesNotFoundError,
+	);
+	if (error instanceof EpisodeNotFoundError) {
+		await recordSubtitleLanguages(seriesId, []);
+	}
+	if (error) {
+		helpers.logger.info(`No subtitles to look at for ${seriesId}: ${error.message}`);
+		return;
+	}
+
+	helpers.logger.info(`${seriesId} has subtitles in ${data.join(", ") || "no language"}`);
 };

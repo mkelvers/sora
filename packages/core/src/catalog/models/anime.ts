@@ -79,6 +79,13 @@ export interface AnimeTag {
 	spoiler: boolean;
 }
 
+/** Someone AniList credits for the anime, such as its director. */
+export interface AnimeCredit {
+	/** As AniList words it, such as `Director` or `Director (eps 1-278)`. */
+	role: string;
+	name: string;
+}
+
 /** Everything needed to render an anime's detail screen. */
 export interface Anime extends AnimeCard {
 	synonyms: string[];
@@ -91,6 +98,14 @@ export interface Anime extends AnimeCard {
 	endDate: string | null;
 	tags: AnimeTag[];
 	studios: string[];
+	/**
+	 * The companies behind it other than its studios, such as the publisher
+	 * of what it adapts; empty until the stored copy is fetched again with
+	 * them (see `refreshStaleAnime`).
+	 */
+	producers: string[];
+	/** The most relevant credits, at most 25; empty until the stored copy is fetched again with them (see `refreshStaleAnime`). */
+	staff: AnimeCredit[];
 	relations: AnimeRelation[];
 	recommendations: AnimeCard[];
 }
@@ -166,6 +181,7 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	countryOfOrigin: media.countryOfOrigin,
 	description: (media.description && synopsis(media.description)) || null,
 	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
+	producers: present(media.producers?.nodes).map((producer) => producer.name),
 	recommendations: present(media.recommendations?.nodes).flatMap((node) =>
 		node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
 	),
@@ -180,6 +196,17 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 			: [],
 	),
 	source: media.source,
+	staff: present(media.staff?.edges).flatMap((edge) => {
+		const name = edge.node?.name?.full?.trim();
+		return edge.role && name
+			? [
+					{
+						name,
+						role: edge.role,
+					},
+				]
+			: [];
+	}),
 	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
 	studios: present(media.studios?.nodes).map((studio) => studio.name),
 	synonyms: present(media.synonyms),

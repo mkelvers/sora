@@ -12,6 +12,12 @@ import {
 } from "./jobs/calls";
 import { syncProviderCatalogs, syncProviderCatalogsTask } from "./jobs/catalogs";
 import { pruneDeadJobsJob, pruneDeadJobsTask } from "./jobs/dead-jobs";
+import {
+	refreshStaleAnimeJob,
+	refreshStaleAnimeTask,
+	storeTitleFactsJob,
+	storeTitleFactsTask,
+} from "./jobs/details";
 import { syncDubSchedule, syncDubScheduleTask } from "./jobs/dubs";
 import { storeMissingBackdropEdgesJob, storeMissingBackdropEdgesTask } from "./jobs/edges";
 import { lookUpEpisodes } from "./jobs/episodes";
@@ -34,7 +40,7 @@ import {
 	storeSeriesJob,
 } from "./jobs/series";
 import { chooseEpisodeStillsJob, chooseEpisodeStillsTask } from "./jobs/stills";
-import { refineSubtitles } from "./jobs/subtitles";
+import { probeSubtitles, refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
 import { upscaleBackdropJob } from "./jobs/upscale";
 import { failInvalidPayloads } from "./payload";
@@ -44,6 +50,7 @@ import {
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
 	pollAniKotoTask,
+	probeSubtitlesTask,
 	refineSubtitlesTask,
 	seriesStorePriority,
 	storeSeriesNowTask,
@@ -124,6 +131,10 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`40 * * * * ${storeFeaturedImagesTask} ?priority=-1`,
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
+			// Five AniList requests a run until every stored anime has been fetched
+			// with the fields added last, then none.
+			`*/10 * * * * ${refreshStaleAnimeTask} ?priority=5`,
+			`50 * * * * ${storeTitleFactsTask} ?priority=5`,
 		].join("\n"),
 		taskList: failInvalidPayloads(
 			prioritized(
@@ -146,6 +157,8 @@ export const startScheduler = async (): Promise<Scheduler> => {
 					[storeFeaturedImagesTask]: storeFeaturedImagesJob,
 					[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
 					[syncTimetablesTask]: syncTimetablesJob,
+					[refreshStaleAnimeTask]: refreshStaleAnimeJob,
+					[storeTitleFactsTask]: storeTitleFactsJob,
 				},
 				pools,
 			),
@@ -190,6 +203,11 @@ export const startScheduler = async (): Promise<Scheduler> => {
 					Math.min(helpers.job.priority, seriesStorePriority("current")),
 					async () => await lookUpEpisodes(payload, helpers),
 				);
+			},
+			// Asks the same sites as playback does, once per series, behind lookups.
+			[probeSubtitlesTask]: (payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return probeSubtitles(payload, helpers);
 			},
 		}),
 	});

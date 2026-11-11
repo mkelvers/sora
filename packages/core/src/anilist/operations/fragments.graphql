@@ -57,6 +57,25 @@ fragment AnimeDetails on Media {
 			name
 		}
 	}
+	# The companies behind it other than its studios: its production committee,
+	# which the publisher of what it adapts sits on.
+	producers: studios(isMain: false) {
+		nodes {
+			name
+		}
+	}
+	# Credits, most relevant first: the first 25 hold the original creator.
+	# With the producers, adds 9 to the 103 a page of 50 costs.
+	staff(perPage: 25, sort: RELEVANCE) {
+		edges {
+			role
+			node {
+				name {
+					full
+				}
+			}
+		}
+	}
 	relations {
 		edges {
 			relationType(version: 2)

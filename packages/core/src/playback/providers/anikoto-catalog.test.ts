@@ -12,6 +12,7 @@ const frieren = {
 	id: 6351,
 	mal_id: "52991",
 	native: "葬送のフリーレン",
+	rating: "PG-13",
 	terms_by_type: {
 		type: ["TV"],
 	},
@@ -39,6 +40,7 @@ const series = (
 	episodes: null,
 	format: null,
 	malId: null,
+	rating: null,
 	titles: [fields.title],
 	updatedAt: new Date(0),
 	year: null,
@@ -61,6 +63,7 @@ describe("parseCatalogSeries", () => {
 			episodes: 28,
 			format: "TV",
 			malId: 52_991,
+			rating: "PG-13",
 			title: "Frieren: Beyond Journey's End",
 			titles: ["Frieren: Beyond Journey's End", "Sousou no Frieren", "葬送のフリーレン"],
 			updatedAt: new Date("2024-10-18T09:15:13Z"),
@@ -74,13 +77,21 @@ describe("parseCatalogSeries", () => {
 				...frieren,
 				ani_id: "",
 				episodes: "",
+				rating: "",
 				year: null,
 			}),
 		).toMatchObject({
 			anilistId: null,
 			episodes: null,
+			rating: null,
 			year: null,
 		});
+		expect(
+			parseCatalogSeries({
+				...frieren,
+				rating: "None",
+			})?.rating,
+		).toBeNull();
 	});
 
 	test("maps AniKoto's types to AniList formats", () => {

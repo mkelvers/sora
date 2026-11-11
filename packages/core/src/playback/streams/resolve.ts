@@ -32,6 +32,7 @@ import { normalizeSkipSegments } from "./skip-lengths";
 import type { SkipSource } from "./skip-lengths";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
+import { languageName, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
 
 /** Everything a player needs to play an episode, in every version it has. */
 export interface Playback {
@@ -68,6 +69,7 @@ export interface PlaybackDependencies {
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
 	normalizeSkipSegments: typeof normalizeSkipSegments;
+	recordSubtitleLanguages: typeof recordSubtitleLanguages;
 	warmStream: typeof warmStream;
 }
 
@@ -81,6 +83,7 @@ const live: PlaybackDependencies = {
 	locateEpisode,
 	normalizeSkipSegments,
 	providers: streamProviders,
+	recordSubtitleLanguages,
 	requestRefinement,
 	segmentStarts,
 	warmStream,
@@ -233,22 +236,6 @@ const englishSubtitlesLoad = async (
 		),
 	);
 	return loads.includes(true);
-};
-
-const languageNames = new Intl.DisplayNames(["en"], {
-	type: "language",
-});
-
-/**
- * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
- * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`.
- */
-const languageName = (tag: string) => {
-	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
-	if (error) {
-		return null;
-	}
-	return data && data !== tag ? data : null;
 };
 
 const kindRank = {
@@ -742,6 +729,7 @@ export const resolvePlayback = async (
 		}),
 	);
 	if (media.length > 0) {
+		await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
 		return {
 			episode,
 			expiresAt,
@@ -759,6 +747,27 @@ export const resolvePlayback = async (
 		episode,
 		results.flatMap((result) => result.attempts),
 	);
+};
+
+/**
+ * Looks at which subtitle languages an episode's streams have, for a series
+ * nobody has played yet, and stores them as playing it would; see
+ * `seriesSubtitles`. Nothing is played, so no stream is warmed and no dub is
+ * listened to. An episode nobody can stream stores none, so the series is
+ * not looked at again until it is played.
+ *
+ * @throws {SeriesNotFoundError} when the ID does not identify a series.
+ * @throws {EpisodeNotFoundError} when the series has no such episode.
+ */
+export const probeSubtitleLanguages = async (
+	request: PlaybackRequest,
+	dependencies: PlaybackDependencies = live,
+) => {
+	const parsed = PlaybackRequestSchema.parse(request);
+	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
+	const languages = subtitleLanguagesOf(results);
+	await dependencies.recordSubtitleLanguages(parsed.seriesId, languages);
+	return languages;
 };
 
 /**

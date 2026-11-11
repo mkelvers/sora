@@ -144,6 +144,46 @@ export const titleArtwork = pgTable("title_artwork", {
 	logoUrlOverride: text("logo_url_override"),
 });
 
+/** An award a title won or was nominated for, as IMDb names it. */
+export interface TitleAward {
+	/** The award's event, such as `Crunchyroll Anime Awards`, without the country IMDb names some with. */
+	name: string;
+	/** The year of the ceremony; null when IMDb does not say. */
+	year: number | null;
+	/** Won, rather than nominated for. */
+	won: boolean;
+}
+
+/**
+ * What TMDB and, through the IMDb title TMDB links, IMDb say about a TMDB
+ * title, keyed by the `SeriesKey` its series share, as {@link titleArtwork}
+ * is: the title's US certification, what ratings and keywords say it shows,
+ * and the awards it won or was nominated for. Kept by the scheduler and
+ * fetched again after a month; see `storeTitleFacts`.
+ */
+export const titleFacts = pgTable("title_facts", {
+	awards: jsonb("awards").$type<TitleAward[]>().notNull(),
+	/** The US certification TMDB lists, such as `TV-MA` or `PG-13`; null when it lists none. */
+	certification: text("certification"),
+	/**
+	 * What any country's rating of the title warns of, as TMDB lists it, such
+	 * as `Violence` or `Fear`; few countries' ratings carry any.
+	 */
+	descriptors: text("descriptors")
+		.array()
+		.notNull()
+		.default(sql`'{}'`),
+	fetchedAt: timestamptz("fetched_at").notNull(),
+	/** The IMDb title TMDB links the title to, such as `tt2560140`. */
+	imdbId: text("imdb_id"),
+	key: text("key").primaryKey(),
+	/** TMDB's keywords for the title, such as `combat` or `gore`. */
+	keywords: text("keywords")
+		.array()
+		.notNull()
+		.default(sql`'{}'`),
+});
+
 /**
  * One episode of a series, numbered as AniList numbers the entry's
  * episodes, from 1. Its details come from the TMDB episode it was matched

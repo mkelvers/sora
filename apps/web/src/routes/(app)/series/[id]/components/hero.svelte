@@ -10,7 +10,7 @@
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series, SeriesProgress } from "@sora/sdk";
-	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
+	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, TrophyIcon } from "phosphor-svelte";
 
 	import RatingMenu from "./rating-menu.svelte";
 	import WatchlistMenu from "./watchlist-menu.svelte";
@@ -212,10 +212,24 @@
 			</p>
 		{/if}
 
+		{#if series.current_award}
+			<p
+				class={cn(
+					"flex items-center justify-center gap-2 text-sm text-foreground sm:justify-start sm:text-base",
+					next || announced ? "mt-6" : "mt-5 sm:mt-10 lg:mt-11",
+				)}
+			>
+				<TrophyIcon size="1.25em" weight="fill" class="shrink-0 text-accent" />
+				{series.current_award}
+			</p>
+		{/if}
+
 		<p
 			class={cn(
 				"flex flex-wrap items-center justify-center gap-y-1 text-sm text-muted sm:justify-start",
-				next || announced ? "mt-6" : "mt-5 sm:mt-10 lg:mt-11",
+				series.current_award && "mt-4",
+				!series.current_award && (next || announced) && "mt-6",
+				!series.current_award && !(next || announced) && "mt-5 sm:mt-10 lg:mt-11",
 			)}
 		>
 			{#if series.audio.length}

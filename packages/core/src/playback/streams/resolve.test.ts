@@ -140,6 +140,7 @@ const dependencies: PlaybackDependencies = {
 		}),
 	normalizeSkipSegments: (_seriesId, _episode, _audio, segments) => Promise.resolve(segments),
 	providers,
+	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
 	segmentStarts: (url) => Promise.resolve(timelines.get(url) ?? []),
 	warmStream: () => Promise.resolve(),

@@ -519,6 +519,27 @@
       "when": 1794066063961,
       "tag": "0073_playback_quality",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794371500495,
+      "tag": "0074_series_about",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794372450737,
+      "tag": "0075_title_content_descriptors",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794412640683,
+      "tag": "0076_title_facts_imdb",
+      "breakpoints": true
     }
   ]
 }
