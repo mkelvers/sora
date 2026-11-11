@@ -740,6 +740,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 			...about,
 			anime,
 			audio: card.audio,
+			overview: card.overview,
 		}),
 		backdrop_edges: found.edges,
 		genres: anime.genres,

@@ -102,6 +102,22 @@ export const synopsis = (value: string) => {
 	return summary;
 };
 
+/**
+ * A whole synopsis as {@link plainText}, paragraph by paragraph, without
+ * the sentences that only name the release. `null` when nothing else is left.
+ */
+export const story = (value: string) =>
+	plainText(value)
+		.split(/\n\s*\n/u)
+		.map((paragraph) =>
+			sentences(paragraph)
+				.filter((sentence) => !placeholder.test(sentence))
+				.join(" ")
+				.trim(),
+		)
+		.filter(Boolean)
+		.join("\n\n") || null;
+
 /** Formats an AniList fuzzy date as the most precise ISO 8601 prefix available. */
 export const fuzzyDate = (date: {
 	year: number | null;

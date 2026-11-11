@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { fuzzyDate, placeholder, plainText, synopsis } from "./text";
+import { fuzzyDate, placeholder, plainText, story, synopsis } from "./text";
 
 describe("plainText", () => {
 	test("converts line breaks, strips tags, and decodes entities", () => {
@@ -63,6 +63,22 @@ describe("synopsis", () => {
 		const result = synopsis(`${"word ".repeat(100).trim()}.`);
 		expect(result.endsWith("word…")).toBe(true);
 		expect(result.length).toBeLessThanOrEqual(320);
+	});
+});
+
+describe("story", () => {
+	test("keeps every paragraph and drops the source and the sentences naming the release", () => {
+		expect(
+			story(
+				"The second season of Ramparts of Ice. Koyuki keeps a wall between herself and others.\n<BR><BR>\nThis is the story of four confused young people!\n<BR><BR>\n(Source: Margaret, translated)",
+			),
+		).toBe(
+			"Koyuki keeps a wall between herself and others.\n\nThis is the story of four confused young people!",
+		);
+	});
+
+	test("is null when the text only names the release", () => {
+		expect(story("Part 3 of Tensei Shitara Slime Datta Ken 4th Season.")).toBeNull();
 	});
 });
 

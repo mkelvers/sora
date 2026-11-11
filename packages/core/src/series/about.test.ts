@@ -14,6 +14,7 @@ const about = (fields: Partial<Omit<AboutSources, "anime">> & { anime?: Partial<
 		certification: null,
 		descriptors: [],
 		keywords: [],
+		overview: null,
 		seasonStarts: [],
 		subtitles: [],
 		...fields,
@@ -224,5 +225,23 @@ describe("aboutSeries", () => {
 			}).current_award,
 		).toBe(`${year} Crunchyroll Anime Awards Winner`);
 		expect(about().current_award).toBeNull();
+	});
+
+	test("shows AniList's whole synopsis, else the stored one", () => {
+		const whole =
+			"Koyuki keeps a wall between herself and others.\n\nThis is the story of four young people.";
+		expect(
+			about({
+				anime: {
+					story: whole,
+				},
+				overview: "Koyuki keeps everyone at arm's length.",
+			}).synopsis,
+		).toBe(whole);
+		expect(
+			about({
+				overview: "Koyuki keeps everyone at arm's length.",
+			}).synopsis,
+		).toBe("Koyuki keeps everyone at arm's length.");
 	});
 });

@@ -7,6 +7,8 @@ import { languageName } from "../playback/streams/subtitle-languages";
 /** What a title's about section is made of, as stored. */
 export interface AboutSources {
 	anime: Anime;
+	/** Its stored synopsis, cut down to its premise; see `series.overview`. */
+	overview: string | null;
 	/** The audio its episodes can be watched with. */
 	audio: readonly ContentLanguage[];
 	/** BCP 47 tags of the subtitles its streams were seen with; see `seriesSubtitles`. */
@@ -454,6 +456,20 @@ const creditLine = (anime: Anime) => {
 	return parties.length > 0 ? `© ${parties.join("/")}` : null;
 };
 
+/**
+ * The fullest synopsis known: AniList's whole one, else the stored one,
+ * which stands in for AniList's when that only names the release.
+ */
+const fullSynopsis = (sources: AboutSources) => {
+	const { overview } = sources;
+	const { story } = sources.anime;
+	if (!story) {
+		return overview;
+	}
+
+	return overview && overview.length > story.length ? overview : story;
+};
+
 /** A title's about section, worded for display; see `SeriesSchema`. */
 export const aboutSeries = (sources: AboutSources) => ({
 	audio_languages: audioLanguages(sources.anime, sources.audio),
@@ -462,4 +478,5 @@ export const aboutSeries = (sources: AboutSources) => ({
 	credit: creditLine(sources.anime),
 	current_award: currentAward(sources),
 	subtitle_languages: subtitleLanguages(sources.subtitles),
+	synopsis: fullSynopsis(sources),
 });

@@ -205,6 +205,12 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			"Every subtitle language any of its streams was seen with, by English name, English first. Empty until a stream of it has been looked at.",
 		example: ["English", "Brazilian Portuguese", "Spanish"],
 	}),
+	synopsis: z.string().nullable().meta({
+		description:
+			"Its whole synopsis for its about section, in paragraphs split by a blank line: AniList's, else `overview` when AniList's only names the release.",
+		example:
+			"The adventure is over but life goes on for an elf mage just beginning to learn what living is all about.",
+	}),
 	tags: z.array(AnimeTagSchema),
 }).meta({
 	id: "Series",

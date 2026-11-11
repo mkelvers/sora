@@ -27,6 +27,7 @@ export const anime = (id: number): Anime => ({
 	staff: [],
 	startDate: null,
 	status: null,
+	story: null,
 	studios: [],
 	synonyms: [],
 	tags: [],

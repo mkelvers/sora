@@ -25,8 +25,8 @@
 		!expanded && "max-h-24 overflow-hidden mask-b-from-50%",
 	]}
 >
-	{#if series.overview}
-		<p class="text-sm leading-6 lg:text-base lg:leading-6">{series.overview}</p>
+	{#if series.synopsis}
+		<p class="text-sm leading-6 whitespace-pre-line lg:text-base lg:leading-6">{series.synopsis}</p>
 	{/if}
 
 	<div class="text-sm leading-6 text-muted lg:col-start-2">
@@ -40,7 +40,7 @@
 					<dd class="inline">
 						{#if series.content_rating.age}
 							<span
-								class="mr-1.5 inline-block -skew-x-12 bg-border px-1.5 align-[0.1em] text-[0.6875rem] leading-4 font-bold text-foreground"
+								class="mx-1.5 inline-block -skew-x-12 bg-border px-1.5 align-[0.1em] text-[0.6875rem] leading-4 font-bold text-foreground"
 							>
 								<span class="inline-block skew-x-12 italic">{series.content_rating.age}</span>
 							</span>
@@ -66,6 +66,7 @@
 					</dd>
 				</div>
 			{/if}
+			{@render row(series.studios.length > 1 ? "Studios" : "Studio", series.studios)}
 		</dl>
 		{#if series.credit}
 			<p class="mt-3 text-xs leading-6 font-bold text-subtle">{series.credit}</p>
