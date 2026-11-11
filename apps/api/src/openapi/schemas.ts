@@ -147,3 +147,27 @@ export const NotificationsReadSchema = z
 			}),
 	})
 	.openapi("NotificationsRead");
+
+/** A title, by its series ID. */
+export const SeriesParams = z.object({
+	series_id: SeriesIdParam,
+});
+
+/** Nothing to say about the response beyond its results. */
+export const EmptyMetaSchema = z.object({}).openapi("EmptyMeta");
+
+/** An episode, addressed under its series. */
+export const EpisodeParams = SeriesParams.extend({
+	episode: EpisodeNumberParam,
+});
+
+/** Routes that need a signed-in account, as a bearer token or session cookie. */
+export const signedIn = [
+	{
+		session: [],
+	},
+];
+
+export const ProfileParams = z.object({
+	profile_id: ProfileIdParam,
+});
