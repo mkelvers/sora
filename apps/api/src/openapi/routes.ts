@@ -1,9 +1,3 @@
-import { deviceRoute } from "../resources/devices/contract";
-import { notificationRoute } from "../resources/notifications/contract";
-import { nowWatchingRoute } from "../resources/now-watching/contract";
-import { playbackRoute } from "../resources/playback/contract";
-import { profileRoute } from "../resources/profiles/contract";
-import { progressRoute } from "../resources/progress/contract";
 /**
  * The contract of every `/v1` route: path, parameters, and documented
  * responses. The server validates requests against these and the OpenAPI
@@ -14,6 +8,12 @@ import { progressRoute } from "../resources/progress/contract";
  * (Kotlin, Swift). They are part of the public contract: never rename one
  * within `/v1`.
  */
+import { deviceRoute } from "../resources/devices/contract";
+import { notificationRoute } from "../resources/notifications/contract";
+import { nowWatchingRoute } from "../resources/now-watching/contract";
+import { playbackRoute } from "../resources/playback/contract";
+import { profileRoute } from "../resources/profiles/contract";
+import { progressRoute } from "../resources/progress/contract";
 import { seriesRoute } from "../resources/series/contract";
 import { transferRoute } from "../resources/transfer/contract";
 import { watchlistRoute } from "../resources/watchlist/contract";
