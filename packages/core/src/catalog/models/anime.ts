@@ -79,6 +79,13 @@ export interface AnimeTag {
 	spoiler: boolean;
 }
 
+/** Someone AniList credits for the anime, such as its director. */
+export interface AnimeCredit {
+	/** As AniList words it, such as `Director` or `Director (eps 1-278)`. */
+	role: string;
+	name: string;
+}
+
 /** Everything needed to render an anime's detail screen. */
 export interface Anime extends AnimeCard {
 	synonyms: string[];
@@ -91,6 +98,8 @@ export interface Anime extends AnimeCard {
 	endDate: string | null;
 	tags: AnimeTag[];
 	studios: string[];
+	/** The most relevant credits, at most 25; empty until the stored copy is fetched again with them (see `refreshStaleAnime`). */
+	staff: AnimeCredit[];
 	relations: AnimeRelation[];
 	recommendations: AnimeCard[];
 }
@@ -180,6 +189,17 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 			: [],
 	),
 	source: media.source,
+	staff: present(media.staff?.edges).flatMap((edge) => {
+		const name = edge.node?.name?.full?.trim();
+		return edge.role && name
+			? [
+					{
+						name,
+						role: edge.role,
+					},
+				]
+			: [];
+	}),
 	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
 	studios: present(media.studios?.nodes).map((studio) => studio.name),
 	synonyms: present(media.synonyms),

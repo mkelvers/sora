@@ -47,6 +47,7 @@ describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short tit
 				season: null,
 				seasonYear: null,
 				source: null,
+				staff: null,
 				startDate: null,
 				status: "FINISHED",
 				studios: null,

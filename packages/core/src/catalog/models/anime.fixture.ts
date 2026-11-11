@@ -23,6 +23,7 @@ export const anime = (id: number): Anime => ({
 	season: null,
 	seasonYear: null,
 	source: null,
+	staff: [],
 	startDate: null,
 	status: null,
 	studios: [],

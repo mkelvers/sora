@@ -324,6 +324,27 @@ export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
   `);
 };
 
+/** The graphile-worker task that looks at a series' subtitle languages; see `probeSubtitleLanguages`. */
+export const probeSubtitlesTask = "probe-subtitles";
+
+/**
+ * Asks for a look at which subtitle languages a series' streams have, unless
+ * that is already queued. It waits behind episode lookups, which share its
+ * workers, since nobody waits on it.
+ */
+export const requestSubtitleProbe = async (seriesId: string) => {
+	await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${probeSubtitlesTask},
+      payload => json_build_object('seriesId', ${seriesId}::text),
+      job_key => ${`probe-subtitles:${seriesId}`},
+      job_key_mode => 'unsafe_dedupe',
+      max_attempts => 3,
+      priority => 10
+    )
+  `);
+};
+
 /** The graphile-worker task that upscales one backdrop; see `titleBackdropUpscale`. */
 export const upscaleBackdropTask = "upscale-backdrop";
 

@@ -144,6 +144,33 @@ export const titleArtwork = pgTable("title_artwork", {
 	logoUrlOverride: text("logo_url_override"),
 });
 
+/** An award a title won or was nominated for, as Wikidata names it. */
+export interface TitleAward {
+	/** In English, such as `7th Crunchyroll Anime Awards`. */
+	name: string;
+	/** When it was given; null when Wikidata does not say. */
+	year: number | null;
+	/** Won, rather than nominated for. */
+	won: boolean;
+}
+
+/**
+ * What TMDB and, through the Wikidata item TMDB links, Wikidata say about a
+ * TMDB title, keyed by the `SeriesKey` its series share, as
+ * {@link titleArtwork} is: the title's US certification and the awards it
+ * won or was nominated for. Kept by the scheduler and fetched again after a
+ * month; see `storeTitleFacts`.
+ */
+export const titleFacts = pgTable("title_facts", {
+	awards: jsonb("awards").$type<TitleAward[]>().notNull(),
+	/** The US certification TMDB lists, such as `TV-MA` or `PG-13`; null when it lists none. */
+	certification: text("certification"),
+	fetchedAt: timestamptz("fetched_at").notNull(),
+	key: text("key").primaryKey(),
+	/** The Wikidata item TMDB links the title to, such as `Q22126305`. */
+	wikidataId: text("wikidata_id"),
+});
+
 /**
  * One episode of a series, numbered as AniList numbers the entry's
  * episodes, from 1. Its details come from the TMDB episode it was matched

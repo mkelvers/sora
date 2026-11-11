@@ -57,6 +57,18 @@ fragment AnimeDetails on Media {
 			name
 		}
 	}
+	# Credits, most relevant first: the first 25 hold the original creator.
+	# Adds 6 to the 103 a page of 50 costs.
+	staff(perPage: 25, sort: RELEVANCE) {
+		edges {
+			role
+			node {
+				name {
+					full
+				}
+			}
+		}
+	}
 	relations {
 		edges {
 			relationType(version: 2)

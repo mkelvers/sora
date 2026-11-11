@@ -112,6 +112,9 @@ export const episodeDub = pgTable(
 	],
 );
 
+/** MyAnimeList's age ratings, which AniKoto copies; see {@link anikotoSeries}. */
+export type AgeRating = "G" | "PG" | "PG-13" | "R" | "R+" | "Rx";
+
 /**
  * AniKoto's catalogue, mirrored so an anime can be matched to its AniKoto
  * series by ID instead of by title. AniKoto records the AniList ID of about
@@ -128,6 +131,12 @@ export const anikotoSeries = pgTable(
 		/** The AniList format AniKoto's type corresponds to, such as `TV` or `MOVIE`. */
 		format: text("format"),
 		malId: integer("mal_id"),
+		/**
+		 * MyAnimeList's age rating, which AniKoto copies: `G` (all ages), `PG`
+		 * (children), `PG-13`, `R` (17+, violence and profanity), `R+` (17+, mild
+		 * nudity), or `Rx` (hentai); null when it has none.
+		 */
+		rating: text("rating").$type<AgeRating>(),
 		title: text("title").notNull(),
 		/** Every title AniKoto lists: English, romaji, native, and alternatives. */
 		titles: jsonb("titles").$type<string[]>().notNull(),
@@ -274,3 +283,24 @@ export const skipSegmentLength = pgTable(
 		}),
 	],
 );
+
+/**
+ * Every subtitle language a stream of the series was served with, as BCP 47
+ * tags such as `en` or `pt-BR`: tracks of a sub or a dub, and English for a
+ * sub whose subtitles are burned in. Episodes of one series often differ,
+ * so these are what any of them had.
+ *
+ * Playback adds what each stream it resolves has, at no cost of its own; a
+ * series nobody has played is looked at once, when its page is first read
+ * (see `probeSubtitleLanguages`).
+ */
+export const seriesSubtitles = pgTable("series_subtitles", {
+	/** When a stream was last looked at for them. */
+	checkedAt: timestamptz("checked_at").notNull(),
+	languages: text("languages").array().notNull(),
+	seriesId: text("series_id")
+		.primaryKey()
+		.references(() => series.id, {
+			onDelete: "cascade",
+		}),
+});

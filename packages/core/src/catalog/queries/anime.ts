@@ -1,5 +1,5 @@
-import { day, hour } from "@sora/shared";
-import { eq, inArray } from "drizzle-orm";
+import { attempt, day, hour } from "@sora/shared";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { anilist, loadMediaById } from "../../anilist/client";
 import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
@@ -194,7 +194,8 @@ export const getAnime = async (anilistId: number): Promise<Anime> => {
 /**
  * Fetches an anime from AniList again and overwrites the stored copy.
  *
- * Only the airing scheduler calls this; nothing else updates a stored anime.
+ * Only the scheduler calls this: the airing scheduler, and
+ * {@link refreshStaleAnime}. Nothing else updates a stored anime.
  *
  * @throws {AnimeNotFoundError} when AniList no longer serves the anime.
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
@@ -215,6 +216,56 @@ export const refreshAnime = async (anilistId: number): Promise<Anime> => {
 		});
 
 	return toAnime(media);
+};
+
+/**
+ * How many stale anime {@link refreshStaleAnime} fetches in one run: five
+ * AniList requests of {@link loadAnimeDetails}, which hold 200 each.
+ */
+const staleBatch = 1000;
+
+/**
+ * Fetches again the stored anime whose copy predates the fields the details
+ * fragment asks for now, so a field added to it reaches every stored anime,
+ * finished ones included, which nothing else fetches again. Each 200 share
+ * one AniList request. Returns how many were refreshed and how many are left.
+ *
+ * An anime AniList no longer serves keeps its stored copy, given the new
+ * fields empty, so it is not asked for again.
+ *
+ * @throws {UpstreamUnavailableError} when AniList cannot be reached.
+ */
+export const refreshStaleAnime = async () => {
+	const stale = await db
+		.select({
+			anilistId: animeTable.anilistId,
+		})
+		.from(animeTable)
+		// `staff` is the newest field the fragment asks for.
+		.where(sql`not (${animeTable.media} ? 'staff')`)
+		.limit(staleBatch);
+	const gone: number[] = [];
+	await Promise.all(
+		stale.map(async ({ anilistId }) => {
+			const { error } = await attempt(refreshAnime(anilistId), AnimeNotFoundError);
+			if (error) {
+				gone.push(anilistId);
+			}
+		}),
+	);
+	if (gone.length > 0) {
+		await db
+			.update(animeTable)
+			.set({
+				media: sql`${animeTable.media} || '{"staff":{"edges":[]}}'::jsonb`,
+			})
+			.where(inArray(animeTable.anilistId, gone));
+	}
+
+	return {
+		refreshed: stale.length - gone.length,
+		skipped: gone.length,
+	};
 };
 
 /**

@@ -112,6 +112,16 @@ export const FranchisePartSchema = z.object({
 });
 
 export const SeriesSchema = SeriesCardSchema.extend({
+	audio_languages: z.array(z.string()).meta({
+		description:
+			"The languages `audio` is in, by English name: the original's for a sub or raw, then English for a dub.",
+		example: ["Japanese", "English"],
+	}),
+	awards: z.array(z.string()).meta({
+		description:
+			"Awards the show or film won or was nominated for, as Wikidata lists them through TMDB's link, latest first. Empty until Sora has fetched them.",
+		example: ["2023 Crunchyroll Anime Awards Winner", "2014 Seiyu Awards Winner"],
+	}),
 	backdrop_edges: z
 		.object({
 			left: z.string().meta({
@@ -126,6 +136,28 @@ export const SeriesSchema = SeriesCardSchema.extend({
 			description:
 				"The backdrop's average colour down its left and right edges, as `#rrggbb`, to fill the space beside it when it is shown whole. Null without a backdrop, or until Sora has measured it.",
 		}),
+	content_rating: z
+		.object({
+			age: z.string().nullable().meta({
+				description:
+					"Who it is for: MyAnimeList's age rating, else TMDB's US certification, as an age.",
+				example: "17+",
+			}),
+			descriptors: z.array(z.string()).meta({
+				description:
+					"What it warns of, from the rating and from AniList's tags that apply strongly, by name.",
+				example: ["Gore", "Profanity", "Violence"],
+			}),
+		})
+		.nullable()
+		.meta({
+			description: "Its content advisory; null when nothing is known.",
+		}),
+	credit: z.string().nullable().meta({
+		description:
+			"A credit line in the style of a copyright notice: who created the original work, then the studios that made the title. Assembled from AniList's credits, not the rights holders' own notice.",
+		example: "© Hajime Isayama/WIT STUDIO",
+	}),
 	next_episode: z
 		.object({
 			airing_at: z.string(),
@@ -163,6 +195,11 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		example: "2018-10-02",
 	}),
 	studios: z.array(z.string()),
+	subtitle_languages: z.array(z.string()).meta({
+		description:
+			"Every subtitle language any of its streams was seen with, by English name, English first. Empty until a stream of it has been looked at.",
+		example: ["English", "Brazilian Portuguese", "Spanish"],
+	}),
 	tags: z.array(AnimeTagSchema),
 }).meta({
 	id: "Series",

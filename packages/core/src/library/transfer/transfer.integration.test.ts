@@ -82,6 +82,7 @@ describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import a
 					season: null,
 					seasonYear: null,
 					source: null,
+					staff: null,
 					startDate: null,
 					status: "FINISHED" as const,
 					studios: null,

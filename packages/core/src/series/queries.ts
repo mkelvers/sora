@@ -1,5 +1,5 @@
 import { day, hour, minute, defined } from "@sora/shared";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { toAnime, toAnimeFormat } from "../catalog/models/anime";
@@ -13,7 +13,13 @@ import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/sea
 import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime as animeTable, animeSearch } from "../database/schema/catalog";
-import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
+import {
+	anikotoSeries,
+	animeScheduleRelease,
+	animeScheduleShow,
+	providerMapping,
+	seriesSubtitles,
+} from "../database/schema/playback";
 import {
 	imageEdge,
 	noArtwork,
@@ -21,6 +27,7 @@ import {
 	seriesEpisode,
 	seriesRelated,
 	titleArtwork,
+	titleFacts,
 } from "../database/schema/series";
 import { EpisodeNotFoundError, InvalidInputError, SeriesNotFoundError } from "../errors";
 import type {
@@ -33,7 +40,8 @@ import type {
 	SeriesCard,
 } from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
-import { scheduleSeriesStore } from "../scheduler/queue";
+import { requestSubtitleProbe, scheduleSeriesStore } from "../scheduler/queue";
+import { aboutSeries } from "./about";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
@@ -572,6 +580,65 @@ const overdueEpisode = async (
 		: null;
 };
 
+/** How long after a probe found no subtitles a series is looked at again. */
+const subtitleProbeRetryMs = 7 * day;
+
+/**
+ * What a title's about section is made of beyond its anime: MyAnimeList's
+ * rating of the AniKoto series it streams from, its TMDB title's facts, and
+ * the subtitles its streams were seen with. A title with a sub whose
+ * subtitles were never looked at, or found none a while ago, is queued to
+ * be looked at; the page shows them the next time it is read.
+ */
+const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[]) => {
+	const [[rated], [facts], [subtitles]] = await Promise.all([
+		db
+			.select({
+				rating: anikotoSeries.rating,
+			})
+			.from(providerMapping)
+			.innerJoin(
+				anikotoSeries,
+				sql`${anikotoSeries.anikotoId}::text = ${providerMapping.providerMediaId}`,
+			)
+			.where(
+				and(eq(providerMapping.anilistId, row.anilistId), eq(providerMapping.provider, "anikoto")),
+			)
+			.limit(1),
+		db
+			.select({
+				awards: titleFacts.awards,
+				certification: titleFacts.certification,
+			})
+			.from(titleFacts)
+			.where(eq(titleFacts.key, row.key))
+			.limit(1),
+		db
+			.select({
+				checkedAt: seriesSubtitles.checkedAt,
+				languages: seriesSubtitles.languages,
+			})
+			.from(seriesSubtitles)
+			.where(eq(seriesSubtitles.seriesId, row.id))
+			.limit(1),
+	]);
+
+	const unchecked =
+		!subtitles ||
+		(subtitles.languages.length === 0 &&
+			subtitles.checkedAt.getTime() < Date.now() - subtitleProbeRetryMs);
+	if (audio.includes("sub") && unchecked) {
+		await requestSubtitleProbe(row.id);
+	}
+
+	return {
+		ageRating: rated?.rating ?? null,
+		awards: facts?.awards ?? [],
+		certification: facts?.certification ?? null,
+		subtitles: subtitles?.languages ?? [],
+	};
+};
+
 /**
  * Loads a title's page: its details and the other titles of its franchise.
  *
@@ -614,12 +681,19 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 			.limit(1),
 	]);
 
+	const card = defined(cards.get(row.id));
+	const about = await aboutSourcesOf(row, card.audio);
 	const current = franchise.find((part) => part.series_id === row.id);
 	const seasons = franchise.filter((part) => part.role === "season");
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
 	return {
-		...defined(cards.get(row.id)),
+		...card,
+		...aboutSeries({
+			...about,
+			anime,
+			audio: card.audio,
+		}),
 		backdrop_edges: found.edges,
 		genres: anime.genres,
 		// An aired episode still to come out is next until it is listed, ahead of

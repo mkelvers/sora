@@ -20,6 +20,7 @@ import type { Anime, AnimeFormat } from "../../catalog/models/anime";
 import { getAnime } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries, providerMapping } from "../../database/schema/playback";
+import type { AgeRating } from "../../database/schema/playback";
 import { AnimeNotFoundError } from "../../errors";
 
 const apiUrl = "https://anikotoapi.site";
@@ -48,6 +49,9 @@ const OptionalIdSchema = z
 		return Number.isSafeInteger(id) && id > 0 ? id : null;
 	});
 
+/** MyAnimeList's age ratings, which AniKoto copies; see `anikotoSeries.rating`. */
+const ageRatings: readonly AgeRating[] = ["G", "PG", "PG-13", "R", "R+", "Rx"];
+
 /** One series in AniKoto's catalogue listing. */
 const CatalogSeriesSchema = z.object({
 	alternative: z.string().nullish(),
@@ -56,6 +60,11 @@ const CatalogSeriesSchema = z.object({
 	id: z.number().int().positive(),
 	mal_id: OptionalIdSchema,
 	native: z.string().nullish(),
+	/** One of {@link ageRatings}, or an empty string or `None` when it has none. */
+	rating: z
+		.string()
+		.nullish()
+		.transform((value) => ageRatings.find((rating) => rating === value?.trim()) ?? null),
 	terms_by_type: z
 		.object({
 			type: z.array(z.string()).optional(),
@@ -110,6 +119,7 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 		episodes: series.episodes,
 		format: type ? (formats[type] ?? null) : null,
 		malId: series.mal_id,
+		rating: series.rating,
 		title: series.title,
 		titles: [
 			...new Set(
@@ -217,6 +227,7 @@ const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
 				episodes: sql`excluded.episodes`,
 				format: sql`excluded.format`,
 				malId: sql`excluded.mal_id`,
+				rating: sql`excluded.rating`,
 				title: sql`excluded.title`,
 				titles: sql`excluded.titles`,
 				updatedAt: sql`excluded.updated_at`,
