@@ -151,26 +151,15 @@
 		}
 	});
 
-	let lift = $state(0);
-
 	const popover = new Popover({
 		closeOnOutsideClick: (element) => !(element instanceof Element) || element.isConnected,
-		floatingConfig: () => ({
+		floatingConfig: {
 			computePosition: {
 				placement: "top-end",
 			},
-			offset: lift + 8,
-		}),
-		onOpenChange: (opened) => {
-			submenu = undefined;
-			const controls = content?.closest('[aria-label="Playback controls"]');
-			const seek = controls?.previousElementSibling;
-			const trigger = controls?.querySelector('[aria-label="Settings"]');
-			lift =
-				opened && seek && trigger
-					? trigger.getBoundingClientRect().top - seek.getBoundingClientRect().top
-					: 0;
+			offset: 8,
 		},
+		onOpenChange: () => (submenu = undefined),
 	});
 </script>
 
