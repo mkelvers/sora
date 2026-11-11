@@ -20,11 +20,15 @@
 		player,
 		previous,
 		next,
+		series,
+		episode,
 		children,
 	}: {
 		player: Player;
 		previous?: string;
 		next?: string;
+		series: string;
+		episode: string;
 		children?: Snippet;
 	} = $props();
 
@@ -86,12 +90,22 @@
 
 <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Playback controls">
 	{#if previous}
-		<Button href={previous} variant="icon" aria-label="Previous episode">
+		<Button
+			href={previous}
+			variant="icon"
+			class="pointer-fine:hidden"
+			aria-label="Previous episode"
+		>
 			<SkipBackIcon size="1.5rem" weight="fill" />
 		</Button>
 	{/if}
 
-	<Button variant="icon" aria-label="Rewind 10 seconds" onclick={() => (player.time -= 10)}>
+	<Button
+		variant="icon"
+		class="pointer-fine:hidden"
+		aria-label="Rewind 10 seconds"
+		onclick={() => (player.time -= 10)}
+	>
 		<RewindIcon size="1.5rem" weight="fill" />
 	</Button>
 
@@ -107,24 +121,20 @@
 		{/if}
 	</Button>
 
-	<Button variant="icon" aria-label="Forward 10 seconds" onclick={() => (player.time += 10)}>
+	<Button
+		variant="icon"
+		class="pointer-fine:hidden"
+		aria-label="Forward 10 seconds"
+		onclick={() => (player.time += 10)}
+	>
 		<FastForwardIcon size="1.5rem" weight="fill" />
 	</Button>
 
 	{#if next}
-		<Button href={next} variant="icon" aria-label="Next episode">
+		<Button href={next} variant="icon" class="pointer-fine:hidden" aria-label="Next episode">
 			<SkipForwardIcon size="1.5rem" weight="fill" />
 		</Button>
 	{/if}
-
-	<p
-		class="mr-auto ml-3 text-sm text-foreground/90 tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
-	>
-		{clock(player.time)}
-		<span aria-hidden="true">/</span>
-		<span class="sr-only">of</span>
-		{clock(player.duration)}
-	</p>
 
 	<Button
 		variant="icon"
@@ -145,8 +155,22 @@
 		bind:value={player.volume}
 		fill={player.muted ? 0 : player.volume}
 		aria-label="Volume"
-		class="mr-3 w-22 max-sm:hidden pointer-coarse:hidden"
+		class="mr-2 w-22 max-sm:hidden pointer-coarse:hidden"
 	/>
+
+	<p
+		class="ml-2 shrink-0 text-sm text-foreground/90 tabular-nums max-sm:order-first max-sm:ml-1 max-sm:w-full"
+	>
+		{clock(player.time)}
+		<span aria-hidden="true">/</span>
+		<span class="sr-only">of</span>
+		{clock(player.duration)}
+	</p>
+
+	<h1 class="mx-4 min-w-0 flex-1 truncate text-center text-sm max-sm:sr-only">
+		<strong class="font-semibold">{series}</strong>
+		<span class="ml-1.5 text-foreground/70">{episode}</span>
+	</h1>
 
 	{@render children?.()}
 
