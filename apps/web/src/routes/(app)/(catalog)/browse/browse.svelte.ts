@@ -1,4 +1,4 @@
-import { filterGroups, filterLabels } from "$routes/(app)/(catalog)/catalog.svelte";
+import { filterGroups } from "$routes/(app)/(catalog)/catalog.svelte";
 import type { CatalogFilters } from "$routes/(app)/(catalog)/catalog.svelte";
 import type { Tag } from "@sora/sdk";
 
@@ -73,30 +73,8 @@ export const countries = [
 	},
 ] as const;
 
-export const lengths = [
-	{
-		label: "Up to 13 episodes",
-		max: 13,
-		min: undefined,
-		value: "short",
-	},
-	{
-		label: "14 to 26 episodes",
-		max: 26,
-		min: 14,
-		value: "medium",
-	},
-	{
-		label: "27+ episodes",
-		max: undefined,
-		min: 27,
-		value: "long",
-	},
-] as const;
-
 type Sort = (typeof sorts)[number]["value"];
 type Country = (typeof countries)[number]["value"];
-type Length = (typeof lengths)[number]["value"];
 
 export interface BrowseFilters extends CatalogFilters {
 	genres: string[];
@@ -105,19 +83,8 @@ export interface BrowseFilters extends CatalogFilters {
 	sort: Sort;
 	sources: Source[];
 	country?: Country;
-	decade?: number;
-	length?: Length;
 	hideMature: boolean;
 }
-
-export const noFilters: BrowseFilters = {
-	genres: [],
-	hideMature: false,
-	sort: "popular",
-	sources: [],
-	studios: [],
-	tags: [],
-};
 
 const pick = <T extends string>(
 	options: readonly { value: T | undefined }[],
@@ -133,16 +100,13 @@ export const parseFilters = (
 ): BrowseFilters => {
 	const named = (key: string, names: string[]) =>
 		params.getAll(key).flatMap((value) => names.find((name) => slug(name) === value) ?? []);
-	const decade = Number(params.get("decade"));
 
 	return {
 		audio: pick(languages.options, params.get("audio")),
 		country: pick(countries, params.get("country")),
-		decade: Number.isInteger(decade) && decade >= 1940 && decade % 10 === 0 ? decade : undefined,
 		format: pick(media.options, params.get("format")),
 		genres: named("genre", genres),
 		hideMature: params.get("mature") === "hide",
-		length: pick(lengths, params.get("length")),
 		sort: pick(sorts, params.get("sort")) ?? "popular",
 		sources: params
 			.getAll("source")
@@ -172,9 +136,7 @@ export const browseHref = (filters: Partial<BrowseFilters>) => {
 	const single = {
 		audio: filters.audio,
 		country: filters.country?.toLowerCase(),
-		decade: filters.decade?.toString(),
 		format: filters.format?.toLowerCase(),
-		length: filters.length,
 		mature: filters.hideMature ? "hide" : undefined,
 		sort: filters.sort === "popular" ? undefined : filters.sort,
 	};
@@ -196,38 +158,15 @@ export const browseTitle = (filters: BrowseFilters) => {
 	return named.length === 1 ? `${named[0]} Anime` : "Browse Anime";
 };
 
-export const browseLabels = (filters: BrowseFilters) => [
-	...filters.genres,
-	...filters.tags,
-	...filters.studios,
-	...filterLabels(filters),
-	...(filters.decade ? [`${filters.decade}s`] : []),
-	...lengths.filter((length) => length.value === filters.length).map((length) => length.label),
-	...sources
-		.filter((source) => filters.sources.includes(source.value))
-		.map((source) => source.label),
-	...countries
-		.filter((country) => country.value === filters.country)
-		.map((country) => country.label),
-	...(filters.hideMature ? ["No mature content"] : []),
-];
-
-export const catalogRequest = (filters: BrowseFilters) => {
-	const length = lengths.find((option) => option.value === filters.length);
-	return {
-		audio: filters.audio,
-		countries: filters.country ? [filters.country] : [],
-		format: filters.format,
-		genres: filters.genres,
-		hideMature: filters.hideMature,
-		kind: "browse" as const,
-		maxEpisodes: length?.max,
-		minEpisodes: length?.min,
-		sort: filters.sort,
-		sources: filters.sources,
-		studios: filters.studios,
-		tags: filters.tags,
-		yearFrom: filters.decade,
-		yearTo: filters.decade === undefined ? undefined : filters.decade + 9,
-	};
-};
+export const catalogRequest = (filters: BrowseFilters) => ({
+	audio: filters.audio,
+	countries: filters.country ? [filters.country] : [],
+	format: filters.format,
+	genres: filters.genres,
+	hideMature: filters.hideMature,
+	kind: "browse" as const,
+	sort: filters.sort,
+	sources: filters.sources,
+	studios: filters.studios,
+	tags: filters.tags,
+});

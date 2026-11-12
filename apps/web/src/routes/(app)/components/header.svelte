@@ -55,11 +55,11 @@
 	const overviews = [
 		{
 			href: "/browse",
-			label: "Browse all anime",
+			label: "Browse All Anime",
 		},
 		{
 			href: "/categories",
-			label: "All categories",
+			label: "All Categories",
 		},
 	];
 
@@ -104,6 +104,13 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
+						{#each overviews as overview, index (overview.href)}
+							<li class={cn(index === overviews.length - 1 && "mb-3")}>
+								<Button href={overview.href} variant="item" aria-current={current(overview.href)}>
+									{overview.label}
+								</Button>
+							</li>
+						{/each}
 						{#each links as section (section.href)}
 							<li>
 								<Button href={section.href} variant="item" aria-current={current(section.href)}>
@@ -144,13 +151,6 @@
 								</ul>
 							{/if}
 						</li>
-						<li class="flex flex-wrap gap-x-6 px-5 pt-2">
-							{#each overviews as overview (overview.href)}
-								<Button href={overview.href} variant="link" aria-current={current(overview.href)}>
-									{overview.label}
-								</Button>
-							{/each}
-						</li>
 					</ul>
 				{/snippet}
 			</Dropdown>
@@ -176,15 +176,32 @@
 				</li>
 			{/each}
 			<li class="h-full">
-				<Dropdown variant="nav" alignment="left" class="w-[min(48rem,calc(100vw-2rem))] bg-surface">
+				<Dropdown
+					variant="nav"
+					alignment="left"
+					class="w-[min(48rem,calc(100vw-2rem))] bg-surface open:flex-row"
+				>
 					{#snippet trigger()}
 						Categories
 						<CaretDownIcon size="1rem" weight="fill" />
 					{/snippet}
 
 					{#snippet children()}
-						<div class="flex">
-							<ul class="w-56 shrink-0 py-2">
+						<div class="w-56 shrink-0 py-2">
+							<ul class="mb-3">
+								{#each overviews as overview (overview.href)}
+									<li>
+										<Button
+											href={overview.href}
+											variant="item"
+											aria-current={current(overview.href)}
+										>
+											{overview.label}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+							<ul>
 								{#each links as section (section.href)}
 									<li>
 										<Button href={section.href} variant="item" aria-current={current(section.href)}>
@@ -193,29 +210,22 @@
 									</li>
 								{/each}
 							</ul>
-							<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
-								<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
-								<ul class="grid grid-cols-2 lg:grid-cols-3">
-									{#each genres.current ?? [] as genre (genre)}
-										{@const href = browseHref({
-											genres: [genre],
-										})}
-										<li>
-											<Button {href} variant="item" aria-current={current(href)}>
-												{genre}
-											</Button>
-										</li>
-									{/each}
-								</ul>
-							</section>
 						</div>
-						<div class="flex gap-8 px-5 pb-3">
-							{#each overviews as overview (overview.href)}
-								<Button href={overview.href} variant="link" aria-current={current(overview.href)}>
-									{overview.label}
-								</Button>
-							{/each}
-						</div>
+						<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
+							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
+							<ul class="grid grid-cols-2 lg:grid-cols-3">
+								{#each genres.current ?? [] as genre (genre)}
+									{@const href = browseHref({
+										genres: [genre],
+									})}
+									<li>
+										<Button {href} variant="item" aria-current={current(href)}>
+											{genre}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						</section>
 					{/snippet}
 				</Dropdown>
 			</li>

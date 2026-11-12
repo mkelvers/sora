@@ -31,14 +31,10 @@ const request = z.discriminatedUnion("kind", [
 		genres: z.array(z.string().min(1).max(100)).max(10),
 		hideMature: z.boolean(),
 		kind: z.literal("browse"),
-		maxEpisodes: z.number().int().positive().optional(),
-		minEpisodes: z.number().int().positive().optional(),
 		sort: z.enum(["popular", "trending", "score", "newest", "title"]),
 		sources: z.array(z.enum(sourceValues)).max(sourceValues.length),
 		studios: z.array(z.string().min(1).max(100)).max(10),
 		tags: z.array(z.string().min(1).max(100)).max(10),
-		yearFrom: z.number().int().min(1940).max(2100).optional(),
-		yearTo: z.number().int().min(1940).max(2100).optional(),
 		...filters,
 	}),
 ]);
@@ -71,13 +67,6 @@ export const getStudios = query(
 			},
 		}),
 );
-
-export const getDecades = query(async () => {
-	const seasons = await remoteViewer().sora.request(route.listSeasons);
-	return [...new Set(seasons.map((season) => Math.floor(season.year / 10) * 10))].toSorted(
-		(left, right) => right - left,
-	);
-});
 
 export const getCatalogPage = query(request, async (input) => {
 	const { sora } = remoteViewer();
@@ -114,14 +103,10 @@ export const getCatalogPage = query(request, async (input) => {
 				format: input.format && [...formats[input.format]],
 				genres: input.genres,
 				hide_mature: input.hideMature || undefined,
-				max_episodes: input.maxEpisodes,
-				min_episodes: input.minEpisodes,
 				sort: input.sort,
 				sources: input.sources,
 				studios: input.studios,
 				tags: input.tags,
-				year_from: input.yearFrom,
-				year_to: input.yearTo,
 				...paging,
 			},
 		});

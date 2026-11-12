@@ -11,6 +11,7 @@
 		empty,
 		controls,
 		summary,
+		categories,
 	}: {
 		request: CatalogRequest;
 		title: string;
@@ -20,6 +21,7 @@
 		};
 		controls: Snippet;
 		summary?: Snippet;
+		categories?: Snippet;
 	} = $props();
 </script>
 
@@ -32,6 +34,8 @@
 			</div>
 			{@render controls()}
 		</div>
+
+		{@render categories?.()}
 
 		<svelte:boundary>
 			{#key JSON.stringify(request)}

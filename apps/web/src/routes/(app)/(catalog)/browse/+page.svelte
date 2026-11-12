@@ -3,18 +3,16 @@
 	import { page } from "$app/state";
 	import {
 		browseHref,
-		browseLabels,
 		browseTitle,
 		catalogRequest,
-		noFilters,
 		parseFilters,
 	} from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
-	import CatalogReset from "$routes/(app)/(catalog)/components/catalog-reset.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
 
 	import type { PageProps } from "./$types";
 	import BrowseControls from "./components/browse-controls.svelte";
+	import CategoryChips from "./components/category-chips.svelte";
 
 	let { data }: PageProps = $props();
 
@@ -39,18 +37,11 @@
 	}}
 	request={catalogRequest(filters)}
 >
-	{#snippet summary()}
-		<CatalogReset
-			labels={browseLabels(filters)}
-			onreset={() =>
-				apply({
-					...noFilters,
-					sort: filters.sort,
-				})}
-		/>
+	{#snippet categories()}
+		<CategoryChips {filters} genres={data.genres} tags={data.tags} onchange={apply} />
 	{/snippet}
 
 	{#snippet controls()}
-		<BrowseControls {filters} onchange={apply} />
+		<BrowseControls {filters} />
 	{/snippet}
 </Catalog>

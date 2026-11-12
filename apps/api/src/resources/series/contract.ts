@@ -91,7 +91,23 @@ const BrowseParams = BrowseQuerySchema.omit({
 		per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
 		season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
 		sources: commaSeparated(browse.sources.unwrap(), "MANGA,LIGHT_NOVEL"),
-		studios: commaSeparated(browse.studios.unwrap(), "MAPPA,WIT STUDIO"),
+		studios: z
+			.string()
+			// A comma followed by a space belongs to a name, as in "Yamamura Animation, Inc.".
+			.transform((value) =>
+				value
+					.split(/,(?! )/u)
+					.map((part) => part.trim())
+					.filter((part) => part.length > 0),
+			)
+			.pipe(browse.studios.unwrap())
+			.optional()
+			.openapi({
+				description:
+					"Main studios, comma-separated; a comma followed by a space is part of a name, as in `Yamamura Animation, Inc.`.",
+				example: "MAPPA,WIT STUDIO",
+				type: "string",
+			}),
 		tags: commaSeparated(browse.tags.unwrap(), "Isekai,Female Protagonist"),
 		year_from: z.coerce.number().pipe(browse.yearFrom.unwrap()).optional(),
 		year_to: z.coerce.number().pipe(browse.yearTo.unwrap()).optional(),
