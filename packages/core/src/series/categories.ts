@@ -1,5 +1,5 @@
 import { day } from "@sora/shared";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { anilist } from "../anilist/client";
 import { TagsDocument } from "../anilist/graphql.generated";
@@ -78,6 +78,7 @@ export const listTags = async (): Promise<Tag[]> => {
 		db
 			.select({
 				tag: animeSearchTag.tag,
+				titles: count(),
 			})
 			.from(animeSearchTag)
 			.innerJoin(animeSearch, eq(animeSearch.anilistId, animeSearchTag.anilistId))
@@ -90,17 +91,18 @@ export const listTags = async (): Promise<Tag[]> => {
 			)
 			.groupBy(animeSearchTag.tag),
 	]);
-	const offered = new Set(carried.map((row) => row.tag));
+	const titles = new Map(carried.map((row) => [row.tag, row.titles]));
 	const groupOrder: Tag["group"][] = ["demographic", "theme", "setting", "cast"];
 
 	return (MediaTagCollection ?? [])
 		.flatMap((tag): Tag[] => {
 			const place = tag?.category ? placeOf(tag.category) : null;
-			return tag && place && tag.isAdult !== true && offered.has(tag.name)
+			return tag && place && tag.isAdult !== true && titles.has(tag.name)
 				? [
 						{
 							description: tag.description?.trim() || null,
 							name: tag.name,
+							titles: titles.get(tag.name) ?? 0,
 							...place,
 						},
 					]

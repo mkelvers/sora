@@ -65,7 +65,7 @@
 			{group ?? title}
 		</h2>
 		<ul
-			class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 lg:gap-x-7.5 lg:gap-y-12 xl:grid-cols-6"
+			class="grid grid-cols-2 items-start gap-x-3 gap-y-8 sm:gap-x-4 lg:gap-x-7.5 lg:gap-y-12 @min-[34rem]:grid-cols-3 @min-[42rem]:grid-cols-4 @min-[56rem]:grid-cols-5 @min-[64rem]:grid-cols-6"
 		>
 			{#each entries as item (item.card.id)}
 				<li class="[&_a>h3]:line-clamp-none [&_h3]:min-h-0">

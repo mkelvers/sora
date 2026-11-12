@@ -107,7 +107,6 @@
 					danger: "hover:text-danger focus-visible:text-danger",
 				},
 				variant: {
-					chip: "h-9 border border-border px-4 text-sm font-medium text-muted hover:border-border-strong hover:text-foreground has-[[data-active]]:border-foreground has-[[data-active]]:bg-foreground has-[[data-active]]:text-canvas aria-expanded:border-border-strong aria-expanded:text-foreground aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-canvas",
 					ghost:
 						"font-bold tracking-wide text-muted uppercase hover:bg-hover hover:text-foreground aria-expanded:bg-hover aria-expanded:text-foreground aria-pressed:text-foreground",
 					icon: "text-muted hover:text-foreground aria-expanded:text-foreground",

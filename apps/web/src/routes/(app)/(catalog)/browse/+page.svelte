@@ -7,19 +7,19 @@
 		catalogRequest,
 		parseFilters,
 	} from "$routes/(app)/(catalog)/browse/browse.svelte";
-	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import type { BrowseFilters as Filters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
 
 	import type { PageProps } from "./$types";
 	import BrowseControls from "./components/browse-controls.svelte";
-	import CategoryChips from "./components/category-chips.svelte";
+	import FilterList from "./components/filter-list.svelte";
 
 	let { data }: PageProps = $props();
 
 	const filters = $derived(parseFilters(page.url.searchParams, data.genres, data.tags));
 	const title = $derived(browseTitle(filters));
 
-	const apply = (next: BrowseFilters) =>
+	const apply = (next: Filters) =>
 		goto(browseHref(next), {
 			reset: false,
 		});
@@ -37,11 +37,11 @@
 	}}
 	request={catalogRequest(filters)}
 >
-	{#snippet categories()}
-		<CategoryChips {filters} genres={data.genres} tags={data.tags} onchange={apply} />
+	{#snippet aside()}
+		<FilterList {filters} genres={data.genres} tags={data.tags} onchange={apply} />
 	{/snippet}
 
 	{#snippet controls()}
-		<BrowseControls {filters} />
+		<BrowseControls {filters} genres={data.genres} tags={data.tags} onchange={apply} />
 	{/snippet}
 </Catalog>

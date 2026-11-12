@@ -447,6 +447,11 @@ export const TagSchema = z
 			description: "The heading it sits under within its group.",
 			example: "Fantasy",
 		}),
+		titles: z.number().int().meta({
+			description:
+				"How many AniList entries Sora can play carry it strongly enough to be found by it; a show's seasons count separately.",
+			example: 412,
+		}),
 	})
 	.meta({
 		id: "Tag",

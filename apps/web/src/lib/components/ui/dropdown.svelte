@@ -18,7 +18,7 @@
 		trigger: Snippet;
 		label?: string;
 		alignment?: "left" | "right";
-		variant?: "chip" | "ghost" | "icon" | "secondary" | "toolbar" | "text" | "nav";
+		variant?: "ghost" | "icon" | "secondary" | "toolbar" | "text" | "nav";
 		square?: boolean;
 		class?: string;
 	} = $props();

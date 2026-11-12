@@ -170,3 +170,91 @@ export const catalogRequest = (filters: BrowseFilters) => ({
 	studios: filters.studios,
 	tags: filters.tags,
 });
+
+export interface Choice {
+	label: string;
+	checked: boolean;
+	all: boolean;
+	next: Partial<BrowseFilters>;
+}
+
+export interface Group {
+	id: string;
+	label: string;
+	multiple: boolean;
+	choices: Choice[];
+}
+
+const many = (
+	id: "genres" | "tags" | "sources",
+	label: string,
+	options: { label: string; value: string }[],
+	selected: string[],
+): Group => ({
+	choices: options.map((option) => ({
+		all: false,
+		checked: selected.includes(option.value),
+		label: option.label,
+		next: {
+			[id]: toggle(selected, option.value),
+		},
+	})),
+	id,
+	label,
+	multiple: true,
+});
+
+const named = (names: string[]) =>
+	names.map((name) => ({
+		label: name,
+		value: name,
+	}));
+
+export const groupsOf = ({
+	filters,
+	genres,
+	tags,
+}: {
+	filters: BrowseFilters;
+	genres: string[];
+	tags: Tag[];
+}) => {
+	const options: Group[] = filterGroups.map((group) => ({
+		choices: group.options.map((option) => ({
+			all: option.value === undefined,
+			checked: filters[group.id] === option.value,
+			label: option.label,
+			next: {
+				[group.id]: option.value,
+			},
+		})),
+		id: group.id,
+		label: group.label,
+		multiple: false,
+	}));
+
+	return {
+		country: {
+			choices: [undefined, ...countries].map((country) => ({
+				all: country === undefined,
+				checked: filters.country === country?.value,
+				label: country?.label ?? "All",
+				next: {
+					country: country?.value,
+				},
+			})),
+			id: "country",
+			label: "Country",
+			multiple: false,
+		} satisfies Group,
+		genres: many("genres", "Genres", named(genres), filters.genres),
+		options,
+		source: many("sources", "Source", sources, filters.sources),
+		tags: many(
+			"tags",
+			"Tags",
+			named(tags.map((tag) => tag.name).toSorted((left, right) => left.localeCompare(right))),
+			filters.tags,
+		),
+	};
+};
