@@ -11,6 +11,7 @@ const base = -Math.floor(Math.random() * 1_000_000_000) - 1000;
 
 /** Fixture entries, by what sets each apart. */
 const ids = {
+	adapted: base - 6,
 	ecchi: base - 1,
 	harem: base - 2,
 	isekai: base,
@@ -90,6 +91,13 @@ describe.skipIf(process.env.SORA_BROWSE_INTEGRATION !== "1")("browse filters", (
 			row(ids.weakIsekai, {
 				format: "TV",
 			}),
+			row(ids.adapted, {
+				country: "JP",
+				format: "ONA",
+				originCountry: "KR",
+				originSource: "WEB_NOVEL",
+				source: "MANGA",
+			}),
 		]);
 		await db
 			.insert(animeSearchTag)
@@ -143,14 +151,28 @@ describe.skipIf(process.env.SORA_BROWSE_INTEGRATION !== "1")("browse filters", (
 		).toEqual([ids.isekai]);
 		expect(
 			await found({
-				sources: ["MANGA"],
+				sources: ["LIGHT_NOVEL"],
 			}),
-		).toEqual([ids.ecchi]);
+		).toEqual([ids.isekai]);
+		expect(
+			await found({
+				countries: ["JP"],
+			}),
+		).toEqual([ids.isekai, ids.adapted]);
+	});
+
+	test("country and source also match where the story comes from", async () => {
 		expect(
 			await found({
 				countries: ["KR"],
+				sources: ["WEB_NOVEL"],
 			}),
-		).toEqual([ids.ecchi]);
+		).toEqual([ids.adapted]);
+		expect(
+			await found({
+				sources: ["MANGA"],
+			}),
+		).toEqual([ids.ecchi, ids.adapted]);
 	});
 
 	test("years read the start date when there is no season year", async () => {

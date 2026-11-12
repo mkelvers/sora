@@ -97,6 +97,16 @@ export const animeSearch = pgTable(
 		genres: jsonb("genres").$type<string[]>().notNull(),
 		isAdult: boolean("is_adult").notNull(),
 		native: text("native"),
+		/**
+		 * The country its story comes from: that of the work it adapts, such as
+		 * `KR` for the anime of a Korean comic made in Japan, else its own.
+		 */
+		originCountry: text("origin_country"),
+		/**
+		 * What the work it adapts adapts in turn, such as `WEB_NOVEL` for the
+		 * anime of a comic of a web novel; `null` when that work is original.
+		 */
+		originSource: text("origin_source").$type<MediaSource>(),
 		popularity: integer("popularity").notNull(),
 		romaji: text("romaji"),
 		/** How many AniList users have scored it; `null` when AniList has no score distribution for it. */

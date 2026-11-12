@@ -12,7 +12,11 @@ export const BrowseQuerySchema = z.object({
 	 * `perPage`; titles still being prepared are left out.
 	 */
 	audio: z.enum(["sub", "dub"]).optional(),
-	/** Only titles made in one of these countries, by ISO 3166-1 alpha-2 code. */
+	/**
+	 * Only titles made in one of these countries, or whose story comes from
+	 * one, by ISO 3166-1 alpha-2 code: the anime of a Korean comic counts as
+	 * `KR` though it is made in Japan.
+	 */
 	countries: z
 		.array(z.string().regex(/^[A-Z]{2}$/u))
 		.max(10)
@@ -39,7 +43,11 @@ export const BrowseQuerySchema = z.object({
 	season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]).optional(),
 	seasonYear: year.optional(),
 	sort: z.enum(["trending", "popular", "score", "newest", "title"]).optional(),
-	/** Only titles adapting one of these. */
+	/**
+	 * Only titles adapting one of these, directly or through the work they
+	 * adapt: the anime of a comic of a web novel counts as `MANGA` and
+	 * `WEB_NOVEL`.
+	 */
 	sources: z.array(SourceSchema).max(15).optional(),
 	status: StatusSchema.optional(),
 	/** Only titles a main studio of which is one of these, by name. */

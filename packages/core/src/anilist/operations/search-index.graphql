@@ -37,8 +37,19 @@ query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) 
 					name
 				}
 			}
-			source
+			source(version: 3)
 			countryOfOrigin
+			# What it adapts, to tell where its story comes from: the anime of a
+			# Korean comic is made in Japan, and that comic adapts a web novel.
+			relations {
+				edges {
+					relationType(version: 2)
+					node {
+						countryOfOrigin
+						source(version: 3)
+					}
+				}
+			}
 			episodes
 			duration
 			popularity

@@ -4,7 +4,7 @@ import type { SQL } from "drizzle-orm";
 
 import { anilist } from "../../anilist/client";
 import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
-import type { MediaSort, SearchIndexPageQuery } from "../../anilist/graphql.generated";
+import type { MediaSort, MediaSource, SearchIndexPageQuery } from "../../anilist/graphql.generated";
 import { db } from "../../database/client";
 import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
@@ -136,6 +136,23 @@ const starsOf = (
 	);
 };
 
+/** Sources that name no earlier work for a story to come from. */
+const ownSources = new Set<MediaSource | null | undefined>([null, undefined, "ORIGINAL", "OTHER"]);
+
+/**
+ * Where an entry's story comes from: the country of the work it adapts and
+ * what that work adapts in turn, as AniList relates them. The anime of a
+ * Korean comic of a web novel is made in Japan from a manga, but its story
+ * is Korean and began as a web novel.
+ */
+const originOf = (media: IndexedMedia) => {
+	const adapted = media.relations?.edges?.find((edge) => edge?.relationType === "SOURCE")?.node;
+	return {
+		originCountry: adapted?.countryOfOrigin ?? media.countryOfOrigin,
+		originSource: ownSources.has(adapted?.source) ? null : (adapted?.source ?? null),
+	};
+};
+
 const studioNames = (media: IndexedMedia) => [
 	...new Set((media.studios?.nodes ?? []).flatMap((studio) => (studio ? [studio.name] : []))),
 ];
@@ -157,6 +174,7 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		english,
 		episodes: media.episodes,
 		format: media.format,
+		...originOf(media),
 		genres: (media.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
 		isAdult: media.isAdult === true,
 		native,
@@ -446,10 +464,20 @@ const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPa
 		);
 	}
 	if (filters.sources?.length) {
-		conditions.push(inArray(animeSearch.source, filters.sources));
+		conditions.push(
+			or(
+				inArray(animeSearch.source, filters.sources),
+				inArray(animeSearch.originSource, filters.sources),
+			) ?? sql`false`,
+		);
 	}
 	if (filters.countries?.length) {
-		conditions.push(inArray(animeSearch.country, filters.countries));
+		conditions.push(
+			or(
+				inArray(animeSearch.country, filters.countries),
+				inArray(animeSearch.originCountry, filters.countries),
+			) ?? sql`false`,
+		);
 	}
 	const released = sql`coalesce(${animeSearch.seasonYear}, left(${animeSearch.startDate}, 4)::integer)`;
 	if (filters.yearFrom) {
