@@ -4,7 +4,7 @@
 	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import { mascots } from "$lib/mascots";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getGenres, getStudios, getTags } from "$routes/(app)/(catalog)/catalog.remote";
 
@@ -62,7 +62,7 @@
 			<div class="mb-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 				<h1 id="search-title" class="text-2xl font-bold">Search Results for “{q}”</h1>
 				{#if category}
-					<Button variant="link" href={browseHref(category.filters)}>
+					<Button variant="link" href="/browse" onclick={() => setBrowse(category.filters)}>
 						Browse all {category.name} anime
 					</Button>
 				{/if}

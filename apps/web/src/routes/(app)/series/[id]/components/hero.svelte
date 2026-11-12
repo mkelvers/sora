@@ -6,7 +6,7 @@
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series, SeriesProgress } from "@sora/sdk";
@@ -242,7 +242,11 @@
 					{#each series.genres as genre (genre)}
 						<span class="comma-separated">
 							<a
-								href={browseHref({ genres: [genre] })}
+								href="/browse"
+								onclick={() =>
+									setBrowse({
+										genres: [genre],
+									})}
 								class="underline underline-offset-2 transition-colors hover:text-foreground"
 							>
 								{genre}

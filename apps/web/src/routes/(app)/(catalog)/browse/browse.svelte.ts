@@ -2,8 +2,6 @@ import { filterGroups } from "$routes/(app)/(catalog)/catalog.svelte";
 import type { CatalogFilters } from "$routes/(app)/(catalog)/catalog.svelte";
 import type { Tag } from "@sora/sdk";
 
-export const slug = (name: string) => name.toLowerCase().replaceAll(/[^a-z0-9]+/gu, "-");
-
 export const sorts = [
 	{
 		label: "Popularity",
@@ -86,68 +84,22 @@ export interface BrowseFilters extends CatalogFilters {
 	hideMature: boolean;
 }
 
-const pick = <T extends string>(
-	options: readonly { value: T | undefined }[],
-	value: string | null,
-) => options.find((option) => option.value?.toLowerCase() === value?.toLowerCase())?.value;
+const unfiltered = (): BrowseFilters => ({
+	audio: undefined,
+	country: undefined,
+	format: undefined,
+	genres: [],
+	hideMature: false,
+	sort: "popular",
+	sources: [],
+	studios: [],
+	tags: [],
+});
 
-const [languages, media] = filterGroups;
+export const browse = $state<BrowseFilters>(unfiltered());
 
-export const parseFilters = (
-	params: Pick<URLSearchParams, "get" | "getAll">,
-	genres: string[],
-	tags: Tag[],
-): BrowseFilters => {
-	const named = (key: string, names: string[]) =>
-		params.getAll(key).flatMap((value) => names.find((name) => slug(name) === value) ?? []);
-
-	return {
-		audio: pick(languages.options, params.get("audio")),
-		country: pick(countries, params.get("country")),
-		format: pick(media.options, params.get("format")),
-		genres: named("genre", genres),
-		hideMature: params.get("mature") === "hide",
-		sort: pick(sorts, params.get("sort")) ?? "popular",
-		sources: params
-			.getAll("source")
-			.flatMap((value) => pick(sources, value.replaceAll("-", "_")) ?? []),
-		studios: params.getAll("studio").filter((studio) => studio.length > 0),
-		tags: named(
-			"tag",
-			tags.map((tag) => tag.name),
-		),
-	};
-};
-
-export const browseHref = (filters: Partial<BrowseFilters>) => {
-	const params = new URLSearchParams();
-	for (const genre of filters.genres ?? []) {
-		params.append("genre", slug(genre));
-	}
-	for (const tag of filters.tags ?? []) {
-		params.append("tag", slug(tag));
-	}
-	for (const studio of filters.studios ?? []) {
-		params.append("studio", studio);
-	}
-	for (const source of filters.sources ?? []) {
-		params.append("source", slug(source));
-	}
-	const single = {
-		audio: filters.audio,
-		country: filters.country?.toLowerCase(),
-		format: filters.format?.toLowerCase(),
-		mature: filters.hideMature ? "hide" : undefined,
-		sort: filters.sort === "popular" ? undefined : filters.sort,
-	};
-	for (const [key, value] of Object.entries(single)) {
-		if (value) {
-			params.set(key, value);
-		}
-	}
-
-	const search = params.toString();
-	return search ? `/browse?${search}` : "/browse";
+export const setBrowse = (preset: Partial<BrowseFilters>) => {
+	Object.assign(browse, unfiltered(), preset);
 };
 
 export const toggle = <T>(list: T[], value: T) =>

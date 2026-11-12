@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 
 	import type { PageProps } from "./$types";
 
@@ -11,10 +11,10 @@
 			id: "genres",
 			label: "Genres",
 			links: data.genres.map((genre) => ({
-				href: browseHref({
-					genres: [genre],
-				}),
 				label: genre,
+				preset: {
+					genres: [genre],
+				},
 			})),
 		},
 		{
@@ -22,10 +22,10 @@
 			label: "Tags",
 			links: data.tags
 				.map((tag) => ({
-					href: browseHref({
-						tags: [tag.name],
-					}),
 					label: tag.name,
+					preset: {
+						tags: [tag.name],
+					},
 				}))
 				.toSorted((left, right) => left.label.localeCompare(right.label)),
 		},
@@ -33,10 +33,10 @@
 			id: "studios",
 			label: "Studios",
 			links: data.studios.map((studio) => ({
-				href: browseHref({
-					studios: [studio],
-				}),
 				label: studio,
+				preset: {
+					studios: [studio],
+				},
 			})),
 		},
 	]);
@@ -54,9 +54,15 @@
 			<section class="mb-12" aria-labelledby="categories-{section.id}">
 				<h2 id="categories-{section.id}" class="mb-4 text-lg font-bold">{section.label}</h2>
 				<ul class="-mx-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-					{#each section.links as link (link.href)}
+					{#each section.links as link (link.label)}
 						<li>
-							<Button href={link.href} variant="item" size="sm" class="whitespace-normal">
+							<Button
+								href="/browse"
+								variant="item"
+								size="sm"
+								class="whitespace-normal"
+								onclick={() => setBrowse(link.preset)}
+							>
 								{link.label}
 							</Button>
 						</li>

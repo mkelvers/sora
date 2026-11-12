@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getTags } from "$routes/(app)/(catalog)/catalog.remote";
 	import type { Series } from "@sora/sdk";
@@ -27,7 +27,8 @@
 				{#each names as name (name)}
 					<span class="comma-separated">
 						<a
-							href={browseHref(filter(name))}
+							href="/browse"
+							onclick={() => setBrowse(filter(name))}
 							class="underline underline-offset-2 transition-colors hover:text-foreground"
 						>
 							{name}

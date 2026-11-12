@@ -5,7 +5,7 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { browse, setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
 	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
@@ -52,10 +52,15 @@
 		},
 	];
 
-	const overviews = [
+	const overviews: {
+		href: string;
+		label: string;
+		onclick?: () => void;
+	}[] = [
 		{
 			href: "/browse",
 			label: "Browse All Anime",
+			onclick: () => setBrowse({}),
 		},
 		{
 			href: "/categories",
@@ -72,12 +77,18 @@
 	];
 
 	const current = (href: string) => {
-		const { pathname, search } = page.url;
-		if (href.includes("?")) {
-			return pathname + search === href ? "page" : undefined;
-		}
+		const { pathname } = page.url;
 		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
 	};
+
+	const browsing = (genre: string) =>
+		page.url.pathname === "/browse" &&
+		browse.genres.length === 1 &&
+		browse.genres[0] === genre &&
+		browse.tags.length === 0 &&
+		browse.studios.length === 0
+			? "page"
+			: undefined;
 
 	$effect(() => {
 		if (page.url.pathname === "/notifications") {
@@ -106,7 +117,12 @@
 					<ul class="flex flex-col">
 						{#each overviews as overview, index (overview.href)}
 							<li class={cn(index === overviews.length - 1 && "mb-3")}>
-								<Button href={overview.href} variant="item" aria-current={current(overview.href)}>
+								<Button
+									href={overview.href}
+									variant="item"
+									aria-current={current(overview.href)}
+									onclick={overview.onclick}
+								>
 									{overview.label}
 								</Button>
 							</li>
@@ -139,11 +155,17 @@
 							{#if categories}
 								<ul id="menu-genres" class="bg-[rgb(65_65_65/0.502)]">
 									{#each genres.current ?? [] as genre (genre)}
-										{@const href = browseHref({
-											genres: [genre],
-										})}
 										<li>
-											<Button {href} variant="item" class="pl-9" aria-current={current(href)}>
+											<Button
+												href="/browse"
+												variant="item"
+												class="pl-9"
+												aria-current={browsing(genre)}
+												onclick={() =>
+													setBrowse({
+														genres: [genre],
+													})}
+											>
 												{genre}
 											</Button>
 										</li>
@@ -195,6 +217,7 @@
 											href={overview.href}
 											variant="item"
 											aria-current={current(overview.href)}
+											onclick={overview.onclick}
 										>
 											{overview.label}
 										</Button>
@@ -215,11 +238,16 @@
 							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
 								{#each genres.current ?? [] as genre (genre)}
-									{@const href = browseHref({
-										genres: [genre],
-									})}
 									<li>
-										<Button {href} variant="item" aria-current={current(href)}>
+										<Button
+											href="/browse"
+											variant="item"
+											aria-current={browsing(genre)}
+											onclick={() =>
+												setBrowse({
+													genres: [genre],
+												})}
+										>
 											{genre}
 										</Button>
 									</li>

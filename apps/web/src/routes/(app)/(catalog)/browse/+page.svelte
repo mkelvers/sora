@@ -1,11 +1,8 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
-	import { page } from "$app/state";
 	import {
-		browseHref,
+		browse,
 		browseTitle,
 		catalogRequest,
-		parseFilters,
 	} from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters as Filters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
@@ -16,13 +13,11 @@
 
 	let { data }: PageProps = $props();
 
-	const filters = $derived(parseFilters(page.url.searchParams, data.genres, data.tags));
-	const title = $derived(browseTitle(filters));
+	const title = $derived(browseTitle(browse));
 
-	const apply = (next: Filters) =>
-		goto(browseHref(next), {
-			reset: false,
-		});
+	const apply = (next: Filters) => {
+		Object.assign(browse, next);
+	};
 </script>
 
 <svelte:head>
@@ -35,13 +30,13 @@
 		title: "Nothing matches all of that.",
 		hint: "Loosen a filter and see what turns up.",
 	}}
-	request={catalogRequest(filters)}
+	request={catalogRequest($state.snapshot(browse))}
 >
 	{#snippet aside()}
-		<FilterList {filters} genres={data.genres} tags={data.tags} onchange={apply} />
+		<FilterList filters={browse} genres={data.genres} tags={data.tags} onchange={apply} />
 	{/snippet}
 
 	{#snippet controls()}
-		<BrowseControls {filters} genres={data.genres} tags={data.tags} onchange={apply} />
+		<BrowseControls filters={browse} genres={data.genres} tags={data.tags} onchange={apply} />
 	{/snippet}
 </Catalog>

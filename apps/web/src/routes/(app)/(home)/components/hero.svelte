@@ -9,7 +9,7 @@
 	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { browseHref } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { FeaturedCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
@@ -123,7 +123,11 @@
 								<span class="metadata-tag min-w-0 truncate">
 									{#each slide.genres.slice(0, 4) as genre (genre)}
 										<a
-											href={browseHref({ genres: [genre] })}
+											href="/browse"
+											onclick={() =>
+												setBrowse({
+													genres: [genre],
+												})}
 											class="pointer-events-auto transition-colors comma-separated hover:text-foreground"
 										>
 											{genre}

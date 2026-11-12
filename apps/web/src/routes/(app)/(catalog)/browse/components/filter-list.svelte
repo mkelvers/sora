@@ -44,21 +44,6 @@
 		groups.country,
 		groups.source,
 		{
-			choices: [
-				{
-					all: false,
-					checked: filters.hideMature,
-					label: "Hide mature",
-					next: {
-						hideMature: !filters.hideMature,
-					},
-				},
-			],
-			id: "content",
-			label: "Content",
-			multiple: true,
-		},
-		{
 			...groups.tags,
 			choices: allTags
 				? groups.tags.choices
