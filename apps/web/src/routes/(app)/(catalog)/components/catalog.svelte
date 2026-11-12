@@ -43,7 +43,7 @@
 			{#if aside}
 				<aside
 					aria-label="Filters"
-					class="-mx-2 grid content-start gap-6 max-lg:hidden lg:sticky lg:top-22 lg:max-h-[calc(100dvh-7rem)] lg:scrollbar-thin lg:self-start lg:overflow-y-auto"
+					class="-mx-2 grid content-start gap-6 max-lg:hidden lg:sticky lg:top-22 lg:max-h-[calc(100dvh-13rem)] lg:[scrollbar-width:none] lg:self-start lg:overflow-y-auto lg:[&::-webkit-scrollbar]:hidden"
 				>
 					{@render aside()}
 				</aside>
