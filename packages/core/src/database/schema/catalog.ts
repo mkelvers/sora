@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 
 import type {
 	AnimeDetailsFragment,
 	MediaFormat,
 	MediaSeason,
+	MediaSource,
 	MediaStatus,
 } from "../../anilist/graphql.generated";
 import { jsonb, timestamptz } from "./columns";
@@ -85,11 +86,27 @@ export const animeSearch = pgTable(
 	{
 		anilistId: integer("anilist_id").primaryKey(),
 		averageScore: integer("average_score"),
+		/** Country of origin as an ISO 3166-1 alpha-2 code, such as `JP`. */
+		country: text("country"),
+		/** Minutes per episode. */
+		duration: integer("duration"),
 		english: text("english"),
+		/** How many episodes it has, or will have when that is known. */
+		episodes: integer("episodes"),
 		format: text("format").$type<MediaFormat>(),
 		genres: jsonb("genres").$type<string[]>().notNull(),
 		isAdult: boolean("is_adult").notNull(),
 		native: text("native"),
+		/**
+		 * The country its story comes from: that of the work it adapts, such as
+		 * `KR` for the anime of a Korean comic made in Japan, else its own.
+		 */
+		originCountry: text("origin_country"),
+		/**
+		 * What the work it adapts adapts in turn, such as `WEB_NOVEL` for the
+		 * anime of a comic of a web novel; `null` when that work is original.
+		 */
+		originSource: text("origin_source").$type<MediaSource>(),
 		popularity: integer("popularity").notNull(),
 		romaji: text("romaji"),
 		/** How many AniList users have scored it; `null` when AniList has no score distribution for it. */
@@ -108,9 +125,13 @@ export const animeSearch = pgTable(
 		searchText: text("search_text").notNull(),
 		season: text("season").$type<MediaSeason>(),
 		seasonYear: integer("season_year"),
+		/** What it adapts, such as `MANGA` or `ORIGINAL`. */
+		source: text("source").$type<MediaSource>(),
 		/** `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, depending on what is known. */
 		startDate: text("start_date"),
 		status: text("status").$type<MediaStatus>(),
+		/** The studios AniList credits as its main ones, by name. */
+		studios: jsonb("studios").$type<string[]>().notNull().default([]),
 		synonyms: jsonb("synonyms").$type<string[]>().notNull(),
 		trending: integer("trending").notNull(),
 		/** When AniList last changed the entry. */
@@ -124,6 +145,36 @@ export const animeSearch = pgTable(
 			fastupdate: false,
 		}),
 		index("anime_search_updated_at_idx").on(table.updatedAt),
+	],
+);
+
+/**
+ * AniList's tags on each entry of {@link animeSearch}, such as Isekai or
+ * Seinen, with how strongly each applies, so browsing can filter by them.
+ * Every tag is kept, however weakly it applies; browsing decides how strong
+ * a tag must be to count.
+ */
+export const animeSearchTag = pgTable(
+	"anime_search_tag",
+	{
+		/** Whether AniList keeps the tag for adult media; such a tag on another entry marks sexual content. */
+		adult: boolean("adult").notNull(),
+		anilistId: integer("anilist_id")
+			.notNull()
+			.references(() => animeSearch.anilistId, {
+				onDelete: "cascade",
+			}),
+		/** How strongly the tag applies, from 0 to 100, as AniList users voted. */
+		rank: integer("rank").notNull(),
+		/** Whether the tag gives away something about this entry's story. */
+		spoiler: boolean("spoiler").notNull(),
+		tag: text("tag").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.anilistId, table.tag],
+		}),
+		index("anime_search_tag_tag_idx").on(table.tag, table.rank),
 	],
 );
 

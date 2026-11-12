@@ -1,5 +1,6 @@
 import { query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
+import { sourceValues } from "$routes/(app)/(catalog)/browse/browse.svelte";
 import { route } from "@sora/sdk";
 import type { SeriesCard } from "@sora/sdk";
 import { z } from "zod";
@@ -26,8 +27,14 @@ const request = z.discriminatedUnion("kind", [
 		year: z.number().int().min(1940).max(2100),
 	}),
 	z.object({
-		genre: z.string().min(1).max(100),
-		kind: z.literal("genre"),
+		countries: z.array(z.string().regex(/^[A-Z]{2}$/u)).max(10),
+		genres: z.array(z.string().min(1).max(100)).max(10),
+		hideMature: z.boolean(),
+		kind: z.literal("browse"),
+		sort: z.enum(["popular", "trending", "score", "newest", "title"]),
+		sources: z.array(z.enum(sourceValues)).max(sourceValues.length),
+		studios: z.array(z.string().min(1).max(100)).max(10),
+		tags: z.array(z.string().min(1).max(100)).max(10),
 		...filters,
 	}),
 ]);
@@ -48,6 +55,18 @@ const formats = {
 } as const;
 
 export const getGenres = query(async () => await remoteViewer().sora.request(route.listGenres));
+
+export const getTags = query(async () => await remoteViewer().sora.request(route.listTags));
+
+export const getStudios = query(
+	z.string().trim().max(100),
+	async (q) =>
+		await remoteViewer().sora.request(route.listStudios, {
+			query: {
+				q: q || undefined,
+			},
+		}),
+);
 
 export const getCatalogPage = query(request, async (input) => {
 	const { sora } = remoteViewer();
@@ -76,6 +95,31 @@ export const getCatalogPage = query(request, async (input) => {
 		};
 	}
 
+	if (input.kind === "browse") {
+		const { results, meta } = await sora.requestWithMeta(route.browseSeries, {
+			query: {
+				audio: input.audio,
+				countries: input.countries,
+				format: input.format && [...formats[input.format]],
+				genres: input.genres,
+				hide_mature: input.hideMature || undefined,
+				sort: input.sort,
+				sources: input.sources,
+				studios: input.studios,
+				tags: input.tags,
+				...paging,
+			},
+		});
+
+		return {
+			hasNextPage: meta.has_next_page,
+			items: results.map((card): CatalogItem => ({
+				card,
+			})),
+			preparing: meta.preparing,
+		};
+	}
+
 	const { results, meta } = await sora.requestWithMeta(route.browseSeries, {
 		query:
 			input.kind === "simulcast"
@@ -89,7 +133,6 @@ export const getCatalogPage = query(request, async (input) => {
 				: {
 						audio: input.audio,
 						format: input.format && [...formats[input.format]],
-						genres: input.kind === "genre" ? [input.genre] : undefined,
 						sort: "popular",
 						...paging,
 					},

@@ -1,12 +1,44 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
-	import { slug } from "$routes/(app)/(catalog)/genres/slug";
+	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import type { BrowseFilters } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { getTags } from "$routes/(app)/(catalog)/catalog.remote";
 	import type { Series } from "@sora/sdk";
 
 	let { series }: { series: Series } = $props();
 
 	let expanded = $state(false);
+
+	const offered = getTags();
+	const tags = $derived.by(() => {
+		const names = new Set((offered.current ?? []).map((tag) => tag.name));
+		return series.tags
+			.filter((tag) => !tag.spoiler && names.has(tag.name))
+			.slice(0, 6)
+			.map((tag) => tag.name);
+	});
 </script>
+
+{#snippet links(label: string, names: string[], filter: (name: string) => Partial<BrowseFilters>)}
+	{#if names.length}
+		<div>
+			<dt class="inline text-foreground">{label}:</dt>
+			<dd class="inline">
+				{#each names as name (name)}
+					<span class="comma-separated">
+						<a
+							href="/browse"
+							onclick={() => setBrowse(filter(name))}
+							class="underline underline-offset-2 transition-colors hover:text-foreground"
+						>
+							{name}
+						</a>
+					</span>
+				{/each}
+			</dd>
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet row(label: string, values: string[])}
 	{#if values.length}
@@ -49,24 +81,19 @@
 					</dd>
 				</div>
 			{/if}
-			{#if series.genres.length}
-				<div>
-					<dt class="inline text-foreground">Genres:</dt>
-					<dd class="inline">
-						{#each series.genres as genre (genre)}
-							<span class="comma-separated">
-								<a
-									href="/genres/{slug(genre)}"
-									class="underline underline-offset-2 transition-colors hover:text-foreground"
-								>
-									{genre}
-								</a>
-							</span>
-						{/each}
-					</dd>
-				</div>
-			{/if}
-			{@render row(series.studios.length > 1 ? "Studios" : "Studio", series.studios)}
+			{@render links("Genres", series.genres, (genre) => ({
+				genres: [genre],
+			}))}
+			{@render links("Tags", tags, (tag) => ({
+				tags: [tag],
+			}))}
+			{@render links(
+				series.studios.length > 1 ? "Studios" : "Studio",
+				series.studios,
+				(studio) => ({
+					studios: [studio],
+				}),
+			)}
 		</dl>
 		{#if series.credit}
 			<p class="mt-3 text-xs leading-6 font-bold text-subtle">{series.credit}</p>

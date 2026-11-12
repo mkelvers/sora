@@ -32,3 +32,29 @@ export const catalogSeriesAllowed = sql`not exists (
 		sql`, `,
 	)})
 )`;
+
+/**
+ * How strongly a tag must apply, from 0 to 100 as AniList users voted, for
+ * a title to be found by it. Below this, a tag names something the title
+ * only touches on: a show with Isekai at 20 is not an isekai.
+ */
+export const tagMinimumRank = 60;
+
+/** Genres that mark a title as mature. */
+export const matureGenres = ["Ecchi"] as const;
+
+/**
+ * Tags that mark a title as mature where they apply at least
+ * {@link matureTagRank}, besides those AniList keeps for adult media.
+ */
+export const matureTags = [
+	"Body Horror",
+	"Cannibalism",
+	"Ero Guro",
+	"Gore",
+	"Nudity",
+	"Torture",
+] as const;
+
+/** How strongly a {@link matureTags} tag must apply to mark a title as mature. */
+export const matureTagRank = 50;

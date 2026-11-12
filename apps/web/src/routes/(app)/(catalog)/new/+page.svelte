@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { filters } from "$routes/(app)/(catalog)/catalog.svelte";
+	import { filterLabels, filters, resetFilters } from "$routes/(app)/(catalog)/catalog.svelte";
 	import CatalogControls from "$routes/(app)/(catalog)/components/catalog-controls.svelte";
 	import CatalogReset from "$routes/(app)/(catalog)/components/catalog-reset.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
@@ -22,7 +22,7 @@
 		}}
 	>
 		{#snippet summary()}
-			<CatalogReset />
+			<CatalogReset labels={filterLabels(filters)} onreset={resetFilters} />
 		{/snippet}
 
 		{#snippet controls()}

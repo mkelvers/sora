@@ -1,5 +1,5 @@
-# One page of the anime catalogue, with what the local search index matches
-# and ranks on: most popular first for a full sweep, or newest change first
+# One page of the anime catalogue, with what the local search index matches,
+# filters, and ranks on: most popular first for a full sweep, or newest change first
 # to catch up on what changed since the last one. AniList serves at most
 # 5000 entries per filter, so a full sweep narrows `popularityBelow` as it goes.
 query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) {
@@ -25,6 +25,33 @@ query SearchIndexPage($page: Int!, $sort: [MediaSort!]!, $popularityBelow: Int) 
 				day
 			}
 			genres
+			tags {
+				name
+				rank
+				isMediaSpoiler
+				isAdult
+			}
+			# Only the main studios: the rest are its production committee.
+			studios(isMain: true) {
+				nodes {
+					name
+				}
+			}
+			source(version: 3)
+			countryOfOrigin
+			# What it adapts, to tell where its story comes from: the anime of a
+			# Korean comic is made in Japan, and that comic adapts a web novel.
+			relations {
+				edges {
+					relationType(version: 2)
+					node {
+						countryOfOrigin
+						source(version: 3)
+					}
+				}
+			}
+			episodes
+			duration
 			popularity
 			trending
 			averageScore

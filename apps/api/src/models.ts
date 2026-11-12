@@ -17,6 +17,7 @@ export type {
 	FeaturedCard,
 	SeriesCard,
 	SeriesImage,
+	Tag,
 	UpcomingSeries,
 } from "@sora/core/models/series";
 export type {

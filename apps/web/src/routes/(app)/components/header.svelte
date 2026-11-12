@@ -5,8 +5,8 @@
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
 	import { cn, pollWhileVisible } from "$lib/utils";
+	import { browse, setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
-	import { slug } from "$routes/(app)/(catalog)/genres/slug";
 	import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
 	import { profilesPage } from "$routes/(auth)/profiles/profiles.svelte";
 	import type { Profile } from "@sora/sdk";
@@ -52,6 +52,22 @@
 		},
 	];
 
+	const overviews: {
+		href: string;
+		label: string;
+		onclick?: () => void;
+	}[] = [
+		{
+			href: "/browse",
+			label: "Browse All Anime",
+			onclick: () => setBrowse({}),
+		},
+		{
+			href: "/categories",
+			label: "All Categories",
+		},
+	];
+
 	const links = [
 		...sections,
 		{
@@ -64,6 +80,15 @@
 		const { pathname } = page.url;
 		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
 	};
+
+	const browsing = (genre: string) =>
+		page.url.pathname === "/browse" &&
+		browse.genres.length === 1 &&
+		browse.genres[0] === genre &&
+		browse.tags.length === 0 &&
+		browse.studios.length === 0
+			? "page"
+			: undefined;
 
 	$effect(() => {
 		if (page.url.pathname === "/notifications") {
@@ -90,6 +115,18 @@
 
 				{#snippet children()}
 					<ul class="flex flex-col">
+						{#each overviews as overview, index (overview.href)}
+							<li class={cn(index === overviews.length - 1 && "mb-3")}>
+								<Button
+									href={overview.href}
+									variant="item"
+									aria-current={current(overview.href)}
+									onclick={overview.onclick}
+								>
+									{overview.label}
+								</Button>
+							</li>
+						{/each}
 						{#each links as section (section.href)}
 							<li>
 								<Button href={section.href} variant="item" aria-current={current(section.href)}>
@@ -120,10 +157,14 @@
 									{#each genres.current ?? [] as genre (genre)}
 										<li>
 											<Button
-												href="/genres/{slug(genre)}"
+												href="/browse"
 												variant="item"
 												class="pl-9"
-												aria-current={current(`/genres/${slug(genre)}`)}
+												aria-current={browsing(genre)}
+												onclick={() =>
+													setBrowse({
+														genres: [genre],
+													})}
 											>
 												{genre}
 											</Button>
@@ -168,24 +209,44 @@
 					{/snippet}
 
 					{#snippet children()}
-						<ul class="w-56 shrink-0 py-2">
-							{#each links as section (section.href)}
-								<li>
-									<Button href={section.href} variant="item" aria-current={current(section.href)}>
-										{section.label}
-									</Button>
-								</li>
-							{/each}
-						</ul>
+						<div class="w-56 shrink-0 py-2">
+							<ul class="mb-3">
+								{#each overviews as overview (overview.href)}
+									<li>
+										<Button
+											href={overview.href}
+											variant="item"
+											aria-current={current(overview.href)}
+											onclick={overview.onclick}
+										>
+											{overview.label}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+							<ul>
+								{#each links as section (section.href)}
+									<li>
+										<Button href={section.href} variant="item" aria-current={current(section.href)}>
+											{section.label}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						</div>
 						<section class="min-w-0 flex-1 py-2" aria-labelledby="header-genres">
 							<h2 id="header-genres" class="px-5 pt-2 pb-1 text-sm text-subtle">Genres</h2>
 							<ul class="grid grid-cols-2 lg:grid-cols-3">
 								{#each genres.current ?? [] as genre (genre)}
 									<li>
 										<Button
-											href="/genres/{slug(genre)}"
+											href="/browse"
 											variant="item"
-											aria-current={current(`/genres/${slug(genre)}`)}
+											aria-current={browsing(genre)}
+											onclick={() =>
+												setBrowse({
+													genres: [genre],
+												})}
 										>
 											{genre}
 										</Button>

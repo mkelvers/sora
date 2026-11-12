@@ -43,3 +43,15 @@ export const filterGroups = [
 ] as const;
 
 export const filters = $state<CatalogFilters>({});
+
+export const filterLabels = (applied: CatalogFilters) =>
+	filterGroups.flatMap((group) =>
+		group.options
+			.filter((option) => option.value && option.value === applied[group.id])
+			.map((option) => option.label),
+	);
+
+export const resetFilters = () => {
+	filters.audio = undefined;
+	filters.format = undefined;
+};

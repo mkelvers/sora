@@ -13,6 +13,25 @@ export const LanguageSchema = z.enum(["dub", "sub", "raw"]);
 
 export const FormatSchema = z.enum(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]);
 
+/** What a title adapts, as AniList lists it. */
+export const SourceSchema = z.enum([
+	"ANIME",
+	"COMIC",
+	"DOUJINSHI",
+	"GAME",
+	"LIGHT_NOVEL",
+	"LIVE_ACTION",
+	"MANGA",
+	"MULTIMEDIA_PROJECT",
+	"NOVEL",
+	"ORIGINAL",
+	"OTHER",
+	"PICTURE_BOOK",
+	"VIDEO_GAME",
+	"VISUAL_NOVEL",
+	"WEB_NOVEL",
+]);
+
 export const SeriesCardSchema = z
 	.object({
 		audio: z.array(LanguageSchema).meta({
@@ -211,7 +230,10 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		example:
 			"The adventure is over but life goes on for an elf mage just beginning to learn what living is all about.",
 	}),
-	tags: z.array(AnimeTagSchema),
+	tags: z.array(AnimeTagSchema).meta({
+		description:
+			"AniList's tags that apply strongly enough for `browseSeries` to find it by them, the strongest first. A `spoiler` tag gives away part of the story; `browseSeries` does not find it by that one.",
+	}),
 }).meta({
 	id: "Series",
 });
@@ -404,6 +426,37 @@ export const CalendarSchema = z
 		id: "Calendar",
 	});
 
+/** What part of a story a tag describes, as browsing groups tags. */
+export const TagGroupSchema = z.enum(["demographic", "theme", "setting", "cast"]);
+
+export const TagSchema = z
+	.object({
+		description: z.string().nullable().meta({
+			description: "What the tag means, in AniList's words.",
+			example: "Features characters being transported into an alternate world setting.",
+		}),
+		group: TagGroupSchema.meta({
+			description:
+				"`demographic`: who it is made for. `theme`: what it is about. `setting`: where and when it takes place. `cast`: who is in it.",
+		}),
+		name: z.string().meta({
+			description: "Its name, as `browseSeries` takes it in `tags`.",
+			example: "Isekai",
+		}),
+		section: z.string().meta({
+			description: "The heading it sits under within its group.",
+			example: "Fantasy",
+		}),
+		titles: z.number().int().meta({
+			description:
+				"How many AniList entries Sora can play carry it strongly enough to be found by it; a show's seasons count separately.",
+			example: 412,
+		}),
+	})
+	.meta({
+		id: "Tag",
+	});
+
 export const AnimeSeasonSchema = z
 	.object({
 		season: z.enum(["WINTER", "SPRING", "SUMMER", "FALL"]),
@@ -575,6 +628,7 @@ export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
 export type Episode = z.infer<typeof EpisodeSchema>;
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
 export type Calendar = z.infer<typeof CalendarSchema>;
+export type Tag = z.infer<typeof TagSchema>;
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
 export type Release = z.infer<typeof ReleaseSchema>;
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;

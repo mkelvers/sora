@@ -10,7 +10,7 @@ import type { Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema } from "../catalog/queries/browse-query";
 import type { BrowseQuery } from "../catalog/queries/browse-query";
 import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
-import { catalogSeriesAllowed, isCatalogFormat } from "../catalog/visibility";
+import { catalogSeriesAllowed, isCatalogFormat, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime as animeTable, animeSearch } from "../database/schema/catalog";
 import {
@@ -760,7 +760,9 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
 		start_date: row.startDate,
 		studios: anime.studios,
-		tags: anime.tags,
+		tags: anime.tags
+			.filter((tag) => (tag.rank ?? 0) >= tagMinimumRank)
+			.toSorted((left, right) => (right.rank ?? 0) - (left.rank ?? 0)),
 	};
 };
 
@@ -1060,7 +1062,9 @@ const preparingOn = (
  * {@link searchAnime}). Browsing without one orders the entries by `sort`
  * and lists only those AniKoto carries, since only they can be watched (see
  * {@link browseIndex}). Until the index has been filled once, browsing
- * follows AniList's page of entries instead.
+ * follows AniList's page of entries instead, and only the filters AniList
+ * applies itself work there: tags, studios, sources, countries, years,
+ * episode counts, scores, and hiding mature content wait for the index.
  *
  * Reads only stored titles, so a search never waits on AniList or TMDB. An
  * entry that is not stored yet is queued for the scheduler and left out of
