@@ -70,7 +70,7 @@ The installer checks the machine, installs Docker on Linux if it is missing, and
 
 It checks both keys, generates the remaining secrets, starts the stack, and waits until every service is healthy. Everything lands in `~/sora`, and every run writes a log to `~/sora/logs`. To answer ahead of time, for example in automation, set the variables listed at the top of [`install.sh`](deploy/install.sh) and pass `--yes`. `--dry-run` prints what would change.
 
-A new install starts empty and fills its catalogue in the background. What you search for or browse is stored first and shows up within a few minutes; the rest fills over the next hours, most popular titles first. Sora needs about 1.5 GB of free memory: the scheduler peaks near 1 GB while it reads episode stills.
+A new install starts empty and fills its catalogue in the background. What you open or search for is stored first and shows up within a few minutes. The search index is complete after about half an hour, and the rest of the catalogue fills over the next hours, most popular titles first. Sora uses up to about 1 GB of memory.
 
 ```sh
 ~/sora/sora.sh update      # back up, then move to the newest release

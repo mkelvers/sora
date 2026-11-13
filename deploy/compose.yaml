@@ -157,13 +157,13 @@ configs:
   caddyfile:
     content: |
       {$$SORA_SITE} {
-        encode zstd gzip
-        handle /v1/* {
-          reverse_proxy api:3000
-        }
-        handle {
-          reverse_proxy web:3000
-        }
+      	encode zstd gzip
+      	handle /v1/* {
+      		reverse_proxy api:3000
+      	}
+      	handle {
+      		reverse_proxy web:3000
+      	}
       }
 
 volumes:

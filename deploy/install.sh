@@ -45,7 +45,7 @@ readonly docker_install_version="29.5"
 readonly minimum_docker="24.0.0"
 readonly minimum_compose="2.24.0"
 readonly minimum_disk_kb=$((10 * 1024 * 1024))
-readonly minimum_memory_bytes=$((1800 * 1024 * 1024))
+readonly minimum_memory_bytes=$((1536 * 1024 * 1024))
 readonly username_pattern='^[a-zA-Z0-9_.]{3,30}$'
 readonly token_pattern='^[A-Za-z0-9._~+/=-]+$'
 readonly domain_pattern='^([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$'
@@ -529,6 +529,8 @@ check_docker() {
 			if ! "${docker_cmd[@]}" info >/dev/null; then
 				die "Docker is not reachable even with sudo. See the log."
 			fi
+		elif [[ $probe == *"permission denied"* ]]; then
+			die "Your user cannot reach the Docker daemon. Add it to the docker group (sudo usermod -aG docker \$USER), log in again, and run this again."
 		elif [[ $os_name == "macOS" ]]; then
 			die "Docker is installed but not running. Start Docker Desktop or OrbStack, then run this again."
 		else
@@ -558,7 +560,7 @@ check_docker() {
 	local memory
 	memory=$("${docker_cmd[@]}" info --format '{{.MemTotal}}')
 	if [[ $memory =~ ^[0-9]+$ ]] && ((memory < minimum_memory_bytes)); then
-		warn "Docker has $((memory / 1024 / 1024)) MB of memory. Sora needs about 1.5 GB of it free: its scheduler peaks near 1 GB while it reads episode stills, and is killed when memory runs out."
+		warn "Docker has $((memory / 1024 / 1024)) MB of memory. Sora uses up to about 1 GB of it, and services are killed when memory runs out."
 	fi
 	local parent=$dir available
 	while [[ ! -d $parent ]]; do
@@ -1117,9 +1119,10 @@ finish() {
 	say ""
 	say "$(paint 1 "Sora $release_tag is running at $(paint 4 "$url")")"
 	say ""
-	say "  The catalogue starts empty and fills in the background. What you search for"
-	say "  or browse is stored first and shows up within a few minutes; the rest fills"
-	say "  over the next hours, most popular titles first."
+	say "  The catalogue starts empty and fills in the background. What you open or"
+	say "  search for is stored first and shows up within a few minutes. The search"
+	say "  index is complete after about half an hour, and the rest of the catalogue"
+	say "  fills over the next hours, most popular titles first."
 	if [[ $is_wsl == 1 && $(env_get SORA_BIND) == "0.0.0.0" ]]; then
 		say ""
 		say "  On WSL2, other devices reach this only with mirrored networking or a port"
