@@ -161,8 +161,8 @@ export class AniKotoStreamProvider implements StreamProvider {
 
 	/**
 	 * Mirrors AniKoto's catalogue, which series are matched against. The first
-	 * sync, with nothing stored, reads the whole catalogue: about 450 pages at
-	 * AniKoto's limit of 60 requests a minute.
+	 * sync, with nothing stored, reads the whole catalogue: about 450 pages,
+	 * some 20 minutes at the 24 requests a minute `providerHttp` keeps to.
 	 */
 	async syncCatalog(options: { full: boolean }) {
 		const { pages, stored } = await syncAniKotoCatalog(this.http, options);

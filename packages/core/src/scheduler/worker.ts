@@ -190,7 +190,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	// which can number in the thousands. Episodes and their languages are
 	// unknown until an entry is looked up. A lookup costs AniKoto's API a
 	// request or two and spends most of its time waiting on the other sites,
-	// so twelve at a time stay well within AniKoto's 60 a minute, and the
+	// so twelve at a time stay within AniKoto's 24 a minute, and the
 	// release watchers wait behind at most a dozen of them.
 	//
 	// A lookup whose anime is not stored yet loads it from AniList, and those
