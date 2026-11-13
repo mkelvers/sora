@@ -55,8 +55,9 @@ CMD ["sh", "-c", "bun packages/core/src/database/migrate.ts && exec bun apps/api
 # Reads episode stills for title cards and text, so none is shown with them.
 # The model is fetched at build time so a new container does not fetch it again.
 FROM scheduler-dependencies AS still-model
+COPY packages/core/src/tmdb/still-model.ts packages/core/src/tmdb/still-labels.generated.json packages/core/src/tmdb/
 RUN cd packages/core \
-	&& bun -e "import { env, pipeline } from '@huggingface/transformers'; env.cacheDir = '/opt/clip'; await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32')"
+	&& bun -e "import { loadStillModel } from './src/tmdb/still-model.ts'; await loadStillModel('/opt/clip')"
 
 # The default scheduler: everything but listening to dubs and upscaling backdrops.
 FROM runtime AS scheduler

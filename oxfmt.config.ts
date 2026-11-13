@@ -10,6 +10,7 @@ export default defineConfig({
 		"packages/core/drizzle/**",
 		"vendor/**",
 		"**/*.generated.ts",
+		"**/*.generated.json",
 	],
 	objectWrap: "preserve",
 	printWidth: 100,

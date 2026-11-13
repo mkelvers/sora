@@ -2,19 +2,27 @@
 # amd64 and arm64 each built on its own native runner, then install.sh,
 # compose.yaml, and SHA256SUMS as release assets. The release is created last,
 # so releases/latest never points at a version whose images are missing.
+#
+# A pull request that changes how the images are built runs the same builds,
+# loads each image and checks it starts its tools, and publishes nothing.
 name: Release
 
 on:
   push:
     tags:
       - "v*.*.*"
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/release.yml
 
 permissions:
   contents: read
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io/${{ github.repository_owner }}
@@ -46,6 +54,7 @@ jobs:
             image: sora-scheduler
     steps:
       - name: Check the tag
+        if: github.event_name == 'push'
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -61,6 +70,7 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: github.event_name == 'push'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -78,12 +88,32 @@ jobs:
           target: ${{ matrix.variant }}
           platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
-          sbom: true
+          outputs: ${{ github.event_name == 'push' && format('type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true', env.REGISTRY, matrix.image) || 'type=docker,name=sora-check' }}
+          sbom: ${{ github.event_name == 'push' }}
           cache-from: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }}
           cache-to: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }},mode=min
 
+      - name: Check the image starts its tools
+        if: github.event_name == 'pull_request'
+        env:
+          VARIANT: ${{ matrix.variant }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --network none --entrypoint bun sora-check --version
+          if [[ $VARIANT == scheduler* ]]; then
+            docker run --rm --network none --entrypoint sh sora-check -c 'test -s "$STILL_MODEL_DIR/Xenova/clip-vit-base-patch32/onnx/vision_model_quantized.onnx"'
+          fi
+          if [[ $VARIANT == scheduler-full ]]; then
+            docker run --rm --network none --entrypoint sh sora-check -c 'ffmpeg -version | head -n 1 && "$SUBTITLE_ALIGNMENT_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel(\"small.en\", device=\"cpu\", compute_type=\"int8\")"'
+            if [[ $ARCH == amd64 ]]; then
+              docker run --rm --network none --entrypoint sh sora-check -c '! ldd "$REALESRGAN_BINARY" | grep "not found"'
+            else
+              docker run --rm --network none --entrypoint sh sora-check -c 'test -z "${REALESRGAN_BINARY:-}"'
+            fi
+          fi
+
       - name: Keep the digest
+        if: github.event_name == 'push'
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
@@ -91,6 +121,7 @@ jobs:
           touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'push'
         with:
           name: digests-${{ matrix.variant }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
@@ -99,6 +130,7 @@ jobs:
 
   merge:
     name: Publish ${{ matrix.variant }}
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -164,6 +196,7 @@ jobs:
 
   release:
     name: Create the GitHub release
+    if: github.event_name == 'push'
     needs: merge
     runs-on: ubuntu-24.04
     permissions:

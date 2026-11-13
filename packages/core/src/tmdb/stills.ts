@@ -7,6 +7,7 @@ import { db } from "../database/client";
 import { episodeStill } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 import type { TmdbEpisode, TmdbImage } from "./resources";
+import { loadStillModel, stillModel } from "./still-model";
 
 const widescreen = 16 / 9;
 
@@ -146,44 +147,17 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 export const hasBlackBars = async (image: Buffer): Promise<boolean> =>
 	(await blackBars(image)) >= thinnestBar;
 
-const stillModel = "Xenova/clip-vit-base-patch32";
-
-const sceneLabel = "a frame from an anime episode";
-
-/** What CLIP is asked to tell a scene from; the scene is the first. */
-const stillLabels = [
-	sceneLabel,
-	"a title card with large text or a logo",
-	"a promotional poster with a logo",
-	"a black screen with text",
-];
-
 /**
  * A still is a scene when CLIP gives it at least this much of its
- * probability. Bleach's title cards of episodes 7 and 18, which CLIP finds
- * hardest, get 0.72 and 0.68; of 1,691 stills, 1.4% more are turned away
- * than at 0.5, a few of them with text on them as well.
+ * probability. Bleach's title card of episode 18, which CLIP finds hardest,
+ * gets 0.79. Of 1,323 stills from 430 episodes, this turns away every one the
+ * whole 32-bit model turned away at 0.75, and four more: two title cards and
+ * a poster it let through, and a letterboxed scene that its black bars turn
+ * away first.
  */
-const sceneShare = 0.75;
+const sceneShare = 0.8;
 
-/**
- * Loads CLIP. `@huggingface/transformers` is imported here rather than at the
- * top, as only the scheduler reads stills: the API reaches this module but
- * never calls {@link showsText}, so its image ships without onnxruntime.
- */
-const loadClassifier = async () => {
-	const { env, pipeline, RawImage } = await import("@huggingface/transformers");
-	if (config.stillModelDir) {
-		env.cacheDir = config.stillModelDir;
-	}
-
-	return {
-		RawImage,
-		classify: await pipeline("zero-shot-image-classification", stillModel),
-	};
-};
-
-let classifier: ReturnType<typeof loadClassifier> | null = null;
+let classifier: ReturnType<typeof loadStillModel> | null = null;
 
 /**
  * Whether a still is a title card, a logo, or other text rather than a
@@ -197,7 +171,7 @@ let classifier: ReturnType<typeof loadClassifier> | null = null;
  * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
 export const showsText = async (image: Buffer): Promise<boolean> => {
-	classifier ??= loadClassifier();
+	classifier ??= loadStillModel(config.stillModelDir);
 	const loaded = await attempt(classifier);
 	if (loaded.error) {
 		classifier = null;
@@ -207,13 +181,7 @@ export const showsText = async (image: Buffer): Promise<boolean> => {
 		});
 	}
 
-	const { classify, RawImage } = loaded.data;
-	const scored = await classify(
-		await RawImage.fromBlob(new Blob([new Uint8Array(image)])),
-		stillLabels,
-	);
-	const scene = [scored].flat().find((score) => score.label === sceneLabel);
-	return (scene?.score ?? 0) < sceneShare;
+	return (await loaded.data(image)) < sceneShare;
 };
 
 /**
