@@ -78,6 +78,7 @@ export const actions: Actions = {
 		if (viewer.profile?.id === params.id) {
 			cookies.delete("sora_profile", {
 				path: "/",
+				secure: url.protocol === "https:",
 			});
 		}
 

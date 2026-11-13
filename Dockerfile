@@ -1,3 +1,6 @@
+# Set by BuildKit to the platform being built; picks the upscale-tools stage.
+ARG TARGETARCH
+
 FROM oven/bun:1.4.0 AS base
 WORKDIR /app
 
@@ -49,10 +52,28 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/health'); process.exit(r.ok ? 0 : 1)"
 CMD ["sh", "-c", "bun packages/core/src/database/migrate.ts && exec bun apps/api/src/main.ts"]
 
+# Reads episode stills for title cards and text, so none is shown with them.
+# The model is fetched at build time so a new container does not fetch it again.
+FROM scheduler-dependencies AS still-model
+RUN cd packages/core \
+	&& bun -e "import { env, pipeline } from '@huggingface/transformers'; env.cacheDir = '/opt/clip'; await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32')"
+
+# The default scheduler: everything but listening to dubs and upscaling backdrops.
 FROM runtime AS scheduler
+COPY --from=scheduler-dependencies /app /app
+COPY --from=still-model --chown=bun /opt/clip /opt/clip
+ENV STILL_MODEL_DIR=/opt/clip
+COPY packages/shared packages/shared
+COPY packages/core packages/core
+COPY apps/scheduler apps/scheduler
+USER bun
+CMD ["bun", "apps/scheduler/src/main.ts"]
+
 # Listens to each dub once and times the sub's subtitles to when its characters
 # speak: ffmpeg reads the audio and faster-whisper finds the words. The model
-# is fetched at build time so the first dub does not wait for it.
+# is fetched at build time so the first dub does not wait for it. These tools
+# sit below the app in scheduler-full, so an update only replaces the app.
+FROM runtime AS dub-tools
 USER root
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ffmpeg python3 python3-venv \
@@ -62,8 +83,11 @@ RUN apt-get update \
 	&& HF_HOME=/opt/whisper/models /opt/whisper/bin/python -c "from faster_whisper import WhisperModel; WhisperModel('small.en', device='cpu', compute_type='int8')" \
 	&& chown -R bun /opt/whisper/models
 ENV SUBTITLE_ALIGNMENT_PYTHON=/opt/whisper/bin/python HF_HOME=/opt/whisper/models
+
 # Upscales backdrops on request. Without a graphics card, Mesa's software
 # Vulkan driver runs it on the processor, which takes minutes per backdrop.
+# Real-ESRGAN only publishes an x86-64 Linux build.
+FROM dub-tools AS upscale-tools-amd64
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ca-certificates curl unzip libvulkan1 mesa-vulkan-drivers libgomp1 \
 	&& rm -rf /var/lib/apt/lists/* \
@@ -72,11 +96,15 @@ RUN apt-get update \
 	&& rm /tmp/realesrgan.zip \
 	&& chmod +x /opt/realesrgan/realesrgan-ncnn-vulkan
 ENV REALESRGAN_BINARY=/opt/realesrgan/realesrgan-ncnn-vulkan
+
+# On arm64, REALESRGAN_BINARY stays unset, so upscaling a backdrop fails with
+# its message instead of crashing on an x86-64 binary.
+FROM dub-tools AS upscale-tools-arm64
+
+# The scheduler with dub timing and backdrop upscaling, published as X.Y.Z-full.
+FROM upscale-tools-${TARGETARCH} AS scheduler-full
 COPY --from=scheduler-dependencies /app /app
-# Reads episode stills for title cards and text, so none is shown with them; fetched at build time too.
-RUN cd packages/core \
-	&& bun -e "import { env, pipeline } from '@huggingface/transformers'; env.cacheDir = '/opt/clip'; await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32')" \
-	&& chown -R bun /opt/clip
+COPY --from=still-model --chown=bun /opt/clip /opt/clip
 ENV STILL_MODEL_DIR=/opt/clip
 COPY packages/shared packages/shared
 COPY packages/core packages/core
@@ -92,4 +120,6 @@ USER bun
 # Room for a library import: a long history is a few megabytes of JSON.
 ENV HOST=0.0.0.0 PORT=3000 BODY_SIZE_LIMIT=25M
 EXPOSE 3000
+# A static file, so the check passes whether or not the API is up.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/robots.txt'); process.exit(r.ok ? 0 : 1)"
 CMD ["bun", "build/index.js"]

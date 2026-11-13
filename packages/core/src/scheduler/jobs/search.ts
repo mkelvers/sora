@@ -30,6 +30,9 @@ const backfillBatchSize = 200;
  */
 const backfillMinimumPopularity = 1000;
 
+/** The graphile-worker task that queues popular titles to be stored. */
+export const backfillSeriesTask = "backfill-series";
+
 /** The graphile-worker task that keeps the search index current. */
 export const syncSearchIndexTask = "sync-search-index";
 
@@ -39,6 +42,10 @@ export const syncSearchIndexTask = "sync-search-index";
  * Runs hourly for entries AniList added or changed, and weekly with
  * `{ full: true }` to refresh every entry's popularity. The first run, with
  * nothing stored, reads the whole catalogue: about 400 requests.
+ *
+ * A full sync then queues {@link backfillSeries}, so a fresh catalogue
+ * starts storing popular titles as soon as they are indexed, not at the next
+ * half hour.
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
 	const payload = parsePayload(SyncSearchIndexPayloadSchema, rawPayload);
@@ -46,10 +53,13 @@ export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
 		full: payload?.full === true,
 	});
 	helpers.logger.info(`Indexed ${stored} anime from ${pages} AniList pages`);
-};
 
-/** The graphile-worker task that queues popular titles to be stored. */
-export const backfillSeriesTask = "backfill-series";
+	if (payload?.full === true) {
+		await helpers.addJob(backfillSeriesTask, null, {
+			priority: -1,
+		});
+	}
+};
 
 /**
  * Queues the entries of this season and the next that AniKoto carries and

@@ -67,12 +67,14 @@ export const actions: Actions = {
 
 		cookies.delete("sora_profile", {
 			path: "/",
+			secure: url.protocol === "https:",
 		});
 		cookies.set("sora_session", data.token, {
 			httpOnly: true,
 			maxAge: 90 * 24 * 60 * 60,
 			path: "/",
 			sameSite: "lax",
+			secure: url.protocol === "https:",
 		});
 
 		redirect(303, `/profiles${url.search}`);

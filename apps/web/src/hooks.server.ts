@@ -107,14 +107,16 @@ const withViewer: Handle = async ({ event, resolve }) => {
 			};
 
 			if (profile) {
-				event.cookies.set("sora_profile", profile.id, profileCookie);
+				event.cookies.set("sora_profile", profile.id, profileCookie(event.url));
 			}
 		} else {
 			event.cookies.delete("sora_session", {
 				path: "/",
+				secure: event.url.protocol === "https:",
 			});
 			event.cookies.delete("sora_profile", {
 				path: "/",
+				secure: event.url.protocol === "https:",
 			});
 		}
 	}

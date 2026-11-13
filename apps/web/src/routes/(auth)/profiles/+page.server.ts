@@ -26,7 +26,7 @@ export const actions: Actions = {
 			error(404, "No such profile");
 		}
 
-		cookies.set("sora_profile", profile.id, profileCookie);
+		cookies.set("sora_profile", profile.id, profileCookie(url));
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);
 		const path = target.pathname + target.search;

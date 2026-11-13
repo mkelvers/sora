@@ -23,7 +23,7 @@ const Passwords = z
 	});
 
 export const actions: Actions = {
-	default: async ({ request, locals, cookies, getClientAddress }) => {
+	default: async ({ request, locals, cookies, url, getClientAddress }) => {
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
@@ -92,6 +92,7 @@ export const actions: Actions = {
 			maxAge: 90 * 24 * 60 * 60,
 			path: "/",
 			sameSite: "lax",
+			secure: url.protocol === "https:",
 		});
 
 		return {
