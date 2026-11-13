@@ -1,0 +1,171 @@
+# Sora's production stack. deploy/install.sh downloads this file from a release
+# and writes the .env beside it; every value below comes from that .env.
+#
+#   docker compose up -d --wait     start or update after editing .env
+#   docker compose logs -f api      follow one service
+#
+# Only the proxy publishes ports. COMPOSE_PROFILES in .env picks it:
+#   http   plain http on SORA_BIND:SORA_PORT (127.0.0.1 for this computer, 0.0.0.0 for the network)
+#   https  ports 80 and 443 for SORA_DOMAIN, with a Let's Encrypt certificate
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-core-environment: &core-environment
+  DATABASE_URL: postgres://sora:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}@database:5432/sora
+  AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is not set in .env}
+  STREAM_SIGNING_SECRET: ${STREAM_SIGNING_SECRET:?STREAM_SIGNING_SECRET is not set in .env}
+  WEB_CLIENT_KEY: ${WEB_CLIENT_KEY:?WEB_CLIENT_KEY is not set in .env}
+  TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?TMDB_READ_ACCESS_TOKEN is not set in .env}
+  ANIME_SCHEDULE_API_KEY: ${ANIME_SCHEDULE_API_KEY:?ANIME_SCHEDULE_API_KEY is not set in .env}
+  # Optional; passed on only when set in .env. See packages/core/.env.example.
+  ANILIST_CLIENT_ID:
+  ANILIST_CLIENT_SECRET:
+  MAL_CLIENT_ID:
+  MAL_CLIENT_SECRET:
+
+x-proxy: &proxy
+  image: caddy:2.11-alpine
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    web:
+      condition: service_healthy
+    api:
+      condition: service_healthy
+  configs:
+    - source: caddyfile
+      target: /etc/caddy/Caddyfile
+
+services:
+  database:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: sora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}
+      POSTGRES_DB: sora
+    volumes:
+      - database-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sora -d sora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies pending migrations, then exits; api and scheduler start after it.
+  migrate:
+    image: ${SORA_IMAGE_PREFIX:-ghcr.io/mkelvers/}sora-api:${SORA_VERSION:?SORA_VERSION is not set in .env}
+    restart: "no"
+    logging: *logging
+    command: ["bun", "packages/core/src/database/migrate.ts"]
+    environment: *core-environment
+    depends_on:
+      database:
+        condition: service_healthy
+
+  api:
+    image: ${SORA_IMAGE_PREFIX:-ghcr.io/mkelvers/}sora-api:${SORA_VERSION:?SORA_VERSION is not set in .env}
+    restart: unless-stopped
+    logging: *logging
+    command: ["bun", "apps/api/src/main.ts"]
+    environment: *core-environment
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const r = await fetch('http://127.0.0.1:3000/health'); process.exit(r.ok ? 0 : 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # SORA_SCHEDULER_SUFFIX=-full picks the image that also times dub subtitles to speech.
+  scheduler:
+    image: ${SORA_IMAGE_PREFIX:-ghcr.io/mkelvers/}sora-scheduler:${SORA_VERSION:?SORA_VERSION is not set in .env}${SORA_SCHEDULER_SUFFIX:-}
+    restart: unless-stopped
+    logging: *logging
+    environment: *core-environment
+    # It serves nothing to ask; healthy once it has run a whole interval without
+    # exiting, so `up --wait` fails on a scheduler that crashes as it starts.
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 15s
+      retries: 1
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ${SORA_IMAGE_PREFIX:-ghcr.io/mkelvers/}sora-web:${SORA_VERSION:?SORA_VERSION is not set in .env}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SORA_API_URL: http://api:3000
+      WEB_CLIENT_KEY: ${WEB_CLIENT_KEY:?WEB_CLIENT_KEY is not set in .env}
+      # The proxy says which protocol and address each visitor used.
+      PROTOCOL_HEADER: x-forwarded-proto
+      ADDRESS_HEADER: x-forwarded-for
+      XFF_DEPTH: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const r = await fetch('http://127.0.0.1:3000/robots.txt'); process.exit(r.ok ? 0 : 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      api:
+        condition: service_healthy
+
+  proxy:
+    <<: *proxy
+    profiles: [http]
+    environment:
+      SORA_SITE: ":80"
+    ports:
+      - ${SORA_BIND:-127.0.0.1}:${SORA_PORT:-8080}:80
+
+  proxy-https:
+    <<: *proxy
+    profiles: [https]
+    environment:
+      SORA_SITE: ${SORA_DOMAIN:-}
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - caddy-data:/data
+
+configs:
+  caddyfile:
+    content: |
+      {$$SORA_SITE} {
+        encode zstd gzip
+        handle /v1/* {
+          reverse_proxy api:3000
+        }
+        handle {
+          reverse_proxy web:3000
+        }
+      }
+
+volumes:
+  database-data:
+  caddy-data:
