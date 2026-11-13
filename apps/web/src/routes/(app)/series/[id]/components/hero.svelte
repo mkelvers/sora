@@ -9,7 +9,7 @@
 	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { startRewatch } from "$routes/(app)/series/[id]/series.remote";
-	import type { Series, SeriesProgress } from "@sora/sdk";
+	import type { FranchisePart, Series, SeriesProgress } from "@sora/sdk";
 	import { BookmarkSimpleIcon, DotsThreeVerticalIcon, PlayIcon, TrophyIcon } from "phosphor-svelte";
 
 	import RatingMenu from "./rating-menu.svelte";
@@ -23,7 +23,7 @@
 		progress?: SeriesProgress;
 	} = $props();
 
-	const SEASON_PREFIX = /^Season\s+/iu;
+	const NUMBERED_SEASON = /^Season\s+(?=\d)/iu;
 
 	let more = $state(false);
 
@@ -32,11 +32,19 @@
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
 
-	const seasonLabel = (seriesId: string) => {
-		const index = series.seasons.findIndex((part) => part.series_id === seriesId);
-		const part = series.seasons[index];
-		return index > 0 && part?.role === "season" ? ` ${part.title.replace(SEASON_PREFIX, "S")}` : "";
+	const seasonNumber = (part: FranchisePart) =>
+		NUMBERED_SEASON.test(part.title) ? ` ${part.title.replace(NUMBERED_SEASON, "S")}` : "";
+
+	const laterLabel = (part: FranchisePart, started: number | undefined) => {
+		const movie = part.format === "MOVIE";
+		const which = seasonNumber(part) || (movie ? " Next Movie" : " Next Season");
+		return `${started ? "Continue" : "Start"} Watching${which}${movie ? "" : ` E${started ?? 1}`}`;
 	};
+
+	const ownSeason = $derived.by(() => {
+		const current = series.seasons.find((part) => part.series_id === series.id);
+		return current?.role === "season" && series.seasons[0] !== current ? seasonNumber(current) : "";
+	});
 
 	const done = $derived(
 		!!progress?.finished ||
@@ -60,11 +68,9 @@
 			: undefined;
 		if (later) {
 			const started = library.resume.get(later.series_id)?.episode;
-			const episode = started ?? 1;
-			const verb = started ? "Continue" : "Start";
 			return {
-				href: `/series/${later.series_id}/watch/${episode}`,
-				label: `${verb} Watching${seasonLabel(later.series_id)}${later.format === "MOVIE" ? "" : ` E${episode}`}`,
+				href: `/series/${later.series_id}/watch/${started ?? 1}`,
+				label: laterLabel(later, started),
 				rewatch: false,
 			};
 		}
@@ -74,7 +80,7 @@
 		}
 
 		const episode = resume ?? 1;
-		const suffix = `${seasonLabel(series.id)}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
+		const suffix = `${ownSeason}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
 		const rewatch = !resume && (done || !!progress?.episodes.length);
 		let label = `Start Watching${suffix}`;
 		if (resume) {
