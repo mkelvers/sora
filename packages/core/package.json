@@ -25,6 +25,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "bun src/database/migrate.ts",
 		"auth:create-account": "bun src/auth/create-account.ts",
+		"stills:embed-labels": "bun src/tmdb/embed-still-labels.ts",
 		"test": "bun test --env-file=../../.env.test"
 	},
 	"dependencies": {

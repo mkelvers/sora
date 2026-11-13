@@ -12,12 +12,14 @@ export const sora = new SoraClient({
  * The chosen profile outlives idle time: it lasts as long as the sign-in does,
  * so a paused tab never comes back without one.
  */
-export const profileCookie = {
-	httpOnly: true,
-	maxAge: 90 * 24 * 60 * 60,
-	path: "/",
-	sameSite: "lax",
-} as const;
+export const profileCookie = (url: URL) =>
+	({
+		httpOnly: true,
+		maxAge: 90 * 24 * 60 * 60,
+		path: "/",
+		sameSite: "lax",
+		secure: url.protocol === "https:",
+	}) as const;
 
 export const knownProfiles = new Map<
 	string,

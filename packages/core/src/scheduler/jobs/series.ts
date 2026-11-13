@@ -6,6 +6,7 @@ import { z } from "zod";
 import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
 import { fuzzyDate } from "../../catalog/models/text";
+import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch, tmdbResponse } from "../../database/schema/catalog";
 import { providerEpisodes } from "../../database/schema/playback";
@@ -88,6 +89,9 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  * - or are related to a stored entry, such as a newly announced season, so
  *   its franchise lists it.
  *
+ * With `PRELOAD_TITLES` off, only the last: the release timetable stores
+ * what airs this week, and other titles are stored when someone opens them.
+ *
  * An entry that qualifies for none of these yet is simply looked at again
  * on the next run.
  */
@@ -118,8 +122,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 			const premieresSoon =
 				startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
 			const isWanted =
-				entry.status === "RELEASING" ||
-				premieresSoon ||
+				(config.preloadTitles && (entry.status === "RELEASING" || premieresSoon)) ||
 				idsRelatedBy(entry, franchiseRelations).some((id) => stored.has(id));
 			return !stored.has(entry.id) && isWanted;
 		});

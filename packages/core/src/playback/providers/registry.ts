@@ -13,10 +13,19 @@ import { providerTransport } from "./transport";
  */
 export const providerHttp = new HttpClient({
 	rateLimits: {
-		// AniKoto's API allows 60 requests a minute per IP.
+		// AniKoto's API allows 60 requests per server in fixed two-minute windows
+		// (its x-ratelimit-reset falls on even minutes), and sends 429 with a
+		// Retry-After near a minute past that. Its servers count apart, so all of
+		// them must be assumed to be one. A floating window of its own let a
+		// burst span two of AniKoto's and fail a whole catalogue sync; at most
+		// 4 every 10 seconds, no two-minute window sees more than 52.
 		"anikotoapi.site": {
+			burst: {
+				capacity: 4,
+				intervalMs: 10_000,
+			},
 			capacity: 55,
-			intervalMs: 60_000,
+			intervalMs: 120_000,
 		},
 		// AnimeSchedule's API allows 120 requests a minute per IP and app.
 		"animeschedule.net": {

@@ -3,6 +3,7 @@ import type { Task } from "graphile-worker";
 
 import { aniListPriority } from "../anilist/client";
 import { config } from "../config";
+import { fillEmptyCatalog } from "./first-start";
 import { reviveAiringChecks, reviveAiringChecksTask, trackAiring } from "./jobs/airing";
 import {
 	checkProviderHealthJob,
@@ -95,6 +96,9 @@ const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<stri
  * season's and the next's, ahead of any search or browse, keeps the hints that match titles to TMDB current, and warns
  * about providers that stop working, and drops jobs that failed every attempt.
  *
+ * On a fresh database it first queues what fills the catalogue; see
+ * {@link fillEmptyCatalog}.
+ *
  * Several schedulers may run at once; graphile-worker hands each job to one
  * of them. Stop it with `stop()`; by default it also stops on SIGINT and
  * SIGTERM.
@@ -165,6 +169,8 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		),
 	});
 
+	await fillEmptyCatalog(main);
+
 	// Every slot above can be held for minutes by jobs waiting their turn on
 	// AniList, and a running job is never interrupted, so work a viewer waits
 	// on has workers of its own. It still runs ahead of those jobs on AniList.
@@ -184,7 +190,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 	// which can number in the thousands. Episodes and their languages are
 	// unknown until an entry is looked up. A lookup costs AniKoto's API a
 	// request or two and spends most of its time waiting on the other sites,
-	// so twelve at a time stay well within AniKoto's 60 a minute, and the
+	// so twelve at a time stay within AniKoto's 24 a minute, and the
 	// release watchers wait behind at most a dozen of them.
 	//
 	// A lookup whose anime is not stored yet loads it from AniList, and those

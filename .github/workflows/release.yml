@@ -1,0 +1,223 @@
+# Publishes a release when a vX.Y.Z tag is pushed: the images to GHCR, for
+# amd64 and arm64 each built on its own native runner, then install.sh,
+# compose.yaml, and SHA256SUMS as release assets. The release is created last,
+# so releases/latest never points at a version whose images are missing.
+#
+# A pull request that changes how the images are built runs the same builds,
+# loads each image and checks it starts its tools, and publishes nothing.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        variant: [api, web, scheduler, scheduler-full]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - variant: api
+            image: sora-api
+          - variant: web
+            image: sora-web
+          - variant: scheduler
+            image: sora-scheduler
+          - variant: scheduler-full
+            image: sora-scheduler
+    steps:
+      - name: Check the tag
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags look like v1.2.3, not $TAG"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.image }}
+
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.variant }}
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: ${{ github.event_name == 'push' && format('type=image,name={0}/{1},push-by-digest=true,name-canonical=true,push=true', env.REGISTRY, matrix.image) || 'type=docker,name=sora-check' }}
+          sbom: ${{ github.event_name == 'push' }}
+          cache-from: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.variant }}-${{ matrix.arch }},mode=min
+
+      - name: Check the image starts its tools
+        if: github.event_name == 'pull_request'
+        env:
+          VARIANT: ${{ matrix.variant }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --network none --entrypoint bun sora-check --version
+          if [[ $VARIANT == scheduler* ]]; then
+            docker run --rm --network none --entrypoint sh sora-check -c 'test -s "$STILL_MODEL_DIR/Xenova/clip-vit-base-patch32/onnx/vision_model_quantized.onnx"'
+          fi
+          if [[ $VARIANT == scheduler-full ]]; then
+            docker run --rm --network none --entrypoint sh sora-check -c 'ffmpeg -version | head -n 1 && "$SUBTITLE_ALIGNMENT_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel(\"small.en\", device=\"cpu\", compute_type=\"int8\")"'
+            if [[ $ARCH == amd64 ]]; then
+              docker run --rm --network none --entrypoint sh sora-check -c '! ldd "$REALESRGAN_BINARY" | grep "not found"'
+            else
+              docker run --rm --network none --entrypoint sh sora-check -c 'test -z "${REALESRGAN_BINARY:-}"'
+            fi
+          fi
+
+      - name: Keep the digest
+        if: github.event_name == 'push'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'push'
+        with:
+          name: digests-${{ matrix.variant }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish ${{ matrix.variant }}
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - variant: api
+            image: sora-api
+            suffix: ""
+          - variant: web
+            image: sora-web
+            suffix: ""
+          - variant: scheduler
+            image: sora-scheduler
+            suffix: ""
+          - variant: scheduler-full
+            image: sora-scheduler
+            suffix: -full
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.variant }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # X.Y.Z, X.Y, and latest; the scheduler with dub timing gets -full on each.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.image }}
+          flavor: |
+            latest=auto
+            suffix=${{ matrix.suffix }},onlatest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Merge the platforms into one tag
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ matrix.image }}
+        run: |
+          tags=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<<"$DOCKER_METADATA_OUTPUT_JSON")
+          # shellcheck disable=SC2046,SC2086
+          docker buildx imagetools create $tags $(printf "$IMAGE@sha256:%s " *)
+
+      - name: Show the result
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ matrix.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect "$IMAGE:$VERSION"
+
+  release:
+    name: Create the GitHub release
+    if: github.event_name == 'push'
+    needs: merge
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checksum the assets
+        working-directory: deploy
+        run: sha256sum compose.yaml install.sh >SHA256SUMS
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "Sora $TAG" \
+            deploy/install.sh deploy/compose.yaml deploy/SHA256SUMS

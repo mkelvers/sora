@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
 import { syncSearchIndex } from "../../catalog/queries/search";
+import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
@@ -30,6 +31,9 @@ const backfillBatchSize = 200;
  */
 const backfillMinimumPopularity = 1000;
 
+/** The graphile-worker task that queues popular titles to be stored. */
+export const backfillSeriesTask = "backfill-series";
+
 /** The graphile-worker task that keeps the search index current. */
 export const syncSearchIndexTask = "sync-search-index";
 
@@ -39,6 +43,10 @@ export const syncSearchIndexTask = "sync-search-index";
  * Runs hourly for entries AniList added or changed, and weekly with
  * `{ full: true }` to refresh every entry's popularity. The first run, with
  * nothing stored, reads the whole catalogue: about 400 requests.
+ *
+ * A full sync then queues {@link backfillSeries}, so a fresh catalogue
+ * starts storing popular titles as soon as they are indexed, not at the next
+ * half hour.
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
 	const payload = parsePayload(SyncSearchIndexPayloadSchema, rawPayload);
@@ -46,10 +54,13 @@ export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
 		full: payload?.full === true,
 	});
 	helpers.logger.info(`Indexed ${stored} anime from ${pages} AniList pages`);
-};
 
-/** The graphile-worker task that queues popular titles to be stored. */
-export const backfillSeriesTask = "backfill-series";
+	if (payload?.full === true) {
+		await helpers.addJob(backfillSeriesTask, null, {
+			priority: -1,
+		});
+	}
+};
 
 /**
  * Queues the entries of this season and the next that AniKoto carries and
@@ -96,7 +107,7 @@ const queueSeasons = async (helpers: Parameters<Task>[1]) => {
 /**
  * Queues the most popular indexed entries whose series is not stored yet,
  * so searches find titles already laid out instead of laying them out while
- * someone waits. Only entries at least {@link backfillMinimumPopularity}
+ * someone waits. Does nothing when `PRELOAD_TITLES` is off. Only entries at least {@link backfillMinimumPopularity}
  * popular are stored this way, besides this season's and the next's (see
  * {@link queueSeasons}).
  *
@@ -110,6 +121,10 @@ const queueSeasons = async (helpers: Parameters<Task>[1]) => {
  * thousands of layouts that stay queued for days.
  */
 export const backfillSeries: Task = async (_payload, helpers) => {
+	if (!config.preloadTitles) {
+		return;
+	}
+
 	await queueSeasons(helpers);
 
 	const [{ queued } = { queued: 0 }] = await db.execute<{ queued: number }>(sql`

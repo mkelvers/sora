@@ -22,6 +22,14 @@ const EnvironmentSchema = z.object({
 	MAL_CLIENT_ID: z.string().min(1).optional(),
 	MAL_CLIENT_SECRET: z.string().min(1).optional(),
 	/**
+	 * Whether the scheduler stores titles before anyone opens them: the
+	 * popular ones, this season's and the next's, and every airing one. Off,
+	 * a title is stored when someone opens or searches for it, which takes
+	 * seconds, and only franchises already stored and the week's release
+	 * timetable grow on their own. On by default.
+	 */
+	PRELOAD_TITLES: z.stringbool().default(true),
+	/**
 	 * The `realesrgan-ncnn-vulkan` executable, next to its `models` folder,
 	 * which upscales backdrops. Without it, upscaling a backdrop fails.
 	 */
@@ -81,6 +89,7 @@ export const config = {
 				clientSecret: environment.MAL_CLIENT_SECRET ?? null,
 			}
 		: null,
+	preloadTitles: environment.PRELOAD_TITLES,
 	realesrganBinary: environment.REALESRGAN_BINARY ?? null,
 	stillModelDir: environment.STILL_MODEL_DIR ?? null,
 	streamSigningSecret: environment.STREAM_SIGNING_SECRET,
