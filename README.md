@@ -66,11 +66,12 @@ The installer checks the machine, installs Docker on Linux if it is missing, and
 - a [TMDB](https://www.themoviedb.org/settings/api) API Read Access Token
 - an [AnimeSchedule](https://animeschedule.net) API token (Account settings, API applications)
 - how you reach Sora: this computer only, your home network, or a domain with HTTPS from Let's Encrypt
+- whether to store popular and airing titles ahead of time (no by default)
 - a username and password for the first account
 
 It checks both keys, generates the remaining secrets, starts the stack, and waits until every service is healthy. Everything lands in `~/sora`, and every run writes a log to `~/sora/logs`. To answer ahead of time, for example in automation, set the variables listed at the top of [`install.sh`](deploy/install.sh) and pass `--yes`. `--dry-run` prints what would change.
 
-A new install starts empty and fills its catalogue in the background. What you open or search for is stored first and shows up within a few minutes. The search index is complete after about half an hour, and the rest of the catalogue fills over the next hours, most popular titles first. Sora uses up to about 1 GB of memory.
+A new install starts empty. What you open or search for is stored within a few minutes the first time, and the search index is complete after about half an hour. Other titles are stored as they are opened, unless you chose to store popular and airing titles ahead of time, which takes thousands of AniList and TMDB requests over the first days. Sora uses up to about 1 GB of memory.
 
 ```sh
 ~/sora/sora.sh update      # back up, then move to the newest release
@@ -91,6 +92,7 @@ SORA_BIND=127.0.0.1                # http: 127.0.0.1 for this computer, 0.0.0.0 
 SORA_PORT=8080                     # http only
 SORA_DOMAIN=                       # https only, such as sora.example.com
 SORA_SCHEDULER_SUFFIX=             # -full adds timing dub subtitles to speech (~1.5 GB)
+PRELOAD_TITLES=false               # true stores popular and airing titles ahead of time
 TMDB_READ_ACCESS_TOKEN=
 ANIME_SCHEDULE_API_KEY=
 POSTGRES_PASSWORD=                 # openssl rand -hex 32

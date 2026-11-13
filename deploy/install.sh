@@ -30,6 +30,7 @@
 #   SORA_USERNAME             First account's username
 #   SORA_PASSWORD             First account's password
 #   SORA_DUB_TIMING           yes to time dub subtitles to speech (~1.5 GB more), default no
+#   SORA_PRELOAD              yes to store popular and airing titles before anyone opens them, default no
 #   SORA_CONFIRM_REMOVE       The install folder's name, to let uninstall delete all data
 #   SORA_DIR                  Same as --dir
 #
@@ -357,6 +358,8 @@ env_template() {
 SORA_VERSION=
 # -full adds timing dub subtitles to speech (about 1.5 GB more). Empty for the default image.
 SORA_SCHEDULER_SUFFIX=
+# true stores popular and airing titles before anyone opens them; false stores each when it is opened.
+PRELOAD_TITLES=
 
 # How Sora is reached. http: SORA_BIND:SORA_PORT (127.0.0.1 = this computer, 0.0.0.0 = home network).
 # https: ports 80 and 443, with a Let's Encrypt certificate for SORA_DOMAIN.
@@ -849,6 +852,36 @@ settle_dub_timing() {
 	esac
 }
 
+# Off by default: a fresh install stores a title when someone opens or
+# searches for it, rather than thousands up front.
+settle_preload() {
+	if env_has PRELOAD_TITLES; then
+		local current=no
+		if [[ $(env_get PRELOAD_TITLES) == "true" ]]; then
+			current=yes
+		fi
+		if [[ -n ${SORA_PRELOAD:-} && $(printf '%s' "$SORA_PRELOAD" | tr '[:upper:]' '[:lower:]') != "$current" ]]; then
+			warn "SORA_PRELOAD=$SORA_PRELOAD is ignored: .env has preloading $current. Set PRELOAD_TITLES in $dir/.env to change it."
+		fi
+		return
+	fi
+	local answer=${SORA_PRELOAD:-}
+	if [[ -z $answer && $can_prompt == 1 ]]; then
+		say ""
+		say "  Sora stores a title when someone opens or searches for it, in seconds."
+		if ask_yes_no "Store popular and airing titles ahead of time instead? Thousands of requests and more disk over the first days." no; then
+			answer=yes
+		else
+			answer=no
+		fi
+	fi
+	case $(printf '%s' "${answer:-no}" | tr '[:upper:]' '[:lower:]') in
+	y | yes | 1 | true) env_set PRELOAD_TITLES true ;;
+	n | no | 0 | false) env_set PRELOAD_TITLES false ;;
+	*) die "SORA_PRELOAD must be yes or no, not $answer." ;;
+	esac
+}
+
 project_name() {
 	basename "$dir" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9_-]/-/g' -e 's/^[^a-z0-9]*//'
 }
@@ -1119,10 +1152,14 @@ finish() {
 	say ""
 	say "$(paint 1 "Sora $release_tag is running at $(paint 4 "$url")")"
 	say ""
-	say "  The catalogue starts empty and fills in the background. What you open or"
-	say "  search for is stored first and shows up within a few minutes. The search"
-	say "  index is complete after about half an hour, and the rest of the catalogue"
-	say "  fills over the next hours, most popular titles first."
+	say "  The catalogue starts empty. What you open or search for is stored within"
+	say "  a few minutes the first time, and the search index is complete after"
+	if [[ $(env_get PRELOAD_TITLES) == "true" ]]; then
+		say "  about half an hour. Popular and airing titles fill in over the next"
+		say "  hours, most popular first."
+	else
+		say "  about half an hour. Other titles are stored as they are opened."
+	fi
 	if [[ $is_wsl == 1 && $(env_get SORA_BIND) == "0.0.0.0" ]]; then
 		say ""
 		say "  On WSL2, other devices reach this only with mirrored networking or a port"
@@ -1163,6 +1200,7 @@ cmd_install() {
 		"https://animeschedule.net/api/v3/timetables/sub?tz=UTC"
 	settle_access
 	settle_dub_timing
+	settle_preload
 	if [[ -z $(env_get COMPOSE_PROJECT_NAME) ]]; then
 		env_set COMPOSE_PROJECT_NAME "$(project_name)"
 	fi

@@ -22,6 +22,7 @@ x-core-environment: &core-environment
   TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?TMDB_READ_ACCESS_TOKEN is not set in .env}
   ANIME_SCHEDULE_API_KEY: ${ANIME_SCHEDULE_API_KEY:?ANIME_SCHEDULE_API_KEY is not set in .env}
   # Optional; passed on only when set in .env. See packages/core/.env.example.
+  PRELOAD_TITLES:
   ANILIST_CLIENT_ID:
   ANILIST_CLIENT_SECRET:
   MAL_CLIENT_ID:

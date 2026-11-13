@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
 import { syncSearchIndex } from "../../catalog/queries/search";
+import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series } from "../../database/schema/series";
@@ -106,7 +107,7 @@ const queueSeasons = async (helpers: Parameters<Task>[1]) => {
 /**
  * Queues the most popular indexed entries whose series is not stored yet,
  * so searches find titles already laid out instead of laying them out while
- * someone waits. Only entries at least {@link backfillMinimumPopularity}
+ * someone waits. Does nothing when `PRELOAD_TITLES` is off. Only entries at least {@link backfillMinimumPopularity}
  * popular are stored this way, besides this season's and the next's (see
  * {@link queueSeasons}).
  *
@@ -120,6 +121,10 @@ const queueSeasons = async (helpers: Parameters<Task>[1]) => {
  * thousands of layouts that stay queued for days.
  */
 export const backfillSeries: Task = async (_payload, helpers) => {
+	if (!config.preloadTitles) {
+		return;
+	}
+
 	await queueSeasons(helpers);
 
 	const [{ queued } = { queued: 0 }] = await db.execute<{ queued: number }>(sql`
