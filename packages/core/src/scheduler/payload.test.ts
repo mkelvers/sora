@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
+import { attempt } from "@sora/shared";
 import type { JobHelpers, Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -106,6 +107,28 @@ describe("failInvalidPayloads", () => {
 		);
 
 		await expect(run).rejects.toBe(outage);
+		expect(query).not.toHaveBeenCalled();
+	});
+
+	test("puts the errors behind a failure in its message and stack", async () => {
+		const { helpers, query } = runningJob();
+		const postgres = new Error('column "no_opening" does not exist');
+		postgres.name = "PostgresError";
+		const failedQuery = new Error('Failed query: select "no_opening" from "skip_detection"', {
+			cause: postgres,
+		});
+
+		const { error } = await attempt(runWrapped(() => Promise.reject(failedQuery), {}, helpers));
+
+		expect(error).toBeInstanceOf(Error);
+		expect(error).toMatchObject({
+			cause: failedQuery,
+			message:
+				'Failed query: select "no_opening" from "skip_detection"\nCaused by PostgresError: column "no_opening" does not exist',
+			stack: expect.stringContaining(
+				'\nCaused by PostgresError: column "no_opening" does not exist',
+			),
+		});
 		expect(query).not.toHaveBeenCalled();
 	});
 
