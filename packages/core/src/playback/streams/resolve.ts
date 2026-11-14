@@ -238,17 +238,36 @@ const englishSubtitlesLoad = async (
 	return loads.includes(true);
 };
 
-const kindRank = {
-	captions: 2,
-	dialogue: 0,
-	signs: 1,
+/**
+ * Each kind's place in a subtitle menu, by how much of what is said it
+ * carries. A dub's own captions write down its speech, while its dialogue is
+ * the sub's translation moved onto its timeline, so they come first on a dub.
+ * Signs carry no speech. An unclear kind counts as dialogue.
+ */
+const kindRanks: Record<"sub" | "dub", Record<SubtitleKind, number>> = {
+	dub: {
+		captions: 0,
+		dialogue: 1,
+		signs: 2,
+	},
+	sub: {
+		captions: 1,
+		dialogue: 0,
+		signs: 2,
+	},
 };
 
-/** English first, then dialogue before signs before captions, then by language. */
-const compareSubtitles = (left: PlaybackSubtitle, right: PlaybackSubtitle) =>
-	Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
-	kindRank[left.kind ?? "dialogue"] - kindRank[right.kind ?? "dialogue"] ||
-	left.label.localeCompare(right.label);
+/** How a subtitle menu names each kind after the language; dialogue goes unnamed. */
+const kindLabels: Partial<Record<SubtitleKind, string>> = {
+	captions: "CC",
+	signs: "Signs",
+};
+
+/** A track's name in a subtitle menu: its language, and its kind unless dialogue, as `English (CC)`. */
+const subtitleLabel = (language: string, kind: SubtitleKind | null | undefined) => {
+	const named = kind ? kindLabels[kind] : undefined;
+	return named ? `${language} (${named})` : language;
+};
 
 const toPlaybackMedia = (
 	videos: ProviderVideo[],
@@ -277,7 +296,7 @@ const toPlaybackMedia = (
 					default: false,
 					format: track.format,
 					kind: kinds.get(track.url) ?? null,
-					label: languageName(track.language) ?? track.label,
+					label: subtitleLabel(languageName(track.language) ?? track.label, kinds.get(track.url)),
 					language: track.language,
 					url: streamUrl(track.url, "subtitle", video.headers, {
 						accountId,
@@ -292,7 +311,7 @@ const toPlaybackMedia = (
 
 	return {
 		sources,
-		subtitles: [...subtitles.values()].toSorted(compareSubtitles),
+		subtitles: [...subtitles.values()],
 	};
 };
 
@@ -303,14 +322,24 @@ const audioLabels: Record<ContentLanguage, string> = {
 };
 
 /**
- * Marks the English dialogue track, which sorts first, as the one a player
- * shows from the start. English that is only signs or captions is not.
+ * Sorts a version's subtitles for its menu, English first, then by how much
+ * of what is said each carries (see {@link kindRanks}), then by label, and
+ * marks the first, when English, as the one a player shows from the start.
  */
-const withDefault = (subtitles: PlaybackSubtitle[]) =>
-	subtitles.map((track, index) => ({
-		...track,
-		default: index === 0 && isServedSubtitle(track) && (track.kind ?? "dialogue") === "dialogue",
-	}));
+const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
+	const ranks = kindRanks[audio];
+	return subtitles
+		.toSorted(
+			(left, right) =>
+				Number(isServedSubtitle(right)) - Number(isServedSubtitle(left)) ||
+				ranks[left.kind ?? "dialogue"] - ranks[right.kind ?? "dialogue"] ||
+				left.label.localeCompare(right.label),
+		)
+		.map((track, index) => ({
+			...track,
+			default: index === 0 && isServedSubtitle(track),
+		}));
+};
 
 /**
  * Resolves one version of an AniList episode from the first provider that
@@ -404,8 +433,9 @@ const resolveVersion = async (
 			skip_segments: stream.skipSegments,
 			sources: media.sources,
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
-			// resolvePlayback retimes them to the dub's once both are resolved.
-			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
+			// resolvePlayback retimes them to the dub's and adds the dub's own
+			// signs and captions.
+			subtitles: language === "sub" ? forMenu(media.subtitles, language) : [],
 		};
 
 		// A sub without English tracks has them burned in. Later providers may
@@ -576,10 +606,11 @@ export const timelineShifts = async (
 };
 
 /**
- * The sub's WebVTT subtitles moved onto the dub's timeline by `shifts`, and
- * the dub's own signs and captions, which are timed to it already. The sub's
- * are left out when the encodes do not align. With a `refinement`, cues
- * that were matched to the dub's speech go where it says them.
+ * The dub's subtitles: the sub's WebVTT ones moved onto the dub's timeline by
+ * `shifts`, and the dub's own signs and captions, which are timed to it
+ * already. Without `shifts`, because no sub has tracks or the encodes do not
+ * align, the dub has only its own. With a `refinement`, cues that were
+ * matched to the dub's speech go where it says them.
  */
 const subtitlesForDub = async (
 	sub: ProviderVideo[],
@@ -589,7 +620,10 @@ const subtitlesForDub = async (
 	shifts: TimelineShift[] | null,
 	refinement?: string,
 ) => {
-	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
+	const [subKinds, dubKinds] = await Promise.all([
+		shifts ? subtitleKinds(sub) : new Map<string, SubtitleKind | null>(),
+		subtitleKinds(dub),
+	]);
 	const retimed = shifts
 		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts, refinement).subtitles.filter(
 				(track) => track.format === "vtt",
@@ -602,7 +636,7 @@ const subtitlesForDub = async (
 		(track) => track.format === "vtt" && (track.kind === "signs" || track.kind === "captions"),
 	);
 
-	return withDefault([...retimed, ...own].toSorted(compareSubtitles));
+	return forMenu([...retimed, ...own], "dub");
 };
 
 /**
@@ -636,6 +670,49 @@ const skipSegmentsForDub = (
 		kind: segment.kind,
 		start: moved(segment.start),
 	}));
+};
+
+/**
+ * Gives the dub its subtitles (see {@link subtitlesForDub}), and, when a sub
+ * with tracks was resolved too, its skip segments on its own timeline (see
+ * {@link skipSegmentsForDub}).
+ */
+const fitDubToSub = async (
+	results: VersionResult[],
+	request: PlaybackRequest,
+	streamUrl: StreamUrl,
+	accountId: string,
+	dependencies: PlaybackDependencies,
+) => {
+	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
+	const dub = results.find((result) => result.version?.audio === "dub");
+	if (!dub?.version || !dub.videos) {
+		return;
+	}
+
+	// A sub with burned-in subtitles, or none, has nothing to retime, but
+	// the dub keeps its own signs and captions.
+	let shifts: TimelineShift[] | null = null;
+	let refinement: string | undefined;
+	if (sub?.version && sub.videos) {
+		const refined = await storedRefinement(sub.videos, dub.videos, request, dependencies);
+		shifts =
+			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
+		refinement = refined?.refinement ? refined.key : undefined;
+		dub.version.skip_segments = skipSegmentsForDub(
+			sub.version.skip_segments,
+			dub.version.skip_segments,
+			shifts,
+		);
+	}
+	dub.version.subtitles = await subtitlesForDub(
+		sub?.videos ?? [],
+		dub.videos,
+		streamUrl,
+		accountId,
+		shifts,
+		refinement,
+	);
 };
 
 /**
@@ -693,26 +770,7 @@ export const resolvePlayback = async (
 		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
 	}
 
-	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
-	const dub = results.find((result) => result.version?.audio === "dub");
-	if (sub?.version && sub.videos && dub?.version && dub.videos) {
-		const refined = await storedRefinement(sub.videos, dub.videos, parsed.data, dependencies);
-		const shifts =
-			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
-		dub.version.subtitles = await subtitlesForDub(
-			sub.videos,
-			dub.videos,
-			streamUrl,
-			options.accountId,
-			shifts,
-			refined?.refinement ? refined.key : undefined,
-		);
-		dub.version.skip_segments = skipSegmentsForDub(
-			sub.version.skip_segments,
-			dub.version.skip_segments,
-			shifts,
-		);
-	}
+	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, dependencies);
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
 	await Promise.all(

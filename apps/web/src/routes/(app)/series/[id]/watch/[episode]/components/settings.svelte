@@ -26,11 +26,6 @@
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 	} = $props();
 
-	const kinds: Record<string, string> = {
-		captions: " (Captions)",
-		signs: " (Signs)",
-	};
-
 	const ultraHeight = 2160;
 	const highHeight = 720;
 
@@ -86,14 +81,11 @@
 								value: "",
 							},
 							...selected.subtitles.map((track, index, tracks) => {
-								const label = `${track.label}${kinds[track.kind ?? ""] ?? ""}`;
 								const same = tracks
 									.slice(0, index)
-									.filter(
-										(other) => other.label === track.label && other.kind === track.kind,
-									).length;
+									.filter((other) => other.label === track.label).length;
 								return {
-									label: same ? `${label} ${same + 1}` : label,
+									label: same ? `${track.label} ${same + 1}` : track.label,
 									value: track.url,
 								};
 							}),

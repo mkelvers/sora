@@ -24,7 +24,7 @@ interface FakeProvider {
 	/** How long it takes to answer, in milliseconds. */
 	delayMs?: number;
 	fails?: boolean;
-	/** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
+	/** Whether its streams come without their usual subtitle tracks, such as hardsubbed ones. */
 	noSubtitles?: boolean;
 	/** Whether its subtitle files cannot be fetched from any host. */
 	unreachableSubtitles?: boolean;
@@ -75,28 +75,30 @@ const useProviders = (list: FakeProvider[]) => {
 								format: "hls",
 								headers: {},
 								quality: "auto",
-								subtitles: fake.noSubtitles
-									? []
-									: [
-											{
-												format: "vtt",
-												label: "English",
-												language: "en",
-												url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
-											},
-											{
-												format: null,
-												label: "Portuguese",
-												language: "pt",
-												url: `https://${fake.id}.example/pt.vtt`,
-											},
-											...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
-												format: "vtt" as const,
-												label,
-												language: "en",
-												url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
-											})),
-										],
+								subtitles: [
+									...(fake.noSubtitles
+										? []
+										: [
+												{
+													format: "vtt" as const,
+													label: "English",
+													language: "en",
+													url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
+												},
+												{
+													format: null,
+													label: "Portuguese",
+													language: "pt",
+													url: `https://${fake.id}.example/pt.vtt`,
+												},
+											]),
+									...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
+										format: "vtt" as const,
+										label,
+										language: "en",
+										url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
+									})),
+								],
 								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
 							},
 						],
@@ -653,7 +655,7 @@ describe("resolvePlayback", () => {
 		]);
 	});
 
-	test("adds the dub's own signs and captions, but not its dialogue, to the sub's retimed dialogue", async () => {
+	test("adds the dub's own captions, shown from the start, and signs, but not its dialogue, to the sub's retimed dialogue", async () => {
 		useProviders([
 			{
 				extraSubtitles: {
@@ -678,12 +680,15 @@ describe("resolvePlayback", () => {
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		const [dubbed, subbed] = playback.media;
-		expect(dubbed?.subtitles.map((track) => [track.kind, track.default])).toEqual([
-			[null, true],
-			["signs", false],
-			["captions", false],
+		expect(dubbed?.subtitles.map((track) => [track.label, track.kind, track.default])).toEqual([
+			["English (CC)", "captions", true],
+			["English", null, false],
+			["English (Signs)", "signs", false],
 		]);
-		expect(subbed?.subtitles.map((track) => track.kind)).toEqual([null, null]);
+		expect(subbed?.subtitles.map((track) => [track.label, track.default])).toEqual([
+			["English", true],
+			["Portuguese", false],
+		]);
 	});
 
 	test("gives a dub no subtitles when its encode does not align with the sub's", async () => {
@@ -758,6 +763,40 @@ describe("resolvePlayback", () => {
 		).toEqual([
 			["dub", "anikoto", false, 0],
 			["sub", "anikoto", true, 0],
+		]);
+	});
+
+	test("gives a dub its own captions, shown from the start, and signs when the sub's subtitles are burned in, as for As a Reincarnated Aristocrat episode 1", async () => {
+		useProviders([
+			{
+				extraSubtitles: {
+					dub: ["English (English Signs)", "English (English cc)"],
+				},
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+				noSubtitles: true,
+			},
+		]);
+		offered = [dub(), sub()];
+
+		const playback = await resolvePlayback(request, options, dependencies);
+		expect(
+			playback.media.map((version) => [
+				version.audio,
+				version.hardsub,
+				version.subtitles.map((track) => [track.label, track.default]),
+			]),
+		).toEqual([
+			[
+				"dub",
+				false,
+				[
+					["English (CC)", true],
+					["English (Signs)", false],
+				],
+			],
+			["sub", true, []],
 		]);
 	});
 
