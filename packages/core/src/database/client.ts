@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/bun-sql/migrator";
 import { runMigrations } from "graphile-worker";
 
 import { config } from "../config";
+import { readMigrationHistory, skippedMigrations } from "./migration-history";
 import * as auth from "./schema/auth";
 import * as catalog from "./schema/catalog";
 import * as library from "./schema/library";
@@ -40,14 +41,40 @@ export const migrationLockKey = 7_302_024_001;
  * Call once at process startup, before serving requests. Replicas starting
  * together take turns: each holds a PostgreSQL advisory lock while it
  * migrates, so a later one finds nothing left to apply.
+ *
+ * Refuses to migrate when drizzle would skip a migration without saying so
+ * (see {@link skippedMigrations}), naming each one; AGENTS.md says how to
+ * repair the database.
  */
 export const migrateDatabase = async () => {
 	const lock = await db.$client.reserve();
 	const migrated = await attempt(
 		(async () => {
 			await lock`select pg_advisory_lock(${migrationLockKey}::bigint)`;
+			const migrationsFolder = new URL("../../drizzle", import.meta.url).pathname;
+			const [{ exists }] = await lock<[{ exists: boolean }]>`
+        select to_regclass('drizzle.__drizzle_migrations') is not null as exists
+      `;
+			const recorded = exists
+				? await lock<{ created_at: string; hash: string }[]>`
+            select created_at, hash from drizzle.__drizzle_migrations
+          `
+				: [];
+			const skipped = skippedMigrations(
+				readMigrationHistory(migrationsFolder),
+				recorded.map(({ created_at, hash }) => ({
+					createdAt: Number(created_at),
+					hash,
+				})),
+			);
+			if (skipped.length > 0) {
+				throw new Error(
+					`The database's migration history does not match packages/core/drizzle, so drizzle would skip migrations without saying so. Repair it as AGENTS.md says under "Database migrations":\n${skipped.map((reason) => `- ${reason}`).join("\n")}`,
+				);
+			}
+
 			await migrate(db, {
-				migrationsFolder: new URL("../../drizzle", import.meta.url).pathname,
+				migrationsFolder,
 			});
 			// The catalog enqueues scheduler jobs with SQL, so graphile-worker's schema
 			// must exist before any request, not only once a scheduler has started.
