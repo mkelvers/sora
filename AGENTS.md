@@ -104,6 +104,15 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 
 ---
 
+## Database migrations
+
+Every worktree shares the one local dev database (`sora`). Drizzle's migrator only applies files newer than the newest migration it has recorded and never compares hashes, so a migration it has already recorded is never run again, even after its file changes.
+
+- Never edit a migration file once it has run against any database, including the shared dev one. To change the schema further, edit `src/database/schema/` and run `bun run db:generate` for a new migration.
+- To redo a migration that only exists on your branch, delete its `.sql` file, its snapshot, and its journal entry, then generate it again. Undo what it applied to the dev database first, and ask the user before writing to it.
+- Before merging, the branch's migrations must be newer than every migration on main. If main gained a newer one, regenerate yours so its timestamp is later.
+- `db:migrate` refuses to run when a recorded migration's hash differs from its file, or when a file is older than a migration already recorded (see `packages/core/src/database/migration-history.ts`). To repair: compare the database with the schema read-only (`docker exec sora-database-1 psql -U sora -d sora`, `\d <table>`), bring the database in line with the file by hand, and set the recorded hash to the file's (`shasum -a 256 <file>`). Ask the user before writing to the dev database. Never skip or weaken the check.
+
 ## Testing
 
 - Write assertions inside `it()` or `test()` blocks
