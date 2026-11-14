@@ -404,7 +404,8 @@ const resolveVersion = async (
 			skip_segments: stream.skipSegments,
 			sources: media.sources,
 			// Providers hand a dub the sub's subtitles timed to the sub's encode;
-			// resolvePlayback retimes them to the dub's once both are resolved.
+			// resolvePlayback retimes them to the dub's and adds the dub's own
+			// signs and captions.
 			subtitles: language === "sub" ? withDefault(media.subtitles) : [],
 		};
 
@@ -576,10 +577,11 @@ export const timelineShifts = async (
 };
 
 /**
- * The sub's WebVTT subtitles moved onto the dub's timeline by `shifts`, and
- * the dub's own signs and captions, which are timed to it already. The sub's
- * are left out when the encodes do not align. With a `refinement`, cues
- * that were matched to the dub's speech go where it says them.
+ * The dub's subtitles: the sub's WebVTT ones moved onto the dub's timeline by
+ * `shifts`, and the dub's own signs and captions, which are timed to it
+ * already. Without `shifts`, because no sub has tracks or the encodes do not
+ * align, the dub has only its own. With a `refinement`, cues that were
+ * matched to the dub's speech go where it says them.
  */
 const subtitlesForDub = async (
 	sub: ProviderVideo[],
@@ -589,7 +591,10 @@ const subtitlesForDub = async (
 	shifts: TimelineShift[] | null,
 	refinement?: string,
 ) => {
-	const [subKinds, dubKinds] = await Promise.all([subtitleKinds(sub), subtitleKinds(dub)]);
+	const [subKinds, dubKinds] = await Promise.all([
+		shifts ? subtitleKinds(sub) : new Map<string, SubtitleKind | null>(),
+		subtitleKinds(dub),
+	]);
 	const retimed = shifts
 		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts, refinement).subtitles.filter(
 				(track) => track.format === "vtt",
@@ -636,6 +641,49 @@ const skipSegmentsForDub = (
 		kind: segment.kind,
 		start: moved(segment.start),
 	}));
+};
+
+/**
+ * Gives the dub its subtitles (see {@link subtitlesForDub}), and, when a sub
+ * with tracks was resolved too, its skip segments on its own timeline (see
+ * {@link skipSegmentsForDub}).
+ */
+const fitDubToSub = async (
+	results: VersionResult[],
+	request: PlaybackRequest,
+	streamUrl: StreamUrl,
+	accountId: string,
+	dependencies: PlaybackDependencies,
+) => {
+	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
+	const dub = results.find((result) => result.version?.audio === "dub");
+	if (!dub?.version || !dub.videos) {
+		return;
+	}
+
+	// A sub with burned-in subtitles, or none, has nothing to retime, but
+	// the dub keeps its own signs and captions.
+	let shifts: TimelineShift[] | null = null;
+	let refinement: string | undefined;
+	if (sub?.version && sub.videos) {
+		const refined = await storedRefinement(sub.videos, dub.videos, request, dependencies);
+		shifts =
+			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
+		refinement = refined?.refinement ? refined.key : undefined;
+		dub.version.skip_segments = skipSegmentsForDub(
+			sub.version.skip_segments,
+			dub.version.skip_segments,
+			shifts,
+		);
+	}
+	dub.version.subtitles = await subtitlesForDub(
+		sub?.videos ?? [],
+		dub.videos,
+		streamUrl,
+		accountId,
+		shifts,
+		refinement,
+	);
 };
 
 /**
@@ -693,26 +741,7 @@ export const resolvePlayback = async (
 		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
 	}
 
-	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
-	const dub = results.find((result) => result.version?.audio === "dub");
-	if (sub?.version && sub.videos && dub?.version && dub.videos) {
-		const refined = await storedRefinement(sub.videos, dub.videos, parsed.data, dependencies);
-		const shifts =
-			refined?.refinement?.shifts ?? (await timelineShifts(sub.videos, dub.videos, dependencies));
-		dub.version.subtitles = await subtitlesForDub(
-			sub.videos,
-			dub.videos,
-			streamUrl,
-			options.accountId,
-			shifts,
-			refined?.refinement ? refined.key : undefined,
-		);
-		dub.version.skip_segments = skipSegmentsForDub(
-			sub.version.skip_segments,
-			dub.version.skip_segments,
-			shifts,
-		);
-	}
+	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, dependencies);
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
 	await Promise.all(

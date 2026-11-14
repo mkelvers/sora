@@ -24,7 +24,7 @@ interface FakeProvider {
 	/** How long it takes to answer, in milliseconds. */
 	delayMs?: number;
 	fails?: boolean;
-	/** Whether its streams come without subtitle tracks, such as hardsubbed ones. */
+	/** Whether its streams come without their usual subtitle tracks, such as hardsubbed ones. */
 	noSubtitles?: boolean;
 	/** Whether its subtitle files cannot be fetched from any host. */
 	unreachableSubtitles?: boolean;
@@ -75,28 +75,30 @@ const useProviders = (list: FakeProvider[]) => {
 								format: "hls",
 								headers: {},
 								quality: "auto",
-								subtitles: fake.noSubtitles
-									? []
-									: [
-											{
-												format: "vtt",
-												label: "English",
-												language: "en",
-												url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
-											},
-											{
-												format: null,
-												label: "Portuguese",
-												language: "pt",
-												url: `https://${fake.id}.example/pt.vtt`,
-											},
-											...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
-												format: "vtt" as const,
-												label,
-												language: "en",
-												url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
-											})),
-										],
+								subtitles: [
+									...(fake.noSubtitles
+										? []
+										: [
+												{
+													format: "vtt" as const,
+													label: "English",
+													language: "en",
+													url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
+												},
+												{
+													format: null,
+													label: "Portuguese",
+													language: "pt",
+													url: `https://${fake.id}.example/pt.vtt`,
+												},
+											]),
+									...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
+										format: "vtt" as const,
+										label,
+										language: "en",
+										url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
+									})),
+								],
 								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
 							},
 						],
@@ -758,6 +760,40 @@ describe("resolvePlayback", () => {
 		).toEqual([
 			["dub", "anikoto", false, 0],
 			["sub", "anikoto", true, 0],
+		]);
+	});
+
+	test("gives a dub its own signs and captions when the sub's subtitles are burned in, as for As a Reincarnated Aristocrat episode 1", async () => {
+		useProviders([
+			{
+				extraSubtitles: {
+					dub: ["English (English Signs)", "English (English cc)"],
+				},
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+				noSubtitles: true,
+			},
+		]);
+		offered = [dub(), sub()];
+
+		const playback = await resolvePlayback(request, options, dependencies);
+		expect(
+			playback.media.map((version) => [
+				version.audio,
+				version.hardsub,
+				version.subtitles.map((track) => [track.kind, track.default]),
+			]),
+		).toEqual([
+			[
+				"dub",
+				false,
+				[
+					["signs", false],
+					["captions", false],
+				],
+			],
+			["sub", true, []],
 		]);
 	});
 
