@@ -655,7 +655,7 @@ describe("resolvePlayback", () => {
 		]);
 	});
 
-	test("adds the dub's own signs and captions, but not its dialogue, to the sub's retimed dialogue", async () => {
+	test("adds the dub's own captions, shown from the start, and signs, but not its dialogue, to the sub's retimed dialogue", async () => {
 		useProviders([
 			{
 				extraSubtitles: {
@@ -680,12 +680,15 @@ describe("resolvePlayback", () => {
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		const [dubbed, subbed] = playback.media;
-		expect(dubbed?.subtitles.map((track) => [track.kind, track.default])).toEqual([
-			[null, true],
-			["signs", false],
-			["captions", false],
+		expect(dubbed?.subtitles.map((track) => [track.label, track.kind, track.default])).toEqual([
+			["English (CC)", "captions", true],
+			["English", null, false],
+			["English (Signs)", "signs", false],
 		]);
-		expect(subbed?.subtitles.map((track) => track.kind)).toEqual([null, null]);
+		expect(subbed?.subtitles.map((track) => [track.label, track.default])).toEqual([
+			["English", true],
+			["Portuguese", false],
+		]);
 	});
 
 	test("gives a dub no subtitles when its encode does not align with the sub's", async () => {
@@ -763,7 +766,7 @@ describe("resolvePlayback", () => {
 		]);
 	});
 
-	test("gives a dub its own signs and captions when the sub's subtitles are burned in, as for As a Reincarnated Aristocrat episode 1", async () => {
+	test("gives a dub its own captions, shown from the start, and signs when the sub's subtitles are burned in, as for As a Reincarnated Aristocrat episode 1", async () => {
 		useProviders([
 			{
 				extraSubtitles: {
@@ -782,15 +785,15 @@ describe("resolvePlayback", () => {
 			playback.media.map((version) => [
 				version.audio,
 				version.hardsub,
-				version.subtitles.map((track) => [track.kind, track.default]),
+				version.subtitles.map((track) => [track.label, track.default]),
 			]),
 		).toEqual([
 			[
 				"dub",
 				false,
 				[
-					["signs", false],
-					["captions", false],
+					["English (CC)", true],
+					["English (Signs)", false],
 				],
 			],
 			["sub", true, []],

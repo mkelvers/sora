@@ -34,7 +34,7 @@ export const PlaybackSourceSchema = z.object({
 export const PlaybackSubtitleSchema = z.object({
 	default: z.boolean().meta({
 		description:
-			"Whether a player shows this track from the start: the English dialogue track, for a sub and a dub alike. None for raw or a hardsub, which has no English track.",
+			"Whether a player shows this track from the start: the first English track, which carries the most of what is said. On a sub that is dialogue before captions before signs; on a dub, captions before dialogue before signs, since a dub's captions write down its own speech. None for raw or a hardsub, which has no English track.",
 	}),
 	format: z.enum(["vtt", "srt", "ass"]).nullable(),
 	kind: z.enum(["dialogue", "signs", "captions"]).nullable().meta({
@@ -42,8 +42,9 @@ export const PlaybackSubtitleSchema = z.object({
 			"What the track carries, worked out from its name and its cues: `dialogue` is what the characters say, `signs` is text shown on screen and forced subtitles, and `captions` is dialogue with descriptions of sound. Null when that is not clear, in which case a menu should show the track as plain subtitles.",
 	}),
 	label: z.string().meta({
-		description: "The language's English name, for a subtitle menu.",
-		example: "Brazilian Portuguese",
+		description:
+			"The language's English name, with the track's kind unless it is dialogue, for a subtitle menu.",
+		example: "English (CC)",
 	}),
 	language: z.string().meta({
 		description: "BCP 47 language tag.",
