@@ -60,7 +60,11 @@ export const createStreamToken = (
 		config.streamSigningSecret,
 	);
 
-/** Whether the proxy could serve `url` right now, from its own host or a mirror. */
+/**
+ * Whether the proxy could serve `url`, from its own host or a mirror. A host
+ * answering 429 counts: it is up and throttling a burst, which requests for
+ * the stream wait out (see `fetchUpstream`).
+ */
 export const canFetchStream = async (
 	url: string,
 	headers: Record<string, string>,
@@ -83,7 +87,7 @@ export const canFetchStream = async (
 		StreamUpstreamError,
 	);
 	if (error) {
-		return false;
+		return error.status === 429;
 	}
 	await data.response.body?.cancel();
 	return true;
