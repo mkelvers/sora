@@ -324,6 +324,45 @@ export const requestRefinement = async (payload: RefineSubtitlesPayload) => {
   `);
 };
 
+/** The graphile-worker task that finds where an episode's theme songs play; see `detectSkipSegments`. */
+export const detectSkipSegmentsTask = "detect-skip-segments";
+
+/** The episode {@link detectSkipSegmentsTask} looks at. */
+export interface DetectSkipSegmentsPayload {
+	seriesId: string;
+	episode: number;
+	/**
+	 * Asked for ahead of the episode being played, rather than by its own
+	 * playback, so an episode already looked at is passed over without
+	 * resolving its videos.
+	 */
+	ahead?: boolean;
+}
+
+/**
+ * Asks for an episode's theme songs to be looked for in its videos, unless
+ * that is already queued. Jobs run one at a time in their own queue, since
+ * each reads several minutes of every video, and the job itself passes over
+ * videos already looked at.
+ */
+export const requestSkipDetection = async (payload: DetectSkipSegmentsPayload) => {
+	await db.execute(sql`
+    select graphile_worker.add_job(
+      identifier => ${detectSkipSegmentsTask},
+      payload => json_build_object(
+        'seriesId', ${payload.seriesId}::text,
+        'episode', ${payload.episode}::int,
+        'ahead', ${payload.ahead ?? false}::boolean
+      ),
+      queue_name => 'detect-skip-segments',
+      job_key => ${`detect-skip-segments:${payload.seriesId}:${payload.episode}`},
+      job_key_mode => 'unsafe_dedupe',
+      max_attempts => 3,
+      priority => 10
+    )
+  `);
+};
+
 /** The graphile-worker task that looks at a series' subtitle languages; see `probeSubtitleLanguages`. */
 export const probeSubtitlesTask = "probe-subtitles";
 
