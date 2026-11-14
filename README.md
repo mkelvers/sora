@@ -17,7 +17,7 @@ Sora is a catalogue, player, watchlist, and release calendar for anime, run from
 
 The web app is one client of a versioned HTTP API. A scheduler keeps the catalogue current, and a typed SDK, checked against the API's own route definitions, gives your own code the same access the web app has.
 
-- Playback tries AniKoto and MegaPlay in turn and falls through when a source fails. Streams go through a signed proxy, and skip-intro segments come with them.
+- Playback tries AniKoto and MegaPlay in turn and falls through when a source fails. Streams go through a signed proxy, and skip-intro segments come with them. The scheduler finds where each episode's opening and ending songs (from [AnimeThemes](https://animethemes.moe)) play in its audio, and those spans replace the provider's; only the spans are stored.
 - A show is listed once a provider actually carries its episode, and the calendar follows airing times.
 - Search and browsing read from Sora's own database and never wait on an upstream service.
 

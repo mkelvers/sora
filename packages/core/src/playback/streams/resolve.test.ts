@@ -8,6 +8,8 @@ import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderStream, StreamProvider } from "../providers/provider";
+import { skipDetectionKey } from "../skips/store";
+import type { StoredSkipDetection } from "../skips/store";
 import type { getRefinement } from "../subtitles/store";
 import { refinementKey } from "../subtitles/store";
 import { resolvePlayback } from "./resolve";
@@ -109,8 +111,17 @@ const useProviders = (list: FakeProvider[]) => {
 	);
 };
 
-/** Segment start times `segmentStarts` hands out, by playlist URL. */
+/** Segment start times `streamTimeline` hands out, by playlist URL. */
 const timelines = new Map<string, number[]>();
+
+/** Video lengths `streamTimeline` hands out, by playlist URL; unknown when missing. */
+const durations = new Map<string, number>();
+
+/** What `getSkipDetections` finds, by video key. */
+const detections = new Map<string, StoredSkipDetection>();
+
+/** Episodes `requestSkipDetection` was asked for. */
+const detectionRequests: number[] = [];
 
 /** What `getRefinement` finds, by the key of a pair of encodes. */
 const refinements = new Map<string, Awaited<ReturnType<typeof getRefinement>>>();
@@ -134,17 +145,30 @@ const dependencies: PlaybackDependencies = {
 			},
 		]),
 	getRefinement: (key) => Promise.resolve(refinements.get(key) ?? null),
+	getSkipDetections: (keys) =>
+		Promise.resolve(
+			new Map(
+				keys.flatMap((key) => (detections.has(key) ? [[key, defined(detections.get(key))]] : [])),
+			),
+		),
 	locateEpisode: (seriesId) =>
 		Promise.resolve({
 			anilistId: 154_587,
 			number: 3,
 			seriesId,
 		}),
-	normalizeSkipSegments: (_seriesId, _episode, _audio, segments) => Promise.resolve(segments),
 	providers,
 	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
-	segmentStarts: (url) => Promise.resolve(timelines.get(url) ?? []),
+	requestSkipDetection: (payload) => {
+		detectionRequests.push(payload.episode);
+		return Promise.resolve();
+	},
+	streamTimeline: (url) =>
+		Promise.resolve({
+			duration: durations.get(url) ?? null,
+			starts: timelines.get(url) ?? [],
+		}),
 	warmStream: () => Promise.resolve(),
 };
 
@@ -187,6 +211,9 @@ beforeEach(() => {
 	resolved.length = 0;
 	offered = [];
 	timelines.clear();
+	durations.clear();
+	detections.clear();
+	detectionRequests.length = 0;
 	refinements.clear();
 });
 
@@ -336,6 +363,130 @@ describe("resolvePlayback", () => {
 			const segments = await dubbedSkipSegments(null);
 
 			expect(segments[0]).toEqual(spans);
+		});
+	});
+
+	describe("skip segments and the video they came with", () => {
+		const subUrl = "https://anikoto.example/sub.m3u8";
+		const provided = [
+			{
+				end: 108,
+				kind: "opening" as const,
+				start: 0,
+			},
+			{
+				end: 1448,
+				kind: "ending" as const,
+				start: 1351,
+			},
+		];
+
+		const subSkipSegments = async (segments: SkipSegment[] = provided) => {
+			useProviders([
+				{
+					id: "anikoto",
+					languages: ["sub"],
+					locale: "en",
+					skipSegments: {
+						sub: segments,
+					},
+				},
+			]);
+			offered = [sub()];
+			const playback = await resolvePlayback(request, options, dependencies);
+			return playback.media[0]?.skip_segments;
+		};
+
+		test("drops them all when one starts after the video ends, since they were timed to another cut", async () => {
+			// Dragon Ball: a 1244 s cut without its opening and ending, given the full episode's.
+			durations.set(subUrl, 1244);
+
+			expect(await subSkipSegments()).toEqual([]);
+		});
+
+		test("ends a segment that runs past the video at its end", async () => {
+			durations.set(subUrl, 1440);
+
+			const segments = await subSkipSegments();
+			expect(segments?.at(-1)).toEqual({
+				end: 1440,
+				kind: "ending",
+				start: 1351,
+			});
+		});
+
+		test("keeps them when the video's length cannot be read", async () => {
+			expect(await subSkipSegments()).toEqual(provided);
+		});
+
+		test("puts the theme songs found in the video in place of the provider's segments", async () => {
+			detections.set(skipDetectionKey(subUrl), {
+				checkedAt: new Date(),
+				detection: {
+					ending: null,
+					opening: {
+						end: 187.8,
+						start: 98.1,
+					},
+				},
+				songs: 2,
+			});
+
+			expect(await subSkipSegments()).toEqual([
+				{
+					end: 187.8,
+					kind: "opening",
+					start: 98.1,
+				},
+				{
+					end: 1448,
+					kind: "ending",
+					start: 1351,
+				},
+			]);
+		});
+
+		test("gives no opening when its song plays only late in the video", async () => {
+			detections.set(skipDetectionKey(subUrl), {
+				checkedAt: new Date(),
+				detection: {
+					ending: null,
+					opening: "none",
+				},
+				songs: 2,
+			});
+
+			const segments = await subSkipSegments();
+			expect(segments?.map((segment) => segment.kind)).toEqual(["ending"]);
+		});
+
+		test("plays with the provider's segments when stored detections cannot be read", async () => {
+			const playback = await resolvePlayback(request, options, {
+				...dependencies,
+				getSkipDetections: () => Promise.reject(new Error("relation does not exist")),
+			});
+
+			expect(playback.media.length).toBeGreaterThan(0);
+		});
+
+		test("asks for the episode's songs to be looked for, and the next episode's", async () => {
+			await subSkipSegments();
+
+			expect(detectionRequests.toSorted()).toEqual([3, 4]);
+		});
+
+		test("asks only for the next episode once this one has been looked at", async () => {
+			detections.set(skipDetectionKey(subUrl), {
+				checkedAt: new Date(),
+				detection: {
+					ending: null,
+					opening: null,
+				},
+				songs: 2,
+			});
+			await subSkipSegments();
+
+			expect(detectionRequests).toEqual([4]);
 		});
 	});
 

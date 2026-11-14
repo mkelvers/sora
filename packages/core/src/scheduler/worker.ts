@@ -40,6 +40,7 @@ import {
 	refreshEpisodeListingsTask,
 	storeSeriesJob,
 } from "./jobs/series";
+import { detectSkipSegmentsJob } from "./jobs/skips";
 import { chooseEpisodeStillsJob, chooseEpisodeStillsTask } from "./jobs/stills";
 import { probeSubtitles, refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
@@ -48,6 +49,7 @@ import { failInvalidPayloads } from "./payload";
 import { watchPools } from "./pools";
 import type { PoolWatch } from "./pools";
 import {
+	detectSkipSegmentsTask,
 	lookUpEpisodesNowTask,
 	lookUpEpisodesTask,
 	pollAniKotoTask,
@@ -257,6 +259,21 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		}),
 	});
 
+	// Looking for an episode's theme songs reads several minutes of each of
+	// its videos, so one runs at a time, in a worker of its own, and never
+	// holds up dub listening or catalogue work.
+	const detecting = await run({
+		concurrency: 1,
+		connectionString: config.databaseUrl,
+		maxPoolSize: 2,
+		taskList: failInvalidPayloads({
+			[detectSkipSegmentsTask]: (payload, helpers) => {
+				pools.know(helpers.job.locked_by);
+				return detectSkipSegmentsJob(payload, helpers);
+			},
+		}),
+	});
+
 	// Upscaling a backdrop keeps a processor busy for minutes, so one runs at
 	// a time, in a worker of its own.
 	const upscaling = await run({
@@ -279,6 +296,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				lookups.promise,
 				releases.promise,
 				listening.promise,
+				detecting.promise,
 				upscaling.promise,
 			]);
 			await pools.stop();
@@ -290,6 +308,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 				lookups.stop(),
 				releases.stop(),
 				listening.stop(),
+				detecting.stop(),
 				upscaling.stop(),
 			]);
 			await pools.stop();

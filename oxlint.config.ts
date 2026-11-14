@@ -20,6 +20,15 @@ export default defineConfig({
 		"**/*.generated.ts",
 		"**/.svelte-kit/**",
 	],
+	overrides: [
+		{
+			// Audio fingerprints are 16-bit codes, compared bit by bit.
+			files: ["packages/core/src/playback/skips/fingerprint.ts"],
+			rules: {
+				"no-bitwise": "off",
+			},
+		},
+	],
 	plugins: ["typescript", "unicorn", "oxc", "import", "promise"],
 	rules: {
 		"no-unused-vars": [
