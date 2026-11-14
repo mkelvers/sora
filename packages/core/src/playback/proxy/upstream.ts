@@ -4,8 +4,9 @@ import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
 import { Readable } from "node:stream";
+import { setTimeout as sleep } from "node:timers/promises";
 
-import { attempt, second, defined, firstInSequence } from "@sora/shared";
+import { attempt, second, defined, firstInSequence, parseRetryAfter } from "@sora/shared";
 import type { Attempt } from "@sora/shared";
 
 import { CoreError, InvalidStreamTokenError } from "../../errors";
@@ -27,6 +28,16 @@ const hedgeDelayMs = 1.5 * second;
  */
 const segmentStallMs = 4 * second;
 const maximumRedirects = 5;
+
+/**
+ * The longest a host's `Retry-After` is waited out before its 429 counts as a
+ * failure. Stream hosts behind Cloudflare answer bursts with 429 and
+ * `Retry-After: 2`, and serve again within seconds.
+ */
+const maximumThrottleWaitMs = 5 * second;
+
+/** The shortest wait before asking a host that answered 429 again, so `Retry-After: 0` is not a busy loop. */
+const minimumThrottleWaitMs = 0.5 * second;
 
 /**
  * The most a body read in full may hold, by what it is. A host that sends
@@ -190,6 +201,47 @@ const requestPublicHost = (
 	return promise;
 };
 
+/**
+ * Makes one request, and when the host answers 429, asks again once its
+ * `Retry-After` has passed. A host that throttles a burst is up, and taking it
+ * for down sent playback to a provider without skip segments, or to none.
+ *
+ * The 429 is returned as it is when the wait would be longer than
+ * {@link maximumThrottleWaitMs}, or would outlast `endsAt` or `deadline`.
+ */
+const requestWaitingOutThrottle = async (
+	url: string,
+	headers: Headers,
+	endsAt: number,
+	deadline: AbortSignal,
+): Promise<Response> => {
+	const { data, error } = await attempt(requestPublicHost(url, headers, deadline));
+	if (error) {
+		throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
+			cause: error,
+		});
+	}
+	if (data.status !== 429) {
+		return data;
+	}
+
+	const wait = Math.max(
+		parseRetryAfter(data.headers.get("Retry-After")) ?? 0,
+		minimumThrottleWaitMs,
+	);
+	if (wait > maximumThrottleWaitMs || Date.now() + wait >= endsAt) {
+		return data;
+	}
+
+	await data.body?.cancel();
+	const waited = await attempt(
+		sleep(wait, undefined, {
+			signal: deadline,
+		}),
+	);
+	return waited.error ? data : await requestWaitingOutThrottle(url, headers, endsAt, deadline);
+};
+
 const fetchFollowingRedirects = async (
 	url: string,
 	headers: Headers,
@@ -203,20 +255,14 @@ const fetchFollowingRedirects = async (
 
 	assertPublicHttpUrl(url);
 
-	const { data, error } = await attempt(
-		requestPublicHost(
-			url,
-			headers,
-			signal
-				? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-				: AbortSignal.timeout(timeoutMs),
-		),
+	const data = await requestWaitingOutThrottle(
+		url,
+		headers,
+		Date.now() + timeoutMs,
+		signal
+			? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+			: AbortSignal.timeout(timeoutMs),
 	);
-	if (error) {
-		throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
-			cause: error,
-		});
-	}
 
 	const location = data.headers.get("Location");
 	if (data.status >= 300 && data.status < 400 && location) {
