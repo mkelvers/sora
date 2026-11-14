@@ -29,6 +29,7 @@
 	} = $props();
 
 	let pointer = $state<{ time: number; x: number; width: number }>();
+	let label = $state(0);
 
 	const track = (event: PointerEvent & { currentTarget: HTMLElement }) => {
 		if (!(player.duration > 0)) {
@@ -75,8 +76,9 @@
 
 	{#if pointer}
 		<p
-			class="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 bg-white px-2 py-0.5 text-sm font-semibold text-black tabular-nums"
-			style:left="{Math.min(Math.max(pointer.x, 28), pointer.width - 28)}px"
+			class="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 bg-white px-2 py-0.5 text-sm font-semibold whitespace-nowrap text-black tabular-nums"
+			style:left="{Math.min(Math.max(pointer.x, label / 2), pointer.width - label / 2)}px"
+			bind:offsetWidth={label}
 			aria-hidden="true"
 		>
 			{clock(pointer.time)}
