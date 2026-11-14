@@ -196,16 +196,18 @@ export class Player {
 
 	onkeydown = (event: KeyboardEvent) => {
 		const target = event.target instanceof Element ? event.target : null;
-		if (
-			!target ||
-			!this.root?.contains(target) ||
-			event.defaultPrevented ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.altKey ||
-			target.closest("input, textarea, [contenteditable]") ||
-			(event.key === " " && target.closest("button, a"))
-		) {
+		if (!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+			return;
+		}
+
+		const inPlayer = target === document.body || this.root?.contains(target);
+		const inFieldOrMenu = target.closest(
+			'textarea, [contenteditable], input:not([type="range"]), :popover-open',
+		);
+		const controlOwnsKey =
+			target.matches(":focus-visible") &&
+			(target.matches('input[type="range"]') || (event.key === " " && target.closest("button, a")));
+		if (!inPlayer || inFieldOrMenu || controlOwnsKey) {
 			return;
 		}
 
