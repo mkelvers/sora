@@ -41,7 +41,7 @@ const readPlaylist = async (url: string, headers: Record<string, string>, parent
 };
 
 /** The playlist listing a stream's segments: the lowest bitrate variant of a master playlist. */
-const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
+export const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 	const master = await readPlaylist(url, headers);
 	const variants = [
 		...master.text.matchAll(/^#EXT-X-STREAM-INF:(?<attributes>[^\n]*)\n\s*(?<uri>[^#\s][^\n]*)/gmu),
@@ -55,7 +55,8 @@ const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
 };
 
-const readWithRetries = async (
+/** A segment's bytes, unwrapped from any image it is disguised as, tried a few times before failing. */
+export const readWithRetries = async (
 	url: string,
 	playlistUrl: string,
 	headers: Record<string, string>,

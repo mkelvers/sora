@@ -11,7 +11,7 @@ import { retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
-import type { UpstreamBytes } from "./upstream";
+import type { Upstream, UpstreamBytes } from "./upstream";
 
 /**
  * How long tokens handed to clients stay valid.
@@ -124,12 +124,37 @@ export const readSubtitle = async (
 };
 
 /**
- * The start time of every segment of an HLS stream, in seconds; the first
- * variant's for a multivariant playlist.
+ * An upstream body as text.
+ *
+ * @throws {StreamUpstreamError} when the host stops sending partway through.
+ */
+const readText = async (upstream: Upstream) => {
+	const { data, error } = await attempt(upstream.response.text());
+	if (error) {
+		throw new StreamUpstreamError(`Upstream ${new URL(upstream.url).host} stopped sending`, null, {
+			cause: error,
+		});
+	}
+	return data;
+};
+
+/** Where an HLS stream's segments start, and how long it runs, in seconds. */
+export interface StreamTimeline {
+	starts: number[];
+	/** `null` when the playlist lists no segments. */
+	duration: number | null;
+}
+
+/**
+ * The timeline of an HLS stream: the first variant's for a multivariant
+ * playlist.
  *
  * @throws {StreamUpstreamError} when a playlist cannot be fetched.
  */
-export const segmentStarts = async (url: string, headers: Record<string, string>) => {
+export const streamTimeline = async (
+	url: string,
+	headers: Record<string, string>,
+): Promise<StreamTimeline> => {
 	const target = {
 		accountId: "",
 		expiresAt: 0,
@@ -139,7 +164,7 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 		url,
 	};
 	let upstream = await fetchUpstream(target, null);
-	let content = await upstream.response.text();
+	let content = await readText(upstream);
 
 	const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u.exec(content)?.[1];
 	if (variant) {
@@ -152,7 +177,7 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 			},
 			null,
 		);
-		content = await upstream.response.text();
+		content = await readText(upstream);
 	}
 
 	const starts: number[] = [];
@@ -161,7 +186,10 @@ export const segmentStarts = async (url: string, headers: Record<string, string>
 		starts.push(elapsed);
 		elapsed += Number(duration);
 	}
-	return starts;
+	return {
+		duration: starts.length > 0 ? elapsed : null,
+		starts,
+	};
 };
 
 /** How many segments of a stream are loaded before it is played, an init section counting as one. */

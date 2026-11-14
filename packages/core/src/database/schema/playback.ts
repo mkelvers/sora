@@ -2,11 +2,12 @@ import { sql } from "drizzle-orm";
 import {
 	bigint,
 	boolean,
-	doublePrecision,
 	index,
 	integer,
 	pgTable,
 	primaryKey,
+	real,
+	smallint,
 	text,
 } from "drizzle-orm/pg-core";
 
@@ -259,30 +260,32 @@ export const subtitleRefinement = pgTable("subtitle_refinement", {
 });
 
 /**
- * How long each episode's opening and ending ran as its provider reported
- * them, per audio. A series' episodes share their opening's length, so the
- * length most of them report is the one an outlier is brought to; see
- * `normalizeSkipSegments`.
+ * Where an episode's theme songs play in one video, found by looking for the
+ * anime's openings and endings in the video's own audio; see
+ * `detectSkipSegments`. Playback puts these in place of the provider's skip
+ * segments.
+ *
+ * Kept as small as it can be: no audio or fingerprints are stored, only the
+ * spans. A kind with no span was not found, and keeps the provider's. A row
+ * keyed by an episode rather than a video marks the episode as looked at;
+ * see `episodeDetectionKey`.
  */
-export const skipSegmentLength = pgTable(
-	"skip_segment_length",
-	{
-		audio: text("audio").notNull(),
-		episode: integer("episode").notNull(),
-		kind: text("kind").notNull(),
-		seconds: doublePrecision("seconds").notNull(),
-		seriesId: text("series_id")
-			.notNull()
-			.references(() => series.id, {
-				onDelete: "cascade",
-			}),
-	},
-	(table) => [
-		primaryKey({
-			columns: [table.seriesId, table.audio, table.kind, table.episode],
-		}),
-	],
-);
+export const skipDetection = pgTable("skip_detection", {
+	checkedAt: timestamptz("checked_at").notNull(),
+	endingEnd: real("ending_end"),
+	endingStart: real("ending_start"),
+	/** A hash of the video's playlist path; see `skipDetectionKey`. */
+	key: text("key").primaryKey(),
+	/**
+	 * The opening song plays only late in the video, over the story or as its
+	 * ending, so there is no opening to skip.
+	 */
+	noOpening: boolean("no_opening").notNull().default(false),
+	openingEnd: real("opening_end"),
+	openingStart: real("opening_start"),
+	/** Theme songs looked for; 0 when AnimeThemes had none for the episode yet. */
+	songs: smallint("songs").notNull(),
+});
 
 /**
  * Every subtitle language a stream of the series was served with, as BCP 47

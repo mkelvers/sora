@@ -9,7 +9,7 @@ import { EpisodeNotFoundError, InvalidInputError, PlaybackUnavailableError } fro
 import type { ProviderAttempt } from "../../errors";
 import type { PlaybackMedia, PlaybackSubtitle, SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
-import { requestRefinement } from "../../scheduler/queue";
+import { requestRefinement, requestSkipDetection } from "../../scheduler/queue";
 import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits } from "../episodes/episodes";
 import type { ProviderUnit } from "../episodes/episodes";
@@ -20,16 +20,17 @@ import { isServedSubtitle, servedLocale, streamProviders } from "../providers/re
 import {
 	canFetchStream,
 	createStreamToken,
-	segmentStarts,
+	streamTimeline,
 	tokenLifetimeMs,
 	warmStream,
 } from "../proxy/proxy";
+import type { StreamTimeline } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
+import { getSkipDetections, isSkipDetectionDue, skipDetectionKey } from "../skips/store";
+import type { SkipDetection, StoredSkipDetection } from "../skips/store";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime } from "./align";
 import type { TimelineShift } from "./align";
-import { normalizeSkipSegments } from "./skip-lengths";
-import type { SkipSource } from "./skip-lengths";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 import { languageName, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
@@ -64,11 +65,12 @@ export interface PlaybackDependencies {
 	getEpisodeVersions: typeof getEpisodeVersions;
 	getProviderUnits: typeof getProviderUnits;
 	createStreamToken: typeof createStreamToken;
-	segmentStarts: typeof segmentStarts;
+	streamTimeline: typeof streamTimeline;
 	canFetchStream: typeof canFetchStream;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
-	normalizeSkipSegments: typeof normalizeSkipSegments;
+	getSkipDetections: typeof getSkipDetections;
+	requestSkipDetection: typeof requestSkipDetection;
 	recordSubtitleLanguages: typeof recordSubtitleLanguages;
 	warmStream: typeof warmStream;
 }
@@ -80,12 +82,13 @@ const live: PlaybackDependencies = {
 	getEpisodeVersions,
 	getProviderUnits,
 	getRefinement,
+	getSkipDetections,
 	locateEpisode,
-	normalizeSkipSegments,
 	providers: streamProviders,
 	recordSubtitleLanguages,
 	requestRefinement,
-	segmentStarts,
+	requestSkipDetection,
+	streamTimeline,
 	warmStream,
 };
 
@@ -116,6 +119,12 @@ export interface PlaybackOptions {
  */
 export const playbackDeadlineMs = 30 * second;
 
+/**
+ * How long checking skip segments against a video's length may hold playback;
+ * past it they go unchecked.
+ */
+const lengthCheckMs = 2 * second;
+
 /** How long a video's host has to answer before its provider is passed over. */
 const videoProbeTimeoutMs = 3 * second;
 
@@ -124,8 +133,6 @@ interface VersionResult {
 	version: PlaybackMedia | null;
 	/** The upstream videos behind `version`. */
 	videos?: ProviderVideo[];
-	/** The series' other episodes at the provider behind `version`. */
-	skipSource?: SkipSource;
 	/** Whether a provider serving the locale lists the episode. */
 	listed: boolean;
 	attempts: ProviderAttempt[];
@@ -450,18 +457,7 @@ const resolveVersion = async (
 			return null;
 		}
 
-		const units = await unitsOf(provider);
 		return {
-			skipSource: {
-				episodes: units.map((candidate) => candidate.number),
-				skipSegments: async (number: number) => {
-					const sibling = units.find((candidate) => candidate.number === number);
-					const { data } = sibling
-						? await attempt(provider.resolveStream(sibling.id, language))
-						: { data: null };
-					return data?.skipSegments ?? null;
-				},
-			},
 			version,
 			videos: stream.videos,
 		};
@@ -592,17 +588,18 @@ export const timelineShifts = async (
 		return null;
 	}
 
-	const starts = await attempt(
+	const timelines = await attempt(
 		Promise.all([
-			dependencies.segmentStarts(subVideo.url, subVideo.headers),
-			dependencies.segmentStarts(dubVideo.url, dubVideo.headers),
+			dependencies.streamTimeline(subVideo.url, subVideo.headers),
+			dependencies.streamTimeline(dubVideo.url, dubVideo.headers),
 		]),
 		StreamUpstreamError,
 	);
-	if (starts.error) {
+	if (timelines.error) {
 		return null;
 	}
-	return alignTimelines(...starts.data);
+	const [subTimeline, dubTimeline] = timelines.data;
+	return alignTimelines(subTimeline.starts, dubTimeline.starts);
 };
 
 /**
@@ -670,6 +667,115 @@ const skipSegmentsForDub = (
 		kind: segment.kind,
 		start: moved(segment.start),
 	}));
+};
+
+/**
+ * A provider's segments that fit the video they came with. A segment that
+ * starts after the video ends was timed to another cut of the episode, such
+ * as one that still has the opening and ending a shorter cut leaves out, and
+ * so was every other segment the provider gave that video: none is kept.
+ * With the length unknown, they are kept as they are.
+ */
+export const fitToVideo = (segments: SkipSegment[], duration: number | null) => {
+	if (duration === null) {
+		return segments;
+	}
+	if (segments.some((segment) => segment.start >= duration - 1)) {
+		return [];
+	}
+	return segments.map((segment) => ({
+		...segment,
+		end: Math.min(segment.end, duration),
+	}));
+};
+
+const skipKinds = ["opening", "ending"] as const satisfies readonly SkipSegment["kind"][];
+
+/**
+ * A version's segments with what looking for its theme songs in its own
+ * audio settled (see `detectSkipSegments`): a song found replaces the
+ * provider's segment of its kind, an opening song that plays only late in the
+ * video leaves no opening, and a kind nothing was settled for keeps the
+ * provider's segment.
+ */
+export const withDetection = (
+	segments: SkipSegment[],
+	detection: SkipDetection | undefined,
+): SkipSegment[] =>
+	skipKinds
+		.flatMap((kind): SkipSegment[] => {
+			const found = detection?.[kind];
+			if (found === "none") {
+				return [];
+			}
+			if (found) {
+				return [
+					{
+						end: found.end,
+						kind,
+						start: found.start,
+					},
+				];
+			}
+			return segments.filter((segment) => segment.kind === kind);
+		})
+		.toSorted((left, right) => left.start - right.start);
+
+/**
+ * Brings each version's skip segments to its own video: the provider's that
+ * do not fit it are dropped (see {@link fitToVideo}), and what looking for the
+ * theme songs in its audio settled takes their place (see
+ * {@link withDetection}). Videos not looked at yet are queued for it, and so
+ * is the next episode, so its segments are settled before it is played.
+ */
+const settleSkipSegments = async (
+	results: VersionResult[],
+	request: z.output<typeof PlaybackRequestSchema>,
+	dependencies: PlaybackDependencies,
+) => {
+	const versions = results.flatMap(({ version, videos }) => {
+		const video = videos?.find((candidate) => candidate.format === "hls");
+		return version && video
+			? [
+					{
+						key: skipDetectionKey(video.url),
+						version,
+						video,
+					},
+				]
+			: [];
+	});
+	// Skip segments only add to playback, so nothing here may fail or hold it:
+	// without stored detections or the video's length, the provider's stand.
+	const stored = await attempt(dependencies.getSkipDetections(versions.map(({ key }) => key)));
+	const detections = stored.data ?? new Map<string, StoredSkipDetection>();
+
+	await Promise.all(
+		versions.map(async ({ key, version, video }) => {
+			const timeline = await attempt(
+				Promise.race([
+					dependencies.streamTimeline(video.url, video.headers),
+					sleep(lengthCheckMs).then(() => null),
+				]),
+			);
+			version.skip_segments = withDetection(
+				fitToVideo(version.skip_segments, timeline.data?.duration ?? null),
+				detections.get(key)?.detection,
+			);
+		}),
+	);
+
+	if (versions.some(({ key }) => isSkipDetectionDue(detections.get(key)))) {
+		void attempt(dependencies.requestSkipDetection(request));
+	}
+	// Looked at ahead of time, so its segments are settled before it is played.
+	void attempt(
+		dependencies.requestSkipDetection({
+			...request,
+			ahead: true,
+			episode: request.episode + 1,
+		}),
+	);
 };
 
 /**
@@ -770,22 +876,21 @@ export const resolvePlayback = async (
 		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
 	}
 
-	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, dependencies);
+	// Each stream's playlist is read once, both to align a dub to its sub and
+	// to check skip segments against the video's length.
+	const timelines = new Map<string, Promise<StreamTimeline>>();
+	const readOnce: PlaybackDependencies = {
+		...dependencies,
+		streamTimeline: (url, headers) => {
+			const timeline = timelines.get(url) ?? dependencies.streamTimeline(url, headers);
+			timelines.set(url, timeline);
+			return timeline;
+		},
+	};
+	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, readOnce);
+	await settleSkipSegments(results, parsed.data, readOnce);
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
-	await Promise.all(
-		results.map(async ({ version, skipSource }) => {
-			if (version) {
-				version.skip_segments = await dependencies.normalizeSkipSegments(
-					seriesId,
-					episode,
-					version.audio,
-					version.skip_segments,
-					skipSource,
-				);
-			}
-		}),
-	);
 	if (media.length > 0) {
 		await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
 		return {
@@ -826,6 +931,29 @@ export const probeSubtitleLanguages = async (
 	const languages = subtitleLanguagesOf(results);
 	await dependencies.recordSubtitleLanguages(parsed.seriesId, languages);
 	return languages;
+};
+
+/**
+ * The upstream videos of every version of an episode a provider can stream
+ * right now, burned-in subs included, for work that reads them rather than
+ * plays them.
+ */
+export const resolveVideos = async (
+	request: PlaybackRequest,
+	dependencies: PlaybackDependencies = live,
+) => {
+	const parsed = PlaybackRequestSchema.parse(request);
+	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
+	return results.flatMap(({ version, videos }) =>
+		version && videos
+			? [
+					{
+						audio: version.audio,
+						videos,
+					},
+				]
+			: [],
+	);
 };
 
 /**
