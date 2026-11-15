@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo } from "../providers/provider";
+import { masterPlaylist } from "../proxy/playlist.fixture";
+import { StreamUpstreamError } from "../proxy/upstream";
 import { hasDubAudio, probeVideos, withConfirmedDubs } from "./dub-audio";
 
 const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVideo => ({
@@ -12,21 +14,29 @@ const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVi
 	url,
 });
 
-/** Probes that read each playlist's audio languages from `playlists`, by URL; one missing is unreachable. */
+/**
+ * Hosts serving playlists that list the audio languages in `playlists`, by
+ * URL: `null` throttles, and a URL missing is unreachable. `requested`
+ * collects every URL asked for.
+ */
 const probing = (playlists: Record<string, string[] | null>, requested: string[] = []) => ({
 	canFetchStream: (url: string) => {
 		requested.push(url);
 		return Promise.resolve(!url.includes(".unreachable."));
 	},
-	probeStream: (url: string) => {
+	readPlaylist: (url: string) => {
 		requested.push(url);
-		return Promise.resolve(
-			url in playlists
-				? {
-						audioLanguages: playlists[url] ?? null,
-					}
-				: null,
-		);
+		const languages = playlists[url];
+		if (languages === undefined) {
+			return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
+		}
+		if (languages === null) {
+			return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
+		}
+		return Promise.resolve({
+			content: masterPlaylist(languages),
+			url,
+		});
 	},
 });
 

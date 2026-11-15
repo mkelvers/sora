@@ -8,6 +8,8 @@ import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderStream, StreamProvider } from "../providers/provider";
+import { masterPlaylist } from "../proxy/playlist.fixture";
+import { StreamUpstreamError } from "../proxy/upstream";
 import { skipDetectionKey } from "../skips/store";
 import type { StoredSkipDetection } from "../skips/store";
 import type { getRefinement } from "../subtitles/store";
@@ -47,8 +49,8 @@ const providers: StreamProvider[] = [];
 const units = new Map<string, ContentLanguage[]>();
 /** The audio languages each playlist lists, by playlist URL; none named when missing. */
 const audioLanguages = new Map<string, string[]>();
-/** The playlists `probeStream` was asked for. */
-const probed: string[] = [];
+/** The playlists `readPlaylist` was asked for. */
+const read: string[] = [];
 const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
@@ -174,17 +176,16 @@ const dependencies: PlaybackDependencies = {
 			number: 3,
 			seriesId,
 		}),
-	probeStream: (url) => {
-		probed.push(url);
-		return Promise.resolve(
-			url.includes(".unreachable.")
-				? null
-				: {
-						audioLanguages: audioLanguages.get(url) ?? [],
-					},
-		);
-	},
 	providers,
+	readPlaylist: (url) => {
+		read.push(url);
+		return url.includes(".unreachable.")
+			? Promise.reject(new StreamUpstreamError("Upstream could not be reached", null))
+			: Promise.resolve({
+					content: masterPlaylist(audioLanguages.get(url) ?? []),
+					url,
+				});
+	},
 	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
 	requestSkipDetection: (payload) => {
@@ -236,7 +237,7 @@ const boundaries = (seed: number) => {
 
 beforeEach(() => {
 	resolved.length = 0;
-	probed.length = 0;
+	read.length = 0;
 	offered = [];
 	timelines.clear();
 	durations.clear();
@@ -874,7 +875,76 @@ describe("resolvePlayback", () => {
 				],
 			],
 		]);
-		expect(probed).toEqual(["https://anikoto.example/master.m3u8"]);
+		expect(read).toEqual(["https://anikoto.example/master.m3u8"]);
+	});
+
+	test("reads a playlist once for the probe, the warm-up, aligning the dub, and checking skip segments", async () => {
+		useProviders([
+			{
+				dubAudio: ["ja", "en"],
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+				sharedPlaylist: true,
+			},
+		]);
+		offered = [dub(), sub()];
+		const warmed = Promise.withResolvers<undefined>();
+
+		await resolvePlayback(request, options, {
+			...dependencies,
+			streamTimeline: async (url, headers, readPlaylist) => {
+				await defined(readPlaylist)(url, headers);
+				return {
+					duration: null,
+					starts: [],
+				};
+			},
+			warmStream: async (url, headers, readPlaylist) => {
+				await defined(readPlaylist)(url, headers);
+				warmed.resolve(undefined);
+			},
+		});
+		await warmed.promise;
+
+		expect(read).toEqual(["https://anikoto.example/master.m3u8"]);
+	});
+
+	test("reads a playlist again after a read of it failed", async () => {
+		useProviders([
+			{
+				id: "anikoto",
+				languages: ["sub"],
+				locale: "en",
+			},
+		]);
+		offered = [sub()];
+		let failures = 1;
+
+		const playback = await resolvePlayback(request, options, {
+			...dependencies,
+			readPlaylist: (url) => {
+				read.push(url);
+				if (failures > 0) {
+					failures -= 1;
+					return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
+				}
+				return Promise.resolve({
+					content: masterPlaylist([]),
+					url,
+				});
+			},
+			streamTimeline: async (url, headers, readPlaylist) => {
+				await defined(readPlaylist)(url, headers);
+				return {
+					duration: null,
+					starts: [],
+				};
+			},
+		});
+
+		expect(playback.media.map((version) => version.audio)).toEqual(["sub"]);
+		expect(read).toEqual(["https://anikoto.example/sub.m3u8", "https://anikoto.example/sub.m3u8"]);
 	});
 
 	test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {

@@ -20,12 +20,12 @@ import { isServedSubtitle, servedLocale, streamProviders } from "../providers/re
 import {
 	canFetchStream,
 	createStreamToken,
-	probeStream,
+	readPlaylist,
 	streamTimeline,
 	tokenLifetimeMs,
 	warmStream,
 } from "../proxy/proxy";
-import type { StreamTimeline } from "../proxy/proxy";
+import type { Playlist, PlaylistReader } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getSkipDetections, isSkipDetectionDue, skipDetectionKey } from "../skips/store";
 import type { SkipDetection, StoredSkipDetection } from "../skips/store";
@@ -69,7 +69,7 @@ export interface PlaybackDependencies {
 	createStreamToken: typeof createStreamToken;
 	streamTimeline: typeof streamTimeline;
 	canFetchStream: typeof canFetchStream;
-	probeStream: typeof probeStream;
+	readPlaylist: PlaylistReader;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
 	getSkipDetections: typeof getSkipDetections;
@@ -87,8 +87,8 @@ const live: PlaybackDependencies = {
 	getRefinement,
 	getSkipDetections,
 	locateEpisode,
-	probeStream,
 	providers: streamProviders,
+	readPlaylist,
 	recordSubtitleLanguages,
 	requestRefinement,
 	requestSkipDetection,
@@ -597,8 +597,8 @@ export const timelineShifts = async (
 
 	const timelines = await attempt(
 		Promise.all([
-			dependencies.streamTimeline(subVideo.url, subVideo.headers),
-			dependencies.streamTimeline(dubVideo.url, dubVideo.headers),
+			dependencies.streamTimeline(subVideo.url, subVideo.headers, dependencies.readPlaylist),
+			dependencies.streamTimeline(dubVideo.url, dubVideo.headers, dependencies.readPlaylist),
 		]),
 		StreamUpstreamError,
 	);
@@ -761,7 +761,7 @@ const settleSkipSegments = async (
 		versions.map(async ({ key, version, video }) => {
 			const timeline = await attempt(
 				Promise.race([
-					dependencies.streamTimeline(video.url, video.headers),
+					dependencies.streamTimeline(video.url, video.headers, dependencies.readPlaylist),
 					sleep(lengthCheckMs).then(() => null),
 				]),
 			);
@@ -867,21 +867,22 @@ export const resolvePlayback = async (
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
 	const streamUrl: StreamUrl = (...token) =>
 		`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
-	// Each stream's playlist is read once: an episode's sub and dub often share
-	// one, which is probed for both, aligned with itself, and checked for length.
-	const probes = new Map<string, ReturnType<typeof probeStream>>();
-	const timelines = new Map<string, Promise<StreamTimeline>>();
+	// Each playlist is read once per playback, by the probe that picks a
+	// provider, the warm-up, aligning a dub to its sub, and the length check of
+	// skip segments; an episode's sub and dub often share one. A read that
+	// failed is not kept, so the next asks again.
+	const playlists = new Map<string, Promise<Playlist>>();
 	const readOnce: PlaybackDependencies = {
 		...dependencies,
-		probeStream: (url, headers, signal) => {
-			const probe = probes.get(url) ?? dependencies.probeStream(url, headers, signal);
-			probes.set(url, probe);
-			return probe;
-		},
-		streamTimeline: (url, headers) => {
-			const timeline = timelines.get(url) ?? dependencies.streamTimeline(url, headers);
-			timelines.set(url, timeline);
-			return timeline;
+		readPlaylist: (url, headers, readOptions) => {
+			const kept = playlists.get(url);
+			if (kept) {
+				return kept;
+			}
+			const read = dependencies.readPlaylist(url, headers, readOptions);
+			playlists.set(url, read);
+			read.catch(() => playlists.delete(url));
+			return read;
 		},
 	};
 	const results = await resolveVersions(
@@ -897,7 +898,9 @@ export const resolvePlayback = async (
 		.find((result) => result.version)
 		?.videos?.find((candidate) => candidate.format === "hls");
 	if (defaultVideo) {
-		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
+		void attempt(
+			dependencies.warmStream(defaultVideo.url, defaultVideo.headers, readOnce.readPlaylist),
+		);
 	}
 
 	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, readOnce);

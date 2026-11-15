@@ -3,30 +3,40 @@ import { attempt, inSequence, second } from "@sora/shared";
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo, StreamProvider } from "../providers/provider";
 import { servedLocale } from "../providers/registry";
-import { isInLocale } from "../proxy/playlist";
-import { canFetchStream, probeStream } from "../proxy/proxy";
+import { audioLanguages, isInLocale } from "../proxy/playlist";
+import { canFetchStream, readPlaylist } from "../proxy/proxy";
+import type { PlaylistReader } from "../proxy/proxy";
+import { StreamUpstreamError } from "../proxy/upstream";
 
 /** How long a video's host has to answer before its provider is passed over. */
 const videoProbeTimeoutMs = 3 * second;
 
-/** What {@link probeVideos} found of one video; `null` when no host serves it. */
-export type VideoProbe = Awaited<ReturnType<typeof probeStream>>;
+/**
+ * What {@link probeVideos} found of one video; `null` when no host serves it.
+ * `audioLanguages` is `null` when the host answered 429: it is up and
+ * throttling a burst, which requests for the stream wait out, but its playlist
+ * was not read.
+ */
+export type VideoProbe = {
+	/** See {@link audioLanguages}; empty for a video that is not HLS. */
+	audioLanguages: string[] | null;
+} | null;
 
 /** How {@link probeVideos} reaches hosts; tests pass their own. */
 export interface ProbeDependencies {
-	probeStream: typeof probeStream;
+	readPlaylist: PlaylistReader;
 	canFetchStream: typeof canFetchStream;
 }
 
 const liveProbes: ProbeDependencies = {
 	canFetchStream,
-	probeStream,
+	readPlaylist,
 };
 
 /**
- * Probes each of a provider's videos with one request: an HLS video by its
- * master playlist (see `probeStream`), any other by its headers, which say
- * nothing of its audio.
+ * Probes each of a provider's videos with one request: an HLS video by reading
+ * its master playlist, which lists its audio languages, any other by its
+ * headers, which say nothing of its audio.
  *
  * A host that accepts connections and never answers would otherwise fail
  * every play with a gateway timeout while the next provider sat unused.
@@ -39,7 +49,22 @@ export const probeVideos = (
 		videos.map(async (video) => {
 			const signal = AbortSignal.timeout(videoProbeTimeoutMs);
 			if (video.format === "hls") {
-				return dependencies.probeStream(video.url, video.headers, signal);
+				const { data, error } = await attempt(
+					dependencies.readPlaylist(video.url, video.headers, {
+						signal,
+					}),
+					StreamUpstreamError,
+				);
+				if (error) {
+					return error.status === 429
+						? {
+								audioLanguages: null,
+							}
+						: null;
+				}
+				return {
+					audioLanguages: audioLanguages(data.content),
+				};
 			}
 			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
 			return loads

@@ -4,14 +4,14 @@ import { config } from "../../config";
 import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
-import { audioLanguages, rewritePlaylist, withDefaultAudio } from "./playlist";
+import { rewritePlaylist, withDefaultAudio } from "./playlist";
 import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
-import type { Upstream, UpstreamBytes } from "./upstream";
+import type { UpstreamBytes } from "./upstream";
 
 /**
  * How long tokens handed to clients stay valid.
@@ -20,6 +20,10 @@ import type { Upstream, UpstreamBytes } from "./upstream";
  * link stops working the same day.
  */
 export const tokenLifetimeMs = 6 * hour;
+
+/** A multivariant playlist's first variant stream, by its URI. */
+const variantPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u;
+const variantsPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu;
 
 /** Playlists are buffered for rewriting; anything larger is not a playlist. */
 const maximumPlaylistBytes = 4 * 1024 * 1024;
@@ -96,46 +100,69 @@ export const canFetchStream = async (
 	return true;
 };
 
+/** An HLS playlist's text, and the URL it came from once redirects were followed. */
+export interface Playlist {
+	content: string;
+	url: string;
+}
+
 /**
- * Probes an HLS stream the way a player starts it, in one request: whether a
- * host serves its master playlist, and which audio languages it lists (see
- * {@link audioLanguages}).
+ * Reads an HLS playlist from its host, or from `mirrors` when it fails.
  *
- * @returns `null` when no host serves it. `audioLanguages` is `null` when the
- *   host answered 429: it is up and throttling a burst, which requests for the
- *   stream wait out, but the playlist was not read.
+ * Playback hands one reader that keeps what it read to everything that looks
+ * at a stream, so a playlist the probe read is not fetched again to align a
+ * dub or warm the stream.
+ *
+ * @throws {StreamUpstreamError} when no host serves it; a host throttling a
+ *   burst for longer than is waited out fails with status 429.
  */
-export const probeStream = async (
+export type PlaylistReader = (
 	url: string,
 	headers: Record<string, string>,
-	signal?: AbortSignal,
-): Promise<{
-	audioLanguages: string[] | null;
-} | null> => {
-	const { data, error } = await attempt(
-		fetchUpstreamBytes(
-			{
-				accountId: "",
-				expiresAt: 0,
-				headers,
-				kind: "playlist",
-				mirrors: [],
-				url,
-			},
-			signal,
-		),
-		StreamUpstreamError,
+	options?: {
+		mirrors?: string[];
+		signal?: AbortSignal;
+	},
+) => Promise<Playlist>;
+
+/** Reads a playlist from upstream; see {@link PlaylistReader}. */
+export const readPlaylist: PlaylistReader = async (url, headers, { mirrors = [], signal } = {}) => {
+	const playlist = await fetchUpstreamBytes(
+		{
+			accountId: "",
+			expiresAt: 0,
+			headers,
+			kind: "playlist",
+			mirrors,
+			url,
+		},
+		signal,
 	);
-	if (error) {
-		return error.status === 429
-			? {
-					audioLanguages: null,
-				}
-			: null;
-	}
 	return {
-		audioLanguages: audioLanguages(new TextDecoder().decode(data.bytes)),
+		content: new TextDecoder().decode(playlist.bytes),
+		url: playlist.url,
 	};
+};
+
+/**
+ * A multivariant playlist's first variant, as it is read from `read`, or
+ * `playlist` itself when it is a media playlist.
+ *
+ * @throws {StreamUpstreamError} when the variant cannot be read.
+ */
+const firstVariant = (
+	playlist: Playlist,
+	headers: Record<string, string>,
+	read: PlaylistReader,
+): Promise<Playlist> => {
+	const variant = variantPattern.exec(playlist.content)?.groups?.uri;
+	if (!variant) {
+		return Promise.resolve(playlist);
+	}
+	const variantUrl = new URL(variant.trim(), playlist.url).toString();
+	return read(variantUrl, headers, {
+		mirrors: mirrorsFor(variantUrl, playlist.url),
+	});
 };
 
 /**
@@ -168,21 +195,6 @@ export const readSubtitle = async (
 	return new TextDecoder().decode(data.bytes);
 };
 
-/**
- * An upstream body as text.
- *
- * @throws {StreamUpstreamError} when the host stops sending partway through.
- */
-const readText = async (upstream: Upstream) => {
-	const { data, error } = await attempt(upstream.response.text());
-	if (error) {
-		throw new StreamUpstreamError(`Upstream ${new URL(upstream.url).host} stopped sending`, null, {
-			cause: error,
-		});
-	}
-	return data;
-};
-
 /** Where an HLS stream's segments start, and how long it runs, in seconds. */
 export interface StreamTimeline {
 	starts: number[];
@@ -199,31 +211,9 @@ export interface StreamTimeline {
 export const streamTimeline = async (
 	url: string,
 	headers: Record<string, string>,
+	read: PlaylistReader = readPlaylist,
 ): Promise<StreamTimeline> => {
-	const target = {
-		accountId: "",
-		expiresAt: 0,
-		headers,
-		kind: "playlist" as const,
-		mirrors: [],
-		url,
-	};
-	let upstream = await fetchUpstream(target, null);
-	let content = await readText(upstream);
-
-	const variant = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u.exec(content)?.[1];
-	if (variant) {
-		const variantUrl = new URL(variant.trim(), upstream.url).toString();
-		upstream = await fetchUpstream(
-			{
-				...target,
-				mirrors: mirrorsFor(variantUrl, upstream.url),
-				url: variantUrl,
-			},
-			null,
-		);
-		content = await readText(upstream);
-	}
+	const { content } = await firstVariant(await read(url, headers), headers, read);
 
 	const starts: number[] = [];
 	let elapsed = 0;
@@ -247,49 +237,22 @@ const warmedSegments = 3;
  * would load segments nobody asks for. Failures are left to the player's own
  * requests.
  */
-export const warmStream = async (url: string, headers: Record<string, string>) => {
-	const target = {
-		accountId: "",
-		expiresAt: 0,
-		headers,
-		kind: "playlist" as const,
-		mirrors: [],
-		url,
-	};
-	const { data: master, error } = await attempt(fetchUpstreamBytes(target), StreamUpstreamError);
-	if (error) {
+export const warmStream = async (
+	url: string,
+	headers: Record<string, string>,
+	read: PlaylistReader = readPlaylist,
+) => {
+	const { data: master, error } = await attempt(read(url, headers), StreamUpstreamError);
+	if (error || [...master.content.matchAll(variantsPattern)].length > 1) {
 		return;
 	}
 
-	let playlist = {
-		content: new TextDecoder().decode(master.bytes),
-		url: master.url,
-	};
-	const variants = [
-		...playlist.content.matchAll(/#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu),
-	];
-	if (variants.length > 1) {
+	const { data: playlist, error: variantFailure } = await attempt(
+		firstVariant(master, headers, read),
+		StreamUpstreamError,
+	);
+	if (variantFailure) {
 		return;
-	}
-
-	const variant = variants[0]?.groups?.uri;
-	if (variant) {
-		const variantUrl = new URL(variant.trim(), master.url).toString();
-		const { data: media, error: variantFailure } = await attempt(
-			fetchUpstreamBytes({
-				...target,
-				mirrors: mirrorsFor(variantUrl, master.url),
-				url: variantUrl,
-			}),
-			StreamUpstreamError,
-		);
-		if (variantFailure) {
-			return;
-		}
-		playlist = {
-			content: new TextDecoder().decode(media.bytes),
-			url: media.url,
-		};
 	}
 
 	const segments: StreamTarget[] = [];
