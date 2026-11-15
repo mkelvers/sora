@@ -3,39 +3,69 @@ import { attempt, inSequence, second } from "@sora/shared";
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo, StreamProvider } from "../providers/provider";
 import { servedLocale } from "../providers/registry";
-import { readStreamAudioLanguage } from "../proxy/proxy";
+import { isInLocale } from "../proxy/playlist";
+import { canFetchStream, probeStream } from "../proxy/proxy";
 
-/** How long a playlist's host has to answer before the dub counts as unconfirmed. */
-const playlistTimeoutMs = 3 * second;
+/** How long a video's host has to answer before its provider is passed over. */
+const videoProbeTimeoutMs = 3 * second;
+
+/** What {@link probeVideos} found of one video; `null` when no host serves it. */
+export type VideoProbe = Awaited<ReturnType<typeof probeStream>>;
+
+/** How {@link probeVideos} reaches hosts; tests pass their own. */
+export interface ProbeDependencies {
+	probeStream: typeof probeStream;
+	canFetchStream: typeof canFetchStream;
+}
+
+const liveProbes: ProbeDependencies = {
+	canFetchStream,
+	probeStream,
+};
 
 /**
- * Whether a dub's audio is in {@link servedLocale}: some HLS video's playlist
- * starts with audio in it, or does not say which language it starts with, so
- * the provider's word stands. A playlist that cannot be read confirms nothing.
+ * Probes each of a provider's videos with one request: an HLS video by its
+ * master playlist (see `probeStream`), any other by its headers, which say
+ * nothing of its audio.
  *
- * A provider can call a stream a dub that plays the original audio. MegaPlay
- * serves one playlist with every audio language for an episode's sub and dub,
- * and until the dub's audio is in it, its dub starts with Japanese.
+ * A host that accepts connections and never answers would otherwise fail
+ * every play with a gateway timeout while the next provider sat unused.
  */
-export const dubAudioServed = async (
+export const probeVideos = (
 	videos: readonly ProviderVideo[],
-	readAudioLanguage: typeof readStreamAudioLanguage = readStreamAudioLanguage,
-) => {
-	const languages = await Promise.all(
+	dependencies: ProbeDependencies = liveProbes,
+): Promise<VideoProbe[]> =>
+	Promise.all(
 		videos.map(async (video) => {
-			if (video.format !== "hls") {
-				return null;
+			const signal = AbortSignal.timeout(videoProbeTimeoutMs);
+			if (video.format === "hls") {
+				return dependencies.probeStream(video.url, video.headers, signal);
 			}
-			const { data, error } = await attempt(
-				readAudioLanguage(video.url, video.headers, AbortSignal.timeout(playlistTimeoutMs)),
-			);
-			return error ? "unreadable" : data;
+			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
+			return loads
+				? {
+						audioLanguages: [],
+					}
+				: null;
 		}),
 	);
-	return languages.some(
-		(language) => language === null || language.toLowerCase().split("-")[0] === servedLocale,
+
+/**
+ * Whether a dub's videos have audio in {@link servedLocale}: one lists it, or
+ * lists no audio languages, so the provider's word stands. A throttled host,
+ * whose playlist was not read, confirms nothing.
+ *
+ * A provider can call a stream a dub that has only the original audio.
+ * MegaPlay serves one playlist with every audio language for an episode's sub
+ * and dub, and until the dub's audio is in it, it has none in English.
+ */
+export const hasDubAudio = (probes: readonly VideoProbe[]) =>
+	probes.some(
+		(probe) =>
+			!!probe?.audioLanguages &&
+			(probe.audioLanguages.length === 0 ||
+				probe.audioLanguages.some((language) => isInLocale(language, servedLocale))),
 	);
-};
 
 /** Whether `provider` streams an episode's dub with audio in {@link servedLocale}. */
 export const streamsDub = async (
@@ -43,7 +73,7 @@ export const streamsDub = async (
 	episodeId: string,
 ) => {
 	const { data, error } = await attempt(provider.resolveStream(episodeId, "dub"));
-	return !error && (await dubAudioServed(data.videos));
+	return !error && hasDubAudio(await probeVideos(data.videos));
 };
 
 /**

@@ -33,6 +33,8 @@ export interface StreamTarget {
 	shifts?: TimelineShift[];
 	/** The stored refinement whose anchors move this subtitle's cues to when the dub says them. */
 	refinement?: string;
+	/** For a master playlist, the BCP 47 language of the audio players should start with, such as a dub's `en`. */
+	audio?: string;
 }
 
 const StreamTargetSchema = z.object({
@@ -40,6 +42,7 @@ const StreamTargetSchema = z.object({
 	e: z.number().int().positive(),
 	h: z.record(z.string(), z.string()),
 	k: z.enum(["playlist", "segment", "subtitle", "key", "file"]),
+	l: z.string().min(1).optional(),
 	m: z.array(
 		z.url({
 			protocol: /^https?$/u,
@@ -74,6 +77,7 @@ export const signStreamTarget = (target: StreamTarget, secret: string) => {
 				e: target.expiresAt,
 				h: target.headers,
 				k: target.kind,
+				l: target.audio,
 				m: target.mirrors,
 				r: target.refinement,
 				t: target.shifts?.map(({ from, offset }) => [from, offset]),
@@ -140,6 +144,7 @@ export const verifyStreamToken = (
 
 	return {
 		accountId: parsed.data.a,
+		audio: parsed.data.l,
 		expiresAt: parsed.data.e,
 		headers: parsed.data.h,
 		kind: parsed.data.k,

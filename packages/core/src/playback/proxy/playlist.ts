@@ -63,21 +63,75 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 		.join("\n");
 };
 
-const audioRenditionPattern = /^#EXT-X-MEDIA:(?:.*,)?TYPE=AUDIO(?:,.*)?$/gmu;
-const defaultRenditionPattern = /[:,]DEFAULT=YES(?:,|$)/u;
+const audioRenditionPattern = /^#EXT-X-MEDIA:(?:.*,)?TYPE=AUDIO(?:,.*)?$/u;
 const renditionLanguagePattern = /[:,]LANGUAGE="(?<language>[^"]*)"/u;
+const renditionGroupPattern = /[:,]GROUP-ID="(?<group>[^"]*)"/u;
+const defaultAttributePattern = /(?<lead>[:,])DEFAULT=[^,]*/u;
+const autoselectAttributePattern = /(?<lead>[:,])AUTOSELECT=[^,]*/u;
+
+/** Whether a BCP 47 tag, such as `en-US`, is in `locale`'s language. */
+export const isInLocale = (tag: string, locale: string) =>
+	tag.trim().toLowerCase().split("-")[0] === locale.toLowerCase();
+
+/** A rendition's `GROUP-ID`; empty when it names none. */
+const groupOf = (tag: string) => renditionGroupPattern.exec(tag)?.groups?.group ?? "";
+
+/** `tag` with the attribute `pattern` matches set to `value`, added when missing. */
+const withAttribute = (tag: string, pattern: RegExp, name: string, value: string) =>
+	pattern.test(tag) ? tag.replace(pattern, `$<lead>${name}=${value}`) : `${tag},${name}=${value}`;
 
 /**
- * The language of the audio a player starts an HLS stream with: the master
- * playlist's audio rendition marked `DEFAULT=YES`, else its first, as hls.js
- * picks without an audio preference.
- *
- * @returns The rendition's BCP 47 `LANGUAGE`, or `null` when the playlist
- *   lists no audio renditions, so the audio comes with the video and the
- *   playlist does not say its language, or when the rendition names none.
+ * The `LANGUAGE` of each audio rendition a master playlist lists, in order.
+ * Empty when it lists none, so the audio comes with the video and the
+ * playlist does not say its language.
  */
-export const defaultAudioLanguage = (content: string): string | null => {
-	const renditions = content.match(audioRenditionPattern) ?? [];
-	const started = renditions.find((tag) => defaultRenditionPattern.test(tag)) ?? renditions[0];
-	return started ? (renditionLanguagePattern.exec(started)?.groups?.language ?? null) : null;
+export const audioLanguages = (content: string) =>
+	content.split(/\r?\n/u).flatMap((line) => {
+		const tag = line.trim();
+		if (!audioRenditionPattern.test(tag)) {
+			return [];
+		}
+		return [renditionLanguagePattern.exec(tag)?.groups?.language ?? ""];
+	});
+
+/**
+ * `content` with the first audio rendition in `locale` of each rendition
+ * group marked as the one players start with (`DEFAULT` and `AUTOSELECT`),
+ * and the group's others not. A group with none in `locale` is left as it is.
+ *
+ * MegaPlay serves one master playlist for an episode's sub and dub, with
+ * every audio language as a rendition and Japanese the default; a dub is
+ * this playlist with English made the default.
+ */
+export const withDefaultAudio = (content: string, locale: string) => {
+	const lines = content.split(/\r?\n/u);
+	const chosen = new Map<string, number>();
+	for (const [index, line] of lines.entries()) {
+		const tag = line.trim();
+		const language = renditionLanguagePattern.exec(tag)?.groups?.language;
+		if (
+			audioRenditionPattern.test(tag) &&
+			language &&
+			isInLocale(language, locale) &&
+			!chosen.has(groupOf(tag))
+		) {
+			chosen.set(groupOf(tag), index);
+		}
+	}
+
+	return lines
+		.map((line, index) => {
+			const tag = line.trim();
+			if (!audioRenditionPattern.test(tag) || !chosen.has(groupOf(tag))) {
+				return line;
+			}
+			const value = chosen.get(groupOf(tag)) === index ? "YES" : "NO";
+			return withAttribute(
+				withAttribute(tag, defaultAttributePattern, "DEFAULT", value),
+				autoselectAttributePattern,
+				"AUTOSELECT",
+				value,
+			);
+		})
+		.join("\n");
 };

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo } from "../providers/provider";
-import { dubAudioServed, withConfirmedDubs } from "./dub-audio";
+import { hasDubAudio, probeVideos, withConfirmedDubs } from "./dub-audio";
 
 const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVideo => ({
 	format,
@@ -12,11 +12,23 @@ const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVi
 	url,
 });
 
-/** A reader that answers with the language each playlist starts with, failing for those missing. */
-const reading = (languages: Record<string, string | null>) => (url: string) =>
-	url in languages
-		? Promise.resolve(languages[url] ?? null)
-		: Promise.reject(new Error("Playlist cannot be fetched"));
+/** Probes that read each playlist's audio languages from `playlists`, by URL; one missing is unreachable. */
+const probing = (playlists: Record<string, string[] | null>, requested: string[] = []) => ({
+	canFetchStream: (url: string) => {
+		requested.push(url);
+		return Promise.resolve(!url.includes(".unreachable."));
+	},
+	probeStream: (url: string) => {
+		requested.push(url);
+		return Promise.resolve(
+			url in playlists
+				? {
+						audioLanguages: playlists[url] ?? null,
+					}
+				: null,
+		);
+	},
+});
 
 const unit = (number: number, languages: ProviderUnit["languages"]): ProviderUnit => ({
 	id: `anikoto:${number}`,
@@ -26,44 +38,70 @@ const unit = (number: number, languages: ProviderUnit["languages"]): ProviderUni
 	title: `Episode ${number}`,
 });
 
-describe("dubAudioServed", () => {
-	test("confirms a dub whose playlist starts with English audio", async () => {
-		expect(
-			await dubAudioServed(
-				[video("https://cdn.example/master.m3u8?t=dub")],
-				reading({
-					"https://cdn.example/master.m3u8?t=dub": "en",
-				}),
-			),
-		).toBe(true);
-	});
-
-	test("refuses a dub whose playlist starts with Japanese audio, as for Overgeared episode 8", async () => {
-		expect(
-			await dubAudioServed(
-				[video("https://cdn.example/master.m3u8")],
-				reading({
-					"https://cdn.example/master.m3u8": "ja",
-				}),
-			),
-		).toBe(false);
-	});
-
-	test("takes the provider's word when the playlist does not say", async () => {
-		expect(
-			await dubAudioServed(
-				[video("https://cdn.example/dub.m3u8"), video("https://cdn.example/dub.mp4", "mp4")],
-				reading({
-					"https://cdn.example/dub.m3u8": null,
-				}),
-			),
-		).toBe(true);
-	});
-
-	test("refuses a dub whose playlist cannot be read", async () => {
-		expect(await dubAudioServed([video("https://cdn.example/master.m3u8")], reading({}))).toBe(
-			false,
+describe("hasDubAudio", () => {
+	test("confirms a dub whose playlist has English audio, as Overgeared episode 8's has", async () => {
+		const probes = await probeVideos(
+			[video("https://cdn.example/master.m3u8")],
+			probing({
+				"https://cdn.example/master.m3u8": ["ja", "en", "ar"],
+			}),
 		);
+
+		expect(hasDubAudio(probes)).toBe(true);
+	});
+
+	test("refuses a dub whose playlist has no English audio yet", async () => {
+		const probes = await probeVideos(
+			[video("https://cdn.example/master.m3u8")],
+			probing({
+				"https://cdn.example/master.m3u8": ["ja"],
+			}),
+		);
+
+		expect(hasDubAudio(probes)).toBe(false);
+	});
+
+	test("takes the provider's word when no video names its audio", async () => {
+		const probes = await probeVideos(
+			[video("https://cdn.example/dub.m3u8"), video("https://cdn.example/dub.mp4", "mp4")],
+			probing({
+				"https://cdn.example/dub.m3u8": [],
+			}),
+		);
+
+		expect(hasDubAudio(probes)).toBe(true);
+	});
+
+	test("refuses a dub whose playlists cannot be read, even from a host that is only throttling", async () => {
+		const probes = await probeVideos(
+			[video("https://cdn.example/master.m3u8"), video("https://gone.example/master.m3u8")],
+			probing({
+				"https://cdn.example/master.m3u8": null,
+			}),
+		);
+
+		expect(probes).toEqual([
+			{
+				audioLanguages: null,
+			},
+			null,
+		]);
+		expect(hasDubAudio(probes)).toBe(false);
+	});
+
+	test("asks each video's host once", async () => {
+		const requested: string[] = [];
+		await probeVideos(
+			[video("https://cdn.example/master.m3u8"), video("https://cdn.example/dub.mp4", "mp4")],
+			probing(
+				{
+					"https://cdn.example/master.m3u8": ["en"],
+				},
+				requested,
+			),
+		);
+
+		expect(requested).toEqual(["https://cdn.example/master.m3u8", "https://cdn.example/dub.mp4"]);
 	});
 });
 

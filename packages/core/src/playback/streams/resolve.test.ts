@@ -36,15 +36,19 @@ interface FakeProvider {
 	skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
 	/** Subtitle tracks only one language's stream carries, by their labels. */
 	extraSubtitles?: Partial<Record<ContentLanguage, string[]>>;
-	/** The language of the audio its dub's playlist starts with; unlabeled when left out. */
-	dubAudio?: string;
+	/** The audio languages its dub's playlist lists; none named when left out. */
+	dubAudio?: string[];
+	/** Whether its sub and dub are one playlist with both audios, as MegaPlay's newer episodes are. */
+	sharedPlaylist?: boolean;
 }
 
 /** The providers resolving asks, filled in place by {@link useProviders}. */
 const providers: StreamProvider[] = [];
 const units = new Map<string, ContentLanguage[]>();
-/** The language each playlist's audio starts with, by playlist URL; unlabeled when missing. */
-const audioLanguages = new Map<string, string>();
+/** The audio languages each playlist lists, by playlist URL; none named when missing. */
+const audioLanguages = new Map<string, string[]>();
+/** The playlists `probeStream` was asked for. */
+const probed: string[] = [];
 const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
@@ -58,7 +62,10 @@ const useProviders = (list: FakeProvider[]) => {
 		...list.map((fake) => {
 			units.set(fake.id, fake.languages);
 			if (fake.dubAudio) {
-				audioLanguages.set(`https://${fake.id}.example/dub.m3u8`, fake.dubAudio);
+				audioLanguages.set(
+					`https://${fake.id}.example/${fake.sharedPlaylist ? "master" : "dub"}.m3u8`,
+					fake.dubAudio,
+				);
 			}
 			return {
 				findMedia: () => Promise.resolve(null),
@@ -109,7 +116,7 @@ const useProviders = (list: FakeProvider[]) => {
 										url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
 									})),
 								],
-								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${language}.m3u8`,
+								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${fake.sharedPlaylist ? "master" : language}.m3u8`,
 							},
 						],
 					};
@@ -136,10 +143,12 @@ const refinements = new Map<string, Awaited<ReturnType<typeof getRefinement>>>()
 
 const dependencies: PlaybackDependencies = {
 	canFetchStream: (url) => Promise.resolve(!url.includes(".unreachable.")),
-	createStreamToken: (url, _kind, _headers, options) =>
-		options?.shifts
+	createStreamToken: (url, _kind, _headers, options) => {
+		const token = options?.shifts
 			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
-			: `token:${url}`,
+			: `token:${url}`;
+		return options?.audio ? `${token}~${options.audio}` : token;
+	},
 	getAnime: (id) => Promise.resolve(anime(id)),
 	getEpisodeVersions: () => Promise.resolve(offered),
 	getProviderUnits: (_anime, provider) =>
@@ -165,8 +174,17 @@ const dependencies: PlaybackDependencies = {
 			number: 3,
 			seriesId,
 		}),
+	probeStream: (url) => {
+		probed.push(url);
+		return Promise.resolve(
+			url.includes(".unreachable.")
+				? null
+				: {
+						audioLanguages: audioLanguages.get(url) ?? [],
+					},
+		);
+	},
 	providers,
-	readStreamAudioLanguage: (url) => Promise.resolve(audioLanguages.get(url) ?? null),
 	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
 	requestSkipDetection: (payload) => {
@@ -218,6 +236,7 @@ const boundaries = (seed: number) => {
 
 beforeEach(() => {
 	resolved.length = 0;
+	probed.length = 0;
 	offered = [];
 	timelines.clear();
 	durations.clear();
@@ -791,16 +810,16 @@ describe("resolvePlayback", () => {
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
 	});
 
-	test("passes over a dub whose playlist starts with Japanese audio, as for Overgeared episode 8", async () => {
+	test("passes over a dub whose playlist has no English audio yet", async () => {
 		useProviders([
 			{
-				dubAudio: "ja",
+				dubAudio: ["ja"],
 				id: "anikoto",
 				languages: ["sub", "dub"],
 				locale: "en",
 			},
 			{
-				dubAudio: "en",
+				dubAudio: ["en"],
 				id: "allmanga",
 				languages: ["sub", "dub"],
 				locale: "en",
@@ -811,10 +830,10 @@ describe("resolvePlayback", () => {
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@anikoto"]);
 	});
 
-	test("offers no dub when every provider's dub starts with Japanese audio", async () => {
+	test("offers no dub when no provider's dub has English audio", async () => {
 		useProviders([
 			{
-				dubAudio: "ja",
+				dubAudio: ["ja"],
 				id: "anikoto",
 				languages: ["sub", "dub"],
 				locale: "en",
@@ -823,6 +842,39 @@ describe("resolvePlayback", () => {
 		offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
+	});
+
+	test("plays a dub sharing the sub's playlist with English audio, probing the playlist once, as for Overgeared episode 8", async () => {
+		useProviders([
+			{
+				dubAudio: ["ja", "en", "ar"],
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+				sharedPlaylist: true,
+			},
+		]);
+		offered = [dub(), sub()];
+
+		const playback = await resolvePlayback(request, options, dependencies);
+
+		expect(
+			playback.media.map((version) => [version.audio, version.sources.map((source) => source.url)]),
+		).toEqual([
+			[
+				"dub",
+				[
+					`https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/master.m3u8~en")}`,
+				],
+			],
+			[
+				"sub",
+				[
+					`https://sora.example/v1/streams/${encodeURIComponent("token:https://anikoto.example/master.m3u8")}`,
+				],
+			],
+		]);
+		expect(probed).toEqual(["https://anikoto.example/master.m3u8"]);
 	});
 
 	test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {

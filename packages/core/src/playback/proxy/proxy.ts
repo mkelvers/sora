@@ -4,7 +4,7 @@ import { config } from "../../config";
 import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
-import { defaultAudioLanguage, rewritePlaylist } from "./playlist";
+import { audioLanguages, rewritePlaylist, withDefaultAudio } from "./playlist";
 import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
@@ -36,11 +36,13 @@ export const createStreamToken = (
 	headers: Record<string, string>,
 	{
 		accountId,
+		audio,
 		mirrors = [],
 		shifts,
 		refinement,
 	}: {
 		accountId: string;
+		audio?: string;
 		mirrors?: string[];
 		shifts?: TimelineShift[];
 		refinement?: string;
@@ -49,6 +51,7 @@ export const createStreamToken = (
 	signStreamTarget(
 		{
 			accountId,
+			audio,
 			expiresAt: Math.floor((Date.now() + tokenLifetimeMs) / 1000),
 			headers,
 			kind,
@@ -94,29 +97,45 @@ export const canFetchStream = async (
 };
 
 /**
- * The language of the audio an HLS stream starts with, from its master
- * playlist; see {@link defaultAudioLanguage}.
+ * Probes an HLS stream the way a player starts it, in one request: whether a
+ * host serves its master playlist, and which audio languages it lists (see
+ * {@link audioLanguages}).
  *
- * @returns `null` when the playlist does not say.
- * @throws {StreamUpstreamError} when the playlist cannot be fetched.
+ * @returns `null` when no host serves it. `audioLanguages` is `null` when the
+ *   host answered 429: it is up and throttling a burst, which requests for the
+ *   stream wait out, but the playlist was not read.
  */
-export const readStreamAudioLanguage = async (
+export const probeStream = async (
 	url: string,
 	headers: Record<string, string>,
 	signal?: AbortSignal,
-) => {
-	const playlist = await fetchUpstreamBytes(
-		{
-			accountId: "",
-			expiresAt: 0,
-			headers,
-			kind: "playlist",
-			mirrors: [],
-			url,
-		},
-		signal,
+): Promise<{
+	audioLanguages: string[] | null;
+} | null> => {
+	const { data, error } = await attempt(
+		fetchUpstreamBytes(
+			{
+				accountId: "",
+				expiresAt: 0,
+				headers,
+				kind: "playlist",
+				mirrors: [],
+				url,
+			},
+			signal,
+		),
+		StreamUpstreamError,
 	);
-	return defaultAudioLanguage(new TextDecoder().decode(playlist.bytes));
+	if (error) {
+		return error.status === 429
+			? {
+					audioLanguages: null,
+				}
+			: null;
+	}
+	return {
+		audioLanguages: audioLanguages(new TextDecoder().decode(data.bytes)),
+	};
 };
 
 /**
@@ -295,10 +314,11 @@ const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
 		throw new StreamUpstreamError("Upstream playlist is too large", null);
 	}
 
-	const content = new TextDecoder().decode(upstream.bytes);
-	if (!content.trimStart().startsWith("#EXTM3U")) {
+	const decoded = new TextDecoder().decode(upstream.bytes);
+	if (!decoded.trimStart().startsWith("#EXTM3U")) {
 		throw new StreamUpstreamError("Upstream did not return an HLS playlist", null);
 	}
+	const content = target.audio ? withDefaultAudio(decoded, target.audio) : decoded;
 
 	// Children inherit the parent's headers and expiry, so a playlist cannot be
 	// used to mint tokens that outlive the one the client was given.

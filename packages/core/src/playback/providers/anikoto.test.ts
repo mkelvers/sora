@@ -64,7 +64,7 @@ const skipSegments = async (
 };
 
 describe("AniKotoStreamProvider audio", () => {
-	test("asks MegaPlay's playlist for the language's audio, as its own player does", async () => {
+	test("hands sub and dub MegaPlay's playlist as it is, for Sora to choose the audio", async () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(undefined, undefined),
 			"/stream/s-2/704348/dub": embedPage,
@@ -76,12 +76,8 @@ describe("AniKotoStreamProvider audio", () => {
 			provider.resolveStream("anikoto:704348", "sub"),
 		]);
 
-		expect(dubbed.videos.map((video) => video.url)).toEqual([
-			"https://cdn.example/master.m3u8?t=dub",
-		]);
-		expect(subbed.videos.map((video) => video.url)).toEqual([
-			"https://cdn.example/master.m3u8?t=sub",
-		]);
+		expect(dubbed.videos.map((video) => video.url)).toEqual(["https://cdn.example/master.m3u8"]);
+		expect(subbed.videos.map((video) => video.url)).toEqual(["https://cdn.example/master.m3u8"]);
 	});
 });
 
