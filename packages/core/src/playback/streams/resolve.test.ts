@@ -36,22 +36,30 @@ interface FakeProvider {
 	skipSegments?: Partial<Record<ContentLanguage, SkipSegment[]>>;
 	/** Subtitle tracks only one language's stream carries, by their labels. */
 	extraSubtitles?: Partial<Record<ContentLanguage, string[]>>;
+	/** The language of the audio its dub's playlist starts with; unlabeled when left out. */
+	dubAudio?: string;
 }
 
 /** The providers resolving asks, filled in place by {@link useProviders}. */
 const providers: StreamProvider[] = [];
 const units = new Map<string, ContentLanguage[]>();
+/** The language each playlist's audio starts with, by playlist URL; unlabeled when missing. */
+const audioLanguages = new Map<string, string>();
 const resolved: string[] = [];
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
 
 const useProviders = (list: FakeProvider[]) => {
 	units.clear();
+	audioLanguages.clear();
 	providers.splice(
 		0,
 		providers.length,
 		...list.map((fake) => {
 			units.set(fake.id, fake.languages);
+			if (fake.dubAudio) {
+				audioLanguages.set(`https://${fake.id}.example/dub.m3u8`, fake.dubAudio);
+			}
 			return {
 				findMedia: () => Promise.resolve(null),
 				id: fake.id,
@@ -158,6 +166,7 @@ const dependencies: PlaybackDependencies = {
 			seriesId,
 		}),
 	providers,
+	readStreamAudioLanguage: (url) => Promise.resolve(audioLanguages.get(url) ?? null),
 	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
 	requestSkipDetection: (payload) => {
@@ -780,6 +789,40 @@ describe("resolvePlayback", () => {
 		offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
+	});
+
+	test("passes over a dub whose playlist starts with Japanese audio, as for Overgeared episode 8", async () => {
+		useProviders([
+			{
+				dubAudio: "ja",
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+			},
+			{
+				dubAudio: "en",
+				id: "allmanga",
+				languages: ["sub", "dub"],
+				locale: "en",
+			},
+		]);
+		offered = [dub(), sub()];
+
+		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@anikoto"]);
+	});
+
+	test("offers no dub when every provider's dub starts with Japanese audio", async () => {
+		useProviders([
+			{
+				dubAudio: "ja",
+				id: "anikoto",
+				languages: ["sub", "dub"],
+				locale: "en",
+			},
+		]);
+		offered = [dub(), sub()];
+
+		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
 	});
 
 	test("gives a dub the sub's subtitles, retimed to the dub's encode", async () => {

@@ -20,6 +20,7 @@ import { isServedSubtitle, servedLocale, streamProviders } from "../providers/re
 import {
 	canFetchStream,
 	createStreamToken,
+	readStreamAudioLanguage,
 	streamTimeline,
 	tokenLifetimeMs,
 	warmStream,
@@ -31,6 +32,7 @@ import type { SkipDetection, StoredSkipDetection } from "../skips/store";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime } from "./align";
 import type { TimelineShift } from "./align";
+import { dubAudioServed } from "./dub-audio";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 import { languageName, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
@@ -67,6 +69,7 @@ export interface PlaybackDependencies {
 	createStreamToken: typeof createStreamToken;
 	streamTimeline: typeof streamTimeline;
 	canFetchStream: typeof canFetchStream;
+	readStreamAudioLanguage: typeof readStreamAudioLanguage;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
 	getSkipDetections: typeof getSkipDetections;
@@ -85,6 +88,7 @@ const live: PlaybackDependencies = {
 	getSkipDetections,
 	locateEpisode,
 	providers: streamProviders,
+	readStreamAudioLanguage,
 	recordSubtitleLanguages,
 	requestRefinement,
 	requestSkipDetection,
@@ -413,19 +417,29 @@ const resolveVersion = async (
 		}
 		const stream = resolved.data;
 
-		if (!(await videoLoads(stream.videos, dependencies))) {
+		const [loads, hasServedAudio] = await Promise.all([
+			videoLoads(stream.videos, dependencies),
+			language === "dub"
+				? dubAudioServed(stream.videos, dependencies.readStreamAudioLanguage)
+				: true,
+		]);
+		if (!loads) {
 			fail(provider, "Video host cannot be reached");
 			return null;
 		}
+		if (!hasServedAudio) {
+			fail(provider, `Audio does not start in ${servedLocale}`);
+			return null;
+		}
 
-		const [loads, kinds] =
+		const [subtitlesLoad, kinds] =
 			language === "sub"
 				? await Promise.all([
 						englishSubtitlesLoad(stream.videos, dependencies),
 						subtitleKinds(stream.videos),
 					])
 				: [true, new Map<string, SubtitleKind | null>()];
-		if (!loads) {
+		if (!subtitlesLoad) {
 			fail(provider, "English subtitles cannot be fetched");
 			return null;
 		}

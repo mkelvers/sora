@@ -7,7 +7,8 @@ import { episodeDub, providerEpisodes, providerMapping } from "../../database/sc
 import { LanguageSchema } from "../../models/series";
 import type { ContentLanguage } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
-import { aniKoto } from "../providers/registry";
+import { aniKoto, servedLocale } from "../providers/registry";
+import { streamsDub, withConfirmedDubs } from "../streams/dub-audio";
 import { getProviderMedia } from "./mapping";
 
 /**
@@ -32,14 +33,19 @@ const ProviderUnitsSchema = z.array(
 
 /**
  * Records the dubs in AniKoto's episode list of an anime that are not
- * recorded yet, before the list replaces the stored one.
+ * recorded yet, before the list replaces `previous`, the stored one.
  *
  * A dub that appeared on an episode the stored list already had came out
  * now. One nobody saw come out has no time: the list is the first stored
  * for the anime, or the dub arrived together with its episode, which the
  * episode coming out already tells.
  */
-const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now: Date) => {
+const recordDubs = async (
+	anilistId: number,
+	units: readonly ProviderUnit[],
+	previous: readonly ProviderUnit[] | null,
+	now: Date,
+) => {
 	const dubbed = units.filter(
 		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
 	);
@@ -47,26 +53,14 @@ const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now
 		return;
 	}
 
-	const [recorded, [stored]] = await Promise.all([
-		db
-			.select({
-				episode: episodeDub.episode,
-			})
-			.from(episodeDub)
-			.where(eq(episodeDub.anilistId, anilistId)),
-		db
-			.select({
-				units: providerEpisodes.units,
-			})
-			.from(providerEpisodes)
-			.where(
-				and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, aniKoto.id)),
-			)
-			.limit(1),
-	]);
+	const recorded = await db
+		.select({
+			episode: episodeDub.episode,
+		})
+		.from(episodeDub)
+		.where(eq(episodeDub.anilistId, anilistId));
 	const known = new Set(recorded.map((row) => row.episode));
-	const previous = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
-	const carried = new Set(previous?.success ? previous.data.map((unit) => unit.number) : []);
+	const carried = new Set(previous?.map((unit) => unit.number));
 
 	const fresh = dubbed.filter((unit) => !known.has(unit.number));
 	if (fresh.length > 0) {
@@ -81,6 +75,22 @@ const recordDubs = async (anilistId: number, units: readonly ProviderUnit[], now
 			)
 			.onConflictDoNothing();
 	}
+};
+
+/** `provider`'s stored episode list for an anime; `null` when none is stored or it is outdated. */
+const readStoredUnits = async (anilistId: number, providerId: string) => {
+	const [stored] = await db
+		.select({
+			units: providerEpisodes.units,
+		})
+		.from(providerEpisodes)
+		.where(
+			and(eq(providerEpisodes.anilistId, anilistId), eq(providerEpisodes.provider, providerId)),
+		)
+		.limit(1);
+
+	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+	return units?.success ? units.data : null;
 };
 
 /**
@@ -119,7 +129,8 @@ export const withoutStrayEpisodes = <TUnit extends { number: number }>(
 
 /**
  * Fetches `provider`'s episode units for `anime` and stores them, replacing
- * any stored list.
+ * any stored list. A dub the stored list did not have is kept only once its
+ * stream plays in the served locale (see {@link withConfirmedDubs}).
  *
  * Nothing is stored when the provider does not carry the anime, so a later
  * request asks again once the provider mapping is retried.
@@ -159,14 +170,25 @@ export const refreshProviderUnits = async (
 			title: unit.title,
 		}))
 		.toSorted((left, right) => left.number - right.number);
-	const units = withoutStrayEpisodes(mapped, anime);
+	const previous = await readStoredUnits(anime.id, provider.id);
+	const units = provider.listsLanguages
+		? await withConfirmedDubs(withoutStrayEpisodes(mapped, anime), previous, async (unit) => {
+				const confirmed = await streamsDub(provider, unit.id);
+				if (!confirmed) {
+					console.warn(
+						`${provider.id} lists a dub of anime ${anime.id} episode ${unit.number} that does not play in ${servedLocale}`,
+					);
+				}
+				return confirmed;
+			})
+		: withoutStrayEpisodes(mapped, anime);
 
 	const values = {
 		fetchedAt: new Date(),
 		units,
 	};
 	if (provider.id === aniKoto.id) {
-		await recordDubs(anime.id, units, values.fetchedAt);
+		await recordDubs(anime.id, units, previous, values.fetchedAt);
 	}
 
 	await db
@@ -197,19 +219,9 @@ export const getProviderUnits = async (
 	anime: Anime,
 	provider: StreamProvider,
 ): Promise<ProviderUnit[]> => {
-	const [stored] = await db
-		.select({
-			units: providerEpisodes.units,
-		})
-		.from(providerEpisodes)
-		.where(
-			and(eq(providerEpisodes.anilistId, anime.id), eq(providerEpisodes.provider, provider.id)),
-		)
-		.limit(1);
-
-	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
-	if (units?.success) {
-		return units.data;
+	const stored = await readStoredUnits(anime.id, provider.id);
+	if (stored) {
+		return stored;
 	}
 
 	return refreshProviderUnits(anime, provider, {

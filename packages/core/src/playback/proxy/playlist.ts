@@ -62,3 +62,22 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 		})
 		.join("\n");
 };
+
+const audioRenditionPattern = /^#EXT-X-MEDIA:(?:.*,)?TYPE=AUDIO(?:,.*)?$/gmu;
+const defaultRenditionPattern = /[:,]DEFAULT=YES(?:,|$)/u;
+const renditionLanguagePattern = /[:,]LANGUAGE="(?<language>[^"]*)"/u;
+
+/**
+ * The language of the audio a player starts an HLS stream with: the master
+ * playlist's audio rendition marked `DEFAULT=YES`, else its first, as hls.js
+ * picks without an audio preference.
+ *
+ * @returns The rendition's BCP 47 `LANGUAGE`, or `null` when the playlist
+ *   lists no audio renditions, so the audio comes with the video and the
+ *   playlist does not say its language, or when the rendition names none.
+ */
+export const defaultAudioLanguage = (content: string): string | null => {
+	const renditions = content.match(audioRenditionPattern) ?? [];
+	const started = renditions.find((tag) => defaultRenditionPattern.test(tag)) ?? renditions[0];
+	return started ? (renditionLanguagePattern.exec(started)?.groups?.language ?? null) : null;
+};

@@ -185,6 +185,24 @@ export const subtitleLanguage = (label: string) => {
 };
 
 /**
+ * `file` with the audio for `language` asked for.
+ *
+ * MegaPlay's CDN serves one master playlist for an episode's sub and dub,
+ * with every audio language as a rendition, and marks as default the one its
+ * `t` parameter names: Japanese for `sub` or no `t`, English for `dub`.
+ * MegaPlay's own player adds `t` to master playlists that have none.
+ */
+const withAudioFor = (file: string, language: ContentLanguage) => {
+	const url = new URL(file);
+	if (language === "raw" || !url.pathname.endsWith("/master.m3u8") || url.searchParams.has("t")) {
+		return file;
+	}
+
+	url.searchParams.set("t", language);
+	return url.toString();
+};
+
+/**
  * Resolves a MegaPlay embed page into its stream, with the opening and ending
  * MegaPlay's player ships with it.
  *
@@ -201,10 +219,11 @@ export const resolveMegaPlayEmbed = async (
 ): Promise<ProviderStream> => {
 	const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language);
 
-	const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
-	if (!file) {
+	const source = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
+	if (!source) {
 		throw new Error("MegaPlay returned no source URL");
 	}
+	const file = withAudioFor(source, language);
 
 	return {
 		skipSegments: skipSegments(body),

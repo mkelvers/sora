@@ -4,7 +4,7 @@ import { config } from "../../config";
 import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
-import { rewritePlaylist } from "./playlist";
+import { defaultAudioLanguage, rewritePlaylist } from "./playlist";
 import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { retimeWebVtt } from "./subtitle";
@@ -91,6 +91,32 @@ export const canFetchStream = async (
 	}
 	await data.response.body?.cancel();
 	return true;
+};
+
+/**
+ * The language of the audio an HLS stream starts with, from its master
+ * playlist; see {@link defaultAudioLanguage}.
+ *
+ * @returns `null` when the playlist does not say.
+ * @throws {StreamUpstreamError} when the playlist cannot be fetched.
+ */
+export const readStreamAudioLanguage = async (
+	url: string,
+	headers: Record<string, string>,
+	signal?: AbortSignal,
+) => {
+	const playlist = await fetchUpstreamBytes(
+		{
+			accountId: "",
+			expiresAt: 0,
+			headers,
+			kind: "playlist",
+			mirrors: [],
+			url,
+		},
+		signal,
+	);
+	return defaultAudioLanguage(new TextDecoder().decode(playlist.bytes));
 };
 
 /**

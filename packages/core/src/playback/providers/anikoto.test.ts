@@ -63,6 +63,28 @@ const skipSegments = async (
 	return stream.skipSegments;
 };
 
+describe("AniKotoStreamProvider audio", () => {
+	test("asks MegaPlay's playlist for the language's audio, as its own player does", async () => {
+		const { provider } = providerServing({
+			"/stream/getSources": sources(undefined, undefined),
+			"/stream/s-2/704348/dub": embedPage,
+			"/stream/s-2/704348/sub": embedPage,
+		});
+
+		const [dubbed, subbed] = await Promise.all([
+			provider.resolveStream("anikoto:704348", "dub"),
+			provider.resolveStream("anikoto:704348", "sub"),
+		]);
+
+		expect(dubbed.videos.map((video) => video.url)).toEqual([
+			"https://cdn.example/master.m3u8?t=dub",
+		]);
+		expect(subbed.videos.map((video) => video.url)).toEqual([
+			"https://cdn.example/master.m3u8?t=sub",
+		]);
+	});
+});
+
 describe("AniKotoStreamProvider skip segments", () => {
 	test("reads the opening and ending, as for Frieren episode 3", async () => {
 		const { provider } = providerServing({
