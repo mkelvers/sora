@@ -10,7 +10,7 @@
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { SubtitleStyle } from "@sora/sdk";
 	import { attempt } from "@sora/shared";
-	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
+	import { CaretLeftIcon } from "phosphor-svelte";
 
 	interface Choice<T extends string | number> {
 		label: string;
@@ -189,30 +189,13 @@
 {/snippet}
 
 <div class="page">
-	<div class="mx-auto flex max-w-5xl items-center justify-between gap-4">
+	<div class="mx-auto max-w-2xl">
 		<Button href="/settings/playback" variant="ghost" size="sm" class="-ml-2">
 			<CaretLeftIcon size="0.875rem" weight="bold" />
 			Back to Playback
 		</Button>
-		{#if playback.current}
-			<Button
-				variant="ghost"
-				size="sm"
-				class="-mr-2"
-				loading={resetting}
-				disabled={resetting}
-				onclick={reset}
-			>
-				{#if !resetting}
-					<ArrowCounterClockwiseIcon size="0.875rem" weight="bold" />
-				{/if}
-				Reset to Default
-			</Button>
-		{/if}
-	</div>
 
-	<div class="mx-auto mt-8 max-w-2xl">
-		<h1 class="text-2xl font-bold">Subtitle Appearance</h1>
+		<h1 class="mt-6 text-2xl font-bold">Subtitle Appearance</h1>
 		<p class="mt-2 max-w-lg text-sm leading-relaxed text-muted">
 			How subtitles look in Sora's player. Subtitles burned into the video keep their own look.
 		</p>
@@ -279,6 +262,12 @@
 					)}
 				</div>
 			</section>
+
+			<div class="mt-12 flex justify-center">
+				<Button variant="secondary" loading={resetting} disabled={resetting} onclick={reset}>
+					Reset to Default
+				</Button>
+			</div>
 		{/if}
 	</div>
 </div>

@@ -118,7 +118,7 @@
 					primary:
 						"bg-accent font-bold tracking-wide text-on-accent uppercase hover:brightness-110",
 					secondary:
-						"border-2 border-accent font-bold tracking-wide text-accent uppercase hover:bg-accent/10",
+						"border-2 border-accent font-bold tracking-wide text-accent uppercase hover:brightness-120",
 					text: "h-11 gap-2 font-bold text-foreground hover:text-accent-secondary aria-expanded:text-accent-secondary",
 					toolbar:
 						"h-10 gap-2 px-3 text-sm font-medium text-muted uppercase hover:bg-hover hover:text-foreground aria-expanded:bg-hover aria-expanded:text-foreground",
