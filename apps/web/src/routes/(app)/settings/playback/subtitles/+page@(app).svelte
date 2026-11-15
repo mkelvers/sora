@@ -8,7 +8,6 @@
 		getPlaybackPreferences,
 		savePlaybackPreferences,
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
-	import Panel from "$routes/(app)/settings/components/panel.svelte";
 	import type { SubtitleStyle } from "@sora/sdk";
 	import { attempt } from "@sora/shared";
 	import { CaretLeftIcon } from "phosphor-svelte";
@@ -125,7 +124,7 @@
 	onchange: (value: string) => void,
 )}
 	<div>
-		<p class="text-xs text-subtle">{label}</p>
+		<p class="text-xs font-semibold text-subtle">{label}</p>
 		<Select
 			variant="field"
 			{label}
@@ -139,67 +138,73 @@
 	</div>
 {/snippet}
 
-<Button href="/settings/playback" variant="link" size="sm" class="mb-4">
-	<CaretLeftIcon size="0.875rem" weight="bold" />
-	Playback
-</Button>
+<div class="page">
+	<div class="mx-auto max-w-5xl">
+		<Button href="/settings/playback" variant="ghost" size="sm" class="-ml-2">
+			<CaretLeftIcon size="0.875rem" weight="bold" />
+			Back to Playback
+		</Button>
+	</div>
 
-<Panel
-	title="Subtitle Appearance"
-	description="How subtitles look over the picture. Subtitles burned into the video keep their own look."
->
-	{#if playback.current}
-		{@const style = playback.current.subtitle_style}
+	<div class="mx-auto mt-8 max-w-2xl">
+		<h1 class="text-2xl font-bold">Subtitle Appearance</h1>
+		<p class="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+			How subtitles look in Sora's player. Subtitles burned into the video keep their own look.
+		</p>
 
-		<figure class="@container" aria-label="Subtitle preview">
-			<div
-				class="grid aspect-[5/2] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4cqw] *:[grid-area:1/1]"
-			>
-				<img
-					src={backdrop}
-					alt="Manga panel of long hair and a scarf blowing in the wind"
-					width="1200"
-					height="480"
-					decoding="async"
-					class="size-full object-cover"
-				/>
-				<div class="z-1 mx-[4cqw] mb-[4cqw] flex flex-col items-center self-end">
-					<Cue appearance={style}>Subtitles will look like this.</Cue>
+		{#if playback.current}
+			{@const style = playback.current.subtitle_style}
+
+			<figure class="@container mt-6" aria-label="Subtitle preview">
+				<div
+					class="grid aspect-[4/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4.5cqw] *:[grid-area:1/1]"
+				>
+					<img
+						src={backdrop}
+						alt="Manga panel of long hair and a scarf blowing in the wind"
+						width="1200"
+						height="480"
+						decoding="async"
+						class="size-full object-cover"
+					/>
+					<div class="z-1 mx-[4cqw] mb-[3cqw] flex flex-col items-center self-end">
+						<Cue appearance={style}>Subtitles will look like this.</Cue>
+					</div>
 				</div>
-			</div>
-		</figure>
+			</figure>
 
-		<section aria-labelledby="subtitle-text">
-			<h3 id="subtitle-text" class="text-lg font-bold">Text</h3>
-			<div class="mt-6 grid gap-x-8 gap-y-8 sm:grid-cols-2">
-				{@render field("Size", sizes, style.size, (value) =>
-					save({
-						size: choose(sizes, value),
-					}),
-				)}
-				{@render field("Edge Style", edges, style.edge, (value) =>
-					save({
-						edge: choose(edges, value),
-					}),
-				)}
-			</div>
-		</section>
+			<section class="mt-8" aria-labelledby="subtitle-text">
+				<h2 id="subtitle-text" class="text-lg font-semibold">Text</h2>
+				<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
+					{@render field("Size", sizes, style.size, (value) =>
+						save({
+							size: choose(sizes, value),
+						}),
+					)}
+					{@render field("Edge Style", edges, style.edge, (value) =>
+						save({
+							edge: choose(edges, value),
+						}),
+					)}
+				</div>
+			</section>
 
-		<section aria-labelledby="subtitle-background">
-			<h3 id="subtitle-background" class="text-lg font-bold">Background</h3>
-			<div class="mt-6 grid gap-x-8 gap-y-8 sm:grid-cols-2">
-				{@render field("Opacity", opacities, style.background_opacity, (value) =>
-					save({
-						background_opacity: choose(opacities, value),
-					}),
-				)}
-			</div>
-		</section>
+			<section class="mt-10" aria-labelledby="subtitle-background">
+				<h2 id="subtitle-background" class="text-lg font-semibold">Background</h2>
+				<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
+					{@render field("Opacity", opacities, style.background_opacity, (value) =>
+						save({
+							background_opacity: choose(opacities, value),
+						}),
+					)}
+				</div>
+			</section>
 
-		<div class="flex justify-center">
-			<Button variant="secondary" loading={resetting} disabled={resetting} onclick={reset}>
-				Reset to Default
-			</Button>
-		</div>
-	{/if}
-</Panel>
+			<div class="mt-12 flex justify-center">
+				<Button variant="secondary" loading={resetting} disabled={resetting} onclick={reset}>
+					Reset to Default
+				</Button>
+			</div>
+		{/if}
+	</div>
+</div>

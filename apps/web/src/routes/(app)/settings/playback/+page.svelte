@@ -1,6 +1,5 @@
 <script lang="ts">
 	import StatusBanner from "$lib/components/status-banner.svelte";
-	import Button from "$lib/components/ui/button.svelte";
 	import Select from "$lib/components/ui/select.svelte";
 	import Switch from "$lib/components/ui/switch.svelte";
 	import {
@@ -74,16 +73,19 @@
 			</p>
 		</div>
 
-		<Row label="Show Captions on Dubs" controlId="dub-captions">
+		<Row label="Prefer Closed Captions" controlId="closed-captions">
 			{#snippet description()}
-				Show English captions when a dub has them.
-				<Button href="/settings/playback/subtitles" variant="link" size="sm" class="flex w-fit">
+				Show closed captions on dubs automatically when they're available.
+				<a
+					href="/settings/playback/subtitles"
+					class="text-accent transition-colors hover:text-foreground focus-visible:text-foreground"
+				>
 					Change Subtitle Appearance
-				</Button>
+				</a>
 			{/snippet}
 			{#snippet children({ describedby })}
 				<Switch
-					id="dub-captions"
+					id="closed-captions"
 					icons
 					aria-describedby={describedby}
 					checked={playback.current?.subtitles.dub !== null}

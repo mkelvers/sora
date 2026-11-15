@@ -2,7 +2,7 @@
 	import { cva } from "class-variance-authority";
 
 	const line = cva(
-		"text-center leading-tight font-semibold tracking-[0.02em] whitespace-pre-line text-white",
+		"text-center font-subtitle leading-tight font-normal whitespace-pre-line text-white",
 		{
 			variants: {
 				size: {

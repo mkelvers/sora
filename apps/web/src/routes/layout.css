@@ -16,6 +16,7 @@
 	--breakpoint-xs: 30rem;
 	--breakpoint-wide: 90rem;
 	--breakpoint-hero: 120rem;
+	--font-subtitle: "DM Sans Variable", "DM Sans Fallback", "Helvetica Neue", helvetica, sans-serif;
 	--color-canvas: #000;
 	--color-surface: #151515;
 	--color-raised: #232323;
