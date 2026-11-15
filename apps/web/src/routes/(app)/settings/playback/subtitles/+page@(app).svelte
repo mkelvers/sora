@@ -209,9 +209,9 @@
 				>
 					<img
 						src={backdrop}
-						alt="Manga panel of long hair and a scarf blowing in the wind"
-						width="1200"
-						height="480"
+						alt="Sora's ghost bursting through manga speed lines"
+						width="1500"
+						height="500"
 						decoding="async"
 						class="size-full object-cover"
 					/>

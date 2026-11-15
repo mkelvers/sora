@@ -2,29 +2,32 @@
 	import type { SubtitleStyle } from "@sora/sdk";
 	import { cva } from "class-variance-authority";
 
-	const line = cva("text-center font-subtitle leading-[1.2] font-normal whitespace-pre-line", {
-		variants: {
-			size: {
-				large: "text-[150%]",
-				medium: "",
-				small: "text-[75%]",
+	const line = cva(
+		"grid text-center font-subtitle leading-[1.2] font-normal whitespace-pre-line *:[grid-area:1/1]",
+		{
+			variants: {
+				size: {
+					large: "text-[150%]",
+					medium: "",
+					small: "text-[75%]",
+				},
 			},
 		},
-	});
+	);
 
-	const text = cva("", {
+	const edging = cva("", {
 		variants: {
 			edge: {
-				none: "",
+				none: "text-transparent",
 				outline:
-					"[-webkit-text-stroke:var(--edge-width)_var(--edge)] [paint-order:stroke_fill] [text-shadow:0_0.04em_0.06em_var(--edge)]",
+					"text-(--edge) [-webkit-text-stroke:calc(var(--edge-width)*2)_var(--edge)] [text-shadow:0_0.04em_0.06em_var(--edge)]",
 				shadow:
-					"[text-shadow:0_0_calc(var(--edge-width)*0.8)_var(--edge),0_0_calc(var(--edge-width)*2)_var(--edge),0_0_calc(var(--edge-width)*4)_var(--edge)]",
+					"text-(--edge) [text-shadow:0_0_calc(var(--edge-width)*1.6)_var(--edge),0_0_calc(var(--edge-width)*4)_var(--edge),0_0_calc(var(--edge-width)*8)_var(--edge)]",
 			},
 			width: {
-				medium: "[--edge-width:0.1em]",
-				thick: "[--edge-width:0.16em]",
-				thin: "[--edge-width:0.06em]",
+				medium: "[--edge-width:0.05em]",
+				thick: "[--edge-width:0.08em]",
+				thin: "[--edge-width:0.03em]",
 			},
 		},
 	});
@@ -61,17 +64,18 @@
 	class={line({
 		size: appearance.size,
 	})}
+	style:--edge={appearance.text_color === "black" ? colors.white : colors.black}
 >
-	<span class="box-decoration-clone" style:background-color={background}>
-		<span
-			class={text({
-				edge: appearance.edge,
-				width: appearance.edge_width,
-			})}
-			style:color={colors[appearance.text_color]}
-			style:--edge={appearance.text_color === "black" ? colors.white : colors.black}
-		>
+	<span
+		aria-hidden="true"
+		class={edging({
+			edge: appearance.edge,
+			width: appearance.edge_width,
+		})}
+	>
+		<span class="box-decoration-clone" style:background-color={background}>
 			{@render children()}
 		</span>
 	</span>
+	<span style:color={colors[appearance.text_color]}>{@render children()}</span>
 </p>
