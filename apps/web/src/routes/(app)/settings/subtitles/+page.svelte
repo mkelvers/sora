@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import Cue from "$lib/components/cue.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Select from "$lib/components/ui/select.svelte";
@@ -197,21 +196,25 @@
 	</div>
 {/snippet}
 
-<Panel title="Subtitles" description="How subtitles look for {page.data.viewer.profile.name}.">
+<Panel
+	title="Subtitles"
+	description="Where subtitles sit and how they look over the picture. Subtitles burned into the video keep their own look."
+>
 	{#if playback.current}
 		{@const style = playback.current.subtitle_style}
 
-		<figure
-			class="@container grid aspect-video grid-cols-1 grid-rows-1 overflow-hidden bg-[linear-gradient(160deg,#f2e3c6_0%,#9fb4c7_45%,#2b3a4f_100%)] px-[4cqw] text-[3.4cqw] text-white"
-			aria-label="Subtitle preview"
-		>
+		<figure class="@container" aria-label="Subtitle preview">
 			<div
-				class={[
-					"flex flex-col items-center",
-					style.position === "top" ? "mt-[6cqw] self-start" : "mb-[6cqw] self-end",
-				]}
+				class="grid aspect-[5/2] grid-cols-1 grid-rows-1 overflow-hidden bg-[linear-gradient(160deg,#f2e3c6_0%,#9fb4c7_45%,#2b3a4f_100%)] px-[4cqw] text-[4cqw] text-white"
 			>
-				<Cue appearance={style}>{"Don’t look back.\nWe’re almost there."}</Cue>
+				<div
+					class={[
+						"flex flex-col items-center",
+						style.position === "top" ? "mt-[4cqw] self-start" : "mb-[4cqw] self-end",
+					]}
+				>
+					<Cue appearance={style}>Subtitles will look like this.</Cue>
+				</div>
 			</div>
 		</figure>
 

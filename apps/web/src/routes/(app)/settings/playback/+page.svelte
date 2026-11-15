@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Select from "$lib/components/ui/select.svelte";
 	import Switch from "$lib/components/ui/switch.svelte";
@@ -49,7 +48,7 @@
 
 <Panel
 	title="Playback"
-	description="How episodes play and appear for {page.data.viewer.profile.name}."
+	description="Which version plays first, what gets skipped, what plays next, and what episode lists hide."
 >
 	{#if playback.current && profile.current}
 		<div>
