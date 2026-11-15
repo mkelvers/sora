@@ -29,49 +29,25 @@ export const SubtitlePreferencesSchema = z
 		id: "SubtitlePreferences",
 	});
 
-const SubtitleColorSchema = z.enum([
-	"white",
-	"black",
-	"yellow",
-	"cyan",
-	"green",
-	"magenta",
-	"red",
-	"blue",
-]);
-
 export const SubtitleStyleSchema = z
 	.object({
-		background_color: SubtitleColorSchema.meta({
-			description: "Colour of the box behind each line.",
-		}),
 		background_opacity: z
 			.union([z.literal(0), z.literal(25), z.literal(50), z.literal(75), z.literal(100)])
 			.meta({
-				description: "How opaque the box behind each line is, in percent; `0` shows no box.",
+				description: "How opaque the black box behind each line is, in percent; `0` shows no box.",
 			}),
-		edge: z.enum(["none", "outline", "shadow"]).meta({
+		edge: z.enum(["outline", "shadow", "none"]).meta({
 			description:
-				"What sets each character off from the picture: an `outline` around it, a drop `shadow` under it, or `none`.",
+				"What sets each character off from the picture: an `outline` around it, a soft `shadow` around it, or `none`.",
 		}),
-		position: z.enum(["bottom", "top"]).meta({
-			description: "Which edge of the picture subtitles sit at.",
-		}),
-		size: z
-			.union([z.literal(50), z.literal(75), z.literal(100), z.literal(150), z.literal(200)])
-			.meta({
-				description: "Text size, in percent of the player's normal size.",
-			}),
-		text_color: SubtitleColorSchema.meta({
-			description: "Colour of the text.",
-		}),
-		text_opacity: z.union([z.literal(25), z.literal(50), z.literal(75), z.literal(100)]).meta({
-			description: "How opaque the text is, in percent.",
+		size: z.enum(["small", "medium", "large"]).meta({
+			description:
+				"How large the text is: `small` is three quarters of `medium`, `large` one and a half times it.",
 		}),
 	})
 	.meta({
 		description:
-			"How subtitles look in the player. Applies to subtitle tracks only; burned-in subtitles are part of the picture.",
+			"How subtitles look in the player: white text at the bottom of the picture. Applies to subtitle tracks only; burned-in subtitles are part of the picture.",
 		id: "SubtitleStyle",
 	});
 
@@ -270,8 +246,9 @@ export const PlaybackPreferencesUpdateSchema = z
 		auto_skip: z.boolean().optional(),
 		autoplay_next: z.boolean().optional(),
 		quality: z.number().int().positive().nullable().optional(),
-		subtitle_style: SubtitleStyleSchema.partial().optional().meta({
-			description: "Changes the parts of the subtitle style given, leaving the rest as they are.",
+		subtitle_style: SubtitleStyleSchema.partial().nullable().optional().meta({
+			description:
+				"Changes the parts of the subtitle style given, leaving the rest as they are; `null` puts every part back to its default.",
 		}),
 		subtitles: SubtitlePreferencesSchema.optional().meta({
 			description: "Changes the subtitles of the audio given, leaving the other's as they are.",

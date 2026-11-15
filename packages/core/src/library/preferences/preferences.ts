@@ -1,5 +1,6 @@
 import { defined } from "@sora/shared";
 import { eq, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema/library";
@@ -16,16 +17,23 @@ import type {
 } from "../../models/library";
 import { LanguageSchema } from "../../models/series";
 
-/** White text with a black outline and no box, at the bottom. */
+/** Medium text with an outline and no box. */
 const subtitleStyle: SubtitleStyle = {
-	background_color: "black",
 	background_opacity: 0,
 	edge: "outline",
-	position: "bottom",
-	size: 100,
-	text_color: "white",
-	text_opacity: 100,
+	size: "medium",
 };
+
+/** A stored subtitle style: each part it lacks, or no longer offers, has its default. */
+const StoredSubtitleStyleSchema = z
+	.object({
+		background_opacity: SubtitleStyleSchema.shape.background_opacity.catch(
+			subtitleStyle.background_opacity,
+		),
+		edge: SubtitleStyleSchema.shape.edge.catch(subtitleStyle.edge),
+		size: SubtitleStyleSchema.shape.size.catch(subtitleStyle.size),
+	})
+	.catch(subtitleStyle);
 
 const defaults: PlaybackPreferences = {
 	audio: null,
@@ -39,17 +47,13 @@ const defaults: PlaybackPreferences = {
 const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
 	const audio = LanguageSchema.safeParse(row.audio);
 	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
-	const style = SubtitleStyleSchema.partial().safeParse(row.subtitleStyle);
 
 	return {
 		audio: audio.success ? audio.data : null,
 		auto_skip: row.autoSkip,
 		autoplay_next: row.autoplayNext,
 		quality: row.quality,
-		subtitle_style: {
-			...subtitleStyle,
-			...(style.success && style.data),
-		},
+		subtitle_style: StoredSubtitleStyleSchema.parse(row.subtitleStyle),
 		subtitles: subtitles.success ? subtitles.data : {},
 	};
 };
@@ -108,6 +112,9 @@ export const updatePlaybackPreferences = async (
 				}),
 				...(subtitles && {
 					subtitles: sql`${playbackPreference.subtitles} || excluded.subtitles`,
+				}),
+				...(style === null && {
+					subtitleStyle: {},
 				}),
 				...(style && {
 					subtitleStyle: sql`${playbackPreference.subtitleStyle} || excluded.subtitle_style`,

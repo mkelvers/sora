@@ -53,7 +53,8 @@ export const playbackPreference = pgTable("playback_preference", {
 	quality: integer("quality"),
 	/**
 	 * How subtitles look: the fields of `SubtitleStyle` the user changed. A
-	 * field missing here has its default.
+	 * field missing here, or holding a value Sora no longer offers, has its
+	 * default.
 	 */
 	subtitleStyle: jsonb("subtitle_style").$type<unknown>().notNull().default({}),
 	/**

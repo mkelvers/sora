@@ -18,17 +18,13 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			await db.delete(playbackPreference).where(eq(playbackPreference.userId, profile));
 		});
 
-		test("shows white outlined subtitles at the bottom until the profile chooses", async () => {
+		test("shows medium outlined subtitles with no box until the profile chooses", async () => {
 			const { subtitle_style: style } = await getPlaybackPreferences(profile);
 
 			expect(style).toEqual({
-				background_color: "black",
 				background_opacity: 0,
 				edge: "outline",
-				position: "bottom",
-				size: 100,
-				text_color: "white",
-				text_opacity: 100,
+				size: "medium",
 			});
 		});
 
@@ -40,14 +36,14 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			});
 			const changed = await updatePlaybackPreferences(profile, {
 				subtitle_style: {
-					position: "top",
+					size: "large",
 				},
 			});
 
-			expect(changed.subtitle_style).toMatchObject({
+			expect(changed.subtitle_style).toEqual({
 				background_opacity: 75,
 				edge: "outline",
-				position: "top",
+				size: "large",
 			});
 		});
 
@@ -56,16 +52,49 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 				auto_skip: true,
 			});
 
-			expect(changed.subtitle_style.position).toBe("top");
+			expect(changed.subtitle_style.size).toBe("large");
 			expect(await getPlaybackPreferences(profile)).toEqual(changed);
+		});
+
+		test("puts the subtitle style back to its defaults", async () => {
+			const reset = await updatePlaybackPreferences(profile, {
+				subtitle_style: null,
+			});
+
+			expect(reset.subtitle_style).toEqual({
+				background_opacity: 0,
+				edge: "outline",
+				size: "medium",
+			});
+			expect(reset.auto_skip).toBe(true);
+		});
+
+		test("reads a stored part Sora no longer offers as its default", async () => {
+			await db
+				.update(playbackPreference)
+				.set({
+					subtitleStyle: {
+						edge: "shadow",
+						position: "top",
+						size: 100,
+					},
+				})
+				.where(eq(playbackPreference.userId, profile));
+			const { subtitle_style: style } = await getPlaybackPreferences(profile);
+
+			expect(style).toEqual({
+				background_opacity: 0,
+				edge: "shadow",
+				size: "medium",
+			});
 		});
 
 		test("rejects a subtitle style that is not valid", async () => {
 			await expect(
 				updatePlaybackPreferences(profile, {
 					subtitle_style: {
-						// @ts-expect-error -- an opacity Sora does not offer
-						text_opacity: 0,
+						// @ts-expect-error -- a size Sora does not offer
+						size: "huge",
 					},
 				}),
 			).rejects.toBeInstanceOf(InvalidInputError);

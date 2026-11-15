@@ -293,12 +293,7 @@
 	{/if}
 
 	<div
-		class={[
-			"pointer-events-none z-1 mx-4 flex flex-col items-center text-[clamp(20px,2.8vw,44px)] transition-[margin] duration-200",
-			preferences.subtitle_style.position === "top"
-				? "mt-20 self-start in-[.idle:not(:has(:popover-open))]:mt-[7vh]"
-				: "mb-(--cue-lift) self-end [--cue-lift:8rem] in-[.idle:not(:has(:popover-open))]:mb-[7vh] sm:[--cue-lift:6.25rem]",
-		]}
+		class="pointer-events-none z-1 mx-4 mb-(--cue-lift) flex flex-col items-center self-end text-[clamp(20px,2.8vw,44px)] transition-[margin] duration-200 [--cue-lift:8rem] in-[.idle:not(:has(:popover-open))]:mb-[7vh] sm:[--cue-lift:6.25rem]"
 	>
 		{#each player.cues as cue (cue)}
 			<Cue appearance={preferences.subtitle_style}>

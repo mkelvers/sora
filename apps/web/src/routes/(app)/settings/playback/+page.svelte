@@ -1,5 +1,6 @@
 <script lang="ts">
 	import StatusBanner from "$lib/components/status-banner.svelte";
+	import Button from "$lib/components/ui/button.svelte";
 	import Select from "$lib/components/ui/select.svelte";
 	import Switch from "$lib/components/ui/switch.svelte";
 	import {
@@ -72,6 +73,34 @@
 				The version Sora plays first when an episode offers it. You can still switch in the player.
 			</p>
 		</div>
+
+		<Row label="Show Captions on Dubs" controlId="dub-captions">
+			{#snippet description()}
+				Show English captions when a dub has them.
+				<Button href="/settings/playback/subtitles" variant="link" size="sm" class="flex w-fit">
+					Change Subtitle Appearance
+				</Button>
+			{/snippet}
+			{#snippet children({ describedby })}
+				<Switch
+					id="dub-captions"
+					icons
+					aria-describedby={describedby}
+					checked={playback.current?.subtitles.dub !== null}
+					onchange={(event) =>
+						savePlayback({
+							subtitles: {
+								dub: event.currentTarget.checked
+									? {
+											kind: "captions",
+											language: "en",
+										}
+									: null,
+							},
+						})}
+				/>
+			{/snippet}
+		</Row>
 
 		<Row
 			label="Skip Openings and Endings"

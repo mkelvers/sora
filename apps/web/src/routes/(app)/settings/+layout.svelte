@@ -19,10 +19,6 @@
 					label: "Playback",
 				},
 				{
-					href: "/settings/subtitles",
-					label: "Subtitles",
-				},
-				{
 					href: "/settings/notifications",
 					label: "Notifications",
 				},
@@ -66,7 +62,7 @@
 								"block text-muted outline-none hover:bg-surface hover:text-foreground focus-visible:bg-surface focus-visible:text-foreground aria-[current]:text-accent",
 								spacious ? "px-5 py-4 text-base" : "px-3 py-3 text-sm",
 							]}
-							aria-current={page.url.pathname === section.href ? "page" : undefined}
+							aria-current={page.url.pathname.startsWith(section.href) ? "page" : undefined}
 							onclick={() => (menuOpen = false)}
 						>
 							{section.label}
