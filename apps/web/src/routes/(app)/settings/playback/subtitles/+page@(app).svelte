@@ -10,7 +10,7 @@
 	} from "$routes/(app)/series/[id]/watch/[episode]/watch.remote";
 	import type { SubtitleStyle } from "@sora/sdk";
 	import { attempt } from "@sora/shared";
-	import { CaretLeftIcon } from "phosphor-svelte";
+	import { ArrowCounterClockwiseIcon, CaretLeftIcon } from "phosphor-svelte";
 
 	interface Choice<T extends string | number> {
 		label: string;
@@ -44,6 +44,56 @@
 		{
 			label: "None",
 			value: "none",
+		},
+	];
+
+	const colors: Choice<SubtitleStyle["text_color"]>[] = [
+		{
+			label: "White",
+			value: "white",
+		},
+		{
+			label: "Black",
+			value: "black",
+		},
+		{
+			label: "Red",
+			value: "red",
+		},
+		{
+			label: "Green",
+			value: "green",
+		},
+		{
+			label: "Blue",
+			value: "blue",
+		},
+		{
+			label: "Yellow",
+			value: "yellow",
+		},
+		{
+			label: "Cyan",
+			value: "cyan",
+		},
+		{
+			label: "Magenta",
+			value: "magenta",
+		},
+	];
+
+	const widths: Choice<SubtitleStyle["edge_width"]>[] = [
+		{
+			label: "Thin",
+			value: "thin",
+		},
+		{
+			label: "Medium",
+			value: "medium",
+		},
+		{
+			label: "Thick",
+			value: "thick",
 		},
 	];
 
@@ -139,11 +189,26 @@
 {/snippet}
 
 <div class="page">
-	<div class="mx-auto max-w-5xl">
+	<div class="mx-auto flex max-w-5xl items-center justify-between gap-4">
 		<Button href="/settings/playback" variant="ghost" size="sm" class="-ml-2">
 			<CaretLeftIcon size="0.875rem" weight="bold" />
 			Back to Playback
 		</Button>
+		{#if playback.current}
+			<Button
+				variant="ghost"
+				size="sm"
+				class="-mr-2"
+				loading={resetting}
+				disabled={resetting}
+				onclick={reset}
+			>
+				{#if !resetting}
+					<ArrowCounterClockwiseIcon size="0.875rem" weight="bold" />
+				{/if}
+				Reset to Default
+			</Button>
+		{/if}
 	</div>
 
 	<div class="mx-auto mt-8 max-w-2xl">
@@ -181,9 +246,19 @@
 							size: choose(sizes, value),
 						}),
 					)}
+					{@render field("Colour", colors, style.text_color, (value) =>
+						save({
+							text_color: choose(colors, value),
+						}),
+					)}
 					{@render field("Edge Style", edges, style.edge, (value) =>
 						save({
 							edge: choose(edges, value),
+						}),
+					)}
+					{@render field("Edge Thickness", widths, style.edge_width, (value) =>
+						save({
+							edge_width: choose(widths, value),
 						}),
 					)}
 				</div>
@@ -192,6 +267,11 @@
 			<section class="mt-10" aria-labelledby="subtitle-background">
 				<h2 id="subtitle-background" class="text-lg font-semibold">Background</h2>
 				<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
+					{@render field("Colour", colors, style.background_color, (value) =>
+						save({
+							background_color: choose(colors, value),
+						}),
+					)}
 					{@render field("Opacity", opacities, style.background_opacity, (value) =>
 						save({
 							background_opacity: choose(opacities, value),
@@ -199,12 +279,6 @@
 					)}
 				</div>
 			</section>
-
-			<div class="mt-12 flex justify-center">
-				<Button variant="secondary" loading={resetting} disabled={resetting} onclick={reset}>
-					Reset to Default
-				</Button>
-			</div>
 		{/if}
 	</div>
 </div>

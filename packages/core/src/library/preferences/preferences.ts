@@ -17,21 +17,29 @@ import type {
 } from "../../models/library";
 import { LanguageSchema } from "../../models/series";
 
-/** Medium text with an outline and no box. */
+/** Medium white text with a medium black outline and no box. */
 const subtitleStyle: SubtitleStyle = {
+	background_color: "black",
 	background_opacity: 0,
 	edge: "outline",
+	edge_width: "medium",
 	size: "medium",
+	text_color: "white",
 };
 
 /** A stored subtitle style: each part it lacks, or no longer offers, has its default. */
 const StoredSubtitleStyleSchema = z
 	.object({
+		background_color: SubtitleStyleSchema.shape.background_color.catch(
+			subtitleStyle.background_color,
+		),
 		background_opacity: SubtitleStyleSchema.shape.background_opacity.catch(
 			subtitleStyle.background_opacity,
 		),
 		edge: SubtitleStyleSchema.shape.edge.catch(subtitleStyle.edge),
+		edge_width: SubtitleStyleSchema.shape.edge_width.catch(subtitleStyle.edge_width),
 		size: SubtitleStyleSchema.shape.size.catch(subtitleStyle.size),
+		text_color: SubtitleStyleSchema.shape.text_color.catch(subtitleStyle.text_color),
 	})
 	.catch(subtitleStyle);
 

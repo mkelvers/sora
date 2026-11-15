@@ -18,13 +18,16 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			await db.delete(playbackPreference).where(eq(playbackPreference.userId, profile));
 		});
 
-		test("shows medium outlined subtitles with no box until the profile chooses", async () => {
+		test("shows medium white outlined subtitles with no box until the profile chooses", async () => {
 			const { subtitle_style: style } = await getPlaybackPreferences(profile);
 
 			expect(style).toEqual({
+				background_color: "black",
 				background_opacity: 0,
 				edge: "outline",
+				edge_width: "medium",
 				size: "medium",
+				text_color: "white",
 			});
 		});
 
@@ -41,9 +44,12 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			});
 
 			expect(changed.subtitle_style).toEqual({
+				background_color: "black",
 				background_opacity: 75,
 				edge: "outline",
+				edge_width: "medium",
 				size: "large",
+				text_color: "white",
 			});
 		});
 
@@ -62,9 +68,12 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			});
 
 			expect(reset.subtitle_style).toEqual({
+				background_color: "black",
 				background_opacity: 0,
 				edge: "outline",
+				edge_width: "medium",
 				size: "medium",
+				text_color: "white",
 			});
 			expect(reset.auto_skip).toBe(true);
 		});
@@ -83,9 +92,12 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 			const { subtitle_style: style } = await getPlaybackPreferences(profile);
 
 			expect(style).toEqual({
+				background_color: "black",
 				background_opacity: 0,
 				edge: "shadow",
+				edge_width: "medium",
 				size: "medium",
+				text_color: "white",
 			});
 		});
 

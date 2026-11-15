@@ -29,25 +29,45 @@ export const SubtitlePreferencesSchema = z
 		id: "SubtitlePreferences",
 	});
 
+const SubtitleColorSchema = z.enum([
+	"white",
+	"black",
+	"red",
+	"green",
+	"blue",
+	"yellow",
+	"cyan",
+	"magenta",
+]);
+
 export const SubtitleStyleSchema = z
 	.object({
+		background_color: SubtitleColorSchema.meta({
+			description: "Colour of the box behind each line.",
+		}),
 		background_opacity: z
 			.union([z.literal(0), z.literal(25), z.literal(50), z.literal(75), z.literal(100)])
 			.meta({
-				description: "How opaque the black box behind each line is, in percent; `0` shows no box.",
+				description: "How opaque the box behind each line is, in percent; `0` shows no box.",
 			}),
 		edge: z.enum(["outline", "shadow", "none"]).meta({
 			description:
-				"What sets each character off from the picture: an `outline` around it, a soft `shadow` around it, or `none`.",
+				"What sets each character off from the picture: an `outline` around it, a soft `shadow` around it, or `none`. Black, or white around black text.",
+		}),
+		edge_width: z.enum(["thin", "medium", "thick"]).meta({
+			description: "How thick the outline or shadow is.",
 		}),
 		size: z.enum(["small", "medium", "large"]).meta({
 			description:
 				"How large the text is: `small` is three quarters of `medium`, `large` one and a half times it.",
 		}),
+		text_color: SubtitleColorSchema.meta({
+			description: "Colour of the text.",
+		}),
 	})
 	.meta({
 		description:
-			"How subtitles look in the player: white text at the bottom of the picture. Applies to subtitle tracks only; burned-in subtitles are part of the picture.",
+			"How subtitles look in the player, at the bottom of the picture. Applies to subtitle tracks only; burned-in subtitles are part of the picture.",
 		id: "SubtitleStyle",
 	});
 
