@@ -1,4 +1,5 @@
 <script lang="ts">
+	import backdrop from "$lib/assets/subtitle-preview.webp";
 	import Cue from "$lib/components/cue.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Select from "$lib/components/ui/select.svelte";
@@ -205,11 +206,19 @@
 
 		<figure class="@container" aria-label="Subtitle preview">
 			<div
-				class="grid aspect-[5/2] grid-cols-1 grid-rows-1 overflow-hidden bg-[linear-gradient(160deg,#f2e3c6_0%,#9fb4c7_45%,#2b3a4f_100%)] px-[4cqw] text-[4cqw] text-white"
+				class="grid aspect-[5/2] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4cqw] text-white *:[grid-area:1/1]"
 			>
+				<img
+					src={backdrop}
+					alt="Manga panel of long hair and a scarf blowing in the wind"
+					width="1200"
+					height="480"
+					decoding="async"
+					class="size-full object-cover"
+				/>
 				<div
 					class={[
-						"flex flex-col items-center",
+						"z-1 mx-[4cqw] flex flex-col items-center",
 						style.position === "top" ? "mt-[4cqw] self-start" : "mb-[4cqw] self-end",
 					]}
 				>
