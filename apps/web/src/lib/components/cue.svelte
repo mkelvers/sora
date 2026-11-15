@@ -3,7 +3,7 @@
 	import { cva } from "class-variance-authority";
 
 	const line = cva(
-		"grid text-center font-subtitle leading-[1.2] font-normal whitespace-pre-line *:[grid-area:1/1]",
+		"grid text-center font-subtitle leading-normal font-normal whitespace-pre-line antialiased [font-variation-settings:'opsz'_28] *:[grid-area:1/1]",
 		{
 			variants: {
 				size: {

@@ -205,7 +205,7 @@
 
 			<figure class="@container mt-6 select-none" aria-label="Subtitle preview">
 				<div
-					class="grid aspect-[3/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4.5cqw] *:[grid-area:1/1]"
+					class="grid aspect-[3/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[5cqw] *:[grid-area:1/1]"
 				>
 					<img
 						src={backdrop}
