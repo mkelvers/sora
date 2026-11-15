@@ -189,7 +189,7 @@
 {/snippet}
 
 <div class="page">
-	<div class="mx-auto max-w-2xl">
+	<div class="mx-auto max-w-3xl">
 		<Button href="/settings/playback" variant="ghost" size="sm" class="-ml-2">
 			<CaretLeftIcon size="0.875rem" weight="bold" />
 			Back to Playback
@@ -203,9 +203,9 @@
 		{#if playback.current}
 			{@const style = playback.current.subtitle_style}
 
-			<figure class="@container mt-6" aria-label="Subtitle preview">
+			<figure class="@container mt-6 select-none" aria-label="Subtitle preview">
 				<div
-					class="grid aspect-[4/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4.5cqw] *:[grid-area:1/1]"
+					class="grid aspect-[3/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[4.5cqw] *:[grid-area:1/1]"
 				>
 					<img
 						src={backdrop}

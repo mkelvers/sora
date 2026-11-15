@@ -2,7 +2,7 @@
 	import type { SubtitleStyle } from "@sora/sdk";
 	import { cva } from "class-variance-authority";
 
-	const line = cva("text-center font-subtitle leading-tight font-normal whitespace-pre-line", {
+	const line = cva("text-center font-subtitle leading-[1.2] font-normal whitespace-pre-line", {
 		variants: {
 			size: {
 				large: "text-[150%]",
@@ -62,7 +62,7 @@
 		size: appearance.size,
 	})}
 >
-	<span class="box-decoration-clone px-[0.25em] py-[0.05em]" style:background-color={background}>
+	<span class="box-decoration-clone" style:background-color={background}>
 		<span
 			class={text({
 				edge: appearance.edge,
