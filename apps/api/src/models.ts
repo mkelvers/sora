@@ -31,6 +31,7 @@ export type {
 	Progress,
 	Rating,
 	SeriesProgress,
+	SubtitleStyle,
 	WatchlistEntry,
 	WatchlistStatus,
 	WatchlistStatusEntry,

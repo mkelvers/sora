@@ -136,26 +136,8 @@ export const saveProgress = command(
 	},
 );
 
-const SubtitleChoice = z
-	.object({
-		kind: z.enum(["dialogue", "signs", "captions"]).nullable(),
-		language: z.string(),
-	})
-	.nullable();
-
 export const savePlaybackPreferences = command(
-	z.object({
-		audio: z.enum(["sub", "dub", "raw"]).nullable().optional(),
-		auto_skip: z.boolean().optional(),
-		autoplay_next: z.boolean().optional(),
-		quality: z.number().int().positive().nullable().optional(),
-		subtitles: z
-			.object({
-				dub: SubtitleChoice.optional(),
-				sub: SubtitleChoice.optional(),
-			})
-			.optional(),
-	}),
+	route.updatePlaybackPreferences.request.body.content["application/json"].schema,
 	async (changes) => {
 		const { sora, profile } = remoteViewer();
 

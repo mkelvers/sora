@@ -568,6 +568,13 @@
       "when": 1794635337012,
       "tag": "0080_skip_detection",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1794718173000,
+      "tag": "0081_subtitle_style",
+      "breakpoints": true
     }
   ]
 }

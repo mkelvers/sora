@@ -19,6 +19,10 @@
 					label: "Playback",
 				},
 				{
+					href: "/settings/subtitles",
+					label: "Subtitles",
+				},
+				{
 					href: "/settings/notifications",
 					label: "Notifications",
 				},
