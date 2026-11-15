@@ -20,17 +20,19 @@ import { isServedSubtitle, servedLocale, streamProviders } from "../providers/re
 import {
 	canFetchStream,
 	createStreamToken,
+	readPlaylist,
 	streamTimeline,
 	tokenLifetimeMs,
 	warmStream,
 } from "../proxy/proxy";
-import type { StreamTimeline } from "../proxy/proxy";
+import type { Playlist, PlaylistReader } from "../proxy/proxy";
 import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
 import { getSkipDetections, isSkipDetectionDue, skipDetectionKey } from "../skips/store";
 import type { SkipDetection, StoredSkipDetection } from "../skips/store";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";
 import { alignTimelines, shiftTime } from "./align";
 import type { TimelineShift } from "./align";
+import { hasDubAudio, probeVideos } from "./dub-audio";
 import type { SubtitleKind } from "./subtitle-kind";
 import { subtitleKinds } from "./subtitle-kinds";
 import { languageName, recordSubtitleLanguages, subtitleLanguagesOf } from "./subtitle-languages";
@@ -67,6 +69,7 @@ export interface PlaybackDependencies {
 	createStreamToken: typeof createStreamToken;
 	streamTimeline: typeof streamTimeline;
 	canFetchStream: typeof canFetchStream;
+	readPlaylist: PlaylistReader;
 	getRefinement: typeof getRefinement;
 	requestRefinement: typeof requestRefinement;
 	getSkipDetections: typeof getSkipDetections;
@@ -85,6 +88,7 @@ const live: PlaybackDependencies = {
 	getSkipDetections,
 	locateEpisode,
 	providers: streamProviders,
+	readPlaylist,
 	recordSubtitleLanguages,
 	requestRefinement,
 	requestSkipDetection,
@@ -124,9 +128,6 @@ export const playbackDeadlineMs = 30 * second;
  * past it they go unchecked.
  */
 const lengthCheckMs = 2 * second;
-
-/** How long a video's host has to answer before its provider is passed over. */
-const videoProbeTimeoutMs = 3 * second;
 
 /** What {@link resolveVersion} found for one version. */
 interface VersionResult {
@@ -197,25 +198,6 @@ const beforeDeadline = async (
 	} finally {
 		stop.abort();
 	}
-};
-
-/**
- * Whether any of a provider's videos can be fetched, so it is watchable. A
- * host that accepts connections and never answers would otherwise fail every
- * play with a gateway timeout while the next provider sat unused.
- */
-const videoLoads = async (videos: ProviderVideo[], dependencies: PlaybackDependencies) => {
-	const loads = await Promise.all(
-		videos.map((video) =>
-			dependencies.canFetchStream(
-				video.url,
-				video.headers,
-				[],
-				AbortSignal.timeout(videoProbeTimeoutMs),
-			),
-		),
-	);
-	return loads.includes(true);
 };
 
 /**
@@ -413,24 +395,49 @@ const resolveVersion = async (
 		}
 		const stream = resolved.data;
 
-		if (!(await videoLoads(stream.videos, dependencies))) {
+		const probes = await probeVideos(stream.videos, dependencies);
+		if (!probes.some((probe) => probe !== null)) {
 			fail(provider, "Video host cannot be reached");
 			return null;
 		}
+		if (language === "dub" && !hasDubAudio(probes)) {
+			fail(provider, `No audio in ${servedLocale}`);
+			return null;
+		}
 
-		const [loads, kinds] =
+		const [subtitlesLoad, kinds] =
 			language === "sub"
 				? await Promise.all([
 						englishSubtitlesLoad(stream.videos, dependencies),
 						subtitleKinds(stream.videos),
 					])
 				: [true, new Map<string, SubtitleKind | null>()];
-		if (!loads) {
+		if (!subtitlesLoad) {
 			fail(provider, "English subtitles cannot be fetched");
 			return null;
 		}
 
-		const media = toPlaybackMedia(stream.videos, streamUrl, kinds, accountId);
+		// A dub's playlist can carry every audio language, the original first;
+		// the proxy makes the dub's the one players start with.
+		const media = toPlaybackMedia(
+			stream.videos,
+			language === "dub"
+				? (url, kind, headers, options) =>
+						streamUrl(
+							url,
+							kind,
+							headers,
+							kind === "playlist"
+								? {
+										...options,
+										audio: servedLocale,
+									}
+								: options,
+						)
+				: streamUrl,
+			kinds,
+			accountId,
+		);
 		const version = {
 			audio: language,
 			hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
@@ -590,8 +597,8 @@ export const timelineShifts = async (
 
 	const timelines = await attempt(
 		Promise.all([
-			dependencies.streamTimeline(subVideo.url, subVideo.headers),
-			dependencies.streamTimeline(dubVideo.url, dubVideo.headers),
+			dependencies.streamTimeline(subVideo.url, subVideo.headers, dependencies.readPlaylist),
+			dependencies.streamTimeline(dubVideo.url, dubVideo.headers, dependencies.readPlaylist),
 		]),
 		StreamUpstreamError,
 	);
@@ -754,7 +761,7 @@ const settleSkipSegments = async (
 		versions.map(async ({ key, version, video }) => {
 			const timeline = await attempt(
 				Promise.race([
-					dependencies.streamTimeline(video.url, video.headers),
+					dependencies.streamTimeline(video.url, video.headers, dependencies.readPlaylist),
 					sleep(lengthCheckMs).then(() => null),
 				]),
 			);
@@ -860,12 +867,30 @@ export const resolvePlayback = async (
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
 	const streamUrl: StreamUrl = (...token) =>
 		`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
+	// Each playlist is read once per playback, by the probe that picks a
+	// provider, the warm-up, aligning a dub to its sub, and the length check of
+	// skip segments; an episode's sub and dub often share one. A read that
+	// failed is not kept, so the next asks again.
+	const playlists = new Map<string, Promise<Playlist>>();
+	const readOnce: PlaybackDependencies = {
+		...dependencies,
+		readPlaylist: (url, headers, readOptions) => {
+			const kept = playlists.get(url);
+			if (kept) {
+				return kept;
+			}
+			const read = dependencies.readPlaylist(url, headers, readOptions);
+			playlists.set(url, read);
+			read.catch(() => playlists.delete(url));
+			return read;
+		},
+	};
 	const results = await resolveVersions(
 		parsed.data,
 		streamUrl,
 		options.accountId,
 		options.deadlineMs ?? playbackDeadlineMs,
-		dependencies,
+		readOnce,
 	);
 	// The first version is the one played by default, so its first segments are
 	// loaded while the rest of the playback is put together and the player starts.
@@ -873,20 +898,11 @@ export const resolvePlayback = async (
 		.find((result) => result.version)
 		?.videos?.find((candidate) => candidate.format === "hls");
 	if (defaultVideo) {
-		void attempt(dependencies.warmStream(defaultVideo.url, defaultVideo.headers));
+		void attempt(
+			dependencies.warmStream(defaultVideo.url, defaultVideo.headers, readOnce.readPlaylist),
+		);
 	}
 
-	// Each stream's playlist is read once, both to align a dub to its sub and
-	// to check skip segments against the video's length.
-	const timelines = new Map<string, Promise<StreamTimeline>>();
-	const readOnce: PlaybackDependencies = {
-		...dependencies,
-		streamTimeline: (url, headers) => {
-			const timeline = timelines.get(url) ?? dependencies.streamTimeline(url, headers);
-			timelines.set(url, timeline);
-			return timeline;
-		},
-	};
 	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, readOnce);
 	await settleSkipSegments(results, parsed.data, readOnce);
 

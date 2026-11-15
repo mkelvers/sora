@@ -40,6 +40,17 @@ describe("stream tokens", () => {
 		);
 	});
 
+	test("round-trip the audio a dub's playlist starts with", () => {
+		const dubbed: StreamTarget = {
+			...target,
+			audio: "en",
+		};
+
+		expect(verifyStreamToken(signStreamTarget(dubbed, secret), secret, new Date(0))).toEqual(
+			dubbed,
+		);
+	});
+
 	test("are URL-safe", () => {
 		expect(signStreamTarget(target, secret)).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
 	});

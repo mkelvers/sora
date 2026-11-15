@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { rewritePlaylist } from "./playlist";
+import { audioLanguages, rewritePlaylist, withDefaultAudio } from "./playlist";
 
 const sign = (url: string, kind: string) => `<${kind}:${url}>`;
 
@@ -51,5 +51,67 @@ describe("rewritePlaylist", () => {
 				"#EXT-X-ENDLIST",
 			].join("\n"),
 		);
+	});
+});
+
+/** The master playlist MegaPlay's CDN served for Overgeared episode 8's sub and dub, cut to three audio renditions. */
+const overgearedMaster = [
+	"#EXTM3U",
+	'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Japanese",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="ja",CHANNELS="2",URI="audio/ja/index.m3u8"',
+	'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",DEFAULT=NO,AUTOSELECT=NO,LANGUAGE="en",CHANNELS="2",URI="audio/en/index.m3u8"',
+	'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Arabic",DEFAULT=NO,AUTOSELECT=NO,LANGUAGE="ar",CHANNELS="2",URI="audio/ar/index.m3u8"',
+	'#EXT-X-STREAM-INF:BANDWIDTH=5500000,RESOLUTION=1920x1080,CODECS="avc1.4d401f,mp4a.40.2",AUDIO="aac",NAME="1080p"',
+	"index-f1.m3u8",
+].join("\n");
+
+describe("audioLanguages", () => {
+	test("lists each audio rendition's language, as for Overgeared episode 8", () => {
+		expect(audioLanguages(overgearedMaster)).toEqual(["ja", "en", "ar"]);
+	});
+
+	test("lists none when the audio comes with the video", () => {
+		const master = ["#EXTM3U", "#EXT-X-STREAM-INF:BANDWIDTH=5000000", "1080/index.m3u8"].join("\n");
+
+		expect(audioLanguages(master)).toEqual([]);
+	});
+
+	test("leaves out subtitle renditions", () => {
+		const master = [
+			"#EXTM3U",
+			'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",URI="subs/en.m3u8"',
+			'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Japanese",LANGUAGE="ja",URI="audio/ja.m3u8"',
+		].join("\n");
+
+		expect(audioLanguages(master)).toEqual(["ja"]);
+	});
+});
+
+describe("withDefaultAudio", () => {
+	test("makes English the audio players start with, and Japanese not", () => {
+		const lines = withDefaultAudio(overgearedMaster, "en").split("\n");
+
+		expect(lines[1]).toContain('NAME="Japanese",DEFAULT=NO,AUTOSELECT=NO,');
+		expect(lines[2]).toContain('NAME="English",DEFAULT=YES,AUTOSELECT=YES,');
+		expect(lines[3]).toContain('NAME="Arabic",DEFAULT=NO,AUTOSELECT=NO,');
+		expect(audioLanguages(lines.join("\n"))).toEqual(["ja", "en", "ar"]);
+	});
+
+	test("adds the attributes to renditions that leave them out", () => {
+		const master = [
+			"#EXTM3U",
+			'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Japanese",LANGUAGE="ja",URI="audio/ja.m3u8"',
+			'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",LANGUAGE="en-US",URI="audio/en.m3u8"',
+		].join("\n");
+
+		expect(withDefaultAudio(master, "en").split("\n").slice(1)).toEqual([
+			'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Japanese",LANGUAGE="ja",URI="audio/ja.m3u8",DEFAULT=NO,AUTOSELECT=NO',
+			'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English",LANGUAGE="en-US",URI="audio/en.m3u8",DEFAULT=YES,AUTOSELECT=YES',
+		]);
+	});
+
+	test("leaves a playlist without audio in the locale as it is", () => {
+		const master = overgearedMaster.replace(/^.*NAME="English".*\n/mu, "");
+
+		expect(withDefaultAudio(master, "en")).toBe(master);
 	});
 });
