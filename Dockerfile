@@ -102,7 +102,9 @@ COPY packages/shared packages/shared
 COPY packages/core packages/core
 COPY apps/scheduler apps/scheduler
 USER bun
-CMD ["bun", "apps/scheduler/src/main.ts"]
+# Migrates before it starts, as the API does, so a database the check refuses
+# fails this deploy too and Swarm keeps the scheduler that matches the API.
+CMD ["sh", "-c", "bun packages/core/src/database/migrate.ts && exec bun apps/scheduler/src/main.ts"]
 
 FROM runtime AS web
 COPY --from=web-dependencies /app /app

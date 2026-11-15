@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Dropdown from "$lib/components/ui/dropdown.svelte";
@@ -29,8 +28,7 @@
 
 	const shownAtFirst = 5;
 
-	const loaded = getDevices();
-	const devices = $derived(loaded.current ?? []);
+	const devices = $derived(await getDevices());
 
 	let message = $state("");
 	let busy = $state<string | null>(null);
@@ -170,78 +168,66 @@
 	title="Devices"
 	description="Where you're signed in. Sign out any device you don't use or know."
 >
-	{#if loaded.current === undefined}
-		{#each { length: 3 }, index (index)}
-			<div class="flex items-center gap-4">
-				<Skeleton class="size-11 shrink-0" />
-				<div class="flex-1 space-y-2">
-					<Skeleton class="h-5 w-2/5" />
-					<Skeleton class="h-4 w-3/5" />
-				</div>
-			</div>
-		{/each}
-	{:else}
-		<section class="space-y-4" aria-labelledby="this-device-heading">
-			<div class="flex items-center justify-between gap-4">
-				<h3 id="this-device-heading" class="text-lg font-bold">This Device</h3>
-				<Button
-					variant="icon"
-					class="-mr-3 sm:hidden"
-					aria-label="Sign Out"
-					aria-haspopup="dialog"
-					aria-controls="sign-out-menu"
-					aria-expanded={choosing}
-					loading={busy === "others" || busy === "everywhere"}
-					onclick={() => (choosing = true)}
-				>
-					<DotsThreeIcon size="1.75rem" weight="bold" aria-hidden="true" />
-				</Button>
-				<div class="max-sm:hidden">
-					<Dropdown variant="text" label="Sign Out of Devices">
-						{#snippet trigger()}
-							Sign Out
-							<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
-						{/snippet}
+	<section class="space-y-4" aria-labelledby="this-device-heading">
+		<div class="flex items-center justify-between gap-4">
+			<h3 id="this-device-heading" class="text-lg font-bold">This Device</h3>
+			<Button
+				variant="icon"
+				class="-mr-3 sm:hidden"
+				aria-label="Sign Out"
+				aria-haspopup="dialog"
+				aria-controls="sign-out-menu"
+				aria-expanded={choosing}
+				loading={busy === "others" || busy === "everywhere"}
+				onclick={() => (choosing = true)}
+			>
+				<DotsThreeIcon size="1.75rem" weight="bold" aria-hidden="true" />
+			</Button>
+			<div class="max-sm:hidden">
+				<Dropdown variant="text" label="Sign Out of Devices">
+					{#snippet trigger()}
+						Sign Out
+						<CaretDownIcon size="1rem" weight="bold" aria-hidden="true" />
+					{/snippet}
 
-						{#snippet children()}
-							<div role="menu" aria-label="Sign Out of Devices">
-								{#if others.length}
-									<Button role="menuitem" variant="item" onclick={signOutOthers}>
-										Sign Out Other Devices
-									</Button>
-								{/if}
-								<Button role="menuitem" variant="item" tone="danger" onclick={signOutEverywhere}>
-									Sign Out All Devices
+					{#snippet children()}
+						<div role="menu" aria-label="Sign Out of Devices">
+							{#if others.length}
+								<Button role="menuitem" variant="item" onclick={signOutOthers}>
+									Sign Out Other Devices
 								</Button>
-							</div>
-						{/snippet}
-					</Dropdown>
-				</div>
+							{/if}
+							<Button role="menuitem" variant="item" tone="danger" onclick={signOutEverywhere}>
+								Sign Out All Devices
+							</Button>
+						</div>
+					{/snippet}
+				</Dropdown>
 			</div>
+		</div>
 
-			{#if here}
-				<ul>
-					{@render device(here)}
-				</ul>
+		{#if here}
+			<ul>
+				{@render device(here)}
+			</ul>
+		{/if}
+	</section>
+
+	{#if others.length}
+		<section class="space-y-6" aria-labelledby="other-devices-heading">
+			<h3 id="other-devices-heading" class="text-lg font-bold">Other Devices</h3>
+
+			<ul class="space-y-8">
+				{#each listed as entry (entry.id)}
+					{@render device(entry)}
+				{/each}
+			</ul>
+			{#if others.length > shownAtFirst}
+				<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
+					{showAll ? "Show fewer" : `Show ${others.length - shownAtFirst} more`}
+				</Button>
 			{/if}
 		</section>
-
-		{#if others.length}
-			<section class="space-y-6" aria-labelledby="other-devices-heading">
-				<h3 id="other-devices-heading" class="text-lg font-bold">Other Devices</h3>
-
-				<ul class="space-y-8">
-					{#each listed as entry (entry.id)}
-						{@render device(entry)}
-					{/each}
-				</ul>
-				{#if others.length > shownAtFirst}
-					<Button variant="text" class="px-0" onclick={() => (showAll = !showAll)}>
-						{showAll ? "Show fewer" : `Show ${others.length - shownAtFirst} more`}
-					</Button>
-				{/if}
-			</section>
-		{/if}
 	{/if}
 </Panel>
 
