@@ -24,8 +24,9 @@
 		},
 	] as const;
 
-	const playback = getPlaybackPreferences();
-	const profile = getProfilePreferences();
+	const [playback, profile] = $derived(
+		await Promise.all([getPlaybackPreferences(), getProfilePreferences()]),
+	);
 
 	let saved = $state(false);
 
@@ -50,106 +51,102 @@
 	title="Playback"
 	description="Which version plays first, what gets skipped, what plays next, and what episode lists hide."
 >
-	{#if playback.current && profile.current}
-		<div>
-			<p class="text-xs text-subtle">Preferred Audio</p>
-			<Select
-				variant="field"
-				label="Preferred Audio"
-				options={playback.current.audio === "raw"
-					? [...audios, { value: "raw", label: "Raw" }]
-					: audios}
-				class="mt-2 h-10 border-0 border-b border-border px-0 text-base font-medium hover:border-border hover:text-accent-secondary aria-expanded:border-border aria-expanded:text-accent-secondary"
-				bind:value={
-					() => playback.current?.audio ?? "dub",
-					(value) =>
-						savePlayback({
-							audio: value,
-						})
-				}
+	<div>
+		<p class="text-xs text-subtle">Preferred Audio</p>
+		<Select
+			variant="field"
+			label="Preferred Audio"
+			options={playback.audio === "raw" ? [...audios, { value: "raw", label: "Raw" }] : audios}
+			class="mt-2 h-10 border-0 border-b border-border px-0 text-base font-medium hover:border-border hover:text-accent-secondary aria-expanded:border-border aria-expanded:text-accent-secondary"
+			bind:value={
+				() => playback.audio ?? "dub",
+				(value) =>
+					savePlayback({
+						audio: value,
+					})
+			}
+		/>
+		<p class="mt-2 text-sm leading-relaxed text-muted">
+			The version Sora plays first when an episode offers it. You can still switch in the player.
+		</p>
+	</div>
+
+	<Row label="Prefer Closed Captions" controlId="closed-captions">
+		{#snippet description()}
+			Show closed captions on dubs automatically when they're available.
+			<a
+				href="/settings/playback/subtitles"
+				class="text-accent transition-colors hover:text-foreground focus-visible:text-foreground"
+			>
+				Change Subtitle Appearance
+			</a>
+		{/snippet}
+		{#snippet children({ describedby })}
+			<Switch
+				id="closed-captions"
+				icons
+				aria-describedby={describedby}
+				checked={playback.subtitles.dub !== null}
+				onchange={(event) =>
+					savePlayback({
+						subtitles: {
+							dub: event.currentTarget.checked
+								? {
+										kind: "captions",
+										language: "en",
+									}
+								: null,
+						},
+					})}
 			/>
-			<p class="mt-2 text-sm leading-relaxed text-muted">
-				The version Sora plays first when an episode offers it. You can still switch in the player.
-			</p>
-		</div>
+		{/snippet}
+	</Row>
 
-		<Row label="Prefer Closed Captions" controlId="closed-captions">
-			{#snippet description()}
-				Show closed captions on dubs automatically when they're available.
-				<a
-					href="/settings/playback/subtitles"
-					class="text-accent transition-colors hover:text-foreground focus-visible:text-foreground"
-				>
-					Change Subtitle Appearance
-				</a>
-			{/snippet}
-			{#snippet children({ describedby })}
-				<Switch
-					id="closed-captions"
-					icons
-					aria-describedby={describedby}
-					checked={playback.current?.subtitles.dub !== null}
-					onchange={(event) =>
-						savePlayback({
-							subtitles: {
-								dub: event.currentTarget.checked
-									? {
-											kind: "captions",
-											language: "en",
-										}
-									: null,
-							},
-						})}
-				/>
-			{/snippet}
-		</Row>
+	<Row
+		label="Skip Openings and Endings"
+		description="Skip them without asking, when Sora knows where they are."
+		controlId="skip-segments"
+	>
+		{#snippet children({ describedby })}
+			<Switch
+				id="skip-segments"
+				icons
+				aria-describedby={describedby}
+				checked={playback.auto_skip}
+				onchange={(event) => savePlayback({ auto_skip: event.currentTarget.checked })}
+			/>
+		{/snippet}
+	</Row>
 
-		<Row
-			label="Skip Openings and Endings"
-			description="Skip them without asking, when Sora knows where they are."
-			controlId="skip-segments"
-		>
-			{#snippet children({ describedby })}
-				<Switch
-					id="skip-segments"
-					icons
-					aria-describedby={describedby}
-					checked={playback.current?.auto_skip ?? false}
-					onchange={(event) => savePlayback({ auto_skip: event.currentTarget.checked })}
-				/>
-			{/snippet}
-		</Row>
+	<Row
+		label="Play the Next Episode Automatically"
+		description="Start the next episode when one ends. Turn this off to stop at the end instead."
+		controlId="autoplay-next"
+	>
+		{#snippet children({ describedby })}
+			<Switch
+				id="autoplay-next"
+				icons
+				aria-describedby={describedby}
+				checked={playback.autoplay_next}
+				onchange={(event) => savePlayback({ autoplay_next: event.currentTarget.checked })}
+			/>
+		{/snippet}
+	</Row>
 
-		<Row
-			label="Play the Next Episode Automatically"
-			description="Start the next episode when one ends. Turn this off to stop at the end instead."
-			controlId="autoplay-next"
-		>
-			{#snippet children({ describedby })}
-				<Switch
-					id="autoplay-next"
-					icons
-					aria-describedby={describedby}
-					checked={playback.current?.autoplay_next ?? true}
-					onchange={(event) => savePlayback({ autoplay_next: event.currentTarget.checked })}
-				/>
-			{/snippet}
-		</Row>
-
-		<Row
-			label="Hide Spoilers in Episode Lists"
-			description="Hide the title, picture and summary of episodes you haven't started. Watched episodes stay as they are."
-			controlId="hide-spoilers"
-		>
-			{#snippet children({ describedby })}
-				<Switch
-					id="hide-spoilers"
-					icons
-					aria-describedby={describedby}
-					checked={profile.current.hide_spoilers}
-					onchange={(event) => saveProfile({ hide_spoilers: event.currentTarget.checked })}
-				/>
-			{/snippet}
-		</Row>
-	{/if}
+	<Row
+		label="Hide Spoilers in Episode Lists"
+		description="Hide the title, picture and summary of episodes you haven't started. Watched episodes stay as they are."
+		controlId="hide-spoilers"
+	>
+		{#snippet children({ describedby })}
+			<Switch
+				id="hide-spoilers"
+				icons
+				aria-describedby={describedby}
+				checked={profile.hide_spoilers}
+				onchange={(event) => saveProfile({ hide_spoilers: event.currentTarget.checked })}
+			/>
+		{/snippet}
+	</Row>
 </Panel>

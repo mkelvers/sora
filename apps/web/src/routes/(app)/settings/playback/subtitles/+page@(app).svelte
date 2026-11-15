@@ -120,7 +120,8 @@
 		},
 	];
 
-	const playback = getPlaybackPreferences();
+	const playback = $derived(await getPlaybackPreferences());
+	const style = $derived(playback.subtitle_style);
 
 	let saved = $state("");
 	let failure = $state("");
@@ -200,79 +201,75 @@
 			How subtitles look in Sora's player. Subtitles burned into the video keep their own look.
 		</p>
 
-		{#if playback.current}
-			{@const style = playback.current.subtitle_style}
-
-			<figure class="@container mt-6 select-none" aria-label="Subtitle preview">
-				<div
-					class="grid aspect-[3/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[5cqw] *:[grid-area:1/1]"
-				>
-					<img
-						src={backdrop}
-						alt="Sora's ghost bursting through manga speed lines"
-						width="1500"
-						height="500"
-						decoding="async"
-						class="size-full object-cover"
-					/>
-					<div class="z-1 mx-[4cqw] mb-[3cqw] flex flex-col items-center self-end">
-						<Cue appearance={style}>Subtitles will look like this.</Cue>
-					</div>
+		<figure class="@container mt-6 select-none" aria-label="Subtitle preview">
+			<div
+				class="grid aspect-[3/1] grid-cols-1 grid-rows-1 overflow-hidden bg-surface text-[5cqw] *:[grid-area:1/1]"
+			>
+				<img
+					src={backdrop}
+					alt="Sora's ghost bursting through manga speed lines"
+					width="1500"
+					height="500"
+					decoding="async"
+					class="size-full object-cover"
+				/>
+				<div class="z-1 mx-[4cqw] mb-[3cqw] flex flex-col items-center self-end">
+					<Cue appearance={style}>Subtitles will look like this.</Cue>
 				</div>
-			</figure>
-
-			<section class="mt-8" aria-labelledby="subtitle-text">
-				<h2 id="subtitle-text" class="text-lg font-semibold">Text</h2>
-				<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
-					{@render field("Size", sizes, style.size, (value) =>
-						save({
-							size: choose(sizes, value),
-						}),
-					)}
-					{@render field("Colour", colors, style.text_color, (value) =>
-						save({
-							text_color: choose(colors, value),
-						}),
-					)}
-					{@render field("Edge Style", edges, style.edge, (value) =>
-						save({
-							edge: choose(edges, value),
-						}),
-					)}
-					{@render field("Edge Thickness", widths, style.edge_width, (value) =>
-						save({
-							edge_width: choose(widths, value),
-						}),
-					)}
-				</div>
-			</section>
-
-			<section class="mt-10" aria-labelledby="subtitle-background">
-				<h2 id="subtitle-background" class="text-lg font-semibold">Background</h2>
-				<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
-					{@render field("Colour", colors, style.background_color, (value) =>
-						save({
-							background_color: choose(colors, value),
-						}),
-					)}
-					{@render field("Opacity", opacities, style.background_opacity, (value) =>
-						save({
-							background_opacity: choose(opacities, value),
-						}),
-					)}
-				</div>
-			</section>
-
-			<div class="mt-12 flex justify-center">
-				<Button
-					variant="secondary"
-					loading={resetting}
-					disabled={resetting || !playback.current.subtitle_style_changed}
-					onclick={reset}
-				>
-					Reset to Default
-				</Button>
 			</div>
-		{/if}
+		</figure>
+
+		<section class="mt-8" aria-labelledby="subtitle-text">
+			<h2 id="subtitle-text" class="text-lg font-semibold">Text</h2>
+			<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
+				{@render field("Size", sizes, style.size, (value) =>
+					save({
+						size: choose(sizes, value),
+					}),
+				)}
+				{@render field("Colour", colors, style.text_color, (value) =>
+					save({
+						text_color: choose(colors, value),
+					}),
+				)}
+				{@render field("Edge Style", edges, style.edge, (value) =>
+					save({
+						edge: choose(edges, value),
+					}),
+				)}
+				{@render field("Edge Thickness", widths, style.edge_width, (value) =>
+					save({
+						edge_width: choose(widths, value),
+					}),
+				)}
+			</div>
+		</section>
+
+		<section class="mt-10" aria-labelledby="subtitle-background">
+			<h2 id="subtitle-background" class="text-lg font-semibold">Background</h2>
+			<div class="mt-4 grid gap-x-6 gap-y-6 sm:grid-cols-2">
+				{@render field("Colour", colors, style.background_color, (value) =>
+					save({
+						background_color: choose(colors, value),
+					}),
+				)}
+				{@render field("Opacity", opacities, style.background_opacity, (value) =>
+					save({
+						background_opacity: choose(opacities, value),
+					}),
+				)}
+			</div>
+		</section>
+
+		<div class="mt-12 flex justify-center">
+			<Button
+				variant="secondary"
+				loading={resetting}
+				disabled={resetting || !playback.subtitle_style_changed}
+				onclick={reset}
+			>
+				Reset to Default
+			</Button>
+		</div>
 	</div>
 </div>

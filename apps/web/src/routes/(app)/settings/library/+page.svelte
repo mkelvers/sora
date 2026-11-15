@@ -1,7 +1,6 @@
 <script lang="ts">
 	import anilist from "$lib/assets/providers/anilist.svg";
 	import myanimelist from "$lib/assets/providers/myanimelist.svg";
-	import Skeleton from "$lib/components/snippets/skeleton.svelte";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import Panel from "$routes/(app)/settings/components/panel.svelte";
@@ -36,8 +35,9 @@
 
 	const maxFileBytes = 20_000_000;
 
-	const options = getImportOptions();
-	const connections = getImportConnections();
+	const [options, connections] = $derived(
+		await Promise.all([getImportOptions(), getImportConnections()]),
+	);
 
 	let busy = $state<"connect" | "import" | "file" | null>(null);
 	let connecting = $state<AccountSource | null>(null);
@@ -56,13 +56,10 @@
 	};
 	let fileInput = $state<HTMLInputElement>();
 
-	const ready = $derived(options.current !== undefined);
-	const providers = $derived(
-		catalogue.filter((provider) => options.current?.[provider.id] === true),
-	);
+	const providers = $derived(catalogue.filter((provider) => options[provider.id] === true));
 
 	const connectedAs = (id: AccountSource) =>
-		connections.current?.find((connection) => connection.source === id)?.account_name;
+		connections.find((connection) => connection.source === id)?.account_name;
 
 	const redirectUri = () => `${location.origin}${location.pathname}`;
 
@@ -300,87 +297,80 @@
 	<section class="space-y-8" aria-labelledby="import-heading">
 		<h3 id="import-heading" class="text-lg font-bold">Import</h3>
 
-		{#if !ready}
-			<div class="space-y-8" aria-hidden="true">
-				<Skeleton class="h-12" />
-				<Skeleton class="h-12" />
-			</div>
-		{:else}
-			{#each providers as provider (provider.id)}
-				{@const account = connectedAs(provider.id)}
-				<div class="flex items-start justify-between gap-6">
-					<div class="flex min-w-0 items-start gap-4">
-						<img src={provider.icon} alt="" class="mt-0.5 size-6 shrink-0" />
-						<div class="min-w-0">
-							<p class="text-base leading-6 font-semibold">{provider.name}</p>
-							<p class="mt-1 text-sm leading-relaxed break-words text-muted" aria-live="polite">
-								{#if connecting === provider.id && busy === "import"}
-									Reading your list. This can take a moment.
-								{:else if account}
-									Connected as {account}.
-								{:else}
-									Sign in and Sora brings your list over.
-								{/if}
-							</p>
-							{#if account}
-								<Button
-									variant="plain"
-									size="sm"
-									class="mt-1 h-auto w-auto text-sm font-normal text-muted underline underline-offset-2"
-									disabled={busy !== null}
-									aria-label="Disconnect {provider.name}"
-									onclick={() => disconnect(provider.id)}
-								>
-									Disconnect
-								</Button>
-							{/if}
-						</div>
-					</div>
-					<Button
-						variant="plain"
-						size="sm"
-						class="-mt-1.5 w-24 justify-end"
-						loading={connecting === provider.id}
-						disabled={busy !== null}
-						aria-label="{account ? 'Import from' : 'Connect'} {provider.name}"
-						onclick={() => connect(provider)}
-					>
-						{account ? "Import" : "Connect"}
-					</Button>
-				</div>
-			{/each}
-
+		{#each providers as provider (provider.id)}
+			{@const account = connectedAs(provider.id)}
 			<div class="flex items-start justify-between gap-6">
 				<div class="flex min-w-0 items-start gap-4">
-					<FileArrowUpIcon size="1.5rem" class="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+					<img src={provider.icon} alt="" class="mt-0.5 size-6 shrink-0" />
 					<div class="min-w-0">
-						<p class="text-base leading-6 font-semibold">File</p>
-						<p class="mt-1 text-sm leading-relaxed text-muted">
-							A MyAnimeList export, or a file you downloaded from Export.
+						<p class="text-base leading-6 font-semibold">{provider.name}</p>
+						<p class="mt-1 text-sm leading-relaxed break-words text-muted" aria-live="polite">
+							{#if connecting === provider.id && busy === "import"}
+								Reading your list. This can take a moment.
+							{:else if account}
+								Connected as {account}.
+							{:else}
+								Sign in and Sora brings your list over.
+							{/if}
 						</p>
+						{#if account}
+							<Button
+								variant="plain"
+								size="sm"
+								class="mt-1 h-auto w-auto text-sm font-normal text-muted underline underline-offset-2"
+								disabled={busy !== null}
+								aria-label="Disconnect {provider.name}"
+								onclick={() => disconnect(provider.id)}
+							>
+								Disconnect
+							</Button>
+						{/if}
 					</div>
 				</div>
 				<Button
 					variant="plain"
 					size="sm"
 					class="-mt-1.5 w-24 justify-end"
-					loading={busy === "file"}
+					loading={connecting === provider.id}
 					disabled={busy !== null}
-					onclick={() => fileInput?.click()}
+					aria-label="{account ? 'Import from' : 'Connect'} {provider.name}"
+					onclick={() => connect(provider)}
 				>
-					Choose File
+					{account ? "Import" : "Connect"}
 				</Button>
-				<input
-					bind:this={fileInput}
-					type="file"
-					class="sr-only"
-					accept=".json,.xml,.gz,application/json,application/xml,application/gzip"
-					tabindex="-1"
-					aria-hidden="true"
-					onchange={chooseFile}
-				/>
 			</div>
-		{/if}
+		{/each}
+
+		<div class="flex items-start justify-between gap-6">
+			<div class="flex min-w-0 items-start gap-4">
+				<FileArrowUpIcon size="1.5rem" class="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+				<div class="min-w-0">
+					<p class="text-base leading-6 font-semibold">File</p>
+					<p class="mt-1 text-sm leading-relaxed text-muted">
+						A MyAnimeList export, or a file you downloaded from Export.
+					</p>
+				</div>
+			</div>
+			<Button
+				variant="plain"
+				size="sm"
+				class="-mt-1.5 w-24 justify-end"
+				loading={busy === "file"}
+				disabled={busy !== null}
+				onclick={() => fileInput?.click()}
+			>
+				Choose File
+			</Button>
+			<input
+				bind:this={fileInput}
+				type="file"
+				class="sr-only"
+				accept=".json,.xml,.gz,application/json,application/xml,application/gzip"
+				tabindex="-1"
+				aria-hidden="true"
+				onchange={chooseFile}
+			/>
+		</div>
 	</section>
 
 	<section class="space-y-8" aria-labelledby="export-heading">

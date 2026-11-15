@@ -112,6 +112,8 @@ Every worktree shares the one local dev database (`sora`). Drizzle's migrator on
 - To redo a migration that only exists on your branch, delete its `.sql` file, its snapshot, and its journal entry, then generate it again. Undo what it applied to the dev database first, and ask the user before writing to it.
 - Before merging, the branch's migrations must be newer than every migration on main. If main gained a newer one, regenerate yours so its timestamp is later.
 - `db:migrate` refuses to run when a recorded migration's hash differs from its file, or when a file is older than a migration already recorded (see `packages/core/src/database/migration-history.ts`). To repair: compare the database with the schema read-only (`docker exec sora-database-1 psql -U sora -d sora`, `\d <table>`), bring the database in line with the file by hand, and set the recorded hash to the file's (`shasum -a 256 <file>`). Ask the user before writing to the dev database. Never skip or weaken the check.
+- The API and the scheduler run the same check when they start. When it refuses, Swarm keeps the previous API and scheduler, but the web app still deploys, so pages that need the new API fail to load. After a deploy that adds a migration, confirm the API task is running the new image (`docker service ps <api service>`); repair production the same way as dev.
+- Never copy the dev database into production. Its migration history carries branch drafts and dev-only repairs, so production can refuse a later deploy over migrations that never ran there.
 
 ## Testing
 
