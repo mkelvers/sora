@@ -19,9 +19,9 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 		});
 
 		test("shows medium white outlined subtitles with no box until the profile chooses", async () => {
-			const { subtitle_style: style } = await getPlaybackPreferences(profile);
+			const preferences = await getPlaybackPreferences(profile);
 
-			expect(style).toEqual({
+			expect(preferences.subtitle_style).toEqual({
 				background_color: "black",
 				background_opacity: 0,
 				edge: "outline",
@@ -29,6 +29,7 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 				size: "medium",
 				text_color: "white",
 			});
+			expect(preferences.subtitle_style_changed).toBe(false);
 		});
 
 		test("changes one part of the subtitle style and keeps the rest", async () => {
@@ -51,6 +52,7 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 				size: "large",
 				text_color: "white",
 			});
+			expect(changed.subtitle_style_changed).toBe(true);
 		});
 
 		test("keeps the subtitle style when another preference changes", async () => {
@@ -75,6 +77,7 @@ describe.skipIf(process.env.SORA_PLAYBACK_PREFERENCES_INTEGRATION !== "1")(
 				size: "medium",
 				text_color: "white",
 			});
+			expect(reset.subtitle_style_changed).toBe(false);
 			expect(reset.auto_skip).toBe(true);
 		});
 

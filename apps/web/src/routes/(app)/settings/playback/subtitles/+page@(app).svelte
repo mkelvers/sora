@@ -264,7 +264,12 @@
 			</section>
 
 			<div class="mt-12 flex justify-center">
-				<Button variant="secondary" loading={resetting} disabled={resetting} onclick={reset}>
+				<Button
+					variant="secondary"
+					loading={resetting}
+					disabled={resetting || !playback.current.subtitle_style_changed}
+					onclick={reset}
+				>
 					Reset to Default
 				</Button>
 			</div>

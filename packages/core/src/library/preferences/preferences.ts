@@ -49,19 +49,24 @@ const defaults: PlaybackPreferences = {
 	autoplay_next: true,
 	quality: null,
 	subtitle_style: subtitleStyle,
+	subtitle_style_changed: false,
 	subtitles: {},
 };
 
 const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
 	const audio = LanguageSchema.safeParse(row.audio);
 	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
+	const style = StoredSubtitleStyleSchema.parse(row.subtitleStyle);
 
 	return {
 		audio: audio.success ? audio.data : null,
 		auto_skip: row.autoSkip,
 		autoplay_next: row.autoplayNext,
 		quality: row.quality,
-		subtitle_style: StoredSubtitleStyleSchema.parse(row.subtitleStyle),
+		subtitle_style: style,
+		subtitle_style_changed: SubtitleStyleSchema.keyof().options.some(
+			(part) => style[part] !== subtitleStyle[part],
+		),
 		subtitles: subtitles.success ? subtitles.data : {},
 	};
 };

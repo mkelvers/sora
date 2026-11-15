@@ -88,6 +88,10 @@ export const PlaybackPreferencesSchema = z
 			example: 1080,
 		}),
 		subtitle_style: SubtitleStyleSchema,
+		subtitle_style_changed: z.boolean().meta({
+			description:
+				"Whether any part of `subtitle_style` differs from its default, so resetting it would change something.",
+		}),
 		subtitles: SubtitlePreferencesSchema,
 	})
 	.meta({
