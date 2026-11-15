@@ -29,6 +29,48 @@ export const SubtitlePreferencesSchema = z
 		id: "SubtitlePreferences",
 	});
 
+const SubtitleColorSchema = z.enum([
+	"white",
+	"black",
+	"red",
+	"green",
+	"blue",
+	"yellow",
+	"cyan",
+	"magenta",
+]);
+
+export const SubtitleStyleSchema = z
+	.object({
+		background_color: SubtitleColorSchema.meta({
+			description: "Colour of the box behind each line.",
+		}),
+		background_opacity: z
+			.union([z.literal(0), z.literal(25), z.literal(50), z.literal(75), z.literal(100)])
+			.meta({
+				description: "How opaque the box behind each line is, in percent; `0` shows no box.",
+			}),
+		edge: z.enum(["outline", "shadow", "none"]).meta({
+			description:
+				"What sets each character off from the picture: an `outline` around it, a soft `shadow` around it, or `none`. Black, or white around black text.",
+		}),
+		edge_width: z.enum(["thin", "medium", "thick"]).meta({
+			description: "How thick the outline or shadow is.",
+		}),
+		size: z.enum(["small", "medium", "large"]).meta({
+			description:
+				"How large the text is: `small` is three quarters of `medium`, `large` one and a half times it.",
+		}),
+		text_color: SubtitleColorSchema.meta({
+			description: "Colour of the text.",
+		}),
+	})
+	.meta({
+		description:
+			"How subtitles look in the player, at the bottom of the picture. Applies to subtitle tracks only; burned-in subtitles are part of the picture.",
+		id: "SubtitleStyle",
+	});
+
 export const PlaybackPreferencesSchema = z
 	.object({
 		audio: LanguageSchema.nullable().meta({
@@ -44,6 +86,11 @@ export const PlaybackPreferencesSchema = z
 			description:
 				"The tallest picture to play, in pixels of height, such as `1080`. A stream without it plays the next lower one. `null` lets the player choose by connection speed, starting from the best.",
 			example: 1080,
+		}),
+		subtitle_style: SubtitleStyleSchema,
+		subtitle_style_changed: z.boolean().meta({
+			description:
+				"Whether any part of `subtitle_style` differs from its default, so resetting it would change something.",
 		}),
 		subtitles: SubtitlePreferencesSchema,
 	})
@@ -223,6 +270,10 @@ export const PlaybackPreferencesUpdateSchema = z
 		auto_skip: z.boolean().optional(),
 		autoplay_next: z.boolean().optional(),
 		quality: z.number().int().positive().nullable().optional(),
+		subtitle_style: SubtitleStyleSchema.partial().nullable().optional().meta({
+			description:
+				"Changes the parts of the subtitle style given, leaving the rest as they are; `null` puts every part back to its default.",
+		}),
 		subtitles: SubtitlePreferencesSchema.optional().meta({
 			description: "Changes the subtitles of the audio given, leaving the other's as they are.",
 		}),
@@ -297,6 +348,7 @@ export type ProfilePreferencesUpdate = z.input<typeof ProfilePreferencesUpdateSc
 export type PlaybackPreferencesUpdate = z.input<typeof PlaybackPreferencesUpdateSchema>;
 export type ProgressInput = z.input<typeof ProgressInputSchema>;
 export type SubtitleChoice = z.infer<typeof SubtitleChoiceSchema>;
+export type SubtitleStyle = z.infer<typeof SubtitleStyleSchema>;
 export type PlaybackPreferences = z.infer<typeof PlaybackPreferencesSchema>;
 export type Progress = z.infer<typeof ProgressSchema>;
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;

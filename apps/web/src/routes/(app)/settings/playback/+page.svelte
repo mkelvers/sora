@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Select from "$lib/components/ui/select.svelte";
 	import Switch from "$lib/components/ui/switch.svelte";
@@ -49,7 +48,7 @@
 
 <Panel
 	title="Playback"
-	description="How episodes play and appear for {page.data.viewer.profile.name}."
+	description="Which version plays first, what gets skipped, what plays next, and what episode lists hide."
 >
 	{#if playback.current && profile.current}
 		<div>
@@ -73,6 +72,37 @@
 				The version Sora plays first when an episode offers it. You can still switch in the player.
 			</p>
 		</div>
+
+		<Row label="Prefer Closed Captions" controlId="closed-captions">
+			{#snippet description()}
+				Show closed captions on dubs automatically when they're available.
+				<a
+					href="/settings/playback/subtitles"
+					class="text-accent transition-colors hover:text-foreground focus-visible:text-foreground"
+				>
+					Change Subtitle Appearance
+				</a>
+			{/snippet}
+			{#snippet children({ describedby })}
+				<Switch
+					id="closed-captions"
+					icons
+					aria-describedby={describedby}
+					checked={playback.current?.subtitles.dub !== null}
+					onchange={(event) =>
+						savePlayback({
+							subtitles: {
+								dub: event.currentTarget.checked
+									? {
+											kind: "captions",
+											language: "en",
+										}
+									: null,
+							},
+						})}
+				/>
+			{/snippet}
+		</Row>
 
 		<Row
 			label="Skip Openings and Endings"

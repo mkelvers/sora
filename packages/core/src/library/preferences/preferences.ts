@@ -1,30 +1,72 @@
 import { defined } from "@sora/shared";
 import { eq, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
-import { PlaybackPreferencesUpdateSchema, SubtitlePreferencesSchema } from "../../models/library";
-import type { PlaybackPreferences, PlaybackPreferencesUpdate } from "../../models/library";
+import {
+	PlaybackPreferencesUpdateSchema,
+	SubtitlePreferencesSchema,
+	SubtitleStyleSchema,
+} from "../../models/library";
+import type {
+	PlaybackPreferences,
+	PlaybackPreferencesUpdate,
+	SubtitleStyle,
+} from "../../models/library";
 import { LanguageSchema } from "../../models/series";
+
+/** Medium white text with a medium black outline and no box. */
+const subtitleStyle: SubtitleStyle = {
+	background_color: "black",
+	background_opacity: 0,
+	edge: "outline",
+	edge_width: "medium",
+	size: "medium",
+	text_color: "white",
+};
+
+/** A stored subtitle style: each part it lacks, or no longer offers, has its default. */
+const StoredSubtitleStyleSchema = z
+	.object({
+		background_color: SubtitleStyleSchema.shape.background_color.catch(
+			subtitleStyle.background_color,
+		),
+		background_opacity: SubtitleStyleSchema.shape.background_opacity.catch(
+			subtitleStyle.background_opacity,
+		),
+		edge: SubtitleStyleSchema.shape.edge.catch(subtitleStyle.edge),
+		edge_width: SubtitleStyleSchema.shape.edge_width.catch(subtitleStyle.edge_width),
+		size: SubtitleStyleSchema.shape.size.catch(subtitleStyle.size),
+		text_color: SubtitleStyleSchema.shape.text_color.catch(subtitleStyle.text_color),
+	})
+	.catch(subtitleStyle);
 
 const defaults: PlaybackPreferences = {
 	audio: null,
 	auto_skip: false,
 	autoplay_next: true,
 	quality: null,
+	subtitle_style: subtitleStyle,
+	subtitle_style_changed: false,
 	subtitles: {},
 };
 
 const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
 	const audio = LanguageSchema.safeParse(row.audio);
 	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
+	const style = StoredSubtitleStyleSchema.parse(row.subtitleStyle);
 
 	return {
 		audio: audio.success ? audio.data : null,
 		auto_skip: row.autoSkip,
 		autoplay_next: row.autoplayNext,
 		quality: row.quality,
+		subtitle_style: style,
+		subtitle_style_changed: SubtitleStyleSchema.keyof().options.some(
+			(part) => style[part] !== subtitleStyle[part],
+		),
 		subtitles: subtitles.success ? subtitles.data : {},
 	};
 };
@@ -63,6 +105,7 @@ export const updatePlaybackPreferences = async (
 		auto_skip: autoSkip,
 		autoplay_next: autoplayNext,
 		quality,
+		subtitle_style: style,
 	} = parsed.data;
 	const [row] = await db
 		.insert(playbackPreference)
@@ -71,6 +114,7 @@ export const updatePlaybackPreferences = async (
 			autoSkip: autoSkip ?? false,
 			autoplayNext: autoplayNext ?? true,
 			quality: quality ?? null,
+			subtitleStyle: style ?? {},
 			subtitles: subtitles ?? {},
 			userId,
 		})
@@ -81,6 +125,12 @@ export const updatePlaybackPreferences = async (
 				}),
 				...(subtitles && {
 					subtitles: sql`${playbackPreference.subtitles} || excluded.subtitles`,
+				}),
+				...(style === null && {
+					subtitleStyle: {},
+				}),
+				...(style && {
+					subtitleStyle: sql`${playbackPreference.subtitleStyle} || excluded.subtitle_style`,
 				}),
 				...(autoSkip !== undefined && {
 					autoSkip,

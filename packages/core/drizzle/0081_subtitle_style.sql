@@ -1,0 +1,1 @@
+ALTER TABLE "playback_preference" ADD COLUMN "subtitle_style" jsonb DEFAULT '{}'::jsonb NOT NULL;

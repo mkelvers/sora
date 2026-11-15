@@ -8,7 +8,7 @@
 		children,
 	}: {
 		label: string;
-		description: string;
+		description: string | Snippet;
 		/** The ID of the control, so clicking the label works it. */
 		controlId?: string;
 		children: Snippet<[{ describedby: string }]>;
@@ -26,7 +26,13 @@
 		{:else}
 			<p class="text-base leading-6 font-semibold">{label}</p>
 		{/if}
-		<p id="{id}-description" class="mt-1 text-sm leading-relaxed text-muted">{description}</p>
+		<p id="{id}-description" class="mt-1 text-sm leading-relaxed text-muted">
+			{#if typeof description === "string"}
+				{description}
+			{:else}
+				{@render description()}
+			{/if}
+		</p>
 	</div>
 	<div class="shrink-0">
 		{@render children({ describedby: `${id}-description` })}
