@@ -171,3 +171,29 @@ Kept`),
 Kept`);
 	});
 });
+
+test("cleanWebVtt drops copies of a cue drawn as stacked ASS layers", () => {
+	expect(
+		cleanWebVtt(`WEBVTT
+
+10:19.510 --> 10:25.270
+<b>How I
+\\h\\h\\h\\hImagine</b>
+
+10:19.510 --> 10:25.270
+<b>How I
+\\h\\h\\h\\hImagine</b>
+
+10:20.000 --> 10:25.270
+<b>How I
+\\h\\h\\h\\hImagine</b>`),
+	).toBe(`WEBVTT
+
+10:19.510 --> 10:25.270
+<b>How I
+Imagine</b>
+
+10:20.000 --> 10:25.270
+<b>How I
+Imagine</b>`);
+});

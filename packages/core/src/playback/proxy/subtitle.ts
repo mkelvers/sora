@@ -12,7 +12,7 @@ const assOverride = /\{\\[^}]*\}/gu;
 const lineEdgeSpace = /^[ \t\u00A0]+|[ \t\u00A0]+$/gmu;
 
 /** A cue block's timing line, through its line break, and the text after it. */
-const cueText = /(?<head>-->[^\n]*\n)(?<text>[\s\S]*)$/u;
+const cueText = /^(?<head>[^\n]*-->[^\n]*\n)(?<text>[\s\S]*)$/mu;
 
 /**
  * Cue text with what ASS conversions leave behind turned into plain text:
@@ -32,10 +32,14 @@ const cleanText = (text: string) =>
 /**
  * A WebVTT file with ASS escapes in its cue text cleaned up, and cues left
  * with no text dropped. Providers convert ASS subtitles to WebVTT without
- * translating them, and players show them as written.
+ * translating them, and players show them as written. A cue with the same
+ * timing, settings, and text as an earlier one is dropped too: ASS draws a
+ * sign as stacked layers, such as a shadow under its text, which become
+ * copies of one cue.
  */
-export const cleanWebVtt = (content: string) =>
-	splitBlocks(content)
+export const cleanWebVtt = (content: string) => {
+	const seen = new Set<string>();
+	return splitBlocks(content)
 		.flatMap((block) => {
 			if (!readTiming(block)) {
 				return [block];
@@ -48,9 +52,16 @@ export const cleanWebVtt = (content: string) =>
 				return [];
 			}
 
+			const cue = `${match.groups?.head}${text}`;
+			if (seen.has(cue)) {
+				return [];
+			}
+			seen.add(cue);
+
 			return [`${lines.slice(0, match.index)}${match.groups?.head}${text}`];
 		})
 		.join("\n\n");
+};
 
 /** How much of a cue an anchor's cue must overlap for them to be the same line. */
 const sameCueOverlap = 0.6;
