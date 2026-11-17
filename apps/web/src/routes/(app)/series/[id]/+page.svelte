@@ -47,6 +47,7 @@
 	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
 	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
 	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
+	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
 	const extras = $derived(series.related.filter((part) => part.role === "extra"));
 	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));
@@ -156,10 +157,7 @@
 
 		{#if series.episode_count > 0}
 			<section
-				class={[
-					!previous && !next && "pb-7 sm:pb-12 lg:pb-16",
-					series.seasons.length > 1 ? "pt-7" : "pt-6",
-				]}
+				class={[!paging && "pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-7" : "pt-6"]}
 				aria-labelledby="episodes"
 			>
 				{#key series.id}
@@ -174,7 +172,7 @@
 			<section
 				class={[
 					"mt-7 border-2 border-dotted border-muted px-5 py-14 text-center",
-					!previous && !next && "mb-7 sm:mb-12 lg:mb-16",
+					!paging && "mb-7 sm:mb-12 lg:mb-16",
 				]}
 				aria-labelledby="check-back"
 			>
@@ -185,22 +183,46 @@
 			</section>
 		{/if}
 
-		{#if previous || next}
+		{#if paging}
 			<nav
 				aria-label="Seasons"
-				class="mt-8 mb-7 flex border-t border-border pt-4 sm:mt-12 sm:mb-12 lg:mb-16"
+				class="mt-8 mb-7 flex justify-between border-t border-border pt-4 sm:mt-12 sm:mb-12 lg:mb-16"
 			>
 				{#if previous}
-					<Button variant="ghost" size="sm" class="-ml-2" href="/series/{previous.series_id}">
+					<Button
+						variant="ghost"
+						size="sm"
+						class="-ml-2 text-foreground hover:bg-transparent"
+						href="/series/{previous.series_id}"
+					>
 						<CaretLeftIcon size="1rem" weight="bold" />
 						Previous season
 					</Button>
+				{:else}
+					<span
+						class="-ml-2 inline-flex h-9 items-center gap-2 px-2 text-xs font-bold tracking-wide text-muted uppercase"
+					>
+						<CaretLeftIcon size="1rem" weight="bold" />
+						Previous season
+					</span>
 				{/if}
 				{#if next}
-					<Button variant="ghost" size="sm" class="-mr-2 ml-auto" href="/series/{next.series_id}">
+					<Button
+						variant="ghost"
+						size="sm"
+						class="-mr-2 text-foreground hover:bg-transparent"
+						href="/series/{next.series_id}"
+					>
 						Next season
 						<CaretRightIcon size="1rem" weight="bold" />
 					</Button>
+				{:else}
+					<span
+						class="-mr-2 inline-flex h-9 items-center gap-2 px-2 text-xs font-bold tracking-wide text-muted uppercase"
+					>
+						Next season
+						<CaretRightIcon size="1rem" weight="bold" />
+					</span>
 				{/if}
 			</nav>
 		{/if}

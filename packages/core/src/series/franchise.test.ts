@@ -480,4 +480,33 @@ describe("franchiseParts", () => {
 		expect(parts[1]?.next_series_id).toBe("series-204356");
 		expect(parts[2]?.next_series_id).toBe("series-211711");
 	});
+
+	test("names a story's seasons without the numbering its first title ends with", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "The Seven Deadly Sins: Grudge of Edinburgh Part 1", "ONA", "2022-12-20"),
+				title(2, "The Seven Deadly Sins: Grudge of Edinburgh Part 2", "ONA", "2023-08-31"),
+				title(3, "Fate/strange Fake (Zoku-hen)", "TV", "2024-01-01"),
+				title(4, "The Seven Deadly Sins: Grudge of Edinburgh x Crossover", "ONA", "2024-01-01"),
+			],
+			[[1, 2]],
+		);
+		expect(titlesOf(parts).slice(0, 2)).toEqual(["Part 1", "Part 2"]);
+		expect(titlesOf(parts)).toContain("The Seven Deadly Sins: Grudge of Edinburgh x Crossover");
+	});
+
+	test("drops a release qualifier and keeps a bracketed name whole", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Kingdom", "TV", "2012-06-04"),
+				title(2, "Kingdom (Zoku-hen)", "TV", "2013-06-08"),
+				title(3, "Kingdom 2nd Season (Web)", "ONA", "2014-01-01"),
+			],
+			[
+				[1, 2],
+				[2, 3],
+			],
+		);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Zoku-hen", "Season 2"]);
+	});
 });

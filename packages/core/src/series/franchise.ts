@@ -84,27 +84,53 @@ const withoutPrefix = (title: string, prefix: string) => {
 
 const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
 
+/** A release qualifier a title ends with, such as `(TV)` or `(Web)`. */
+const qualifier = /\s*\((?:TV|Web|ONA)\)$/iu;
+
+/** Numbering a title ends with, such as `Part 1`, `Season 1`, or `1st Season`. */
+const numbering = /[\s:-]+(?:Season\s+\d+|\d+(?:st|nd|rd|th)\s+Season|Part\s+\d+)$/iu;
+
+/**
+ * The name a story's seasons share: the first title without the qualifiers
+ * and numbering it ends with, so The Seven Deadly Sins: Grudge of Edinburgh
+ * Part 2 is `Part 2` after Part 1.
+ */
+const storyName = (title: string) => {
+	let name = title;
+	for (let previous = ""; previous !== name;) {
+		previous = name;
+		name = name.replace(qualifier, "").replace(numbering, "");
+	}
+	return name;
+};
+
 /** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
 export const isNamedAfter = (title: string, original: string) =>
 	withoutPrefix(plain(title), plain(original)) !== null;
 
 const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
+	const full = title.title.replace(qualifier, "");
 	// Keep the title's own numbering, including untranslated sequel names.
 	const numbered = isSeason
-		? title.title.match(
+		? full.match(
 				/\b(?:Season\s+(?<season>\d+)|(?<ordinal>\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(?<part>\d+))?$/iu,
 			)
 		: null;
 	if (numbered) {
 		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
 	}
-	const rest = withoutPrefix(title.title.replace(/\s*\(TV\)$/iu, ""), base);
+	const rest = withoutPrefix(full, base);
 	if (rest === null) {
 		return title.title;
 	}
 
-	const named = rest.replace(/^the movie\b[\s:.-]*/iu, "").replace(/[\s~-]+$/u, "");
-	if (/^\d{4}\)?$/u.test(named)) {
+	const named = rest
+		.replace(/^the movie\b[\s:.-]*/iu, "")
+		.replace(/[\s~-]+$/u, "")
+		// A name wrapped in brackets loses its opening one with the prefix.
+		.replace(/^(?<name>[^(]*)\)$/u, "$<name>");
+	// A year, or a crossover such as I, Tsushima x Nameless Mouse, is no name on its own.
+	if (/^\d{4}\)?$/u.test(named) || /^[x×]\s/iu.test(named)) {
 		return title.title;
 	}
 	if (named) {
@@ -472,7 +498,7 @@ export const franchiseParts = (
 				role,
 				season_id: season?.seriesId ?? null,
 				series_id: title.seriesId,
-				title: shortTitle(title, base, seasons.includes(title)),
+				title: shortTitle(title, storyName(selected?.title ?? ""), seasons.includes(title)),
 			};
 		});
 };
