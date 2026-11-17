@@ -22,7 +22,7 @@
 		Series,
 	} from "@sora/sdk";
 	import { attempt } from "@sora/shared";
-	import { ArrowLeftIcon, CircleNotchIcon } from "phosphor-svelte";
+	import { CaretLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./controls.svelte";
@@ -305,8 +305,13 @@
 	<header
 		class="flex items-center gap-3 self-start bg-[linear-gradient(rgb(0_0_0/0.6),transparent)] px-4 pt-4 pb-10 transition-opacity duration-200 text-shadow-md in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0 sm:bg-[linear-gradient(rgb(0_0_0/0.45),transparent)]"
 	>
-		<Button href={back} variant="icon" aria-label="Back to {series.title}">
-			<ArrowLeftIcon size="1.5rem" weight="bold" />
+		<Button
+			href={back}
+			variant="icon"
+			class="text-white drop-shadow-md hover:text-white focus-visible:outline-white"
+			aria-label="Back to {series.title}"
+		>
+			<CaretLeftIcon size="1.75rem" weight="bold" />
 		</Button>
 		<h1 class="min-w-0">
 			<span class="block truncate text-base font-semibold">{series.title}</span>
