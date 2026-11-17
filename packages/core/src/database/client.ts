@@ -6,6 +6,7 @@ import { runMigrations } from "graphile-worker";
 
 import { config } from "../config";
 import { readMigrationHistory, skippedMigrations } from "./migration-history";
+import { definedColumns, missingSchema } from "./schema-check";
 import * as auth from "./schema/auth";
 import * as catalog from "./schema/catalog";
 import * as library from "./schema/library";
@@ -31,6 +32,8 @@ export const db = drizzle({
 	},
 });
 
+const schemaModules = [auth, catalog, library, playback, scheduler, series];
+
 /** The advisory lock replicas hold, one at a time, while they migrate. */
 export const migrationLockKey = 7_302_024_001;
 
@@ -43,8 +46,10 @@ export const migrationLockKey = 7_302_024_001;
  * migrates, so a later one finds nothing left to apply.
  *
  * Refuses to migrate when drizzle would skip a migration without saying so
- * (see {@link skippedMigrations}), naming each one; AGENTS.md says how to
- * repair the database.
+ * (see {@link skippedMigrations}), and fails after migrating when the
+ * database still lacks a table or column the code defines (see
+ * {@link missingSchema}), naming each one; AGENTS.md says how to repair the
+ * database.
  */
 export const migrateDatabase = async () => {
 	const lock = await db.$client.reserve();
@@ -60,8 +65,9 @@ export const migrateDatabase = async () => {
             select created_at, hash from drizzle.__drizzle_migrations
           `
 				: [];
+			const files = readMigrationHistory(migrationsFolder);
 			const skipped = skippedMigrations(
-				readMigrationHistory(migrationsFolder),
+				files,
 				recorded.map(({ created_at, hash }) => ({
 					createdAt: Number(created_at),
 					hash,
@@ -81,6 +87,23 @@ export const migrateDatabase = async () => {
 			await runMigrations({
 				connectionString: config.databaseUrl,
 			});
+
+			const live = await lock<{ column: string; schema: string; table: string }[]>`
+        select table_schema as schema, table_name as table, column_name as column
+        from information_schema.columns
+      `;
+			const missing = missingSchema(definedColumns(schemaModules), live);
+			if (missing.length > 0) {
+				const known = new Set(files.map(({ when }) => when));
+				const foreign = recorded
+					.map(({ created_at }) => Number(created_at))
+					.filter((createdAt) => !known.has(createdAt))
+					.toSorted((first, second) => first - second)
+					.map((createdAt) => `${createdAt} (${new Date(createdAt).toISOString()})`);
+				throw new Error(
+					`The database lacks tables or columns this checkout's schema defines, so queries would fail. A migration from another branch or a dropped draft usually changed them. Repair it as AGENTS.md says under "Database migrations".\nMissing:\n${missing.map((name) => `- ${name}`).join("\n")}\nRecorded migrations with no file in this checkout (newest last):\n${foreign.map((name) => `- ${name}`).join("\n") || "- none"}`,
+				);
+			}
 		})(),
 	);
 	// Releasing the connection ends the session, which drops the lock even when unlocking failed.
