@@ -106,7 +106,7 @@
 				{#if badge}
 					<span
 						id="{id}-badge"
-						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-sm font-bold text-white"
+						class="absolute right-2 bottom-2 bg-black/75 px-1.25 py-0.75 text-sm font-bold text-white"
 					>
 						{badge}
 					</span>

@@ -181,7 +181,7 @@
 
 		{#if series.episode_count > 0}
 			<section
-				class={[!paging && "pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-7" : "pt-6"]}
+				class={[!paging && "pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-3.5" : "pt-3"]}
 				aria-labelledby="episodes"
 			>
 				{#key series.id}
