@@ -129,22 +129,6 @@
 		font-synthesis: none;
 		overflow-wrap: anywhere;
 		text-rendering: optimizeLegibility;
-
-		@media (min-width: 80rem) and (max-width: 104.99rem) {
-			font-size: 93.75%;
-		}
-
-		@media (min-width: 130rem) {
-			font-size: 112.5%;
-		}
-
-		@media (min-width: 160rem) {
-			font-size: 125%;
-		}
-
-		@media (min-width: 200rem) {
-			font-size: 150%;
-		}
 	}
 
 	img,

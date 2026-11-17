@@ -11,6 +11,7 @@ import {
 	getSeriesEpisode,
 	getSeriesEpisodePage,
 	getSeriesEpisodes,
+	getSimilarSeries,
 	getUpcomingSeries,
 	getUpscaledBackdrop,
 	listSeriesImages,
@@ -330,6 +331,20 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 					current: currentSeason(),
 				},
 				results: seasons,
+			},
+			200,
+		);
+	})
+
+	.openapi(seriesRoute.listSimilarSeries, async (c) => {
+		const titles = await getSimilarSeries(c.req.valid("param").series_id);
+		c.header("Cache-Control", "public, max-age=3600");
+		return c.json(
+			{
+				meta: {
+					count: titles.length,
+				},
+				results: titles,
 			},
 			200,
 		);

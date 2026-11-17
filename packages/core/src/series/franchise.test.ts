@@ -398,4 +398,115 @@ describe("franchiseParts", () => {
 		]);
 		expect(parts[1]?.next_series_id).toBe("series-5");
 	});
+
+	test("keeps a spin-off and its sequels a story of their own", () => {
+		const titles = [
+			title(21_459, "My Hero Academia", "TV", "2016-04-03"),
+			title(163_139, "My Hero Academia Season 7", "TV", "2024-05-04"),
+			title(185_736, "My Hero Academia: Vigilantes", "TV", "2025-04-07"),
+			title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
+			title(195_322, "My Hero Academia: Vigilantes Season 2", "TV", "2026-01-05"),
+		];
+		const sequels = [
+			[21_459, 163_139],
+			[163_139, 182_896],
+			[185_736, 195_322],
+		] as const;
+		const spinOffs = [[21_459, 185_736]] as const;
+
+		const original = franchiseParts(titles, sequels, {
+			currentId: 21_459,
+			spinOffs,
+		});
+		expect(original.map((part) => [part.title, part.role])).toEqual([
+			["Season 1", "season"],
+			["Season 7", "season"],
+			["FINAL SEASON", "season"],
+			["Vigilantes", "extra"],
+			["Vigilantes Season 2", "extra"],
+		]);
+
+		const spinOff = franchiseParts(titles, sequels, {
+			apart: [21_459],
+			currentId: 195_322,
+			spinOffs,
+		});
+		expect(spinOff.filter((part) => part.role === "season").map((part) => part.title)).toEqual([
+			"Season 1",
+			"Season 2",
+		]);
+	});
+
+	test("never starts a franchise with a title reached only across a spin-off", () => {
+		const parts = franchiseParts(
+			[
+				title(110_857, "Aggretsuko: Season 3", "ONA", "2020-08-27"),
+				title(124_960, "OTMGirls no YOKIYOKI Channel", "ONA", "2020-12-01"),
+				title(156_907, "OTMGirls no YOKIYOKI Channel: Birthday special story", "ONA", "2021-10-29"),
+			],
+			[],
+			{
+				apart: [110_857],
+				currentId: 156_907,
+			},
+		);
+		expect(parts.find((part) => part.role === "season")?.series_id).toBe("series-124960");
+	});
+
+	test("folds short specials after a season into it", () => {
+		const parts = franchiseParts(
+			[
+				title(163_139, "My Hero Academia", "TV", "2024-05-04"),
+				title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
+				{ ...title(204_356, "My Hero Academia More", "SPECIAL", "2026-05-02"), episodeCount: 1 },
+				{
+					...title(211_711, "My Hero Academia: I am a hero too", "SPECIAL", "2026-08-03"),
+					episodeCount: 1,
+				},
+			],
+			[
+				[163_139, 182_896],
+				[182_896, 204_356],
+				[204_356, 211_711],
+			],
+		);
+
+		expect(parts.map((part) => [part.title, part.role, part.season_id])).toEqual([
+			["Season 1", "season", null],
+			["FINAL SEASON", "season", null],
+			["More", "special", "series-182896"],
+			["I am a hero too", "special", "series-182896"],
+		]);
+		expect(parts[1]?.next_series_id).toBe("series-204356");
+		expect(parts[2]?.next_series_id).toBe("series-211711");
+	});
+
+	test("names a story's seasons without the numbering its first title ends with", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "The Seven Deadly Sins: Grudge of Edinburgh Part 1", "ONA", "2022-12-20"),
+				title(2, "The Seven Deadly Sins: Grudge of Edinburgh Part 2", "ONA", "2023-08-31"),
+				title(3, "Fate/strange Fake (Zoku-hen)", "TV", "2024-01-01"),
+				title(4, "The Seven Deadly Sins: Grudge of Edinburgh x Crossover", "ONA", "2024-01-01"),
+			],
+			[[1, 2]],
+		);
+		expect(titlesOf(parts).slice(0, 2)).toEqual(["Part 1", "Part 2"]);
+		expect(titlesOf(parts)).toContain("The Seven Deadly Sins: Grudge of Edinburgh x Crossover");
+	});
+
+	test("drops a release qualifier and keeps a bracketed name whole", () => {
+		const parts = franchiseParts(
+			[
+				title(1, "Kingdom", "TV", "2012-06-04"),
+				title(2, "Kingdom (Zoku-hen)", "TV", "2013-06-08"),
+				title(3, "Kingdom 2nd Season (Web)", "ONA", "2014-01-01"),
+			],
+			[
+				[1, 2],
+				[2, 3],
+			],
+		);
+		expect(titlesOf(parts)).toEqual(["Season 1", "Zoku-hen", "Season 2"]);
+	});
 });

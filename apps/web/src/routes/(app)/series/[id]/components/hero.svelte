@@ -185,7 +185,7 @@
 	</div>
 
 	<div
-		class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pt-[calc(75vw-3rem)] pb-6 text-center sm:px-10 sm:pt-0 sm:pb-10 sm:text-left lg:px-16 lg:pb-9"
+		class="z-20 col-start-1 row-start-1 min-w-0 self-end px-5 pt-[calc(75vw-3rem)] pb-6 text-center sm:px-10 sm:pt-0 sm:pb-10 sm:text-left lg:px-16 lg:pb-9 hero:px-20"
 	>
 		<h1
 			class={cn(

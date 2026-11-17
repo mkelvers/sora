@@ -118,9 +118,12 @@ export const FranchisePartSchema = z.object({
 		description:
 			"An unambiguous available direct story sequel, or null. Never an alternative, recap, or inferred sequel based on a title's name.",
 	}),
-	role: z.enum(["season", "extra", "spin_off", "alternative"]).meta({
+	role: z.enum(["season", "special", "extra", "spin_off", "alternative"]).meta({
 		description:
-			"`season`: main story entries, including sequel films and specials. `extra`: films, OVAs, and specials that sit inside the story or are worth watching on their own. `spin_off`: stories of their own that share the world or characters. `alternative`: another adaptation or recap, only listed when explicitly selected.",
+			"`season`: main story entries, including sequel films and longer specials. `special`: a short special or OVA that continues a season and is watched as part of it, named by `season_id`. `extra`: films, OVAs, and specials that sit inside the story or are worth watching on their own. `spin_off`: stories of their own that share the world or characters. `alternative`: another adaptation or recap, only listed when explicitly selected.",
+	}),
+	season_id: z.string().nullable().meta({
+		description: "For a `special`, the season it belongs to; otherwise null.",
 	}),
 	series_id: z.string(),
 	title: z.string().meta({
@@ -193,7 +196,7 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		}),
 	related: z.array(FranchisePartSchema).meta({
 		description:
-			"Other released stories in the franchise, in release order. Alternatives, summaries, and compilations are omitted.",
+			"Other released stories in the franchise: spin-offs first, then extras, each in release order. Alternatives, summaries, and compilations are omitted.",
 	}),
 	score_count: z.number().int().nullable().meta({
 		description:
@@ -212,6 +215,10 @@ export const SeriesSchema = SeriesCardSchema.extend({
 	seasons: z.array(FranchisePartSchema).meta({
 		description:
 			"The franchise's main seasons and story continuations in prequel/sequel order, with this title first when it is an extra or alternative outside that continuity.",
+	}),
+	specials: z.array(FranchisePartSchema).meta({
+		description:
+			"The franchise's specials (see `role`) in story order, each naming the season it belongs to.",
 	}),
 	start_date: z.string().nullable().meta({
 		description:

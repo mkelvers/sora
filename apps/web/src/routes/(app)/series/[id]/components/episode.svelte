@@ -5,18 +5,20 @@
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
-	import type { Episode, Progress, Series } from "@sora/sdk";
+	import type { Episode, Progress, SeriesCard } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
 		series,
 		episode,
+		special,
 		progress,
 		options,
 		onoptions,
 	}: {
-		series: Series;
+		series: SeriesCard;
 		episode: Episode;
+		special?: string;
 		progress?: Progress;
 		options: boolean;
 		onoptions: () => void;
@@ -41,11 +43,14 @@
 	const concealed = $derived(library.hideSpoilers && !watched && !started && !movie);
 	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
 	const playable = $derived(episode.audio?.length !== 0);
-	const heading = $derived(
-		movie
+	const heading = $derived.by(() => {
+		if (special) {
+			return special;
+		}
+		return movie
 			? (episode.title ?? series.title)
-			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`,
-	);
+			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
+	});
 	const badge = $derived.by(() => {
 		if (watched) {
 			return "Watched";
@@ -61,12 +66,12 @@
 		}
 		return started ? "Resume" : "Play";
 	});
-	const action = $derived(`${verb}${movie ? "" : ` E${episode.number}`}`);
+	const action = $derived(`${verb}${movie || special ? "" : ` E${episode.number}`}`);
 	const released = $derived(episode.aired_at ?? episode.air_date);
 	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));
 </script>
 
-<li class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10 sm:min-h-56">
+<li class="group relative isolate flex min-w-0 flex-col self-start focus-within:z-10 hover:z-10">
 	<svelte:element
 		this={playable ? "a" : "div"}
 		href={playable ? `/series/${series.id}/watch/${episode.number}` : undefined}
@@ -75,7 +80,7 @@
 		class="flex min-w-0 flex-1 flex-col focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 	>
 		<div
-			class="grid flex-1 grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 transition-opacity duration-150 sm:flex sm:flex-col sm:group-hover:opacity-0 sm:group-has-focus-visible:opacity-0"
+			class="grid flex-1 grid-cols-[43%_minmax(0,1fr)] content-start gap-x-3 transition-opacity duration-150 sm:flex sm:flex-col sm:group-hover:opacity-0 sm:group-has-focus-visible:opacity-0"
 		>
 			<div class="relative row-span-3 aspect-video w-full self-start overflow-hidden bg-surface">
 				{#if image}
@@ -101,7 +106,7 @@
 				{#if badge}
 					<span
 						id="{id}-badge"
-						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
+						class="absolute right-2 bottom-2 bg-black/75 px-1.25 py-0.75 text-sm font-bold text-white"
 					>
 						{badge}
 					</span>
@@ -117,10 +122,13 @@
 				{/if}
 			</div>
 
-			<h3 id="{id}-title" class="pr-8 text-sm leading-snug font-semibold text-foreground sm:mt-3">
+			<h3
+				id="{id}-title"
+				class="pr-8 text-sm leading-snug font-bold text-foreground sm:mt-3 lg:text-base"
+			>
 				{heading}
 			</h3>
-			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-muted sm:mt-1.5 sm:pr-0">
+			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-subtle sm:mt-3.5">
 				{audioLabel(episode.audio)}
 			</p>
 		</div>
@@ -161,8 +169,8 @@
 
 	<Button
 		variant="icon"
-		class="absolute -right-2 -bottom-2 z-20 sm:hidden"
-		aria-label="Episode {episode.number} options"
+		class="absolute -right-2 -bottom-3 z-20 sm:hidden"
+		aria-label="{special ?? `Episode ${episode.number}`} options"
 		aria-haspopup="dialog"
 		aria-controls="episode-options"
 		aria-expanded={options}
@@ -171,7 +179,7 @@
 		<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 	</Button>
 
-	<div class="absolute -right-2 -bottom-2 z-20 max-sm:hidden">
+	<div class="absolute -right-2 -bottom-3 z-20 max-sm:hidden">
 		<Dropdown variant="icon" label="Episode options" class="w-48">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />

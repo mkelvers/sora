@@ -7,6 +7,7 @@ export type CarouselOptions = Omit<EmblaOptionsType, "watchDrag" | "watchFocus">
 export class CarouselState {
 	api = $state<EmblaCarouselType>();
 	active = $state(0);
+	pages = $state(0);
 	scrollable = $state(false);
 	canPrevious = $state(false);
 	canNext = $state(false);
@@ -51,6 +52,7 @@ export class CarouselState {
 				api.scrollTo(0, true);
 			}
 
+			this.pages = this.scrollable ? api.scrollSnapList().length : 0;
 			sync();
 		};
 

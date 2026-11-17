@@ -31,6 +31,7 @@ export {
 	ReleasesQuerySchema,
 	type ReleasesQuery,
 } from "./queries";
+export { getSimilarSeries } from "./similar";
 export { getAiringSchedule, getCalendar } from "./schedule";
 export type { SeriesKind } from "./series";
 export { getUpcomingSeries } from "./upcoming";

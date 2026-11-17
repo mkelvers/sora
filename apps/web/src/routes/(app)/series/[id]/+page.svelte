@@ -6,16 +6,29 @@
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { episodes } from "$lib/utils";
 	import type { FranchisePart } from "@sora/sdk";
-	import { CaretDownIcon, DotsThreeVerticalIcon } from "phosphor-svelte";
+	import {
+		CaretDownIcon,
+		CaretLeftIcon,
+		CaretRightIcon,
+		DotsThreeVerticalIcon,
+	} from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
 	import About from "./components/about.svelte";
 	import Episodes, { pageSize } from "./components/episodes.svelte";
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
-	import { getEpisodes, getSeries, getSeriesProgress, markSeries } from "./series.remote";
+	import {
+		getEpisodes,
+		getSimilarSeries,
+		getSeries,
+		getSeriesProgress,
+		markSeries,
+	} from "./series.remote";
 
 	let { params }: PageProps = $props();
+
+	const extraEvery = 2;
 
 	const series = $derived(await getSeries(params.id));
 	const [progress] = $derived(
@@ -39,8 +52,29 @@
 			: "Title";
 	});
 
-	const extras = $derived(series.related.filter((part) => part.role === "extra"));
-	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));
+	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
+	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
+	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
+	const paging = $derived(position !== -1 && series.seasons.length > 1);
+
+	const similar = $derived(getSimilarSeries(params.id));
+	const alike = $derived.by(() => {
+		if (!similar.current) {
+			return [];
+		}
+		const extras = series.related.filter((part) => part.role === "extra").map((part) => part.card);
+		const cards = series.related
+			.filter((part) => part.role === "spin_off")
+			.map((part) => part.card);
+		for (const [index, card] of similar.current.entries()) {
+			cards.push(card);
+			const extra = index % extraEvery === extraEvery - 1 ? extras.shift() : undefined;
+			if (extra) {
+				cards.push(extra);
+			}
+		}
+		return [...cards, ...extras];
+	});
 
 	let choosing = $state(false);
 	let options = $state(false);
@@ -73,11 +107,11 @@
 <div class="bg-canvas text-foreground">
 	<Hero {series} {progress} />
 
-	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8">
+	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8 hero:px-20">
 		<About {series} />
 	</div>
 
-	<div class="px-5 sm:px-10 lg:px-16">
+	<div class="px-5 sm:px-10 lg:px-16 hero:px-20">
 		<div class="flex items-center gap-4 pt-7">
 			{#if series.seasons.length > 1}
 				<h2 id="episodes" class="sr-only">Episodes</h2>
@@ -95,7 +129,7 @@
 				</div>
 				<Button
 					variant="text"
-					class="min-w-0 shrink text-lg sm:hidden"
+					class="min-w-0 shrink text-base sm:hidden"
 					aria-label="Season: {current?.title}"
 					aria-haspopup="dialog"
 					aria-controls="series-seasons"
@@ -147,16 +181,23 @@
 
 		{#if series.episode_count > 0}
 			<section
-				class={["pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-7" : "pt-6"]}
+				class={[!paging && "pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-3.5" : "pt-3"]}
 				aria-labelledby="episodes"
 			>
 				{#key series.id}
-					<Episodes {series} progress={progress.episodes} />
+					<Episodes
+						{series}
+						progress={progress.episodes}
+						specials={series.specials.filter((part) => part.season_id === series.id)}
+					/>
 				{/key}
 			</section>
 		{:else}
 			<section
-				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
+				class={[
+					"mt-7 border-2 border-dotted border-muted px-5 py-14 text-center",
+					!paging && "mb-7 sm:mb-12 lg:mb-16",
+				]}
 				aria-labelledby="check-back"
 			>
 				<h2 id="check-back" class="font-bold">No episodes yet.</h2>
@@ -165,13 +206,54 @@
 				</p>
 			</section>
 		{/if}
+
+		{#if paging}
+			<nav
+				aria-label="Seasons"
+				class="mt-8 mb-7 flex justify-between border-t border-border pt-4 sm:mt-12 sm:mb-12 lg:mb-16"
+			>
+				{#if previous}
+					<Button
+						variant="ghost"
+						size="sm"
+						class="-ml-2 text-sm hover:bg-transparent"
+						href="/series/{previous.series_id}"
+					>
+						<CaretLeftIcon size="1rem" weight="bold" />
+						Previous season
+					</Button>
+				{:else}
+					<span
+						class="-ml-2 inline-flex h-9 items-center gap-2 px-2 text-sm font-bold tracking-wide text-muted uppercase"
+					>
+						<CaretLeftIcon size="1rem" weight="bold" />
+						Previous season
+					</span>
+				{/if}
+				{#if next}
+					<Button
+						variant="ghost"
+						size="sm"
+						class="-mr-2 text-sm hover:bg-transparent"
+						href="/series/{next.series_id}"
+					>
+						Next season
+						<CaretRightIcon size="1rem" weight="bold" />
+					</Button>
+				{:else}
+					<span
+						class="-mr-2 inline-flex h-9 items-center gap-2 px-2 text-sm font-bold tracking-wide text-muted uppercase"
+					>
+						Next season
+						<CaretRightIcon size="1rem" weight="bold" />
+					</span>
+				{/if}
+			</nav>
+		{/if}
 	</div>
 
-	{#if extras.length}
-		<Related id="extras" heading="More from This Series" parts={extras} />
-	{/if}
-	{#if spinOffs.length}
-		<Related id="spin-offs" heading="Spin-offs" parts={spinOffs} />
+	{#if alike.length}
+		<Related id="like-this" heading="More Like This" cards={alike} />
 	{/if}
 </div>
 

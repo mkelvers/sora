@@ -64,17 +64,14 @@ const roleOf = (
 		return "season";
 	}
 
-	const touching = relations.flatMap(({ from, to, type }) => {
-		if (from === title.anilistId && main.has(to)) {
-			return [type === "PARENT" ? "SIDE_STORY" : type];
-		}
-
-		if (to === title.anilistId && main.has(from)) {
-			return [type];
-		}
-
-		return [];
-	});
+	// How the main story lists the title, and how the title lists the main story.
+	const listed = relations.flatMap(({ from, to, type }) =>
+		to === title.anilistId && main.has(from) ? [type] : [],
+	);
+	const lists = relations.flatMap(({ from, to, type }) =>
+		from === title.anilistId && main.has(to) ? [type === "PARENT" ? "SIDE_STORY" : type] : [],
+	);
+	const touching = [...listed, ...lists];
 	if (touching.includes("ALTERNATIVE")) {
 		return "alternative";
 	}
@@ -92,7 +89,10 @@ const roleOf = (
 		return "noise";
 	}
 
-	return !touching.some((type) => sideStoryRelations.has(type)) &&
+	// A spin-off lists its original as `PARENT`, as a side story does, so the
+	// main story's own listing decides between the two when it has one.
+	const decisive = listed.length > 0 ? listed : lists;
+	return !decisive.some((type) => sideStoryRelations.has(type)) &&
 		touching.some((type) => spinOffRelations.has(type))
 		? "spin_off"
 		: "extra";
@@ -113,7 +113,8 @@ const roleOf = (
  * 5. Anything else, linked or not, is `noise` unless it has a real runtime and
  *    is rated or watched enough. A runtime AniList does not give is not held
  *    against the title. What passes is a `spin_off` when it shares only the
- *    world or characters, and otherwise an `extra`.
+ *    world or characters, and otherwise an `extra`. How the main story lists
+ *    the title decides this over how the title lists the main story.
  */
 export const franchiseRoles = (
 	titles: readonly RoleTitle[],

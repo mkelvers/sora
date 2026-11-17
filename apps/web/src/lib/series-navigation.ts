@@ -1,25 +1,27 @@
 import type { FranchisePart } from "@sora/sdk";
 
+type StoryPart = Pick<FranchisePart, "series_id" | "next_series_id" | "episode_count" | "format">;
+
 interface StorySeries {
 	id: string;
 	episode_count: number;
-	seasons: readonly Pick<
-		FranchisePart,
-		"series_id" | "next_series_id" | "episode_count" | "format"
-	>[];
+	seasons: readonly StoryPart[];
+	specials: readonly StoryPart[];
 }
 
-/** The available direct continuation of this title in its selected adaptation. */
+/**
+ * The available direct continuation of this title in its selected adaptation,
+ * a season's specials included.
+ */
 export const storyContinuation = (
-	series: Pick<StorySeries, "id" | "seasons">,
-): StorySeries["seasons"][number] | undefined => {
-	const current = series.seasons.find((part) => part.series_id === series.id);
+	series: Pick<StorySeries, "id" | "seasons" | "specials">,
+): StoryPart | undefined => {
+	const parts = [...series.seasons, ...series.specials];
+	const current = parts.find((part) => part.series_id === series.id);
 	if (!current?.next_series_id) {
 		return undefined;
 	}
-	return series.seasons.find(
-		(part) => part.series_id === current.next_series_id && part.episode_count > 0,
-	);
+	return parts.find((part) => part.series_id === current.next_series_id && part.episode_count > 0);
 };
 
 /**

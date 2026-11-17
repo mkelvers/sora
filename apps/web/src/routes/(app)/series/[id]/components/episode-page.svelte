@@ -52,7 +52,7 @@
 	{/each}
 {:else}
 	{#each { length: limit }, index (index)}
-		<li class="grid grid-cols-[40%_minmax(0,1fr)] content-start gap-x-3 sm:block sm:min-h-56">
+		<li class="grid grid-cols-[43%_minmax(0,1fr)] content-start gap-x-3 sm:block">
 			<Skeleton class="row-span-3 aspect-video" />
 			<Skeleton class="h-3 w-3/4 sm:mt-3" />
 			<Skeleton class="mt-2 h-4 w-2/5" />

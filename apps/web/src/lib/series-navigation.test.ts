@@ -10,6 +10,7 @@ const series = {
 		{ episode_count: 26, format: "TV", next_series_id: "season-2", series_id: "season-1" },
 		{ episode_count: 24, format: "TV", next_series_id: null, series_id: "season-2" },
 	] satisfies Parameters<typeof storyContinuation>[0]["seasons"],
+	specials: [],
 };
 
 describe("story playback navigation", () => {
@@ -39,6 +40,23 @@ describe("story playback navigation", () => {
 			})),
 		};
 		expect(nextEpisodeAddress(upcoming, 26, null)).toBeUndefined();
+	});
+
+	test("continues from a season into its special", () => {
+		const finale = {
+			...series,
+			id: "season-2",
+			seasons: series.seasons.map((part) =>
+				part.series_id === "season-2" ? { ...part, next_series_id: "special" } : part,
+			),
+			specials: [
+				{ episode_count: 1, format: "SPECIAL", next_series_id: null, series_id: "special" },
+			],
+		} satisfies Parameters<typeof storyContinuation>[0];
+		expect(nextEpisodeAddress({ ...finale, episode_count: 24 }, 24, null)).toEqual({
+			episode: "1",
+			seriesId: "special",
+		});
 	});
 
 	test("a side story outside the season picker cannot enter the main path", () => {

@@ -271,15 +271,23 @@ const isUnrelated = (from: number, to: number) =>
  * main path is never cut short by the entries around it; those are reached
  * up to a limit.
  *
+ * A spin-off, such as My Hero Academia: Vigilantes, is a story of its own:
+ * an entry AniList lists as `SPIN_OFF` of another is reached from it, and it
+ * from the spin-off, but neither is followed through. The spin-off's sequels
+ * belong to its own franchise, and the original's seasons to the original's.
+ *
  * `crossovers` holds the entries reached only as `OTHER`: they share a
  * universe with the entry but are not part of its story, so they never decide
- * where the franchise starts.
+ * where the franchise starts. `apart` holds the entries reached only across a
+ * spin-off, which never start it either.
  */
 export const franchiseIds = async (
 	anilistId: number,
-): Promise<{ ids: number[]; crossovers: Set<number> }> => {
+): Promise<{ ids: number[]; crossovers: Set<number>; apart: Set<number> }> => {
 	const reached = new Set([anilistId]);
 	const outsiders = new Set<number>();
+	/** Entries reached only across a spin-off, not followed through yet. */
+	const held = new Set<number>();
 	let around = 0;
 	const expand = async (frontier: number[]): Promise<void> => {
 		if (frontier.length === 0) {
@@ -337,6 +345,11 @@ export const franchiseIds = async (
 				: rawEdge,
 		);
 
+		const spinOffs = new Set(
+			rawEdges
+				.filter(({ relation }) => relation === "SPIN_OFF")
+				.flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]),
+		);
 		const storyIds = new Set(
 			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
 		);
@@ -345,6 +358,7 @@ export const franchiseIds = async (
 			(left, right) => rank(left.relation) - rank(right.relation),
 		)) {
 			const continues = rank(edge.relation) === 0;
+			const acrossSpinOff = spinOffs.has(`${edge.from}>${edge.to}`);
 			for (const id of [edge.from, edge.to]) {
 				if (!reached.has(id) && (continues || around < franchiseLimit)) {
 					reached.add(id);
@@ -352,13 +366,21 @@ export const franchiseIds = async (
 						around += 1;
 					}
 
-					if (edge.relation !== "OTHER") {
+					if (acrossSpinOff) {
+						held.add(id);
+					} else if (edge.relation !== "OTHER") {
 						next.push(id);
 					} else if (!storyIds.has(id)) {
 						outsiders.add(id);
 					}
-				} else if (storyIds.has(id)) {
-					outsiders.delete(id);
+				} else {
+					if (storyIds.has(id)) {
+						outsiders.delete(id);
+					}
+					if (held.has(id) && !acrossSpinOff && edge.relation !== "OTHER") {
+						held.delete(id);
+						next.push(id);
+					}
 				}
 			}
 		}
@@ -369,6 +391,7 @@ export const franchiseIds = async (
 
 	reached.delete(anilistId);
 	return {
+		apart: held,
 		crossovers: outsiders,
 		ids: [...reached],
 	};
@@ -386,7 +409,7 @@ export const franchiseIds = async (
  * well after the first episode can be watched.
  */
 const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
-	const { ids, crossovers } = await franchiseIds(row.anilistId);
+	const { ids, crossovers, apart } = await franchiseIds(row.anilistId);
 	const rows = await db.select().from(series).where(inArray(series.anilistId, ids));
 	const titles = [
 		row,
@@ -462,8 +485,12 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 			alternatives: relations
 				.filter(({ relation }) => relation === "ALTERNATIVE")
 				.map(({ from, to }) => [from, to] as const),
+			apart: [...apart],
 			crossovers: [...crossovers],
 			currentId: row.anilistId,
+			spinOffs: relations
+				.filter(({ relation }) => relation === "SPIN_OFF")
+				.map(({ from, to }) => [from, to] as const),
 			summaries: relations
 				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
 				.map(({ to }) => to),
@@ -494,7 +521,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 		})),
 		new Set(
 			parts
-				.filter((part) => part.role === "season")
+				.filter((part) => part.role === "season" || part.role === "special")
 				.map((part) => defined(anilistIdOf.get(part.series_id))),
 		),
 	);
@@ -754,10 +781,14 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 						number: row.nextEpisodeNumber,
 					}
 				: null),
-		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
+		related: [
+			...franchise.filter((part) => part.role === "spin_off"),
+			...franchise.filter((part) => part.role === "extra"),
+		],
 		score_count: indexed?.scoreCount ?? null,
 		score_stars: indexed?.scoreStars ?? null,
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,
+		specials: franchise.filter((part) => part.role === "special"),
 		start_date: row.startDate,
 		studios: anime.studios,
 		tags: anime.tags
