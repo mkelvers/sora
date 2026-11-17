@@ -781,7 +781,10 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 						number: row.nextEpisodeNumber,
 					}
 				: null),
-		related: franchise.filter((part) => part.role === "extra" || part.role === "spin_off"),
+		related: [
+			...franchise.filter((part) => part.role === "spin_off"),
+			...franchise.filter((part) => part.role === "extra"),
+		],
 		score_count: indexed?.scoreCount ?? null,
 		score_stars: indexed?.scoreStars ?? null,
 		seasons: current && current.role !== "season" ? [current, ...seasons] : seasons,

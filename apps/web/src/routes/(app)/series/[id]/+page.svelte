@@ -49,9 +49,6 @@
 	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
-	const extras = $derived(series.related.filter((part) => part.role === "extra"));
-	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));
-
 	let choosing = $state(false);
 	let options = $state(false);
 
@@ -192,7 +189,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="-ml-2 text-foreground hover:bg-transparent"
+						class="-ml-2 hover:bg-transparent"
 						href="/series/{previous.series_id}"
 					>
 						<CaretLeftIcon size="1rem" weight="bold" />
@@ -210,7 +207,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="-mr-2 text-foreground hover:bg-transparent"
+						class="-mr-2 hover:bg-transparent"
 						href="/series/{next.series_id}"
 					>
 						Next season
@@ -228,11 +225,8 @@
 		{/if}
 	</div>
 
-	{#if extras.length}
-		<Related id="extras" heading="More from This Series" parts={extras} />
-	{/if}
-	{#if spinOffs.length}
-		<Related id="spin-offs" heading="Spin-offs" parts={spinOffs} />
+	{#if series.related.length}
+		<Related id="extras" heading="More from This Series" parts={series.related} />
 	{/if}
 </div>
 

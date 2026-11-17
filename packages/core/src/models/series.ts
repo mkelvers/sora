@@ -196,7 +196,7 @@ export const SeriesSchema = SeriesCardSchema.extend({
 		}),
 	related: z.array(FranchisePartSchema).meta({
 		description:
-			"Other released stories in the franchise, in release order. Alternatives, summaries, and compilations are omitted.",
+			"Other released stories in the franchise: spin-offs first, then extras, each in release order. Alternatives, summaries, and compilations are omitted.",
 	}),
 	score_count: z.number().int().nullable().meta({
 		description:
