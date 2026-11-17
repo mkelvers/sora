@@ -1,0 +1,16 @@
+# AniList's daily statistics of the given entries since `after`, a Unix
+# timestamp: how much activity each saw on each day, and how many users
+# listed it then.
+query MediaTrends($ids: [Int!]!, $after: Int!, $page: Int!) {
+	Page(page: $page, perPage: 50) {
+		pageInfo {
+			hasNextPage
+		}
+		mediaTrends(mediaId_in: $ids, date_greater: $after, sort: [MEDIA_ID, DATE]) {
+			mediaId
+			date
+			trending
+			popularity
+		}
+	}
+}

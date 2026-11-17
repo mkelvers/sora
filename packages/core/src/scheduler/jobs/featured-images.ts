@@ -1,12 +1,11 @@
 import { attempt, inSequence } from "@sora/shared";
-import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { series, titleArtwork, titleImage } from "../../database/schema/series";
-import { minBackdropSize } from "../../library/featured/featured";
-import { currentFor, currentThresholds, dateBefore } from "../../library/featured/rotation";
+import { isFeaturedEntry, minBackdropSize } from "../../library/featured/featured";
 import { listSeriesImages } from "../../series/artwork";
 import { isCollage } from "../../series/collage";
 
@@ -45,15 +44,7 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 							and ${titleImage.isCollage} is null
 					)`,
 				),
-				or(
-					eq(animeSearch.status, "RELEASING"),
-					gte(animeSearch.startDate, dateBefore(new Date(), currentFor)),
-				),
-				eq(animeSearch.isAdult, false),
-				inArray(animeSearch.format, ["TV", "MOVIE"]),
-				inArray(animeSearch.status, ["RELEASING", "FINISHED"]),
-				gte(animeSearch.averageScore, currentThresholds.score),
-				gte(animeSearch.popularity, currentThresholds.popularity),
+				isFeaturedEntry(new Date()),
 			),
 		)
 		.orderBy(desc(animeSearch.popularity))

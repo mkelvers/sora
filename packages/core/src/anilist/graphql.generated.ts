@@ -289,6 +289,15 @@ export type SearchIndexPageQueryVariables = Exact<{
 
 export type SearchIndexPageQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, media: Array<{ id: number, synonyms: Array<string | null> | null, format: MediaFormat | null, status: MediaStatus | null, season: MediaSeason | null, seasonYear: number | null, genres: Array<string | null> | null, source: MediaSource | null, countryOfOrigin: string | null, episodes: number | null, duration: number | null, popularity: number | null, trending: number | null, averageScore: number | null, isAdult: boolean | null, updatedAt: number | null, title: { romaji: string | null, english: string | null, native: string | null } | null, startDate: { year: number | null, month: number | null, day: number | null } | null, tags: Array<{ name: string, rank: number | null, isMediaSpoiler: boolean | null, isAdult: boolean | null } | null> | null, studios: { nodes: Array<{ name: string } | null> | null } | null, relations: { edges: Array<{ relationType: MediaRelation | null, node: { countryOfOrigin: string | null, source: MediaSource | null } | null } | null> | null } | null, stats: { scoreDistribution: Array<{ amount: number | null } | null> | null } | null } | null> | null } | null };
 
+export type MediaTrendsQueryVariables = Exact<{
+  ids: Array<number> | number;
+  after: number;
+  page: number;
+}>;
+
+
+export type MediaTrendsQuery = { Page: { pageInfo: { hasNextPage: boolean | null } | null, mediaTrends: Array<{ mediaId: number, date: number, trending: number, popularity: number | null } | null> | null } | null };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -1034,3 +1043,18 @@ export const SearchIndexPageDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SearchIndexPageQuery, SearchIndexPageQueryVariables>;
+export const MediaTrendsDocument = new TypedDocumentString(`
+    query MediaTrends($ids: [Int!]!, $after: Int!, $page: Int!) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
+    mediaTrends(mediaId_in: $ids, date_greater: $after, sort: [MEDIA_ID, DATE]) {
+      mediaId
+      date
+      trending
+      popularity
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<MediaTrendsQuery, MediaTrendsQueryVariables>;
