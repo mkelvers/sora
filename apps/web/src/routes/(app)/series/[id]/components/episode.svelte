@@ -71,7 +71,7 @@
 	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));
 </script>
 
-<li class="group relative isolate flex min-w-0 flex-col focus-within:z-10 hover:z-10 sm:min-h-56">
+<li class="group relative isolate flex min-w-0 flex-col self-start focus-within:z-10 hover:z-10">
 	<svelte:element
 		this={playable ? "a" : "div"}
 		href={playable ? `/series/${series.id}/watch/${episode.number}` : undefined}
@@ -128,7 +128,7 @@
 			>
 				{heading}
 			</h3>
-			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-subtle sm:mt-1.5 sm:pr-0">
+			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-subtle sm:mt-3.5">
 				{audioLabel(episode.audio)}
 			</p>
 		</div>
@@ -169,7 +169,7 @@
 
 	<Button
 		variant="icon"
-		class="absolute -right-2 -bottom-2 z-20 sm:hidden"
+		class="absolute -right-2 -bottom-3 z-20 sm:hidden"
 		aria-label="{special ?? `Episode ${episode.number}`} options"
 		aria-haspopup="dialog"
 		aria-controls="episode-options"
@@ -179,7 +179,7 @@
 		<DotsThreeVerticalIcon size="1.5rem" weight="bold" />
 	</Button>
 
-	<div class="absolute -right-2 -bottom-2 z-20 max-sm:hidden">
+	<div class="absolute -right-2 -bottom-3 z-20 max-sm:hidden">
 		<Dropdown variant="icon" label="Episode options" class="w-48">
 			{#snippet trigger()}
 				<DotsThreeVerticalIcon size="1.5rem" weight="bold" />

@@ -28,6 +28,8 @@
 
 	let { params }: PageProps = $props();
 
+	const extraEvery = 2;
+
 	const series = $derived(await getSeries(params.id));
 	const [progress] = $derived(
 		await Promise.all([
@@ -56,7 +58,23 @@
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
 	const similar = $derived(getSimilarSeries(params.id));
-	const alike = $derived([...series.related.map((part) => part.card), ...(similar.current ?? [])]);
+	const alike = $derived.by(() => {
+		if (!similar.current) {
+			return [];
+		}
+		const extras = series.related.filter((part) => part.role === "extra").map((part) => part.card);
+		const cards = series.related
+			.filter((part) => part.role === "spin_off")
+			.map((part) => part.card);
+		for (const [index, card] of similar.current.entries()) {
+			cards.push(card);
+			const extra = index % extraEvery === extraEvery - 1 ? extras.shift() : undefined;
+			if (extra) {
+				cards.push(extra);
+			}
+		}
+		return [...cards, ...extras];
+	});
 
 	let choosing = $state(false);
 	let options = $state(false);
