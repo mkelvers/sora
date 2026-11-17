@@ -6,7 +6,12 @@
 	import Sheet from "$lib/components/ui/sheet.svelte";
 	import { episodes } from "$lib/utils";
 	import type { FranchisePart } from "@sora/sdk";
-	import { CaretDownIcon, DotsThreeVerticalIcon } from "phosphor-svelte";
+	import {
+		CaretDownIcon,
+		CaretLeftIcon,
+		CaretRightIcon,
+		DotsThreeVerticalIcon,
+	} from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
 	import About from "./components/about.svelte";
@@ -38,6 +43,10 @@
 			? "Season"
 			: "Title";
 	});
+
+	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
+	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
+	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
 
 	const extras = $derived(series.related.filter((part) => part.role === "extra"));
 	const spinOffs = $derived(series.related.filter((part) => part.role === "spin_off"));
@@ -147,16 +156,26 @@
 
 		{#if series.episode_count > 0}
 			<section
-				class={["pb-7 sm:pb-12 lg:pb-16", series.seasons.length > 1 ? "pt-7" : "pt-6"]}
+				class={[
+					!previous && !next && "pb-7 sm:pb-12 lg:pb-16",
+					series.seasons.length > 1 ? "pt-7" : "pt-6",
+				]}
 				aria-labelledby="episodes"
 			>
 				{#key series.id}
-					<Episodes {series} progress={progress.episodes} />
+					<Episodes
+						{series}
+						progress={progress.episodes}
+						specials={series.specials.filter((part) => part.season_id === series.id)}
+					/>
 				{/key}
 			</section>
 		{:else}
 			<section
-				class="my-7 border-2 border-dotted border-muted px-5 py-14 text-center sm:mb-12 lg:mb-16"
+				class={[
+					"mt-7 border-2 border-dotted border-muted px-5 py-14 text-center",
+					!previous && !next && "mb-7 sm:mb-12 lg:mb-16",
+				]}
 				aria-labelledby="check-back"
 			>
 				<h2 id="check-back" class="font-bold">No episodes yet.</h2>
@@ -164,6 +183,26 @@
 					Check back soon, in the meantime feel free to look around.
 				</p>
 			</section>
+		{/if}
+
+		{#if previous || next}
+			<nav
+				aria-label="Seasons"
+				class="mt-8 mb-7 flex border-t border-border pt-4 sm:mt-12 sm:mb-12 lg:mb-16"
+			>
+				{#if previous}
+					<Button variant="ghost" size="sm" class="-ml-2" href="/series/{previous.series_id}">
+						<CaretLeftIcon size="1rem" weight="bold" />
+						Previous season
+					</Button>
+				{/if}
+				{#if next}
+					<Button variant="ghost" size="sm" class="-mr-2 ml-auto" href="/series/{next.series_id}">
+						Next season
+						<CaretRightIcon size="1rem" weight="bold" />
+					</Button>
+				{/if}
+			</nav>
 		{/if}
 	</div>
 

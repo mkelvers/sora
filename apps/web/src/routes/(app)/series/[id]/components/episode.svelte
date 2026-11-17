@@ -5,18 +5,20 @@
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import { markEpisode } from "$routes/(app)/series/[id]/series.remote";
-	import type { Episode, Progress, Series } from "@sora/sdk";
+	import type { Episode, Progress, SeriesCard } from "@sora/sdk";
 	import { CalendarBlankIcon, DotsThreeVerticalIcon, PlayIcon } from "phosphor-svelte";
 
 	let {
 		series,
 		episode,
+		special,
 		progress,
 		options,
 		onoptions,
 	}: {
-		series: Series;
+		series: SeriesCard;
 		episode: Episode;
+		special?: string;
 		progress?: Progress;
 		options: boolean;
 		onoptions: () => void;
@@ -41,11 +43,14 @@
 	const concealed = $derived(library.hideSpoilers && !watched && !started && !movie);
 	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
 	const playable = $derived(episode.audio?.length !== 0);
-	const heading = $derived(
-		movie
+	const heading = $derived.by(() => {
+		if (special) {
+			return special;
+		}
+		return movie
 			? (episode.title ?? series.title)
-			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`,
-	);
+			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
+	});
 	const badge = $derived.by(() => {
 		if (watched) {
 			return "Watched";
@@ -61,7 +66,7 @@
 		}
 		return started ? "Resume" : "Play";
 	});
-	const action = $derived(`${verb}${movie ? "" : ` E${episode.number}`}`);
+	const action = $derived(`${verb}${movie || special ? "" : ` E${episode.number}`}`);
 	const released = $derived(episode.aired_at ?? episode.air_date);
 	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));
 </script>
@@ -162,7 +167,7 @@
 	<Button
 		variant="icon"
 		class="absolute -right-2 -bottom-2 z-20 sm:hidden"
-		aria-label="Episode {episode.number} options"
+		aria-label="{special ?? `Episode ${episode.number}`} options"
 		aria-haspopup="dialog"
 		aria-controls="episode-options"
 		aria-expanded={options}

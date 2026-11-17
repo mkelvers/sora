@@ -46,7 +46,7 @@ export const startsSoon = (startDate: string | null, now: Date): startDate is st
  * `null` when nothing of the franchise is out.
  */
 const earliestReleased = async (anilistId: number) => {
-	const { ids: franchise, crossovers } = await franchiseIds(anilistId);
+	const { ids: franchise, crossovers, apart } = await franchiseIds(anilistId);
 	const rows =
 		franchise.length > 0
 			? await db
@@ -73,7 +73,10 @@ const earliestReleased = async (anilistId: number) => {
 	};
 	// A crossover shares the universe, not the story, so catching up never
 	// starts there unless the franchise's own earliest title is named after it.
-	const own = rows.filter((row) => !crossovers.has(row.series.anilistId));
+	// A title reached only across a spin-off tells another story, and never does.
+	const own = rows.filter(
+		(row) => !crossovers.has(row.series.anilistId) && !apart.has(row.series.anilistId),
+	);
 	const start = earliestOf(own.length > 0 ? own : rows);
 	const named = start
 		? rows.filter(

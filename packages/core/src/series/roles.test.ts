@@ -125,4 +125,16 @@ describe("franchiseRoles", () => {
 		const roles = franchiseRoles([johto, title(80, "MOVIE")], relations, main);
 		expect(roles.get(80)).toBe("extra");
 	});
+
+	test("keeps a spin-off that lists its original as its parent", () => {
+		const roles = franchiseRoles(
+			[indigo, title(90, "TV", { episodeCount: 13 })],
+			[
+				{ from: 1, to: 90, type: "SPIN_OFF" },
+				{ from: 90, to: 1, type: "PARENT" },
+			],
+			main,
+		);
+		expect(roles.get(90)).toBe("spin_off");
+	});
 });

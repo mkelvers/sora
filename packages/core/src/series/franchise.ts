@@ -17,6 +17,12 @@ export interface FranchiseTitle {
 /** Formats that can establish the default TV/web adaptation. */
 const seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
 
+/** Formats of a short sequel that is watched as part of the season before it. */
+const specialFormats = new Set<AnimeFormat>(["SPECIAL", "OVA"]);
+
+/** The most episodes a special that belongs to the season before it has. */
+const specialEpisodeLimit = 2;
+
 /** Relationships used to keep adaptations and recaps out of the viewing path. */
 export interface FranchiseOptions {
 	/** Pairs of titles that adapt the same story. */
@@ -27,6 +33,14 @@ export interface FranchiseOptions {
 	currentId?: number;
 	/** Titles that share the universe without being part of the story; they never start it. */
 	crossovers?: readonly number[];
+	/** Titles of another story, reached only across a spin-off; they never start this one. */
+	apart?: readonly number[];
+	/**
+	 * Pairs of an original and a title AniList lists as its spin-off. The
+	 * spin-off and its sequels are a story of their own and never join the
+	 * original's seasons.
+	 */
+	spinOffs?: readonly (readonly [number, number])[];
 	/**
 	 * Titles with nothing to watch, such as a film AniKoto does not carry yet.
 	 * They still link the titles around them into one story but are never
@@ -288,6 +302,53 @@ const inStoryOrder = (candidates: readonly FranchiseTitle[], links: readonly Seq
 };
 
 /**
+ * The stories AniList calls spin-offs: each spin-off with the titles its
+ * sequel links join it to. A spin-off whose sequels lead back to its original
+ * is part of the original's story, not one of its own.
+ */
+const spinOffStories = (
+	sequels: readonly SequelLink[],
+	spinOffs: readonly (readonly [number, number])[],
+) =>
+	spinOffs.flatMap(([original, spinOff]) => {
+		const story = componentOf(sequels, spinOff);
+		return story.has(original) ? [] : [story];
+	});
+
+/**
+ * The season each short special on the story path belongs to, by AniList ID:
+ * a special or OVA of at most {@link specialEpisodeLimit} episodes whose only
+ * prequel on the path is a series season, or another such special. The finale
+ * specials My Hero Academia More and I am a hero too belong to its final season.
+ */
+const specialsOf = (seasons: readonly FranchiseTitle[], links: readonly SequelLink[]) => {
+	const seasonOf = new Map<number, FranchiseTitle>();
+	for (const title of seasons) {
+		if (
+			title.format === null ||
+			!specialFormats.has(title.format) ||
+			title.episodeCount > specialEpisodeLimit
+		) {
+			continue;
+		}
+
+		const prequels = seasons.filter((season) =>
+			links.some(([from, to]) => from === season.anilistId && to === title.anilistId),
+		);
+		const [prequel] = prequels;
+		if (prequels.length !== 1 || !prequel) {
+			continue;
+		}
+
+		const season = isSeriesTitle(prequel) ? prequel : seasonOf.get(prequel.anilistId);
+		if (season) {
+			seasonOf.set(title.anilistId, season);
+		}
+	}
+	return seasonOf;
+};
+
+/**
  * Lists the default adaptation's story entries, then its other related stories.
  * Sequel pairs must point from prequel to sequel. Story entries follow these
  * relationships, with release dates breaking ties; films and specials that
@@ -299,6 +360,11 @@ const inStoryOrder = (candidates: readonly FranchiseTitle[], links: readonly Seq
  * TV arc is preferred. An explicitly selected alternative is returned with
  * role `alternative`, so it can be selected without entering recommendations.
  * `next_series_id` is only supplied for an unambiguous, available direct sequel.
+ *
+ * A spin-off and its sequels are a story of their own (see
+ * `FranchiseOptions.spinOffs`). A short special that continues a season is
+ * that season's `special` (see {@link specialsOf}), not a season of its own;
+ * `next_series_id` still leads from the season into it.
  */
 export const franchiseParts = (
 	titles: readonly FranchiseTitle[],
@@ -306,8 +372,17 @@ export const franchiseParts = (
 	options: FranchiseOptions = {},
 ): Omit<FranchisePart, "card">[] => {
 	const byRelease = byReleaseDate(titles);
+	const stories = spinOffStories(sequels, options.spinOffs ?? []);
+	// A spin-off's own page lists the spin-off's seasons, not its original's.
+	const ownStory = stories.find(
+		(story) => options.currentId !== undefined && story.has(options.currentId),
+	);
 	const selected = startOf(
-		byRelease.filter((title) => !options.unlisted?.includes(title.anilistId)),
+		byRelease.filter(
+			(title) =>
+				!options.unlisted?.includes(title.anilistId) &&
+				(ownStory ? ownStory.has(title.anilistId) : !options.apart?.includes(title.anilistId)),
+		),
 		options.crossovers,
 	);
 	const current = byRelease.find((title) => title.anilistId === options.currentId);
@@ -318,7 +393,11 @@ export const franchiseParts = (
 			byRelease,
 			links,
 			selected,
-			new Set([...(options.alternatives ?? []).flat(), ...(options.summaries ?? [])]),
+			new Set([
+				...(options.alternatives ?? []).flat(),
+				...(options.summaries ?? []),
+				...stories.filter((story) => !story.has(selected.anilistId)).flatMap((story) => [...story]),
+			]),
 		);
 	}
 
@@ -363,6 +442,7 @@ export const franchiseParts = (
 				return followers(to, seen);
 			});
 	const listed = seasons.filter((title) => !unlisted.has(title.anilistId));
+	const seasonOfSpecial = specialsOf(listed, links);
 	return [...seasons, ...others, ...(current && omitted.has(current.anilistId) ? [current] : [])]
 		.filter((title) => !unlisted.has(title.anilistId))
 		.map((title) => {
@@ -375,8 +455,11 @@ export const franchiseParts = (
 				successor.episodeCount > 0
 					? successor.seriesId
 					: null;
-			let role: "alternative" | "extra" | "season" = "extra";
-			if (seasons.includes(title)) {
+			const season = seasonOfSpecial.get(title.anilistId);
+			let role: "alternative" | "extra" | "season" | "special" = "extra";
+			if (season) {
+				role = "special";
+			} else if (seasons.includes(title)) {
 				role = "season";
 			} else if (omitted.has(title.anilistId)) {
 				role = "alternative";
@@ -387,6 +470,7 @@ export const franchiseParts = (
 				next_series_id:
 					!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
 				role,
+				season_id: season?.seriesId ?? null,
 				series_id: title.seriesId,
 				title: shortTitle(title, base, seasons.includes(title)),
 			};
