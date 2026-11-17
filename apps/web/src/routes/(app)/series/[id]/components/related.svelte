@@ -5,16 +5,16 @@
 	import Next from "$lib/components/ui/carousel/next.svelte";
 	import Previous from "$lib/components/ui/carousel/previous.svelte";
 	import Poster from "$routes/(app)/components/poster.svelte";
-	import type { FranchisePart } from "@sora/sdk";
+	import type { SeriesCard } from "@sora/sdk";
 
 	let {
 		id,
 		heading,
-		parts,
+		cards,
 	}: {
 		id: string;
 		heading: string;
-		parts: FranchisePart[];
+		cards: SeriesCard[];
 	} = $props();
 </script>
 
@@ -32,11 +32,11 @@
 	>
 		{#snippet children()}
 			<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16">
-				{#each parts as part (part.series_id)}
+				{#each cards as card (card.id)}
 					<Item
 						class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 xs:basis-[calc((100vw-4.5rem)/3)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 md:basis-[calc((100vw-9.75rem)/5)] lg:basis-[calc((100vw-17.375rem)/5)] lg:last:mr-16 2xl:basis-[calc((100vw-19.25rem)/6)]"
 					>
-						<Poster card={part.card} />
+						<Poster {card} />
 					</Item>
 				{/each}
 			</Content>

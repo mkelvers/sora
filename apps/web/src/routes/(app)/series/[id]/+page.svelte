@@ -18,7 +18,13 @@
 	import Episodes, { pageSize } from "./components/episodes.svelte";
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
-	import { getEpisodes, getSeries, getSeriesProgress, markSeries } from "./series.remote";
+	import {
+		getEpisodes,
+		getSimilarSeries,
+		getSeries,
+		getSeriesProgress,
+		markSeries,
+	} from "./series.remote";
 
 	let { params }: PageProps = $props();
 
@@ -48,6 +54,8 @@
 	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
 	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
+
+	const similar = $derived(getSimilarSeries(params.id));
 
 	let choosing = $state(false);
 	let options = $state(false);
@@ -226,7 +234,14 @@
 	</div>
 
 	{#if series.related.length}
-		<Related id="extras" heading="More from This Series" parts={series.related} />
+		<Related
+			id="extras"
+			heading="More from This Series"
+			cards={series.related.map((part) => part.card)}
+		/>
+	{/if}
+	{#if similar.current?.length}
+		<Related id="like-this" heading="More Like This" cards={similar.current} />
 	{/if}
 </div>
 

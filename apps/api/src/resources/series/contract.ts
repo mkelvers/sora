@@ -428,6 +428,24 @@ export const seriesRoute = {
 		summary: "List anime seasons",
 		tags: ["Series"],
 	}),
+	listSimilarSeries: createRoute({
+		description:
+			"Titles like this title's franchise, the most recommended first, at most 30. Gathered from what AniList's users recommend for each title of the franchise's story, one per show or film and shown as its earliest show or film. The franchise's own titles, adult titles, and titles with nothing to stream are left out.",
+		method: "get",
+		operationId: "listSimilarSeries",
+		path: "/series/{series_id}/similar",
+		request: {
+			params: z.object({
+				series_id: SeriesIdParam,
+			}),
+		},
+		responses: {
+			200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
+			404: problem("No such title."),
+		},
+		summary: "Titles like a series",
+		tags: ["Series"],
+	}),
 	listStudios: createRoute({
 		description:
 			"The main studios of titles Sora can play, those with the most titles first, at most 30. Pass one to `browseSeries` in `studios`.",

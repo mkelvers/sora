@@ -23,6 +23,14 @@ export const getSeriesProgress = query(z.string(), (id) => {
 	});
 });
 
+export const getSimilarSeries = query(z.string(), (id) =>
+	remoteViewer().sora.request(route.listSimilarSeries, {
+		params: {
+			series_id: id,
+		},
+	}),
+);
+
 export const getEpisodes = query(
 	z.object({
 		backdrop: z.string().nullable(),
