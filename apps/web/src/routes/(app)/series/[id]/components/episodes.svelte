@@ -83,7 +83,7 @@
 
 <ol
 	bind:this={grid}
-	class="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 hero:grid-cols-7"
+	class="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-7.5 wide:grid-cols-5 hero:grid-cols-7"
 >
 	{#each chunks as chunk (chunk.offset)}
 		<EpisodePage

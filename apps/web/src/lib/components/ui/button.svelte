@@ -112,7 +112,7 @@
 					icon: "text-muted hover:text-foreground aria-expanded:text-foreground",
 					item: "w-full justify-start px-5 text-left text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:bg-hover focus-visible:text-foreground focus-visible:-outline-offset-2 aria-checked:text-foreground aria-expanded:text-foreground aria-pressed:bg-hover aria-pressed:text-foreground aria-[current]:text-foreground max-sm:text-base",
 					link: "font-bold tracking-wide text-accent uppercase hover:text-foreground",
-					nav: "h-full px-4 text-sm font-medium text-muted hover:bg-hover hover:text-foreground focus-visible:-outline-offset-2 aria-expanded:bg-hover aria-expanded:text-foreground",
+					nav: "h-full px-4 text-base text-muted hover:bg-hover hover:text-foreground focus-visible:-outline-offset-2 aria-expanded:bg-hover aria-expanded:text-foreground",
 					plain:
 						"font-medium text-foreground hover:text-accent-secondary aria-expanded:text-accent-secondary",
 					primary:
