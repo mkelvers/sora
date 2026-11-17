@@ -430,7 +430,7 @@ export const seriesRoute = {
 	}),
 	listSimilarSeries: createRoute({
 		description:
-			"Titles like this title's franchise, the most recommended first, at most 30. Gathered from what AniList's users recommend for each title of the franchise's story, one per show or film and shown as its earliest show or film. The franchise's own titles, adult titles, and titles with nothing to stream are left out.",
+			"Titles like this title's franchise, the most recommended first, at most 28. Gathered from what AniList's users recommend for each title of the franchise's story, one per show or film and shown as its earliest show or film. The franchise's own titles, adult titles, and titles with nothing to stream are left out.",
 		method: "get",
 		operationId: "listSimilarSeries",
 		path: "/series/{series_id}/similar",

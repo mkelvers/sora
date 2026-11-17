@@ -18,12 +18,12 @@
 	} = $props();
 </script>
 
-<div class="pb-10 sm:pb-12 lg:pb-16">
-	<h2 {id} class="px-5 text-xl font-bold sm:px-10 sm:text-2xl lg:px-16">
+<div class="pb-8 sm:pb-10">
+	<h2 {id} class="px-5 text-lg font-bold sm:px-10 lg:px-16">
 		{heading}
 	</h2>
 	<Carousel
-		class="mt-5 min-w-0"
+		class="mt-3 min-w-0"
 		aria-labelledby={id}
 		options={{
 			slidesToScroll: "auto",
@@ -34,7 +34,7 @@
 			<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16">
 				{#each cards as card (card.id)}
 					<Item
-						class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 xs:basis-[calc((100vw-4.5rem)/3)] sm:basis-[calc((100vw-7.75rem)/4)] sm:last:mr-10 md:basis-[calc((100vw-9.75rem)/5)] lg:basis-[calc((100vw-17.375rem)/5)] lg:last:mr-16 2xl:basis-[calc((100vw-19.25rem)/6)]"
+						class="basis-[calc((100vw-4rem)/3)] last:mr-5 sm:basis-[calc((100vw-8rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-13.625rem)/4)] lg:last:mr-16 wide:basis-[calc((100vw-15.5rem)/5)] hero:basis-[calc((100vw-19.25rem)/7)]"
 					>
 						<Poster {card} />
 					</Item>

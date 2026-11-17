@@ -10,10 +10,10 @@ import type { SeriesCard } from "../models/series";
 import { franchiseIds, toSeriesCards } from "./queries";
 
 /**
- * The most titles recommended: a whole number of carousel slides at two,
- * three, five, and six posters a slide.
+ * The most titles recommended: a whole number of carousel slides at four
+ * and seven posters a slide, the widths a laptop and a large screen show.
  */
-const similarLimit = 30;
+const similarLimit = 28;
 
 /** How many recommendations AniList gives each title (see `fragments.graphql`). */
 const perTitle = 12;
