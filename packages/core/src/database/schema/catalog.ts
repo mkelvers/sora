@@ -179,6 +179,34 @@ export const animeSearchTag = pgTable(
 );
 
 /**
+ * AniList's daily statistics of the entries the home page may feature: how
+ * much activity each saw on a day, and how many users listed it. Kept for
+ * about a month, so the home page can tell a title people are coming back to
+ * from one they are leaving (see `storeAnimeTrendsJob`).
+ */
+export const animeTrend = pgTable(
+	"anime_trend",
+	{
+		anilistId: integer("anilist_id")
+			.notNull()
+			.references(() => animeSearch.anilistId, {
+				onDelete: "cascade",
+			}),
+		/** `YYYY-MM-DD`, the UTC day AniList recorded it. */
+		day: text("day").notNull(),
+		popularity: integer("popularity"),
+		/** How much activity on AniList the entry saw that day. */
+		trending: integer("trending").notNull(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.anilistId, table.day],
+		}),
+		index("anime_trend_day_idx").on(table.day),
+	],
+);
+
+/**
  * When each mirrored catalogue last finished a full sync. A catalogue is
  * only relied on once one has: a partly filled one would miss titles.
  */

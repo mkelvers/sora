@@ -44,6 +44,7 @@ import { detectSkipSegmentsJob } from "./jobs/skips";
 import { chooseEpisodeStillsJob, chooseEpisodeStillsTask } from "./jobs/stills";
 import { probeSubtitles, refineSubtitles } from "./jobs/subtitles";
 import { syncTimetablesJob, syncTimetablesTask } from "./jobs/timetables";
+import { storeAnimeTrendsJob, storeAnimeTrendsTask } from "./jobs/trends";
 import { upscaleBackdropJob } from "./jobs/upscale";
 import { failInvalidPayloads } from "./payload";
 import { watchPools } from "./pools";
@@ -137,6 +138,8 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			`40 * * * * ${storeFeaturedImagesTask} ?priority=-1`,
 			`*/5 * * * * ${chooseEpisodeStillsTask} ?priority=-1`,
 			`20 * * * * ${syncTimetablesTask} ?id=timetables&fill=1h&priority=-1`,
+			// Before the featured titles change at 06:00 UTC.
+			`30 5 * * * ${storeAnimeTrendsTask} ?id=anime-trends&fill=1d&priority=-1`,
 			// Five AniList requests a run until every stored anime has been fetched
 			// with the fields added last, then none.
 			`*/10 * * * * ${refreshStaleAnimeTask} ?priority=5`,
@@ -163,6 +166,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 					[storeFeaturedImagesTask]: storeFeaturedImagesJob,
 					[chooseEpisodeStillsTask]: chooseEpisodeStillsJob,
 					[syncTimetablesTask]: syncTimetablesJob,
+					[storeAnimeTrendsTask]: storeAnimeTrendsJob,
 					[refreshStaleAnimeTask]: refreshStaleAnimeJob,
 					[storeTitleFactsTask]: storeTitleFactsJob,
 				},

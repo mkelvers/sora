@@ -1,11 +1,12 @@
 import { defined, inSequence } from "@sora/shared";
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, lte, max, or, sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
-import { animeSearch } from "../../database/schema/catalog";
+import { animeSearch, animeTrend } from "../../database/schema/catalog";
 import { featuredPick, seriesState } from "../../database/schema/library";
 import {
 	series,
+	seriesEpisode,
 	seriesRelated,
 	titleArtwork,
 	titleBackdropUpscale,
@@ -17,17 +18,23 @@ import { effectiveBackdrop, effectiveLogo } from "../../series/edges";
 import { toSeriesCards } from "../../series/queries";
 import { upscaledBackdropUrl } from "../../series/upscaled-backdrop";
 import {
+	activityKeptFor,
+	activityOf,
 	arrange,
-	dateBefore,
+	currentFor,
 	currentThresholds,
+	dateBefore,
 	featuredCount,
+	historyRotations,
 	isCurrent,
 	longRunningAfter,
-	restRotations,
-	rotate,
+	minimumCount,
+	order,
 	rotationOf,
+	rotationStartOf,
 	spareCandidates,
 } from "./rotation";
+import type { Activity, Candidate } from "./rotation";
 
 /** Formats worth featuring: shows and films, not music videos, specials, or OVAs. */
 const featuredFormats = ["TV", "MOVIE"] as const;
@@ -150,16 +157,84 @@ const withStarts = async (
 };
 
 /**
- * Picks titles to feature for a rotation from the search index, leaving out
- * `excluded` and putting `rested` last, with their cards.
+ * The well-liked, popular TV seasons and films of the search index, airing or
+ * from the last year; see {@link isCurrent}, which this narrows down to.
  */
-const pickTitles = async (
-	userId: string,
-	rotation: number,
-	now: Date,
-	excluded: ReadonlySet<string>,
-	rested: ReadonlySet<string>,
-) => {
+export const isFeaturedEntry = (now: Date) =>
+	and(
+		eq(animeSearch.isAdult, false),
+		inArray(animeSearch.format, [...featuredFormats]),
+		inArray(animeSearch.status, ["RELEASING", "FINISHED"]),
+		gte(animeSearch.averageScore, currentThresholds.score),
+		or(
+			and(
+				eq(animeSearch.status, "RELEASING"),
+				gte(animeSearch.popularity, currentThresholds.airingPopularity),
+			),
+			and(
+				gte(animeSearch.popularity, currentThresholds.popularity),
+				gte(animeSearch.startDate, dateBefore(now, currentFor)),
+			),
+		),
+	);
+
+/** When the newest episode of each series aired, up to `now`, by series ID. */
+const lastAirings = async (seriesIds: readonly string[], now: Date) => {
+	if (seriesIds.length === 0) {
+		return new Map<string, Date>();
+	}
+	const rows = await db
+		.select({
+			lastAiredAt: max(seriesEpisode.airedAt),
+			seriesId: seriesEpisode.seriesId,
+		})
+		.from(seriesEpisode)
+		.where(and(inArray(seriesEpisode.seriesId, [...seriesIds]), lte(seriesEpisode.airedAt, now)))
+		.groupBy(seriesEpisode.seriesId);
+	return new Map(
+		rows.flatMap((row) => (row.lastAiredAt ? [[row.seriesId, row.lastAiredAt] as const] : [])),
+	);
+};
+
+/** The AniList activity of each entry over the last month, by AniList ID. */
+const activities = async (anilistIds: readonly number[], now: Date) => {
+	if (anilistIds.length === 0) {
+		return new Map<number, Activity>();
+	}
+	const rows = await db
+		.select()
+		.from(animeTrend)
+		.where(
+			and(
+				inArray(animeTrend.anilistId, [...anilistIds]),
+				gte(animeTrend.day, dateBefore(now, activityKeptFor)),
+			),
+		);
+	const byEntry = Map.groupBy(rows, (row) => row.anilistId);
+	return new Map(anilistIds.map((id) => [id, activityOf(byEntry.get(id) ?? [], now)] as const));
+};
+
+/**
+ * Picks titles to feature for a rotation from the search index, leaving out
+ * `excluded`, with their cards. `lastPicked` holds the rotation each title
+ * was last featured in, and `shown` how many are featured this rotation
+ * already; see {@link order} and {@link arrange}.
+ */
+const pickTitles = async ({
+	userId,
+	rotation,
+	now,
+	excluded,
+	lastPicked,
+	shown,
+}: {
+	userId: string;
+	rotation: number;
+	now: Date;
+	excluded: ReadonlySet<string>;
+	lastPicked: ReadonlyMap<string, number>;
+	shown: number;
+}) => {
 	const [entries, longRunning, spinOffs] = await Promise.all([
 		db
 			.select({
@@ -177,15 +252,7 @@ const pickTitles = async (
 			})
 			.from(animeSearch)
 			.leftJoin(series, eq(series.anilistId, animeSearch.anilistId))
-			.where(
-				and(
-					eq(animeSearch.isAdult, false),
-					inArray(animeSearch.format, [...featuredFormats]),
-					inArray(animeSearch.status, ["RELEASING", "FINISHED"]),
-					gte(animeSearch.averageScore, currentThresholds.score),
-					gte(animeSearch.popularity, currentThresholds.popularity),
-				),
-			),
+			.where(isFeaturedEntry(now)),
 		db
 			.selectDistinct({
 				key: series.key,
@@ -232,43 +299,63 @@ const pickTitles = async (
 		}
 	}
 
-	const candidates = [...newest.values()]
-		.map((entry) => defined(entry.seriesId))
-		.filter((id) => !excluded.has(id));
-	const ordered = [
-		...rotate(
-			candidates.filter((id) => !rested.has(id)),
-			userId,
-			rotation,
+	const chosen = [...newest.values()].filter((entry) => !excluded.has(defined(entry.seriesId)));
+	const [airings, activity] = await Promise.all([
+		lastAirings(
+			chosen.map((entry) => defined(entry.seriesId)),
+			now,
 		),
-		...rotate(
-			candidates.filter((id) => rested.has(id)),
-			userId,
-			rotation,
+		activities(
+			chosen.map((entry) => entry.anilistId),
+			now,
 		),
-	].slice(0, featuredCount + spareCandidates);
-	const cards = await cardsOf(ordered);
+	]);
+	const candidates = chosen.map((entry): Candidate => {
+		const id = defined(entry.seriesId);
+		const picked = lastPicked.get(id);
+		return {
+			activity: activity.get(entry.anilistId) ?? {
+				past: null,
+				recent: null,
+			},
+			id,
+			lastAiredAt: airings.get(id) ?? null,
+			lastPickedAt: picked === undefined ? null : rotationStartOf(picked),
+			startDate: entry.startDate,
+			status: entry.status,
+		};
+	});
+
+	const ordered = order(candidates, userId, rotation, now);
+	const tried = [...ordered.news, ...ordered.repeats].slice(
+		0,
+		featuredCount + minimumCount + spareCandidates,
+	);
+	const cards = await cardsOf(tried);
 	return {
 		cards,
-		picked: arrange(ordered, (id) => isShowable(cards.get(id))),
+		picked: arrange(ordered, (id) => tried.includes(id) && isShowable(cards.get(id)), shown),
 	};
 };
 
 /**
- * Titles to feature on a profile's home page: what is popular right now, a
- * season or film that is airing or started in the last year and is well
- * liked, never an old favourite without a new season. The seasons of one
- * show share its backdrop and logo, so a show is featured through its newest
- * current season.
+ * Titles to feature on a profile's home page, each with a reason to be there
+ * now: it is airing, its season ended or its film came out in the last four
+ * weeks, or people on AniList talk about it more than a month ago. A season
+ * past its moment, however well liked, is not featured; see {@link reasonsOf}.
+ * The seasons of one show share its backdrop and logo, so a show is featured
+ * through its newest current season.
  *
  * They are picked once a day, at 06:00 UTC (see `rotationStart`), in each
- * profile's own order, and kept for the day: a title that can no longer be
- * shown gives its place to another, as does one the profile dropped from its
- * watchlist. A title is rested for a week (`restRotations`) after it was
- * featured, and shown again only when too few others are current to fill the
- * place.
+ * profile's own order, the more talked-about titles more likely first, and
+ * kept for the day: a title that can no longer be shown gives its place to
+ * another, as does one the profile dropped from its watchlist. A title
+ * featured before comes back only with something new: an episode aired since,
+ * or it rises again a week or more later (see {@link hasNews}). The carousel
+ * holds fewer titles rather than repeat others, down to {@link minimumCount}.
  *
- * Reads only the database: candidates come from the search index.
+ * Reads only the database: candidates come from the search index, and their
+ * AniList activity from what `storeAnimeTrendsJob` stores.
  * Long-running titles such as Detective Conan are left out, as are spin-offs
  * and side stories that AniList gives a parent story, such as My Hero
  * Academia: Vigilantes, which readers know by the show it belongs to, and those
@@ -281,7 +368,7 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 		.select()
 		.from(featuredPick)
 		.where(
-			and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - restRotations)),
+			and(eq(featuredPick.userId, userId), gte(featuredPick.rotation, rotation - historyRotations)),
 		)
 		.orderBy(asc(featuredPick.position));
 
@@ -297,22 +384,27 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 	const kept = current.map((pick) => pick.seriesId);
 	const keptCards = await cardsOf(kept);
 	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
-	const wanted = featuredCount - shown.length;
-	if (wanted <= 0) {
+	if (shown.length >= featuredCount) {
 		return withStarts(
 			userId,
 			shown.slice(0, featuredCount).flatMap((id) => keptCards.get(id) ?? []),
 		);
 	}
 
-	const { picked, cards } = await pickTitles(
-		userId,
-		rotation,
+	const lastPicked = new Map<string, number>();
+	for (const pick of picks) {
+		if (pick.rotation !== rotation) {
+			lastPicked.set(pick.seriesId, Math.max(pick.rotation, lastPicked.get(pick.seriesId) ?? 0));
+		}
+	}
+	const { picked: added, cards } = await pickTitles({
+		excluded: new Set([...kept, ...unwanted]),
+		lastPicked,
 		now,
-		new Set([...kept, ...unwanted]),
-		new Set(picks.filter((pick) => pick.rotation !== rotation).map((pick) => pick.seriesId)),
-	);
-	const added = picked.slice(0, wanted);
+		rotation,
+		shown: shown.length,
+		userId,
+	});
 	if (added.length > 0) {
 		const after = Math.max(-1, ...current.map((pick) => pick.position));
 		await db
@@ -331,7 +423,10 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 		await db
 			.delete(featuredPick)
 			.where(
-				and(eq(featuredPick.userId, userId), lt(featuredPick.rotation, rotation - restRotations)),
+				and(
+					eq(featuredPick.userId, userId),
+					lt(featuredPick.rotation, rotation - historyRotations),
+				),
 			);
 	}
 
