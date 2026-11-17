@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { retimeWebVtt } from "./subtitle";
+import { cleanWebVtt, retimeWebVtt } from "./subtitle";
 
 const vtt = `WEBVTT
 
@@ -125,5 +125,49 @@ Next line`;
 00:00:13.300 --> 00:00:16.000
 Next line`);
 		});
+	});
+});
+
+describe("cleanWebVtt", () => {
+	test("turns ASS escapes in cue text into plain text", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000 line:10%
+{\\an8}How I\\N\\h\\h\\h\\hImagine\\N\\h\\h\\h\\h Werewolves
+
+2
+00:00:04.000 --> 00:00:05.000
+Wait\\h!\\nPlease`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000 line:10%
+How I
+Imagine
+Werewolves
+
+2
+00:00:04.000 --> 00:00:05.000
+Wait ! Please`);
+	});
+
+	test("drops cues left with no text", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+{\\p1}
+
+2
+00:00:04.000 --> 00:00:05.000
+Kept`),
+		).toBe(`WEBVTT
+
+2
+00:00:04.000 --> 00:00:05.000
+Kept`);
 	});
 });

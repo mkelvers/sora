@@ -7,7 +7,7 @@ import { getRefinement } from "../subtitles/store";
 import { rewritePlaylist, withDefaultAudio } from "./playlist";
 import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
-import { retimeWebVtt } from "./subtitle";
+import { cleanWebVtt, retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken } from "./token";
 import type { StreamTarget, StreamTargetKind } from "./token";
 import { fetchUpstream, fetchUpstreamBytes, mirrorsFor, StreamUpstreamError } from "./upstream";
@@ -382,13 +382,23 @@ const wholeSegmentResponse = async (target: StreamTarget) => {
 	});
 };
 
-/** A subtitle or key, read whole, retimed when the token asks for it. */
+/** The signature a WebVTT file starts with, after an optional byte order mark. */
+const webVttHeader = /^\uFEFF?WEBVTT/u;
+
+/**
+ * A subtitle or key, read whole. WebVTT subtitles are cleaned of ASS escapes
+ * and retimed when the token asks for it.
+ */
 const smallFileResponse = async (target: StreamTarget, signal: AbortSignal | undefined) => {
 	const upstream = await fetchUpstreamBytes(target, signal);
-	if (target.kind === "subtitle" && target.shifts) {
-		const text = new TextDecoder().decode(upstream.bytes);
+	const text = target.kind === "subtitle" ? new TextDecoder().decode(upstream.bytes) : "";
+	if (target.shifts || webVttHeader.test(text)) {
 		const stored = target.refinement ? await getRefinement(target.refinement) : null;
-		return new Response(retimeWebVtt(text, target.shifts, stored?.refinement?.anchors ?? []), {
+		const cleaned = cleanWebVtt(text);
+		const body = target.shifts
+			? retimeWebVtt(cleaned, target.shifts, stored?.refinement?.anchors ?? [])
+			: cleaned;
+		return new Response(body, {
 			headers: {
 				"Cache-Control": "private, max-age=3600",
 				"Content-Type": "text/vtt; charset=utf-8",
