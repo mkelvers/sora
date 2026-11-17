@@ -89,11 +89,11 @@
 <div class="bg-canvas text-foreground">
 	<Hero {series} {progress} />
 
-	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8">
+	<div class="relative z-20 bg-canvas px-5 py-7 sm:px-10 lg:px-16 lg:py-8 hero:px-20">
 		<About {series} />
 	</div>
 
-	<div class="px-5 sm:px-10 lg:px-16">
+	<div class="px-5 sm:px-10 lg:px-16 hero:px-20">
 		<div class="flex items-center gap-4 pt-7">
 			{#if series.seasons.length > 1}
 				<h2 id="episodes" class="sr-only">Episodes</h2>
@@ -111,7 +111,7 @@
 				</div>
 				<Button
 					variant="text"
-					class="min-w-0 shrink text-lg sm:hidden"
+					class="min-w-0 shrink text-base sm:hidden"
 					aria-label="Season: {current?.title}"
 					aria-haspopup="dialog"
 					aria-controls="series-seasons"

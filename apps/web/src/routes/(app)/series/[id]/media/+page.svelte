@@ -59,7 +59,7 @@
 
 <div
 	class={cn(
-		"bg-canvas px-5 pt-8 text-foreground sm:px-10 sm:pt-10 lg:px-16",
+		"bg-canvas px-5 pt-8 text-foreground sm:px-10 sm:pt-10 lg:px-16 hero:px-20",
 		arranging ? "flex h-page flex-col pb-8" : "min-h-page pb-16",
 	)}
 >

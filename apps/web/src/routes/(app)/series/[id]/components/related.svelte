@@ -19,7 +19,7 @@
 </script>
 
 <div class="pb-8 sm:pb-10">
-	<h2 {id} class="px-5 text-xl font-bold sm:px-10 lg:px-16">
+	<h2 {id} class="px-5 text-xl font-bold sm:px-10 lg:px-16 hero:px-20">
 		{heading}
 	</h2>
 	<Carousel
@@ -31,10 +31,10 @@
 		}}
 	>
 		{#snippet children()}
-			<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16">
+			<Content class="gap-3 pt-2 pb-4 pl-5 sm:gap-4 sm:pl-10 lg:gap-7.5 lg:pl-16 hero:pl-20">
 				{#each cards as card (card.id)}
 					<Item
-						class="basis-[calc((100vw-4rem)/3)] last:mr-5 sm:basis-[calc((100vw-8rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-13.625rem)/4)] lg:last:mr-16 wide:basis-[calc((100vw-15.5rem)/5)] hero:basis-[calc((100vw-19.25rem)/7)]"
+						class="basis-[calc((100vw-3.25rem)/2)] last:mr-5 sm:basis-[calc((100vw-8rem)/4)] sm:last:mr-10 lg:basis-[calc((100vw-13.625rem)/4)] lg:last:mr-16 wide:basis-[calc((100vw-15.5rem)/5)] hero:basis-[calc((100vw-21.25rem)/7)] hero:last:mr-20"
 					>
 						<Poster {card} />
 					</Item>
