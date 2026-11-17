@@ -56,6 +56,7 @@
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
 	const similar = $derived(getSimilarSeries(params.id));
+	const alike = $derived([...series.related.map((part) => part.card), ...(similar.current ?? [])]);
 
 	let choosing = $state(false);
 	let options = $state(false);
@@ -197,7 +198,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="-ml-2 hover:bg-transparent"
+						class="-ml-2 text-sm hover:bg-transparent"
 						href="/series/{previous.series_id}"
 					>
 						<CaretLeftIcon size="1rem" weight="bold" />
@@ -205,7 +206,7 @@
 					</Button>
 				{:else}
 					<span
-						class="-ml-2 inline-flex h-9 items-center gap-2 px-2 text-xs font-bold tracking-wide text-muted uppercase"
+						class="-ml-2 inline-flex h-9 items-center gap-2 px-2 text-sm font-bold tracking-wide text-muted uppercase"
 					>
 						<CaretLeftIcon size="1rem" weight="bold" />
 						Previous season
@@ -215,7 +216,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="-mr-2 hover:bg-transparent"
+						class="-mr-2 text-sm hover:bg-transparent"
 						href="/series/{next.series_id}"
 					>
 						Next season
@@ -223,7 +224,7 @@
 					</Button>
 				{:else}
 					<span
-						class="-mr-2 inline-flex h-9 items-center gap-2 px-2 text-xs font-bold tracking-wide text-muted uppercase"
+						class="-mr-2 inline-flex h-9 items-center gap-2 px-2 text-sm font-bold tracking-wide text-muted uppercase"
 					>
 						Next season
 						<CaretRightIcon size="1rem" weight="bold" />
@@ -233,15 +234,8 @@
 		{/if}
 	</div>
 
-	{#if series.related.length}
-		<Related
-			id="extras"
-			heading="More from This Series"
-			cards={series.related.map((part) => part.card)}
-		/>
-	{/if}
-	{#if similar.current?.length}
-		<Related id="like-this" heading="More Like This" cards={similar.current} />
+	{#if alike.length}
+		<Related id="like-this" heading="More Like This" cards={alike} />
 	{/if}
 </div>
 

@@ -106,7 +106,7 @@
 				{#if badge}
 					<span
 						id="{id}-badge"
-						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white"
+						class="absolute right-2 bottom-2 bg-black/75 px-1.5 py-0.5 text-sm font-bold text-white"
 					>
 						{badge}
 					</span>
@@ -122,10 +122,13 @@
 				{/if}
 			</div>
 
-			<h3 id="{id}-title" class="pr-8 text-sm leading-snug font-semibold text-foreground sm:mt-3">
+			<h3
+				id="{id}-title"
+				class="pr-8 text-sm leading-snug font-bold text-foreground sm:mt-3 lg:text-base"
+			>
 				{heading}
 			</h3>
-			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-muted sm:mt-1.5 sm:pr-0">
+			<p id="{id}-audio" class="mt-1 pr-8 text-sm text-subtle sm:mt-1.5 sm:pr-0">
 				{audioLabel(episode.audio)}
 			</p>
 		</div>

@@ -19,7 +19,7 @@
 </script>
 
 <div class="pb-8 sm:pb-10">
-	<h2 {id} class="px-5 text-lg font-bold sm:px-10 lg:px-16">
+	<h2 {id} class="px-5 text-xl font-bold sm:px-10 lg:px-16">
 		{heading}
 	</h2>
 	<Carousel

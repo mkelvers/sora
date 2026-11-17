@@ -80,14 +80,14 @@
 				</span>
 			{/if}
 		</div>
-		<h3 id="{id}-title" class="mt-3 line-clamp-2 text-sm leading-snug font-semibold">
+		<h3 id="{id}-title" class="mt-3 line-clamp-2 text-sm leading-snug font-bold">
 			{card.title}
 		</h3>
 		{#if meta}
-			<p id="{id}-meta" class="mt-1.5 text-sm text-muted">{meta}</p>
+			<p id="{id}-meta" class="mt-1.5 text-sm text-subtle">{meta}</p>
 		{/if}
 		{#if audio}
-			<p id="{id}-audio" class="mt-1.5 text-sm text-muted">{audio}</p>
+			<p id="{id}-audio" class="mt-1.5 text-sm text-subtle">{audio}</p>
 		{/if}
 	</a>
 
