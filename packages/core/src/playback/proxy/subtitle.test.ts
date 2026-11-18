@@ -197,3 +197,66 @@ Imagine</b>
 <b>How I
 Imagine</b>`);
 });
+
+test("cleanWebVtt drops a sign that the dialogue shown with it says", () => {
+	expect(
+		cleanWebVtt(`WEBVTT
+
+00:10:19.080 --> 00:10:20.590
+<i>Hipokute herbs.</i>
+
+00:10:19.340 --> 00:10:26.770
+<b>Hipokute Herbs</b>
+
+00:10:20.590 --> 00:10:24.320
+<i>A valuable herb that only grows
+in areas rich in magicules.</i>
+
+00:10:20.760 --> 00:10:26.770
+<b>A valuable herb that only grows
+in areas rich in magicules,
+used in healing potions.</b>
+
+00:10:24.320 --> 00:10:26.770
+<i>Used as an ingredient in
+salves and healing potions.</i>`),
+	).toBe(`WEBVTT
+
+00:10:19.080 --> 00:10:20.590
+<i>Hipokute herbs.</i>
+
+00:10:20.590 --> 00:10:24.320
+<i>A valuable herb that only grows
+in areas rich in magicules.</i>
+
+00:10:24.320 --> 00:10:26.770
+<i>Used as an ingredient in
+salves and healing potions.</i>`);
+});
+
+test("cleanWebVtt keeps a sign that says more than the dialogue shown with it", () => {
+	const content = `WEBVTT
+
+00:03:26.960 --> 00:03:28.100
+<i>Confirmed.</i>
+
+00:03:28.310 --> 00:03:29.730
+<b>Get Stabbed and Die</b>
+
+00:03:28.320 --> 00:03:31.450
+<i>Stab Resistance acquisition successful.</i>`;
+
+	expect(cleanWebVtt(content)).toBe(content);
+});
+
+test("cleanWebVtt keeps a sign that is said before or after it is shown, not during", () => {
+	const content = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+No Entry, it says.
+
+00:00:02.000 --> 00:00:04.000
+<b>No Entry</b>`;
+
+	expect(cleanWebVtt(content)).toBe(content);
+});

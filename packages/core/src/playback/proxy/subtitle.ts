@@ -30,36 +30,112 @@ const cleanText = (text: string) =>
 		.trim();
 
 /**
+ * Cue text that is bold as a whole. Tracks converted from Crunchyroll's
+ * subtitles mark the translation of text shown on screen, such as signs,
+ * titles, and skill names, this way, and dialogue never.
+ */
+const wholeBold = /^<b>[\s\S]*<\/b>$/u;
+
+const markup = /<[^>]*>/gu;
+const word = /[\p{L}\p{N}]+/gu;
+
+/** The words of cue text, lowercased, without markup or punctuation. */
+const wordsOf = (text: string) => text.replaceAll(markup, "").toLowerCase().match(word) ?? [];
+
+/**
+ * The share of a sign's words that dialogue shown with it must say for the
+ * sign to repeat it. Below this the sign carries something of its own.
+ */
+const repeatedShare = 0.8;
+
+/** A cue's span, in seconds, and its cleaned text. */
+interface TimedText {
+	start: number;
+	end: number;
+	text: string;
+}
+
+/** A block of a WebVTT file, with its cue when it is one. */
+interface CleanBlock {
+	block: string;
+	cue: TimedText | null;
+}
+
+/**
+ * Whether a sign only repeats what dialogue shown at the same time says, as
+ * when a character reads it out: "Magicules" on screen while the line is
+ * "Magicules?".
+ */
+const repeatsDialogue = (sign: TimedText, dialogue: TimedText[]) => {
+	const words = wordsOf(sign.text);
+	if (words.length === 0) {
+		return false;
+	}
+
+	const said = new Set(
+		dialogue
+			.filter((line) => line.start < sign.end && line.end > sign.start)
+			.flatMap((line) => wordsOf(line.text)),
+	);
+	return words.filter((candidate) => said.has(candidate)).length / words.length >= repeatedShare;
+};
+
+/**
  * A WebVTT file with ASS escapes in its cue text cleaned up, and cues left
  * with no text dropped. Providers convert ASS subtitles to WebVTT without
- * translating them, and players show them as written. A cue with the same
- * timing, settings, and text as an earlier one is dropped too: ASS draws a
- * sign as stacked layers, such as a shadow under its text, which become
- * copies of one cue.
+ * translating them, and players show them as written.
+ *
+ * Two kinds of cue that only repeat another are dropped too, since players
+ * stack every cue at the bottom and a repeat doubles what there is to read:
+ *
+ * - A cue with the same timing, settings, and text as an earlier one: ASS
+ *   draws a sign as stacked layers, such as a shadow under its text, which
+ *   become copies of one cue.
+ * - A sign whose words the dialogue shown with it says, such as a skill name
+ *   on screen while a character announces it.
  */
 export const cleanWebVtt = (content: string) => {
 	const seen = new Set<string>();
-	return splitBlocks(content)
-		.flatMap((block) => {
-			if (!readTiming(block)) {
-				return [block];
-			}
+	const blocks = splitBlocks(content).flatMap((block): CleanBlock[] => {
+		const timing = readTiming(block);
+		if (!timing) {
+			return [
+				{
+					block,
+					cue: null,
+				},
+			];
+		}
 
-			const lines = block.replaceAll("\r\n", "\n");
-			const match = cueText.exec(lines);
-			const text = cleanText(match?.groups?.text ?? "");
-			if (!match || !text) {
-				return [];
-			}
+		const lines = block.replaceAll("\r\n", "\n");
+		const match = cueText.exec(lines);
+		const text = cleanText(match?.groups?.text ?? "");
+		if (!match || !text) {
+			return [];
+		}
 
-			const cue = `${match.groups?.head}${text}`;
-			if (seen.has(cue)) {
-				return [];
-			}
-			seen.add(cue);
+		const cue = `${match.groups?.head}${text}`;
+		if (seen.has(cue)) {
+			return [];
+		}
+		seen.add(cue);
 
-			return [`${lines.slice(0, match.index)}${match.groups?.head}${text}`];
-		})
+		return [
+			{
+				block: `${lines.slice(0, match.index)}${match.groups?.head}${text}`,
+				cue: {
+					end: timing.end,
+					start: timing.start,
+					text,
+				},
+			},
+		];
+	});
+
+	const dialogue = blocks.flatMap(({ cue }) => (cue && !wholeBold.test(cue.text) ? [cue] : []));
+	return blocks
+		.filter(({ cue }) => !cue || !wholeBold.test(cue.text) || !repeatsDialogue(cue, dialogue))
+		.map(({ block }) => block)
 		.join("\n\n");
 };
 
