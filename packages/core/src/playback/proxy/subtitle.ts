@@ -29,18 +29,38 @@ const cleanText = (text: string) =>
 		.replaceAll(lineEdgeSpace, "")
 		.trim();
 
-/**
- * Cue text that is bold as a whole. Tracks converted from Crunchyroll's
- * subtitles mark the translation of text shown on screen, such as signs,
- * titles, and skill names, this way, and dialogue never.
- */
-const wholeBold = /^<b>[\s\S]*<\/b>$/u;
-
 const markup = /<[^>]*>/gu;
+const boldTag = /<\/?b>/gu;
 const word = /[\p{L}\p{N}]+/gu;
 
+/** Cue text without markup, which is what a viewer reads. */
+const plainText = (text: string) => text.replaceAll(markup, "");
+
+/**
+ * Whether cue text is bold throughout. Tracks converted from Crunchyroll's
+ * subtitles mark the translation of text shown on screen, such as signs,
+ * titles, and skill names, this way, and dialogue never. Conversions leave
+ * bold unclosed or nested at times, which still counts.
+ */
+const isSign = (text: string) => {
+	if (!text.startsWith("<b>")) {
+		return false;
+	}
+
+	let depth = 0;
+	let after = 0;
+	for (const tag of text.matchAll(boldTag)) {
+		if (depth === 0 && plainText(text.slice(after, tag.index)).trim()) {
+			return false;
+		}
+		depth = Math.max(0, depth + (tag[0] === "<b>" ? 1 : -1));
+		after = tag.index + tag[0].length;
+	}
+	return depth > 0 || !plainText(text.slice(after)).trim();
+};
+
 /** The words of cue text, lowercased, without markup or punctuation. */
-const wordsOf = (text: string) => text.replaceAll(markup, "").toLowerCase().match(word) ?? [];
+const wordsOf = (text: string) => plainText(text).toLowerCase().match(word) ?? [];
 
 /**
  * The share of a sign's words that dialogue shown with it must say for the
@@ -48,17 +68,25 @@ const wordsOf = (text: string) => text.replaceAll(markup, "").toLowerCase().matc
  */
 const repeatedShare = 0.8;
 
-/** A cue's span, in seconds, and its cleaned text. */
-interface TimedText {
-	start: number;
-	end: number;
-	text: string;
-}
+/** How far apart two showings of the same cue may be to count as one, in seconds. */
+const flickerGap = 0.05;
+
+/** A cue's timing line, without its line break. */
+const timingLine = /^[^\n]*-->[^\n]*/mu;
+
+/** A position setting on a cue's timing line. */
+const lineSetting = /(?:^|\s)line:/u;
 
 /** A block of a WebVTT file, with its cue when it is one. */
 interface CleanBlock {
 	block: string;
-	cue: TimedText | null;
+	cue: {
+		start: number;
+		end: number;
+		settings: string;
+		text: string;
+		sign: boolean;
+	} | null;
 }
 
 /**
@@ -66,7 +94,10 @@ interface CleanBlock {
  * when a character reads it out: "Magicules" on screen while the line is
  * "Magicules?".
  */
-const repeatsDialogue = (sign: TimedText, dialogue: TimedText[]) => {
+const repeatsDialogue = (
+	sign: NonNullable<CleanBlock["cue"]>,
+	dialogue: NonNullable<CleanBlock["cue"]>[],
+) => {
 	const words = wordsOf(sign.text);
 	if (words.length === 0) {
 		return false;
@@ -81,61 +112,137 @@ const repeatsDialogue = (sign: TimedText, dialogue: TimedText[]) => {
 };
 
 /**
- * A WebVTT file with ASS escapes in its cue text cleaned up, and cues left
- * with no text dropped. Providers convert ASS subtitles to WebVTT without
- * translating them, and players show them as written.
+ * A WebVTT file made easier to read: ASS escapes in cue text cleaned up, cues
+ * that only repeat another dropped, and signs moved to the top of the picture.
  *
- * Two kinds of cue that only repeat another are dropped too, since players
- * stack every cue at the bottom and a repeat doubles what there is to read:
- *
- * - A cue with the same timing, settings, and text as an earlier one: ASS
- *   draws a sign as stacked layers, such as a shadow under its text, which
- *   become copies of one cue.
- * - A sign whose words the dialogue shown with it says, such as a skill name
- *   on screen while a character announces it.
+ * - Providers convert ASS subtitles to WebVTT without translating them, and
+ *   players show them as written. Cues left with no text are dropped.
+ * - A cue with the same timing, settings, and text as an earlier one is
+ *   dropped: ASS draws a sign as stacked layers, such as a shadow under its
+ *   text, which become copies of one cue. One shown again right as it ends,
+ *   as an animated sign is, is joined to it instead of flickering.
+ * - A sign whose words the dialogue shown with it says is dropped, such as a
+ *   skill name on screen while a character announces it.
+ * - Every other sign without a position of its own goes to the top, so it
+ *   never stacks onto dialogue at the bottom.
  */
 export const cleanWebVtt = (content: string) => {
 	const seen = new Set<string>();
-	const blocks = splitBlocks(content).flatMap((block): CleanBlock[] => {
+	const shown = new Map<string, CleanBlock>();
+	const blocks: CleanBlock[] = [];
+	for (const block of splitBlocks(content)) {
 		const timing = readTiming(block);
 		if (!timing) {
-			return [
-				{
-					block,
-					cue: null,
-				},
-			];
+			blocks.push({
+				block,
+				cue: null,
+			});
+			continue;
 		}
 
 		const lines = block.replaceAll("\r\n", "\n");
 		const match = cueText.exec(lines);
 		const text = cleanText(match?.groups?.text ?? "");
 		if (!match || !text) {
-			return [];
+			continue;
 		}
 
-		const cue = `${match.groups?.head}${text}`;
-		if (seen.has(cue)) {
-			return [];
+		const copy = `${match.groups?.head}${text}`;
+		if (seen.has(copy)) {
+			continue;
 		}
-		seen.add(cue);
+		seen.add(copy);
 
-		return [
-			{
-				block: `${lines.slice(0, match.index)}${match.groups?.head}${text}`,
-				cue: {
-					end: timing.end,
-					start: timing.start,
-					text,
-				},
+		const key = `${timing.settings}\n${plainText(text)}`;
+		const earlier = shown.get(key);
+		if (earlier?.cue && Math.abs(timing.start - earlier.cue.end) <= flickerGap) {
+			earlier.cue.end = Math.max(earlier.cue.end, timing.end);
+			earlier.block = writeTiming(earlier.block, earlier.cue.start, earlier.cue.end);
+			continue;
+		}
+
+		const kept: CleanBlock = {
+			block: `${lines.slice(0, match.index)}${match.groups?.head}${text}`,
+			cue: {
+				end: timing.end,
+				settings: timing.settings,
+				sign: isSign(text),
+				start: timing.start,
+				text,
 			},
-		];
-	});
+		};
+		shown.set(key, kept);
+		blocks.push(kept);
+	}
 
-	const dialogue = blocks.flatMap(({ cue }) => (cue && !wholeBold.test(cue.text) ? [cue] : []));
+	const dialogue = blocks.flatMap(({ cue }) => (cue && !cue.sign ? [cue] : []));
 	return blocks
-		.filter(({ cue }) => !cue || !wholeBold.test(cue.text) || !repeatsDialogue(cue, dialogue))
-		.map(({ block }) => block)
+		.flatMap(({ block, cue }) => {
+			if (!cue?.sign) {
+				return [block];
+			}
+			if (repeatsDialogue(cue, dialogue)) {
+				return [];
+			}
+			return [lineSetting.test(cue.settings) ? block : block.replace(timingLine, "$& line:0")];
+		})
+		.join("\n\n");
+};
+
+/**
+ * How fast viewers read, in characters per second, spaces included: Netflix's
+ * limit for most languages.
+ */
+const readingSpeed = 17;
+
+/** The shortest a line should be shown, Netflix's minimum, in seconds. */
+const minimumDuration = 5 / 6;
+
+/** How long a line may stay after it was meant to end, in seconds. */
+const lingerLimit = 1.5;
+
+/** The pause left before the next line, two frames at 24 fps, in seconds. */
+const lineGap = 2 / 24;
+
+/** The text of a cue block, after its timing line. */
+const blockText = (block: string) => block.slice((timingLine.exec(block)?.[0].length ?? 0) + 1);
+
+/**
+ * A WebVTT file whose dialogue cues stay up long enough to read. A cue shown
+ * shorter than its text takes to read at {@link readingSpeed} is held on into
+ * the pause after it, up to {@link lingerLimit} longer and never into the
+ * next line. Signs keep their timing, since they belong to what is on screen.
+ *
+ * Run it on the final timeline, after any retiming, so it measures the pauses
+ * the viewer sees.
+ */
+export const paceWebVtt = (content: string) => {
+	const blocks = splitBlocks(content);
+	const starts = blocks
+		.flatMap((block) => {
+			const timing = readTiming(block);
+			return timing && !isSign(blockText(block)) ? [timing.start] : [];
+		})
+		.toSorted((left, right) => left - right);
+
+	return blocks
+		.map((block) => {
+			const timing = readTiming(block);
+			const text = blockText(block);
+			if (!timing || isSign(text)) {
+				return block;
+			}
+
+			const characters = plainText(text).replaceAll(/\s+/gu, " ").trim().length;
+			const needed = Math.max(minimumDuration, characters / readingSpeed);
+			if (timing.end - timing.start >= needed) {
+				return block;
+			}
+
+			const next = starts.find((start) => start > timing.start) ?? Number.POSITIVE_INFINITY;
+			const end = Math.min(timing.start + needed, timing.end + lingerLimit, next - lineGap);
+			return end > timing.end ? writeTiming(block, timing.start, end) : block;
+		})
 		.join("\n\n");
 };
 

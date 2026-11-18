@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { cleanWebVtt, retimeWebVtt } from "./subtitle";
+import { cleanWebVtt, paceWebVtt, retimeWebVtt } from "./subtitle";
 
 const vtt = `WEBVTT
 
@@ -189,11 +189,11 @@ test("cleanWebVtt drops copies of a cue drawn as stacked ASS layers", () => {
 \\h\\h\\h\\hImagine</b>`),
 	).toBe(`WEBVTT
 
-10:19.510 --> 10:25.270
+10:19.510 --> 10:25.270 line:0
 <b>How I
 Imagine</b>
 
-10:20.000 --> 10:25.270
+10:20.000 --> 10:25.270 line:0
 <b>How I
 Imagine</b>`);
 });
@@ -234,8 +234,9 @@ in areas rich in magicules.</i>
 salves and healing potions.</i>`);
 });
 
-test("cleanWebVtt keeps a sign that says more than the dialogue shown with it", () => {
-	const content = `WEBVTT
+test("cleanWebVtt keeps a sign that says more than the dialogue shown with it, at the top", () => {
+	expect(
+		cleanWebVtt(`WEBVTT
 
 00:03:26.960 --> 00:03:28.100
 <i>Confirmed.</i>
@@ -244,19 +245,152 @@ test("cleanWebVtt keeps a sign that says more than the dialogue shown with it", 
 <b>Get Stabbed and Die</b>
 
 00:03:28.320 --> 00:03:31.450
-<i>Stab Resistance acquisition successful.</i>`;
+<i>Stab Resistance acquisition successful.</i>`),
+	).toBe(`WEBVTT
 
-	expect(cleanWebVtt(content)).toBe(content);
+00:03:26.960 --> 00:03:28.100
+<i>Confirmed.</i>
+
+00:03:28.310 --> 00:03:29.730 line:0
+<b>Get Stabbed and Die</b>
+
+00:03:28.320 --> 00:03:31.450
+<i>Stab Resistance acquisition successful.</i>`);
 });
 
 test("cleanWebVtt keeps a sign that is said before or after it is shown, not during", () => {
-	const content = `WEBVTT
+	expect(
+		cleanWebVtt(`WEBVTT
 
 00:00:01.000 --> 00:00:02.000
 No Entry, it says.
 
 00:00:02.000 --> 00:00:04.000
+<b>No Entry</b>`),
+	).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+No Entry, it says.
+
+00:00:02.000 --> 00:00:04.000 line:0
+<b>No Entry</b>`);
+});
+
+test("cleanWebVtt leaves a sign where its own position puts it", () => {
+	const content = `WEBVTT
+
+00:00:02.000 --> 00:00:04.000 line:85%
 <b>No Entry</b>`;
 
 	expect(cleanWebVtt(content)).toBe(content);
+});
+
+test("cleanWebVtt counts a sign whose bold is left unclosed or nested as a sign", () => {
+	expect(
+		cleanWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+<b>Consistency not found
+
+00:00:03.000 --> 00:00:04.000
+<b>The Secret World of <b>Cryptids</b></b>
+
+00:00:05.000 --> 00:00:06.000
+<b>Run</b>, he said.`),
+	).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:02.000 line:0
+<b>Consistency not found
+
+00:00:03.000 --> 00:00:04.000 line:0
+<b>The Secret World of <b>Cryptids</b></b>
+
+00:00:05.000 --> 00:00:06.000
+<b>Run</b>, he said.`);
+});
+
+test("cleanWebVtt joins a cue shown again right as it ends into one", () => {
+	expect(
+		cleanWebVtt(`WEBVTT
+
+00:04:32.080 --> 00:04:32.120
+<b>Consistency not found among theoretical values.</b>
+
+00:04:32.120 --> 00:04:32.160
+<b>Consistency not found among theoretical values.
+
+00:04:32.160 --> 00:04:32.450
+<b>Consistency not found among theoretical values.
+
+00:04:40.000 --> 00:04:41.000
+<b>Consistency not found among theoretical values.</b>`),
+	).toBe(`WEBVTT
+
+00:04:32.080 --> 00:04:32.450 line:0
+<b>Consistency not found among theoretical values.</b>
+
+00:04:40.000 --> 00:04:41.000 line:0
+<b>Consistency not found among theoretical values.</b>`);
+});
+
+describe("paceWebVtt", () => {
+	test("holds a line too short to read into the pause after it", () => {
+		expect(
+			paceWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:01.500
+Magicules?
+
+00:00:05.000 --> 00:00:06.000
+Explain it so I can understand!`),
+		).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:01.833
+Magicules?
+
+00:00:05.000 --> 00:00:06.824
+Explain it so I can understand!`);
+	});
+
+	test("stops short of the next line", () => {
+		expect(
+			paceWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+A special energetic material found in all living things.
+
+00:00:02.500 --> 00:00:04.000
+Building blocks of life?`),
+		).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:02.417
+A special energetic material found in all living things.
+
+00:00:02.500 --> 00:00:04.000
+Building blocks of life?`);
+	});
+
+	test("holds a line no more than a second and a half past its end", () => {
+		expect(
+			paceWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:01.500
+A special energetic material found in all living things, and more.`),
+		).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:03.000
+A special energetic material found in all living things, and more.`);
+	});
+
+	test("leaves signs and lines long enough to read as they are", () => {
+		const content = `WEBVTT
+
+00:00:01.000 --> 00:00:01.200 line:0
+<b>Analyze</b>
+
+00:00:02.000 --> 00:00:04.000
+Okay, then...`;
+
+		expect(paceWebVtt(content)).toBe(content);
+	});
 });
