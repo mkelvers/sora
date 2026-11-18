@@ -208,10 +208,17 @@ const lineGap = 2 / 24;
 const blockText = (block: string) => block.slice((timingLine.exec(block)?.[0].length ?? 0) + 1);
 
 /**
- * A WebVTT file whose dialogue cues stay up long enough to read. A cue shown
- * shorter than its text takes to read at {@link readingSpeed} is held on into
- * the pause after it, up to {@link lingerLimit} longer and never into the
- * next line. Signs keep their timing, since they belong to what is on screen.
+ * A WebVTT file whose dialogue cues are timed for reading, measured against
+ * the track's own pauses:
+ *
+ * - A cue shown shorter than its text takes to read at {@link readingSpeed}
+ *   is held on into the pause after it, up to {@link lingerLimit} longer and
+ *   never into the next line.
+ * - A cue still shown when the next line starts ends there, once it has been
+ *   up long enough to read, so the two do not stack and jump. Lines spoken at
+ *   once, or the next too soon to read this one, keep overlapping.
+ *
+ * Signs keep their timing, since they belong to what is on screen.
  *
  * Run it on the final timeline, after any retiming, so it measures the pauses
  * the viewer sees.
@@ -235,11 +242,14 @@ export const paceWebVtt = (content: string) => {
 
 			const characters = plainText(text).replaceAll(/\s+/gu, " ").trim().length;
 			const needed = Math.max(minimumDuration, characters / readingSpeed);
+			const next = starts.find((start) => start > timing.start) ?? Number.POSITIVE_INFINITY;
+			if (next < timing.end && next - timing.start >= needed) {
+				return writeTiming(block, timing.start, next);
+			}
 			if (timing.end - timing.start >= needed) {
 				return block;
 			}
 
-			const next = starts.find((start) => start > timing.start) ?? Number.POSITIVE_INFINITY;
 			const end = Math.min(timing.start + needed, timing.end + lingerLimit, next - lineGap);
 			return end > timing.end ? writeTiming(block, timing.start, end) : block;
 		})

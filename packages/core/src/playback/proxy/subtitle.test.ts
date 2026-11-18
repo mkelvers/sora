@@ -382,6 +382,39 @@ A special energetic material found in all living things, and more.`),
 A special energetic material found in all living things, and more.`);
 	});
 
+	test("ends a line where the next starts once it has been up long enough to read", () => {
+		expect(
+			paceWebVtt(`WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+Happy fifth birthday, Rudy!
+
+00:00:03.500 --> 00:00:06.000
+I wish you a very happy birthday.`),
+		).toBe(`WEBVTT
+
+00:00:01.000 --> 00:00:03.500
+Happy fifth birthday, Rudy!
+
+00:00:03.500 --> 00:00:06.000
+I wish you a very happy birthday.`);
+	});
+
+	test("keeps lines spoken at once, or too close to read apart, overlapping", () => {
+		const content = `WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+Happy fifth birthday, Rudy!
+
+00:00:01.000 --> 00:00:04.000
+Happy birthday, Master Rudeus!
+
+00:00:01.500 --> 00:00:04.000
+Thank you!`;
+
+		expect(paceWebVtt(content)).toBe(content);
+	});
+
 	test("leaves signs and lines long enough to read as they are", () => {
 		const content = `WEBVTT
 
