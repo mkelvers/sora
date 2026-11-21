@@ -7,6 +7,7 @@ import { config } from "../config";
 import { db } from "../database/client";
 import { authAccount, authSession, authUser, authVerification } from "../database/schema/auth";
 import { createProfile } from "./profiles";
+import { limitPasswordSignIn } from "./sign-in-policy";
 
 /**
  * Accounts and sessions, by username and password.
@@ -20,11 +21,9 @@ import { createProfile } from "./profiles";
  * A new account starts with one profile, named after the account. Better
  * Auth insists on an e-mail, so accounts hold `<username>@sora.invalid`.
  *
- * Sign-in is limited to a few tries a minute per client address, in
- * development too. The web server is the client of its visitors, so it
- * passes theirs in `X-Forwarded-For`. The API believes that header only from
- * a request that carries the web client key (see `clientAddress` in the API);
- * for any other it counts the address the request connected from.
+ * Keep the API's `clientAddress` middleware in front of the handler. It
+ * accepts the web app's forwarded address with its client key and replaces
+ * the header with the connection address for other callers.
  */
 export const auth = betterAuth({
 	advanced: {
@@ -58,13 +57,15 @@ export const auth = betterAuth({
 		enabled: true,
 		minPasswordLength: 8,
 	},
+	hooks: {
+		before: limitPasswordSignIn,
+	},
 	plugins: [bearer(), username()],
 	rateLimit: {
 		customRules: {
-			"/sign-in/username": {
-				max: 5,
-				window: 60,
-			},
+			// The hook shares both the address and account budgets across these paths.
+			"/sign-in/email": false,
+			"/sign-in/username": false,
 		},
 		enabled: true,
 		max: 100,
