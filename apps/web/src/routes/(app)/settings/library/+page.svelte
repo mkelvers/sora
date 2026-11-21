@@ -195,12 +195,13 @@
 	};
 
 	$effect(() => {
-		const params = new URLSearchParams(location.search);
+		const { search } = location;
+		const params = new URLSearchParams(search);
 		if (!params.has("code") && !params.has("error")) {
 			return;
 		}
 		history.replaceState(history.state, "", location.pathname);
-		finishConnecting(location.search);
+		finishConnecting(search);
 	});
 
 	const onReturn = (event: StorageEvent) => {
