@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { Hono } from "hono";
 
-import { addressOf, clientAddress } from "./client-address";
+import { clientAddress } from "./client-address";
 
 /** The key the web app proves itself with, from the environment the tests run in. */
 const webClientKey = process.env.WEB_CLIENT_KEY ?? "";
@@ -18,7 +18,9 @@ const connection = {
 	},
 };
 
-const routes = new Hono().use(clientAddress).get("/", (c) => c.text(addressOf(c.req.raw)));
+const routes = new Hono()
+	.use(clientAddress)
+	.get("/", (c) => c.text(c.req.raw.headers.get("X-Forwarded-For") ?? ""));
 
 const ask = (headers: Record<string, string>) =>
 	routes.request(
@@ -53,11 +55,11 @@ describe("clientAddress", () => {
 		expect(await response.text()).toBe("198.51.100.7");
 	});
 
-	test("counts the first address of a chain", async () => {
+	test("preserves a chain the web app reports", async () => {
 		const response = await ask({
 			"X-Forwarded-For": "198.51.100.7, 10.0.0.2",
 			"X-Sora-Client-Key": webClientKey,
 		});
-		expect(await response.text()).toBe("198.51.100.7");
+		expect(await response.text()).toBe("198.51.100.7, 10.0.0.2");
 	});
 });

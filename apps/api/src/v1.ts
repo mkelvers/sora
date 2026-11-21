@@ -1,12 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { auth } from "@sora/core/auth";
 import { isWebClientKey } from "@sora/core/playback";
-import { attempt } from "@sora/shared";
-import type { Context } from "hono";
 import { except } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 
-import { addressOf, clientAddress } from "./client-address";
+import { clientAddress } from "./client-address";
 import { onInvalidRequest, sendProblem } from "./errors";
 import type { V1Env } from "./errors";
 import { rateLimit } from "./rate-limit";
@@ -40,33 +38,6 @@ const v1 = new OpenAPIHono<V1Env>({
 v1.route("/", nowWatchingRoutes());
 
 v1.use("/auth/*", clientAddress);
-
-// Wrong passwords are limited per username as well as per client
-// address (Better Auth does that one), so guessing at one account does not
-// get easier by changing address. The limit for one address and username stops
-// one client from guessing, and cannot shut the owner out from another
-// address. The one for the username alone only bounds guessing from many
-// addresses at once, which is also the only way to keep it full.
-const signInUsername = async (c: Context<V1Env>) => {
-	const { data } = await attempt(
-		c.req.raw.clone().json() as Promise<{ username?: unknown }>,
-		SyntaxError,
-	);
-	return typeof data?.username === "string" ? data.username.trim().toLowerCase().slice(0, 30) : "";
-};
-v1.use(
-	"/auth/sign-in/username",
-	rateLimit({
-		key: async (c) => `sign-in:${addressOf(c.req.raw)}:${await signInUsername(c)}`,
-		limit: 10,
-		windowMs: 60_000,
-	}),
-	rateLimit({
-		key: async (c) => `sign-in:${await signInUsername(c)}`,
-		limit: 60,
-		windowMs: 60_000,
-	}),
-);
 
 // Sign-up, sign-in, and sign-out, answered by Better Auth itself.
 v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));

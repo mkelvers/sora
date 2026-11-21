@@ -26,7 +26,3 @@ export const clientAddress = createMiddleware<V1Env>(async (c, proceed) => {
 
 	await proceed();
 });
-
-/** The address a request's limits count against, once {@link clientAddress} has run. */
-export const addressOf = (request: Request) =>
-	request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() || "unknown";
