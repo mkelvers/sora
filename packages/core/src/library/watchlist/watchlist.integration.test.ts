@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { eq } from "drizzle-orm";
 
+import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
@@ -14,9 +15,9 @@ import {
 	updateWatchlistAfterPlayback,
 } from "./watchlist";
 
-// Opt in against a migrated local database. Synthetic IDs keep the fixture
+// Run against a disposable database. Synthetic IDs keep the fixture
 // separate from real accounts and titles; cleanup runs after failed assertions.
-describe.skipIf(process.env.SORA_WATCHLIST_INTEGRATION !== "1")("saved short titles", () => {
+describe.skipIf(!databaseTestsEnabled())("saved short titles", () => {
 	const profile = `watchlist-test-${crypto.randomUUID()}`;
 	const id = `${profile}-short`;
 	const anilistId = -Math.floor(Math.random() * 100_000_000) - 1;

@@ -2,13 +2,14 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { eq, inArray } from "drizzle-orm";
 
+import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import { getNowWatching } from "./now-watching";
 
-// Opt in against the migrated local database; fixtures never touch real profiles.
-describe.skipIf(process.env.SORA_NOW_WATCHING_INTEGRATION !== "1")("portfolio titles", () => {
+// Run against a disposable database; fixtures never touch real profiles.
+describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 	const profile = `portfolio-test-${crypto.randomUUID()}`;
 	const names = [
 		"Newest",

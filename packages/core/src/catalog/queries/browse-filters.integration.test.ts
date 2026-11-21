@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { inArray } from "drizzle-orm";
 
+import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { animeSearch, animeSearchTag } from "../../database/schema/catalog";
 import type { BrowseQuery } from "./browse-query";
@@ -56,9 +57,9 @@ const found = async (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) 
 	return rows.map((entry) => entry.anilistId).toSorted((left, right) => right - left);
 };
 
-// Opt in against a migrated local database. The fixture entries and their
+// Run against a disposable database. The fixture entries and their
 // tags are removed even when an assertion fails.
-describe.skipIf(process.env.SORA_BROWSE_INTEGRATION !== "1")("browse filters", () => {
+describe.skipIf(!databaseTestsEnabled())("browse filters", () => {
 	beforeAll(async () => {
 		await db.insert(animeSearch).values([
 			row(ids.isekai, {
