@@ -53,6 +53,21 @@ cd packages/core
 bun run auth:create-account yourname
 ```
 
+## Tests
+
+`bun run test` runs the workspace unit tests, including the web tests, without PostgreSQL. Run the database tests with:
+
+```sh
+docker compose up -d --wait database
+bun run --cwd packages/core test:integration
+```
+
+Pass a test path after `test:integration` to run a single suite. This command replaces the individual `SORA_*_INTEGRATION` flags. It creates an empty `sora_test_*` database, applies migrations, and drops that database when the tests finish.
+
+Name new core database test files `*.integration.test.ts` and wrap their SQL tests in `describe.skipIf(!databaseTestsEnabled())` using the helper in `packages/core/test/integration.ts`.
+
+To use a different local PostgreSQL server, set `SORA_TEST_ADMIN_URL` to its `postgresql://` connection URL for the `postgres` maintenance database, without URL options. The role needs `CREATEDB`. An uncatchable stop such as `SIGKILL` can leave the database behind. The runner prints the database name on creation so you can identify it before dropping it.
+
 ## Portfolio endpoint
 
 The optional portfolio endpoint `GET /v1/public/now-watching` requires `Authorization: Bearer <PORTFOLIO_TOKEN>`. Set `PORTFOLIO_TOKEN` and `NOW_WATCHING_PROFILE_ID` on the API container, as documented in `packages/core/.env.example`. Without the token it returns 404; without a profile it returns an empty list. It publishes only up to three display titles from unfinished viewing activity within 30 days, including active rewatches. Keep the token private and rotate it on both servers together.

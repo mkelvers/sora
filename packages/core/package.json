@@ -26,7 +26,8 @@
 		"db:migrate": "bun src/database/migrate.ts",
 		"auth:create-account": "bun src/auth/create-account.ts",
 		"stills:embed-labels": "bun src/tmdb/embed-still-labels.ts",
-		"test": "bun test --env-file=../../.env.test"
+		"test": "bun test --no-env-file --env-file=../../.env.test --preload ./test/setup.ts",
+		"test:integration": "bun --no-env-file test/run-integration.ts"
 	},
 	"dependencies": {
 		"@graphql-typed-document-node/core": "^3.2.0",

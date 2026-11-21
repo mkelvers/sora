@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { day } from "@sora/shared";
 import { and, eq, inArray } from "drizzle-orm";
 
+import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { episodeProgress, importRecord, seriesState } from "../../database/schema/library";
@@ -40,12 +41,12 @@ interface Title {
 	seriesId: string;
 }
 
-// Opt in against a migrated local database. Unlike other fixtures, these
+// Run against a disposable database. Unlike other fixtures, these
 // titles have positive AniList IDs, since a Sora library file accepts no
 // others; they lie beyond any real AniList or MyAnimeList ID, queue no
 // scheduler jobs, and are removed with the fixture profile even when an
 // assertion fails.
-describe.skipIf(process.env.SORA_TRANSFER_INTEGRATION !== "1")("library import and export", () => {
+describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	const profile = `transfer-test-${crypto.randomUUID()}`;
 	const now = new Date();
 	const firstAniListId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
