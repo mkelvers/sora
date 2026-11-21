@@ -26,6 +26,8 @@
 	import { onDestroy, untrack } from "svelte";
 
 	import Controls from "./controls.svelte";
+	import { ProgressReports } from "./progress-reports";
+	import type { ProgressAddress, ProgressSnapshot } from "./progress-reports";
 	import Settings from "./settings.svelte";
 
 	let {
@@ -33,17 +35,23 @@
 		episode,
 		playback,
 		preferences,
+		profileId,
 		progress,
 	}: {
 		series: Series;
 		episode: Episode;
 		playback?: Awaited<ReturnType<typeof getPlayback>>;
 		preferences: PlaybackPreferences;
+		profileId: string;
 		progress?: Progress | null;
 	} = $props();
 
 	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
-	const key = $derived(`${series.id}/${episode.number}`);
+	const address = $derived<ProgressAddress>({
+		episode: episode.number,
+		profileId,
+		seriesId: series.id,
+	});
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
 	const label = $derived(`E${episode.number}`);
 	const heading = $derived.by(() => {
@@ -81,18 +89,6 @@
 	let failure = $state("");
 	let nearing = $state(false);
 	let skipped = new Set<number>();
-	let current = untrack(() => key);
-
-	$effect.pre(() => {
-		if (key === current) {
-			return;
-		}
-
-		current = key;
-		nearing = false;
-		skipped = new Set();
-		player.load(start);
-	});
 
 	$effect(() => {
 		if (player.duration > 0 && player.duration - player.time <= 60) {
@@ -119,24 +115,65 @@
 		selected?.skip_segments.find((skip) => player.time >= skip.start && player.time < skip.end),
 	);
 
-	const report = async (ended = false, leaving = false) => {
-		if (!(player.duration >= 1) || player.time <= 0) {
+	const ending = $derived(
+		selected?.skip_segments.find((candidate) => candidate.kind === "ending")?.start,
+	);
+	const progressError = "Your progress couldn’t be saved.";
+	let session: {
+		address: ProgressAddress;
+		ending?: number;
+		lastSnapshot?: ProgressSnapshot;
+	} = untrack(() => ({ address, ending }));
+	let destroyed = false;
+
+	const reports = new ProgressReports(saveProgress, (saved, failed) => {
+		if (destroyed || saved !== session.address) {
+			return;
+		}
+		if (failed || failure === progressError) {
+			failure = failed ? progressError : "";
+		}
+	});
+
+	const report = (ended = false, leaving = false) => {
+		const { duration, time } = player;
+		if (Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0) {
+			session.lastSnapshot =
+				time > 0 || ended
+					? {
+							duration_seconds: Math.floor(duration),
+							finished: ended || (session.ending !== undefined && time >= session.ending),
+							position_seconds: Math.floor(time),
+						}
+					: undefined;
+		} else if (!leaving) {
 			return;
 		}
 
-		const credits = selected?.skip_segments.find((candidate) => candidate.kind === "ending");
-		const { error } = await attempt(
-			saveProgress({
-				duration_seconds: Math.floor(player.duration),
-				episode: episode.number,
-				finished: ended || (!!credits && player.time >= credits.start),
-				leaving,
-				position_seconds: Math.floor(player.time),
-				seriesId: series.id,
-			}),
-		);
-		failure = error ? "Your progress couldn’t be saved." : "";
+		if (session.lastSnapshot) {
+			reports.enqueue(session.address, { ...session.lastSnapshot, leaving });
+		}
 	};
+
+	$effect.pre(() => {
+		if (
+			address.seriesId !== session.address.seriesId ||
+			address.episode !== session.address.episode ||
+			address.profileId !== session.address.profileId
+		) {
+			// Capture the old episode and its credits before resetting the player.
+			untrack(() => report(false, true));
+			session = { address };
+			if (failure === progressError) {
+				failure = "";
+			}
+			nearing = false;
+			skipped = new Set();
+			player.load(start);
+		}
+
+		session.ending = ending;
+	});
 
 	const remember = async (changes: PlaybackPreferencesUpdate) => {
 		const { error } = await attempt(
@@ -179,7 +216,10 @@
 
 	$effect(() => player.remember());
 
-	onDestroy(() => report(false, true));
+	onDestroy(() => {
+		destroyed = true;
+		report(false, true);
+	});
 </script>
 
 {#snippet cueNodes(nodes: Iterable<Node>)}

@@ -98,13 +98,15 @@ export const getPlaybackPreferences = query(async () => {
 export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const { sora, profile } = remoteViewer();
 
-	return await sora.request(route.getProgress, {
+	const progress = await sora.request(route.getProgress, {
 		params: {
 			episode,
 			profile_id: profile.id,
 			series_id: seriesId,
 		},
 	});
+
+	return { profileId: profile.id, progress };
 });
 
 export const saveProgress = command(
@@ -114,10 +116,14 @@ export const saveProgress = command(
 		finished: z.boolean(),
 		leaving: z.boolean(),
 		position_seconds: z.number().int().nonnegative(),
+		profileId: z.string(),
 		seriesId: z.string(),
 	}),
-	async ({ seriesId, episode, leaving, ...progress }) => {
+	async ({ seriesId, episode, leaving, profileId, ...progress }) => {
 		const { sora, profile } = remoteViewer();
+		if (profileId !== profile.id) {
+			error(409, "The active profile has changed");
+		}
 
 		await sora.request(route.saveProgress, {
 			body: progress,

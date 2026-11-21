@@ -9,12 +9,12 @@
 		episode: params.episode,
 		seriesId: params.id,
 	});
-	const [{ series, episode }, preferences, progress] = $derived(
+	const [{ series, episode }, preferences, { profileId, progress }] = $derived(
 		await Promise.all([getEpisode(address), getPlaybackPreferences(), getProgress(address)]),
 	);
 	const playback = $derived(getPlayback(address));
 </script>
 
 <main id="main-content" tabindex="-1">
-	<Player {series} {episode} playback={playback.current} {preferences} {progress} />
+	<Player {series} {episode} playback={playback.current} {preferences} {profileId} {progress} />
 </main>
