@@ -1,7 +1,9 @@
 import { afterNavigate, goto } from "$app/navigation";
-import { page } from "$app/state";
+import { navigating, page } from "$app/state";
 import { attempt } from "@sora/shared";
 import { tick } from "svelte";
+
+import { editedSearchHref } from "./search-edit";
 
 export class Search {
 	form = $state<HTMLFormElement>();
@@ -14,8 +16,6 @@ export class Search {
 	focused = $state(false);
 	dismissed = $state(false);
 	active = $state(-1);
-	retry: (() => void) | undefined;
-
 	private timer: ReturnType<typeof setTimeout> | undefined;
 
 	onSearch = $derived(page.url.pathname === "/search");
@@ -24,7 +24,9 @@ export class Search {
 	shown = $derived(
 		this.focused && !this.dismissed && !this.onSearch && !!this.term && !!this.text.trim(),
 	);
-	activeId = $derived(this.shown && this.active >= 0 ? `search-option-${this.active}` : undefined);
+	activeId = $derived(
+		this.shown && !this.typing && this.active >= 0 ? `search-option-${this.active}` : undefined,
+	);
 
 	constructor() {
 		this.open = this.onSearch;
@@ -43,6 +45,7 @@ export class Search {
 			}
 
 			if (type !== "goto") {
+				clearTimeout(this.timer);
 				this.text = this.query;
 			}
 
@@ -60,14 +63,10 @@ export class Search {
 		clearTimeout(this.timer);
 		this.timer = setTimeout(() => {
 			this.term = this.text.trim();
-			this.retry?.();
-			this.retry = undefined;
 
-			if (this.onSearch && this.term && this.term !== this.query) {
-				goto(`/search?q=${encodeURIComponent(this.term)}`, {
-					replace: true,
-					reset: false,
-				});
+			const href = editedSearchHref(this.term, page.url, navigating.to?.url);
+			if (href) {
+				attempt(goto(href, { replace: true, reset: false }));
 			}
 		}, 250);
 	};
@@ -99,13 +98,12 @@ export class Search {
 		const value = this.text.trim();
 
 		if (value) {
-			goto(`/search?q=${encodeURIComponent(value)}`);
+			clearTimeout(this.timer);
+			attempt(goto(`/search?q=${encodeURIComponent(value)}`));
 		}
 	};
 
 	keydown = (event: KeyboardEvent) => {
-		const options = this.panel?.querySelectorAll<HTMLElement>('[role="option"]');
-
 		if (event.key === "Escape") {
 			if (this.shown) {
 				this.dismissed = true;
@@ -115,6 +113,11 @@ export class Search {
 			}
 			return;
 		}
+
+		const options =
+			this.shown && !this.typing
+				? this.panel?.querySelectorAll<HTMLElement>('[role="option"]')
+				: undefined;
 
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!this.shown) {
@@ -133,7 +136,7 @@ export class Search {
 			return;
 		}
 
-		if (event.key === "Enter" && this.shown && this.active >= 0 && options?.[this.active]) {
+		if (event.key === "Enter" && options?.[this.active]) {
 			event.preventDefault();
 			options[this.active].click();
 		}

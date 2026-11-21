@@ -3,17 +3,7 @@
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
 
-	let {
-		term,
-		text,
-		active,
-		typing,
-	}: {
-		term: string;
-		text: string;
-		active: number;
-		typing: boolean;
-	} = $props();
+	let { term, active }: { term: string; active: number } = $props();
 
 	const search = $derived(
 		searchSeries({
@@ -23,7 +13,7 @@
 		}),
 	);
 	const found = $derived(await search);
-	const busy = $derived(typing || $effect.pending() > 0);
+	const busy = $derived($effect.pending() > 0);
 
 	$effect(() => {
 		if (!found.meta.preparing) {
@@ -88,9 +78,9 @@
 		role="option"
 		aria-selected={active === found.results.length}
 		tabindex="-1"
-		href="/search?q={encodeURIComponent(text.trim())}"
+		href="/search?q={encodeURIComponent(term)}"
 	>
-		<span class="truncate">See all results for “{text.trim()}”</span>
+		<span class="truncate">See all results for “{term}”</span>
 		<CaretRightIcon size="1.1rem" />
 	</a>
 {/if}
