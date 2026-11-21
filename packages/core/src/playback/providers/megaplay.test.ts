@@ -14,6 +14,8 @@ describe("subtitleLanguage", () => {
 	test("adds the region of MegaPlay's regional labels", () => {
 		expect(subtitleLanguage("Portuguese (- Portuguese(Brazil))")).toBe("pt-BR");
 		expect(subtitleLanguage("Spanish (- Spanish(Latin America))")).toBe("es-419");
+		expect(subtitleLanguage("Spanish (- Espanol(Espana))")).toBe("es-ES");
+		expect(subtitleLanguage("Spanish (- Español(España))")).toBe("es-ES");
 	});
 
 	test("keeps the plain language when the region is unknown", () => {

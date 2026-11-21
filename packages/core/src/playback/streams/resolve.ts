@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, second, defined, firstInSequence } from "@sora/shared";
@@ -278,9 +279,15 @@ const toPlaybackMedia = (
 
 	// Providers attach the same subtitle tracks to every quality variant.
 	const subtitles = new Map<string, PlaybackSubtitle>();
+	const variants = new Map<string, number>();
 	for (const video of videos) {
 		for (const track of video.subtitles) {
 			if (!subtitles.has(track.url)) {
+				// Provider labels travel across episodes. Identically named files use
+				// their order within that label, independent of the signed proxy URL.
+				const key = JSON.stringify([!!shifts, track.language, track.label]);
+				const occurrence = (variants.get(key) ?? 0) + 1;
+				variants.set(key, occurrence);
 				subtitles.set(track.url, {
 					default: false,
 					format: track.format,
@@ -293,6 +300,7 @@ const toPlaybackMedia = (
 						refinement,
 						shifts,
 					}),
+					variant: `${createHash("sha256").update(key).digest("hex")}:${occurrence}`,
 				});
 			}
 		}
@@ -317,6 +325,7 @@ const audioLabels: Record<ContentLanguage, string> = {
  */
 const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
 	const ranks = kindRanks[audio];
+	const named = new Map<string, number>();
 	return subtitles
 		.toSorted(
 			(left, right) =>
@@ -324,10 +333,16 @@ const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
 				ranks[left.kind ?? "dialogue"] - ranks[right.kind ?? "dialogue"] ||
 				left.label.localeCompare(right.label),
 		)
-		.map((track, index) => ({
-			...track,
-			default: index === 0 && isServedSubtitle(track),
-		}));
+		.map((track, index) => {
+			const count = (named.get(track.label) ?? 0) + 1;
+			named.set(track.label, count);
+			const alternate = count === 2 ? "Alternate" : `Alternate ${count - 1}`;
+			return {
+				...track,
+				default: index === 0 && isServedSubtitle(track),
+				label: count === 1 ? track.label : `${track.label} · ${alternate}`,
+			};
+		});
 };
 
 /**
