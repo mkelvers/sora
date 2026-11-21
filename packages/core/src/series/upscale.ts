@@ -1,12 +1,12 @@
 import { attempt } from "@sora/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, SeriesNotFoundError } from "../errors";
-import { requestUpscale } from "../scheduler/queue";
+import { hasLiveUpscaleJob, requestUpscale } from "../scheduler/queue";
 import { isCollage } from "./collage";
 import { storeImageEdges } from "./edges";
 import { upscale } from "./realesrgan";
@@ -22,14 +22,22 @@ const maxUpscaledWidth = 3840;
 /** JPEG quality an upscaled backdrop is stored at. */
 const storedQuality = 92;
 
-/** Where each upscale of a title's backdrops stands, by the original's URL. */
+/**
+ * Where each upscale stands, by the original's URL. A pending row with no
+ * live job is shown as failed so the viewer can retry it. Reading status
+ * leaves the row alone and sees the row and queue in the same SQL snapshot.
+ */
 export const upscalesOf = async (key: string) => {
 	const rows = await db
 		.select({
 			height: titleBackdropUpscale.height,
 			id: titleBackdropUpscale.id,
 			sourceUrl: titleBackdropUpscale.sourceUrl,
-			status: titleBackdropUpscale.status,
+			status: sql<UpscaleStatus>`case
+				when ${titleBackdropUpscale.status} = 'pending' and not ${hasLiveUpscaleJob(titleBackdropUpscale.id)}
+				then 'failed'
+				else ${titleBackdropUpscale.status}
+			end`,
 			width: titleBackdropUpscale.width,
 		})
 		.from(titleBackdropUpscale)
@@ -60,8 +68,8 @@ const chooseUpscale = async (key: string, sourceUrl: string, id: string) => {
  * Asks for one of a series' title's backdrops to be upscaled. The scheduler
  * makes it (see {@link upscaleBackdrop}) and, when it is ready and the
  * original is still the title's chosen backdrop, chooses it in its place.
- * Asking again for one that is queued or ready changes nothing; for one that
- * failed, tries again.
+ * Asking again keeps a live job, chooses a ready upscale, or queues a new
+ * attempt after a failure or a lost job.
  *
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
  * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
@@ -91,42 +99,42 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 		throw new InvalidInputError("That is not one of the title's backdrops");
 	}
 
-	const [stored] = await db
-		.insert(titleBackdropUpscale)
-		.values({
-			key: row.key,
-			sourceUrl: url,
-		})
-		.onConflictDoUpdate({
-			set: {
-				failure: null,
-				status: "pending",
-			},
-			setWhere: eq(titleBackdropUpscale.status, "failed"),
-			target: [titleBackdropUpscale.key, titleBackdropUpscale.sourceUrl],
-		})
-		.returning({
-			id: titleBackdropUpscale.id,
-		});
+	const readyId = await db.transaction(async (tx) => {
+		// ON CONFLICT locks the existing row even when setWhere skips the update.
+		// A competing request must wait for this transaction's job to commit.
+		const [stored] = await tx
+			.insert(titleBackdropUpscale)
+			.values({
+				key: row.key,
+				sourceUrl: url,
+			})
+			.onConflictDoUpdate({
+				set: {
+					failure: null,
+					status: "pending",
+				},
+				setWhere: eq(titleBackdropUpscale.status, "failed"),
+				target: [titleBackdropUpscale.key, titleBackdropUpscale.sourceUrl],
+			})
+			.returning({ id: titleBackdropUpscale.id });
 
-	if (stored) {
-		await requestUpscale({
-			id: stored.id,
-		});
-		return;
-	}
+		if (stored) {
+			await requestUpscale(tx, { id: stored.id }, true);
+			return;
+		}
 
-	// Queued or ready already; a ready one may not be the chosen backdrop yet.
-	const [existing] = await db
-		.select({
-			id: titleBackdropUpscale.id,
-			status: titleBackdropUpscale.status,
-		})
-		.from(titleBackdropUpscale)
-		.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
-		.limit(1);
-	if (existing?.status === "done") {
-		await chooseUpscale(row.key, url, existing.id);
+		const [existing] = await tx
+			.select({ id: titleBackdropUpscale.id, status: titleBackdropUpscale.status })
+			.from(titleBackdropUpscale)
+			.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
+			.limit(1);
+		if (existing?.status === "pending") {
+			await requestUpscale(tx, { id: existing.id }, false);
+		}
+		return existing?.status === "done" ? existing.id : undefined;
+	});
+	if (readyId) {
+		await chooseUpscale(row.key, url, readyId);
 	}
 };
 

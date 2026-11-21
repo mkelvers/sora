@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
 
 import { viewerWaitingPriority } from "../anilist/client";
 import { db } from "../database/client";
@@ -392,22 +392,37 @@ export interface UpscaleBackdropPayload {
 	id: string;
 }
 
+const upscaleJobKey = (id: string | SQLWrapper) => sql`'upscale-backdrop:' || ${id}::text`;
+
+/** A job can still finish if it has an attempt left or is running its last attempt. */
+export const hasLiveUpscaleJob = (id: string | SQLWrapper) => sql<boolean>`exists (
+    select 1 from graphile_worker.jobs
+    where key = ${upscaleJobKey(id)}
+      and task_identifier = ${upscaleBackdropTask}
+      and (locked_at is not null or attempts < max_attempts)
+  )`;
+
 /**
- * Asks for a backdrop to be upscaled, unless that is already queued. Jobs run
- * one at a time in their own queue, since each keeps a processor busy for
- * minutes, and are not retried: a failure is shown to whoever asked, who may
- * ask again.
+ * Queues an upscale in the same transaction that locks or creates its row.
+ * A pending request keeps its live job, including a running final attempt.
+ * An explicit retry after failure queues a new attempt even if the previous
+ * job still holds its lock while reporting completion to Graphile Worker.
  */
-export const requestUpscale = async (payload: UpscaleBackdropPayload) => {
-	await db.execute(sql`
+export const requestUpscale = async (
+	tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+	payload: UpscaleBackdropPayload,
+	newAttempt: boolean,
+) => {
+	await tx.execute(sql`
     select graphile_worker.add_job(
       identifier => ${upscaleBackdropTask},
       payload => json_build_object('id', ${payload.id}::text),
       queue_name => 'upscale-backdrop',
-      job_key => ${`upscale-backdrop:${payload.id}`},
-      job_key_mode => 'unsafe_dedupe',
+      job_key => ${upscaleJobKey(payload.id)},
+      job_key_mode => 'replace',
       max_attempts => 1,
       priority => 0
     )
+    where ${newAttempt}::boolean or not ${hasLiveUpscaleJob(payload.id)}
   `);
 };
