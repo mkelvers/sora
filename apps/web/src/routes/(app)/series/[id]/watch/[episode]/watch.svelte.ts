@@ -28,7 +28,6 @@ const forwardBufferSeconds = 120;
 
 const megabyte = 1000 * 1000;
 
-const firstByteTimeoutMs = 30_000;
 const startBandwidthBitsPerSecond = 10_000_000;
 
 const loadHls = () => attempt(import("hls.js"));
@@ -328,7 +327,7 @@ export class Player {
 							retryDelayMs: 500,
 						},
 						maxLoadTimeMs: 120_000,
-						maxTimeToFirstByteMs: firstByteTimeoutMs,
+						maxTimeToFirstByteMs: 30_000,
 						timeoutRetry: {
 							maxNumRetry: 4,
 							maxRetryDelayMs: 0,
