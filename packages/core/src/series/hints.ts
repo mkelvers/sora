@@ -50,12 +50,14 @@ export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> =
 
 	// Bun's driver reads an integer array as an Int32Array, whose `map`
 	// would turn each of its IDs into a number again.
-	return row
-		? {
-				movieIds: [...row.movieIds],
-				showId: row.showId,
-			}
-		: null;
+	if (row) {
+		return {
+			movieIds: [...row.movieIds],
+			showId: row.showId,
+		};
+	}
+
+	return null;
 };
 
 /**
