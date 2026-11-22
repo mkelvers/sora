@@ -94,7 +94,11 @@ export interface TmdbDependencies {
 const retryAfter = (response: Response) => {
 	const wait = parseRetryAfter(response.headers.get("Retry-After"));
 
-	return wait === null || wait === 0 ? null : wait;
+	if (wait === null || wait === 0) {
+		return null;
+	}
+
+	return wait;
 };
 
 /**
