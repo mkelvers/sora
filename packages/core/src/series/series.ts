@@ -11,7 +11,8 @@ import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
 import { franchiseRelations, loadByIds } from "./entries";
 import { playableCount } from "./episodes";
 import { LaidOutEpisode } from "./laid-out-episode";
-import { mappedEpisodes, resolveMapping } from "./mapping";
+import { Mapper } from "./mapper";
+import { mappedEpisodes } from "./mapping";
 import { MatchedTitle } from "./matched-title";
 import type { EpisodeLink } from "./matching";
 import { Overview } from "./overview";
@@ -163,7 +164,7 @@ export const layoutEpisodes = (
  * AniList lists each season, cour, film, and special of a franchise as its
  * own entry, and so does Sora: an entry is a series, with the episodes
  * AniList counts for it. The entry is matched to TMDB (see
- * `resolveMapping`) only for what TMDB knows better: the backdrop and logo
+ * `Mapper.resolve`) only for what TMDB knows better: the backdrop and logo
  * of the show or film, and each episode's title, synopsis, air date, and
  * still. An entry TMDB does not list keeps AniList's artwork and bare
  * episodes.
@@ -184,7 +185,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 		throw new AnimeNotFoundError(anilistId);
 	}
 
-	const mapping = await resolveMapping(entry);
+	const mapping = await new Mapper(entry).resolve();
 	const storedCards = await getStoredCards([anilistId]);
 
 	const card = {
