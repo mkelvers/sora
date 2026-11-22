@@ -523,6 +523,7 @@ export const franchiseParts = (
 	const seasonOfSpecial = specialsOf(listed, links);
 
 	return [...seasons, ...others, ...(current && omitted.has(current.anilistId) ? [current] : [])]
+		.values()
 		.filter((title) => !unlisted.has(title.anilistId))
 		.map((title) => {
 			const following = new Set(followers(title.anilistId, new Set()));
@@ -557,5 +558,6 @@ export const franchiseParts = (
 				series_id: title.seriesId,
 				title: shortTitle(title, storyName(selected?.title ?? ""), seasons.includes(title)),
 			};
-		});
+		})
+		.toArray();
 };

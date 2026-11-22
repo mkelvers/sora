@@ -540,8 +540,10 @@ const airedBefore = (episode: TmdbEpisode, date: string | null) => {
 
 const medianRuntime = (episodes: readonly TmdbEpisode[]) => {
 	const runtimes = episodes
+		.values()
 		.map((episode) => episode.runtime)
 		.filter((runtime): runtime is number => runtime !== null && runtime > 0)
+		.toArray()
 		.toSorted((left, right) => left - right);
 
 	return runtimes[Math.floor(runtimes.length / 2)] ?? null;

@@ -148,8 +148,10 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
 
 	for (const airType of ["sub", "dub"] as const) {
 		const numbers = versions
+			.values()
 			.filter((version) => version.air_type === airType)
 			.map((version) => version.episode)
+			.toArray()
 			.toSorted((left, right) => left - right);
 
 		if (!numbers.length) {

@@ -378,6 +378,7 @@ const runsAt = (a: Fingerprint, b: Fingerprint, offset: number, shortestFrames: 
 	}
 
 	return stretches
+		.values()
 		.filter(([from, to]) => to - from >= shortestFrames)
 		.map(([from, to]): SharedRun => {
 			let total = 0;
@@ -393,7 +394,8 @@ const runsAt = (a: Fingerprint, b: Fingerprint, offset: number, shortestFrames: 
 				bStart: first + from + offset,
 				errorRate: total / (to - from),
 			};
-		});
+		})
+		.toArray();
 };
 
 /** Every stretch of at least `shortestSeconds` that `a` and `b` share. */

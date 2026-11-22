@@ -74,8 +74,10 @@ const candidateOffsets = (source: number[], target: number[]) => {
 		const rough = bucket / 10;
 
 		const pairs = source
+			.values()
 			.map((time) => nearest(target, time + rough) - time)
-			.filter((offset) => Math.abs(offset - rough) <= tolerance);
+			.filter((offset) => Math.abs(offset - rough) <= tolerance)
+			.toArray();
 
 		return pairs.length > 0 ? [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length] : [];
 	});

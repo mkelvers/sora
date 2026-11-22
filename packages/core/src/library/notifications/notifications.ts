@@ -531,11 +531,13 @@ export const getNotifications = async (
 	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
 
 	const episodes = releases
+		.values()
 		.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
 		.map((row) => ({
 			...row,
 			watched: playedKeys.has(`${row.seriesId}:${row.number}`),
-		}));
+		}))
+		.toArray();
 
 	const { hide_spoilers: hideSpoilers, notifications: wanted } =
 		await getProfilePreferences(userId);
@@ -558,6 +560,7 @@ export const getNotifications = async (
 			(left, right) =>
 				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
 		)
+		.values()
 		.filter((group) => kinds[group.kind])
 		.map((group) =>
 			hideSpoilers
@@ -566,7 +569,8 @@ export const getNotifications = async (
 						episode_title: null,
 					}
 				: group,
-		);
+		)
+		.toArray();
 
 	const groups = all.slice(0, options.limit ?? 30);
 	const shownIds = new Set(groups.map((group) => group.seriesId));

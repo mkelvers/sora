@@ -127,6 +127,7 @@ export const summarizeHealth = (
 			last_error_at: lastErrorAt?.toISOString() ?? null,
 			last_ok_at: lastOk?.toISOString() ?? null,
 			operations: own
+				.values()
 				.filter((row) => row.ok + row.empty + row.failed > 0)
 				.map((row) => {
 					const calls = row.ok + row.empty + row.failed;
@@ -139,6 +140,7 @@ export const summarizeHealth = (
 						operation: row.operation as ProviderOperation,
 					};
 				})
+				.toArray()
 				.toSorted((left, right) => left.operation.localeCompare(right.operation)),
 			provider,
 			status,

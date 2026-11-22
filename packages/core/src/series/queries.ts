@@ -329,7 +329,13 @@ export const franchiseIds = async (
 		const rawEdges = [...outgoing, ...incoming].filter(({ from, to }) => !isUnrelated(from, to));
 
 		const listers = [
-			...new Set(rawEdges.filter(({ relation }) => relation === "OTHER").map(({ from }) => from)),
+			...new Set(
+				rawEdges
+					.values()
+					.filter(({ relation }) => relation === "OTHER")
+					.map(({ from }) => from)
+					.toArray(),
+			),
 		];
 
 		const chainedRows =
@@ -352,8 +358,10 @@ export const franchiseIds = async (
 
 		const crossovers = new Set(
 			rawEdges
+				.values()
 				.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
-				.map(({ from, to }) => `${to}>${from}`),
+				.map(({ from, to }) => `${to}>${from}`)
+				.toArray(),
 		);
 
 		const edges = rawEdges.map((rawEdge) =>
@@ -528,7 +536,11 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 			summaries: relations
 				.filter(({ relation }) => relation === "SUMMARY" || relation === "COMPILATION")
 				.map(({ to }) => to),
-			unlisted: titles.filter((title) => !isListed(title)).map((title) => title.anilistId),
+			unlisted: titles
+				.values()
+				.filter((title) => !isListed(title))
+				.map((title) => title.anilistId)
+				.toArray(),
 		},
 	);
 

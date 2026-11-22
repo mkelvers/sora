@@ -298,11 +298,13 @@ const voteOffsets = (
 	const picked: number[] = [];
 
 	for (const [bucket] of [...buckets]
+		.values()
 		.map(
 			([key, count]) =>
 				[key, count + (buckets.get(key - 1) ?? 0) + (buckets.get(key + 1) ?? 0)] as const,
 		)
 		.filter(([, count]) => count >= minimumVotes)
+		.toArray()
 		.toSorted((a, b) => b[1] - a[1])) {
 		if (picked.length === maximumOffsets) {
 			break;
