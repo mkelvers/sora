@@ -53,8 +53,13 @@ export const listDates = (dates: ListDates): KeptDates => {
 };
 
 /** A moment AniList stores as Unix seconds; `0` is how it says it has none. */
-const fromUnixSeconds = (seconds: number | null | undefined): Date | null =>
-	seconds ? new Date(seconds * 1000) : null;
+const fromUnixSeconds = (seconds: number | null | undefined): Date | null => {
+	if (seconds) {
+		return new Date(seconds * 1000);
+	}
+
+	return null;
+};
 
 const dayPattern = /^(?<year>\d{4})(?:-(?<month>\d{2}))?(?:-(?<day>\d{2}))?/u;
 
