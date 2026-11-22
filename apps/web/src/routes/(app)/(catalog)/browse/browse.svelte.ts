@@ -103,8 +103,13 @@ export const setBrowse = (preset: Partial<BrowseFilters>) => {
 	Object.assign(browse, unfiltered(), preset);
 };
 
-export const toggle = <T>(list: T[], value: T) =>
-	list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+export const toggle = <T>(list: T[], value: T) => {
+	if (list.includes(value)) {
+		return list.filter((item) => item !== value);
+	}
+
+	return [...list, value];
+};
 
 export const browseTitle = (filters: BrowseFilters) => {
 	const named = [...filters.genres, ...filters.tags, ...filters.studios];
