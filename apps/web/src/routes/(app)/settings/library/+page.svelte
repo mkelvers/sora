@@ -255,10 +255,15 @@
 		};
 	});
 
-	const readText = async (chosen: File) =>
-		chosen.name.endsWith(".gz")
-			? await new Response(chosen.stream().pipeThrough(new DecompressionStream("gzip"))).text()
-			: await chosen.text();
+	const readText = async (chosen: File) => {
+		if (chosen.name.endsWith(".gz")) {
+			return await new Response(
+				chosen.stream().pipeThrough(new DecompressionStream("gzip")),
+			).text();
+		}
+
+		return await chosen.text();
+	};
 
 	/** Imports a file whatever it is: a MyAnimeList export is XML, one downloaded from Export is JSON. */
 	const chooseFile = async () => {
