@@ -476,7 +476,10 @@ const pickAnchors = (
 		candidatesFor(cue, index, defined(cueTokens[index]), words, spoken, offsetAt(voted, cue.start)),
 	);
 
-	const best: { total: number; before: [number, number] | null }[][] = candidates.map((row) =>
+	const best: {
+		total: number;
+		before: [number, number] | null;
+	}[][] = candidates.map((row) =>
 		row.map((candidate) => ({
 			before: null,
 			total: candidate.score,
@@ -691,7 +694,10 @@ const placeByTime = (
 			start: cue.start + offset,
 		};
 
-		let best: { run: (typeof runs)[number]; share: number } | null = null;
+		let best: {
+			run: (typeof runs)[number];
+			share: number;
+		} | null = null;
 
 		for (const run of free) {
 			const share =

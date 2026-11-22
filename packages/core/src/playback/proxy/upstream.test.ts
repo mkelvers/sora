@@ -48,7 +48,12 @@ afterEach(async () => {
  * refuses private addresses, so its requests are sent to the local server
  * without that check.
  */
-const throttlingHost = (statuses: { status: number; retryAfter?: string }[]) => {
+const throttlingHost = (
+	statuses: {
+		status: number;
+		retryAfter?: string;
+	}[],
+) => {
 	let requests = 0;
 	server = Bun.serve({
 		fetch: () => {

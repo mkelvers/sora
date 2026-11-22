@@ -68,7 +68,12 @@ export class Search {
 			const href = editedSearchHref(this.term, page.url, navigating.to?.url);
 
 			if (href) {
-				attempt(goto(href, { replace: true, reset: false }));
+				attempt(
+					goto(href, {
+						replace: true,
+						reset: false,
+					}),
+				);
 			}
 		}, 250);
 	};

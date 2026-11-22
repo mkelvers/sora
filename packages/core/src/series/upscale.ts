@@ -128,7 +128,10 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 		}
 
 		const [existing] = await tx
-			.select({ id: titleBackdropUpscale.id, status: titleBackdropUpscale.status })
+			.select({
+				id: titleBackdropUpscale.id,
+				status: titleBackdropUpscale.status,
+			})
 			.from(titleBackdropUpscale)
 			.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
 			.limit(1);

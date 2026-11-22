@@ -321,11 +321,17 @@ const anilistOverview = async (
 /** The TMDB show or film an entry is mapped to, when the mapping has one. */
 const tmdbTitleOf = async (mapping: Awaited<ReturnType<typeof resolveMapping>>) => {
 	if (mapping.tmdbId === null) {
-		return { movie: null, show: null };
+		return {
+			movie: null,
+			show: null,
+		};
 	}
 
 	if (mapping.mediaType === "tv") {
-		return { movie: null, show: await getShow(mapping.tmdbId) };
+		return {
+			movie: null,
+			show: await getShow(mapping.tmdbId),
+		};
 	}
 
 	return {

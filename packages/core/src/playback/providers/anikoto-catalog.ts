@@ -280,7 +280,12 @@ export const syncAniKotoCatalog = async (
 	let pages = 0;
 	let stored = 0;
 
-	const readPage = async (page: number): Promise<{ pages: number; stored: number }> => {
+	const readPage = async (
+		page: number,
+	): Promise<{
+		pages: number;
+		stored: number;
+	}> => {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
 			signal: options.signal,
 		});

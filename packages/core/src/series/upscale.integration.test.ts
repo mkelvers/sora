@@ -138,7 +138,10 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 			});
 			await expect(request()).rejects.toHaveProperty("cause.message", "injected enqueue failure");
 			const [failed] = await db.select().from(titleBackdropUpscale);
-			expect(failed).toMatchObject({ failure: "previous failure", status: "failed" });
+			expect(failed).toMatchObject({
+				failure: "previous failure",
+				status: "failed",
+			});
 			expect(await jobs()).toEqual([]);
 		} finally {
 			await db.execute(sql`drop function reject_upscale_enqueue() cascade`);
@@ -152,12 +155,23 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 	test("keeps one job across concurrent requests for a new upscale", async () => {
 		await Promise.all([request(), request(), request(), request()]);
 		expect(await db.select().from(titleBackdropUpscale)).toHaveLength(1);
-		expect(await jobs()).toMatchObject([{ attempts: 0, revision: 0 }]);
+		expect(await jobs()).toMatchObject([
+			{
+				attempts: 0,
+				revision: 0,
+			},
+		]);
 		expect(await status()).toBe("pending");
 	});
 
 	test("makes an orphan pending upscale retryable and requeues it once", async () => {
-		const [orphan] = await db.insert(titleBackdropUpscale).values({ key, sourceUrl }).returning();
+		const [orphan] = await db
+			.insert(titleBackdropUpscale)
+			.values({
+				key,
+				sourceUrl,
+			})
+			.returning();
 		expect(await status()).toBe("failed");
 		expect(await jobs()).toEqual([]);
 
@@ -165,7 +179,12 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		expect(await status()).toBe("pending");
 		const upscales = await upscalesOf(key);
 		expect(upscales.get(sourceUrl)?.id).toBe(orphan?.id);
-		expect(await jobs()).toMatchObject([{ attempts: 0, revision: 0 }]);
+		expect(await jobs()).toMatchObject([
+			{
+				attempts: 0,
+				revision: 0,
+			},
+		]);
 	});
 
 	test("keeps the running final attempt and recovers after a dead pool unlocks it", async () => {
@@ -173,20 +192,31 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		await claim(new Date());
 		const running = await jobs();
 		expect(running).toHaveLength(1);
-		expect(running[0]).toMatchObject({ attempts: 1, locked_by: "pool-upscale-test" });
+		expect(running[0]).toMatchObject({
+			attempts: 1,
+			locked_by: "pool-upscale-test",
+		});
 		await request();
 		expect(await jobs()).toEqual(running);
 		expect(await status()).toBe("pending");
 
 		await claim(new Date(0));
 		await watchPools().stop();
-		expect(await jobs()).toMatchObject([{ attempts: 1, locked_by: null }]);
+		expect(await jobs()).toMatchObject([
+			{
+				attempts: 1,
+				locked_by: null,
+			},
+		]);
 		expect(await status()).toBe("failed");
 
 		await Promise.all([request(), request()]);
 		const recovered = await jobs();
 		expect(recovered).toHaveLength(1);
-		expect(recovered[0]).toMatchObject({ attempts: 0, locked_by: null });
+		expect(recovered[0]).toMatchObject({
+			attempts: 0,
+			locked_by: null,
+		});
 		expect(await status()).toBe("pending");
 	});
 
@@ -194,22 +224,34 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		await request();
 		await claim(new Date());
 		const [running] = await jobs();
-		await db.update(titleBackdropUpscale).set({ failure: "previous failure", status: "failed" });
+		await db.update(titleBackdropUpscale).set({
+			failure: "previous failure",
+			status: "failed",
+		});
 
 		await Promise.all([request(), request()]);
 		const retried = await jobs();
 		expect(retried).toHaveLength(1);
-		expect(retried[0]).toMatchObject({ attempts: 0, locked_by: null });
+		expect(retried[0]).toMatchObject({
+			attempts: 0,
+			locked_by: null,
+		});
 		expect(retried[0]?.id).not.toBe(running?.id);
 		const [pending] = await db.select().from(titleBackdropUpscale);
-		expect(pending).toMatchObject({ failure: null, status: "pending" });
+		expect(pending).toMatchObject({
+			failure: null,
+			status: "pending",
+		});
 	});
 
 	test("shows the worker's failure and lets the viewer retry after job completion", async () => {
 		await request();
 		await runUpscale();
 		const [failed] = await db.select().from(titleBackdropUpscale);
-		expect(failed).toMatchObject({ failure: "TMDB answered 404", status: "failed" });
+		expect(failed).toMatchObject({
+			failure: "TMDB answered 404",
+			status: "failed",
+		});
 		expect(await jobs()).toEqual([]);
 
 		await request();
@@ -250,12 +292,22 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		expect(await status()).toBe("failed");
 
 		await request();
-		expect(await jobs()).toMatchObject([{ attempts: 0, locked_by: null }]);
+		expect(await jobs()).toMatchObject([
+			{
+				attempts: 0,
+				locked_by: null,
+			},
+		]);
 		expect(await status()).toBe("pending");
 	});
 
 	test("leaves a completed upscale alone", async () => {
-		await db.insert(titleBackdropUpscale).values({ height: 2160, key, sourceUrl, status: "done" });
+		await db.insert(titleBackdropUpscale).values({
+			height: 2160,
+			key,
+			sourceUrl,
+			status: "done",
+		});
 		await request();
 		expect(await status()).toBe("done");
 		expect(await jobs()).toEqual([]);

@@ -19,7 +19,10 @@ const PasswordBody = z.object({
 const UsernameBody = PasswordBody.extend({
 	password: z.string().min(1),
 	username: Username,
-}).transform(({ password, username }) => ({ identity: username.toLowerCase(), password }));
+}).transform(({ password, username }) => ({
+	identity: username.toLowerCase(),
+	password,
+}));
 
 const EmailBody = PasswordBody.extend({ email: z.email() }).transform(({ email, password }) => ({
 	identity: email.toLowerCase(),
@@ -29,14 +32,27 @@ const EmailBody = PasswordBody.extend({ email: z.email() }).transform(({ email, 
 const soraEmailSuffix = "@sora.invalid";
 
 const maxBuckets = 10_000;
-const windows = new Map<string, { count: number; expiresAt: number }>();
+const windows = new Map<
+	string,
+	{
+		count: number;
+		expiresAt: number;
+	}
+>();
 
 const rejectUntil = (expiresAt: number, now: number): never => {
 	const retryAfter = formatRetryAfter(expiresAt - now);
 	throw new APIError(
 		"TOO_MANY_REQUESTS",
-		{ code: "TOO_MANY_REQUESTS", message: "Too many requests; try again shortly" },
-		{ "Cache-Control": "no-store", "Retry-After": retryAfter, "X-Retry-After": retryAfter },
+		{
+			code: "TOO_MANY_REQUESTS",
+			message: "Too many requests; try again shortly",
+		},
+		{
+			"Cache-Control": "no-store",
+			"Retry-After": retryAfter,
+			"X-Retry-After": retryAfter,
+		},
 	);
 };
 
@@ -57,7 +73,10 @@ const countAttempt = (key: string, limit: number) => {
 			rejectUntil(oldest[1].expiresAt, now);
 		}
 
-		windows.set(key, { count: 1, expiresAt: now + minute });
+		windows.set(key, {
+			count: 1,
+			expiresAt: now + minute,
+		});
 
 		return;
 	}

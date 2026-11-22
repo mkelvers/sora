@@ -153,7 +153,10 @@ describe("SoraClient.request", () => {
 		[{ errors: [{ path: "email" }] }],
 	])("keeps a malformed failure body as an HTTP error: %j", async (body) => {
 		const { sora } = clientAnswering(() =>
-			Response.json(body, { status: 502, statusText: "Bad Gateway" }),
+			Response.json(body, {
+				status: 502,
+				statusText: "Bad Gateway",
+			}),
 		);
 
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
@@ -176,7 +179,10 @@ describe("SoraClient.request", () => {
 		);
 
 		const { error } = await attempt(
-			sora.signIn({ password: "wrong-password", username: "viewer" }),
+			sora.signIn({
+				password: "wrong-password",
+				username: "viewer",
+			}),
 			SoraError,
 		);
 
@@ -202,11 +208,20 @@ describe("SoraClient.request", () => {
 	});
 
 	test("keeps validation errors and the retry delay from a problem response", async () => {
-		const errors = [{ message: "Invalid email", path: "email" }];
+		const errors = [
+			{
+				message: "Invalid email",
+				path: "email",
+			},
+		];
 
 		const { sora } = clientAnswering(() =>
 			Response.json(
-				{ code: "INVALID_INPUT", detail: "Check the fields", errors },
+				{
+					code: "INVALID_INPUT",
+					detail: "Check the fields",
+					errors,
+				},
 				{
 					headers: { "Retry-After": "30" },
 					status: 429,
@@ -281,7 +296,10 @@ const typesAreChecked = async () => {
 	await sora.request(route.setWatchlistStatus, {
 		// @ts-expect-error a status the route does not know
 		body: { status: "bored" },
-		params: { profile_id: "P1", series_id: "S1" },
+		params: {
+			profile_id: "P1",
+			series_id: "S1",
+		},
 	});
 	// @ts-expect-error results are not a number
 	const wrong: number = await sora.request(route.listGenres);

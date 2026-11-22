@@ -38,7 +38,13 @@ const frame = () => {
 	);
 };
 
-const withBars = async (image: Buffer, bars: { top?: number; left?: number }) => {
+const withBars = async (
+	image: Buffer,
+	bars: {
+		top?: number;
+		left?: number;
+	},
+) => {
 	const meta = await sharp(image).metadata();
 	const top = bars.top ?? 0;
 	const left = bars.left ?? 0;
@@ -67,8 +73,15 @@ describe("rankStills", () => {
 	test("puts stills without a language before those with one, whatever the votes", () => {
 		const ranked = rankStills(
 			[
-				still({ file_path: "/logo.jpg", iso_639_1: "ja", vote_average: 9 }),
-				still({ file_path: "/plain.jpg", vote_average: 1 }),
+				still({
+					file_path: "/logo.jpg",
+					iso_639_1: "ja",
+					vote_average: 9,
+				}),
+				still({
+					file_path: "/plain.jpg",
+					vote_average: 1,
+				}),
 			],
 			null,
 		);
@@ -79,9 +92,22 @@ describe("rankStills", () => {
 	test("puts widescreen before other shapes, and large before small", () => {
 		const ranked = rankStills(
 			[
-				still({ file_path: "/square.jpg", height: 1080, vote_average: 5, width: 1440 }),
-				still({ file_path: "/small.jpg", height: 360, vote_average: 5, width: 640 }),
-				still({ file_path: "/wide.jpg", vote_average: 1 }),
+				still({
+					file_path: "/square.jpg",
+					height: 1080,
+					vote_average: 5,
+					width: 1440,
+				}),
+				still({
+					file_path: "/small.jpg",
+					height: 360,
+					vote_average: 5,
+					width: 640,
+				}),
+				still({
+					file_path: "/wide.jpg",
+					vote_average: 1,
+				}),
 			],
 			null,
 		);

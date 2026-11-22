@@ -56,7 +56,10 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 			jsonb_array_elements(${anime.media}->'recommendations'->'nodes')
 				with ordinality as recommendation(node, position)
 		where ${anime.anilistId} in ${own}
-	`)) as unknown as { anilistId: number; rank: number }[];
+	`)) as unknown as {
+		anilistId: number;
+		rank: number;
+	}[];
 
 	const scoreOf = new Map<number, number>();
 

@@ -52,10 +52,30 @@ describe("choosePlayback", () => {
 			subtitles: [],
 		};
 
-		expect(choosePlayback([raw, sub], { audio: "dub", subtitles: {} }).media).toBe(sub);
-		expect(choosePlayback([raw], { audio: "dub", subtitles: {} }).media).toBe(raw);
-		expect(choosePlayback([dub, raw], { audio: "sub", subtitles: {} }).media).toBe(raw);
-		expect(choosePlayback([dub], { audio: "sub", subtitles: {} }).media).toBe(dub);
+		expect(
+			choosePlayback([raw, sub], {
+				audio: "dub",
+				subtitles: {},
+			}).media,
+		).toBe(sub);
+		expect(
+			choosePlayback([raw], {
+				audio: "dub",
+				subtitles: {},
+			}).media,
+		).toBe(raw);
+		expect(
+			choosePlayback([dub, raw], {
+				audio: "sub",
+				subtitles: {},
+			}).media,
+		).toBe(raw);
+		expect(
+			choosePlayback([dub], {
+				audio: "sub",
+				subtitles: {},
+			}).media,
+		).toBe(dub);
 	});
 
 	test("picks the chosen language and kind, else the language", () => {

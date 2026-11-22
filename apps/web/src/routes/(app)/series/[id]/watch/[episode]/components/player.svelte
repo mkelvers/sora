@@ -197,7 +197,10 @@
 		address: ProgressAddress;
 		ending?: number;
 		lastSnapshot?: ProgressSnapshot;
-	} = untrack(() => ({ address, ending }));
+	} = untrack(() => ({
+		address,
+		ending,
+	}));
 
 	let destroyed = false;
 
@@ -228,7 +231,10 @@
 		}
 
 		if (session.lastSnapshot) {
-			reports.enqueue(session.address, { ...session.lastSnapshot, leaving });
+			reports.enqueue(session.address, {
+				...session.lastSnapshot,
+				leaving,
+			});
 		}
 	};
 

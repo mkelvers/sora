@@ -21,10 +21,16 @@ const mergeReports = (latest: Report, earlier?: Report): Report => ({
 
 /** Sends one snapshot at a time for a mounted player, including across episode changes. */
 export class ProgressReports {
-	readonly #pending: { address: ProgressAddress; report: Report }[] = [];
+	readonly #pending: {
+		address: ProgressAddress;
+		report: Report;
+	}[] = [];
 	readonly #save: (input: ProgressAddress & Report) => Promise<unknown>;
 	readonly #settled: (address: ProgressAddress, failed: boolean) => void;
-	#failed?: { address: ProgressAddress; report: Report };
+	#failed?: {
+		address: ProgressAddress;
+		report: Report;
+	};
 	#saving = false;
 
 	constructor(
@@ -45,7 +51,10 @@ export class ProgressReports {
 		if (pending?.address === address) {
 			pending.report = mergeReports(report, pending.report);
 		} else {
-			this.#pending.push({ address, report });
+			this.#pending.push({
+				address,
+				report,
+			});
 		}
 
 		if (!this.#saving) {
@@ -64,12 +73,20 @@ export class ProgressReports {
 
 			try {
 				// oxlint-disable-next-line no-await-in-loop -- Wait for the older write before sending the next.
-				await this.#save({ ...address, ...merged });
+				await this.#save({
+					...address,
+					...merged,
+				});
 			} catch {
 				failed = true;
 			}
 
-			this.#failed = failed ? { address, report: merged } : undefined;
+			this.#failed = failed
+				? {
+						address,
+						report: merged,
+					}
+				: undefined;
 			this.#settled(address, failed);
 		}
 

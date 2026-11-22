@@ -132,7 +132,14 @@ const applyAdditions = async (
 	const present = additions.flatMap((addition) => {
 		const seriesId = stored.get(addition.anilistId);
 
-		return seriesId === undefined ? [] : [{ ...addition, seriesId }];
+		return seriesId === undefined
+			? []
+			: [
+					{
+						...addition,
+						seriesId,
+					},
+				];
 	});
 
 	const addedSeriesIds: string[] = [];

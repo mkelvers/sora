@@ -291,7 +291,11 @@ const isUnrelated = (from: number, to: number) =>
  */
 export const franchiseIds = async (
 	anilistId: number,
-): Promise<{ ids: number[]; crossovers: Set<number>; apart: Set<number> }> => {
+): Promise<{
+	ids: number[];
+	crossovers: Set<number>;
+	apart: Set<number>;
+}> => {
 	const reached = new Set([anilistId]);
 	const outsiders = new Set<number>();
 	/** Entries reached only across a spin-off, not followed through yet. */

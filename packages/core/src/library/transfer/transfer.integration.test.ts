@@ -233,12 +233,18 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 			<anime><series_animedb_id>999999999</series_animedb_id><series_title>Not held</series_title><my_status>Watching</my_status><my_watched_episodes>2</my_watched_episodes></anime>
 		</myanimelist>`;
 
-		const report = await importLibrary(profile, { source: "myanimelist", xml });
+		const report = await importLibrary(profile, {
+			source: "myanimelist",
+			xml,
+		});
 
 		expect(report.watchlist_added).toBe(1);
 		expect(report.episodes_added).toBe(third?.released ?? -1);
 		expect(report.not_in_sora_count).toBe(1);
-		expect(report.not_in_sora[0]).toEqual({ anilist_id: null, title: "Not held" });
+		expect(report.not_in_sora[0]).toEqual({
+			anilist_id: null,
+			title: "Not held",
+		});
 	});
 
 	test("keeps the dates a list gives instead of the time of the import", async () => {
@@ -254,7 +260,10 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 			</myanimelist>`;
 
 			const before = new Date();
-			await importLibrary(dated, { source: "myanimelist", xml });
+			await importLibrary(dated, {
+				source: "myanimelist",
+				xml,
+			});
 			const byId = await datesOf(dated);
 
 			expect(isoOf(byId, first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
@@ -283,7 +292,10 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 		const other = `transfer-test-${crypto.randomUUID()}`;
 
 		try {
-			await importLibrary(other, { document: exported, source: "sora" });
+			await importLibrary(other, {
+				document: exported,
+				source: "sora",
+			});
 
 			const [row] = await db
 				.select({ changedAt: seriesState.statusChangedAt })
@@ -297,7 +309,12 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	});
 
 	test("rejects an import that is not valid", async () => {
-		await expect(importLibrary(profile, { source: "anilist", username: "" })).rejects.toThrow();
+		await expect(
+			importLibrary(profile, {
+				source: "anilist",
+				username: "",
+			}),
+		).rejects.toThrow();
 	});
 
 	test("undoes the latest import, once", async () => {

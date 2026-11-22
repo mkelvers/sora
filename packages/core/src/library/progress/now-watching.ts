@@ -35,7 +35,10 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 
 	const [rows, continueWatching] = await Promise.all([
 		db
-			.select({ id: series.id, title: series.title })
+			.select({
+				id: series.id,
+				title: series.title,
+			})
 			.from(activity)
 			.innerJoin(series, eq(series.id, activity.seriesId))
 			.leftJoin(

@@ -29,10 +29,24 @@ const signIn = (
 	});
 
 const signInUsername = (address: string) =>
-	signIn("username", address, JSON.stringify({ password, username: username.toUpperCase() }));
+	signIn(
+		"username",
+		address,
+		JSON.stringify({
+			password,
+			username: username.toUpperCase(),
+		}),
+	);
 
 const signInEmail = (address: string) =>
-	signIn("email", address, new URLSearchParams({ email: email.toUpperCase(), password }));
+	signIn(
+		"email",
+		address,
+		new URLSearchParams({
+			email: email.toUpperCase(),
+			password,
+		}),
+	);
 
 const statusOf = async (request: Response | Promise<Response>) => {
 	const response = await request;
@@ -77,11 +91,27 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 
 		expect(await statusOf(signIn("username", address, "{"))).toBe(400);
 		expect(
-			await statusOf(signIn("username", address, JSON.stringify({ password: 1, username }))),
+			await statusOf(
+				signIn(
+					"username",
+					address,
+					JSON.stringify({
+						password: 1,
+						username,
+					}),
+				),
+			),
 		).toBe(400);
 		expect(
 			await statusOf(
-				signIn("email", address, new URLSearchParams({ email, password: "x".repeat(129) })),
+				signIn(
+					"email",
+					address,
+					new URLSearchParams({
+						email,
+						password: "x".repeat(129),
+					}),
+				),
 			),
 		).toBe(400);
 		expect(lookup).toHaveBeenCalledTimes(0);
@@ -124,7 +154,10 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 	test("rejects new address buckets at capacity and admits them after expiry", async () => {
 		clock.mockReturnValue(4 * minute);
 		using lookup = spyOn(db.query.authUser, "findFirst");
-		const malformed = JSON.stringify({ password: 1, username });
+		const malformed = JSON.stringify({
+			password: 1,
+			username,
+		});
 
 		for (let index = 0; index < 10_000; index += 1) {
 			const address = `198.18.${Math.floor(index / 256)}.${index % 256}`;

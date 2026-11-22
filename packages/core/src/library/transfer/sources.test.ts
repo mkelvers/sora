@@ -80,8 +80,15 @@ describe("parseMyAnimeListExport", () => {
 
 	test("leaves out a title without an id or with a status it does not know", () => {
 		const xml = [
-			entry({ my_status: "Watching", series_title: "No id" }),
-			entry({ my_status: "Mystery", series_animedb_id: "7", series_title: "Odd status" }),
+			entry({
+				my_status: "Watching",
+				series_title: "No id",
+			}),
+			entry({
+				my_status: "Mystery",
+				series_animedb_id: "7",
+				series_title: "Odd status",
+			}),
 		].join("");
 
 		expect(parseMyAnimeListExport(xml)).toEqual([]);
@@ -151,19 +158,38 @@ describe("listDates", () => {
 	const updated = new Date("2021-06-01T00:00:00Z");
 
 	test("adds at creation, else the first date there is, and changes at the latest", () => {
-		expect(listDates({ created, started, updated })).toEqual({
+		expect(
+			listDates({
+				created,
+				started,
+				updated,
+			}),
+		).toEqual({
 			addedAt: created,
 			changedAt: updated,
 		});
-		expect(listDates({ started, updated })).toEqual({
+		expect(
+			listDates({
+				started,
+				updated,
+			}),
+		).toEqual({
 			addedAt: started,
 			changedAt: updated,
 		});
-		expect(listDates({ updated })).toEqual({ addedAt: updated, changedAt: updated });
+		expect(listDates({ updated })).toEqual({
+			addedAt: updated,
+			changedAt: updated,
+		});
 	});
 
 	test("has neither date when the list gives none", () => {
-		expect(listDates({ created: null, updated: null })).toEqual({
+		expect(
+			listDates({
+				created: null,
+				updated: null,
+			}),
+		).toEqual({
 			addedAt: null,
 			changedAt: null,
 		});

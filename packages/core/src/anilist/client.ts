@@ -139,10 +139,20 @@ export type Fetch = (input: string, init: RequestInit) => Promise<Response>;
 
 /** Where the client keeps responses between requests; see `anilistResponse`. */
 export interface ResponseStore {
-	find: (key: string) => Promise<{ data: unknown; fetchedAt: Date } | undefined>;
+	find: (key: string) => Promise<
+		| {
+				data: unknown;
+				fetchedAt: Date;
+		  }
+		| undefined
+	>;
 	save: (
 		key: string,
-		response: { operation: string; data: unknown; fetchedAt: Date },
+		response: {
+			operation: string;
+			data: unknown;
+			fetchedAt: Date;
+		},
 	) => Promise<void>;
 }
 

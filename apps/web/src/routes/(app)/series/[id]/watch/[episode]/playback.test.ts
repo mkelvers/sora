@@ -4,7 +4,10 @@ import { SoraClient } from "@sora/sdk";
 
 import { resolveWatchPlayback } from "./playback.server";
 
-const address = { episode: 4, seriesId: "series-1" };
+const address = {
+	episode: 4,
+	seriesId: "series-1",
+};
 
 const episode = (number: number) => ({
 	air_date: null,
@@ -32,7 +35,16 @@ const catalog = () =>
 	});
 
 const problem = (status: number, code: string, headers?: HeadersInit) =>
-	Response.json({ code, detail: "Internal provider details" }, { headers, status });
+	Response.json(
+		{
+			code,
+			detail: "Internal provider details",
+		},
+		{
+			headers,
+			status,
+		},
+	);
 
 const fixture = (playback: () => Response, episodes = catalog) =>
 	new SoraClient({
@@ -67,8 +79,14 @@ test("keeps catalog episode links when no provider lists the episode", async () 
 });
 
 test.each([
-	{ code: "TOO_MANY_REQUESTS", status: 429 },
-	{ code: "UPSTREAM_UNAVAILABLE", status: 503 },
+	{
+		code: "TOO_MANY_REQUESTS",
+		status: 429,
+	},
+	{
+		code: "UPSTREAM_UNAVAILABLE",
+		status: 503,
+	},
 ])("keeps Retry-After when playback answers $status", async ({ code, status }) => {
 	const sora = fixture(() => problem(status, code, { "Retry-After": "30" }));
 	const before = Date.now();
@@ -118,7 +136,13 @@ const media = {
 	locale: "en",
 	provider: "fixture",
 	skip_segments: [],
-	sources: [{ format: "mp4", quality: "auto", url: "https://sora.test/v1/streams/video" }],
+	sources: [
+		{
+			format: "mp4",
+			quality: "auto",
+			url: "https://sora.test/v1/streams/video",
+		},
+	],
 	subtitles: [
 		{
 			default: true,
@@ -162,7 +186,13 @@ test("resolves fresh media and uses playback metadata on retry", async () => {
 				audio: "sub",
 				label: "Sub",
 				skip_segments: [],
-				sources: [{ format: "mp4", quality: "auto", url: "/api/stream/video" }],
+				sources: [
+					{
+						format: "mp4",
+						quality: "auto",
+						url: "/api/stream/video",
+					},
+				],
 				subtitles: [
 					{
 						default: true,
@@ -183,7 +213,14 @@ test("resolves fresh media and uses playback metadata on retry", async () => {
 });
 
 test("keeps navigation when a successful response has no playable sources", async () => {
-	const sora = fixture(() => resolved([{ ...media, sources: [] }]));
+	const sora = fixture(() =>
+		resolved([
+			{
+				...media,
+				sources: [],
+			},
+		]),
+	);
 
 	expect(await resolveWatchPlayback(sora, address)).toEqual({
 		next: null,

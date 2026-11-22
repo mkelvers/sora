@@ -286,7 +286,10 @@ const bestShowPlacement = async (
 				getShowEpisodeGroups(showId),
 			]);
 
-			return { episodeGroups, show };
+			return {
+				episodeGroups,
+				show,
+			};
 		}),
 	);
 

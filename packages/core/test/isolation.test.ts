@@ -17,7 +17,11 @@ test("unit test setup overrides an inherited application database URL", async ()
 		],
 		{
 			cwd,
-			env: { ...process.env, DATABASE_URL: sharedUrl, SORA_TEST_DATABASE: name },
+			env: {
+				...process.env,
+				DATABASE_URL: sharedUrl,
+				SORA_TEST_DATABASE: name,
+			},
 			stdout: "pipe",
 		},
 	);
@@ -41,7 +45,11 @@ test.each([sharedUrl, `postgresql://127.0.0.1:1/${name}?dbname=sora`])(
 			],
 			{
 				cwd,
-				env: { ...process.env, DATABASE_URL: databaseUrl, SORA_TEST_DATABASE: name },
+				env: {
+					...process.env,
+					DATABASE_URL: databaseUrl,
+					SORA_TEST_DATABASE: name,
+				},
 				stderr: "pipe",
 			},
 		);
@@ -57,7 +65,10 @@ test.each([sharedUrl, `postgresql://127.0.0.1:1/${name}?dbname=sora`])(
 test("refuses to provision integration databases through the shared app database", async () => {
 	const result = Bun.spawn([process.execPath, "--no-env-file", "test/run-integration.ts"], {
 		cwd,
-		env: { ...process.env, SORA_TEST_ADMIN_URL: sharedUrl },
+		env: {
+			...process.env,
+			SORA_TEST_ADMIN_URL: sharedUrl,
+		},
 		stderr: "pipe",
 	});
 

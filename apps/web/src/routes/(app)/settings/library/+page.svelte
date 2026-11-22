@@ -295,7 +295,13 @@
 		const start = text.trimStart().charAt(0);
 
 		if (start === "<") {
-			await run({ source: "myanimelist", xml: text }, "file");
+			await run(
+				{
+					source: "myanimelist",
+					xml: text,
+				},
+				"file",
+			);
 
 			return;
 		}
@@ -308,7 +314,13 @@
 			return;
 		}
 
-		await run({ document, source: "sora" }, "file");
+		await run(
+			{
+				document,
+				source: "sora",
+			},
+			"file",
+		);
 	};
 </script>
 

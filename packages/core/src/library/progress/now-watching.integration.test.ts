@@ -50,8 +50,14 @@ describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 					title,
 				});
 				await db.insert(seriesEpisode).values([
-					{ number: 1, seriesId: id },
-					{ number: 2, seriesId: id },
+					{
+						number: 1,
+						seriesId: id,
+					},
+					{
+						number: 2,
+						seriesId: id,
+					},
 				]);
 				await db.insert(episodeProgress).values({
 					durationSeconds: 1400,
@@ -109,9 +115,11 @@ describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 	});
 
 	test("excludes series with progress that are not on Continue Watching", async () => {
-		await db
-			.insert(seriesState)
-			.values({ dismissedAt: new Date(), seriesId: idAt(2), userId: profile });
+		await db.insert(seriesState).values({
+			dismissedAt: new Date(),
+			seriesId: idAt(2),
+			userId: profile,
+		});
 		expect(await getNowWatching(profile)).toEqual(["Fourth"]);
 		await db.delete(seriesState).where(eq(seriesState.seriesId, idAt(2)));
 		await db.delete(episodeProgress).where(eq(episodeProgress.userId, profile));

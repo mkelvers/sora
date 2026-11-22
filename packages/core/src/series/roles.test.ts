@@ -31,13 +31,24 @@ describe("franchiseRoles", () => {
 
 	test("lists side-story films and specials as extras when they are worth watching", () => {
 		const film = title(10, "MOVIE", { durationMinutes: 75 });
-		const special = title(11, "SPECIAL", { popularity: 100, score: 62 });
+		const special = title(11, "SPECIAL", {
+			popularity: 100,
+			score: 62,
+		});
 
 		const roles = franchiseRoles(
 			[indigo, film, special],
 			[
-				{ from: 1, to: 10, type: "SIDE_STORY" },
-				{ from: 11, to: 1, type: "PARENT" },
+				{
+					from: 1,
+					to: 10,
+					type: "SIDE_STORY",
+				},
+				{
+					from: 11,
+					to: 1,
+					type: "PARENT",
+				},
 			],
 			main,
 		);
@@ -47,14 +58,28 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps a sequel film however little it is rated, but not a side-story promo", () => {
-		const sequel = title(12, "MOVIE", { popularity: 300, score: 45 });
-		const promo = title(13, "SPECIAL", { popularity: 1800, score: 56 });
+		const sequel = title(12, "MOVIE", {
+			popularity: 300,
+			score: 45,
+		});
+		const promo = title(13, "SPECIAL", {
+			popularity: 1800,
+			score: 56,
+		});
 
 		const roles = franchiseRoles(
 			[indigo, sequel, promo],
 			[
-				{ from: 1, to: 12, type: "SEQUEL" },
-				{ from: 1, to: 13, type: "SIDE_STORY" },
+				{
+					from: 1,
+					to: 12,
+					type: "SEQUEL",
+				},
+				{
+					from: 1,
+					to: 13,
+					type: "SIDE_STORY",
+				},
 			],
 			main,
 		);
@@ -65,7 +90,17 @@ describe("franchiseRoles", () => {
 
 	test("separates spin-offs and character crossovers", () => {
 		const spinOff = title(20, "TV", { episodeCount: 12 });
-		const roles = franchiseRoles([indigo, spinOff], [{ from: 1, to: 20, type: "SPIN_OFF" }], main);
+		const roles = franchiseRoles(
+			[indigo, spinOff],
+			[
+				{
+					from: 1,
+					to: 20,
+					type: "SPIN_OFF",
+				},
+			],
+			main,
+		);
 		expect(roles.get(20)).toBe("spin_off");
 	});
 
@@ -75,8 +110,16 @@ describe("franchiseRoles", () => {
 		const roles = franchiseRoles(
 			[indigo, recap],
 			[
-				{ from: 1, to: 30, type: "SUMMARY" },
-				{ from: 1, to: 30, type: "SIDE_STORY" },
+				{
+					from: 1,
+					to: 30,
+					type: "SUMMARY",
+				},
+				{
+					from: 1,
+					to: 30,
+					type: "SIDE_STORY",
+				},
 			],
 			main,
 		);
@@ -89,7 +132,13 @@ describe("franchiseRoles", () => {
 
 		const roles = franchiseRoles(
 			[indigo, remake],
-			[{ from: 1, to: 40, type: "ALTERNATIVE" }],
+			[
+				{
+					from: 1,
+					to: 40,
+					type: "ALTERNATIVE",
+				},
+			],
 			main,
 		);
 
@@ -101,7 +150,10 @@ describe("franchiseRoles", () => {
 			[
 				indigo,
 				title(50, "MUSIC", { popularity: 90_000 }),
-				title(51, "ONA", { durationMinutes: 2, popularity: 90_000 }),
+				title(51, "ONA", {
+					durationMinutes: 2,
+					popularity: 90_000,
+				}),
 			],
 			[],
 			main,
@@ -112,7 +164,11 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps an unconnected short with a real runtime that people watch", () => {
-		const fun = title(60, "OVA", { durationMinutes: 8, episodeCount: 3, score: 74 });
+		const fun = title(60, "OVA", {
+			durationMinutes: 8,
+			episodeCount: 3,
+			score: 74,
+		});
 
 		const forgotten = title(61, "OVA", {
 			durationMinutes: 8,
@@ -132,7 +188,13 @@ describe("franchiseRoles", () => {
 	});
 
 	test("reads relations in either direction", () => {
-		const relations: RoleRelation[] = [{ from: 80, to: 2, type: "SEQUEL" }];
+		const relations: RoleRelation[] = [
+			{
+				from: 80,
+				to: 2,
+				type: "SEQUEL",
+			},
+		];
 		const roles = franchiseRoles([johto, title(80, "MOVIE")], relations, main);
 		expect(roles.get(80)).toBe("extra");
 	});
@@ -141,8 +203,16 @@ describe("franchiseRoles", () => {
 		const roles = franchiseRoles(
 			[indigo, title(90, "TV", { episodeCount: 13 })],
 			[
-				{ from: 1, to: 90, type: "SPIN_OFF" },
-				{ from: 90, to: 1, type: "PARENT" },
+				{
+					from: 1,
+					to: 90,
+					type: "SPIN_OFF",
+				},
+				{
+					from: 90,
+					to: 1,
+					type: "PARENT",
+				},
 			],
 			main,
 		);

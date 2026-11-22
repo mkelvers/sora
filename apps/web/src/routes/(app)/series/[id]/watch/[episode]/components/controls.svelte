@@ -28,7 +28,11 @@
 		children?: Snippet;
 	} = $props();
 
-	let pointer = $state<{ time: number; x: number; width: number }>();
+	let pointer = $state<{
+		time: number;
+		x: number;
+		width: number;
+	}>();
 	let label = $state(0);
 
 	const track = (event: PointerEvent & { currentTarget: HTMLElement }) => {

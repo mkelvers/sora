@@ -11,13 +11,30 @@ class Members {
 		this.#node = node;
 	}
 
-	/** Whether two members share a line. */
+	/** Whether two members share a line, outside a parameter's type, which the formatter keeps on one line. */
 	get crowded(): boolean {
 		const members = this.#list;
+
+		if (this.#parameter) {
+			return false;
+		}
 
 		return members.some(
 			(member, index) => members[index - 1]?.loc.end.line === member.loc.start.line,
 		);
+	}
+
+	get #parameter(): boolean {
+		const annotation = this.#node.parent;
+		const binding = annotation.parent;
+
+		if (annotation.type !== "TSTypeAnnotation" || !binding) {
+			return false;
+		}
+
+		const callable = ["ArrowFunctionExpression", "FunctionDeclaration", "FunctionExpression"];
+
+		return callable.includes(binding.parent?.type ?? "");
 	}
 
 	get #list(): ESTree.Span[] {
@@ -37,7 +54,7 @@ class Members {
 
 /**
  * §7 Object literals and types with several members put each on its own
- * line. The fix breaks the line after the opening brace; the formatter then
+ * line, except a parameter's inline type, which the formatter collapses. The fix breaks the line after the opening brace; the formatter then
  * expands the rest.
  */
 export const expandObjects = defineRule({

@@ -559,7 +559,14 @@ export const getNotifications = async (
 				right.released_at.localeCompare(left.released_at) || right.id.localeCompare(left.id),
 		)
 		.filter((group) => kinds[group.kind])
-		.map((group) => (hideSpoilers ? { ...group, episode_title: null } : group));
+		.map((group) =>
+			hideSpoilers
+				? {
+						...group,
+						episode_title: null,
+					}
+				: group,
+		);
 
 	const groups = all.slice(0, options.limit ?? 30);
 	const shownIds = new Set(groups.map((group) => group.seriesId));

@@ -57,7 +57,10 @@ const englishDialogue = async (
  *   in both versions right now, or the audio cannot be read or transcribed.
  */
 export const listenToDub = async (
-	request: { seriesId: string; episode: number },
+	request: {
+		seriesId: string;
+		episode: number;
+	},
 	key: string,
 ): Promise<Refinement | null> => {
 	const { sub, dub } = await resolveStreams(request);

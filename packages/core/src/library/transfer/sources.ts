@@ -263,14 +263,23 @@ export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
  */
 export const fromMyAnimeList = async (
 	entries: readonly MalEntry[],
-): Promise<{ matched: ListEntry[]; unmatched: MalEntry[] }> => {
+): Promise<{
+	matched: ListEntry[];
+	unmatched: MalEntry[];
+}> => {
 	if (entries.length === 0) {
-		return { matched: [], unmatched: [] };
+		return {
+			matched: [],
+			unmatched: [],
+		};
 	}
 
 	const ids = [...new Set(entries.map((entry) => String(entry.malId)))];
 
-	const rows = await db.execute<{ anilist_id: number; mal_id: number }>(sql`
+	const rows = await db.execute<{
+		anilist_id: number;
+		mal_id: number;
+	}>(sql`
 		select anilist_id, (media->>'idMal')::int as mal_id
 		from anime
 		where (media->>'idMal') = any(array[${sql.join(
@@ -301,5 +310,8 @@ export const fromMyAnimeList = async (
 		}
 	}
 
-	return { matched, unmatched };
+	return {
+		matched,
+		unmatched,
+	};
 };

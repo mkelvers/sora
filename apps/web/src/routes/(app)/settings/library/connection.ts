@@ -66,7 +66,12 @@ export const begin = (source: AccountSource, inPopup: boolean) => {
 };
 
 export type Returned =
-	| { kind: "agreed"; source: AccountSource; code: string; verifier: string }
+	| {
+			kind: "agreed";
+			source: AccountSource;
+			code: string;
+			verifier: string;
+	  }
 	| { kind: "refused" }
 	| { kind: "unknown" };
 

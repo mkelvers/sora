@@ -607,7 +607,12 @@ const storedRefinement = async (
 
 	if (config.subtitleAlignmentPython && isRefinementDue(stored)) {
 		// Playback goes on with picture-timed subtitles if the job cannot be queued.
-		await attempt(dependencies.requestRefinement({ ...request, key }));
+		await attempt(
+			dependencies.requestRefinement({
+				...request,
+				key,
+			}),
+		);
 	}
 
 	return {

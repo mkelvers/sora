@@ -73,7 +73,10 @@ export const getProgress = query(EpisodeAddress, async ({ seriesId, episode }) =
 		},
 	});
 
-	return { profileId: profile.id, progress };
+	return {
+		profileId: profile.id,
+		progress,
+	};
 });
 
 export const saveProgress = command(

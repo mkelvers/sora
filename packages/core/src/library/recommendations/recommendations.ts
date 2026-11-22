@@ -55,7 +55,10 @@ interface Taste {
 	/** Every title key the profile has played or listed, which is never recommended. */
 	seen: Set<string>;
 	/** Titles the profile likes, the most recent first, with their genres. */
-	liked: { genres: string[]; title: string }[];
+	liked: {
+		genres: string[];
+		title: string;
+	}[];
 	/** Genres in order of how much of the profile's viewing they cover. */
 	genres: string[];
 }
@@ -89,7 +92,13 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			.where(eq(seriesRating.userId, userId)),
 	]);
 
-	const signals = new Map<string, { at: number; weight: number }>();
+	const signals = new Map<
+		string,
+		{
+			at: number;
+			weight: number;
+		}
+	>();
 
 	const note = (seriesId: string, at: Date | null, weight: number) => {
 		const known = signals.get(seriesId);
@@ -116,7 +125,11 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 	}
 
 	if (signals.size === 0) {
-		return { genres: [], liked: [], seen: new Set() };
+		return {
+			genres: [],
+			liked: [],
+			seen: new Set(),
+		};
 	}
 
 	const rows = await db
@@ -263,7 +276,14 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 	return found.flatMap((row) => {
 		const card = cards.get(row.id);
 
-		return card && card.audio.length > 0 ? [{ card, key: row.key }] : [];
+		return card && card.audio.length > 0
+			? [
+					{
+						card,
+						key: row.key,
+					},
+				]
+			: [];
 	});
 };
 
@@ -282,7 +302,11 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 export const getRecommendations = async (userId: string): Promise<Recommendations> => {
 	const taste = await tasteOf(userId);
 
-	const specs: { filter: Filter; id: string; title: string }[] = [
+	const specs: {
+		filter: Filter;
+		id: string;
+		title: string;
+	}[] = [
 		...taste.liked.slice(0, becauseRows).map((favourite, index) => ({
 			filter: {
 				genres: favourite.genres,

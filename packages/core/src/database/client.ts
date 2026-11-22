@@ -139,7 +139,12 @@ export const migrateDatabase = async () => {
       `;
 
 			const recorded = exists
-				? await lock<{ created_at: string; hash: string }[]>`
+				? await lock<
+						{
+							created_at: string;
+							hash: string;
+						}[]
+					>`
             select created_at, hash from drizzle.__drizzle_migrations
           `
 				: [];
@@ -169,7 +174,13 @@ export const migrateDatabase = async () => {
 				connectionString: config.databaseUrl,
 			});
 
-			const live = await lock<{ column: string; schema: string; table: string }[]>`
+			const live = await lock<
+				{
+					column: string;
+					schema: string;
+					table: string;
+				}[]
+			>`
         select table_schema as schema, table_name as table, column_name as column
         from information_schema.columns
       `;

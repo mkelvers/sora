@@ -142,7 +142,10 @@ export interface Group {
 const many = (
 	id: "genres" | "tags" | "sources",
 	label: string,
-	options: { label: string; value: string }[],
+	options: {
+		label: string;
+		value: string;
+	}[],
 	selected: string[],
 ): Group => ({
 	choices: options.map((option) => ({

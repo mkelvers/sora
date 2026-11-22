@@ -73,8 +73,21 @@ export type Fetch = (input: URL, init: RequestInit) => Promise<Response>;
 
 /** Where the client keeps responses between requests; see `tmdbResponse`. */
 export interface ResponseStore {
-	find: (key: string) => Promise<{ data: unknown; fetchedAt: Date } | undefined>;
-	save: (key: string, response: { path: string; data: unknown; fetchedAt: Date }) => Promise<void>;
+	find: (key: string) => Promise<
+		| {
+				data: unknown;
+				fetchedAt: Date;
+		  }
+		| undefined
+	>;
+	save: (
+		key: string,
+		response: {
+			path: string;
+			data: unknown;
+			fetchedAt: Date;
+		},
+	) => Promise<void>;
 }
 
 /** What a TMDB client depends on, so tests can give it a plain `fetch` and an in-memory store. */

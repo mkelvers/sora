@@ -90,8 +90,26 @@ describe("isCurrent", () => {
 			status: "RELEASING",
 		};
 
-		expect(isCurrent({ ...entry, popularity: 165_000, score: 67 }, now)).toBe(false);
-		expect(isCurrent({ ...entry, popularity: 5000, score: 80 }, now)).toBe(false);
+		expect(
+			isCurrent(
+				{
+					...entry,
+					popularity: 165_000,
+					score: 67,
+				},
+				now,
+			),
+		).toBe(false);
+		expect(
+			isCurrent(
+				{
+					...entry,
+					popularity: 5000,
+					score: 80,
+				},
+				now,
+			),
+		).toBe(false);
 	});
 
 	test("asks fewer listings of a title still airing than of a finished one", () => {

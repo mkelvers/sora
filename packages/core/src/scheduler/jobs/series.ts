@@ -448,7 +448,11 @@ const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
 			: day;
 
 	if (row.laid_out_for_ms <= relayoutAfterMs) {
-		return { fetched: 0, queued: 0, updated: 0 };
+		return {
+			fetched: 0,
+			queued: 0,
+			updated: 0,
+		};
 	}
 
 	if (isUnmatched) {
@@ -457,7 +461,11 @@ const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
 
 	await scheduleStoredSeriesRefresh(row.anilist_id);
 
-	return { fetched: 0, queued: 1, updated: 0 };
+	return {
+		fetched: 0,
+		queued: 1,
+		updated: 0,
+	};
 };
 
 /** Asks TMDB again for the show of a series that is behind, and queues the series when its layout is stale. */
@@ -478,7 +486,11 @@ const refreshShow = async (
 	);
 
 	if (Date.now() - (fetchedAt.get(`/tv/${showId}`) ?? 0) < maxAgeMs) {
-		return { fetched: 0, queued: 0, updated: 0 };
+		return {
+			fetched: 0,
+			queued: 0,
+			updated: 0,
+		};
 	}
 
 	// The stored copy is read before the fresh one replaces it.
@@ -492,7 +504,11 @@ const refreshShow = async (
 	if (stored.error) {
 		logger.warn(`TMDB failed for show ${showId}: ${stored.error.message}`);
 
-		return { fetched: 0, queued: 0, updated: 0 };
+		return {
+			fetched: 0,
+			queued: 0,
+			updated: 0,
+		};
 	}
 
 	const fresh = await attempt(
@@ -505,7 +521,11 @@ const refreshShow = async (
 	if (fresh.error) {
 		logger.warn(`TMDB failed for show ${showId}: ${fresh.error.message}`);
 
-		return { fetched: 0, queued: 0, updated: 0 };
+		return {
+			fetched: 0,
+			queued: 0,
+			updated: 0,
+		};
 	}
 
 	const before = stored.data;
@@ -535,10 +555,18 @@ const refreshShow = async (
 
 		await scheduleStoredSeriesRefresh(row.anilist_id);
 
-		return { fetched: 1, queued: 1, updated: copied };
+		return {
+			fetched: 1,
+			queued: 1,
+			updated: copied,
+		};
 	}
 
-	return { fetched: 1, queued: 0, updated: copied };
+	return {
+		fetched: 1,
+		queued: 0,
+		updated: copied,
+	};
 };
 
 /**

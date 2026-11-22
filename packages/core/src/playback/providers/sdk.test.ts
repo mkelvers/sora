@@ -7,7 +7,13 @@ import { anime } from "../../catalog/models/anime.fixture";
 import { acceptsTitleMatch, SdkStreamProvider } from "./sdk";
 import type { SdkProvider } from "./sdk";
 
-const titled = (titles: { english?: string; romaji?: string }, episodes: number | null): Anime => ({
+const titled = (
+	titles: {
+		english?: string;
+		romaji?: string;
+	},
+	episodes: number | null,
+): Anime => ({
 	...anime(1),
 	episodes,
 	format: "TV",

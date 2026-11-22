@@ -234,8 +234,15 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 			return {
 				count: airing.length,
 				date: date.toString(),
-				label: date.toLocaleString("en", { day: "numeric", month: "long", weekday: "long" }),
-				month_day: date.toLocaleString("en", { day: "numeric", month: "long" }),
+				label: date.toLocaleString("en", {
+					day: "numeric",
+					month: "long",
+					weekday: "long",
+				}),
+				month_day: date.toLocaleString("en", {
+					day: "numeric",
+					month: "long",
+				}),
 				name: date.toLocaleString("en", { weekday: "long" }),
 				number: date.day,
 				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),

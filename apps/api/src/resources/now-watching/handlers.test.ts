@@ -4,7 +4,10 @@ import { Hono } from "hono";
 
 import { nowWatchingRoutes } from "./handlers";
 
-const environment = { NOW_WATCHING_PROFILE_ID: "owner", PORTFOLIO_TOKEN: "portfolio-test-secret" };
+const environment = {
+	NOW_WATCHING_PROFILE_ID: "owner",
+	PORTFOLIO_TOKEN: "portfolio-test-secret",
+};
 const path = "/v1/public/now-watching";
 
 test("missing and wrong tokens return the same 401 without querying progress", async () => {
@@ -97,9 +100,16 @@ test("the mounted v1 endpoint bypasses session authentication", () => {
     `,
 		],
 		cwd: import.meta.dir,
-		env: { ...process.env, NOW_WATCHING_PROFILE_ID: "", PORTFOLIO_TOKEN: "mounted-test-secret" },
+		env: {
+			...process.env,
+			NOW_WATCHING_PROFILE_ID: "",
+			PORTFOLIO_TOKEN: "mounted-test-secret",
+		},
 	});
 
 	expect(result.exitCode).toBe(0);
-	expect(JSON.parse(result.stdout.toString())).toEqual({ body: { titles: [] }, status: 200 });
+	expect(JSON.parse(result.stdout.toString())).toEqual({
+		body: { titles: [] },
+		status: 200,
+	});
 });

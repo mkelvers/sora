@@ -17,12 +17,37 @@ const episode = {
 
 const responses: Record<string, unknown> = {
 	"/tv/1/episode_groups": { results: [] },
-	"/tv/45790/episode_groups": { results: [{ id: "anime-parts", type: 1 }] },
+	"/tv/45790/episode_groups": {
+		results: [
+			{
+				id: "anime-parts",
+				type: 1,
+			},
+		],
+	},
 	"/tv/episode_group/anime-parts": {
 		groups: [
-			{ episodes: [{ ...episode, episode_number: 25, id: 3 }], name: "Part 3", order: 3 },
 			{
-				episodes: [{ ...episode, episode_number: 14, id: 2, order: 1 }, episode],
+				episodes: [
+					{
+						...episode,
+						episode_number: 25,
+						id: 3,
+					},
+				],
+				name: "Part 3",
+				order: 3,
+			},
+			{
+				episodes: [
+					{
+						...episode,
+						episode_number: 14,
+						id: 2,
+						order: 1,
+					},
+					episode,
+				],
 				name: "Part 2",
 				order: 2,
 			},
@@ -57,8 +82,14 @@ test("loads episode groups in order and retains canonical episode numbers", asyn
 		),
 	).toEqual([
 		[
-			{ episodes: ["5:13", "5:14"], name: "Part 2" },
-			{ episodes: ["5:25"], name: "Part 3" },
+			{
+				episodes: ["5:13", "5:14"],
+				name: "Part 2",
+			},
+			{
+				episodes: ["5:25"],
+				name: "Part 3",
+			},
 		],
 	]);
 	expect(requests).toEqual(["/tv/45790/episode_groups", "/tv/episode_group/anime-parts"]);

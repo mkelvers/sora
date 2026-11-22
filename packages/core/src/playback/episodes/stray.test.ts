@@ -36,7 +36,10 @@ describe("withoutStrayEpisodes", () => {
 
 	test("leaves airing anime and anime of unknown length alone", () => {
 		expect(
-			withoutStrayEpisodes(numbered(1, 192), { episodes: 1, status: "RELEASING" }),
+			withoutStrayEpisodes(numbered(1, 192), {
+				episodes: 1,
+				status: "RELEASING",
+			}),
 		).toHaveLength(2);
 		expect(withoutStrayEpisodes(numbered(1, 192), finished(null))).toHaveLength(2);
 	});

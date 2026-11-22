@@ -11,9 +11,15 @@ interface EpisodeLinks {
 
 type WatchPlayback = EpisodeLinks &
 	(
-		| { status: "ready"; media: WatchMedia[] }
+		| {
+				status: "ready";
+				media: WatchMedia[];
+		  }
 		| { status: "unavailable" }
-		| { status: "temporary"; retryAt: number | null }
+		| {
+				status: "temporary";
+				retryAt: number | null;
+		  }
 		| { status: "failed" }
 	);
 
@@ -25,7 +31,13 @@ const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/")
  */
 export const resolveWatchPlayback = async (
 	sora: SoraClient,
-	{ seriesId, episode }: { seriesId: string; episode: number },
+	{
+		seriesId,
+		episode,
+	}: {
+		seriesId: string;
+		episode: number;
+	},
 ): Promise<WatchPlayback> => {
 	const playback = await attempt(
 		sora.requestWithMeta(route.getPlayback, {
@@ -51,7 +63,10 @@ export const resolveWatchPlayback = async (
 		};
 
 		if (status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND")) {
-			return { ...links, status: "unavailable" };
+			return {
+				...links,
+				status: "unavailable",
+			};
 		}
 
 		if (status === 429 || (status >= 500 && status < 600)) {
@@ -62,15 +77,24 @@ export const resolveWatchPlayback = async (
 			};
 		}
 
-		return { ...links, status: "failed" };
+		return {
+			...links,
+			status: "failed",
+		};
 	}
 
 	const { results, meta } = playback.data;
-	const links = { next: meta.next_episode, previous: meta.previous_episode };
+	const links = {
+		next: meta.next_episode,
+		previous: meta.previous_episode,
+	};
 	const playable = results.filter((media) => media.sources.length > 0);
 
 	if (playable.length === 0) {
-		return { ...links, status: "unavailable" };
+		return {
+			...links,
+			status: "unavailable",
+		};
 	}
 
 	return {

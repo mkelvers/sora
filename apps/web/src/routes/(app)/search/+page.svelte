@@ -20,7 +20,12 @@
 	const studios = $derived(getStudios(q.slice(0, 100)));
 
 	const category = $derived.by(
-		(): { name: string; filters: Partial<BrowseFilters> } | undefined => {
+		():
+			| {
+					name: string;
+					filters: Partial<BrowseFilters>;
+			  }
+			| undefined => {
 			const genre = genres.current?.find(same);
 
 			if (genre) {

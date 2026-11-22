@@ -77,7 +77,12 @@ export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | n
 		);
 	});
 
-const depth = (edge: { brightest: number; mean: number }[]) => {
+const depth = (
+	edge: {
+		brightest: number;
+		mean: number;
+	}[],
+) => {
 	let bar = 0;
 
 	while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {

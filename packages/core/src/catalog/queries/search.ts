@@ -357,10 +357,18 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 
 	const readWindow = async (
 		popularityBelow: number | undefined,
-	): Promise<{ pages: number; stored: number }> => {
+	): Promise<{
+		pages: number;
+		stored: number;
+	}> => {
 		let leastPopular: number | undefined;
 
-		const readPage = async (page: number): Promise<{ pages: number; stored: number } | null> => {
+		const readPage = async (
+			page: number,
+		): Promise<{
+			pages: number;
+			stored: number;
+		} | null> => {
 			const { Page } = await fetchIndexPage(page, sort, popularityBelow);
 			pages += 1;
 

@@ -37,7 +37,14 @@ describe("layoutEpisodes", () => {
 				nextEpisode: null,
 				playbackEpisodes: 3,
 			},
-			[...links, { anilistEpisode: 120, episodeNumber: 120, seasonNumber: 2 }],
+			[
+				...links,
+				{
+					anilistEpisode: 120,
+					episodeNumber: 120,
+					seasonNumber: 2,
+				},
+			],
 			show,
 			null,
 		);

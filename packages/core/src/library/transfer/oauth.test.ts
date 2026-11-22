@@ -37,13 +37,21 @@ interface Call {
 }
 
 /** A fetcher that answers each call in turn and records what it was sent. */
-const answering = (...responses: Response[]): { calls: Call[]; fetcher: Fetcher } => {
+const answering = (
+	...responses: Response[]
+): {
+	calls: Call[];
+	fetcher: Fetcher;
+} => {
 	const calls: Call[] = [];
 
 	return {
 		calls,
 		fetcher: (url, init) => {
-			calls.push({ init, url });
+			calls.push({
+				init,
+				url,
+			});
 
 			return Promise.resolve(responses[calls.length - 1] ?? new Response("", { status: 500 }));
 		},
@@ -58,17 +66,39 @@ const item = (
 	id: number,
 	status: string,
 	watched: number,
-	dates: { start_date?: string; finish_date?: string; updated_at?: string } = {},
+	dates: {
+		start_date?: string;
+		finish_date?: string;
+		updated_at?: string;
+	} = {},
 ) => ({
-	list_status: { num_episodes_watched: watched, status, ...dates },
-	node: { id, title: `Title ${id}` },
+	list_status: {
+		num_episodes_watched: watched,
+		status,
+		...dates,
+	},
+	node: {
+		id,
+		title: `Title ${id}`,
+	},
 });
 
 describe("importOptions", () => {
 	test("offers only the accounts whose client is configured", () => {
-		expect(importOptions(clients)).toEqual({ anilist_account: true, myanimelist_account: true });
-		expect(importOptions(none)).toEqual({ anilist_account: false, myanimelist_account: false });
-		expect(importOptions({ ...none, myAnimeListOAuth: clients.myAnimeListOAuth })).toEqual({
+		expect(importOptions(clients)).toEqual({
+			anilist_account: true,
+			myanimelist_account: true,
+		});
+		expect(importOptions(none)).toEqual({
+			anilist_account: false,
+			myanimelist_account: false,
+		});
+		expect(
+			importOptions({
+				...none,
+				myAnimeListOAuth: clients.myAnimeListOAuth,
+			}),
+		).toEqual({
 			anilist_account: false,
 			myanimelist_account: true,
 		});
@@ -124,11 +154,19 @@ describe("readAniListAccount", () => {
 								updatedAt: 1_622_412_501,
 							},
 							{
-								completedAt: { day: 3, month: 2, year: 2020 },
+								completedAt: {
+									day: 3,
+									month: 2,
+									year: 2020,
+								},
 								createdAt: 0,
 								media: { id: 2 },
 								progress: 12,
-								startedAt: { day: null, month: null, year: 2020 },
+								startedAt: {
+									day: null,
+									month: null,
+									year: 2020,
+								},
 								status: "COMPLETED",
 								updatedAt: 0,
 							},
@@ -279,7 +317,10 @@ describe("readMyAnimeListAccount", () => {
 
 		await readMyAnimeListAccount(authorization, fetcher, {
 			...clients,
-			myAnimeListOAuth: { clientId: "mal-id", clientSecret: null },
+			myAnimeListOAuth: {
+				clientId: "mal-id",
+				clientSecret: null,
+			},
 		});
 
 		expect(new URLSearchParams(String(calls[0]?.init?.body)).has("client_secret")).toBe(false);

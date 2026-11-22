@@ -199,7 +199,13 @@ const currentAward = (sources: AboutSources) => {
 };
 
 /** Ages each MyAnimeList rating is for, and what it warns of. */
-const ageRatings: Record<AgeRating, { age: string; descriptors: string[] }> = {
+const ageRatings: Record<
+	AgeRating,
+	{
+		age: string;
+		descriptors: string[];
+	}
+> = {
 	G: {
 		age: "All ages",
 		descriptors: [],

@@ -36,16 +36,51 @@ describe("notifications across seasons", () => {
 			})),
 		);
 		await db.insert(seriesRelated).values([
-			{ anilistId: defined(anilistIds[1]), position: 0, relation: "SEQUEL", seriesId: first },
-			{ anilistId: defined(anilistIds[1]), position: 0, relation: "PREQUEL", seriesId: third },
-			{ anilistId: defined(anilistIds[3]), position: 1, relation: "SIDE_STORY", seriesId: first },
+			{
+				anilistId: defined(anilistIds[1]),
+				position: 0,
+				relation: "SEQUEL",
+				seriesId: first,
+			},
+			{
+				anilistId: defined(anilistIds[1]),
+				position: 0,
+				relation: "PREQUEL",
+				seriesId: third,
+			},
+			{
+				anilistId: defined(anilistIds[3]),
+				position: 1,
+				relation: "SIDE_STORY",
+				seriesId: first,
+			},
 		]);
 		await db.insert(seriesEpisode).values([
-			{ airedAt: new Date(now.getTime() - 40 * day), number: 1, seriesId: first },
-			{ airedAt: new Date(now.getTime() - 5 * day), number: 1, seriesId: second },
-			{ airedAt: releasedAt, number: 2, seriesId: second },
-			{ airedAt: releasedAt, number: 2, seriesId: third },
-			{ airedAt: releasedAt, number: 1, seriesId: spinOff },
+			{
+				airedAt: new Date(now.getTime() - 40 * day),
+				number: 1,
+				seriesId: first,
+			},
+			{
+				airedAt: new Date(now.getTime() - 5 * day),
+				number: 1,
+				seriesId: second,
+			},
+			{
+				airedAt: releasedAt,
+				number: 2,
+				seriesId: second,
+			},
+			{
+				airedAt: releasedAt,
+				number: 2,
+				seriesId: third,
+			},
+			{
+				airedAt: releasedAt,
+				number: 1,
+				seriesId: spinOff,
+			},
 		]);
 		await db.insert(episodeDub).values({
 			anilistId: defined(anilistIds[1]),
@@ -163,7 +198,10 @@ describe("notifications across seasons", () => {
 			statusChangedAt: now,
 			userId: profile,
 		});
-		expect(await getNotifications(profile, {}, now)).toEqual({ items: [], unread: 0 });
+		expect(await getNotifications(profile, {}, now)).toEqual({
+			items: [],
+			unread: 0,
+		});
 	});
 
 	test("a dropped sequel is excluded while other connected seasons remain followed", async () => {
@@ -272,6 +310,9 @@ describe("notifications across seasons", () => {
 			userId: profile,
 			watchedAt: now,
 		});
-		expect(await getNotifications(profile, {}, now)).toEqual({ items: [], unread: 0 });
+		expect(await getNotifications(profile, {}, now)).toEqual({
+			items: [],
+			unread: 0,
+		});
 	});
 });

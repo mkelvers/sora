@@ -153,11 +153,28 @@ describe("placeInShow", () => {
 			{ endDate: "2018-12-26" },
 			{ titles: ["A different short adaptation"] },
 		]) {
-			expect(placeInShow({ ...shorts, ...invalid }, candidate)?.method).not.toBe("compilation");
+			expect(
+				placeInShow(
+					{
+						...shorts,
+						...invalid,
+					},
+					candidate,
+				)?.method,
+			).not.toBe("compilation");
 		}
 
 		expect(
-			range(placeInShow({ ...shorts, durationMinutes: 23, format: "TV" }, candidate)),
+			range(
+				placeInShow(
+					{
+						...shorts,
+						durationMinutes: 23,
+						format: "TV",
+					},
+					candidate,
+				),
+			),
 		).toHaveLength(24);
 	});
 	test("maps a streaming batch to its later weekly franchise broadcast", () => {
@@ -167,19 +184,35 @@ describe("placeInShow", () => {
 				...weekly(5, "2022-01-08", 12),
 				...weekly(5, "2022-10-08", 26, { first: 13 }),
 			],
-			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+			{
+				isFranchiseShow: true,
+				prequel: endingAt(4, 39),
+			},
 		);
 
 		const first = placeInShow(
-			subject({ endDate: "2021-12-01", episodes: 12, format: "ONA", startDate: "2021-12-01" }),
+			subject({
+				endDate: "2021-12-01",
+				episodes: 12,
+				format: "ONA",
+				startDate: "2021-12-01",
+			}),
 			candidate,
 		);
 
 		expect(range(first)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
 
 		const second = placeInShow(
-			subject({ endDate: "2022-12-01", episodes: 26, format: "ONA", startDate: "2022-09-01" }),
-			{ ...candidate, prequel: endingAt(5, 12) },
+			subject({
+				endDate: "2022-12-01",
+				episodes: 26,
+				format: "ONA",
+				startDate: "2022-09-01",
+			}),
+			{
+				...candidate,
+				prequel: endingAt(5, 12),
+			},
 		);
 
 		expect(range(second)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
@@ -187,7 +220,11 @@ describe("placeInShow", () => {
 
 	test("matches a complete first season when a preview predates its broadcast", () => {
 		const placement = placeInShow(
-			subject({ endDate: "2013-09-21", episodes: 12, startDate: "2013-06-23" }),
+			subject({
+				endDate: "2013-09-21",
+				episodes: 12,
+				startDate: "2013-06-23",
+			}),
 			show([...weekly(1, "2013-07-06", 12), ...weekly(2, "2015-04-06", 12)]),
 		);
 
@@ -196,7 +233,12 @@ describe("placeInShow", () => {
 
 	test("matches a complete streaming season broadcast across a year boundary", () => {
 		const placement = placeInShow(
-			subject({ endDate: "2021-11-25", episodes: 11, format: "ONA", startDate: "2021-09-16" }),
+			subject({
+				endDate: "2021-11-25",
+				episodes: 11,
+				format: "ONA",
+				startDate: "2021-09-16",
+			}),
 			show(weekly(1, "2022-01-13", 11)),
 		);
 
@@ -206,7 +248,12 @@ describe("placeInShow", () => {
 	test("does not use a delayed streaming continuation without a proven prequel", () => {
 		expect(
 			placeInShow(
-				subject({ endDate: "2021-12-01", episodes: 12, format: "ONA", startDate: "2021-12-01" }),
+				subject({
+					endDate: "2021-12-01",
+					episodes: 12,
+					format: "ONA",
+					startDate: "2021-12-01",
+				}),
 				show(weekly(5, "2022-01-08", 38), { isFranchiseShow: true }),
 			),
 		).toBeNull();
@@ -219,7 +266,10 @@ describe("placeInShow", () => {
 				...weekly(5, "2022-01-08", 10),
 				...weekly(6, "2022-04-01", 2),
 			],
-			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
+			{
+				isFranchiseShow: true,
+				prequel: endingAt(4, 39),
+			},
 		);
 
 		const entry = subject({
@@ -230,14 +280,43 @@ describe("placeInShow", () => {
 		});
 
 		expect(placeInShow(entry, candidate)).toBeNull();
-		expect(placeInShow({ ...entry, episodes: 10, startDate: "2021-01-01" }, candidate)).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...entry,
+					episodes: 10,
+					startDate: "2021-01-01",
+				},
+				candidate,
+			),
+		).toBeNull();
 	});
 
 	test("title fallback rejects mismatched runtimes and already-aired upcoming seasons", () => {
 		const candidate = show(weekly(1, "2022-01-13", 11));
-		const entry = subject({ episodes: 11, format: "ONA", startDate: "2021-09-16" });
-		expect(placeInShow({ ...entry, durationMinutes: 3 }, candidate)).toBeNull();
-		expect(placeInShow({ ...entry, airsFrom: "2022-02-01" }, candidate)).toBeNull();
+		const entry = subject({
+			episodes: 11,
+			format: "ONA",
+			startDate: "2021-09-16",
+		});
+		expect(
+			placeInShow(
+				{
+					...entry,
+					durationMinutes: 3,
+				},
+				candidate,
+			),
+		).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...entry,
+					airsFrom: "2022-02-01",
+				},
+				candidate,
+			),
+		).toBeNull();
 	});
 
 	test("places the second cour of a split season mid-season", () => {
@@ -742,7 +821,15 @@ describe("placeInShow", () => {
 		expect(range(placement)?.[0]).toBe("1:S1E15");
 		expect(range(placement)?.at(-1)).toBe("14:S1E28");
 
-		expect(placeInShow({ ...rerun, playbackEpisodes: 13 }, candidate)).toBeNull();
+		expect(
+			placeInShow(
+				{
+					...rerun,
+					playbackEpisodes: 13,
+				},
+				candidate,
+			),
+		).toBeNull();
 		expect(
 			placeInShow(rerun, {
 				...candidate,
@@ -1029,7 +1116,16 @@ describe("placeAsMovie", () => {
 			method: "hint",
 			tmdbId: 1_153_706,
 		});
-		expect(placeAsMovie(specialEntry, { ...film, runtime: 300 }, true)).toBeNull();
+		expect(
+			placeAsMovie(
+				specialEntry,
+				{
+					...film,
+					runtime: 300,
+				},
+				true,
+			),
+		).toBeNull();
 	});
 
 	test("accepts a film that runs as long as a special's episodes together", () => {
@@ -1225,7 +1321,10 @@ describe("continuesPastLinks", () => {
 });
 
 describe("placeInEpisodeGroups", () => {
-	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({ ...episode, order }));
+	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({
+		...episode,
+		order,
+	}));
 
 	const second = weekly(5, "2022-10-08", 12, { first: 13 }).map((episode, order) => ({
 		...episode,
@@ -1245,10 +1344,26 @@ describe("placeInEpisodeGroups", () => {
 	const candidate = show([...first, ...second, ...final, ...stage]).show;
 
 	const groups = [
-		{ episodes: first, name: "JoJo's Bizarre Adventure: STONE OCEAN", order: 1 },
-		{ episodes: second, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ", order: 2 },
-		{ episodes: final, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3", order: 3 },
-		{ episodes: stage, name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE", order: 4 },
+		{
+			episodes: first,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN",
+			order: 1,
+		},
+		{
+			episodes: second,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ",
+			order: 2,
+		},
+		{
+			episodes: final,
+			name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3",
+			order: 3,
+		},
+		{
+			episodes: stage,
+			name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE",
+			order: 4,
+		},
 	];
 
 	const entry = subject({
@@ -1299,20 +1414,54 @@ describe("placeInEpisodeGroups", () => {
 		expect(
 			placeInEpisodeGroups(entry, candidate, [
 				groups,
-				[{ episodes: second, name: entry.titles[0] ?? "", order: 1 }],
+				[
+					{
+						episodes: second,
+						name: entry.titles[0] ?? "",
+						order: 1,
+					},
+				],
 			]),
 		).toBeNull();
-		expect(placeInEpisodeGroups({ ...entry, episodes: 13 }, candidate, [groups])).toBeNull();
 		expect(
-			placeInEpisodeGroups({ ...entry, airsFrom: "2023-01-01" }, candidate, [groups]),
+			placeInEpisodeGroups(
+				{
+					...entry,
+					episodes: 13,
+				},
+				candidate,
+				[groups],
+			),
+		).toBeNull();
+		expect(
+			placeInEpisodeGroups(
+				{
+					...entry,
+					airsFrom: "2023-01-01",
+				},
+				candidate,
+				[groups],
+			),
 		).toBeNull();
 	});
 
 	test("rejects stale group identities and a differently numbered part", () => {
-		expect(placeInEpisodeGroups(entry, { ...candidate, episodes: [] }, [groups])).toBeNull();
 		expect(
 			placeInEpisodeGroups(
-				{ ...entry, titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"] },
+				entry,
+				{
+					...candidate,
+					episodes: [],
+				},
+				[groups],
+			),
+		).toBeNull();
+		expect(
+			placeInEpisodeGroups(
+				{
+					...entry,
+					titles: ["JoJo's Bizarre Adventure: STONE OCEAN Part 4"],
+				},
 				candidate,
 				[groups],
 			),

@@ -125,7 +125,11 @@ describe("fetchTimetable", () => {
 		});
 
 		expect(
-			releases.map(({ route, donghua, lengthMinutes }) => ({ donghua, lengthMinutes, route })),
+			releases.map(({ route, donghua, lengthMinutes }) => ({
+				donghua,
+				lengthMinutes,
+				route,
+			})),
 		).toEqual([
 			{
 				donghua: true,

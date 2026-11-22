@@ -3,7 +3,13 @@
 	import { searchSeries } from "$routes/(app)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
 
-	let { term, active }: { term: string; active: number } = $props();
+	let {
+		term,
+		active,
+	}: {
+		term: string;
+		active: number;
+	} = $props();
 
 	const search = $derived(
 		searchSeries({

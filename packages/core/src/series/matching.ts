@@ -198,7 +198,13 @@ const numberWords = new Map<string, number>(
 /** Canonical numerals only, so "iiii" and "vx" stay words. */
 const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
 
-const romanValues: Record<string, number> = { c: 100, i: 1, l: 50, v: 5, x: 10 };
+const romanValues: Record<string, number> = {
+	c: 100,
+	i: 1,
+	l: 50,
+	v: 5,
+	x: 10,
+};
 
 /**
  * The value of a roman numeral from 2 to 399, or `null`. A lone "I", "V",
@@ -1223,7 +1229,10 @@ const placeRunAt = (context: RunContext, index: number, isContinuation: boolean)
  *   {@link minimumShowScore}.
  */
 export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Placement | null => {
-	const subject = { ...source, episodes: source.playbackEpisodes ?? source.episodes };
+	const subject = {
+		...source,
+		episodes: source.playbackEpisodes ?? source.episodes,
+	};
 	const start = dayNumber(subject.startDate);
 	const end = dayNumber(subject.endDate);
 
@@ -1251,7 +1260,15 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 			}
 
 			const placement = placeRunAt(
-				{ candidate, end, isRegular, nameSimilarity, start, subject, track },
+				{
+					candidate,
+					end,
+					isRegular,
+					nameSimilarity,
+					start,
+					subject,
+					track,
+				},
 				index,
 				index === continuation,
 			);
@@ -1345,7 +1362,10 @@ export const placeInEpisodeGroups = (
 	show: Pick<TmdbShow, "id" | "episodes">,
 	arrangements: readonly (readonly TmdbEpisodeGroup[])[],
 ): Placement | null => {
-	const subject = { ...source, episodes: source.playbackEpisodes ?? source.episodes };
+	const subject = {
+		...source,
+		episodes: source.playbackEpisodes ?? source.episodes,
+	};
 
 	if (!subject.episodes) {
 		return null;

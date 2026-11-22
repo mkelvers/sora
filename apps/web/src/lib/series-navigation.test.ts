@@ -7,26 +7,45 @@ const series = {
 	episode_count: 26,
 	id: "season-1",
 	seasons: [
-		{ episode_count: 26, format: "TV", next_series_id: "season-2", series_id: "season-1" },
-		{ episode_count: 24, format: "TV", next_series_id: null, series_id: "season-2" },
+		{
+			episode_count: 26,
+			format: "TV",
+			next_series_id: "season-2",
+			series_id: "season-1",
+		},
+		{
+			episode_count: 24,
+			format: "TV",
+			next_series_id: null,
+			series_id: "season-2",
+		},
 	] satisfies Parameters<typeof storyContinuation>[0]["seasons"],
 	specials: [],
 };
 
 describe("story playback navigation", () => {
 	test("continues into the next season at the finale", () => {
-		expect(nextEpisodeAddress(series, 26, null)).toEqual({ episode: "1", seriesId: "season-2" });
+		expect(nextEpisodeAddress(series, 26, null)).toEqual({
+			episode: "1",
+			seriesId: "season-2",
+		});
 	});
 
 	test("prefers the provider's next episode and stops at a listing gap", () => {
-		expect(nextEpisodeAddress(series, 25, 26)).toEqual({ episode: "26", seriesId: "season-1" });
+		expect(nextEpisodeAddress(series, 25, 26)).toEqual({
+			episode: "26",
+			seriesId: "season-1",
+		});
 		expect(nextEpisodeAddress(series, 25, null)).toBeUndefined();
 	});
 
 	test("does not infer a sequel from the next dropdown option", () => {
 		const unconfirmed = {
 			...series,
-			seasons: series.seasons.map((part) => ({ ...part, next_series_id: null })),
+			seasons: series.seasons.map((part) => ({
+				...part,
+				next_series_id: null,
+			})),
 		};
 
 		expect(nextEpisodeAddress(unconfirmed, 26, null)).toBeUndefined();
@@ -49,14 +68,33 @@ describe("story playback navigation", () => {
 			...series,
 			id: "season-2",
 			seasons: series.seasons.map((part) =>
-				part.series_id === "season-2" ? { ...part, next_series_id: "special" } : part,
+				part.series_id === "season-2"
+					? {
+							...part,
+							next_series_id: "special",
+						}
+					: part,
 			),
 			specials: [
-				{ episode_count: 1, format: "SPECIAL", next_series_id: null, series_id: "special" },
+				{
+					episode_count: 1,
+					format: "SPECIAL",
+					next_series_id: null,
+					series_id: "special",
+				},
 			],
 		} satisfies Parameters<typeof storyContinuation>[0];
 
-		expect(nextEpisodeAddress({ ...finale, episode_count: 24 }, 24, null)).toEqual({
+		expect(
+			nextEpisodeAddress(
+				{
+					...finale,
+					episode_count: 24,
+				},
+				24,
+				null,
+			),
+		).toEqual({
 			episode: "1",
 			seriesId: "special",
 		});
@@ -64,7 +102,15 @@ describe("story playback navigation", () => {
 
 	test("a side story outside the season picker cannot enter the main path", () => {
 		expect(
-			nextEpisodeAddress({ ...series, episode_count: 4, id: "side-story" }, 4, null),
+			nextEpisodeAddress(
+				{
+					...series,
+					episode_count: 4,
+					id: "side-story",
+				},
+				4,
+				null,
+			),
 		).toBeUndefined();
 	});
 });

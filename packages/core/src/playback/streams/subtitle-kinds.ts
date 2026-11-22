@@ -17,7 +17,14 @@ const knownLimit = 5000;
  */
 export const subtitleKinds = async (videos: ProviderVideo[]) => {
 	const kinds = new Map<string, SubtitleKind | null>();
-	const tracks = new Map<string, { label: string; format: string | null; video: ProviderVideo }>();
+	const tracks = new Map<
+		string,
+		{
+			label: string;
+			format: string | null;
+			video: ProviderVideo;
+		}
+	>();
 
 	for (const video of videos) {
 		for (const track of video.subtitles) {

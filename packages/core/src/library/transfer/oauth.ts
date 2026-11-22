@@ -101,8 +101,14 @@ export interface AccountList<Entry> {
 
 /** The configured clients; tests pass their own. */
 export interface Clients {
-	aniListOAuth: { clientId: string; clientSecret: string } | null;
-	myAnimeListOAuth: { clientId: string; clientSecret: string | null } | null;
+	aniListOAuth: {
+		clientId: string;
+		clientSecret: string;
+	} | null;
+	myAnimeListOAuth: {
+		clientId: string;
+		clientSecret: string | null;
+	} | null;
 }
 
 /** What the account readers call out with; tests pass their own. */

@@ -159,7 +159,10 @@ describe("franchiseParts", () => {
 				[2, 4],
 				[3, 4],
 			],
-			{ alternatives: [[2, 3]], summaries: [5] },
+			{
+				alternatives: [[2, 3]],
+				summaries: [5],
+			},
 		);
 
 		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2"]);
@@ -179,7 +182,16 @@ describe("franchiseParts", () => {
 			)[0]?.next_series_id,
 		).toBeNull();
 		expect(
-			franchiseParts([first, { ...second, episodeCount: 0 }], [[1, 2]])[0]?.next_series_id,
+			franchiseParts(
+				[
+					first,
+					{
+						...second,
+						episodeCount: 0,
+					},
+				],
+				[[1, 2]],
+			)[0]?.next_series_id,
 		).toBeNull();
 		expect(franchiseParts([first, second], [])[0]?.next_series_id).toBeNull();
 		expect(
@@ -207,7 +219,10 @@ describe("franchiseParts", () => {
 				[2, 4],
 				[3, 4],
 			],
-			{ alternatives: [[2, 3]], currentId: 2 },
+			{
+				alternatives: [[2, 3]],
+				currentId: 2,
+			},
 		);
 
 		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2", "Movie"]);
@@ -475,7 +490,10 @@ describe("franchiseParts", () => {
 			[
 				title(163_139, "My Hero Academia", "TV", "2024-05-04"),
 				title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
-				{ ...title(204_356, "My Hero Academia More", "SPECIAL", "2026-05-02"), episodeCount: 1 },
+				{
+					...title(204_356, "My Hero Academia More", "SPECIAL", "2026-05-02"),
+					episodeCount: 1,
+				},
 				{
 					...title(211_711, "My Hero Academia: I am a hero too", "SPECIAL", "2026-08-03"),
 					episodeCount: 1,
