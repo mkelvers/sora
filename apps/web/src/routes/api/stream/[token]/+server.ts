@@ -52,9 +52,15 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 			unavailable.set("Retry-After", retryAfter);
 		}
 
+		let { status } = upstream;
+
+		if (status >= 500) {
+			status = 502;
+		}
+
 		return new Response(null, {
 			headers: unavailable,
-			status: upstream.status >= 500 ? 502 : upstream.status,
+			status,
 		});
 	}
 

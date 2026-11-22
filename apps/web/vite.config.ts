@@ -7,27 +7,25 @@ import { sveltePhosphorOptimize } from "phosphor-svelte/vite";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 
-const phosphorWeights: Plugin = {
-	enforce: "pre",
-	name: "phosphor-weights",
-	transform(code, id) {
-		if (!/phosphor-svelte\/lib\/\w+\.svelte(?:\?.*)?$/u.test(id)) {
-			return;
-		}
-
-		return code.replaceAll(
-			/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/gu,
-			"",
-		);
-	},
-};
-
 export default defineConfig({
 	optimizeDeps: {
 		exclude: ["phosphor-svelte"],
 	},
 	plugins: [
-		phosphorWeights,
+		{
+			enforce: "pre",
+			name: "phosphor-weights",
+			transform(code, id) {
+				if (!/phosphor-svelte\/lib\/\w+\.svelte(?:\?.*)?$/u.test(id)) {
+					return;
+				}
+
+				return code.replaceAll(
+					/\{:else if weight === "(?:thin|light|duotone)"\}[\s\S]*?(?=\{:else)/gu,
+					"",
+				);
+			},
+		} satisfies Plugin,
 		tailwindcss(),
 		sveltekit({
 			adapter: adapter({
@@ -37,8 +35,13 @@ export default defineConfig({
 				experimental: {
 					async: true,
 				},
-				runes: ({ filename }) =>
-					filename.split(/[/\\]/u).includes("node_modules") ? undefined : true,
+				runes: ({ filename }) => {
+					if (filename.split(/[/\\]/u).includes("node_modules")) {
+						return;
+					}
+
+					return true;
+				},
 			},
 			csp: {
 				directives: {

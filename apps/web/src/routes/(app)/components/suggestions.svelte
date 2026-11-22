@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { searchSeries } from "$routes/(app)/search/search.remote";
+	import { getResults } from "$routes/(app)/search/search.remote";
 	import { CaretRightIcon } from "phosphor-svelte";
 
 	let {
@@ -12,7 +12,7 @@
 	} = $props();
 
 	const search = $derived(
-		searchSeries({
+		getResults({
 			page: 1,
 			perPage: 6,
 			q: term,

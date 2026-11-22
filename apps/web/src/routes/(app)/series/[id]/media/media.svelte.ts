@@ -1,4 +1,4 @@
-import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+import { getDetails } from "$routes/(app)/series/[id]/series.remote";
 import type { SeriesImage } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 
@@ -40,9 +40,13 @@ export class Media {
 	}
 
 	toggle(language: string) {
-		this.languages = this.languages.includes(language)
-			? this.languages.filter((other) => other !== language)
-			: [...this.languages, language];
+		if (this.languages.includes(language)) {
+			this.languages = this.languages.filter((other) => other !== language);
+
+			return;
+		}
+
+		this.languages = [...this.languages, language];
 	}
 
 	choose(url: string | false) {
@@ -52,7 +56,7 @@ export class Media {
 				type: this.type,
 				url,
 			}).updates(
-				getSeries(this.id()).withOverride((current) => ({
+				getDetails(this.id()).withOverride((current) => ({
 					...current,
 					[`${this.type}_url`]: url || null,
 				})),
@@ -67,7 +71,7 @@ export class Media {
 				seriesId: this.id(),
 				...placement,
 			}).updates(
-				getSeries(this.id()).withOverride((current) => ({
+				getDetails(this.id()).withOverride((current) => ({
 					...current,
 					logo_offset_x: placement.x,
 					logo_offset_y: placement.y,
@@ -96,6 +100,12 @@ export class Media {
 
 	async #save(work: Promise<unknown>, failure: string) {
 		const { error } = await attempt(work);
-		this.error = error ? failure : undefined;
+		let message: string | undefined;
+
+		if (error) {
+			message = failure;
+		}
+
+		this.error = message;
 	}
 }

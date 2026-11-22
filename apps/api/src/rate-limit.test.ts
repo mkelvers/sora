@@ -5,57 +5,64 @@ import { Hono } from "hono";
 import type { V1Env } from "./errors";
 import { rateLimit } from "./rate-limit";
 
-const app = (limit: number, windowMs = 60_000) =>
-	new Hono<V1Env>()
-		.use(async (c, proceed) => {
-			c.set("accountId", c.req.header("x-account") ?? "a");
-			await proceed();
-		})
-		.use(
-			rateLimit({
-				limit,
-				windowMs,
-			}),
-		)
-		.get("/", (c) => c.text("ok"));
+/** Routes behind `rateLimit`, asked as the account in the `x-account` header. */
+class Limited {
+	readonly #routes: Hono<V1Env>;
 
-const get = (routes: ReturnType<typeof app>, account = "a") =>
-	routes.request("/", {
-		headers: {
-			"x-account": account,
-		},
-	});
+	constructor(limit: number, windowMs = 60_000) {
+		this.#routes = new Hono<V1Env>()
+			.use(async (c, proceed) => {
+				c.set("accountId", c.req.header("x-account") ?? "a");
+				await proceed();
+			})
+			.use(
+				rateLimit({
+					limit,
+					windowMs,
+				}),
+			)
+			.get("/", (c) => c.text("ok"));
+	}
 
-const statusOf = async (routes: ReturnType<typeof app>, account = "a") => {
-	const response = await get(routes, account);
+	get(account = "a") {
+		return this.#routes.request("/", {
+			headers: {
+				"x-account": account,
+			},
+		});
+	}
 
-	return response.status;
-};
+	async status(account = "a") {
+		const response = await this.get(account);
+
+		return response.status;
+	}
+}
 
 describe("rateLimit", () => {
 	test("answers 429 with Retry-After past the limit, per account", async () => {
-		const routes = app(2);
+		const routes = new Limited(2);
 
-		expect(await statusOf(routes)).toBe(200);
-		expect(await statusOf(routes)).toBe(200);
-		const limited = await get(routes);
+		expect(await routes.status()).toBe(200);
+		expect(await routes.status()).toBe(200);
+		const limited = await routes.get();
 
 		expect(limited.status).toBe(429);
 		expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);
 		expect(await limited.json()).toMatchObject({
 			code: "TOO_MANY_REQUESTS",
 		});
-		expect(await statusOf(routes, "b")).toBe(200);
+		expect(await routes.status("b")).toBe(200);
 	});
 
 	test("starts a new window once the old one ends", async () => {
-		const routes = app(1, 20);
+		const routes = new Limited(1, 20);
 
-		expect(await statusOf(routes)).toBe(200);
-		expect(await statusOf(routes)).toBe(429);
+		expect(await routes.status()).toBe(200);
+		expect(await routes.status()).toBe(429);
 		await Bun.sleep(30);
 
-		expect(await statusOf(routes)).toBe(200);
+		expect(await routes.status()).toBe(200);
 	});
 
 	test("counts by the key it is given instead of the account", async () => {

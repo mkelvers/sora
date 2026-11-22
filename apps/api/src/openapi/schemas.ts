@@ -9,7 +9,7 @@ import { z } from "@hono/zod-openapi";
  * An RFC 9457 problem details body, which every error response carries as
  * `application/problem+json`.
  */
-export const ProblemSchema = z
+export const ProblemBody = z
 	.object({
 		code: z.string().openapi({
 			description:
@@ -44,13 +44,13 @@ export const ProblemSchema = z
 	.openapi("Problem");
 
 /** The body of every error response. */
-export type Problem = z.infer<typeof ProblemSchema>;
+export type Problem = z.infer<typeof ProblemBody>;
 
 /** A problem response for the given status, for route definitions. */
 export const problem = (description: string) => ({
 	content: {
 		"application/problem+json": {
-			schema: ProblemSchema,
+			schema: ProblemBody,
 		},
 	},
 	description,
@@ -98,7 +98,7 @@ export const EpisodeNumberParam = z.coerce
 	});
 
 /** The episode a playback is for, when its stream URLs expire, and the episodes either side of it. */
-export const PlaybackMetaSchema = z
+export const PlaybackMeta = z
 	.object({
 		episode: z.number().int(),
 		expires_at: z.string().openapi({
@@ -124,7 +124,7 @@ export const PlaybackMetaSchema = z
 	})
 	.openapi("PlaybackMeta");
 
-export const NotificationsMetaSchema = z
+export const NotificationsMeta = z
 	.object({
 		count: z.number().int().nonnegative(),
 		unread: z.number().int().nonnegative().openapi({
@@ -134,7 +134,7 @@ export const NotificationsMetaSchema = z
 	})
 	.openapi("NotificationsMeta");
 
-export const NotificationsReadSchema = z
+export const NotificationsRead = z
 	.object({
 		ids: z
 			.array(z.string().min(1))
@@ -154,7 +154,7 @@ export const SeriesParams = z.object({
 });
 
 /** Nothing to say about the response beyond its results. */
-export const EmptyMetaSchema = z.object({}).openapi("EmptyMeta");
+export const EmptyMeta = z.object({}).openapi("EmptyMeta");
 
 /** An episode, addressed under its series. */
 export const EpisodeParams = SeriesParams.extend({

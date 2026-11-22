@@ -1,94 +1,83 @@
 import { SORA_API_URL, WEB_CLIENT_KEY } from "$app/env/private";
-import { knownProfiles, profileCookie } from "$lib/server/sora";
+import { knownProfiles, listProfiles, profileCookie } from "$lib/server/sora";
 import { handoverKey, startedInPopup } from "$routes/(app)/settings/library/connection";
-import { route, SoraClient, SoraError } from "@sora/sdk";
-import { attempt } from "@sora/shared";
+import { SoraClient, SoraError } from "@sora/sdk";
 import { error, redirect } from "@sveltejs/kit";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 
-/**
- * What the site sends a connection popup back to: nothing of Sora's, only a
- * hand-over of the code to the page that opened it and a closing of itself, so
- * the popup never shows the app.
- */
-const handover = () =>
-	new Response(
-		`<!doctype html><meta charset="utf-8"><title>Sora</title><meta name="color-scheme" content="dark"><body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#000;color:#9a9a9a;font:14px system-ui,sans-serif"><p>Done. You can close this window.</p><script>try{localStorage.setItem(${JSON.stringify(handoverKey)},location.search)}catch{}window.close()</script>`,
-		{
-			headers: {
-				"Cache-Control": "no-store",
-				"Content-Type": "text/html; charset=utf-8",
-			},
-		},
-	);
+/** A request on its way in: where it may go, and whether it brings a connection popup back. */
+class Visit {
+	readonly #event: RequestEvent;
 
-const returnsToPopup = (url: URL) =>
-	url.pathname === "/settings/library" &&
-	(url.searchParams.has("code") || url.searchParams.has("error")) &&
-	startedInPopup(url.search);
+	constructor(event: RequestEvent) {
+		this.#event = event;
+	}
 
-/**
- * Where a page request without a signed-in profile goes. Pages that reset
- * their layout, like the player, skip the app layout's redirect, so the hook
- * has to send everyone there itself instead of letting their queries fail.
- */
-const redirectionFor = (event: RequestEvent) => {
-	const openPaths = ["/api", "/login", "/logout", "/profiles"];
+	/**
+	 * Where a page request without a signed-in profile goes. Pages that reset
+	 * their layout, like the player, skip the app layout's redirect, so the hook
+	 * has to send everyone there itself instead of letting their queries fail.
+	 */
+	get destination() {
+		const openPaths = ["/api", "/login", "/logout", "/profiles"];
 
-	const isPage =
-		event.request.method === "GET" &&
-		!event.isDataRequest &&
-		!event.isRemoteRequest &&
-		!openPaths.some((path) => event.url.pathname.startsWith(path));
+		const isPage =
+			this.#event.request.method === "GET" &&
+			!this.#event.isDataRequest &&
+			!this.#event.isRemoteRequest &&
+			!openPaths.some((path) => this.#event.url.pathname.startsWith(path));
 
-	if (!isPage) {
+		if (!isPage) {
+			return null;
+		}
+
+		const here = encodeURIComponent(this.#event.url.pathname + this.#event.url.search);
+
+		if (!this.#event.locals.viewer) {
+			return `/login?redirect=${here}`;
+		}
+
+		if (!this.#event.locals.viewer.profile) {
+			return `/profiles?redirect=${here}`;
+		}
+
 		return null;
 	}
 
-	const here = encodeURIComponent(event.url.pathname + event.url.search);
+	get returnsToPopup() {
+		const { url } = this.#event;
 
-	if (!event.locals.viewer) {
-		return `/login?redirect=${here}`;
+		return (
+			url.pathname === "/settings/library" &&
+			(url.searchParams.has("code") || url.searchParams.has("error")) &&
+			startedInPopup(url.search)
+		);
+	}
+}
+
+export const handle: Handle = async ({ event, resolve }) => {
+	if (event.route.id === "/live") {
+		return resolve(event);
 	}
 
-	if (!event.locals.viewer.profile) {
-		return `/profiles?redirect=${here}`;
+	if (new Visit(event).returnsToPopup) {
+		/**
+		 * What the site sends a connection popup back to: nothing of Sora's, only a
+		 * hand-over of the code to the page that opened it and a closing of itself, so
+		 * the popup never shows the app.
+		 */
+		return new Response(
+			`<!doctype html><meta charset="utf-8"><title>Sora</title><meta name="color-scheme" content="dark"><body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#000;color:#9a9a9a;font:14px system-ui,sans-serif"><p>Done. You can close this window.</p><script>try{localStorage.setItem(${JSON.stringify(handoverKey)},location.search)}catch{}window.close()</script>`,
+			{
+				headers: {
+					"Cache-Control": "no-store",
+					"Content-Type": "text/html; charset=utf-8",
+				},
+			},
+		);
 	}
 
-	return null;
-};
-
-const listProfiles = async (sora: SoraClient, token: string) => {
-	const known = knownProfiles.get(token);
-
-	if (known && Date.now() - known.at < 30_000) {
-		return known.profiles;
-	}
-
-	const { data, error: listFailure } = await attempt(sora.request(route.listProfiles), SoraError);
-
-	if (listFailure && listFailure.status !== 401) {
-		throw listFailure;
-	}
-
-	if (knownProfiles.size > 500) {
-		knownProfiles.clear();
-	}
-
-	if (data) {
-		knownProfiles.set(token, {
-			at: Date.now(),
-			profiles: data,
-		});
-	} else {
-		knownProfiles.delete(token);
-	}
-
-	return data;
-};
-
-const withViewer: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
 	const token = event.cookies.get("sora_session");
@@ -129,7 +118,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const destination = redirectionFor(event);
+	const { destination } = new Visit(event);
 
 	if (destination) {
 		redirect(303, destination);
@@ -168,20 +157,6 @@ const withViewer: Handle = async ({ event, resolve }) => {
 	}
 
 	return response;
-};
-
-export const handle: Handle = (input) => {
-	const routeId = input.event.route.id;
-
-	if (routeId === "/live") {
-		return input.resolve(input.event);
-	}
-
-	if (returnsToPopup(input.event.url)) {
-		return handover();
-	}
-
-	return withViewer(input);
 };
 
 export const handleError: HandleServerError = ({ error: thrown }) => {

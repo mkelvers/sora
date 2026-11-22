@@ -4,7 +4,7 @@ import type { FailingJobs } from "@sora/core/models/scheduler";
 import type { ProviderHealth } from "@sora/core/playback";
 import { z } from "zod";
 
-import { healthRoutes } from "./health";
+import { health } from "./health";
 
 const anikoto: ProviderHealth = {
 	last_error: "MegaPlay has no dub source for this episode",
@@ -29,34 +29,47 @@ const lookUpEpisodes: FailingJobs = {
 	task: "look-up-episodes",
 };
 
-const signedIn = () => Promise.resolve(true);
-const providers = () => Promise.resolve([anikoto]);
-const failingJobs = () => Promise.resolve([lookUpEpisodes]);
+/** `/health` reading stand-ins, unless a test passes its own, and probed like a load balancer would. */
+class Probe {
+	readonly #routes: ReturnType<typeof health>;
 
-const probe = async (routes: ReturnType<typeof healthRoutes>) => {
-	const response = await routes.request("/");
+	constructor({
+		failingJobs = () => Promise.resolve([lookUpEpisodes]),
+		providers = () => Promise.resolve([anikoto]),
+		signedIn = false,
+	}: {
+		failingJobs?: () => Promise<FailingJobs[]>;
+		providers?: () => Promise<ProviderHealth[]>;
+		signedIn?: boolean;
+	}) {
+		this.#routes = health({
+			failingJobs,
+			providers,
+			signedIn: () => Promise.resolve(signedIn),
+		});
+	}
 
-	return {
-		body: z
-			.object({
-				failing_jobs: z.array(z.json()).nullish(),
-				providers: z.array(z.json()).nullish(),
-				status: z.literal("ok"),
-			})
-			.parse(await response.json()),
-		status: response.status,
-	};
-};
+	async send() {
+		const response = await this.#routes.request("/");
+
+		return {
+			body: z
+				.object({
+					failing_jobs: z.array(z.json()).nullish(),
+					providers: z.array(z.json()).nullish(),
+					status: z.literal("ok"),
+				})
+				.parse(await response.json()),
+			status: response.status,
+		};
+	}
+}
 
 describe("/health", () => {
 	test("stays ok while a provider fails, and reports providers in snake_case without error messages", async () => {
-		const { status, body } = await probe(
-			healthRoutes({
-				failingJobs,
-				providers,
-				signedIn,
-			}),
-		);
+		const { status, body } = await new Probe({
+			signedIn: true,
+		}).send();
 
 		expect(status).toBe(200);
 		expect(body.providers).toEqual([
@@ -79,13 +92,9 @@ describe("/health", () => {
 	});
 
 	test("reports failing scheduler jobs per task to signed-in requests", async () => {
-		const { status, body } = await probe(
-			healthRoutes({
-				failingJobs,
-				providers,
-				signedIn,
-			}),
-		);
+		const { status, body } = await new Probe({
+			signedIn: true,
+		}).send();
 
 		expect(status).toBe(200);
 		expect(body.status).toBe("ok");
@@ -101,20 +110,20 @@ describe("/health", () => {
 	test("tells anonymous requests nothing but that it is ok, and reads neither providers nor jobs for them", async () => {
 		let loads = 0;
 
-		const routes = healthRoutes({
+		const probe = new Probe({
 			failingJobs: () => {
 				loads += 1;
 
-				return failingJobs();
+				return Promise.resolve([lookUpEpisodes]);
 			},
 			providers: () => {
 				loads += 1;
 
-				return providers();
+				return Promise.resolve([anikoto]);
 			},
 		});
 
-		expect(await probe(routes)).toEqual({
+		expect(await probe.send()).toEqual({
 			body: {
 				status: "ok",
 			},
@@ -126,34 +135,31 @@ describe("/health", () => {
 	test("reads providers and jobs on every signed-in probe", async () => {
 		let loads = 0;
 
-		const routes = healthRoutes({
+		const probe = new Probe({
 			failingJobs: () => {
 				loads += 1;
 
-				return failingJobs();
+				return Promise.resolve([lookUpEpisodes]);
 			},
 			providers: () => {
 				loads += 1;
 
-				return providers();
+				return Promise.resolve([anikoto]);
 			},
-			signedIn,
+			signedIn: true,
 		});
 
-		await probe(routes);
-		await probe(routes);
+		await probe.send();
+		await probe.send();
 
 		expect(loads).toBe(4);
 	});
 
 	test("stays ok with providers but without jobs when the jobs cannot be read", async () => {
-		const { status, body } = await probe(
-			healthRoutes({
-				failingJobs: () => Promise.reject(new Error("database is down")),
-				providers,
-				signedIn,
-			}),
-		);
+		const { status, body } = await new Probe({
+			failingJobs: () => Promise.reject(new Error("database is down")),
+			signedIn: true,
+		}).send();
 
 		expect(status).toBe(200);
 		expect(body.status).toBe("ok");
@@ -162,13 +168,10 @@ describe("/health", () => {
 	});
 
 	test("stays ok with jobs but without providers when their health cannot be read", async () => {
-		const { status, body } = await probe(
-			healthRoutes({
-				failingJobs,
-				providers: () => Promise.reject(new Error("database is down")),
-				signedIn,
-			}),
-		);
+		const { status, body } = await new Probe({
+			providers: () => Promise.reject(new Error("database is down")),
+			signedIn: true,
+		}).send();
 
 		expect(status).toBe(200);
 		expect(body.providers).toBeNull();

@@ -8,18 +8,18 @@ import { clientAddress } from "./client-address";
 import { onInvalidRequest, sendProblem } from "./errors";
 import type { V1Env } from "./errors";
 import { rateLimit } from "./rate-limit";
-import { deviceRoutes } from "./resources/devices/handlers";
-import { notificationRoutes } from "./resources/notifications/handlers";
-import { nowWatchingRoutes } from "./resources/now-watching/handlers";
-import { playbackRoute } from "./resources/playback/contract";
-import { playbackRoutes } from "./resources/playback/handlers";
-import { profileRoutes } from "./resources/profiles/handlers";
-import { progressRoutes } from "./resources/progress/handlers";
-import { seriesRoute } from "./resources/series/contract";
-import { seriesRoutes } from "./resources/series/handlers";
-import { transferRoute } from "./resources/transfer/contract";
-import { transferRoutes } from "./resources/transfer/handlers";
-import { watchlistRoutes } from "./resources/watchlist/handlers";
+import { handlers as devicesHandlers } from "./resources/devices/handlers";
+import { handlers as notificationsHandlers } from "./resources/notifications/handlers";
+import { handlers as nowWatchingHandlers } from "./resources/now-watching/handlers";
+import { contract as playback } from "./resources/playback/contract";
+import { handlers as playbackHandlers } from "./resources/playback/handlers";
+import { handlers as profilesHandlers } from "./resources/profiles/handlers";
+import { handlers as progressHandlers } from "./resources/progress/handlers";
+import { contract as series } from "./resources/series/contract";
+import { handlers as seriesHandlers } from "./resources/series/handlers";
+import { contract as transfer } from "./resources/transfer/contract";
+import { handlers as transferHandlers } from "./resources/transfer/handlers";
+import { handlers as watchlistHandlers } from "./resources/watchlist/handlers";
 
 /**
  * Version 1 of the API: each resource's handlers, from `resources/`, behind
@@ -31,48 +31,50 @@ import { watchlistRoutes } from "./resources/watchlist/handlers";
  * A breaking change to any route belongs in a new version mounted next to
  * this one, never here: deployed clients keep calling `/v1`.
  */
-const v1 = new OpenAPIHono<V1Env>({
+const api = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 });
 
-v1.route("/", nowWatchingRoutes());
+api.route("/", nowWatchingHandlers());
 
-v1.use("/auth/*", clientAddress);
+api.use("/auth/*", clientAddress);
 
 // Sign-up, sign-in, and sign-out, answered by Better Auth itself.
-v1.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
-
-/** Answers 401 unless the request carries a session, as a bearer token or cookie. */
-const signedIn = createMiddleware<V1Env>(async (c, proceed) => {
-	const session = await auth.api.getSession({
-		headers: c.req.raw.headers,
-	});
-
-	if (!session) {
-		return sendProblem(c, 401, "UNAUTHORIZED", "Sign in to use this endpoint");
-	}
-
-	c.set("accountId", session.user.id);
-	c.set("sessionId", session.session.id);
-	c.header("Cache-Control", "private, no-store");
-	await proceed();
-});
+api.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
 
 // The portfolio route above uses its own secret. Everything below but sign-in needs an account, the contract and the stream proxy
 // included, so nobody anonymous can make the server look anything up, and each
 // account is held to a generous ceiling.
-v1.use(
-	except(["/v1/auth/*"], signedIn, async (c, proceed) => {
-		await proceed();
-		const cacheControl = c.res.headers.get("Cache-Control");
+api.use(
+	except(
+		["/v1/auth/*"],
+		// Answers 401 unless the request carries a session, as a bearer token or cookie.
+		createMiddleware<V1Env>(async (c, proceed) => {
+			const session = await auth.api.getSession({
+				headers: c.req.raw.headers,
+			});
 
-		if (cacheControl?.startsWith("public")) {
-			c.header("Cache-Control", cacheControl.replace("public", "private"));
-		}
-	}),
+			if (!session) {
+				return sendProblem(c, 401, "UNAUTHORIZED", "Sign in to use this endpoint");
+			}
+
+			c.set("accountId", session.user.id);
+			c.set("sessionId", session.session.id);
+			c.header("Cache-Control", "private, no-store");
+			await proceed();
+		}),
+		async (c, proceed) => {
+			await proceed();
+			const cacheControl = c.res.headers.get("Cache-Control");
+
+			if (cacheControl?.startsWith("public")) {
+				c.header("Cache-Control", cacheControl.replace("public", "private"));
+			}
+		},
+	),
 );
 
-v1.use(
+api.use(
 	except(
 		["/v1/auth/*", "/v1/streams/*"],
 		rateLimit({
@@ -94,10 +96,10 @@ const webClient = createMiddleware<V1Env>(async (c, proceed) => {
 // Media is served to the web app's own server and nothing else, for the
 // account that asked, so neither a token nor an account is enough on its own.
 // Segments arrive by the hundred, so streams have a ceiling of their own.
-v1.use(playbackRoute.getPlayback.getRoutingPath(), webClient);
+api.use(playback.getPlayback.getRoutingPath(), webClient);
 
-v1.use(
-	playbackRoute.getStream.getRoutingPath(),
+api.use(
+	playback.getStream.getRoutingPath(),
 	webClient,
 	rateLimit({
 		limit: 3000,
@@ -108,71 +110,71 @@ v1.use(
 // Routes that change what everyone sees or make the server call out to
 // providers are limited further, so one account cannot spend the upstream
 // budgets alone.
-v1.use(
-	seriesRoute.updateArtwork.getRoutingPath(),
+api.use(
+	series.updateArtwork.getRoutingPath(),
 	rateLimit({
 		limit: 30,
 		windowMs: 60_000,
 	}),
 );
 
-v1.use(
-	seriesRoute.refreshImages.getRoutingPath(),
+api.use(
+	series.refreshImages.getRoutingPath(),
 	rateLimit({
 		limit: 6,
 		windowMs: 60_000,
 	}),
 );
 
-v1.use(
-	seriesRoute.upscaleBackdrop.getRoutingPath(),
+api.use(
+	series.upscaleBackdrop.getRoutingPath(),
 	rateLimit({
 		limit: 6,
 		windowMs: 60_000,
 	}),
 );
 
-v1.use(
-	transferRoute.importLibrary.getRoutingPath(),
+api.use(
+	transfer.importLibrary.getRoutingPath(),
 	rateLimit({
 		limit: 6,
 		windowMs: 60_000,
 	}),
 );
 
-v1.use(
-	seriesRoute.listImages.getRoutingPath(),
+api.use(
+	series.listImages.getRoutingPath(),
 	rateLimit({
 		limit: 60,
 		windowMs: 60_000,
 	}),
 );
 
-v1.use(
-	playbackRoute.getPlayback.getRoutingPath(),
+api.use(
+	playback.getPlayback.getRoutingPath(),
 	rateLimit({
 		limit: 60,
 		windowMs: 60_000,
 	}),
 );
 
-v1.openAPIRegistry.registerComponent("securitySchemes", "session", {
+api.openAPIRegistry.registerComponent("securitySchemes", "session", {
 	description: "The session token from `POST /v1/auth/sign-in/username`.",
 	scheme: "bearer",
 	type: "http",
 });
 
-export const v1Routes = v1
-	.route("/", seriesRoutes)
-	.route("/", playbackRoutes)
-	.route("/", deviceRoutes)
-	.route("/", profileRoutes)
-	.route("/", transferRoutes)
-	.route("/", progressRoutes)
-	.route("/", watchlistRoutes)
-	.route("/", notificationRoutes);
+export const v1 = api
+	.route("/", seriesHandlers)
+	.route("/", playbackHandlers)
+	.route("/", devicesHandlers)
+	.route("/", profilesHandlers)
+	.route("/", transferHandlers)
+	.route("/", progressHandlers)
+	.route("/", watchlistHandlers)
+	.route("/", notificationsHandlers);
 
-v1.doc31("/openapi.json", {
+api.doc31("/openapi.json", {
 	info: {
 		description:
 			"Anime titles as AniList lists them: a show's seasons, films, and OVAs are each a title with its own episodes, found from one another as related titles, and addressed by Sora's own IDs. Every field and query parameter is in snake_case. A successful JSON response is `{ meta, results }`: facts about the response under `meta`, such as paging with `next` and `previous` links, and what was asked for under `results`, an object for one resource and an array for a list. The portfolio endpoint alone returns `{ titles }` with its own bearer secret. Errors are RFC 9457 problems (`application/problem+json`) with a stable `code`.",

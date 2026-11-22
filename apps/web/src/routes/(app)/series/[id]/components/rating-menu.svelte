@@ -9,7 +9,7 @@
 	import { CaretDownIcon } from "phosphor-svelte";
 	import { MediaQuery } from "svelte/reactivity";
 
-	import { getRating, setRating } from "../rating.remote";
+	import { getStars, setStars } from "../rating.remote";
 
 	let {
 		series,
@@ -27,7 +27,7 @@
 	let preview = $state(0);
 	let choosing = $state(false);
 
-	const own = $derived(await getRating(series.id));
+	const own = $derived(await getStars(series.id));
 	const mine = $derived(own.rating);
 	const counts = $derived(series.score_stars);
 	const total = $derived(counts?.reduce((sum, count) => sum + count, 0) ?? 0);
@@ -45,7 +45,7 @@
 	};
 
 	const rate = (star: number) =>
-		setRating({
+		setStars({
 			rating: mine === star ? null : star,
 			seriesId: series.id,
 		});

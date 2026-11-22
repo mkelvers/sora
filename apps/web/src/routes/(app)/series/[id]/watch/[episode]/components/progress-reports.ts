@@ -15,12 +15,6 @@ export interface ProgressSnapshot {
 
 type Report = ProgressSnapshot & { leaving: boolean };
 
-const mergeReports = (latest: Report, earlier?: Report): Report => ({
-	...latest,
-	finished: latest.finished || (earlier?.finished ?? false),
-	leaving: latest.leaving || (earlier?.leaving ?? false),
-});
-
 /** Sends one snapshot at a time for a mounted player, including across episode changes. */
 export class ProgressReports {
 	readonly #pending: {
@@ -51,7 +45,11 @@ export class ProgressReports {
 		const pending = this.#pending.at(-1);
 
 		if (pending?.address === address) {
-			pending.report = mergeReports(report, pending.report);
+			pending.report = {
+				...report,
+				finished: report.finished || pending.report.finished,
+				leaving: report.leaving || pending.report.leaving,
+			};
 		} else {
 			this.#pending.push({
 				address,
@@ -75,8 +73,17 @@ export class ProgressReports {
 
 		this.#saving = true;
 		const { address, report } = next;
-		const retry = this.#failed?.address === address ? this.#failed.report : undefined;
-		const merged = mergeReports(report, retry);
+		let retry: Report | undefined;
+
+		if (this.#failed?.address === address) {
+			retry = this.#failed.report;
+		}
+
+		const merged: Report = {
+			...report,
+			finished: report.finished || (retry?.finished ?? false),
+			leaving: report.leaving || (retry?.leaving ?? false),
+		};
 
 		const { error } = await attempt(
 			this.#save({
@@ -85,12 +92,15 @@ export class ProgressReports {
 			}),
 		);
 
-		this.#failed = error
-			? {
-					address,
-					report: merged,
-				}
-			: undefined;
+		this.#failed = undefined;
+
+		if (error) {
+			this.#failed = {
+				address,
+				report: merged,
+			};
+		}
+
 		this.#settled(address, error !== null);
 		await this.#drain();
 	}

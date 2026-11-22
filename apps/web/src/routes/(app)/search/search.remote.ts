@@ -3,7 +3,7 @@ import { remoteViewer } from "$lib/server/sora";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
-export const searchSeries = query(
+export const getResults = query(
 	z.object({
 		page: z.number().int().positive().max(500).default(1),
 		perPage: z.number().int().min(1).max(50).default(24),

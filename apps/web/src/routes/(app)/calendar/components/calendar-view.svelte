@@ -21,10 +21,10 @@
 		InfoIcon,
 	} from "phosphor-svelte";
 
-	import { getCalendar } from "../calendar.remote";
+	import { getWeek } from "../calendar.remote";
 
 	const calendar = $derived(
-		await getCalendar({
+		await getWeek({
 			timeZone: page.data.timeZone ?? "UTC",
 			weeks: shown.weeks,
 		}),

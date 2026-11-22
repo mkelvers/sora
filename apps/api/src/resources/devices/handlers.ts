@@ -4,21 +4,21 @@ import { isWebClientKey } from "@sora/core/playback";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { deviceRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The handlers for {@link deviceRoute}. */
-export const deviceRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(deviceRoute.listDevices, async (c) => {
+	.openapi(contract.listDevices, async (c) => {
 		// Only the web app, which proves itself with its key, may say what browser a person is on.
-		const fromWebApp = isWebClientKey(c.req.header("X-Sora-Client-Key"));
+		let userAgent: string | null = null;
 
-		const devices = await listDevices(
-			c.get("accountId"),
-			c.get("sessionId"),
-			fromWebApp ? (c.req.header("X-Sora-User-Agent") ?? null) : null,
-		);
+		if (isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
+			userAgent = c.req.header("X-Sora-User-Agent") ?? null;
+		}
+
+		const devices = await listDevices(c.get("accountId"), c.get("sessionId"), userAgent);
 
 		return c.json(
 			{
@@ -31,13 +31,13 @@ export const deviceRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(deviceRoute.signOutDevice, async (c) => {
+	.openapi(contract.signOutDevice, async (c) => {
 		await signOutDevice(c.get("accountId"), c.req.valid("param").device_id);
 
 		return c.body(null, 204);
 	})
 
-	.openapi(deviceRoute.signOutOtherDevices, async (c) => {
+	.openapi(contract.signOutOtherDevices, async (c) => {
 		await signOutOtherDevices(c.get("accountId"), c.get("sessionId"));
 
 		return c.body(null, 204);

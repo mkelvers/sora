@@ -87,7 +87,12 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 
 		const width = image.naturalWidth * scale;
 		const overflow = width - image.clientWidth;
-		const position = overflow > 0 ? (focus * width - image.clientWidth / 2) / overflow : 0.5;
+		let position = 0.5;
+
+		if (overflow > 0) {
+			position = (focus * width - image.clientWidth / 2) / overflow;
+		}
+
 		image.style.setProperty(
 			"--mobile-backdrop-position",
 			`${Math.min(1, Math.max(0, position)) * 100}%`,

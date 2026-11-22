@@ -19,42 +19,40 @@ import { db } from "@sora/core/database";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
-import { onError, sendProblem } from "./errors";
-import { healthRoutes } from "./health";
-import { v1Routes } from "./v1";
-
-const app = new Hono()
-	.use(
-		secureHeaders({
-			contentSecurityPolicy: {
-				defaultSrc: ["'none'"],
-				frameAncestors: ["'none'"],
-			},
-			// Players on other origins load streams and subtitles directly.
-			crossOriginResourcePolicy: false,
-		}),
-	)
-	.get("/live", (c) => c.json({ status: "ok" }))
-	.route("/v1", v1Routes)
-	.route(
-		"/health",
-		healthRoutes({
-			signedIn: async (headers) => {
-				const session = await auth.api.getSession({
-					headers,
-				});
-
-				return session !== null;
-			},
-		}),
-	)
-	.notFound((c) =>
-		sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`),
-	)
-	.onError(onError);
+import { onFailure, sendProblem } from "./errors";
+import { health } from "./health";
+import { v1 } from "./v1";
 
 const server = Bun.serve({
-	fetch: app.fetch,
+	fetch: new Hono()
+		.use(
+			secureHeaders({
+				contentSecurityPolicy: {
+					defaultSrc: ["'none'"],
+					frameAncestors: ["'none'"],
+				},
+				// Players on other origins load streams and subtitles directly.
+				crossOriginResourcePolicy: false,
+			}),
+		)
+		.get("/live", (c) => c.json({ status: "ok" }))
+		.route("/v1", v1)
+		.route(
+			"/health",
+			health({
+				signedIn: async (headers) => {
+					const session = await auth.api.getSession({
+						headers,
+					});
+
+					return session !== null;
+				},
+			}),
+		)
+		.notFound((c) =>
+			sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`),
+		)
+		.onError(onFailure).fetch,
 	hostname: process.env.HOST ?? "127.0.0.1",
 	// Resolving playback and laying out a new title can take several seconds
 	// before the first byte, well past Bun's default of 10.
@@ -66,12 +64,10 @@ const server = Bun.serve({
 
 console.log(`Sora API listening on ${server.url}`);
 
-const shutdown = async () => {
-	await server.stop();
-	await db.$client.close();
-	process.exit(0);
-};
-
-process.on("SIGINT", shutdown);
-
-process.on("SIGTERM", shutdown);
+for (const signal of ["SIGINT", "SIGTERM"]) {
+	process.on(signal, async () => {
+		await server.stop();
+		await db.$client.close();
+		process.exit(0);
+	});
+}

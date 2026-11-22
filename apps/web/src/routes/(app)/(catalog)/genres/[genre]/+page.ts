@@ -1,4 +1,4 @@
-import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 import { getGenres } from "$routes/(app)/(catalog)/catalog.remote";
 import { redirect } from "@sveltejs/kit";
 
@@ -13,8 +13,14 @@ export const load: PageLoad = async ({ params }) => {
 		(name) => name.toLowerCase().replaceAll(/[^a-z0-9]+/gu, "-") === params.genre,
 	);
 
-	setBrowse({
-		genres: genre ? [genre] : [],
+	const chosen: string[] = [];
+
+	if (genre) {
+		chosen.push(genre);
+	}
+
+	filterBy({
+		genres: chosen,
 	});
 	redirect(307, "/browse");
 };

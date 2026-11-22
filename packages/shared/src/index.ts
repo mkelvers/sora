@@ -67,12 +67,13 @@ export function attempt<TData>(
 	...expected: ErrorClass[]
 ): Attempt<TData> | Promise<Attempt<TData>> {
 	const failed = (cause: unknown) => {
-		const error =
-			cause instanceof Error
-				? cause
-				: new Error(String(cause), {
-						cause,
-					});
+		let error = new Error(String(cause), {
+			cause,
+		});
+
+		if (cause instanceof Error) {
+			error = cause;
+		}
 
 		if (expected.length > 0 && !expected.some((type) => error instanceof type)) {
 			throw cause;

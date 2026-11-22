@@ -162,32 +162,6 @@ const InputSchema = z.object({
 
 type RouteInput = z.output<typeof InputSchema>;
 
-/** The URL of a route: its path with the parameters filled in, and the query that has a value. */
-const routeUrl = (
-	baseUrl: string,
-	path: string,
-	params: RouteInput["params"],
-	query: RouteInput["query"],
-) => {
-	const url = new URL(
-		`${baseUrl}/v1${path.replaceAll(/\{(?<name>\w+)\}/gu, (_, name: string) =>
-			encodeURIComponent(String(params?.[name])),
-		)}`,
-	);
-
-	for (const [name, value] of Object.entries(query ?? {})) {
-		if (value !== undefined && value !== null) {
-			// A list is comma-separated, and a null in one is how the API spells "none".
-			url.searchParams.set(
-				name,
-				Array.isArray(value) ? value.map((item) => item ?? "none").join(",") : String(value),
-			);
-		}
-	}
-
-	return url;
-};
-
 /**
  * A typed client for the Sora API.
  *
@@ -218,6 +192,32 @@ export class SoraClient {
 			...options,
 			baseUrl: options.baseUrl.replace(/\/+$/u, ""),
 		};
+	}
+
+	/** The URL of a route: its path with the parameters filled in, and the query that has a value. */
+	#url(path: string, params: RouteInput["params"], query: RouteInput["query"]): URL {
+		const url = new URL(
+			`${this.#options.baseUrl}/v1${path.replaceAll(/\{(?<name>\w+)\}/gu, (_, name: string) =>
+				encodeURIComponent(String(params?.[name])),
+			)}`,
+		);
+
+		for (const [name, value] of Object.entries(query ?? {})) {
+			if (value === undefined || value === null) {
+				continue;
+			}
+
+			// A list is comma-separated, and a null in one is how the API spells "none".
+			let text = String(value);
+
+			if (Array.isArray(value)) {
+				text = value.map((item) => item ?? "none").join(",");
+			}
+
+			url.searchParams.set(name, text);
+		}
+
+		return url;
 	}
 
 	/**
@@ -254,10 +254,16 @@ export class SoraClient {
 	async requestWithMeta<TRoute extends Route>(route: TRoute, ...[input, options]: Args<TRoute>) {
 		const { params, query, body } = InputSchema.parse(input ?? {});
 
-		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
+		const url = this.#url(route.path, params, query);
+
+		let payload: string | undefined;
+
+		if (body !== undefined) {
+			payload = JSON.stringify(body);
+		}
 
 		const response = await (this.#options.fetch ?? fetch)(url, {
-			body: body === undefined ? undefined : JSON.stringify(body),
+			body: payload,
 			headers: {
 				...this.#options.headers,
 				...options?.headers,

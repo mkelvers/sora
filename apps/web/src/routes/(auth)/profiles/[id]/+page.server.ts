@@ -5,26 +5,6 @@ import { z } from "zod";
 
 import type { Actions, PageServerLoad } from "./$types";
 
-const Changes = z.object({
-	avatar: z
-		.string()
-		.transform((value) => {
-			const [style, ...seed] = value.split(":");
-
-			return {
-				seed: seed.join(":"),
-				style,
-			};
-		})
-		.pipe(
-			z.object({
-				seed: z.string().trim().min(1).max(64),
-				style: z.enum(["sprouts", "critters"]),
-			}),
-		),
-	name: z.string().trim().min(1).max(40),
-});
-
 export const load: PageServerLoad = ({ locals, params }) => {
 	if (!locals.viewer) {
 		error(401, "Not signed in");
@@ -42,10 +22,19 @@ export const load: PageServerLoad = ({ locals, params }) => {
 			{
 				length: 11,
 			},
-			(_, index) => ({
-				seed: crypto.randomUUID().slice(0, 8),
-				style: index % 2 === 0 ? ("critters" as const) : ("sprouts" as const),
-			}),
+			(_, index) => {
+				const seed = crypto.randomUUID().slice(0, 8);
+				let style: "critters" | "sprouts" = "sprouts";
+
+				if (index % 2 === 0) {
+					style = "critters";
+				}
+
+				return {
+					seed,
+					style,
+				};
+			},
 		),
 		deletable: profiles.length > 1,
 		profile,
@@ -91,17 +80,42 @@ export const actions: Actions = {
 		}
 
 		const target = url.searchParams.get("redirect");
-		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
+
+		if (target) {
+			redirect(303, `/profiles?redirect=${encodeURIComponent(target)}`);
+		}
+
+		redirect(303, "/profiles");
 	},
 
 	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
 
-		const changes = Changes.safeParse({
-			avatar: form.get("avatar"),
-			name,
-		});
+		const changes = z
+			.object({
+				avatar: z
+					.string()
+					.transform((value) => {
+						const [style, ...seed] = value.split(":");
+
+						return {
+							seed: seed.join(":"),
+							style,
+						};
+					})
+					.pipe(
+						z.object({
+							seed: z.string().trim().min(1).max(64),
+							style: z.enum(["sprouts", "critters"]),
+						}),
+					),
+				name: z.string().trim().min(1).max(40),
+			})
+			.safeParse({
+				avatar: form.get("avatar"),
+				name,
+			});
 
 		if (!changes.success) {
 			return fail(400, {
@@ -133,6 +147,11 @@ export const actions: Actions = {
 		}
 
 		const target = url.searchParams.get("redirect");
-		redirect(303, target ? `/profiles?redirect=${encodeURIComponent(target)}` : "/profiles");
+
+		if (target) {
+			redirect(303, `/profiles?redirect=${encodeURIComponent(target)}`);
+		}
+
+		redirect(303, "/profiles");
 	},
 };

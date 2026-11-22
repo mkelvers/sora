@@ -10,11 +10,11 @@ import {
 	LibraryImportSchema,
 } from "@sora/core/models/transfer";
 
-import { CountMetaSchema, envelopeOf } from "../../openapi/envelope";
-import { json, problem, EmptyMetaSchema, signedIn, ProfileParams } from "../../openapi/schemas";
+import { CountMetaSchema, envelope } from "../../openapi/envelope";
+import { json, problem, EmptyMeta, signedIn, ProfileParams } from "../../openapi/schemas";
 
 /** Exporting a profile's library and importing one from AniList or MyAnimeList. */
-export const transferRoute = {
+export const contract = {
 	authorizeImport: createRoute({
 		description:
 			"Where to send the person to connect an AniList or MyAnimeList account and agree to Sora reading their list. The browser makes `state` and `code_challenge` itself and keeps them: when the site sends the person back to `redirect_uri` with a `code`, they go to `importLibrary` with it, together with the secret `code_challenge` was made from (`code_verifier`). Sora uses the code once and keeps nothing.",
@@ -32,7 +32,7 @@ export const transferRoute = {
 			},
 		},
 		responses: {
-			200: json(envelopeOf(ImportAuthorizationUrlSchema, EmptyMetaSchema), "Where to send them."),
+			200: json(envelope(ImportAuthorizationUrlSchema, EmptyMeta), "Where to send them."),
 			401: problem("Not signed in."),
 			422: problem("The body is invalid, or that account is not set up on this Sora."),
 		},
@@ -76,7 +76,7 @@ export const transferRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(LibraryExportSchema, EmptyMetaSchema), "The document."),
+			200: json(envelope(LibraryExportSchema, EmptyMeta), "The document."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -91,7 +91,7 @@ export const transferRoute = {
 		operationId: "getImportOptions",
 		path: "/library/import-options",
 		responses: {
-			200: json(envelopeOf(ImportOptionsSchema, EmptyMetaSchema), "What is set up."),
+			200: json(envelope(ImportOptionsSchema, EmptyMeta), "What is set up."),
 			401: problem("Not signed in."),
 		},
 		security: signedIn,
@@ -116,7 +116,7 @@ export const transferRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(LibraryImportReportSchema, EmptyMetaSchema), "What was added."),
+			200: json(envelope(LibraryImportReportSchema, EmptyMeta), "What was added."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 			422: problem("The body is invalid, or the AniList user is unknown or private."),
@@ -137,7 +137,7 @@ export const transferRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(z.array(ImportConnectionSchema), CountMetaSchema),
+				envelope(z.array(ImportConnectionSchema), CountMetaSchema),
 				"The connected accounts.",
 			),
 			401: problem("Not signed in."),
@@ -168,7 +168,7 @@ export const transferRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(ImportUndoSchema, EmptyMetaSchema), "What was taken back."),
+			200: json(envelope(ImportUndoSchema, EmptyMeta), "What was taken back."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},

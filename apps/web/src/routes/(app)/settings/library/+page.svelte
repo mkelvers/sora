@@ -13,7 +13,7 @@
 		disconnectImport,
 		getImportConnections,
 		getImportOptions,
-		importLibrary,
+		runImport,
 		undoImport,
 	} from "../library.remote";
 	import { begin, handoverKey, returnedFrom } from "./connection";
@@ -91,10 +91,10 @@
 		return `You're all caught up. Everything in that list is already here.${missing}`;
 	};
 
-	const run = async (input: Parameters<typeof importLibrary>[0], kind: "import" | "file") => {
+	const run = async (input: Parameters<typeof runImport>[0], kind: "import" | "file") => {
 		busy = kind;
 		announcement = null;
-		const { data, error } = await attempt(importLibrary(input), Error);
+		const { data, error } = await attempt(runImport(input), Error);
 		busy = null;
 		connecting = null;
 

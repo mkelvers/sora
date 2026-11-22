@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from "$lib/components/ui/button.svelte";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 
 	import type { PageProps } from "./$types";
 
@@ -61,7 +61,7 @@
 								variant="item"
 								size="sm"
 								class="whitespace-normal"
-								onclick={() => setBrowse(link.preset)}
+								onclick={() => filterBy(link.preset)}
 							>
 								{link.label}
 							</Button>

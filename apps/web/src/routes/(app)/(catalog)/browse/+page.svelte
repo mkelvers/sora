@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		browse,
-		browseTitle,
-		catalogRequest,
-	} from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { browse, pageTitle, catalogRequest } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import type { BrowseFilters as Filters } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import Catalog from "$routes/(app)/(catalog)/components/catalog.svelte";
 
@@ -13,7 +9,7 @@
 
 	let { data }: PageProps = $props();
 
-	const title = $derived(browseTitle(browse));
+	const title = $derived(pageTitle(browse));
 
 	const apply = (next: Filters) => {
 		Object.assign(browse, next);

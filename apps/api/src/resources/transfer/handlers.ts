@@ -12,13 +12,13 @@ import {
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { transferRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The handlers for {@link transferRoute}. */
-export const transferRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(transferRoute.getImportOptions, (c) =>
+	.openapi(contract.getImportOptions, (c) =>
 		c.json(
 			{
 				meta: {},
@@ -28,7 +28,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		),
 	)
 
-	.openapi(transferRoute.authorizeImport, (c) => {
+	.openapi(contract.authorizeImport, (c) => {
 		const { source, redirect_uri, state, code_challenge } = c.req.valid("json");
 
 		return c.json(
@@ -46,7 +46,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(transferRoute.exportLibrary, async (c) => {
+	.openapi(contract.exportLibrary, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const library = await exportLibrary(profile.id);
 
@@ -59,7 +59,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(transferRoute.importLibrary, async (c) => {
+	.openapi(contract.importLibrary, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const report = await importLibrary(profile.id, c.req.valid("json"));
 
@@ -72,7 +72,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(transferRoute.listImportConnections, async (c) => {
+	.openapi(contract.listImportConnections, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const connections = await listImportConnections(profile.id);
 
@@ -87,7 +87,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(transferRoute.disconnectImport, async (c) => {
+	.openapi(contract.disconnectImport, async (c) => {
 		const { profile_id, source } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await disconnectImport(profile.id, source);
@@ -95,7 +95,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(transferRoute.undoImport, async (c) => {
+	.openapi(contract.undoImport, async (c) => {
 		const { profile_id, import_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 

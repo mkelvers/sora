@@ -26,39 +26,52 @@ import { day } from "@sora/shared";
 import { onInvalidRequest, sendProblem } from "../../errors";
 import type { V1Env } from "../../errors";
 import { offsetLinks, pageMeta } from "../../openapi/envelope";
-import { seriesRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The browse filters of a `browseSeries` or `searchSeries` query, as the core takes them. */
-const browseQuery = ({
-	excluded_tags,
-	hide_mature,
-	max_episodes,
-	min_episodes,
-	min_score,
-	per_page,
-	season_year,
-	year_from,
-	year_to,
-	...filters
-}: z.output<typeof seriesRoute.browseSeries.request.query>): BrowseQuery => ({
-	...filters,
-	excludedTags: excluded_tags,
-	hideMature: hide_mature,
-	maxEpisodes: max_episodes,
-	minEpisodes: min_episodes,
-	minScore: min_score,
-	perPage: per_page,
-	seasonYear: season_year,
-	yearFrom: year_from,
-	yearTo: year_to,
-});
+/** The browse filters of a `browseSeries` or `searchSeries` query. */
+class BrowseFilters {
+	readonly #query: z.output<typeof contract.browseSeries.request.query>;
 
-/** The handlers for {@link seriesRoute}. */
-export const seriesRoutes = new OpenAPIHono<V1Env>({
+	constructor(query: z.output<typeof contract.browseSeries.request.query>) {
+		this.#query = query;
+	}
+
+	/** The filters as the core takes them. */
+	get query(): BrowseQuery {
+		const {
+			excluded_tags,
+			hide_mature,
+			max_episodes,
+			min_episodes,
+			min_score,
+			per_page,
+			season_year,
+			year_from,
+			year_to,
+			...filters
+		} = this.#query;
+
+		return {
+			...filters,
+			excludedTags: excluded_tags,
+			hideMature: hide_mature,
+			maxEpisodes: max_episodes,
+			minEpisodes: min_episodes,
+			minScore: min_score,
+			perPage: per_page,
+			seasonYear: season_year,
+			yearFrom: year_from,
+			yearTo: year_to,
+		};
+	}
+}
+
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(seriesRoute.browseSeries, async (c) => {
-		const page = await browseSeries(browseQuery(c.req.valid("query")));
+	.openapi(contract.browseSeries, async (c) => {
+		const page = await browseSeries(new BrowseFilters(c.req.valid("query")).query);
 		c.header("Cache-Control", "public, max-age=300");
 
 		return c.json(
@@ -70,11 +83,11 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.searchSeries, async (c) => {
+	.openapi(contract.searchSeries, async (c) => {
 		const { q, ...filters } = c.req.valid("query");
 
 		const page = await browseSeries({
-			...browseQuery(filters),
+			...new BrowseFilters(filters).query,
 			search: q,
 		});
 
@@ -89,7 +102,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.getSeries, async (c) => {
+	.openapi(contract.getSeries, async (c) => {
 		const series = await getSeries(c.req.valid("param").series_id);
 
 		if (!c.req.valid("query").episodes) {
@@ -106,10 +119,13 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 		const episodes = await getSeriesEpisodes(series.id);
 		// Unknown audio is filled in once providers are looked up.
-		c.header(
-			"Cache-Control",
-			episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300",
-		);
+		let cacheControl = "public, max-age=300";
+
+		if (episodes.some((episode) => episode.audio === null)) {
+			cacheControl = "no-store";
+		}
+
+		c.header("Cache-Control", cacheControl);
 
 		return c.json(
 			{
@@ -123,7 +139,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listImages, async (c) => {
+	.openapi(contract.listImages, async (c) => {
 		const { type, language, sort } = c.req.valid("query");
 
 		const images = await listSeriesImages(c.req.valid("param").series_id, {
@@ -143,7 +159,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.refreshImages, async (c) => {
+	.openapi(contract.refreshImages, async (c) => {
 		const images = await refreshSeriesImages(c.req.valid("param").series_id);
 
 		return c.json(
@@ -157,7 +173,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.upscaleBackdrop, async (c) => {
+	.openapi(contract.upscaleBackdrop, async (c) => {
 		const { series_id: seriesId } = c.req.valid("param");
 		await requestBackdropUpscale(seriesId, c.req.valid("json").url);
 		const images = await listSeriesImages(seriesId);
@@ -173,7 +189,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.getBackdrop, async (c) => {
+	.openapi(contract.getBackdrop, async (c) => {
 		const image = await getUpscaledBackdrop(c.req.valid("param").id);
 
 		if (!image) {
@@ -189,7 +205,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		});
 	})
 
-	.openapi(seriesRoute.updateArtwork, async (c) => {
+	.openapi(contract.updateArtwork, async (c) => {
 		const series = await setSeriesArtwork(c.req.valid("param").series_id, c.req.valid("json"));
 
 		return c.json(
@@ -201,7 +217,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listEpisodes, async (c) => {
+	.openapi(contract.listEpisodes, async (c) => {
 		const { series_id } = c.req.valid("param");
 		const { offset = 0, limit } = c.req.valid("query");
 
@@ -212,10 +228,13 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 		const size = limit ?? Math.max(total - offset, 1);
 		// Unknown audio is filled in once providers are looked up.
-		c.header(
-			"Cache-Control",
-			episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300",
-		);
+		let cacheControl = "public, max-age=300";
+
+		if (episodes.some((episode) => episode.audio === null)) {
+			cacheControl = "no-store";
+		}
+
+		c.header("Cache-Control", cacheControl);
 
 		return c.json(
 			{
@@ -236,7 +255,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.getEpisode, async (c) => {
+	.openapi(contract.getEpisode, async (c) => {
 		const { series_id, episode } = c.req.valid("param");
 
 		return c.json(
@@ -248,7 +267,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listGenres, async (c) => {
+	.openapi(contract.listGenres, async (c) => {
 		const genres = await getGenres();
 		c.header("Cache-Control", "public, max-age=86400");
 
@@ -263,7 +282,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listTags, async (c) => {
+	.openapi(contract.listTags, async (c) => {
 		const tags = await listTags();
 		c.header("Cache-Control", "public, max-age=86400");
 
@@ -278,7 +297,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listStudios, async (c) => {
+	.openapi(contract.listStudios, async (c) => {
 		const studios = await listStudios(c.req.valid("query").q);
 		c.header("Cache-Control", "public, max-age=3600");
 
@@ -293,10 +312,20 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.getSchedule, async (c) => {
+	.openapi(contract.getSchedule, async (c) => {
 		const query = c.req.valid("query");
-		const from = query.from ? new Date(query.from) : new Date();
-		const until = query.until ? new Date(query.until) : new Date(from.getTime() + 7 * day);
+		let from = new Date();
+
+		if (query.from) {
+			from = new Date(query.from);
+		}
+
+		let until = new Date(from.getTime() + 7 * day);
+
+		if (query.until) {
+			until = new Date(query.until);
+		}
+
 		const episodes = await getAiringSchedule(from, until);
 		c.header("Cache-Control", "public, max-age=60");
 
@@ -313,7 +342,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.getCalendar, async (c) => {
+	.openapi(contract.getCalendar, async (c) => {
 		const { time_zone, week } = c.req.valid("query");
 		const calendar = await getCalendar(time_zone, week);
 		c.header("Cache-Control", "public, max-age=60");
@@ -327,7 +356,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listReleases, async (c) => {
+	.openapi(contract.listReleases, async (c) => {
 		const { per_page, ...filters } = c.req.valid("query");
 
 		const page = await getLatestReleases({
@@ -346,7 +375,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listSeasons, async (c) => {
+	.openapi(contract.listSeasons, async (c) => {
 		const seasons = await listSeasons();
 		c.header("Cache-Control", "public, max-age=3600");
 
@@ -362,7 +391,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listSimilarSeries, async (c) => {
+	.openapi(contract.listSimilarSeries, async (c) => {
 		const titles = await getSimilarSeries(c.req.valid("param").series_id);
 		c.header("Cache-Control", "public, max-age=3600");
 
@@ -377,7 +406,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(seriesRoute.listUpcoming, async (c) => {
+	.openapi(contract.listUpcoming, async (c) => {
 		const titles = await getUpcomingSeries();
 		c.header("Cache-Control", "public, max-age=3600");
 

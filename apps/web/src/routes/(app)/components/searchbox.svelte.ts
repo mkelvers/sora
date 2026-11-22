@@ -24,13 +24,23 @@ export class Search {
 	shown = $derived(
 		this.focused && !this.dismissed && !this.onSearch && !!this.term && !!this.text.trim(),
 	);
-	activeId = $derived(
-		this.shown && !this.typing && this.active >= 0 ? `search-option-${this.active}` : undefined,
-	);
+	activeId = $derived.by(() => {
+		const highlighted = this.shown && !this.typing && this.active >= 0;
+
+		if (!highlighted) {
+			return;
+		}
+
+		return `search-option-${this.active}`;
+	});
 
 	constructor() {
 		this.open = this.onSearch;
-		this.text = this.onSearch ? this.query : "";
+		this.text = "";
+
+		if (this.onSearch) {
+			this.text = this.query;
+		}
 
 		afterNavigate(({ to, type }) => {
 			this.active = -1;
@@ -122,10 +132,11 @@ export class Search {
 			return;
 		}
 
-		const options =
-			this.shown && !this.typing
-				? this.panel?.querySelectorAll<HTMLElement>('[role="option"]')
-				: undefined;
+		let options: NodeListOf<HTMLElement> | undefined;
+
+		if (this.shown && !this.typing) {
+			options = this.panel?.querySelectorAll<HTMLElement>('[role="option"]');
+		}
 
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!this.shown) {
@@ -139,7 +150,12 @@ export class Search {
 			}
 
 			event.preventDefault();
-			const step = event.key === "ArrowDown" ? 1 : -1;
+			let step = -1;
+
+			if (event.key === "ArrowDown") {
+				step = 1;
+			}
+
 			const count = options.length + 1;
 			this.active = ((this.active + 1 + step + count) % count) - 1;
 

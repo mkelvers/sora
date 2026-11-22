@@ -3,7 +3,7 @@
 	import { cn } from "$lib/utils";
 	import { getImages } from "$routes/(app)/series/[id]/media/media.remote";
 	import type { Media } from "$routes/(app)/series/[id]/media/media.svelte";
-	import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+	import { getDetails } from "$routes/(app)/series/[id]/series.remote";
 	import type { Series } from "@sora/sdk";
 	import { SparkleIcon } from "phosphor-svelte";
 
@@ -35,7 +35,7 @@
 
 		const timer = setInterval(() => {
 			getImages(series.id).refresh();
-			getSeries(series.id).refresh();
+			getDetails(series.id).refresh();
 		}, 5000);
 
 		return () => clearInterval(timer);

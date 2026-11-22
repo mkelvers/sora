@@ -6,14 +6,10 @@
 	import { pollWhileVisible } from "$lib/utils";
 	import { ChecksIcon } from "phosphor-svelte";
 
-	import {
-		getNotifications,
-		getUnreadNotifications,
-		markNotificationsRead,
-	} from "../notifications.remote";
+	import { getLatest, getUnread, markRead } from "../notifications.remote";
 	import Notification from "./notification.svelte";
 
-	const notifications = getNotifications();
+	const notifications = getLatest();
 	const loaded = $derived(await notifications);
 	const items = $derived(loaded.items);
 	const unread = $derived(items?.filter((item) => item.unread) ?? []);
@@ -36,7 +32,7 @@
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
 
 	$effect(() => {
-		getUnreadNotifications().set(loaded.unread);
+		getUnread().set(loaded.unread);
 	});
 </script>
 
@@ -57,7 +53,7 @@
 						<Button
 							variant="ghost"
 							class="ml-auto"
-							onclick={() => markNotificationsRead(unread.map((item) => item.id))}
+							onclick={() => markRead(unread.map((item) => item.id))}
 						>
 							<ChecksIcon size="1.125rem" />
 							<span class="max-sm:sr-only">Mark All as Read</span>

@@ -16,13 +16,13 @@ import {
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { profileRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The handlers for {@link profileRoute}. */
-export const profileRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(profileRoute.listProfiles, async (c) => {
+	.openapi(contract.listProfiles, async (c) => {
 		const profiles = await listProfiles(c.get("accountId"));
 
 		return c.json(
@@ -36,7 +36,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.createProfile, async (c) => {
+	.openapi(contract.createProfile, async (c) => {
 		const profile = await createProfile(c.get("accountId"), c.req.valid("json"));
 
 		return c.json(
@@ -48,7 +48,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.updateProfile, async (c) => {
+	.openapi(contract.updateProfile, async (c) => {
 		const profile = await updateProfile(
 			c.get("accountId"),
 			c.req.valid("param").profile_id,
@@ -64,13 +64,13 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.deleteProfile, async (c) => {
+	.openapi(contract.deleteProfile, async (c) => {
 		await deleteProfile(c.get("accountId"), c.req.valid("param").profile_id);
 
 		return c.body(null, 204);
 	})
 
-	.openapi(profileRoute.getFeatured, async (c) => {
+	.openapi(contract.getFeatured, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const titles = await getFeatured(profile.id);
 
@@ -85,7 +85,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.getPlaybackPreferences, async (c) => {
+	.openapi(contract.getPlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await getPlaybackPreferences(profile.id);
 
@@ -98,7 +98,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.updatePlaybackPreferences, async (c) => {
+	.openapi(contract.updatePlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await updatePlaybackPreferences(profile.id, c.req.valid("json"));
 
@@ -111,7 +111,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.getProfilePreferences, async (c) => {
+	.openapi(contract.getProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await getProfilePreferences(profile.id);
 
@@ -124,7 +124,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(profileRoute.updateProfilePreferences, async (c) => {
+	.openapi(contract.updateProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await updateProfilePreferences(profile.id, c.req.valid("json"));
 
