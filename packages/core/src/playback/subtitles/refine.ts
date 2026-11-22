@@ -392,6 +392,8 @@ const candidatesFor = (
 	spoken: (Token | null)[],
 	offset: number,
 ) => {
+	const minimumDice = 0.3;
+
 	const weight = weightOf(tokens);
 
 	if (weight < 0.5) {
@@ -431,7 +433,7 @@ const candidatesFor = (
 
 			const similarity = dice(tokens, run);
 
-			if (similarity < 0.3) {
+			if (similarity < minimumDice) {
 				continue;
 			}
 
