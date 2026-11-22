@@ -102,7 +102,9 @@ export const summarizeHealth = (
 			for (const row of own) {
 				const value = pick(row);
 
-				if (value && (!found || value > found)) {
+				const later = value && (!found || value > found);
+
+				if (later) {
 					found = value;
 				}
 			}
