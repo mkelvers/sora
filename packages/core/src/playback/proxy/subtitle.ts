@@ -11,9 +11,6 @@ const assOverride = /\{\\[^}]*\}/gu;
 /** Spaces at the start or end of a line, hard spaces included. */
 const lineEdgeSpace = /^[ \t\u00A0]+|[ \t\u00A0]+$/gmu;
 
-/** A cue block's timing line, through its line break, and the text after it. */
-const cueText = /^(?<head>[^\n]*-->[^\n]*\n)(?<text>[\s\S]*)$/mu;
-
 /**
  * Cue text with what ASS conversions leave behind turned into plain text:
  * override blocks removed, `\N` as a line break, `\n` as a space, and `\h` as a
@@ -38,6 +35,9 @@ const cleanText = (text: string) =>
  * copies of one cue.
  */
 export const cleanWebVtt = (content: string) => {
+	/** A cue block's timing line, through its line break, and the text after it. */
+	const cueText = /^(?<head>[^\n]*-->[^\n]*\n)(?<text>[\s\S]*)$/mu;
+
 	const seen = new Set<string>();
 
 	return splitBlocks(content)
@@ -67,11 +67,11 @@ export const cleanWebVtt = (content: string) => {
 		.join("\n\n");
 };
 
-/** How much of a cue an anchor's cue must overlap for them to be the same line. */
-const sameCueOverlap = 0.6;
-
 /** The anchor, from ascending `anchors`, whose cue is this one. */
 const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
+	/** How much of a cue an anchor's cue must overlap for them to be the same line. */
+	const sameCueOverlap = 0.6;
+
 	let low = 0;
 	let high = anchors.length;
 

@@ -17,7 +17,6 @@ const hop = sampleRate * frameSeconds;
 const windowSize = 2048;
 const bandCount = 17;
 const lowestHz = 300;
-const highestHz = 3000;
 
 /** A recording's fingerprint, one entry per frame. */
 export interface Fingerprint {
@@ -35,6 +34,8 @@ const window = Float64Array.from(
 
 /** Which band each spectrum bin adds to, or -1 for bins outside every band. */
 const bandOfBin = (() => {
+	const highestHz = 3000;
+
 	const edges = Array.from(
 		{
 			length: bandCount + 1,
@@ -232,15 +233,8 @@ interface SharedRun {
 	errorRate: number;
 }
 
-/** Codes this common in `a` are skipped, since they vote for every offset. */
-const commonCode = 40;
-
 /** Offsets tried per pair, most voted first. */
 const offsetsTried = 24;
-const fewestVotes = 12;
-
-/** Mean share of differing bits below which two stretches are the same audio. */
-const sameAudio = 0.32;
 const smoothingFrames = Math.round(2 / frameSeconds);
 
 /** Gaps shorter than this, such as a line of dialogue over the song, do not break a run. */
@@ -285,6 +279,9 @@ const indexCodes = (a: Fingerprint) => {
 
 /** How many equal codes put `b` at each offset from `a`, smoothed over neighbouring offsets. */
 const offsetVotes = (a: Fingerprint, b: Fingerprint) => {
+	/** Codes this common in `a` are skipped, since they vote for every offset. */
+	const commonCode = 40;
+
 	const { counts, firsts, positions } = indexCodes(a);
 	const shift = a.codes.length;
 	const votes = new Float64Array(a.codes.length + b.codes.length + 1);
@@ -320,6 +317,9 @@ const offsetVotes = (a: Fingerprint, b: Fingerprint) => {
 
 /** The stretches of at least `shortestFrames` where `b`, `offset` frames after `a`, plays the same audio. */
 const runsAt = (a: Fingerprint, b: Fingerprint, offset: number, shortestFrames: number) => {
+	/** Mean share of differing bits below which two stretches are the same audio. */
+	const sameAudio = 0.32;
+
 	const first = Math.max(0, -offset);
 	const last = Math.min(a.codes.length, b.codes.length - offset);
 
@@ -400,6 +400,8 @@ const runsAt = (a: Fingerprint, b: Fingerprint, offset: number, shortestFrames: 
 
 /** Every stretch of at least `shortestSeconds` that `a` and `b` share. */
 export const sharedRuns = (a: Fingerprint, b: Fingerprint, shortestSeconds: number) => {
+	const fewestVotes = 12;
+
 	const { shift, votes } = offsetVotes(a, b);
 
 	const order = [...votes.keys()].toSorted(

@@ -52,12 +52,6 @@ const toSdkMetadata = (anime: Anime): IMediaMetadata => {
 	};
 };
 
-/** The least a provider's title may resemble the anime's for a title match. */
-const minimumTitleSimilarity = 0.78;
-
-/** How many episodes more than the anime's count a provider's list may have. */
-const episodeCountTolerance = 3;
-
 /**
  * Whether a series found by searching titles is the anime.
  *
@@ -70,6 +64,12 @@ const episodeCountTolerance = 3;
  * missing episodes.
  */
 export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEpisodes: number) => {
+	/** How many episodes more than the anime's count a provider's list may have. */
+	const episodeCountTolerance = 3;
+
+	/** The least a provider's title may resemble the anime's for a title match. */
+	const minimumTitleSimilarity = 0.78;
+
 	const titles = [
 		anime.title.english,
 		anime.title.romaji,

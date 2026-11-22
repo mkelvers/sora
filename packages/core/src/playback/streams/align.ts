@@ -12,17 +12,8 @@ export interface TimelineShift {
 /** How close two segment boundaries must be to count as the same cut. */
 const tolerance = 0.12;
 
-/** An offset needs this many matching boundaries across the episode to be considered. */
-const minimumVotes = 4;
-
 /** Matches an offset must win to be worth switching to, so stray matches cannot. */
 const defaultSwitchPenalty = 6;
-
-/** The most offsets weighed per boundary; later ones have too few votes to matter. */
-const maximumCandidates = 32;
-
-/** Below this share of matching boundaries, the encodes are not the same episode. */
-const minimumMatched = 0.5;
 
 /** The value in ascending `sorted` closest to `time`. */
 const nearest = (sorted: number[], time: number) => {
@@ -51,6 +42,12 @@ const nearest = (sorted: number[], time: number) => {
 
 /** Offsets many boundary pairs agree on, most agreed first, each refined to the mean of its pairs. */
 const candidateOffsets = (source: number[], target: number[]) => {
+	/** The most offsets weighed per boundary; later ones have too few votes to matter. */
+	const maximumCandidates = 32;
+
+	/** An offset needs this many matching boundaries across the episode to be considered. */
+	const minimumVotes = 4;
+
 	const votes = new Map<number, number>();
 
 	for (const from of source) {
@@ -141,6 +138,9 @@ export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPena
  *   match for the encodes to be the same picture.
  */
 export const alignTimelines = (source: number[], target: number[]): TimelineShift[] | null => {
+	/** Below this share of matching boundaries, the encodes are not the same episode. */
+	const minimumMatched = 0.5;
+
 	if (source.length === 0 || target.length === 0) {
 		return null;
 	}

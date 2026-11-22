@@ -29,45 +29,12 @@ export interface Refinement {
 	anchors: CueAnchor[];
 }
 
-/** How far before a line is spoken its cue appears, in seconds. */
-const lead = 0.15;
-
-/** How long after a line is spoken its cue stays, in seconds. */
-const tail = 0.25;
-
-/**
- * How long a cue shows at least, as characters per second of reading time,
- * with an absolute floor; a cue is never kept longer than it was.
- */
-const readingRate = 20;
-
 /**
  * Sub cues come on before speech does, by 0 to 0.3 seconds in the episodes
  * measured, so an offset found from where speech starts is about this much
  * later than the picture's.
  */
 const typicalLag = 0.1;
-
-/** A picture shift further than this from what the speech says is not trusted. */
-const pictureTolerance = 1.5;
-
-/** A cue is placed by time when this much of the shorter of it and the speech overlaps. */
-const minimumOverlap = 0.5;
-
-/** Speech is taken as a cue's only if it starts this near where the cue should. */
-const nearRunSeconds = 1;
-
-/** Speech a placed cue covers this much of is already said. */
-const claimedShare = 0.3;
-
-/** Within this far of where a cue should be, one shared word can match it. */
-const nearSeconds = 1.2;
-
-/** Farther than that, the words shared must weigh this much, such as two that carry meaning. */
-const minimumFarWeight = 1.5;
-
-/** A pause this long in speech ends a line, so a cue never spans one. */
-const pauseSeconds = 1.5;
 
 /** How far from where a cue should be, once offsets are known, speech may match it. */
 const searchSeconds = 3.5;
@@ -76,18 +43,6 @@ const searchSeconds = 3.5;
 const minimumVotes = 4;
 
 const offsetBucketSeconds = 0.5;
-
-/** A cue votes for an offset when its best phrase scores at least this well. */
-const voteScore = 0.5;
-
-/** Fewer matched cues than this and the dub's speech is not the sub's script. */
-const minimumAnchors = 12;
-
-/** Cues that follow a matched cue and may be matched without a word of it in between. */
-const lookback = 6;
-
-const minimumScore = 0.15;
-const timePenalty = 0.3;
 
 const stopWords = new Set(
 	`a an the and or but so if of to in on at by for with from as is are was were be been am do does did
@@ -263,6 +218,9 @@ const voteOffsets = (
 	words: SpokenWord[],
 	spoken: (Token | null)[],
 ): TimelineShift[] | null => {
+	/** A cue votes for an offset when its best phrase scores at least this well. */
+	const voteScore = 0.5;
+
 	const maximumOffsets = 16;
 
 	const phrases = phrasesOf(words);
@@ -408,6 +366,19 @@ const candidatesFor = (
 	spoken: (Token | null)[],
 	offset: number,
 ) => {
+	const timePenalty = 0.3;
+
+	const minimumScore = 0.15;
+
+	/** A pause this long in speech ends a line, so a cue never spans one. */
+	const pauseSeconds = 1.5;
+
+	/** Farther than that, the words shared must weigh this much, such as two that carry meaning. */
+	const minimumFarWeight = 1.5;
+
+	/** Within this far of where a cue should be, one shared word can match it. */
+	const nearSeconds = 1.2;
+
 	const minimumDice = 0.3;
 
 	const weight = weightOf(tokens);
@@ -494,6 +465,9 @@ const pickAnchors = (
 	spoken: (Token | null)[],
 	voted: TimelineShift[],
 ) => {
+	/** Cues that follow a matched cue and may be matched without a word of it in between. */
+	const lookback = 6;
+
 	const candidates = cues.map((cue, index) =>
 		candidatesFor(cue, index, defined(cueTokens[index]), words, spoken, offsetAt(voted, cue.start)),
 	);
@@ -551,6 +525,9 @@ const speakingCues = (cueTokens: Token[][]) =>
  * lead cues have over speech.
  */
 const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => {
+	/** A picture shift further than this from what the speech says is not trusted. */
+	const pictureTolerance = 1.5;
+
 	const boundaries = [
 		...new Set([
 			0,
@@ -585,6 +562,18 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
  * takes to read, though never longer than it was.
  */
 const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
+	/**
+	 * How long a cue shows at least, as characters per second of reading time,
+	 * with an absolute floor; a cue is never kept longer than it was.
+	 */
+	const readingRate = 20;
+
+	/** How long after a line is spoken its cue stays, in seconds. */
+	const tail = 0.25;
+
+	/** How far before a line is spoken its cue appears, in seconds. */
+	const lead = 0.15;
+
 	const movedStart = Math.max(0, defined(words[first]).start - lead);
 
 	const minimumSeconds = 1;
@@ -689,6 +678,15 @@ const placeByTime = (
 	shifts: TimelineShift[],
 	matched: Placed[],
 ) => {
+	/** Speech a placed cue covers this much of is already said. */
+	const claimedShare = 0.3;
+
+	/** Speech is taken as a cue's only if it starts this near where the cue should. */
+	const nearRunSeconds = 1;
+
+	/** A cue is placed by time when this much of the shorter of it and the speech overlaps. */
+	const minimumOverlap = 0.5;
+
 	const runs = phrasesOf(words).map((run) => ({
 		...run,
 		end: defined(words[run.last]).end,
@@ -793,6 +791,9 @@ export const refineCues = (
 	words: SpokenWord[],
 	picture: TimelineShift[] | null,
 ): Refinement | null => {
+	/** Fewer matched cues than this and the dub's speech is not the sub's script. */
+	const minimumAnchors = 12;
+
 	const spoken = words.map((word) => tokenize(word.text)[0] ?? null);
 	const cueTokens = cues.map((cue) => tokenize(cue.text));
 

@@ -68,8 +68,6 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 const audioRenditionPattern = /^#EXT-X-MEDIA:(?:.*,)?TYPE=AUDIO(?:,.*)?$/u;
 const renditionLanguagePattern = /[:,]LANGUAGE="(?<language>[^"]*)"/u;
 const renditionGroupPattern = /[:,]GROUP-ID="(?<group>[^"]*)"/u;
-const defaultAttributePattern = /(?<lead>[:,])DEFAULT=[^,]*/u;
-const autoselectAttributePattern = /(?<lead>[:,])AUTOSELECT=[^,]*/u;
 
 /** Whether a BCP 47 tag, such as `en-US`, is in `locale`'s language. */
 export const isInLocale = (tag: string, locale: string) =>
@@ -113,6 +111,10 @@ export const audioLanguages = (content: string) =>
  * this playlist with English made the default.
  */
 export const withDefaultAudio = (content: string, locale: string) => {
+	const autoselectAttributePattern = /(?<lead>[:,])AUTOSELECT=[^,]*/u;
+
+	const defaultAttributePattern = /(?<lead>[:,])DEFAULT=[^,]*/u;
+
 	const lines = content.split(/\r?\n/u);
 	const chosen = new Map<string, number>();
 

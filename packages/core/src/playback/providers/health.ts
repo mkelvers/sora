@@ -20,9 +20,6 @@ export const failingAfterMs = 3 * hour;
  */
 export const failingAfterCalls = 5;
 
-/** Calls are summarized over this window. */
-const summaryWindowMs = day;
-
 /**
  * - `ok`: a call succeeded within {@link failingAfterMs}.
  * - `failing`: at least {@link failingAfterCalls} calls were made within
@@ -154,6 +151,9 @@ export const summarizeHealth = (
  * from what `provider_calls` recorded.
  */
 export const getProviderHealth = async (now = new Date()): Promise<ProviderHealth[]> => {
+	/** Calls are summarized over this window. */
+	const summaryWindowMs = day;
+
 	const windowStart = new Date(now.getTime() - summaryWindowMs);
 	const inWindow = sql`${providerCalls.hour} >= ${windowStart}`;
 	const isRecent = sql`${providerCalls.hour} >= ${recentFrom(now)}`;

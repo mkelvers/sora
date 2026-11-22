@@ -13,12 +13,6 @@ const wholeSong = 0.8;
 /** An opening song that starts this far into an episode is not its opening. */
 const lateOpening = 0.7;
 
-/** How long ffmpeg may take to decode one stretch of audio. */
-const decodeTimeoutMs = 5 * 60 * second;
-
-/** Segments fetched at once; hosts that limit requests answer more with 429. */
-const concurrency = 3;
-
 /** A song looked for, with its fingerprint. */
 export interface ListenedSong {
 	kind: ThemeSong["kind"];
@@ -42,6 +36,9 @@ export interface FoundSong extends SongMatch {
  * @throws {Error} when ffmpeg fails.
  */
 const decode = async (chunks: AsyncIterable<Uint8Array>) => {
+	/** How long ffmpeg may take to decode one stretch of audio. */
+	const decodeTimeoutMs = 5 * 60 * second;
+
 	const ffmpeg = Bun.spawn(
 		[
 			"ffmpeg",
@@ -170,6 +167,9 @@ const listenToStretch = async (
 	from: number,
 	to: number,
 ) => {
+	/** Segments fetched at once; hosts that limit requests answer more with 429. */
+	const concurrency = 3;
+
 	const picked = stream.segments.filter((segment) => segment.end > from && segment.start < to);
 
 	if (picked.length === 0) {

@@ -4,27 +4,8 @@ import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import type { StreamTarget } from "./token";
 import { fetchUpstreamBytes, StreamUpstreamError } from "./upstream";
 
-/**
- * How many segments past the one being played are fetched ahead of time.
- *
- * Stream hosts serve segments they have not served before at roughly the
- * bitrate of the stream itself, and a player asks for one segment at a time,
- * so it can never get ahead. Parallel requests add up, so fetching a window
- * of upcoming segments together lets playback outrun the host.
- */
-const segmentsAhead = 32;
-
 /** Segments kept in memory, oldest dropped first. */
 const cacheBudgetBytes = 256 * 1024 * 1024;
-
-/**
- * What a segment still being fetched ahead counts for against the budget, since
- * its size is not known until it arrives.
- */
-const expectedSegmentBytes = 8 * 1024 * 1024;
-
-/** Playlists whose segment order is remembered, oldest dropped first. */
-const rememberedSegments = 20_000;
 
 /** A segment ready to send, with any disguise already removed. */
 interface Segment {
@@ -69,6 +50,9 @@ class Readahead {
 	 * can start fetching the ones after it.
 	 */
 	remember(targets: StreamTarget[]) {
+		/** Playlists whose segment order is remembered, oldest dropped first. */
+		const rememberedSegments = 20_000;
+
 		for (const [index, target] of targets.entries()) {
 			this.#positions.delete(target.url);
 			this.#positions.set(target.url, {
@@ -174,6 +158,12 @@ class Readahead {
 	 * player's own request, which tries again.
 	 */
 	async #loadAhead(target: StreamTarget) {
+		/**
+		 * What a segment still being fetched ahead counts for against the budget, since
+		 * its size is not known until it arrives.
+		 */
+		const expectedSegmentBytes = 8 * 1024 * 1024;
+
 		const full = this.#cachedBytes + this.#fetchingAhead * expectedSegmentBytes > cacheBudgetBytes;
 
 		if (this.#segments.has(target.url) || full) {
@@ -190,6 +180,16 @@ class Readahead {
 	}
 
 	#fetchAhead(target: StreamTarget) {
+		/**
+		 * How many segments past the one being played are fetched ahead of time.
+		 *
+		 * Stream hosts serve segments they have not served before at roughly the
+		 * bitrate of the stream itself, and a player asks for one segment at a time,
+		 * so it can never get ahead. Parallel requests add up, so fetching a window
+		 * of upcoming segments together lets playback outrun the host.
+		 */
+		const segmentsAhead = 32;
+
 		const position = this.#positions.get(target.url);
 
 		if (!position) {

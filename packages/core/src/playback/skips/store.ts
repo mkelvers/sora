@@ -31,14 +31,6 @@ export interface StoredSkipDetection {
 	checkedAt: Date;
 }
 
-/**
- * How long until a video is looked at again when something was left
- * unsettled: AnimeThemes had no songs for its episode, or a kind's song was
- * not found. Songs are added while a season airs, so a new opening may not
- * be there yet.
- */
-const unsettledRetryMs = 14 * day;
-
 const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 32);
 
 /**
@@ -60,6 +52,14 @@ export const episodeDetectionKey = (seriesId: string, episode: number) =>
  * the one looking.
  */
 export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
+	/**
+	 * How long until a video is looked at again when something was left
+	 * unsettled: AnimeThemes had no songs for its episode, or a kind's song was
+	 * not found. Songs are added while a season airs, so a new opening may not
+	 * be there yet.
+	 */
+	const unsettledRetryMs = 14 * day;
+
 	if (!stored) {
 		return true;
 	}

@@ -123,12 +123,6 @@ export interface PlaybackOptions {
  */
 export const playbackDeadlineMs = 30 * second;
 
-/**
- * How long checking skip segments against a video's length may hold playback;
- * past it they go unchecked.
- */
-const lengthCheckMs = 2 * second;
-
 /** What {@link resolveVersion} found for one version. */
 interface VersionResult {
 	version: PlaybackMedia | null;
@@ -232,33 +226,14 @@ const englishSubtitlesLoad = async (
 	return loads.includes(true);
 };
 
-/**
- * Each kind's place in a subtitle menu, by how much of what is said it
- * carries. A dub's own captions write down its speech, while its dialogue is
- * the sub's translation moved onto its timeline, so they come first on a dub.
- * Signs carry no speech. An unclear kind counts as dialogue.
- */
-const kindRanks: Record<"sub" | "dub", Record<SubtitleKind, number>> = {
-	dub: {
-		captions: 0,
-		dialogue: 1,
-		signs: 2,
-	},
-	sub: {
-		captions: 1,
-		dialogue: 0,
-		signs: 2,
-	},
-};
-
-/** How a subtitle menu names each kind after the language; dialogue goes unnamed. */
-const kindLabels: Partial<Record<SubtitleKind, string>> = {
-	captions: "CC",
-	signs: "Signs",
-};
-
 /** A track's name in a subtitle menu: its language, and its kind unless dialogue, as `English (CC)`. */
 const subtitleLabel = (language: string, kind: SubtitleKind | null | undefined) => {
+	/** How a subtitle menu names each kind after the language; dialogue goes unnamed. */
+	const kindLabels: Partial<Record<SubtitleKind, string>> = {
+		captions: "CC",
+		signs: "Signs",
+	};
+
 	const named = kind ? kindLabels[kind] : undefined;
 
 	if (named) {
@@ -315,18 +290,31 @@ const toPlaybackMedia = (
 	};
 };
 
-const audioLabels: Record<ContentLanguage, string> = {
-	dub: "Dub",
-	raw: "Raw",
-	sub: "Sub",
-};
-
 /**
  * Sorts a version's subtitles for its menu, English first, then by how much
  * of what is said each carries (see {@link kindRanks}), then by label, and
  * marks the first, when English, as the one a player shows from the start.
  */
 const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
+	/**
+	 * Each kind's place in a subtitle menu, by how much of what is said it
+	 * carries. A dub's own captions write down its speech, while its dialogue is
+	 * the sub's translation moved onto its timeline, so they come first on a dub.
+	 * Signs carry no speech. An unclear kind counts as dialogue.
+	 */
+	const kindRanks: Record<"sub" | "dub", Record<SubtitleKind, number>> = {
+		dub: {
+			captions: 0,
+			dialogue: 1,
+			signs: 2,
+		},
+		sub: {
+			captions: 1,
+			dialogue: 0,
+			signs: 2,
+		},
+	};
+
 	const ranks = kindRanks[audio];
 
 	return subtitles
@@ -356,6 +344,12 @@ const resolveVersion = async (
 	accountId: string,
 	dependencies: PlaybackDependencies,
 ): Promise<VersionResult> => {
+	const audioLabels: Record<ContentLanguage, string> = {
+		dub: "Dub",
+		raw: "Raw",
+		sub: "Sub",
+	};
+
 	const attempts: ProviderAttempt[] = [];
 
 	const fail = (provider: StreamProvider, reason: string) =>
@@ -801,6 +795,12 @@ const settleSkipSegments = async (
 	request: z.output<typeof PlaybackRequestSchema>,
 	dependencies: PlaybackDependencies,
 ) => {
+	/**
+	 * How long checking skip segments against a video's length may hold playback;
+	 * past it they go unchecked.
+	 */
+	const lengthCheckMs = 2 * second;
+
 	const versions = results.flatMap(({ version, videos }) => {
 		const video = videos?.find((candidate) => candidate.format === "hls");
 

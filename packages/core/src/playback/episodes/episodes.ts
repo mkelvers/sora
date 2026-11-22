@@ -102,12 +102,6 @@ const readStoredUnits = async (anilistId: number, providerId: string) => {
 };
 
 /**
- * How far past the end of a finished anime a provider's episode numbers may
- * jump before the rest are taken for strays.
- */
-const strayGap = 10;
-
-/**
  * `units` cut off at the first jump of more than {@link strayGap} episodes
  * that lands past the total AniList counts for a finished anime.
  *
@@ -123,6 +117,12 @@ export const withoutStrayEpisodes = <TUnit extends { number: number }>(
 	units: readonly TUnit[],
 	anime: Pick<Anime, "episodes" | "status">,
 ): TUnit[] => {
+	/**
+	 * How far past the end of a finished anime a provider's episode numbers may
+	 * jump before the rest are taken for strays.
+	 */
+	const strayGap = 10;
+
 	const { episodes: total, status } = anime;
 
 	if (status !== "FINISHED" || total === null) {

@@ -1,5 +1,3 @@
-const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-
 /** The `IEND` chunk type and its fixed CRC, which end every PNG file. */
 const pngEnd = Uint8Array.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 const tsPacketSize = 188;
@@ -11,6 +9,8 @@ const tsSyncByte = 0x47;
  * Only the first bytes are needed.
  */
 export const isDisguisedSegment = (head: Uint8Array) => {
+	const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
 	const png = pngSignature.every((byte, index) => head[index] === byte);
 	const jpeg = head[0] === 0xff && head[1] === 0xd8;
 

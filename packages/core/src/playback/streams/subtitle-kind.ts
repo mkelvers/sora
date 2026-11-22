@@ -10,19 +10,8 @@ import { defined } from "@sora/shared";
  */
 export type SubtitleKind = "dialogue" | "signs" | "captions";
 
-/** A track shorter than this cannot be told apart by how often it speaks. */
-const minimumMinutes = 3;
-
 /** Signs are a handful of cues per episode, dialogue several per minute. */
 const signsMaximumCues = 60;
-const signsMaximumRate = 1.5;
-const dialogueMinimumRate = 4;
-
-/** Cues that only describe sound make a track captions; a few stray ones do not. */
-const captionsMinimumShare = 0.08;
-const dialogueMaximumShare = 0.02;
-
-const soundCue = /^(?:\s*(?:[[(（【][^\])）】]*[\])）】]|[♪♫♬🎵]+)\s*)+$/u;
 
 export interface SubtitleStats {
 	cues: number;
@@ -33,6 +22,11 @@ export interface SubtitleStats {
 
 /** Reads the cues of a WebVTT file, or `null` when there are too few to judge. */
 export const subtitleStats = (content: string): SubtitleStats | null => {
+	const soundCue = /^(?:\s*(?:[[(（【][^\])）】]*[\])）】]|[♪♫♬🎵]+)\s*)+$/u;
+
+	/** A track shorter than this cannot be told apart by how often it speaks. */
+	const minimumMinutes = 3;
+
 	let cues = 0;
 	let sound = 0;
 	let end = 0;
@@ -96,6 +90,15 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
  * together, is `null` rather than a guess.
  */
 export const classifySubtitle = (content: string): SubtitleKind | null => {
+	const dialogueMaximumShare = 0.02;
+
+	/** Cues that only describe sound make a track captions; a few stray ones do not. */
+	const captionsMinimumShare = 0.08;
+
+	const dialogueMinimumRate = 4;
+
+	const signsMaximumRate = 1.5;
+
 	const stats = subtitleStats(content);
 
 	if (!stats) {
@@ -123,7 +126,6 @@ export const classifySubtitle = (content: string): SubtitleKind | null => {
 };
 
 const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
-const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
 
 /**
  * What a track carries, from the name its provider gave it and its cues.
@@ -135,6 +137,8 @@ const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
  * @param content - The WebVTT file, or `null` when it could not be read.
  */
 export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
+	const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
+
 	const measured = content === null ? null : classifySubtitle(content);
 	let named: SubtitleKind | null = null;
 

@@ -13,9 +13,6 @@ import type { ProviderTraits } from "./sdk";
 
 const siteUrl = "https://anikototv.to";
 
-/** MegaPlay checks that its player is embedded by AniKoto. */
-const embedReferer = `${siteUrl}/`;
-
 /** AniKoto's episode list, as its watch page loads it: HTML in a JSON envelope. */
 const EpisodeListResponseSchema = z.object({
 	result: z.string(),
@@ -159,6 +156,9 @@ export class AniKotoStreamProvider implements StreamProvider {
 	}
 
 	resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
+		/** MegaPlay checks that its player is embedded by AniKoto. */
+		const embedReferer = `${siteUrl}/`;
+
 		return resolveMegaPlayEmbed(
 			this.http,
 			`https://megaplay.buzz/stream/s-2/${rawEpisodeId(this.id, episodeId)}/${language}`,

@@ -31,9 +31,6 @@ const SkipSpanSchema = z.object({
 	start: z.number().nonnegative(),
 });
 
-/** MegaPlay's CDNs reject media requests without this referer. */
-const mediaReferer = "https://megaplay.buzz/";
-
 const SourcesResponseSchema = z
 	.object({
 		enc: z.string().min(1).optional(),
@@ -214,6 +211,9 @@ export const resolveMegaPlayEmbed = async (
 	embedReferer: string,
 	language: ContentLanguage,
 ): Promise<ProviderStream> => {
+	/** MegaPlay's CDNs reject media requests without this referer. */
+	const mediaReferer = "https://megaplay.buzz/";
+
 	const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language);
 
 	const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);

@@ -16,9 +16,6 @@ import { transcribe } from "./speech";
 import { refinementKey } from "./store";
 import { readCues } from "./vtt";
 
-/** A track with fewer cues than this is not a script to match speech against. */
-const minimumCues = 40;
-
 /** The cues of the sub's English dialogue track, or none when it has no such track. */
 const englishDialogue = async (
 	videos: NonNullable<Awaited<ReturnType<typeof resolveStreams>>["sub"]>,
@@ -63,6 +60,9 @@ export const listenToDub = async (
 	},
 	key: string,
 ): Promise<Refinement | null> => {
+	/** A track with fewer cues than this is not a script to match speech against. */
+	const minimumCues = 40;
+
 	const { sub, dub } = await resolveStreams(request);
 	const subVideo = sub?.find((video) => video.format === "hls");
 	const dubVideo = dub?.find((video) => video.format === "hls");

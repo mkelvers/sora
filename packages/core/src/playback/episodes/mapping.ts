@@ -6,17 +6,6 @@ import { db } from "../../database/client";
 import { providerMapping } from "../../database/schema/playback";
 import type { StreamProvider } from "../providers/provider";
 
-/** A confirmed match is reused for a month before being re-verified. */
-const matchedMappingLifetimeMs = 30 * day;
-
-/**
- * A failed match is retried daily, since providers add titles over time. So
- * is one made by title or as a continuation of a prequel: the provider may
- * have added a series of the anime's own since, as AniKoto does for a new
- * cour it first files under the previous one.
- */
-const provisionalMappingLifetimeMs = day;
-
 /** Methods whose match a provider's own entry for the anime replaces. */
 const provisionalMethods = new Set(["title", "continuation"]);
 
@@ -57,6 +46,17 @@ export const getProviderMedia = async (
 		retryUnmatched: boolean;
 	},
 ): Promise<ProviderMedia | null> => {
+	/**
+	 * A failed match is retried daily, since providers add titles over time. So
+	 * is one made by title or as a continuation of a prequel: the provider may
+	 * have added a series of the anime's own since, as AniKoto does for a new
+	 * cour it first files under the previous one.
+	 */
+	const provisionalMappingLifetimeMs = day;
+
+	/** A confirmed match is reused for a month before being re-verified. */
+	const matchedMappingLifetimeMs = 30 * day;
+
 	const [stored] = await db
 		.select()
 		.from(providerMapping)

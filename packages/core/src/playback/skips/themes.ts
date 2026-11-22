@@ -3,11 +3,6 @@ import { z } from "zod";
 
 import type { Anime } from "../../catalog/models/anime";
 
-/** AnimeThemes' GraphQL API; its REST API is the one that goes down. */
-const endpoint = "https://graphql.animethemes.moe/";
-
-const requestTimeoutMs = 20 * second;
-
 /** An opening or ending song of an anime, as AnimeThemes has it. */
 export interface ThemeSong {
 	kind: "opening" | "ending";
@@ -73,6 +68,11 @@ const query = `query ($id: [Int!]) {
  * @throws {Error} when AnimeThemes cannot be reached or answers unexpectedly.
  */
 export const fetchThemeSongs = async (anilistId: number): Promise<ThemeSong[]> => {
+	const requestTimeoutMs = 20 * second;
+
+	/** AnimeThemes' GraphQL API; its REST API is the one that goes down. */
+	const endpoint = "https://graphql.animethemes.moe/";
+
 	const response = await fetch(endpoint, {
 		body: JSON.stringify({
 			query,

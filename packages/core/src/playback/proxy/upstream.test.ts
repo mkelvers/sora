@@ -33,8 +33,6 @@ describe("fetchUpstream", () => {
 	});
 });
 
-const realRequest = http.request;
-
 /** The local server that stands in for the public hosts. */
 interface FakeHosts {
 	server: ReturnType<typeof Bun.serve> | undefined;
@@ -62,6 +60,8 @@ const throttlingHost = (
 		retryAfter?: string;
 	}[],
 ) => {
+	const realRequest = http.request;
+
 	let requests = 0;
 	fake.server = Bun.serve({
 		fetch: () => {

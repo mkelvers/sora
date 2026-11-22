@@ -14,10 +14,6 @@ export class SubtitleRefinementError extends Error {
 
 /** Segments fetched at once; hosts that limit requests answer more with 429. */
 const concurrency = 3;
-const attempts = 5;
-
-/** How long ffmpeg may take to decode an episode's audio. */
-const decodeTimeoutMs = 20 * 60 * second;
 
 const target = (
 	url: string,
@@ -71,6 +67,8 @@ export const readWithRetries = async (
 	headers: Record<string, string>,
 	tries = 1,
 ): Promise<Uint8Array> => {
+	const attempts = 5;
+
 	try {
 		const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
 
@@ -104,6 +102,9 @@ export const extractAudio = async (
 	headers: Record<string, string>,
 	path: string,
 ) => {
+	/** How long ffmpeg may take to decode an episode's audio. */
+	const decodeTimeoutMs = 20 * 60 * second;
+
 	const media = await mediaPlaylist(playlistUrl, headers);
 
 	if (/^#EXT-X-KEY:(?!METHOD=NONE)/mu.test(media.text)) {

@@ -6,7 +6,6 @@ import type { SubtitleKind } from "./subtitle-kind";
 
 /** Kinds already worked out, by the provider's subtitle URL, oldest dropped first. */
 const known = new Map<string, SubtitleKind | null>();
-const knownLimit = 5000;
 
 /**
  * What each subtitle track of some videos carries, by the provider's URL.
@@ -16,6 +15,8 @@ const knownLimit = 5000;
  * guess in place.
  */
 export const subtitleKinds = async (videos: ProviderVideo[]) => {
+	const knownLimit = 5000;
+
 	const kinds = new Map<string, SubtitleKind | null>();
 
 	const tracks = new Map<

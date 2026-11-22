@@ -5,7 +5,6 @@ import { HttpClient } from "anime-sdk";
 import { AniKotoStreamProvider } from "./anikoto";
 
 const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html>";
-const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
 /** An opening or ending, in seconds into the episode. */
 interface Span {
@@ -90,6 +89,8 @@ describe("AniKotoStreamProvider audio", () => {
 });
 
 describe("AniKotoStreamProvider skip segments", () => {
+	const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
+
 	test("reads the opening and ending, as for Frieren episode 3", async () => {
 		const { provider } = providerServing({
 			"/stream/getSources": sources(

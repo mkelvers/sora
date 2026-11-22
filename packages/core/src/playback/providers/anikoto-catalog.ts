@@ -25,21 +25,6 @@ import type { AgeRating } from "../../database/schema/playback";
 import { AnimeNotFoundError } from "../../errors";
 
 const apiUrl = "https://anikotoapi.site";
-const siteUrl = "https://anikototv.to";
-
-/** Search results fetched per title when the mirror has no match. */
-const lookupCandidateLimit = 6;
-
-/** How many prequels back a part may continue its series' AniKoto episodes. */
-const continuationDepth = 3;
-
-/**
- * An incremental sync re-reads series changed this long before the newest
- * one stored, so a series AniKoto updated while a sync was paging through
- * its catalogue is not skipped. Paging takes seconds, and AniKoto changes
- * about 50 series a day, so this rarely costs a second page.
- */
-const syncOverlapMs = 2 * hour;
 
 /** An ID field AniKoto sends as a number, a numeric string, or an empty string. */
 const OptionalIdSchema = z
@@ -281,6 +266,14 @@ export const syncAniKotoCatalog = async (
 		signal?: AbortSignal;
 	},
 ) => {
+	/**
+	 * An incremental sync re-reads series changed this long before the newest
+	 * one stored, so a series AniKoto updated while a sync was paging through
+	 * its catalogue is not skipped. Paging takes seconds, and AniKoto changes
+	 * about 50 series a day, so this rarely costs a second page.
+	 */
+	const syncOverlapMs = 2 * hour;
+
 	const [
 		{ newest } = {
 			newest: null,
@@ -358,9 +351,6 @@ export interface AniKotoChange {
 	updatedAt: Date;
 }
 
-/** Catalogue pages {@link readRecentAniKotoChanges} reads at most, 20 series each. */
-const recentPageLimit = 5;
-
 /**
  * Reads the series AniKoto changed since `since`, newest first, from the
  * start of its catalogue listing: page after page until one reaches back
@@ -378,6 +368,9 @@ export const readRecentAniKotoChanges = async (
 	http: HttpClient,
 	since: Date,
 ): Promise<AniKotoChange[]> => {
+	/** Catalogue pages {@link readRecentAniKotoChanges} reads at most, 20 series each. */
+	const recentPageLimit = 5;
+
 	const changes: AniKotoChange[] = [];
 
 	const readPage = async (page: number): Promise<void> => {
@@ -613,6 +606,11 @@ const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => 
  * series it finds, most viewed first, to the mirror.
  */
 const lookUpSeries = async (http: HttpClient, anime: Anime) => {
+	/** Search results fetched per title when the mirror has no match. */
+	const lookupCandidateLimit = 6;
+
+	const siteUrl = "https://anikototv.to";
+
 	const queries = [
 		...new Set(
 			[anime.title.english, anime.title.romaji].flatMap((title) => {
@@ -760,6 +758,9 @@ export const findAniKotoSeries = async (
 	http: HttpClient,
 	anime: Anime,
 ): Promise<AniKotoMatch | null> => {
+	/** How many prequels back a part may continue its series' AniKoto episodes. */
+	const continuationDepth = 3;
+
 	const stored = await matchStoredSeries(anime);
 
 	if (stored) {

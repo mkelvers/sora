@@ -17,9 +17,6 @@ const SpeechSchema = z.object({
 	),
 });
 
-/** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
-const timeoutMs = 90 * 60 * second;
-
 const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
 
 /**
@@ -30,6 +27,9 @@ const script = fileURLToPath(new URL("transcribe.py", import.meta.url));
  *   transcribing fails.
  */
 export const transcribe = async (path: string): Promise<SpokenWord[]> => {
+	/** Listening runs at several times real time on a laptop; this leaves room for a slow server. */
+	const timeoutMs = 90 * 60 * second;
+
 	if (!config.subtitleAlignmentPython) {
 		throw new SubtitleRefinementError("SUBTITLE_ALIGNMENT_PYTHON is not set");
 	}

@@ -20,37 +20,6 @@ const segmentTimeoutMs = 45 * second;
 /** How long a host may go without answering before the next candidate also starts. */
 const hedgeDelayMs = 1.5 * second;
 
-/**
- * How long a host that answered may go without sending a byte of a segment
- * before the next candidate also starts. A host that keeps sending, however
- * slowly, is left to finish.
- */
-const segmentStallMs = 4 * second;
-const maximumRedirects = 5;
-
-/**
- * The longest a host's `Retry-After` is waited out before its 429 counts as a
- * failure. Stream hosts behind Cloudflare answer bursts with 429 and
- * `Retry-After: 2`, and serve again within seconds.
- */
-const maximumThrottleWaitMs = 5 * second;
-
-/** The shortest wait before asking a host that answered 429 again, so `Retry-After: 0` is not a busy loop. */
-const minimumThrottleWaitMs = 0.5 * second;
-
-/**
- * The most a body read in full may hold, by what it is. A host that sends
- * more is not serving that, and reading on would fill memory until the
- * timeout. A file is streamed, never read in full, so it has no limit.
- */
-const maximumBodyBytes: Record<StreamTargetKind, number> = {
-	file: Number.POSITIVE_INFINITY,
-	key: 64 * 1024,
-	playlist: 4 * 1024 * 1024,
-	segment: 32 * 1024 * 1024,
-	subtitle: 4 * 1024 * 1024,
-};
-
 /** The proxied upstream could not be fetched. Retryable. */
 export class StreamUpstreamError extends CoreError {
 	readonly status: number | null;
@@ -222,6 +191,16 @@ const requestWaitingOutThrottle = async (
 	endsAt: number,
 	deadline: AbortSignal,
 ): Promise<Response> => {
+	/** The shortest wait before asking a host that answered 429 again, so `Retry-After: 0` is not a busy loop. */
+	const minimumThrottleWaitMs = 0.5 * second;
+
+	/**
+	 * The longest a host's `Retry-After` is waited out before its 429 counts as a
+	 * failure. Stream hosts behind Cloudflare answer bursts with 429 and
+	 * `Retry-After: 2`, and serve again within seconds.
+	 */
+	const maximumThrottleWaitMs = 5 * second;
+
 	const { data, error } = await attempt(requestPublicHost(url, headers, deadline));
 
 	if (error) {
@@ -265,6 +244,8 @@ const fetchFollowingRedirects = async (
 	signal?: AbortSignal,
 	redirects = 0,
 ): Promise<Upstream> => {
+	const maximumRedirects = 5;
+
 	if (redirects > maximumRedirects) {
 		throw new StreamUpstreamError("Upstream stream redirected too many times", null);
 	}
@@ -412,6 +393,19 @@ const readCandidate = async (
 	signal: AbortSignal,
 	answered: () => void,
 ): Promise<UpstreamBytes> => {
+	/**
+	 * The most a body read in full may hold, by what it is. A host that sends
+	 * more is not serving that, and reading on would fill memory until the
+	 * timeout. A file is streamed, never read in full, so it has no limit.
+	 */
+	const maximumBodyBytes: Record<StreamTargetKind, number> = {
+		file: Number.POSITIVE_INFINITY,
+		key: 64 * 1024,
+		playlist: 4 * 1024 * 1024,
+		segment: 32 * 1024 * 1024,
+		subtitle: 4 * 1024 * 1024,
+	};
+
 	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
 	answered();
 
@@ -466,6 +460,13 @@ export const fetchUpstreamBytes = async (
 	target: StreamTarget,
 	signal?: AbortSignal,
 ): Promise<UpstreamBytes> => {
+	/**
+	 * How long a host that answered may go without sending a byte of a segment
+	 * before the next candidate also starts. A host that keeps sending, however
+	 * slowly, is left to finish.
+	 */
+	const segmentStallMs = 4 * second;
+
 	const candidates = [target.url, ...target.mirrors];
 	const headers = new Headers(target.headers);
 	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;

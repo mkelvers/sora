@@ -39,9 +39,6 @@ export type CallRecorder = (call: ProviderCall) => Promise<void>;
 /** Error messages are cut to this length, since some embed whole pages. */
 const maxErrorLength = 500;
 
-/** Calls are kept this long. */
-const retentionMs = 30 * day;
-
 /** Adds a call to its provider's, operation's, and hour's row of `provider_calls`. */
 const storeCall = async (call: ProviderCall) => {
 	const failed = call.outcome === "failed";
@@ -172,6 +169,9 @@ export const recordingCalls = (
  * @returns How many hourly rows were deleted.
  */
 export const pruneProviderCalls = async () => {
+	/** Calls are kept this long. */
+	const retentionMs = 30 * day;
+
 	const deleted = await db
 		.delete(providerCalls)
 		.where(lt(providerCalls.hour, new Date(Date.now() - retentionMs)))

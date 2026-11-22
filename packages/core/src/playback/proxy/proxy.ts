@@ -21,13 +21,6 @@ import type { UpstreamBytes } from "./upstream";
  */
 export const tokenLifetimeMs = 6 * hour;
 
-/** A multivariant playlist's first variant stream, by its URI. */
-const variantPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u;
-const variantsPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu;
-
-/** Playlists are buffered for rewriting; anything larger is not a playlist. */
-const maximumPlaylistBytes = 4 * 1024 * 1024;
-
 /**
  * Issues a token that lets an account fetch `url` through {@link proxyStream}.
  *
@@ -159,6 +152,9 @@ const firstVariant = (
 	headers: Record<string, string>,
 	read: PlaylistReader,
 ): Promise<Playlist> => {
+	/** A multivariant playlist's first variant stream, by its URI. */
+	const variantPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/u;
+
 	const variant = variantPattern.exec(playlist.content)?.groups?.uri;
 
 	if (!variant) {
@@ -238,9 +234,6 @@ export const streamTimeline = async (
 	};
 };
 
-/** How many segments of a stream are loaded before it is played, an init section counting as one. */
-const warmedSegments = 3;
-
 /**
  * Starts loading the first segments of a stream that is about to be played, so
  * that the player's first requests find them ready. Only a stream with a
@@ -253,6 +246,11 @@ export const warmStream = async (
 	headers: Record<string, string>,
 	read: PlaylistReader = readPlaylist,
 ) => {
+	/** How many segments of a stream are loaded before it is played, an init section counting as one. */
+	const warmedSegments = 3;
+
+	const variantsPattern = /#EXT-X-STREAM-INF[^\n]*\n\s*(?<uri>[^#\s][^\n]*)/gu;
+
 	const { data: master, error } = await attempt(read(url, headers), StreamUpstreamError);
 
 	if (error || [...master.content.matchAll(variantsPattern)].length > 1) {
@@ -287,6 +285,9 @@ export const warmStream = async (
 };
 
 const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
+	/** Playlists are buffered for rewriting; anything larger is not a playlist. */
+	const maximumPlaylistBytes = 4 * 1024 * 1024;
+
 	if (upstream.bytes.byteLength > maximumPlaylistBytes) {
 		throw new StreamUpstreamError("Upstream playlist is too large", null);
 	}
@@ -409,14 +410,14 @@ const wholeSegmentResponse = async (target: StreamTarget) => {
 	});
 };
 
-/** The signature a WebVTT file starts with, after an optional byte order mark. */
-const webVttHeader = /^\uFEFF?WEBVTT/u;
-
 /**
  * A subtitle or key, read whole. WebVTT subtitles are cleaned of ASS escapes
  * and retimed when the token asks for it.
  */
 const smallFileResponse = async (target: StreamTarget, signal: AbortSignal | undefined) => {
+	/** The signature a WebVTT file starts with, after an optional byte order mark. */
+	const webVttHeader = /^\uFEFF?WEBVTT/u;
+
 	const upstream = await fetchUpstreamBytes(target, signal);
 	const text = target.kind === "subtitle" ? new TextDecoder().decode(upstream.bytes) : "";
 

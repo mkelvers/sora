@@ -1,13 +1,6 @@
 import type { PlaybackPreferences } from "../models/library";
 import type { PlaybackMedia } from "../models/playback";
 
-/** The audios to try, in order, for each preferred audio; raw is the last resort of a dub. */
-const fallbacks = {
-	dub: ["dub", "sub", "raw"],
-	raw: ["raw", "sub", "dub"],
-	sub: ["sub", "raw", "dub"],
-} as const;
-
 /** The version to play and its subtitle track, either missing when there is none. */
 export interface PlaybackChoice<TMedia extends Pick<PlaybackMedia, "audio" | "subtitles">> {
 	media: TMedia | undefined;
@@ -31,6 +24,13 @@ export const choosePlayback = <TMedia extends Pick<PlaybackMedia, "audio" | "sub
 	media: readonly TMedia[],
 	preferences: Pick<PlaybackPreferences, "audio" | "subtitles">,
 ): PlaybackChoice<TMedia> => {
+	/** The audios to try, in order, for each preferred audio; raw is the last resort of a dub. */
+	const fallbacks = {
+		dub: ["dub", "sub", "raw"],
+		raw: ["raw", "sub", "dub"],
+		sub: ["sub", "raw", "dub"],
+	} as const;
+
 	const version =
 		(preferences.audio &&
 			fallbacks[preferences.audio]
