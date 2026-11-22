@@ -110,7 +110,9 @@ const stemOf = (word: string) => {
 		return word.slice(0, -2);
 	}
 
-	if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) {
+	const plural = word.length > 3 && word.endsWith("s") && !word.endsWith("ss");
+
+	if (plural) {
 		return word.slice(0, -1);
 	}
 
