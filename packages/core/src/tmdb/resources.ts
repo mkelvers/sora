@@ -267,18 +267,20 @@ export const getShowEpisodeGroups = async (
 		),
 	);
 
-	return details.flatMap((detail) =>
-		detail
-			? [
-					[...detail.groups]
-						.toSorted((left, right) => left.order - right.order)
-						.map((group) => ({
-							...group,
-							episodes: [...group.episodes].toSorted((left, right) => left.order - right.order),
-						})),
-				]
-			: [],
-	);
+	return details.flatMap((detail) => {
+		if (detail) {
+			return [
+				[...detail.groups]
+					.toSorted((left, right) => left.order - right.order)
+					.map((group) => ({
+						...group,
+						episodes: [...group.episodes].toSorted((left, right) => left.order - right.order),
+					})),
+			];
+		}
+
+		return [];
+	});
 };
 
 /** Searches TMDB movies by title. Returns the first page, best matches first. */
