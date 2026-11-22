@@ -96,7 +96,11 @@ const depth = (
 	const inside = Math.max(...edge.slice(Math.max(0, bar - 2), bar).map((line) => line.mean));
 	const outside = Math.max(...edge.slice(bar, bar + 2).map((line) => line.mean));
 
-	return outside - inside >= barStep ? bar / edge.length : 0;
+	if (outside - inside >= barStep) {
+		return bar / edge.length;
+	}
+
+	return 0;
 };
 
 const lines = (count: number, length: number, at: (line: number, index: number) => number) =>
