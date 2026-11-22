@@ -215,7 +215,11 @@ const collectionPlacement = async (subject: MatchSubject, predecessors: readonly
 export const mappedEpisodes = (mapping: TmdbMapping): EpisodeLink[] => {
 	const parsed = EpisodeLinksSchema.safeParse(mapping.episodes);
 
-	return parsed.success ? parsed.data : [];
+	if (parsed.success) {
+		return parsed.data;
+	}
+
+	return [];
 };
 
 /**
