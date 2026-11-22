@@ -54,9 +54,11 @@
 			return special;
 		}
 
-		return movie
-			? (episode.title ?? series.title)
-			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
+		if (movie) {
+			return episode.title ?? series.title;
+		}
+
+		return `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
 	});
 
 	const badge = $derived.by(() => {
