@@ -1420,11 +1420,18 @@ export const placeInEpisodeGroups = (
 			const episodes = combinedParts(groups, index, subject.episodes);
 			const [first] = episodes;
 
+			if (!first || episodes.length !== subject.episodes) {
+				continue;
+			}
+
 			if (
-				!first ||
-				episodes.length !== subject.episodes ||
 				airedBefore(first, subject.airsFrom) ||
-				!datesAgree(subject.startDate, first.air_date, 365) ||
+				!datesAgree(subject.startDate, first.air_date, 365)
+			) {
+				continue;
+			}
+
+			if (
 				!runtimesAgree(medianRuntime(episodes), subject.durationMinutes, regularRuntimeTolerance)
 			) {
 				continue;
