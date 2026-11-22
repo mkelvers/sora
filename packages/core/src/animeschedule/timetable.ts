@@ -197,11 +197,16 @@ const resolveAnimeScheduleShows = async (
 		.where(inArray(animeScheduleShow.route, unique));
 
 	const resolved = new Map(
-		stored.flatMap((show) =>
-			show.anilistId !== null || show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
-				? [[show.route, show.anilistId] as const]
-				: [],
-		),
+		stored.flatMap((show) => {
+			if (
+				show.anilistId !== null ||
+				show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
+			) {
+				return [[show.route, show.anilistId] as const];
+			}
+
+			return [];
+		}),
 	);
 
 	await inSequence(
