@@ -175,7 +175,11 @@ export const handle: Handle = (input) => {
 		return input.resolve(input.event);
 	}
 
-	return returnsToPopup(input.event.url) ? handover() : withViewer(input);
+	if (returnsToPopup(input.event.url)) {
+		return handover();
+	}
+
+	return withViewer(input);
 };
 
 export const handleError: HandleServerError = ({ error: thrown }) => {
