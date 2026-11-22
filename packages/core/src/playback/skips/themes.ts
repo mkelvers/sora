@@ -14,40 +14,49 @@ export interface ThemeSong {
 	audioUrl: string;
 }
 
-const ResponseSchema = z.object({
-	data: z.object({
-		findAnimeByExternalSite: z.array(
-			z.object({
-				animethemes: z.array(
-					z.object({
-						animethemeentries: z.array(
-							z.object({
-								episodes: z.string().nullable(),
-								version: z.number().nullable(),
-								videos: z.object({
-									nodes: z.array(
-										z.object({
-											audio: z
-												.object({
-													link: z.url(),
-												})
-												.nullable(),
-											nc: z.boolean(),
-										}),
-									),
-								}),
-							}),
-						),
-						slug: z.string(),
-						type: z.string().nullable(),
-					}),
-				),
-			}),
-		),
-	}),
-});
+/**
+ * Every opening and ending AnimeThemes has for an AniList anime, one per
+ * version of a song. Empty when AnimeThemes does not have the anime.
+ *
+ * @throws {Error} when AnimeThemes cannot be reached or answers unexpectedly.
+ */
+export const fetchSongs = async (anilistId: number): Promise<ThemeSong[]> => {
+	const requestTimeoutMs = 20 * second;
 
-const query = `query ($id: [Int!]) {
+	const ResponseSchema = z.object({
+		data: z.object({
+			findAnimeByExternalSite: z.array(
+				z.object({
+					animethemes: z.array(
+						z.object({
+							animethemeentries: z.array(
+								z.object({
+									episodes: z.string().nullable(),
+									version: z.number().nullable(),
+									videos: z.object({
+										nodes: z.array(
+											z.object({
+												audio: z
+													.object({
+														link: z.url(),
+													})
+													.nullable(),
+												nc: z.boolean(),
+											}),
+										),
+									}),
+								}),
+							),
+							slug: z.string(),
+							type: z.string().nullable(),
+						}),
+					),
+				}),
+			),
+		}),
+	});
+
+	const query = `query ($id: [Int!]) {
   findAnimeByExternalSite(site: ANILIST, id: $id) {
     animethemes {
       type
@@ -60,15 +69,6 @@ const query = `query ($id: [Int!]) {
     }
   }
 }`;
-
-/**
- * Every opening and ending AnimeThemes has for an AniList anime, one per
- * version of a song. Empty when AnimeThemes does not have the anime.
- *
- * @throws {Error} when AnimeThemes cannot be reached or answers unexpectedly.
- */
-export const fetchThemeSongs = async (anilistId: number): Promise<ThemeSong[]> => {
-	const requestTimeoutMs = 20 * second;
 
 	/** AnimeThemes' GraphQL API; its REST API is the one that goes down. */
 	const endpoint = "https://graphql.animethemes.moe/";
@@ -109,11 +109,22 @@ export const fetchThemeSongs = async (anilistId: number): Promise<ThemeSong[]> =
 					continue;
 				}
 
+				let kind: ThemeSong["kind"] = "ending";
+				let { slug } = theme;
+
+				if (theme.type === "OP") {
+					kind = "opening";
+				}
+
+				if (entry.version && entry.version > 1) {
+					slug = `${theme.slug}v${entry.version}`;
+				}
+
 				songs.push({
 					audioUrl: audio.link,
 					episodes: entry.episodes,
-					kind: theme.type === "OP" ? "opening" : "ending",
-					slug: entry.version && entry.version > 1 ? `${theme.slug}v${entry.version}` : theme.slug,
+					kind,
+					slug,
 				});
 			}
 		}
@@ -143,17 +154,17 @@ export const playsIn = (episodes: string | null, episode: number) => {
 	});
 };
 
-/** The most songs of a kind tried when none is listed for the episode. */
-const unlistedLimit = 8;
-
 /**
  * The songs to look for in an episode: the ones AnimeThemes lists for it, and
  * of a kind none is listed for, every song of that kind, since AnimeThemes'
  * episode lists are often unfinished. A long-running anime with many songs
  * and none listed for the episode gets none of that kind, rather than dozens.
  */
-export const songsForEpisode = (songs: ThemeSong[], episode: number) =>
-	(["opening", "ending"] as const).flatMap((kind) => {
+export const songsForEpisode = (songs: ThemeSong[], episode: number) => {
+	/** The most songs of a kind tried when none is listed for the episode. */
+	const unlistedLimit = 8;
+
+	return (["opening", "ending"] as const).flatMap((kind) => {
 		const ofKind = songs.filter((song) => song.kind === kind);
 		const listed = ofKind.filter((song) => playsIn(song.episodes, episode));
 
@@ -167,6 +178,7 @@ export const songsForEpisode = (songs: ThemeSong[], episode: number) =>
 
 		return [];
 	});
+};
 
 /**
  * The songs to look for in an anime's episode. A provider can file a sequel's
@@ -186,8 +198,8 @@ export const themeSongsFor = async (anime: Anime, episode: number) => {
 	const lastEpisode = anime.episodes || Number.POSITIVE_INFINITY;
 
 	if (sequel && episode > lastEpisode) {
-		return songsForEpisode(await fetchThemeSongs(sequel.anime.id), episode - lastEpisode);
+		return songsForEpisode(await fetchSongs(sequel.anime.id), episode - lastEpisode);
 	}
 
-	return songsForEpisode(await fetchThemeSongs(anime.id), episode);
+	return songsForEpisode(await fetchSongs(anime.id), episode);
 };

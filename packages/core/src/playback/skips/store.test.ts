@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { day } from "@sora/shared";
 
 import { isSkipDetectionDue, skipDetectionKey } from "./store";
+import { unsettled } from "./store.fixture";
 
 describe("skipDetectionKey", () => {
 	test("is the same whichever host serves the playlist", () => {
@@ -16,15 +17,6 @@ describe("skipDetectionKey", () => {
 			skipDetectionKey("https://a.example/anime/1/dub/master.m3u8"),
 		);
 	});
-});
-
-const unsettled = (songs: number, daysAgo: number) => ({
-	checkedAt: new Date(Date.now() - daysAgo * day),
-	detection: {
-		ending: null,
-		opening: null,
-	},
-	songs,
 });
 
 describe("isSkipDetectionDue", () => {

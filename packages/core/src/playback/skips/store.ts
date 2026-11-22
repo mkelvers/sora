@@ -31,20 +31,19 @@ export interface StoredSkipDetection {
 	checkedAt: Date;
 }
 
-const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 32);
-
 /**
  * What identifies one video. Stream URLs expire and hosts rotate, but a
  * stream's path stays the same, and sub and dub are different videos.
  */
-export const skipDetectionKey = (playlistUrl: string) => hash(new URL(playlistUrl).pathname);
+export const skipDetectionKey = (playlistUrl: string) =>
+	createHash("sha256").update(new URL(playlistUrl).pathname).digest("hex").slice(0, 32);
 
 /**
  * What marks an episode's videos as looked at, so looking ahead to it can
  * pass it over without resolving its videos.
  */
 export const episodeDetectionKey = (seriesId: string, episode: number) =>
-	hash(`episode:${seriesId}:${episode}`);
+	createHash("sha256").update(`episode:${seriesId}:${episode}`).digest("hex").slice(0, 32);
 
 /**
  * Whether a video has not been looked at, or left something unsettled long
@@ -70,20 +69,6 @@ export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
 	return !settled && Date.now() - stored.checkedAt.getTime() >= unsettledRetryMs;
 };
 
-/** Stored as 4-byte floats, so read back to the tenth of a second they were stored at. */
-const tenths = (seconds: number) => Math.round(seconds * 10) / 10;
-
-const span = (start: number | null, end: number | null) => {
-	if (start === null || end === null) {
-		return null;
-	}
-
-	return {
-		end: tenths(end),
-		start: tenths(start),
-	};
-};
-
 /** What is stored for each of `keys` that has been looked at. */
 export const getSkipDetections = async (keys: string[]) => {
 	const found = new Map<string, StoredSkipDetection>();
@@ -94,12 +79,35 @@ export const getSkipDetections = async (keys: string[]) => {
 
 	const rows = await db.select().from(skipDetection).where(inArray(skipDetection.key, keys));
 
+	// Spans are stored as 4-byte floats, so they are read back to the tenth of a
+	// second they were stored at.
 	for (const row of rows) {
+		let ending: SongSpan | null = null;
+		let opening: SongSpan | "none" | null = null;
+
+		if (row.endingStart !== null && row.endingEnd !== null) {
+			ending = {
+				end: Math.round(row.endingEnd * 10) / 10,
+				start: Math.round(row.endingStart * 10) / 10,
+			};
+		}
+
+		if (row.openingStart !== null && row.openingEnd !== null) {
+			opening = {
+				end: Math.round(row.openingEnd * 10) / 10,
+				start: Math.round(row.openingStart * 10) / 10,
+			};
+		}
+
+		if (row.noOpening) {
+			opening = "none";
+		}
+
 		found.set(row.key, {
 			checkedAt: row.checkedAt,
 			detection: {
-				ending: span(row.endingStart, row.endingEnd),
-				opening: row.noOpening ? "none" : span(row.openingStart, row.openingEnd),
+				ending,
+				opening,
 			},
 			songs: row.songs,
 		});
@@ -110,7 +118,11 @@ export const getSkipDetections = async (keys: string[]) => {
 
 /** Stores what looking for a video's theme songs settled. */
 export const saveSkipDetection = async (key: string, detection: SkipDetection, songs: number) => {
-	const opening = detection.opening === "none" ? null : detection.opening;
+	let opening: SongSpan | null = null;
+
+	if (detection.opening !== "none") {
+		({ opening } = detection);
+	}
 
 	const row = {
 		checkedAt: new Date(),
