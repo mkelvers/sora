@@ -1440,7 +1440,11 @@ export const getLatestReleases = async (
 			}
 		}
 
-		return found ? [found] : [];
+		if (found) {
+			return [found];
+		}
+
+		return [];
 	});
 
 	const anilistIds = latest.map((release) => release.anilistId);
