@@ -50,7 +50,11 @@
 	const ownSeason = $derived.by(() => {
 		const current = series.seasons.find((part) => part.series_id === series.id);
 
-		return current?.role === "season" && series.seasons[0] !== current ? seasonNumber(current) : "";
+		if (current?.role === "season" && series.seasons[0] !== current) {
+			return seasonNumber(current);
+		}
+
+		return "";
 	});
 
 	const done = $derived(
