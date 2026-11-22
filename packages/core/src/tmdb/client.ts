@@ -12,8 +12,6 @@ import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TmdbEndpoints } from "./api.generated";
 
-const endpoint = "https://api.themoviedb.org/3";
-
 /**
  * Minimum spacing between the starts of upstream requests from this process.
  *
@@ -232,7 +230,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		schema: TSchema,
 		options: TmdbRequestOptions,
 	): Promise<z.infer<TSchema> | null> => {
-		const url = new URL(`${endpoint}${path}`);
+		const url = new URL(`${"https://api.themoviedb.org/3"}${path}`);
 
 		for (const [name, value] of Object.entries(query).toSorted(([left], [right]) =>
 			left.localeCompare(right),
