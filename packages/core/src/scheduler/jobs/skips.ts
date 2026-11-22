@@ -82,14 +82,16 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 	const videos = versions.data.flatMap(({ videos: candidates }) => {
 		const video = candidates.find((candidate) => candidate.format === "hls");
 
-		return video
-			? [
-					{
-						key: skipDetectionKey(video.url),
-						video,
-					},
-				]
-			: [];
+		if (video) {
+			return [
+				{
+					key: skipDetectionKey(video.url),
+					video,
+				},
+			];
+		}
+
+		return [];
 	});
 
 	const stored = await getSkipDetections(videos.map(({ key }) => key));
