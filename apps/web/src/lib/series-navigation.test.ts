@@ -67,14 +67,16 @@ describe("story playback navigation", () => {
 		const finale = {
 			...series,
 			id: "season-2",
-			seasons: series.seasons.map((part) =>
-				part.series_id === "season-2"
-					? {
-							...part,
-							next_series_id: "special",
-						}
-					: part,
-			),
+			seasons: series.seasons.map((part) => {
+				if (part.series_id === "season-2") {
+					return {
+						...part,
+						next_series_id: "special",
+					};
+				}
+
+				return part;
+			}),
 			specials: [
 				{
 					episode_count: 1,
