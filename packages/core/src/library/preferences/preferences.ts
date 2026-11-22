@@ -27,39 +27,59 @@ const subtitleStyle: SubtitleStyle = {
 	text_color: "white",
 };
 
-/** A stored subtitle style: each part it lacks, or no longer offers, has its default. */
-const StoredSubtitleStyleSchema = z
-	.object({
-		background_color: SubtitleStyleSchema.shape.background_color.catch(
-			subtitleStyle.background_color,
-		),
-		background_opacity: SubtitleStyleSchema.shape.background_opacity.catch(
-			subtitleStyle.background_opacity,
-		),
-		edge: SubtitleStyleSchema.shape.edge.catch(subtitleStyle.edge),
-		edge_width: SubtitleStyleSchema.shape.edge_width.catch(subtitleStyle.edge_width),
-		size: SubtitleStyleSchema.shape.size.catch(subtitleStyle.size),
-		text_color: SubtitleStyleSchema.shape.text_color.catch(subtitleStyle.text_color),
-	})
-	.catch(subtitleStyle);
+/** A user's stored playback preferences. */
+class Stored {
+	/** A stored subtitle style: each part it lacks, or no longer offers, has its default. */
+	static readonly #style = z
+		.object({
+			background_color: SubtitleStyleSchema.shape.background_color.catch(
+				subtitleStyle.background_color,
+			),
+			background_opacity: SubtitleStyleSchema.shape.background_opacity.catch(
+				subtitleStyle.background_opacity,
+			),
+			edge: SubtitleStyleSchema.shape.edge.catch(subtitleStyle.edge),
+			edge_width: SubtitleStyleSchema.shape.edge_width.catch(subtitleStyle.edge_width),
+			size: SubtitleStyleSchema.shape.size.catch(subtitleStyle.size),
+			text_color: SubtitleStyleSchema.shape.text_color.catch(subtitleStyle.text_color),
+		})
+		.catch(subtitleStyle);
 
-const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
-	const audio = LanguageSchema.safeParse(row.audio);
-	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
-	const style = StoredSubtitleStyleSchema.parse(row.subtitleStyle);
+	readonly #row: typeof playbackPreference.$inferSelect;
 
-	return {
-		audio: audio.success ? audio.data : null,
-		auto_skip: row.autoSkip,
-		autoplay_next: row.autoplayNext,
-		quality: row.quality,
-		subtitle_style: style,
-		subtitle_style_changed: SubtitleStyleSchema.keyof().options.some(
-			(part) => style[part] !== subtitleStyle[part],
-		),
-		subtitles: subtitles.success ? subtitles.data : {},
-	};
-};
+	constructor(row: typeof playbackPreference.$inferSelect) {
+		this.#row = row;
+	}
+
+	get preferences(): PlaybackPreferences {
+		const row = this.#row;
+		const audio = LanguageSchema.safeParse(row.audio);
+		const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
+		const style = Stored.#style.parse(row.subtitleStyle);
+		let language: PlaybackPreferences["audio"] = null;
+		let chosen: PlaybackPreferences["subtitles"] = {};
+
+		if (audio.success) {
+			language = audio.data;
+		}
+
+		if (subtitles.success) {
+			chosen = subtitles.data;
+		}
+
+		return {
+			audio: language,
+			auto_skip: row.autoSkip,
+			autoplay_next: row.autoplayNext,
+			quality: row.quality,
+			subtitle_style: style,
+			subtitle_style_changed: SubtitleStyleSchema.keyof().options.some(
+				(part) => style[part] !== subtitleStyle[part],
+			),
+			subtitles: chosen,
+		};
+	}
+}
 
 /** A user's playback preferences; the defaults until they pick anything. */
 export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPreferences> => {
@@ -80,7 +100,7 @@ export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPr
 		.limit(1);
 
 	if (row) {
-		return toPreferences(row);
+		return new Stored(row).preferences;
 	}
 
 	return defaults;
@@ -153,5 +173,5 @@ export const updatePlaybackPreferences = async (
 		})
 		.returning();
 
-	return toPreferences(defined(row));
+	return new Stored(defined(row)).preferences;
 };

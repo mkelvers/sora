@@ -32,16 +32,21 @@ export const getWatchlist = async (userId: string): Promise<WatchlistEntry[]> =>
 	return rows.flatMap((row) => {
 		const card = cards.get(row.series.id);
 
-		return card && row.status && row.addedAt && row.statusChangedAt
-			? [
-					{
-						added_at: row.addedAt.toISOString(),
-						series: card,
-						status: row.status,
-						updated_at: row.statusChangedAt.toISOString(),
-					},
-				]
-			: [];
+		const { addedAt, status, statusChangedAt } = row;
+		const isListed = card && status && addedAt && statusChangedAt;
+
+		if (!isListed) {
+			return [];
+		}
+
+		return [
+			{
+				added_at: addedAt.toISOString(),
+				series: card,
+				status,
+				updated_at: statusChangedAt.toISOString(),
+			},
+		];
 	});
 };
 
