@@ -231,18 +231,20 @@ export const resolveMegaPlayEmbed = async (
 					Referer: mediaReferer,
 				},
 				quality: "auto",
-				subtitles: (body.tracks ?? []).flatMap((track) =>
-					track.kind === "captions" && track.label
-						? [
-								{
-									format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const),
-									label: track.label,
-									language: subtitleLanguage(track.label),
-									url: track.file,
-								},
-							]
-						: [],
-				),
+				subtitles: (body.tracks ?? []).flatMap((track) => {
+					if (track.kind === "captions" && track.label) {
+						return [
+							{
+								format: track.file.endsWith(".vtt") ? ("vtt" as const) : ("srt" as const),
+								label: track.label,
+								language: subtitleLanguage(track.label),
+								url: track.file,
+							},
+						];
+					}
+
+					return [];
+				}),
 				url: file,
 			},
 		],
