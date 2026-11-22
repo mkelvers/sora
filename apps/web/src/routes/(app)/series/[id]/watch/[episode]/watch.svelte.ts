@@ -200,7 +200,10 @@ export class Player {
 	onkeydown = (event: KeyboardEvent) => {
 		const target = event.target instanceof Element ? event.target : null;
 
-		if (!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+		const ignored =
+			!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey;
+
+		if (ignored) {
 			return;
 		}
 
