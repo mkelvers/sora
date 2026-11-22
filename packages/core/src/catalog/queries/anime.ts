@@ -63,7 +63,11 @@ const japanOffsetMs = 9 * hour;
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 const settleStatus = async (media: AnimeDetailsFragment): Promise<AnimeDetailsFragment> => {
-	if (media.status !== "RELEASING" || !media.episodes || media.nextAiringEpisode) {
+	if (media.status !== "RELEASING" || media.nextAiringEpisode) {
+		return media;
+	}
+
+	if (!media.episodes) {
 		return media;
 	}
 
