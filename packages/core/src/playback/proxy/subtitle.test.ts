@@ -197,6 +197,80 @@ Then we'll just be—
 Shizu, that one's still”`);
 	});
 
+	test("restores a misread zero-width no-break space instead of dropping it", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Wait
+п»їNoвЂ”`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Wait
+\uFEFFNo—`);
+	});
+
+	test("restores text garbled twice", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+<i>Hands are so nice, letÃ¢â‚¬â„¢s hold each otherÃ¢â‚¬â„¢s</i>`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+<i>Hands are so nice, let’s hold each other’s</i>`);
+	});
+
+	test("restores a garbled file whose lines cut some characters off, leaving the cut ones", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Jeez, you know being stubborn won't help at allРІР
+
+2
+00:00:04.000 --> 00:00:05.000
+So until then, I'llРІР‚вЂќ`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Jeez, you know being stubborn won't help at allРІР
+
+2
+00:00:04.000 --> 00:00:05.000
+So until then, I'll—`);
+	});
+
+	test("restores a misread file only once when its text looks misread again", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Р•С‘ Р·РґРµСЃСЊ РЅР°РІР°Р»РѕРј!
+
+2
+00:00:04.000 --> 00:00:05.000
+Ã‡â€™aurait Ã©tÃ© sympa`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Её здесь навалом!
+
+2
+00:00:04.000 --> 00:00:05.000
+Ç’aurait été sympa`);
+	});
+
 	test("restores a file decoded as Windows-1252, letters included", () => {
 		expect(
 			cleanWebVtt(`WEBVTT
@@ -241,18 +315,28 @@ Pokémon café`);
 		expect(cleanWebVtt(text)).toBe(text);
 	});
 
-	test("restores misread letters next to Russian text, keeping the Russian", () => {
-		expect(
-			cleanWebVtt(`WEBVTT
+	test("leaves letters that only look misread alone", () => {
+		const text = `WEBVTT
 
 1
 00:00:01.000 --> 00:00:03.000
-Привет, «друг» and PokÃ©mon`),
-		).toBe(`WEBVTT
+Привет, «друг» and PokÃ©mon`;
+
+		expect(cleanWebVtt(text)).toBe(text);
+	});
+
+	test("leaves a letter followed by punctuation that reads like a misreading alone", () => {
+		const text = `WEBVTT
 
 1
 00:00:01.000 --> 00:00:03.000
-Привет, «друг» and Pokémon`);
+Welcome to the
+
+2
+00:00:04.000 --> 00:00:05.000
+<b>CAFÉ…</b>`;
+
+		expect(cleanWebVtt(text)).toBe(text.replace("00:00:05.000\n<b>", "00:00:05.000 line:0\n<b>"));
 	});
 
 	test("drops cues left with no text", () => {

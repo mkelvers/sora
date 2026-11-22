@@ -22,14 +22,30 @@ const codePages = ["windows-1251", "windows-1252"] as const;
 
 const letter = /\p{L}/u;
 
+/** A character UTF-8 writes in three bytes or more, from U+0800 on. */
+const wideCharacter = /[\u0800-\u{10FFFF}]/u;
+
+/**
+ * Decodes UTF-8 strictly, and keeps a zero-width no-break space where it
+ * stands instead of dropping it as a byte order mark.
+ */
 const utf8 = new TextDecoder("utf-8", {
 	fatal: true,
+	ignoreBOM: true,
 });
 
 /** How a code page reads UTF-8. */
 interface Misreading {
-	/** A UTF-8 sequence as the code page reads it: a lead byte and its continuation bytes. */
-	sequence: RegExp;
+	/**
+	 * UTF-8 sequences in a row as the code page reads them, each a lead byte
+	 * and its continuation bytes, unless the row ends in a cut-off one.
+	 */
+	run: RegExp;
+	/**
+	 * Sequences ending in one whose continuation bytes were cut off at the end
+	 * of a line, as when a provider shortened a line by bytes, not characters.
+	 */
+	cut: RegExp;
 	/** Any letter the code page reads from a byte outside ASCII, such as Cyrillic in Windows-1251. */
 	letter: RegExp;
 	/** The byte behind each character the code page reads from outside ASCII. */
@@ -50,24 +66,26 @@ const misreadings = codePages.map((codePage): Misreading => {
 	for (const byte of Uint8Array.from({ length: 128 }, (_, offset) => 0x80 + offset)) {
 		bytes.set(decoder.decode(Uint8Array.of(byte)), byte);
 	}
+	const letters = [...characters(0x80, 0xff)].filter((character) => letter.test(character));
 
 	const continuation = `[${characters(0x80, 0xbf)}]`;
-	const twoBytes = `[${characters(0xc2, 0xdf)}]${continuation}`;
-	const threeBytes = `[${characters(0xe0, 0xef)}]${continuation}{2}`;
-	const fourBytes = `[${characters(0xf0, 0xf4)}]${continuation}{3}`;
+	const twoBytes = `[${characters(0xc2, 0xdf)}]`;
+	const threeBytes = `[${characters(0xe0, 0xef)}]`;
+	const fourBytes = `[${characters(0xf0, 0xf4)}]`;
+	const sequence = `(?:${twoBytes}${continuation}|${threeBytes}${continuation}{2}|${fourBytes}${continuation}{3})`;
+	const partial = `(?:${twoBytes}|${threeBytes}${continuation}?|${fourBytes}${continuation}{0,2})`;
+	const cut = `${sequence}*${partial}(?=\r?\n|$)`;
 	return {
 		bytes,
-		letter: new RegExp(
-			`[${[...characters(0x80, 0xff)].filter((character) => letter.test(character)).join("")}]`,
-			"u",
-		),
-		sequence: new RegExp(`${twoBytes}|${threeBytes}|${fourBytes}`, "gu"),
+		cut: new RegExp(cut, "gu"),
+		letter: new RegExp(`[${letters.join("")}]`, "u"),
+		run: new RegExp(`${sequence}+(?!${sequence}|${cut})`, "gu"),
 	};
 });
 
-/** The text a sequence {@link Misreading.sequence} matched stands for, or `null` when its bytes are not UTF-8. */
-const decode = (misread: string, { bytes }: Misreading) => {
-	const encoded = Uint8Array.from(misread, (character) => defined(bytes.get(character)));
+/** The text a run {@link Misreading.run} matched stands for, or `null` when its bytes are not UTF-8. */
+const decode = (misread: string, misreading: Misreading) => {
+	const encoded = Uint8Array.from(misread, (character) => defined(misreading.bytes.get(character)));
 	const { data, error } = attempt(() => utf8.decode(encoded), TypeError);
 	if (error) {
 		return null;
@@ -76,33 +94,60 @@ const decode = (misread: string, { bytes }: Misreading) => {
 };
 
 /**
- * A subtitle file with its text restored when a provider decoded the UTF-8
- * file with a legacy code page, as on some of MegaPlay's tracks.
+ * A file with one layer of misreading undone, or as it is when it shows
+ * none.
  *
- * A file counts as misread only when every letter the code page reads from
- * outside ASCII belongs to a sequence that decodes as UTF-8. Text truly
- * written in the code page's languages, such as Russian, has letters outside
- * any such sequence, and is left as it is, even where a few of its characters
- * happen to look like one. Punctuation outside a sequence does not count,
- * since a misread file can also hold some written correctly.
+ * A file counts as misread when:
+ *
+ * - Every letter the code page reads from outside ASCII belongs to a sequence
+ *   that decodes as UTF-8, or to one cut off at the end of a line. Text truly
+ *   written in the code page's languages, such as Russian, has letters
+ *   outside any such sequence, and is left as it is, even where a few of its
+ *   characters happen to look like one. Punctuation does not count, since a
+ *   misread file can also hold some written correctly.
+ * - It holds more than one such sequence, or one of three bytes or more, such
+ *   as "—" or "’". A single letter and the punctuation after it, such as
+ *   "É…", read as a two-byte sequence by chance as often as by misreading,
+ *   and are left alone rather than risk changing correct text.
+ *
+ * Cut-off sequences cannot be restored and are left as they are.
  */
-const repair = (content: string) => {
+const unwrap = (content: string) => {
 	for (const misreading of misreadings) {
-		const leftover = content.replaceAll(misreading.sequence, (misread) => {
-			if (decode(misread, misreading) === null) {
-				return misread;
+		let wide = false;
+		let found = 0;
+		const decodable = content.replaceAll(misreading.run, (run) => {
+			const decoded = decode(run, misreading);
+			if (decoded === null) {
+				return run;
 			}
+			wide ||= wideCharacter.test(decoded);
+			found += 1;
 			return "";
 		});
-		const misread = leftover !== content && !misreading.letter.test(leftover);
+		const leftover = decodable.replaceAll(misreading.cut, "");
+		const misread = (wide || found > 1) && !misreading.letter.test(leftover);
 		if (misread) {
-			return content.replaceAll(
-				misreading.sequence,
-				(sequence) => decode(sequence, misreading) ?? sequence,
-			);
+			return content.replaceAll(misreading.run, (run) => decode(run, misreading) ?? run);
 		}
 	}
 	return content;
+};
+
+/**
+ * A subtitle file with its text restored when a provider decoded the UTF-8
+ * file with a legacy code page, as on some of MegaPlay's tracks. A file
+ * misread more than once is restored one layer at a time, each layer judged
+ * on its own, until none is left.
+ */
+const repair = (content: string) => {
+	let repaired = content;
+	let layer = unwrap(repaired);
+	while (layer !== repaired) {
+		repaired = layer;
+		layer = unwrap(repaired);
+	}
+	return repaired;
 };
 
 /**
