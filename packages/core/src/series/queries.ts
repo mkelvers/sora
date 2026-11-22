@@ -1399,12 +1399,10 @@ export const getLatestReleases = async (
 		for (const episode of listed.get(row.id) ?? []) {
 			const at = releasedAtOf(episode);
 
-			if (
-				at !== null &&
-				at >= since &&
-				at <= now &&
-				(!found || at.toISOString() >= found.releasedAt)
-			) {
+			const newer =
+				at !== null && at >= since && at <= now && (!found || at.toISOString() >= found.releasedAt);
+
+			if (newer) {
 				found = {
 					anilistId: row.anilistId,
 					episode: episode.number,
