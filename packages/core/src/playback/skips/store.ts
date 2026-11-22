@@ -73,13 +73,16 @@ export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
 /** Stored as 4-byte floats, so read back to the tenth of a second they were stored at. */
 const tenths = (seconds: number) => Math.round(seconds * 10) / 10;
 
-const span = (start: number | null, end: number | null) =>
-	start === null || end === null
-		? null
-		: {
-				end: tenths(end),
-				start: tenths(start),
-			};
+const span = (start: number | null, end: number | null) => {
+	if (start === null || end === null) {
+		return null;
+	}
+
+	return {
+		end: tenths(end),
+		start: tenths(start),
+	};
+};
 
 /** What is stored for each of `keys` that has been looked at. */
 export const getSkipDetections = async (keys: string[]) => {
