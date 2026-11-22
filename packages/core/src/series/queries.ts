@@ -255,7 +255,11 @@ const rank = (relation: string) => {
 		return 0;
 	}
 
-	return relation === "OTHER" ? 2 : 1;
+	if (relation === "OTHER") {
+		return 2;
+	}
+
+	return 1;
 };
 
 /**
