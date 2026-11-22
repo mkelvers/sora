@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
-import { aboutLength, fuzzyDate, placeholder, plainText, synopsis } from "./text";
+import { aboutLength, fuzzyDate, placeholder, plain, synopsis } from "./text";
 
-describe("plainText", () => {
+describe("plain", () => {
 	test("converts line breaks, strips tags, and decodes entities", () => {
-		expect(plainText("A <i>quiet</i> journey.<br><br>Frieren &amp; Fern&#39;s story.")).toBe(
+		expect(plain("A <i>quiet</i> journey.<br><br>Frieren &amp; Fern&#39;s story.")).toBe(
 			"A quiet journey.\n\nFrieren & Fern's story.",
 		);
 	});
 
 	test("removes a trailing source attribution", () => {
-		expect(plainText("An elf mage outlives her party.\n\n(Source: Crunchyroll)")).toBe(
+		expect(plain("An elf mage outlives her party.\n\n(Source: Crunchyroll)")).toBe(
 			"An elf mage outlives her party.",
 		);
 	});
 
 	test("keeps parenthetical text that is not an attribution", () => {
-		expect(plainText("Season two (final part)")).toBe("Season two (final part)");
+		expect(plain("Season two (final part)")).toBe("Season two (final part)");
 	});
 });
 

@@ -17,7 +17,7 @@ import { upscaledBackdropUrl } from "./upscaled-backdrop";
  * live job is shown as failed so the viewer can retry it. Reading status
  * leaves the row alone and sees the row and queue in the same SQL snapshot.
  */
-export const upscalesOf = async (key: string) => {
+export const statusesOf = async (key: string) => {
 	const rows = await db
 		.select({
 			height: titleBackdropUpscale.height,
@@ -36,24 +36,100 @@ export const upscalesOf = async (key: string) => {
 	return new Map(rows.map((row) => [row.sourceUrl, row]));
 };
 
-/** Chooses an upscaled backdrop for its title, unless another backdrop has been chosen since. */
-const chooseUpscale = async (key: string, sourceUrl: string, id: string) => {
-	const url = upscaledBackdropUrl(id);
+/** One upscale of a title's backdrop, by its ID, the title's key, and the original's URL. */
+class Upscale {
+	readonly #id: string;
+	readonly #key: string;
+	readonly #sourceUrl: string;
 
-	const chosen = await db
-		.update(titleArtwork)
-		.set({
-			backdropUrlOverride: url,
-		})
-		.where(and(eq(titleArtwork.key, key), eq(titleArtwork.backdropUrlOverride, sourceUrl)))
-		.returning({
-			key: titleArtwork.key,
-		});
-
-	if (chosen.length > 0) {
-		await storeImageEdges(url);
+	constructor(id: string, key: string, sourceUrl: string) {
+		this.#id = id;
+		this.#key = key;
+		this.#sourceUrl = sourceUrl;
 	}
-};
+
+	/** Chooses the upscaled backdrop for its title, unless another backdrop has been chosen since. */
+	async choose() {
+		const url = upscaledBackdropUrl(this.#id);
+
+		const chosen = await db
+			.update(titleArtwork)
+			.set({
+				backdropUrlOverride: url,
+			})
+			.where(
+				and(eq(titleArtwork.key, this.#key), eq(titleArtwork.backdropUrlOverride, this.#sourceUrl)),
+			)
+			.returning({
+				key: titleArtwork.key,
+			});
+
+		if (chosen.length > 0) {
+			await storeImageEdges(url);
+		}
+	}
+
+	/** Records that the upscale failed, and why. */
+	async fail(failure: string) {
+		await db
+			.update(titleBackdropUpscale)
+			.set({
+				failure,
+				status: "failed" satisfies UpscaleStatus,
+			})
+			.where(eq(titleBackdropUpscale.id, this.#id));
+	}
+
+	/**
+	 * Tells whether the original is a collage, if that was not looked at yet:
+	 * the home page looks only at originals already 4K, but an upscale may
+	 * reach 4K from a smaller one, and it is a collage if its original is.
+	 * Never throws; the home page then leaves the title out until it is known.
+	 */
+	async lookAtOriginal() {
+		const key = this.#key;
+		const sourceUrl = this.#sourceUrl;
+
+		const [image] = await db
+			.select({
+				isCollage: titleImage.isCollage,
+			})
+			.from(titleImage)
+			.where(
+				and(
+					eq(titleImage.key, key),
+					eq(titleImage.type, "backdrop"),
+					eq(titleImage.url, sourceUrl),
+				),
+			)
+			.limit(1);
+
+		if (!image || image.isCollage !== null) {
+			return;
+		}
+
+		const { data, error } = await attempt(isCollage(sourceUrl));
+
+		if (error) {
+			console.warn(`Could not look at ${sourceUrl}: ${error.message}`);
+
+			return;
+		}
+
+		await db
+			.update(titleImage)
+			.set({
+				isCollage: data,
+			})
+			.where(
+				and(
+					eq(titleImage.key, key),
+					eq(titleImage.type, "backdrop"),
+					eq(titleImage.url, sourceUrl),
+				),
+			);
+	}
+}
 
 /**
  * Asks for one of a series' title's backdrops to be upscaled. The scheduler
@@ -65,17 +141,17 @@ const chooseUpscale = async (key: string, sourceUrl: string, id: string) => {
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
  * @throws {InvalidInputError} when the URL is not one of the title's backdrops.
  */
-export const requestBackdropUpscale = async (seriesId: string, url: string) => {
+export const requestBackdropUpscale = async (id: string, url: string) => {
 	const [row] = await db
 		.select({
 			key: series.key,
 		})
 		.from(series)
-		.where(eq(series.id, seriesId))
+		.where(eq(series.id, id))
 		.limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(seriesId);
+		throw new SeriesNotFoundError(id);
 	}
 
 	const [image] = await db
@@ -130,61 +206,14 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 			await requestUpscale(tx, { id: existing.id }, false);
 		}
 
-		return existing?.status === "done" ? existing.id : undefined;
+		if (existing?.status === "done") {
+			return existing.id;
+		}
 	});
 
 	if (readyId) {
-		await chooseUpscale(row.key, url, readyId);
+		await new Upscale(readyId, row.key, url).choose();
 	}
-};
-
-/**
- * Tells whether the original is a collage, if that was not looked at yet:
- * the home page looks only at originals already 4K, but an upscale may
- * reach 4K from a smaller one, and it is a collage if its original is.
- * Never throws; the home page then leaves the title out until it is known.
- */
-const lookAtOriginal = async (key: string, sourceUrl: string) => {
-	const [image] = await db
-		.select({
-			isCollage: titleImage.isCollage,
-		})
-		.from(titleImage)
-		.where(
-			and(eq(titleImage.key, key), eq(titleImage.type, "backdrop"), eq(titleImage.url, sourceUrl)),
-		)
-		.limit(1);
-
-	if (!image || image.isCollage !== null) {
-		return;
-	}
-
-	const { data, error } = await attempt(isCollage(sourceUrl));
-
-	if (error) {
-		console.warn(`Could not look at ${sourceUrl}: ${error.message}`);
-
-		return;
-	}
-
-	await db
-		.update(titleImage)
-		.set({
-			isCollage: data,
-		})
-		.where(
-			and(eq(titleImage.key, key), eq(titleImage.type, "backdrop"), eq(titleImage.url, sourceUrl)),
-		);
-};
-
-const fail = async (id: string, failure: string) => {
-	await db
-		.update(titleBackdropUpscale)
-		.set({
-			failure,
-			status: "failed" satisfies UpscaleStatus,
-		})
-		.where(eq(titleBackdropUpscale.id, id));
 };
 
 /**
@@ -217,13 +246,15 @@ export const upscaleBackdrop = async (id: string) => {
 		return;
 	}
 
+	const job = new Upscale(id, row.key, row.sourceUrl);
+
 	try {
 		const response = await fetch(row.sourceUrl, {
 			signal: AbortSignal.timeout(30_000),
 		});
 
 		if (!response.ok) {
-			await fail(id, `TMDB answered ${response.status}`);
+			await job.fail(`TMDB answered ${response.status}`);
 
 			return;
 		}
@@ -255,11 +286,17 @@ export const upscaleBackdrop = async (id: string) => {
 			})
 			.where(eq(titleBackdropUpscale.id, id));
 	} catch (error) {
-		await fail(id, error instanceof Error ? error.message : "Upscaling failed");
+		let failure = "Upscaling failed";
+
+		if (error instanceof Error) {
+			failure = error.message;
+		}
+
+		await job.fail(failure);
 
 		return;
 	}
 
-	await lookAtOriginal(row.key, row.sourceUrl);
-	await chooseUpscale(row.key, row.sourceUrl, id);
+	await job.lookAtOriginal();
+	await job.choose();
 };

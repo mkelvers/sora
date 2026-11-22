@@ -27,10 +27,14 @@ const episode = {
 };
 
 /** AniKoto, looked up for entry 178789, carrying `episodes` of it. */
-const onAniKoto = (...episodes: number[]) => ({
-	carried: new Set(episodes.map((number) => anilistEpisodeKey(178_789, number))),
-	lookedUp: new Set([178_789]),
-});
+class AniKotoLookup {
+	readonly carried: Set<string>;
+	readonly lookedUp = new Set([178_789]);
+
+	constructor(...episodes: number[]) {
+		this.carried = new Set(episodes.map((number) => anilistEpisodeKey(178_789, number)));
+	}
+}
 
 const notLookedUp = {
 	carried: new Set<string>(),
@@ -69,8 +73,8 @@ describe("isEpisodeReleased", () => {
 
 describe("isEpisodeAvailable", () => {
 	test("is what AniKoto carries, whatever the dates say", () => {
-		expect(isEpisodeAvailable(title, episode, onAniKoto(13, 14), now)).toBe(true);
-		expect(isEpisodeAvailable(title, episode, onAniKoto(13), now)).toBe(false);
+		expect(isEpisodeAvailable(title, episode, new AniKotoLookup(13, 14), now)).toBe(true);
+		expect(isEpisodeAvailable(title, episode, new AniKotoLookup(13), now)).toBe(false);
 		expect(
 			isEpisodeAvailable(
 				title,
@@ -78,7 +82,7 @@ describe("isEpisodeAvailable", () => {
 					...episode,
 					airedAt: null,
 				},
-				onAniKoto(14),
+				new AniKotoLookup(14),
 				now,
 			),
 		).toBe(true);
@@ -92,7 +96,7 @@ describe("isEpisodeAvailable", () => {
 					...episode,
 					tmdbEpisodeNumber: null,
 				},
-				onAniKoto(14),
+				new AniKotoLookup(14),
 				now,
 			),
 		).toBe(true);
@@ -108,7 +112,7 @@ describe("isEpisodeAvailable", () => {
 
 describe("isEpisodeAwaited", () => {
 	test("is an aired episode that follows the latest AniKoto carries", () => {
-		expect(isEpisodeAwaited(title, episode, onAniKoto(13), now)).toBe(true);
+		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(13), now)).toBe(true);
 	});
 
 	test("is a premiere AniKoto does not carry yet", () => {
@@ -119,7 +123,7 @@ describe("isEpisodeAwaited", () => {
 					...episode,
 					number: 1,
 				},
-				onAniKoto(),
+				new AniKotoLookup(),
 				now,
 			),
 		).toBe(true);
@@ -133,22 +137,22 @@ describe("isEpisodeAwaited", () => {
 					...episode,
 					tmdbEpisodeNumber: null,
 				},
-				onAniKoto(13, 14),
+				new AniKotoLookup(13, 14),
 				now,
 			),
 		).toBe(false);
 	});
 
 	test("is not an episode its series lists, nor one still to air", () => {
-		expect(isEpisodeAwaited(title, episode, onAniKoto(13, 14), now)).toBe(false);
-		expect(isEpisodeAwaited(title, episode, onAniKoto(13), new Date("2026-09-27T14:59:00Z"))).toBe(
-			false,
-		);
+		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(13, 14), now)).toBe(false);
+		expect(
+			isEpisodeAwaited(title, episode, new AniKotoLookup(13), new Date("2026-09-27T14:59:00Z")),
+		).toBe(false);
 	});
 
 	test("is not an episode AniKoto skipped, nor one of an entry it carries none of", () => {
-		expect(isEpisodeAwaited(title, episode, onAniKoto(12, 15), now)).toBe(false);
-		expect(isEpisodeAwaited(title, episode, onAniKoto(), now)).toBe(false);
+		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(12, 15), now)).toBe(false);
+		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(), now)).toBe(false);
 	});
 
 	test("is not an episode AniList has no broadcast time for", () => {
@@ -159,7 +163,7 @@ describe("isEpisodeAwaited", () => {
 					...episode,
 					airedAt: null,
 				},
-				onAniKoto(13),
+				new AniKotoLookup(13),
 				now,
 			),
 		).toBe(false);

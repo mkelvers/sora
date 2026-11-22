@@ -6,60 +6,59 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import { watchPools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
-import { requestBackdropUpscale, upscaleBackdrop, upscalesOf } from "./upscale";
-
-/** The series key the fixtures use; queries are scoped to it, so the development database's own upscales stay out. */
-const upscaleKey = "tv:2147483646";
-
-const jobs = async () => {
-	const rows = await db.execute<{
-		attempts: number;
-		id: string;
-		last_error: string | null;
-		locked_by: string | null;
-		revision: number;
-	}>(sql`
-		select attempts, id::text, last_error, locked_by, revision from graphile_worker.jobs
-		where task_identifier = ${upscaleBackdropTask}
-			and key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
-	`);
-
-	return [...rows];
-};
-
-const claim = async (lockedAt: Date) => {
-	const lockedBy = "pool-upscale-test";
-	const timestamp = lockedAt.toISOString();
-	await db.execute(sql`
-		update graphile_worker._private_jobs
-		set attempts = max_attempts, locked_at = ${timestamp}::timestamptz, locked_by = ${lockedBy}
-		where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
-	`);
-	await db.execute(sql`
-		update graphile_worker._private_job_queues
-		set locked_at = ${timestamp}::timestamptz, locked_by = ${lockedBy}
-		where queue_name = 'upscale-backdrop'
-	`);
-};
-
-/** Records a failed final attempt the way graphile-worker does: attempts used up, the error kept, the lock released. */
-const exhaust = async (error: string) => {
-	await db.execute(sql`
-		update graphile_worker._private_jobs
-		set attempts = max_attempts, last_error = ${error}, locked_at = null, locked_by = null
-		where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
-	`);
-};
+import { requestBackdropUpscale, upscaleBackdrop, statusesOf } from "./upscale";
 
 describe("backdrop upscale queue", () => {
-	const key = upscaleKey;
-	const seriesId = "upscale-test";
+	/** The series key the fixtures use; queries are scoped to it, so the development database's own upscales stay out. */
+	const key = "tv:2147483646";
+	const id = "upscale-test";
+
+	const jobs = async () => {
+		const rows = await db.execute<{
+			attempts: number;
+			id: string;
+			last_error: string | null;
+			locked_by: string | null;
+			revision: number;
+		}>(sql`
+			select attempts, id::text, last_error, locked_by, revision from graphile_worker.jobs
+			where task_identifier = ${upscaleBackdropTask}
+				and key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${key})
+		`);
+
+		return [...rows];
+	};
+
+	const claim = async (lockedAt: Date) => {
+		const lockedBy = "pool-upscale-test";
+		const timestamp = lockedAt.toISOString();
+		await db.execute(sql`
+			update graphile_worker._private_jobs
+			set attempts = max_attempts, locked_at = ${timestamp}::timestamptz, locked_by = ${lockedBy}
+			where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${key})
+		`);
+		await db.execute(sql`
+			update graphile_worker._private_job_queues
+			set locked_at = ${timestamp}::timestamptz, locked_by = ${lockedBy}
+			where queue_name = 'upscale-backdrop'
+		`);
+	};
+
+	/** Records a failed final attempt the way graphile-worker does: attempts used up, the error kept, the lock released. */
+	const exhaust = async (error: string) => {
+		await db.execute(sql`
+			update graphile_worker._private_jobs
+			set attempts = max_attempts, last_error = ${error}, locked_at = null, locked_by = null
+			where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${key})
+		`);
+	};
+
 	let server: Bun.Server<undefined> | undefined;
 	let sourceUrl: string;
-	const request = () => requestBackdropUpscale(seriesId, sourceUrl);
+	const request = () => requestBackdropUpscale(id, sourceUrl);
 
 	const status = async () => {
-		const upscales = await upscalesOf(key);
+		const upscales = await statusesOf(key);
 
 		return upscales.get(sourceUrl)?.status;
 	};
@@ -73,7 +72,7 @@ describe("backdrop upscale queue", () => {
 		sourceUrl = new URL("/upscale-test.jpg", server.url).href;
 		await db.insert(series).values({
 			anilistId: -1,
-			id: seriesId,
+			id,
 			key,
 			kind: "tv",
 			laidOutAt: new Date(),
@@ -165,7 +164,7 @@ describe("backdrop upscale queue", () => {
 
 		await Promise.all([request(), request(), request(), request()]);
 		expect(await status()).toBe("pending");
-		const upscales = await upscalesOf(key);
+		const upscales = await statusesOf(key);
 		expect(upscales.get(sourceUrl)?.id).toBe(orphan?.id);
 		expect(await jobs()).toMatchObject([
 			{

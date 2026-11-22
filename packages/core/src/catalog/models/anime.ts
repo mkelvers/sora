@@ -7,6 +7,7 @@ import type {
 	MediaSource,
 	MediaStatus,
 } from "../../anilist/graphql.generated";
+import { Sparse } from "./sparse";
 import { aboutLength, fromUnixSeconds, fuzzyDate, synopsis } from "./text";
 
 export type AnimeFormat = Exclude<MediaFormat, "MANGA" | "NOVEL" | "ONE_SHOT">;
@@ -116,7 +117,7 @@ export interface Anime extends AnimeCard {
 	recommendations: AnimeCard[];
 }
 
-export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null => {
+export const toFormat = (format: MediaFormat | null): AnimeFormat | null => {
 	switch (format) {
 		case "MANGA":
 		case "NOVEL":
@@ -130,16 +131,14 @@ export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null =>
 	}
 };
 
-/** Drops GraphQL list holes; a null list is treated as empty. */
-const present = <T>(values: readonly (T | null)[] | null | undefined): T[] => {
-	if (values) {
-		return values.filter((value): value is T => value !== null);
-	}
-
-	return [];
-};
-
-const toTitle = (media: AnimeCardFragment): AnimeTitle => {
+/**
+ * Converts an AniList card fragment into the domain model.
+ *
+ * @throws {TypeError} when AniList returns media with no title at all, which
+ *   would violate AniList's own data rules.
+ */
+export const toCard = (media: AnimeCardFragment): AnimeCard => {
+	const format = toFormat(media.format);
 	const english = media.title?.english ?? null;
 	const romaji = media.title?.romaji ?? null;
 	const native = media.title?.native ?? null;
@@ -149,103 +148,115 @@ const toTitle = (media: AnimeCardFragment): AnimeTitle => {
 		throw new TypeError(`AniList media ${media.id} has no title`);
 	}
 
+	let nextEpisode: AnimeCard["nextEpisode"] = null;
+
+	if (media.nextAiringEpisode) {
+		nextEpisode = {
+			airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
+			number: media.nextAiringEpisode.episode,
+		};
+	}
+
 	return {
-		display,
-		english,
-		native,
-		romaji,
+		bannerUrl: media.bannerImage,
+		coverColor: media.coverImage?.color ?? null,
+		coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
+		durationMinutes: media.duration,
+		episodes: media.episodes,
+		format,
+		genres: new Sparse(media.genres).present,
+		id: media.id,
+		isAdult: media.isAdult === true,
+		malId: media.idMal,
+		nextEpisode,
+		popularity: media.popularity,
+		score: media.averageScore,
+		season: media.season,
+		seasonYear: media.seasonYear,
+		status: media.status,
+		title: {
+			display,
+			english,
+			native,
+			romaji,
+		},
 	};
 };
 
-/**
- * Converts an AniList card fragment into the domain model.
- *
- * @throws {TypeError} when AniList returns media with no title at all, which
- *   would violate AniList's own data rules.
- */
-export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => ({
-	bannerUrl: media.bannerImage,
-	coverColor: media.coverImage?.color ?? null,
-	coverUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
-	durationMinutes: media.duration,
-	episodes: media.episodes,
-	format: toAnimeFormat(media.format),
-	genres: present(media.genres),
-	id: media.id,
-	isAdult: media.isAdult === true,
-	malId: media.idMal,
-	nextEpisode: media.nextAiringEpisode
-		? {
-				airingAt: fromUnixSeconds(media.nextAiringEpisode.airingAt),
-				number: media.nextAiringEpisode.episode,
-			}
-		: null,
-	popularity: media.popularity,
-	score: media.averageScore,
-	season: media.season,
-	seasonYear: media.seasonYear,
-	status: media.status,
-	title: toTitle(media),
-});
-
-/** The companies credited with an anime: its studios when `main`, else the rest. */
-const companies = (media: AnimeDetailsFragment, main: boolean) =>
-	present(media.studios?.edges).flatMap((edge) => {
-		if (edge.isMain === main && edge.node) {
-			return [edge.node.name];
-		}
-
-		return [];
-	});
-
 /** Converts an AniList details fragment into the domain model. */
-export const toAnime = (media: AnimeDetailsFragment): Anime => ({
-	...toAnimeCard(media),
-	blurb: (media.description && synopsis(media.description, aboutLength)) || null,
-	countryOfOrigin: media.countryOfOrigin,
-	description: (media.description && synopsis(media.description)) || null,
-	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
-	producers: companies(media, false),
-	recommendations: present(media.recommendations?.nodes).flatMap((node) => {
-		if (node.mediaRecommendation?.type === "ANIME") {
-			return [toAnimeCard(node.mediaRecommendation)];
-		}
+export const toDetails = (media: AnimeDetailsFragment): Anime => {
+	const card = toCard(media);
 
-		return [];
-	}),
-	relations: present(media.relations?.edges).flatMap((edge) => {
-		if (edge.relationType && edge.node?.type === "ANIME") {
-			return [
-				{
-					anime: toAnimeCard(edge.node),
-					type: edge.relationType,
-				},
-			];
-		}
+	/** The companies credited with an anime: its studios when `main`, else the rest. */
+	const companies = (main: boolean) =>
+		new Sparse(media.studios?.edges).present.flatMap((edge) => {
+			if (edge.isMain === main && edge.node) {
+				return [edge.node.name];
+			}
 
-		return [];
-	}),
-	source: media.source,
-	staff: present(media.staff?.edges).flatMap((edge) => {
-		const name = edge.node?.name?.full?.trim();
+			return [];
+		});
 
-		if (edge.role && name) {
-			return [
-				{
-					name,
-					role: edge.role,
-				},
-			];
-		}
+	let endDate: string | null = null;
 
-		return [];
-	}),
-	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
-	studios: companies(media, true),
-	synonyms: present(media.synonyms),
-	tags: present(media.tags).map((tag) => ({
-		name: tag.name,
-		rank: tag.rank,
-		spoiler: tag.isMediaSpoiler === true,
-	})),
-});
+	if (media.endDate) {
+		endDate = fuzzyDate(media.endDate);
+	}
+
+	let startDate: string | null = null;
+
+	if (media.startDate) {
+		startDate = fuzzyDate(media.startDate);
+	}
+
+	return {
+		...card,
+		blurb: (media.description && synopsis(media.description, aboutLength)) || null,
+		countryOfOrigin: media.countryOfOrigin,
+		description: (media.description && synopsis(media.description)) || null,
+		endDate,
+		producers: companies(false),
+		recommendations: new Sparse(media.recommendations?.nodes).present.flatMap((node) => {
+			if (node.mediaRecommendation?.type === "ANIME") {
+				return [toCard(node.mediaRecommendation)];
+			}
+
+			return [];
+		}),
+		relations: new Sparse(media.relations?.edges).present.flatMap((edge) => {
+			if (edge.relationType && edge.node?.type === "ANIME") {
+				return [
+					{
+						anime: toCard(edge.node),
+						type: edge.relationType,
+					},
+				];
+			}
+
+			return [];
+		}),
+		source: media.source,
+		staff: new Sparse(media.staff?.edges).present.flatMap((edge) => {
+			const name = edge.node?.name?.full?.trim();
+
+			if (edge.role && name) {
+				return [
+					{
+						name,
+						role: edge.role,
+					},
+				];
+			}
+
+			return [];
+		}),
+		startDate,
+		studios: companies(true),
+		synonyms: new Sparse(media.synonyms).present,
+		tags: new Sparse(media.tags).present.map((tag) => ({
+			name: tag.name,
+			rank: tag.rank,
+			spoiler: tag.isMediaSpoiler === true,
+		})),
+	};
+};

@@ -10,9 +10,9 @@ import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { InvalidInputError } from "../../errors";
 import type { AnimeSeason } from "../../models/series";
-import { toAnimeCard } from "../models/anime";
+import { toCard } from "../models/anime";
 import type { AnimeCard } from "../models/anime";
-import { catalogFormatAllowed, excludedFormats } from "../visibility";
+import { formatAllowed, excludedFormats } from "../visibility";
 import { BrowseQuerySchema } from "./browse-query";
 import type { BrowseQuery } from "./browse-query";
 
@@ -43,12 +43,12 @@ const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>,
  *
  * @example
  * ```ts
- * const page = await browseAnime({ season: "FALL", seasonYear: 2026, sort: "popular" });
+ * const page = await browse({ season: "FALL", seasonYear: 2026, sort: "popular" });
  * ```
  *
  * @throws {InvalidInputError} when the query fails {@link BrowseQuerySchema}.
  */
-export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> => {
+export const browse = async (query: BrowseQuery): Promise<Page<AnimeCard>> => {
 	const parsed = BrowseQuerySchema.safeParse(query);
 
 	if (!parsed.success) {
@@ -64,6 +64,13 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 		sort = sortOrders[input.sort];
 	} else if (input.search) {
 		sort = ["SEARCH_MATCH"];
+	}
+
+	// Searches are rarely repeated exactly; lists like "trending" are shared.
+	let maxAgeMs = hour;
+
+	if (input.search) {
+		maxAgeMs = 10 * minute;
 	}
 
 	const { Page } = await anilist(
@@ -83,8 +90,7 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 		},
 		zBrowseAnimeQuery,
 		{
-			// Searches are rarely repeated exactly; lists like "trending" are shared.
-			maxAgeMs: input.search ? 10 * minute : hour,
+			maxAgeMs,
 		},
 	);
 
@@ -93,7 +99,7 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 		isPreparing: false,
 		items: (Page?.media ?? []).flatMap((media) => {
 			if (media) {
-				return [toAnimeCard(media)];
+				return [toCard(media)];
 			}
 
 			return [];
@@ -103,7 +109,7 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 	};
 };
 
-/** Lists the genre names accepted by {@link browseAnime}. */
+/** Lists the genre names accepted by {@link browse}. */
 export const getGenres = async (): Promise<string[]> => {
 	const { GenreCollection } = await anilist(GenresDocument, {}, zGenresQuery, {
 		maxAgeMs: 7 * day,
@@ -138,8 +144,6 @@ export const nextSeason = (season: AnimeSeason): AnimeSeason => {
 	};
 };
 
-const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
-
 /**
  * Every season some anime started in, the latest first, up to the season
  * after `now`'s, whose titles are announced by then. Adult media is never
@@ -148,6 +152,7 @@ const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(
  */
 export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 	const next = nextSeason(currentSeason(now));
+	const last = next.year * 4 + seasonOrder.indexOf(next.season);
 
 	const rows = await db
 		.selectDistinct({
@@ -158,7 +163,7 @@ export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 		.where(
 			and(
 				eq(animeSearch.isAdult, false),
-				catalogFormatAllowed(animeSearch.format),
+				formatAllowed(animeSearch.format),
 				isNotNull(animeSearch.season),
 				isNotNull(animeSearch.seasonYear),
 				lte(animeSearch.seasonYear, next.year),
@@ -180,6 +185,10 @@ export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 
 			return [];
 		})
-		.filter((season) => position(season) <= position(next))
-		.toSorted((left, right) => position(right) - position(left));
+		.filter((season) => season.year * 4 + seasonOrder.indexOf(season.season) <= last)
+		.toSorted(
+			(left, right) =>
+				right.year - left.year ||
+				seasonOrder.indexOf(right.season) - seasonOrder.indexOf(left.season),
+		);
 };

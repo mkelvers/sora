@@ -2,15 +2,15 @@ import { day, hour, minute, defined } from "@sora/shared";
 import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 
-import { toAnime, toAnimeFormat } from "../catalog/models/anime";
+import { toDetails, toFormat } from "../catalog/models/anime";
 import type { AnimeFormat } from "../catalog/models/anime";
 import { getAnime } from "../catalog/queries/anime";
-import { browseAnime } from "../catalog/queries/browse";
+import { browse } from "../catalog/queries/browse";
 import type { Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema } from "../catalog/queries/browse-query";
 import type { BrowseQuery } from "../catalog/queries/browse-query";
-import { browseIndex, searchIndex, searchAnime } from "../catalog/queries/search";
-import { catalogSeriesAllowed, isCatalogFormat, tagMinimumRank } from "../catalog/visibility";
+import { browseIndex, searchIndex, findAnime } from "../catalog/queries/search";
+import { catalogSeriesAllowed, isVisibleFormat, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime as animeTable, animeSearch } from "../database/schema/catalog";
 import {
@@ -57,7 +57,7 @@ import {
 } from "./episodes";
 import type { EpisodeListingRow } from "./episodes";
 import { franchiseParts, isNamedAfter } from "./franchise";
-import { franchiseRoles } from "./roles";
+import { classify } from "./roles";
 import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
@@ -161,7 +161,7 @@ const cardOf = (
 	row: SeriesRow,
 	known: {
 		audio: ContentLanguage[];
-		details: ReturnType<typeof toAnime> | undefined;
+		details: ReturnType<typeof toDetails> | undefined;
 		episodeCount: number;
 		title: typeof titleArtwork.$inferSelect | undefined;
 	},
@@ -206,7 +206,7 @@ const cardsFrom = async (
 		db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)),
 	]);
 
-	const anime = new Map(stored.map((row) => [row.anilistId, toAnime(row.media)]));
+	const anime = new Map(stored.map((row) => [row.anilistId, toDetails(row.media)]));
 	const artwork = new Map(chosen.map((row) => [row.key, row]));
 	const order: ContentLanguage[] = ["dub", "sub", "raw"];
 
@@ -214,7 +214,7 @@ const cardsFrom = async (
 		rows.flatMap((row) => {
 			const details = anime.get(row.anilistId);
 
-			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
+			if (!isVisibleFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
 				return [];
 			}
 
@@ -572,7 +572,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	const anilistIdOf = new Map(titles.map((title) => [title.id, title.anilistId]));
 	const ratingOf = new Map(ratings.map((rating) => [rating.anilistId, rating]));
 
-	const roles = franchiseRoles(
+	const roles = classify(
 		parts.flatMap((part) => {
 			const anilistId = defined(anilistIdOf.get(part.series_id));
 
@@ -1197,7 +1197,7 @@ const preparingOn = (
  * Both are answered from the local search index, AniList's catalogue
  * mirrored, so they never wait on AniList or its rate limit. A text search
  * is ranked by how well titles match and how popular they are (see
- * {@link searchAnime}). Browsing without one orders the entries by `sort`
+ * {@link findAnime}). Browsing without one orders the entries by `sort`
  * and lists only those AniKoto carries, since only they can be watched (see
  * {@link browseIndex}). Until the index has been filled once, browsing
  * follows AniList's page of entries instead, and only the filters AniList
@@ -1245,7 +1245,7 @@ export const browseSeries = async (
 		const found =
 			search === undefined
 				? await browseIndex(filters, page * perPage + 1, carriedByAniKoto)
-				: await searchAnime(search, filters);
+				: await findAnime(search, filters);
 
 		const ranked = found.map((entry) => entry.anilistId);
 		const pageStart = (page - 1) * perPage;
@@ -1272,7 +1272,7 @@ export const browseSeries = async (
 
 						return (
 							entry && {
-								format: toAnimeFormat(entry.format),
+								format: toFormat(entry.format),
 								title: entry.english ?? entry.romaji ?? entry.native,
 								year:
 									entry.seasonYear ??
@@ -1283,7 +1283,7 @@ export const browseSeries = async (
 		};
 	}
 
-	const found = await browseAnime(parsed.data);
+	const found = await browse(parsed.data);
 	const anilistIds = found.items.map((anime) => anime.id);
 
 	const { seriesIds, missing } = await seriesIdsFor(anilistIds, {

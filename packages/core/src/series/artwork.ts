@@ -13,10 +13,10 @@ import { InvalidInputError, SeriesNotFoundError } from "../errors";
 import type { ArtworkChanges, ImageType, Series, SeriesImage } from "../models/series";
 import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbImage } from "../tmdb/resources";
-import { storeBackdropEdges } from "./edges";
+import { measureBackdrop } from "./edges";
 import { getSeries } from "./queries";
 import { parseKey } from "./series";
-import { upscalesOf } from "./upscale";
+import { statusesOf } from "./upscale";
 import { upscaleIdOf, upscaledBackdropUrl } from "./upscaled-backdrop";
 
 /** How {@link listSeriesImages} filters and sorts. */
@@ -161,7 +161,7 @@ export const setSeriesArtwork = async (
 	});
 
 	if (title.backdropUrlOverride !== undefined) {
-		await storeBackdropEdges(seriesId);
+		await measureBackdrop(seriesId);
 	}
 
 	return getSeries(seriesId);
@@ -329,7 +329,7 @@ const applyQuery = async (
 	images: StoredImage[],
 	query: SeriesImageQuery,
 ): Promise<SeriesImage[]> => {
-	const upscales = await upscalesOf(key);
+	const upscales = await statusesOf(key);
 
 	const listed = images.flatMap((image): SeriesImage[] => {
 		const upscale = image.type === "backdrop" ? upscales.get(image.url) : undefined;

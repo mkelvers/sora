@@ -9,11 +9,11 @@ import { series } from "../database/schema/series";
  */
 export const excludedFormats = ["TV_SHORT"] as const;
 
-export const isCatalogFormat = (format: string | null | undefined) =>
+export const isVisibleFormat = (format: string | null | undefined) =>
 	!excludedFormats.some((excluded) => excluded === format);
 
 /** Applies the catalog policy before ranking, pagination, or notification counts. */
-export const catalogFormatAllowed = (format: SQLWrapper) =>
+export const formatAllowed = (format: SQLWrapper) =>
 	sql`(${format} is null or ${format} not in (${sql.join(
 		excludedFormats.map((excluded) => sql`${excluded}`),
 		sql`, `,
