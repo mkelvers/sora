@@ -224,10 +224,9 @@ export class SoraClient {
 	 */
 	async request<TRoute extends Route>(
 		route: TRoute,
-		...[input, options]: Args<TRoute>
+		...args: Args<TRoute>
 	): Promise<RequestResults<TRoute>> {
-		// SAFETY: the rest parameter is exactly Args<TRoute>; TypeScript loses it through the spread.
-		const body = await this.requestWithMeta(route, ...([input, options] as Args<TRoute>));
+		const body = await this.requestWithMeta(route, ...args);
 
 		if (body instanceof Object && "results" in body) {
 			// SAFETY: a body with `results` is the route's envelope.
