@@ -63,7 +63,9 @@ export const getProviderMedia = async (
 		.where(and(eq(providerMapping.anilistId, anime.id), eq(providerMapping.provider, provider.id)))
 		.limit(1);
 
-	if (stored && (stored.providerMediaId || !options.retryUnmatched)) {
+	const reusable = stored && (stored.providerMediaId || !options.retryUnmatched);
+
+	if (reusable) {
 		const lifetime =
 			stored.providerMediaId && !provisionalMethods.has(stored.method ?? "")
 				? matchedMappingLifetimeMs
