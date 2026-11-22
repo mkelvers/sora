@@ -130,7 +130,11 @@ export const searchText = (titles: readonly (string | null)[]) => {
 		(title ? [title, title.replace(disambiguator, "")] : []).flatMap((spelling) => {
 			const words = normalizeTitle(spelling).split(" ");
 
-			return words.length >= 2 ? [words.map((word) => word[0]).join("")] : [];
+			if (words.length >= 2) {
+				return [words.map((word) => word[0]).join("")];
+			}
+
+			return [];
 		}),
 	);
 
