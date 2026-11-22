@@ -49,8 +49,13 @@ const savedSizes = {
 	poster: "w780",
 } as const;
 
-const toOverride = (change: string | false | null | undefined, type: ImageType) =>
-	change === false ? noArtwork : change?.replace("/original/", `/${savedSizes[type]}/`);
+const toOverride = (change: string | false | null | undefined, type: ImageType) => {
+	if (change === false) {
+		return noArtwork;
+	}
+
+	return change?.replace("/original/", `/${savedSizes[type]}/`);
+};
 
 /**
  * Checks that an upscaled backdrop in `changes` is one of the title's, ready,
