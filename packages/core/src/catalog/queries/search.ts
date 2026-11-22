@@ -692,7 +692,9 @@ const editDistance = (left: string, right: string) => {
 				defined(defined(rows[i - 1])[j - 1]) + cost,
 			);
 
-			if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+			const transposed = i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1];
+
+			if (transposed) {
 				best = Math.min(best, defined(defined(rows[i - 2])[j - 2]) + 1);
 			}
 
