@@ -78,7 +78,11 @@
 			return "Watch again";
 		}
 
-		return started ? "Resume" : "Play";
+		if (started) {
+			return "Resume";
+		}
+
+		return "Play";
 	});
 
 	const action = $derived(`${verb}${movie || special ? "" : ` E${episode.number}`}`);
