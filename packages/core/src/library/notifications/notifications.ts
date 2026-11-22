@@ -572,14 +572,16 @@ export const getNotifications = async (
 		)
 		.values()
 		.filter((group) => kinds[group.kind])
-		.map((group) =>
-			hideSpoilers
-				? {
-						...group,
-						episode_title: null,
-					}
-				: group,
-		)
+		.map((group) => {
+			if (hideSpoilers) {
+				return {
+					...group,
+					episode_title: null,
+				};
+			}
+
+			return group;
+		})
 		.toArray();
 
 	const groups = all.slice(0, options.limit ?? 30);
