@@ -2,11 +2,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { SQL } from "bun";
 
-import { databaseTestsEnabled } from "../../test/integration";
 import { config } from "../config";
 import { migrateDatabase, migrationLockKey } from "./client";
 
-describe.skipIf(!databaseTestsEnabled())("database migrations", () => {
+describe("database migrations", () => {
 	const other = new SQL(config.databaseUrl);
 
 	afterAll(async () => {

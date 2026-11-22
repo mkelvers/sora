@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { eq } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
@@ -15,9 +14,7 @@ import {
 	updateWatchlistAfterPlayback,
 } from "./watchlist";
 
-// Run against a disposable database. Synthetic IDs keep the fixture
-// separate from real accounts and titles; cleanup runs after failed assertions.
-describe.skipIf(!databaseTestsEnabled())("saved short titles", () => {
+describe("saved short titles", () => {
 	const profile = `watchlist-test-${crypto.randomUUID()}`;
 	const id = `${profile}-short`;
 	const anilistId = -Math.floor(Math.random() * 100_000_000) - 1;
@@ -78,11 +75,6 @@ describe.skipIf(!databaseTestsEnabled())("saved short titles", () => {
 			statusChangedAt: updatedAt,
 			userId: profile,
 		});
-	});
-
-	afterAll(async () => {
-		await db.delete(series).where(eq(series.id, id));
-		await db.delete(anime).where(eq(anime.anilistId, anilistId));
 	});
 
 	test("keeps saved dates and a usable detail page while discovery excludes the title", async () => {

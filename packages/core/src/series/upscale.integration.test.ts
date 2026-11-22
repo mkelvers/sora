@@ -1,17 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { eq, sql } from "drizzle-orm";
-import { runOnce } from "graphile-worker";
 
-import { databaseTestsEnabled } from "../../test/integration";
-import { config } from "../config";
 import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
-import { upscaleBackdropJob } from "../scheduler/jobs/upscale";
-import { failInvalidPayloads } from "../scheduler/payload";
 import { watchPools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
-import { requestBackdropUpscale, upscalesOf } from "./upscale";
+import { requestBackdropUpscale, upscaleBackdrop, upscalesOf } from "./upscale";
+
+/** The series key the fixtures use; queries are scoped to it, so the development database's own upscales stay out. */
+const upscaleKey = "tv:2147483646";
 
 const jobs = async () => {
 	const rows = await db.execute<{
@@ -22,7 +20,8 @@ const jobs = async () => {
 		revision: number;
 	}>(sql`
 		select attempts, id::text, last_error, locked_by, revision from graphile_worker.jobs
-		where task_identifier = ${upscaleBackdropTask} and key is not null
+		where task_identifier = ${upscaleBackdropTask}
+			and key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
 	`);
 
 	return [...rows];
@@ -34,7 +33,7 @@ const claim = async (lockedAt: Date) => {
 	await db.execute(sql`
 		update graphile_worker._private_jobs
 		set attempts = max_attempts, locked_at = ${timestamp}::timestamptz, locked_by = ${lockedBy}
-		where key like 'upscale-backdrop:%'
+		where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
 	`);
 	await db.execute(sql`
 		update graphile_worker._private_job_queues
@@ -43,14 +42,17 @@ const claim = async (lockedAt: Date) => {
 	`);
 };
 
-const runUpscale = async () =>
-	await runOnce({
-		connectionString: config.databaseUrl,
-		taskList: failInvalidPayloads({ [upscaleBackdropTask]: upscaleBackdropJob }),
-	});
+/** Records a failed final attempt the way graphile-worker does: attempts used up, the error kept, the lock released. */
+const exhaust = async (error: string) => {
+	await db.execute(sql`
+		update graphile_worker._private_jobs
+		set attempts = max_attempts, last_error = ${error}, locked_at = null, locked_by = null
+		where key in (select 'upscale-backdrop:' || id from title_backdrop_upscale where key = ${upscaleKey})
+	`);
+};
 
-describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
-	const key = "tv:2147483646";
+describe("backdrop upscale queue", () => {
+	const key = upscaleKey;
 	const seriesId = "upscale-test";
 	let server: Bun.Server<undefined> | undefined;
 	let sourceUrl: string;
@@ -89,27 +91,12 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		});
 	}, 30_000);
 
-	const resetUpscale = async () => {
-		await db.delete(titleBackdropUpscale).where(eq(titleBackdropUpscale.key, key));
-		await db.execute(sql`
-			delete from graphile_worker._private_jobs
-			where job_queue_id in (
-				select id from graphile_worker._private_job_queues where queue_name = 'upscale-backdrop'
-			)
-		`);
-		await db.execute(sql`
-			delete from graphile_worker._private_job_queues where queue_name = 'upscale-backdrop'
-		`);
-	};
+	const stored = async () =>
+		await db.select().from(titleBackdropUpscale).where(eq(titleBackdropUpscale.key, key));
 
 	afterAll(async () => {
 		await server?.stop(true);
-		await resetUpscale();
-		await db.delete(series).where(eq(series.id, seriesId));
-		await db.delete(titleArtwork).where(eq(titleArtwork.key, key));
 	});
-
-	beforeEach(resetUpscale);
 
 	test("rolls back the pending row when PostgreSQL rejects enqueue", async () => {
 		await db.execute(sql`
@@ -127,7 +114,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 				for each row execute function reject_upscale_enqueue()
 			`);
 			await expect(request()).rejects.toHaveProperty("cause.message", "injected enqueue failure");
-			expect(await db.select().from(titleBackdropUpscale)).toHaveLength(0);
+			expect(await stored()).toHaveLength(0);
 			expect(await jobs()).toEqual([]);
 
 			await db.insert(titleBackdropUpscale).values({
@@ -137,7 +124,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 				status: "failed",
 			});
 			await expect(request()).rejects.toHaveProperty("cause.message", "injected enqueue failure");
-			const [failed] = await db.select().from(titleBackdropUpscale);
+			const [failed] = await stored();
 			expect(failed).toMatchObject({
 				failure: "previous failure",
 				status: "failed",
@@ -154,7 +141,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 
 	test("keeps one job across concurrent requests for a new upscale", async () => {
 		await Promise.all([request(), request(), request(), request()]);
-		expect(await db.select().from(titleBackdropUpscale)).toHaveLength(1);
+		expect(await stored()).toHaveLength(1);
 		expect(await jobs()).toMatchObject([
 			{
 				attempts: 0,
@@ -225,10 +212,13 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		await request();
 		await claim(new Date());
 		const [running] = await jobs();
-		await db.update(titleBackdropUpscale).set({
-			failure: "previous failure",
-			status: "failed",
-		});
+		await db
+			.update(titleBackdropUpscale)
+			.set({
+				failure: "previous failure",
+				status: "failed",
+			})
+			.where(eq(titleBackdropUpscale.key, key));
 
 		await Promise.all([request(), request()]);
 		const retried = await jobs();
@@ -238,7 +228,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 			locked_by: null,
 		});
 		expect(retried[0]?.id).not.toBe(running?.id);
-		const [pending] = await db.select().from(titleBackdropUpscale);
+		const [pending] = await stored();
 		expect(pending).toMatchObject({
 			failure: null,
 			status: "pending",
@@ -247,13 +237,13 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 
 	test("shows the worker's failure and lets the viewer retry after job completion", async () => {
 		await request();
-		await runUpscale();
-		const [failed] = await db.select().from(titleBackdropUpscale);
+		const [queued] = await stored();
+		await upscaleBackdrop(queued?.id ?? "");
+		const [failed] = await stored();
 		expect(failed).toMatchObject({
 			failure: "TMDB answered 404",
 			status: "failed",
 		});
-		expect(await jobs()).toEqual([]);
 
 		await request();
 		expect(await jobs()).toHaveLength(1);
@@ -276,13 +266,18 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 				before update on title_backdrop_upscale
 				for each row execute function reject_upscale_result()
 			`);
-			await runUpscale();
+			const [queued] = await stored();
+			// The failing write gets its own savepoint, so it cannot abort the test's transaction.
+			await expect(
+				db.transaction(async () => await upscaleBackdrop(queued?.id ?? "")),
+			).rejects.toThrow('update "title_backdrop_upscale"');
 		} finally {
 			await db.execute(sql`drop function reject_upscale_result() cascade`);
 		}
 
-		const [stored] = await db.select().from(titleBackdropUpscale);
-		expect(stored?.status).toBe("pending");
+		const [kept] = await stored();
+		expect(kept?.status).toBe("pending");
+		await exhaust("injected result write failure");
 		expect(await jobs()).toMatchObject([
 			{
 				attempts: 1,

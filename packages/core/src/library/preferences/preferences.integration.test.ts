@@ -1,21 +1,14 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import { eq } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { playbackPreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
 import { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences";
 
-// Run against a disposable database. The fixture uses
-// its own profile ID and is removed even when an assertion fails.
-describe.skipIf(!databaseTestsEnabled())("playback preferences", () => {
+describe("playback preferences", () => {
 	const profile = `preferences-test-${crypto.randomUUID()}`;
-
-	afterAll(async () => {
-		await db.delete(playbackPreference).where(eq(playbackPreference.userId, profile));
-	});
 
 	test("shows medium white outlined subtitles with no box until the profile chooses", async () => {
 		const preferences = await getPlaybackPreferences(profile);
@@ -56,6 +49,12 @@ describe.skipIf(!databaseTestsEnabled())("playback preferences", () => {
 	});
 
 	test("keeps the subtitle style when another preference changes", async () => {
+		await updatePlaybackPreferences(profile, {
+			subtitle_style: {
+				size: "large",
+			},
+		});
+
 		const changed = await updatePlaybackPreferences(profile, {
 			auto_skip: true,
 		});
@@ -65,6 +64,13 @@ describe.skipIf(!databaseTestsEnabled())("playback preferences", () => {
 	});
 
 	test("puts the subtitle style back to its defaults", async () => {
+		await updatePlaybackPreferences(profile, {
+			auto_skip: true,
+			subtitle_style: {
+				size: "large",
+			},
+		});
+
 		const reset = await updatePlaybackPreferences(profile, {
 			subtitle_style: null,
 		});
@@ -82,6 +88,10 @@ describe.skipIf(!databaseTestsEnabled())("playback preferences", () => {
 	});
 
 	test("reads a stored part Sora no longer offers as its default", async () => {
+		await updatePlaybackPreferences(profile, {
+			auto_skip: true,
+		});
+
 		await db
 			.update(playbackPreference)
 			.set({

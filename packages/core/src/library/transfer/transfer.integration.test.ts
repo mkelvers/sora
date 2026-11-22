@@ -1,20 +1,13 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { day } from "@sora/shared";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
-import { episodeProgress, importRecord, seriesState } from "../../database/schema/library";
+import { seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import { exportLibrary, importLibrary, undoImport } from "./transfer";
-
-const removeProfile = async (userId: string) => {
-	await db.delete(episodeProgress).where(eq(episodeProgress.userId, userId));
-	await db.delete(seriesState).where(eq(seriesState.userId, userId));
-	await db.delete(importRecord).where(eq(importRecord.userId, userId));
-};
 
 const datesOf = async (userId: string) => {
 	const rows = await db
@@ -42,12 +35,7 @@ interface Title {
 	seriesId: string;
 }
 
-// Run against a disposable database. Unlike other fixtures, these
-// titles have positive AniList IDs, since a Sora library file accepts no
-// others; they lie beyond any real AniList or MyAnimeList ID, queue no
-// scheduler jobs, and are removed with the fixture profile even when an
-// assertion fails.
-describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
+describe("library import and export", () => {
 	const profile = `transfer-test-${crypto.randomUUID()}`;
 	const now = new Date();
 	const firstAniListId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
@@ -127,22 +115,6 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 		);
 	});
 
-	afterAll(async () => {
-		await removeProfile(profile);
-		await db.delete(series).where(
-			inArray(
-				series.id,
-				titles.map((title) => title.seriesId),
-			),
-		);
-		await db.delete(anime).where(
-			inArray(
-				anime.anilistId,
-				titles.map((title) => title.anilistId),
-			),
-		);
-	});
-
 	const file = (history: boolean) => ({
 		document: {
 			exported_at: now.toISOString(),
@@ -188,6 +160,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	});
 
 	test("changes nothing when the same file is imported again", async () => {
+		await importLibrary(profile, file(true));
 		const report = await importLibrary(profile, file(true));
 
 		expect(report.watchlist_added).toBe(0);
@@ -196,6 +169,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	});
 
 	test("keeps the status a title already has", async () => {
+		await importLibrary(profile, file(true));
 		await db
 			.update(seriesState)
 			.set({ status: "completed" })
@@ -215,6 +189,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	});
 
 	test("exports what was imported, by AniList ID", async () => {
+		await importLibrary(profile, file(true));
 		const exported = await exportLibrary(profile);
 
 		expect(exported.format).toBe("sora-library");
@@ -250,34 +225,31 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	test("keeps the dates a list gives instead of the time of the import", async () => {
 		const dated = `transfer-test-${crypto.randomUUID()}`;
 
-		try {
-			const [first, second, third] = titles;
+		const [first, second, third] = titles;
 
-			const xml = `<myanimelist>
-				<anime><series_animedb_id>${first?.malId}</series_animedb_id><my_status>Completed</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2019-03-04</my_start_date><my_finish_date>2019-04-01</my_finish_date></anime>
-				<anime><series_animedb_id>${second?.malId}</series_animedb_id><my_status>Watching</my_status><my_watched_episodes>1</my_watched_episodes><my_start_date>2021-00-00</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
-				<anime><series_animedb_id>${third?.malId}</series_animedb_id><my_status>Plan to Watch</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2999-01-01</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
-			</myanimelist>`;
+		const xml = `<myanimelist>
+			<anime><series_animedb_id>${first?.malId}</series_animedb_id><my_status>Completed</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2019-03-04</my_start_date><my_finish_date>2019-04-01</my_finish_date></anime>
+			<anime><series_animedb_id>${second?.malId}</series_animedb_id><my_status>Watching</my_status><my_watched_episodes>1</my_watched_episodes><my_start_date>2021-00-00</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
+			<anime><series_animedb_id>${third?.malId}</series_animedb_id><my_status>Plan to Watch</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2999-01-01</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
+		</myanimelist>`;
 
-			const before = new Date();
-			await importLibrary(dated, {
-				source: "myanimelist",
-				xml,
-			});
-			const byId = await datesOf(dated);
+		const before = new Date();
+		await importLibrary(dated, {
+			source: "myanimelist",
+			xml,
+		});
+		const byId = await datesOf(dated);
 
-			expect(isoOf(byId, first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
-			expect(isoOf(byId, first, "changedAt")).toBe("2019-04-01T00:00:00.000Z");
-			expect(isoOf(byId, second, "addedAt")).toBe("2021-01-01T00:00:00.000Z");
-			const future = new Date(isoOf(byId, third, "addedAt") ?? 0).getTime();
-			expect(future).toBeGreaterThanOrEqual(before.getTime());
-			expect(future).toBeLessThanOrEqual(Date.now());
-		} finally {
-			await removeProfile(dated);
-		}
+		expect(isoOf(byId, first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
+		expect(isoOf(byId, first, "changedAt")).toBe("2019-04-01T00:00:00.000Z");
+		expect(isoOf(byId, second, "addedAt")).toBe("2021-01-01T00:00:00.000Z");
+		const future = new Date(isoOf(byId, third, "addedAt") ?? 0).getTime();
+		expect(future).toBeGreaterThanOrEqual(before.getTime());
+		expect(future).toBeLessThanOrEqual(Date.now());
 	});
 
 	test("round trips when each title's status last changed", async () => {
+		await importLibrary(profile, file(true));
 		const [title] = titles;
 		const changed = new Date("2024-02-03T04:05:06.000Z");
 		await db
@@ -291,21 +263,17 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 
 		const other = `transfer-test-${crypto.randomUUID()}`;
 
-		try {
-			await importLibrary(other, {
-				document: exported,
-				source: "sora",
-			});
+		await importLibrary(other, {
+			document: exported,
+			source: "sora",
+		});
 
-			const [row] = await db
-				.select({ changedAt: seriesState.statusChangedAt })
-				.from(seriesState)
-				.where(and(eq(seriesState.userId, other), eq(seriesState.seriesId, title?.seriesId ?? "")));
+		const [row] = await db
+			.select({ changedAt: seriesState.statusChangedAt })
+			.from(seriesState)
+			.where(and(eq(seriesState.userId, other), eq(seriesState.seriesId, title?.seriesId ?? "")));
 
-			expect(row?.changedAt?.toISOString()).toBe(changed.toISOString());
-		} finally {
-			await removeProfile(other);
-		}
+		expect(row?.changedAt?.toISOString()).toBe(changed.toISOString());
 	});
 
 	test("rejects an import that is not valid", async () => {
@@ -320,26 +288,22 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	test("undoes the latest import, once", async () => {
 		const other = `${profile}-undo`;
 
-		try {
-			const report = await importLibrary(other, file(true));
-			expect(report.import_id).not.toBeNull();
+		const report = await importLibrary(other, file(true));
+		expect(report.import_id).not.toBeNull();
 
-			expect(await undoImport(other, "someone-elses")).toEqual({
-				episodes_removed: 0,
-				watchlist_removed: 0,
-			});
-			expect(await undoImport(other, report.import_id ?? "")).toEqual({
-				episodes_removed: 1,
-				watchlist_removed: 2,
-			});
-			const remaining = await exportLibrary(other);
-			expect(remaining.watchlist).toHaveLength(0);
-			expect(await undoImport(other, report.import_id ?? "")).toEqual({
-				episodes_removed: 0,
-				watchlist_removed: 0,
-			});
-		} finally {
-			await removeProfile(other);
-		}
+		expect(await undoImport(other, "someone-elses")).toEqual({
+			episodes_removed: 0,
+			watchlist_removed: 0,
+		});
+		expect(await undoImport(other, report.import_id ?? "")).toEqual({
+			episodes_removed: 1,
+			watchlist_removed: 2,
+		});
+		const remaining = await exportLibrary(other);
+		expect(remaining.watchlist).toHaveLength(0);
+		expect(await undoImport(other, report.import_id ?? "")).toEqual({
+			episodes_removed: 0,
+			watchlist_removed: 0,
+		});
 	});
 });

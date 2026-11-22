@@ -13,7 +13,8 @@
 		"check": "tsc --noEmit -p .",
 		"start": "bun --env-file=../../packages/core/.env src/main.ts",
 		"dev": "bun --env-file=../../packages/core/.env --watch src/main.ts",
-		"test": "bun test --no-env-file --env-file=../../.env.test --preload ../../packages/core/test/setup.ts"
+		"test": "bun test --no-env-file --env-file=../../.env.test --path-ignore-patterns='**/*.integration.test.ts'",
+		"test:integration": "bun test --no-env-file --env-file=../../packages/core/.env --preload ../../packages/core/test/rollback.ts integration.test"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",

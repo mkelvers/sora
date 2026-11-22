@@ -12,6 +12,7 @@
 		"build": "turbo run build",
 		"check": "turbo run check",
 		"test": "turbo run test",
+		"test:integration": "turbo run test:integration",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"format": "oxfmt",

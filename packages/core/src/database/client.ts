@@ -25,6 +25,8 @@ class Connection {
 
 	readonly #pool = new SQL(config.databaseUrl);
 	#held: TransactionSQL | undefined;
+	/** The last savepoint opened in the held transaction; the next waits for it, since one connection runs one at a time. */
+	#savepoint: Promise<unknown> = Promise.resolve();
 
 	/** The SQL client every query goes through. */
 	readonly client = new Proxy(this.#pool, {
@@ -41,14 +43,14 @@ class Connection {
 		const opened = Promise.withResolvers<undefined>();
 		const finished = Promise.withResolvers<undefined>();
 
-		const done = attempt(
-			this.client.begin(async (transaction) => {
-				this.#held = transaction;
-				opened.resolve(undefined);
-				await finished.promise;
-				throw Connection.#rollback;
-			}),
-		);
+		const hold = async (transaction: TransactionSQL) => {
+			this.#held = transaction;
+			opened.resolve(undefined);
+			await finished.promise;
+			throw Connection.#rollback;
+		};
+
+		const done = attempt(this.#open(outer, hold));
 
 		const failed = await Promise.race([opened.promise, done]);
 
@@ -67,6 +69,22 @@ class Connection {
 		};
 	}
 
+	/**
+	 * Opens a savepoint in `outer`, or a transaction when there is none,
+	 * directly rather than through `client`, so the code's own savepoints
+	 * never wait on it.
+	 */
+	async #open(
+		outer: TransactionSQL | undefined,
+		hold: (transaction: TransactionSQL) => Promise<never>,
+	) {
+		if (outer) {
+			return await outer.savepoint(hold);
+		}
+
+		return await this.#pool.begin(hold);
+	}
+
 	#current(): SQL {
 		return this.#held ?? this.#pool;
 	}
@@ -81,7 +99,14 @@ class Connection {
 		const current = this.#current();
 
 		if (key === "begin" && this.#held) {
-			return this.#held.savepoint.bind(this.#held);
+			const held = this.#held;
+
+			return async <TResult>(run: SQL.SavepointContextCallback<TResult>) => {
+				const next = this.#savepoint.then(async () => await held.savepoint(run));
+				this.#savepoint = attempt(next);
+
+				return await next;
+			};
 		}
 
 		if (key === "begin") {

@@ -1,8 +1,7 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { inArray } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { animeSearch, animeSearchTag } from "../../database/schema/catalog";
 import type { BrowseQuery } from "./browse-query";
@@ -58,9 +57,7 @@ const found = async (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) 
 	return rows.map((entry) => entry.anilistId).toSorted((left, right) => right - left);
 };
 
-// Run against a disposable database. The fixture entries and their
-// tags are removed even when an assertion fails.
-describe.skipIf(!databaseTestsEnabled())("browse filters", () => {
+describe("browse filters", () => {
 	beforeAll(async () => {
 		await db.insert(animeSearch).values([
 			row(ids.isekai, {
@@ -112,10 +109,6 @@ describe.skipIf(!databaseTestsEnabled())("browse filters", () => {
 				tag(ids.spoiled, "Isekai", 95, true),
 				tag(ids.weakIsekai, "Isekai", 30),
 			]);
-	});
-
-	afterAll(async () => {
-		await db.delete(animeSearch).where(inArray(animeSearch.anilistId, Object.values(ids)));
 	});
 
 	test("a tag finds entries it applies to strongly, never as a spoiler", async () => {

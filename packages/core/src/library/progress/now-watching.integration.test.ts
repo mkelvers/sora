@@ -1,15 +1,13 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { eq, inArray } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import { getNowWatching } from "./now-watching";
 
-// Run against a disposable database; fixtures never touch real profiles.
-describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
+describe("portfolio titles", () => {
 	const profile = `portfolio-test-${crypto.randomUUID()}`;
 
 	const names = [
@@ -100,10 +98,6 @@ describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 		});
 	});
 
-	afterAll(async () => {
-		await db.delete(series).where(inArray(series.id, ids));
-	});
-
 	test("returns at most three titles by active viewing recency, including rewatches", async () => {
 		expect(await getNowWatching(profile)).toEqual(["Rewatch", "Newest", "Second"]);
 	});
@@ -115,6 +109,7 @@ describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 	});
 
 	test("excludes series with progress that are not on Continue Watching", async () => {
+		await db.delete(series).where(inArray(series.id, [idAt(8), idAt(0), idAt(1)]));
 		await db.insert(seriesState).values({
 			dismissedAt: new Date(),
 			seriesId: idAt(2),

@@ -20,11 +20,10 @@
 			"outputLogs": "errors-only"
 		},
 		"test": {
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				"$TURBO_ROOT$/.env.test",
-				"$TURBO_ROOT$/packages/core/test/setup.ts"
-			]
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env.test"]
+		},
+		"test:integration": {
+			"cache": false
 		},
 		"db:migrate": {
 			"cache": false

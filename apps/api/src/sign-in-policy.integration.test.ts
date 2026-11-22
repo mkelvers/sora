@@ -5,7 +5,6 @@ import { db } from "@sora/core/database";
 import { minute } from "@sora/shared";
 import { Hono } from "hono";
 
-import { databaseTestsEnabled } from "../../../packages/core/test/integration";
 import { v1Routes } from "./v1";
 
 const password = "test-fixture-password";
@@ -56,7 +55,7 @@ const statusOf = async (request: Response | Promise<Response>) => {
 	return response.status;
 };
 
-describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
+describe("password sign-in policy", () => {
 	const clock = spyOn(performance, "now");
 
 	beforeAll(async () => {

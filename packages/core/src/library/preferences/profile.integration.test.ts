@@ -1,21 +1,10 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-import { eq } from "drizzle-orm";
-
-import { databaseTestsEnabled } from "../../../test/integration";
-import { db } from "../../database/client";
-import { profilePreference } from "../../database/schema/library";
 import { InvalidInputError } from "../../errors";
 import { getProfilePreferences, updateProfilePreferences } from "./profile";
 
-// Run against a disposable database. The fixture uses
-// its own profile ID and is removed even when an assertion fails.
-describe.skipIf(!databaseTestsEnabled())("profile preferences", () => {
+describe("profile preferences", () => {
 	const profile = `preferences-test-${crypto.randomUUID()}`;
-
-	afterAll(async () => {
-		await db.delete(profilePreference).where(eq(profilePreference.userId, profile));
-	});
 
 	test("shows spoilers and sends every kind of notification until the profile chooses", async () => {
 		expect(await getProfilePreferences(profile)).toEqual({
@@ -44,6 +33,12 @@ describe.skipIf(!databaseTestsEnabled())("profile preferences", () => {
 	});
 
 	test("keeps notification choices when another preference changes", async () => {
+		await updateProfilePreferences(profile, {
+			notifications: {
+				episodes: false,
+			},
+		});
+
 		const changed = await updateProfilePreferences(profile, {
 			hide_spoilers: true,
 		});
