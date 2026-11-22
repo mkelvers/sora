@@ -666,7 +666,10 @@ const dayOffset = (left: string | null, right: string | null) => {
 const compilationCounts = (subject: MatchSubject, candidate: ShowCandidate) => {
 	const { durationMinutes, episodes, playbackEpisodes } = subject;
 
-	if (subject.format !== "TV_SHORT" || !episodes || !playbackEpisodes || !durationMinutes) {
+	const notShort =
+		subject.format !== "TV_SHORT" || !episodes || !playbackEpisodes || !durationMinutes;
+
+	if (notShort) {
 		return null;
 	}
 
