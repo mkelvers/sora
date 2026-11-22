@@ -169,14 +169,16 @@ export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 		.flatMap((row): AnimeSeason[] => {
 			const season = seasonOrder.find((name) => name === row.season);
 
-			return season && row.year !== null
-				? [
-						{
-							season,
-							year: row.year,
-						},
-					]
-				: [];
+			if (season && row.year !== null) {
+				return [
+					{
+						season,
+						year: row.year,
+					},
+				];
+			}
+
+			return [];
 		})
 		.filter((season) => position(season) <= position(next))
 		.toSorted((left, right) => position(right) - position(left));
