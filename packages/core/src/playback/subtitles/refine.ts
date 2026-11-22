@@ -40,7 +40,6 @@ const tail = 0.25;
  * with an absolute floor; a cue is never kept longer than it was.
  */
 const readingRate = 20;
-const minimumShowSeconds = 1;
 
 /**
  * Sub cues come on before speech does, by 0 to 0.3 seconds in the episodes
@@ -567,10 +566,7 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
 const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
 	const movedStart = Math.max(0, defined(words[first]).start - lead);
 
-	const readable = Math.min(
-		cue.end - cue.start,
-		Math.max(minimumShowSeconds, cue.text.length / readingRate),
-	);
+	const readable = Math.min(cue.end - cue.start, Math.max(1, cue.text.length / readingRate));
 
 	return {
 		cue: index,
