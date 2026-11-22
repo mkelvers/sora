@@ -67,7 +67,9 @@ export const listenToDub = async (
 	const subVideo = sub?.find((video) => video.format === "hls");
 	const dubVideo = dub?.find((video) => video.format === "hls");
 
-	if (!sub || !dub || !subVideo || !dubVideo) {
+	const unstreamable = !sub || !dub || !subVideo || !dubVideo;
+
+	if (unstreamable) {
 		throw new SubtitleRefinementError("The sub and the dub cannot both be streamed");
 	}
 
