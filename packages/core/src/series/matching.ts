@@ -799,7 +799,11 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 		});
 	}
 
-	return placements.length === 1 ? (placements[0] ?? null) : null;
+	if (placements.length === 1) {
+		return placements[0] ?? null;
+	}
+
+	return null;
 };
 
 const yearOf = (date: string | null) => {
