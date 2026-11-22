@@ -80,20 +80,30 @@ const throttlingHost = (
 		port: 0,
 	});
 	const local = fake.server.url;
-	// SAFETY: the stand-in implements the (url, options, callback) form the code under test calls.
-	spyOn(http, "request").mockImplementation(((
-		url: URL,
-		options: http.RequestOptions,
-		onResponse: (response: http.IncomingMessage) => void,
-	) =>
-		realRequest(
-			new URL(`${url.pathname}${url.search}`, local),
-			{
-				...options,
-				lookup: undefined,
-			},
-			onResponse,
-		)) as typeof http.request);
+	spyOn(http, "request").mockImplementation(
+		(
+			url: string | URL | http.RequestOptions,
+			options?: http.RequestOptions | ((response: http.IncomingMessage) => void),
+			onResponse?: (response: http.IncomingMessage) => void,
+		) => {
+			if (!(url instanceof URL)) {
+				throw new TypeError("The stream request must pass a URL");
+			}
+
+			if (!options || !("headers" in options)) {
+				throw new TypeError("The stream request must pass options with headers");
+			}
+
+			return realRequest(
+				new URL(`${url.pathname}${url.search}`, local),
+				{
+					...options,
+					lookup: undefined,
+				},
+				onResponse,
+			);
+		},
+	);
 
 	return {
 		requests: () => requests,
