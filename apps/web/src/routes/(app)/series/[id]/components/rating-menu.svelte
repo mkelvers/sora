@@ -31,8 +31,22 @@
 	const mine = $derived(own.rating);
 	const counts = $derived(series.score_stars);
 	const total = $derived(counts?.reduce((sum, count) => sum + count, 0) ?? 0);
-	const share = (star: number) => (total > 0 ? (counts?.[star - 1] ?? 0) / total : 0);
-	const plural = (star: number) => (star === 1 ? "star" : "stars");
+
+	const share = (star: number) => {
+		if (total > 0) {
+			return (counts?.[star - 1] ?? 0) / total;
+		}
+
+		return 0;
+	};
+
+	const plural = (star: number) => {
+		if (star === 1) {
+			return "star";
+		}
+
+		return "stars";
+	};
 
 	const fill = (star: number) => {
 		const shown = preview || mine;
@@ -44,11 +58,18 @@
 		return Math.min(Math.max(rating - (star - 1), 0), 1);
 	};
 
-	const rate = (star: number) =>
-		setStars({
-			rating: mine === star ? null : star,
+	const rate = (star: number) => {
+		let chosen: number | null = star;
+
+		if (mine === star) {
+			chosen = null;
+		}
+
+		return setStars({
+			rating: chosen,
 			seriesId: series.id,
 		});
+	};
 </script>
 
 {#snippet summary()}

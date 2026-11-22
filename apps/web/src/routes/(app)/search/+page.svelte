@@ -11,7 +11,14 @@
 	import Results from "./components/results.svelte";
 
 	const q = $derived(page.url.searchParams.get("q")?.trim() ?? "");
-	let count = $derived(q ? 1 : 0);
+
+	let count = $derived.by(() => {
+		if (q) {
+			return 1;
+		}
+
+		return 0;
+	});
 
 	const same = (name: string) => name.toLowerCase() === q.toLowerCase();
 

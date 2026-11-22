@@ -33,8 +33,6 @@
 		},
 	] as const;
 
-	const maxFileBytes = 20_000_000;
-
 	const [options, connections] = $derived(
 		await Promise.all([getImportOptions(), getImportConnections()]),
 	);
@@ -65,16 +63,34 @@
 
 	const redirectUri = () => `${location.origin}${location.pathname}`;
 
-	const count = (number: number, noun: string) =>
-		`${number.toLocaleString("en-US")} ${noun}${number === 1 ? "" : "s"}`;
+	const count = (number: number, noun: string) => {
+		let counted = `${noun}s`;
+
+		if (number === 1) {
+			counted = noun;
+		}
+
+		return `${number.toLocaleString("en-US")} ${counted}`;
+	};
 
 	const summary = (report: LibraryImportReport) => {
-		const titles = report.watchlist_added ? count(report.watchlist_added, "title") : null;
-		const episodes = report.episodes_added ? count(report.episodes_added, "episode") : null;
+		let titles: string | null = null;
 
-		const missing = report.not_in_sora_count
-			? ` ${report.not_in_sora_count.toLocaleString("en-US")} not in Sora yet; Sora is adding them.`
-			: "";
+		if (report.watchlist_added) {
+			titles = count(report.watchlist_added, "title");
+		}
+
+		let episodes: string | null = null;
+
+		if (report.episodes_added) {
+			episodes = count(report.episodes_added, "episode");
+		}
+
+		let missing = "";
+
+		if (report.not_in_sora_count) {
+			missing = ` ${report.not_in_sora_count.toLocaleString("en-US")} not in Sora yet; Sora is adding them.`;
+		}
 
 		if (titles && episodes) {
 			return `All done. Added ${titles} to your Watchlist and marked ${episodes} as watched.${missing}`;
@@ -98,12 +114,14 @@
 		busy = null;
 		connecting = null;
 
+		if (error && kind === "import") {
+			fail("That couldn't be imported. Connect again and it should work.");
+
+			return;
+		}
+
 		if (error) {
-			fail(
-				kind === "import"
-					? "That couldn't be imported. Connect again and it should work."
-					: "That file couldn't be imported. Check it's the right one and try again.",
-			);
+			fail("That file couldn't be imported. Check it's the right one and try again.");
 
 			return;
 		}
@@ -124,15 +142,24 @@
 
 		announcement = null;
 		const { error } = await attempt(undoImport(importId), Error);
+
+		if (error) {
+			announcement = {
+				importId: null,
+				message: "That couldn't be undone.",
+				tone: "error",
+			};
+
+			return;
+		}
+
 		announcement = {
 			importId: null,
-			message: error ? "That couldn't be undone." : "Import undone.",
-			tone: error ? "error" : "success",
+			message: "Import undone.",
+			tone: "success",
 		};
 	};
 
-	const popupFeatures = "popup,width=520,height=720";
-	const closedGraceMs = 2000;
 	let popup: Window | null = null;
 
 	const finishConnecting = (search: string) => {
@@ -173,7 +200,7 @@
 	const connect = async (selected: (typeof catalogue)[number]) => {
 		busy = "connect";
 		connecting = selected.id;
-		popup = window.open("", "", popupFeatures);
+		popup = window.open("", "", "popup,width=520,height=720");
 		const { challenge, state } = begin(selected.id, popup !== null);
 
 		const { data, error } = await attempt(
@@ -244,7 +271,7 @@
 
 			closedSince ??= Date.now();
 
-			if (Date.now() - closedSince > closedGraceMs && busy === "connect") {
+			if (Date.now() - closedSince > 2000 && busy === "connect") {
 				popup = null;
 				busy = null;
 				connecting = null;
@@ -281,7 +308,7 @@
 
 		announcement = null;
 
-		if (chosen.size > maxFileBytes) {
+		if (chosen.size > 20_000_000) {
 			fail("That file is too large to import. The limit is 20 MB.");
 
 			return;

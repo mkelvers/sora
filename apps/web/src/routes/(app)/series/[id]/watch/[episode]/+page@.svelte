@@ -18,7 +18,13 @@
 
 	// A non-awaited SSR query can still be pending at hydration, which would
 	// make the browser resolve playback again and bypass the first Retry-After.
-	const playbackQuery = $derived(browser ? getPlayback(address) : undefined);
+	const playbackQuery = $derived.by(() => {
+		if (!browser) {
+			return;
+		}
+
+		return getPlayback(address);
+	});
 </script>
 
 <main id="main-content" tabindex="-1">

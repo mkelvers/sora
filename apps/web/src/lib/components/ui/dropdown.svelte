@@ -24,15 +24,23 @@
 	} = $props();
 
 	const popover = new Popover({
-		floatingConfig: () => ({
-			computePosition: {
-				placement: alignment === "left" ? "bottom-start" : "bottom-end",
-			},
-			flip: {
-				mainAxis: false,
-			},
-			offset: 0,
-		}),
+		floatingConfig: () => {
+			let placement: "bottom-start" | "bottom-end" = "bottom-end";
+
+			if (alignment === "left") {
+				placement = "bottom-start";
+			}
+
+			return {
+				computePosition: {
+					placement,
+				},
+				flip: {
+					mainAxis: false,
+				},
+				offset: 0,
+			};
+		},
 		focus: {
 			onClose: null,
 			onOpen: null,

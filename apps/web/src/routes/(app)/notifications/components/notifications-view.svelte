@@ -13,7 +13,6 @@
 	const loaded = $derived(await notifications);
 	const items = $derived(loaded.items);
 	const unread = $derived(items?.filter((item) => item.unread) ?? []);
-	const read = $derived(items?.filter((item) => !item.unread) ?? []);
 
 	const views = [
 		{
@@ -27,7 +26,14 @@
 	] as const;
 
 	let view = $state<(typeof views)[number]["value"]>("new");
-	const shown = $derived(view === "new" ? unread : read);
+
+	const shown = $derived.by(() => {
+		if (view === "new") {
+			return unread;
+		}
+
+		return items?.filter((item) => !item.unread) ?? [];
+	});
 
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
 

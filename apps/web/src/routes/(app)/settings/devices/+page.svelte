@@ -38,7 +38,14 @@
 
 	const here = $derived(devices.find((device) => device.current));
 	const others = $derived(devices.filter((device) => !device.current));
-	const listed = $derived(showAll ? others : others.slice(0, shownAtFirst));
+
+	const listed = $derived.by(() => {
+		if (showAll) {
+			return others;
+		}
+
+		return others.slice(0, shownAtFirst);
+	});
 
 	const since = (iso: string) => {
 		const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);

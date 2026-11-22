@@ -42,20 +42,26 @@
 
 	const laterLabel = (part: FranchisePart, started: number | undefined) => {
 		const movie = part.format === "MOVIE";
-		const which = seasonNumber(part) || (movie ? " Next Movie" : " Next Season");
+		let fallback = " Next Season";
 
-		return `${started ? "Continue" : "Start"} Watching${which}${movie ? "" : ` E${started ?? 1}`}`;
-	};
-
-	const ownSeason = $derived.by(() => {
-		const current = series.seasons.find((part) => part.series_id === series.id);
-
-		if (current?.role === "season" && series.seasons[0] !== current) {
-			return seasonNumber(current);
+		if (movie) {
+			fallback = " Next Movie";
 		}
 
-		return "";
-	});
+		let verb = "Start";
+
+		if (started) {
+			verb = "Continue";
+		}
+
+		const title = `${verb} Watching${seasonNumber(part) || fallback}`;
+
+		if (movie) {
+			return title;
+		}
+
+		return `${title} E${started ?? 1}`;
+	};
 
 	const done = $derived(
 		!!progress?.finished ||
@@ -69,14 +75,16 @@
 	);
 
 	const play = $derived.by(() => {
-		const later = done
-			? following.find(
-					(part) =>
-						part.role === "season" &&
-						part.episode_count > 0 &&
-						library.status.get(part.series_id) !== "completed",
-				)
-			: undefined;
+		let later: FranchisePart | undefined;
+
+		if (done) {
+			later = following.find(
+				(part) =>
+					part.role === "season" &&
+					part.episode_count > 0 &&
+					library.status.get(part.series_id) !== "completed",
+			);
+		}
 
 		if (later) {
 			const started = library.resume.get(later.series_id)?.episode;
@@ -95,7 +103,17 @@
 		}
 
 		const episode = resume ?? 1;
-		const suffix = `${ownSeason}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
+		const current = series.seasons.find((part) => part.series_id === series.id);
+		let suffix = "";
+
+		if (current?.role === "season" && series.seasons[0] !== current) {
+			suffix = seasonNumber(current);
+		}
+
+		if (series.format !== "MOVIE") {
+			suffix = `${suffix} E${episode}`;
+		}
+
 		const rewatch = !resume && (done || !!progress?.episodes.length);
 		let label = `Start Watching${suffix}`;
 
@@ -112,11 +130,13 @@
 		};
 	});
 
-	const announced = $derived(
-		play?.rewatch || !play
-			? following.findLast((part) => part.role === "season" && part.episode_count === 0)
-			: undefined,
-	);
+	const announced = $derived.by(() => {
+		if (play && !play.rewatch) {
+			return;
+		}
+
+		return following.findLast((part) => part.role === "season" && part.episode_count === 0);
+	});
 
 	const next = $derived.by(() => {
 		if (!series.next_episode) {

@@ -30,7 +30,7 @@
 
 	let saved = $state(false);
 
-	const savePlayback = async (changes: Parameters<typeof savePlaybackPreferences>[0]) => {
+	const save = async (changes: Parameters<typeof savePlaybackPreferences>[0]) => {
 		await savePlaybackPreferences(changes);
 		saved = true;
 	};
@@ -61,7 +61,7 @@
 			bind:value={
 				() => playback.audio ?? "dub",
 				(value) =>
-					savePlayback({
+					save({
 						audio: value,
 					})
 			}
@@ -88,7 +88,7 @@
 				aria-describedby={describedby}
 				checked={playback.subtitles.dub !== null}
 				onchange={(event) =>
-					savePlayback({
+					save({
 						subtitles: {
 							dub: event.currentTarget.checked
 								? {
@@ -113,7 +113,7 @@
 				icons
 				aria-describedby={describedby}
 				checked={playback.auto_skip}
-				onchange={(event) => savePlayback({ auto_skip: event.currentTarget.checked })}
+				onchange={(event) => save({ auto_skip: event.currentTarget.checked })}
 			/>
 		{/snippet}
 	</Row>
@@ -129,7 +129,7 @@
 				icons
 				aria-describedby={describedby}
 				checked={playback.autoplay_next}
-				onchange={(event) => savePlayback({ autoplay_next: event.currentTarget.checked })}
+				onchange={(event) => save({ autoplay_next: event.currentTarget.checked })}
 			/>
 		{/snippet}
 	</Row>

@@ -7,7 +7,13 @@
 		onreset: () => void;
 	} = $props();
 
-	const applied = $derived(labels.length > 1 ? labels.join(", ") : `All ${labels[0]}`);
+	const applied = $derived.by(() => {
+		if (labels.length > 1) {
+			return labels.join(", ");
+		}
+
+		return `All ${labels[0]}`;
+	});
 </script>
 
 {#if labels.length}

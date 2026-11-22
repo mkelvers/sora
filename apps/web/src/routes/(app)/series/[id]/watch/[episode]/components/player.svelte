@@ -72,19 +72,37 @@
 
 	const back = $derived(`/series/${series.id}`);
 
-	const previous = $derived(
-		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
-	);
+	const previous = $derived.by(() => {
+		if (!playback?.previous) {
+			return;
+		}
 
-	const nextAddress = $derived(
-		playback ? nextEpisodeAddress(series, episode.number, playback.next) : undefined,
-	);
+		return `/series/${series.id}/watch/${playback.previous}`;
+	});
 
-	const next = $derived(
-		nextAddress ? `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}` : undefined,
-	);
+	const nextAddress = $derived.by(() => {
+		if (!playback) {
+			return;
+		}
 
-	const start = $derived(progress && !progress.finished ? progress.position_seconds : 0);
+		return nextEpisodeAddress(series, episode.number, playback.next);
+	});
+
+	const next = $derived.by(() => {
+		if (!nextAddress) {
+			return;
+		}
+
+		return `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}`;
+	});
+
+	const start = $derived.by(() => {
+		if (progress && !progress.finished) {
+			return progress.position_seconds;
+		}
+
+		return 0;
+	});
 
 	const player = new Player(
 		untrack(() => start),
@@ -107,7 +125,13 @@
 		}
 	});
 
-	const upcoming = $derived(nearing ? nextAddress : undefined);
+	const upcoming = $derived.by(() => {
+		if (!nearing) {
+			return;
+		}
+
+		return nextAddress;
+	});
 
 	$effect(() => {
 		if (upcoming) {
@@ -117,7 +141,14 @@
 		}
 	});
 
-	const media = $derived(playback?.status === "ready" ? playback.media : []);
+	const media = $derived.by(() => {
+		if (playback?.status === "ready") {
+			return playback.media;
+		}
+
+		return [];
+	});
+
 	const chosen = $derived(choosePlayback(media, preferences));
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
@@ -142,22 +173,34 @@
 
 	const canRetry = $derived(!!playbackQuery?.error || playback?.status !== "unavailable");
 
-	const retryAt = $derived(
-		!playbackQuery?.error && playback?.status === "temporary" ? playback.retryAt : null,
-	);
+	const retryAt = $derived.by(() => {
+		if (!playbackQuery?.error && playback?.status === "temporary") {
+			return playback.retryAt;
+		}
+
+		return null;
+	});
 
 	const retrying = $derived(!!playbackMessage && playbackQuery?.loading === true);
 
-	const loading = $derived(
-		selected ? player.buffering : (playbackQuery?.loading ?? true) && !retrying,
-	);
+	const loading = $derived.by(() => {
+		if (selected) {
+			return player.buffering;
+		}
+
+		return (playbackQuery?.loading ?? true) && !retrying;
+	});
 
 	let now = $state(Date.now());
 	const retryDelayId = $props.id();
 
-	const retryWait = $derived(
-		retryAt === null ? 0 : Math.max(0, Math.ceil((retryAt - now) / second)),
-	);
+	const retryWait = $derived.by(() => {
+		if (retryAt === null) {
+			return 0;
+		}
+
+		return Math.max(0, Math.ceil((retryAt - now) / second));
+	});
 
 	$effect(() => {
 		const deadline = retryAt;
@@ -219,7 +262,13 @@
 		}
 
 		if (failed || failure === progressError) {
-			failure = failed ? progressError : "";
+			let message = "";
+
+			if (failed) {
+				message = progressError;
+			}
+
+			failure = message;
 		}
 	});
 
@@ -230,14 +279,15 @@
 			Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0;
 
 		if (measurable) {
-			session.lastSnapshot =
-				time > 0 || ended
-					? {
-							duration_seconds: Math.floor(duration),
-							finished: ended || (session.ending !== undefined && time >= session.ending),
-							position_seconds: Math.floor(time),
-						}
-					: undefined;
+			session.lastSnapshot = undefined;
+
+			if (time > 0 || ended) {
+				session.lastSnapshot = {
+					duration_seconds: Math.floor(duration),
+					finished: ended || (session.ending !== undefined && time >= session.ending),
+					position_seconds: Math.floor(time),
+				};
+			}
 		} else if (!leaving) {
 			return;
 		}
@@ -291,7 +341,13 @@
 			),
 		);
 
-		failure = error ? "Your player settings couldn’t be saved." : "";
+		let message = "";
+
+		if (error) {
+			message = "Your player settings couldn’t be saved.";
+		}
+
+		failure = message;
 	};
 
 	$effect(() => {
