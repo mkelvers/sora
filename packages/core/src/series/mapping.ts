@@ -182,7 +182,11 @@ const bestMoviePlacement = async (
 /** Places a sequel film after the film its prequel maps to, in that film's TMDB collection. */
 const collectionPlacement = async (subject: MatchSubject, predecessors: readonly Predecessor[]) => {
 	const placement = await firstInSequence(predecessors, async ({ relation, mapping }) => {
-		if (relation !== "PREQUEL" || mapping.mediaType !== "movie" || mapping.tmdbId === null) {
+		if (relation !== "PREQUEL" || mapping.mediaType !== "movie") {
+			return null;
+		}
+
+		if (mapping.tmdbId === null) {
 			return null;
 		}
 
