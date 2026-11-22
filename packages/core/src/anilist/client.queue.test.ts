@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 
+import { z } from "zod";
+
 import { aniListPriority, createAniListClient, viewerWaitingPriority } from "./client";
 import { TypedDocumentString } from "./graphql.generated";
 
@@ -10,16 +12,15 @@ const sent: number[] = [];
 const sentAt: number[] = [];
 
 const respond = (_input: string, init: RequestInit) => {
-	// SAFETY: the client under test sends this body.
-	sent.push(
-		(
-			JSON.parse(String(init.body)) as {
-				variables: {
-					id: number;
-				};
-			}
-		).variables.id,
-	);
+	const { variables } = z
+		.object({
+			variables: z.object({
+				id: z.number(),
+			}),
+		})
+		.parse(JSON.parse(String(init.body)));
+
+	sent.push(variables.id);
 	sentAt.push(performance.now());
 
 	return Promise.resolve(
