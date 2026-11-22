@@ -18,7 +18,6 @@ import { series, titleFacts } from "../database/schema/series";
 import type { TitleAward } from "../database/schema/series";
 import { tmdb } from "../tmdb/client";
 import { parseKey } from "./series";
-import type { SeriesKey } from "./series";
 
 /**
  * How long stored facts are kept before they are fetched again. Awards are
@@ -169,7 +168,7 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
  * keywords, and its IMDb ID from TMDB, in one request, or `null` when
  * TMDB does not know the title.
  */
-const fetchTmdbFacts = (key: SeriesKey) => {
+const fetchTmdbFacts = (key: string) => {
 	const [kind, id] = parseKey(key);
 
 	return kind === "tv" ? fetchShowFacts(id) : fetchMovieFacts(id);
@@ -357,8 +356,7 @@ export const storeTitleFacts = async () => {
 
 	const fetched = new Map<string, TmdbFacts>();
 	await inParallel(due, tmdbConcurrency, async ({ key }) => {
-		// SAFETY: series keys are only stored as SeriesKeys.
-		const { data, error } = await attempt(fetchTmdbFacts(key as SeriesKey));
+		const { data, error } = await attempt(fetchTmdbFacts(key));
 
 		if (error) {
 			console.warn(`TMDB facts of ${key} could not be read: ${error.message}`);
