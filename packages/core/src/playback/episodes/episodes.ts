@@ -94,7 +94,11 @@ const readStoredUnits = async (anilistId: number, providerId: string) => {
 
 	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
 
-	return units?.success ? units.data : null;
+	if (units?.success) {
+		return units.data;
+	}
+
+	return null;
 };
 
 /**
