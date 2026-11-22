@@ -682,12 +682,14 @@ const overdueEpisode = async (
 		})
 		.toSorted((left, right) => left.expected.getTime() - right.expected.getTime());
 
-	return first
-		? {
-				airing_at: first.expected.toISOString(),
-				number: first.number,
-			}
-		: null;
+	if (first) {
+		return {
+			airing_at: first.expected.toISOString(),
+			number: first.number,
+		};
+	}
+
+	return null;
 };
 
 /**
