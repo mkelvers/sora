@@ -1264,7 +1264,7 @@ describe("resolvePlayback deadline", () => {
 				deadlineMs: 100,
 			},
 			dependencies,
-		).catch((error: unknown) => error);
+		).catch((error: Error) => error);
 
 		expect(failure).toBeInstanceOf(PlaybackUnavailableError);
 		expect(

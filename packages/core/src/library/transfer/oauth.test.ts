@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import type { Json } from "@sora/shared";
+
 import { InvalidInputError, UpstreamUnavailableError } from "../../errors";
 import {
 	authorizationUrl,
@@ -58,7 +60,7 @@ const answering = (
 	};
 };
 
-const json = (body: unknown, status = 200) => Response.json(body, { status });
+const json = (body: Json, status = 200) => Response.json(body, { status });
 
 const unreachable: Fetcher = () => Promise.reject(new Error("offline"));
 
@@ -140,7 +142,7 @@ describe("authorizationUrl", () => {
 });
 
 describe("readAniListAccount", () => {
-	const list = {
+	const list: Json = {
 		data: {
 			MediaListCollection: {
 				lists: [

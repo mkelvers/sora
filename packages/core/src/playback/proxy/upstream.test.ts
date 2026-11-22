@@ -139,7 +139,7 @@ describe("a host that rate-limits", () => {
 		]);
 
 		const started = Date.now();
-		const failure = await fetchUpstream(playlist, null).catch((error: unknown) => error);
+		const failure = await fetchUpstream(playlist, null).catch((error: Error) => error);
 		expect(failure).toBeInstanceOf(StreamUpstreamError);
 		expect((failure as StreamUpstreamError).status).toBe(429);
 		expect(Date.now() - started).toBeLessThan(1000);
@@ -157,7 +157,7 @@ describe("a host that rate-limits", () => {
 		const started = Date.now();
 
 		const failure = await fetchUpstream(playlist, null, AbortSignal.timeout(500)).catch(
-			(error: unknown) => error,
+			(error: Error) => error,
 		);
 
 		expect((failure as StreamUpstreamError).status).toBe(429);

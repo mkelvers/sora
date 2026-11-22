@@ -1,4 +1,5 @@
 import { attempt, hour, inSequence } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { bestSimilarity } from "anime-sdk";
 import type { HttpClient } from "anime-sdk";
 import {
@@ -82,12 +83,12 @@ const CatalogSeriesSchema = z.object({
 /** AniKoto's series endpoint; the series itself is read by {@link parseCatalogSeries}. */
 const SeriesResponseSchema = z.object({
 	data: z.object({
-		anime: z.unknown(),
+		anime: z.json(),
 	}),
 });
 
 const CatalogPageSchema = z.object({
-	data: z.array(z.unknown()),
+	data: z.array(z.json()),
 	pagination: z.object({
 		page: z.number().int(),
 		total_pages: z.number().int().nonnegative(),
@@ -144,7 +145,7 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
  * Reads one series of AniKoto's catalogue, as its listing and its series
  * endpoint send it, or `null` when it is malformed.
  */
-export const parseCatalogSeries = (item: unknown): typeof anikotoSeries.$inferInsert | null => {
+export const parseCatalogSeries = (item: Json): typeof anikotoSeries.$inferInsert | null => {
 	const parsed = CatalogSeriesSchema.safeParse(item);
 
 	return parsed.success ? toRow(parsed.data) : null;

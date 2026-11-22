@@ -67,7 +67,7 @@ export const sendProblem = (
  * The app's error handler. Core errors map through {@link statusByCode};
  * anything else is a defect, logged and answered with a generic 500.
  */
-export const onError = (error: unknown, c: Context) => {
+export const onError = (error: Error, c: Context) => {
 	if (!(error instanceof CoreError)) {
 		console.error(`${c.req.method} ${c.req.path} failed`, error);
 

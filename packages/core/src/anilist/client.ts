@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { attempt, parseRetryAfter, second } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -172,7 +173,7 @@ export interface Budget {
 	resetAt: number;
 }
 
-const sortedKeys = (_key: string, value: unknown) => {
+const sortedKeys = (_key: string, value: Json | undefined) => {
 	if (!(value instanceof Object) || Array.isArray(value)) {
 		return value;
 	}
@@ -188,7 +189,7 @@ const sortedKeys = (_key: string, value: unknown) => {
  * Object keys are sorted so `{ a, b }` and `{ b, a }` share a stored response, and the
  * query text is included so editing an operation leaves its stored responses behind.
  */
-const responseKey = (query: string, variables: unknown) =>
+const responseKey = <TVariables>(query: string, variables: TVariables) =>
 	createHash("sha256")
 		.update(query)
 		.update("\0")
@@ -445,7 +446,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 	};
 
-	const execute = async (query: string, variables: unknown) => {
+	const execute = async <TVariables>(query: string, variables: TVariables) => {
 		const response = await attempt(
 			fetch(endpoint, {
 				body: JSON.stringify({
@@ -523,7 +524,11 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		);
 	};
 
-	const fetchAndStore = async <TResult>(key: string, query: string, variables: unknown) => {
+	const fetchAndStore = async <TResult, TVariables>(
+		key: string,
+		query: string,
+		variables: TVariables,
+	) => {
 		const data = await rateLimited(key, () => execute(query, variables));
 
 		const values = {
@@ -574,7 +579,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 
 		const { data, error } = await attempt(
-			inFlight.run(key, () => fetchAndStore<TResult>(key, query, variables)),
+			inFlight.run(key, () => fetchAndStore<TResult, TVariables>(key, query, variables)),
 			UpstreamUnavailableError,
 		);
 

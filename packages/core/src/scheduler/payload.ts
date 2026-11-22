@@ -14,7 +14,7 @@ export class InvalidPayloadError extends Error {
 /** Reads a job's payload with `schema`, throwing {@link InvalidPayloadError} when it does not match. */
 export const parsePayload = <TSchema extends z.ZodType>(
 	schema: TSchema,
-	payload: unknown,
+	payload: Parameters<Task>[0],
 ): z.output<TSchema> => {
 	const result = schema.safeParse(payload);
 

@@ -37,16 +37,16 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 	work: PromiseLike<TData> | (() => TData),
 	...expected: TExpected
 ): Attempt<TData, Caught<TExpected>> | Promise<Attempt<TData, Caught<TExpected>>> => {
-	const failed = (thrown: unknown) => {
+	const failed = (cause: unknown) => {
 		const error =
-			thrown instanceof Error
-				? thrown
-				: new Error(String(thrown), {
-						cause: thrown,
+			cause instanceof Error
+				? cause
+				: new Error(String(cause), {
+						cause,
 					});
 
 		if (expected.length > 0 && !expected.some((type) => error instanceof type)) {
-			throw thrown;
+			throw cause;
 		}
 
 		return {

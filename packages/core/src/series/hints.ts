@@ -1,4 +1,5 @@
 import { attempt, inSequence, chunked } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -66,7 +67,7 @@ export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> =
  *
  * @throws {TypeError} when `list` is not an array.
  */
-export const parseTmdbHints = (list: unknown): Map<number, TmdbHint> => {
+export const parseTmdbHints = (list: Json): Map<number, TmdbHint> => {
 	if (!Array.isArray(list)) {
 		throw new TypeError("The Fribb/anime-lists list is not an array");
 	}
@@ -127,7 +128,8 @@ const downloadHints = async () => {
 		);
 	}
 
-	const list = await attempt(response.data.json());
+	// SAFETY: a parsed JSON body is JSON; parseTmdbHints checks its structure.
+	const list = await attempt(response.data.json() as Promise<Json>);
 
 	if (list.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {

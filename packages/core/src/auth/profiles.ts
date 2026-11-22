@@ -74,7 +74,10 @@ export const getProfile = async (userId: string, profileId: string): Promise<Pro
 	return toProfile(row);
 };
 
-const parse = <TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.output<TSchema> => {
+const parse = <TSchema extends z.ZodType>(
+	schema: TSchema,
+	input: z.input<TSchema>,
+): z.output<TSchema> => {
 	const parsed = schema.safeParse(input);
 
 	if (!parsed.success) {

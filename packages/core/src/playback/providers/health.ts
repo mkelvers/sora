@@ -81,8 +81,6 @@ export interface OperationRow {
 const recentFrom = (now: Date) =>
 	new Date(Math.floor((now.getTime() - failingAfterMs) / hour) * hour);
 
-const toDate = (value: unknown) => (value === null ? null : new Date(value as string | Date));
-
 /**
  * Folds per-operation rows into one {@link ProviderHealth} per provider in
  * `providerIds`. Rows of other providers, such as removed ones, are ignored.
@@ -175,10 +173,12 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 			lastError: sql<
 				string | null
 			>`(array_agg(${providerCalls.lastError} order by ${providerCalls.lastErrorAt} desc nulls last))[1]`,
-			lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(toDate),
+			lastErrorAt: sql<Date | null>`max(${providerCalls.lastErrorAt})`.mapWith(
+				providerCalls.lastErrorAt,
+			),
 			lastOkHour:
 				sql<Date | null>`max(${providerCalls.hour}) filter (where ${providerCalls.ok} > 0)`.mapWith(
-					toDate,
+					providerCalls.hour,
 				),
 			ok: sql<number>`coalesce(sum(${providerCalls.ok}) filter (where ${inWindow}), 0)`.mapWith(
 				Number,

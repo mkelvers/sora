@@ -50,7 +50,7 @@ const runningJob = () => {
 };
 
 /** Runs `run` as {@link task} the way the scheduler does. */
-const runWrapped = async (run: Task, payload: unknown, helpers: JobHelpers) => {
+const runWrapped = async (run: Task, payload: Parameters<Task>[0], helpers: JobHelpers) => {
 	const wrapped = failInvalidPayloads({
 		[task]: run,
 	})[task];

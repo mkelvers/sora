@@ -1,5 +1,6 @@
 import { browser } from "$app/env";
 import { attempt } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import type { z } from "zod";
 
 export class Preferences {
@@ -28,7 +29,7 @@ export class Preferences {
 		return parsed.data;
 	}
 
-	set(key: string, value: unknown) {
+	set(key: string, value: Json) {
 		if (!browser) {
 			return;
 		}

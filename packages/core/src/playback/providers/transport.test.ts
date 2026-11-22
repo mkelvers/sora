@@ -61,7 +61,7 @@ describe("providerTransport", () => {
 
 		const failure = await http
 			.get(`http://127.0.0.1:1/$(touch ${marker})`)
-			.catch((error: unknown) => error);
+			.catch((error: Error) => error);
 
 		expect(failure).toBeInstanceOf(Error);
 		expect(await Bun.file(marker).exists()).toBe(false);
