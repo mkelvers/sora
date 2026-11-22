@@ -21,8 +21,6 @@ import type { TmdbEndpoints } from "./api.generated";
  */
 const requestSpacingMs = 30;
 
-const requestTimeoutMs = 10_000;
-
 /** A 429 is retried this many times before giving up. */
 const rateLimitRetries = 2;
 
@@ -128,7 +126,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 					Accept: "application/json",
 					Authorization: `Bearer ${config.tmdbReadAccessToken}`,
 				},
-				signal: AbortSignal.timeout(requestTimeoutMs),
+				signal: AbortSignal.timeout(10_000),
 			}),
 		);
 
