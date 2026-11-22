@@ -148,5 +148,9 @@ export const subtitleKind = (label: string, content: string | null): SubtitleKin
 		return measured;
 	}
 
-	return measured === null || measured === named ? named : null;
+	if (measured === null || measured === named) {
+		return named;
+	}
+
+	return null;
 };
