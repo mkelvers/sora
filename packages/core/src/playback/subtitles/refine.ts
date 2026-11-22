@@ -716,11 +716,12 @@ const placeByTime = (
 				overlapSeconds(expected.start, expected.end, run.start, run.end) /
 				Math.min(expected.end - expected.start, run.end - run.start);
 
-			if (
+			const closer =
 				share >= minimumOverlap &&
 				Math.abs(run.start - expected.start) <= nearRunSeconds &&
-				(!best || share > best.share)
-			) {
+				(!best || share > best.share);
+
+			if (closer) {
 				best = {
 					run,
 					share,
