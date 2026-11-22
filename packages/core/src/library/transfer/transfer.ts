@@ -228,7 +228,9 @@ const applyAdditions = async (
 		const watched = released.flatMap((episode) => {
 			const limit = limits.get(episode.seriesId);
 
-			if (limit !== null && limit !== undefined && episode.number > limit) {
+			const pastLimit = limit !== null && limit !== undefined && episode.number > limit;
+
+			if (pastLimit) {
 				return [];
 			}
 
