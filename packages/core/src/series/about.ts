@@ -62,14 +62,16 @@ const subtitleLanguages = (tags: readonly string[]) => {
 	const named = tags.flatMap((tag) => {
 		const name = languageName(tag);
 
-		return name
-			? [
-					{
-						english: tag === "en" || tag.startsWith("en-"),
-						name,
-					},
-				]
-			: [];
+		if (name) {
+			return [
+				{
+					english: tag === "en" || tag.startsWith("en-"),
+					name,
+				},
+			];
+		}
+
+		return [];
 	});
 
 	const sorted = named.toSorted(
