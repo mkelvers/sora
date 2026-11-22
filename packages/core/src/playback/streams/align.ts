@@ -185,5 +185,9 @@ export const alignTimelines = (source: number[], target: number[]): TimelineShif
 export const shiftTime = (shifts: TimelineShift[], time: number) => {
 	const shift = shifts.findLast((candidate) => candidate.from <= time) ?? shifts[0];
 
-	return shift ? time + shift.offset : time;
+	if (shift) {
+		return time + shift.offset;
+	}
+
+	return time;
 };
