@@ -7,15 +7,6 @@ import { InvalidInputError } from "../../errors";
 import { ProfilePreferencesUpdateSchema } from "../../models/library";
 import type { ProfilePreferences, ProfilePreferencesUpdate } from "../../models/library";
 
-const defaults: ProfilePreferences = {
-	hide_spoilers: false,
-	notifications: {
-		dubs: true,
-		episodes: true,
-		premieres: true,
-	},
-};
-
 const toPreferences = (row: typeof profilePreference.$inferSelect): ProfilePreferences => ({
 	hide_spoilers: row.hideSpoilers,
 	notifications: {
@@ -27,6 +18,15 @@ const toPreferences = (row: typeof profilePreference.$inferSelect): ProfilePrefe
 
 /** A profile's display and notification preferences; the defaults until they pick anything. */
 export const getProfilePreferences = async (userId: string): Promise<ProfilePreferences> => {
+	const defaults: ProfilePreferences = {
+		hide_spoilers: false,
+		notifications: {
+			dubs: true,
+			episodes: true,
+			premieres: true,
+		},
+	};
+
 	const [row] = await db
 		.select()
 		.from(profilePreference)

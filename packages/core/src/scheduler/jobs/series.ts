@@ -71,18 +71,6 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 	helpers.logger.info(`Stored series ${data} for anime ${anilistId}`);
 };
 
-/** AniList pages are capped at 50 entries. */
-const entriesPerPage = 50;
-
-/**
- * Pages of upcoming and airing entries read per run, newest first. AniList
- * lists well under 1,000 of them at a time.
- */
-const discoveryPageLimit = 20;
-
-/** Upcoming entries premiering within this window are stored ahead of time. */
-const premiereWindowMs = 14 * day;
-
 /** The graphile-worker task that finds new entries to store. */
 export const discoverSeriesEntriesTask = "discover-series-entries";
 
@@ -103,6 +91,18 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  * on the next run.
  */
 export const discoverSeriesEntries: Task = async (_payload, helpers) => {
+	/** Upcoming entries premiering within this window are stored ahead of time. */
+	const premiereWindowMs = 14 * day;
+
+	/**
+	 * Pages of upcoming and airing entries read per run, newest first. AniList
+	 * lists well under 1,000 of them at a time.
+	 */
+	const discoveryPageLimit = 20;
+
+	/** AniList pages are capped at 50 entries. */
+	const entriesPerPage = 50;
+
 	const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
 
 	const discoverPage = async (page: number, queuedSoFar: number): Promise<number> => {
@@ -196,14 +196,6 @@ const isUnnamed = sql`(${seriesEpisode.title} is null or ${seriesEpisode.title} 
 
 /** The graphile-worker task that fills in details TMDB added after an episode aired. */
 export const refreshEpisodeDetailsTask = "refresh-episode-details";
-
-/**
- * How far apart the runs of {@link refreshEpisodeDetails} are, as the
- * scheduler's crontab has it. TMDB's CDN answers a change log's request with
- * the same copy for ten minutes, so runs any closer would be answered with
- * what the run before got.
- */
-const detailsRunEveryMs = 12 * minute;
 
 /**
  * Copies TMDB's details of `episodes` onto a stored series' episodes, as a
@@ -302,6 +294,14 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
  * so it writes the same details.
  */
 export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
+	/**
+	 * How far apart the runs of {@link refreshEpisodeDetails} are, as the
+	 * scheduler's crontab has it. TMDB's CDN answers a change log's request with
+	 * the same copy for ten minutes, so runs any closer would be answered with
+	 * what the run before got.
+	 */
+	const detailsRunEveryMs = 12 * minute;
+
 	const awaited = await db.execute<{
 		series_id: string;
 		show_id: number;
@@ -415,9 +415,6 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 /** The graphile-worker task that picks up episodes TMDB starts to list. */
 export const refreshEpisodeListingsTask = "refresh-episode-listings";
 
-/** How long a show whose episode TMDB has not listed for years goes unasked. */
-const longestListingWaitMs = 30 * day;
-
 /** Which episodes TMDB lists for a show, by season and number. */
 const episodeKeys = (show: TmdbShow) =>
 	show.episodes
@@ -486,6 +483,9 @@ const refreshShow = async (
 	fetchedAt: ReadonlyMap<string, number>,
 	logger: Parameters<Task>[1]["logger"],
 ): Promise<Outcome> => {
+	/** How long a show whose episode TMDB has not listed for years goes unasked. */
+	const longestListingWaitMs = 30 * day;
+
 	const maxAgeMs = Math.min(
 		row.is_unlisted
 			? recheckAfterMs(row.unlisted_for_ms, {

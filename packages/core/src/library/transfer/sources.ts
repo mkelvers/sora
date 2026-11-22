@@ -61,8 +61,6 @@ const fromUnixSeconds = (seconds: number | null | undefined): Date | null => {
 	return null;
 };
 
-const dayPattern = /^(?<year>\d{4})(?:-(?<month>\d{2}))?(?:-(?<day>\d{2}))?/u;
-
 /**
  * A day as AniList or MyAnimeList spell it, which may lack the month or the day
  * (a year alone is a valid date on both). A missing part counts as the first;
@@ -81,6 +79,8 @@ const fromParts = (
 };
 
 export const fromDayText = (text: string | null | undefined): Date | null => {
+	const dayPattern = /^(?<year>\d{4})(?:-(?<month>\d{2}))?(?:-(?<day>\d{2}))?/u;
+
 	const parts = text ? dayPattern.exec(text.trim())?.groups : undefined;
 
 	return fromParts(Number(parts?.year), Number(parts?.month), Number(parts?.day));
@@ -191,8 +191,6 @@ export const readAniListUser = async (username: string): Promise<ListEntry[]> =>
 	return aniListEntries(MediaListCollection);
 };
 
-const animeBlock = /<anime>(?<body>[\s\S]*?)<\/anime>/gu;
-
 const malFields = {
 	finished: /<my_finish_date>\s*(?:<!\[CDATA\[)?(?<value>[^<\]]*)/u,
 	id: /<series_animedb_id>\s*(?:<!\[CDATA\[)?(?<value>\d+)/u,
@@ -252,6 +250,8 @@ export const toMalEntry = (entry: {
  * left out.
  */
 export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
+	const animeBlock = /<anime>(?<body>[\s\S]*?)<\/anime>/gu;
+
 	const entries: MalEntry[] = [];
 
 	for (const match of xml.matchAll(animeBlock)) {

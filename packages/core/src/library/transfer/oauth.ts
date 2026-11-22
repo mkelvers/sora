@@ -28,9 +28,6 @@ const mal = {
 	user: "https://api.myanimelist.net/v2/users/@me",
 };
 
-/** The most pages of a MyAnimeList list read, 1000 titles each, so a broken `next` cannot loop. */
-const maxListPages = 20;
-
 /** Which accounts people can connect on this Sora: those whose client is configured. */
 export const importOptions = (clients: Clients = config): ImportOptions => ({
 	anilist_account: clients.aniListOAuth !== null,
@@ -296,6 +293,9 @@ export const readMyAnimeListAccount = async (
 	fetcher: Fetcher = fetch,
 	clients: Clients = config,
 ): Promise<AccountEntries<MalEntry>> => {
+	/** The most pages of a MyAnimeList list read, 1000 titles each, so a broken `next` cannot loop. */
+	const maxListPages = 20;
+
 	if (!clients.myAnimeListOAuth) {
 		throw notSetUp();
 	}

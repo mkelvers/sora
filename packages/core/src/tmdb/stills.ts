@@ -21,24 +21,8 @@ const smallestWidth = 1000;
 const measuredWidth = 320;
 const measuredHeight = 180;
 
-/**
- * A line of pixels counts as black when all but its brightest 2% are below
- * this luma. Lossy compression leaves a bar's pixels up to about 12; a dark
- * scene's vignette is above it within a few lines of the edge.
- */
-const blackLuma = 12;
-
-/**
- * A bar ends in a step: the lines just past it are brighter, on average,
- * than the ones just inside it by at least this much. A dark scene fades.
- */
-const barStep = 10;
-
 /** Bars thinner than this share of the frame are not seen, and not counted. */
 const thinnestBar = 0.02;
-
-/** A black edge wider than this share of the frame is a dark frame, not a bar. */
-const widestBar = 0.4;
 
 const tier = (still: TmdbImage) => [
 	Number(still.iso_639_1 !== null),
@@ -83,6 +67,22 @@ const depth = (
 		mean: number;
 	}[],
 ) => {
+	/** A black edge wider than this share of the frame is a dark frame, not a bar. */
+	const widestBar = 0.4;
+
+	/**
+	 * A bar ends in a step: the lines just past it are brighter, on average,
+	 * than the ones just inside it by at least this much. A dark scene fades.
+	 */
+	const barStep = 10;
+
+	/**
+	 * A line of pixels counts as black when all but its brightest 2% are below
+	 * this luma. Lossy compression leaves a bar's pixels up to about 12; a dark
+	 * scene's vignette is above it within a few lines of the edge.
+	 */
+	const blackLuma = 12;
+
 	let bar = 0;
 
 	while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
@@ -163,16 +163,6 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 export const hasBlackBars = async (image: Buffer): Promise<boolean> =>
 	(await blackBars(image)) >= thinnestBar;
 
-/**
- * A still is a scene when CLIP gives it at least this much of its
- * probability. Bleach's title card of episode 18, which CLIP finds hardest,
- * gets 0.79. Of 1,323 stills from 430 episodes, this turns away every one the
- * whole 32-bit model turned away at 0.75, and four more: two title cards and
- * a poster it let through, and a letterboxed scene that its black bars turn
- * away first.
- */
-const sceneShare = 0.8;
-
 /** CLIP, loaded on first use; a load that fails is forgotten, so the next still tries again. */
 class Classifier {
 	#loading: ReturnType<typeof loadStillModel> | null = null;
@@ -208,6 +198,16 @@ const classifier = new Classifier();
  * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
 export const showsText = async (image: Buffer): Promise<boolean> => {
+	/**
+	 * A still is a scene when CLIP gives it at least this much of its
+	 * probability. Bleach's title card of episode 18, which CLIP finds hardest,
+	 * gets 0.79. Of 1,323 stills from 430 episodes, this turns away every one the
+	 * whole 32-bit model turned away at 0.75, and four more: two title cards and
+	 * a poster it let through, and a letterboxed scene that its black bars turn
+	 * away first.
+	 */
+	const sceneShare = 0.8;
+
 	const classify = await classifier.load();
 
 	return (await classify(image)) < sceneShare;

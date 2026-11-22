@@ -12,18 +12,6 @@ import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TmdbEndpoints } from "./api.generated";
 
-/**
- * Minimum spacing between the starts of upstream requests from this process.
- *
- * TMDB allows roughly 40 requests per second per IP. Requests may overlap;
- * only their start times are spaced, which keeps a franchise lookup that
- * needs dozens of calls fast without bursting past the limit.
- */
-const requestSpacingMs = 30;
-
-/** A 429 is retried this many times before giving up. */
-const rateLimitRetries = 2;
-
 /** Freshness policy for one TMDB request. */
 export interface TmdbRequestOptions {
 	/**
@@ -106,6 +94,18 @@ const retryAfter = (response: Response) => {
  * process shares one, {@link tmdb}, since TMDB's limit is per IP.
  */
 export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
+	/** A 429 is retried this many times before giving up. */
+	const rateLimitRetries = 2;
+
+	/**
+	 * Minimum spacing between the starts of upstream requests from this process.
+	 *
+	 * TMDB allows roughly 40 requests per second per IP. Requests may overlap;
+	 * only their start times are spaced, which keeps a franchise lookup that
+	 * needs dozens of calls fast without bursting past the limit.
+	 */
+	const requestSpacingMs = 30;
+
 	let nextRequestAt = 0;
 	const inFlight = new InFlight<string, unknown>();
 

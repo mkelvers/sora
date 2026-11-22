@@ -9,16 +9,6 @@ import { getStoredUnits } from "../../playback/episodes/episodes";
 import { aniKoto } from "../../playback/providers/registry";
 import { scheduleAniKotoPoll } from "../queue";
 
-/** How far ahead each daily run schedules dubs: a day, with room for a run that starts late. */
-const scheduleAheadMs = 26 * hour;
-
-/**
- * How long after AnimeSchedule's time a dub is first looked for on
- * AniKoto. Of a week's dubs, AniKoto changed the series 8 to 35 minutes
- * after it.
- */
-const firstLookDelayMs = 5 * minute;
-
 /** The graphile-worker task that schedules looks on AniKoto for the day's dubs. */
 export const syncDubScheduleTask = "sync-dub-schedule";
 
@@ -33,6 +23,16 @@ export const syncDubScheduleTask = "sync-dub-schedule";
  * AniKoto does not carry yet are looked for.
  */
 export const syncDubSchedule: Task = async (_payload, helpers) => {
+	/**
+	 * How long after AnimeSchedule's time a dub is first looked for on
+	 * AniKoto. Of a week's dubs, AniKoto changed the series 8 to 35 minutes
+	 * after it.
+	 */
+	const firstLookDelayMs = 5 * minute;
+
+	/** How far ahead each daily run schedules dubs: a day, with room for a run that starts late. */
+	const scheduleAheadMs = 26 * hour;
+
 	const now = new Date();
 	const until = new Date(now.getTime() + scheduleAheadMs);
 

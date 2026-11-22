@@ -97,9 +97,6 @@ export const rising = {
 /** How long a rising title rests after it was featured, while it has nothing else new. */
 export const risingRestFor = 7 * day;
 
-/** Days of activity each window needs before it is trusted. */
-const minimumDaysPerWindow = 3;
-
 /** A date `ms` before `now`, as `YYYY-MM-DD`, to compare with the search index's start dates. */
 export const dateBefore = (now: Date, ms: number) =>
 	new Date(now.getTime() - ms).toISOString().slice(0, 10);
@@ -147,6 +144,9 @@ export interface Activity {
 
 /** The average daily activity of `days` in each of {@link activityWindows} before `now`. */
 export const activityOf = (days: readonly ActivityDay[], now: Date): Activity => {
+	/** Days of activity each window needs before it is trusted. */
+	const minimumDaysPerWindow = 3;
+
 	const average = ({ from, to }: { from: number; to: number }) => {
 		const first = dateBefore(now, from);
 		const last = dateBefore(now, to);

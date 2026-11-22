@@ -13,9 +13,6 @@ import { activityKeptFor, dateBefore } from "../../library/featured/rotation";
 /** The graphile-worker task that stores AniList's daily activity of the titles the home page may feature. */
 export const storeAnimeTrendsTask = "store-anime-trends";
 
-/** Entries asked for in one request, so each request's pages stay few. */
-const entriesPerRequest = 100;
-
 /** A Unix timestamp, in seconds, of the start of `date` (`YYYY-MM-DD`) in UTC. */
 const startOf = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
 
@@ -69,6 +66,9 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
  * the whole month, once. About a hundred entries a day are a few requests.
  */
 export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
+	/** Entries asked for in one request, so each request's pages stay few. */
+	const entriesPerRequest = 100;
+
 	const now = new Date();
 	const oldest = dateBefore(now, activityKeptFor);
 

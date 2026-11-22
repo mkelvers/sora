@@ -9,15 +9,6 @@ const logger = new Logger(consoleLogFactory).scope({
 	label: "pools",
 });
 
-/** How often a scheduler says its pools are alive, and looks for dead ones. */
-const heartbeatMs = 30_000;
-
-/**
- * How long a pool may go without a heartbeat before its locked jobs are
- * released. Several heartbeats, so a busy event loop is not taken for death.
- */
-const deadAfterMs = 2 * minute;
-
 /** The pools a scheduler runs, kept alive; see {@link watchPools}. */
 export interface PoolWatch {
 	/**
@@ -34,6 +25,12 @@ export interface PoolWatch {
  * `now` by pools no heartbeat has marked alive since then.
  */
 const releaseDeadPools = async (now: Date) => {
+	/**
+	 * How long a pool may go without a heartbeat before its locked jobs are
+	 * released. Several heartbeats, so a busy event loop is not taken for death.
+	 */
+	const deadAfterMs = 2 * minute;
+
 	const cutoff = new Date(now.getTime() - deadAfterMs);
 
 	const dead = await db.execute<{
@@ -81,6 +78,9 @@ const releaseDeadPools = async (now: Date) => {
  * it replaces left locked.
  */
 export const watchPools = (): PoolWatch => {
+	/** How often a scheduler says its pools are alive, and looks for dead ones. */
+	const heartbeatMs = 30_000;
+
 	const poolIds = new Set<string>();
 
 	let running = Promise.resolve();

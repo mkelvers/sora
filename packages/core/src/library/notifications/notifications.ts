@@ -26,9 +26,6 @@ export interface Notifications {
 /** How long a notification is listed after it came out. */
 const notificationLifetimeMs = 30 * day;
 
-/** How many entries {@link followedSeries} follows relations through at most. */
-const continuityLimit = 500;
-
 /** One episode that came out, or was dubbed, as {@link groupNotifications} reads it. */
 export interface ReleasedEpisode {
 	seriesId: string;
@@ -178,6 +175,9 @@ const followedSeries = async (
 	followed: ReadonlyMap<number, Date>,
 	excluded: ReadonlySet<number>,
 ): Promise<Map<number, Date>> => {
+	/** How many entries {@link followedSeries} follows relations through at most. */
+	const continuityLimit = 500;
+
 	const neighbours = new Map<number, Set<number>>();
 
 	const link = (from: number, to: number) => {

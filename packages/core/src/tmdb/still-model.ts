@@ -25,9 +25,6 @@ export const stillLabels = [
 /** How a label is put to CLIP, as Transformers.js's zero-shot pipeline puts it. */
 export const labelPrompt = (label: string) => `This is a photo of ${label}`;
 
-/** CLIP's learned temperature, which scales each similarity before the softmax. */
-const logitScale = 100;
-
 const dot = (left: readonly number[], right: readonly number[]) =>
 	left.reduce((sum, value, index) => sum + value * (right[index] ?? 0), 0);
 
@@ -47,6 +44,9 @@ export const unitLength = (vector: readonly number[]) => {
  *   `bun run stills:embed-labels` after changing them.
  */
 export const loadStillModel = async (cacheDir: string | null) => {
+	/** CLIP's learned temperature, which scales each similarity before the softmax. */
+	const logitScale = 100;
+
 	if (
 		labelEmbeddings.model !== stillModel ||
 		labelEmbeddings.labels.join("\n") !== stillLabels.map(labelPrompt).join("\n")

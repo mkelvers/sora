@@ -19,18 +19,6 @@ const SyncSearchIndexPayloadSchema = z
 	})
 	.nullish();
 
-/** Backfill layouts {@link backfillSeries} keeps queued; more than half an hour of AniList's rate limit lays out. */
-const backfillBatchSize = 200;
-
-/**
- * How popular on AniList an entry must be for {@link backfillSeries} to store
- * its series ahead of any search. A less popular title is laid out when a
- * search first finds it instead, within seconds, ahead of all other work;
- * storing every one of them ahead of time would take AniList's requests for
- * days.
- */
-const backfillMinimumPopularity = 1000;
-
 /** The graphile-worker task that queues popular titles to be stored. */
 export const backfillSeriesTask = "backfill-series";
 
@@ -124,6 +112,18 @@ const queueSeasons = async (helpers: Parameters<Task>[1]) => {
  * thousands of layouts that stay queued for days.
  */
 export const backfillSeries: Task = async (_payload, helpers) => {
+	/**
+	 * How popular on AniList an entry must be for {@link backfillSeries} to store
+	 * its series ahead of any search. A less popular title is laid out when a
+	 * search first finds it instead, within seconds, ahead of all other work;
+	 * storing every one of them ahead of time would take AniList's requests for
+	 * days.
+	 */
+	const backfillMinimumPopularity = 1000;
+
+	/** Backfill layouts {@link backfillSeries} keeps queued; more than half an hour of AniList's rate limit lays out. */
+	const backfillBatchSize = 200;
+
 	if (!config.preloadTitles) {
 		return;
 	}

@@ -30,9 +30,6 @@ export interface EpisodeAddress {
 	episode: number;
 }
 
-/** The series {@link getContinueWatching} looks at, the most recently played. */
-const recentSeries = 30;
-
 const progressKey = [
 	episodeProgress.userId,
 	episodeProgress.seriesId,
@@ -511,6 +508,9 @@ export const startRewatch = async (userId: string, seriesId: string) => {
  * {@link recentSeries} most recently played series are looked at.
  */
 export const getContinueWatching = async (userId: string): Promise<ContinueWatching[]> => {
+	/** The series {@link getContinueWatching} looks at, the most recently played. */
+	const recentSeries = 30;
+
 	const latest = db
 		.selectDistinctOn([episodeProgress.seriesId], {
 			dismissedAt: seriesState.dismissedAt,

@@ -7,18 +7,8 @@ import { series, seriesRelated } from "../../database/schema/series";
 import type { Recommendations } from "../../models/series";
 import { toSeriesCards } from "../../series/queries";
 
-/** The fewest titles a row needs; a shorter one looks unfinished and is left out. */
-const minimumRowSize = 8;
-
-/** The most titles a row holds. */
-const rowSize = 20;
-
-/** Candidates read for each row, since some are left out for having nothing to stream. */
-const candidatesPerRow = 60;
-
 /** How many rows are built from a single title the profile watched, and from their genres. */
 const becauseRows = 2;
-const genreRows = 2;
 
 /** Formats worth recommending: shows and films, not music videos, specials, or OVAs. */
 const recommendedFormats = ["TV", "MOVIE"] as const;
@@ -230,6 +220,9 @@ interface Filter {
  * sequel is never recommended ahead of the season it follows.
  */
 const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
+	/** Candidates read for each row, since some are left out for having nothing to stream. */
+	const candidatesPerRow = 60;
+
 	const shared = filter.genres
 		? sql<number>`(select count(*) from jsonb_array_elements_text(${animeSearch.genres}) as genre where genre = any(${genreArray(filter.genres)}))`
 		: sql<number>`0`;
@@ -304,6 +297,14 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
  * Reads only the database.
  */
 export const getRecommendations = async (userId: string): Promise<Recommendations> => {
+	const genreRows = 2;
+
+	/** The most titles a row holds. */
+	const rowSize = 20;
+
+	/** The fewest titles a row needs; a shorter one looks unfinished and is left out. */
+	const minimumRowSize = 8;
+
 	const taste = await tasteOf(userId);
 
 	const specs: {

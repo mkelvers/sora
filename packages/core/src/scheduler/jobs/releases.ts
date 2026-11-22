@@ -50,14 +50,14 @@ const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[]
 	return units;
 };
 
-/**
- * How far back {@link Looks.pickUp} reads AniKoto's changes: past
- * the previous half-hourly look, with room for AniKoto's timestamps
- * trailing its episodes.
- */
-const changeWindowMs = 2 * hour;
-
 const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
+	/**
+	 * How far back {@link Looks.pickUp} reads AniKoto's changes: past
+	 * the previous half-hourly look, with room for AniKoto's timestamps
+	 * trailing its episodes.
+	 */
+	const changeWindowMs = 2 * hour;
+
 	const changes = await readRecentAniKotoChanges(
 		providerHttp,
 		new Date(Date.now() - changeWindowMs),

@@ -43,16 +43,6 @@ const StoredSubtitleStyleSchema = z
 	})
 	.catch(subtitleStyle);
 
-const defaults: PlaybackPreferences = {
-	audio: null,
-	auto_skip: false,
-	autoplay_next: true,
-	quality: null,
-	subtitle_style: subtitleStyle,
-	subtitle_style_changed: false,
-	subtitles: {},
-};
-
 const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPreferences => {
 	const audio = LanguageSchema.safeParse(row.audio);
 	const subtitles = SubtitlePreferencesSchema.safeParse(row.subtitles);
@@ -73,6 +63,16 @@ const toPreferences = (row: typeof playbackPreference.$inferSelect): PlaybackPre
 
 /** A user's playback preferences; the defaults until they pick anything. */
 export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPreferences> => {
+	const defaults: PlaybackPreferences = {
+		audio: null,
+		auto_skip: false,
+		autoplay_next: true,
+		quality: null,
+		subtitle_style: subtitleStyle,
+		subtitle_style_changed: false,
+		subtitles: {},
+	};
+
 	const [row] = await db
 		.select()
 		.from(playbackPreference)

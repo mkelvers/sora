@@ -83,9 +83,6 @@ const hasCleanBackdrop = sql<boolean>`exists (
 		) >= ${minBackdropSize.height}
 )`;
 
-/** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
-const backfillPerPick = 20;
-
 /** The cards of stored series, keyed by series ID. */
 const cardsOf = async (seriesIds: readonly string[]) => {
 	if (seriesIds.length > 0) {
@@ -254,6 +251,9 @@ const pickTitles = async ({
 	lastPicked: ReadonlyMap<string, number>;
 	shown: number;
 }) => {
+	/** Titles not stored yet that one pick queues for the scheduler, the most popular first. */
+	const backfillPerPick = 20;
+
 	const [entries, longRunning, spinOffs] = await Promise.all([
 		db
 			.select({

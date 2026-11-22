@@ -12,9 +12,6 @@ import { isCollage } from "../../series/collage";
 /** The graphile-worker task that stores the images of titles the home page may feature. */
 export const storeFeaturedImagesTask = "store-featured-images";
 
-/** Titles stored per run; each takes a few TMDB requests. */
-const titlesPerRun = 10;
-
 /**
  * Stores the TMDB images of every current, well-liked, popular title that has
  * none stored yet, most popular first, and looks at each of its textless 4K
@@ -23,6 +20,9 @@ const titlesPerRun = 10;
  * from the stored images. Chooses no backdrop.
  */
 export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
+	/** Titles stored per run; each takes a few TMDB requests. */
+	const titlesPerRun = 10;
+
 	const rows = await db
 		.select({
 			id: series.id,

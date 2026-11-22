@@ -60,17 +60,11 @@ export const maximumReleaseAttempts = 11;
 /** How often to check on premiere day when AniList has a date but no time. */
 const premiereDayCheckIntervalMs = 20 * minute;
 
-/** How often to ask AniList about an airing anime with no announced episode. */
-const unscheduledCheckIntervalMs = day;
-
-/** How often to ask AniList about an anime on hiatus. */
-const hiatusCheckIntervalMs = 7 * day;
-
-/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
-const japanOffsetMs = 9 * hour;
-
 /** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
 const japanDay = (date: string | null) => {
+	/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
+	const japanOffsetMs = 9 * hour;
+
 	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(date) : null;
 
 	if (!match) {
@@ -87,6 +81,12 @@ const japanDay = (date: string | null) => {
 
 /** The next check that does not depend on a missing release. */
 const nextScheduledCheck = (state: AiringState, now: Date): Date => {
+	/** How often to ask AniList about an anime on hiatus. */
+	const hiatusCheckIntervalMs = 7 * day;
+
+	/** How often to ask AniList about an airing anime with no announced episode. */
+	const unscheduledCheckIntervalMs = day;
+
 	if (state.nextAiringAt) {
 		// A broadcast time in the past means AniList has not caught up yet.
 		if (state.nextAiringAt > now) {

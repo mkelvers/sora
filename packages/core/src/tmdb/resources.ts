@@ -222,9 +222,6 @@ const changeLogSpanMs = 14 * day;
  */
 export const editsWindowMs = changeLogSpanMs - 2 * day;
 
-/** The title TMDB gives an episode nobody has named. */
-const unnamedEpisode = /^episode \d+$/iu;
-
 /** Searches TMDB TV shows by title. Returns the first page, best matches first. */
 export const searchShows = async (query: string): Promise<TmdbShowResult[]> => {
 	const result = await tmdb(
@@ -466,6 +463,9 @@ export const withEdits = async (
 		maxAgeMs: number;
 	},
 ): Promise<TmdbEpisode> => {
+	/** The title TMDB gives an episode nobody has named. */
+	const unnamedEpisode = /^episode \d+$/iu;
+
 	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
 
 	if (!airedLatelyAndLacking(episode, isUnnamed)) {
@@ -693,9 +693,6 @@ export const getLogoPath = async (
 	return logos[0]?.file_path ?? null;
 };
 
-/** TMDB honours this many languages of an `include_image_language` list, counting `null`. */
-const languagesPerImageRequest = 5;
-
 // Every batch has the textless images; keep each image once.
 const unique = (images: TmdbImage[]) => [
 	...new Map(images.map((image) => [image.file_path, image])).values(),
@@ -710,6 +707,9 @@ const unique = (images: TmdbImage[]) => [
  * still missed until that cache expires.
  */
 const loadImages = async (path: TmdbPath, maxAgeMs: number): Promise<TmdbImages | null> => {
+	/** TMDB honours this many languages of an `include_image_language` list, counting `null`. */
+	const languagesPerImageRequest = 5;
+
 	const cached = await tmdb(path, {}, AllImagesSchema, {
 		maxAgeMs,
 	});

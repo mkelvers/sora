@@ -10,15 +10,6 @@ import { chooseStill, storeStill } from "../../series/stills";
 /** The graphile-worker task that chooses the stills of episodes that have none chosen. */
 export const chooseEpisodeStillsTask = "choose-episode-stills";
 
-/** Episodes chosen for per run; each takes a TMDB request and a few image downloads. */
-const episodesPerRun = 150;
-
-/** Episodes chosen for at once. */
-const concurrency = 4;
-
-/** How long after an episode aired TMDB's stills for it still change. */
-const stillsSettleAfterDays = 14;
-
 /**
  * Chooses the still (see `chooseStill`) of every TMDB episode a series
  * lists that has none chosen, newest first, and of those that aired lately
@@ -28,6 +19,15 @@ const stillsSettleAfterDays = 14;
  * worked off over days and each episode is looked at once.
  */
 export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
+	/** How long after an episode aired TMDB's stills for it still change. */
+	const stillsSettleAfterDays = 14;
+
+	/** Episodes chosen for at once. */
+	const concurrency = 4;
+
+	/** Episodes chosen for per run; each takes a TMDB request and a few image downloads. */
+	const episodesPerRun = 150;
+
 	const rows = await db.execute<{
 		show_id: number;
 		season_number: number;
