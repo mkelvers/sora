@@ -379,14 +379,16 @@ export const franchiseIds = async (
 				.toArray(),
 		);
 
-		const edges = rawEdges.map((rawEdge) =>
-			crossovers.has(`${rawEdge.from}>${rawEdge.to}`)
-				? {
-						...rawEdge,
-						relation: "OTHER" as const,
-					}
-				: rawEdge,
-		);
+		const edges = rawEdges.map((rawEdge) => {
+			if (crossovers.has(`${rawEdge.from}>${rawEdge.to}`)) {
+				return {
+					...rawEdge,
+					relation: "OTHER" as const,
+				};
+			}
+
+			return rawEdge;
+		});
 
 		const spinOffs = new Set(
 			rawEdges
