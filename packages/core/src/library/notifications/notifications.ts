@@ -336,9 +336,11 @@ const notificationMessage = (
 		return `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
 	}
 
-	return count > 1
-		? `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`
-		: `Episode ${last}${episodeTitle} is now available to watch. You can find it in the episode list on the season's page.`;
+	if (count > 1) {
+		return `${count} new episodes are now available to watch, episodes ${range}. You can find them in the episode list on the season's page.`;
+	}
+
+	return `Episode ${last}${episodeTitle} is now available to watch. You can find it in the episode list on the season's page.`;
 };
 
 /**
