@@ -2,7 +2,7 @@ import { attempt } from "@sora/shared";
 import { z } from "zod";
 
 import { UserAnimeListDocument, ViewerNameDocument } from "../../anilist/graphql.generated";
-import type { UserAnimeListQuery } from "../../anilist/graphql.generated";
+import type { TypedDocumentString } from "../../anilist/graphql.generated";
 import { config } from "../../config";
 import { InvalidInputError, UpstreamUnavailableError } from "../../errors";
 import type { ImportAuthorization, ImportOptions } from "../../models/transfer";
@@ -190,7 +190,10 @@ export const readAniListAccount = async (
 		}),
 	);
 
-	const query = async <T>(document: { toString: () => string }, variables: object) => {
+	const query = async <TResult, TVariables>(
+		document: TypedDocumentString<TResult, TVariables>,
+		variables: TVariables,
+	) => {
 		const response = await send(fetcher, aniList.api, {
 			body: JSON.stringify({
 				query: document.toString(),
@@ -210,17 +213,17 @@ export const readAniListAccount = async (
 			});
 		}
 
-		return ((await response.json()) as { data?: T }).data;
+		return ((await response.json()) as { data?: TResult }).data;
 	};
 
-	const viewer = await query<{ Viewer: { name: string } | null }>(ViewerNameDocument, {});
+	const viewer = await query(ViewerNameDocument, {});
 	const name = viewer?.Viewer?.name;
 
 	if (!name) {
 		throw expired();
 	}
 
-	const list = await query<UserAnimeListQuery>(UserAnimeListDocument, {
+	const list = await query(UserAnimeListDocument, {
 		userName: name,
 	});
 

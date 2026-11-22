@@ -342,7 +342,11 @@ export class SoraClient {
 	 *
 	 * @throws {SoraError} when the endpoint answers with an error.
 	 */
-	async #auth(path: string, body: object, options: RequestOptions | undefined): Promise<Response> {
+	async #auth(
+		path: string,
+		body: SignIn | (ChangePassword & { revokeOtherSessions: boolean }) | Record<string, never>,
+		options: RequestOptions | undefined,
+	): Promise<Response> {
 		const response = await (this.#options.fetch ?? fetch)(
 			`${this.#options.baseUrl}/v1/auth/${path}`,
 			{

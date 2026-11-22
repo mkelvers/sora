@@ -8,7 +8,10 @@ const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
 /** `getSources` as MegaPlay sends it, with the source unencrypted. */
-const sources = (intro: object | undefined, outro: object | undefined) =>
+const sources = (
+	intro: { end: number; start: number } | undefined,
+	outro: { end: number; start: number } | undefined,
+) =>
 	JSON.stringify({
 		intro,
 		outro,
