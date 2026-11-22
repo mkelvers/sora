@@ -331,7 +331,9 @@ export const syncAniKotoCatalog = async (
 
 		if (isLastPage || isCaughtUp) {
 			// A series that failed to parse was not seen, but may still be listed.
-			if (full && isLastPage && isEverySeriesRead) {
+			const complete = full && isLastPage && isEverySeriesRead;
+
+			if (complete) {
 				await db.delete(anikotoSeries).where(notInArray(anikotoSeries.anikotoId, seen));
 				await dropMappingsToMissingSeries();
 			}
