@@ -128,8 +128,7 @@ const downloadHints = async () => {
 		);
 	}
 
-	// SAFETY: a parsed JSON body is JSON; parseTmdbHints checks its structure.
-	const list = await attempt(response.data.json() as Promise<Json>);
+	const list = await attempt(response.data.json());
 
 	if (list.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
@@ -138,7 +137,7 @@ const downloadHints = async () => {
 		});
 	}
 
-	const hints = attempt(() => parseTmdbHints(list.data), TypeError);
+	const hints = attempt(() => parseTmdbHints(z.json().parse(list.data)), TypeError);
 
 	if (hints.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
