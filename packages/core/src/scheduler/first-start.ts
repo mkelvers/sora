@@ -3,7 +3,7 @@ import type { Json } from "@sora/shared";
 import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
 
-import { hasSearchIndex } from "../catalog/queries/search";
+import { searchIndex } from "../catalog/queries/search";
 import { syncProviderCatalogsTask } from "./jobs/catalogs";
 import { syncDubScheduleTask } from "./jobs/dubs";
 import { syncSearchIndexTask } from "./jobs/search";
@@ -47,7 +47,7 @@ const firstJobs: [task: string, payload: Record<string, Json> | null][] = [
  * but a job still queued or running keeps its key, so none runs twice.
  */
 export const fillEmptyCatalog = async (runner: Runner) => {
-	if (await hasSearchIndex()) {
+	if (await searchIndex.complete()) {
 		return;
 	}
 

@@ -169,7 +169,28 @@ export const hasBlackBars = async (image: Buffer): Promise<boolean> =>
  */
 const sceneShare = 0.8;
 
-let classifier: ReturnType<typeof loadStillModel> | null = null;
+/** CLIP, loaded on first use; a load that fails is forgotten, so the next still tries again. */
+class Classifier {
+	#loading: ReturnType<typeof loadStillModel> | null = null;
+
+	/** @throws {UpstreamUnavailableError} when the model cannot be loaded. */
+	async load() {
+		this.#loading ??= loadStillModel(config.stillModelDir);
+		const loaded = await attempt(this.#loading);
+
+		if (loaded.error) {
+			this.#loading = null;
+			throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
+				cause: loaded.error,
+				retryAfterMs: null,
+			});
+		}
+
+		return loaded.data;
+	}
+}
+
+const classifier = new Classifier();
 
 /**
  * Whether a still is a title card, a logo, or other text rather than a
@@ -183,18 +204,9 @@ let classifier: ReturnType<typeof loadStillModel> | null = null;
  * @throws {UpstreamUnavailableError} when the model cannot be loaded.
  */
 export const showsText = async (image: Buffer): Promise<boolean> => {
-	classifier ??= loadStillModel(config.stillModelDir);
-	const loaded = await attempt(classifier);
+	const classify = await classifier.load();
 
-	if (loaded.error) {
-		classifier = null;
-		throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
-			cause: loaded.error,
-			retryAfterMs: null,
-		});
-	}
-
-	return (await loaded.data(image)) < sceneShare;
+	return (await classify(image)) < sceneShare;
 };
 
 /**

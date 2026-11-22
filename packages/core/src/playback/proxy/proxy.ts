@@ -5,7 +5,7 @@ import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
 import { getRefinement } from "../subtitles/store";
 import { rewritePlaylist, withDefaultAudio } from "./playlist";
-import { readSegment, rememberSegmentOrder, warmSegments } from "./readahead";
+import { readahead } from "./readahead";
 import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
 import { cleanWebVtt, retimeWebVtt } from "./subtitle";
 import { signStreamTarget, verifyStreamToken } from "./token";
@@ -283,7 +283,7 @@ export const warmStream = async (
 
 		return segmentUrl;
 	});
-	warmSegments(segments.slice(0, warmedSegments));
+	readahead.warm(segments.slice(0, warmedSegments));
 };
 
 const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
@@ -320,7 +320,7 @@ const playlistResponse = (target: StreamTarget, upstream: UpstreamBytes) => {
 		return signStreamTarget(child, config.streamSigningSecret);
 	});
 
-	rememberSegmentOrder(segments);
+	readahead.remember(segments);
 
 	return new Response(rewritten, {
 		headers: {
@@ -392,7 +392,7 @@ const segmentResponse = async (body: ReadableStream<Uint8Array>, headers: Header
 
 /** A whole segment, served from the read-ahead. */
 const wholeSegmentResponse = async (target: StreamTarget) => {
-	const segment = await readSegment(target);
+	const segment = await readahead.read(target);
 
 	const headers = new Headers({
 		"Cache-Control": "private, max-age=3600",

@@ -10,8 +10,11 @@ const sent: Pages[] = [];
 
 /** IDs AniList knows nothing about. */
 const unknown = new Set([404]);
-let failNext = false;
-let rateLimitNext = false;
+/** How the fake AniList answers its next request. */
+const fake = {
+	failNext: false,
+	rateLimitNext: false,
+};
 
 const respond = (_input: string, init: RequestInit) => {
 	const { variables } = JSON.parse(String(init.body)) as {
@@ -20,8 +23,8 @@ const respond = (_input: string, init: RequestInit) => {
 
 	sent.push(variables);
 
-	if (rateLimitNext) {
-		rateLimitNext = false;
+	if (fake.rateLimitNext) {
+		fake.rateLimitNext = false;
 
 		return Promise.resolve(
 			Response.json(
@@ -43,8 +46,8 @@ const respond = (_input: string, init: RequestInit) => {
 		);
 	}
 
-	if (failNext) {
-		failNext = false;
+	if (fake.failNext) {
+		fake.failNext = false;
 
 		return Promise.resolve(
 			Response.json(
@@ -249,7 +252,7 @@ test("asks for an ID once while it is queued, and leaves out IDs AniList does no
 
 test("fails every caller of a request AniList fails, and asks again on the next call", async () => {
 	const load = loader(1);
-	failNext = true;
+	fake.failNext = true;
 
 	const results = await Promise.allSettled([load([40]), load([41])]);
 
@@ -263,7 +266,7 @@ test("fails every caller of a request AniList fails, and asks again on the next 
 
 test("waits out a 429 and asks again, rather than failing its callers", async () => {
 	const load = loader(1);
-	rateLimitNext = true;
+	fake.rateLimitNext = true;
 
 	const [left, right] = await Promise.all([load([50]), load([51])]);
 

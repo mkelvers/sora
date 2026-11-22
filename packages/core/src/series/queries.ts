@@ -9,7 +9,7 @@ import { browseAnime } from "../catalog/queries/browse";
 import type { Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema } from "../catalog/queries/browse-query";
 import type { BrowseQuery } from "../catalog/queries/browse-query";
-import { browseIndex, hasSearchIndex, searchAnime } from "../catalog/queries/search";
+import { browseIndex, searchIndex, searchAnime } from "../catalog/queries/search";
 import { catalogSeriesAllowed, isCatalogFormat, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime as animeTable, animeSearch } from "../database/schema/catalog";
@@ -1202,7 +1202,7 @@ export const browseSeries = async (
 	const heard = (cards: SeriesCard[]) =>
 		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
 
-	if (await hasSearchIndex()) {
+	if (await searchIndex.complete()) {
 		// One entry more than the page holds tells whether another page follows.
 		const found =
 			search === undefined

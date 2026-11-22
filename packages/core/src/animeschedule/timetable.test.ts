@@ -6,7 +6,12 @@ import { config } from "../config";
 import { fetchTimetable, isoWeek } from "./timetable";
 
 /** What AnimeSchedule answers every request with. */
-let timetable: unknown[] = [];
+/** What the fake AnimeSchedule API answers with. */
+const fake: {
+	timetable: unknown[];
+} = {
+	timetable: [],
+};
 
 const asked: {
 	url: string;
@@ -21,13 +26,13 @@ const http = new HttpClient({
 				url,
 			});
 
-			return Promise.resolve(Response.json(timetable));
+			return Promise.resolve(Response.json(fake.timetable));
 		},
 	},
 });
 
 beforeEach(() => {
-	timetable = [];
+	fake.timetable = [];
 	asked.length = 0;
 });
 
@@ -66,7 +71,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("lists each episode's show, how it comes out, episode, and time", async () => {
-		timetable = [
+		fake.timetable = [
 			entry("mushoku-tensei-iii-isekai-ittara-honki-dasu", 13, "2026-10-04T15:01:00Z", "dub"),
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:00:00Z", "raw"),
 			entry("yomi-no-tsugai", 24, "2026-10-03T16:30:00Z", "sub"),
@@ -106,7 +111,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("lists whether the show is a donghua and how long its episodes run", async () => {
-		timetable = [
+		fake.timetable = [
 			{
 				...entry("ni-tian-zhizun", 558, "2026-10-16T02:00:00Z"),
 				donghua: true,
@@ -145,7 +150,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("lists each episode of an entry for several at once, as a double-episode premiere", async () => {
-		timetable = [
+		fake.timetable = [
 			{
 				...entry(
 					"tensei-shita-daiseijo-wa-seijo-de-aru-koto-wo-hitakakusu",
@@ -165,7 +170,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("leaves out a delayed episode, which is listed again in the week it airs", async () => {
-		timetable = [
+		fake.timetable = [
 			entry("bleach-sennen-kessen-hen-kashin-tan", 9, "2026-09-28T15:00:00Z", "raw", "delayed-air"),
 			entry("chiikawa", 382, "2026-10-02T23:55:00Z", "raw", "aired"),
 		];
@@ -185,7 +190,7 @@ describe("fetchTimetable", () => {
 			delayedUntil: "2026-10-19T00:00:00Z",
 		};
 
-		timetable = [
+		fake.timetable = [
 			{
 				...entry("bleach-sennen-kessen-hen-kashin-tan", 9, "2026-10-05T15:00:00Z"),
 				...held,
@@ -221,7 +226,7 @@ describe("fetchTimetable", () => {
 	});
 
 	test("leaves out an entry it cannot read, keeping the rest", async () => {
-		timetable = [
+		fake.timetable = [
 			{
 				airType: "raw",
 				airingStatus: "unaired",

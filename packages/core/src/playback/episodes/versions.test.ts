@@ -26,15 +26,22 @@ interface FakeProvider {
 	ask: () => Promise<ProviderUnit[]>;
 }
 
-let queuedLookups: number[] = [];
-let queuedPriorities: string[] = [];
-let asks = 0;
+/** What the fakes were asked: lookups queued, their priorities, and requests to AniKoto. */
+const fake: {
+	asks: number;
+	queuedLookups: number[];
+	queuedPriorities: string[];
+} = {
+	asks: 0,
+	queuedLookups: [],
+	queuedPriorities: [],
+};
 
 /** Dependencies backed by the providers in `list`, recording what they are asked. */
 const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 	getAnime: (id) => Promise.resolve(anime(id)),
 	getProviderUnits: (_anime, target) => {
-		asks += 1;
+		fake.asks += 1;
 
 		return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
 	},
@@ -85,10 +92,10 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 		resolveStream: () => Promise.reject(new Error(`${id} streams nothing in these tests`)),
 	})),
 	scheduleEpisodeLookups: (anilistIds, priority) => {
-		queuedLookups.push(...anilistIds);
+		fake.queuedLookups.push(...anilistIds);
 
 		if (anilistIds.length > 0) {
-			queuedPriorities.push(priority);
+			fake.queuedPriorities.push(priority);
 		}
 
 		return Promise.resolve();
@@ -164,9 +171,9 @@ const firstEpisode = [
 ];
 
 beforeEach(() => {
-	queuedLookups = [];
-	queuedPriorities = [];
-	asks = 0;
+	fake.queuedLookups = [];
+	fake.queuedPriorities = [];
+	fake.asks = 0;
 });
 
 describe("versionsOffered", () => {
@@ -308,7 +315,7 @@ describe("getEpisodeVersions", () => {
 				locale: null,
 			},
 		]);
-		expect(queuedLookups).toEqual([]);
+		expect(fake.queuedLookups).toEqual([]);
 	});
 
 	test("lists what is stored and queues the lookup when a provider is not looked up yet", async () => {
@@ -331,8 +338,8 @@ describe("getEpisodeVersions", () => {
 				locale: "en",
 			},
 		]);
-		expect(queuedLookups).toEqual([154_587]);
-		expect(queuedPriorities).toEqual(["waiting"]);
+		expect(fake.queuedLookups).toEqual([154_587]);
+		expect(fake.queuedPriorities).toEqual(["waiting"]);
 	});
 
 	test("looks an anime no provider was looked up for up on the spot", async () => {
@@ -359,8 +366,8 @@ describe("getEpisodeVersions", () => {
 				locale: "en",
 			},
 		]);
-		expect(asks).toBe(2);
-		expect(queuedLookups).toEqual([]);
+		expect(fake.asks).toBe(2);
+		expect(fake.queuedLookups).toEqual([]);
 	});
 
 	test("leaves providers that fail the first lookup to the scheduler", async () => {
@@ -383,7 +390,7 @@ describe("getEpisodeVersions", () => {
 				locale: "en",
 			},
 		]);
-		expect(queuedLookups).toEqual([154_587]);
+		expect(fake.queuedLookups).toEqual([154_587]);
 	});
 
 	test("shares one first lookup between concurrent plays", async () => {
@@ -399,7 +406,7 @@ describe("getEpisodeVersions", () => {
 			getEpisodeVersions(episode, dependencies),
 		]);
 
-		expect(asks).toBe(1);
+		expect(fake.asks).toBe(1);
 	});
 
 	test("returns nothing when no provider lists the episode", async () => {
@@ -502,8 +509,8 @@ describe("findEpisodeLanguages", () => {
 			"1:1": ["dub", "sub"],
 			"2:1": null,
 		});
-		expect(queuedLookups).toEqual([2]);
-		expect(queuedPriorities).toEqual(["waiting"]);
+		expect(fake.queuedLookups).toEqual([2]);
+		expect(fake.queuedPriorities).toEqual(["waiting"]);
 	});
 
 	test("asks no provider for an anime none was looked up for, and queues its lookup", async () => {
@@ -514,8 +521,8 @@ describe("findEpisodeLanguages", () => {
 
 		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toBeNull();
-		expect(asks).toBe(0);
-		expect(queuedLookups).toEqual([1]);
+		expect(fake.asks).toBe(0);
+		expect(fake.queuedLookups).toEqual([1]);
 	});
 
 	test("asks no provider once any has been looked up", async () => {
@@ -526,8 +533,8 @@ describe("findEpisodeLanguages", () => {
 
 		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual(["sub"]);
-		expect(asks).toBe(0);
-		expect(queuedLookups).toEqual([1]);
+		expect(fake.asks).toBe(0);
+		expect(fake.queuedLookups).toEqual([1]);
 	});
 
 	test("uses the providers looked up so far when another has not been", async () => {
@@ -555,7 +562,7 @@ describe("findEpisodeLanguages", () => {
 
 		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual([]);
-		expect(queuedLookups).toEqual([]);
+		expect(fake.queuedLookups).toEqual([]);
 	});
 
 	test("ignores providers whose lists do not say which languages episodes have", async () => {
@@ -569,7 +576,7 @@ describe("findEpisodeLanguages", () => {
 
 		const languages = await findEpisodeLanguages(firstEpisode, dependencies);
 		expect(languages.get("1:1")).toEqual(["sub"]);
-		expect(queuedLookups).toEqual([]);
+		expect(fake.queuedLookups).toEqual([]);
 	});
 });
 
@@ -587,8 +594,8 @@ describe("findAnimeLanguages", () => {
 			1: ["dub", "sub"],
 			2: ["sub"],
 		});
-		expect(asks).toBe(0);
-		expect(queuedLookups).toEqual([2]);
-		expect(queuedPriorities).toEqual(["current"]);
+		expect(fake.asks).toBe(0);
+		expect(fake.queuedLookups).toEqual([2]);
+		expect(fake.queuedPriorities).toEqual(["current"]);
 	});
 });

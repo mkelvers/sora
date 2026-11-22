@@ -56,7 +56,12 @@ const read: string[] = [];
 const resolved: string[] = [];
 
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
-let offered: EpisodeVersion[] = [];
+/** The versions the fake providers offer. */
+const fake: {
+	offered: EpisodeVersion[];
+} = {
+	offered: [],
+};
 
 const useProviders = (list: FakeProvider[]) => {
 	units.clear();
@@ -161,7 +166,7 @@ const dependencies: PlaybackDependencies = {
 		return options?.audio ? `${token}~${options.audio}` : token;
 	},
 	getAnime: (id) => Promise.resolve(anime(id)),
-	getEpisodeVersions: () => Promise.resolve(offered),
+	getEpisodeVersions: () => Promise.resolve(fake.offered),
 	getProviderUnits: (_anime, provider) =>
 		Promise.resolve([
 			{
@@ -254,7 +259,7 @@ const boundaries = (seed: number) => {
 beforeEach(() => {
 	resolved.length = 0;
 	read.length = 0;
-	offered = [];
+	fake.offered = [];
 	timelines.clear();
 	durations.clear();
 	detections.clear();
@@ -276,7 +281,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), dub("pt-BR"), sub()];
+		fake.offered = [dub(), dub("pt-BR"), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 		await expect(resolvePlayback(request, options, dependencies)).resolves.toMatchObject({
@@ -293,7 +298,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const before = Date.now();
 		const { expiresAt } = await resolvePlayback(request, options, dependencies);
@@ -326,7 +331,7 @@ describe("resolvePlayback", () => {
 				},
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(playback.media.map((media) => [media.audio, media.skip_segments[0]?.start])).toEqual([
@@ -361,7 +366,7 @@ describe("resolvePlayback", () => {
 					},
 				},
 			]);
-			offered = [dub(), sub()];
+			fake.offered = [dub(), sub()];
 			const subTimeline = boundaries(1);
 			timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
 			timelines.set(
@@ -440,7 +445,7 @@ describe("resolvePlayback", () => {
 					},
 				},
 			]);
-			offered = [sub()];
+			fake.offered = [sub()];
 			const playback = await resolvePlayback(request, options, dependencies);
 
 			return playback.media[0]?.skip_segments;
@@ -547,7 +552,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(playback.media[0]?.skip_segments).toEqual([]);
@@ -561,7 +566,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		const [version] = playback.media;
@@ -594,7 +599,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
 		expect(resolved.toSorted()).toEqual(["anikoto:3/dub", "anikoto:3/sub"]);
@@ -615,7 +620,7 @@ describe("resolvePlayback", () => {
 				streams: ["sub"],
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 	});
@@ -634,7 +639,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@animeparadise", "sub/en@anikoto"]);
 		expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["animeparadise:3/dub"]);
@@ -654,7 +659,7 @@ describe("resolvePlayback", () => {
 				streams: ["sub", "dub"],
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 		expect(resolved.filter((call) => call.endsWith("/dub"))).toEqual(["anikoto:3/dub"]);
@@ -669,7 +674,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			})),
 		);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const started = performance.now();
 		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
@@ -694,7 +699,7 @@ describe("resolvePlayback", () => {
 				streams: ["sub", "dub"],
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@anikoto"]);
 	});
@@ -708,7 +713,7 @@ describe("resolvePlayback", () => {
 				streams: ["raw", "sub", "dub"],
 			},
 		]);
-		offered = [
+		fake.offered = [
 			{
 				language: "raw",
 				locale: null,
@@ -735,7 +740,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
 	});
@@ -748,7 +753,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub()];
+		fake.offered = [dub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(playback.media[0]?.subtitles).toEqual([]);
@@ -763,7 +768,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(playback.media[0]?.subtitles.map((track) => [track.language, track.label])).toEqual([
@@ -786,7 +791,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@allmanga"]);
 		const playback = await resolvePlayback(request, options, dependencies);
@@ -807,7 +812,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@anikoto", "sub/en@allmanga"]);
 	});
@@ -826,7 +831,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@allmanga"]);
 	});
@@ -846,7 +851,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga", "sub/en@anikoto"]);
 	});
@@ -860,7 +865,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		expect(await resolvedVersions()).toEqual(["sub/en@anikoto"]);
 	});
@@ -875,7 +880,7 @@ describe("resolvePlayback", () => {
 				sharedPlaylist: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 
@@ -908,7 +913,7 @@ describe("resolvePlayback", () => {
 				sharedPlaylist: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		const warmed = Promise.withResolvers<undefined>();
 
 		await resolvePlayback(request, options, {
@@ -939,7 +944,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub()];
+		fake.offered = [sub()];
 		let failures = 1;
 
 		const playback = await resolvePlayback(request, options, {
@@ -980,7 +985,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		const subTimeline = boundaries(1);
 		timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
 		timelines.set(
@@ -1011,7 +1016,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		const subTimeline = boundaries(1);
 		timelines.set("https://anikoto.example/sub.m3u8", subTimeline);
 		timelines.set(
@@ -1040,7 +1045,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
 		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
 
@@ -1056,7 +1061,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
 		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
 
@@ -1093,7 +1098,7 @@ describe("resolvePlayback", () => {
 				noSubtitles: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(
@@ -1121,7 +1126,7 @@ describe("resolvePlayback", () => {
 				noSubtitles: true,
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		const playback = await resolvePlayback(request, options, dependencies);
 		expect(
@@ -1156,7 +1161,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [
+		fake.offered = [
 			{
 				language: "raw",
 				locale: null,
@@ -1180,7 +1185,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub()];
+		fake.offered = [dub()];
 
 		expect(await resolvedVersions()).toEqual(["dub/en@allmanga"]);
 	});
@@ -1194,7 +1199,7 @@ describe("resolvePlayback", () => {
 				locale: "en",
 			},
 		]);
-		offered = [dub(), sub()];
+		fake.offered = [dub(), sub()];
 
 		await expect(resolvePlayback(request, options, dependencies)).rejects.toBeInstanceOf(
 			PlaybackUnavailableError,
@@ -1232,7 +1237,7 @@ describe("resolvePlayback deadline", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub(), dub()];
+		fake.offered = [sub(), dub()];
 
 		const playback = await resolvePlayback(
 			request,
@@ -1255,7 +1260,7 @@ describe("resolvePlayback deadline", () => {
 				locale: "en",
 			},
 		]);
-		offered = [sub(), dub()];
+		fake.offered = [sub(), dub()];
 
 		const failure = await resolvePlayback(
 			request,

@@ -426,29 +426,33 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 	return await readWindow(undefined);
 };
 
-/** Once complete, the index is only ever brought up to date, never emptied. */
-let isSearchIndexComplete = false;
+/** Whether the search index is complete; once it is, it is only ever brought up to date, never emptied. */
+class SearchIndex {
+	#complete = false;
 
-/**
- * Whether the search index holds the whole catalogue, which it does once a
- * full sync has finished. Until then, searches go to AniList: a partly
- * filled index would miss titles.
- */
-export const hasSearchIndex = async () => {
-	if (isSearchIndexComplete) {
-		return true;
+	/**
+	 * Whether the search index holds the whole catalogue, which it does once a
+	 * full sync has finished. Until then, searches go to AniList: a partly
+	 * filled index would miss titles.
+	 */
+	async complete() {
+		if (this.#complete) {
+			return true;
+		}
+
+		const [row] = await db
+			.select()
+			.from(catalogSync)
+			.where(eq(catalogSync.catalog, catalogName))
+			.limit(1);
+
+		this.#complete = row !== undefined;
+
+		return this.#complete;
 	}
+}
 
-	const [row] = await db
-		.select()
-		.from(catalogSync)
-		.where(eq(catalogSync.catalog, catalogName))
-		.limit(1);
-
-	isSearchIndexComplete = row !== undefined;
-
-	return isSearchIndexComplete;
-};
+export const searchIndex = new SearchIndex();
 
 /** An indexed entry, as a search ranks it. */
 export type SearchCandidate = Pick<

@@ -51,17 +51,11 @@ const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[]
 };
 
 /**
- * How far back {@link pickUpAniKotoChanges} reads AniKoto's changes: past
+ * How far back {@link Looks.pickUp} reads AniKoto's changes: past
  * the previous half-hourly look, with room for AniKoto's timestamps
  * trailing its episodes.
  */
 const changeWindowMs = 2 * hour;
-
-/** The look on AniKoto in flight or made last, which looks made meanwhile share. */
-let lastLook: {
-	startedAt: number;
-	done: Promise<void>;
-} | null = null;
 
 const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 	const changes = await readRecentAniKotoChanges(
@@ -173,31 +167,41 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
  * Looks within a minute of one another, such as those for several episodes
  * that aired together, share one.
  */
-const pickUpAniKotoChanges = async (logger: Parameters<Task>[1]["logger"]) => {
-	if (lastLook && Date.now() - lastLook.startedAt < minute) {
-		return await lastLook.done;
+class Looks {
+	/** The look on AniKoto in flight or made last, which looks made meanwhile share. */
+	#last: {
+		startedAt: number;
+		done: Promise<void>;
+	} | null = null;
+
+	async pickUp(logger: Parameters<Task>[1]["logger"]) {
+		if (this.#last && Date.now() - this.#last.startedAt < minute) {
+			return await this.#last.done;
+		}
+
+		const done = readAndRefresh(logger);
+		this.#last = {
+			done,
+			startedAt: Date.now(),
+		};
+
+		return await done;
 	}
+}
 
-	const done = readAndRefresh(logger);
-	lastLook = {
-		done,
-		startedAt: Date.now(),
-	};
-
-	return await done;
-};
+const looks = new Looks();
 
 /** The graphile-worker task that picks up what AniKoto changed. */
 export const watchAniKotoReleasesTask = "watch-anikoto-releases";
 
 /**
- * Picks up what AniKoto changed (see {@link pickUpAniKotoChanges}) every
+ * Picks up what AniKoto changed (see {@link Looks.pickUp}) every
  * half hour. Episodes AniList schedules are looked for as they air (see
  * {@link pollAniKoto}), so this catches the rest: dubs, which AniList does
  * not schedule, and episodes of entries it has no schedule for.
  */
 export const watchAniKotoReleases: Task = async (_payload, helpers) => {
-	await pickUpAniKotoChanges(helpers.logger);
+	await looks.pickUp(helpers.logger);
 };
 
 /**
@@ -226,7 +230,7 @@ const PollAniKotoPayloadSchema = z.object({
  * airing tracker when an episode airs, and by `syncDubSchedule` for
  * a dub.
  *
- * A look reads what AniKoto changed (see {@link pickUpAniKotoChanges}),
+ * A look reads what AniKoto changed (see {@link Looks.pickUp}),
  * shared with every other look at the time, and costs no AniList request.
  * An entry AniKoto does not carry yet is searched for on AniKoto instead,
  * since a series AniKoto just added may not be matched to it. A look
@@ -245,7 +249,7 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 		.limit(1);
 
 	if (mapping?.anikotoId) {
-		const { error } = await attempt(pickUpAniKotoChanges(helpers.logger));
+		const { error } = await attempt(looks.pickUp(helpers.logger));
 
 		if (error) {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);

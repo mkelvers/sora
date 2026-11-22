@@ -34,11 +34,16 @@ describe("fetchUpstream", () => {
 });
 
 const realRequest = http.request;
-let server: ReturnType<typeof Bun.serve> | undefined;
+/** The local server that stands in for the public hosts. */
+const fake: {
+	server: ReturnType<typeof Bun.serve> | undefined;
+} = {
+	server: undefined,
+};
 
 afterEach(async () => {
-	await server?.stop(true);
-	server = undefined;
+	await fake.server?.stop(true);
+	fake.server = undefined;
 	mock.restore();
 });
 
@@ -55,7 +60,7 @@ const throttlingHost = (
 	}[],
 ) => {
 	let requests = 0;
-	server = Bun.serve({
+	fake.server = Bun.serve({
 		fetch: () => {
 			const answer = statuses[Math.min(requests, statuses.length - 1)];
 			requests += 1;
@@ -71,7 +76,7 @@ const throttlingHost = (
 		},
 		port: 0,
 	});
-	const local = server.url;
+	const local = fake.server.url;
 	spyOn(http, "request").mockImplementation(((
 		url: URL,
 		options: http.RequestOptions,
