@@ -66,9 +66,11 @@ export const skippedMigrations = (
 		const applied = hashes.get(when);
 
 		if (applied === undefined) {
-			return when < newest
-				? [`${tag} was never applied, and a newer migration was, so drizzle never will`]
-				: [];
+			if (when < newest) {
+				return [`${tag} was never applied, and a newer migration was, so drizzle never will`];
+			}
+
+			return [];
 		}
 
 		return applied === hash ? [] : [`${tag} was applied as a different version of its file`];
