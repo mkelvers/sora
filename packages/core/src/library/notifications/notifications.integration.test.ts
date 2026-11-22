@@ -1,18 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { day, defined } from "@sora/shared";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { databaseTestsEnabled } from "../../../test/integration";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { episodeDub } from "../../database/schema/playback";
 import { series, seriesEpisode, seriesRelated } from "../../database/schema/series";
 import { getNotifications } from "./notifications";
 
-// Run against a disposable database. Fixtures use their
-// own profile and series IDs, and are removed even when an assertion fails.
-describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
+describe("notifications across seasons", () => {
 	const profile = `notification-test-${crypto.randomUUID()}`;
 	const now = new Date();
 	const followedAt = new Date(now.getTime() - 10 * day);
@@ -55,18 +52,6 @@ describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
 			episode: 2,
 			releasedAt,
 		});
-	});
-
-	beforeEach(async () => {
-		await db.delete(seriesState).where(eq(seriesState.userId, profile));
-		await db.delete(episodeProgress).where(eq(episodeProgress.userId, profile));
-	});
-
-	afterAll(async () => {
-		if (anilistIds.length) {
-			await db.delete(episodeDub).where(inArray(episodeDub.anilistId, anilistIds));
-		}
-		await db.delete(series).where(inArray(series.id, ids));
 	});
 
 	test("one watched episode follows later episodes and dubs without a watchlist entry", async () => {
@@ -113,14 +98,10 @@ describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
 			episode: 1,
 			releasedAt,
 		});
-		try {
-			const result = await getNotifications(profile, {}, now);
-			const dubbed = result.items.find((item) => item.id === `${first}:1:dub`);
-			expect(dubbed?.series.episode_count).toBe(1);
-			expect(dubbed?.first_episode).toBe(1);
-		} finally {
-			await db.delete(episodeDub).where(eq(episodeDub.anilistId, defined(anilistIds[0])));
-		}
+		const result = await getNotifications(profile, {}, now);
+		const dubbed = result.items.find((item) => item.id === `${first}:1:dub`);
+		expect(dubbed?.series.episode_count).toBe(1);
+		expect(dubbed?.first_episode).toBe(1);
 	});
 
 	test("partial playback follows the show even after a later watchlist addition", async () => {
@@ -206,11 +187,8 @@ describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
 		expect(result.items.map((item) => item.id)).toEqual([`${third}:2`]);
 	});
 
-	/** Stores an announced season after `third`, runs `check`, then removes it. */
-	const withAnnounced = async (
-		storedAt: Date,
-		check: (announced: string) => Promise<void>,
-	): Promise<void> => {
+	/** Stores an announced season after `third` and returns its ID. */
+	const announce = async (storedAt: Date): Promise<string> => {
 		const announced = `${profile}-announced`;
 		const anilistId = defined(anilistIds.at(-1)) - 1;
 		await db.insert(series).values({
@@ -230,12 +208,7 @@ describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
 			relation: "PREQUEL",
 			seriesId: announced,
 		});
-		try {
-			await check(announced);
-		} finally {
-			await db.delete(seriesState).where(eq(seriesState.seriesId, announced));
-			await db.delete(series).where(eq(series.id, announced));
-		}
+		return announced;
 	};
 
 	const completeFirst = async () => {
@@ -250,41 +223,42 @@ describe.skipIf(!databaseTestsEnabled())("notifications across seasons", () => {
 
 	test("an announced sequel notifies until it starts", async () => {
 		await completeFirst();
-		await withAnnounced(releasedAt, async (announced) => {
-			const result = await getNotifications(profile, {}, now);
-			expect(result.items.find((item) => item.series.id === announced)).toMatchObject({
-				first_episode: null,
-				id: `${announced}:announced`,
-				kind: "announced",
-				last_episode: null,
-				message: "A new season has been announced. It is set to start in April 2027.",
-				released_at: releasedAt.toISOString(),
-				unread: true,
-			});
-
-			await db.update(series).set({ status: "RELEASING" }).where(eq(series.id, announced));
-			const started = await getNotifications(profile, {}, now);
-			expect(started.items.some((item) => item.kind === "announced")).toBe(false);
+		const announced = await announce(releasedAt);
+		const result = await getNotifications(profile, {}, now);
+		expect(result.items.find((item) => item.series.id === announced)).toMatchObject({
+			first_episode: null,
+			id: `${announced}:announced`,
+			kind: "announced",
+			last_episode: null,
+			message: "A new season has been announced. It is set to start in April 2027.",
+			released_at: releasedAt.toISOString(),
+			unread: true,
 		});
+
+		await db.update(series).set({ status: "RELEASING" }).where(eq(series.id, announced));
+		const started = await getNotifications(profile, {}, now);
+		expect(started.items.some((item) => item.kind === "announced")).toBe(false);
 	});
 
-	test("an announcement stored before the follow, or of a saved title, does not notify", async () => {
+	test("an announcement stored before the follow does not notify", async () => {
 		await completeFirst();
-		await withAnnounced(new Date(followedAt.getTime() - day), async () => {
-			const result = await getNotifications(profile, {}, now);
-			expect(result.items.some((item) => item.kind === "announced")).toBe(false);
+		await announce(new Date(followedAt.getTime() - day));
+		const result = await getNotifications(profile, {}, now);
+		expect(result.items.some((item) => item.kind === "announced")).toBe(false);
+	});
+
+	test("an announcement of a saved title does not notify", async () => {
+		await completeFirst();
+		const announced = await announce(releasedAt);
+		await db.insert(seriesState).values({
+			addedAt: now,
+			seriesId: announced,
+			status: "plan_to_watch",
+			statusChangedAt: now,
+			userId: profile,
 		});
-		await withAnnounced(releasedAt, async (announced) => {
-			await db.insert(seriesState).values({
-				addedAt: now,
-				seriesId: announced,
-				status: "plan_to_watch",
-				statusChangedAt: now,
-				userId: profile,
-			});
-			const result = await getNotifications(profile, {}, now);
-			expect(result.items.some((item) => item.kind === "announced")).toBe(false);
-		});
+		const result = await getNotifications(profile, {}, now);
+		expect(result.items.some((item) => item.kind === "announced")).toBe(false);
 	});
 
 	test("watching after the releases does not notify about older episodes or dubs", async () => {

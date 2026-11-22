@@ -1,5 +1,6 @@
 import { attempt } from "@sora/shared";
 import { SQL } from "bun";
+import type { TransactionSQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
 import { runMigrations } from "graphile-worker";
@@ -14,6 +15,22 @@ import * as playback from "./schema/playback";
 import * as scheduler from "./schema/scheduler";
 import * as series from "./schema/series";
 
+const pool = new SQL(config.databaseUrl);
+
+/** The transaction every query joins while a test holds one open; see {@link rollBackLater}. */
+let held: TransactionSQL | undefined;
+
+// Sends queries to the held transaction, where a transaction the code opens
+// itself becomes a savepoint, so a test's writes never commit.
+const client = new Proxy(pool, {
+	apply: (_target, _self, args: Parameters<SQL>) => (held ?? pool)(...args),
+	get: (_target, key) => {
+		const target = held ?? pool;
+		const value = key === "begin" && held ? held.savepoint : Reflect.get(target, key);
+		return typeof value === "function" ? value.bind(target) : value;
+	},
+});
+
 /**
  * The process-wide database connection.
  *
@@ -21,7 +38,7 @@ import * as series from "./schema/series";
  * parameters or constructors.
  */
 export const db = drizzle({
-	client: new SQL(config.databaseUrl),
+	client,
 	schema: {
 		...auth,
 		...catalog,
@@ -31,6 +48,39 @@ export const db = drizzle({
 		...series,
 	},
 });
+
+const rollback = new Error("Rolled back on purpose.");
+
+/**
+ * Opens a transaction that every query joins, or a savepoint when one is
+ * already open, and returns the function that rolls it back. Tests use it so
+ * nothing they write is ever committed.
+ */
+export const rollBackLater = async (): Promise<() => Promise<void>> => {
+	const outer = held;
+	const opened = Promise.withResolvers<undefined>();
+	const finished = Promise.withResolvers<undefined>();
+	const done = attempt(
+		client.begin(async (transaction) => {
+			held = transaction;
+			opened.resolve(undefined);
+			await finished.promise;
+			throw rollback;
+		}),
+	);
+	const failed = await Promise.race([opened.promise, done]);
+	if (failed) {
+		throw failed.error;
+	}
+	return async () => {
+		finished.resolve(undefined);
+		const { error } = await done;
+		held = outer;
+		if (error !== rollback) {
+			throw error;
+		}
+	};
+};
 
 const readinessTimeoutMs = 1000;
 let readiness: Promise<boolean> | undefined;
