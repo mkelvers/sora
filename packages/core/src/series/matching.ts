@@ -606,7 +606,11 @@ const endScore = (end: number | null, lastAirDay: number | null) => {
 		return 20;
 	}
 
-	return distance <= 30 ? 0 : -40;
+	if (distance <= 30) {
+		return 0;
+	}
+
+	return -40;
 };
 
 /**
