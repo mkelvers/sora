@@ -399,7 +399,9 @@ export const readRecentAniKotoChanges = async (
 
 		const oldest = rows.at(-1);
 
-		if (oldest && oldest.updatedAt >= since && page < recentPageLimit) {
+		const more = oldest && oldest.updatedAt >= since && page < recentPageLimit;
+
+		if (more) {
 			await readPage(page + 1);
 		}
 	};
