@@ -147,7 +147,9 @@ const withViewer: Handle = async ({ event, resolve }) => {
 
 	const response = await resolve(event);
 
-	if (token && !event.isRemoteRequest && event.request.method !== "GET") {
+	const changing = token && !event.isRemoteRequest && event.request.method !== "GET";
+
+	if (changing) {
 		knownProfiles.delete(token);
 	}
 
