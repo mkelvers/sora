@@ -151,19 +151,21 @@ const applyAdditions = async (
 	const addedEpisodes: [string, number, boolean][] = [];
 	let importId: string | null = null;
 	await db.transaction(async (tx) => {
-		const listed = present.flatMap((addition) =>
-			addition.status
-				? [
-						{
-							addedAt: addition.addedAt,
-							seriesId: addition.seriesId,
-							status: addition.status,
-							statusChangedAt: addition.changedAt,
-							userId,
-						},
-					]
-				: [],
-		);
+		const listed = present.flatMap((addition) => {
+			if (addition.status) {
+				return [
+					{
+						addedAt: addition.addedAt,
+						seriesId: addition.seriesId,
+						status: addition.status,
+						statusChangedAt: addition.changedAt,
+						userId,
+					},
+				];
+			}
+
+			return [];
+		});
 
 		await inSequence(chunks(listed), async (batch) => {
 			const written = await tx
