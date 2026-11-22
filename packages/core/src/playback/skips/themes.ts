@@ -161,7 +161,11 @@ export const songsForEpisode = (songs: ThemeSong[], episode: number) =>
 			return listed;
 		}
 
-		return ofKind.length <= unlistedLimit ? ofKind : [];
+		if (ofKind.length <= unlistedLimit) {
+			return ofKind;
+		}
+
+		return [];
 	});
 
 /**
