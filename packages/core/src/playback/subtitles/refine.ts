@@ -329,7 +329,11 @@ const voteOffsets = (
 		const rough = bucket * offsetBucketSeconds;
 		const near = votes.flat().filter((offset) => Math.abs(offset - rough) <= 1);
 
-		return near.length > 0 ? [median(near)] : [];
+		if (near.length > 0) {
+			return [median(near)];
+		}
+
+		return [];
 	});
 
 	if (offsets.length === 0) {
