@@ -911,12 +911,13 @@ const placeRunWithinBroadcast = (
 	const prequelFirst = candidate.prequel ? indexOfRef(track, candidate.prequel.first) : -1;
 	const prequelLast = candidate.prequel ? indexOfRef(track, candidate.prequel.last) : -1;
 
-	if (
+	const overlaps =
 		prequelFirst !== -1 &&
 		prequelLast !== -1 &&
 		index <= prequelLast &&
-		index + run.length > prequelFirst
-	) {
+		index + run.length > prequelFirst;
+
+	if (overlaps) {
 		return null;
 	}
 
