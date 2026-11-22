@@ -136,7 +136,11 @@ export const fuzzyDate = (date: {
 
 	const month = `${year}-${String(date.month).padStart(2, "0")}`;
 
-	return date.day ? `${month}-${String(date.day).padStart(2, "0")}` : month;
+	if (date.day) {
+		return `${month}-${String(date.day).padStart(2, "0")}`;
+	}
+
+	return month;
 };
 
 export const fromUnixSeconds = (seconds: number) => new Date(seconds * 1000).toISOString();
