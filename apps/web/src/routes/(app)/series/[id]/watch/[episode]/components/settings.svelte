@@ -141,8 +141,8 @@
 
 	let submenu = $state<string>();
 	const open = $derived(menus.find((menu) => menu.label === submenu));
-	const columns = 8;
-	const wide = $derived((open?.options.length ?? 0) > columns);
+
+	const wide = $derived((open?.options.length ?? 0) > 8);
 
 	let content = $state<HTMLElement>();
 
