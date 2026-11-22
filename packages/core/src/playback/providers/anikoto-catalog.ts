@@ -685,14 +685,16 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatch | null> => {
 	const prequel = anime.relations.find((relation) => relation.type === "PREQUEL")?.anime;
 
-	if (
-		depth === 0 ||
-		anime.status === "NOT_YET_RELEASED" ||
-		!prequel?.episodes ||
-		// Adult anime are not served, so a part never continues one.
-		prequel.isAdult ||
-		formatAgreement(anime.format, prequel.format) === null
-	) {
+	if (depth === 0 || anime.status === "NOT_YET_RELEASED") {
+		return null;
+	}
+
+	if (!prequel?.episodes) {
+		return null;
+	}
+
+	// Adult anime are not served, so a part never continues one.
+	if (prequel.isAdult || formatAgreement(anime.format, prequel.format) === null) {
 		return null;
 	}
 
