@@ -89,9 +89,11 @@ const japanDay = (date: string | null) => {
 const nextScheduledCheck = (state: AiringState, now: Date): Date => {
 	if (state.nextAiringAt) {
 		// A broadcast time in the past means AniList has not caught up yet.
-		return state.nextAiringAt > now
-			? state.nextAiringAt
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
+		if (state.nextAiringAt > now) {
+			return state.nextAiringAt;
+		}
+
+		return new Date(now.getTime() + premiereDayCheckIntervalMs);
 	}
 
 	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
