@@ -33,7 +33,11 @@ export const getProfilePreferences = async (userId: string): Promise<ProfilePref
 		.where(eq(profilePreference.userId, userId))
 		.limit(1);
 
-	return row ? toPreferences(row) : defaults;
+	if (row) {
+		return toPreferences(row);
+	}
+
+	return defaults;
 };
 
 /**
