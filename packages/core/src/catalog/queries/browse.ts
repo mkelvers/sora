@@ -124,16 +124,19 @@ export const currentSeason = (now = new Date()): AnimeSeason => ({
 });
 
 /** The season after `season`. */
-export const nextSeason = (season: AnimeSeason): AnimeSeason =>
-	season.season === "FALL"
-		? {
-				season: "WINTER",
-				year: season.year + 1,
-			}
-		: {
-				season: defined(seasonOrder[seasonOrder.indexOf(season.season) + 1]),
-				year: season.year,
-			};
+export const nextSeason = (season: AnimeSeason): AnimeSeason => {
+	if (season.season === "FALL") {
+		return {
+			season: "WINTER",
+			year: season.year + 1,
+		};
+	}
+
+	return {
+		season: defined(seasonOrder[seasonOrder.indexOf(season.season) + 1]),
+		year: season.year,
+	};
+};
 
 const position = (season: AnimeSeason) => season.year * 4 + seasonOrder.indexOf(season.season);
 
