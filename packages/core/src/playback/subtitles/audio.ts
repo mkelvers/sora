@@ -57,7 +57,11 @@ export const mediaPlaylist = async (url: string, headers: Record<string, string>
 
 	const [lowest] = variants.toSorted((a, b) => a.bandwidth - b.bandwidth);
 
-	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
+	if (lowest) {
+		return readPlaylist(lowest.url, headers, master.url);
+	}
+
+	return master;
 };
 
 /** A segment's bytes, unwrapped from any image it is disguised as, tried a few times before failing. */
