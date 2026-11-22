@@ -55,10 +55,13 @@ const resultsPerQuery = 5;
 
 const inFlight = new InFlight<number, TmdbMapping>();
 
-const mappingLifetimeMs = (entry: FranchiseEntry, stored: TmdbMapping) =>
-	stored.tmdbId !== null && entry.status === "FINISHED"
-		? finishedMappingLifetimeMs
-		: volatileMappingLifetimeMs;
+const mappingLifetimeMs = (entry: FranchiseEntry, stored: TmdbMapping) => {
+	if (stored.tmdbId !== null && entry.status === "FINISHED") {
+		return finishedMappingLifetimeMs;
+	}
+
+	return volatileMappingLifetimeMs;
+};
 
 const freshMapping = async (entry: FranchiseEntry) => {
 	const [stored] = await db
