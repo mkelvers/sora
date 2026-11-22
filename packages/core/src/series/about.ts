@@ -203,7 +203,11 @@ const currentAward = (sources: AboutSources) => {
 		.filter((award) => award.year === year && given(award))
 		.toSorted(byNotability(sources.awardReach));
 
-	return current ? awardLine(current) : null;
+	if (current) {
+		return awardLine(current);
+	}
+
+	return null;
 };
 
 /** Ages each MyAnimeList rating is for, and what it warns of. */
