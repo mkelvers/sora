@@ -180,14 +180,16 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 	return picked.flatMap((title) => {
 		const card = cards.get(title.row.id);
 
-		return card
-			? [
-					{
-						returning: title.returning,
-						series: card,
-						start_date: title.startDate,
-					},
-				]
-			: [];
+		if (card) {
+			return [
+				{
+					returning: title.returning,
+					series: card,
+					start_date: title.startDate,
+				},
+			];
+		}
+
+		return [];
 	});
 };
