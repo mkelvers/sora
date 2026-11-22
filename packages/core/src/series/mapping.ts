@@ -316,7 +316,7 @@ const bestShowPlacement = async (
 				}))
 			: null;
 
-		if (placement && (!best || placement.score > best.score)) {
+		if (placement && placement.score > (best?.score ?? Number.NEGATIVE_INFINITY)) {
 			best = placement;
 		}
 	}
