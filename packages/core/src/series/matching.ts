@@ -514,7 +514,9 @@ const overflowSpecials = (
 	const missing = subject.episodes === null ? 0 : subject.episodes - picked.length;
 	const lastAirDay = dayNumber(picked.at(-1)?.air_date ?? null);
 
-	if (missing <= 0 || end === null || lastAirDay === null) {
+	const unplaceable = missing <= 0 || end === null || lastAirDay === null;
+
+	if (unplaceable) {
 		return [];
 	}
 
