@@ -713,7 +713,11 @@ const allowedTypos = (word: string) => {
 		return 2;
 	}
 
-	return word.length >= 5 ? 1 : 0;
+	if (word.length >= 5) {
+		return 1;
+	}
+
+	return 0;
 };
 
 /**
