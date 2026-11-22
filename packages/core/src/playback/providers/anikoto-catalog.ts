@@ -658,7 +658,15 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		return null;
 	});
 
-	await upsert(fetched.flatMap((row) => (row ? [row] : [])));
+	await upsert(
+		fetched.flatMap((row) => {
+			if (row) {
+				return [row];
+			}
+
+			return [];
+		}),
+	);
 };
 
 /**
