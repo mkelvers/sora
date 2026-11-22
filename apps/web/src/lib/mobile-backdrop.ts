@@ -13,7 +13,9 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 	let disposed = false;
 
 	const frame = async () => {
-		if (!mobile.matches || !image.naturalWidth || !image.clientHeight) {
+		const hidden = !mobile.matches || !image.naturalWidth || !image.clientHeight;
+
+		if (hidden) {
 			return;
 		}
 
