@@ -609,7 +609,13 @@ const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => 
 const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 	const queries = [
 		...new Set(
-			[anime.title.english, anime.title.romaji].flatMap((title) => (title ? [title] : [])),
+			[anime.title.english, anime.title.romaji].flatMap((title) => {
+				if (title) {
+					return [title];
+				}
+
+				return [];
+			}),
 		),
 	];
 
