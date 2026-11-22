@@ -1500,7 +1500,9 @@ export const placeAsMovie = (
 	const similarity = bestSimilarity(subject.titles, movieTitles);
 	const offset = dayOffset(subject.startDate, movie.release_date);
 
-	if (offset !== null && offset <= 31 && similarity >= 0.35) {
+	const released = offset !== null && offset <= 31;
+
+	if (released && similarity >= 0.35) {
 		return {
 			mediaType: "movie",
 			method: "release-date",
