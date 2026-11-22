@@ -1112,16 +1112,18 @@ const seriesIdsFor = async (
 ) => {
 	const found = await storedSeriesIds(anilistIds);
 
-	const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) =>
-		found.has(anilistId)
-			? []
-			: [
-					{
-						anilistId,
-						place,
-					},
-				],
-	);
+	const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) => {
+		if (found.has(anilistId)) {
+			return [];
+		}
+
+		return [
+			{
+				anilistId,
+				place,
+			},
+		];
+	});
 
 	const isWaitedOn = (place: number) =>
 		place >= window.pageStart && place < window.pageStart + window.perPage;
