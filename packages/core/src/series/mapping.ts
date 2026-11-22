@@ -198,9 +198,11 @@ const collectionPlacement = async (subject: MatchSubject, predecessors: readonly
 		const mappedMovie = await getMovie(mapping.tmdbId);
 		const collectionId = mappedMovie?.belongs_to_collection?.id;
 
-		return collectionId === undefined
-			? null
-			: placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
+		if (collectionId === undefined) {
+			return null;
+		}
+
+		return placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
 	});
 
 	return placement ?? null;
