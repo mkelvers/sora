@@ -159,7 +159,11 @@ export const mayGainEpisodes = (
 		case "FINISHED": {
 			const end = media.endDate;
 
-			if (!end?.year || !end.month || !end.day) {
+			if (!end?.year || !end.month) {
+				return false;
+			}
+
+			if (!end.day) {
 				return false;
 			}
 
