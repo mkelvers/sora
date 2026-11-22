@@ -53,10 +53,12 @@ export const nextEpisodeAddress = (
 
 	const next = storyContinuation(series);
 
-	return next
-		? {
-				episode: "1",
-				seriesId: next.series_id,
-			}
-		: undefined;
+	if (next) {
+		return {
+			episode: "1",
+			seriesId: next.series_id,
+		};
+	}
+
+	return undefined;
 };
