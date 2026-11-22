@@ -19,7 +19,11 @@ export const audioLabel = (audio: SeriesCard["audio"] | null | undefined) => {
 		return "Subtitled";
 	}
 
-	return dub ? "Dubbed" : "";
+	if (dub) {
+		return "Dubbed";
+	}
+
+	return "";
 };
 
 export const episodes = (count: number) => `${count} ${count === 1 ? "Episode" : "Episodes"}`;
