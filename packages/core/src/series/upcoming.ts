@@ -140,14 +140,16 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 	const soon = unreleased.flatMap((entry) => {
 		const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
 
-		return startsSoon(startDate, now)
-			? [
-					{
-						entry,
-						startDate,
-					},
-				]
-			: [];
+		if (startsSoon(startDate, now)) {
+			return [
+				{
+					entry,
+					startDate,
+				},
+			];
+		}
+
+		return [];
 	});
 
 	const caughtUp = await Promise.all(
