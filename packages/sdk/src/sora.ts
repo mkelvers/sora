@@ -293,7 +293,11 @@ export class SoraClient {
 		}
 
 		const json = await attempt(response.json());
-		const parsed = json.error ? null : schema.safeParse(json.data);
+		let parsed: ReturnType<typeof schema.safeParse> | null = null;
+
+		if (!json.error) {
+			parsed = schema.safeParse(json.data);
+		}
 
 		if (!parsed?.success) {
 			throw new SoraError(
