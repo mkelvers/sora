@@ -73,9 +73,13 @@ const roleOf = (
 		return [];
 	});
 
-	const lists = relations.flatMap(({ from, to, type }) =>
-		from === title.anilistId && main.has(to) ? [type === "PARENT" ? "SIDE_STORY" : type] : [],
-	);
+	const lists = relations.flatMap(({ from, to, type }) => {
+		if (from === title.anilistId && main.has(to)) {
+			return [type === "PARENT" ? "SIDE_STORY" : type];
+		}
+
+		return [];
+	});
 
 	const touching = [...listed, ...lists];
 
