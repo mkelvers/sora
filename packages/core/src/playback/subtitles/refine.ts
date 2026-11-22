@@ -328,7 +328,9 @@ const voteOffsets = (
 		offsets.map((offset) => cueVotes.some((vote) => Math.abs(vote - offset) <= 1)),
 	);
 
-	const path = bestPath(matches, 4);
+	const switchPenalty = 4;
+
+	const path = bestPath(matches, switchPenalty);
 
 	if (path.filter((choice, index) => matches[index]?.[choice]).length < minimumVotes) {
 		return null;
