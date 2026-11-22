@@ -144,5 +144,9 @@ export const deviceKind = (userAgent: string | null): DeviceKind => {
 		return "tablet";
 	}
 
-	return system ? "computer" : "unknown";
+	if (system) {
+		return "computer";
+	}
+
+	return "unknown";
 };
