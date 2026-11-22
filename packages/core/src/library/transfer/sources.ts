@@ -72,7 +72,13 @@ const fromParts = (
 	year?: number | null,
 	month?: number | null,
 	day?: number | null,
-): Date | null => (year ? new Date(Date.UTC(year, (month || 1) - 1, day || 1)) : null);
+): Date | null => {
+	if (year) {
+		return new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+	}
+
+	return null;
+};
 
 export const fromDayText = (text: string | null | undefined): Date | null => {
 	const parts = text ? dayPattern.exec(text.trim())?.groups : undefined;
