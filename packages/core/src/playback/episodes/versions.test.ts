@@ -53,17 +53,19 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 				list.flatMap((candidate) => {
 					const units = candidate.units(anilistId);
 
-					return units && providers.includes(candidate.id)
-						? [
-								{
-									anilistId,
-									languages: (["dub", "sub", "raw"] as const).filter((language) =>
-										units.some((unit) => unit.languages?.includes(language)),
-									),
-									provider: candidate.id,
-								},
-							]
-						: [];
+					if (units && providers.includes(candidate.id)) {
+						return [
+							{
+								anilistId,
+								languages: (["dub", "sub", "raw"] as const).filter((language) =>
+									units.some((unit) => unit.languages?.includes(language)),
+								),
+								provider: candidate.id,
+							},
+						];
+					}
+
+					return [];
 				}),
 			),
 		),
