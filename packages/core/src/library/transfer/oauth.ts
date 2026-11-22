@@ -15,8 +15,6 @@ export type Authorization = ImportAuthorization;
 
 type AccountSource = "anilist_account" | "myanimelist_account";
 
-const requestTimeoutMs = 15_000;
-
 const anilist = {
 	api: "https://graphql.anilist.co",
 	authorize: "https://anilist.co/api/v2/oauth/authorize",
@@ -119,7 +117,7 @@ const send = async (fetcher: Fetcher, url: string, init: RequestInit) => {
 	const { data, error } = await attempt(
 		fetcher(url, {
 			...init,
-			signal: AbortSignal.timeout(requestTimeoutMs),
+			signal: AbortSignal.timeout(15_000),
 		}),
 		Error,
 	);
