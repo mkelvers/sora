@@ -85,7 +85,7 @@ const minimumAnchors = 12;
 
 /** Cues that follow a matched cue and may be matched without a word of it in between. */
 const lookback = 6;
-const candidatesPerCue = 8;
+
 const minimumDice = 0.3;
 const minimumScore = 0.15;
 const timePenalty = 0.3;
@@ -452,7 +452,7 @@ const candidatesFor = (
 		}
 	}
 
-	return found.toSorted((a, b) => b.score - a.score).slice(0, candidatesPerCue);
+	return found.toSorted((a, b) => b.score - a.score).slice(0, 8);
 };
 
 /** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
