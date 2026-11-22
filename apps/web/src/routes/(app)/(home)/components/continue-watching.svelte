@@ -29,7 +29,11 @@
 			return "Up Next";
 		}
 
-		return started ? `Continue with ${where}` : `Up next with ${where}`;
+		if (started) {
+			return `Continue with ${where}`;
+		}
+
+		return `Up next with ${where}`;
 	};
 
 	const remove = (seriesId: string) =>
