@@ -986,7 +986,13 @@ export const resolvePlayback = async (
 	await fitDubToSub(results, parsed.data, streamUrl, options.accountId, readOnce);
 	await settleSkipSegments(results, parsed.data, readOnce);
 
-	const media = results.flatMap((result) => (result.version ? [result.version] : []));
+	const media = results.flatMap((result) => {
+		if (result.version) {
+			return [result.version];
+		}
+
+		return [];
+	});
 
 	if (media.length > 0) {
 		await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
