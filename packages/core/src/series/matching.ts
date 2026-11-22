@@ -954,13 +954,15 @@ const placeDelayedStreamingRun = (
 	const first = index === null ? undefined : track[index];
 	const firstDay = dayNumber(first?.air_date ?? null);
 
-	if (
-		!first ||
-		index === null ||
-		start === null ||
-		firstDay === null ||
-		airedBefore(first, subject.airsFrom)
-	) {
+	if (!first || index === null) {
+		return null;
+	}
+
+	if (start === null || firstDay === null) {
+		return null;
+	}
+
+	if (airedBefore(first, subject.airsFrom)) {
 		return null;
 	}
 
