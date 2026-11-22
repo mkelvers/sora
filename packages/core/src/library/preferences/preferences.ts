@@ -79,7 +79,11 @@ export const getPlaybackPreferences = async (userId: string): Promise<PlaybackPr
 		.where(eq(playbackPreference.userId, userId))
 		.limit(1);
 
-	return row ? toPreferences(row) : defaults;
+	if (row) {
+		return toPreferences(row);
+	}
+
+	return defaults;
 };
 
 /**
