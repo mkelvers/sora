@@ -253,11 +253,9 @@ const kindLabels: Partial<Record<SubtitleKind, string>> = {
 	signs: "Signs",
 };
 
-/** A track's name in a subtitle menu: its language, and its kind unless dialogue, as `English (CC)`. */
-const subtitleLabel = (language: string, kind: SubtitleKind | null | undefined) => {
-	const named = kind ? kindLabels[kind] : undefined;
-	return named ? `${language} (${named})` : language;
-};
+/** Adds a track's kind or alternate designation alongside any existing region or kind. */
+const qualifySubtitleLabel = (label: string, qualifier: string) =>
+	label.endsWith(")") ? `${label.slice(0, -1)}, ${qualifier})` : `${label} (${qualifier})`;
 
 const toPlaybackMedia = (
 	videos: ProviderVideo[],
@@ -288,11 +286,14 @@ const toPlaybackMedia = (
 				const key = JSON.stringify([!!shifts, track.language, track.label]);
 				const occurrence = (variants.get(key) ?? 0) + 1;
 				variants.set(key, occurrence);
+				const kind = kinds.get(track.url) ?? null;
+				const language = languageName(track.language, "standard") ?? track.label;
+				const qualifier = kind ? kindLabels[kind] : undefined;
 				subtitles.set(track.url, {
 					default: false,
 					format: track.format,
-					kind: kinds.get(track.url) ?? null,
-					label: subtitleLabel(languageName(track.language) ?? track.label, kinds.get(track.url)),
+					kind,
+					label: qualifier ? qualifySubtitleLabel(language, qualifier) : language,
 					language: track.language,
 					url: streamUrl(track.url, "subtitle", video.headers, {
 						accountId,
@@ -340,7 +341,7 @@ const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
 			return {
 				...track,
 				default: index === 0 && isServedSubtitle(track),
-				label: count === 1 ? track.label : `${track.label} · ${alternate}`,
+				label: count === 1 ? track.label : qualifySubtitleLabel(track.label, alternate),
 			};
 		});
 };

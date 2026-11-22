@@ -767,8 +767,8 @@ describe("resolvePlayback", () => {
 		const tracks = playback.media[0]?.subtitles ?? [];
 		expect(tracks.map((track) => track.label)).toEqual([
 			"English",
-			"English · Alternate",
-			"English · Alternate 2",
+			"English (Alternate)",
+			"English (Alternate 2)",
 			"Portuguese",
 		]);
 		expect(new Set(tracks.map((track) => track.variant)).size).toBe(tracks.length);
