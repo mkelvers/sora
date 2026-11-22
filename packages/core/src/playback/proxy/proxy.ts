@@ -519,7 +519,10 @@ export const proxyStream = async (
 	// players (AVPlayer, ExoPlayer) reject that type, so restore the real one.
 	const contentType = headers.get("Content-Type");
 
-	if (target.kind === "segment" && contentType && /^(?:image|text)\//iu.test(contentType)) {
+	const disguised =
+		target.kind === "segment" && contentType && /^(?:image|text)\//iu.test(contentType);
+
+	if (disguised) {
 		headers.set("Content-Type", "video/mp2t");
 	}
 
