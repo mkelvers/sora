@@ -62,7 +62,9 @@ export const resolveWatchPlayback = async (
 			previous: episodes?.findLast((candidate) => candidate.number < episode)?.number ?? null,
 		};
 
-		if (status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND")) {
+		const missing = status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND");
+
+		if (missing) {
 			return {
 				...links,
 				status: "unavailable",
