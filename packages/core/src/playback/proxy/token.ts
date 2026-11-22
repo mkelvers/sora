@@ -108,7 +108,9 @@ export const verifyStreamToken = (
 ): StreamTarget => {
 	const [encodedVector, encodedSealed, ...rest] = token.split(".");
 
-	if (!encodedVector || !encodedSealed || rest.length > 0) {
+	const malformed = !encodedVector || !encodedSealed || rest.length > 0;
+
+	if (malformed) {
 		throw new InvalidStreamTokenError("Malformed stream token");
 	}
 
