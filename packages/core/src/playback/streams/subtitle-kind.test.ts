@@ -49,9 +49,17 @@ describe("classifySubtitle", () => {
 
 	test("recognizes sound descriptions and music notes as captions", () => {
 		expect(classifySubtitle(captions)).toBe("captions");
-		expect(classifySubtitle(every(4, 360, (index) => (index % 4 === 0 ? "♪" : "Line")))).toBe(
-			"captions",
-		);
+		expect(
+			classifySubtitle(
+				every(4, 360, (index) => {
+					if (index % 4 === 0) {
+						return "♪";
+					}
+
+					return "Line";
+				}),
+			),
+		).toBe("captions");
 	});
 
 	test("does not guess for what sits between the kinds", () => {
