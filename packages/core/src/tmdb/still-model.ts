@@ -74,8 +74,11 @@ export const loadStillModel = async (cacheDir: string | null) => {
 			await processor(await RawImage.fromBlob(new Blob([new Uint8Array(image)]))),
 		);
 
-		// SAFETY: the vision model returns float32 embeddings.
-		const embedded = unitLength([...(embeds.data as Float32Array)]);
+		if (!(embeds.data instanceof Float32Array)) {
+			throw new TypeError("The vision model did not return float32 embeddings");
+		}
+
+		const embedded = unitLength([...embeds.data]);
 		const logits = labelEmbeddings.embeddings.map((label) => logitScale * dot(label, embedded));
 		const highest = Math.max(...logits);
 		const weights = logits.map((logit) => Math.exp(logit - highest));
