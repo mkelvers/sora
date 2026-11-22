@@ -1,18 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { runOnce } from "graphile-worker";
 
+import { databaseTestsEnabled } from "../../test/integration";
 import { config } from "../config";
-import { db, migrateDatabase } from "../database/client";
+import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import { upscaleBackdropJob } from "../scheduler/jobs/upscale";
 import { failInvalidPayloads } from "../scheduler/payload";
 import { watchPools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
 import { requestBackdropUpscale, upscalesOf } from "./upscale";
-
-const disposableDatabase = /^\/sora_upscale_test_[a-f0-9]{32}$/u;
 
 const jobs = async () => {
 	const rows = await db.execute<{
@@ -47,8 +46,8 @@ const runUpscale = async () =>
 		taskList: failInvalidPayloads({ [upscaleBackdropTask]: upscaleBackdropJob }),
 	});
 
-describe.skipIf(process.env.SORA_UPSCALE_INTEGRATION !== "1")("backdrop upscale queue", () => {
-	const key = "tv:1";
+describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
+	const key = "tv:2147483646";
 	const seriesId = "upscale-test";
 	let server: Bun.Server<undefined> | undefined;
 	let sourceUrl: string;
@@ -59,14 +58,6 @@ describe.skipIf(process.env.SORA_UPSCALE_INTEGRATION !== "1")("backdrop upscale 
 	};
 
 	beforeAll(async () => {
-		if (!disposableDatabase.test(new URL(config.databaseUrl).pathname)) {
-			throw new Error("Use a dedicated empty sora_upscale_test_<uuid without hyphens> database");
-		}
-		const [connected] = await db.execute<{ name: string }>(sql`select current_database() as name`);
-		if (!disposableDatabase.test(`/${connected?.name}`)) {
-			throw new Error("The PostgreSQL connection must use the disposable database");
-		}
-		await migrateDatabase();
 		server = Bun.serve({
 			fetch: () => new Response(null, { status: 404 }),
 			hostname: "127.0.0.1",
@@ -93,15 +84,27 @@ describe.skipIf(process.env.SORA_UPSCALE_INTEGRATION !== "1")("backdrop upscale 
 		});
 	}, 30_000);
 
+	const resetUpscale = async () => {
+		await db.delete(titleBackdropUpscale).where(eq(titleBackdropUpscale.key, key));
+		await db.execute(sql`
+			delete from graphile_worker._private_jobs
+			where job_queue_id in (
+				select id from graphile_worker._private_job_queues where queue_name = 'upscale-backdrop'
+			)
+		`);
+		await db.execute(sql`
+			delete from graphile_worker._private_job_queues where queue_name = 'upscale-backdrop'
+		`);
+	};
+
 	afterAll(async () => {
 		await server?.stop(true);
+		await resetUpscale();
+		await db.delete(series).where(eq(series.id, seriesId));
+		await db.delete(titleArtwork).where(eq(titleArtwork.key, key));
 	});
 
-	beforeEach(async () => {
-		await db.execute(sql`
-			truncate title_backdrop_upscale, graphile_worker._private_jobs, graphile_worker._private_job_queues
-		`);
-	});
+	beforeEach(resetUpscale);
 
 	test("rolls back the pending row when PostgreSQL rejects enqueue", async () => {
 		await db.execute(sql`

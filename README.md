@@ -62,7 +62,7 @@ docker compose up -d --wait database
 bun run --cwd packages/core test:integration
 ```
 
-Pass a test path after `test:integration` to run a single suite. This command replaces the individual `SORA_*_INTEGRATION` flags. It creates an empty `sora_test_*` database, applies migrations, and drops that database when the tests finish.
+Pass a repository-relative test path after `test:integration` to run a single suite. This command replaces the individual `SORA_*_INTEGRATION` flags. It creates an empty `sora_test_*` database, applies migrations, and drops that database when the tests finish.
 
 Name new core database test files `*.integration.test.ts` and wrap their SQL tests in `describe.skipIf(!databaseTestsEnabled())` using the helper in `packages/core/test/integration.ts`.
 

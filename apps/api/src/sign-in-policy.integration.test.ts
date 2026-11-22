@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 
 import { auth } from "@sora/core/auth";
-import { closeDatabase, db } from "@sora/core/database";
+import { db } from "@sora/core/database";
 import { minute } from "@sora/shared";
 import { Hono } from "hono";
 
+import { databaseTestsEnabled } from "../../../packages/core/test/integration";
 import { v1Routes } from "./v1";
 
-const disposableDatabase = /^\/sora_draft_auth_[a-z0-9]+$/u;
 const password = "test-fixture-password";
 const email = "original_name@sora.invalid";
 const username = "updated_name";
@@ -39,14 +39,10 @@ const statusOf = async (request: Response | Promise<Response>) => {
 	return response.status;
 };
 
-describe.skipIf(process.env.SORA_AUTH_INTEGRATION !== "1")("password sign-in policy", () => {
+describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 	const clock = spyOn(performance, "now");
 
 	beforeAll(async () => {
-		if (!disposableDatabase.test(new URL(process.env.DATABASE_URL ?? "").pathname)) {
-			throw new Error("Sign-in policy tests require a migrated sora_draft_auth_<id> database");
-		}
-
 		clock.mockReturnValue(0);
 		const context = await auth.$context;
 		// The account kept its original email when its username changed.
@@ -68,9 +64,8 @@ describe.skipIf(process.env.SORA_AUTH_INTEGRATION !== "1")("password sign-in pol
 		});
 	});
 
-	afterAll(async () => {
+	afterAll(() => {
 		clock.mockRestore();
-		await closeDatabase();
 	});
 
 	test("shares five address attempts and rejects malformed input before looking up an account", async () => {

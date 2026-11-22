@@ -45,13 +45,13 @@ try {
 				process.execPath,
 				"test",
 				"--no-env-file",
-				"--env-file=../../.env.test",
+				"--env-file=.env.test",
 				"--preload",
-				"./test/setup-integration.ts",
+				"./packages/core/test/setup-integration.ts",
 				...(filters.length > 0 ? filters : ["integration.test.ts", "database/client.test.ts"]),
 			],
 			{
-				cwd: fileURLToPath(new URL("..", import.meta.url)),
+				cwd: fileURLToPath(new URL("../../..", import.meta.url)),
 				env: {
 					...process.env,
 					DATABASE_URL: databaseUrl.href,
