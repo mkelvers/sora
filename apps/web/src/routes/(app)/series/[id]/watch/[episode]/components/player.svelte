@@ -251,11 +251,12 @@
 	};
 
 	$effect.pre(() => {
-		if (
+		const moved =
 			address.seriesId !== session.address.seriesId ||
 			address.episode !== session.address.episode ||
-			address.profileId !== session.address.profileId
-		) {
+			address.profileId !== session.address.profileId;
+
+		if (moved) {
 			// Capture the old episode and its credits before resetting the player.
 			untrack(() => report(false, true));
 			session = { address };
