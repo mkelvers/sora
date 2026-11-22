@@ -243,7 +243,10 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 
 		const kept = stored ? schema.safeParse(stored.data) : null;
 
-		if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
+		const fresh =
+			stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
+
+		if (fresh) {
 			return kept.data;
 		}
 
