@@ -105,30 +105,94 @@ const decode = (misread: string, misreading: Misreading) => {
  *   outside any such sequence, and is left as it is, even where a few of its
  *   characters happen to look like one. Punctuation does not count, since a
  *   misread file can also hold some written correctly.
- * - It holds more than one such sequence, or one of three bytes or more, such
- *   as "—" or "’". A single letter and the punctuation after it, such as
- *   "É…", read as a two-byte sequence by chance as often as by misreading,
- *   and are left alone rather than risk changing correct text.
+ * - One damaged Latin accent or another layer of misreading provides enough
+ *   evidence on its own. A bare Cyrillic word such as "Её" does not.
+ * - Latin text such as "É…" must not become an unrelated phonetic letter.
+ * - A file's only evidence must not be accented Latin letters turning into
+ *   foreign letters inside words.
+ *   Czech "spíš…" happens to contain valid UTF-8 bytes in Windows-1252,
+ *   but decoding them would turn the end of the word into a Hangul letter.
  *
  * Cut-off sequences cannot be restored and are left as they are.
  */
+class MisreadFile {
+	static readonly #latin = /\p{Script=Latin}/u;
+	static readonly #foreign = /[^\p{Script=Latin}\P{L}]/u;
+	static readonly #marks = /\p{M}/gu;
+	static readonly #accent = /^[\u00A0-\u017F]+$/u;
+	static readonly #cyrillic = /^\p{Script=Cyrillic}+$/u;
+	static readonly #phonetic = /[Ʌ\u0250-\u02AF]/u;
+
+	readonly #content: string;
+	readonly #misreading: Misreading;
+	#wide = false;
+	#evidence = false;
+	#mixed = 0;
+	#ambiguous = false;
+	#found = 0;
+
+	constructor(content: string, misreading: Misreading) {
+		this.#content = content;
+		this.#misreading = misreading;
+	}
+
+	restore(): string {
+		const decodable = this.#content.replaceAll(this.#misreading.run, (run, offset: number) =>
+			this.#inspect(run, offset),
+		);
+		const leftover = decodable.replaceAll(this.#misreading.cut, "");
+		const evidence = this.#evidence || this.#wide || this.#found > 1;
+		const mixedWord = this.#mixed > 0 && this.#mixed === this.#found;
+		const blocked = mixedWord || this.#ambiguous || this.#misreading.letter.test(leftover);
+		if (!evidence || blocked) {
+			return this.#content;
+		}
+		return this.#content.replaceAll(
+			this.#misreading.run,
+			(run) => decode(run, this.#misreading) ?? run,
+		);
+	}
+
+	#inspect(run: string, offset: number): string {
+		const decoded = decode(run, this.#misreading);
+		if (decoded === null) {
+			return run;
+		}
+
+		const before = this.#content.charAt(offset - 1);
+		const after = this.#content.charAt(offset + run.length);
+		const latinWord = MisreadFile.#latin.test(before) || MisreadFile.#latin.test(after);
+		const foreignLetter = MisreadFile.#foreign.test(decoded);
+		const latinSource = !MisreadFile.#foreign.test(run);
+		const accents = run.normalize("NFD").match(MisreadFile.#marks) ?? [];
+		const isolatedLetter = [...decoded].length === 1 && accents.length > 1;
+		if (latinSource && latinWord && foreignLetter && isolatedLetter) {
+			this.#mixed += 1;
+		}
+
+		const phoneticLetter = MisreadFile.#phonetic.test(decoded);
+		const layered = decoded.match(this.#misreading.run) !== null;
+		this.#evidence ||= this.#accented(run, decoded, latinWord);
+		this.#evidence ||= layered;
+		this.#ambiguous ||= latinSource && phoneticLetter && !layered;
+		this.#wide ||= wideCharacter.test(decoded);
+		this.#found += 1;
+		return "";
+	}
+
+	#accented(run: string, decoded: string, latinWord: boolean): boolean {
+		const lead = this.#misreading.bytes.get(defined([...run][0]));
+		const latinAccent = MisreadFile.#accent.test(decoded);
+		const cyrillicWord = MisreadFile.#cyrillic.test(run) && !latinWord && lead !== 0xc3;
+		return latinAccent && !cyrillicWord && lead !== undefined && lead >= 0xc2 && lead <= 0xc5;
+	}
+}
+
 const unwrap = (content: string) => {
 	for (const misreading of misreadings) {
-		let wide = false;
-		let found = 0;
-		const decodable = content.replaceAll(misreading.run, (run) => {
-			const decoded = decode(run, misreading);
-			if (decoded === null) {
-				return run;
-			}
-			wide ||= wideCharacter.test(decoded);
-			found += 1;
-			return "";
-		});
-		const leftover = decodable.replaceAll(misreading.cut, "");
-		const misread = (wide || found > 1) && !misreading.letter.test(leftover);
-		if (misread) {
-			return content.replaceAll(misreading.run, (run) => decode(run, misreading) ?? run);
+		const restored = new MisreadFile(content, misreading).restore();
+		if (restored !== content) {
+			return restored;
 		}
 	}
 	return content;

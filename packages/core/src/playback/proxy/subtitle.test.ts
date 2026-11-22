@@ -315,14 +315,14 @@ Pokémon café`);
 		expect(cleanWebVtt(text)).toBe(text);
 	});
 
-	test("leaves letters that only look misread alone", () => {
+	test("repairs a lone damaged accent alongside correctly written Russian", () => {
 		const text = `WEBVTT
 
 1
 00:00:01.000 --> 00:00:03.000
 Привет, «друг» and PokÃ©mon`;
 
-		expect(cleanWebVtt(text)).toBe(text);
+		expect(cleanWebVtt(text)).toBe(text.replace("PokÃ©mon", "Pokémon"));
 	});
 
 	test("leaves a letter followed by punctuation that reads like a misreading alone", () => {
@@ -337,6 +337,53 @@ Welcome to the
 <b>CAFÉ…</b>`;
 
 		expect(cleanWebVtt(text)).toBe(text.replace("00:00:05.000\n<b>", "00:00:05.000 line:0\n<b>"));
+	});
+
+	test("restores a lone accented letter without requiring another damaged cue", () => {
+		for (const name of [
+			"Pokémon",
+			"CAFÉ",
+			"À SUIVRE",
+			"Tōkyo",
+			"Ćiro",
+			"Björk",
+			"Øresund",
+			"A B",
+		]) {
+			const text = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n${name}`;
+			for (const page of ["windows-1251", "windows-1252"] as const) {
+				const bytes = new TextEncoder().encode(text);
+				const misread = new TextDecoder(page).decode(bytes);
+				const twice = new TextDecoder(page).decode(new TextEncoder().encode(misread));
+				expect(cleanWebVtt(misread)).toBe(text);
+				expect(cleanWebVtt(twice)).toBe(text);
+			}
+		}
+	});
+
+	test("preserves Czech inside otherwise English subtitles", () => {
+		for (const line of ["spíš…", "Nebo spíš…", "A nebo spíš…", "<i>spíš…</i>"]) {
+			const text = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello.\n${line}`;
+			expect(cleanWebVtt(text)).toBe(text);
+		}
+	});
+
+	test("preserves isolated Russian and repeated accented signs", () => {
+		for (const line of ["Её", "CAFÉ… CAFÉ…", "CAFÉ…"]) {
+			const text = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n${line}`;
+			expect(cleanWebVtt(text)).toBe(text);
+		}
+	});
+
+	test("restores mixed alphabets and Vietnamese letters through two layers", () => {
+		for (const line of ["A는 블랙 라군", "ドLさ 星カヾ", "Cơ quan cảnh sát mật"]) {
+			const text = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n${line}`;
+			const decoder = new TextDecoder("windows-1252");
+			const misread = decoder.decode(new TextEncoder().encode(text));
+			const twice = decoder.decode(new TextEncoder().encode(misread));
+			expect(cleanWebVtt(misread)).toBe(text);
+			expect(cleanWebVtt(twice)).toBe(text);
+		}
 	});
 
 	test("drops cues left with no text", () => {
