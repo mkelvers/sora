@@ -190,9 +190,13 @@ export const toAnimeCard = (media: AnimeCardFragment): AnimeCard => ({
 
 /** The companies credited with an anime: its studios when `main`, else the rest. */
 const companies = (media: AnimeDetailsFragment, main: boolean) =>
-	present(media.studios?.edges).flatMap((edge) =>
-		edge.isMain === main && edge.node ? [edge.node.name] : [],
-	);
+	present(media.studios?.edges).flatMap((edge) => {
+		if (edge.isMain === main && edge.node) {
+			return [edge.node.name];
+		}
+
+		return [];
+	});
 
 /** Converts an AniList details fragment into the domain model. */
 export const toAnime = (media: AnimeDetailsFragment): Anime => ({
