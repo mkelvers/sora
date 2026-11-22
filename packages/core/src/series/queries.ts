@@ -419,7 +419,9 @@ export const franchiseIds = async (
 						outsiders.delete(id);
 					}
 
-					if (held.has(id) && !acrossSpinOff && edge.relation !== "OTHER") {
+					const continuing = held.has(id) && !acrossSpinOff && edge.relation !== "OTHER";
+
+					if (continuing) {
 						held.delete(id);
 						next.push(id);
 					}
