@@ -15,7 +15,7 @@ import { Writable } from "node:stream";
 
 import { z } from "zod";
 
-import { closeDatabase } from "../database/client";
+import { db } from "../database/client";
 import { auth } from "./auth";
 
 const passwordStdinFlag = "--password-stdin";
@@ -111,7 +111,7 @@ const password = isPasswordFromStdin ? await readPasswordFromStdin() : await ask
 
 if (password === null) {
 	console.error("Account creation cancelled.");
-	await closeDatabase();
+	await db.$client.close();
 	process.exit(1);
 }
 
@@ -144,4 +144,4 @@ await context.internalAdapter.linkAccount({
 
 console.log(`Created ${input.data.username}.`);
 
-await closeDatabase();
+await db.$client.close();

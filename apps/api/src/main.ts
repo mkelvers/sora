@@ -15,7 +15,7 @@
  * Several instances may run at once. It stops cleanly on SIGINT and SIGTERM.
  */
 import { auth } from "@sora/core/auth";
-import { closeDatabase } from "@sora/core/database";
+import { db } from "@sora/core/database";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
@@ -68,7 +68,7 @@ console.log(`Sora API listening on ${server.url}`);
 
 const shutdown = async () => {
 	await server.stop();
-	await closeDatabase();
+	await db.$client.close();
 	process.exit(0);
 };
 

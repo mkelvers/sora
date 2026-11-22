@@ -28,6 +28,10 @@ class Definition {
 			return false;
 		}
 
+		if (this.#bound) {
+			return false;
+		}
+
 		return call?.arguments.every((argument, index) => {
 			const parameter = node.params[index];
 
@@ -37,6 +41,27 @@ class Definition {
 				argument.name === parameter.name
 			);
 		});
+	}
+
+	/**
+	 * Whether the call goes through the instance's own state or a literal,
+	 * such as `this.#items.has(key)` or `/\d/u.test(text)`: the function then
+	 * exposes or names something, rather than only passing arguments on.
+	 */
+	get #bound(): boolean {
+		const callee = this.#call?.callee;
+
+		if (callee?.type !== "MemberExpression") {
+			return false;
+		}
+
+		let root = callee.object;
+
+		while (root?.type === "MemberExpression") {
+			root = root.object;
+		}
+
+		return root.type === "ThisExpression" || root.type === "Literal";
 	}
 
 	/** The call the body consists of, awaited or not, when the body is nothing else. */
@@ -80,7 +105,10 @@ class Definition {
 	}
 }
 
-/** §5 No function only forwards its arguments to another call. */
+/**
+ * §5 No function only forwards its arguments to another call. Calls on the
+ * instance's own state or on a literal are exempt: they expose or name it.
+ */
 export const noWrappers = defineRule({
 	create: (context) => {
 		const check = (node: Callable) => {

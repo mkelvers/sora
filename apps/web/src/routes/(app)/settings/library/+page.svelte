@@ -131,10 +131,6 @@
 		};
 	};
 
-	const disconnect = async (id: AccountSource) => {
-		await disconnectImport(id);
-	};
-
 	const popupFeatures = "popup,width=520,height=720";
 	const closedGraceMs = 2000;
 	let popup: Window | null = null;
@@ -365,7 +361,7 @@
 								class="mt-1 h-auto w-auto text-sm font-normal text-muted underline underline-offset-2"
 								disabled={busy !== null}
 								aria-label="Disconnect {provider.name}"
-								onclick={() => disconnect(provider.id)}
+								onclick={() => disconnectImport(provider.id)}
 							>
 								Disconnect
 							</Button>

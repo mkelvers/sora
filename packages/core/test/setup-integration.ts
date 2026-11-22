@@ -17,7 +17,7 @@ if (
 	throw new Error("Integration tests require a disposable database from test:integration.");
 }
 
-const { closeDatabase, db, migrateDatabase } = await import("../src/database/client");
+const { db, migrateDatabase } = await import("../src/database/client");
 
 const [{ database }] = await db.$client<[{ database: string }]>`
 	select current_database() as database
@@ -29,6 +29,8 @@ if (database !== name) {
 
 await migrateDatabase();
 
-afterAll(closeDatabase);
+afterAll(async () => {
+	await db.$client.close();
+});
 
 enableDatabaseTests();
