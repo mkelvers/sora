@@ -10,9 +10,6 @@ import { defined } from "@sora/shared";
  */
 export type SubtitleKind = "dialogue" | "signs" | "captions";
 
-/** Signs are a handful of cues per episode, dialogue several per minute. */
-const signsMaximumCues = 60;
-
 export interface SubtitleStats {
 	cues: number;
 	minutes: number;
@@ -99,6 +96,9 @@ export const classifySubtitle = (content: string): SubtitleKind | null => {
 
 	const signsMaximumRate = 1.5;
 
+	/** Signs are a handful of cues per episode, dialogue several per minute. */
+	const signsMaximumCues = 60;
+
 	const stats = subtitleStats(content);
 
 	if (!stats) {
@@ -125,8 +125,6 @@ export const classifySubtitle = (content: string): SubtitleKind | null => {
 	return null;
 };
 
-const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
-
 /**
  * What a track carries, from the name its provider gave it and its cues.
  *
@@ -137,9 +135,16 @@ const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearin
  * @param content - The WebVTT file, or `null` when it could not be read.
  */
 export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
+	const captionsLabel = /closed[- ]captions?|\bcc\b|\bsdh\b|hard of hearing|hearing[- ]impaired/iu;
+
 	const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
 
-	const measured = content === null ? null : classifySubtitle(content);
+	let measured: SubtitleKind | null = null;
+
+	if (content !== null) {
+		measured = classifySubtitle(content);
+	}
+
 	let named: SubtitleKind | null = null;
 
 	if (captionsLabel.test(label)) {

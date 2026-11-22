@@ -2,26 +2,35 @@ import { describe, expect, test } from "bun:test";
 
 import { defined } from "@sora/shared";
 
-import { alignTimelines, shiftTime } from "./align";
+import { align, shiftTime } from "./align";
 
-/** Segment boundaries of a made-up encode: irregular, as scene cuts are. */
-const boundaries = (seed: number, count = 300) => {
-	const times = [0];
-	let state = seed;
+/** A made-up encode of 300 segments. */
+class Encode {
+	readonly #seed: number;
 
-	for (let index = 1; index < count; index += 1) {
-		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
-		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
+	constructor(seed: number) {
+		this.#seed = seed;
 	}
 
-	return times;
-};
+	/** Its segment boundaries: irregular, as scene cuts are. */
+	get boundaries() {
+		const times = [0];
+		let state = this.#seed;
 
-describe("alignTimelines", () => {
+		for (let index = 1; index < 300; index += 1) {
+			state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
+			times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
+		}
+
+		return times;
+	}
+}
+
+describe("align", () => {
 	test("finds a constant offset", () => {
-		const sub = boundaries(1);
+		const sub = new Encode(1).boundaries;
 
-		const shifts = alignTimelines(
+		const shifts = align(
 			sub,
 			sub.map((time) => time + 2.5),
 		);
@@ -31,10 +40,18 @@ describe("alignTimelines", () => {
 	});
 
 	test("changes offset where the other encode adds footage", () => {
-		const sub = boundaries(2);
+		const sub = new Encode(2).boundaries;
 		const cut = defined(sub[150]);
-		const dub = sub.map((time) => (time < cut ? time - 1 : time + 12.4));
-		const shifts = defined(alignTimelines(sub, dub));
+
+		const dub = sub.map((time) => {
+			if (time < cut) {
+				return time - 1;
+			}
+
+			return time + 12.4;
+		});
+
+		const shifts = defined(align(sub, dub));
 
 		expect(shifts.map((shift) => [shift.from, Math.round(shift.offset * 10) / 10])).toEqual([
 			[0, -1],
@@ -43,10 +60,17 @@ describe("alignTimelines", () => {
 	});
 
 	test("ignores a few stray boundaries", () => {
-		const sub = boundaries(3);
-		const dub = sub.map((time, index) => (index === 100 || index === 101 ? time + 57 : time));
+		const sub = new Encode(3).boundaries;
 
-		expect(alignTimelines(sub, dub)).toEqual([
+		const dub = sub.map((time, index) => {
+			if (index === 100 || index === 101) {
+				return time + 57;
+			}
+
+			return time;
+		});
+
+		expect(align(sub, dub)).toEqual([
 			{
 				from: 0,
 				offset: 0,
@@ -55,7 +79,7 @@ describe("alignTimelines", () => {
 	});
 
 	test("refuses encodes of different episodes", () => {
-		expect(alignTimelines(boundaries(4), boundaries(5))).toBeNull();
+		expect(align(new Encode(4).boundaries, new Encode(5).boundaries)).toBeNull();
 	});
 });
 

@@ -8,9 +8,6 @@ import { canFetchStream, readPlaylist } from "../proxy/proxy";
 import type { PlaylistReader } from "../proxy/proxy";
 import { StreamUpstreamError } from "../proxy/upstream-error";
 
-/** How long a video's host has to answer before its provider is passed over. */
-const videoProbeTimeoutMs = 3 * second;
-
 /**
  * What {@link probeVideos} found of one video; `null` when no host serves it.
  * `audioLanguages` is `null` when the host answered 429: it is up and
@@ -28,11 +25,6 @@ export interface ProbeDependencies {
 	canFetchStream: typeof canFetchStream;
 }
 
-const liveProbes: ProbeDependencies = {
-	canFetchStream,
-	readPlaylist,
-};
-
 /**
  * Probes each of a provider's videos with one request: an HLS video by reading
  * its master playlist, which lists its audio languages, any other by its
@@ -43,34 +35,44 @@ const liveProbes: ProbeDependencies = {
  */
 export const probeVideos = (
 	videos: readonly ProviderVideo[],
-	dependencies: ProbeDependencies = liveProbes,
-): Promise<VideoProbe[]> =>
-	Promise.all(
+	dependencies?: ProbeDependencies,
+): Promise<VideoProbe[]> => {
+	/** How long a video's host has to answer before its provider is passed over. */
+	const timeoutMs = 3 * second;
+
+	const hosts = dependencies ?? {
+		canFetchStream,
+		readPlaylist,
+	};
+
+	return Promise.all(
 		videos.map(async (video) => {
-			const signal = AbortSignal.timeout(videoProbeTimeoutMs);
+			const signal = AbortSignal.timeout(timeoutMs);
 
 			if (video.format === "hls") {
 				const { data, error } = await attempt(
-					dependencies.readPlaylist(video.url, video.headers, {
+					hosts.readPlaylist(video.url, video.headers, {
 						signal,
 					}),
 					StreamUpstreamError,
 				);
 
-				if (error) {
-					return error.status === 429
-						? {
-								audioLanguages: null,
-							}
-						: null;
+				if (!error) {
+					return {
+						audioLanguages: audioLanguages(data.content),
+					};
+				}
+
+				if (error.status !== 429) {
+					return null;
 				}
 
 				return {
-					audioLanguages: audioLanguages(data.content),
+					audioLanguages: null,
 				};
 			}
 
-			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
+			const loads = await hosts.canFetchStream(video.url, video.headers, [], signal);
 
 			if (loads) {
 				return {
@@ -81,6 +83,7 @@ export const probeVideos = (
 			return null;
 		}),
 	);
+};
 
 /**
  * Whether a dub's videos have audio in {@link servedLocale}: one lists it, or
@@ -100,7 +103,7 @@ export const hasDubAudio = (probes: readonly VideoProbe[]) =>
 	);
 
 /** Whether `provider` streams an episode's dub with audio in {@link servedLocale}. */
-export const streamsDub = async (
+export const servesDub = async (
 	provider: Pick<StreamProvider, "resolveStream">,
 	episodeId: string,
 ) => {
@@ -110,7 +113,7 @@ export const streamsDub = async (
 };
 
 /**
- * `units` without the dubs they newly list that `streamsDub` does not
+ * `units` without the dubs they newly list that `servesDub` does not
  * confirm, so an episode is never labelled dubbed before its dub plays.
  *
  * A dub is new when `previous`, the list stored before, did not have it.

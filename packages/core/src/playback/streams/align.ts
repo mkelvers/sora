@@ -1,5 +1,7 @@
 import { defined } from "@sora/shared";
 
+import { Boundaries } from "./boundaries";
+
 /**
  * From a point on one timeline on, how far the same picture sits on another,
  * in seconds.
@@ -9,90 +11,12 @@ export interface TimelineShift {
 	offset: number;
 }
 
-/** How close two segment boundaries must be to count as the same cut. */
-const tolerance = 0.12;
-
-/** Matches an offset must win to be worth switching to, so stray matches cannot. */
-const defaultSwitchPenalty = 6;
-
-/** The value in ascending `sorted` closest to `time`. */
-const nearest = (sorted: number[], time: number) => {
-	let low = 0;
-	let high = sorted.length;
-
-	while (low < high) {
-		const middle = Math.floor((low + high) / 2);
-
-		if (defined(sorted[middle]) < time) {
-			low = middle + 1;
-		} else {
-			high = middle;
-		}
-	}
-
-	const before = sorted[low - 1] ?? -Infinity;
-	const after = sorted[low] ?? Infinity;
-
-	if (time - before <= after - time) {
-		return before;
-	}
-
-	return after;
-};
-
-/** Offsets many boundary pairs agree on, most agreed first, each refined to the mean of its pairs. */
-const candidateOffsets = (source: number[], target: number[]) => {
-	/** The most offsets weighed per boundary; later ones have too few votes to matter. */
-	const maximumCandidates = 32;
-
-	/** An offset needs this many matching boundaries across the episode to be considered. */
-	const minimumVotes = 4;
-
-	const votes = new Map<number, number>();
-
-	for (const from of source) {
-		for (const to of target) {
-			const bucket = Math.round((to - from) * 10);
-			votes.set(bucket, (votes.get(bucket) ?? 0) + 1);
-		}
-	}
-
-	const buckets: number[] = [];
-
-	for (const [bucket] of [...votes]
-		.filter(([, count]) => count >= minimumVotes)
-		.toSorted((a, b) => b[1] - a[1])) {
-		if (buckets.length === maximumCandidates) {
-			break;
-		}
-
-		if (buckets.every((other) => Math.abs(other - bucket) > 3)) {
-			buckets.push(bucket);
-		}
-	}
-
-	return buckets.flatMap((bucket) => {
-		const rough = bucket / 10;
-
-		const pairs = source
-			.values()
-			.map((time) => nearest(target, time + rough) - time)
-			.filter((offset) => Math.abs(offset - rough) <= tolerance)
-			.toArray();
-
-		if (pairs.length > 0) {
-			return [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length];
-		}
-
-		return [];
-	});
-};
-
 /**
  * The candidate per row that matches most rows overall, paying `switchPenalty`
- * per change (Viterbi).
+ * per change (Viterbi). By default an offset must win 6 matches to be worth
+ * switching to, so stray matches cannot.
  */
-export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPenalty) => {
+export const bestPath = (matches: boolean[][], switchPenalty = 6) => {
 	let scores = defined(matches[0]).map(Number);
 	const cameFrom: number[][] = [];
 
@@ -137,7 +61,7 @@ export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPena
  * @returns The shifts in order of `from`, or `null` when too few boundaries
  *   match for the encodes to be the same picture.
  */
-export const alignTimelines = (source: number[], target: number[]): TimelineShift[] | null => {
+export const align = (source: number[], target: number[]): TimelineShift[] | null => {
 	/** Below this share of matching boundaries, the encodes are not the same episode. */
 	const minimumMatched = 0.5;
 
@@ -145,17 +69,14 @@ export const alignTimelines = (source: number[], target: number[]): TimelineShif
 		return null;
 	}
 
-	const offsets = candidateOffsets(source, target);
+	const boundaries = new Boundaries(target);
+	const offsets = boundaries.offsets(source);
 
 	if (offsets.length === 0) {
 		return null;
 	}
 
-	const matches = source.map((time) =>
-		offsets.map(
-			(offset) => Math.abs(nearest(target, time + offset) - (time + offset)) <= tolerance,
-		),
-	);
+	const matches = source.map((time) => offsets.map((offset) => boundaries.matches(time, offset)));
 
 	const path = bestPath(matches);
 
@@ -170,12 +91,20 @@ export const alignTimelines = (source: number[], target: number[]): TimelineShif
 	for (const [index, choice] of path.entries()) {
 		const offset = defined(offsets[choice]);
 
-		if (shifts.at(-1)?.offset !== offset) {
-			shifts.push({
-				from: index === 0 ? 0 : defined(source[index]),
-				offset,
-			});
+		if (shifts.at(-1)?.offset === offset) {
+			continue;
 		}
+
+		let from = 0;
+
+		if (index !== 0) {
+			from = defined(source[index]);
+		}
+
+		shifts.push({
+			from,
+			offset,
+		});
 	}
 
 	return shifts;

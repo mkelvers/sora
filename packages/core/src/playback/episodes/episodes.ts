@@ -8,7 +8,7 @@ import { LanguageSchema } from "../../models/series";
 import type { ContentLanguage } from "../../models/series";
 import type { ProviderEpisode, StreamProvider } from "../providers/provider";
 import { aniKoto, servedLocale } from "../providers/registry";
-import { streamsDub, withConfirmedDubs } from "../streams/dub-audio";
+import { servesDub, withConfirmedDubs } from "../streams/dub-audio";
 import { getProviderMedia } from "./mapping";
 
 /**
@@ -191,7 +191,7 @@ export const refreshProviderUnits = async (
 
 	const units = provider.listsLanguages
 		? await withConfirmedDubs(withoutStrayEpisodes(mapped, anime), previous, async (unit) => {
-				const confirmed = await streamsDub(provider, unit.id);
+				const confirmed = await servesDub(provider, unit.id);
 
 				if (!confirmed) {
 					console.warn(

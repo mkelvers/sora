@@ -46,10 +46,11 @@ export const subtitleKinds = async (videos: ProviderVideo[]) => {
 				return;
 			}
 
-			const content =
-				format === "vtt"
-					? await readSubtitle(url, video.headers, mirrorsFor(url, video.url))
-					: null;
+			let content: string | null = null;
+
+			if (format === "vtt") {
+				content = await readSubtitle(url, video.headers, mirrorsFor(url, video.url));
+			}
 
 			const kind = subtitleKind(label, content);
 			kinds.set(url, kind);
