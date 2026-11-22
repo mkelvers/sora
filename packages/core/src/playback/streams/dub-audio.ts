@@ -143,12 +143,14 @@ export const withConfirmedDubs = async (
 		},
 	);
 
-	return units.map((unit) =>
-		unconfirmed.has(unit.id)
-			? {
-					...unit,
-					languages: unit.languages?.filter((language) => language !== "dub") ?? null,
-				}
-			: unit,
-	);
+	return units.map((unit) => {
+		if (unconfirmed.has(unit.id)) {
+			return {
+				...unit,
+				languages: unit.languages?.filter((language) => language !== "dub") ?? null,
+			};
+		}
+
+		return unit;
+	});
 };
