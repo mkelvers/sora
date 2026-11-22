@@ -114,7 +114,11 @@ export const toggle = <T>(list: T[], value: T) => {
 export const browseTitle = (filters: BrowseFilters) => {
 	const named = [...filters.genres, ...filters.tags, ...filters.studios];
 
-	return named.length === 1 ? `${named[0]} Anime` : "Browse Anime";
+	if (named.length === 1) {
+		return `${named[0]} Anime`;
+	}
+
+	return "Browse Anime";
 };
 
 export const catalogRequest = (filters: BrowseFilters) => ({
