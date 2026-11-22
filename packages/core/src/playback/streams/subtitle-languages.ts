@@ -21,7 +21,11 @@ export const languageName = (tag: string) => {
 		return null;
 	}
 
-	return data && data !== tag ? data : null;
+	if (data && data !== tag) {
+		return data;
+	}
+
+	return null;
 };
 
 /** What resolving a version found, as far as its subtitle languages go. */
