@@ -261,7 +261,11 @@ const kindLabels: Partial<Record<SubtitleKind, string>> = {
 const subtitleLabel = (language: string, kind: SubtitleKind | null | undefined) => {
 	const named = kind ? kindLabels[kind] : undefined;
 
-	return named ? `${language} (${named})` : language;
+	if (named) {
+		return `${language} (${named})`;
+	}
+
+	return language;
 };
 
 const toPlaybackMedia = (
