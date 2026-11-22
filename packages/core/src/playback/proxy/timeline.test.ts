@@ -12,12 +12,14 @@ const serving = (playlists: Record<string, string>) => {
 		requested.push(url);
 		const content = playlists[url];
 
-		return content === undefined
-			? Promise.reject(new Error(`${url} is not served`))
-			: Promise.resolve({
-					content,
-					url,
-				});
+		if (content === undefined) {
+			return Promise.reject(new Error(`${url} is not served`));
+		}
+
+		return Promise.resolve({
+			content,
+			url,
+		});
 	};
 
 	return {
