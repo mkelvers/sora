@@ -20,6 +20,7 @@ export type {
 	Tag,
 	UpcomingSeries,
 } from "@sora/core/models/series";
+
 export type {
 	ContinueWatching,
 	NextEpisode,
@@ -36,8 +37,11 @@ export type {
 	WatchlistStatus,
 	WatchlistStatusEntry,
 } from "@sora/core/models/library";
+
 export type { PlaybackMedia, SkipSegment } from "@sora/core/models/playback";
+
 export type { SignedInDevice } from "@sora/core/models/device";
+
 export type {
 	ImportAuthorization,
 	ImportConnection,
@@ -47,6 +51,7 @@ export type {
 	LibraryImport,
 	LibraryImportReport,
 } from "@sora/core/models/transfer";
+
 export type { Profile, ProfileAvatar } from "@sora/core/models/profile";
 
 export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;

@@ -21,6 +21,7 @@ test("unit test setup overrides an inherited application database URL", async ()
 			stdout: "pipe",
 		},
 	);
+
 	const [status, stdout] = await Promise.all([result.exited, result.stdout.text()]);
 	expect(status).toBe(0);
 	expect(stdout.trim()).toBe("/sora_unit_tests");
@@ -44,6 +45,7 @@ test.each([sharedUrl, `postgresql://127.0.0.1:1/${name}?dbname=sora`])(
 				stderr: "pipe",
 			},
 		);
+
 		const [status, stderr] = await Promise.all([result.exited, result.stderr.text()]);
 		expect(status).toBe(1);
 		expect(stderr).toContain(
@@ -58,6 +60,7 @@ test("refuses to provision integration databases through the shared app database
 		env: { ...process.env, SORA_TEST_ADMIN_URL: sharedUrl },
 		stderr: "pipe",
 	});
+
 	const [status, stderr] = await Promise.all([result.exited, result.stderr.text()]);
 	expect(status).toBe(1);
 	expect(stderr).toContain("SORA_TEST_ADMIN_URL must be a postgresql:// URL for /postgres");

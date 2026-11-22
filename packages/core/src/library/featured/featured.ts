@@ -113,6 +113,7 @@ const withStarts = async (
 	if (cards.length === 0) {
 		return [];
 	}
+
 	const keys = await db
 		.select({
 			key: series.key,
@@ -124,6 +125,7 @@ const withStarts = async (
 				cards.map((card) => card.id),
 			),
 		);
+
 	const seasons = await db
 		.select({
 			completed: sql<boolean>`${seriesState.status} = 'completed'`,
@@ -143,13 +145,16 @@ const withStarts = async (
 			),
 		)
 		.orderBy(asc(animeSearch.startDate));
+
 	const starts = new Map<string, string>();
 	const keyOf = new Map(seasons.map((season) => [season.id, season.key]));
+
 	for (const season of seasons) {
 		if (!season.completed && !starts.has(season.key)) {
 			starts.set(season.key, season.id);
 		}
 	}
+
 	return cards.map((card) => ({
 		...card,
 		start_id: starts.get(keyOf.get(card.id) ?? "") ?? card.id,
@@ -183,6 +188,7 @@ const lastAirings = async (seriesIds: readonly string[], now: Date) => {
 	if (seriesIds.length === 0) {
 		return new Map<string, Date>();
 	}
+
 	const rows = await db
 		.select({
 			lastAiredAt: max(seriesEpisode.airedAt),
@@ -191,6 +197,7 @@ const lastAirings = async (seriesIds: readonly string[], now: Date) => {
 		.from(seriesEpisode)
 		.where(and(inArray(seriesEpisode.seriesId, [...seriesIds]), lte(seriesEpisode.airedAt, now)))
 		.groupBy(seriesEpisode.seriesId);
+
 	return new Map(
 		rows.flatMap((row) => (row.lastAiredAt ? [[row.seriesId, row.lastAiredAt] as const] : [])),
 	);
@@ -201,6 +208,7 @@ const activities = async (anilistIds: readonly number[], now: Date) => {
 	if (anilistIds.length === 0) {
 		return new Map<number, Activity>();
 	}
+
 	const rows = await db
 		.select()
 		.from(animeTrend)
@@ -210,7 +218,9 @@ const activities = async (anilistIds: readonly number[], now: Date) => {
 				gte(animeTrend.day, dateBefore(now, activityKeptFor)),
 			),
 		);
+
 	const byEntry = Map.groupBy(rows, (row) => row.anilistId);
+
 	return new Map(anilistIds.map((id) => [id, activityOf(byEntry.get(id) ?? [], now)] as const));
 };
 
@@ -275,15 +285,18 @@ const pickTitles = async ({
 	]);
 
 	const current = entries.filter((entry) => isCurrent(entry, now));
+
 	const unstored = current
 		.filter((entry) => entry.seriesId === null)
 		.toSorted((a, b) => b.popularity - a.popularity)
 		.slice(0, backfillPerPick);
+
 	await inSequence(unstored, ({ anilistId }) => scheduleSeriesStore(anilistId, "backfill"));
 
 	// The seasons of a show are matched to one TMDB title, which names the show.
 	const skipped = new Set([...longRunning, ...spinOffs].map((row) => row.key));
 	const newest = new Map<string, (typeof current)[number]>();
+
 	for (const entry of current) {
 		if (
 			entry.seriesId === null ||
@@ -293,13 +306,16 @@ const pickTitles = async ({
 		) {
 			continue;
 		}
+
 		const known = newest.get(entry.key);
+
 		if (!known || (entry.startDate ?? "") > (known.startDate ?? "")) {
 			newest.set(entry.key, entry);
 		}
 	}
 
 	const chosen = [...newest.values()].filter((entry) => !excluded.has(defined(entry.seriesId)));
+
 	const [airings, activity] = await Promise.all([
 		lastAirings(
 			chosen.map((entry) => defined(entry.seriesId)),
@@ -310,9 +326,11 @@ const pickTitles = async ({
 			now,
 		),
 	]);
+
 	const candidates = chosen.map((entry): Candidate => {
 		const id = defined(entry.seriesId);
 		const picked = lastPicked.get(id);
+
 		return {
 			activity: activity.get(entry.anilistId) ?? {
 				past: null,
@@ -327,11 +345,14 @@ const pickTitles = async ({
 	});
 
 	const ordered = order(candidates, userId, rotation, now);
+
 	const tried = [...ordered.news, ...ordered.repeats].slice(
 		0,
 		featuredCount + minimumCount + spareCandidates,
 	);
+
 	const cards = await cardsOf(tried);
+
 	return {
 		cards,
 		picked: arrange(ordered, (id) => tried.includes(id) && isShowable(cards.get(id)), shown),
@@ -364,6 +385,7 @@ const pickTitles = async ({
  */
 export const getFeatured = async (userId: string, now = new Date()): Promise<FeaturedCard[]> => {
 	const rotation = rotationOf(now);
+
 	const picks = await db
 		.select()
 		.from(featuredPick)
@@ -378,12 +400,14 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 		})
 		.from(seriesState)
 		.where(and(eq(seriesState.userId, userId), eq(seriesState.status, "dropped")));
+
 	const unwanted = new Set(dropped.map((row) => row.seriesId));
 
 	const current = picks.filter((pick) => pick.rotation === rotation);
 	const kept = current.map((pick) => pick.seriesId);
 	const keptCards = await cardsOf(kept);
 	const shown = kept.filter((id) => !unwanted.has(id) && isShowable(keptCards.get(id)));
+
 	if (shown.length >= featuredCount) {
 		return withStarts(
 			userId,
@@ -392,11 +416,13 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 	}
 
 	const lastPicked = new Map<string, number>();
+
 	for (const pick of picks) {
 		if (pick.rotation !== rotation) {
 			lastPicked.set(pick.seriesId, Math.max(pick.rotation, lastPicked.get(pick.seriesId) ?? 0));
 		}
 	}
+
 	const { picked: added, cards } = await pickTitles({
 		excluded: new Set([...kept, ...unwanted]),
 		lastPicked,
@@ -405,6 +431,7 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 		shown: shown.length,
 		userId,
 	});
+
 	if (added.length > 0) {
 		const after = Math.max(-1, ...current.map((pick) => pick.position));
 		await db
@@ -419,6 +446,7 @@ export const getFeatured = async (userId: string, now = new Date()): Promise<Fea
 			)
 			.onConflictDoNothing();
 	}
+
 	if (current.length === 0) {
 		await db
 			.delete(featuredPick)

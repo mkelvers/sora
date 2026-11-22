@@ -36,6 +36,7 @@ describe("clientAddress", () => {
 		const response = await ask({
 			"X-Forwarded-For": "198.51.100.7",
 		});
+
 		expect(await response.text()).toBe("203.0.113.9");
 	});
 
@@ -44,6 +45,7 @@ describe("clientAddress", () => {
 			"X-Forwarded-For": "198.51.100.7",
 			"X-Sora-Client-Key": "guess",
 		});
+
 		expect(await response.text()).toBe("203.0.113.9");
 	});
 
@@ -52,6 +54,7 @@ describe("clientAddress", () => {
 			"X-Forwarded-For": "198.51.100.7",
 			"X-Sora-Client-Key": webClientKey,
 		});
+
 		expect(await response.text()).toBe("198.51.100.7");
 	});
 
@@ -60,6 +63,7 @@ describe("clientAddress", () => {
 			"X-Forwarded-For": "198.51.100.7, 10.0.0.2",
 			"X-Sora-Client-Key": webClientKey,
 		});
+
 		expect(await response.text()).toBe("198.51.100.7, 10.0.0.2");
 	});
 });

@@ -41,6 +41,7 @@ export class ProgressReports {
 	 */
 	enqueue(address: ProgressAddress, report: Report) {
 		const pending = this.#pending.at(-1);
+
 		if (pending?.address === address) {
 			pending.report = mergeReports(report, pending.report);
 		} else {
@@ -54,20 +55,24 @@ export class ProgressReports {
 
 	async #drain() {
 		this.#saving = true;
+
 		for (let next = this.#pending.shift(); next; next = this.#pending.shift()) {
 			const { address, report } = next;
 			const retry = this.#failed?.address === address ? this.#failed.report : undefined;
 			const merged = mergeReports(report, retry);
 			let failed = false;
+
 			try {
 				// oxlint-disable-next-line no-await-in-loop -- Wait for the older write before sending the next.
 				await this.#save({ ...address, ...merged });
 			} catch {
 				failed = true;
 			}
+
 			this.#failed = failed ? { address, report: merged } : undefined;
 			this.#settled(address, failed);
 		}
+
 		this.#saving = false;
 	}
 }

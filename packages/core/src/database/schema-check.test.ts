@@ -26,6 +26,7 @@ test("definedColumns reads every column of every table, skipping other exports",
 	const jobs = pgSchema("worker").table("jobs", {
 		id: integer("id"),
 	});
+
 	expect(
 		definedColumns([
 			{

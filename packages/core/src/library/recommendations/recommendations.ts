@@ -90,6 +90,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 	]);
 
 	const signals = new Map<string, { at: number; weight: number }>();
+
 	const note = (seriesId: string, at: Date | null, weight: number) => {
 		const known = signals.get(seriesId);
 		signals.set(seriesId, {
@@ -97,6 +98,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			weight: Math.max(known?.weight ?? 0, weight),
 		});
 	};
+
 	for (const row of played) {
 		note(row.seriesId, row.at, tasteWeight.played);
 	}
@@ -132,11 +134,13 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 	const weights = new Map<string, number>();
 	const liked: (Taste["liked"][number] & { key: string })[] = [];
 	const likedKeys = new Set<string>();
+
 	for (const row of rows.toSorted(
 		(left, right) => (signals.get(right.id)?.at ?? 0) - (signals.get(left.id)?.at ?? 0),
 	)) {
 		const signal = signals.get(row.id);
 		const genres = row.genres ?? [];
+
 		if (!signal || signal.weight === 0) {
 			continue;
 		}
@@ -167,7 +171,9 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			and(inArray(series.key, [...likedKeys]), inArray(animeSearch.format, ["TV", "ONA", "MOVIE"])),
 		)
 		.orderBy(asc(series.startDate));
+
 	const showNames = new Map<string, string>();
+
 	for (const { key, title } of names) {
 		if (!showNames.has(key)) {
 			showNames.set(key, title);
@@ -212,6 +218,7 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 	const shared = filter.genres
 		? sql<number>`(select count(*) from jsonb_array_elements_text(${animeSearch.genres}) as genre where genre = any(${genreList(filter.genres)}))`
 		: sql<number>`0`;
+
 	const rows = await db
 		.select({
 			row: series,
@@ -243,6 +250,7 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 
 	const found: (typeof series.$inferSelect)[] = [];
 	const keys = new Set<string>();
+
 	for (const { row } of rows) {
 		if (!keys.has(row.key)) {
 			keys.add(row.key);
@@ -251,8 +259,10 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 	}
 
 	const cards = await toSeriesCards(found);
+
 	return found.flatMap((row) => {
 		const card = cards.get(row.id);
+
 		return card && card.audio.length > 0 ? [{ card, key: row.key }] : [];
 	});
 };
@@ -271,6 +281,7 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
  */
 export const getRecommendations = async (userId: string): Promise<Recommendations> => {
 	const taste = await tasteOf(userId);
+
 	const specs: { filter: Filter; id: string; title: string }[] = [
 		...taste.liked.slice(0, becauseRows).map((favourite, index) => ({
 			filter: {
@@ -307,12 +318,15 @@ export const getRecommendations = async (userId: string): Promise<Recommendation
 			title: "Films Worth Watching",
 		},
 	];
+
 	const pools = await Promise.all(specs.map(({ filter }) => candidates(filter, taste.seen)));
 
 	const used = new Set<string>();
 	const rows: Recommendations = [];
+
 	for (const [index, spec] of specs.entries()) {
 		const found = (pools[index] ?? []).filter(({ key }) => !used.has(key)).slice(0, rowSize);
+
 		if (found.length < minimumRowSize) {
 			continue;
 		}

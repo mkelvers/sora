@@ -88,6 +88,9 @@ export const PlaybackMediaSchema = z
 	});
 
 export type SkipSegment = z.infer<typeof SkipSegmentSchema>;
+
 export type PlaybackSource = z.infer<typeof PlaybackSourceSchema>;
+
 export type PlaybackSubtitle = z.infer<typeof PlaybackSubtitleSchema>;
+
 export type PlaybackMedia = z.infer<typeof PlaybackMediaSchema>;

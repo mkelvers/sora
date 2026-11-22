@@ -36,6 +36,7 @@ const read = (): Pending | null => {
 		DOMException,
 		SyntaxError,
 	);
+
 	return data;
 };
 
@@ -55,6 +56,7 @@ export const begin = (source: AccountSource, inPopup: boolean) => {
 		state: `${inPopup ? popupStatePrefix : ""}${random(16)}`,
 		verifier: random(32),
 	};
+
 	attempt(() => sessionStorage.setItem(storageKey, JSON.stringify(pending)), DOMException);
 
 	return {
@@ -79,20 +81,24 @@ export const returnedFrom = (search: string): Returned | null => {
 	const params = new URLSearchParams(search);
 	const code = params.get("code");
 	const refused = params.has("error");
+
 	if (!code && !refused) {
 		return null;
 	}
 
 	const pending = read();
 	forget();
+
 	if (!pending) {
 		return { kind: "unknown" };
 	}
+
 	if (refused) {
 		return { kind: "refused" };
 	}
 
 	const state = params.get("state");
+
 	if (!code || (state !== null && state !== pending.state)) {
 		return { kind: "unknown" };
 	}

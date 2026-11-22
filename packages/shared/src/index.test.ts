@@ -55,9 +55,11 @@ describe("attempt", () => {
 
 	test("narrows data once error is ruled out", async () => {
 		const { data, error } = await attempt(Promise.resolve("value"));
+
 		if (error) {
 			throw error;
 		}
+
 		const length: number = data.length;
 		expect(length).toBe(5);
 	});

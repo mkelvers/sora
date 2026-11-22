@@ -14,6 +14,7 @@ const episode = {
 	season_number: 5,
 	still_path: null,
 };
+
 const responses: Record<string, unknown> = {
 	"/tv/1/episode_groups": { results: [] },
 	"/tv/45790/episode_groups": { results: [{ id: "anime-parts", type: 1 }] },
@@ -28,6 +29,7 @@ const responses: Record<string, unknown> = {
 		],
 	},
 };
+
 /** The paths TMDB was asked for, in order. */
 const requests: string[] = [];
 
@@ -35,6 +37,7 @@ const { tmdb } = createTmdbClient({
 	fetch: (url) => {
 		const path = url.pathname.replace("/3", "");
 		requests.push(path);
+
 		return Promise.resolve(Response.json(responses[path]));
 	},
 	store: {

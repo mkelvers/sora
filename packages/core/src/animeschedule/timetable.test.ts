@@ -7,6 +7,7 @@ import { fetchTimetable, isoWeek } from "./timetable";
 
 /** What AnimeSchedule answers every request with. */
 let timetable: unknown[] = [];
+
 const asked: {
 	url: string;
 	headers: RequestInit["headers"];
@@ -19,6 +20,7 @@ const http = new HttpClient({
 				headers: init.headers,
 				url,
 			});
+
 			return Promise.resolve(Response.json(timetable));
 		},
 	},
@@ -121,6 +123,7 @@ describe("fetchTimetable", () => {
 			week: 42,
 			year: 2026,
 		});
+
 		expect(
 			releases.map(({ route, donghua, lengthMinutes }) => ({ donghua, lengthMinutes, route })),
 		).toEqual([
@@ -153,6 +156,7 @@ describe("fetchTimetable", () => {
 			week: 40,
 			year: 2026,
 		});
+
 		expect(releases.map((release) => release.episode)).toEqual([1, 2]);
 	});
 
@@ -166,6 +170,7 @@ describe("fetchTimetable", () => {
 			week: 40,
 			year: 2026,
 		});
+
 		expect(releases.map((release) => release.route)).toEqual(["chiikawa"]);
 	});
 
@@ -175,6 +180,7 @@ describe("fetchTimetable", () => {
 			delayedText: "Delayed",
 			delayedUntil: "2026-10-19T00:00:00Z",
 		};
+
 		timetable = [
 			{
 				...entry("bleach-sennen-kessen-hen-kashin-tan", 9, "2026-10-05T15:00:00Z"),
@@ -203,6 +209,7 @@ describe("fetchTimetable", () => {
 			week: 41,
 			year: 2026,
 		});
+
 		expect(releases.map((release) => `${release.route} ${release.airsAt.toISOString()}`)).toEqual([
 			"bleach-sennen-kessen-hen-kashin-tan 2026-10-19T15:00:00.000Z",
 			"chiikawa 2026-10-02T23:55:00.000Z",
@@ -225,6 +232,7 @@ describe("fetchTimetable", () => {
 			week: 40,
 			year: 2026,
 		});
+
 		expect(releases.map((release) => release.route)).toEqual(["yomi-no-tsugai"]);
 	});
 });

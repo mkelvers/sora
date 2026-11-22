@@ -70,6 +70,7 @@ const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
 ) => {
 	const now = new Date();
 	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
+
 	return new Map(
 		titles.map((title) => [
 			title.id,
@@ -155,6 +156,7 @@ const cardOf = (
 	},
 ): SeriesCard => {
 	const { audio, details, episodeCount, title } = known;
+
 	return {
 		audio,
 		...artworkOf(row, title),
@@ -180,6 +182,7 @@ const cardsFrom = async (
 ): Promise<Map<string, SeriesCard>> => {
 	const anilistIds = rows.map((row) => row.anilistId);
 	const keys = [...new Set(rows.map((row) => row.key))];
+
 	const [stored, languages, chosen] = await Promise.all([
 		db
 			.select({
@@ -191,6 +194,7 @@ const cardsFrom = async (
 		findAnimeLanguages(anilistIds),
 		db.select().from(titleArtwork).where(inArray(titleArtwork.key, keys)),
 	]);
+
 	const anime = new Map(stored.map((row) => [row.anilistId, toAnime(row.media)]));
 	const artwork = new Map(chosen.map((row) => [row.key, row]));
 	const order: ContentLanguage[] = ["dub", "sub", "raw"];
@@ -198,10 +202,13 @@ const cardsFrom = async (
 	return new Map(
 		rows.flatMap((row) => {
 			const details = anime.get(row.anilistId);
+
 			if (!isCatalogFormat(details?.format) && !includeHiddenIds.includes(row.id)) {
 				return [];
 			}
+
 			const audio = new Set(languages.get(row.anilistId));
+
 			return [
 				[
 					row.id,
@@ -236,6 +243,7 @@ const rank = (relation: string) => {
 	if (relation === "SEQUEL" || relation === "PREQUEL") {
 		return 0;
 	}
+
 	return relation === "OTHER" ? 2 : 1;
 };
 
@@ -289,6 +297,7 @@ export const franchiseIds = async (
 	/** Entries reached only across a spin-off, not followed through yet. */
 	const held = new Set<number>();
 	let around = 0;
+
 	const expand = async (frontier: number[]): Promise<void> => {
 		if (frontier.length === 0) {
 			return;
@@ -299,6 +308,7 @@ export const franchiseIds = async (
 			relation: seriesRelated.relation,
 			to: seriesRelated.anilistId,
 		};
+
 		const [outgoing, incoming] = await Promise.all([
 			db
 				.select(columns)
@@ -311,10 +321,13 @@ export const franchiseIds = async (
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(inArray(seriesRelated.anilistId, frontier)),
 		]);
+
 		const rawEdges = [...outgoing, ...incoming].filter(({ from, to }) => !isUnrelated(from, to));
+
 		const listers = [
 			...new Set(rawEdges.filter(({ relation }) => relation === "OTHER").map(({ from }) => from)),
 		];
+
 		const chainedRows =
 			listers.length === 0
 				? []
@@ -330,12 +343,15 @@ export const franchiseIds = async (
 								inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]),
 							),
 						);
+
 		const chained = new Set(chainedRows.map((row) => row.anilistId));
+
 		const crossovers = new Set(
 			rawEdges
 				.filter(({ relation, from }) => relation === "OTHER" && !chained.has(from))
 				.map(({ from, to }) => `${to}>${from}`),
 		);
+
 		const edges = rawEdges.map((rawEdge) =>
 			crossovers.has(`${rawEdge.from}>${rawEdge.to}`)
 				? {
@@ -350,18 +366,23 @@ export const franchiseIds = async (
 				.filter(({ relation }) => relation === "SPIN_OFF")
 				.flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]),
 		);
+
 		const storyIds = new Set(
 			rawEdges.filter(({ relation }) => relation !== "OTHER").flatMap(({ from, to }) => [from, to]),
 		);
+
 		const next: number[] = [];
+
 		for (const edge of edges.toSorted(
 			(left, right) => rank(left.relation) - rank(right.relation),
 		)) {
 			const continues = rank(edge.relation) === 0;
 			const acrossSpinOff = spinOffs.has(`${edge.from}>${edge.to}`);
+
 			for (const id of [edge.from, edge.to]) {
 				if (!reached.has(id) && (continues || around < franchiseLimit)) {
 					reached.add(id);
+
 					if (!continues) {
 						around += 1;
 					}
@@ -377,6 +398,7 @@ export const franchiseIds = async (
 					if (storyIds.has(id)) {
 						outsiders.delete(id);
 					}
+
 					if (held.has(id) && !acrossSpinOff && edge.relation !== "OTHER") {
 						held.delete(id);
 						next.push(id);
@@ -387,9 +409,11 @@ export const franchiseIds = async (
 
 		await expand(next);
 	};
+
 	await expand([anilistId]);
 
 	reached.delete(anilistId);
+
 	return {
 		apart: held,
 		crossovers: outsiders,
@@ -411,6 +435,7 @@ export const franchiseIds = async (
 const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	const { ids, crossovers, apart } = await franchiseIds(row.anilistId);
 	const rows = await db.select().from(series).where(inArray(series.anilistId, ids));
+
 	const titles = [
 		row,
 		...rows.filter(
@@ -420,6 +445,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 				isNamedAfter(other.title, row.title),
 		),
 	];
+
 	const [cards, relations, ratings] = await Promise.all([
 		toSeriesCards(titles, [row.id]),
 		db
@@ -453,6 +479,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 
 	const isListed = (title: SeriesRow) => {
 		const card = cards.get(title.id);
+
 		return (
 			title.id === row.id ||
 			(card !== undefined &&
@@ -463,9 +490,11 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 						["TV", "TV_SHORT", "ONA"].includes(card.format))))
 		);
 	};
+
 	const parts = franchiseParts(
 		titles.map((title) => {
 			const card = cards.get(title.id);
+
 			return {
 				anilistId: title.anilistId,
 				episodeCount: card?.episode_count ?? 0,
@@ -479,6 +508,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 			if (relation === "SEQUEL") {
 				return [[from, to] as const];
 			}
+
 			return relation === "PREQUEL" ? [[to, from] as const] : [];
 		}),
 		{
@@ -500,9 +530,11 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 
 	const anilistIdOf = new Map(titles.map((title) => [title.id, title.anilistId]));
 	const ratingOf = new Map(ratings.map((rating) => [rating.anilistId, rating]));
+
 	const roles = franchiseRoles(
 		parts.flatMap((part) => {
 			const anilistId = defined(anilistIdOf.get(part.series_id));
+
 			return [
 				{
 					anilistId,
@@ -529,6 +561,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	return parts
 		.filter((part) => {
 			const role = roles.get(defined(anilistIdOf.get(part.series_id)));
+
 			return part.series_id === row.id || (role !== "noise" && role !== "recap");
 		})
 		.map((part) => ({
@@ -558,7 +591,9 @@ const overdueEpisode = async (
 			.orderBy(asc(seriesEpisode.number)),
 		loadAniKotoEpisodes([row.anilistId]),
 	]);
+
 	const awaited = episodes.filter((episode) => isEpisodeAwaited(row, episode, onAniKoto, now));
+
 	if (awaited.length === 0) {
 		return null;
 	}
@@ -577,8 +612,10 @@ const overdueEpisode = async (
 				inArray(animeScheduleRelease.airType, ["raw", "sub"]),
 			),
 		);
+
 	// A subbed stream's time counts over the broadcast's.
 	const scheduledAt = new Map<number, Date>();
+
 	for (const release of scheduled.toSorted(
 		(left, right) => Number(left.airType === "sub") - Number(right.airType === "sub"),
 	)) {
@@ -590,6 +627,7 @@ const overdueEpisode = async (
 			const expected = episode.airedAt
 				? expectedRelease(episode.airedAt, scheduledAt.get(episode.number) ?? null, now)
 				: null;
+
 			return expected
 				? [
 						{
@@ -615,6 +653,7 @@ const overdueEpisode = async (
  */
 const awardReachOf = async (awards: readonly TitleAward[]) => {
 	const names = [...new Set(awards.map((award) => award.name))];
+
 	if (names.length === 0) {
 		return new Map<string, number>();
 	}
@@ -628,6 +667,7 @@ const awardReachOf = async (awards: readonly TitleAward[]) => {
     where award ->> 'name' in ${names}
     group by 1
   `);
+
 	return new Map(rows.map((row) => [row.name, row.titles]));
 };
 
@@ -680,11 +720,13 @@ const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[])
 		!subtitles ||
 		(subtitles.languages.length === 0 &&
 			subtitles.checkedAt.getTime() < Date.now() - subtitleProbeRetryMs);
+
 	if (audio.includes("sub") && unchecked) {
 		await requestSubtitleProbe(row.id);
 	}
 
 	const awards = facts?.awards ?? [];
+
 	const [awardReach, seasons] = await Promise.all([
 		awardReachOf(awards),
 		db
@@ -701,6 +743,7 @@ const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[])
 				),
 			),
 	]);
+
 	return {
 		ageRating: rated?.rating ?? null,
 		awardReach,
@@ -734,6 +777,7 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
 		.where(eq(series.id, seriesId))
 		.limit(1);
+
 	if (!found) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -759,8 +803,10 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 	const about = await aboutSourcesOf(row, card.audio);
 	const current = franchise.find((part) => part.series_id === row.id);
 	const seasons = franchise.filter((part) => part.role === "season");
+
 	const isNextEpisodeAhead =
 		row.nextEpisodeAiringAt !== null && row.nextEpisodeAiringAt > new Date();
+
 	return {
 		...card,
 		...aboutSeries({
@@ -811,6 +857,7 @@ export const assertSeriesExists = async (seriesId: string) => {
 		.from(series)
 		.where(eq(series.id, seriesId))
 		.limit(1);
+
 	if (!stored) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -823,6 +870,7 @@ export const assertSeriesExists = async (seriesId: string) => {
  */
 const loadSeries = async (seriesId: string) => {
 	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -883,6 +931,7 @@ const describeEpisodes = async (
 ): Promise<Episode[]> => {
 	const first = episodes.at(0);
 	const last = episodes.at(-1);
+
 	const [stills, listings] = await Promise.all([
 		!first || !last
 			? []
@@ -907,10 +956,12 @@ const describeEpisodes = async (
 			})),
 		),
 	]);
+
 	const stillOf = new Map(stills.map((still) => [still.number, still.stillUrl]));
 
 	return episodes.map((episode) => {
 		const listing = listings.get(anilistEpisodeKey(row.anilistId, episode.number));
+
 		return {
 			air_date: episode.airDate,
 			aired_at: episode.airedAt?.toISOString() ?? null,
@@ -985,6 +1036,7 @@ export const getSeriesEpisodePage = async (
 export const getSeriesEpisode = async (seriesId: string, number: number): Promise<Episode> => {
 	const episodes = await getSeriesEpisodes(seriesId);
 	const episode = episodes.find((candidate) => candidate.number === number);
+
 	if (!episode) {
 		throw new EpisodeNotFoundError(seriesId, number);
 	}
@@ -1014,6 +1066,7 @@ const seriesIdsFor = async (
 	},
 ) => {
 	const found = await storedSeriesIds(anilistIds);
+
 	const missing = anilistIds.slice(0, window.wanted).flatMap((anilistId, place) =>
 		found.has(anilistId)
 			? []
@@ -1027,6 +1080,7 @@ const seriesIdsFor = async (
 
 	const isWaitedOn = (place: number) =>
 		place >= window.pageStart && place < window.pageStart + window.perPage;
+
 	await Promise.all(
 		missing.map(({ anilistId, place }) =>
 			isWaitedOn(place)
@@ -1034,6 +1088,7 @@ const seriesIdsFor = async (
 				: scheduleSeriesStore(anilistId, "current"),
 		),
 	);
+
 	return {
 		missing,
 		seriesIds: found,
@@ -1046,7 +1101,9 @@ const cardsOf = async (seriesIds: readonly string[]) => {
 		.select()
 		.from(series)
 		.where(inArray(series.id, [...seriesIds]));
+
 	const cards = await toSeriesCards(rows);
+
 	return seriesIds.flatMap((id) => cards.get(id) ?? []);
 };
 
@@ -1071,6 +1128,7 @@ const preparingOn = (
 	missing.flatMap(({ anilistId, place }) => {
 		const described = describe(anilistId);
 		const position = place - pageStart;
+
 		return described?.title && position >= 0 && position < perPage
 			? [
 					{
@@ -1116,6 +1174,7 @@ export const browseSeries = async (
 	}
 > => {
 	const parsed = BrowseQuerySchema.safeParse(query);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid browse query", {
 			cause: parsed.error,
@@ -1123,23 +1182,29 @@ export const browseSeries = async (
 	}
 
 	const { search, page, perPage, audio, ...filters } = parsed.data;
+
 	const heard = (cards: SeriesCard[]) =>
 		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
+
 	if (await hasSearchIndex()) {
 		// One entry more than the page holds tells whether another page follows.
 		const found =
 			search === undefined
 				? await browseIndex(filters, page * perPage + 1, carriedByAniKoto)
 				: await searchAnime(search, filters);
+
 		const ranked = found.map((entry) => entry.anilistId);
 		const pageStart = (page - 1) * perPage;
+
 		const { seriesIds, missing } = await seriesIdsFor(ranked, {
 			pageStart,
 			perPage,
 			wanted: page * perPage + 1,
 		});
+
 		const ordered = ranked.flatMap((anilistId) => seriesIds.get(anilistId) ?? []);
 		const indexed = new Map(found.map((entry) => [entry.anilistId, entry]));
+
 		return {
 			hasNextPage: ordered.length > page * perPage,
 			isPreparing: missing.length > 0,
@@ -1150,6 +1215,7 @@ export const browseSeries = async (
 				? []
 				: preparingOn(missing, pageStart, perPage, (anilistId) => {
 						const entry = indexed.get(anilistId);
+
 						return (
 							entry && {
 								format: toAnimeFormat(entry.format),
@@ -1165,12 +1231,15 @@ export const browseSeries = async (
 
 	const found = await browseAnime(parsed.data);
 	const anilistIds = found.items.map((anime) => anime.id);
+
 	const { seriesIds, missing } = await seriesIdsFor(anilistIds, {
 		pageStart: 0,
 		perPage: found.perPage,
 		wanted: Number.POSITIVE_INFINITY,
 	});
+
 	const cards = new Map(found.items.map((anime) => [anime.id, anime]));
+
 	return {
 		hasNextPage: found.hasNextPage,
 		isPreparing: missing.length > 0,
@@ -1181,6 +1250,7 @@ export const browseSeries = async (
 			? []
 			: preparingOn(missing, 0, Number.POSITIVE_INFINITY, (anilistId) => {
 					const anime = cards.get(anilistId);
+
 					return (
 						anime && {
 							format: anime.format,
@@ -1223,12 +1293,15 @@ const releaseAge = (releasedAt: string, now: number): Pick<Release, "released_ag
 	const minutes = Math.floor(age / minute);
 	const hours = Math.floor(age / hour);
 	let period: Release["period"] = "Earlier";
+
 	if (age < day) {
 		period = "Last 24 hours";
 	} else if (age < 7 * day) {
 		period = "This past week";
 	}
+
 	let releasedAgo = relativeTime.format(-Math.floor(age / day), "day");
+
 	if (minutes < 60) {
 		releasedAgo = relativeTime.format(-Math.max(1, minutes), "minute");
 	} else if (hours < 24) {
@@ -1257,6 +1330,7 @@ export const getLatestReleases = async (
 	now = new Date(),
 ): Promise<Page<Release>> => {
 	const parsed = ReleasesQuerySchema.safeParse(query);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid releases query", {
 			cause: parsed.error,
@@ -1265,6 +1339,7 @@ export const getLatestReleases = async (
 
 	const { format, audio, page, perPage } = parsed.data;
 	const since = new Date(now.getTime() - releaseWindowMs);
+
 	const rows = await db
 		.select()
 		.from(series)
@@ -1282,6 +1357,7 @@ export const getLatestReleases = async (
 				),
 			),
 		);
+
 	const listed = await listedEpisodeDatesOf(rows);
 
 	const latest = rows.flatMap((row) => {
@@ -1293,8 +1369,10 @@ export const getLatestReleases = async (
 					releasedAt: string;
 			  }
 			| undefined;
+
 		for (const episode of listed.get(row.id) ?? []) {
 			const at = releasedAtOf(episode);
+
 			if (
 				at !== null &&
 				at >= since &&
@@ -1309,10 +1387,12 @@ export const getLatestReleases = async (
 				};
 			}
 		}
+
 		return found ? [found] : [];
 	});
 
 	const anilistIds = latest.map((release) => release.anilistId);
+
 	const [formats, languages] = await Promise.all([
 		format
 			? db
@@ -1325,7 +1405,9 @@ export const getLatestReleases = async (
 			: [],
 		audio ? findAnimeLanguages(anilistIds) : new Map<number, ContentLanguage[]>(),
 	]);
+
 	const formatOf = new Map(formats.map((row) => [row.anilistId, row.format]));
+
 	const matching = latest
 		.filter(
 			(release) =>
@@ -1340,6 +1422,7 @@ export const getLatestReleases = async (
 
 	const shown = matching.slice((page - 1) * perPage, page * perPage);
 	const shownIds = new Set(shown.map((release) => release.seriesId));
+
 	const cards = await cardsFrom(
 		rows.filter((row) => shownIds.has(row.id)),
 		listed,
@@ -1350,6 +1433,7 @@ export const getLatestReleases = async (
 		isPreparing: false,
 		items: shown.flatMap(({ seriesId, episode, releasedAt }) => {
 			const card = cards.get(seriesId);
+
 			return card
 				? [
 						{

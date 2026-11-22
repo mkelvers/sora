@@ -27,6 +27,7 @@ export const importLibrary = command(
 				profile_id: profile.id,
 			},
 		});
+
 		await Promise.all([
 			getWatchlist().refresh(),
 			getWatchlistStatuses().refresh(),
@@ -63,6 +64,7 @@ export const undoImport = command(z.string(), async (importId) => {
 			profile_id: profile.id,
 		},
 	});
+
 	await Promise.all([
 		getWatchlist().refresh(),
 		getWatchlistStatuses().refresh(),

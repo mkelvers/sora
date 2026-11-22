@@ -47,11 +47,14 @@ interface FakeProvider {
 /** The providers resolving asks, filled in place by {@link useProviders}. */
 const providers: StreamProvider[] = [];
 const units = new Map<string, ContentLanguage[]>();
+
 /** The audio languages each playlist lists, by playlist URL; none named when missing. */
 const audioLanguages = new Map<string, string[]>();
+
 /** The playlists `readPlaylist` was asked for. */
 const read: string[] = [];
 const resolved: string[] = [];
+
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 let offered: EpisodeVersion[] = [];
 
@@ -63,12 +66,14 @@ const useProviders = (list: FakeProvider[]) => {
 		providers.length,
 		...list.map((fake) => {
 			units.set(fake.id, fake.languages);
+
 			if (fake.dubAudio) {
 				audioLanguages.set(
 					`https://${fake.id}.example/${fake.sharedPlaylist ? "master" : "dub"}.m3u8`,
 					fake.dubAudio,
 				);
 			}
+
 			return {
 				findMedia: () => Promise.resolve(null),
 				id: fake.id,
@@ -81,12 +86,15 @@ const useProviders = (list: FakeProvider[]) => {
 				): Promise<ProviderStream> => {
 					resolved.push(`${episodeId}/${language}`);
 					await Bun.sleep(fake.delayMs ?? 0);
+
 					if (fake.fails) {
 						throw new Error(`${fake.id} is down`);
 					}
+
 					if (!(fake.streams ?? fake.languages).includes(language)) {
 						throw new Error(`${fake.id} has no ${language} source`);
 					}
+
 					return {
 						skipSegments: fake.skipSegments?.[language] ?? [],
 						videos: [
@@ -149,6 +157,7 @@ const dependencies: PlaybackDependencies = {
 		const token = options?.shifts
 			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
 			: `token:${url}`;
+
 		return options?.audio ? `${token}~${options.audio}` : token;
 	},
 	getAnime: (id) => Promise.resolve(anime(id)),
@@ -179,6 +188,7 @@ const dependencies: PlaybackDependencies = {
 	providers,
 	readPlaylist: (url) => {
 		read.push(url);
+
 		return url.includes(".unreachable.")
 			? Promise.reject(new StreamUpstreamError("Upstream could not be reached", null))
 			: Promise.resolve({
@@ -190,6 +200,7 @@ const dependencies: PlaybackDependencies = {
 	requestRefinement: async () => {},
 	requestSkipDetection: (payload) => {
 		detectionRequests.push(payload.episode);
+
 		return Promise.resolve();
 	},
 	streamTimeline: (url) =>
@@ -204,6 +215,7 @@ const request = {
 	episode: 3,
 	seriesId: "series",
 };
+
 const options = {
 	accountId: "account",
 	streamBaseUrl: "https://sora.example/v1/streams/",
@@ -213,6 +225,7 @@ const sub = (locale = "en"): EpisodeVersion => ({
 	language: "sub",
 	locale,
 });
+
 const dub = (locale = "en"): EpisodeVersion => ({
 	language: "dub",
 	locale,
@@ -221,6 +234,7 @@ const dub = (locale = "en"): EpisodeVersion => ({
 /** Each resolved version as `language/locale@provider`. */
 const resolvedVersions = async () => {
 	const playback = await resolvePlayback(request, options, dependencies);
+
 	return playback.media.map((version) => `${version.audio}/${version.locale}@${version.provider}`);
 };
 
@@ -228,10 +242,12 @@ const resolvedVersions = async () => {
 const boundaries = (seed: number) => {
 	const times = [0];
 	let state = seed;
+
 	for (let index = 1; index < 300; index += 1) {
 		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
 		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
 	}
+
 	return times;
 };
 
@@ -355,6 +371,7 @@ describe("resolvePlayback", () => {
 
 			const playback = await resolvePlayback(request, options, dependencies);
 			const [dubbed, subbed] = playback.media;
+
 			return [dubbed?.skip_segments, subbed?.skip_segments];
 		};
 
@@ -383,6 +400,7 @@ describe("resolvePlayback", () => {
 					start: 214,
 				},
 			];
+
 			const segments = await dubbedSkipSegments(-1, own);
 
 			expect(segments[0]).toEqual(own);
@@ -397,6 +415,7 @@ describe("resolvePlayback", () => {
 
 	describe("skip segments and the video they came with", () => {
 		const subUrl = "https://anikoto.example/sub.m3u8";
+
 		const provided = [
 			{
 				end: 108,
@@ -423,6 +442,7 @@ describe("resolvePlayback", () => {
 			]);
 			offered = [sub()];
 			const playback = await resolvePlayback(request, options, dependencies);
+
 			return playback.media[0]?.skip_segments;
 		};
 
@@ -895,6 +915,7 @@ describe("resolvePlayback", () => {
 			...dependencies,
 			streamTimeline: async (url, headers, readPlaylist) => {
 				await defined(readPlaylist)(url, headers);
+
 				return {
 					duration: null,
 					starts: [],
@@ -925,10 +946,13 @@ describe("resolvePlayback", () => {
 			...dependencies,
 			readPlaylist: (url) => {
 				read.push(url);
+
 				if (failures > 0) {
 					failures -= 1;
+
 					return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
 				}
+
 				return Promise.resolve({
 					content: masterPlaylist([]),
 					url,
@@ -936,6 +960,7 @@ describe("resolvePlayback", () => {
 			},
 			streamTimeline: async (url, headers, readPlaylist) => {
 				await defined(readPlaylist)(url, headers);
+
 				return {
 					duration: null,
 					starts: [],
@@ -1034,10 +1059,12 @@ describe("resolvePlayback", () => {
 		offered = [dub(), sub()];
 		timelines.set("https://anikoto.example/sub.m3u8", boundaries(1));
 		timelines.set("https://anikoto.example/dub.m3u8", boundaries(2));
+
 		const key = refinementKey(
 			"https://anikoto.example/sub.m3u8",
 			"https://anikoto.example/dub.m3u8",
 		);
+
 		refinements.set(key, {
 			attemptedAt: new Date(),
 			refinement: {
@@ -1215,6 +1242,7 @@ describe("resolvePlayback deadline", () => {
 			},
 			dependencies,
 		);
+
 		expect(playback.media.map((version) => version.audio)).toEqual(["sub"]);
 	});
 
@@ -1237,6 +1265,7 @@ describe("resolvePlayback deadline", () => {
 			},
 			dependencies,
 		).catch((error: unknown) => error);
+
 		expect(failure).toBeInstanceOf(PlaybackUnavailableError);
 		expect(
 			failure instanceof PlaybackUnavailableError ? failure.attempts[0]?.reason : null,

@@ -67,6 +67,7 @@ const languageOrder: Record<ContentLanguage, number> = {
  */
 export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion[] => {
 	const versions = new Map<string, EpisodeVersion>();
+
 	for (const { source, unit } of listings) {
 		if (!source.listsLanguages) {
 			continue;
@@ -77,6 +78,7 @@ export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion
 				language,
 				locale: language === "raw" ? null : source.locale,
 			};
+
 			versions.set(`${version.language}:${version.locale}`, version);
 		}
 	}
@@ -122,6 +124,7 @@ const lookUpNow = (
 			AnimeNotFoundError,
 			UpstreamUnavailableError,
 		);
+
 		if (anime.error) {
 			return [];
 		}
@@ -129,12 +132,15 @@ const lookUpNow = (
 		const found = await Promise.all(
 			sources.map(async (provider) => {
 				const { data, error } = await attempt(dependencies.getProviderUnits(anime.data, provider));
+
 				if (error) {
 					console.warn(
 						`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
 					);
+
 					return [];
 				}
+
 				return [
 					{
 						anilistId,
@@ -144,6 +150,7 @@ const lookUpNow = (
 				];
 			}),
 		);
+
 		return found.flat();
 	});
 
@@ -165,6 +172,7 @@ const listingsOf = (
 		units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)
 			?.units,
 	}));
+
 	return {
 		listings: found.flatMap(({ source, units }) =>
 			(units ?? []).map((unit) => ({
@@ -196,14 +204,17 @@ const readAnimeListings = async (
 ): Promise<Map<number, AnimeListings>> => {
 	const sources = listingSources(dependencies.providers);
 	const ids = [...new Set(anilistIds)];
+
 	const stored = await dependencies.getStoredUnits(
 		ids,
 		sources.map((source) => source.id),
 	);
+
 	if (options.lookUpUnknown) {
 		const neverLookedUp = ids.filter(
 			(anilistId) => !stored.some((entry) => entry.anilistId === anilistId),
 		);
+
 		for (const found of await Promise.all(
 			neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources, dependencies)),
 		)) {
@@ -217,6 +228,7 @@ const readAnimeListings = async (
 		[...byId].flatMap(([anilistId, listed]) => (listed.pending ? [anilistId] : [])),
 		options.priority ?? "waiting",
 	);
+
 	return byId;
 };
 
@@ -239,7 +251,9 @@ export const getEpisodeVersions = async (
 		},
 		dependencies,
 	);
+
 	const listed = listings.get(episode.anilistId);
+
 	return versionsOffered(
 		listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? [],
 	);
@@ -251,6 +265,7 @@ export const getEpisodeVersions = async (
  */
 export const fillerOf = (listings: readonly ListedUnit[]): boolean | null => {
 	const flags = listings.flatMap(({ unit }) => (unit.isFiller === null ? [] : [unit.isFiller]));
+
 	return flags.length === 0 ? null : flags.includes(true);
 };
 
@@ -291,6 +306,7 @@ export const findEpisodeListings = async (
 	);
 
 	const found = new Map<string, EpisodeListing>();
+
 	for (const { anilistId, episode } of episodes) {
 		const listed = listingsById.get(anilistId);
 		const listings = listed ? listed.listings.filter(({ unit }) => unit.number === episode) : [];
@@ -320,12 +336,15 @@ export const findAnimeLanguages = async (
 ): Promise<Map<number, ContentLanguage[]>> => {
 	const sources = listingSources(dependencies.providers);
 	const ids = [...new Set(anilistIds)];
+
 	const stored = await dependencies.getStoredLanguages(
 		ids,
 		sources.map((source) => source.id),
 	);
+
 	const looked = new Map<number, Set<string>>();
 	const offered = new Map<number, Set<ContentLanguage>>();
+
 	for (const entry of stored) {
 		looked.set(entry.anilistId, (looked.get(entry.anilistId) ?? new Set()).add(entry.provider));
 		offered.set(

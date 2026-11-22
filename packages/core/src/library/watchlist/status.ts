@@ -1,4 +1,5 @@
 import type { WatchlistStatus } from "../../models/library";
+
 /** What {@link statusAfterPlayback} needs to know about one play of an episode. */
 export interface Playback {
 	/** Whether the user finished the episode. */

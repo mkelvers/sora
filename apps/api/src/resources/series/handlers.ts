@@ -60,6 +60,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.browseSeries, async (c) => {
 		const page = await browseSeries(browseQuery(c.req.valid("query")));
 		c.header("Cache-Control", "public, max-age=300");
+
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
@@ -71,11 +72,14 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.searchSeries, async (c) => {
 		const { q, ...filters } = c.req.valid("query");
+
 		const page = await browseSeries({
 			...browseQuery(filters),
 			search: q,
 		});
+
 		c.header("Cache-Control", "public, max-age=60");
+
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
@@ -87,8 +91,10 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.getSeries, async (c) => {
 		const series = await getSeries(c.req.valid("param").series_id);
+
 		if (!c.req.valid("query").episodes) {
 			c.header("Cache-Control", "public, max-age=300");
+
 			return c.json(
 				{
 					meta: {},
@@ -104,6 +110,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 			"Cache-Control",
 			episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300",
 		);
+
 		return c.json(
 			{
 				meta: {},
@@ -118,11 +125,13 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.listImages, async (c) => {
 		const { type, language, sort } = c.req.valid("query");
+
 		const images = await listSeriesImages(c.req.valid("param").series_id, {
 			languages: language,
 			sort,
 			types: type,
 		});
+
 		return c.json(
 			{
 				meta: {
@@ -136,6 +145,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.refreshImages, async (c) => {
 		const images = await refreshSeriesImages(c.req.valid("param").series_id);
+
 		return c.json(
 			{
 				meta: {
@@ -151,6 +161,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		const { series_id: seriesId } = c.req.valid("param");
 		await requestBackdropUpscale(seriesId, c.req.valid("json").url);
 		const images = await listSeriesImages(seriesId);
+
 		return c.json(
 			{
 				meta: {
@@ -164,6 +175,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.getBackdrop, async (c) => {
 		const image = await getUpscaledBackdrop(c.req.valid("param").id);
+
 		if (!image) {
 			return sendProblem(c, 404, "NOT_FOUND", "No such backdrop");
 		}
@@ -179,6 +191,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.updateArtwork, async (c) => {
 		const series = await setSeriesArtwork(c.req.valid("param").series_id, c.req.valid("json"));
+
 		return c.json(
 			{
 				meta: {},
@@ -191,16 +204,19 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listEpisodes, async (c) => {
 		const { series_id } = c.req.valid("param");
 		const { offset = 0, limit } = c.req.valid("query");
+
 		const { episodes, total } = await getSeriesEpisodePage(series_id, {
 			limit: limit ?? Number.MAX_SAFE_INTEGER,
 			offset,
 		});
+
 		const size = limit ?? Math.max(total - offset, 1);
 		// Unknown audio is filled in once providers are looked up.
 		c.header(
 			"Cache-Control",
 			episodes.some((episode) => episode.audio === null) ? "no-store" : "public, max-age=300",
 		);
+
 		return c.json(
 			{
 				meta: {
@@ -222,6 +238,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.getEpisode, async (c) => {
 		const { series_id, episode } = c.req.valid("param");
+
 		return c.json(
 			{
 				meta: {},
@@ -234,6 +251,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listGenres, async (c) => {
 		const genres = await getGenres();
 		c.header("Cache-Control", "public, max-age=86400");
+
 		return c.json(
 			{
 				meta: {
@@ -248,6 +266,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listTags, async (c) => {
 		const tags = await listTags();
 		c.header("Cache-Control", "public, max-age=86400");
+
 		return c.json(
 			{
 				meta: {
@@ -262,6 +281,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listStudios, async (c) => {
 		const studios = await listStudios(c.req.valid("query").q);
 		c.header("Cache-Control", "public, max-age=3600");
+
 		return c.json(
 			{
 				meta: {
@@ -279,6 +299,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		const until = query.until ? new Date(query.until) : new Date(from.getTime() + 7 * day);
 		const episodes = await getAiringSchedule(from, until);
 		c.header("Cache-Control", "public, max-age=60");
+
 		return c.json(
 			{
 				meta: {
@@ -296,6 +317,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 		const { time_zone, week } = c.req.valid("query");
 		const calendar = await getCalendar(time_zone, week);
 		c.header("Cache-Control", "public, max-age=60");
+
 		return c.json(
 			{
 				meta: {},
@@ -307,11 +329,14 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(seriesRoute.listReleases, async (c) => {
 		const { per_page, ...filters } = c.req.valid("query");
+
 		const page = await getLatestReleases({
 			...filters,
 			perPage: per_page,
 		});
+
 		c.header("Cache-Control", "public, max-age=60");
+
 		return c.json(
 			{
 				meta: pageMeta(c.req.url, page),
@@ -324,6 +349,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listSeasons, async (c) => {
 		const seasons = await listSeasons();
 		c.header("Cache-Control", "public, max-age=3600");
+
 		return c.json(
 			{
 				meta: {
@@ -339,6 +365,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listSimilarSeries, async (c) => {
 		const titles = await getSimilarSeries(c.req.valid("param").series_id);
 		c.header("Cache-Control", "public, max-age=3600");
+
 		return c.json(
 			{
 				meta: {
@@ -353,6 +380,7 @@ export const seriesRoutes = new OpenAPIHono<V1Env>({
 	.openapi(seriesRoute.listUpcoming, async (c) => {
 		const titles = await getUpcomingSeries();
 		c.header("Cache-Control", "public, max-age=3600");
+
 		return c.json(
 			{
 				meta: {

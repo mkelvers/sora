@@ -67,6 +67,7 @@ const requireOwnUpscales = async (key: string, changes: ArtworkChanges) => {
 	}
 
 	const id = typeof changes.backdrop_url === "string" ? upscaleIdOf(changes.backdrop_url) : null;
+
 	if (id === null) {
 		return;
 	}
@@ -84,6 +85,7 @@ const requireOwnUpscales = async (key: string, changes: ArtworkChanges) => {
 			),
 		)
 		.limit(1);
+
 	if (!upscale) {
 		throw new InvalidInputError("That is not an upscaled backdrop of the title");
 	}
@@ -110,6 +112,7 @@ export const setSeriesArtwork = async (
 		.from(series)
 		.where(eq(series.id, seriesId))
 		.limit(1);
+
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -117,6 +120,7 @@ export const setSeriesArtwork = async (
 	await requireOwnUpscales(row.key, changes);
 
 	const poster = toOverride(changes.poster_url, "poster");
+
 	const title = {
 		backdropUrlOverride: toOverride(changes.backdrop_url, "backdrop"),
 		logoOffsetX: changes.logo_offset_x,
@@ -167,6 +171,7 @@ const imageStateOf = async (seriesId: string) => {
 		.leftJoin(titleArtwork, eq(titleArtwork.key, series.key))
 		.where(eq(series.id, seriesId))
 		.limit(1);
+
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -208,19 +213,23 @@ const toStoredImage = (
 const seasonPostersOf = async (showId: number, maxAgeMs: number): Promise<StoredImage[]> => {
 	// A refresh also finds seasons added since; otherwise the show's usual lifetime will do.
 	const show = await getShow(showId, maxAgeMs === 0 ? { maxAgeMs } : {});
+
 	const perSeason = await Promise.all(
 		(show?.seasons ?? []).map(async ({ seasonNumber }) => {
 			const posters = await getSeasonPosters(showId, seasonNumber, {
 				maxAgeMs,
 			});
+
 			return posters.map((image) => toStoredImage("poster", image, seasonNumber));
 		}),
 	);
+
 	return perSeason.flat();
 };
 
 const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> => {
 	const [kind, id] = parseKey(key);
+
 	if (kind !== "tv" && kind !== "movie") {
 		return [];
 	}
@@ -234,6 +243,7 @@ const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 
 	// A season's poster is often the show's too; list it once, as the show's.
 	const seen = new Set<string>();
+
 	return [
 		...(own?.posters ?? []).map((image) => toStoredImage("poster", image, null)),
 		...(own?.backdrops ?? []).map((image) => toStoredImage("backdrop", image, null)),
@@ -241,6 +251,7 @@ const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 		...seasons,
 	].filter((image) => {
 		const identity = `${image.type}:${image.url}`;
+
 		return !seen.has(identity) && seen.add(identity);
 	});
 };
@@ -263,6 +274,7 @@ const storeImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 				target: titleArtwork.key,
 			});
 		await tx.delete(titleImage).where(eq(titleImage.key, key));
+
 		if (images.length > 0) {
 			await tx
 				.insert(titleImage)
@@ -292,6 +304,7 @@ const byArea = (left: StoredImage, right: StoredImage) =>
 /** A Bayesian average: as if every image also had three votes of 5. */
 const confidence = (image: StoredImage) => {
 	const priorVotes = 3;
+
 	return (image.vote_average * image.vote_count + 5 * priorVotes) / (image.vote_count + priorVotes);
 };
 
@@ -311,19 +324,23 @@ const applyQuery = async (
 	query: SeriesImageQuery,
 ): Promise<SeriesImage[]> => {
 	const upscales = await upscalesOf(key);
+
 	const listed = images.flatMap((image): SeriesImage[] => {
 		const upscale = image.type === "backdrop" ? upscales.get(image.url) : undefined;
+
 		const named = {
 			...image,
 			language_name: image.language
 				? (languageNames.of(image.language) ?? image.language)
 				: "Textless",
 		};
+
 		const original = {
 			...named,
 			upscale: upscale?.status ?? null,
 			upscaled: false,
 		};
+
 		// An upscaled backdrop is listed as one of its own, with its original's votes and language.
 		return upscale?.status === "done" && upscale.width && upscale.height
 			? [
@@ -363,6 +380,7 @@ export const listSeriesImages = async (
 	query: SeriesImageQuery = {},
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
+
 	const images = row.imagesFetchedAt
 		? await storedImagesOf(row.key)
 		: await storeImages(row.key as SeriesKey, day);
@@ -383,5 +401,6 @@ export const refreshSeriesImages = async (
 	query: SeriesImageQuery = {},
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
+
 	return await applyQuery(row.key, await storeImages(row.key as SeriesKey, 0), query);
 };

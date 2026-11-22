@@ -6,8 +6,10 @@ describe("InFlight", () => {
 	test("shares one run between callers asking while it runs", async () => {
 		const inFlight = new InFlight<string, number>();
 		let starts = 0;
+
 		const start = () => {
 			starts += 1;
+
 			return Promise.resolve(1);
 		};
 

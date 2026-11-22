@@ -51,6 +51,7 @@ export const listProfiles = async (userId: string): Promise<Profile[]> => {
 		.from(profile)
 		.where(eq(profile.userId, userId))
 		.orderBy(asc(profile.createdAt), asc(profile.id));
+
 	return rows.map(toProfile);
 };
 
@@ -65,6 +66,7 @@ export const getProfile = async (userId: string, profileId: string): Promise<Pro
 		.from(profile)
 		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
 		.limit(1);
+
 	if (!row) {
 		throw new ProfileNotFoundError(profileId);
 	}
@@ -74,6 +76,7 @@ export const getProfile = async (userId: string, profileId: string): Promise<Pro
 
 const parse = <TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.output<TSchema> => {
 	const parsed = schema.safeParse(input);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid profile", {
 			cause: parsed.error,
@@ -93,6 +96,7 @@ const parse = <TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.ou
 export const createProfile = async (userId: string, input: ProfileInput): Promise<Profile> => {
 	const { name, color, avatar } = parse(ProfileInputSchema, input);
 	const id = newId();
+
 	const [existing] = await db
 		.select({
 			total: count(),
@@ -127,6 +131,7 @@ export const updateProfile = async (
 	input: Partial<ProfileInput>,
 ): Promise<Profile> => {
 	const { avatar, ...changes } = parse(ProfileInputSchema.partial(), input);
+
 	const [row] = await db
 		.update(profile)
 		.set({
@@ -138,6 +143,7 @@ export const updateProfile = async (
 		})
 		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
 		.returning();
+
 	if (!row) {
 		throw new ProfileNotFoundError(profileId);
 	}
@@ -163,6 +169,7 @@ export const deleteProfile = async (userId: string, profileId: string) => {
 			.from(profile)
 			.where(eq(profile.userId, userId))
 			.for("update");
+
 		if (profiles.length <= 1) {
 			throw new LastProfileError(profileId);
 		}

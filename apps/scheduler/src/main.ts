@@ -9,5 +9,7 @@ import { closeDatabase } from "@sora/core/database";
 import { startScheduler } from "@sora/core/scheduler";
 
 const runner = await startScheduler();
+
 await runner.promise;
+
 await closeDatabase();

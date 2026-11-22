@@ -27,6 +27,7 @@ interface Spec {
 }
 
 const response = await fetch(specUrl);
+
 if (!response.ok) {
 	throw new Error(`TMDB spec returned ${response.status}`);
 }
@@ -39,9 +40,11 @@ const typeOf = (parameter: Parameter) => {
 		case "number": {
 			return "number";
 		}
+
 		case "boolean": {
 			return "boolean";
 		}
+
 		default: {
 			return "string";
 		}
@@ -60,10 +63,12 @@ const operations = Object.entries(spec.paths)
 	.filter(([, item]) => item.get)
 	.map(([path, item]) => {
 		const parameters = item.get?.parameters ?? [];
+
 		const block = (location: Parameter["in"]) =>
 			members(parameters, location).length === 0
 				? "{}"
 				: `{\n${members(parameters, location).join("\n")}\n}`;
+
 		return `${JSON.stringify(path.replace(/^\/3/u, ""))}: { path: ${block("path")}; query: ${block("query")} };`;
 	});
 

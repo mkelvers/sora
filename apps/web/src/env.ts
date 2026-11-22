@@ -5,9 +5,11 @@ const requiredWhenStarting = (name: string) => (value: string | undefined) => {
 	if (value) {
 		return value;
 	}
+
 	if (building) {
 		return "";
 	}
+
 	throw new Error(`${name} is required`);
 };
 

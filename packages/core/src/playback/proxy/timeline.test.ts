@@ -7,9 +7,11 @@ import type { PlaylistReader } from "./proxy";
 /** A reader serving `playlists` by URL, and the URLs it was asked for. */
 const serving = (playlists: Record<string, string>) => {
 	const requested: string[] = [];
+
 	const read: PlaylistReader = (url) => {
 		requested.push(url);
 		const content = playlists[url];
+
 		return content === undefined
 			? Promise.reject(new Error(`${url} is not served`))
 			: Promise.resolve({
@@ -17,6 +19,7 @@ const serving = (playlists: Record<string, string>) => {
 					url,
 				});
 	};
+
 	return {
 		read,
 		requested,

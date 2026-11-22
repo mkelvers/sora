@@ -7,13 +7,16 @@
  * The core trusts it, so callers must authenticate before calling.
  */
 export { getFeatured } from "./featured/featured";
+
 export {
 	dismissNotification,
 	getNotifications,
 	markNotificationsRead,
 	type Notifications,
 } from "./notifications/notifications";
+
 export { authorizationUrl, importOptions } from "./transfer/oauth";
+
 export {
 	disconnectImport,
 	exportLibrary,
@@ -21,8 +24,11 @@ export {
 	listImportConnections,
 	undoImport,
 } from "./transfer/transfer";
+
 export { getProfilePreferences, updateProfilePreferences } from "./preferences/profile";
+
 export { getPlaybackPreferences, updatePlaybackPreferences } from "./preferences/preferences";
+
 export {
 	dismissContinueWatching,
 	getContinueWatching,
@@ -35,8 +41,11 @@ export {
 	startRewatch,
 	type EpisodeAddress,
 } from "./progress/progress";
+
 export { getRating, removeRating, setRating } from "./ratings/ratings";
+
 export { getRecommendations } from "./recommendations/recommendations";
+
 export {
 	getWatchlist,
 	getWatchlistStatuses,

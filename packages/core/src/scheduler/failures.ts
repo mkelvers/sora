@@ -24,5 +24,6 @@ export const getFailingJobs = async (): Promise<FailingJobs[]> => {
     group by task_identifier
     order by task_identifier
   `);
+
 	return FailingJobsSchema.array().parse(rows);
 };

@@ -12,5 +12,6 @@ import { config } from "../../config";
 export const isWebClientKey = (supplied: string | undefined) => {
 	const given = Buffer.from(supplied ?? "");
 	const expected = Buffer.from(config.webClientKey);
+
 	return given.length === expected.length && timingSafeEqual(given, expected);
 };

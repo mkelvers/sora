@@ -26,12 +26,14 @@ const sources = (intro: object | undefined, outro: object | undefined) =>
  */
 const providerServing = (pages: Record<string, string>) => {
 	const requested: string[] = [];
+
 	const http = new HttpClient({
 		retry: false,
 		transport: {
 			fetch: (url) => {
 				requested.push(url);
 				const page = pages[new URL(url).pathname];
+
 				return Promise.resolve(
 					page === undefined
 						? new Response("Not found", {
@@ -279,8 +281,10 @@ const episodeList = (links: Record<number, ListedLink | string>) => {
 					className: link,
 				}
 			: link;
+
 		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
 	});
+
 	return JSON.stringify({
 		result: `<div class="body"><ul class="ep-range">${items.join("\n")}</ul></div>`,
 		status: 200,

@@ -10,6 +10,7 @@ const Changes = z.object({
 		.string()
 		.transform((value) => {
 			const [style, ...seed] = value.split(":");
+
 			return {
 				seed: seed.join(":"),
 				style,
@@ -28,8 +29,10 @@ export const load: PageServerLoad = ({ locals, params }) => {
 	if (!locals.viewer) {
 		error(401, "Not signed in");
 	}
+
 	const { profiles } = locals.viewer;
 	const profile = profiles.find((candidate) => candidate.id === params.id);
+
 	if (!profile) {
 		error(404, "No such profile");
 	}
@@ -54,7 +57,9 @@ export const actions: Actions = {
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		const { viewer } = locals;
+
 		const deleted = await attempt(
 			viewer.sora.request(route.deleteProfile, {
 				params: {
@@ -63,14 +68,17 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (deleted.error?.code === "LAST_PROFILE") {
 			return fail(409, {
 				message: "An account keeps at least one profile.",
 			});
 		}
+
 		if (deleted.error?.status === 404) {
 			error(404, "No such profile");
 		}
+
 		if (deleted.error) {
 			throw deleted.error;
 		}
@@ -89,6 +97,7 @@ export const actions: Actions = {
 	save: async ({ request, locals, params, url }) => {
 		const form = await request.formData();
 		const name = String(form.get("name") ?? "");
+
 		const changes = Changes.safeParse({
 			avatar: form.get("avatar"),
 			name,
@@ -114,9 +123,11 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (updated.error?.status === 404) {
 			error(404, "No such profile");
 		}
+
 		if (updated.error) {
 			throw updated.error;
 		}

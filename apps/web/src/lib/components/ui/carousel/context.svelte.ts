@@ -62,6 +62,7 @@ export class CarouselState {
 
 	autoplay(delay: number) {
 		const { api } = this;
+
 		if (!api || prefersReducedMotion.current) {
 			return;
 		}
@@ -107,6 +108,7 @@ export class CarouselState {
 			const visibility = () => (document.hidden ? pause() : resume());
 
 			const root = api.rootNode().closest("section");
+
 			const leave = (event: FocusEvent) => {
 				if (!root?.contains(event.relatedTarget as Node | null)) {
 					resume();
@@ -120,12 +122,14 @@ export class CarouselState {
 			this.#restart = restart;
 			this.#toggle = () => {
 				this.stopped = !this.stopped;
+
 				if (this.stopped) {
 					pause();
 				} else {
 					resume();
 				}
 			};
+
 			restart();
 
 			return () => {
@@ -148,6 +152,7 @@ export class CarouselState {
 	select(index: number) {
 		if (index === this.active) {
 			this.#restart?.();
+
 			return;
 		}
 

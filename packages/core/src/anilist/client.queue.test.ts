@@ -5,8 +5,10 @@ import { TypedDocumentString } from "./graphql.generated";
 
 /** The `id` variable of each request AniList received, in the order they were sent. */
 const sent: number[] = [];
+
 /** When each request was sent. */
 const sentAt: number[] = [];
+
 const respond = (_input: string, init: RequestInit) => {
 	sent.push(
 		(
@@ -18,6 +20,7 @@ const respond = (_input: string, init: RequestInit) => {
 		).variables.id,
 	);
 	sentAt.push(performance.now());
+
 	return Promise.resolve(
 		Response.json(
 			{
@@ -46,6 +49,7 @@ const { anilist } = createAniListClient({
 const document = new TypedDocumentString<unknown, { id: number }>(
 	"query Media($id: Int!) { Media(id: $id) { id } }",
 );
+
 const fetchMedia = (id: number) =>
 	anilist(
 		document,
@@ -56,6 +60,7 @@ const fetchMedia = (id: number) =>
 			maxAgeMs: 0,
 		},
 	);
+
 const background = 10;
 
 test("sends a request a viewer joins ahead of background work queued before it", async () => {

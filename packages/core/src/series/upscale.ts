@@ -49,6 +49,7 @@ export const upscalesOf = async (key: string) => {
 /** Chooses an upscaled backdrop for its title, unless another backdrop has been chosen since. */
 const chooseUpscale = async (key: string, sourceUrl: string, id: string) => {
 	const url = upscaledBackdropUrl(id);
+
 	const chosen = await db
 		.update(titleArtwork)
 		.set({
@@ -82,6 +83,7 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 		.from(series)
 		.where(eq(series.id, seriesId))
 		.limit(1);
+
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -95,6 +97,7 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 			and(eq(titleImage.key, row.key), eq(titleImage.type, "backdrop"), eq(titleImage.url, url)),
 		)
 		.limit(1);
+
 	if (!image) {
 		throw new InvalidInputError("That is not one of the title's backdrops");
 	}
@@ -120,6 +123,7 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 
 		if (stored) {
 			await requestUpscale(tx, { id: stored.id }, true);
+
 			return;
 		}
 
@@ -128,11 +132,14 @@ export const requestBackdropUpscale = async (seriesId: string, url: string) => {
 			.from(titleBackdropUpscale)
 			.where(and(eq(titleBackdropUpscale.key, row.key), eq(titleBackdropUpscale.sourceUrl, url)))
 			.limit(1);
+
 		if (existing?.status === "pending") {
 			await requestUpscale(tx, { id: existing.id }, false);
 		}
+
 		return existing?.status === "done" ? existing.id : undefined;
 	});
+
 	if (readyId) {
 		await chooseUpscale(row.key, url, readyId);
 	}
@@ -154,13 +161,16 @@ const lookAtOriginal = async (key: string, sourceUrl: string) => {
 			and(eq(titleImage.key, key), eq(titleImage.type, "backdrop"), eq(titleImage.url, sourceUrl)),
 		)
 		.limit(1);
+
 	if (!image || image.isCollage !== null) {
 		return;
 	}
 
 	const { data, error } = await attempt(isCollage(sourceUrl));
+
 	if (error) {
 		console.warn(`Could not look at ${sourceUrl}: ${error.message}`);
+
 		return;
 	}
 
@@ -199,6 +209,7 @@ export const upscaleBackdrop = async (id: string) => {
 		.from(titleBackdropUpscale)
 		.where(eq(titleBackdropUpscale.id, id))
 		.limit(1);
+
 	if (row?.status !== "pending") {
 		return;
 	}
@@ -207,12 +218,15 @@ export const upscaleBackdrop = async (id: string) => {
 		const response = await fetch(row.sourceUrl, {
 			signal: AbortSignal.timeout(30_000),
 		});
+
 		if (!response.ok) {
 			await fail(id, `TMDB answered ${response.status}`);
+
 			return;
 		}
 
 		const png = await upscale(new Uint8Array(await response.arrayBuffer()));
+
 		const { data, info } = await sharp(png)
 			.resize({
 				kernel: "lanczos3",
@@ -239,6 +253,7 @@ export const upscaleBackdrop = async (id: string) => {
 			.where(eq(titleBackdropUpscale.id, id));
 	} catch (error) {
 		await fail(id, error instanceof Error ? error.message : "Upscaling failed");
+
 		return;
 	}
 

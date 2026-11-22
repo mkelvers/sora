@@ -24,8 +24,10 @@ const jobs = async () => {
 		select attempts, id::text, last_error, locked_by, revision from graphile_worker.jobs
 		where task_identifier = ${upscaleBackdropTask} and key is not null
 	`);
+
 	return [...rows];
 };
+
 const claim = async (lockedAt: Date) => {
 	const lockedBy = "pool-upscale-test";
 	const timestamp = lockedAt.toISOString();
@@ -40,6 +42,7 @@ const claim = async (lockedAt: Date) => {
 		where queue_name = 'upscale-backdrop'
 	`);
 };
+
 const runUpscale = async () =>
 	await runOnce({
 		connectionString: config.databaseUrl,
@@ -52,8 +55,10 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 	let server: Bun.Server<undefined> | undefined;
 	let sourceUrl: string;
 	const request = () => requestBackdropUpscale(seriesId, sourceUrl);
+
 	const status = async () => {
 		const upscales = await upscalesOf(key);
+
 		return upscales.get(sourceUrl)?.status;
 	};
 
@@ -114,6 +119,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 			end
 			$$
 		`);
+
 		try {
 			await db.execute(sql`
 				create trigger reject_upscale_enqueue
@@ -220,6 +226,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 			end
 			$$
 		`);
+
 		try {
 			await db.execute(sql`
 				create trigger reject_upscale_result
@@ -230,6 +237,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 		} finally {
 			await db.execute(sql`drop function reject_upscale_result() cascade`);
 		}
+
 		const [stored] = await db.select().from(titleBackdropUpscale);
 		expect(stored?.status).toBe("pending");
 		expect(await jobs()).toMatchObject([

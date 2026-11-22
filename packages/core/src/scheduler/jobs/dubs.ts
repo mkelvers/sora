@@ -35,6 +35,7 @@ export const syncDubScheduleTask = "sync-dub-schedule";
 export const syncDubSchedule: Task = async (_payload, helpers) => {
 	const now = new Date();
 	const until = new Date(now.getTime() + scheduleAheadMs);
+
 	const releases = await db
 		.select({
 			airsAt: animeScheduleRelease.airsAt,
@@ -51,7 +52,9 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 				isNotNull(animeScheduleShow.anilistId),
 			),
 		);
+
 	const ids = releases.flatMap((release) => release.anilistId ?? []);
+
 	const [stored, units] = await Promise.all([
 		ids.length > 0
 			? db
@@ -63,10 +66,12 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 			: [],
 		getStoredUnits(ids),
 	]);
+
 	const storedIds = new Set(stored.map((entry) => entry.anilistId));
 
 	const uncarried = releases.flatMap((release) => {
 		const { anilistId } = release;
+
 		if (!anilistId || !storedIds.has(anilistId)) {
 			return [];
 		}
@@ -79,6 +84,7 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 					(unit) => unit.number >= release.episode && unit.languages?.includes("dub"),
 				),
 		);
+
 		return isCarried
 			? []
 			: [
@@ -88,6 +94,7 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 					},
 				];
 	});
+
 	await inSequence(uncarried, ({ anilistId, release }) =>
 		scheduleAniKotoPoll(
 			{

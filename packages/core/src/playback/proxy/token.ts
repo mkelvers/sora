@@ -70,6 +70,7 @@ const keyFrom = (secret: string) =>
 export const signStreamTarget = (target: StreamTarget, secret: string) => {
 	const initializationVector = randomBytes(12);
 	const cipher = createCipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
+
 	const sealed = Buffer.concat([
 		cipher.update(
 			JSON.stringify({
@@ -106,12 +107,14 @@ export const verifyStreamToken = (
 	now = new Date(),
 ): StreamTarget => {
 	const [encodedVector, encodedSealed, ...rest] = token.split(".");
+
 	if (!encodedVector || !encodedSealed || rest.length > 0) {
 		throw new InvalidStreamTokenError("Malformed stream token");
 	}
 
 	const initializationVector = Buffer.from(encodedVector, "base64url");
 	const sealed = Buffer.from(encodedSealed, "base64url");
+
 	if (initializationVector.length !== 12 || sealed.length <= tagLength) {
 		throw new InvalidStreamTokenError("Malformed stream token");
 	}
@@ -119,21 +122,25 @@ export const verifyStreamToken = (
 	const { data: json, error: unsealError } = attempt(() => {
 		const decipher = createDecipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
 		decipher.setAuthTag(sealed.subarray(sealed.length - tagLength));
+
 		return Buffer.concat([
 			decipher.update(sealed.subarray(0, sealed.length - tagLength)),
 			decipher.final(),
 		]).toString("utf-8");
 	}, Error);
+
 	if (unsealError) {
 		throw new InvalidStreamTokenError("Stream token is not valid");
 	}
 
 	const { data, error } = attempt(() => JSON.parse(json), SyntaxError);
+
 	if (error) {
 		throw new InvalidStreamTokenError("Stream token payload is not JSON");
 	}
 
 	const parsed = StreamTargetSchema.safeParse(data);
+
 	if (!parsed.success) {
 		throw new InvalidStreamTokenError("Stream token payload is invalid");
 	}

@@ -54,6 +54,7 @@ const throttlingHost = (statuses: { status: number; retryAfter?: string }[]) => 
 		fetch: () => {
 			const answer = statuses[Math.min(requests, statuses.length - 1)];
 			requests += 1;
+
 			return new Response(answer?.status === 200 ? "#EXTM3U\n" : "Too many requests", {
 				headers: answer?.retryAfter
 					? {
@@ -149,9 +150,11 @@ describe("a host that rate-limits", () => {
 		]);
 
 		const started = Date.now();
+
 		const failure = await fetchUpstream(playlist, null, AbortSignal.timeout(500)).catch(
 			(error: unknown) => error,
 		);
+
 		expect((failure as StreamUpstreamError).status).toBe(429);
 		expect(Date.now() - started).toBeLessThan(1500);
 	});
@@ -188,6 +191,7 @@ describe("readBounded", () => {
 				"Content-Length": "5",
 			},
 		});
+
 		await expect(readBounded(response, 4)).rejects.toBeInstanceOf(StreamUpstreamError);
 	});
 
@@ -200,22 +204,27 @@ describe("readBounded", () => {
 				controller.close();
 			},
 		});
+
 		let arrivals = 0;
+
 		const bytes = await readBounded(new Response(body), 64, () => {
 			arrivals += 1;
 		});
+
 		expect(bytes.byteLength).toBe(12);
 		expect(arrivals).toBe(3);
 	});
 
 	test("stops reading a body that passes the limit without announcing it", async () => {
 		let sent = 0;
+
 		const body = new ReadableStream<Uint8Array>({
 			pull(controller) {
 				sent += 1;
 				controller.enqueue(new Uint8Array(1024));
 			},
 		});
+
 		await expect(readBounded(new Response(body), 4096)).rejects.toBeInstanceOf(StreamUpstreamError);
 		expect(sent).toBeLessThan(20);
 	});

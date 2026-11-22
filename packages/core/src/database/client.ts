@@ -40,6 +40,7 @@ class Connection {
 		const outer = this.#held;
 		const opened = Promise.withResolvers<undefined>();
 		const finished = Promise.withResolvers<undefined>();
+
 		const done = attempt(
 			this.client.begin(async (transaction) => {
 				this.#held = transaction;
@@ -48,7 +49,9 @@ class Connection {
 				throw Connection.#rollback;
 			}),
 		);
+
 		const failed = await Promise.race([opened.promise, done]);
+
 		if (failed) {
 			throw failed.error;
 		}
@@ -57,6 +60,7 @@ class Connection {
 			finished.resolve(undefined);
 			const { error } = await done;
 			this.#held = outer;
+
 			if (error !== Connection.#rollback) {
 				throw error;
 			}
@@ -74,9 +78,11 @@ class Connection {
 
 		const current = this.#current();
 		const member: unknown = Reflect.get(current, key);
+
 		if (typeof member !== "function") {
 			return member;
 		}
+
 		return member.bind(current);
 	}
 }
@@ -122,19 +128,24 @@ export const migrationLockKey = 7_302_024_001;
  */
 export const migrateDatabase = async () => {
 	const lock = await db.$client.reserve();
+
 	const migrated = await attempt(
 		(async () => {
 			await lock`select pg_advisory_lock(${migrationLockKey}::bigint)`;
 			const migrationsFolder = new URL("../../drizzle", import.meta.url).pathname;
+
 			const [{ exists }] = await lock<[{ exists: boolean }]>`
         select to_regclass('drizzle.__drizzle_migrations') is not null as exists
       `;
+
 			const recorded = exists
 				? await lock<{ created_at: string; hash: string }[]>`
             select created_at, hash from drizzle.__drizzle_migrations
           `
 				: [];
+
 			const files = readMigrationHistory(migrationsFolder);
+
 			const skipped = skippedMigrations(
 				files,
 				recorded.map(({ created_at, hash }) => ({
@@ -142,6 +153,7 @@ export const migrateDatabase = async () => {
 					hash,
 				})),
 			);
+
 			if (skipped.length > 0) {
 				throw new Error(
 					`The database's migration history does not match packages/core/drizzle, so drizzle would skip migrations without saying so. Repair it as AGENTS.md says under "Database migrations":\n${skipped.map((reason) => `- ${reason}`).join("\n")}`,
@@ -161,23 +173,29 @@ export const migrateDatabase = async () => {
         select table_schema as schema, table_name as table, column_name as column
         from information_schema.columns
       `;
+
 			const missing = missingSchema(definedColumns(schemaModules), live);
+
 			if (missing.length > 0) {
 				const known = new Set(files.map(({ when }) => when));
+
 				const foreign = recorded
 					.map(({ created_at }) => Number(created_at))
 					.filter((createdAt) => !known.has(createdAt))
 					.toSorted((first, second) => first - second)
 					.map((createdAt) => `${createdAt} (${new Date(createdAt).toISOString()})`);
+
 				throw new Error(
 					`The database lacks tables or columns this checkout's schema defines, so queries would fail. A migration from another branch or a dropped draft usually changed them. Repair it as AGENTS.md says under "Database migrations".\nMissing:\n${missing.map((name) => `- ${name}`).join("\n")}\nRecorded migrations with no file in this checkout (newest last):\n${foreign.map((name) => `- ${name}`).join("\n") || "- none"}`,
 				);
 			}
 		})(),
 	);
+
 	// Releasing the connection ends the session, which drops the lock even when unlocking failed.
 	await attempt(lock`select pg_advisory_unlock(${migrationLockKey}::bigint)`);
 	lock.release();
+
 	if (migrated.error) {
 		throw migrated.error;
 	}

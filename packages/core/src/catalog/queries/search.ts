@@ -69,14 +69,17 @@ const fetchIndexPage = async (
 		),
 		UpstreamUnavailableError,
 	);
+
 	if (!error) {
 		return data;
 	}
+
 	if (tries >= pageAttempts) {
 		throw error;
 	}
 
 	await Bun.sleep(error.retryAfterMs ?? minute);
+
 	return await fetchIndexPage(page, sort, popularityBelow, tries + 1);
 };
 
@@ -112,9 +115,11 @@ export const searchText = (titles: readonly (string | null)[]) => {
 	const normalized = [
 		...new Set(titles.flatMap((title) => (title ? [normalizeTitle(title)] : []))),
 	].filter((title) => title.length > 0);
+
 	const initials = titles.flatMap((title) =>
 		(title ? [title, title.replace(disambiguator, "")] : []).flatMap((spelling) => {
 			const words = normalizeTitle(spelling).split(" ");
+
 			return words.length >= 2 ? [words.map((word) => word[0]).join("")] : [];
 		}),
 	);
@@ -147,6 +152,7 @@ const ownSources = new Set<MediaSource | null | undefined>([null, undefined, "OR
  */
 const originOf = (media: IndexedMedia) => {
 	const adapted = media.relations?.edges?.find((edge) => edge?.relationType === "SOURCE")?.node;
+
 	return {
 		originCountry: adapted?.countryOfOrigin ?? media.countryOfOrigin,
 		originSource: ownSources.has(adapted?.source) ? null : (adapted?.source ?? null),
@@ -161,9 +167,11 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 	const english = media.title?.english ?? null;
 	const romaji = media.title?.romaji ?? null;
 	const native = media.title?.native ?? null;
+
 	const synonyms = (media.synonyms ?? []).flatMap((synonym) =>
 		synonym?.trim() ? [synonym.trim()] : [],
 	);
+
 	const start = media.startDate;
 
 	return {
@@ -243,6 +251,7 @@ const storeTags = async (anilistIds: number[], rows: (typeof animeSearchTag.$inf
 						: undefined,
 				),
 			);
+
 		if (rows.length === 0) {
 			return;
 		}
@@ -287,6 +296,7 @@ const upsert = async (rows: (typeof animeSearch.$inferInsert)[]) => {
 			),
 			target: animeSearch.anilistId,
 		});
+
 	return rows.length;
 };
 
@@ -297,6 +307,7 @@ const markFullSync = async () => {
 	const values = {
 		fullSyncAt: new Date(),
 	};
+
 	await db
 		.insert(catalogSync)
 		.values({
@@ -336,16 +347,19 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 			newest: max(animeSearch.updatedAt),
 		})
 		.from(animeSearch);
+
 	const full = options.full || newest === null;
 	const cutoff = newest === null ? null : new Date(newest.getTime() - syncOverlapMs);
 	const sort: MediaSort[] = full ? ["POPULARITY_DESC", "ID"] : ["UPDATED_AT_DESC"];
 
 	let pages = 0;
 	let stored = 0;
+
 	const readWindow = async (
 		popularityBelow: number | undefined,
 	): Promise<{ pages: number; stored: number }> => {
 		let leastPopular: number | undefined;
+
 		const readPage = async (page: number): Promise<{ pages: number; stored: number } | null> => {
 			const { Page } = await fetchIndexPage(page, sort, popularityBelow);
 			pages += 1;
@@ -360,6 +374,7 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 			leastPopular = rows.at(-1)?.popularity ?? leastPopular;
 
 			const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
+
 			if (Page?.pageInfo?.hasNextPage !== true || isCaughtUp) {
 				if (full && !isCaughtUp) {
 					await markFullSync();
@@ -375,6 +390,7 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 		};
 
 		const finished = await readPage(1);
+
 		if (finished) {
 			return finished;
 		}
@@ -389,13 +405,16 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 		}
 
 		const nextBelow = (leastPopular ?? 0) + 1;
+
 		if (popularityBelow !== undefined && nextBelow >= popularityBelow) {
 			throw new Error(
 				`More than ${pagesPerWindow * 50} anime share popularity ${leastPopular}; the search index cannot page past them`,
 			);
 		}
+
 		return await readWindow(nextBelow);
 	};
+
 	return await readWindow(undefined);
 };
 
@@ -417,7 +436,9 @@ export const hasSearchIndex = async () => {
 		.from(catalogSync)
 		.where(eq(catalogSync.catalog, catalogName))
 		.limit(1);
+
 	isSearchIndexComplete = row !== undefined;
+
 	return isSearchIndexComplete;
 };
 
@@ -430,16 +451,19 @@ export type SearchCandidate = Pick<
 /** The conditions of the tag filters: those a title must carry, those it must not, and mature content. */
 const tagConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
 	const conditions: SQL[] = [];
+
 	for (const tag of filters.tags ?? []) {
 		conditions.push(
 			sql`exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.tag} = ${tag} and ${animeSearchTag.rank} >= ${tagMinimumRank} and not ${animeSearchTag.spoiler})`,
 		);
 	}
+
 	if (filters.excludedTags?.length) {
 		conditions.push(
 			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${inArray(animeSearchTag.tag, filters.excludedTags)} and ${animeSearchTag.rank} >= ${tagMinimumRank})`,
 		);
 	}
+
 	if (filters.hideMature) {
 		conditions.push(
 			...matureGenres.map(
@@ -448,12 +472,14 @@ const tagConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">
 			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.rank} >= ${matureTagRank} and (${animeSearchTag.adult} or ${inArray(animeSearchTag.tag, [...matureTags])}))`,
 		);
 	}
+
 	return conditions;
 };
 
 /** The conditions of the filters on how a title was made and released. */
 const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
 	const conditions: SQL[] = [];
+
 	if (filters.studios?.length) {
 		conditions.push(
 			or(
@@ -463,6 +489,7 @@ const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPa
 			) ?? sql`false`,
 		);
 	}
+
 	if (filters.sources?.length) {
 		conditions.push(
 			or(
@@ -471,6 +498,7 @@ const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPa
 			) ?? sql`false`,
 		);
 	}
+
 	if (filters.countries?.length) {
 		conditions.push(
 			or(
@@ -479,22 +507,29 @@ const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPa
 			) ?? sql`false`,
 		);
 	}
+
 	const released = sql`coalesce(${animeSearch.seasonYear}, left(${animeSearch.startDate}, 4)::integer)`;
+
 	if (filters.yearFrom) {
 		conditions.push(sql`${released} >= ${filters.yearFrom}`);
 	}
+
 	if (filters.yearTo) {
 		conditions.push(sql`${released} <= ${filters.yearTo}`);
 	}
+
 	if (filters.minEpisodes) {
 		conditions.push(gte(animeSearch.episodes, filters.minEpisodes));
 	}
+
 	if (filters.maxEpisodes) {
 		conditions.push(lte(animeSearch.episodes, filters.maxEpisodes));
 	}
+
 	if (filters.minScore !== undefined) {
 		conditions.push(gte(animeSearch.averageScore, filters.minScore));
 	}
+
 	return conditions;
 };
 
@@ -507,25 +542,32 @@ const indexConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage
 		eq(animeSearch.isAdult, false),
 		catalogFormatAllowed(animeSearch.format),
 	];
+
 	if (filters.format) {
 		conditions.push(inArray(animeSearch.format, filters.format));
 	} else {
 		// Music videos are not titles to watch; they are found only when asked for.
 		conditions.push(sql`${animeSearch.format} is distinct from 'MUSIC'`);
 	}
+
 	if (filters.status) {
 		conditions.push(eq(animeSearch.status, filters.status));
 	}
+
 	if (filters.season) {
 		conditions.push(eq(animeSearch.season, filters.season));
 	}
+
 	if (filters.seasonYear) {
 		conditions.push(eq(animeSearch.seasonYear, filters.seasonYear));
 	}
+
 	if (filters.genres?.length) {
 		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::text::jsonb`);
 	}
+
 	conditions.push(...tagConditions(filters), ...releaseConditions(filters));
+
 	return conditions;
 };
 
@@ -553,6 +595,7 @@ export const shortQueryPattern = (query: string) => {
 			(_, index) => `${query.slice(0, index + 1)} ${query.slice(index + 1)}`,
 		),
 	];
+
 	return `(^| )(${spellings.join("|")})( |$)`;
 };
 
@@ -563,6 +606,7 @@ export const shortQueryPattern = (query: string) => {
 const editDistance = (left: string, right: string) => {
 	const a = [...left];
 	const b = [...right];
+
 	const rows = Array.from(
 		{
 			length: a.length + 1,
@@ -575,17 +619,21 @@ const editDistance = (left: string, right: string) => {
 				(_cell, j) => (i === 0 || j === 0 ? Math.max(i, j) : 0),
 			),
 	);
+
 	for (let i = 1; i <= a.length; i += 1) {
 		for (let j = 1; j <= b.length; j += 1) {
 			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+
 			let best = Math.min(
 				defined(defined(rows[i - 1])[j]) + 1,
 				defined(defined(rows[i])[j - 1]) + 1,
 				defined(defined(rows[i - 1])[j - 1]) + cost,
 			);
+
 			if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
 				best = Math.min(best, defined(defined(rows[i - 2])[j - 2]) + 1);
 			}
+
 			defined(rows[i])[j] = best;
 		}
 	}
@@ -602,6 +650,7 @@ const allowedTypos = (word: string) => {
 	if (word.length >= 9) {
 		return 2;
 	}
+
 	return word.length >= 5 ? 1 : 0;
 };
 
@@ -622,8 +671,10 @@ const resemblance = (queryWords: readonly string[], titleWords: readonly string[
 	];
 
 	let total = 0;
+
 	for (const queryWord of queryWords) {
 		const typos = Math.min(...titleTokens.map((token) => editDistance(queryWord, token)));
+
 		if (typos > allowedTypos(queryWord)) {
 			return 0;
 		}
@@ -639,6 +690,7 @@ export const titleScore = (query: string, title: string) => {
 	if (title.length === 0) {
 		return 0;
 	}
+
 	if (title === query) {
 		return 1;
 	}
@@ -646,12 +698,14 @@ export const titleScore = (query: string, title: string) => {
 	// Shorter titles are closer to what was typed: "Demon Slayer: Kimetsu no
 	// Yaiba" before its film "Demon Slayer: Kimetsu no Yaiba the Movie".
 	const closeness = query.length / title.length;
+
 	if (title.startsWith(`${query} `)) {
 		return 0.95 + 0.03 * closeness;
 	}
 
 	const titleWords = title.split(" ");
 	const queryWords = query.split(" ");
+
 	if (queryWords.every((word) => titleWords.includes(word))) {
 		return 0.9 + 0.03 * closeness;
 	}
@@ -745,6 +799,7 @@ export const rankCandidates = <TCandidate extends SearchCandidate>(
 	candidates: readonly TCandidate[],
 ) => {
 	const normalized = normalizeTitle(query);
+
 	return candidates
 		.map((candidate) => ({
 			candidate,
@@ -772,6 +827,7 @@ export const searchAnime = async (
 	filters: Omit<BrowseQuery, "search" | "page" | "perPage"> = {},
 ) => {
 	const normalized = normalizeTitle(query);
+
 	if (normalized.length === 0) {
 		return [];
 	}
@@ -779,10 +835,12 @@ export const searchAnime = async (
 	const conditions = indexConditions(filters);
 
 	const isShort = normalized.length < trigramLength;
+
 	const candidates = await db.transaction(async (tx) => {
 		await tx.execute(
 			sql.raw(`set local pg_trgm.word_similarity_threshold = ${candidateThreshold}`),
 		);
+
 		return tx
 			.select()
 			.from(animeSearch)
@@ -805,6 +863,7 @@ export const searchAnime = async (
 	const matches = candidates.filter(
 		(candidate) => textScore(normalized, candidate) >= minimumMatch,
 	);
+
 	return filters.sort
 		? [...matches].toSorted(sortOrders[filters.sort])
 		: rankCandidates(query, matches);

@@ -22,6 +22,7 @@ const passwordStdinFlag = "--password-stdin";
 const options = process.argv.slice(2);
 const isPasswordFromStdin = options.includes(passwordStdinFlag);
 const [username, ...rest] = options.filter((option) => option !== passwordStdinFlag);
+
 const Input = z.object({
 	username: z
 		.string()
@@ -32,6 +33,7 @@ const Input = z.object({
 const input = Input.safeParse({
 	username,
 });
+
 if (!input.success || rest.length > 0) {
 	console.error(`Usage: bun run auth:create-account <username> [${passwordStdinFlag}]`);
 	process.exit(1);
@@ -48,6 +50,7 @@ const context = await auth.$context;
 
 const normalized = input.data.username.toLowerCase();
 const email = `${normalized}@sora.invalid`;
+
 if (await context.internalAdapter.findUserByEmail(email)) {
 	console.error(`${input.data.username} already has an account.`);
 	process.exit(1);
@@ -59,8 +62,10 @@ const readPasswordFromStdin = async () => {
 		crlfDelay: Number.POSITIVE_INFINITY,
 		input: process.stdin,
 	});
+
 	const first = await reader[Symbol.asyncIterator]().next();
 	reader.close();
+
 	return first.done === true ? null : first.value;
 };
 
@@ -72,15 +77,18 @@ const askPassword = async () => {
 			finish();
 		},
 	});
+
 	const reader = createInterface({
 		input: process.stdin,
 		output,
 		terminal: true,
 	});
+
 	const controller = new AbortController();
 	reader.once("SIGINT", () => controller.abort());
 	reader.once("close", () => controller.abort());
 	process.stdout.write("Password: ");
+
 	return await reader
 		.question("", {
 			signal: controller.signal,
@@ -89,6 +97,7 @@ const askPassword = async () => {
 			if (!controller.signal.aborted) {
 				throw error;
 			}
+
 			return null;
 		})
 		.finally(() => {
@@ -99,12 +108,15 @@ const askPassword = async () => {
 };
 
 const password = isPasswordFromStdin ? await readPasswordFromStdin() : await askPassword();
+
 if (password === null) {
 	console.error("Account creation cancelled.");
 	await closeDatabase();
 	process.exit(1);
 }
+
 const { minPasswordLength, maxPasswordLength } = context.password.config;
+
 if (password.length < minPasswordLength || password.length > maxPasswordLength) {
 	console.error(`The password must be ${minPasswordLength}–${maxPasswordLength} characters.`);
 	process.exit(1);
@@ -122,6 +134,7 @@ const user = await context.internalAdapter.createUser(
 		method: "email-password",
 	},
 );
+
 await context.internalAdapter.linkAccount({
 	accountId: user.id,
 	password: await context.password.hash(password),
@@ -130,4 +143,5 @@ await context.internalAdapter.linkAccount({
 });
 
 console.log(`Created ${input.data.username}.`);
+
 await closeDatabase();

@@ -47,6 +47,7 @@ const signedIn = createMiddleware<V1Env>(async (c, proceed) => {
 	const session = await auth.api.getSession({
 		headers: c.req.raw.headers,
 	});
+
 	if (!session) {
 		return sendProblem(c, 401, "UNAUTHORIZED", "Sign in to use this endpoint");
 	}
@@ -64,11 +65,13 @@ v1.use(
 	except(["/v1/auth/*"], signedIn, async (c, proceed) => {
 		await proceed();
 		const cacheControl = c.res.headers.get("Cache-Control");
+
 		if (cacheControl?.startsWith("public")) {
 			c.header("Cache-Control", cacheControl.replace("public", "private"));
 		}
 	}),
 );
+
 v1.use(
 	except(
 		["/v1/auth/*", "/v1/streams/*"],
@@ -92,6 +95,7 @@ const webClient = createMiddleware<V1Env>(async (c, proceed) => {
 // account that asked, so neither a token nor an account is enough on its own.
 // Segments arrive by the hundred, so streams have a ceiling of their own.
 v1.use(playbackRoute.getPlayback.getRoutingPath(), webClient);
+
 v1.use(
 	playbackRoute.getStream.getRoutingPath(),
 	webClient,
@@ -111,6 +115,7 @@ v1.use(
 		windowMs: 60_000,
 	}),
 );
+
 v1.use(
 	seriesRoute.refreshImages.getRoutingPath(),
 	rateLimit({
@@ -118,6 +123,7 @@ v1.use(
 		windowMs: 60_000,
 	}),
 );
+
 v1.use(
 	seriesRoute.upscaleBackdrop.getRoutingPath(),
 	rateLimit({
@@ -125,6 +131,7 @@ v1.use(
 		windowMs: 60_000,
 	}),
 );
+
 v1.use(
 	transferRoute.importLibrary.getRoutingPath(),
 	rateLimit({
@@ -132,6 +139,7 @@ v1.use(
 		windowMs: 60_000,
 	}),
 );
+
 v1.use(
 	seriesRoute.listImages.getRoutingPath(),
 	rateLimit({
@@ -139,6 +147,7 @@ v1.use(
 		windowMs: 60_000,
 	}),
 );
+
 v1.use(
 	playbackRoute.getPlayback.getRoutingPath(),
 	rateLimit({

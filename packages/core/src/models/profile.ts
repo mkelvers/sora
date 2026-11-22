@@ -55,5 +55,7 @@ export const ProfileInputSchema = z
 	});
 
 export type ProfileInput = z.input<typeof ProfileInputSchema>;
+
 export type ProfileAvatar = z.infer<typeof ProfileAvatarSchema>;
+
 export type Profile = z.infer<typeof ProfileSchema>;

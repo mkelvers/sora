@@ -128,8 +128,10 @@ const applyAdditions = async (
 ): Promise<LibraryImportReport> => {
 	const stored = await storedSeriesIds(additions.map((addition) => addition.anilistId));
 	const missing = additions.filter((addition) => !stored.has(addition.anilistId));
+
 	const present = additions.flatMap((addition) => {
 		const seriesId = stored.get(addition.anilistId);
+
 		return seriesId === undefined ? [] : [{ ...addition, seriesId }];
 	});
 
@@ -150,6 +152,7 @@ const applyAdditions = async (
 					]
 				: [],
 		);
+
 		await inSequence(chunks(listed), async (batch) => {
 			const written = await tx
 				.insert(seriesState)
@@ -166,6 +169,7 @@ const applyAdditions = async (
 				.returning({
 					seriesId: seriesState.seriesId,
 				});
+
 			addedSeriesIds.push(...written.map((row) => row.seriesId));
 		});
 
@@ -183,6 +187,7 @@ const applyAdditions = async (
 		);
 
 		const through = present.filter((addition) => addition.through !== undefined);
+
 		const released = through.length
 			? await tx
 					.select({
@@ -204,14 +209,18 @@ const applyAdditions = async (
 						),
 					)
 			: [];
+
 		const limits = new Map(through.map((addition) => [addition.seriesId, addition.through]));
+
 		const watched = released.flatMap((episode) => {
 			const limit = limits.get(episode.seriesId);
+
 			if (limit !== null && limit !== undefined && episode.number > limit) {
 				return [];
 			}
 
 			const durationSeconds = (episode.runtimeMinutes ?? 0) * 60;
+
 			return [
 				{
 					durationSeconds,
@@ -236,6 +245,7 @@ const applyAdditions = async (
 					rewatch: episodeProgress.rewatch,
 					seriesId: episodeProgress.seriesId,
 				});
+
 			addedEpisodes.push(
 				...written.map((row): [string, number, boolean] => [
 					row.seriesId,
@@ -246,6 +256,7 @@ const applyAdditions = async (
 		});
 
 		await tx.delete(importRecord).where(eq(importRecord.userId, userId));
+
 		if (addedSeriesIds.length || addedEpisodes.length) {
 			importId = crypto.randomUUID();
 			await tx.insert(importRecord).values({
@@ -295,8 +306,10 @@ const fromList = (entries: readonly ListEntry[], now: Date): Addition[] =>
 
 const fromFile = (file: LibraryExport): Addition[] => {
 	const additions = new Map<number, Addition>();
+
 	const of = (anilistId: number, title: string | null) => {
 		const known = additions.get(anilistId);
+
 		if (known) {
 			return known;
 		}
@@ -310,9 +323,12 @@ const fromFile = (file: LibraryExport): Addition[] => {
 			through: undefined,
 			title,
 		};
+
 		additions.set(anilistId, added);
+
 		return added;
 	};
+
 	for (const entry of file.watchlist) {
 		const addition = of(entry.anilist_id, entry.title);
 		addition.status = entry.status;
@@ -335,6 +351,7 @@ const applyMyAnimeList = async (
 ): Promise<LibraryImportReport> => {
 	const { matched, unmatched } = await fromMyAnimeList(entries);
 	const report = await applyAdditions(userId, fromList(matched, now), now);
+
 	return {
 		...report,
 		not_in_sora: [
@@ -386,6 +403,7 @@ export const importLibrary = async (
 	now = new Date(),
 ): Promise<LibraryImportReport> => {
 	const parsed = LibraryImportSchema.safeParse(request);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid import", {
 			cause: parsed.error,
@@ -393,20 +411,26 @@ export const importLibrary = async (
 	}
 
 	const { data } = parsed;
+
 	if (data.source === "sora") {
 		return await applyAdditions(userId, fromFile(data.document), now);
 	}
+
 	if (data.source === "anilist") {
 		return await applyAdditions(userId, fromList(await readAniListUser(data.username), now), now);
 	}
+
 	if (data.source === "anilist_account") {
 		const { account, entries } = await readAniListAccount(data.authorization);
 		await rememberConnection(userId, data.source, account);
+
 		return await applyAdditions(userId, fromList(entries, now), now);
 	}
+
 	if (data.source === "myanimelist_account") {
 		const { account, entries } = await readMyAnimeListAccount(data.authorization);
 		await rememberConnection(userId, data.source, account);
+
 		return await applyMyAnimeList(userId, entries, now);
 	}
 
@@ -416,6 +440,7 @@ export const importLibrary = async (
 /** The accounts a profile connected to import from. */
 export const listImportConnections = async (userId: string): Promise<ImportConnection[]> => {
 	const rows = await db.select().from(importConnection).where(eq(importConnection.userId, userId));
+
 	return rows.map((row) => ({
 		account_name: row.accountName,
 		connected_at: row.connectedAt.toISOString(),
@@ -440,12 +465,14 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 		episodes_removed: 0,
 		watchlist_removed: 0,
 	};
+
 	await db.transaction(async (tx) => {
 		const [record] = await tx
 			.select()
 			.from(importRecord)
 			.where(and(eq(importRecord.userId, userId), eq(importRecord.id, importId)))
 			.limit(1);
+
 		if (!record) {
 			return;
 		}
@@ -460,6 +487,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 					s: seriesId,
 				})),
 			);
+
 			const removed = await tx.execute(sql`
 				delete from episode_progress as progress
 				using jsonb_to_recordset(${rows}::text::jsonb) as added(s text, e int, r boolean)
@@ -469,6 +497,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 					and progress.rewatch = added.r
 				returning 1
 			`);
+
 			undone.episodes_removed += removed.length;
 		});
 
@@ -484,6 +513,7 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 				.returning({
 					seriesId: seriesState.seriesId,
 				});
+
 			undone.watchlist_removed += cleared.length;
 			await tx
 				.delete(seriesState)

@@ -41,6 +41,7 @@ export class Search {
 				this.text = "";
 				this.term = "";
 				this.input?.blur();
+
 				return;
 			}
 
@@ -65,6 +66,7 @@ export class Search {
 			this.term = this.text.trim();
 
 			const href = editedSearchHref(this.term, page.url, navigating.to?.url);
+
 			if (href) {
 				attempt(goto(href, { replace: true, reset: false }));
 			}
@@ -111,6 +113,7 @@ export class Search {
 			} else {
 				this.input?.blur();
 			}
+
 			return;
 		}
 
@@ -122,6 +125,7 @@ export class Search {
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			if (!this.shown) {
 				this.dismissed = false;
+
 				return;
 			}
 
@@ -133,6 +137,7 @@ export class Search {
 			const step = event.key === "ArrowDown" ? 1 : -1;
 			const count = options.length + 1;
 			this.active = ((this.active + 1 + step + count) % count) - 1;
+
 			return;
 		}
 

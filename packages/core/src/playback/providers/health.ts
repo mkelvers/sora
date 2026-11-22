@@ -96,23 +96,29 @@ export const summarizeHealth = (
 
 	return providerIds.map((provider) => {
 		const own = rows.filter((row) => row.provider === provider);
+
 		const latest = (pick: (row: OperationRow) => Date | null) => {
 			let found: Date | null = null;
+
 			for (const row of own) {
 				const value = pick(row);
+
 				if (value && (!found || value > found)) {
 					found = value;
 				}
 			}
+
 			return found;
 		};
 
 		const lastOk = latest((row) => row.lastOkHour);
 		const recentCalls = own.reduce((total, row) => total + row.recentCalls, 0);
 		const lastErrorAt = latest((row) => row.lastErrorAt);
+
 		const lastError = own.find(
 			(row) => lastErrorAt !== null && row.lastErrorAt?.getTime() === lastErrorAt.getTime(),
 		);
+
 		const failing: ProviderStatus = recentCalls >= failingAfterCalls ? "failing" : "idle";
 		const status: ProviderStatus = lastOk !== null && lastOk.getTime() >= recent ? "ok" : failing;
 
@@ -124,6 +130,7 @@ export const summarizeHealth = (
 				.filter((row) => row.ok + row.empty + row.failed > 0)
 				.map((row) => {
 					const calls = row.ok + row.empty + row.failed;
+
 					return {
 						average_ms: Math.round(row.durationMs / calls),
 						empty: row.empty,
@@ -148,6 +155,7 @@ export const getProviderHealth = async (now = new Date()): Promise<ProviderHealt
 	const inWindow = sql`${providerCalls.hour} >= ${windowStart}`;
 	const isRecent = sql`${providerCalls.hour} >= ${recentFrom(now)}`;
 	const calls = sql`${providerCalls.ok} + ${providerCalls.empty} + ${providerCalls.failed}`;
+
 	const rows = await db
 		.select({
 			durationMs:

@@ -31,6 +31,7 @@ export const describeDevice = (userAgent: string | null): string => {
 	const text = userAgent === null ? "" : userAgent;
 	const browser = browsers.find(([pattern]) => pattern.test(text))?.[1];
 	const system = systems.find(([pattern]) => pattern.test(text))?.[1];
+
 	if (browser && system) {
 		return `${browser} on ${system}`;
 	}
@@ -59,9 +60,11 @@ export const deviceDetails = (userAgent: string | null) => {
 	const text = userAgent === null ? "" : userAgent;
 	const browser = browsers.find(([pattern]) => pattern.test(text))?.[1] ?? null;
 	const system = systems.find(([pattern]) => pattern.test(text))?.[1] ?? null;
+
 	const browserVersion = browser
 		? browserVersions[browser]?.exec(text)?.groups?.version
 		: undefined;
+
 	const systemVersion = system ? systemVersions[system]?.exec(text)?.groups?.version : undefined;
 
 	return {
@@ -82,12 +85,14 @@ export const presentAddress = (address: string | null): string | null => {
 	if (address === null || address === "" || address === "unknown") {
 		return null;
 	}
+
 	if (!address.includes(":")) {
 		return address;
 	}
 
 	const { data: url } = attempt(() => new URL(`http://[${address}]`), TypeError);
 	const written = url?.hostname.slice(1, -1) ?? address;
+
 	return written === "::" ? null : written;
 };
 
@@ -100,15 +105,19 @@ export type DeviceKind = "computer" | "phone" | "tablet" | "tv" | "unknown";
 export const deviceKind = (userAgent: string | null): DeviceKind => {
 	const text = userAgent === null ? "" : userAgent;
 	const system = systems.find(([pattern]) => pattern.test(text))?.[1];
+
 	if (system === "TV") {
 		return "tv";
 	}
+
 	if (system === "iPad") {
 		return "tablet";
 	}
+
 	if (system === "iPhone") {
 		return "phone";
 	}
+
 	if (system === "Android") {
 		return /\bMobile\b/u.test(text) ? "phone" : "tablet";
 	}

@@ -54,6 +54,7 @@ const found = async (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) 
 		50,
 		inArray(animeSearch.anilistId, Object.values(ids)),
 	);
+
 	return rows.map((entry) => entry.anilistId).toSorted((left, right) => right - left);
 };
 

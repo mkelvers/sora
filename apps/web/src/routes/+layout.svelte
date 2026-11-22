@@ -10,6 +10,7 @@
 	onNavigate((navigation) => {
 		const samePage = navigation.from?.url.pathname === navigation.to?.url.pathname;
 		const historyStep = navigation.type === "popstate";
+
 		if (!document.startViewTransition || prefersReducedMotion.current || samePage || historyStep) {
 			return;
 		}
@@ -19,6 +20,7 @@
 			resolve(undefined);
 			await navigation.complete;
 		});
+
 		return promise;
 	});
 </script>

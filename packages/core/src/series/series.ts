@@ -91,6 +91,7 @@ export interface SeriesLayout {
 /** A series key's kind and TMDB (or AniList) ID. */
 export const parseKey = (key: SeriesKey) => {
 	const [kind, id] = key.split(":") as ["tv" | "movie" | "anilist", string];
+
 	return [kind, Number(id)] as const;
 };
 
@@ -140,6 +141,7 @@ const episodeOf = (
 ): SeriesEpisode => {
 	const own = tmdbDetails(tmdb);
 	const filmic = filmDetails(film);
+
 	return {
 		airDate: own.airDate ?? filmic.airDate,
 		number,
@@ -180,6 +182,7 @@ export const layoutEpisodes = (
 			episode,
 		]),
 	);
+
 	const linked = new Map(links.map((link) => [link.anilistEpisode, link]));
 	const count = episodeCountOf(card, links);
 
@@ -190,10 +193,13 @@ export const layoutEpisodes = (
 		(_, index) => {
 			const number = index + 1;
 			const link = linked.get(number);
+
 			const tmdb = link
 				? (tmdbEpisodes.get(`${link.seasonNumber}:${link.episodeNumber}`) ?? null)
 				: null;
+
 			const film = number === 1 && count === 1 ? movie : null;
+
 			return episodeOf(number, tmdb, film, card.durationMinutes);
 		},
 	);
@@ -213,11 +219,13 @@ const overviewOf = (
 	const opensShow = links.some((link) => link.seasonNumber === 1 && link.episodeNumber === 1);
 	const showOverview = opensShow ? show?.overview : null;
 	const overview = movie ? movie.overview : showOverview;
+
 	return (overview && synopsis(overview)) || null;
 };
 
 const releaseOrder = (entry: FranchiseEntry) => {
 	const date = entry.startDate;
+
 	return date?.year
 		? date.year * 10_000 + (date.month ?? 0) * 100 + (date.day ?? 0)
 		: Number.MAX_SAFE_INTEGER;
@@ -226,6 +234,7 @@ const releaseOrder = (entry: FranchiseEntry) => {
 /** The release a franchise starts with: the earliest prequel of the earliest prequel, and so on. */
 const firstRelease = async (entry: FranchiseEntry) => {
 	const visited = new Set([entry.id]);
+
 	const earliestFrom = async (current: FranchiseEntry, depth: number): Promise<FranchiseEntry> => {
 		if (depth >= 12) {
 			return current;
@@ -236,16 +245,20 @@ const firstRelease = async (entry: FranchiseEntry) => {
 				? [edge.node.id]
 				: [],
 		);
+
 		const loadedPrequels = await loadEntries(ids);
 		const prequels = [...loadedPrequels.values()];
+
 		const [earliest] = prequels.toSorted(
 			(left, right) => releaseOrder(left) - releaseOrder(right) || left.id - right.id,
 		);
+
 		if (!earliest) {
 			return current;
 		}
 
 		visited.add(earliest.id);
+
 		return await earliestFrom(earliest, depth + 1);
 	};
 
@@ -266,17 +279,20 @@ const anilistOverview = async (
 ) => {
 	const anime = await getAnime(entry.id);
 	const own = anime.description;
+
 	if (own && !placeholder.test(own)) {
 		return own;
 	}
 
 	const seasonNumber = links.find((link) => link.seasonNumber > 0)?.seasonNumber;
 	const season = show?.seasons.find((candidate) => candidate.seasonNumber === seasonNumber);
+
 	if (season?.overview) {
 		return synopsis(season.overview);
 	}
 
 	const first = await firstRelease(entry);
+
 	const [stored] =
 		first.id === entry.id
 			? []
@@ -287,6 +303,7 @@ const anilistOverview = async (
 					.from(series)
 					.where(eq(series.anilistId, first.id))
 					.limit(1);
+
 	let firstDescription: string | null = null;
 
 	if (first.id !== entry.id) {
@@ -306,9 +323,11 @@ const tmdbTitleOf = async (mapping: Awaited<ReturnType<typeof resolveMapping>>) 
 	if (mapping.tmdbId === null) {
 		return { movie: null, show: null };
 	}
+
 	if (mapping.mediaType === "tv") {
 		return { movie: null, show: await getShow(mapping.tmdbId) };
 	}
+
 	return {
 		movie: mapping.mediaType === "movie" ? await getMovie(mapping.tmdbId) : null,
 		show: null,
@@ -350,16 +369,19 @@ const franchiseRelatives = (entry: FranchiseEntry) =>
 export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 	const loaded = await loadEntries([anilistId]);
 	const entry = loaded.get(anilistId);
+
 	if (!entry) {
 		throw new AnimeNotFoundError(anilistId);
 	}
 
 	const mapping = await resolveMapping(entry);
 	const storedCards = await getStoredAnimeCards([anilistId]);
+
 	const card = {
 		...(storedCards.get(anilistId) ?? toAnimeCard(entry)),
 		playbackEpisodes: await getAniKotoEpisodeCount(anilistId),
 	};
+
 	const links = mappedEpisodes(mapping);
 	const { show, movie } = await tmdbTitleOf(mapping);
 	// An entry whose TMDB title cannot be read is laid out as one TMDB does not list.

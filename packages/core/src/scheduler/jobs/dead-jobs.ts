@@ -29,6 +29,7 @@ export const pruneDeadJobsJob: Task = async (_payload, helpers) => {
     group by 1, 2
     order by 3 desc
   `);
+
 	if (dead.length === 0) {
 		return;
 	}
@@ -42,6 +43,7 @@ export const pruneDeadJobsJob: Task = async (_payload, helpers) => {
 	const utils = await makeWorkerUtils({
 		connectionString: config.databaseUrl,
 	});
+
 	try {
 		await utils.cleanup({
 			tasks: ["DELETE_PERMAFAILED_JOBS", "GC_JOB_QUEUES"],

@@ -20,9 +20,11 @@ const frame = () => {
 	const width = 1280;
 	const height = 720;
 	const pixels = Buffer.alloc(width * height * 3);
+
 	for (let index = 0; index < pixels.length; index += 1) {
 		pixels[index] = 60 + ((index * 7919) % 120);
 	}
+
 	return Promise.resolve(
 		sharp(pixels, {
 			raw: {
@@ -40,6 +42,7 @@ const withBars = async (image: Buffer, bars: { top?: number; left?: number }) =>
 	const meta = await sharp(image).metadata();
 	const top = bars.top ?? 0;
 	const left = bars.left ?? 0;
+
 	return sharp(image)
 		.extract({
 			height: defined(meta.height) - 2 * top,
@@ -69,6 +72,7 @@ describe("rankStills", () => {
 			],
 			null,
 		);
+
 		expect(ranked.map((image) => image.file_path)).toEqual(["/plain.jpg", "/logo.jpg"]);
 	});
 
@@ -81,6 +85,7 @@ describe("rankStills", () => {
 			],
 			null,
 		);
+
 		expect(ranked.map((image) => image.file_path)).toEqual([
 			"/wide.jpg",
 			"/small.jpg",
@@ -93,6 +98,7 @@ describe("rankStills", () => {
 			[still({ file_path: "/a.jpg" }), still({ file_path: "/b.jpg" })],
 			"/b.jpg",
 		);
+
 		expect(ranked[0]?.file_path).toBe("/b.jpg");
 	});
 });
@@ -116,10 +122,12 @@ describe("blackBars", () => {
 		const width = 640;
 		const height = 360;
 		const pixels = Buffer.alloc(width * height * 3);
+
 		for (let y = 0; y < height; y += 1) {
 			const luma = Math.min(y, height - 1 - y) * 0.5;
 			pixels.fill(luma, y * width * 3, (y + 1) * width * 3);
 		}
+
 		const image = await sharp(pixels, {
 			raw: {
 				channels: 3,
@@ -129,6 +137,7 @@ describe("blackBars", () => {
 		})
 			.jpeg()
 			.toBuffer();
+
 		expect(await hasBlackBars(image)).toBe(false);
 	});
 });

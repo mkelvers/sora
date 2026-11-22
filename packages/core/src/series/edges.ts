@@ -58,8 +58,10 @@ export const effectiveStill = sql<
 /** An image's bytes: an upscaled backdrop's from the database, any other from its host at {@link measuredWidth}. */
 const imageBytes = async (url: string): Promise<Uint8Array> => {
 	const upscaleId = upscaleIdOf(url);
+
 	if (upscaleId) {
 		const stored = await getUpscaledBackdrop(upscaleId);
+
 		if (!stored) {
 			throw new Error(`${url} is not stored`);
 		}
@@ -68,9 +70,11 @@ const imageBytes = async (url: string): Promise<Uint8Array> => {
 	}
 
 	const small = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${measuredWidth}`);
+
 	const response = await fetch(small, {
 		signal: AbortSignal.timeout(10_000),
 	});
+
 	if (!response.ok) {
 		throw new Error(`${small} answered ${response.status}`);
 	}
@@ -92,9 +96,11 @@ const measureEdges = async (url: string): Promise<ImageEdges> => {
 
 	const average = (from: number) => {
 		const sum = [0, 0, 0];
+
 		for (let y = 0; y < info.height; y += 1) {
 			for (let x = from; x < from + edgeColumns; x += 1) {
 				const offset = (y * info.width + x) * info.channels;
+
 				for (let channel = 0; channel < 3; channel += 1) {
 					sum[channel] = (sum[channel] ?? 0) + (data[offset + channel] ?? 0);
 				}
@@ -102,6 +108,7 @@ const measureEdges = async (url: string): Promise<ImageEdges> => {
 		}
 
 		const pixels = info.height * edgeColumns;
+
 		return `#${sum
 			.map((total) =>
 				Math.round(total / pixels)
@@ -133,13 +140,16 @@ export const storeImageEdges = async (url: string): Promise<boolean> => {
 		.from(imageEdge)
 		.where(eq(imageEdge.url, url))
 		.limit(1);
+
 	if (stored) {
 		return true;
 	}
 
 	const { data, error } = await attempt(measureEdges(url));
+
 	if (error) {
 		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
+
 		return false;
 	}
 
@@ -150,6 +160,7 @@ export const storeImageEdges = async (url: string): Promise<boolean> => {
 			...data,
 		})
 		.onConflictDoNothing();
+
 	return true;
 };
 

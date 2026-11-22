@@ -95,6 +95,7 @@ const predecessorMappings = async (
 	const edges = (entry.relations?.edges ?? []).flatMap((edge) => {
 		const relation = edge?.relationType;
 		const id = edge?.node?.type === "ANIME" ? edge.node.id : null;
+
 		return id !== null && (relation === "PREQUEL" || relation === "PARENT") && !resolving.has(id)
 			? [
 					{
@@ -110,11 +111,14 @@ const predecessorMappings = async (
 	}
 
 	const entries = await loadEntries(edges.map((edge) => edge.id));
+
 	const predecessors = await inSequence(edges, async (edge): Promise<Predecessor[]> => {
 		const predecessor = entries.get(edge.id);
+
 		if (!predecessor) {
 			return [];
 		}
+
 		return [
 			{
 				mapping:
@@ -147,9 +151,11 @@ const bestMoviePlacement = async (
 
 	const placements = new Map<number, Placement>();
 	const hintedIds = new Set(hint?.movieIds);
+
 	for (const movies of [hinted.filter((movie) => movie !== null), ...found]) {
 		for (const movie of movies) {
 			const placement = placeAsMovie(subject, movie, hintedIds.has(movie.id));
+
 			if (
 				placement &&
 				placement.score > (placements.get(movie.id)?.score ?? Number.NEGATIVE_INFINITY)
@@ -165,6 +171,7 @@ const bestMoviePlacement = async (
 		[...placements].toSorted(([, left], [, right]) => right.score - left.score),
 		async ([movieId]) => {
 			const movie = await getMovie(movieId);
+
 			return movie && placeAsMovie(subject, movie, hintedIds.has(movie.id));
 		},
 	);
@@ -181,6 +188,7 @@ const collectionPlacement = async (subject: MatchSubject, predecessors: readonly
 
 		const mappedMovie = await getMovie(mapping.tmdbId);
 		const collectionId = mappedMovie?.belongs_to_collection?.id;
+
 		return collectionId === undefined
 			? null
 			: placeAfterInCollection(subject, mapping.tmdbId, await getCollectionParts(collectionId));
@@ -195,6 +203,7 @@ const collectionPlacement = async (subject: MatchSubject, predecessors: readonly
  */
 export const mappedEpisodes = (mapping: TmdbMapping): EpisodeLink[] => {
 	const parsed = EpisodeLinksSchema.safeParse(mapping.episodes);
+
 	return parsed.success ? parsed.data : [];
 };
 
@@ -206,6 +215,7 @@ const regularSeasonRun = (mapping: TmdbMapping): PrequelRun | null => {
 	const episodes = mappedEpisodes(mapping);
 	const first = episodes.find((episode) => episode.seasonNumber > 0);
 	const last = episodes.at(-1);
+
 	return first && last && last.seasonNumber > 0
 		? {
 				first,
@@ -217,6 +227,7 @@ const regularSeasonRun = (mapping: TmdbMapping): PrequelRun | null => {
 /** Finds TMDB shows by title, most similar to the subject first. */
 const searchedShowIds = async (subject: MatchSubject, queries: readonly string[]) => {
 	const results = new Map<number, number>();
+
 	for (const found of await Promise.all(queries.map((query) => searchShows(query)))) {
 		for (const show of found.slice(0, resultsPerQuery)) {
 			results.set(show.id, bestSimilarity(subject.titles, [show.name, show.original_name]));
@@ -243,6 +254,7 @@ const bestShowPlacement = async (
 	queries: readonly string[],
 ) => {
 	const candidates = new Map<number, Omit<ShowCandidate, "show">>();
+
 	for (const { relation, mapping } of predecessors) {
 		if (mapping.mediaType === "tv" && mapping.tmdbId !== null) {
 			candidates.set(mapping.tmdbId, {
@@ -273,16 +285,22 @@ const bestShowPlacement = async (
 				getShow(showId),
 				getShowEpisodeGroups(showId),
 			]);
+
 			return { episodeGroups, show };
 		}),
 	);
+
 	let best: Placement | null = null;
+
 	for (const [index, candidate] of [...candidates.values()].entries()) {
 		const loaded = shows[index];
+
 		if (!loaded) {
 			continue;
 		}
+
 		const { show, episodeGroups } = loaded;
+
 		const placement = show
 			? (placeInEpisodeGroups(subject, show, episodeGroups) ??
 				placeInShow(subject, {
@@ -320,6 +338,7 @@ const placementOf = async (
 			(await bestShowPlacement(subject, predecessors, hint, []))
 		);
 	}
+
 	return (
 		(await bestShowPlacement(subject, predecessors, hint, queries)) ??
 		(isShortRelease(subject) ? await bestMoviePlacement(subject, queries, hint) : null)
@@ -329,6 +348,7 @@ const placementOf = async (
 /** The columns of a stored mapping for a placement; all empty when the entry was placed nowhere. */
 const mappingValues = (placement: Awaited<ReturnType<typeof placementOf>>) => {
 	const episodes = placement?.mediaType === "tv" ? placement.episodes : [];
+
 	return {
 		episodeNumber: episodes[0]?.episodeNumber ?? null,
 		episodes,
@@ -349,6 +369,7 @@ const match = async (
 		...toMatchSubject(entry, new Date()),
 		playbackEpisodes: await getAniKotoEpisodeCount(entry.id),
 	};
+
 	// Synonyms are too noisy to search with.
 	const queries = primaryTitlesOf(entry);
 	const predecessors = await predecessorMappings(entry, resolving, match);
@@ -391,6 +412,7 @@ const match = async (
  */
 export const resolveMapping = async (entry: FranchiseEntry): Promise<TmdbMapping> => {
 	const stored = await freshMapping(entry);
+
 	if (stored) {
 		return stored;
 	}

@@ -27,16 +27,21 @@ export const nowWatchingRoutes = (
 	});
 	app.use(nowWatchingRoute.getNowWatching.getRoutingPath(), async (c, proceed) => {
 		c.header("Cache-Control", "no-store");
+
 		if (!environment.PORTFOLIO_TOKEN) {
 			return sendProblem(c, 404, "NOT_FOUND", `No endpoint matches ${c.req.method} ${c.req.path}`);
 		}
+
 		const expected = createHash("sha256").update(`Bearer ${environment.PORTFOLIO_TOKEN}`).digest();
+
 		const actual = createHash("sha256")
 			.update(c.req.header("Authorization") ?? "")
 			.digest();
+
 		if (!timingSafeEqual(expected, actual)) {
 			return sendProblem(c, 401, "UNAUTHORIZED", "Unauthorized");
 		}
+
 		await proceed();
 	});
 	app.use(
@@ -47,6 +52,7 @@ export const nowWatchingRoutes = (
 			windowMs: 60_000,
 		}),
 	);
+
 	return app.openapi(nowWatchingRoute.getNowWatching, async (c) =>
 		c.json(
 			{

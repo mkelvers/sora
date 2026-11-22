@@ -18,6 +18,7 @@ const knownLimit = 5000;
 export const subtitleKinds = async (videos: ProviderVideo[]) => {
 	const kinds = new Map<string, SubtitleKind | null>();
 	const tracks = new Map<string, { label: string; format: string | null; video: ProviderVideo }>();
+
 	for (const video of videos) {
 		for (const track of video.subtitles) {
 			tracks.set(track.url, {
@@ -32,6 +33,7 @@ export const subtitleKinds = async (videos: ProviderVideo[]) => {
 		[...tracks].map(async ([url, { label, format, video }]) => {
 			if (known.has(url)) {
 				kinds.set(url, known.get(url) ?? null);
+
 				return;
 			}
 
@@ -39,17 +41,21 @@ export const subtitleKinds = async (videos: ProviderVideo[]) => {
 				format === "vtt"
 					? await readSubtitle(url, video.headers, mirrorsFor(url, video.url))
 					: null;
+
 			const kind = subtitleKind(label, content);
 			kinds.set(url, kind);
 
 			if (content === null && format === "vtt") {
 				return;
 			}
+
 			known.set(url, kind);
+
 			for (const oldest of known.keys()) {
 				if (known.size <= knownLimit) {
 					break;
 				}
+
 				known.delete(oldest);
 			}
 		}),

@@ -25,6 +25,7 @@ const datesOf = async (userId: string) => {
 		})
 		.from(seriesState)
 		.where(eq(seriesState.userId, userId));
+
 	return new Map(rows.map((row) => [row.seriesId, row]));
 };
 
@@ -51,6 +52,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 	const now = new Date();
 	const firstAniListId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
 	const firstMalId = 900_000_000 + Math.floor(Math.random() * 90_000_000);
+
 	const titles: Title[] = [3, 4, 5].map((released, index) => ({
 		anilistId: firstAniListId + index,
 		malId: firstMalId + index,
@@ -201,6 +203,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 				and(eq(seriesState.userId, profile), eq(seriesState.seriesId, titles[0]?.seriesId ?? "")),
 			);
 		await importLibrary(profile, file(false));
+
 		const [row] = await db
 			.select({ status: seriesState.status })
 			.from(seriesState)
@@ -224,10 +227,12 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 
 	test("marks every released episode of a completed MyAnimeList title and reports unknown ones", async () => {
 		const third = titles.at(2);
+
 		const xml = `<myanimelist>
 			<anime><series_animedb_id>${third?.malId}</series_animedb_id><series_title>Third</series_title><my_status>Completed</my_status><my_watched_episodes>0</my_watched_episodes></anime>
 			<anime><series_animedb_id>999999999</series_animedb_id><series_title>Not held</series_title><my_status>Watching</my_status><my_watched_episodes>2</my_watched_episodes></anime>
 		</myanimelist>`;
+
 		const report = await importLibrary(profile, { source: "myanimelist", xml });
 
 		expect(report.watchlist_added).toBe(1);
@@ -238,13 +243,16 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 
 	test("keeps the dates a list gives instead of the time of the import", async () => {
 		const dated = `transfer-test-${crypto.randomUUID()}`;
+
 		try {
 			const [first, second, third] = titles;
+
 			const xml = `<myanimelist>
 				<anime><series_animedb_id>${first?.malId}</series_animedb_id><my_status>Completed</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2019-03-04</my_start_date><my_finish_date>2019-04-01</my_finish_date></anime>
 				<anime><series_animedb_id>${second?.malId}</series_animedb_id><my_status>Watching</my_status><my_watched_episodes>1</my_watched_episodes><my_start_date>2021-00-00</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
 				<anime><series_animedb_id>${third?.malId}</series_animedb_id><my_status>Plan to Watch</my_status><my_watched_episodes>0</my_watched_episodes><my_start_date>2999-01-01</my_start_date><my_finish_date>0000-00-00</my_finish_date></anime>
 			</myanimelist>`;
+
 			const before = new Date();
 			await importLibrary(dated, { source: "myanimelist", xml });
 			const byId = await datesOf(dated);
@@ -273,12 +281,15 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 		).toBe(changed.toISOString());
 
 		const other = `transfer-test-${crypto.randomUUID()}`;
+
 		try {
 			await importLibrary(other, { document: exported, source: "sora" });
+
 			const [row] = await db
 				.select({ changedAt: seriesState.statusChangedAt })
 				.from(seriesState)
 				.where(and(eq(seriesState.userId, other), eq(seriesState.seriesId, title?.seriesId ?? "")));
+
 			expect(row?.changedAt?.toISOString()).toBe(changed.toISOString());
 		} finally {
 			await removeProfile(other);
@@ -291,6 +302,7 @@ describe.skipIf(!databaseTestsEnabled())("library import and export", () => {
 
 	test("undoes the latest import, once", async () => {
 		const other = `${profile}-undo`;
+
 		try {
 			const report = await importLibrary(other, file(true));
 			expect(report.import_id).not.toBeNull();

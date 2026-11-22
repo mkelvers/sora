@@ -32,6 +32,7 @@
 		currentPassword: "",
 		newPassword: "",
 	});
+
 	let pending = $state(false);
 	let dismissed = $state(false);
 

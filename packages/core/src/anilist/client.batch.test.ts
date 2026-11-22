@@ -7,17 +7,22 @@ type Pages = Record<string, number[] | number | boolean>;
 
 /** The variables of each request AniList received, in the order they were sent. */
 const sent: Pages[] = [];
+
 /** IDs AniList knows nothing about. */
 const unknown = new Set([404]);
 let failNext = false;
 let rateLimitNext = false;
+
 const respond = (_input: string, init: RequestInit) => {
 	const { variables } = JSON.parse(String(init.body)) as {
 		variables: Pages;
 	};
+
 	sent.push(variables);
+
 	if (rateLimitNext) {
 		rateLimitNext = false;
+
 		return Promise.resolve(
 			Response.json(
 				{
@@ -40,6 +45,7 @@ const respond = (_input: string, init: RequestInit) => {
 
 	if (failNext) {
 		failNext = false;
+
 		return Promise.resolve(
 			Response.json(
 				{
@@ -74,6 +80,7 @@ const respond = (_input: string, init: RequestInit) => {
 				: [],
 		),
 	);
+
 	return Promise.resolve(
 		Response.json(
 			{
@@ -104,6 +111,7 @@ beforeEach(() => {
 interface Media {
 	id: number;
 }
+
 type Result = Record<
 	string,
 	| {
@@ -169,6 +177,7 @@ test("gathers the IDs asked for while a request waits its turn", async () => {
 
 test("splits a request over pages of 50, and fills a request before starting another", async () => {
 	const load = loader(2);
+
 	const ids = Array.from(
 		{
 			length: 130,
@@ -193,11 +202,13 @@ test("splits a request over pages of 50, and fills a request before starting ano
 
 test("sends a batch a viewer joins ahead of background work queued before it", async () => {
 	const load = loader(1);
+
 	const other = new TypedDocumentString<unknown, { id: number }>(
 		"query Other($id: Int!) { Media(id: $id) { id } }",
 	);
 
 	await aniListPriority.run(background, () => load([20]));
+
 	const queuedBefore = aniListPriority.run(background, () =>
 		anilist(
 			other,
@@ -209,6 +220,7 @@ test("sends a batch a viewer joins ahead of background work queued before it", a
 			},
 		),
 	);
+
 	await Bun.sleep(5);
 	const shared = aniListPriority.run(background, () => load([22]));
 	// The same ID, asked for by a search while the background batch still waits its turn.

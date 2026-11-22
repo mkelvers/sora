@@ -25,6 +25,7 @@
 			q,
 		}),
 	);
+
 	const found = $derived(await search);
 	const stale = $derived(navigating.to?.url.pathname === "/search");
 
@@ -34,6 +35,7 @@
 		}
 
 		const timer = setTimeout(() => search.refresh(), 1000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

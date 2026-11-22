@@ -10,9 +10,11 @@ export const handleError: HandleClientError = (caught) => {
 	}
 
 	const here = encodeURIComponent(location.pathname + location.search);
+
 	if (caught.error.status === 401) {
 		location.assign(`/login?redirect=${here}`);
 	}
+
 	if (caught.error.status === 403 && caught.error.message === "Choose a profile first") {
 		location.assign(`/profiles?redirect=${here}`);
 	}

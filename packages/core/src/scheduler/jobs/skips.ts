@@ -45,8 +45,10 @@ const unsettled = {
 export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 	const { ahead, ...request } = parsePayload(PayloadSchema, payload);
 	const marker = episodeDetectionKey(request.seriesId, request.episode);
+
 	if (ahead) {
 		const markers = await getSkipDetections([marker]);
+
 		if (!isSkipDetectionDue(markers.get(marker))) {
 			return;
 		}
@@ -57,6 +59,7 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 		EpisodeNotFoundError,
 		SeriesNotFoundError,
 	);
+
 	if (located.error) {
 		// The episode after a series' last is asked for too.
 		return;
@@ -67,15 +70,18 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 		PlaybackUnavailableError,
 		EpisodeNotFoundError,
 	);
+
 	if (versions.error) {
 		helpers.logger.info(
 			`No video to look at for ${request.seriesId} ${request.episode}: ${versions.error.message}`,
 		);
+
 		return;
 	}
 
 	const videos = versions.data.flatMap(({ videos: candidates }) => {
 		const video = candidates.find((candidate) => candidate.format === "hls");
+
 		return video
 			? [
 					{
@@ -85,6 +91,7 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 				]
 			: [];
 	});
+
 	const stored = await getSkipDetections(videos.map(({ key }) => key));
 	const due = videos.filter(({ key }) => isSkipDetectionDue(stored.get(key)));
 
@@ -92,33 +99,43 @@ export const detectSkipSegmentsJob: Task = async (payload, helpers) => {
 		due.length > 0
 			? await themeSongsFor(await getAnime(located.data.anilistId), located.data.number)
 			: [];
+
 	const listened = await inSequence(songs, async (song) => {
 		const { data, error } = await attempt(listenToSong(song));
+
 		if (error) {
 			helpers.logger.info(`Could not read ${song.slug} of ${request.seriesId}: ${error.message}`);
 		}
+
 		return data;
 	});
+
 	const heard = listened.filter((song): song is ListenedSong => song !== undefined);
 
 	await inSequence(due, async ({ key, video }) => {
 		const previous = stored.get(key);
+
 		if (previous && previous.songs >= heard.length) {
 			// Nothing new to look for: kept as it was until it is due again.
 			await saveSkipDetection(key, previous.detection, previous.songs);
+
 			return;
 		}
+
 		if (heard.length === 0) {
 			await saveSkipDetection(key, unsettled, 0);
+
 			return;
 		}
 
 		const { data: detection, error } = await attempt(detectSkipSegments(video, heard));
+
 		if (error) {
 			helpers.logger.info(
 				`Could not look at ${request.seriesId} ${request.episode}: ${error.message}`,
 			);
 		}
+
 		await saveSkipDetection(key, detection ?? unsettled, heard.length);
 		helpers.logger.info(
 			`${request.seriesId} ${request.episode}: opening ${JSON.stringify(detection?.opening ?? null)}, ending ${JSON.stringify(detection?.ending ?? null)}`,

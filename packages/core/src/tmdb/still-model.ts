@@ -34,6 +34,7 @@ const dot = (left: readonly number[], right: readonly number[]) =>
 /** A vector scaled to length 1, so the dot product of two is their cosine similarity. */
 export const unitLength = (vector: readonly number[]) => {
 	const length = Math.hypot(...vector);
+
 	return vector.map((value) => value / length);
 };
 
@@ -57,10 +58,13 @@ export const loadStillModel = async (cacheDir: string | null) => {
 
 	const { AutoProcessor, CLIPVisionModelWithProjection, env, RawImage } =
 		await import("@huggingface/transformers");
+
 	if (cacheDir) {
 		env.cacheDir = cacheDir;
 	}
+
 	const processor = await AutoProcessor.from_pretrained(stillModel);
+
 	const vision = await CLIPVisionModelWithProjection.from_pretrained(stillModel, {
 		dtype: "q8",
 	});
@@ -69,10 +73,12 @@ export const loadStillModel = async (cacheDir: string | null) => {
 		const { image_embeds: embeds } = await vision(
 			await processor(await RawImage.fromBlob(new Blob([new Uint8Array(image)]))),
 		);
+
 		const embedded = unitLength([...(embeds.data as Float32Array)]);
 		const logits = labelEmbeddings.embeddings.map((label) => logitScale * dot(label, embedded));
 		const highest = Math.max(...logits);
 		const weights = logits.map((logit) => Math.exp(logit - highest));
+
 		return (weights[0] ?? 0) / weights.reduce((sum, weight) => sum + weight, 0);
 	};
 };

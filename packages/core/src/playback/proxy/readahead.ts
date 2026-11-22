@@ -60,6 +60,7 @@ export const rememberSegmentOrder = (targets: StreamTarget[]) => {
 		if (positions.size <= rememberedSegments) {
 			break;
 		}
+
 		positions.delete(url);
 	}
 };
@@ -87,6 +88,7 @@ const evict = (keep: string) => {
 		}
 
 		const size = sizes.get(url);
+
 		if (url === keep || size === undefined) {
 			continue;
 		}
@@ -99,30 +101,39 @@ const evict = (keep: string) => {
 
 const load = (target: StreamTarget) => {
 	const cached = segments.get(target.url);
+
 	if (cached) {
 		segments.delete(target.url);
 		segments.set(target.url, cached);
+
 		return cached;
 	}
 
 	const pending = download(target);
 	segments.set(target.url, pending);
+
 	const track = async () => {
 		const { data: segment, error } = await attempt(pending);
+
 		if (error) {
 			if (segments.get(target.url) === pending) {
 				segments.delete(target.url);
 			}
+
 			return;
 		}
+
 		if (segments.get(target.url) !== pending) {
 			return;
 		}
+
 		sizes.set(target.url, segment.bytes.byteLength);
 		cachedBytes += segment.bytes.byteLength;
 		evict(target.url);
 	};
+
 	attempt(track());
+
 	return pending;
 };
 
@@ -142,6 +153,7 @@ const loadAhead = async (target: StreamTarget) => {
 	fetchingAhead += 1;
 	const { error } = await attempt(load(target));
 	fetchingAhead -= 1;
+
 	if (error && !(error instanceof StreamUpstreamError)) {
 		console.error(`Fetching ${target.url} ahead failed: ${error.message}`);
 	}
@@ -149,6 +161,7 @@ const loadAhead = async (target: StreamTarget) => {
 
 const fetchAhead = (target: StreamTarget) => {
 	const position = positions.get(target.url);
+
 	if (!position) {
 		return;
 	}
@@ -183,5 +196,6 @@ export const warmSegments = (targets: StreamTarget[]) => {
 export const readSegment = async (target: StreamTarget) => {
 	const segment = load(target);
 	fetchAhead(target);
+
 	return await segment;
 };

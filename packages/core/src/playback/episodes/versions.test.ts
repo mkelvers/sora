@@ -35,6 +35,7 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 	getAnime: (id) => Promise.resolve(anime(id)),
 	getProviderUnits: (_anime, target) => {
 		asks += 1;
+
 		return list.find((candidate) => candidate.id === target.id)?.ask() ?? Promise.resolve([]);
 	},
 	getStoredLanguages: (anilistIds, providers) =>
@@ -42,6 +43,7 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 			[...new Set(anilistIds)].flatMap((anilistId) =>
 				list.flatMap((candidate) => {
 					const units = candidate.units(anilistId);
+
 					return units && providers.includes(candidate.id)
 						? [
 								{
@@ -61,6 +63,7 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 			[...new Set(anilistIds)].flatMap((anilistId) =>
 				list.flatMap((candidate) => {
 					const units = candidate.units(anilistId);
+
 					return units
 						? [
 								{
@@ -83,9 +86,11 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 	})),
 	scheduleEpisodeLookups: (anilistIds, priority) => {
 		queuedLookups.push(...anilistIds);
+
 		if (anilistIds.length > 0) {
 			queuedPriorities.push(priority);
 		}
+
 		return Promise.resolve();
 	},
 });
@@ -93,6 +98,7 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 /** {@link findEpisodeListings} with only each episode's languages, for tests about those. */
 const findEpisodeLanguages = async (...args: Parameters<typeof findEpisodeListings>) => {
 	const found = await findEpisodeListings(...args);
+
 	return new Map([...found].map(([key, listing]) => [key, listing.languages]));
 };
 
@@ -387,6 +393,7 @@ describe("getEpisodeVersions", () => {
 			anilistId: 154_587,
 			number: 3,
 		};
+
 		await Promise.all([
 			getEpisodeVersions(episode, dependencies),
 			getEpisodeVersions(episode, dependencies),

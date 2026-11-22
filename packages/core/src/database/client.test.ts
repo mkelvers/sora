@@ -18,10 +18,12 @@ describe.skipIf(!databaseTestsEnabled())("database migrations", () => {
 		await holder`select pg_advisory_lock(${migrationLockKey}::bigint)`;
 
 		let finished = false;
+
 		const migrating = (async () => {
 			await migrateDatabase();
 			finished = true;
 		})();
+
 		await Bun.sleep(500);
 		expect(finished).toBe(false);
 

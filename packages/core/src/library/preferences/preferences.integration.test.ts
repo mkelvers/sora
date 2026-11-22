@@ -37,6 +37,7 @@ describe.skipIf(!databaseTestsEnabled())("playback preferences", () => {
 				background_opacity: 75,
 			},
 		});
+
 		const changed = await updatePlaybackPreferences(profile, {
 			subtitle_style: {
 				size: "large",

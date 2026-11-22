@@ -73,6 +73,7 @@ export interface Upstream {
 /** Whether an IP address is loopback, private, link-local, reserved, or multicast. */
 const isPrivateAddress = (address: string) => {
 	const version = isIP(address);
+
 	if (version === 4) {
 		return /^(?:0|10|127|169\.254|172\.(?:1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./u.test(
 			address,
@@ -94,11 +95,13 @@ const isPrivateAddress = (address: string) => {
  */
 const assertPublicHttpUrl = (value: string) => {
 	const url = new URL(value);
+
 	if (url.protocol !== "https:" && url.protocol !== "http:") {
 		throw new InvalidStreamTokenError("Stream target must use HTTP");
 	}
 
 	const host = url.hostname.replaceAll(/^\[|\]$/gu, "").toLowerCase();
+
 	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
@@ -125,19 +128,25 @@ const respondToLookup = async (
 			all: true,
 		}),
 	);
+
 	if (error) {
 		respond(error);
+
 		return;
 	}
+
 	if (addresses.some(({ address }) => isPrivateAddress(address))) {
 		respond(new InvalidStreamTokenError("Stream target is not a public host"));
+
 		return;
 	}
 
 	if (options.all) {
 		respond(null, addresses);
+
 		return;
 	}
+
 	respond(null, defined(addresses[0]).address, defined(addresses[0]).family);
 };
 
@@ -177,6 +186,7 @@ const requestPublicHost = (
 		},
 		(incoming) => {
 			const received = new Headers();
+
 			for (const [name, value] of Object.entries(incoming.headers)) {
 				for (const each of Array.isArray(value) ? value : [value]) {
 					if (each !== undefined) {
@@ -196,8 +206,10 @@ const requestPublicHost = (
 			);
 		},
 	);
+
 	request.on("error", reject);
 	request.end();
+
 	return promise;
 };
 
@@ -216,11 +228,13 @@ const requestWaitingOutThrottle = async (
 	deadline: AbortSignal,
 ): Promise<Response> => {
 	const { data, error } = await attempt(requestPublicHost(url, headers, deadline));
+
 	if (error) {
 		throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
 			cause: error,
 		});
 	}
+
 	if (data.status !== 429) {
 		return data;
 	}
@@ -229,16 +243,19 @@ const requestWaitingOutThrottle = async (
 		parseRetryAfter(data.headers.get("Retry-After")) ?? 0,
 		minimumThrottleWaitMs,
 	);
+
 	if (wait > maximumThrottleWaitMs || Date.now() + wait >= endsAt) {
 		return data;
 	}
 
 	await data.body?.cancel();
+
 	const waited = await attempt(
 		sleep(wait, undefined, {
 			signal: deadline,
 		}),
 	);
+
 	return waited.error ? data : await requestWaitingOutThrottle(url, headers, endsAt, deadline);
 };
 
@@ -265,6 +282,7 @@ const fetchFollowingRedirects = async (
 	);
 
 	const location = data.headers.get("Location");
+
 	if (data.status >= 300 && data.status < 400 && location) {
 		// Each hop is re-checked, so a redirect cannot reach a private address.
 		return await fetchFollowingRedirects(
@@ -302,6 +320,7 @@ export const fetchUpstream = async (
 	signal?: AbortSignal,
 ): Promise<Upstream> => {
 	const headers = new Headers(target.headers);
+
 	if (range) {
 		headers.set("Range", range);
 	}
@@ -312,6 +331,7 @@ export const fetchUpstream = async (
 		fetchFollowingRedirects(target.url, headers, timeoutMs, signal),
 		StreamUpstreamError,
 	);
+
 	if (!primary.error) {
 		return primary.data;
 	}
@@ -321,8 +341,10 @@ export const fetchUpstream = async (
 			fetchFollowingRedirects(mirror, headers, timeoutMs, signal),
 			StreamUpstreamError,
 		);
+
 		return result.error ? undefined : result.data;
 	});
+
 	if (fallback) {
 		return fallback;
 	}
@@ -357,22 +379,27 @@ export const readBounded = async (
 
 	const chunks: Uint8Array[] = [];
 	let total = 0;
+
 	// Leaving the loop early, as by the throw below, cancels the stream.
 	for await (const chunk of response.body ?? []) {
 		total += chunk.byteLength;
+
 		if (total > maximumBytes) {
 			throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
 		}
+
 		chunks.push(chunk);
 		received?.();
 	}
 
 	const bytes = new Uint8Array(total);
 	let offset = 0;
+
 	for (const chunk of chunks) {
 		bytes.set(chunk, offset);
 		offset += chunk.byteLength;
 	}
+
 	return bytes;
 };
 
@@ -388,14 +415,17 @@ const readCandidate = async (
 	answered();
 
 	const body = await attempt(readBounded(upstream.response, maximumBodyBytes[kind], answered));
+
 	if (body.error) {
 		if (body.error instanceof StreamUpstreamError) {
 			throw body.error;
 		}
+
 		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
 			cause: body.error,
 		});
 	}
+
 	const bytes = body.data;
 
 	// Stalling hosts sometimes close the connection instead, which reads as an empty body.
@@ -451,37 +481,46 @@ export const fetchUpstreamBytes = async (
 
 	const settle = async (read: Promise<Attempt<UpstreamBytes>>, retry: () => void) => {
 		const { data, error } = await read;
+
 		if (settled) {
 			return;
 		}
+
 		if (!error) {
 			settled = true;
 			clearTimeout(hedge);
 			losers.abort();
 			resolve(data);
+
 			return;
 		}
+
 		if (!(error instanceof StreamUpstreamError)) {
 			settled = true;
 			clearTimeout(hedge);
 			losers.abort();
 			reject(error);
+
 			return;
 		}
 
 		primaryFailure ??= error;
 		failed += 1;
+
 		if (failed === candidates.length) {
 			settled = true;
 			clearTimeout(hedge);
 			reject(primaryFailure);
+
 			return;
 		}
+
 		retry();
 	};
 
 	const launch = () => {
 		clearTimeout(hedge);
+
 		if (settled || launched >= candidates.length) {
 			return;
 		}
@@ -505,6 +544,7 @@ export const fetchUpstreamBytes = async (
 	};
 
 	launch();
+
 	return await promise;
 };
 
@@ -518,6 +558,7 @@ export const fetchUpstreamBytes = async (
 export const mirrorsFor = (url: string, playlistUrl: string) => {
 	const child = new URL(url);
 	const parent = new URL(playlistUrl);
+
 	if (child.host === parent.host) {
 		return [];
 	}

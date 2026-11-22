@@ -6,8 +6,11 @@
  * in priority order, and clients only ever receive signed proxy URLs.
  */
 export { isWebClientKey } from "./proxy/client-key";
+
 export { proxyStream } from "./proxy/proxy";
+
 export { StreamUpstreamError } from "./proxy/upstream";
+
 export {
 	PlaybackRequestSchema,
 	resolvePlayback,
@@ -15,7 +18,9 @@ export {
 	type PlaybackOptions,
 	type PlaybackRequest,
 } from "./streams/resolve";
+
 export type { EpisodeVersion } from "./episodes/versions";
+
 export {
 	failingAfterCalls,
 	failingAfterMs,
@@ -24,4 +29,5 @@ export {
 	type ProviderHealth,
 	type ProviderStatus,
 } from "./providers/health";
+
 export type { ProviderOperation } from "./providers/calls";

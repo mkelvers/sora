@@ -32,6 +32,7 @@ describe("franchiseRoles", () => {
 	test("lists side-story films and specials as extras when they are worth watching", () => {
 		const film = title(10, "MOVIE", { durationMinutes: 75 });
 		const special = title(11, "SPECIAL", { popularity: 100, score: 62 });
+
 		const roles = franchiseRoles(
 			[indigo, film, special],
 			[
@@ -40,6 +41,7 @@ describe("franchiseRoles", () => {
 			],
 			main,
 		);
+
 		expect(roles.get(10)).toBe("extra");
 		expect(roles.get(11)).toBe("extra");
 	});
@@ -47,6 +49,7 @@ describe("franchiseRoles", () => {
 	test("keeps a sequel film however little it is rated, but not a side-story promo", () => {
 		const sequel = title(12, "MOVIE", { popularity: 300, score: 45 });
 		const promo = title(13, "SPECIAL", { popularity: 1800, score: 56 });
+
 		const roles = franchiseRoles(
 			[indigo, sequel, promo],
 			[
@@ -55,6 +58,7 @@ describe("franchiseRoles", () => {
 			],
 			main,
 		);
+
 		expect(roles.get(12)).toBe("extra");
 		expect(roles.get(13)).toBe("noise");
 	});
@@ -67,6 +71,7 @@ describe("franchiseRoles", () => {
 
 	test("hides recaps and compilations, whatever their other links", () => {
 		const recap = title(30, "SPECIAL");
+
 		const roles = franchiseRoles(
 			[indigo, recap],
 			[
@@ -75,16 +80,19 @@ describe("franchiseRoles", () => {
 			],
 			main,
 		);
+
 		expect(roles.get(30)).toBe("recap");
 	});
 
 	test("sets another adaptation of the main story apart", () => {
 		const remake = title(40, "MOVIE", { durationMinutes: 97 });
+
 		const roles = franchiseRoles(
 			[indigo, remake],
 			[{ from: 1, to: 40, type: "ALTERNATIVE" }],
 			main,
 		);
+
 		expect(roles.get(40)).toBe("alternative");
 	});
 
@@ -98,18 +106,21 @@ describe("franchiseRoles", () => {
 			[],
 			main,
 		);
+
 		expect(roles.get(50)).toBe("noise");
 		expect(roles.get(51)).toBe("noise");
 	});
 
 	test("keeps an unconnected short with a real runtime that people watch", () => {
 		const fun = title(60, "OVA", { durationMinutes: 8, episodeCount: 3, score: 74 });
+
 		const forgotten = title(61, "OVA", {
 			durationMinutes: 8,
 			episodeCount: 3,
 			popularity: 120,
 			score: 41,
 		});
+
 		const roles = franchiseRoles([indigo, fun, forgotten], [], main);
 		expect(roles.get(60)).toBe("extra");
 		expect(roles.get(61)).toBe("noise");
@@ -135,6 +146,7 @@ describe("franchiseRoles", () => {
 			],
 			main,
 		);
+
 		expect(roles.get(90)).toBe("spin_off");
 	});
 });

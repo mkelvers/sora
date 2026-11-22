@@ -52,8 +52,10 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 
 	await inSequence(rows, async ({ id }) => {
 		const { data, error } = await attempt(listSeriesImages(id));
+
 		if (error) {
 			helpers.logger.warn(`Storing the images of ${id} failed: ${error.message}`);
+
 			return;
 		}
 
@@ -65,12 +67,16 @@ export const storeFeaturedImagesJob: Task = async (_payload, helpers) => {
 				image.width >= minBackdropSize.width &&
 				image.height >= minBackdropSize.height,
 		);
+
 		await inSequence(clean, async (image) => {
 			const looked = await attempt(isCollage(image.url));
+
 			if (looked.error) {
 				helpers.logger.warn(`Looking at ${image.url} failed: ${looked.error.message}`);
+
 				return;
 			}
+
 			await db
 				.update(titleImage)
 				.set({

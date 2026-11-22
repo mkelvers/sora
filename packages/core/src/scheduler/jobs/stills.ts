@@ -64,15 +64,18 @@ export const chooseEpisodeStillsJob: Task = async (_payload, helpers) => {
 	await inParallel([...rows], concurrency, async (row) => {
 		const defaultPath =
 			row.still_url?.replace(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+/u, "") ?? null;
+
 		const result = await attempt(
 			chooseStill(row.show_id, row.season_number, row.episode_number, defaultPath),
 			UpstreamUnavailableError,
 		);
+
 		if (result.error) {
 			failed += 1;
 			helpers.logger.warn(
 				`Could not choose a still for ${row.show_id} ${row.season_number}x${row.episode_number}: ${result.error.message}`,
 			);
+
 			return;
 		}
 

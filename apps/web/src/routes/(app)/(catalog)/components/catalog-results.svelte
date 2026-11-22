@@ -34,18 +34,23 @@
 				}),
 		),
 	);
+
 	const pages = $derived(await Promise.all(queries));
+
 	const items = $derived.by(() => {
 		const seen = new Set<string>();
+
 		return pages
 			.flatMap((page) => page.items)
 			.filter((item) => !seen.has(item.card.id) && !!seen.add(item.card.id));
 	});
+
 	const hasNextPage = $derived(pages.at(-1)?.hasNextPage ?? false);
 	const sections = $derived([...Map.groupBy(items, (item) => item.group)]);
 
 	$effect(() => {
 		const waiting = queries.filter((_, index) => pages[index]?.preparing);
+
 		if (!waiting.length) {
 			return;
 		}
@@ -55,6 +60,7 @@
 				query.refresh();
 			}
 		}, 1000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

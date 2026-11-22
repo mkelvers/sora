@@ -40,6 +40,7 @@ const StoreSeriesPayloadSchema = z.object({
  */
 export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 	const { anilistId } = parsePayload(StoreSeriesPayloadSchema, rawPayload);
+
 	const [laidOut] = await db
 		.select({
 			seriesId: series.id,
@@ -47,20 +48,25 @@ export const storeSeriesJob: Task = async (rawPayload, helpers) => {
 		.from(series)
 		.where(and(eq(series.anilistId, anilistId), gte(series.laidOutAt, helpers.job.updated_at)))
 		.limit(1);
+
 	if (laidOut) {
 		helpers.logger.info(`Series ${laidOut.seriesId} of anime ${anilistId} is already laid out`);
+
 		return;
 	}
 
 	const { data, error } = await attempt(storeSeries(anilistId), AnimeNotFoundError);
+
 	if (error) {
 		// Searches queue every entry they find that is not stored, so an entry
 		// left in the index would be queued again by each one. A sync puts it
 		// back should AniList serve it again.
 		await db.delete(animeSearch).where(eq(animeSearch.anilistId, anilistId));
 		helpers.logger.warn(`Anime ${anilistId} is gone from AniList; not storing its series`);
+
 		return;
 	}
+
 	helpers.logger.info(`Stored series ${data} for anime ${anilistId}`);
 };
 
@@ -97,6 +103,7 @@ export const discoverSeriesEntriesTask = "discover-series-entries";
  */
 export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 	const premiereCutoff = new Date(Date.now() + premiereWindowMs).toISOString().slice(0, 10);
+
 	const discoverPage = async (page: number, queuedSoFar: number): Promise<number> => {
 		const { Page } = await anilist(
 			NewEntriesDocument,
@@ -112,6 +119,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 		const entries = (Page?.media ?? []).flatMap((media) =>
 			media && media.format !== "MUSIC" ? [media] : [],
 		);
+
 		const stored = await storedSeriesIds([
 			...entries.map((entry) => entry.id),
 			...entries.flatMap((entry) => idsRelatedBy(entry, franchiseRelations)),
@@ -119,21 +127,28 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 
 		const wanted = entries.filter((entry) => {
 			const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
+
 			const premieresSoon =
 				startDate !== null && startDate.length === 10 && startDate <= premiereCutoff;
+
 			const isWanted =
 				(config.preloadTitles && (entry.status === "RELEASING" || premieresSoon)) ||
 				idsRelatedBy(entry, franchiseRelations).some((id) => stored.has(id));
+
 			return !stored.has(entry.id) && isWanted;
 		});
+
 		await inSequence(wanted, (entry) => scheduleSeriesStore(entry.id, "backfill"));
 
 		const queuedNow = queuedSoFar + wanted.length;
+
 		if (Page?.pageInfo?.hasNextPage !== true || page >= discoveryPageLimit) {
 			return queuedNow;
 		}
+
 		return await discoverPage(page + 1, queuedNow);
 	};
+
 	const queued = await discoverPage(1, 0);
 
 	if (queued > 0) {
@@ -193,6 +208,7 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
 	const tmdbEpisodes = new Map(
 		episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
 	);
+
 	const stored = await db
 		.select({
 			airDate: seriesEpisode.airDate,
@@ -211,6 +227,7 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
 		const tmdbEpisode = tmdbEpisodes.get(
 			`${episode.tmdbSeasonNumber}:${episode.tmdbEpisodeNumber}`,
 		);
+
 		if (!tmdbEpisode) {
 			return [];
 		}
@@ -223,6 +240,7 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
 			stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
 			title: tmdbEpisode.name,
 		};
+
 		if (
 			Object.entries(details).every(
 				([name, value]) => episode[name as keyof typeof details] === value,
@@ -318,6 +336,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 		[...Map.groupBy(awaited, (episode) => episode.series_id)],
 		async ([seriesId, episodes]) => {
 			const showId = episodes[0]?.show_id;
+
 			if (showId === undefined) {
 				return 0;
 			}
@@ -328,8 +347,10 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 				}),
 				UpstreamUnavailableError,
 			);
+
 			if (show.error) {
 				helpers.logger.warn(`TMDB failed for show ${showId}: ${show.error.message}`);
+
 				return 0;
 			}
 
@@ -341,6 +362,7 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 								candidate.season_number === episode.season_number &&
 								candidate.episode_number === episode.episode_number,
 						);
+
 						return listed
 							? [
 									withEdits(listed, {
@@ -357,15 +379,19 @@ export const refreshEpisodeDetails: Task = async (_payload, helpers) => {
 				),
 				UpstreamUnavailableError,
 			);
+
 			if (edited.error) {
 				helpers.logger.warn(`TMDB failed for show ${showId}: ${edited.error.message}`);
+
 				return 0;
 			}
 
 			return await copyEpisodeDetails(seriesId, await withChosenStills(showId, edited.data));
 		},
 	);
+
 	let updated = 0;
+
 	for (const count of copied) {
 		updated += count;
 	}
@@ -412,6 +438,7 @@ interface Outcome {
 /** A series with no TMDB show laid out again when it has gone unmatched or without details too long. */
 const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
 	const isUnmatched = row.key.startsWith("anilist:");
+
 	const relayoutAfterMs =
 		isUnmatched && row.lacks_details
 			? recheckAfterMs(row.lacking_for_ms, {
@@ -419,13 +446,17 @@ const relayoutUnshown = async (row: BehindSeries): Promise<Outcome> => {
 					min: hour,
 				})
 			: day;
+
 	if (row.laid_out_for_ms <= relayoutAfterMs) {
 		return { fetched: 0, queued: 0, updated: 0 };
 	}
+
 	if (isUnmatched) {
 		await expireMapping(row.anilist_id);
 	}
+
 	await scheduleStoredSeriesRefresh(row.anilist_id);
+
 	return { fetched: 0, queued: 1, updated: 0 };
 };
 
@@ -445,6 +476,7 @@ const refreshShow = async (
 			: Infinity,
 		row.lacks_details ? day : Infinity,
 	);
+
 	if (Date.now() - (fetchedAt.get(`/tv/${showId}`) ?? 0) < maxAgeMs) {
 		return { fetched: 0, queued: 0, updated: 0 };
 	}
@@ -456,8 +488,10 @@ const refreshShow = async (
 		}),
 		UpstreamUnavailableError,
 	);
+
 	if (stored.error) {
 		logger.warn(`TMDB failed for show ${showId}: ${stored.error.message}`);
+
 		return { fetched: 0, queued: 0, updated: 0 };
 	}
 
@@ -467,8 +501,10 @@ const refreshShow = async (
 		}),
 		UpstreamUnavailableError,
 	);
+
 	if (fresh.error) {
 		logger.warn(`TMDB failed for show ${showId}: ${fresh.error.message}`);
+
 		return { fetched: 0, queued: 0, updated: 0 };
 	}
 
@@ -483,6 +519,7 @@ const refreshShow = async (
 	const [mapping] = show
 		? await db.select().from(tmdbMapping).where(eq(tmdbMapping.anilistId, row.anilist_id)).limit(1)
 		: [];
+
 	const isMatchStale =
 		row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
 
@@ -495,9 +532,12 @@ const refreshShow = async (
 		if (isMatchStale) {
 			await expireMapping(row.anilist_id);
 		}
+
 		await scheduleStoredSeriesRefresh(row.anilist_id);
+
 		return { fetched: 1, queued: 1, updated: copied };
 	}
+
 	return { fetched: 1, queued: 0, updated: copied };
 };
 
@@ -559,10 +599,12 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     order by ${series.laidOutAt}
     limit 50
   `);
+
 	await inSequence([...staleMappings], async (row) => {
 		if (row.retry_match) {
 			await expireMapping(row.anilist_id);
 		}
+
 		await scheduleStoredSeriesRefresh(row.anilist_id);
 	});
 
@@ -570,10 +612,12 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     ${series.kind} = 'tv'
     and ${seriesEpisode.tmdbEpisodeNumber} is null
   )`;
+
 	const lacksDetails = sql`(
     ${airedLately}
     and (${isUnnamed} or ${seriesEpisode.overview} is null or ${seriesEpisode.stillUrl} is null)
   )`;
+
 	const behind = await db.execute<BehindSeries>(sql`
     select
       ${series.id} as series_id,
@@ -594,11 +638,14 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 	const showIds = new Map(
 		behind.flatMap(({ series_id, key }) => {
 			const showId = /^(?:tv|shorts):(?<id>\d+)$/u.exec(key)?.[1];
+
 			return showId ? [[series_id, Number(showId)] as const] : [];
 		}),
 	);
+
 	// When each show was last fetched, so one fetched lately is not even read.
 	const paths = [...new Set(showIds.values())].map((showId) => `/tv/${showId}`);
+
 	const fetchedRows =
 		paths.length > 0
 			? await db
@@ -610,10 +657,12 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 					.where(inArray(tmdbResponse.path, paths))
 					.groupBy(tmdbResponse.path)
 			: [];
+
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
 	const outcomes = await inSequence(behind as unknown as BehindSeries[], async (row) => {
 		const showId = showIds.get(row.series_id);
+
 		return showId === undefined
 			? await relayoutUnshown(row)
 			: await refreshShow(row, showId, fetchedAt, helpers.logger);
@@ -622,6 +671,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 	let fetched = 0;
 	let updated = 0;
 	let queued = 0;
+
 	for (const outcome of outcomes) {
 		fetched += outcome.fetched;
 		updated += outcome.updated;

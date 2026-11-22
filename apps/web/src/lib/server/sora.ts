@@ -31,6 +31,7 @@ export const knownProfiles = new Map<
 
 export const remoteViewer = () => {
 	const viewer = defined(getRequestEvent().locals.viewer);
+
 	return {
 		profile: defined(viewer.profile),
 		sora: viewer.sora,

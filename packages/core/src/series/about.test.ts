@@ -61,6 +61,7 @@ describe("aboutSeries", () => {
 			award("Crunchyroll Anime Awards", 2018, true),
 			award("Anime Trending Awards", 2013, true),
 		];
+
 		const season = (startDate: string, seasonStarts: number[]) =>
 			about({
 				anime: {
@@ -230,6 +231,7 @@ describe("aboutSeries", () => {
 	test("shows the synopsis that says more: AniList's about-length one, else the stored one", () => {
 		const blurb =
 			"Socially inept, Koyuki keeps a wall between herself and other people. Then she meets Minato, a boy who keeps closing the distance.";
+
 		expect(
 			about({
 				anime: {

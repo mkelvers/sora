@@ -10,8 +10,10 @@
 	let expanded = $state(false);
 
 	const offered = getTags();
+
 	const tags = $derived.by(() => {
 		const names = new Set((offered.current ?? []).map((tag) => tag.name));
+
 		return series.tags
 			.filter((tag) => !tag.spoiler && names.has(tag.name))
 			.slice(0, 6)

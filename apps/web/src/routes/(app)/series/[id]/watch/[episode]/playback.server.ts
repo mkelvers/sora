@@ -36,19 +36,24 @@ export const resolveWatchPlayback = async (
 		}),
 		SoraError,
 	);
+
 	if (playback.error) {
 		const { code, status, retryAfterSeconds } = playback.error;
 		const retryAt = retryAfterSeconds === null ? null : Date.now() + retryAfterSeconds * second;
+
 		const { data: episodes } = await attempt(
 			sora.request(route.listEpisodes, { params: { series_id: seriesId } }),
 		);
+
 		const links = {
 			next: episodes?.find((candidate) => candidate.number > episode)?.number ?? null,
 			previous: episodes?.findLast((candidate) => candidate.number < episode)?.number ?? null,
 		};
+
 		if (status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND")) {
 			return { ...links, status: "unavailable" };
 		}
+
 		if (status === 429 || (status >= 500 && status < 600)) {
 			return {
 				...links,
@@ -56,12 +61,14 @@ export const resolveWatchPlayback = async (
 				status: "temporary",
 			};
 		}
+
 		return { ...links, status: "failed" };
 	}
 
 	const { results, meta } = playback.data;
 	const links = { next: meta.next_episode, previous: meta.previous_episode };
 	const playable = results.filter((media) => media.sources.length > 0);
+
 	if (playable.length === 0) {
 		return { ...links, status: "unavailable" };
 	}

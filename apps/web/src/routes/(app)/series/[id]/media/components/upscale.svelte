@@ -16,6 +16,7 @@
 	} = $props();
 
 	const images = $derived(await getImages(series.id));
+
 	const selected = $derived(
 		images.find(
 			(image) =>
@@ -24,6 +25,7 @@
 				series.backdrop_url?.split("/").at(-1) === image.url.split("/").at(-1),
 		),
 	);
+
 	const upscaling = $derived(images.some((image) => image.upscale === "pending"));
 
 	$effect(() => {
@@ -35,6 +37,7 @@
 			getImages(series.id).refresh();
 			getSeries(series.id).refresh();
 		}, 5000);
+
 		return () => clearInterval(timer);
 	});
 </script>

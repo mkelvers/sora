@@ -22,6 +22,7 @@
 	const category = $derived.by(
 		(): { name: string; filters: Partial<BrowseFilters> } | undefined => {
 			const genre = genres.current?.find(same);
+
 			if (genre) {
 				return {
 					filters: {
@@ -30,7 +31,9 @@
 					name: genre,
 				};
 			}
+
 			const tag = tags.current?.find((entry) => same(entry.name));
+
 			if (tag) {
 				return {
 					filters: {
@@ -39,7 +42,9 @@
 					name: tag.name,
 				};
 			}
+
 			const studio = studios.current?.find(same);
+
 			return studio
 				? {
 						filters: {

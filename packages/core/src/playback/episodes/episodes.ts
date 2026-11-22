@@ -49,6 +49,7 @@ const recordDubs = async (
 	const dubbed = units.filter(
 		(unit) => Number.isInteger(unit.number) && unit.languages?.includes("dub"),
 	);
+
 	if (dubbed.length === 0) {
 		return;
 	}
@@ -59,10 +60,12 @@ const recordDubs = async (
 		})
 		.from(episodeDub)
 		.where(eq(episodeDub.anilistId, anilistId));
+
 	const known = new Set(recorded.map((row) => row.episode));
 	const carried = new Set(previous?.map((unit) => unit.number));
 
 	const fresh = dubbed.filter((unit) => !known.has(unit.number));
+
 	if (fresh.length > 0) {
 		await db
 			.insert(episodeDub)
@@ -90,6 +93,7 @@ const readStoredUnits = async (anilistId: number, providerId: string) => {
 		.limit(1);
 
 	const units = stored ? ProviderUnitsSchema.safeParse(stored.units) : null;
+
 	return units?.success ? units.data : null;
 };
 
@@ -116,6 +120,7 @@ export const withoutStrayEpisodes = <TUnit extends { number: number }>(
 	anime: Pick<Anime, "episodes" | "status">,
 ): TUnit[] => {
 	const { episodes: total, status } = anime;
+
 	if (status !== "FINISHED" || total === null) {
 		return [...units];
 	}
@@ -124,6 +129,7 @@ export const withoutStrayEpisodes = <TUnit extends { number: number }>(
 		(unit, index) =>
 			unit.number > total && unit.number - (units[index - 1]?.number ?? 0) > strayGap,
 	);
+
 	return stray === -1 ? [...units] : units.slice(0, stray);
 };
 
@@ -147,12 +153,14 @@ export const refreshProviderUnits = async (
 	},
 ): Promise<ProviderUnit[]> => {
 	const media = await getProviderMedia(anime, provider, options);
+
 	if (!media) {
 		return [];
 	}
 
 	const { mediaId, episodeOffset } = media;
 	const listedUnits = await provider.listEpisodes(mediaId);
+
 	const mapped: ProviderUnit[] = listedUnits
 		// A part filed under its prequel's series keeps only its own episodes,
 		// numbered from 1; a later part may follow them in the same series.
@@ -170,15 +178,19 @@ export const refreshProviderUnits = async (
 			title: unit.title,
 		}))
 		.toSorted((left, right) => left.number - right.number);
+
 	const previous = await readStoredUnits(anime.id, provider.id);
+
 	const units = provider.listsLanguages
 		? await withConfirmedDubs(withoutStrayEpisodes(mapped, anime), previous, async (unit) => {
 				const confirmed = await streamsDub(provider, unit.id);
+
 				if (!confirmed) {
 					console.warn(
 						`${provider.id} lists a dub of anime ${anime.id} episode ${unit.number} that does not play in ${servedLocale}`,
 					);
 				}
+
 				return confirmed;
 			})
 		: withoutStrayEpisodes(mapped, anime);
@@ -187,6 +199,7 @@ export const refreshProviderUnits = async (
 		fetchedAt: new Date(),
 		units,
 	};
+
 	if (provider.id === aniKoto.id) {
 		await recordDubs(anime.id, units, previous, values.fetchedAt);
 	}
@@ -220,6 +233,7 @@ export const getProviderUnits = async (
 	provider: StreamProvider,
 ): Promise<ProviderUnit[]> => {
 	const stored = await readStoredUnits(anime.id, provider.id);
+
 	if (stored) {
 		return stored;
 	}
@@ -262,6 +276,7 @@ export const getStoredLanguages = async (
 	}
 
 	const ids = [...new Set(anilistIds)];
+
 	const [listed, unmatched] = await Promise.all([
 		db
 			.select({
@@ -316,6 +331,7 @@ export const getStoredUnits = async (
 	}
 
 	const ids = [...new Set(anilistIds)];
+
 	const [listed, unmatched] = await Promise.all([
 		db
 			.select()
@@ -344,6 +360,7 @@ export const getStoredUnits = async (
 	return [
 		...listed.flatMap((row) => {
 			const units = ProviderUnitsSchema.safeParse(row.units);
+
 			return units.success
 				? [
 						{

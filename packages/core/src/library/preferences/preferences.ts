@@ -93,6 +93,7 @@ export const updatePlaybackPreferences = async (
 	update: PlaybackPreferencesUpdate,
 ): Promise<PlaybackPreferences> => {
 	const parsed = PlaybackPreferencesUpdateSchema.safeParse(update);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid playback preferences", {
 			cause: parsed.error,
@@ -107,6 +108,7 @@ export const updatePlaybackPreferences = async (
 		quality,
 		subtitle_style: style,
 	} = parsed.data;
+
 	const [row] = await db
 		.insert(playbackPreference)
 		.values({

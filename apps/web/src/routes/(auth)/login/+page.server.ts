@@ -22,6 +22,7 @@ export const actions: Actions = {
 	default: async ({ request, cookies, url, getClientAddress }) => {
 		const form = await request.formData();
 		const username = String(form.get("username") ?? "");
+
 		const credentials = Credentials.safeParse({
 			password: form.get("password") ?? "",
 			username,
@@ -49,18 +50,21 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (error?.code === "INVALID_USERNAME_OR_PASSWORD") {
 			return fail(400, {
 				message: "Wrong username or password.",
 				username,
 			});
 		}
+
 		if (error?.status === 429) {
 			return fail(429, {
 				message: "Too many attempts. Try again in a minute.",
 				username,
 			});
 		}
+
 		if (error) {
 			throw error;
 		}

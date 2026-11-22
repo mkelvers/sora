@@ -22,6 +22,7 @@ const namedEntities: Record<string, string> = {
 	rdquo: "”",
 	rsquo: "’",
 };
+
 const decodeEntity = (entity: string, body: string) => {
 	if (body.startsWith("#x") || body.startsWith("#X")) {
 		return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
@@ -33,6 +34,7 @@ const decodeEntity = (entity: string, body: string) => {
 
 	return namedEntities[body.toLowerCase()] ?? entity;
 };
+
 export const plainText = (value: string) =>
 	value
 		.replaceAll(/<br\s*\/?>/giu, "\n")
@@ -61,8 +63,10 @@ export const aboutLength = 560;
 /** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
 const sentences = (text: string) => {
 	const found: string[] = [];
+
 	for (const part of text.replaceAll(/\s+/gu, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/u)) {
 		const previous = found.at(-1);
+
 		if (previous && /\b[A-Z]\.$/u.test(previous)) {
 			found[found.length - 1] = `${previous} ${part}`;
 		} else {
@@ -92,16 +96,20 @@ export const synopsis = (value: string, length = synopsisLength) => {
 	const all = sentences(plainText(value));
 	const story = all.filter((sentence) => !placeholder.test(sentence));
 	const [first = "", ...rest] = story.length > 0 ? story : all;
+
 	if (first.length > length) {
 		const word = first.lastIndexOf(" ", length - 1);
+
 		return `${first.slice(0, word > 0 ? word : length - 1).trimEnd()}…`;
 	}
 
 	let summary = first;
+
 	for (const sentence of rest) {
 		if (summary.length + 1 + sentence.length > length) {
 			break;
 		}
+
 		summary = `${summary} ${sentence}`;
 	}
 
@@ -119,11 +127,13 @@ export const fuzzyDate = (date: {
 	}
 
 	const year = String(date.year).padStart(4, "0");
+
 	if (!date.month) {
 		return year;
 	}
 
 	const month = `${year}-${String(date.month).padStart(2, "0")}`;
+
 	return date.day ? `${month}-${String(date.day).padStart(2, "0")}` : month;
 };
 

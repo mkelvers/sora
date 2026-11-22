@@ -18,6 +18,7 @@ export const providerTransport: HttpTransport = {
 	async fetch(url, init) {
 		const response = await fetch(url, init);
 		const retryAfter = response.headers.get("Retry-After");
+
 		if (retryAfter === null) {
 			return response;
 		}
@@ -25,12 +26,14 @@ export const providerTransport: HttpTransport = {
 		const seconds = Number.isNaN(Number(retryAfter))
 			? (Date.parse(retryAfter) - Date.now()) / second
 			: Number(retryAfter);
+
 		if (!(seconds > maximumRetryAfterSeconds)) {
 			return response;
 		}
 
 		const headers = new Headers(response.headers);
 		headers.set("Retry-After", String(maximumRetryAfterSeconds));
+
 		return new Response(response.body, {
 			headers,
 			status: response.status,

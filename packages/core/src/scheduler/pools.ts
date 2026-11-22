@@ -35,6 +35,7 @@ export interface PoolWatch {
  */
 const releaseDeadPools = async (now: Date) => {
 	const cutoff = new Date(now.getTime() - deadAfterMs);
+
 	const dead = await db.execute<{
 		poolId: string;
 	}>(sql`
@@ -48,7 +49,9 @@ const releaseDeadPools = async (now: Date) => {
           and ${schedulerPool.heartbeatAt} >= ${cutoff.toISOString()}::timestamptz
       )
   `);
+
 	const poolIds = [...dead].map((row) => row.poolId);
+
 	if (poolIds.length === 0) {
 		return;
 	}
@@ -84,6 +87,7 @@ export const watchPools = (): PoolWatch => {
 
 	const beat = async () => {
 		const now = new Date();
+
 		if (poolIds.size > 0) {
 			await db
 				.insert(schedulerPool)
@@ -106,14 +110,17 @@ export const watchPools = (): PoolWatch => {
 			.delete(schedulerPool)
 			.where(lt(schedulerPool.heartbeatAt, new Date(now.getTime() - day)));
 	};
+
 	const beatAfter = async (previous: Promise<void>) => {
 		await previous;
 		const { error } = await attempt(beat());
+
 		if (error) {
 			const reason = error.cause instanceof Error ? error.cause.message : error.message;
 			logger.warn(`Could not mark scheduler pools alive: ${reason}`);
 		}
 	};
+
 	const tick = () => {
 		running = beatAfter(running);
 	};
@@ -131,6 +138,7 @@ export const watchPools = (): PoolWatch => {
 		stop: async () => {
 			clearInterval(timer);
 			await running;
+
 			if (poolIds.size > 0) {
 				await db.delete(schedulerPool).where(inArray(schedulerPool.poolId, [...poolIds]));
 			}

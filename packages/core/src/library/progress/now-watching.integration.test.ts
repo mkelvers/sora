@@ -11,6 +11,7 @@ import { getNowWatching } from "./now-watching";
 // Run against a disposable database; fixtures never touch real profiles.
 describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 	const profile = `portfolio-test-${crypto.randomUUID()}`;
+
 	const names = [
 		"Newest",
 		"Second",
@@ -22,12 +23,16 @@ describe.skipIf(!databaseTestsEnabled())("portfolio titles", () => {
 		"Other profile",
 		"Rewatch",
 	];
+
 	const ids = names.map((_, index) => `${profile}-${index}`);
+
 	const idAt = (index: number) => {
 		const id = ids[index];
+
 		if (!id) {
 			throw new Error("Missing fixture ID");
 		}
+
 		return id;
 	};
 

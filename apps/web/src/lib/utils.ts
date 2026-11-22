@@ -17,6 +17,7 @@ export const audioLabel = (audio: SeriesCard["audio"] | null | undefined) => {
 	if (sub) {
 		return "Subtitled";
 	}
+
 	return dub ? "Dubbed" : "";
 };
 
@@ -28,6 +29,7 @@ export const pollWhileVisible = (refresh: () => void, intervalMs = 30_000) => {
 			refresh();
 		}
 	};
+
 	const timer = setInterval(check, intervalMs);
 	document.addEventListener("visibilitychange", check);
 
@@ -52,6 +54,7 @@ export const onVisible =
 		);
 
 		observer.observe(node);
+
 		return () => observer.disconnect();
 	};
 
@@ -90,11 +93,13 @@ const menuKeys: Record<string, (index: number, count: number) => number> = {
 
 export const moveMenuFocus = (event: KeyboardEvent & { currentTarget: HTMLElement }) => {
 	const step = menuKeys[event.key];
+
 	const items = [
 		...event.currentTarget.querySelectorAll<HTMLElement>(
 			"a[href], button:not(:disabled), input:not(:disabled)",
 		),
 	].filter((item) => item.checkVisibility());
+
 	if (!step || !items.length) {
 		return;
 	}

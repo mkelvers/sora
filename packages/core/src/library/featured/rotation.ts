@@ -112,9 +112,11 @@ export const isCurrent = (entry: FeaturedEntry, now: Date) => {
 	if (entry.score < currentThresholds.score) {
 		return false;
 	}
+
 	if (entry.status === "RELEASING") {
 		return entry.popularity >= currentThresholds.airingPopularity;
 	}
+
 	return (
 		entry.popularity >= currentThresholds.popularity &&
 		entry.startDate !== null &&
@@ -149,11 +151,14 @@ export const activityOf = (days: readonly ActivityDay[], now: Date): Activity =>
 		const first = dateBefore(now, from);
 		const last = dateBefore(now, to);
 		const inside = days.filter((entry) => entry.day >= first && entry.day < last);
+
 		if (inside.length < minimumDaysPerWindow) {
 			return null;
 		}
+
 		return inside.reduce((sum, entry) => sum + entry.trending, 0) / inside.length;
 	};
+
 	return {
 		past: average(activityWindows.past),
 		recent: average(activityWindows.recent),
@@ -190,19 +195,24 @@ export type Reason = "airing" | "fresh" | "rising";
  */
 export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
 	const reasons: Reason[] = [];
+
 	if (candidate.status === "RELEASING") {
 		reasons.push("airing");
 	}
+
 	const isFresh =
 		candidate.lastAiredAt === null
 			? candidate.startDate !== null && candidate.startDate >= dateBefore(now, freshFor)
 			: now.getTime() - candidate.lastAiredAt.getTime() <= freshFor;
+
 	if (candidate.status !== "RELEASING" && isFresh) {
 		reasons.push("fresh");
 	}
+
 	if (isRising(candidate.activity)) {
 		reasons.push("rising");
 	}
+
 	return reasons;
 };
 
@@ -213,12 +223,15 @@ export const reasonsOf = (candidate: Candidate, now: Date): Reason[] => {
  */
 export const hasNews = (candidate: Candidate, now: Date) => {
 	const { lastPickedAt, lastAiredAt } = candidate;
+
 	if (lastPickedAt === null) {
 		return true;
 	}
+
 	if (lastAiredAt !== null && lastAiredAt > lastPickedAt) {
 		return true;
 	}
+
 	return isRising(candidate.activity) && now.getTime() - lastPickedAt.getTime() >= risingRestFor;
 };
 
@@ -241,6 +254,7 @@ export const shuffle = (
 	candidates
 		.map((candidate) => {
 			const draw = (hash(`${seed}:${rotation}:${candidate.id}`) + 1) / 2 ** 32;
+
 			return {
 				candidate,
 				rank: -Math.log(draw) / weightOf(candidate),
@@ -264,6 +278,7 @@ export const order = (
 ) => {
 	const reasoned = candidates.filter((candidate) => reasonsOf(candidate, now).length > 0);
 	const news = reasoned.filter((candidate) => hasNews(candidate, now));
+
 	const repeats = reasoned
 		.filter((candidate) => !hasNews(candidate, now))
 		.toSorted(
@@ -271,6 +286,7 @@ export const order = (
 				(a.lastPickedAt?.getTime() ?? 0) - (b.lastPickedAt?.getTime() ?? 0) ||
 				a.id.localeCompare(b.id),
 		);
+
 	return {
 		news: shuffle(news, seed, rotation).map(({ id }) => id),
 		repeats: repeats.map(({ id }) => id),
@@ -295,8 +311,10 @@ export const arrange = (
 ) => {
 	const picked = [...new Set(news)].filter(isUsable).slice(0, Math.max(0, featuredCount - shown));
 	const fill = Math.max(0, minimumCount - shown - picked.length);
+
 	const extra = [...new Set(repeats)]
 		.filter((id) => !picked.includes(id) && isUsable(id))
 		.slice(0, fill);
+
 	return [...picked, ...extra];
 };

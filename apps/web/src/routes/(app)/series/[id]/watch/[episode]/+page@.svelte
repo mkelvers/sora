@@ -11,9 +11,11 @@
 		episode: params.episode,
 		seriesId: params.id,
 	});
+
 	const [{ series, episode }, preferences, { profileId, progress }] = $derived(
 		await Promise.all([getEpisode(address), getPlaybackPreferences(), getProgress(address)]),
 	);
+
 	// A non-awaited SSR query can still be pending at hydration, which would
 	// make the browser resolve playback again and bypass the first Retry-After.
 	const playbackQuery = $derived(browser ? getPlayback(address) : undefined);

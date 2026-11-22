@@ -87,23 +87,28 @@ export const fetchThemeSongs = async (anilistId: number): Promise<ThemeSong[]> =
 		method: "POST",
 		signal: AbortSignal.timeout(requestTimeoutMs),
 	});
+
 	if (!response.ok) {
 		throw new Error(`AnimeThemes answered ${response.status}`);
 	}
 
 	const body = ResponseSchema.parse(await response.json());
 	const songs: ThemeSong[] = [];
+
 	for (const anime of body.data.findAnimeByExternalSite) {
 		for (const theme of anime.animethemes) {
 			if (theme.type !== "OP" && theme.type !== "ED") {
 				continue;
 			}
+
 			for (const entry of theme.animethemeentries) {
 				const videos = entry.videos.nodes;
 				const audio = (videos.find((video) => video.nc) ?? videos[0])?.audio;
+
 				if (!audio || songs.some((song) => song.audioUrl === audio.link)) {
 					continue;
 				}
+
 				songs.push({
 					audioUrl: audio.link,
 					episodes: entry.episodes,
@@ -113,6 +118,7 @@ export const fetchThemeSongs = async (anilistId: number): Promise<ThemeSong[]> =
 			}
 		}
 	}
+
 	return songs;
 };
 
@@ -125,11 +131,14 @@ export const playsIn = (episodes: string | null, episode: number) => {
 	if (!episodes?.trim()) {
 		return true;
 	}
+
 	return episodes.split(/[,;]/u).some((part) => {
 		const range = /^\s*(?<from>\d+)\s*-\s*(?<to>\d*)\s*$/u.exec(part)?.groups;
+
 		if (range) {
 			return Number(range.from) <= episode && (!range.to || episode <= Number(range.to));
 		}
+
 		return Number(part.trim()) === episode;
 	});
 };
@@ -147,9 +156,11 @@ export const songsForEpisode = (songs: ThemeSong[], episode: number) =>
 	(["opening", "ending"] as const).flatMap((kind) => {
 		const ofKind = songs.filter((song) => song.kind === kind);
 		const listed = ofKind.filter((song) => playsIn(song.episodes, episode));
+
 		if (listed.length > 0) {
 			return listed;
 		}
+
 		return ofKind.length <= unlistedLimit ? ofKind : [];
 	});
 
@@ -162,11 +173,14 @@ export const songsForEpisode = (songs: ThemeSong[], episode: number) =>
  */
 export const themeSongsFor = async (anime: Anime, episode: number) => {
 	const sequels = anime.relations.filter((relation) => relation.type === "SEQUEL");
+
 	// A season goes on in a series, not in a film or a special.
 	const sequel =
 		sequels.find(({ anime: next }) => next.format === "TV" || next.format === "ONA") ?? sequels[0];
+
 	if (anime.episodes && episode > anime.episodes && sequel) {
 		return songsForEpisode(await fetchThemeSongs(sequel.anime.id), episode - anime.episodes);
 	}
+
 	return songsForEpisode(await fetchThemeSongs(anime.id), episode);
 };

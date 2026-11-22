@@ -31,6 +31,7 @@
 	const extraEvery = 2;
 
 	const series = $derived(await getSeries(params.id));
+
 	const [progress] = $derived(
 		await Promise.all([
 			getSeriesProgress(params.id),
@@ -42,11 +43,14 @@
 			}),
 		]),
 	);
+
 	const current = $derived(series.seasons.find((part) => part.series_id === series.id));
+
 	const subject = $derived.by(() => {
 		if (series.format === "MOVIE") {
 			return "Movie";
 		}
+
 		return current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
 			? "Season"
 			: "Title";
@@ -58,21 +62,27 @@
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
 	const similar = $derived(getSimilarSeries(params.id));
+
 	const alike = $derived.by(() => {
 		if (!similar.current) {
 			return [];
 		}
+
 		const extras = series.related.filter((part) => part.role === "extra").map((part) => part.card);
+
 		const cards = series.related
 			.filter((part) => part.role === "spin_off")
 			.map((part) => part.card);
+
 		for (const [index, card] of similar.current.entries()) {
 			cards.push(card);
 			const extra = index % extraEvery === extraEvery - 1 ? extras.shift() : undefined;
+
 			if (extra) {
 				cards.push(extra);
 			}
 		}
+
 		return [...cards, ...extras];
 	});
 

@@ -89,6 +89,7 @@ describe("isCurrent", () => {
 			startDate: "2026-07-03",
 			status: "RELEASING",
 		};
+
 		expect(isCurrent({ ...entry, popularity: 165_000, score: 67 }, now)).toBe(false);
 		expect(isCurrent({ ...entry, popularity: 5000, score: 80 }, now)).toBe(false);
 	});
@@ -292,6 +293,7 @@ describe("hasNews", () => {
 			past: 300,
 			recent: 900,
 		};
+
 		expect(
 			hasNews(
 				candidate({
@@ -346,12 +348,14 @@ describe("shuffle", () => {
 			},
 			id: "hot",
 		});
+
 		const rotations = Array.from(
 			{
 				length: 200,
 			},
 			(_, rotation) => shuffle([hot, ...candidates.slice(0, 5)], "profile", rotation),
 		);
+
 		const first = rotations.filter((list) => list[0]?.id === "hot").length;
 		expect(first).toBeGreaterThan(100);
 	});
@@ -388,6 +392,7 @@ describe("order", () => {
 			100,
 			now,
 		);
+
 		expect(news).toEqual(["new"]);
 		expect(repeats).toEqual(["older", "same"]);
 	});

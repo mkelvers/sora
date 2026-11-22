@@ -35,12 +35,15 @@ const placeOf = (category: string): Pick<Tag, "group" | "section"> | null => {
 
 	const [kind = "", ...rest] = category.split("-");
 	const path = rest.join("-");
+
 	const groups = {
 		Cast: "cast",
 		Setting: "setting",
 		Theme: "theme",
 	} as const;
+
 	const group = groups[kind as keyof typeof groups];
+
 	if (!group || !path) {
 		return null;
 	}
@@ -49,11 +52,13 @@ const placeOf = (category: string): Pick<Tag, "group" | "section"> | null => {
 	// Sci-Fi is one name with a hyphen in it.
 	const sciFi = "Sci-Fi";
 	let section = path.split("-").at(-1) ?? path;
+
 	if (path === sciFi) {
 		section = sciFi;
 	} else if (path.startsWith(`${sciFi}-`)) {
 		section = path.slice(sciFi.length + 1);
 	}
+
 	return {
 		group,
 		section,
@@ -91,12 +96,14 @@ export const listTags = async (): Promise<Tag[]> => {
 			)
 			.groupBy(animeSearchTag.tag),
 	]);
+
 	const titles = new Map(carried.map((row) => [row.tag, row.titles]));
 	const groupOrder: Tag["group"][] = ["demographic", "theme", "setting", "cast"];
 
 	return (MediaTagCollection ?? [])
 		.flatMap((tag): Tag[] => {
 			const place = tag?.category ? placeOf(tag.category) : null;
+
 			return tag && place && tag.isAdult !== true && titles.has(tag.name)
 				? [
 						{
@@ -122,6 +129,7 @@ export const listTags = async (): Promise<Tag[]> => {
  */
 export const listStudios = async (query?: string): Promise<string[]> => {
 	const studio = sql<string>`studio`;
+
 	const rows = await db
 		.select({
 			studio,

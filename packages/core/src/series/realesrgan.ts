@@ -32,6 +32,7 @@ export const upscale = async (picture: Uint8Array): Promise<Uint8Array> => {
 	}
 
 	const folder = await mkdtemp(path.join(tmpdir(), "sora-upscale-"));
+
 	try {
 		const input = path.join(folder, "in");
 		const output = path.join(folder, "out.png");
@@ -59,7 +60,9 @@ export const upscale = async (picture: Uint8Array): Promise<Uint8Array> => {
 				timeout: timeoutMs,
 			},
 		);
+
 		const [failure, code] = await Promise.all([new Response(child.stderr).text(), child.exited]);
+
 		if (code !== 0) {
 			throw new UpscaleError(`Upscaling failed: ${failure.trim().split("\n").at(-1)}`);
 		}

@@ -16,9 +16,11 @@ const languageNames = new Intl.DisplayNames(["en"], {
  */
 export const languageName = (tag: string) => {
 	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
+
 	if (error) {
 		return null;
 	}
+
 	return data && data !== tag ? data : null;
 };
 

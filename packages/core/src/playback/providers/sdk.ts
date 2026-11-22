@@ -76,6 +76,7 @@ export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEp
 		anime.title.native,
 		...anime.synonyms,
 	].flatMap((title) => (title ? [title] : []));
+
 	if (
 		bestSimilarity(titles, [matchedTitle], {
 			sameNumbers: true,
@@ -133,12 +134,14 @@ export class SdkStreamProvider<
 	 */
 	async findMedia(anime: Anime): Promise<ProviderMatch | null> {
 		const resolution = await this.mapping.resolveProviderMediaId(toSdkMetadata(anime), this.sdk);
+
 		if (!resolution) {
 			return null;
 		}
 
 		if (resolution.method === "fuzzy") {
 			const units = await this.sdk.fetchContentUnits(`${this.id}:${resolution.rawMediaId}`);
+
 			if (!acceptsTitleMatch(anime, resolution.matchedTitle, units.length)) {
 				return null;
 			}
@@ -168,6 +171,7 @@ export class SdkStreamProvider<
 	 */
 	async resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
 		const resolved = await this.sdk.resolveStream(episodeId, language);
+
 		if (resolved.type !== "video") {
 			throw new Error("No video streams returned");
 		}
@@ -175,6 +179,7 @@ export class SdkStreamProvider<
 		const streams = resolved.streams.filter(
 			(stream) => stream.language === undefined || stream.language === language,
 		);
+
 		if (streams.length === 0) {
 			throw new Error("No video streams returned");
 		}
@@ -203,5 +208,6 @@ export class SdkStreamProvider<
  */
 export const rawEpisodeId = (providerId: string, episodeId: string) => {
 	const prefix = `${providerId}:`;
+
 	return episodeId.startsWith(prefix) ? episodeId.slice(prefix.length) : episodeId;
 };

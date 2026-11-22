@@ -18,6 +18,7 @@ const runningJob = () => {
 			values,
 		}),
 	);
+
 	const helpers = {
 		job: {
 			id: "42",
@@ -28,6 +29,7 @@ const runningJob = () => {
 		},
 		query,
 	} as unknown as JobHelpers;
+
 	return {
 		helpers,
 		query,
@@ -39,9 +41,11 @@ const runWrapped = async (run: Task, payload: unknown, helpers: JobHelpers) => {
 	const wrapped = failInvalidPayloads({
 		[task]: run,
 	})[task];
+
 	if (!wrapped) {
 		throw new Error(`${task} is not in the task list`);
 	}
+
 	await wrapped(payload, helpers);
 };
 
@@ -114,6 +118,7 @@ describe("failInvalidPayloads", () => {
 		const { helpers, query } = runningJob();
 		const postgres = new Error('column "no_opening" does not exist');
 		postgres.name = "PostgresError";
+
 		const failedQuery = new Error('Failed query: select "no_opening" from "skip_detection"', {
 			cause: postgres,
 		});

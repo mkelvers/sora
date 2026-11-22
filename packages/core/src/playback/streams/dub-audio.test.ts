@@ -22,17 +22,21 @@ const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVi
 const probing = (playlists: Record<string, string[] | null>, requested: string[] = []) => ({
 	canFetchStream: (url: string) => {
 		requested.push(url);
+
 		return Promise.resolve(!url.includes(".unreachable."));
 	},
 	readPlaylist: (url: string) => {
 		requested.push(url);
 		const languages = playlists[url];
+
 		if (languages === undefined) {
 			return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
 		}
+
 		if (languages === null) {
 			return Promise.reject(new StreamUpstreamError("Upstream throttles", 429));
 		}
+
 		return Promise.resolve({
 			content: masterPlaylist(languages),
 			url,
@@ -133,6 +137,7 @@ describe("withConfirmedDubs", () => {
 			[unit(7, ["sub", "dub"]), unit(8, ["sub"])],
 			(entry) => {
 				checked.push(entry.number);
+
 				return Promise.resolve(true);
 			},
 		);

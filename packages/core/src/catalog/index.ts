@@ -8,5 +8,7 @@
  * share.
  */
 export type { AnimeStatus, AnimeTag } from "./models/anime";
+
 export { BrowseQuerySchema, type BrowseQuery } from "./queries/browse-query";
+
 export { currentSeason, getGenres, listSeasons, nextSeason, type Page } from "./queries/browse";

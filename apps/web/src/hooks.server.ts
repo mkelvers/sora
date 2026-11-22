@@ -41,27 +41,33 @@ const redirectionFor = (event: RequestEvent) => {
 		!event.isDataRequest &&
 		!event.isRemoteRequest &&
 		!openPaths.some((path) => event.url.pathname.startsWith(path));
+
 	if (!isPage) {
 		return null;
 	}
 
 	const here = encodeURIComponent(event.url.pathname + event.url.search);
+
 	if (!event.locals.viewer) {
 		return `/login?redirect=${here}`;
 	}
+
 	if (!event.locals.viewer.profile) {
 		return `/profiles?redirect=${here}`;
 	}
+
 	return null;
 };
 
 const listProfiles = async (sora: SoraClient, token: string) => {
 	const known = knownProfiles.get(token);
+
 	if (known && Date.now() - known.at < 30_000) {
 		return known.profiles;
 	}
 
 	const { data, error: listFailure } = await attempt(sora.request(route.listProfiles), SoraError);
+
 	if (listFailure && listFailure.status !== 401) {
 		throw listFailure;
 	}
@@ -69,6 +75,7 @@ const listProfiles = async (sora: SoraClient, token: string) => {
 	if (knownProfiles.size > 500) {
 		knownProfiles.clear();
 	}
+
 	if (data) {
 		knownProfiles.set(token, {
 			at: Date.now(),
@@ -85,6 +92,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 	event.locals.viewer = null;
 
 	const token = event.cookies.get("sora_session");
+
 	if (token) {
 		const sora = new SoraClient({
 			baseUrl: SORA_API_URL,
@@ -122,6 +130,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 	}
 
 	const destination = redirectionFor(event);
+
 	if (destination) {
 		redirect(303, destination);
 	}
@@ -130,15 +139,18 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		if (!event.locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		if (!event.locals.viewer.profile) {
 			error(403, "Choose a profile first");
 		}
 	}
 
 	const response = await resolve(event);
+
 	if (token && !event.isRemoteRequest && event.request.method !== "GET") {
 		knownProfiles.delete(token);
 	}
+
 	response.headers.set("X-Robots-Tag", "noindex, nofollow");
 	response.headers.set("X-Content-Type-Options", "nosniff");
 	response.headers.set("X-Frame-Options", "DENY");
@@ -148,6 +160,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 		"Permissions-Policy",
 		"camera=(), microphone=(), geolocation=(), payment=()",
 	);
+
 	if (event.url.protocol === "https:") {
 		response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 	}
@@ -157,9 +170,11 @@ const withViewer: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = (input) => {
 	const routeId = input.event.route.id;
+
 	if (routeId === "/live") {
 		return input.resolve(input.event);
 	}
+
 	return returnsToPopup(input.event.url) ? handover() : withViewer(input);
 };
 

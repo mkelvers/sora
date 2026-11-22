@@ -7,6 +7,7 @@ import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ locals, cookies, url }) => {
 	const token = cookies.get("sora_session");
+
 	if (token) {
 		knownProfiles.delete(token);
 	}
@@ -22,6 +23,7 @@ export const POST: RequestHandler = async ({ locals, cookies, url }) => {
 
 	if (locals.viewer) {
 		const { error } = await attempt(locals.viewer.sora.signOut(), SoraError);
+
 		if (error && error.status !== 401) {
 			throw error;
 		}

@@ -153,6 +153,7 @@ const routeUrl = (
 			encodeURIComponent(String(params?.[name])),
 		)}`,
 	);
+
 	for (const [name, value] of Object.entries(query ?? {})) {
 		if (value !== undefined && value !== null) {
 			// A list is comma-separated, and a null in one is how the API spells "none".
@@ -162,6 +163,7 @@ const routeUrl = (
 			);
 		}
 	}
+
 	return url;
 };
 
@@ -209,6 +211,7 @@ export class SoraClient {
 		...[input, options]: Args<TRoute>
 	): Promise<RequestResults<TRoute>> {
 		const body = await this.requestWithMeta(route, ...([input, options] as Args<TRoute>));
+
 		return (
 			body !== undefined && body !== null && typeof body === "object" && "results" in body
 				? body.results
@@ -231,6 +234,7 @@ export class SoraClient {
 			query?: Record<string, unknown>;
 			body?: unknown;
 		};
+
 		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
 
 		const response = await (this.#options.fetch ?? fetch)(url, {
@@ -245,17 +249,20 @@ export class SoraClient {
 			method: route.method.toUpperCase(),
 			signal: options?.signal,
 		});
+
 		if (!response.ok) {
 			throw await SoraError.from(response);
 		}
 
 		const schema = route.responses[response.status]?.content?.["application/json"]?.schema;
+
 		if (!schema) {
 			return undefined as RequestBody<TRoute>;
 		}
 
 		const json = await attempt(response.json());
 		const parsed = json.error ? null : schema.safeParse(json.data);
+
 		if (!parsed?.success) {
 			throw new SoraError(
 				`The API's answer to ${route.method.toUpperCase()} ${route.path} does not match its contract${
@@ -280,6 +287,7 @@ export class SoraClient {
 	 */
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
 		const response = await this.#auth("sign-in/username", credentials, options);
+
 		const signedIn = (await response.json()) as {
 			token: string;
 			user: Session["account"];
@@ -314,6 +322,7 @@ export class SoraClient {
 			},
 			options,
 		);
+
 		const changed = (await response.json()) as {
 			token: string;
 		};

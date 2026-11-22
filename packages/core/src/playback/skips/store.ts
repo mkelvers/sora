@@ -63,8 +63,10 @@ export const isSkipDetectionDue = (stored: StoredSkipDetection | undefined) => {
 	if (!stored) {
 		return true;
 	}
+
 	const settled =
 		stored.songs > 0 && stored.detection.opening !== null && stored.detection.ending !== null;
+
 	return !settled && Date.now() - stored.checkedAt.getTime() >= unsettledRetryMs;
 };
 
@@ -82,11 +84,13 @@ const span = (start: number | null, end: number | null) =>
 /** What is stored for each of `keys` that has been looked at. */
 export const getSkipDetections = async (keys: string[]) => {
 	const found = new Map<string, StoredSkipDetection>();
+
 	if (keys.length === 0) {
 		return found;
 	}
 
 	const rows = await db.select().from(skipDetection).where(inArray(skipDetection.key, keys));
+
 	for (const row of rows) {
 		found.set(row.key, {
 			checkedAt: row.checkedAt,
@@ -97,12 +101,14 @@ export const getSkipDetections = async (keys: string[]) => {
 			songs: row.songs,
 		});
 	}
+
 	return found;
 };
 
 /** Stores what looking for a video's theme songs settled. */
 export const saveSkipDetection = async (key: string, detection: SkipDetection, songs: number) => {
 	const opening = detection.opening === "none" ? null : detection.opening;
+
 	const row = {
 		checkedAt: new Date(),
 		endingEnd: detection.ending?.end ?? null,
@@ -112,6 +118,7 @@ export const saveSkipDetection = async (key: string, detection: SkipDetection, s
 		openingStart: opening?.start ?? null,
 		songs,
 	};
+
 	await db
 		.insert(skipDetection)
 		.values({

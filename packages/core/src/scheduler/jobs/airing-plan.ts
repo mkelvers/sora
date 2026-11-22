@@ -72,11 +72,13 @@ const japanOffsetMs = 9 * hour;
 /** The span of a `YYYY-MM-DD` date in Japan, or `null` for a less precise date. */
 const japanDay = (date: string | null) => {
 	const match = date ? /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/u.exec(date) : null;
+
 	if (!match) {
 		return null;
 	}
 
 	const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - japanOffsetMs;
+
 	return {
 		end: new Date(start + day),
 		start: new Date(start),
@@ -93,6 +95,7 @@ const nextScheduledCheck = (state: AiringState, now: Date): Date => {
 	}
 
 	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
+
 	if (premiereDay && now < premiereDay.end) {
 		return now < premiereDay.start
 			? premiereDay.start
@@ -128,11 +131,14 @@ export const planNextCheck = (
 	const behind =
 		state.latestAiredEpisode !== null &&
 		(state.latestReleasedEpisode ?? 0) < state.latestAiredEpisode;
+
 	const awaitedEpisode = behind ? state.latestAiredEpisode : null;
+
 	const attempt =
 		awaitedEpisode !== null && awaitedEpisode === progress.awaitedEpisode
 			? progress.attempt + 1
 			: 0;
+
 	const retryAt =
 		awaitedEpisode !== null && attempt < maximumReleaseAttempts
 			? new Date(
@@ -155,6 +161,7 @@ export const planNextCheck = (
 	}
 
 	const scheduledAt = nextScheduledCheck(state, now);
+
 	return {
 		attempt,
 		awaitedEpisode,
@@ -178,8 +185,10 @@ export const planNextCheck = (
 export const extendThroughReleased = (latest: number, released: readonly number[]) => {
 	const episodes = new Set(released);
 	let through = latest;
+
 	while (episodes.has(through + 1)) {
 		through += 1;
 	}
+
 	return through;
 };

@@ -208,6 +208,7 @@ describe("notifications across seasons", () => {
 			relation: "PREQUEL",
 			seriesId: announced,
 		});
+
 		return announced;
 	};
 

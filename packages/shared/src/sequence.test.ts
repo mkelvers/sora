@@ -11,6 +11,7 @@ describe("inSequence", () => {
 			started.push(index);
 			await Bun.sleep(delay);
 			finished.push(index);
+
 			return delay * 2;
 		});
 
@@ -25,8 +26,10 @@ describe("inSequence", () => {
 
 	test("stops at the first rejection", async () => {
 		const seen: number[] = [];
+
 		const run = inSequence([1, 2, 3], (item) => {
 			seen.push(item);
+
 			return item === 2 ? Promise.reject(new RangeError("two")) : Promise.resolve(item);
 		});
 
@@ -44,8 +47,10 @@ describe("inSequence", () => {
 describe("firstInSequence", () => {
 	test("stops at the first item that gives a result", async () => {
 		const seen: number[] = [];
+
 		const found = await firstInSequence([1, 2, 3, 4], (item) => {
 			seen.push(item);
+
 			return Promise.resolve(item === 2 ? "two" : undefined);
 		});
 

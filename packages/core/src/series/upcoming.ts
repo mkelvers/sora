@@ -37,6 +37,7 @@ export const startsSoon = (startDate: string | null, now: Date): startDate is st
 
 	const today = now.toISOString().slice(0, 10);
 	const until = new Date(now.getTime() + soonMs).toISOString().slice(0, 10);
+
 	return startDate >= today && startDate <= until;
 };
 
@@ -47,6 +48,7 @@ export const startsSoon = (startDate: string | null, now: Date): startDate is st
  */
 const earliestReleased = async (anilistId: number) => {
 	const { ids: franchise, crossovers, apart } = await franchiseIds(anilistId);
+
 	const rows =
 		franchise.length > 0
 			? await db
@@ -65,25 +67,31 @@ const earliestReleased = async (anilistId: number) => {
 						),
 					)
 			: [];
+
 	const earliestOf = (candidates: typeof rows) => {
 		const opening = candidates.filter(
 			(row) => row.format !== null && openingFormats.has(row.format),
 		);
+
 		return byStartDate((opening.length > 0 ? opening : candidates).map((row) => row.series))[0];
 	};
+
 	// A crossover shares the universe, not the story, so catching up never
 	// starts there unless the franchise's own earliest title is named after it.
 	// A title reached only across a spin-off tells another story, and never does.
 	const own = rows.filter(
 		(row) => !crossovers.has(row.series.anilistId) && !apart.has(row.series.anilistId),
 	);
+
 	const start = earliestOf(own.length > 0 ? own : rows);
+
 	const named = start
 		? rows.filter(
 				(row) =>
 					crossovers.has(row.series.anilistId) && isNamedAfter(start.title, row.series.title),
 			)
 		: [];
+
 	return (named.length > 0 ? earliestOf([...own, ...named]) : start) ?? null;
 };
 
@@ -128,8 +136,10 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 			returning: boolean;
 		}
 	>();
+
 	const soon = unreleased.flatMap((entry) => {
 		const startDate = entry.startDate ? fuzzyDate(entry.startDate) : null;
+
 		return startsSoon(startDate, now)
 			? [
 					{
@@ -139,9 +149,11 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 				]
 			: [];
 	});
+
 	const caughtUp = await Promise.all(
 		soon.map(({ entry }) => earliestReleased(entry.series.anilistId)),
 	);
+
 	for (const [index, { entry, startDate }] of soon.entries()) {
 		const caughtUpOn = caughtUp[index] ?? null;
 		const row = caughtUpOn ?? entry.series;
@@ -160,10 +172,12 @@ export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSerie
 			.toSorted((left, right) => right.popularity - left.popularity)
 			.slice(0, upcomingLimit),
 	);
+
 	const cards = await toSeriesCards(picked.map((title) => title.row));
 
 	return picked.flatMap((title) => {
 		const card = cards.get(title.row.id);
+
 		return card
 			? [
 					{

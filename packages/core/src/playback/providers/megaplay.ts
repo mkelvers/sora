@@ -17,6 +17,7 @@ import type { ProviderTraits } from "./sdk";
  * playback goes through this module instead.
  */
 const encryptionKey = Buffer.concat([Buffer.from("i?LMTAx0Q6,:}50U"), Buffer.alloc(16)]);
+
 const encryptionIv = Buffer.from([
 	87, 48, 59, 50, 55, 84, 111, 97, 85, 112, 108, 95, 80, 37, 39, 99,
 ]);
@@ -85,6 +86,7 @@ const fetchMegaPlaySources = async (
 			Referer: embedReferer,
 		},
 	});
+
 	const embedPage = await embedResponse.text();
 
 	if (embedPage.includes("<title>Error - MegaPlay</title>")) {
@@ -94,12 +96,14 @@ const fetchMegaPlaySources = async (
 	const fileId =
 		/<title>\s*File\s+(?<id>\d+)\s*-/iu.exec(embedPage)?.[1] ??
 		/data-id="(?<id>\d+)"/u.exec(embedPage)?.[1];
+
 	if (!fileId) {
 		throw new Error("MegaPlay embed page has no file ID");
 	}
 
 	const sourcesUrl = new URL("/stream/getSources", embedUrl);
 	sourcesUrl.searchParams.set("id", fileId);
+
 	const response = await http.get(sourcesUrl.toString(), {
 		headers: {
 			Referer: embedUrl,
@@ -116,6 +120,7 @@ const fetchMegaPlaySources = async (
  */
 const decryptSourceFile = (encrypted: string) => {
 	const decipher = createDecipheriv("aes-256-cbc", encryptionKey, encryptionIv);
+
 	const plain = Buffer.concat([
 		decipher.update(Buffer.from(encrypted, "base64")),
 		decipher.final(),
@@ -130,12 +135,14 @@ const decryptSourceFile = (encrypted: string) => {
  */
 const skipSegments = ({ intro, outro }: MegaPlaySources): SkipSegment[] => {
 	const segments: SkipSegment[] = [];
+
 	if (intro && intro.end > intro.start) {
 		segments.push({
 			kind: "opening",
 			...intro,
 		});
 	}
+
 	if (outro && outro.end > outro.start) {
 		segments.push({
 			kind: "ending",
@@ -170,6 +177,7 @@ const regionSubtags: Record<string, string> = {
  */
 export const subtitleLanguage = (label: string) => {
 	const regional = /^(?<language>.+?)\s*\(\s*-\s*.*\((?<region>[^()]+)\)\s*\)$/u.exec(label.trim());
+
 	if (!regional?.[1] || !regional[2]) {
 		return labelToBcp47(
 			label
@@ -181,6 +189,7 @@ export const subtitleLanguage = (label: string) => {
 
 	const language = labelToBcp47(regional[1]);
 	const region = regionSubtags[regional[2].trim().toLowerCase()];
+
 	return region ? `${language}-${region}` : language;
 };
 
@@ -202,6 +211,7 @@ export const resolveMegaPlayEmbed = async (
 	const body = await fetchMegaPlaySources(http, embedUrl, embedReferer, language);
 
 	const file = body.sources?.file ?? (body.enc ? decryptSourceFile(body.enc) : null);
+
 	if (!file) {
 		throw new Error("MegaPlay returned no source URL");
 	}
@@ -248,6 +258,7 @@ export class MegaPlayStreamProvider extends SdkStreamProvider {
 	override resolveStream(episodeId: string, language: ContentLanguage): Promise<ProviderStream> {
 		// Raw episode IDs are `<anilistId>:<episode>`.
 		const [anilistId, episode] = rawEpisodeId(this.id, episodeId).split(":");
+
 		return resolveMegaPlayEmbed(
 			this.http,
 			`https://megaplay.buzz/stream/ani/${anilistId}/${episode}/${language}`,

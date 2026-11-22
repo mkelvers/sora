@@ -33,6 +33,7 @@ describe("franchiseParts", () => {
 				currentId: 10_015,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-481",
 			"series-10015",
@@ -53,6 +54,7 @@ describe("franchiseParts", () => {
 				currentId: 9253,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-9253",
 			"series-10863",
@@ -81,6 +83,7 @@ describe("franchiseParts", () => {
 				currentId: 14_719,
 			},
 		);
+
 		expect(titlesOf(parts)).toEqual(["Season 1", "Stardust Crusaders", "Thus Spoke Rohan Kishibe"]);
 		expect(parts[0]?.next_series_id).toBe("series-20474");
 	});
@@ -105,6 +108,7 @@ describe("franchiseParts", () => {
 				currentId: 665,
 			},
 		);
+
 		expect(parts.filter((part) => part.role === "season").map((part) => part.series_id)).toEqual([
 			"series-14719",
 			"series-20474",
@@ -125,6 +129,7 @@ describe("franchiseParts", () => {
 				[2, 3],
 			],
 		);
+
 		expect(parts.every((part) => part.role === "season")).toBe(true);
 		expect(parts[0]?.next_series_id).toBe("series-2");
 	});
@@ -134,6 +139,7 @@ describe("franchiseParts", () => {
 			[title(2, "Show: Prequel", "OVA", "2015-01-01"), title(1, "Show", "TV", "2020-01-01")],
 			[[2, 1]],
 		);
+
 		expect(parts.map((part) => part.role)).toEqual(["season", "extra"]);
 		expect(parts[1]?.next_series_id).toBeNull();
 	});
@@ -155,6 +161,7 @@ describe("franchiseParts", () => {
 			],
 			{ alternatives: [[2, 3]], summaries: [5] },
 		);
+
 		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2"]);
 		expect(parts[0]?.next_series_id).toBe("series-3");
 	});
@@ -202,6 +209,7 @@ describe("franchiseParts", () => {
 			],
 			{ alternatives: [[2, 3]], currentId: 2 },
 		);
+
 		expect(titlesOf(parts)).toEqual(["Season 1", "Arc", "Season 2", "Movie"]);
 		expect(parts[0]?.next_series_id).toBe("series-3");
 		expect(parts[3]?.role).toBe("alternative");
@@ -215,6 +223,7 @@ describe("franchiseParts", () => {
 			],
 			[[1, 2]],
 		);
+
 		expect(parts[1]?.title).toBe("Season 4 Part 3");
 		expect(franchiseParts([title(1, "Show Season 2", "TV", "2020-01-01")], [])[0]?.title).toBe(
 			"Season 2",
@@ -347,6 +356,7 @@ describe("franchiseParts", () => {
 				alternatives: [[1, 5]],
 			},
 		);
+
 		expect(parts.map((part) => [part.series_id, part.role])).toEqual([
 			["series-1", "season"],
 			["series-2", "season"],
@@ -369,6 +379,7 @@ describe("franchiseParts", () => {
 				alternatives: [[1, 2]],
 			},
 		);
+
 		expect(parts.find((part) => part.series_id === "series-2")?.role).not.toBe("season");
 	});
 
@@ -380,6 +391,7 @@ describe("franchiseParts", () => {
 			title(4, "Rascal Does Not Dream of a Knapsack Kid", "MOVIE", "2023-12-01"),
 			title(5, "Rascal Does Not Dream of Santa Claus", "TV", "2025-07-05"),
 		];
+
 		const parts = franchiseParts(
 			titles,
 			[
@@ -407,17 +419,20 @@ describe("franchiseParts", () => {
 			title(182_896, "My Hero Academia FINAL SEASON", "TV", "2025-10-04"),
 			title(195_322, "My Hero Academia: Vigilantes Season 2", "TV", "2026-01-05"),
 		];
+
 		const sequels = [
 			[21_459, 163_139],
 			[163_139, 182_896],
 			[185_736, 195_322],
 		] as const;
+
 		const spinOffs = [[21_459, 185_736]] as const;
 
 		const original = franchiseParts(titles, sequels, {
 			currentId: 21_459,
 			spinOffs,
 		});
+
 		expect(original.map((part) => [part.title, part.role])).toEqual([
 			["Season 1", "season"],
 			["Season 7", "season"],
@@ -431,6 +446,7 @@ describe("franchiseParts", () => {
 			currentId: 195_322,
 			spinOffs,
 		});
+
 		expect(spinOff.filter((part) => part.role === "season").map((part) => part.title)).toEqual([
 			"Season 1",
 			"Season 2",
@@ -450,6 +466,7 @@ describe("franchiseParts", () => {
 				currentId: 156_907,
 			},
 		);
+
 		expect(parts.find((part) => part.role === "season")?.series_id).toBe("series-124960");
 	});
 
@@ -491,6 +508,7 @@ describe("franchiseParts", () => {
 			],
 			[[1, 2]],
 		);
+
 		expect(titlesOf(parts).slice(0, 2)).toEqual(["Part 1", "Part 2"]);
 		expect(titlesOf(parts)).toContain("The Seven Deadly Sins: Grudge of Edinburgh x Crossover");
 	});
@@ -507,6 +525,7 @@ describe("franchiseParts", () => {
 				[2, 3],
 			],
 		);
+
 		expect(titlesOf(parts)).toEqual(["Season 1", "Zoku-hen", "Season 2"]);
 	});
 });

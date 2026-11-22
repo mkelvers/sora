@@ -28,6 +28,7 @@ const get = (routes: ReturnType<typeof app>, account = "a") =>
 
 const statusOf = async (routes: ReturnType<typeof app>, account = "a") => {
 	const response = await get(routes, account);
+
 	return response.status;
 };
 
@@ -65,12 +66,14 @@ describe("rateLimit", () => {
 				}),
 			)
 			.get("/", (c) => c.text("ok"));
+
 		const fromAddress = async (address: string) => {
 			const response = await routes.request("/", {
 				headers: {
 					"x-address": address,
 				},
 			});
+
 			return response.status;
 		};
 

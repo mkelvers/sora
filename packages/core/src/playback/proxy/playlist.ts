@@ -42,6 +42,7 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 		.split(/\r?\n/u)
 		.map((line) => {
 			const trimmed = line.trim();
+
 			if (!trimmed) {
 				return line;
 			}
@@ -51,6 +52,7 @@ export const rewritePlaylist = (content: string, playlistUrl: string, sign: Play
 			}
 
 			const kind = tagUriKind(trimmed);
+
 			if (!kind) {
 				return line;
 			}
@@ -88,9 +90,11 @@ const withAttribute = (tag: string, pattern: RegExp, name: string, value: string
 export const audioLanguages = (content: string) =>
 	content.split(/\r?\n/u).flatMap((line) => {
 		const tag = line.trim();
+
 		if (!audioRenditionPattern.test(tag)) {
 			return [];
 		}
+
 		return [renditionLanguagePattern.exec(tag)?.groups?.language ?? ""];
 	});
 
@@ -106,9 +110,11 @@ export const audioLanguages = (content: string) =>
 export const withDefaultAudio = (content: string, locale: string) => {
 	const lines = content.split(/\r?\n/u);
 	const chosen = new Map<string, number>();
+
 	for (const [index, line] of lines.entries()) {
 		const tag = line.trim();
 		const language = renditionLanguagePattern.exec(tag)?.groups?.language;
+
 		if (
 			audioRenditionPattern.test(tag) &&
 			language &&
@@ -122,10 +128,13 @@ export const withDefaultAudio = (content: string, locale: string) => {
 	return lines
 		.map((line, index) => {
 			const tag = line.trim();
+
 			if (!audioRenditionPattern.test(tag) || !chosen.has(groupOf(tag))) {
 				return line;
 			}
+
 			const value = chosen.get(groupOf(tag)) === index ? "YES" : "NO";
+
 			return withAttribute(
 				withAttribute(tag, defaultAttributePattern, "DEFAULT", value),
 				autoselectAttributePattern,

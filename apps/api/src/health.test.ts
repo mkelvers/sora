@@ -34,6 +34,7 @@ const failingJobs = () => Promise.resolve([lookUpEpisodes]);
 
 const probe = async (routes: ReturnType<typeof healthRoutes>) => {
 	const response = await routes.request("/");
+
 	return {
 		body: (await response.json()) as {
 			status: string;
@@ -96,13 +97,16 @@ describe("/health", () => {
 
 	test("tells anonymous requests nothing but that it is ok, and reads neither providers nor jobs for them", async () => {
 		let loads = 0;
+
 		const routes = healthRoutes({
 			failingJobs: () => {
 				loads += 1;
+
 				return failingJobs();
 			},
 			providers: () => {
 				loads += 1;
+
 				return providers();
 			},
 		});
@@ -118,13 +122,16 @@ describe("/health", () => {
 
 	test("reads providers and jobs on every signed-in probe", async () => {
 		let loads = 0;
+
 		const routes = healthRoutes({
 			failingJobs: () => {
 				loads += 1;
+
 				return failingJobs();
 			},
 			providers: () => {
 				loads += 1;
+
 				return providers();
 			},
 			signedIn,

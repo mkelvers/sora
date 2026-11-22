@@ -54,6 +54,7 @@ export const servedLocale = "en";
 /** Whether a subtitle track is in {@link servedLocale}, by its BCP 47 tag or its label. */
 export const isServedSubtitle = (track: { language: string; label: string }) => {
 	const language = track.language.trim().toLowerCase();
+
 	return (
 		/^en(?:-|_|$)/u.test(language) ||
 		language.startsWith("english") ||

@@ -29,11 +29,13 @@ export const actions: Actions = {
 		}
 
 		const form = await request.formData();
+
 		const passwords = Passwords.safeParse({
 			confirmPassword: form.get("confirmPassword") ?? "",
 			currentPassword: form.get("currentPassword") ?? "",
 			newPassword: form.get("newPassword") ?? "",
 		});
+
 		if (!passwords.success) {
 			const { fieldErrors } = z.flattenError(passwords.error);
 
@@ -61,6 +63,7 @@ export const actions: Actions = {
 			),
 			SoraError,
 		);
+
 		if (rejected?.code === "INVALID_PASSWORD") {
 			return fail(400, {
 				errors: {
@@ -70,6 +73,7 @@ export const actions: Actions = {
 				},
 			});
 		}
+
 		if (rejected?.status === 429) {
 			return fail(429, {
 				errors: {
@@ -79,14 +83,17 @@ export const actions: Actions = {
 				},
 			});
 		}
+
 		if (rejected) {
 			throw rejected;
 		}
 
 		const previous = cookies.get("sora_session");
+
 		if (previous) {
 			knownProfiles.delete(previous);
 		}
+
 		cookies.set("sora_session", data.token, {
 			httpOnly: true,
 			maxAge: 90 * 24 * 60 * 60,

@@ -11,17 +11,21 @@ import { labelPrompt, stillLabels, stillModel, unitLength } from "./still-model"
 
 const prompts = stillLabels.map(labelPrompt);
 const tokenizer = await AutoTokenizer.from_pretrained(stillModel);
+
 const text = await CLIPTextModelWithProjection.from_pretrained(stillModel, {
 	dtype: "fp32",
 });
+
 const { text_embeds: embeds } = await text(
 	tokenizer(prompts, {
 		padding: true,
 		truncation: true,
 	}),
 );
+
 const [, width = 0] = embeds.dims;
 const values = [...(embeds.data as Float32Array)];
+
 const embeddings = prompts.map((_prompt, index) =>
 	unitLength(values.slice(index * width, (index + 1) * width)).map((value) =>
 		Number(value.toPrecision(8)),
@@ -36,4 +40,5 @@ await writeFile(
 		model: stillModel,
 	})}\n`,
 );
+
 console.log(`Embedded ${prompts.length} labels with ${stillModel}`);

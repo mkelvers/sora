@@ -35,13 +35,18 @@ export const syncProviderCatalogs: Task = async (rawPayload, helpers) => {
 				full: payload?.full === true,
 			}),
 		);
+
 		if (error) {
 			helpers.logger.warn(`Provider ${provider.id} failed to sync its catalogue: ${error.message}`);
+
 			return [provider.id];
 		}
+
 		helpers.logger.info(data);
+
 		return [];
 	});
+
 	const failed = outcomes.flat();
 
 	if (failed.length > 0) {

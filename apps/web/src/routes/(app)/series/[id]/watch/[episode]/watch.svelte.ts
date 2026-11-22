@@ -43,6 +43,7 @@ const subscribeFullscreen = createSubscriber((update) => {
 
 const qualitiesOf = (levels: Level[]) => {
 	const best = new Map<number, number>();
+
 	for (const [index, level] of levels.entries()) {
 		if (level.height > 0) {
 			best.set(level.height, index);
@@ -79,6 +80,7 @@ export class Player {
 
 	chosen = $derived.by(() => {
 		const { quality } = this;
+
 		if (quality === null) {
 			return;
 		}
@@ -142,6 +144,7 @@ export class Player {
 		}
 
 		this.quality = height;
+
 		if (this.#instance) {
 			this.#instance.nextLevel = this.chosen?.level ?? -1;
 		}
@@ -149,6 +152,7 @@ export class Player {
 
 	get fullscreen() {
 		subscribeFullscreen();
+
 		return this.root !== undefined && document.fullscreenElement === this.root;
 	}
 
@@ -196,23 +200,28 @@ export class Player {
 
 	onkeydown = (event: KeyboardEvent) => {
 		const target = event.target instanceof Element ? event.target : null;
+
 		if (!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
 			return;
 		}
 
 		const inPlayer = target === document.body || this.root?.contains(target);
+
 		const inFieldOrMenu = target.closest(
 			'textarea, [contenteditable], input:not([type="range"]), :popover-open',
 		);
+
 		const controlOwnsKey =
 			target.matches(":focus-visible") &&
 			(target.matches('input[type="range"]') || (event.key === " " && target.closest("button, a")));
+
 		if (!inPlayer || inFieldOrMenu || controlOwnsKey) {
 			return;
 		}
 
 		const toggle = () => (this.paused = !this.paused);
 		const { next, previous } = this.#episodes();
+
 		const action =
 			{
 				" ": toggle,
@@ -241,8 +250,10 @@ export class Player {
 		if (this.paused === video.paused) {
 			return;
 		}
+
 		if (this.paused) {
 			video.pause();
+
 			return;
 		}
 
@@ -251,6 +262,7 @@ export class Player {
 
 	async #play(video: HTMLVideoElement) {
 		const { error } = await attempt(video.play(), DOMException);
+
 		if (error && error.name !== "AbortError") {
 			this.paused = true;
 		}
@@ -260,6 +272,7 @@ export class Player {
 		(source: Source | undefined): Attachment<HTMLVideoElement> =>
 		(video) => {
 			void this.#reloads;
+
 			if (!source) {
 				return;
 			}
@@ -268,6 +281,7 @@ export class Player {
 			this.#resume = undefined;
 
 			let stop: (() => void) | undefined;
+
 			if (source.format === "hls") {
 				stop = this.#hls(video, source.url, start);
 			} else {
@@ -288,11 +302,14 @@ export class Player {
 
 		void (async () => {
 			const loaded = await loadHls();
+
 			if (detached) {
 				return;
 			}
+
 			if (loaded.error || !loaded.data.default.isSupported()) {
 				playDirect(video, url, start);
+
 				return;
 			}
 
@@ -328,6 +345,7 @@ export class Player {
 			hls.on(Hls.Events.MANIFEST_PARSED, () => {
 				const levels = hls?.levels ?? [];
 				this.qualities = qualitiesOf(levels);
+
 				if (hls && this.chosen) {
 					hls.nextLevel = this.chosen.level;
 				}
@@ -338,6 +356,7 @@ export class Player {
 				if (!data.fatal) {
 					return;
 				}
+
 				if (data.type === Hls.ErrorTypes.MEDIA_ERROR && performance.now() - recovered > 5000) {
 					recovered = performance.now();
 					hls?.recoverMediaError();
@@ -362,15 +381,19 @@ export class Player {
 		(shown: boolean): Attachment<HTMLTrackElement> =>
 		(element) => {
 			const { track } = element;
+
 			if (!shown) {
 				track.mode = "disabled";
+
 				return;
 			}
 
 			track.mode = "hidden";
+
 			const update = () => {
 				this.cues = [...(track.activeCues ?? [])] as VTTCue[];
 			};
+
 			track.addEventListener("cuechange", update);
 
 			return () => {

@@ -12,6 +12,7 @@ export const refreshStaleAnimeTask = "refresh-stale-anime";
  */
 export const refreshStaleAnimeJob: Task = async (_payload, helpers) => {
 	const { refreshed, skipped } = await refreshStaleAnime();
+
 	if (refreshed + skipped > 0) {
 		helpers.logger.info(`Refreshed ${refreshed} stale anime; ${skipped} are gone from AniList`);
 	}
@@ -23,6 +24,7 @@ export const storeTitleFactsTask = "store-title-facts";
 /** Fetches TMDB's certification and IMDb's awards for titles that have none, or old ones. */
 export const storeTitleFactsJob: Task = async (_payload, helpers) => {
 	const { stored, awarded } = await storeTitleFacts();
+
 	if (stored > 0) {
 		helpers.logger.info(`Stored facts of ${stored} titles, ${awarded} with awards`);
 	}

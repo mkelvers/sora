@@ -34,6 +34,7 @@ export const setWatchlistStatus = command(
 	}),
 	async ({ seriesId, status }) => {
 		const { sora, profile } = remoteViewer();
+
 		const params = {
 			profile_id: profile.id,
 			series_id: seriesId,

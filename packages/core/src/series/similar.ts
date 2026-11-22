@@ -40,6 +40,7 @@ const shownFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
  */
 export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> => {
 	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+
 	if (!row) {
 		throw new SeriesNotFoundError(seriesId);
 	}
@@ -56,7 +57,9 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 				with ordinality as recommendation(node, position)
 		where ${anime.anilistId} in ${own}
 	`)) as unknown as { anilistId: number; rank: number }[];
+
 	const scoreOf = new Map<number, number>();
+
 	for (const { anilistId, rank } of recommended) {
 		scoreOf.set(anilistId, (scoreOf.get(anilistId) ?? 0) + perTitle - rank);
 	}
@@ -67,6 +70,7 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 		})
 		.from(series)
 		.where(inArray(series.anilistId, franchise));
+
 	const candidates =
 		scoreOf.size === 0
 			? []
@@ -83,10 +87,13 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 							not(inArray(series.key, excludedKeys)),
 						),
 					);
+
 	const scoreOfKey = new Map<string, number>();
+
 	for (const { anilistId, key } of candidates) {
 		scoreOfKey.set(key, (scoreOfKey.get(key) ?? 0) + (scoreOf.get(anilistId) ?? 0));
 	}
+
 	if (scoreOfKey.size === 0) {
 		return [];
 	}
@@ -107,7 +114,9 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 			),
 		)
 		.orderBy(asc(series.startDate), asc(series.anilistId));
+
 	const earliest = new Map<string, (typeof shown)[number]>();
+
 	for (const title of shown) {
 		if (!earliest.has(title.row.key)) {
 			earliest.set(title.row.key, title);
@@ -119,10 +128,13 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 			(scoreOfKey.get(right.row.key) ?? 0) - (scoreOfKey.get(left.row.key) ?? 0) ||
 			(right.popularity ?? 0) - (left.popularity ?? 0),
 	);
+
 	const cards = await toSeriesCards(ranked.map(({ row: title }) => title));
+
 	return ranked
 		.flatMap(({ row: title }) => {
 			const card = cards.get(title.id);
+
 			return card && card.audio.length > 0 ? [card] : [];
 		})
 		.slice(0, similarLimit);

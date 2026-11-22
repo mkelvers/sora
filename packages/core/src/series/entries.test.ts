@@ -88,6 +88,7 @@ test("leaves the length of an entry that has not aired unknown", () => {
 		},
 		status: "NOT_YET_RELEASED",
 	};
+
 	const airing: FranchiseEntryFragment = {
 		...upcoming,
 		nextAiringEpisode: {

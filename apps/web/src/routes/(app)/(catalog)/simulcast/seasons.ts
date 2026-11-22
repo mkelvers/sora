@@ -12,6 +12,7 @@ export const listSeasons = async (sora: SoraClient) => {
 		label: name(option),
 		slug: `${option.season.toLowerCase()}-${option.year}`,
 	}));
+
 	const current = seasons.find(
 		(option) =>
 			option.season === listing.meta.current.season && option.year === listing.meta.current.year,

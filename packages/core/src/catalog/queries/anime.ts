@@ -32,7 +32,9 @@ export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadc
 			maxAgeMs: 0,
 		},
 	);
+
 	const latest = Page?.airingSchedules?.[0];
+
 	return latest
 		? {
 				airingAt: fromUnixSeconds(latest.airingAt),
@@ -62,11 +64,13 @@ const settleStatus = async (media: AnimeDetailsFragment): Promise<AnimeDetailsFr
 	}
 
 	const latest = await fetchLatestAiring(media.id);
+
 	if (!latest || latest.episode < media.episodes) {
 		return media;
 	}
 
 	const aired = new Date(Date.parse(latest.airingAt) + japanOffsetMs);
+
 	return {
 		...media,
 		endDate: media.endDate?.year
@@ -106,6 +110,7 @@ const loadAnimeDetails = loadMediaById({
 const fetchAnimeDetails = async (anilistId: number) => {
 	const details = await loadAnimeDetails([anilistId]);
 	const media = details.get(anilistId);
+
 	if (!media || media.isAdult) {
 		throw new AnimeNotFoundError(anilistId);
 	}
@@ -141,14 +146,17 @@ export const mayGainEpisodes = (
 		case "HIATUS": {
 			return true;
 		}
+
 		case "FINISHED": {
 			const end = media.endDate;
+
 			if (!end?.year || !end.month || !end.day) {
 				return false;
 			}
 
 			return now.getTime() - Date.UTC(end.year, end.month - 1, end.day) < recentlyFinishedMs;
 		}
+
 		default: {
 			return false;
 		}
@@ -245,15 +253,18 @@ export const refreshStaleAnime = async () => {
 		// newest field the fragment asks for.
 		.where(sql`not (${animeTable.media} -> 'studios' ? 'edges')`)
 		.limit(staleBatch);
+
 	const gone: number[] = [];
 	await Promise.all(
 		stale.map(async ({ anilistId }) => {
 			const { error } = await attempt(refreshAnime(anilistId), AnimeNotFoundError);
+
 			if (error) {
 				gone.push(anilistId);
 			}
 		}),
 	);
+
 	if (gone.length > 0) {
 		await db
 			.update(animeTable)

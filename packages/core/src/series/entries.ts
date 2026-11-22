@@ -77,6 +77,7 @@ const remember = (id: number, entry: FranchiseEntry | null) => {
 
 	// Maps iterate in insertion order, so the first key is the oldest.
 	const oldest = recentEntries.keys().next();
+
 	if (recentEntries.size > recentEntryLimit && !oldest.done) {
 		recentEntries.delete(oldest.value);
 	}
@@ -89,8 +90,10 @@ const isServed = (entry: FranchiseEntry) => !entry.isAdult && entry.format !== "
 const fetchAndRemember = async (ids: readonly number[], load: typeof loadFranchiseEntries) => {
 	const loaded = await load(ids);
 	const asked = new Set(ids);
+
 	for (const id of ids) {
 		const media = loaded.get(id);
+
 		if (!media) {
 			remember(id, null);
 			continue;
@@ -103,6 +106,7 @@ const fetchAndRemember = async (ids: readonly number[], load: typeof loadFranchi
 		// need no request of their own.
 		for (const edge of neighbours?.edges ?? []) {
 			const neighbour = edge?.node;
+
 			if (neighbour?.type === "ANIME" && !asked.has(neighbour.id)) {
 				const { type: _type, ...neighbourEntry } = neighbour;
 				remember(neighbour.id, isServed(neighbourEntry) ? neighbourEntry : null);
@@ -130,17 +134,22 @@ export const loadEntries = async (
 	load: typeof loadFranchiseEntries = loadFranchiseEntries,
 ): Promise<Map<number, FranchiseEntry>> => {
 	const wanted = [...new Set(ids)];
+
 	const missing = wanted.filter((id) => {
 		const recent = recentEntries.get(id);
+
 		return !recent || recent.loadedAt + entryLifetimeMs <= Date.now();
 	});
+
 	if (missing.length > 0) {
 		await fetchAndRemember(missing, load);
 	}
 
 	const entries = new Map<number, FranchiseEntry>();
+
 	for (const id of wanted) {
 		const entry = recentEntries.get(id)?.entry;
+
 		if (entry) {
 			entries.set(id, entry);
 		}
@@ -173,6 +182,7 @@ export const primaryTitlesOf = (entry: FranchiseEntry) => {
  */
 export const toMatchSubject = (entry: FranchiseEntry, now: Date): MatchSubject => {
 	const primaryTitles = primaryTitlesOf(entry);
+
 	const synonyms = (entry.synonyms ?? []).filter(
 		(synonym): synonym is string => Boolean(synonym) && !primaryTitles.includes(synonym ?? ""),
 	);

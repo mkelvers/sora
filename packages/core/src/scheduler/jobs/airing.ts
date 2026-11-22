@@ -74,6 +74,7 @@ const refreshProviderEpisodes = async (anime: Anime, logger: Parameters<Task>[1]
 				retryUnmatched: true,
 			}),
 		);
+
 		if (error) {
 			logger.warn(`Provider ${provider.id} failed for anime ${anime.id}: ${error.message}`);
 		}
@@ -106,15 +107,18 @@ const layoutInputs = ({
 const latestAiredEpisode = async (anime: Anime): Promise<AiringState["latestAiredEpisode"]> => {
 	const fromNext =
 		anime.nextEpisode && anime.nextEpisode.number > 1 ? anime.nextEpisode.number - 1 : null;
+
 	const fromStatus = anime.status === "FINISHED" ? anime.episodes : null;
 	const latestAiring = await fetchLatestAiring(anime.id);
 	const scheduled = latestAiring?.episode ?? null;
 	const known = [fromNext, fromStatus, scheduled].filter((episode) => episode !== null);
+
 	if (known.length === 0) {
 		return null;
 	}
 
 	const latest = Math.max(...known);
+
 	const released = await db
 		.selectDistinct({
 			episode: animeScheduleRelease.episode,
@@ -129,6 +133,7 @@ const latestAiredEpisode = async (anime: Anime): Promise<AiringState["latestAire
 				lte(animeScheduleRelease.airsAt, new Date()),
 			),
 		);
+
 	return extendThroughReleased(
 		latest,
 		released.map((release) => release.episode),
@@ -153,14 +158,18 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	const payload = parsePayload(TrackAiringPayloadSchema, rawPayload);
 
 	const before = await attempt(getAnime(payload.anilistId), AnimeNotFoundError);
+
 	if (before.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+
 		return;
 	}
 
 	const anime = await attempt(refreshAnime(payload.anilistId), AnimeNotFoundError);
+
 	if (anime.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
+
 		return;
 	}
 
@@ -168,6 +177,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 	const releasedBefore = episodesBefore.latest;
 	await refreshProviderEpisodes(anime.data, helpers.logger);
 	const onAniKoto = await readAniKotoEpisodes(anime.data.id);
+
 	if (
 		onAniKoto.latest !== releasedBefore ||
 		JSON.stringify(layoutInputs(anime.data)) !== JSON.stringify(layoutInputs(before.data))
@@ -191,6 +201,7 @@ export const trackAiring: Task = async (rawPayload, helpers) => {
 
 	if (plan.done) {
 		helpers.logger.info(`Anime ${anime.data.id} has finished airing; no longer tracking it`);
+
 		return;
 	}
 

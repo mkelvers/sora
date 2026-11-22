@@ -49,6 +49,7 @@ const sortOrders: Record<NonNullable<z.infer<typeof BrowseQuerySchema>["sort"]>,
  */
 export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> => {
 	const parsed = BrowseQuerySchema.safeParse(query);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid browse query", {
 			cause: parsed.error,
@@ -57,6 +58,7 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 
 	const input = parsed.data;
 	let sort: MediaSort[] = sortOrders.trending;
+
 	if (input.sort) {
 		sort = sortOrders[input.sort];
 	} else if (input.search) {
@@ -159,6 +161,7 @@ export const listSeasons = async (now = new Date()): Promise<AnimeSeason[]> => {
 	return rows
 		.flatMap((row): AnimeSeason[] => {
 			const season = seasonOrder.find((name) => name === row.season);
+
 			return season && row.year !== null
 				? [
 						{

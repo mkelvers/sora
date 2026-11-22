@@ -31,15 +31,18 @@ const latest = (units: readonly ProviderUnit[]) => units.at(-1)?.number ?? 0;
  */
 const refreshAniKotoEpisodes = async (anilistId: number): Promise<ProviderUnit[] | null> => {
 	const { data, error } = await attempt(getAnime(anilistId), AnimeNotFoundError);
+
 	if (error) {
 		return null;
 	}
 
 	const storedUnits = await getStoredUnits([anilistId]);
 	const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
+
 	const units = await refreshProviderUnits(data, aniKoto, {
 		retryUnmatched: true,
 	});
+
 	if (latest(units) > latest(stored?.units ?? [])) {
 		await scheduleStoredSeriesRefresh(anilistId);
 	}
@@ -65,7 +68,9 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 		providerHttp,
 		new Date(Date.now() - changeWindowMs),
 	);
+
 	const changedAt = new Map(changes.map((change) => [String(change.anikotoId), change.updatedAt]));
+
 	const mapped = changes.length
 		? await db
 				.select({
@@ -82,12 +87,15 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 		: [];
 
 	const updatedAt = new Map<number, Date>();
+
 	for (const { anilistId, anikotoId } of mapped) {
 		const at = anikotoId === null ? undefined : changedAt.get(anikotoId);
+
 		if (at) {
 			updatedAt.set(anilistId, at);
 		}
 	}
+
 	// AniKoto names the AniList entry of a series it just added, which may not
 	// be matched to it yet.
 	for (const change of changes) {
@@ -97,6 +105,7 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 	}
 
 	const ids = [...updatedAt.keys()];
+
 	if (ids.length === 0) {
 		return;
 	}
@@ -127,20 +136,25 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 				and(eq(providerMapping.provider, aniKoto.id), inArray(providerMapping.anilistId, ids)),
 			),
 	]);
+
 	const checkedAt = new Map([...resolved, ...fetched].map((row) => [row.anilistId, row.at]));
 
 	await inSequence(stored, async ({ anilistId }) => {
 		const checked = checkedAt.get(anilistId);
 		const changed = updatedAt.get(anilistId);
+
 		if (checked && changed && checked >= changed) {
 			return;
 		}
 
 		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+
 		if (error) {
 			logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
+
 			return;
 		}
+
 		logger.info(`AniKoto changed anime ${anilistId}; it now carries ${data?.length ?? 0} episodes`);
 	});
 };
@@ -169,6 +183,7 @@ const pickUpAniKotoChanges = async (logger: Parameters<Task>[1]["logger"]) => {
 		done,
 		startedAt: Date.now(),
 	};
+
 	return await done;
 };
 
@@ -231,11 +246,13 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 
 	if (mapping?.anikotoId) {
 		const { error } = await attempt(pickUpAniKotoChanges(helpers.logger));
+
 		if (error) {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
 		}
 	} else {
 		const { data, error } = await attempt(refreshAniKotoEpisodes(anilistId));
+
 		if (error) {
 			helpers.logger.warn(`AniKoto failed for anime ${anilistId}: ${error.message}`);
 		} else if (data === null) {
@@ -245,16 +262,19 @@ export const pollAniKoto: Task = async (rawPayload, helpers) => {
 
 	const storedUnits = await getStoredUnits([anilistId]);
 	const stored = storedUnits.find((entry) => entry.provider === aniKoto.id);
+
 	if (
 		stored?.units.some(
 			(unit) => unit.number >= episode && (language === "sub" || unit.languages?.includes("dub")),
 		)
 	) {
 		helpers.logger.info(`AniKoto carries episode ${episode} (${language}) of anime ${anilistId}`);
+
 		return;
 	}
 
 	const delay = aniKotoPollDelaysMs[payload.attempt];
+
 	if (delay !== undefined) {
 		await scheduleAniKotoPoll(
 			{

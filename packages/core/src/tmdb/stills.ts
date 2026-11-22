@@ -63,6 +63,7 @@ export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | n
 	stills.toSorted((left, right) => {
 		const leftTier = tier(left);
 		const rightTier = tier(right);
+
 		for (const [index, value] of leftTier.entries()) {
 			if (value !== rightTier[index]) {
 				return value - defined(rightTier[index]);
@@ -78,15 +79,18 @@ export const rankStills = (stills: readonly TmdbImage[], defaultPath: string | n
 
 const depth = (edge: { brightest: number; mean: number }[]) => {
 	let bar = 0;
+
 	while (bar < edge.length && defined(edge[bar]).brightest < blackLuma) {
 		bar += 1;
 	}
+
 	if (bar === 0 || bar > edge.length * widestBar) {
 		return 0;
 	}
 
 	const inside = Math.max(...edge.slice(Math.max(0, bar - 2), bar).map((line) => line.mean));
 	const outside = Math.max(...edge.slice(bar, bar + 2).map((line) => line.mean));
+
 	return outside - inside >= barStep ? bar / edge.length : 0;
 };
 
@@ -102,6 +106,7 @@ const lines = (count: number, length: number, at: (line: number, index: number) 
 				},
 				(_value, index) => at(line, index),
 			).toSorted((left, right) => left - right);
+
 			return {
 				brightest: defined(values[Math.floor(length * 0.98)]),
 				mean: values.reduce((sum, value) => sum + value, 0) / length,
@@ -132,9 +137,11 @@ export const blackBars = async (image: Buffer): Promise<number> => {
 	const rows = lines(measuredHeight, measuredWidth, (line, index) =>
 		defined(data[line * measuredWidth + index]),
 	);
+
 	const columns = lines(measuredWidth, measuredHeight, (line, index) =>
 		defined(data[index * measuredWidth + line]),
 	);
+
 	return Math.max(
 		depth(rows),
 		depth(rows.toReversed()),
@@ -173,6 +180,7 @@ let classifier: ReturnType<typeof loadStillModel> | null = null;
 export const showsText = async (image: Buffer): Promise<boolean> => {
 	classifier ??= loadStillModel(config.stillModelDir);
 	const loaded = await attempt(classifier);
+
 	if (loaded.error) {
 		classifier = null;
 		throw new UpstreamUnavailableError(`could not load ${stillModel}: ${loaded.error.message}`, {
@@ -194,12 +202,14 @@ export const withChosenStills = async (
 	episodes: TmdbEpisode[],
 ): Promise<TmdbEpisode[]> => {
 	const chosen = await db.select().from(episodeStill).where(eq(episodeStill.showId, showId));
+
 	const paths = new Map(
 		chosen.map((row) => [`${row.seasonNumber}:${row.episodeNumber}`, row.path]),
 	);
 
 	return episodes.map((episode) => {
 		const key = `${episode.season_number}:${episode.episode_number}`;
+
 		return paths.has(key)
 			? {
 					...episode,

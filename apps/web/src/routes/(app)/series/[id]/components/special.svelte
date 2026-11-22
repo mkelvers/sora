@@ -22,7 +22,9 @@
 			offset: 0,
 		}),
 	);
+
 	const progress = $derived(getSeriesProgress(part.series_id));
+
 	const played = $derived(
 		new Map((progress.current?.episodes ?? []).map((entry) => [entry.episode, entry])),
 	);

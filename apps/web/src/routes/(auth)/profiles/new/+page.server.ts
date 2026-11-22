@@ -30,12 +30,14 @@ export const actions: Actions = {
 			}),
 			SoraError,
 		);
+
 		if (rejected?.status === 422) {
 			return fail(400, {
 				message: "Give the profile a name of up to 40 characters.",
 				name,
 			});
 		}
+
 		if (rejected) {
 			throw rejected;
 		}

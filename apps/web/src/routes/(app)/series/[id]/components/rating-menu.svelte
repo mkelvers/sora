@@ -36,6 +36,7 @@
 
 	const fill = (star: number) => {
 		const shown = preview || mine;
+
 		return shown ? Number(star <= shown) : Math.min(Math.max(rating - (star - 1), 0), 1);
 	};
 

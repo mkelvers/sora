@@ -176,12 +176,14 @@ const beforeDeadline = async (
 	deadlineMs: number,
 ) => {
 	const stop = new AbortController();
+
 	const gaveUp = async (): Promise<VersionResult> => {
 		await attempt(
 			sleep(deadlineMs, undefined, {
 				signal: stop.signal,
 			}),
 		);
+
 		return {
 			attempts: [
 				{
@@ -193,6 +195,7 @@ const beforeDeadline = async (
 			version: null,
 		};
 	};
+
 	try {
 		return await Promise.race([resolving, gaveUp()]);
 	} finally {
@@ -215,6 +218,7 @@ const englishSubtitlesLoad = async (
 			video,
 		})),
 	);
+
 	if (english.length === 0) {
 		return true;
 	}
@@ -224,6 +228,7 @@ const englishSubtitlesLoad = async (
 			dependencies.canFetchStream(track.url, video.headers, mirrorsFor(track.url, video.url)),
 		),
 	);
+
 	return loads.includes(true);
 };
 
@@ -255,6 +260,7 @@ const kindLabels: Partial<Record<SubtitleKind, string>> = {
 /** A track's name in a subtitle menu: its language, and its kind unless dialogue, as `English (CC)`. */
 const subtitleLabel = (language: string, kind: SubtitleKind | null | undefined) => {
 	const named = kind ? kindLabels[kind] : undefined;
+
 	return named ? `${language} (${named})` : language;
 };
 
@@ -278,6 +284,7 @@ const toPlaybackMedia = (
 
 	// Providers attach the same subtitle tracks to every quality variant.
 	const subtitles = new Map<string, PlaybackSubtitle>();
+
 	for (const video of videos) {
 		for (const track of video.subtitles) {
 			if (!subtitles.has(track.url)) {
@@ -317,6 +324,7 @@ const audioLabels: Record<ContentLanguage, string> = {
  */
 const forMenu = (subtitles: PlaybackSubtitle[], audio: "sub" | "dub") => {
 	const ranks = kindRanks[audio];
+
 	return subtitles
 		.toSorted(
 			(left, right) =>
@@ -345,11 +353,13 @@ const resolveVersion = async (
 	dependencies: PlaybackDependencies,
 ): Promise<VersionResult> => {
 	const attempts: ProviderAttempt[] = [];
+
 	const fail = (provider: StreamProvider, reason: string) =>
 		attempts.push({
 			provider: provider.id,
 			reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`,
 		});
+
 	let hardsubbed = null as {
 		version: PlaybackMedia;
 		videos: ProviderVideo[];
@@ -361,19 +371,24 @@ const resolveVersion = async (
 		(provider) =>
 			provider.locale === servedLocale && (locale === null || provider.locale === locale),
 	);
+
 	const unitLists = await Promise.all(asked.map((provider) => attempt(unitsOf(provider))));
+
 	const candidates: {
 		provider: StreamProvider;
 		unit: ProviderUnit;
 	}[] = [];
+
 	for (const [index, provider] of asked.entries()) {
 		const units = defined(unitLists[index]);
+
 		if (units.error) {
 			fail(provider, units.error.message);
 			continue;
 		}
 
 		const unit = units.data.find((candidate) => candidate.number === anilistEpisode);
+
 		if (unit) {
 			candidates.push({
 				provider,
@@ -389,19 +404,26 @@ const resolveVersion = async (
 	/** Resolves the version from one provider; `null`, with the reason recorded, when it cannot. */
 	const resolveWith = async (provider: StreamProvider, unit: ProviderUnit) => {
 		const resolved = await attempt(provider.resolveStream(unit.id, language));
+
 		if (resolved.error) {
 			fail(provider, resolved.error.message);
+
 			return null;
 		}
+
 		const stream = resolved.data;
 
 		const probes = await probeVideos(stream.videos, dependencies);
+
 		if (!probes.some((probe) => probe !== null)) {
 			fail(provider, "Video host cannot be reached");
+
 			return null;
 		}
+
 		if (language === "dub" && !hasDubAudio(probes)) {
 			fail(provider, `No audio in ${servedLocale}`);
+
 			return null;
 		}
 
@@ -412,8 +434,10 @@ const resolveVersion = async (
 						subtitleKinds(stream.videos),
 					])
 				: [true, new Map<string, SubtitleKind | null>()];
+
 		if (!subtitlesLoad) {
 			fail(provider, "English subtitles cannot be fetched");
+
 			return null;
 		}
 
@@ -438,6 +462,7 @@ const resolveVersion = async (
 			kinds,
 			accountId,
 		);
+
 		const version = {
 			audio: language,
 			hardsub: language === "sub" && !media.subtitles.some(isServedSubtitle),
@@ -461,6 +486,7 @@ const resolveVersion = async (
 				version,
 				videos: stream.videos,
 			};
+
 			return null;
 		}
 
@@ -474,9 +500,11 @@ const resolveVersion = async (
 	// is asked only when an earlier one fails.
 	const lists = ({ unit }: (typeof candidates)[number]) =>
 		!unit.languages || unit.languages.includes(language);
+
 	const foundInOrder = await firstInSequence(candidates.filter(lists), ({ provider, unit }) =>
 		resolveWith(provider, unit),
 	);
+
 	if (foundInOrder) {
 		return {
 			...foundInOrder,
@@ -489,10 +517,13 @@ const resolveVersion = async (
 	// they do not have it: an episode without a dub then costs one round trip
 	// rather than one per provider. The first in priority order that has it wins.
 	const unlisted = candidates.filter((candidate) => !lists(candidate));
+
 	const resolved = await Promise.all(
 		unlisted.map(({ provider, unit }) => resolveWith(provider, unit)),
 	);
+
 	const found = resolved.find((result) => result !== null);
+
 	if (found) {
 		return {
 			...found,
@@ -518,6 +549,7 @@ const resolveVersions = async (
 	dependencies: PlaybackDependencies,
 ) => {
 	const located = await dependencies.locateEpisode(seriesId, episode);
+
 	const [anime, offered] = await Promise.all([
 		dependencies.getAnime(located.anilistId),
 		dependencies.getEpisodeVersions(located),
@@ -525,9 +557,11 @@ const resolveVersions = async (
 
 	// Versions share each provider's episode list.
 	const lists = new Map<string, Promise<ProviderUnit[]>>();
+
 	const unitsOf = (provider: StreamProvider) => {
 		const list = lists.get(provider.id) ?? dependencies.getProviderUnits(anime, provider);
 		lists.set(provider.id, list);
+
 		return list;
 	};
 
@@ -538,6 +572,7 @@ const resolveVersions = async (
 				(tried) => tried.language === version.language && tried.locale === version.locale,
 			),
 	);
+
 	return Promise.all(
 		[...alwaysTried, ...served].map((version) =>
 			beforeDeadline(
@@ -562,12 +597,14 @@ const storedRefinement = async (
 ) => {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
+
 	if (!subVideo || !dubVideo) {
 		return null;
 	}
 
 	const key = refinementKey(subVideo.url, dubVideo.url);
 	const stored = await dependencies.getRefinement(key);
+
 	if (config.subtitleAlignmentPython && isRefinementDue(stored)) {
 		// Playback goes on with picture-timed subtitles if the job cannot be queued.
 		await attempt(dependencies.requestRefinement({ ...request, key }));
@@ -591,6 +628,7 @@ export const timelineShifts = async (
 ) => {
 	const subVideo = sub.find((video) => video.format === "hls");
 	const dubVideo = dub.find((video) => video.format === "hls");
+
 	if (!subVideo || !dubVideo) {
 		return null;
 	}
@@ -602,10 +640,13 @@ export const timelineShifts = async (
 		]),
 		StreamUpstreamError,
 	);
+
 	if (timelines.error) {
 		return null;
 	}
+
 	const [subTimeline, dubTimeline] = timelines.data;
+
 	return alignTimelines(subTimeline.starts, dubTimeline.starts);
 };
 
@@ -628,6 +669,7 @@ const subtitlesForDub = async (
 		shifts ? subtitleKinds(sub) : new Map<string, SubtitleKind | null>(),
 		subtitleKinds(dub),
 	]);
+
 	const retimed = shifts
 		? toPlaybackMedia(sub, streamUrl, subKinds, accountId, shifts, refinement).subtitles.filter(
 				(track) => track.format === "vtt",
@@ -660,15 +702,18 @@ const skipSegmentsForDub = (
 		sub.length === dub.length &&
 		sub.every((segment, index) => {
 			const other = dub[index];
+
 			return (
 				segment.kind === other?.kind && segment.start === other.start && segment.end === other.end
 			);
 		});
+
 	if (!shifts || !shared) {
 		return dub;
 	}
 
 	const moved = (time: number) => Math.max(0, Math.round(shiftTime(shifts, time) * 1000) / 1000);
+
 	return sub.map((segment) => ({
 		end: moved(segment.end),
 		kind: segment.kind,
@@ -687,9 +732,11 @@ export const fitToVideo = (segments: SkipSegment[], duration: number | null) => 
 	if (duration === null) {
 		return segments;
 	}
+
 	if (segments.some((segment) => segment.start >= duration - 1)) {
 		return [];
 	}
+
 	return segments.map((segment) => ({
 		...segment,
 		end: Math.min(segment.end, duration),
@@ -712,9 +759,11 @@ export const withDetection = (
 	skipKinds
 		.flatMap((kind): SkipSegment[] => {
 			const found = detection?.[kind];
+
 			if (found === "none") {
 				return [];
 			}
+
 			if (found) {
 				return [
 					{
@@ -724,6 +773,7 @@ export const withDetection = (
 					},
 				];
 			}
+
 			return segments.filter((segment) => segment.kind === kind);
 		})
 		.toSorted((left, right) => left.start - right.start);
@@ -742,6 +792,7 @@ const settleSkipSegments = async (
 ) => {
 	const versions = results.flatMap(({ version, videos }) => {
 		const video = videos?.find((candidate) => candidate.format === "hls");
+
 		return version && video
 			? [
 					{
@@ -752,6 +803,7 @@ const settleSkipSegments = async (
 				]
 			: [];
 	});
+
 	// Skip segments only add to playback, so nothing here may fail or hold it:
 	// without stored detections or the video's length, the provider's stand.
 	const stored = await attempt(dependencies.getSkipDetections(versions.map(({ key }) => key)));
@@ -765,6 +817,7 @@ const settleSkipSegments = async (
 					sleep(lengthCheckMs).then(() => null),
 				]),
 			);
+
 			version.skip_segments = withDetection(
 				fitToVideo(version.skip_segments, timeline.data?.duration ?? null),
 				detections.get(key)?.detection,
@@ -775,6 +828,7 @@ const settleSkipSegments = async (
 	if (versions.some(({ key }) => isSkipDetectionDue(detections.get(key)))) {
 		void attempt(dependencies.requestSkipDetection(request));
 	}
+
 	// Looked at ahead of time, so its segments are settled before it is played.
 	void attempt(
 		dependencies.requestSkipDetection({
@@ -799,6 +853,7 @@ const fitDubToSub = async (
 ) => {
 	const sub = results.find((result) => result.version?.audio === "sub" && !result.version.hardsub);
 	const dub = results.find((result) => result.version?.audio === "dub");
+
 	if (!dub?.version || !dub.videos) {
 		return;
 	}
@@ -807,6 +862,7 @@ const fitDubToSub = async (
 	// the dub keeps its own signs and captions.
 	let shifts: TimelineShift[] | null = null;
 	let refinement: string | undefined;
+
 	if (sub?.version && sub.videos) {
 		const refined = await storedRefinement(sub.videos, dub.videos, request, dependencies);
 		shifts =
@@ -818,6 +874,7 @@ const fitDubToSub = async (
 			shifts,
 		);
 	}
+
 	dub.version.subtitles = await subtitlesForDub(
 		sub?.videos ?? [],
 		dub.videos,
@@ -856,6 +913,7 @@ export const resolvePlayback = async (
 	dependencies: PlaybackDependencies = live,
 ): Promise<Playback> => {
 	const parsed = PlaybackRequestSchema.safeParse(request);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid playback request", {
 			cause: parsed.error,
@@ -865,26 +923,33 @@ export const resolvePlayback = async (
 	const { seriesId, episode } = parsed.data;
 	// Taken before any token is made, so every token outlives it.
 	const expiresAt = new Date(Date.now() + tokenLifetimeMs).toISOString();
+
 	const streamUrl: StreamUrl = (...token) =>
 		`${options.streamBaseUrl.replace(/\/$/u, "")}/${encodeURIComponent(dependencies.createStreamToken(...token))}`;
+
 	// Each playlist is read once per playback, by the probe that picks a
 	// provider, the warm-up, aligning a dub to its sub, and the length check of
 	// skip segments; an episode's sub and dub often share one. A read that
 	// failed is not kept, so the next asks again.
 	const playlists = new Map<string, Promise<Playlist>>();
+
 	const readOnce: PlaybackDependencies = {
 		...dependencies,
 		readPlaylist: (url, headers, readOptions) => {
 			const kept = playlists.get(url);
+
 			if (kept) {
 				return kept;
 			}
+
 			const read = dependencies.readPlaylist(url, headers, readOptions);
 			playlists.set(url, read);
 			read.catch(() => playlists.delete(url));
+
 			return read;
 		},
 	};
+
 	const results = await resolveVersions(
 		parsed.data,
 		streamUrl,
@@ -892,11 +957,13 @@ export const resolvePlayback = async (
 		options.deadlineMs ?? playbackDeadlineMs,
 		readOnce,
 	);
+
 	// The first version is the one played by default, so its first segments are
 	// loaded while the rest of the playback is put together and the player starts.
 	const defaultVideo = results
 		.find((result) => result.version)
 		?.videos?.find((candidate) => candidate.format === "hls");
+
 	if (defaultVideo) {
 		void attempt(
 			dependencies.warmStream(defaultVideo.url, defaultVideo.headers, readOnce.readPlaylist),
@@ -907,8 +974,10 @@ export const resolvePlayback = async (
 	await settleSkipSegments(results, parsed.data, readOnce);
 
 	const media = results.flatMap((result) => (result.version ? [result.version] : []));
+
 	if (media.length > 0) {
 		await dependencies.recordSubtitleLanguages(seriesId, subtitleLanguagesOf(results));
+
 		return {
 			episode,
 			expiresAt,
@@ -946,6 +1015,7 @@ export const probeSubtitleLanguages = async (
 	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
 	const languages = subtitleLanguagesOf(results);
 	await dependencies.recordSubtitleLanguages(parsed.seriesId, languages);
+
 	return languages;
 };
 
@@ -960,6 +1030,7 @@ export const resolveVideos = async (
 ) => {
 	const parsed = PlaybackRequestSchema.parse(request);
 	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
+
 	return results.flatMap(({ version, videos }) =>
 		version && videos
 			? [
@@ -983,6 +1054,7 @@ export const resolveStreams = async (
 ) => {
 	const parsed = PlaybackRequestSchema.parse(request);
 	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
+
 	return {
 		dub: results.find((result) => result.version?.audio === "dub")?.videos ?? null,
 		sub:

@@ -144,17 +144,20 @@
 				})),
 			),
 		);
+
 		saved = error ? "" : "Subtitle appearance saved.";
 		failure = error ? "Your subtitle appearance couldn’t be saved." : "";
 	};
 
 	const reset = async () => {
 		resetting = true;
+
 		const { error } = await attempt(
 			savePlaybackPreferences({
 				subtitle_style: null,
 			}),
 		);
+
 		resetting = false;
 		saved = error ? "" : "Subtitle appearance reset.";
 		failure = error ? "Your subtitle appearance couldn’t be reset." : "";

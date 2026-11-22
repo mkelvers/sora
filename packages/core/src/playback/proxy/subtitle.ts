@@ -39,6 +39,7 @@ const cleanText = (text: string) =>
  */
 export const cleanWebVtt = (content: string) => {
 	const seen = new Set<string>();
+
 	return splitBlocks(content)
 		.flatMap((block) => {
 			if (!readTiming(block)) {
@@ -48,14 +49,17 @@ export const cleanWebVtt = (content: string) => {
 			const lines = block.replaceAll("\r\n", "\n");
 			const match = cueText.exec(lines);
 			const text = cleanText(match?.groups?.text ?? "");
+
 			if (!match || !text) {
 				return [];
 			}
 
 			const cue = `${match.groups?.head}${text}`;
+
 			if (seen.has(cue)) {
 				return [];
 			}
+
 			seen.add(cue);
 
 			return [`${lines.slice(0, match.index)}${match.groups?.head}${text}`];
@@ -70,8 +74,10 @@ const sameCueOverlap = 0.6;
 const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
 	let low = 0;
 	let high = anchors.length;
+
 	while (low < high) {
 		const middle = Math.floor((low + high) / 2);
+
 		if (defined(anchors[middle]).start < start) {
 			low = middle + 1;
 		} else {
@@ -81,15 +87,18 @@ const anchorFor = (anchors: CueAnchor[], start: number, end: number) => {
 
 	let best: CueAnchor | null = null;
 	let bestOverlap = sameCueOverlap;
+
 	for (const anchor of anchors.slice(Math.max(0, low - 2), low + 3)) {
 		const overlap =
 			Math.max(0, Math.min(end, anchor.end) - Math.max(start, anchor.start)) /
 			Math.max(end - start, anchor.end - anchor.start, 0.001);
+
 		if (overlap >= bestOverlap) {
 			best = anchor;
 			bestOverlap = overlap;
 		}
 	}
+
 	return best;
 };
 
@@ -107,16 +116,19 @@ export const retimeWebVtt = (content: string, shifts: TimelineShift[], anchors: 
 	splitBlocks(content)
 		.flatMap((block) => {
 			const cue = readTiming(block);
+
 			if (!cue) {
 				return [block];
 			}
 
 			const anchor = anchorFor(anchors, cue.start, cue.end);
+
 			if (anchor) {
 				return [writeTiming(block, anchor.movedStart, anchor.movedEnd)];
 			}
 
 			const moved = shiftTime(shifts, cue.start);
+
 			if (moved < 0) {
 				return [];
 			}

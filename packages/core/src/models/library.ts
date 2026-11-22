@@ -344,18 +344,33 @@ export const ProgressInputSchema = z
 	});
 
 export type ProfilePreferences = z.infer<typeof ProfilePreferencesSchema>;
+
 export type ProfilePreferencesUpdate = z.input<typeof ProfilePreferencesUpdateSchema>;
+
 export type PlaybackPreferencesUpdate = z.input<typeof PlaybackPreferencesUpdateSchema>;
+
 export type ProgressInput = z.input<typeof ProgressInputSchema>;
+
 export type SubtitleChoice = z.infer<typeof SubtitleChoiceSchema>;
+
 export type SubtitleStyle = z.infer<typeof SubtitleStyleSchema>;
+
 export type PlaybackPreferences = z.infer<typeof PlaybackPreferencesSchema>;
+
 export type Progress = z.infer<typeof ProgressSchema>;
+
 export type NextEpisode = z.infer<typeof NextEpisodeSchema>;
+
 export type ContinueWatching = z.infer<typeof ContinueWatchingSchema>;
+
 export type WatchlistStatus = z.infer<typeof WatchlistStatusSchema>;
+
 export type Rating = z.infer<typeof RatingSchema>;
+
 export type WatchlistEntry = z.infer<typeof WatchlistEntrySchema>;
+
 export type WatchlistStatusEntry = z.infer<typeof WatchlistStatusEntrySchema>;
+
 export type SeriesProgress = z.infer<typeof SeriesProgressSchema>;
+
 export type Notification = z.infer<typeof NotificationSchema>;

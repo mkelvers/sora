@@ -24,6 +24,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 })
 	.openapi(profileRoute.listProfiles, async (c) => {
 		const profiles = await listProfiles(c.get("accountId"));
+
 		return c.json(
 			{
 				meta: {
@@ -37,6 +38,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(profileRoute.createProfile, async (c) => {
 		const profile = await createProfile(c.get("accountId"), c.req.valid("json"));
+
 		return c.json(
 			{
 				meta: {},
@@ -52,6 +54,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 			c.req.valid("param").profile_id,
 			c.req.valid("json"),
 		);
+
 		return c.json(
 			{
 				meta: {},
@@ -63,12 +66,14 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(profileRoute.deleteProfile, async (c) => {
 		await deleteProfile(c.get("accountId"), c.req.valid("param").profile_id);
+
 		return c.body(null, 204);
 	})
 
 	.openapi(profileRoute.getFeatured, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const titles = await getFeatured(profile.id);
+
 		return c.json(
 			{
 				meta: {
@@ -83,6 +88,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 	.openapi(profileRoute.getPlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await getPlaybackPreferences(profile.id);
+
 		return c.json(
 			{
 				meta: {},
@@ -95,6 +101,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 	.openapi(profileRoute.updatePlaybackPreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await updatePlaybackPreferences(profile.id, c.req.valid("json"));
+
 		return c.json(
 			{
 				meta: {},
@@ -107,6 +114,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 	.openapi(profileRoute.getProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await getProfilePreferences(profile.id);
+
 		return c.json(
 			{
 				meta: {},
@@ -119,6 +127,7 @@ export const profileRoutes = new OpenAPIHono<V1Env>({
 	.openapi(profileRoute.updateProfilePreferences, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const preferences = await updateProfilePreferences(profile.id, c.req.valid("json"));
+
 		return c.json(
 			{
 				meta: {},

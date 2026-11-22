@@ -8,16 +8,19 @@ import { alignTimelines, shiftTime } from "./align";
 const boundaries = (seed: number, count = 300) => {
 	const times = [0];
 	let state = seed;
+
 	for (let index = 1; index < count; index += 1) {
 		state = (state * 1_103_515_245 + 12_345) % 2 ** 31;
 		times.push(defined(times.at(-1)) + 1 + (state % 9000) / 1000);
 	}
+
 	return times;
 };
 
 describe("alignTimelines", () => {
 	test("finds a constant offset", () => {
 		const sub = boundaries(1);
+
 		const shifts = alignTimelines(
 			sub,
 			sub.map((time) => time + 2.5),

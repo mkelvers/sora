@@ -119,6 +119,7 @@ const afterPlayback = async (userId: string, address: EpisodeAddress, finished: 
 		episode: address.episode,
 		finished,
 	});
+
 	if (finished) {
 		const adjacent = await getAdjacentEpisodes(address.seriesId, address.episode);
 
@@ -149,6 +150,7 @@ export const saveProgress = async (
 	input: ProgressInput,
 ): Promise<Progress | null> => {
 	const parsed = ProgressInputSchema.safeParse(input);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid progress", {
 			cause: parsed.error,
@@ -167,6 +169,7 @@ export const saveProgress = async (
 		finished: parsed.data.finished,
 		positionSeconds: Math.min(parsed.data.position_seconds, parsed.data.duration_seconds),
 	};
+
 	const [row] = await db
 		.insert(episodeProgress)
 		.values({
@@ -184,6 +187,7 @@ export const saveProgress = async (
 			target: progressKey,
 		})
 		.returning();
+
 	if (!row) {
 		return getProgress(userId, address);
 	}
@@ -209,6 +213,7 @@ export const saveProgress = async (
  */
 export const markWatched = async (userId: string, seriesId: string, episode?: number) => {
 	const listed = await getSeriesEpisodes(seriesId);
+
 	if (episode !== undefined) {
 		await locateEpisode(seriesId, episode);
 	}
@@ -216,7 +221,9 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 	const marked = listed.filter(
 		(candidate) => episode === undefined || candidate.number === episode,
 	);
+
 	const last = marked.at(-1);
+
 	if (!last) {
 		return;
 	}
@@ -224,6 +231,7 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 	const rewatching = await isRewatching(userId, seriesId);
 	const ending = rewatching && episode === undefined;
 	const rewatch = rewatching && !ending;
+
 	const playedRows = await db
 		.select({
 			durationSeconds: episodeProgress.durationSeconds,
@@ -237,6 +245,7 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 				eq(episodeProgress.rewatch, rewatch),
 			),
 		);
+
 	const played = new Map(playedRows.map((row) => [row.episode, row.durationSeconds]));
 	await db
 		.insert(episodeProgress)
@@ -244,6 +253,7 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 			marked.map((candidate) => {
 				const durationSeconds =
 					played.get(candidate.number) ?? (candidate.runtime_minutes ?? 0) * 60;
+
 				return {
 					durationSeconds,
 					episode: candidate.number,
@@ -267,6 +277,7 @@ export const markWatched = async (userId: string, seriesId: string, episode?: nu
 				setWhere: eq(episodeProgress.finished, false),
 			}),
 		});
+
 	if (ending) {
 		await endRewatch(userId, seriesId);
 	}
@@ -335,6 +346,7 @@ const nextEpisodes = async (
 			};
 		}),
 	);
+
 	const found = candidates.flatMap(({ seriesId, rewatch, episode }) =>
 		episode === null
 			? []
@@ -346,6 +358,7 @@ const nextEpisodes = async (
 					},
 				],
 	);
+
 	if (found.length === 0) {
 		return new Map();
 	}
@@ -374,6 +387,7 @@ const nextEpisodes = async (
 			const unfinished = started.find(
 				(row) => row.seriesId === seriesId && row.episode === episode && row.rewatch === rewatch,
 			);
+
 			return [
 				seriesId,
 				{
@@ -399,6 +413,7 @@ export const getSeriesProgress = async (
 	seriesId: string,
 ): Promise<SeriesProgress> => {
 	await assertSeriesExists(seriesId);
+
 	const [state] = await db
 		.select({
 			rewatchStartedAt: seriesState.rewatchStartedAt,
@@ -406,8 +421,10 @@ export const getSeriesProgress = async (
 		.from(seriesState)
 		.where(and(eq(seriesState.userId, userId), eq(seriesState.seriesId, seriesId)))
 		.limit(1);
+
 	const startedAt = state?.rewatchStartedAt ?? null;
 	const rewatch = startedAt !== null;
+
 	const rows = await db
 		.select()
 		.from(episodeProgress)
@@ -517,6 +534,7 @@ export const getContinueWatching = async (userId: string): Promise<ContinueWatch
 			desc(episodeProgress.episode),
 		)
 		.as("latest");
+
 	const played = await db
 		.select({
 			episode: latest.episode,
@@ -536,6 +554,7 @@ export const getContinueWatching = async (userId: string): Promise<ContinueWatch
 		.limit(recentSeries);
 
 	const next = await nextEpisodes(userId, played);
+
 	if (next.size === 0) {
 		return [];
 	}
@@ -563,12 +582,14 @@ export const getContinueWatching = async (userId: string): Promise<ContinueWatch
 			)
 			.groupBy(episodeProgress.seriesId),
 	]);
+
 	const finished = new Map(finishedCounts.map((row) => [row.seriesId, row.finished]));
 
 	return played.flatMap(({ seriesId, rewatch }) => {
 		const card = cards.get(seriesId);
 		const episode = next.get(seriesId);
 		const complete = !rewatch && (finished.get(seriesId) ?? 0) >= (card?.episode_count ?? 0);
+
 		return card && episode && !complete
 			? [
 					{

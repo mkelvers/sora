@@ -21,6 +21,7 @@ export type Attempt<TData, TError extends Error = Error> =
 			data: null;
 			error: TError;
 	  };
+
 const settle = <TData, TExpected extends ErrorClass[]>(
 	work: PromiseLike<TData> | (() => TData),
 	...expected: TExpected
@@ -32,14 +33,17 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 				: new Error(String(thrown), {
 						cause: thrown,
 					});
+
 		if (expected.length > 0 && !expected.some((type) => error instanceof type)) {
 			throw thrown;
 		}
+
 		return {
 			data: null,
 			error: error as Caught<TExpected>,
 		};
 	};
+
 	const succeeded = (data: TData) => ({
 		data,
 		error: null,
@@ -98,8 +102,10 @@ export const defined = <TValue>(value: TValue | null | undefined): TValue => {
 	if (value === null || value === undefined) {
 		throw new TypeError("Expected a value, found none");
 	}
+
 	return value;
 };
 
 export * from "./sequence";
+
 export * from "./time";

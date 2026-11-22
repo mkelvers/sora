@@ -4,4 +4,5 @@
 import { closeDatabase, migrateDatabase } from "./client";
 
 await migrateDatabase();
+
 await closeDatabase();

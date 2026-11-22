@@ -48,16 +48,20 @@ const fetchAniKotoEpisodeList = async (
 			"X-Requested-With": "XMLHttpRequest",
 		},
 	});
+
 	const { result } = EpisodeListResponseSchema.parse(await response.json());
 
 	const links = result.match(/<a\b[^>]*\bdata-num="[^"]*"[^>]*>/gu) ?? [];
+
 	if (links.length === 0) {
 		throw new Error("AniKoto's episode list has no episodes");
 	}
 
 	const episodes = new Map<number, ListedEpisode>();
+
 	for (const link of links) {
 		const number = Number(/\bdata-num="(?<number>[^"]*)"/u.exec(link)?.[1]);
+
 		if (!Number.isFinite(number)) {
 			continue;
 		}
@@ -99,6 +103,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 
 	async findMedia(anime: Anime): Promise<ProviderMatch | null> {
 		const match = await findAniKotoSeries(this.http, anime);
+
 		return (
 			match && {
 				episodeOffset: match.episodeOffset,
@@ -127,6 +132,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
 			attempt(fetchAniKotoEpisodeList(this.http, mediaId)),
 		]);
+
 		if (error) {
 			console.warn(`AniKoto's episode list for ${mediaId} could not be read: ${error.message}`);
 		}
@@ -134,6 +140,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 		return units.map((unit) => {
 			const episode = toProviderEpisode(unit);
 			const entry = data?.get(unit.number);
+
 			if (!entry) {
 				return {
 					...episode,
@@ -142,6 +149,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 			}
 
 			const languages = new Set([...(episode.languages ?? []), ...entry.languages]);
+
 			return {
 				...episode,
 				isFiller: entry.isFiller,
@@ -166,6 +174,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 	 */
 	async syncCatalog(options: { full: boolean }) {
 		const { pages, stored } = await syncAniKotoCatalog(this.http, options);
+
 		return `Synced ${stored} AniKoto series from ${pages} catalogue pages`;
 	}
 }

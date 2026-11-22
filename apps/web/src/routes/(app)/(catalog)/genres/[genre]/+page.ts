@@ -8,9 +8,11 @@ export const ssr = false;
 
 export const load: PageLoad = async ({ params }) => {
 	const genres = await getGenres();
+
 	const genre = genres.find(
 		(name) => name.toLowerCase().replaceAll(/[^a-z0-9]+/gu, "-") === params.genre,
 	);
+
 	setBrowse({
 		genres: genre ? [genre] : [],
 	});

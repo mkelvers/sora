@@ -17,20 +17,25 @@
 		item: Notification;
 		unread: boolean;
 	} = $props();
+
 	const releasedAt = $derived.by(() => {
 		const verb = item.kind === "announced" ? "Announced" : "Released";
 		const released = new Date(item.released_at);
+
 		const time = new Intl.DateTimeFormat(undefined, {
 			hour: "2-digit",
 			hourCycle: "h23",
 			minute: "2-digit",
 		}).format(released);
+
 		if (released.toDateString() === new Date().toDateString()) {
 			return `${verb} at ${time}`;
 		}
+
 		const date = new Intl.DateTimeFormat(undefined, {
 			dateStyle: "medium",
 		}).format(released);
+
 		return `${verb} on ${date} at ${time}`;
 	});
 </script>

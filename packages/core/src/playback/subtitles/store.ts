@@ -27,6 +27,7 @@ export const getRefinement = async (key: string) => {
 		.from(subtitleRefinement)
 		.where(eq(subtitleRefinement.key, key))
 		.limit(1);
+
 	if (!row) {
 		return null;
 	}
@@ -55,6 +56,7 @@ export const saveRefinement = async (key: string, refinement: Refinement | null)
 		attemptedAt: new Date(),
 		shifts: refinement?.shifts ?? null,
 	};
+
 	await db
 		.insert(subtitleRefinement)
 		.values({

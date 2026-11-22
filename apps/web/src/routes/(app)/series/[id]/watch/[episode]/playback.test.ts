@@ -39,13 +39,16 @@ const fixture = (playback: () => Response, episodes = catalog) =>
 		baseUrl: "https://sora.test",
 		fetch: (input) => {
 			const { pathname } = new URL(String(input));
+
 			switch (pathname) {
 				case "/v1/series/series-1/episodes/4/playback": {
 					return Promise.resolve(playback());
 				}
+
 				case "/v1/series/series-1/episodes": {
 					return Promise.resolve(episodes());
 				}
+
 				default: {
 					throw new Error("Unexpected fixture route");
 				}
@@ -77,6 +80,7 @@ test.each([
 		retryAt: expect.any(Number),
 		status: "temporary",
 	});
+
 	if ("retryAt" in playback) {
 		expect(playback.retryAt).toBeGreaterThanOrEqual(before + 30_000);
 		expect(playback.retryAt).toBeLessThanOrEqual(Date.now() + 30_000);
@@ -143,8 +147,10 @@ const resolved = (results: unknown[]) =>
 
 test("resolves fresh media and uses playback metadata on retry", async () => {
 	let requests = 0;
+
 	const sora = fixture(() => {
 		requests += 1;
+
 		return requests === 1 ? problem(503, "UPSTREAM_UNAVAILABLE") : resolved([media]);
 	});
 

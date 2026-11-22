@@ -32,6 +32,7 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 		)
 		.groupBy(episodeProgress.seriesId)
 		.as("activity");
+
 	const [rows, continueWatching] = await Promise.all([
 		db
 			.select({ id: series.id, title: series.title })
@@ -63,7 +64,9 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 			.orderBy(desc(activity.watchedAt), series.id),
 		getContinueWatching(profileId),
 	]);
+
 	const onList = new Set(continueWatching.map((entry) => entry.series.id));
+
 	return rows
 		.filter((row) => onList.has(row.id))
 		.slice(0, 3)

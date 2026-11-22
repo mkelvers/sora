@@ -48,26 +48,34 @@
 
 	const playback = $derived(playbackQuery?.current);
 	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
+
 	const address = $derived<ProgressAddress>({
 		episode: episode.number,
 		profileId,
 		seriesId: series.id,
 	});
+
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
 	const label = $derived(`E${episode.number}`);
+
 	const heading = $derived.by(() => {
 		if (series.format === "MOVIE") {
 			return title;
 		}
+
 		return episode.title ? `${label} – ${episode.title}` : label;
 	});
+
 	const back = $derived(`/series/${series.id}`);
+
 	const previous = $derived(
 		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
 	);
+
 	const nextAddress = $derived(
 		playback ? nextEpisodeAddress(series, episode.number, playback.next) : undefined,
 	);
+
 	const next = $derived(
 		nextAddress ? `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}` : undefined,
 	);
@@ -109,31 +117,40 @@
 	const chosen = $derived(choosePlayback(media, preferences));
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
+
 	const playbackMessage = $derived.by(() => {
 		if (selected) {
 			return;
 		}
+
 		if (playbackQuery?.error || playback?.status === "failed") {
 			return "Playback couldn’t be loaded.";
 		}
+
 		if (playback?.status === "unavailable") {
 			return "This episode is unavailable to watch.";
 		}
+
 		if (playback?.status === "temporary") {
 			return "Playback is temporarily unavailable.";
 		}
 	});
+
 	const canRetry = $derived(!!playbackQuery?.error || playback?.status !== "unavailable");
+
 	const retryAt = $derived(
 		!playbackQuery?.error && playback?.status === "temporary" ? playback.retryAt : null,
 	);
+
 	const retrying = $derived(!!playbackMessage && playbackQuery?.loading === true);
+
 	const loading = $derived(
 		selected ? player.buffering : (playbackQuery?.loading ?? true) && !retrying,
 	);
 
 	let now = $state(Date.now());
 	const retryDelayId = $props.id();
+
 	const retryWait = $derived(
 		retryAt === null ? 0 : Math.max(0, Math.ceil((retryAt - now) / second)),
 	);
@@ -141,6 +158,7 @@
 	$effect(() => {
 		const deadline = retryAt;
 		now = Date.now();
+
 		if (deadline === null || deadline <= Date.now()) {
 			return;
 		}
@@ -148,10 +166,12 @@
 		const interval = setInterval(() => {
 			const time = Date.now();
 			now = time;
+
 			if (time >= deadline) {
 				clearInterval(interval);
 			}
 		}, second);
+
 		return () => clearInterval(interval);
 	});
 
@@ -170,18 +190,22 @@
 	const ending = $derived(
 		selected?.skip_segments.find((candidate) => candidate.kind === "ending")?.start,
 	);
+
 	const progressError = "Your progress couldn’t be saved.";
+
 	let session: {
 		address: ProgressAddress;
 		ending?: number;
 		lastSnapshot?: ProgressSnapshot;
 	} = untrack(() => ({ address, ending }));
+
 	let destroyed = false;
 
 	const reports = new ProgressReports(saveProgress, (saved, failed) => {
 		if (destroyed || saved !== session.address) {
 			return;
 		}
+
 		if (failed || failure === progressError) {
 			failure = failed ? progressError : "";
 		}
@@ -189,6 +213,7 @@
 
 	const report = (ended = false, leaving = false) => {
 		const { duration, time } = player;
+
 		if (Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0) {
 			session.lastSnapshot =
 				time > 0 || ended
@@ -216,9 +241,11 @@
 			// Capture the old episode and its credits before resetting the player.
 			untrack(() => report(false, true));
 			session = { address };
+
 			if (failure === progressError) {
 				failure = "";
 			}
+
 			nearing = false;
 			skipped = new Set();
 			player.load(start);
@@ -244,6 +271,7 @@
 				})),
 			),
 		);
+
 		failure = error ? "Your player settings couldn’t be saved." : "";
 	};
 

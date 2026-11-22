@@ -8,6 +8,7 @@ import type { StreamProvider } from "../providers/provider";
 
 /** A confirmed match is reused for a month before being re-verified. */
 const matchedMappingLifetimeMs = 30 * day;
+
 /**
  * A failed match is retried daily, since providers add titles over time. So
  * is one made by title or as a continuation of a prequel: the provider may
@@ -64,12 +65,14 @@ export const getProviderMedia = async (
 			stored.providerMediaId && !provisionalMethods.has(stored.method ?? "")
 				? matchedMappingLifetimeMs
 				: provisionalMappingLifetimeMs;
+
 		if (stored.resolvedAt.getTime() + lifetime > Date.now()) {
 			return toProviderMedia(stored);
 		}
 	}
 
 	const match = await provider.findMedia(anime);
+
 	const values = {
 		episodeOffset: match?.episodeOffset ?? 0,
 		matchedTitle: match?.matchedTitle ?? null,

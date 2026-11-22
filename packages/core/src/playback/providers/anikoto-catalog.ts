@@ -46,6 +46,7 @@ const OptionalIdSchema = z
 	.nullish()
 	.transform((value) => {
 		const id = Number(value);
+
 		return Number.isSafeInteger(id) && id > 0 ? id : null;
 	});
 
@@ -145,6 +146,7 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
  */
 export const parseCatalogSeries = (item: unknown): typeof anikotoSeries.$inferInsert | null => {
 	const parsed = CatalogSeriesSchema.safeParse(item);
+
 	return parsed.success ? toRow(parsed.data) : null;
 };
 
@@ -166,6 +168,7 @@ const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert
 			? []
 			: [sql`(${row.anilistId}::int, ${String(row.anikotoId)}::text)`],
 	);
+
 	if (named.length === 0) {
 		return;
 	}
@@ -236,6 +239,7 @@ const upsert = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
 			target: anikotoSeries.anikotoId,
 		});
 	await dropContradictedMappings(rows);
+
 	return rows.length;
 };
 
@@ -267,6 +271,7 @@ export const syncAniKotoCatalog = async (
 			newest: max(anikotoSeries.updatedAt),
 		})
 		.from(anikotoSeries);
+
 	const full = options.full || newest === null;
 	const cutoff = newest === null ? null : new Date(newest.getTime() - syncOverlapMs);
 
@@ -274,23 +279,28 @@ export const syncAniKotoCatalog = async (
 	let isEverySeriesRead = true;
 	let pages = 0;
 	let stored = 0;
+
 	const readPage = async (page: number): Promise<{ pages: number; stored: number }> => {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`, {
 			signal: options.signal,
 		});
+
 		const listing = CatalogPageSchema.parse(await response.json());
 		pages += 1;
 
 		const rows = listing.data.flatMap((item) => {
 			const row = parseCatalogSeries(item);
 			isEverySeriesRead &&= row !== null;
+
 			return row ? [row] : [];
 		});
+
 		seen.push(...rows.map((row) => row.anikotoId));
 		stored += await upsert(rows);
 
 		const isLastPage = page >= listing.pagination.total_pages || listing.data.length === 0;
 		const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
+
 		if (isLastPage || isCaughtUp) {
 			// A series that failed to parse was not seen, but may still be listed.
 			if (full && isLastPage && isEverySeriesRead) {
@@ -306,6 +316,7 @@ export const syncAniKotoCatalog = async (
 
 		return await readPage(page + 1);
 	};
+
 	return await readPage(1);
 };
 
@@ -338,12 +349,15 @@ export const readRecentAniKotoChanges = async (
 	since: Date,
 ): Promise<AniKotoChange[]> => {
 	const changes: AniKotoChange[] = [];
+
 	const readPage = async (page: number): Promise<void> => {
 		const response = await http.get(`${apiUrl}/recent-anime?page=${page}`);
 		const body = await response.json();
+
 		const rows = CatalogPageSchema.parse(body).data.flatMap(
 			(item) => parseCatalogSeries(item) ?? [],
 		);
+
 		await upsert(rows);
 		changes.push(
 			...rows.map((row) => ({
@@ -354,10 +368,12 @@ export const readRecentAniKotoChanges = async (
 		);
 
 		const oldest = rows.at(-1);
+
 		if (oldest && oldest.updatedAt >= since && page < recentPageLimit) {
 			await readPage(page + 1);
 		}
 	};
+
 	await readPage(1);
 
 	return changes;
@@ -392,9 +408,11 @@ const formatAgreement = (format: AnimeFormat | null, candidate: string | null): 
 	if (format === null || candidate === null) {
 		return 0;
 	}
+
 	if (format === candidate) {
 		return 3;
 	}
+
 	if (format === "MOVIE" || candidate === "MOVIE") {
 		return null;
 	}
@@ -418,6 +436,7 @@ type StoredSeries = typeof anikotoSeries.$inferSelect;
  */
 const idMatchScore = (anime: Anime, candidate: StoredSeries): number | null => {
 	const formatScore = formatAgreement(anime.format, candidate.format);
+
 	if (formatScore === null) {
 		return null;
 	}
@@ -425,6 +444,7 @@ const idMatchScore = (anime: Anime, candidate: StoredSeries): number | null => {
 	const year = anime.seasonYear ?? (anime.startDate ? Number(anime.startDate.slice(0, 4)) : null);
 	const titles = animeTitles(anime);
 	let yearScore = 0;
+
 	if (year !== null && candidate.year !== null) {
 		yearScore = Math.abs(candidate.year - year) <= 1 ? 1 : -2;
 	}
@@ -454,8 +474,10 @@ export const bestIdMatch = <TCandidate extends StoredSeries>(
 		candidate: TCandidate;
 		score: number;
 	} | null = null;
+
 	for (const candidate of candidates) {
 		const score = idMatchScore(anime, candidate);
+
 		if (score !== null && (best === null || score > best.score)) {
 			best = {
 				candidate,
@@ -483,6 +505,7 @@ export const strictTitle = (title: string) =>
 /** Series with exactly one of the anime's titles, the same format, and a year no more than one apart. */
 const exactTitleMatches = async (anime: Anime): Promise<StoredSeries[]> => {
 	const year = anime.seasonYear ?? (anime.startDate ? Number(anime.startDate.slice(0, 4)) : null);
+
 	if (anime.format === null || year === null) {
 		return [];
 	}
@@ -492,6 +515,7 @@ const exactTitleMatches = async (anime: Anime): Promise<StoredSeries[]> => {
 			.map(strictTitle)
 			.filter((title) => title.length > 0),
 	);
+
 	const nearby = await db
 		.select()
 		.from(anikotoSeries)
@@ -520,6 +544,7 @@ const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => 
 		);
 
 	const best = bestIdMatch(anime, candidates);
+
 	if (best) {
 		return {
 			anikotoId: String(best.anikotoId),
@@ -530,6 +555,7 @@ const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => 
 	}
 
 	const byTitle = await exactTitleMatches(anime);
+
 	return byTitle.length === 1 && byTitle[0]
 		? {
 				anikotoId: String(byTitle[0].anikotoId),
@@ -550,11 +576,13 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 			[anime.title.english, anime.title.romaji].flatMap((title) => (title ? [title] : [])),
 		),
 	];
+
 	const found = new Set<number>();
 	await inSequence(queries, async (query) => {
 		const response = await http.get(
 			`${siteUrl}/filter?keyword=${encodeURIComponent(query)}&sort=most-viewed`,
 		);
+
 		// AniKoto's default order ranks spin-offs above the main series.
 		const html = await response.text();
 
@@ -572,12 +600,15 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 					})
 					.from(anikotoSeries)
 					.where(inArray(anikotoSeries.anikotoId, [...found]));
+
 	const known = new Set(stored.map((row) => row.anikotoId));
 
 	const candidates = [...found].filter((candidate) => !known.has(candidate));
+
 	const fetched = await inSequence(candidates.slice(0, lookupCandidateLimit), async (id) => {
 		const response = await http.get(`${apiUrl}/series/${id}`);
 		const parsed = SeriesResponseSchema.safeParse(await response.json());
+
 		return parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
 	});
 
@@ -593,6 +624,7 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
  */
 const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatch | null> => {
 	const prequel = anime.relations.find((relation) => relation.type === "PREQUEL")?.anime;
+
 	if (
 		depth === 0 ||
 		anime.status === "NOT_YET_RELEASED" ||
@@ -606,10 +638,13 @@ const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatc
 
 	// A prequel AniList has since removed or marked adult.
 	const { data, error } = await attempt(getAnime(prequel.id), AnimeNotFoundError);
+
 	if (error) {
 		return null;
 	}
+
 	const series = (await matchStoredSeries(data)) ?? (await continuedSeries(data, depth - 1));
+
 	if (!series) {
 		return null;
 	}
@@ -620,7 +655,9 @@ const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatc
 		})
 		.from(anikotoSeries)
 		.where(eq(anikotoSeries.anikotoId, Number(series.anikotoId)));
+
 	const episodeOffset = series.episodeOffset + prequel.episodes;
+
 	// The whole part must be there: a sequel AniKoto has not added yet must
 	// not start at a recap AniKoto appended to the prequel.
 	return stored?.episodes && stored.episodes >= episodeOffset + (anime.episodes ?? 1)
@@ -660,10 +697,12 @@ export const findAniKotoSeries = async (
 	anime: Anime,
 ): Promise<AniKotoMatch | null> => {
 	const stored = await matchStoredSeries(anime);
+
 	if (stored) {
 		return stored;
 	}
 
 	await lookUpSeries(http, anime);
+
 	return (await matchStoredSeries(anime)) ?? continuedSeries(anime, continuationDepth);
 };

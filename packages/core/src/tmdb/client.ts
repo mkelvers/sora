@@ -85,6 +85,7 @@ export interface TmdbDependencies {
 
 const retryAfter = (response: Response) => {
 	const wait = parseRetryAfter(response.headers.get("Retry-After"));
+
 	return wait === null || wait === 0 ? null : wait;
 };
 
@@ -102,6 +103,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		nextRequestAt = startAt + requestSpacingMs;
 
 		const wait = startAt - Date.now();
+
 		if (wait > 0) {
 			await Bun.sleep(wait);
 		}
@@ -119,6 +121,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 				signal: AbortSignal.timeout(requestTimeoutMs),
 			}),
 		);
+
 		if (response.error) {
 			throw new UpstreamUnavailableError("TMDB could not be reached", {
 				cause: response.error,
@@ -130,6 +133,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			const retryAfterMs = retryAfter(response.data) ?? 2000;
 			// Pause every request from this process, not just this one.
 			nextRequestAt = Math.max(nextRequestAt, Date.now() + retryAfterMs);
+
 			if (tries < rateLimitRetries) {
 				return await execute(url, tries + 1);
 			}
@@ -153,6 +157,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 
 		const body = await attempt(response.data.json());
+
 		if (body.error) {
 			throw new UpstreamUnavailableError(
 				`TMDB returned a response for ${url.pathname} that is not JSON`,
@@ -162,6 +167,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 				},
 			);
 		}
+
 		return body.data;
 	};
 
@@ -173,6 +179,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		options: TmdbRequestOptions,
 	) => {
 		const data = await execute(url);
+
 		if (data === null || options.store === false) {
 			return data;
 		}
@@ -214,6 +221,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		options: TmdbRequestOptions,
 	): Promise<z.infer<TSchema> | null> => {
 		const url = new URL(`${endpoint}${path}`);
+
 		for (const [name, value] of Object.entries(query as Params).toSorted(([left], [right]) =>
 			left.localeCompare(right),
 		)) {
@@ -226,6 +234,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		const stored = options.store === false ? undefined : await store.find(key);
 
 		const kept = stored ? schema.safeParse(stored.data) : null;
+
 		if (stored && kept?.success && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
 			return kept.data;
 		}
@@ -234,10 +243,12 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			inFlight.run(key, () => fetchAndStore(key, path, url, options)),
 			UpstreamUnavailableError,
 		);
+
 		if (error) {
 			if (kept?.success) {
 				return kept.data;
 			}
+
 			throw error;
 		}
 
@@ -246,6 +257,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 
 		const parsed = schema.safeParse(data);
+
 		if (!parsed.success) {
 			throw new UpstreamUnavailableError(`TMDB returned an unexpected response for ${path}`, {
 				cause: parsed.error,
@@ -265,6 +277,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 const databaseStore: ResponseStore = {
 	find: async (key) => {
 		const [stored] = await db.select().from(tmdbResponse).where(eq(tmdbResponse.key, key)).limit(1);
+
 		return stored;
 	},
 	save: async (key, values) => {

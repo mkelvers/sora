@@ -24,6 +24,7 @@ const fresh = {
 describe("planNextCheck", () => {
 	test("checks at the next broadcast when every aired episode is released", () => {
 		const nextAiringAt = new Date("2026-09-25T08:00:00Z");
+
 		const plan = planNextCheck(
 			state({
 				latestAiredEpisode: 5,
@@ -83,6 +84,7 @@ describe("planNextCheck", () => {
 
 	test("stops retrying an episode after the last attempt but keeps the broadcast check", () => {
 		const nextAiringAt = new Date("2026-09-30T08:00:00Z");
+
 		const plan = planNextCheck(
 			state({
 				latestAiredEpisode: 6,
@@ -159,6 +161,7 @@ describe("planNextCheck", () => {
 
 	test("checks every 20 minutes during premiere day", () => {
 		const duringPremiere = new Date("2026-10-05T03:00:00Z");
+
 		const plan = planNextCheck(
 			state({
 				startDate: "2026-10-05",
@@ -176,6 +179,7 @@ describe("planNextCheck", () => {
 	test("uses the announced premiere time over the premiere-day window", () => {
 		// Psyren: AniList lists episode 1 for 2026-10-05 23:00 JST.
 		const nextAiringAt = new Date(1_791_208_800_000);
+
 		const plan = planNextCheck(
 			state({
 				nextAiringAt,

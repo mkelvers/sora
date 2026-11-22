@@ -30,6 +30,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 
 	.openapi(transferRoute.authorizeImport, (c) => {
 		const { source, redirect_uri, state, code_challenge } = c.req.valid("json");
+
 		return c.json(
 			{
 				meta: {},
@@ -48,6 +49,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 	.openapi(transferRoute.exportLibrary, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const library = await exportLibrary(profile.id);
+
 		return c.json(
 			{
 				meta: {},
@@ -60,6 +62,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 	.openapi(transferRoute.importLibrary, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const report = await importLibrary(profile.id, c.req.valid("json"));
+
 		return c.json(
 			{
 				meta: {},
@@ -72,6 +75,7 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 	.openapi(transferRoute.listImportConnections, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const connections = await listImportConnections(profile.id);
+
 		return c.json(
 			{
 				meta: {
@@ -87,12 +91,14 @@ export const transferRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, source } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await disconnectImport(profile.id, source);
+
 		return c.body(null, 204);
 	})
 
 	.openapi(transferRoute.undoImport, async (c) => {
 		const { profile_id, import_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
+
 		return c.json(
 			{
 				meta: {},

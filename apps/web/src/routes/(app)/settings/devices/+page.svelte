@@ -42,14 +42,17 @@
 
 	const since = (iso: string) => {
 		const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+
 		const units = [
 			["day", 86_400],
 			["hour", 3600],
 			["minute", 60],
 		] as const;
+
 		const formatter = new Intl.RelativeTimeFormat("en", {
 			numeric: "auto",
 		});
+
 		for (const [unit, length] of units) {
 			if (Math.abs(seconds) >= length) {
 				return formatter.format(Math.round(seconds / length), unit);

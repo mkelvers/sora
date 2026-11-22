@@ -4,6 +4,7 @@ import { classifySubtitle, subtitleKind, subtitleStats } from "./subtitle-kind";
 
 const stamp = (seconds: number) => {
 	const minutes = Math.floor(seconds / 60);
+
 	return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}.000`;
 };
 
@@ -23,6 +24,7 @@ const every = (seconds: number, count: number, text: (index: number) => string) 
 
 const dialogue = every(4, 360, (index) => `Line ${index}`);
 const signs = every(90, 14, (index) => `<b>Title ${index}</b>`);
+
 const captions = every(4, 360, (index) =>
 	index % 6 === 0 ? `<b>[door ${index}]</b>` : `Line ${index}`,
 );

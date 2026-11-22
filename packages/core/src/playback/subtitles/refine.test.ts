@@ -31,6 +31,7 @@ const speech = (
 		}
 
 		const words = cue.text.split(" ");
+
 		return words.map((text, index) => ({
 			end: cue.start + offset + ((index + 1) * seconds) / words.length,
 			start: cue.start + offset + (index * seconds) / words.length,
@@ -63,6 +64,7 @@ describe("refineCues", () => {
 			...cue,
 			end: cue.start + 4.8,
 		}));
+
 		const refinement = refineCues(cues, speech(cues, 0.3, 1.2), null);
 
 		const [anchor] = defined(refinement).anchors;
@@ -94,6 +96,7 @@ describe("refineCues", () => {
 
 	test("keeps the picture's offset when the speech agrees with it", () => {
 		const cues = script(30);
+
 		const refinement = refineCues(cues, speech(cues, 7.2), [
 			{
 				from: 0,
@@ -114,6 +117,7 @@ describe("refineCues", () => {
 			...cue,
 			text: `${cue.text} Frieren`,
 		}));
+
 		const words = speech(cues, 3).map((word) => ({
 			...word,
 			text: word.text === "Frieren" ? "Freeran." : word.text,
@@ -128,6 +132,7 @@ describe("refineCues", () => {
 
 		for (const [index, anchor] of defined(refinement).anchors.entries()) {
 			const next = defined(refinement).anchors[index + 1];
+
 			if (next) {
 				expect(anchor.movedEnd).toBeLessThanOrEqual(next.movedStart);
 			}
@@ -156,6 +161,7 @@ describe("refineCues", () => {
 
 	test("gives up when the dub does not speak the sub's script", () => {
 		const cues = script(30);
+
 		const other = script(30).map((cue) => ({
 			...cue,
 			text: cue.text.replaceAll("zq", "yv"),

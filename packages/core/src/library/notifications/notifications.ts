@@ -71,6 +71,7 @@ export const groupNotifications = (
 	read: ReadonlySet<string> = new Set(),
 ): NotificationGroup[] => {
 	const moments = new Map<string, ReleasedEpisode[]>();
+
 	for (const episode of episodes) {
 		const moment = `${episode.seriesId}:${episode.releasedAt.getTime()}:${episode.dubbed}`;
 		moments.set(moment, [...(moments.get(moment) ?? []), episode]);
@@ -84,11 +85,13 @@ export const groupNotifications = (
 			const id = `${first.seriesId}:${first.number}${first.dubbed ? ":dub" : ""}`;
 			const isPremiere = !first.dubbed && first.number === 1;
 			let kind: NotificationGroup["kind"] = "episodes";
+
 			if (first.dubbed) {
 				kind = "dub";
 			} else if (isPremiere) {
 				kind = "premiere";
 			}
+
 			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
 				return [];
 			}
@@ -135,9 +138,11 @@ export const announcementNotifications = (
 ): NotificationGroup[] =>
 	announced.flatMap(({ seriesId, storedAt }): NotificationGroup[] => {
 		const id = `${seriesId}:announced`;
+
 		if (dismissed.has(id)) {
 			return [];
 		}
+
 		return [
 			{
 				episode_title: null,
@@ -171,19 +176,25 @@ const followedSeries = async (
 	excluded: ReadonlySet<number>,
 ): Promise<Map<number, Date>> => {
 	const neighbours = new Map<number, Set<number>>();
+
 	const link = (from: number, to: number) => {
 		neighbours.set(from, (neighbours.get(from) ?? new Set()).add(to));
 	};
+
 	const seen = new Set(followed.keys());
+
 	const follow = async (frontier: number[]): Promise<void> => {
 		if (frontier.length === 0 || seen.size > continuityLimit) {
 			return;
 		}
+
 		const columns = {
 			from: series.anilistId,
 			to: seriesRelated.anilistId,
 		};
+
 		const continues = inArray(seriesRelated.relation, ["SEQUEL", "PREQUEL"]);
+
 		const [outgoing, incoming] = await Promise.all([
 			db
 				.select(columns)
@@ -196,12 +207,15 @@ const followedSeries = async (
 				.innerJoin(series, eq(series.id, seriesRelated.seriesId))
 				.where(and(continues, inArray(seriesRelated.anilistId, frontier))),
 		]);
+
 		const edges = [...outgoing, ...incoming];
 
 		const next: number[] = [];
+
 		for (const edge of edges) {
 			link(edge.from, edge.to);
 			link(edge.to, edge.from);
+
 			for (const id of [edge.from, edge.to]) {
 				if (!seen.has(id)) {
 					seen.add(id);
@@ -212,12 +226,15 @@ const followedSeries = async (
 
 		await follow(next);
 	};
+
 	await follow([...seen]);
 
 	const followedFrom = new Map<number, Date>();
+
 	for (const [origin, addedAt] of followed) {
 		const reached = new Set([origin]);
 		const pending = [origin];
+
 		for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
 			for (const next of neighbours.get(id) ?? []) {
 				if (!reached.has(next)) {
@@ -229,6 +246,7 @@ const followedSeries = async (
 
 		for (const id of reached) {
 			const earlier = followedFrom.get(id);
+
 			if (!excluded.has(id) && (!earlier || addedAt < earlier)) {
 				followedFrom.set(id, addedAt);
 			}
@@ -244,13 +262,17 @@ const followedSeries = async (
  */
 export const startsWhen = (startDate: string | null): string | null => {
 	const [year, month, dayOfMonth] = (startDate ?? "").split("-").map(Number);
+
 	if (!year) {
 		return null;
 	}
+
 	if (!month) {
 		return `in ${year}`;
 	}
+
 	const date = new Date(Date.UTC(year, month - 1, dayOfMonth || 1));
+
 	const format = new Intl.DateTimeFormat("en-US", {
 		...(dayOfMonth && {
 			day: "numeric",
@@ -259,6 +281,7 @@ export const startsWhen = (startDate: string | null): string | null => {
 		timeZone: "UTC",
 		year: "numeric",
 	});
+
 	return `${dayOfMonth ? "on" : "in"} ${format.format(date)}`;
 };
 
@@ -271,9 +294,11 @@ const notificationMessage = (
 	},
 ) => {
 	const { movie } = title;
+
 	if (group.kind === "announced") {
 		const announced = movie ? "A new film has been announced." : "A new season has been announced.";
 		const starts = startsWhen(title.startDate);
+
 		return starts
 			? `${announced} It is set to start ${starts}.`
 			: `${announced} No start date has been set yet.`;
@@ -289,6 +314,7 @@ const notificationMessage = (
 		if (movie) {
 			return "The English dub is now available. You can choose the dubbed version when you start the film.";
 		}
+
 		return count === 1
 			? `The English dub of episode ${last}${episodeTitle} is now available. You can switch to English audio in the player for this episode.`
 			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
@@ -298,6 +324,7 @@ const notificationMessage = (
 		if (movie) {
 			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
 		}
+
 		return count > 1
 			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
 			: `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
@@ -347,7 +374,9 @@ export const getNotifications = async (
 		items: [],
 		unread: 0,
 	};
+
 	const since = new Date(now.getTime() - notificationLifetimeMs);
+
 	const [states, watched] = await Promise.all([
 		db
 			.select({
@@ -370,9 +399,11 @@ export const getNotifications = async (
 			.where(and(eq(episodeProgress.userId, userId), catalogSeriesAllowed))
 			.groupBy(series.anilistId),
 	]);
+
 	const excluded = new Set(
 		states.filter((state) => state.status === "dropped").map((state) => state.anilistId),
 	);
+
 	const followed = new Map(
 		states.flatMap((state) =>
 			state.status !== "dropped" && state.addedAt
@@ -380,24 +411,30 @@ export const getNotifications = async (
 				: [],
 		),
 	);
+
 	for (const entry of watched) {
 		const savedAt = followed.get(entry.anilistId);
+
 		if (!excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt)) {
 			followed.set(entry.anilistId, entry.watchedAt);
 		}
 	}
+
 	if (followed.size === 0) {
 		return nothing;
 	}
 
 	const following = await followedSeries(followed, excluded);
+
 	const rows = await db
 		.select()
 		.from(series)
 		.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
+
 	const seriesIds = rows.map((row) => row.id);
 	const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));
 	const saved = new Set(states.map((state) => state.anilistId));
+
 	const announced = rows.flatMap((row): AnnouncedSeries[] =>
 		row.status === "NOT_YET_RELEASED" &&
 		!saved.has(row.anilistId) &&
@@ -419,6 +456,7 @@ export const getNotifications = async (
 		stillUrl: effectiveStill,
 		title: seriesEpisode.title,
 	};
+
 	const [aired, dubs, played, dismissals, reads] = await Promise.all([
 		db
 			.select({
@@ -470,6 +508,7 @@ export const getNotifications = async (
 			.from(notificationRead)
 			.where(eq(notificationRead.userId, userId)),
 	]);
+
 	const releases = [
 		...aired.map((row) => ({
 			...row,
@@ -480,6 +519,7 @@ export const getNotifications = async (
 			dubbed: true,
 		})),
 	].filter((row) => row.releasedAt > defined(cutoffs.get(row.seriesId)));
+
 	if (releases.length === 0 && announced.length === 0) {
 		return nothing;
 	}
@@ -489,6 +529,7 @@ export const getNotifications = async (
 	const releasedIds = new Set(releases.map((row) => row.seriesId));
 	const listed = await listedEpisodeDatesOf(rows.filter((row) => releasedIds.has(row.id)));
 	const playedKeys = new Set(played.map((row) => `${row.seriesId}:${row.episode}`));
+
 	const episodes = releases
 		.filter((row) => listed.get(row.seriesId)?.some((episode) => episode.number === row.number))
 		.map((row) => ({
@@ -498,14 +539,17 @@ export const getNotifications = async (
 
 	const { hide_spoilers: hideSpoilers, notifications: wanted } =
 		await getProfilePreferences(userId);
+
 	const kinds: Record<NotificationGroup["kind"], boolean> = {
 		announced: wanted.premieres,
 		dub: wanted.dubs,
 		episodes: wanted.episodes,
 		premiere: wanted.premieres,
 	};
+
 	const dismissed = new Set(dismissals.map((row) => row.notificationId));
 	const read = new Set(reads.map((row) => row.notificationId));
+
 	const all = [
 		...groupNotifications(episodes, dismissed, read),
 		...announcementNotifications(announced, dismissed, read),
@@ -516,6 +560,7 @@ export const getNotifications = async (
 		)
 		.filter((group) => kinds[group.kind])
 		.map((group) => (hideSpoilers ? { ...group, episode_title: null } : group));
+
 	const groups = all.slice(0, options.limit ?? 30);
 	const shownIds = new Set(groups.map((group) => group.seriesId));
 	const shownRows = rows.filter((row) => shownIds.has(row.id));
@@ -525,6 +570,7 @@ export const getNotifications = async (
 	return {
 		items: groups.flatMap(({ seriesId, ...group }): Notification[] => {
 			const card = cards.get(seriesId);
+
 			return card
 				? [
 						{

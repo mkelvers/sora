@@ -20,6 +20,7 @@ export const playbackRoutes = new OpenAPIHono<V1Env>({
 		const streamBaseUrl = new URL("/v1/streams", c.req.url);
 		// Behind a TLS-terminating proxy the API itself is reached over HTTP.
 		const protocol = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim();
+
 		if (protocol === "https" || protocol === "http") {
 			streamBaseUrl.protocol = protocol;
 		}
@@ -37,8 +38,10 @@ export const playbackRoutes = new OpenAPIHono<V1Env>({
 			),
 			getAdjacentEpisodes(series_id, episode),
 		]);
+
 		// Stream URLs expire; a cached playback would hand out dead ones.
 		c.header("Cache-Control", "no-store");
+
 		return c.json(
 			{
 				meta: {

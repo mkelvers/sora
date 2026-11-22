@@ -28,6 +28,7 @@ describe("story playback navigation", () => {
 			...series,
 			seasons: series.seasons.map((part) => ({ ...part, next_series_id: null })),
 		};
+
 		expect(nextEpisodeAddress(unconfirmed, 26, null)).toBeUndefined();
 	});
 
@@ -39,6 +40,7 @@ describe("story playback navigation", () => {
 				episode_count: part.series_id === "season-2" ? 0 : 26,
 			})),
 		};
+
 		expect(nextEpisodeAddress(upcoming, 26, null)).toBeUndefined();
 	});
 
@@ -53,6 +55,7 @@ describe("story playback navigation", () => {
 				{ episode_count: 1, format: "SPECIAL", next_series_id: null, series_id: "special" },
 			],
 		} satisfies Parameters<typeof storyContinuation>[0];
+
 		expect(nextEpisodeAddress({ ...finale, episode_count: 24 }, 24, null)).toEqual({
 			episode: "1",
 			seriesId: "special",

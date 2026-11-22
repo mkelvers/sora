@@ -24,10 +24,12 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 	.openapi(progressRoute.getProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
+
 		const progress = await getProgress(profile.id, {
 			episode,
 			seriesId: series_id,
 		});
+
 		return c.json(
 			{
 				meta: {},
@@ -40,6 +42,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 	.openapi(progressRoute.saveProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
+
 		const progress = await saveProgress(
 			profile.id,
 			{
@@ -48,6 +51,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 			},
 			c.req.valid("json"),
 		);
+
 		return c.json(
 			{
 				meta: {},
@@ -61,6 +65,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await getSeriesProgress(profile.id, series_id);
+
 		return c.json(
 			{
 				meta: {},
@@ -74,6 +79,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await removeProgress(profile.id, series_id);
+
 		return c.body(null, 204);
 	})
 
@@ -81,6 +87,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markWatched(profile.id, series_id);
+
 		return c.body(null, 204);
 	})
 
@@ -88,6 +95,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markWatched(profile.id, series_id, episode);
+
 		return c.body(null, 204);
 	})
 
@@ -98,6 +106,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 			episode,
 			seriesId: series_id,
 		});
+
 		return c.body(null, 204);
 	})
 
@@ -105,12 +114,14 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await startRewatch(profile.id, series_id);
+
 		return c.body(null, 204);
 	})
 
 	.openapi(progressRoute.listContinueWatching, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const shows = await getContinueWatching(profile.id);
+
 		return c.json(
 			{
 				meta: {
@@ -125,6 +136,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 	.openapi(progressRoute.listRecommendations, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const rows = await getRecommendations(profile.id);
+
 		return c.json(
 			{
 				meta: {
@@ -140,5 +152,6 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await dismissContinueWatching(profile.id, series_id);
+
 		return c.body(null, 204);
 	});

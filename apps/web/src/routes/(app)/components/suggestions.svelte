@@ -12,6 +12,7 @@
 			q: term,
 		}),
 	);
+
 	const found = $derived(await search);
 	const busy = $derived($effect.pending() > 0);
 
@@ -21,6 +22,7 @@
 		}
 
 		const timer = setTimeout(() => search.refresh(), 3000);
+
 		return () => clearTimeout(timer);
 	});
 </script>

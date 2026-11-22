@@ -12,6 +12,7 @@ export const storeMissingBackdropEdgesTask = "store-missing-backdrop-edges";
  */
 export const storeMissingBackdropEdgesJob: Task = async (_payload, helpers) => {
 	const { stored, failed } = await storeMissingBackdropEdges();
+
 	if (stored + failed > 0) {
 		helpers.logger.info(`Measured ${stored} backdrop edges; ${failed} failed`);
 	}

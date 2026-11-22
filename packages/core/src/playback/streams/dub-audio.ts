@@ -48,6 +48,7 @@ export const probeVideos = (
 	Promise.all(
 		videos.map(async (video) => {
 			const signal = AbortSignal.timeout(videoProbeTimeoutMs);
+
 			if (video.format === "hls") {
 				const { data, error } = await attempt(
 					dependencies.readPlaylist(video.url, video.headers, {
@@ -55,6 +56,7 @@ export const probeVideos = (
 					}),
 					StreamUpstreamError,
 				);
+
 				if (error) {
 					return error.status === 429
 						? {
@@ -62,11 +64,14 @@ export const probeVideos = (
 							}
 						: null;
 				}
+
 				return {
 					audioLanguages: audioLanguages(data.content),
 				};
 			}
+
 			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
+
 			return loads
 				? {
 						audioLanguages: [],
@@ -98,6 +103,7 @@ export const streamsDub = async (
 	episodeId: string,
 ) => {
 	const { data, error } = await attempt(provider.resolveStream(episodeId, "dub"));
+
 	return !error && hasDubAudio(await probeVideos(data.videos));
 };
 
@@ -124,6 +130,7 @@ export const withConfirmedDubs = async (
 	const dubbedBefore = new Set(
 		previous.filter((unit) => unit.languages?.includes("dub")).map((unit) => unit.number),
 	);
+
 	const unconfirmed = new Set<string>();
 	await inSequence(
 		units.filter((unit) => unit.languages?.includes("dub") && !dubbedBefore.has(unit.number)),

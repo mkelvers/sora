@@ -16,6 +16,7 @@ const EpisodeAddress = z.object({
 
 export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) => {
 	const { sora } = remoteViewer();
+
 	const found = await attempt(
 		Promise.all([
 			sora.request(route.getSeries, {
@@ -32,9 +33,11 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 		]),
 		SoraError,
 	);
+
 	if (found.error?.status === 404) {
 		error(404, "Episode not found");
 	}
+
 	if (found.error) {
 		throw found.error;
 	}
@@ -85,6 +88,7 @@ export const saveProgress = command(
 	}),
 	async ({ seriesId, episode, leaving, profileId, ...progress }) => {
 		const { sora, profile } = remoteViewer();
+
 		if (profileId !== profile.id) {
 			error(409, "The active profile has changed");
 		}

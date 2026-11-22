@@ -27,6 +27,7 @@
 	let sizing = $state(false);
 
 	const arranging = $derived(sizing && media.type === "logo" && !!series.logo_url);
+
 	const placed = $derived(
 		series.logo_scale !== 1 || series.logo_offset_x !== 0 || series.logo_offset_y !== 0,
 	);

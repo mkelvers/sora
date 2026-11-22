@@ -72,6 +72,7 @@ export const countries = [
 ] as const;
 
 type Sort = (typeof sorts)[number]["value"];
+
 type Country = (typeof countries)[number]["value"];
 
 export interface BrowseFilters extends CatalogFilters {
@@ -107,6 +108,7 @@ export const toggle = <T>(list: T[], value: T) =>
 
 export const browseTitle = (filters: BrowseFilters) => {
 	const named = [...filters.genres, ...filters.tags, ...filters.studios];
+
 	return named.length === 1 ? `${named[0]} Anime` : "Browse Anime";
 };
 

@@ -27,9 +27,11 @@ const seamShare = 0.8;
  */
 export const isCollage = async (url: string): Promise<boolean> => {
 	const sized = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${fetchedWidth}`);
+
 	const response = await fetch(sized, {
 		signal: AbortSignal.timeout(15_000),
 	});
+
 	if (!response.ok) {
 		throw new Error(`${sized} answered ${response.status}`);
 	}
@@ -48,17 +50,21 @@ export const isCollage = async (url: string): Promise<boolean> => {
 
 	for (let x = 2; x < gridWidth - 2; x += 1) {
 		let edges = 0;
+
 		for (let y = 0; y < gridHeight; y += 1) {
 			const row = y * gridWidth;
 			const pixel = (offset: number) => data[row + x + offset] ?? 0;
 			const step = Math.abs(pixel(1) + pixel(2) - pixel(-1) - pixel(0)) / 2;
+
 			if (step >= edgeStep) {
 				edges += 1;
 			}
 		}
+
 		if (edges / gridHeight >= seamShare) {
 			return true;
 		}
 	}
+
 	return false;
 };

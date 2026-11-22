@@ -10,13 +10,17 @@ export const inSequence = <TItem, TResult>(
 	work: (item: TItem, index: number) => Promise<TResult>,
 ): Promise<TResult[]> => {
 	const results: TResult[] = [];
+
 	const step = async (index: number): Promise<TResult[]> => {
 		if (index >= items.length) {
 			return results;
 		}
+
 		results.push(await work(items[index] as TItem, index));
+
 		return await step(index + 1);
 	};
+
 	return step(0);
 };
 
@@ -32,8 +36,10 @@ export const firstInSequence = <TItem, TResult>(
 		if (index >= items.length) {
 			return undefined;
 		}
+
 		return (await work(items[index] as TItem, index)) ?? (await step(index + 1));
 	};
+
 	return step(0);
 };
 
@@ -49,15 +55,18 @@ export const inParallel = async <TItem>(
 	signal?: AbortSignal,
 ): Promise<void> => {
 	let next = 0;
+
 	const worker = async (): Promise<void> => {
 		if (signal?.aborted || next >= items.length) {
 			return;
 		}
+
 		const item = items[next] as TItem;
 		next += 1;
 		await work(item);
 		await worker();
 	};
+
 	await Promise.all(Array.from({ length: concurrency }, worker));
 };
 

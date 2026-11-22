@@ -70,6 +70,7 @@ export const sendProblem = (
 export const onError = (error: unknown, c: Context) => {
 	if (!(error instanceof CoreError)) {
 		console.error(`${c.req.method} ${c.req.path} failed`, error);
+
 		return sendProblem(c, 500, "INTERNAL_ERROR", "Something went wrong on our side");
 	}
 
@@ -79,6 +80,7 @@ export const onError = (error: unknown, c: Context) => {
 
 	const status = error instanceof StreamUpstreamError ? 502 : statusByCode[error.code];
 	const response = sendProblem(c, status, error.code, error.message);
+
 	if (error instanceof UpstreamUnavailableError && error.retryAfterMs !== null) {
 		response.headers.set("Retry-After", formatRetryAfter(error.retryAfterMs));
 	}

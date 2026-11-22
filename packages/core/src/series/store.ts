@@ -58,6 +58,7 @@ const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<numbe
 	}
 
 	const stored = await storedSeriesIds(anilistIds);
+
 	const rows = await db
 		.select({
 			anilistId: animeSearch.anilistId,
@@ -71,6 +72,7 @@ const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<numbe
 				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
 			),
 		);
+
 	return rows.map((row) => row.anilistId).filter((anilistId) => !stored.has(anilistId));
 };
 
@@ -97,6 +99,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 	const built = await buildSeries(anilistId);
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);
+
 	const airings =
 		built.useAniListAirings && (!isStored || built.mayGainEpisodes)
 			? await fetchEpisodeAirings([anilistId])
@@ -119,6 +122,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			status: built.status,
 			title: built.title,
 		};
+
 		const [stored] = await tx
 			.insert(series)
 			.values({
@@ -133,6 +137,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			.returning({
 				id: series.id,
 			});
+
 		const { id } = defined(stored);
 
 		const earlierEpisodes = await tx
@@ -142,8 +147,10 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			})
 			.from(seriesEpisode)
 			.where(eq(seriesEpisode.seriesId, id));
+
 		const airedBefore = new Map(earlierEpisodes.map((row) => [row.number, row.airedAt]));
 		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
+
 		const episodes = built.episodes.map((episode) => ({
 			airDate: episode.airDate,
 			airedAt: built.useAniListAirings
@@ -160,11 +167,13 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
 			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
 		}));
+
 		await inSequence(chunked(episodes, episodeInsertBatch), async (batch) => {
 			await tx.insert(seriesEpisode).values(batch);
 		});
 
 		await tx.delete(seriesRelated).where(eq(seriesRelated.seriesId, id));
+
 		if (built.related.length > 0) {
 			await tx
 				.insert(seriesRelated)
@@ -180,10 +189,12 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 
 		return id;
 	});
+
 	await storeBackdropEdges(seriesId);
 
 	// Readers take the series' details from its anime, so it must be stored.
 	await getAnime(anilistId);
+
 	if (built.mayGainEpisodes) {
 		await startTrackingAiring(anilistId);
 	}

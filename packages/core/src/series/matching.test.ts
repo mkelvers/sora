@@ -26,6 +26,7 @@ const weekly = (
 	} = {},
 ): TmdbEpisode[] => {
 	const first = options.first ?? 1;
+
 	return Array.from(
 		{
 			length: count,
@@ -56,6 +57,7 @@ const special = (episode: number, airDate: string, runtime: number): TmdbEpisode
 
 const subject = (overrides: Partial<MatchSubject>): MatchSubject => {
 	const titles = overrides.titles ?? ["Example"];
+
 	return {
 		airsFrom: null,
 		durationMinutes: 24,
@@ -123,6 +125,7 @@ describe("placeInShow", () => {
 			startDate: "2016-07-04",
 			titles: ["The Disastrous Life of Saiki K."],
 		});
+
 		const candidate = show(weekly(1, "2016-07-11", 24, { runtime: 23 }), {
 			show: {
 				episodes: weekly(1, "2016-07-11", 24, { runtime: 23 }),
@@ -131,11 +134,13 @@ describe("placeInShow", () => {
 				originalName: "斉木楠雄のΨ難",
 			},
 		});
+
 		const placement = placeInShow(shorts, candidate);
 		expect(placement?.method).toBe("compilation");
 		expect(placement?.tmdbId).toBe(67_676);
 		expect(range(placement)).toHaveLength(24);
 		expect(range(placement)?.at(-1)).toBe("24:S1E24");
+
 		for (const invalid of [
 			{ playbackEpisodes: null },
 			{ playbackEpisodes: 12 },
@@ -150,6 +155,7 @@ describe("placeInShow", () => {
 		]) {
 			expect(placeInShow({ ...shorts, ...invalid }, candidate)?.method).not.toBe("compilation");
 		}
+
 		expect(
 			range(placeInShow({ ...shorts, durationMinutes: 23, format: "TV" }, candidate)),
 		).toHaveLength(24);
@@ -163,15 +169,19 @@ describe("placeInShow", () => {
 			],
 			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
 		);
+
 		const first = placeInShow(
 			subject({ endDate: "2021-12-01", episodes: 12, format: "ONA", startDate: "2021-12-01" }),
 			candidate,
 		);
+
 		expect(range(first)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S5E${i + 1}`));
+
 		const second = placeInShow(
 			subject({ endDate: "2022-12-01", episodes: 26, format: "ONA", startDate: "2022-09-01" }),
 			{ ...candidate, prequel: endingAt(5, 12) },
 		);
+
 		expect(range(second)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
 	});
 
@@ -180,6 +190,7 @@ describe("placeInShow", () => {
 			subject({ endDate: "2013-09-21", episodes: 12, startDate: "2013-06-23" }),
 			show([...weekly(1, "2013-07-06", 12), ...weekly(2, "2015-04-06", 12)]),
 		);
+
 		expect(range(placement)).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1}:S1E${i + 1}`));
 	});
 
@@ -188,6 +199,7 @@ describe("placeInShow", () => {
 			subject({ endDate: "2021-11-25", episodes: 11, format: "ONA", startDate: "2021-09-16" }),
 			show(weekly(1, "2022-01-13", 11)),
 		);
+
 		expect(range(placement)).toHaveLength(11);
 	});
 
@@ -209,12 +221,14 @@ describe("placeInShow", () => {
 			],
 			{ isFranchiseShow: true, prequel: endingAt(4, 39) },
 		);
+
 		const entry = subject({
 			endDate: "2021-12-01",
 			episodes: 12,
 			format: "ONA",
 			startDate: "2021-12-01",
 		});
+
 		expect(placeInShow(entry, candidate)).toBeNull();
 		expect(placeInShow({ ...entry, episodes: 10, startDate: "2021-01-01" }, candidate)).toBeNull();
 	});
@@ -668,6 +682,7 @@ describe("placeInShow", () => {
 
 	test("prefers the franchise's own show over a same-dated duplicate", () => {
 		const episodes = [special(36, "2023-03-04", 61)];
+
 		const specialSubject = subject({
 			durationMinutes: 61,
 			endDate: "2023-03-04",
@@ -682,6 +697,7 @@ describe("placeInShow", () => {
 				isFranchiseShow: true,
 			}),
 		);
+
 		const duplicate = placeInShow(
 			specialSubject,
 			show([
@@ -702,6 +718,7 @@ describe("placeInShow", () => {
 				first: 15,
 			}),
 		];
+
 		const rerun = subject({
 			endDate: "2009-10-09",
 			episodes: 28,
@@ -709,6 +726,7 @@ describe("placeInShow", () => {
 			startDate: "2009-04-03",
 			titles: ["The Melancholy of Haruhi Suzumiya (2009)"],
 		});
+
 		const candidate = {
 			...show(episodes),
 			show: {
@@ -856,6 +874,7 @@ describe("placeInShow by the end of a run of specials", () => {
 		},
 		...overrides,
 	});
+
 	const highSchoolDays = subject({
 		endDate: "2023-08-23",
 		episodes: 4,
@@ -863,6 +882,7 @@ describe("placeInShow by the end of a run of specials", () => {
 		startDate: "2023-07-12",
 		titles: ["TONIKAWA: Over The Moon For You ~High School Days~"],
 	});
+
 	const fromAugust = [
 		special(16, "2023-08-02", 24),
 		special(17, "2023-08-09", 24),
@@ -963,6 +983,7 @@ describe("placeAsMovie", () => {
 			startDate: "2011-02-26",
 			titles: ["Macross Frontier: Chou Jikuu Gekijou"],
 		});
+
 		const film = {
 			...movie({
 				original_title: "劇場版マクロスF 恋離飛翼～サヨナラノツバサ～",
@@ -993,6 +1014,7 @@ describe("placeAsMovie", () => {
 			startDate: "2023-09-02",
 			titles: ["The Quintessential Quintuplets Specials", "Go-toubun no Hanayome∽"],
 		});
+
 		const film = {
 			...movie({
 				id: 1_153_706,
@@ -1070,6 +1092,7 @@ describe("placeAfterInCollection", () => {
 			title: "HAIKYU!! The Dumpster Battle",
 		}),
 	];
+
 	const littleGiant = subject({
 		format: "MOVIE",
 		startDate: "2027",
@@ -1203,25 +1226,31 @@ describe("continuesPastLinks", () => {
 
 describe("placeInEpisodeGroups", () => {
 	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({ ...episode, order }));
+
 	const second = weekly(5, "2022-10-08", 12, { first: 13 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const final = weekly(5, "2023-01-07", 14, { first: 25 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const stage = weekly(6, "2026-03-19", 1, { runtime: 49 }).map((episode, order) => ({
 		...episode,
 		order,
 	}));
+
 	const candidate = show([...first, ...second, ...final, ...stage]).show;
+
 	const groups = [
 		{ episodes: first, name: "JoJo's Bizarre Adventure: STONE OCEAN", order: 1 },
 		{ episodes: second, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 2 ", order: 2 },
 		{ episodes: final, name: "JoJo's Bizarre Adventure: STONE OCEAN Part 3", order: 3 },
 		{ episodes: stage, name: "STEEL BALL RUN JoJo's Bizarre Adventure 1st STAGE", order: 4 },
 	];
+
 	const entry = subject({
 		episodes: 12,
 		format: "ONA",
@@ -1246,6 +1275,7 @@ describe("placeInEpisodeGroups", () => {
 			candidate,
 			[groups],
 		);
+
 		expect(range(placed)).toEqual(Array.from({ length: 26 }, (_, i) => `${i + 1}:S5E${i + 13}`));
 	});
 
@@ -1261,6 +1291,7 @@ describe("placeInEpisodeGroups", () => {
 			candidate,
 			[groups],
 		);
+
 		expect(range(placed)).toEqual(["1:S6E1"]);
 	});
 

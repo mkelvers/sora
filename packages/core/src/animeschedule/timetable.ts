@@ -58,17 +58,21 @@ const isHeldBack = (entry: z.infer<typeof TimetableEntrySchema>) => {
 	if (entry.airingStatus === "delayed-air") {
 		return true;
 	}
+
 	if (!entry.delayedText) {
 		return false;
 	}
 
 	const airsAt = Date.parse(entry.episodeDate);
+
 	const from =
 		entry.delayedFrom && entry.delayedFrom !== unknownDate ? Date.parse(entry.delayedFrom) : null;
+
 	const until =
 		entry.delayedUntil && entry.delayedUntil !== unknownDate
 			? Date.parse(entry.delayedUntil)
 			: null;
+
 	return (from === null || airsAt >= from) && (until === null || airsAt < until);
 };
 
@@ -128,12 +132,14 @@ export const fetchTimetable = async (
 		.parse(await response.json())
 		.flatMap((item) => {
 			const entry = TimetableEntrySchema.safeParse(item);
+
 			if (!entry.success || isHeldBack(entry.data)) {
 				return [];
 			}
 
 			const last = entry.data.episodeNumber;
 			const first = Math.max(1, last - (entry.data.subtractedEpisodeNumber ?? 0));
+
 			return Array.from(
 				{
 					length: last - first + 1,
@@ -158,6 +164,7 @@ export const isoWeek = (date: Date) => {
 	const thursday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 	thursday.setUTCDate(thursday.getUTCDate() + 3 - ((thursday.getUTCDay() + 6) % 7));
 	const year = thursday.getUTCFullYear();
+
 	return {
 		week: Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / (7 * day)) + 1,
 		year,
@@ -179,6 +186,7 @@ const resolveAnimeScheduleShows = async (
 	routes: readonly string[],
 ): Promise<Map<string, number | null>> => {
 	const unique = [...new Set(routes)];
+
 	if (unique.length === 0) {
 		return new Map();
 	}
@@ -187,6 +195,7 @@ const resolveAnimeScheduleShows = async (
 		.select()
 		.from(animeScheduleShow)
 		.where(inArray(animeScheduleShow.route, unique));
+
 	const resolved = new Map(
 		stored.flatMap((show) =>
 			show.anilistId !== null || show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
@@ -203,15 +212,19 @@ const resolveAnimeScheduleShows = async (
 					headers,
 				}),
 			);
+
 			if (response.error) {
 				console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
+
 				return;
 			}
 
 			const body = await attempt(response.data.json());
 			const show = AnimeSchema.safeParse(body.data);
+
 			if (!show.success) {
 				console.warn(`AnimeSchedule show ${route} could not be read`);
+
 				return;
 			}
 
@@ -223,6 +236,7 @@ const resolveAnimeScheduleShows = async (
 				anilistId,
 				resolvedAt: new Date(),
 			};
+
 			await db
 				.insert(animeScheduleShow)
 				.values({
@@ -260,6 +274,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
 		const nextMonday = new Date(monday.getTime() + 7 * day);
 		const timetable = await fetchTimetable(http, isoWeek(monday));
+
 		const releases = [
 			...new Map(
 				timetable.map((release) => [
@@ -268,6 +283,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 				]),
 			).values(),
 		];
+
 		const shows = await resolveAnimeScheduleShows(
 			http,
 			releases.map((release) => release.route),
@@ -282,6 +298,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 						lt(animeScheduleRelease.airsAt, nextMonday),
 					),
 				);
+
 			if (releases.length > 0) {
 				await tx
 					.insert(animeScheduleRelease)
@@ -303,6 +320,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 
 		for (const release of releases) {
 			const anilistId = shows.get(release.route);
+
 			if (anilistId) {
 				anilistIds.add(anilistId);
 			}

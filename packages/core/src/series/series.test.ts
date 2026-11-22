@@ -41,6 +41,7 @@ describe("layoutEpisodes", () => {
 			show,
 			null,
 		);
+
 		expect(episodes).toHaveLength(3);
 		expect(episodes[2]?.title).toBe("Chapter 3");
 		expect(episodes[2]?.runtimeMinutes).toBe(23);

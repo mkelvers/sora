@@ -21,6 +21,7 @@ const startOf = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
 /** The whole days AniList recorded for `ids` after `after` (a Unix timestamp) and before `now`, page by page. */
 const fetchTrends = async (ids: readonly number[], after: number, now: number) => {
 	const rows: (typeof animeTrend.$inferInsert)[] = [];
+
 	const readPage = async (page: number): Promise<void> => {
 		const { Page } = await anilist(
 			MediaTrendsDocument,
@@ -33,6 +34,7 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 				maxAgeMs: hour,
 			},
 		);
+
 		for (const trend of Page?.mediaTrends ?? []) {
 			// A day still under way would count as a quiet one.
 			if (trend && trend.date * 1000 + day <= now) {
@@ -44,11 +46,14 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 				});
 			}
 		}
+
 		if (Page?.pageInfo?.hasNextPage) {
 			await readPage(page + 1);
 		}
 	};
+
 	await readPage(1);
+
 	return rows;
 };
 
@@ -64,6 +69,7 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
 	const now = new Date();
 	const oldest = dateBefore(now, activityKeptFor);
+
 	const entries = await db
 		.select({
 			anilistId: animeSearch.anilistId,
@@ -79,6 +85,7 @@ export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
 	// Entries are asked for together by the day they are known up to, so a
 	// request covers only days some of them miss.
 	const bySince = Map.groupBy(entries, (entry) => entry.newest ?? oldest);
+
 	const groups = [...bySince].flatMap(([since, group]) =>
 		chunked(
 			group.map((entry) => entry.anilistId),
@@ -88,9 +95,11 @@ export const storeAnimeTrendsJob: Task = async (_payload, helpers) => {
 			ids,
 		})),
 	);
+
 	const fetched = await inSequence(groups, ({ ids, after }) =>
 		fetchTrends(ids, after, now.getTime()),
 	);
+
 	const rows = fetched.flat();
 
 	await inSequence(chunked(rows, 1000), (batch) =>

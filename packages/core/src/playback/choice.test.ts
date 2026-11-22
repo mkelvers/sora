@@ -20,6 +20,7 @@ const sub = {
 	audio: "sub" as const,
 	subtitles: [track("en", "signs"), track("en", "dialogue", true), track("de", "dialogue")],
 };
+
 const dub = {
 	audio: "dub" as const,
 	subtitles: [track("en", "dialogue", true)],

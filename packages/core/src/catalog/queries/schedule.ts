@@ -34,6 +34,7 @@ export const fetchEpisodeAirings = async (
 ): Promise<Map<string, Date>> => {
 	const ids = [...new Set(anilistIds)];
 	const airings = new Map<string, Date>();
+
 	const readPage = async (batch: number[], page: number): Promise<void> => {
 		const { Page } = await anilist(
 			EpisodeAiringsDocument,
@@ -59,6 +60,7 @@ export const fetchEpisodeAirings = async (
 			await readPage(batch, page + 1);
 		}
 	};
+
 	await inSequence(chunked(ids, airingsBatchSize), (batch) => readPage(batch, 1));
 
 	return airings;

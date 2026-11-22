@@ -32,6 +32,7 @@ const recorded = (
 	record?: (call: ProviderCall) => Promise<void>,
 ) => {
 	const calls: ProviderCall[] = [];
+
 	const provider = recordingCalls(
 		{
 			findMedia: () => Promise.resolve(null),
@@ -45,6 +46,7 @@ const recorded = (
 		record ??
 			((call) => {
 				calls.push(call);
+
 				return Promise.resolve();
 			}),
 	);
@@ -80,6 +82,7 @@ describe("recordingCalls", () => {
 
 	test("records a thrown error as failed with its message, and rethrows it", async () => {
 		const error = new Error("MegaPlay has no dub source for this episode");
+
 		const { provider, calls } = recorded({
 			resolveStream: () => Promise.reject(error),
 		});
@@ -126,6 +129,7 @@ describe("recordingCalls", () => {
 
 	test("offers syncCatalog only when the provider has one", async () => {
 		const { provider: without } = recorded({});
+
 		const { provider: withSync, calls } = recorded({
 			syncCatalog: () => Promise.resolve("Synced 3 series"),
 		});

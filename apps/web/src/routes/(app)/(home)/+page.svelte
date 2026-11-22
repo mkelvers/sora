@@ -15,6 +15,7 @@
 	let { data }: PageProps = $props();
 
 	const library = getLibrary();
+
 	const rows = $derived(
 		data.rows
 			.map((row) => ({

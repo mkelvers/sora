@@ -15,6 +15,7 @@ export class SubtitleRefinementError extends Error {
 /** Segments fetched at once; hosts that limit requests answer more with 429. */
 const concurrency = 3;
 const attempts = 5;
+
 /** How long ffmpeg may take to decode an episode's audio. */
 const decodeTimeoutMs = 20 * 60 * second;
 
@@ -34,6 +35,7 @@ const target = (
 
 const readPlaylist = async (url: string, headers: Record<string, string>, parent?: string) => {
 	const upstream = await fetchUpstreamBytes(target(url, "playlist", headers, parent));
+
 	return {
 		text: new TextDecoder().decode(upstream.bytes),
 		url: upstream.url,
@@ -43,6 +45,7 @@ const readPlaylist = async (url: string, headers: Record<string, string>, parent
 /** The playlist listing a stream's segments: the lowest bitrate variant of a master playlist. */
 export const mediaPlaylist = async (url: string, headers: Record<string, string>) => {
 	const master = await readPlaylist(url, headers);
+
 	const variants = [
 		...master.text.matchAll(/^#EXT-X-STREAM-INF:(?<attributes>[^\n]*)\n\s*(?<uri>[^#\s][^\n]*)/gmu),
 	].map(([, attributes, uri]) => ({
@@ -51,7 +54,9 @@ export const mediaPlaylist = async (url: string, headers: Record<string, string>
 		),
 		url: new URL(defined(uri).trim(), master.url).toString(),
 	}));
+
 	const [lowest] = variants.toSorted((a, b) => a.bandwidth - b.bandwidth);
+
 	return lowest ? readPlaylist(lowest.url, headers, master.url) : master;
 };
 
@@ -64,12 +69,15 @@ export const readWithRetries = async (
 ): Promise<Uint8Array> => {
 	try {
 		const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
+
 		return unwrapDisguisedSegment(upstream.bytes);
 	} catch (error) {
 		if (tries === attempts) {
 			throw error;
 		}
+
 		await Bun.sleep(tries * 1.5 * second);
+
 		return await readWithRetries(url, playlistUrl, headers, tries + 1);
 	}
 };
@@ -93,11 +101,13 @@ export const extractAudio = async (
 	path: string,
 ) => {
 	const media = await mediaPlaylist(playlistUrl, headers);
+
 	if (/^#EXT-X-KEY:(?!METHOD=NONE)/mu.test(media.text)) {
 		throw new SubtitleRefinementError("The stream is encrypted");
 	}
 
 	const initialization = /^#EXT-X-MAP:.*URI="(?<uri>[^"]+)"/mu.exec(media.text)?.[1];
+
 	const segments = [
 		...(initialization ? [initialization] : []),
 		...media.text
@@ -105,6 +115,7 @@ export const extractAudio = async (
 			.map((line) => line.trim())
 			.filter((line) => line && !line.startsWith("#")),
 	].map((uri) => new URL(uri, media.url).toString());
+
 	if (segments.length === 0) {
 		throw new SubtitleRefinementError("The playlist has no segments");
 	}
@@ -118,14 +129,18 @@ export const extractAudio = async (
 			timeout: decodeTimeoutMs,
 		},
 	);
+
 	const failure = new Response(ffmpeg.stderr).text();
 
 	try {
 		const fetching = new Map<number, Promise<Uint8Array>>();
+
 		const fetchSegment = (index: number) => {
 			const promise =
 				fetching.get(index) ?? readWithRetries(defined(segments[index]), media.url, headers);
+
 			fetching.set(index, promise);
+
 			return promise;
 		};
 

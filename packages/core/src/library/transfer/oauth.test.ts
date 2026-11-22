@@ -19,10 +19,12 @@ const clients: Clients = {
 		clientSecret: "mal-secret",
 	},
 };
+
 const none: Clients = {
 	aniListOAuth: null,
 	myAnimeListOAuth: null,
 };
+
 const authorization = {
 	code: "the-code",
 	code_verifier: "v".repeat(64),
@@ -37,10 +39,12 @@ interface Call {
 /** A fetcher that answers each call in turn and records what it was sent. */
 const answering = (...responses: Response[]): { calls: Call[]; fetcher: Fetcher } => {
 	const calls: Call[] = [];
+
 	return {
 		calls,
 		fetcher: (url, init) => {
 			calls.push({ init, url });
+
 			return Promise.resolve(responses[calls.length - 1] ?? new Response("", { status: 500 }));
 		},
 	};
@@ -292,6 +296,7 @@ describe("readMyAnimeListAccount", () => {
 			json({ name: "someone" }),
 			new Response("", { status: 401 }),
 		);
+
 		await expect(
 			readMyAnimeListAccount(authorization, invalid.fetcher, clients),
 		).rejects.toBeInstanceOf(InvalidInputError);

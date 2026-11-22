@@ -41,6 +41,7 @@
 
 	let busy = $state<"connect" | "import" | "file" | null>(null);
 	let connecting = $state<AccountSource | null>(null);
+
 	let announcement = $state<{
 		message: string;
 		importId: string | null;
@@ -54,6 +55,7 @@
 			tone: "error",
 		};
 	};
+
 	let fileInput = $state<HTMLInputElement>();
 
 	const providers = $derived(catalogue.filter((provider) => options[provider.id] === true));
@@ -69,15 +71,19 @@
 	const summary = (report: LibraryImportReport) => {
 		const titles = report.watchlist_added ? count(report.watchlist_added, "title") : null;
 		const episodes = report.episodes_added ? count(report.episodes_added, "episode") : null;
+
 		const missing = report.not_in_sora_count
 			? ` ${report.not_in_sora_count.toLocaleString("en-US")} not in Sora yet; Sora is adding them.`
 			: "";
+
 		if (titles && episodes) {
 			return `All done. Added ${titles} to your Watchlist and marked ${episodes} as watched.${missing}`;
 		}
+
 		if (titles) {
 			return `All done. Added ${titles} to your Watchlist.${missing}`;
 		}
+
 		if (episodes) {
 			return `All done. Marked ${episodes} as watched.${missing}`;
 		}
@@ -91,12 +97,14 @@
 		const { data, error } = await attempt(importLibrary(input), Error);
 		busy = null;
 		connecting = null;
+
 		if (error) {
 			fail(
 				kind === "import"
 					? "That couldn't be imported. Connect again and it should work."
 					: "That file couldn't be imported. Check it's the right one and try again.",
 			);
+
 			return;
 		}
 
@@ -109,6 +117,7 @@
 
 	const undo = async () => {
 		const importId = announcement?.importId;
+
 		if (!importId) {
 			return;
 		}
@@ -132,6 +141,7 @@
 
 	const finishConnecting = (search: string) => {
 		const returned = returnedFrom(search);
+
 		if (!returned) {
 			return;
 		}
@@ -169,6 +179,7 @@
 		connecting = selected.id;
 		popup = window.open("", "", popupFeatures);
 		const { challenge, state } = begin(selected.id, popup !== null);
+
 		const { data, error } = await attempt(
 			authorizeImport({
 				code_challenge: challenge,
@@ -178,16 +189,20 @@
 			}),
 			Error,
 		);
+
 		if (error) {
 			popup?.close();
 			popup = null;
 			busy = null;
 			connecting = null;
 			fail(`Connecting to ${selected.name} isn't available right now.`);
+
 			return;
 		}
+
 		if (!popup) {
 			location.href = data.url;
+
 			return;
 		}
 
@@ -197,15 +212,18 @@
 	$effect(() => {
 		const { search } = location;
 		const params = new URLSearchParams(search);
+
 		if (!params.has("code") && !params.has("error")) {
 			return;
 		}
+
 		history.replaceState(history.state, "", location.pathname);
 		finishConnecting(search);
 	});
 
 	const onReturn = (event: StorageEvent) => {
 		const waiting = busy === "connect" && connecting !== null;
+
 		if (event.key !== handoverKey || !event.newValue || !waiting) {
 			return;
 		}
@@ -218,19 +236,23 @@
 	$effect(() => {
 		window.addEventListener("storage", onReturn);
 		let closedSince: number | null = null;
+
 		const watchClosed = setInterval(() => {
 			if (!popup?.closed) {
 				closedSince = null;
+
 				return;
 			}
 
 			closedSince ??= Date.now();
+
 			if (Date.now() - closedSince > closedGraceMs && busy === "connect") {
 				popup = null;
 				busy = null;
 				connecting = null;
 			}
 		}, 500);
+
 		return () => {
 			window.removeEventListener("storage", onReturn);
 			clearInterval(watchClosed);
@@ -245,34 +267,44 @@
 	/** Imports a file whatever it is: a MyAnimeList export is XML, one downloaded from Export is JSON. */
 	const chooseFile = async () => {
 		const chosen = fileInput?.files?.[0];
+
 		if (fileInput) {
 			fileInput.value = "";
 		}
+
 		if (!chosen) {
 			return;
 		}
 
 		announcement = null;
+
 		if (chosen.size > maxFileBytes) {
 			fail("That file is too large to import. The limit is 20 MB.");
+
 			return;
 		}
 
 		const { data: text, error } = await attempt(readText(chosen), Error);
+
 		if (error) {
 			fail("That file couldn't be read.");
+
 			return;
 		}
 
 		const start = text.trimStart().charAt(0);
+
 		if (start === "<") {
 			await run({ source: "myanimelist", xml: text }, "file");
+
 			return;
 		}
 
 		const { data: document, error: syntax } = attempt(() => JSON.parse(text), SyntaxError);
+
 		if (start !== "{" || syntax) {
 			fail("That isn't a MyAnimeList export or a file downloaded from Export.");
+
 			return;
 		}
 

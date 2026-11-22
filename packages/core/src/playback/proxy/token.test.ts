@@ -5,6 +5,7 @@ import { signStreamTarget, verifyStreamToken } from "./token";
 import type { StreamTarget } from "./token";
 
 const secret = "test-secret-that-is-at-least-32-characters";
+
 const target: StreamTarget = {
 	accountId: "account",
 	expiresAt: 2_000_000_000,

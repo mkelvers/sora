@@ -117,11 +117,13 @@ const fetchShowFacts = async (showId: number): Promise<TmdbFacts | null> => {
 		ShowFactsSchema,
 		factsRequest,
 	);
+
 	if (!show) {
 		return null;
 	}
 
 	const ratings = show.content_ratings?.results ?? [];
+
 	return {
 		certification: ratings.find((rating) => rating.iso_3166_1 === "US")?.rating.trim() || null,
 		descriptors: distinct(ratings.flatMap((rating) => rating.descriptors ?? [])),
@@ -139,6 +141,7 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
 		MovieFactsSchema,
 		factsRequest,
 	);
+
 	if (!movie) {
 		return null;
 	}
@@ -149,6 +152,7 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
 			country: country.iso_3166_1,
 		})),
 	);
+
 	return {
 		certification:
 			releases
@@ -167,6 +171,7 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
  */
 const fetchTmdbFacts = (key: SeriesKey) => {
 	const [kind, id] = parseKey(key);
+
 	return kind === "tv" ? fetchShowFacts(id) : fetchMovieFacts(id);
 };
 
@@ -241,8 +246,10 @@ const fetchNominations = async (ids: readonly string[]) => {
 				`t${index}: title(id: ${JSON.stringify(id)}) { awardNominations(first: ${nominationsPerTitle}) { edges { node { isWinner award { year event { text } } } } } }`,
 		)
 		.join(" ");
+
 	const request = async (retries: number): Promise<Response> => {
 		await sleep(imdbSpacingMs);
+
 		const response = await fetch(imdbEndpoint, {
 			body: JSON.stringify({
 				query: `{ ${titles} }`,
@@ -251,25 +258,32 @@ const fetchNominations = async (ids: readonly string[]) => {
 			method: "POST",
 			signal: AbortSignal.timeout(30 * second),
 		});
+
 		if (response.status === 429 && retries > 0) {
 			await sleep(parseRetryAfter(response.headers.get("Retry-After")) ?? minute);
+
 			return await request(retries - 1);
 		}
+
 		if (!response.ok) {
 			throw new Error(`IMDb returned ${response.status}`);
 		}
+
 		return response;
 	};
 
 	const response = await request(imdbRetries);
 	const { data, errors } = ImdbResponseSchema.parse(await response.json());
+
 	if (!data) {
 		throw new Error(
 			`IMDb answered with errors: ${errors?.map((error) => error.message).join("; ")}`,
 		);
 	}
+
 	return ids.flatMap((id, index) => {
 		const title = data[`t${index}`];
+
 		return title ? [[id, title] as const] : [];
 	});
 };
@@ -293,9 +307,11 @@ const awardName = (event: string) => event.trim().replace(awardCountry, "");
  */
 const fetchAwards = async (ids: readonly string[]) => {
 	const groups = await inSequence(chunked(ids, titlesPerImdbRequest), fetchNominations);
+
 	return new Map(
 		groups.flat().map(([id, title]): [string, TitleAward[]] => {
 			const awards = new Map<string, TitleAward>();
+
 			for (const { node } of title.awardNominations.edges) {
 				const name = awardName(node.award.event.text);
 				awards.set(`${name}:${node.award.year}:${node.isWinner}`, {
@@ -304,6 +320,7 @@ const fetchAwards = async (ids: readonly string[]) => {
 					year: node.award.year,
 				});
 			}
+
 			return [id, [...awards.values()]];
 		}),
 	);
@@ -341,10 +358,13 @@ export const storeTitleFacts = async () => {
 	const fetched = new Map<string, TmdbFacts>();
 	await inParallel(due, tmdbConcurrency, async ({ key }) => {
 		const { data, error } = await attempt(fetchTmdbFacts(key as SeriesKey));
+
 		if (error) {
 			console.warn(`TMDB facts of ${key} could not be read: ${error.message}`);
+
 			return;
 		}
+
 		fetched.set(
 			key,
 			data ?? {
@@ -359,6 +379,7 @@ export const storeTitleFacts = async () => {
 	const ids = [...new Set([...fetched.values()].flatMap((facts) => facts.imdbId ?? []))];
 	const awards = await fetchAwards(ids);
 	const now = new Date();
+
 	const rows = [...fetched].map(([key, facts]) => ({
 		awards: (facts.imdbId && awards.get(facts.imdbId)) || [],
 		certification: facts.certification,
@@ -368,6 +389,7 @@ export const storeTitleFacts = async () => {
 		key,
 		keywords: facts.keywords,
 	}));
+
 	if (rows.length > 0) {
 		await db
 			.insert(titleFacts)

@@ -46,10 +46,12 @@ const originalLanguages: Record<string, string> = {
  */
 const audioLanguages = (anime: Anime, audio: readonly ContentLanguage[]) => {
 	const original = originalLanguages[anime.countryOfOrigin ?? "JP"] ?? "ja";
+
 	const tags = [
 		...(audio.includes("sub") || audio.includes("raw") ? [original] : []),
 		...(audio.includes("dub") ? ["en"] : []),
 	];
+
 	return [...new Set(tags.flatMap((tag) => languageName(tag) ?? []))];
 };
 
@@ -57,6 +59,7 @@ const audioLanguages = (anime: Anime, audio: readonly ContentLanguage[]) => {
 const subtitleLanguages = (tags: readonly string[]) => {
 	const named = tags.flatMap((tag) => {
 		const name = languageName(tag);
+
 		return name
 			? [
 					{
@@ -66,10 +69,12 @@ const subtitleLanguages = (tags: readonly string[]) => {
 				]
 			: [];
 	});
+
 	const sorted = named.toSorted(
 		(left, right) =>
 			Number(right.english) - Number(left.english) || left.name.localeCompare(right.name),
 	);
+
 	return [...new Set(sorted.map((language) => language.name))];
 };
 
@@ -86,13 +91,17 @@ const yearOf = (date: string | null) => Number(date?.slice(0, 4)) || null;
  */
 const givenFor = (sources: AboutSources) => {
 	const start = yearOf(sources.anime.startDate);
+
 	if (!start || sources.seasonStarts.length === 0) {
 		return () => true;
 	}
+
 	const starts = [...sources.seasonStarts, start];
 	const first = Math.min(...starts);
+
 	return (award: TitleAward) => {
 		const before = starts.filter((year) => award.year !== null && year < award.year);
+
 		return (before.length > 0 ? Math.max(...before) : first) === start;
 	};
 };
@@ -130,6 +139,7 @@ const renownedAwards = [
 /** Where an award sorts among {@link renownedAwards}; after them when it is not one. */
 const renown = (award: TitleAward) => {
 	const index = renownedAwards.indexOf(award.name);
+
 	return index === -1 ? renownedAwards.length : index;
 };
 
@@ -180,9 +190,11 @@ const awardLines = (sources: AboutSources) =>
 const currentAward = (sources: AboutSources) => {
 	const year = new Date().getUTCFullYear();
 	const given = givenFor(sources);
+
 	const [current] = sources.awards
 		.filter((award) => award.year === year && given(award))
 		.toSorted(byNotability(sources.awardReach));
+
 	return current ? awardLine(current) : null;
 };
 
@@ -356,9 +368,11 @@ const descriptorParts = /\s*\/\s*/u;
  */
 const contentRating = (sources: AboutSources) => {
 	const rated = sources.ageRating ? ageRatings[sources.ageRating] : null;
+
 	const age =
 		rated?.age ??
 		(sources.certification ? (certificationAges[sources.certification] ?? null) : null);
+
 	const descriptors = [
 		...new Set([
 			...(rated?.descriptors ?? []),
@@ -442,17 +456,22 @@ const creditLine = (anime: Anime) => {
 			anime.staff.filter((credit) => creatorRole.test(credit.role)).map((credit) => credit.name),
 		),
 	];
+
 	const publisher = anime.producers.find((producer) => publishers.has(producer));
 	const studios = anime.studios.join(", ");
+
 	const owners = [
 		...(creators.length > 0 ? creators : anime.studios),
 		...(publisher ? [publisher] : []),
 	];
+
 	const japanese = (anime.countryOfOrigin ?? "JP") === "JP";
 	const maker = japanese ? `“${anime.title.display}” Production Committee` : studios;
+
 	const parties = [owners.join(", "), ...(maker === owners.join(", ") ? [] : [maker])].filter(
 		Boolean,
 	);
+
 	return parties.length > 0 ? `© ${parties.join("/")}` : null;
 };
 
@@ -464,6 +483,7 @@ const creditLine = (anime: Anime) => {
 const aboutSynopsis = (sources: AboutSources) => {
 	const { overview } = sources;
 	const { blurb } = sources.anime;
+
 	if (!blurb) {
 		return overview;
 	}

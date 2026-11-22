@@ -7,10 +7,12 @@ import { route, SoraClient, SoraError } from "./index";
 /** A client whose requests are answered by `answer`, and recorded. */
 const clientAnswering = (answer: () => Response, options: { baseUrl?: string } = {}) => {
 	const requests: Request[] = [];
+
 	const sora = new SoraClient({
 		baseUrl: options.baseUrl ?? "https://sora.test",
 		fetch: (input, init) => {
 			requests.push(new Request(input as string, init));
+
 			return Promise.resolve(answer());
 		},
 		headers: {
@@ -153,6 +155,7 @@ describe("SoraClient.request", () => {
 		const { sora } = clientAnswering(() =>
 			Response.json(body, { status: 502, statusText: "Bad Gateway" }),
 		);
+
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
 		expect(error?.status).toBe(502);
@@ -171,6 +174,7 @@ describe("SoraClient.request", () => {
 				{ status: 401 },
 			),
 		);
+
 		const { error } = await attempt(
 			sora.signIn({ password: "wrong-password", username: "viewer" }),
 			SoraError,
@@ -182,6 +186,7 @@ describe("SoraClient.request", () => {
 
 	test("changes the password, ends other sessions, and returns the new token", async () => {
 		const { sora, requests } = clientAnswering(() => Response.json({ token: "new-token" }));
+
 		const changed = await sora.changePassword({
 			currentPassword: "old-password",
 			newPassword: "new-password",
@@ -198,6 +203,7 @@ describe("SoraClient.request", () => {
 
 	test("keeps validation errors and the retry delay from a problem response", async () => {
 		const errors = [{ message: "Invalid email", path: "email" }];
+
 		const { sora } = clientAnswering(() =>
 			Response.json(
 				{ code: "INVALID_INPUT", detail: "Check the fields", errors },
@@ -207,6 +213,7 @@ describe("SoraClient.request", () => {
 				},
 			),
 		);
+
 		const { error } = await attempt(sora.request(route.listGenres), SoraError);
 
 		expect(error?.code).toBe("INVALID_INPUT");
@@ -247,12 +254,15 @@ const typesAreChecked = async () => {
 	});
 
 	const names: string[] = await sora.request(route.listGenres);
+
 	const page = await sora.requestWithMeta(route.listReleases, {
 		query: {
 			page: 1,
 		},
 	});
+
 	const hasNext: boolean = page.meta.has_next_page;
+
 	const nothing: undefined = await sora.request(route.dismissNotification, {
 		params: {
 			notification_id: "S1:2",
@@ -278,4 +288,5 @@ const typesAreChecked = async () => {
 
 	return [names, hasNext, nothing, wrong];
 };
+
 void typesAreChecked;

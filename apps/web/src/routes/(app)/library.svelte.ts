@@ -86,6 +86,7 @@ export class Library {
 		}).updates(
 			getWatchlistStatuses().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series_id !== series.id);
+
 				return status
 					? [
 							{
@@ -98,6 +99,7 @@ export class Library {
 			}),
 			getWatchlist().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series.id !== series.id);
+
 				if (!status) {
 					return rest;
 				}

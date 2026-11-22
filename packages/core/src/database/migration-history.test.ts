@@ -66,6 +66,7 @@ test("migration timestamps only ever increase, so none is skipped after a merge"
 	const whens = readMigrationHistory(new URL("../../drizzle", import.meta.url).pathname).map(
 		({ when }) => when,
 	);
+
 	expect(whens).toEqual([...whens].toSorted((left, right) => left - right));
 	expect(new Set(whens).size).toBe(whens.length);
 });

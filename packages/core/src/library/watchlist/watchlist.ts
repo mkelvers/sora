@@ -21,7 +21,9 @@ export const getWatchlist = async (userId: string): Promise<WatchlistEntry[]> =>
 		.innerJoin(series, eq(series.id, seriesState.seriesId))
 		.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)))
 		.orderBy(desc(seriesState.statusChangedAt));
+
 	const titles = rows.map((row) => row.series);
+
 	const cards = await toSeriesCards(
 		titles,
 		titles.map((title) => title.id),
@@ -29,6 +31,7 @@ export const getWatchlist = async (userId: string): Promise<WatchlistEntry[]> =>
 
 	return rows.flatMap((row) => {
 		const card = cards.get(row.series.id);
+
 		return card && row.status && row.addedAt && row.statusChangedAt
 			? [
 					{
@@ -163,6 +166,7 @@ export const updateWatchlistAfterPlayback = async (
 				),
 			),
 	]);
+
 	const next = statusAfterPlayback(current?.status ?? null, {
 		finished: playback.finished,
 		isFinale:

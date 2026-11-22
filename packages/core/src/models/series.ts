@@ -521,7 +521,9 @@ export const PreparingTitleSchema = z
 	});
 
 export type ContentLanguage = z.infer<typeof LanguageSchema>;
+
 export type AnimeTag = z.infer<typeof AnimeTagSchema>;
+
 /**
  * The hosts artwork may be chosen from, which are those the catalogue's own
  * images come from: any other would let whoever picks artwork, which everyone
@@ -610,12 +612,19 @@ export const ArtworkChangesSchema = z
 	});
 
 export type ArtworkChanges = z.input<typeof ArtworkChangesSchema>;
+
 export type SeriesCard = z.infer<typeof SeriesCardSchema>;
+
 export type FeaturedCard = z.infer<typeof FeaturedCardSchema>;
+
 export type FranchisePart = z.infer<typeof FranchisePartSchema>;
+
 export type Series = z.infer<typeof SeriesSchema>;
+
 export type ImageType = z.infer<typeof ImageTypeSchema>;
+
 export type SeriesImage = z.infer<typeof SeriesImageSchema>;
+
 export const RecommendationRowSchema = z
 	.object({
 		id: z.string().meta({
@@ -632,15 +641,23 @@ export const RecommendationRowSchema = z
 	});
 
 export type UpcomingSeries = z.infer<typeof UpcomingSeriesSchema>;
+
 export type Episode = z.infer<typeof EpisodeSchema>;
+
 export type ScheduledEpisode = z.infer<typeof ScheduledEpisodeSchema>;
+
 export type Calendar = z.infer<typeof CalendarSchema>;
+
 export type Tag = z.infer<typeof TagSchema>;
+
 export type AnimeSeason = z.infer<typeof AnimeSeasonSchema>;
+
 export type Release = z.infer<typeof ReleaseSchema>;
+
 export type PreparingTitle = z.infer<typeof PreparingTitleSchema>;
 
 export type RecommendationRow = z.infer<typeof RecommendationRowSchema>;
+
 export type Recommendations = RecommendationRow[];
 
 export const FeaturedCardSchema = SeriesCardSchema.extend({

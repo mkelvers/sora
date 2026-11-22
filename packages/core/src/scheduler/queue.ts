@@ -171,6 +171,7 @@ const rankedPlaces = 6;
 export const seriesStorePriority = (priority: SeriesStorePriority, rank = rankedPlaces - 1) => {
 	const urgency =
 		priority === "waiting" ? Math.min(rankedPlaces - 1, Math.max(0, rankedPlaces - 1 - rank)) : 0;
+
 	return seriesStorePriorities[priority] - urgency;
 };
 
@@ -275,6 +276,7 @@ export const scheduleEpisodeLookups = async (
 		[...new Set(anilistIds)].map((id) => sql`${id}`),
 		sql`, `,
 	)}]::int[]`;
+
 	const kept = keptPriority(sql`'episodes:' || listed.anilist_id`, seriesStorePriorities[priority]);
 	await db.execute(sql`
     select graphile_worker.add_job(

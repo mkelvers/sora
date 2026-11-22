@@ -1,4 +1,5 @@
 import { defined } from "@sora/shared";
+
 /**
  * What a subtitle track carries.
  *
@@ -39,6 +40,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 	for (const block of content.split(/\r?\n\r?\n/u)) {
 		const lines = block.split(/\r?\n/u);
 		const timing = lines.findIndex((line) => line.includes("-->"));
+
 		if (timing === -1) {
 			continue;
 		}
@@ -47,6 +49,7 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 			/-->\s*(?:(?<hours>\d+):)?(?<minutes>\d{1,2}):(?<seconds>\d{2})\.(?<milliseconds>\d{3})/u.exec(
 				defined(lines[timing]),
 			);
+
 		if (stamp) {
 			const [, hours = "0", minutes, seconds, milliseconds] = stamp;
 			end = Math.max(
@@ -60,11 +63,13 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
 			.join(" ")
 			.replaceAll(/<[^>]*>|\{\\[^}]*\}/gu, "")
 			.trim();
+
 		if (!text) {
 			continue;
 		}
 
 		cues += 1;
+
 		if (soundCue.test(text)) {
 			sound += 1;
 		}
@@ -92,17 +97,21 @@ export const subtitleStats = (content: string): SubtitleStats | null => {
  */
 export const classifySubtitle = (content: string): SubtitleKind | null => {
 	const stats = subtitleStats(content);
+
 	if (!stats) {
 		return null;
 	}
 
 	const rate = stats.cues / stats.minutes;
+
 	if (stats.soundShare >= captionsMinimumShare) {
 		return "captions";
 	}
+
 	if (stats.soundShare === 0 && stats.cues <= signsMaximumCues && rate <= signsMaximumRate) {
 		return "signs";
 	}
+
 	if (stats.soundShare <= dialogueMaximumShare && rate >= dialogueMinimumRate) {
 		return "dialogue";
 	}
@@ -125,6 +134,7 @@ const signsLabel = /\bsigns?\b|\bforced\b|on-screen/iu;
 export const subtitleKind = (label: string, content: string | null): SubtitleKind | null => {
 	const measured = content === null ? null : classifySubtitle(content);
 	let named: SubtitleKind | null = null;
+
 	if (captionsLabel.test(label)) {
 		named = "captions";
 	} else if (signsLabel.test(label)) {

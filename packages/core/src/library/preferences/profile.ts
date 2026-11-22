@@ -48,6 +48,7 @@ export const updateProfilePreferences = async (
 	update: ProfilePreferencesUpdate,
 ): Promise<ProfilePreferences> => {
 	const parsed = ProfilePreferencesUpdateSchema.safeParse(update);
+
 	if (!parsed.success) {
 		throw new InvalidInputError("Invalid profile preferences", {
 			cause: parsed.error,
@@ -55,6 +56,7 @@ export const updateProfilePreferences = async (
 	}
 
 	const { hide_spoilers: hideSpoilers, notifications } = parsed.data;
+
 	const changes = {
 		...(hideSpoilers !== undefined && {
 			hideSpoilers,
@@ -69,6 +71,7 @@ export const updateProfilePreferences = async (
 			notifyPremieres: notifications.premieres,
 		}),
 	};
+
 	const [row] = await db
 		.insert(profilePreference)
 		.values({

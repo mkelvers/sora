@@ -7,6 +7,7 @@ import { providerTransport } from "./transport";
 const server = Bun.serve({
 	fetch: (request) => {
 		const retryAfter = new URL(request.url).searchParams.get("retry_after");
+
 		return retryAfter === null
 			? new Response("ok")
 			: new Response("slow down", {
@@ -31,10 +32,12 @@ describe("providerTransport", () => {
 
 	test("cuts a Retry-After given as a date", async () => {
 		const date = new Date(Date.now() + 3_600_000).toUTCString();
+
 		const response = await providerTransport.fetch(
 			`${server.url}?retry_after=${encodeURIComponent(date)}`,
 			{},
 		);
+
 		expect(response.headers.get("Retry-After")).toBe("10");
 	});
 
@@ -48,6 +51,7 @@ describe("providerTransport", () => {
 
 	test("does not run shell code from a URL when the request fails", async () => {
 		const marker = `${import.meta.dir}/transport-injected.txt`;
+
 		const http = new HttpClient({
 			disableRateLimit: true,
 			retry: false,

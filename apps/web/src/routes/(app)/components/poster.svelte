@@ -29,6 +29,7 @@
 		const resume = library.resume.get(card.id);
 		const episode = resume?.episode ?? 1;
 		const verb = resume && resume.position_seconds > 0 ? "Resume" : "Play";
+
 		return {
 			href: `/series/${card.id}/watch/${episode}`,
 			label: card.format === "MOVIE" ? verb : `${verb} E${episode}`,

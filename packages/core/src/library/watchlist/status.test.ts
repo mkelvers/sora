@@ -7,16 +7,19 @@ const finished = {
 	isFinale: false,
 	playedThrough: true,
 };
+
 const finale = {
 	finished: true,
 	isFinale: true,
 	playedThrough: true,
 };
+
 const partway = {
 	finished: false,
 	isFinale: false,
 	playedThrough: true,
 };
+
 const skippedAhead = {
 	finished: true,
 	isFinale: true,

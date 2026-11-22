@@ -68,10 +68,13 @@ const roleOf = (
 	const listed = relations.flatMap(({ from, to, type }) =>
 		to === title.anilistId && main.has(from) ? [type] : [],
 	);
+
 	const lists = relations.flatMap(({ from, to, type }) =>
 		from === title.anilistId && main.has(to) ? [type === "PARENT" ? "SIDE_STORY" : type] : [],
 	);
+
 	const touching = [...listed, ...lists];
+
 	if (touching.includes("ALTERNATIVE")) {
 		return "alternative";
 	}
@@ -82,9 +85,12 @@ const roleOf = (
 
 	const runtime =
 		title.durationMinutes === null ? null : title.durationMinutes * Math.max(title.episodeCount, 1);
+
 	const isClip = runtime !== null && runtime < minimumRuntimeMinutes;
+
 	const isWorthwhile =
 		(title.score ?? 0) >= worthwhileScore || (title.popularity ?? 0) >= worthwhilePopularity;
+
 	if (isClip || !isWorthwhile) {
 		return "noise";
 	}
@@ -92,6 +98,7 @@ const roleOf = (
 	// A spin-off lists its original as `PARENT`, as a side story does, so the
 	// main story's own listing decides between the two when it has one.
 	const decisive = listed.length > 0 ? listed : lists;
+
 	return !decisive.some((type) => sideStoryRelations.has(type)) &&
 		touching.some((type) => spinOffRelations.has(type))
 		? "spin_off"
@@ -122,6 +129,7 @@ export const franchiseRoles = (
 	main: ReadonlySet<number>,
 ): Map<number, FranchiseRole> => {
 	const roles = new Map<number, FranchiseRole>();
+
 	for (const title of titles) {
 		roles.set(title.anilistId, roleOf(title, relations, main));
 	}

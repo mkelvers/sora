@@ -26,6 +26,7 @@ const rememberUserAgent = async (
 		.from(authSession)
 		.where(and(eq(authSession.id, sessionId), eq(authSession.userId, accountId)))
 		.limit(1);
+
 	if (current && deviceKind(current.userAgent) === "unknown") {
 		await db
 			.update(authSession)
@@ -47,6 +48,7 @@ export const listDevices = async (
 	currentUserAgent: string | null = null,
 ): Promise<SignedInDevice[]> => {
 	await rememberUserAgent(accountId, currentSessionId, currentUserAgent);
+
 	const rows = await db
 		.select()
 		.from(authSession)

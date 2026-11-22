@@ -10,16 +10,22 @@
  * AniList relates them.
  */
 export { logoPlacement } from "../models/series";
+
 export {
 	listSeriesImages,
 	refreshSeriesImages,
 	setSeriesArtwork,
 	type SeriesImageQuery,
 } from "./artwork";
+
 export { listStudios, listTags } from "./categories";
+
 export type { ImageEdges } from "./edges";
+
 export { requestBackdropUpscale } from "./upscale";
+
 export { getUpscaledBackdrop } from "./upscaled-backdrop";
+
 export {
 	browseSeries,
 	getAdjacentEpisodes,
@@ -31,7 +37,11 @@ export {
 	ReleasesQuerySchema,
 	type ReleasesQuery,
 } from "./queries";
+
 export { getSimilarSeries } from "./similar";
+
 export { getAiringSchedule, getCalendar } from "./schedule";
+
 export type { SeriesKind } from "./series";
+
 export { getUpcomingSeries } from "./upcoming";

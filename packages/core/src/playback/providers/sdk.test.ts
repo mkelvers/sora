@@ -48,6 +48,7 @@ describe("acceptsTitleMatch", () => {
 			[titled({ english: "Little Shark's Day Out" }, 60), "Little Shark's Day Out Season 2", 25],
 			[titled({ english: "Kuroko's Basketball: Tip Off" }, 1), "Kuroko's Basketball 3", 25],
 		] as const;
+
 		for (const [wanted, matched, units] of cases) {
 			expect(acceptsTitleMatch(wanted, matched, units)).toBe(false);
 		}
@@ -59,6 +60,7 @@ describe("acceptsTitleMatch", () => {
 			[titled({ romaji: "Durarara!! Specials" }, 2), "Durarara!!", 24],
 			[titled({ romaji: "Aldnoah.Zero (Re+)" }, 1), "Aldnoah.Zero", 12],
 		] as const;
+
 		for (const [wanted, matched, units] of cases) {
 			expect(acceptsTitleMatch(wanted, matched, units)).toBe(false);
 		}
@@ -92,10 +94,12 @@ const episodes: IContentUnit[] = Array.from({ length: 40 }, (_, index) => ({
 /** A provider whose search and episode list are stood in for, to see what `findMedia` does with them. */
 const providerFinding = (resolution: MappingResolution | null, units: Promise<IContentUnit[]>) => {
 	const fetched: string[] = [];
+
 	const provider = new SdkStreamProvider<SdkProvider>(
 		{
 			fetchContentUnits: (id) => {
 				fetched.push(id);
+
 				return units;
 			},
 			id: "stub",
@@ -109,6 +113,7 @@ const providerFinding = (resolution: MappingResolution | null, units: Promise<IC
 			locale: "en",
 		},
 	);
+
 	return {
 		fetched,
 		provider,
@@ -134,6 +139,7 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("provider", "Anything At All"),
 			Promise.resolve([]),
 		);
+
 		expect(await provider.findMedia(titan)).toEqual({
 			episodeOffset: 0,
 			matchedTitle: "Anything At All",
@@ -148,6 +154,7 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.resolve(episodes.slice(0, 12)),
 		);
+
 		const media = await provider.findMedia(titan);
 		expect(media?.mediaId).toBe("abc");
 		expect(fetched).toEqual(["stub:abc"]);
@@ -158,6 +165,7 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("fuzzy", "Attack on Titan Season 3"),
 			Promise.resolve(episodes.slice(0, 12)),
 		);
+
 		expect(await provider.findMedia(titan)).toBeNull();
 	});
 
@@ -166,6 +174,7 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.resolve(episodes),
 		);
+
 		expect(await provider.findMedia(titan)).toBeNull();
 	});
 
@@ -174,6 +183,7 @@ describe("SdkStreamProvider.findMedia", () => {
 			resolved("fuzzy", "Attack on Titan Season 2"),
 			Promise.reject(new Error("provider down")),
 		);
+
 		await expect(provider.findMedia(titan)).rejects.toThrow("provider down");
 	});
 });

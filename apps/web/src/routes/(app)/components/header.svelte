@@ -78,6 +78,7 @@
 
 	const current = (href: string) => {
 		const { pathname } = page.url;
+
 		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
 	};
 

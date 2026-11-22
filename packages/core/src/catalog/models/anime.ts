@@ -10,9 +10,13 @@ import type {
 import { aboutLength, fromUnixSeconds, fuzzyDate, synopsis } from "./text";
 
 export type AnimeFormat = Exclude<MediaFormat, "MANGA" | "NOVEL" | "ONE_SHOT">;
+
 export type AnimeStatus = MediaStatus;
+
 type AnimeSeason = MediaSeason;
+
 type AnimeSource = MediaSource;
+
 type AnimeRelationType = MediaRelation;
 
 /**
@@ -119,6 +123,7 @@ export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null =>
 		case "ONE_SHOT": {
 			throw new TypeError(`Unexpected non-anime format ${format}`);
 		}
+
 		default: {
 			return format;
 		}
@@ -134,6 +139,7 @@ const toTitle = (media: AnimeCardFragment): AnimeTitle => {
 	const romaji = media.title?.romaji ?? null;
 	const native = media.title?.native ?? null;
 	const display = english ?? romaji ?? native;
+
 	if (!display) {
 		throw new TypeError(`AniList media ${media.id} has no title`);
 	}
@@ -207,6 +213,7 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	source: media.source,
 	staff: present(media.staff?.edges).flatMap((edge) => {
 		const name = edge.node?.name?.full?.trim();
+
 		return edge.role && name
 			? [
 					{

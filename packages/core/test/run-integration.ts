@@ -5,6 +5,7 @@ import { SQL } from "bun";
 const adminUrl = URL.parse(
 	process.env.SORA_TEST_ADMIN_URL ?? "postgresql://sora:sora@127.0.0.1:5432/postgres",
 );
+
 if (
 	adminUrl?.protocol !== "postgresql:" ||
 	adminUrl.pathname !== "/postgres" ||
@@ -17,7 +18,9 @@ if (
 
 const name = `sora_test_${crypto.randomUUID().replaceAll("-", "")}`;
 const databaseUrl = new URL(adminUrl);
+
 databaseUrl.pathname = `/${name}`;
+
 const filters = process.argv.slice(2);
 
 const admin = new SQL({
@@ -25,20 +28,25 @@ const admin = new SQL({
 	max: 1,
 	url: adminUrl.href,
 });
+
 let created = false;
 let interrupted: "SIGINT" | "SIGTERM" | undefined;
 let tests: { kill: (signal: "SIGINT" | "SIGTERM") => void } | undefined;
+
 const interrupt = (signal: "SIGINT" | "SIGTERM") => {
 	interrupted = signal;
 	tests?.kill(signal);
 };
+
 process.on("SIGINT", interrupt);
+
 process.on("SIGTERM", interrupt);
 
 try {
 	await admin`create database ${admin(name)} template template0`;
 	created = true;
 	console.info(`Created integration database ${name}`);
+
 	if (!interrupted) {
 		const child = Bun.spawn(
 			[
@@ -62,6 +70,7 @@ try {
 				stdout: "inherit",
 			},
 		);
+
 		tests = child;
 		process.exitCode = await child.exited;
 		tests = undefined;

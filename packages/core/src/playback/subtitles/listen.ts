@@ -24,6 +24,7 @@ const englishDialogue = async (
 	videos: NonNullable<Awaited<ReturnType<typeof resolveStreams>>["sub"]>,
 ) => {
 	const kinds = await subtitleKinds(videos);
+
 	const tracks = videos
 		.flatMap((video) =>
 			video.subtitles
@@ -37,8 +38,10 @@ const englishDialogue = async (
 
 	const cues = await firstInSequence(tracks, async ({ track, video }) => {
 		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
+
 		return content ? readCues(content) : undefined;
 	});
+
 	return cues ?? [];
 };
 
@@ -60,23 +63,28 @@ export const listenToDub = async (
 	const { sub, dub } = await resolveStreams(request);
 	const subVideo = sub?.find((video) => video.format === "hls");
 	const dubVideo = dub?.find((video) => video.format === "hls");
+
 	if (!sub || !dub || !subVideo || !dubVideo) {
 		throw new SubtitleRefinementError("The sub and the dub cannot both be streamed");
 	}
+
 	if (refinementKey(subVideo.url, dubVideo.url) !== key) {
 		throw new SubtitleRefinementError("The streams changed since the request");
 	}
 
 	const cues = await englishDialogue(sub);
+
 	if (cues.length < minimumCues) {
 		return null;
 	}
 
 	const picture = await timelineShifts(sub, dub);
 	const directory = await mkdtemp(path.join(tmpdir(), "sora-dub-"));
+
 	try {
 		const audio = path.join(directory, "audio.wav");
 		await extractAudio(dubVideo.url, dubVideo.headers, audio);
+
 		return refineCues(cues, await transcribe(audio), picture);
 	} finally {
 		await rm(directory, {

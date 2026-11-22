@@ -43,6 +43,7 @@ export const listDates = (
 	const known = [dates.created, dates.started, dates.finished, dates.updated].filter(
 		(date): date is Date => date instanceof Date && !Number.isNaN(date.getTime()),
 	);
+
 	return {
 		addedAt: known[0] ?? null,
 		changedAt: known.length > 0 ? new Date(Math.max(...known.map((date) => date.getTime()))) : null,
@@ -68,12 +69,14 @@ const fromParts = (
 
 export const fromDayText = (text: string | null | undefined): Date | null => {
 	const parts = text ? dayPattern.exec(text.trim())?.groups : undefined;
+
 	return fromParts(Number(parts?.year), Number(parts?.month), Number(parts?.day));
 };
 
 /** A time MyAnimeList sends as an ISO 8601 string. */
 export const fromTimestamp = (text: string | null | undefined): Date | null => {
 	const time = text ? Date.parse(text) : Number.NaN;
+
 	return Number.isNaN(time) ? null : new Date(time);
 };
 
@@ -112,9 +115,11 @@ export const aniListEntries = (
 	collection: UserAnimeListQuery["MediaListCollection"],
 ): ListEntry[] => {
 	const entries: ListEntry[] = [];
+
 	for (const list of collection?.lists ?? []) {
 		for (const entry of list?.entries ?? []) {
 			const status = entry?.status ? aniListStatuses[entry.status] : undefined;
+
 			if (entry?.media && status) {
 				entries.push({
 					anilistId: entry.media.id,
@@ -156,6 +161,7 @@ export const readAniListUser = async (username: string): Promise<ListEntry[]> =>
 			maxAgeMs: 0,
 		},
 	);
+
 	if (!MediaListCollection) {
 		throw new InvalidInputError("That AniList user does not exist or keeps their list private.");
 	}
@@ -164,6 +170,7 @@ export const readAniListUser = async (username: string): Promise<ListEntry[]> =>
 };
 
 const animeBlock = /<anime>(?<body>[\s\S]*?)<\/anime>/gu;
+
 const malFields = {
 	finished: /<my_finish_date>\s*(?:<!\[CDATA\[)?(?<value>[^<\]]*)/u,
 	id: /<series_animedb_id>\s*(?:<!\[CDATA\[)?(?<value>\d+)/u,
@@ -199,6 +206,7 @@ export const toMalEntry = (entry: {
 	updated?: string | null;
 }): MalEntry | null => {
 	const status = malStatuses[entry.status.trim().toLowerCase()];
+
 	return status
 		? {
 				...listDates({
@@ -221,11 +229,13 @@ export const toMalEntry = (entry: {
  */
 export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
 	const entries: MalEntry[] = [];
+
 	for (const match of xml.matchAll(animeBlock)) {
 		const block = match.groups?.body ?? "";
 		const value = (field: keyof typeof malFields) => malFields[field].exec(block)?.groups?.value;
 		const id = value("id");
 		const status = value("status");
+
 		const entry =
 			id && status
 				? toMalEntry({
@@ -237,6 +247,7 @@ export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
 						watched: Number(value("watched") ?? 0),
 					})
 				: null;
+
 		if (entry) {
 			entries.push(entry);
 		}
@@ -258,6 +269,7 @@ export const fromMyAnimeList = async (
 	}
 
 	const ids = [...new Set(entries.map((entry) => String(entry.malId)))];
+
 	const rows = await db.execute<{ anilist_id: number; mal_id: number }>(sql`
 		select anilist_id, (media->>'idMal')::int as mal_id
 		from anime
@@ -266,12 +278,15 @@ export const fromMyAnimeList = async (
 			sql`, `,
 		)}]::text[])
 	`);
+
 	const byMal = new Map([...rows].map((row) => [row.mal_id, row.anilist_id]));
 
 	const matched: ListEntry[] = [];
 	const unmatched: MalEntry[] = [];
+
 	for (const entry of entries) {
 		const anilistId = byMal.get(entry.malId);
+
 		if (anilistId === undefined) {
 			unmatched.push(entry);
 		} else {

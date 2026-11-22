@@ -83,6 +83,7 @@ const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<stri
 			name,
 			(payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return aniListPriority.run(helpers.job.priority, async () => await task(payload, helpers));
 			},
 		]),
@@ -109,6 +110,7 @@ const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<stri
 export const startScheduler = async (): Promise<Scheduler> => {
 	// Pools that stop without shutting down keep their jobs locked; see watchPools.
 	const pools = watchPools();
+
 	const main = await run({
 		// Long jobs, such as a full catalogue sync or an airing check waiting
 		// out a provider's rate limit, must not take every slot from a layout a
@@ -211,6 +213,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		taskList: failInvalidPayloads({
 			[lookUpEpisodesTask]: (payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return aniListPriority.run(
 					Math.min(helpers.job.priority, seriesStorePriority("current")),
 					async () => await lookUpEpisodes(payload, helpers),
@@ -219,6 +222,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 			// Asks the same sites as playback does, once per series, behind lookups.
 			[probeSubtitlesTask]: (payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return probeSubtitles(payload, helpers);
 			},
 		}),
@@ -258,6 +262,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		taskList: failInvalidPayloads({
 			[refineSubtitlesTask]: (payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return refineSubtitles(payload, helpers);
 			},
 		}),
@@ -273,6 +278,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		taskList: failInvalidPayloads({
 			[detectSkipSegmentsTask]: (payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return detectSkipSegmentsJob(payload, helpers);
 			},
 		}),
@@ -287,6 +293,7 @@ export const startScheduler = async (): Promise<Scheduler> => {
 		taskList: failInvalidPayloads({
 			[upscaleBackdropTask]: (payload, helpers) => {
 				pools.know(helpers.job.locked_by);
+
 				return upscaleBackdropJob(payload, helpers);
 			},
 		}),

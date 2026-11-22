@@ -36,6 +36,7 @@ const signInEmail = (address: string) =>
 
 const statusOf = async (request: Response | Promise<Response>) => {
 	const response = await request;
+
 	return response.status;
 };
 
@@ -45,6 +46,7 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 	beforeAll(async () => {
 		clock.mockReturnValue(0);
 		const context = await auth.$context;
+
 		// The account kept its original email when its username changed.
 		const user = await context.internalAdapter.createUser(
 			{
@@ -56,6 +58,7 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 			},
 			{ method: "email-password" },
 		);
+
 		await context.internalAdapter.linkAccount({
 			accountId: user.id,
 			password: await context.password.hash(password),
@@ -101,10 +104,12 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 
 	test("shares the account ceiling across case, identifier, address and encoding", async () => {
 		clock.mockReturnValue(2 * minute);
+
 		for (let index = 1; index <= 59; index += 1) {
 			// oxlint-disable-next-line no-await-in-loop -- Keep one password hash in flight.
 			expect(await statusOf(signInUsername(`192.0.2.${index}`))).toBe(200);
 		}
+
 		expect(await statusOf(signInEmail("192.0.2.60"))).toBe(200);
 
 		const limited = await signInUsername("192.0.2.61");
@@ -120,11 +125,13 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 		clock.mockReturnValue(4 * minute);
 		using lookup = spyOn(db.query.authUser, "findFirst");
 		const malformed = JSON.stringify({ password: 1, username });
+
 		for (let index = 0; index < 10_000; index += 1) {
 			const address = `198.18.${Math.floor(index / 256)}.${index % 256}`;
 			// oxlint-disable-next-line no-await-in-loop -- Fill the buckets without a concurrency burst.
 			expect(await statusOf(signIn("username", address, malformed))).toBe(400);
 		}
+
 		const limited = await signInUsername("203.0.113.20");
 		expect(limited.status).toBe(429);
 		expect(limited.headers.get("Retry-After")).toBe("60");

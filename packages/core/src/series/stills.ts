@@ -12,9 +12,11 @@ const stillsLooked = 8;
 
 const loadStill = async (path: string): Promise<Buffer> => {
 	const url = defined(tmdbImageUrl(path, "w780"));
+
 	const response = await fetch(url, {
 		signal: AbortSignal.timeout(10_000),
 	});
+
 	if (!response.ok) {
 		throw new Error(`${url} answered ${response.status}`);
 	}
@@ -49,18 +51,23 @@ export const chooseStill = async (
 		await getEpisodeStills(showId, seasonNumber, episodeNumber),
 		defaultPath,
 	);
+
 	const pool = ranked.filter((still) => still.iso_639_1 === null).slice(0, stillsLooked);
 
 	let measured = 0;
+
 	const accepted = await firstInSequence(pool, async (still) => {
 		const { data, error } = await attempt(loadStill(still.file_path));
+
 		if (error) {
 			return null;
 		}
 
 		measured += 1;
+
 		return !(await hasBlackBars(data)) && !(await showsText(data)) ? still.file_path : undefined;
 	});
+
 	if (accepted) {
 		return accepted;
 	}

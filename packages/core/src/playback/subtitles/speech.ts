@@ -42,11 +42,13 @@ export const transcribe = async (path: string): Promise<SpokenWord[]> => {
 			timeout: timeoutMs,
 		},
 	);
+
 	const [output, failure, code] = await Promise.all([
 		new Response(child.stdout).text(),
 		new Response(child.stderr).text(),
 		child.exited,
 	]);
+
 	if (code !== 0) {
 		throw new SubtitleRefinementError(`Transcribing failed: ${failure.trim().split("\n").at(-1)}`);
 	}

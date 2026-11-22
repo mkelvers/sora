@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const { seasons } = await listSeasons(locals.viewer.sora);
 	const selected = seasons.find((option) => option.slug === params.season);
+
 	if (!selected) {
 		error(404, "That season is not available");
 	}

@@ -14,6 +14,7 @@ export const getNotifications = query(async () => {
 			limit: 100,
 		},
 	});
+
 	return {
 		items: results,
 		unread: meta.unread,
@@ -31,6 +32,7 @@ export const getUnreadNotifications = query(async () => {
 			limit: 1,
 		},
 	});
+
 	return meta.unread;
 });
 

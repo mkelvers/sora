@@ -31,6 +31,7 @@
 			w780: 780,
 		},
 	};
+
 	const sizes = {
 		poster:
 			"(min-width: 80rem) 12vw, (min-width: 64rem) 16vw, (min-width: 48rem) 22vw, (min-width: 40rem) 30vw, 45vw",

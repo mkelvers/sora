@@ -32,6 +32,7 @@
 		if (hours === 0) {
 			return `${rest}m`;
 		}
+
 		return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 	};
 
@@ -43,29 +44,37 @@
 	const concealed = $derived(library.hideSpoilers && !watched && !started && !movie);
 	const played = $derived(started ? started.position_seconds / started.duration_seconds : 0);
 	const playable = $derived(episode.audio?.length !== 0);
+
 	const heading = $derived.by(() => {
 		if (special) {
 			return special;
 		}
+
 		return movie
 			? (episode.title ?? series.title)
 			: `E${episode.number}${episode.title && !concealed ? ` – ${episode.title}` : ""}`;
 	});
+
 	const badge = $derived.by(() => {
 		if (watched) {
 			return "Watched";
 		}
+
 		if (started) {
 			return `${duration(Math.max(1, (started.duration_seconds - started.position_seconds) / 60))} left`;
 		}
+
 		return episode.runtime_minutes && duration(episode.runtime_minutes);
 	});
+
 	const verb = $derived.by(() => {
 		if (watched) {
 			return "Watch again";
 		}
+
 		return started ? "Resume" : "Play";
 	});
+
 	const action = $derived(`${verb}${movie || special ? "" : ` E${episode.number}`}`);
 	const released = $derived(episode.aired_at ?? episode.air_date);
 	const image = $derived(concealed ? null : (episode.still_url ?? series.backdrop_url));

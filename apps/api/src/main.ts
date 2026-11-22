@@ -43,6 +43,7 @@ const app = new Hono()
 				const session = await auth.api.getSession({
 					headers,
 				});
+
 				return session !== null;
 			},
 		}),
@@ -72,4 +73,5 @@ const shutdown = async () => {
 };
 
 process.on("SIGINT", shutdown);
+
 process.on("SIGTERM", shutdown);

@@ -17,9 +17,11 @@ export const actions: Actions = {
 	select: async ({ request, locals, cookies, url }) => {
 		const form = await request.formData();
 		const id = form.get("profile");
+
 		if (!locals.viewer) {
 			error(401, "Not signed in");
 		}
+
 		const profile = locals.viewer.profiles.find((candidate) => candidate.id === id);
 
 		if (!profile) {

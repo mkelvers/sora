@@ -50,9 +50,11 @@ export const syncSearchIndexTask = "sync-search-index";
  */
 export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
 	const payload = parsePayload(SyncSearchIndexPayloadSchema, rawPayload);
+
 	const { pages, stored } = await syncSearchIndex({
 		full: payload?.full === true,
 	});
+
 	helpers.logger.info(`Indexed ${stored} anime from ${pages} AniList pages`);
 
 	if (payload?.full === true) {
@@ -74,6 +76,7 @@ export const syncSearchIndexJob: Task = async (rawPayload, helpers) => {
  */
 const queueSeasons = async (helpers: Parameters<Task>[1]) => {
 	const current = currentSeason();
+
 	const rows = await db
 		.select({
 			anilistId: animeSearch.anilistId,
@@ -134,7 +137,9 @@ export const backfillSeries: Task = async (_payload, helpers) => {
       and priority >= ${seriesStorePriority("backfill")}
       and attempts < max_attempts
   `);
+
 	const room = backfillBatchSize - queued;
+
 	if (room <= 0) {
 		return;
 	}

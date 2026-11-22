@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { ProgressReports } from "./progress-reports";
 
 const address = { episode: 1, profileId: "profile-a", seriesId: "series" };
+
 const snapshot = (position: number, finished = false, leaving = false) => ({
 	duration_seconds: 120,
 	finished,
@@ -11,6 +12,7 @@ const snapshot = (position: number, finished = false, leaving = false) => ({
 });
 
 type Save = ConstructorParameters<typeof ProgressReports>[0];
+
 type Settled = ConstructorParameters<typeof ProgressReports>[1];
 
 const deferredReports = () => {
@@ -18,11 +20,14 @@ const deferredReports = () => {
 		payload: Parameters<Save>[0];
 		deferred: PromiseWithResolvers<undefined>;
 	}[] = [];
+
 	const settlements: Parameters<Settled>[] = [];
+
 	const reports = new ProgressReports(
 		(payload) => {
 			const deferred = Promise.withResolvers<undefined>();
 			writes.push({ deferred, payload });
+
 			return deferred.promise;
 		},
 		(...settlement) => settlements.push(settlement),
@@ -30,11 +35,13 @@ const deferredReports = () => {
 
 	const finishWrite = async (index: number, failed = false) => {
 		const { deferred } = writes[index];
+
 		if (failed) {
 			deferred.reject(new Error("Save failed"));
 		} else {
 			deferred.resolve(undefined);
 		}
+
 		await Promise.resolve();
 	};
 

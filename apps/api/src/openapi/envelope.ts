@@ -69,6 +69,7 @@ export const offsetLinks = (
 	const link = (offset: number) => {
 		const target = new URL(url);
 		target.searchParams.set("offset", String(offset));
+
 		return `${target.pathname}${target.search}`;
 	};
 
@@ -102,6 +103,7 @@ export const pageMeta = (
 	const pageUrl = (number: number) => {
 		const target = new URL(url);
 		target.searchParams.set("page", String(number));
+
 		return `${target.pathname}${target.search}`;
 	};
 

@@ -72,18 +72,22 @@ export const parseTmdbHints = (list: unknown): Map<number, TmdbHint> => {
 	}
 
 	const hints = new Map<number, TmdbHint>();
+
 	for (const item of list) {
 		const parsed = ListEntrySchema.safeParse(item);
+
 		if (!parsed.success) {
 			continue;
 		}
 
 		const { anilist_id: anilistId, themoviedb_id: ids } = parsed.data;
 		const known = hints.get(anilistId);
+
 		const hint = {
 			movieIds: [...new Set([...(known?.movieIds ?? []), ...(ids.movie ?? [])])],
 			showId: known?.showId ?? ids.tv ?? null,
 		};
+
 		if (hint.showId !== null || hint.movieIds.length > 0) {
 			hints.set(anilistId, hint);
 		}
@@ -103,6 +107,7 @@ const downloadHints = async () => {
 			signal: AbortSignal.timeout(60_000),
 		}),
 	);
+
 	if (response.error) {
 		throw new UpstreamUnavailableError(
 			"GitHub could not be reached for the Fribb/anime-lists list",
@@ -112,6 +117,7 @@ const downloadHints = async () => {
 			},
 		);
 	}
+
 	if (!response.data.ok) {
 		throw new UpstreamUnavailableError(
 			`GitHub answered ${response.data.status} for the Fribb/anime-lists list`,
@@ -122,6 +128,7 @@ const downloadHints = async () => {
 	}
 
 	const list = await attempt(response.data.json());
+
 	if (list.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is not JSON", {
 			cause: list.error,
@@ -130,12 +137,14 @@ const downloadHints = async () => {
 	}
 
 	const hints = attempt(() => parseTmdbHints(list.data), TypeError);
+
 	if (hints.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
 			cause: hints.error,
 			retryAfterMs: null,
 		});
 	}
+
 	return hints.data;
 };
 
@@ -158,6 +167,7 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 	const fetched = await downloadHints();
 	const storedRows = await db.select().from(tmdbHint);
 	const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));
+
 	if (fetched.size < stored.size * minimumKeptShare) {
 		throw new UpstreamUnavailableError(
 			`Fribb/anime-lists lists ${fetched.size} TMDB hints against ${stored.size} stored; keeping the stored ones`,
@@ -170,6 +180,7 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 	const changed = [...fetched].filter(
 		([anilistId, hint]) => !sameHint(stored.get(anilistId), hint),
 	);
+
 	const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
 
 	await db.transaction(async (tx) => {

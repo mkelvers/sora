@@ -27,7 +27,9 @@
 		if (!message || tone === "error") {
 			return;
 		}
+
 		const timeout = setTimeout(() => ondismiss?.(), action ? lingerWithActionMs : lingerMs);
+
 		return () => clearTimeout(timeout);
 	});
 </script>

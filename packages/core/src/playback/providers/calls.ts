@@ -65,6 +65,7 @@ const storeCall = async (call: ProviderCall) => {
 
 const errorMessage = (error: Error) => {
 	const { message } = error;
+
 	return message.length > maxErrorLength ? `${message.slice(0, maxErrorLength - 1)}…` : message;
 };
 
@@ -86,6 +87,7 @@ export const recordingCalls = (
 	) => {
 		const startedAt = new Date();
 		const started = performance.now();
+
 		const finish = async (outcome: CallOutcome, error: Error | null) => {
 			const recorded = await attempt(
 				record({
@@ -97,6 +99,7 @@ export const recordingCalls = (
 					startedAt,
 				}),
 			);
+
 			if (recorded.error) {
 				console.warn(
 					`Could not record a ${operation} call to ${provider.id}: ${recorded.error.message}`,
@@ -105,15 +108,19 @@ export const recordingCalls = (
 		};
 
 		const { data, error } = await attempt(call());
+
 		if (error) {
 			void finish("failed", error);
 			throw error;
 		}
+
 		void finish(isEmpty(data) ? "empty" : "ok", null);
+
 		return data;
 	};
 
 	const syncCatalog = provider.syncCatalog?.bind(provider);
+
 	return {
 		findMedia: (anime) =>
 			observe(
@@ -159,5 +166,6 @@ export const pruneProviderCalls = async () => {
 		.returning({
 			provider: providerCalls.provider,
 		});
+
 	return deleted.length;
 };

@@ -31,8 +31,10 @@ export interface Refinement {
 
 /** How far before a line is spoken its cue appears, in seconds. */
 const lead = 0.15;
+
 /** How long after a line is spoken its cue stays, in seconds. */
 const tail = 0.25;
+
 /**
  * How long a cue shows at least, as characters per second of reading time,
  * with an absolute floor; a cue is never kept longer than it was.
@@ -46,20 +48,28 @@ const minimumShowSeconds = 1;
  * later than the picture's.
  */
 const typicalLag = 0.1;
+
 /** A picture shift further than this from what the speech says is not trusted. */
 const pictureTolerance = 1.5;
+
 /** A cue is placed by time when this much of the shorter of it and the speech overlaps. */
 const minimumOverlap = 0.5;
+
 /** Speech is taken as a cue's only if it starts this near where the cue should. */
 const nearRunSeconds = 1;
+
 /** Speech a placed cue covers this much of is already said. */
 const claimedShare = 0.3;
+
 /** Within this far of where a cue should be, one shared word can match it. */
 const nearSeconds = 1.2;
+
 /** Farther than that, the words shared must weigh this much, such as two that carry meaning. */
 const minimumFarWeight = 1.5;
+
 /** A pause this long in speech ends a line, so a cue never spans one. */
 const pauseSeconds = 1.5;
+
 /** How far from where a cue should be, once offsets are known, speech may match it. */
 const searchSeconds = 3.5;
 
@@ -67,9 +77,11 @@ const searchSeconds = 3.5;
 const minimumVotes = 4;
 const maximumOffsets = 16;
 const offsetBucketSeconds = 0.5;
+
 /** A cue votes for an offset when its best phrase scores at least this well. */
 const voteScore = 0.5;
 const switchPenalty = 4;
+
 /** Fewer matched cues than this and the dub's speech is not the sub's script. */
 const minimumAnchors = 12;
 const minimumAnchorShare = 0.1;
@@ -97,12 +109,15 @@ const stemOf = (word: string) => {
 	if (word.length > 5 && word.endsWith("ing")) {
 		return word.slice(0, -3);
 	}
+
 	if (word.length > 4 && word.endsWith("ed")) {
 		return word.slice(0, -2);
 	}
+
 	if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) {
 		return word.slice(0, -1);
 	}
+
 	return word;
 };
 
@@ -112,11 +127,13 @@ const tokenize = (text: string): Token[] => {
 		.toLowerCase()
 		.replaceAll(/<[^>]*>|\{\\[^}]*\}|\[[^\]]*\]|\([^)]*\)|♪[^♪]*♪?/gu, " ")
 		.replaceAll(/[’‘]/gu, "'");
+
 	return (spokenText.match(/[a-z0-9]+(?:'[a-z]+)*/gu) ?? []).map((word) => {
 		const bare = word
 			.replace(/'(?:s|d|ll|re|ve|m)$/u, "")
 			.replace(/n't$/u, "nt")
 			.replaceAll("'", "");
+
 		return {
 			stem: stemOf(bare),
 			weight: stopWords.has(bare) ? 0.25 : 1,
@@ -133,13 +150,16 @@ interface Phrase {
 const phrasesOf = (words: SpokenWord[]) => {
 	const phrases: Phrase[] = [];
 	let first = 0;
+
 	for (let index = 0; index < words.length; index += 1) {
 		const next = words[index + 1];
+
 		const ends =
 			!next ||
 			next.start - defined(words[index]).end > 0.35 ||
 			/[.?!…]["')\]]?$/u.test(defined(words[index]).text.trim()) ||
 			index - first >= 24;
+
 		if (ends) {
 			phrases.push({
 				first,
@@ -148,6 +168,7 @@ const phrasesOf = (words: SpokenWord[]) => {
 			first = index + 1;
 		}
 	}
+
 	return phrases;
 };
 
@@ -155,8 +176,10 @@ const weightOf = (tokens: Token[]) => tokens.reduce((sum, token) => sum + token.
 
 const editDistance = (left: string, right: string) => {
 	let row = Array.from({ length: right.length + 1 }, (_, index) => index);
+
 	for (let i = 1; i <= left.length; i += 1) {
 		const next = [i];
+
 		for (let j = 1; j <= right.length; j += 1) {
 			next[j] = Math.min(
 				defined(row[j]) + 1,
@@ -164,8 +187,10 @@ const editDistance = (left: string, right: string) => {
 				defined(row[j - 1]) + (left[i - 1] === right[j - 1] ? 0 : 1),
 			);
 		}
+
 		row = next;
 	}
+
 	return defined(row[right.length]);
 };
 
@@ -174,6 +199,7 @@ const typoAllowance = (length: number) => {
 	if (length >= 8) {
 		return 2;
 	}
+
 	return length >= 5 ? 1 : 0;
 };
 
@@ -185,6 +211,7 @@ const same = (left: string, right: string) => {
 
 	const shortest = Math.min(left.length, right.length);
 	const allowed = typoAllowance(shortest);
+
 	return (
 		allowed > 0 &&
 		Math.abs(left.length - right.length) <= allowed &&
@@ -196,13 +223,16 @@ const same = (left: string, right: string) => {
 const sharedWeight = (left: Token[], right: Token[]) => {
 	const free = right.map(() => true);
 	let shared = 0;
+
 	for (const token of left) {
 		const match = right.findIndex((other, index) => free[index] && same(token.stem, other.stem));
+
 		if (match !== -1) {
 			free[match] = false;
 			shared += Math.min(token.weight, defined(right[match]).weight);
 		}
 	}
+
 	return shared;
 };
 
@@ -215,6 +245,7 @@ const dice = (left: Token[], right: Token[]) =>
 
 const median = (values: number[]) => {
 	const sorted = values.toSorted((a, b) => a - b);
+
 	return defined(sorted[Math.floor(sorted.length / 2)]);
 };
 
@@ -231,12 +262,14 @@ const voteOffsets = (
 	spoken: (Token | null)[],
 ): TimelineShift[] | null => {
 	const phrases = phrasesOf(words);
+
 	const phraseTokens = phrases.map((phrase) =>
 		spoken.slice(phrase.first, phrase.last + 1).flatMap((token) => (token ? [token] : [])),
 	);
 
 	const votes = cues.map((cue, index) => {
 		const tokens = defined(cueTokens[index]);
+
 		if (weightOf(tokens) < 1.5) {
 			return [];
 		}
@@ -253,6 +286,7 @@ const voteOffsets = (
 	});
 
 	const buckets = new Map<number, number>();
+
 	for (const cueVotes of votes) {
 		for (const offset of new Set(
 			cueVotes.map((value) => Math.round(value / offsetBucketSeconds)),
@@ -262,6 +296,7 @@ const voteOffsets = (
 	}
 
 	const picked: number[] = [];
+
 	for (const [bucket] of [...buckets]
 		.map(
 			([key, count]) =>
@@ -272,6 +307,7 @@ const voteOffsets = (
 		if (picked.length === maximumOffsets) {
 			break;
 		}
+
 		if (picked.every((other) => Math.abs(other - bucket) > 2)) {
 			picked.push(bucket);
 		}
@@ -280,8 +316,10 @@ const voteOffsets = (
 	const offsets = picked.flatMap((bucket) => {
 		const rough = bucket * offsetBucketSeconds;
 		const near = votes.flat().filter((offset) => Math.abs(offset - rough) <= 1);
+
 		return near.length > 0 ? [median(near)] : [];
 	});
+
 	if (offsets.length === 0) {
 		return null;
 	}
@@ -289,14 +327,18 @@ const voteOffsets = (
 	const matches = votes.map((cueVotes) =>
 		offsets.map((offset) => cueVotes.some((vote) => Math.abs(vote - offset) <= 1)),
 	);
+
 	const path = bestPath(matches, switchPenalty);
+
 	if (path.filter((choice, index) => matches[index]?.[choice]).length < minimumVotes) {
 		return null;
 	}
 
 	const shifts: TimelineShift[] = [];
+
 	for (const [index, choice] of path.entries()) {
 		const offset = defined(offsets[choice]);
+
 		if (shifts.at(-1)?.offset !== offset) {
 			shifts.push({
 				from: index === 0 ? 0 : defined(cues[index]).start,
@@ -304,6 +346,7 @@ const voteOffsets = (
 			});
 		}
 	}
+
 	return shifts;
 };
 
@@ -311,14 +354,17 @@ const voteOffsets = (
 const firstStartingAfter = (words: SpokenWord[], time: number) => {
 	let low = 0;
 	let high = words.length;
+
 	while (low < high) {
 		const middle = Math.floor((low + high) / 2);
+
 		if (defined(words[middle]).start < time) {
 			low = middle + 1;
 		} else {
 			high = middle;
 		}
 	}
+
 	return low;
 };
 
@@ -345,6 +391,7 @@ const candidatesFor = (
 	offset: number,
 ) => {
 	const weight = weightOf(tokens);
+
 	if (weight < 0.5) {
 		return [];
 	}
@@ -352,17 +399,20 @@ const candidatesFor = (
 	const expected = cue.start + offset;
 	const longest = Math.min(40, Math.ceil(tokens.length * 1.8) + 3);
 	const found: Candidate[] = [];
+
 	for (
 		let first = firstStartingAfter(words, expected - searchSeconds);
 		first < words.length;
 		first += 1
 	) {
 		const { start } = defined(words[first]);
+
 		if (start > expected + searchSeconds) {
 			break;
 		}
 
 		const run: Token[] = [];
+
 		for (let last = first; last < Math.min(words.length, first + longest); last += 1) {
 			if (
 				last > first &&
@@ -372,21 +422,26 @@ const candidatesFor = (
 			}
 
 			const token = spoken[last];
+
 			if (token) {
 				run.push(token);
 			}
+
 			const similarity = dice(tokens, run);
+
 			if (similarity < minimumDice) {
 				continue;
 			}
 
 			// A single shared word is a coincidence unless the run is where the cue should be.
 			const distance = Math.abs(start - expected);
+
 			if (distance > nearSeconds && sharedWeight(tokens, run) < minimumFarWeight) {
 				continue;
 			}
 
 			const score = similarity - timePenalty * Math.min(1, distance / searchSeconds);
+
 			if (score >= minimumScore) {
 				found.push({
 					cue: index,
@@ -427,19 +482,24 @@ const pickAnchors = (
 			total: candidate.score,
 		})),
 	);
+
 	let top: [number, number] | null = null;
+
 	for (let cue = 0; cue < cues.length; cue += 1) {
 		for (const [index, candidate] of defined(candidates[cue]).entries()) {
 			const entry = defined(defined(best[cue])[index]);
+
 			for (let earlier = Math.max(0, cue - lookback); earlier < cue; earlier += 1) {
 				for (const [other, previous] of defined(candidates[earlier]).entries()) {
 					const total = defined(defined(best[earlier])[other]).total + candidate.score;
+
 					if (previous.last <= candidate.first && total > entry.total) {
 						entry.total = total;
 						entry.before = [earlier, other];
 					}
 				}
 			}
+
 			if (!top || entry.total > defined(defined(best[top[0]])[top[1]]).total) {
 				top = [cue, index];
 			}
@@ -447,9 +507,11 @@ const pickAnchors = (
 	}
 
 	const picked: Pick[] = [];
+
 	for (let at = top; at; at = defined(defined(best[at[0]])[at[1]]).before) {
 		picked.unshift(defined(defined(candidates[at[0]])[at[1]]));
 	}
+
 	return picked;
 };
 
@@ -473,11 +535,14 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
 	].toSorted((a, b) => a - b);
 
 	const shifts: TimelineShift[] = [];
+
 	for (const from of boundaries) {
 		const heard = offsetAt(voted, from);
 		const seen = picture ? offsetAt(picture, from) : null;
+
 		const offset =
 			seen !== null && Math.abs(seen - heard) <= pictureTolerance ? seen : heard - typicalLag;
+
 		if (shifts.at(-1)?.offset !== offset) {
 			shifts.push({
 				from,
@@ -485,6 +550,7 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
 			});
 		}
 	}
+
 	return shifts;
 };
 
@@ -495,10 +561,12 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
  */
 const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
 	const movedStart = Math.max(0, defined(words[first]).start - lead);
+
 	const readable = Math.min(
 		cue.end - cue.start,
 		Math.max(minimumShowSeconds, cue.text.length / readingRate),
 	);
+
 	return {
 		cue: index,
 		movedEnd: Math.max(defined(words[last]).end + tail, movedStart + readable),
@@ -525,15 +593,20 @@ const place = (
 ) =>
 	picked.map((pick): Placed => {
 		const tokens = defined(cueTokens[pick.cue]);
+
 		const shared = (index: number) => {
 			const token = spoken[index];
+
 			return !!token && tokens.some((other) => same(other.stem, token.stem));
 		};
+
 		let { first } = pick;
 		let { last } = pick;
+
 		while (first < last && !shared(first)) {
 			first += 1;
 		}
+
 		while (last > first && !shared(last)) {
 			last -= 1;
 		}
@@ -549,12 +622,15 @@ const place = (
 const tidy = (cues: Cue[], placed: Placed[]) => {
 	const anchors: CueAnchor[] = [];
 	let before: Placed | null = null;
+
 	for (const next of placed.toSorted((a, b) => a.cue - b.cue)) {
 		const previous = anchors.at(-1);
 		const together = before && defined(cues[next.cue]).start < defined(cues[before.cue]).end - 0.05;
+
 		if (previous && !together && next.movedStart < previous.movedEnd) {
 			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
 		}
+
 		anchors.push({
 			end: defined(cues[next.cue]).end,
 			movedEnd: next.movedEnd,
@@ -563,6 +639,7 @@ const tidy = (cues: Cue[], placed: Placed[]) => {
 		});
 		before = next;
 	}
+
 	return anchors.toSorted((a, b) => a.start - b.start);
 };
 
@@ -588,7 +665,9 @@ const placeByTime = (
 		end: defined(words[run.last]).end,
 		start: defined(words[run.first]).start,
 	}));
+
 	const claimedCues = new Set(matched.map((placed) => placed.cue));
+
 	const free = runs.filter(
 		(run) =>
 			!matched.some(
@@ -599,21 +678,26 @@ const placeByTime = (
 	);
 
 	const claims = new Map<(typeof runs)[number], number[]>();
+
 	for (const [index, cue] of cues.entries()) {
 		if (claimedCues.has(index) || weightOf(defined(cueTokens[index])) < 0.5) {
 			continue;
 		}
 
 		const offset = offsetAt(shifts, cue.start) + typicalLag;
+
 		const expected = {
 			end: cue.end + offset,
 			start: cue.start + offset,
 		};
+
 		let best: { run: (typeof runs)[number]; share: number } | null = null;
+
 		for (const run of free) {
 			const share =
 				overlapSeconds(expected.start, expected.end, run.start, run.end) /
 				Math.min(expected.end - expected.start, run.end - run.start);
+
 			if (
 				share >= minimumOverlap &&
 				Math.abs(run.start - expected.start) <= nearRunSeconds &&
@@ -625,6 +709,7 @@ const placeByTime = (
 				};
 			}
 		}
+
 		if (best) {
 			claims.set(best.run, [...(claims.get(best.run) ?? []), index]);
 		}
@@ -635,14 +720,18 @@ const placeByTime = (
 		const total = claiming.reduce((sum, index) => sum + defined(cues[index]).text.length, 0);
 		let passed = 0;
 		let { first } = run;
+
 		return claiming.map((index, position) => {
 			passed += defined(cues[index]).text.length;
+
 			const last =
 				position === claiming.length - 1
 					? run.last
 					: Math.max(first, run.first + Math.round((passed / total) * count) - 1);
+
 			const placed = showFor(defined(cues[index]), index, words, first, last);
 			first = Math.min(run.last, last + 1);
+
 			return placed;
 		});
 	});
@@ -675,11 +764,13 @@ export const refineCues = (
 	const cueTokens = cues.map((cue) => tokenize(cue.text));
 
 	const voted = voteOffsets(cues, cueTokens, words, spoken);
+
 	if (!voted) {
 		return null;
 	}
 
 	const picked = pickAnchors(cues, cueTokens, words, spoken, voted);
+
 	if (
 		picked.length < minimumAnchors ||
 		picked.length < minimumAnchorShare * speakingCues(cueTokens)
@@ -689,6 +780,7 @@ export const refineCues = (
 
 	const shifts = baseShifts(picture, voted);
 	const matched = place(cues, cueTokens, words, spoken, picked);
+
 	return {
 		anchors: tidy(cues, [...matched, ...placeByTime(cues, cueTokens, words, shifts, matched)]),
 		shifts,

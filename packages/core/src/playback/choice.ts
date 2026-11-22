@@ -34,17 +34,20 @@ export const choosePlayback = <TMedia extends Pick<PlaybackMedia, "audio" | "sub
 				.map((audio) => media.find((candidate) => candidate.audio === audio))
 				.find((candidate) => candidate !== undefined)) ||
 		media[0];
+
 	const choice = version && version.audio !== "raw" ? preferences.subtitles[version.audio] : null;
 	let subtitle: TMedia["subtitles"][number] | undefined;
 
 	if (version && choice !== null) {
 		const tracks = version.subtitles;
+
 		if (choice) {
 			// Prefer the exact track, then any track in the chosen language.
 			subtitle =
 				tracks.find((track) => track.language === choice.language && track.kind === choice.kind) ??
 				tracks.find((track) => track.language === choice.language);
 		}
+
 		subtitle ??= tracks.find((track) => track.default);
 	}
 

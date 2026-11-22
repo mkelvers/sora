@@ -17,14 +17,17 @@ export const parsePayload = <TSchema extends z.ZodType>(
 	payload: unknown,
 ): z.output<TSchema> => {
 	const result = schema.safeParse(payload);
+
 	if (!result.success) {
 		const problems = result.error.issues.map(
 			(issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`,
 		);
+
 		throw new InvalidPayloadError(`Invalid payload: ${problems.join("; ")}`, {
 			cause: result.error,
 		});
 	}
+
 	return result.data;
 };
 
@@ -38,10 +41,12 @@ export const parsePayload = <TSchema extends z.ZodType>(
 const withCauses = (error: Error): Error => {
 	const chain = [error];
 	let { cause } = error;
+
 	while (cause instanceof Error && !chain.includes(cause)) {
 		chain.push(cause);
 		({ cause } = cause);
 	}
+
 	if (chain.length === 1) {
 		return error;
 	}
@@ -56,9 +61,11 @@ const withCauses = (error: Error): Error => {
 			cause: error,
 		},
 	);
+
 	described.stack = chain
 		.map((link) => link.stack ?? `${link.name}: ${link.message}`)
 		.join("\nCaused by ");
+
 	return described;
 };
 
@@ -88,6 +95,7 @@ export const failInvalidPayloads = (tasks: Record<string, Task>): TaskList =>
 						await task(payload, helpers);
 					})(),
 				);
+
 				if (!error) {
 					return;
 				}
@@ -104,6 +112,7 @@ export const failInvalidPayloads = (tasks: Record<string, Task>): TaskList =>
 					);
 					throw error;
 				}
+
 				throw withCauses(error);
 			},
 		]),

@@ -17,6 +17,7 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 		}
 
 		const source = image.src;
+
 		if (analyzedSource !== source) {
 			analyzedSource = source;
 			focus = 0.5;
@@ -24,6 +25,7 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 			canvas.width = 80;
 			canvas.height = 45;
 			const context = canvas.getContext("2d", { willReadFrequently: true });
+
 			if (!context) {
 				return;
 			}
@@ -34,25 +36,31 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 				thumbnail.crossOrigin = "anonymous";
 				thumbnail.src = source.replace("/original/", "/w300/");
 				await thumbnail.decode();
+
 				if (disposed || image.src !== source) {
 					return;
 				}
+
 				context.drawImage(thumbnail, 0, 0, canvas.width, canvas.height);
 				const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
 				let contrast = 0;
 				let weighted = 0;
+
 				for (let y = 1; y < 30; y += 1) {
 					for (let x = 1; x < canvas.width - 1; x += 1) {
 						const pixel = (y * canvas.width + x) * 4;
+
 						for (let channel = 0; channel < 3; channel += 1) {
 							const detail =
 								Math.abs(data[pixel + channel] - data[pixel - 4 + channel]) +
 								Math.abs(data[pixel + channel] - data[pixel - canvas.width * 4 + channel]);
+
 							contrast += detail;
 							weighted += detail * (x + 0.5);
 						}
 					}
 				}
+
 				if (contrast > 0) {
 					focus = weighted / contrast / canvas.width;
 				}
@@ -60,6 +68,7 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 				// Unavailable thumbnails or CORS pixel access retain the centered crop.
 			}
 		}
+
 		if (disposed || !mobile.matches) {
 			return;
 		}
@@ -68,6 +77,7 @@ export const mobileBackdrop = (image: HTMLImageElement) => {
 			image.clientWidth / image.naturalWidth,
 			image.clientHeight / image.naturalHeight,
 		);
+
 		const width = image.naturalWidth * scale;
 		const overflow = width - image.clientWidth;
 		const position = overflow > 0 ? (focus * width - image.clientWidth / 2) / overflow : 0.5;

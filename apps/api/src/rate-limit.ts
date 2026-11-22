@@ -36,6 +36,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 
 	return createMiddleware<V1Env>(async (c: Context<V1Env>, proceed) => {
 		const now = Date.now();
+
 		if (windows.size > sweepAbove) {
 			for (const [counted, window] of windows) {
 				if (window.resetAt <= now) {
@@ -46,6 +47,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 
 		const counted = key ? await key(c) : c.get("accountId");
 		let window = windows.get(counted);
+
 		if (!window || window.resetAt <= now) {
 			window = {
 				count: 0,
@@ -55,6 +57,7 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 		}
 
 		window.count += 1;
+
 		if (window.count > limit) {
 			const response = sendProblem(
 				c,
@@ -62,7 +65,9 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 				"TOO_MANY_REQUESTS",
 				"Too many requests; try again shortly",
 			);
+
 			response.headers.set("Retry-After", formatRetryAfter(window.resetAt - now));
+
 			return response;
 		}
 

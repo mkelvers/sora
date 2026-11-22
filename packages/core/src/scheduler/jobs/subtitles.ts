@@ -29,6 +29,7 @@ export const refineSubtitles: Task = async (payload) => {
 	}
 
 	const { seriesId, episode, key } = parsePayload(PayloadSchema, payload);
+
 	if (!isRefinementDue(await getRefinement(key))) {
 		return;
 	}
@@ -40,6 +41,7 @@ export const refineSubtitles: Task = async (payload) => {
 		},
 		key,
 	);
+
 	await saveRefinement(key, refinement);
 };
 
@@ -54,6 +56,7 @@ const ProbePayloadSchema = z.object({
  */
 export const probeSubtitles: Task = async (payload, helpers) => {
 	const { seriesId } = parsePayload(ProbePayloadSchema, payload);
+
 	const { data, error } = await attempt(
 		probeSubtitleLanguages({
 			episode: 1,
@@ -62,11 +65,14 @@ export const probeSubtitles: Task = async (payload, helpers) => {
 		EpisodeNotFoundError,
 		SeriesNotFoundError,
 	);
+
 	if (error instanceof EpisodeNotFoundError) {
 		await recordSubtitleLanguages(seriesId, []);
 	}
+
 	if (error) {
 		helpers.logger.info(`No subtitles to look at for ${seriesId}: ${error.message}`);
+
 		return;
 	}
 

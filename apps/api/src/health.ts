@@ -8,10 +8,13 @@ import { Hono } from "hono";
 /** Reads one part of the signed-in report, or `null` with a warning when it cannot be read. */
 const read = async <TData>(what: string, load: () => Promise<TData>) => {
 	const { data, error } = await attempt(load());
+
 	if (error) {
 		console.warn(`Could not read ${what}: ${error.message}`);
+
 		return null;
 	}
+
 	return data;
 };
 
@@ -58,6 +61,7 @@ export const healthRoutes = ({
 			read("provider health", providers),
 			read("failing scheduler jobs", failingJobs),
 		]);
+
 		return c.json({
 			failing_jobs: jobs,
 			providers: health?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,

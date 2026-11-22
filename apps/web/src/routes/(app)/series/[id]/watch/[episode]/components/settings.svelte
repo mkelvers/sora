@@ -34,6 +34,7 @@
 		if (height >= ultraHeight) {
 			return `${height}p 4K`;
 		}
+
 		return height >= highHeight ? `${height}p HD` : `${height}p`;
 	};
 
@@ -85,6 +86,7 @@
 								const same = tracks
 									.slice(0, index)
 									.filter((other) => other.label === track.label).length;
+
 								return {
 									label: same ? `${track.label} ${same + 1}` : track.label,
 									value: track.url,

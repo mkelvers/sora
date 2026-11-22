@@ -70,6 +70,7 @@ export const getStudios = query(
 
 export const getCatalogPage = query(request, async (input) => {
 	const { sora } = remoteViewer();
+
 	const paging = {
 		page: input.page,
 		per_page: 36,

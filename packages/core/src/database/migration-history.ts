@@ -31,7 +31,9 @@ export const readMigrationHistory = (folder: string): MigrationFile[] => {
 	const journal = JournalSchema.parse(
 		JSON.parse(readFileSync(path.join(folder, "meta/_journal.json"), "utf-8")),
 	);
+
 	const tags = new Map(journal.entries.map(({ tag, when }) => [when, tag]));
+
 	return readMigrationFiles({
 		migrationsFolder: folder,
 	}).map(({ folderMillis, hash }) => ({
@@ -59,13 +61,16 @@ export const skippedMigrations = (
 ): string[] => {
 	const hashes = new Map(recorded.map(({ createdAt, hash }) => [createdAt, hash]));
 	const newest = Math.max(...recorded.map(({ createdAt }) => createdAt));
+
 	return files.flatMap(({ hash, tag, when }) => {
 		const applied = hashes.get(when);
+
 		if (applied === undefined) {
 			return when < newest
 				? [`${tag} was never applied, and a newer migration was, so drizzle never will`]
 				: [];
 		}
+
 		return applied === hash ? [] : [`${tag} was applied as a different version of its file`];
 	});
 };

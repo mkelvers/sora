@@ -38,11 +38,13 @@
 	const laterLabel = (part: FranchisePart, started: number | undefined) => {
 		const movie = part.format === "MOVIE";
 		const which = seasonNumber(part) || (movie ? " Next Movie" : " Next Season");
+
 		return `${started ? "Continue" : "Start"} Watching${which}${movie ? "" : ` E${started ?? 1}`}`;
 	};
 
 	const ownSeason = $derived.by(() => {
 		const current = series.seasons.find((part) => part.series_id === series.id);
+
 		return current?.role === "season" && series.seasons[0] !== current ? seasonNumber(current) : "";
 	});
 
@@ -66,15 +68,19 @@
 						library.status.get(part.series_id) !== "completed",
 				)
 			: undefined;
+
 		if (later) {
 			const started = library.resume.get(later.series_id)?.episode;
+
 			return {
 				href: `/series/${later.series_id}/watch/${started ?? 1}`,
 				label: laterLabel(later, started),
 				rewatch: false,
 			};
 		}
+
 		const resume = progress?.next?.episode;
+
 		if (!resume && !series.episode_count) {
 			return null;
 		}
@@ -83,11 +89,13 @@
 		const suffix = `${ownSeason}${series.format === "MOVIE" ? "" : ` E${episode}`}`;
 		const rewatch = !resume && (done || !!progress?.episodes.length);
 		let label = `Start Watching${suffix}`;
+
 		if (resume) {
 			label = `Continue Watching${suffix}`;
 		} else if (rewatch) {
 			label = "Rewatch";
 		}
+
 		return {
 			href: `/series/${series.id}/watch/${episode}`,
 			label,
@@ -108,10 +116,12 @@
 
 		const airing = new Date(series.next_episode.airing_at);
 		const aired = airing <= new Date();
+
 		const day = airing.toLocaleDateString("en-US", {
 			day: "numeric",
 			month: "long",
 		});
+
 		const time = airing.toLocaleTimeString("en-GB", {
 			hour: "2-digit",
 			minute: "2-digit",

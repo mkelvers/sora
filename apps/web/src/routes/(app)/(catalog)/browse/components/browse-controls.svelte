@@ -25,6 +25,7 @@
 
 	let sorting = $state(false);
 	let filtering = $state(false);
+
 	let draft = $state<BrowseFilters>({
 		genres: [],
 		hideMature: false,
@@ -35,6 +36,7 @@
 	});
 
 	const current = $derived(sorts.find((sort) => sort.value === filters.sort) ?? sorts[0]);
+
 	const filtered = $derived(
 		filters.genres.length > 0 ||
 			filters.tags.length > 0 ||

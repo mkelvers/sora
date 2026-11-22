@@ -20,6 +20,7 @@
 
 	const label = (item: ContinueWatching, where: string) => {
 		const started = item.position_seconds > 0;
+
 		if (!where) {
 			return started ? "Continue Watching" : "Up Next";
 		}

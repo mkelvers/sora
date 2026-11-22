@@ -35,28 +35,33 @@ const kimetsu = entry(101_922, 1_000_000, {
 	native: "鬼滅の刃",
 	romaji: "Kimetsu no Yaiba",
 });
+
 const mugenTrain = entry(112_151, 420_000, {
 	english: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
 	romaji: "Kimetsu no Yaiba Movie: Mugen Ressha-hen",
 });
+
 const onigiri = entry(21_612, 9026, {
 	english: "Onigiri",
 	native: "鬼斬",
 	romaji: "Onigiri",
 	synonyms: ["Demon Slayer", "Demon Cutter"],
 });
+
 const attackOnTitan = entry(16_498, 1_100_000, {
 	english: "Attack on Titan",
 	native: "進撃の巨人",
 	romaji: "Shingeki no Kyojin",
 	synonyms: ["AoT", "SnK"],
 });
+
 const jujutsuKaisen = entry(113_415, 900_000, {
 	english: "JUJUTSU KAISEN",
 	native: "呪術廻戦",
 	romaji: "Jujutsu Kaisen",
 	synonyms: ["JJK", "Sorcery Fight"],
 });
+
 const jujutsuKaisenZero = entry(131_573, 400_000, {
 	english: "JUJUTSU KAISEN 0",
 	romaji: "Jujutsu Kaisen 0: Jujutsu Kaisen Zero",
@@ -97,6 +102,7 @@ describe("rankCandidates", () => {
 			english: "Hunter x Hunter",
 			romaji: "HUNTER×HUNTER",
 		});
+
 		const remake = entry(11_061, 843_439, {
 			english: "Hunter x Hunter (2011)",
 			romaji: "HUNTER×HUNTER (2011)",
@@ -110,6 +116,7 @@ describe("rankCandidates", () => {
 			english: "Oreimo 2 (ONA)",
 			romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai. (ONA)",
 		});
+
 		const season = entry(13_659, 90_000, {
 			english: "Oreimo 2",
 			romaji: "Ore no Imouto ga Konna ni Kawaii Wake ga Nai.",
@@ -133,6 +140,7 @@ describe("rankCandidates", () => {
 			english: "Neon Genesis Evangelion",
 			romaji: "Shin Seiki Evangelion",
 		});
+
 		const rebuild = entry(2759, 145_336, {
 			english: "Evangelion: 1.0 You Are (Not) Alone",
 			romaji: "Evangelion Shin Movie: Jo",
@@ -146,6 +154,7 @@ describe("rankCandidates", () => {
 			english: "Clannad",
 			romaji: "CLANNAD",
 		});
+
 		const afterStory = entry(4181, 350_000, {
 			english: "Clannad: After Story",
 			romaji: "CLANNAD: AFTER STORY",

@@ -131,6 +131,7 @@ export const isEpisodeReleased = (
 		title.nextEpisodeAiringAt > now &&
 		title.nextEpisodeNumber !== null &&
 		episode.number >= title.nextEpisodeNumber;
+
 	const releasedAt = releasedAtOf(episode);
 
 	return !isAtOrAfterNext && (releasedAt === null || releasedAt <= now);
@@ -162,6 +163,7 @@ export const loadAniKotoEpisodes = async (
 	}
 
 	const ids = [...new Set(anilistIds)];
+
 	const [listed, unmatched] = await Promise.all([
 		db
 			.select({
@@ -208,9 +210,11 @@ export const loadAniKotoEpisodes = async (
  */
 export const getAniKotoEpisodeCount = async (anilistId: number): Promise<number | null> => {
 	const stored = await getStoredUnits([anilistId], [aniKoto.id]);
+
 	const numbers = stored
 		.flatMap((entry) => entry.units.map((unit) => unit.number))
 		.filter((number) => Number.isInteger(number) && number > 0);
+
 	return numbers.length > 0 ? Math.max(...numbers) : null;
 };
 
@@ -288,5 +292,6 @@ export const isEpisodeAwaited = (
  */
 export const expectedRelease = (airedAt: Date, scheduledAt: Date | null, now = new Date()) => {
 	const expected = scheduledAt && scheduledAt > airedAt ? scheduledAt : airedAt;
+
 	return now.getTime() < expected.getTime() + releaseGraceMs ? expected : null;
 };

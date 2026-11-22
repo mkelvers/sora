@@ -47,6 +47,7 @@ const shortEpisodeMinutes = 15;
  */
 export const getAiringSchedule = async (from: Date, until: Date): Promise<ScheduledEpisode[]> => {
 	const windowMs = until.getTime() - from.getTime();
+
 	if (!(windowMs > 0 && windowMs <= maximumScheduleWindowMs)) {
 		throw new InvalidInputError("The schedule window must be between 0 and 14 days long");
 	}
@@ -84,6 +85,7 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 			airsAt: Date;
 		}
 	>();
+
 	for (const release of releases) {
 		if (release.anilistId === null) {
 			continue;
@@ -92,6 +94,7 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 		const airType = release.airType === "dub" ? "dub" : "sub";
 		const key = `${anilistEpisodeKey(release.anilistId, release.episode)}:${airType}`;
 		const fromSubStream = release.airType === "sub";
+
 		if (!chosen.get(key)?.fromSubStream) {
 			chosen.set(key, {
 				airType,
@@ -102,10 +105,13 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 			});
 		}
 	}
+
 	const broadcasts = [...chosen.values()]
 		.filter((broadcast) => broadcast.airsAt >= from && broadcast.airsAt < until)
 		.toSorted((left, right) => left.airsAt.getTime() - right.airsAt.getTime());
+
 	const seriesIds = await storedSeriesIds(broadcasts.map((broadcast) => broadcast.anilistId));
+
 	const rows =
 		seriesIds.size > 0
 			? await db
@@ -113,11 +119,13 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 					.from(series)
 					.where(inArray(series.id, [...seriesIds.values()]))
 			: [];
+
 	const cards = await toSeriesCards(rows);
 
 	return broadcasts.flatMap((broadcast) => {
 		const seriesId = seriesIds.get(broadcast.anilistId);
 		const card = seriesId ? cards.get(seriesId) : undefined;
+
 		return card
 			? [
 					{
@@ -137,18 +145,22 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
  */
 const calendarReleases = (versions: ScheduledEpisode[]) => {
 	const audioByEpisodes = new Map<string, ("sub" | "dub")[]>();
+
 	for (const airType of ["sub", "dub"] as const) {
 		const numbers = versions
 			.filter((version) => version.air_type === airType)
 			.map((version) => version.episode)
 			.toSorted((left, right) => left - right);
+
 		if (!numbers.length) {
 			continue;
 		}
 
 		const runs: [number, number][] = [];
+
 		for (const number of numbers) {
 			const run = runs.at(-1);
+
 			if (run?.[1] === number - 1) {
 				run[1] = number;
 			} else {
@@ -159,6 +171,7 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
 		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
 			.map(([first, last]) => (first === last ? first : `${first}–${last}`))
 			.join(", ")}`;
+
 		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
 	}
 
@@ -180,17 +193,21 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
  */
 export const getCalendar = async (timeZone: string, weeks: number): Promise<Calendar> => {
 	const today = attempt(() => Temporal.Now.plainDateISO(timeZone), RangeError);
+
 	if (today.error) {
 		throw new InvalidInputError(`Unknown time zone ${timeZone}`);
 	}
 
 	const monday = today.data.subtract({ days: today.data.dayOfWeek - 1 }).add({ weeks });
 	const sunday = monday.add({ days: 6 });
+
 	const episodes = await getAiringSchedule(
 		new Date(monday.toZonedDateTime(timeZone).epochMilliseconds),
 		new Date(sunday.add({ days: 1 }).toZonedDateTime(timeZone).epochMilliseconds),
 	);
+
 	const now = Date.now();
+
 	const clock = (epochMs: number) =>
 		Temporal.Instant.fromEpochMilliseconds(epochMs)
 			.toZonedDateTimeISO(timeZone)
@@ -204,12 +221,14 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 		days: Array.from({ length: 7 }, (_, index) => {
 			const date = monday.add({ days: index });
 			const isToday = date.equals(today.data);
+
 			const airing = episodes.filter((episode) =>
 				Temporal.Instant.from(episode.airing_at)
 					.toZonedDateTimeISO(timeZone)
 					.toPlainDate()
 					.equals(date),
 			);
+
 			const slots = [...Map.groupBy(airing, (episode) => episode.airing_at)];
 
 			return {
@@ -223,6 +242,7 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 				slots: slots.map(([at, group], position) => {
 					const aired = Date.parse(at) <= now;
 					const previous = slots[position - 1];
+
 					return {
 						aired,
 						airing_at: at,

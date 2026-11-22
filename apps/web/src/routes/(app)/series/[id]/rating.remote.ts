@@ -21,6 +21,7 @@ export const setRating = command(
 	}),
 	async ({ rating, seriesId }) => {
 		const { sora, profile } = remoteViewer();
+
 		const params = {
 			profile_id: profile.id,
 			series_id: seriesId,

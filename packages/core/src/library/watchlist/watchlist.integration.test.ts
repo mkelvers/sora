@@ -87,18 +87,22 @@ describe.skipIf(!databaseTestsEnabled())("saved short titles", () => {
 
 	test("keeps saved dates and a usable detail page while discovery excludes the title", async () => {
 		const [row] = await db.select().from(series).where(eq(series.id, id));
+
 		if (!row) {
 			throw new Error("Missing watchlist test fixture");
 		}
+
 		const cards = await toSeriesCards([row]);
 		const cardsOfAnotherTitle = await toSeriesCards([row], ["another-title"]);
 		expect(cards.size).toBe(0);
 		expect(cardsOfAnotherTitle.size).toBe(0);
 
 		const [entry] = await getWatchlist(profile);
+
 		if (!entry) {
 			throw new Error("Saved short title missing from watchlist");
 		}
+
 		expect(entry.series.id).toBe(id);
 		expect(entry.series.format).toBe("TV_SHORT");
 		expect(entry.added_at).toBe(addedAt.toISOString());

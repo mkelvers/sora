@@ -74,6 +74,7 @@ export const authorizationUrl = (
 		url.searchParams.set("redirect_uri", options.redirectUri);
 		url.searchParams.set("response_type", "code");
 		url.searchParams.set("state", options.state);
+
 		return url.toString();
 	}
 
@@ -88,6 +89,7 @@ export const authorizationUrl = (
 	url.searchParams.set("state", options.state);
 	url.searchParams.set("code_challenge", options.codeChallenge);
 	url.searchParams.set("code_challenge_method", "plain");
+
 	return url.toString();
 };
 
@@ -114,6 +116,7 @@ const send = async (fetcher: Fetcher, url: string, init: RequestInit) => {
 		}),
 		Error,
 	);
+
 	if (error) {
 		throw new UpstreamUnavailableError("The site could not be reached.", {
 			cause: error,
@@ -135,11 +138,13 @@ const accessToken = async (response: Response): Promise<string> => {
 			retryAfterMs: null,
 		});
 	}
+
 	if (!response.ok) {
 		throw expired();
 	}
 
 	const token = TokenSchema.safeParse(await response.json());
+
 	if (!token.success) {
 		throw expired(token.error);
 	}
@@ -192,6 +197,7 @@ export const readAniListAccount = async (
 			},
 			method: "POST",
 		});
+
 		if (!response.ok) {
 			throw new UpstreamUnavailableError("AniList could not be reached.", {
 				retryAfterMs: null,
@@ -203,6 +209,7 @@ export const readAniListAccount = async (
 
 	const viewer = await query<{ Viewer: { name: string } | null }>(ViewerNameDocument, {});
 	const name = viewer?.Viewer?.name;
+
 	if (!name) {
 		throw expired();
 	}
@@ -210,6 +217,7 @@ export const readAniListAccount = async (
 	const list = await query<UserAnimeListQuery>(UserAnimeListDocument, {
 		userName: name,
 	});
+
 	return {
 		account: name,
 		entries: aniListEntries(list?.MediaListCollection ?? null),
@@ -268,6 +276,7 @@ export const readMyAnimeListAccount = async (
 		grant_type: "authorization_code",
 		redirect_uri: authorization.redirect_uri,
 	});
+
 	if (clients.myAnimeListOAuth.clientSecret) {
 		body.set("client_secret", clients.myAnimeListOAuth.clientSecret);
 	}
@@ -287,12 +296,15 @@ export const readMyAnimeListAccount = async (
 		Accept: "application/json",
 		Authorization: `Bearer ${token}`,
 	};
+
 	const me = await send(fetcher, myAnimeList.user, {
 		headers,
 	});
+
 	if (me.status === 401) {
 		throw expired();
 	}
+
 	if (!me.ok) {
 		throw new UpstreamUnavailableError("MyAnimeList could not be reached.", {
 			retryAfterMs: null,
@@ -300,11 +312,13 @@ export const readMyAnimeListAccount = async (
 	}
 
 	const user = MalUserSchema.safeParse(await me.json());
+
 	if (!user.success) {
 		throw expired(user.error);
 	}
 
 	const entries: MalEntry[] = [];
+
 	const readPage = async (url: string, page: number): Promise<void> => {
 		if (page >= maxListPages) {
 			return;
@@ -313,9 +327,11 @@ export const readMyAnimeListAccount = async (
 		const response = await send(fetcher, url, {
 			headers,
 		});
+
 		if (response.status === 401) {
 			throw expired();
 		}
+
 		if (!response.ok) {
 			throw new UpstreamUnavailableError("MyAnimeList could not be reached.", {
 				retryAfterMs: null,
@@ -323,6 +339,7 @@ export const readMyAnimeListAccount = async (
 		}
 
 		const parsed = MalPageSchema.safeParse(await response.json());
+
 		if (!parsed.success) {
 			throw new UpstreamUnavailableError(
 				"MyAnimeList answered in a way Sora does not understand.",
@@ -335,6 +352,7 @@ export const readMyAnimeListAccount = async (
 
 		for (const item of parsed.data.data) {
 			const status = item.list_status?.status;
+
 			const entry = status
 				? toMalEntry({
 						finished: item.list_status?.finish_date,
@@ -346,16 +364,19 @@ export const readMyAnimeListAccount = async (
 						watched: item.list_status?.num_episodes_watched ?? 0,
 					})
 				: null;
+
 			if (entry) {
 				entries.push(entry);
 			}
 		}
 
 		const next = parsed.data.paging?.next;
+
 		if (next) {
 			await readPage(next, page + 1);
 		}
 	};
+
 	await readPage(myAnimeList.list, 0);
 
 	return {

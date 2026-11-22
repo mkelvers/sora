@@ -281,6 +281,7 @@ export const getShowEpisodeGroups = async (
 	const listed = await request(`/tv/${showId}/episode_groups`, {}, EpisodeGroupsSchema, {
 		maxAgeMs: showLifetimeMs,
 	});
+
 	const details = await Promise.all(
 		(listed?.results ?? []).map(({ id }) =>
 			request(`/tv/episode_group/${id}`, { language: "en-US" }, EpisodeGroupSchema, {
@@ -288,6 +289,7 @@ export const getShowEpisodeGroups = async (
 			}),
 		),
 	);
+
 	return details.flatMap((detail) =>
 		detail
 			? [
@@ -351,8 +353,10 @@ const missingEpisodes = async (
 ): Promise<TmdbEpisode[]> => {
 	const counted =
 		seasons.find((season) => season.season_number === seasonNumber)?.episode_count ?? 0;
+
 	const after = Math.max(0, ...listed.map((episode) => episode.episode_number));
 	const found: TmdbEpisode[] = [];
+
 	const readFrom = async (number: number): Promise<void> => {
 		if (listed.length + found.length >= counted) {
 			return;
@@ -366,6 +370,7 @@ const missingEpisodes = async (
 			EpisodeSchema,
 			options,
 		);
+
 		if (!episode) {
 			return;
 		}
@@ -373,6 +378,7 @@ const missingEpisodes = async (
 		found.push(episode);
 		await readFrom(number + 1);
 	};
+
 	await readFrom(after + 1);
 
 	return found;
@@ -385,6 +391,7 @@ const missingEpisodes = async (
 const airedLatelyAndLacking = (episode: TmdbEpisode, isUnnamed: boolean) => {
 	const since = new Date(Date.now() - editsWindowMs).toISOString().slice(0, 10);
 	const until = new Date(Date.now() + day).toISOString().slice(0, 10);
+
 	return !(
 		(!isUnnamed && episode.overview !== null && episode.still_path !== null) ||
 		episode.air_date === null ||
@@ -399,22 +406,28 @@ const readChangeLog = (changes: z.infer<typeof EpisodeChangesSchema>["changes"])
 		(changes.find((change) => change.key === key)?.items ?? []).toSorted((left, right) =>
 			left.time.localeCompare(right.time),
 		);
+
 	const text = (key: string) => {
 		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
+
 		return typeof value === "string" && value !== "" ? value : null;
 	};
+
 	// A runtime is filed under the language of whoever wrote it.
 	const runtime = edits("runtime").at(-1)?.value;
 	const stills = new Set<string>();
+
 	for (const edit of edits("images")) {
 		const added = ChangedImageSchema.safeParse(edit.value);
 		const removed = ChangedImageSchema.safeParse(edit.original_value);
+
 		if (edit.action === "deleted" && removed.success) {
 			stills.delete(removed.data.backdrop.file_path);
 		} else if (added.success) {
 			stills.add(added.data.backdrop.file_path);
 		}
 	}
+
 	return {
 		runtime,
 		stills,
@@ -446,11 +459,13 @@ export const withEdits = async (
 	},
 ): Promise<TmdbEpisode> => {
 	const isUnnamed = episode.name === null || unnamedEpisode.test(episode.name);
+
 	if (!airedLatelyAndLacking(episode, isUnnamed)) {
 		return episode;
 	}
 
 	const from = Date.parse(`${episode.air_date}T00:00:00Z`) - day;
+
 	const { data, error } = await attempt(
 		tmdb(
 			`/tv/episode/${episode.id}/changes`,
@@ -463,6 +478,7 @@ export const withEdits = async (
 		),
 		UpstreamUnavailableError,
 	);
+
 	if (error || !data) {
 		return episode;
 	}
@@ -508,6 +524,7 @@ export const getShow = async (
 	} = {},
 ): Promise<TmdbShow | null> => {
 	const episodes: TmdbEpisode[] = [];
+
 	type ShowPage = z.infer<ReturnType<typeof showPageSchema>>;
 
 	const readSeasons = async (
@@ -520,6 +537,7 @@ export const getShow = async (
 			},
 			(_, index) => firstSeason + index,
 		);
+
 		const page = await tmdb(
 			`/tv/${showId}`,
 			{
@@ -548,12 +566,14 @@ export const getShow = async (
 
 		const details = first ?? page;
 		const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
+
 		return lastSeason < firstSeason + seasonsPerRequest
 			? details
 			: await readSeasons(firstSeason + seasonsPerRequest, details);
 	};
 
 	const details = await readSeasons(0, null);
+
 	if (!details) {
 		return null;
 	}
@@ -683,6 +703,7 @@ const loadImages = async (path: TmdbPath, maxAgeMs: number): Promise<TmdbImages 
 	const cached = await tmdb(path, {}, AllImagesSchema, {
 		maxAgeMs,
 	});
+
 	if (!cached || maxAgeMs > 0) {
 		return cached;
 	}
@@ -694,13 +715,16 @@ const loadImages = async (path: TmdbPath, maxAgeMs: number): Promise<TmdbImages 
 			),
 		),
 	];
+
 	const perRequest = languagesPerImageRequest - 1;
+
 	const batches = Array.from(
 		{
 			length: Math.max(1, Math.ceil(languages.length / perRequest)),
 		},
 		(_, index) => languages.slice(index * perRequest, (index + 1) * perRequest),
 	);
+
 	const answers = await Promise.all(
 		batches.map((batch) =>
 			tmdb(
@@ -766,6 +790,7 @@ export const getEpisodeStills = async (
 			store: false,
 		},
 	);
+
 	return listed?.stills ?? [];
 };
 
@@ -785,6 +810,7 @@ export const getSeasonPosters = async (
 		`/tv/${showId}/season/${seasonNumber}/images`,
 		options.maxAgeMs ?? day,
 	);
+
 	return images?.posters ?? [];
 };
 

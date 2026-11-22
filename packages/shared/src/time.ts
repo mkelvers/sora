@@ -14,11 +14,13 @@ export const parseRetryAfter = (header: string | null, now = Date.now()) => {
 	}
 
 	const seconds = Number(header);
+
 	if (Number.isFinite(seconds)) {
 		return seconds >= 0 ? seconds * second : null;
 	}
 
 	const date = new Date(header).getTime();
+
 	return Number.isNaN(date) ? null : Math.max(0, date - now);
 };
 
