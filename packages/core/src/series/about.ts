@@ -144,7 +144,11 @@ const renownedAwards = [
 const renown = (award: TitleAward) => {
 	const index = renownedAwards.indexOf(award.name);
 
-	return index === -1 ? renownedAwards.length : index;
+	if (index === -1) {
+		return renownedAwards.length;
+	}
+
+	return index;
 };
 
 /** Where an award without a year sorts: after every year. */
