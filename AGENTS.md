@@ -138,3 +138,11 @@ Oxlint + Oxfmt will catch most mechanical issues automatically. Focus your atten
 ---
 
 Most formatting and common issues are automatically fixed by Oxlint + Oxfmt. Run `bunx ultracite fix` before committing to ensure compliance.
+
+## Enforced checks
+
+Fix diagnostics in code. Do not add suppression comments or justification markers to make lint, formatting, or type checks pass. Type assertions are rejected even when preceded by a `SAFETY:` comment. Use checked assignments, narrowing, or schema parsing. Const assertions remain allowed.
+
+Only negative type tests in `*.test.ts` files may use `@ts-expect-error` with a reason. TypeScript must verify that the following statement actually produces an error. Do not combine it with a lint or formatting directive.
+
+`bun run lint` first checks disable directives with no lint rules enabled, so every native disable directive is unused and fails. This separate pass prevents a file from disabling the suppression rule itself. Keep it in `lint` and `lint:fix`.

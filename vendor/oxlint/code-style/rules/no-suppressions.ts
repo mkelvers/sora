@@ -1,33 +1,42 @@
 import { defineRule } from "@oxlint/plugins";
 
-/** §10 No comments that switch off lint or type checks. Tests may still use TypeScript's expect-error comment to assert a type error. */
+/** §10 Only negative type tests may expect a compiler error. */
 export const noSuppressions = defineRule({
 	create: (context) => {
-		const test = /\.test\.[jt]s$/u.test(context.filename);
+		const test = /\.test\.[cm]?[jt]sx?$/u.test(context.filename);
 
 		return {
 			Program: () => {
 				for (const comment of context.sourceCode.getAllComments()) {
-					const suppresses =
-						/\b(?:eslint|oxlint)-disable|@ts-(?:ignore|expect-error|nocheck)|biome-ignore/u.test(
-							comment.value,
-						);
+					const directives = comment.value.match(
+						/\b(?:eslint|oxlint)-(?:disable|enable)(?:-next-line|-line)?\b|@ts-(?:ignore|expect-error|nocheck)\b|\b(?:biome-ignore|prettier-ignore|oxfmt-ignore|svelte-ignore)\b|@(?:noformat|noprettier)\b/gu,
+					);
 
-					const asserts = test && comment.value.includes("@ts-expect-error");
-
-					if (suppresses && !asserts) {
-						context.report({
-							loc: comment.loc,
-							message: "Fix the code instead of suppressing the check (code-style §10).",
-						});
+					if (directives === null) {
+						continue;
 					}
+
+					const assertion =
+						test &&
+						directives.length === 1 &&
+						/^\s*@ts-expect-error\s+\S[^\r\n]*$/u.test(comment.value);
+
+					if (assertion) {
+						continue;
+					}
+
+					context.report({
+						loc: comment.loc,
+						message:
+							"Fix the code instead of suppressing lint, formatting, or type checks (code-style §10).",
+					});
 				}
 			},
 		};
 	},
 	meta: {
 		docs: {
-			description: "§10 No lint or type-check suppressions.",
+			description: "§10 No lint, format, or type-check suppressions.",
 		},
 	},
 });
