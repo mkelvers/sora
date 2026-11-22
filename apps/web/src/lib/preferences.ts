@@ -20,6 +20,7 @@ export class Preferences {
 			DOMException,
 			SyntaxError,
 		);
+
 		const parsed = schema.safeParse(data);
 
 		if (!parsed.success) {

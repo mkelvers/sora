@@ -125,7 +125,7 @@ class Connection {
 			return this.#pool.close.bind(this.#pool);
 		}
 
-		return undefined;
+		return;
 	}
 }
 

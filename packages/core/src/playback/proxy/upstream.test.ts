@@ -34,6 +34,7 @@ describe("fetchUpstream", () => {
 });
 
 const realRequest = http.request;
+
 /** The local server that stands in for the public hosts. */
 interface FakeHosts {
 	server: ReturnType<typeof Bun.serve> | undefined;

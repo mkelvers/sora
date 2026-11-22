@@ -23,6 +23,7 @@ export const clientAddress = createMiddleware<V1Env>(async (c, proceed) => {
 		if (address) {
 			headers.set("X-Forwarded-For", address);
 		}
+
 		c.req.raw = new Request(c.req.raw, {
 			headers,
 		});

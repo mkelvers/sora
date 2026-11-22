@@ -16,6 +16,9 @@ const close = async () => {
 };
 
 beforeAll(open);
+
 beforeEach(open);
+
 afterEach(close);
+
 afterAll(close);

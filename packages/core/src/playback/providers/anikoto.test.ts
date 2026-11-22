@@ -7,11 +7,14 @@ import { AniKotoStreamProvider } from "./anikoto";
 const embedPage = "<html><head><title>File 23417 - MegaPlay</title></head></html>";
 const errorPage = "<html><head><title>Error - MegaPlay</title></head></html>";
 
+/** An opening or ending, in seconds into the episode. */
+interface Span {
+	end: number;
+	start: number;
+}
+
 /** `getSources` as MegaPlay sends it, with the source unencrypted. */
-const sources = (
-	intro: { end: number; start: number } | undefined,
-	outro: { end: number; start: number } | undefined,
-) =>
+const sources = (intro: Span | undefined, outro: Span | undefined) =>
 	JSON.stringify({
 		intro,
 		outro,

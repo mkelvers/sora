@@ -60,7 +60,7 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 		error: null,
 	});
 
-	if (!(work instanceof Function)) {
+	if ("then" in work) {
 		return Promise.resolve(work).then(succeeded, failed);
 	}
 

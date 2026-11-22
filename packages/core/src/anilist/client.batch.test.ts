@@ -10,6 +10,7 @@ const sent: Pages[] = [];
 
 /** IDs AniList knows nothing about. */
 const unknown = new Set([404]);
+
 /** How the fake AniList answers its next request. */
 const fake = {
 	failNext: false,

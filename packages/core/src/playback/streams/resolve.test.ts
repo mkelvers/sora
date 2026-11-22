@@ -71,69 +71,69 @@ const useProviders = (list: FakeProvider[]) => {
 	providers.splice(
 		0,
 		providers.length,
-		...list.map((fake) => {
-			units.set(fake.id, fake.languages);
+		...list.map((provider) => {
+			units.set(provider.id, provider.languages);
 
-			if (fake.dubAudio) {
+			if (provider.dubAudio) {
 				audioLanguages.set(
-					`https://${fake.id}.example/${fake.sharedPlaylist ? "master" : "dub"}.m3u8`,
-					fake.dubAudio,
+					`https://${provider.id}.example/${provider.sharedPlaylist ? "master" : "dub"}.m3u8`,
+					provider.dubAudio,
 				);
 			}
 
 			return {
 				findMedia: () => Promise.resolve(null),
-				id: fake.id,
+				id: provider.id,
 				listEpisodes: () => Promise.resolve([]),
 				listsLanguages: true,
-				locale: fake.locale,
+				locale: provider.locale,
 				resolveStream: async (
 					episodeId: string,
 					language: ContentLanguage,
 				): Promise<ProviderStream> => {
 					resolved.push(`${episodeId}/${language}`);
-					await Bun.sleep(fake.delayMs ?? 0);
+					await Bun.sleep(provider.delayMs ?? 0);
 
-					if (fake.fails) {
-						throw new Error(`${fake.id} is down`);
+					if (provider.fails) {
+						throw new Error(`${provider.id} is down`);
 					}
 
-					if (!(fake.streams ?? fake.languages).includes(language)) {
-						throw new Error(`${fake.id} has no ${language} source`);
+					if (!(provider.streams ?? provider.languages).includes(language)) {
+						throw new Error(`${provider.id} has no ${language} source`);
 					}
 
 					return {
-						skipSegments: fake.skipSegments?.[language] ?? [],
+						skipSegments: provider.skipSegments?.[language] ?? [],
 						videos: [
 							{
 								format: "hls",
 								headers: {},
 								quality: "auto",
 								subtitles: [
-									...(fake.noSubtitles
+									...(provider.noSubtitles
 										? []
 										: [
 												{
 													format: "vtt" as const,
 													label: "English",
 													language: "en",
-													url: `https://${fake.id}${fake.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
+													url: `https://${provider.id}${provider.unreachableSubtitles ? ".unreachable" : ""}.example/en.vtt`,
 												},
 												{
 													format: null,
 													label: "Portuguese",
 													language: "pt",
-													url: `https://${fake.id}.example/pt.vtt`,
+													url: `https://${provider.id}.example/pt.vtt`,
 												},
 											]),
-									...(fake.extraSubtitles?.[language] ?? []).map((label) => ({
+									...(provider.extraSubtitles?.[language] ?? []).map((label) => ({
 										format: "vtt" as const,
 										label,
 										language: "en",
-										url: `https://${fake.id}.example/${encodeURIComponent(label)}.vtt`,
+										url: `https://${provider.id}.example/${encodeURIComponent(label)}.vtt`,
 									})),
 								],
-								url: `https://${fake.id}${fake.unreachableVideo ? ".unreachable" : ""}.example/${fake.sharedPlaylist ? "master" : language}.m3u8`,
+								url: `https://${provider.id}${provider.unreachableVideo ? ".unreachable" : ""}.example/${provider.sharedPlaylist ? "master" : language}.m3u8`,
 							},
 						],
 					};
