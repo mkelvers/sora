@@ -43,8 +43,13 @@
 		return () => observer.disconnect();
 	});
 
-	const stop = (target: number) =>
-		series.episode_count - target <= tail ? series.episode_count : target;
+	const stop = (target: number) => {
+		if (series.episode_count - target <= tail) {
+			return series.episode_count;
+		}
+
+		return target;
+	};
 
 	const stops = $derived.by(() => {
 		const list = [stop(pageSize)];
