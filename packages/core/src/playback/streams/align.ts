@@ -102,7 +102,15 @@ export const bestPath = (matches: boolean[][], switchPenalty = defaultSwitchPena
 	for (const row of matches.slice(1)) {
 		const leader = scores.indexOf(Math.max(...scores));
 		const switched = defined(scores[leader]) - switchPenalty;
-		cameFrom.push(scores.map((stay, choice) => (stay >= switched ? choice : leader)));
+		cameFrom.push(
+			scores.map((stay, choice) => {
+				if (stay >= switched) {
+					return choice;
+				}
+
+				return leader;
+			}),
+		);
 		scores = scores.map((stay, choice) => Math.max(stay, switched) + Number(row[choice]));
 	}
 
