@@ -90,7 +90,11 @@ export const fromDayText = (text: string | null | undefined): Date | null => {
 export const fromTimestamp = (text: string | null | undefined): Date | null => {
 	const time = text ? Date.parse(text) : Number.NaN;
 
-	return Number.isNaN(time) ? null : new Date(time);
+	if (Number.isNaN(time)) {
+		return null;
+	}
+
+	return new Date(time);
 };
 
 /**
