@@ -79,7 +79,11 @@
 			return null;
 		}
 
-		return version ? `${name} ${version}` : name;
+		if (version) {
+			return `${name} ${version}`;
+		}
+
+		return name;
 	};
 
 	const facts = (entry: SignedInDevice) =>
