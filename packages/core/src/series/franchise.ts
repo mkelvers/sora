@@ -273,6 +273,9 @@ const omittedFrom = (
 		const leftTitle = byRelease.find((title) => title.anilistId === left);
 		const rightTitle = byRelease.find((title) => title.anilistId === right);
 
+		const differing =
+			leftTitle && rightTitle && isSeriesTitle(leftTitle) !== isSeriesTitle(rightTitle);
+
 		if (continuity.has(left) && !continuity.has(right)) {
 			for (const id of componentOf(links, right)) {
 				omitted.add(id);
@@ -281,13 +284,7 @@ const omittedFrom = (
 			for (const id of componentOf(links, left)) {
 				omitted.add(id);
 			}
-		} else if (
-			continuity.has(left) &&
-			continuity.has(right) &&
-			leftTitle &&
-			rightTitle &&
-			isSeriesTitle(leftTitle) !== isSeriesTitle(rightTitle)
-		) {
+		} else if (continuity.has(left) && differing) {
 			omitted.add(isSeriesTitle(leftTitle) ? right : left);
 		}
 	}
