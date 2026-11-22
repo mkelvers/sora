@@ -252,13 +252,16 @@ export const judgeSongs = (found: FoundSong[], length: number): SkipDetection =>
 	const late = openings.find((song) => song.start > lateOpening * length);
 	const ending = whole.find((song) => song.kind === "ending");
 
-	const span = (song: FoundSong | undefined) =>
-		song
-			? {
-					end: Math.round(song.end * 10) / 10,
-					start: Math.round(song.start * 10) / 10,
-				}
-			: null;
+	const span = (song: FoundSong | undefined) => {
+		if (song) {
+			return {
+				end: Math.round(song.end * 10) / 10,
+				start: Math.round(song.start * 10) / 10,
+			};
+		}
+
+		return null;
+	};
 
 	if (opening || !late) {
 		return {
