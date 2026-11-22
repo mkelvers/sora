@@ -215,5 +215,9 @@ export class SdkStreamProvider<
 export const rawEpisodeId = (providerId: string, episodeId: string) => {
 	const prefix = `${providerId}:`;
 
-	return episodeId.startsWith(prefix) ? episodeId.slice(prefix.length) : episodeId;
+	if (episodeId.startsWith(prefix)) {
+		return episodeId.slice(prefix.length);
+	}
+
+	return episodeId;
 };
