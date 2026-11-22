@@ -2,39 +2,45 @@ import { describe, expect, test } from "bun:test";
 
 import { defined } from "@sora/shared";
 
-import { announcementNotifications, groupNotifications, startsWhen } from "./notifications";
+import { startsWhen } from "./message";
+import { announcements, groupReleases } from "./notifications";
 import type { ReleasedEpisode } from "./notifications";
 
 const monday = new Date("2026-09-28T15:00:00Z");
 const tuesday = new Date("2026-09-29T15:00:00Z");
 
 /** Episodes `from` to `to` of a series, released at `releasedAt`. */
-const released = (
-	seriesId: string,
-	from: number,
-	to: number,
-	releasedAt: Date,
-	overrides: Partial<ReleasedEpisode> = {},
-): ReleasedEpisode[] =>
-	Array.from(
-		{
-			length: to - from + 1,
-		},
-		(_, index) => ({
-			dubbed: false,
-			number: from + index,
-			releasedAt,
-			seriesId,
-			stillUrl: `still-${from + index}`,
-			title: `Episode ${from + index}`,
-			watched: false,
-			...overrides,
-		}),
-	);
+class Released {
+	readonly episodes: ReleasedEpisode[];
 
-describe("groupNotifications", () => {
+	constructor(
+		seriesId: string,
+		from: number,
+		to: number,
+		releasedAt: Date,
+		overrides: Partial<ReleasedEpisode> = {},
+	) {
+		this.episodes = Array.from(
+			{
+				length: to - from + 1,
+			},
+			(_, index) => ({
+				dubbed: false,
+				number: from + index,
+				releasedAt,
+				seriesId,
+				stillUrl: `still-${from + index}`,
+				title: `Episode ${from + index}`,
+				watched: false,
+				...overrides,
+			}),
+		);
+	}
+}
+
+describe("groupReleases", () => {
 	test("makes one notification of the episodes of a series that came out together", () => {
-		const [notification, ...rest] = groupNotifications(released("slime", 4, 6, monday));
+		const [notification, ...rest] = groupReleases(new Released("slime", 4, 6, monday).episodes);
 
 		expect(rest).toEqual([]);
 		expect(notification).toMatchObject({
@@ -50,17 +56,17 @@ describe("groupNotifications", () => {
 	});
 
 	test("makes a notification of each moment and orders them newest first", () => {
-		const groups = groupNotifications([
-			...released("slime", 4, 4, monday),
-			...released("slime", 5, 5, tuesday),
-			...released("frieren", 9, 9, monday),
+		const groups = groupReleases([
+			...new Released("slime", 4, 4, monday).episodes,
+			...new Released("slime", 5, 5, tuesday).episodes,
+			...new Released("frieren", 9, 9, monday).episodes,
 		]);
 
 		expect(groups.map((group) => group.id)).toEqual(["slime:5", "slime:4", "frieren:9"]);
 	});
 
 	test("calls a group that starts with the first episode a premiere", () => {
-		const [notification] = groupNotifications(released("slime", 1, 2, monday));
+		const [notification] = groupReleases(new Released("slime", 1, 2, monday).episodes);
 
 		expect(notification).toMatchObject({
 			kind: "premiere",
@@ -69,37 +75,37 @@ describe("groupNotifications", () => {
 	});
 
 	test("leaves out a group the profile played an episode of", () => {
-		const groups = groupNotifications([
-			...released("slime", 4, 5, monday, {
+		const groups = groupReleases([
+			...new Released("slime", 4, 5, monday, {
 				watched: false,
-			}),
-			...released("slime", 6, 6, monday, {
+			}).episodes,
+			...new Released("slime", 6, 6, monday, {
 				watched: true,
-			}),
-			...released("slime", 7, 7, tuesday),
+			}).episodes,
+			...new Released("slime", 7, 7, tuesday).episodes,
 		]);
 
 		expect(groups.map((group) => group.id)).toEqual(["slime:7"]);
 	});
 
 	test("keeps later episodes and dubs of a connected season", () => {
-		const groups = groupNotifications([
-			...released("season-2", 1, 1, monday),
-			...released("season-2", 2, 2, tuesday),
-			...released("season-2", 1, 2, tuesday, {
+		const groups = groupReleases([
+			...new Released("season-2", 1, 1, monday).episodes,
+			...new Released("season-2", 2, 2, tuesday).episodes,
+			...new Released("season-2", 1, 2, tuesday, {
 				dubbed: true,
-			}),
+			}).episodes,
 		]);
 
 		expect(groups.map((group) => group.id)).toEqual(["season-2:2", "season-2:1:dub", "season-2:1"]);
 	});
 
 	test("keeps a dub when its episodes are played", () => {
-		const [notification, ...rest] = groupNotifications(
-			released("slime", 3, 4, monday, {
+		const [notification, ...rest] = groupReleases(
+			new Released("slime", 3, 4, monday, {
 				dubbed: true,
 				watched: true,
-			}),
+			}).episodes,
 		);
 
 		expect(rest).toEqual([]);
@@ -111,23 +117,27 @@ describe("groupNotifications", () => {
 	});
 
 	test("keeps the same ID when an episode's time is corrected", () => {
-		const before = groupNotifications(released("slime", 4, 4, monday));
-		const after = groupNotifications(released("slime", 4, 4, tuesday));
+		const before = groupReleases(new Released("slime", 4, 4, monday).episodes);
+		const after = groupReleases(new Released("slime", 4, 4, tuesday).episodes);
 
 		expect(defined(after[0]).id).toBe(defined(before[0]).id);
 	});
 
 	test("leaves out deleted notifications and marks read ones", () => {
-		const episodes = [...released("slime", 4, 4, monday), ...released("frieren", 9, 9, monday)];
-		const groups = groupNotifications(episodes, new Set(["slime:4"]), new Set(["frieren:9"]));
+		const episodes = [
+			...new Released("slime", 4, 4, monday).episodes,
+			...new Released("frieren", 9, 9, monday).episodes,
+		];
+
+		const groups = groupReleases(episodes, new Set(["slime:4"]), new Set(["frieren:9"]));
 
 		expect(groups.map((group) => [group.id, group.unread])).toEqual([["frieren:9", false]]);
 	});
 });
 
-describe("announcementNotifications", () => {
+describe("announcements", () => {
 	test("makes one notification per announced season, keyed apart from its premiere", () => {
-		const groups = announcementNotifications(
+		const groups = announcements(
 			[
 				{
 					seriesId: "season-4",
@@ -162,7 +172,7 @@ describe("announcementNotifications", () => {
 	});
 
 	test("leaves out deleted announcements", () => {
-		const groups = announcementNotifications(
+		const groups = announcements(
 			[
 				{
 					seriesId: "season-4",
