@@ -98,7 +98,15 @@ interface TmdbFacts {
 
 /** Each name once, trimmed, in the order first given. */
 const distinct = (names: readonly string[]) => [
-	...new Set(names.flatMap((name) => (name.trim() ? [name.trim()] : []))),
+	...new Set(
+		names.flatMap((name) => {
+			if (name.trim()) {
+				return [name.trim()];
+			}
+
+			return [];
+		}),
+	),
 ];
 
 /** Asks TMDB once for what the facts take; never stored, since the facts are. */
