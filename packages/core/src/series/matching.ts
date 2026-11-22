@@ -897,13 +897,14 @@ const placeRunWithinBroadcast = (
 	const [first] = run;
 	const index = first ? track.indexOf(first) : -1;
 
-	if (
+	const mismatched =
 		!first ||
 		run.length !== subject.episodes ||
 		run.some((episode, offset) => track[index + offset] !== episode) ||
 		airedBefore(first, subject.airsFrom) ||
-		!runtimesAgree(medianRuntime(run), subject.durationMinutes, regularRuntimeTolerance)
-	) {
+		!runtimesAgree(medianRuntime(run), subject.durationMinutes, regularRuntimeTolerance);
+
+	if (mismatched) {
 		return null;
 	}
 
