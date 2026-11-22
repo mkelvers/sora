@@ -940,12 +940,11 @@ const placeDelayedStreamingRun = (
 	subject: MatchSubject,
 	candidate: ShowCandidate,
 ): Placement | null => {
-	if (
-		subject.format !== "ONA" ||
-		!candidate.isFranchiseShow ||
-		!candidate.prequel ||
-		!subject.episodes
-	) {
+	if (subject.format !== "ONA" || !candidate.isFranchiseShow) {
+		return null;
+	}
+
+	if (!candidate.prequel || !subject.episodes) {
 		return null;
 	}
 
