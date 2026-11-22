@@ -1,5 +1,7 @@
 import { writeFile } from "node:fs/promises";
 
+import { z } from "zod";
+
 /**
  * Generates TMDB's request types (paths, path parameters, query parameters)
  * from its published OpenAPI spec.
@@ -13,18 +15,18 @@ import { writeFile } from "node:fs/promises";
  */
 const specUrl = "https://developer.themoviedb.org/openapi/tmdb-api.json";
 
-interface Parameter {
-	name: string;
-	in: "path" | "query" | "header";
-	required?: boolean;
-	schema?: {
-		type?: string;
-	};
-}
+const ParameterSchema = z.object({
+	in: z.enum(["path", "query", "header", "cookie"]),
+	name: z.string(),
+	required: z.boolean().optional(),
+	schema: z
+		.object({
+			type: z.string().optional(),
+		})
+		.optional(),
+});
 
-interface Spec {
-	paths: Record<string, { get?: { parameters?: Parameter[] } }>;
-}
+type Parameter = z.infer<typeof ParameterSchema>;
 
 const response = await fetch(specUrl);
 
@@ -32,8 +34,20 @@ if (!response.ok) {
 	throw new Error(`TMDB spec returned ${response.status}`);
 }
 
-// SAFETY: TMDB's OpenAPI document; Spec covers only the parts the generator reads.
-const spec = (await response.json()) as Spec;
+const spec = z
+	.object({
+		paths: z.record(
+			z.string(),
+			z.object({
+				get: z
+					.object({
+						parameters: z.array(ParameterSchema).optional(),
+					})
+					.optional(),
+			}),
+		),
+	})
+	.parse(await response.json());
 
 const typeOf = (parameter: Parameter) => {
 	switch (parameter.schema?.type) {
