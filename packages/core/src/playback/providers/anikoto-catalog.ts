@@ -590,14 +590,16 @@ const matchStoredSeries = async (anime: Anime): Promise<AniKotoMatch | null> => 
 
 	const byTitle = await exactTitleMatches(anime);
 
-	return byTitle.length === 1 && byTitle[0]
-		? {
-				anikotoId: String(byTitle[0].anikotoId),
-				episodeOffset: 0,
-				method: "title",
-				title: byTitle[0].title,
-			}
-		: null;
+	if (byTitle.length === 1 && byTitle[0]) {
+		return {
+			anikotoId: String(byTitle[0].anikotoId),
+			episodeOffset: 0,
+			method: "title",
+			title: byTitle[0].title,
+		};
+	}
+
+	return null;
 };
 
 /**
