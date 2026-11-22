@@ -373,7 +373,11 @@ const spinOffStories = (
 	spinOffs.flatMap(([original, spinOff]) => {
 		const story = componentOf(sequels, spinOff);
 
-		return story.has(original) ? [] : [story];
+		if (story.has(original)) {
+			return [];
+		}
+
+		return [story];
 	});
 
 /**
