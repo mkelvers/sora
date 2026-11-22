@@ -118,9 +118,13 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 			},
 		);
 
-		const entries = (Page?.media ?? []).flatMap((media) =>
-			media && media.format !== "MUSIC" ? [media] : [],
-		);
+		const entries = (Page?.media ?? []).flatMap((media) => {
+			if (media && media.format !== "MUSIC") {
+				return [media];
+			}
+
+			return [];
+		});
 
 		const stored = await storedSeriesIds([
 			...entries.map((entry) => entry.id),
