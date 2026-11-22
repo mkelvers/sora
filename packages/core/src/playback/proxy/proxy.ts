@@ -527,7 +527,9 @@ export const proxyStream = async (
 	}
 
 	// A ranged response cannot be unwrapped without breaking its byte offsets.
-	if (target.kind === "segment" && upstream.response.status === 200 && upstream.response.body) {
+	const whole = target.kind === "segment" && upstream.response.status === 200;
+
+	if (whole && upstream.response.body) {
 		return segmentResponse(upstream.response.body, headers);
 	}
 
