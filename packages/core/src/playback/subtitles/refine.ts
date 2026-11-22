@@ -257,6 +257,8 @@ const voteOffsets = (
 	words: SpokenWord[],
 	spoken: (Token | null)[],
 ): TimelineShift[] | null => {
+	const maximumOffsets = 16;
+
 	const phrases = phrasesOf(words);
 
 	const phraseTokens = phrases.map((phrase) =>
@@ -302,7 +304,7 @@ const voteOffsets = (
 		.filter(([, count]) => count >= minimumVotes)
 		.toArray()
 		.toSorted((a, b) => b[1] - a[1])) {
-		if (picked.length === 16) {
+		if (picked.length === maximumOffsets) {
 			break;
 		}
 
