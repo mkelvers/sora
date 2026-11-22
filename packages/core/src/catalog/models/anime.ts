@@ -131,8 +131,13 @@ export const toAnimeFormat = (format: MediaFormat | null): AnimeFormat | null =>
 };
 
 /** Drops GraphQL list holes; a null list is treated as empty. */
-const present = <T>(values: readonly (T | null)[] | null | undefined): T[] =>
-	values ? values.filter((value): value is T => value !== null) : [];
+const present = <T>(values: readonly (T | null)[] | null | undefined): T[] => {
+	if (values) {
+		return values.filter((value): value is T => value !== null);
+	}
+
+	return [];
+};
 
 const toTitle = (media: AnimeCardFragment): AnimeTitle => {
 	const english = media.title?.english ?? null;
