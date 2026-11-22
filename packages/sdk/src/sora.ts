@@ -227,15 +227,15 @@ export class SoraClient {
 	 * @throws {SoraError} when the API answers with an error, or with
 	 *   a body that does not match the contract (code `INVALID_RESPONSE`).
 	 */
-	async request<TRoute extends Route>(
+	request<TRoute extends Route>(
 		route: TRoute,
 		...args: Args<TRoute>
-	): Promise<RequestResults<TRoute>> {
+	): Promise<RequestResults<TRoute>>;
+	async request<TRoute extends Route>(route: TRoute, ...args: Args<TRoute>) {
 		const body = await this.requestWithMeta(route, ...args);
 
 		if (body instanceof Object && "results" in body) {
-			// SAFETY: a body with `results` is the route's envelope.
-			return body.results as RequestResults<TRoute>;
+			return body.results;
 		}
 
 		// SAFETY: a route without the envelope answers with its results as they are.
