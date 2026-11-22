@@ -369,9 +369,13 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 					dub: "1",
 				},
 			}),
-			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) =>
-				number < 4 ? ["sub"] : ["sub", "dub"],
-			),
+			"/series/6752": seriesResponseOf([1, 2, 3, 4], (number) => {
+				if (number < 4) {
+					return ["sub"];
+				}
+
+				return ["sub", "dub"];
+			}),
 		});
 
 		const units = await provider.listEpisodes("6752");
