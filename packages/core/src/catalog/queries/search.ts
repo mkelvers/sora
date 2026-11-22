@@ -434,7 +434,11 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 				};
 			}
 
-			return page >= pagesPerWindow ? null : await readPage(page + 1);
+			if (page >= pagesPerWindow) {
+				return null;
+			}
+
+			return await readPage(page + 1);
 		};
 
 		const finished = await readPage(1);
