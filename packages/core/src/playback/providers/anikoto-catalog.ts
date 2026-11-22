@@ -180,11 +180,13 @@ const aniKotoProviderId = "anikoto";
  * otherwise trusted for 30 days. The next look finds the entry again.
  */
 const dropContradictedMappings = async (rows: (typeof anikotoSeries.$inferInsert)[]) => {
-	const named = rows.flatMap((row) =>
-		row.anilistId === null || row.anilistId === undefined
-			? []
-			: [sql`(${row.anilistId}::int, ${String(row.anikotoId)}::text)`],
-	);
+	const named = rows.flatMap((row) => {
+		if (row.anilistId === null || row.anilistId === undefined) {
+			return [];
+		}
+
+		return [sql`(${row.anilistId}::int, ${String(row.anikotoId)}::text)`];
+	});
 
 	if (named.length === 0) {
 		return;
