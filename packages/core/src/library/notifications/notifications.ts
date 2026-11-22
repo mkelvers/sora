@@ -413,11 +413,13 @@ export const getNotifications = async (
 	);
 
 	const followed = new Map(
-		states.flatMap((state) =>
-			state.status !== "dropped" && state.addedAt
-				? [[state.anilistId, state.addedAt] as const]
-				: [],
-		),
+		states.flatMap((state) => {
+			if (state.status !== "dropped" && state.addedAt) {
+				return [[state.anilistId, state.addedAt] as const];
+			}
+
+			return [];
+		}),
 	);
 
 	for (const entry of watched) {
