@@ -28,8 +28,6 @@ const forwardBufferSeconds = 120;
 
 const megabyte = 1000 * 1000;
 
-const startBandwidthBitsPerSecond = 10_000_000;
-
 const loadHls = () => attempt(import("hls.js"));
 
 if (browser) {
@@ -317,7 +315,7 @@ export class Player {
 			const Hls = loaded.data.default;
 			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 			hls = new Hls({
-				abrEwmaDefaultEstimate: startBandwidthBitsPerSecond,
+				abrEwmaDefaultEstimate: 10_000_000,
 				backBufferLength: 30,
 				fragLoadPolicy: {
 					default: {
