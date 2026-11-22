@@ -173,7 +173,13 @@ const calendarReleases = (versions: ScheduledEpisode[]) => {
 		}
 
 		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
-			.map(([first, last]) => (first === last ? first : `${first}–${last}`))
+			.map(([first, last]) => {
+				if (first === last) {
+					return first;
+				}
+
+				return `${first}–${last}`;
+			})
 			.join(", ")}`;
 
 		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
