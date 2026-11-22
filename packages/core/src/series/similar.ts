@@ -146,7 +146,11 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 		.flatMap(({ row: title }) => {
 			const card = cards.get(title.id);
 
-			return card && card.audio.length > 0 ? [card] : [];
+			if (card && card.audio.length > 0) {
+				return [card];
+			}
+
+			return [];
 		})
 		.slice(0, similarLimit);
 };
