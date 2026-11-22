@@ -672,7 +672,13 @@ const editDistance = (left: string, right: string) => {
 				{
 					length: b.length + 1,
 				},
-				(_cell, j) => (i === 0 || j === 0 ? Math.max(i, j) : 0),
+				(_cell, j) => {
+					if (i === 0 || j === 0) {
+						return Math.max(i, j);
+					}
+
+					return 0;
+				},
 			),
 	);
 
