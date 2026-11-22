@@ -968,7 +968,11 @@ const placeDelayedStreamingRun = (
 
 	const delay = firstDay - start;
 
-	if (delay <= startWindowDays || delay > 120 || airsLate(track, candidate.prequel.first, start)) {
+	if (delay <= startWindowDays || delay > 120) {
+		return null;
+	}
+
+	if (airsLate(track, candidate.prequel.first, start)) {
 		return null;
 	}
 
