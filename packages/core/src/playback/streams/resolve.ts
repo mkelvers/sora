@@ -1050,16 +1050,18 @@ export const resolveVideos = async (
 	const parsed = PlaybackRequestSchema.parse(request);
 	const results = await resolveVersions(parsed, () => "", "", playbackDeadlineMs, dependencies);
 
-	return results.flatMap(({ version, videos }) =>
-		version && videos
-			? [
-					{
-						audio: version.audio,
-						videos,
-					},
-				]
-			: [],
-	);
+	return results.flatMap(({ version, videos }) => {
+		if (version && videos) {
+			return [
+				{
+					audio: version.audio,
+					videos,
+				},
+			];
+		}
+
+		return [];
+	});
 };
 
 /**
