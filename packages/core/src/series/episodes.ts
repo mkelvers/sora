@@ -29,7 +29,7 @@ export interface LocatedEpisode {
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
  * @throws {EpisodeNotFoundError} when the series has no such episode.
  */
-export const locateEpisode = async (seriesId: string, number: number): Promise<LocatedEpisode> => {
+export const locateEpisode = async (id: string, number: number): Promise<LocatedEpisode> => {
 	const [row] = await db
 		.select({
 			anilistId: series.anilistId,
@@ -40,21 +40,21 @@ export const locateEpisode = async (seriesId: string, number: number): Promise<L
 			seriesEpisode,
 			and(eq(seriesEpisode.seriesId, series.id), eq(seriesEpisode.number, number)),
 		)
-		.where(eq(series.id, seriesId))
+		.where(eq(series.id, id))
 		.limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(seriesId);
+		throw new SeriesNotFoundError(id);
 	}
 
 	if (row.number === null) {
-		throw new EpisodeNotFoundError(seriesId, number);
+		throw new EpisodeNotFoundError(id, number);
 	}
 
 	return {
 		anilistId: row.anilistId,
 		number,
-		seriesId,
+		seriesId: id,
 	};
 };
 
@@ -67,7 +67,7 @@ export const carriedByAniKoto = sql`(exists (select 1 from ${anikotoSeries} wher
 /** The key an AniList episode is filed under, such as in {@link AniKotoEpisodes}. */
 export const anilistEpisodeKey = (anilistId: number, episode: number) => `${anilistId}:${episode}`;
 
-/** What {@link isEpisodeReleased} needs to know about a series. */
+/** What {@link isReleased} needs to know about a series. */
 export interface ReleaseSchedule {
 	nextEpisodeNumber: number | null;
 	nextEpisodeAiringAt: Date | null;
@@ -114,20 +114,29 @@ export const releasedBetween = (since: Date, until: Date) =>
  * When an episode came out, as {@link episodeReleasedAt} says, or `null`
  * when it has neither an airing time nor an air date.
  */
-export const releasedAtOf = (episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) =>
-	episode.airedAt ?? (episode.airDate === null ? null : new Date(`${episode.airDate}T00:00:00Z`));
+export const releasedAtOf = (episode: Pick<EpisodeListingRow, "airDate" | "airedAt">) => {
+	if (episode.airedAt !== null) {
+		return episode.airedAt;
+	}
+
+	if (episode.airDate === null) {
+		return null;
+	}
+
+	return new Date(`${episode.airDate}T00:00:00Z`);
+};
 
 /**
  * Whether an episode has been released: it is not at or past the series'
  * announced next episode, and has aired (see {@link releasedAtOf}); one with
  * no date at all counts as aired.
  */
-export const isEpisodeReleased = (
+export const isReleased = (
 	title: ReleaseSchedule,
 	episode: Pick<EpisodeListingRow, "number" | "airDate" | "airedAt">,
 	now = new Date(),
 ) => {
-	const isAtOrAfterNext =
+	const isAhead =
 		title.nextEpisodeAiringAt !== null &&
 		title.nextEpisodeAiringAt > now &&
 		title.nextEpisodeNumber !== null &&
@@ -135,10 +144,10 @@ export const isEpisodeReleased = (
 
 	const releasedAt = releasedAtOf(episode);
 
-	return !isAtOrAfterNext && (releasedAt === null || releasedAt <= now);
+	return !isAhead && (releasedAt === null || releasedAt <= now);
 };
 
-/** The episodes AniKoto's stored lists carry; see {@link loadAniKotoEpisodes}. */
+/** The episodes AniKoto's stored lists carry; see {@link loadCarried}. */
 export interface AniKotoEpisodes {
 	/** Keyed by {@link anilistEpisodeKey}. */
 	carried: ReadonlySet<string>;
@@ -153,9 +162,7 @@ export interface AniKotoEpisodes {
  * The database picks the episode numbers out of each list, so the lists are
  * not loaded and parsed whole.
  */
-export const loadAniKotoEpisodes = async (
-	anilistIds: readonly number[],
-): Promise<AniKotoEpisodes> => {
+export const loadCarried = async (anilistIds: readonly number[]): Promise<AniKotoEpisodes> => {
 	if (anilistIds.length === 0) {
 		return {
 			carried: new Set(),
@@ -210,7 +217,7 @@ export const loadAniKotoEpisodes = async (
  * AniKoto's highest playable episode number, or null until it carries numbered
  * episodes. Matching and stored layouts use this before AniList's broadcast count.
  */
-export const getAniKotoEpisodeCount = async (anilistId: number): Promise<number | null> => {
+export const playableCount = async (anilistId: number): Promise<number | null> => {
 	const stored = await getStoredUnits([anilistId], [aniKoto.id]);
 
 	const numbers = stored
@@ -231,7 +238,7 @@ export const getAniKotoEpisodeCount = async (anilistId: number): Promise<number 
  * once TMDB writes them (see `refreshEpisodeDetails`).
  *
  * Until AniKoto has been looked up for the series' entry, the episode counts
- * as available once {@link isEpisodeReleased} says it has been released.
+ * as available once {@link isReleased} says it has been released.
  */
 export const isEpisodeAvailable = (
 	title: ReleaseSchedule & {
@@ -245,7 +252,7 @@ export const isEpisodeAvailable = (
 		return onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number));
 	}
 
-	return isEpisodeReleased(title, episode, now);
+	return isReleased(title, episode, now);
 };
 
 /**
@@ -258,7 +265,7 @@ export const isEpisodeAvailable = (
  * ones, and the episodes of an entry it has never carried any of. How long
  * the episode stays awaited is up to {@link expectedRelease}.
  */
-export const isEpisodeAwaited = (
+export const isAwaited = (
 	title: ReleaseSchedule & {
 		anilistId: number;
 	},
@@ -270,17 +277,15 @@ export const isEpisodeAwaited = (
 		return false;
 	}
 
-	const isNextOnAniKoto =
+	const isNext =
 		episode.number === 1 ||
 		onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number - 1));
 
-	return (
-		episode.airedAt <= now && isNextOnAniKoto && !isEpisodeAvailable(title, episode, onAniKoto, now)
-	);
+	return episode.airedAt <= now && isNext && !isEpisodeAvailable(title, episode, onAniKoto, now);
 };
 
 /**
- * When an awaited episode (see {@link isEpisodeAwaited}) is expected to
+ * When an awaited episode (see {@link isAwaited}) is expected to
  * come out: the later of AniList's broadcast time and AnimeSchedule's time
  * for it, which is its subbed stream where there is one and its broadcast
  * otherwise. AnimeSchedule's is later for a stream that follows the
@@ -300,7 +305,11 @@ export const expectedRelease = (airedAt: Date, scheduledAt: Date | null, now = n
 	 */
 	const releaseGraceMs = 12 * hour;
 
-	const expected = scheduledAt && scheduledAt > airedAt ? scheduledAt : airedAt;
+	let expected = airedAt;
+
+	if (scheduledAt && scheduledAt > airedAt) {
+		expected = scheduledAt;
+	}
 
 	if (now.getTime() < expected.getTime() + releaseGraceMs) {
 		return expected;

@@ -49,9 +49,9 @@ import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
 	expectedRelease,
-	isEpisodeAwaited,
+	isAwaited,
 	isEpisodeAvailable,
-	loadAniKotoEpisodes,
+	loadCarried,
 	releasedAtOf,
 	releasedBetween,
 } from "./episodes";
@@ -66,7 +66,7 @@ type SeriesRow = typeof series.$inferSelect;
 const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
 	titles: readonly SeriesRow[],
 	rows: readonly TRow[],
-	onAniKoto: Awaited<ReturnType<typeof loadAniKotoEpisodes>>,
+	onAniKoto: Awaited<ReturnType<typeof loadCarried>>,
 ) => {
 	const now = new Date();
 	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
@@ -104,7 +104,7 @@ export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 				),
 			)
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
 	return keepListed(titles, rows, onAniKoto);
@@ -616,7 +616,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 };
 
 /**
- * The first of a series' awaited episodes (see {@link isEpisodeAwaited})
+ * The first of a series' awaited episodes (see {@link isAwaited})
  * still expected to come out, with when it is expected (see
  * {@link expectedRelease}), or `null` when none is.
  */
@@ -630,10 +630,10 @@ const overdueEpisode = async (
 			.from(seriesEpisode)
 			.where(eq(seriesEpisode.seriesId, row.id))
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes([row.anilistId]),
+		loadCarried([row.anilistId]),
 	]);
 
-	const awaited = episodes.filter((episode) => isEpisodeAwaited(row, episode, onAniKoto, now));
+	const awaited = episodes.filter((episode) => isAwaited(row, episode, onAniKoto, now));
 
 	if (awaited.length === 0) {
 		return null;
@@ -964,7 +964,7 @@ export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
 				),
 			)
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
 	return keepListed(titles, rows, onAniKoto);

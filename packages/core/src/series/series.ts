@@ -11,9 +11,9 @@ import { series } from "../database/schema/series";
 import { AnimeNotFoundError } from "../errors";
 import { getLogoPath, getMovie, getShow, tmdbImageUrl } from "../tmdb/resources";
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
-import { franchiseRelations, loadEntries } from "./entries";
+import { franchiseRelations, loadByIds } from "./entries";
 import type { FranchiseEntry } from "./entries";
-import { getAniKotoEpisodeCount } from "./episodes";
+import { playableCount } from "./episodes";
 import { mappedEpisodes, resolveMapping } from "./mapping";
 import type { EpisodeLink } from "./matching";
 
@@ -248,7 +248,7 @@ const firstRelease = async (entry: FranchiseEntry) => {
 				: [],
 		);
 
-		const loadedPrequels = await loadEntries(ids);
+		const loadedPrequels = await loadByIds(ids);
 		const prequels = [...loadedPrequels.values()];
 
 		const [earliest] = prequels.toSorted(
@@ -375,7 +375,7 @@ const franchiseRelatives = (entry: FranchiseEntry) =>
  * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
-	const loaded = await loadEntries([anilistId]);
+	const loaded = await loadByIds([anilistId]);
 	const entry = loaded.get(anilistId);
 
 	if (!entry) {
@@ -387,7 +387,7 @@ export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 
 	const card = {
 		...(storedCards.get(anilistId) ?? toCard(entry)),
-		playbackEpisodes: await getAniKotoEpisodeCount(anilistId),
+		playbackEpisodes: await playableCount(anilistId),
 	};
 
 	const links = mappedEpisodes(mapping);

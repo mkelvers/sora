@@ -4,8 +4,8 @@ import {
 	anilistEpisodeKey,
 	isEpisodeAvailable,
 	expectedRelease,
-	isEpisodeAwaited,
-	isEpisodeReleased,
+	isAwaited,
+	isReleased,
 } from "./episodes";
 
 const now = new Date("2026-09-27T16:00:00Z");
@@ -41,15 +41,15 @@ const notLookedUp = {
 	lookedUp: new Set<number>(),
 };
 
-describe("isEpisodeReleased", () => {
+describe("isReleased", () => {
 	test("goes by AniList's broadcast time over TMDB's date in Japan's calendar", () => {
-		expect(isEpisodeReleased(title, episode, now)).toBe(true);
-		expect(isEpisodeReleased(title, episode, new Date("2026-09-27T14:59:00Z"))).toBe(false);
+		expect(isReleased(title, episode, now)).toBe(true);
+		expect(isReleased(title, episode, new Date("2026-09-27T14:59:00Z"))).toBe(false);
 	});
 
 	test("goes by TMDB's date when AniList has no broadcast time", () => {
 		expect(
-			isEpisodeReleased(
+			isReleased(
 				title,
 				{
 					...episode,
@@ -59,7 +59,7 @@ describe("isEpisodeReleased", () => {
 			),
 		).toBe(false);
 		expect(
-			isEpisodeReleased(
+			isReleased(
 				title,
 				{
 					...episode,
@@ -110,14 +110,14 @@ describe("isEpisodeAvailable", () => {
 	});
 });
 
-describe("isEpisodeAwaited", () => {
+describe("isAwaited", () => {
 	test("is an aired episode that follows the latest AniKoto carries", () => {
-		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(13), now)).toBe(true);
+		expect(isAwaited(title, episode, new AniKotoLookup(13), now)).toBe(true);
 	});
 
 	test("is a premiere AniKoto does not carry yet", () => {
 		expect(
-			isEpisodeAwaited(
+			isAwaited(
 				title,
 				{
 					...episode,
@@ -131,7 +131,7 @@ describe("isEpisodeAwaited", () => {
 
 	test("is not an episode AniKoto carries, whether or not TMDB lists it", () => {
 		expect(
-			isEpisodeAwaited(
+			isAwaited(
 				title,
 				{
 					...episode,
@@ -144,20 +144,20 @@ describe("isEpisodeAwaited", () => {
 	});
 
 	test("is not an episode its series lists, nor one still to air", () => {
-		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(13, 14), now)).toBe(false);
-		expect(
-			isEpisodeAwaited(title, episode, new AniKotoLookup(13), new Date("2026-09-27T14:59:00Z")),
-		).toBe(false);
+		expect(isAwaited(title, episode, new AniKotoLookup(13, 14), now)).toBe(false);
+		expect(isAwaited(title, episode, new AniKotoLookup(13), new Date("2026-09-27T14:59:00Z"))).toBe(
+			false,
+		);
 	});
 
 	test("is not an episode AniKoto skipped, nor one of an entry it carries none of", () => {
-		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(12, 15), now)).toBe(false);
-		expect(isEpisodeAwaited(title, episode, new AniKotoLookup(), now)).toBe(false);
+		expect(isAwaited(title, episode, new AniKotoLookup(12, 15), now)).toBe(false);
+		expect(isAwaited(title, episode, new AniKotoLookup(), now)).toBe(false);
 	});
 
 	test("is not an episode AniList has no broadcast time for", () => {
 		expect(
-			isEpisodeAwaited(
+			isAwaited(
 				title,
 				{
 					...episode,

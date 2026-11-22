@@ -13,9 +13,9 @@ import {
 	searchMovies,
 	searchShows,
 } from "../tmdb/resources";
-import { loadEntries, primaryTitlesOf, toMatchSubject } from "./entries";
+import { loadByIds, primaryTitlesOf, toMatchSubject } from "./entries";
 import type { FranchiseEntry } from "./entries";
-import { getAniKotoEpisodeCount } from "./episodes";
+import { playableCount } from "./episodes";
 import { tmdbTitles } from "./hints";
 import type { TmdbHint } from "./hints";
 import {
@@ -112,7 +112,7 @@ const predecessorMappings = async (
 		return [];
 	}
 
-	const entries = await loadEntries(edges.map((edge) => edge.id));
+	const entries = await loadByIds(edges.map((edge) => edge.id));
 
 	const predecessors = await inSequence(edges, async (edge): Promise<Predecessor[]> => {
 		const predecessor = entries.get(edge.id);
@@ -385,7 +385,7 @@ const match = async (
 ): Promise<TmdbMapping> => {
 	const subject = {
 		...toMatchSubject(entry, new Date()),
-		playbackEpisodes: await getAniKotoEpisodeCount(entry.id),
+		playbackEpisodes: await playableCount(entry.id),
 	};
 
 	// Synonyms are too noisy to search with.
