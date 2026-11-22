@@ -708,13 +708,15 @@ const compilationCounts = (subject: MatchSubject, candidate: ShowCandidate) => {
 		candidate.show.originalName,
 	]);
 
-	return similarity < 0.95
-		? null
-		: {
-				durationMinutes,
-				episodes,
-				playbackEpisodes,
-			};
+	if (similarity < 0.95) {
+		return null;
+	}
+
+	return {
+		durationMinutes,
+		episodes,
+		playbackEpisodes,
+	};
 };
 
 /**
