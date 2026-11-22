@@ -31,13 +31,16 @@ export interface ProviderMedia {
 	episodeOffset: number;
 }
 
-const toProviderMedia = (mapping: { providerMediaId: string | null; episodeOffset: number }) =>
-	mapping.providerMediaId
-		? {
-				episodeOffset: mapping.episodeOffset,
-				mediaId: mapping.providerMediaId,
-			}
-		: null;
+const toProviderMedia = (mapping: { providerMediaId: string | null; episodeOffset: number }) => {
+	if (mapping.providerMediaId) {
+		return {
+			episodeOffset: mapping.episodeOffset,
+			mediaId: mapping.providerMediaId,
+		};
+	}
+
+	return null;
+};
 
 /**
  * Resolves where an anime is in a provider's catalogue, using the stored
