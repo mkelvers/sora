@@ -16,7 +16,7 @@ import {
 import { loadEntries, primaryTitlesOf, toMatchSubject } from "./entries";
 import type { FranchiseEntry } from "./entries";
 import { getAniKotoEpisodeCount } from "./episodes";
-import { tmdbHintFor } from "./hints";
+import { tmdbTitles } from "./hints";
 import type { TmdbHint } from "./hints";
 import {
 	bestSimilarity,
@@ -391,7 +391,7 @@ const match = async (
 	// Synonyms are too noisy to search with.
 	const queries = primaryTitlesOf(entry);
 	const predecessors = await predecessorMappings(entry, resolving, match);
-	const hint = await tmdbHintFor(entry.id);
+	const hint = await tmdbTitles(entry.id);
 	const placement = await placementOf(subject, queries, predecessors, hint);
 	const values = mappingValues(placement);
 

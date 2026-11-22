@@ -3,24 +3,34 @@ import { describe, expect, test } from "bun:test";
 import { franchiseRoles } from "./roles";
 import type { RoleRelation, RoleTitle } from "./roles";
 
-const title = (
-	anilistId: number,
-	format: RoleTitle["format"],
-	overrides: Partial<RoleTitle> = {},
-) =>
-	({
-		anilistId,
-		durationMinutes: 24,
-		episodeCount: 1,
-		format,
-		popularity: 5000,
-		score: 70,
-		...overrides,
-	}) satisfies RoleTitle;
+/** A title of a franchise, with `overrides` changed from an ordinary one-episode TV title. */
+class Fixture {
+	readonly #anilistId: number;
+	readonly #format: RoleTitle["format"];
+	readonly #overrides: Partial<RoleTitle>;
+
+	constructor(anilistId: number, format: RoleTitle["format"], overrides: Partial<RoleTitle> = {}) {
+		this.#anilistId = anilistId;
+		this.#format = format;
+		this.#overrides = overrides;
+	}
+
+	get title() {
+		return {
+			anilistId: this.#anilistId,
+			durationMinutes: 24,
+			episodeCount: 1,
+			format: this.#format,
+			popularity: 5000,
+			score: 70,
+			...this.#overrides,
+		} satisfies RoleTitle;
+	}
+}
 
 describe("franchiseRoles", () => {
-	const indigo = title(1, "TV", { episodeCount: 82 });
-	const johto = title(2, "TV", { episodeCount: 52 });
+	const indigo = new Fixture(1, "TV", { episodeCount: 82 }).title;
+	const johto = new Fixture(2, "TV", { episodeCount: 52 }).title;
 	const main = new Set([1, 2]);
 
 	test("keeps the main path as seasons", () => {
@@ -30,12 +40,12 @@ describe("franchiseRoles", () => {
 	});
 
 	test("lists side-story films and specials as extras when they are worth watching", () => {
-		const film = title(10, "MOVIE", { durationMinutes: 75 });
+		const film = new Fixture(10, "MOVIE", { durationMinutes: 75 }).title;
 
-		const special = title(11, "SPECIAL", {
+		const special = new Fixture(11, "SPECIAL", {
 			popularity: 100,
 			score: 62,
-		});
+		}).title;
 
 		const roles = franchiseRoles(
 			[indigo, film, special],
@@ -59,15 +69,15 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps a sequel film however little it is rated, but not a side-story promo", () => {
-		const sequel = title(12, "MOVIE", {
+		const sequel = new Fixture(12, "MOVIE", {
 			popularity: 300,
 			score: 45,
-		});
+		}).title;
 
-		const promo = title(13, "SPECIAL", {
+		const promo = new Fixture(13, "SPECIAL", {
 			popularity: 1800,
 			score: 56,
-		});
+		}).title;
 
 		const roles = franchiseRoles(
 			[indigo, sequel, promo],
@@ -91,7 +101,7 @@ describe("franchiseRoles", () => {
 	});
 
 	test("separates spin-offs and character crossovers", () => {
-		const spinOff = title(20, "TV", { episodeCount: 12 });
+		const spinOff = new Fixture(20, "TV", { episodeCount: 12 }).title;
 
 		const roles = franchiseRoles(
 			[indigo, spinOff],
@@ -109,7 +119,7 @@ describe("franchiseRoles", () => {
 	});
 
 	test("hides recaps and compilations, whatever their other links", () => {
-		const recap = title(30, "SPECIAL");
+		const recap = new Fixture(30, "SPECIAL").title;
 
 		const roles = franchiseRoles(
 			[indigo, recap],
@@ -132,7 +142,7 @@ describe("franchiseRoles", () => {
 	});
 
 	test("sets another adaptation of the main story apart", () => {
-		const remake = title(40, "MOVIE", { durationMinutes: 97 });
+		const remake = new Fixture(40, "MOVIE", { durationMinutes: 97 }).title;
 
 		const roles = franchiseRoles(
 			[indigo, remake],
@@ -153,11 +163,11 @@ describe("franchiseRoles", () => {
 		const roles = franchiseRoles(
 			[
 				indigo,
-				title(50, "MUSIC", { popularity: 90_000 }),
-				title(51, "ONA", {
+				new Fixture(50, "MUSIC", { popularity: 90_000 }).title,
+				new Fixture(51, "ONA", {
 					durationMinutes: 2,
 					popularity: 90_000,
-				}),
+				}).title,
 			],
 			[],
 			main,
@@ -168,18 +178,18 @@ describe("franchiseRoles", () => {
 	});
 
 	test("keeps an unconnected short with a real runtime that people watch", () => {
-		const fun = title(60, "OVA", {
+		const fun = new Fixture(60, "OVA", {
 			durationMinutes: 8,
 			episodeCount: 3,
 			score: 74,
-		});
+		}).title;
 
-		const forgotten = title(61, "OVA", {
+		const forgotten = new Fixture(61, "OVA", {
 			durationMinutes: 8,
 			episodeCount: 3,
 			popularity: 120,
 			score: 41,
-		});
+		}).title;
 
 		const roles = franchiseRoles([indigo, fun, forgotten], [], main);
 		expect(roles.get(60)).toBe("extra");
@@ -187,7 +197,12 @@ describe("franchiseRoles", () => {
 	});
 
 	test("does not hold an unknown runtime against a title", () => {
-		const roles = franchiseRoles([indigo, title(70, "OVA", { durationMinutes: null })], [], main);
+		const roles = franchiseRoles(
+			[indigo, new Fixture(70, "OVA", { durationMinutes: null }).title],
+			[],
+			main,
+		);
+
 		expect(roles.get(70)).toBe("extra");
 	});
 
@@ -200,13 +215,13 @@ describe("franchiseRoles", () => {
 			},
 		];
 
-		const roles = franchiseRoles([johto, title(80, "MOVIE")], relations, main);
+		const roles = franchiseRoles([johto, new Fixture(80, "MOVIE").title], relations, main);
 		expect(roles.get(80)).toBe("extra");
 	});
 
 	test("keeps a spin-off that lists its original as its parent", () => {
 		const roles = franchiseRoles(
-			[indigo, title(90, "TV", { episodeCount: 13 })],
+			[indigo, new Fixture(90, "TV", { episodeCount: 13 }).title],
 			[
 				{
 					from: 1,

@@ -27,7 +27,7 @@ import { franchiseIds, toSeriesCards } from "./queries";
  *
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
-export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> => {
+export const getSimilarSeries = async (id: string): Promise<SeriesCard[]> => {
 	/** Formats a recommendation is shown as: the show or film, not a special or OVA. */
 	const shownFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
 
@@ -38,16 +38,21 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 	 * The most titles recommended: a whole number of carousel slides at four
 	 * and seven posters a slide, the widths a laptop and a large screen show.
 	 */
-	const similarLimit = 28;
+	const limit = 28;
 
-	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
+	const [row] = await db.select().from(series).where(eq(series.id, id)).limit(1);
 
 	if (!row) {
-		throw new SeriesNotFoundError(seriesId);
+		throw new SeriesNotFoundError(id);
 	}
 
 	const { ids, crossovers, apart } = await franchiseIds(row.anilistId);
-	const own = [row.anilistId, ...ids.filter((id) => !crossovers.has(id) && !apart.has(id))];
+
+	const own = [
+		row.anilistId,
+		...ids.filter((anilistId) => !crossovers.has(anilistId) && !apart.has(anilistId)),
+	];
+
 	const franchise = [row.anilistId, ...ids];
 
 	const rows = await db.execute(sql`
@@ -82,22 +87,26 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 		.from(series)
 		.where(inArray(series.anilistId, franchise));
 
-	const candidates =
-		scoreOf.size === 0
-			? []
-			: await db
-					.select({
-						anilistId: series.anilistId,
-						key: series.key,
-					})
-					.from(series)
-					.where(
-						and(
-							inArray(series.anilistId, [...scoreOf.keys()]),
-							not(inArray(series.anilistId, franchise)),
-							not(inArray(series.key, excludedKeys)),
-						),
-					);
+	let candidates: {
+		anilistId: number;
+		key: string;
+	}[] = [];
+
+	if (scoreOf.size > 0) {
+		candidates = await db
+			.select({
+				anilistId: series.anilistId,
+				key: series.key,
+			})
+			.from(series)
+			.where(
+				and(
+					inArray(series.anilistId, [...scoreOf.keys()]),
+					not(inArray(series.anilistId, franchise)),
+					not(inArray(series.key, excludedKeys)),
+				),
+			);
+	}
 
 	const scoreOfKey = new Map<string, number>();
 
@@ -152,5 +161,5 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 
 			return [];
 		})
-		.slice(0, similarLimit);
+		.slice(0, limit);
 };

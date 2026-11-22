@@ -7,19 +7,29 @@ import { UpstreamUnavailableError } from "../errors";
 import { getEpisodeStills, tmdbImageUrl } from "../tmdb/resources";
 import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
 
-const loadStill = async (path: string): Promise<Buffer> => {
-	const url = defined(tmdbImageUrl(path, "w780"));
+/** A still TMDB lists for an episode. */
+class Still {
+	readonly #path: string;
 
-	const response = await fetch(url, {
-		signal: AbortSignal.timeout(10_000),
-	});
-
-	if (!response.ok) {
-		throw new Error(`${url} answered ${response.status}`);
+	constructor(path: string) {
+		this.#path = path;
 	}
 
-	return Buffer.from(await response.arrayBuffer());
-};
+	/** The still's image, 780 pixels wide. */
+	async load(): Promise<Buffer> {
+		const url = defined(tmdbImageUrl(this.#path, "w780"));
+
+		const response = await fetch(url, {
+			signal: AbortSignal.timeout(10_000),
+		});
+
+		if (!response.ok) {
+			throw new Error(`${url} answered ${response.status}`);
+		}
+
+		return Buffer.from(await response.arrayBuffer());
+	}
+}
 
 /**
  * Chooses the still of a TMDB episode: the best ranked (see `rankStills`)
@@ -45,19 +55,19 @@ export const chooseStill = async (
 	defaultPath: string | null,
 ): Promise<string | null> => {
 	/** How many stills of an episode are looked at, best ranked first, before the best ranked is taken. */
-	const stillsLooked = 8;
+	const limit = 8;
 
 	const ranked = rankStills(
 		await getEpisodeStills(showId, seasonNumber, episodeNumber),
 		defaultPath,
 	);
 
-	const pool = ranked.filter((still) => still.iso_639_1 === null).slice(0, stillsLooked);
+	const pool = ranked.filter((still) => still.iso_639_1 === null).slice(0, limit);
 
 	let measured = 0;
 
 	const accepted = await firstInSequence(pool, async (still) => {
-		const { data, error } = await attempt(loadStill(still.file_path));
+		const { data, error } = await attempt(new Still(still.file_path).load());
 
 		if (error) {
 			return null;
@@ -65,7 +75,15 @@ export const chooseStill = async (
 
 		measured += 1;
 
-		return !(await hasBlackBars(data)) && !(await showsText(data)) ? still.file_path : undefined;
+		if (await hasBlackBars(data)) {
+			return;
+		}
+
+		if (await showsText(data)) {
+			return;
+		}
+
+		return still.file_path;
 	});
 
 	if (accepted) {

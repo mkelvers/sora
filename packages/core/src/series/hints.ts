@@ -18,20 +18,8 @@ export interface TmdbHint {
 
 const TmdbIdSchema = z.number().int().positive();
 
-/**
- * One entry of the list. Everything but the AniList and TMDB IDs is ignored,
- * so fields the generator adds or drops later do not matter.
- */
-const ListEntrySchema = z.object({
-	anilist_id: TmdbIdSchema,
-	themoviedb_id: z.object({
-		movie: z.array(TmdbIdSchema).optional(),
-		tv: TmdbIdSchema.optional(),
-	}),
-});
-
 /** The TMDB titles hinted for an AniList entry, or `null` when there are none. */
-export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> => {
+export const tmdbTitles = async (anilistId: number): Promise<TmdbHint | null> => {
 	const [row] = await db
 		.select({
 			movieIds: tmdbHint.movieIds,
@@ -62,7 +50,19 @@ export const tmdbHintFor = async (anilistId: number): Promise<TmdbHint | null> =
  *
  * @throws {TypeError} when `list` is not an array.
  */
-export const parseTmdbHints = (list: Json): Map<number, TmdbHint> => {
+export const parseFribb = (list: Json): Map<number, TmdbHint> => {
+	/**
+	 * One entry of the list. Everything but the AniList and TMDB IDs is ignored,
+	 * so fields the generator adds or drops later do not matter.
+	 */
+	const EntrySchema = z.object({
+		anilist_id: TmdbIdSchema,
+		themoviedb_id: z.object({
+			movie: z.array(TmdbIdSchema).optional(),
+			tv: TmdbIdSchema.optional(),
+		}),
+	});
+
 	if (!Array.isArray(list)) {
 		throw new TypeError("The Fribb/anime-lists list is not an array");
 	}
@@ -70,7 +70,7 @@ export const parseTmdbHints = (list: Json): Map<number, TmdbHint> => {
 	const hints = new Map<number, TmdbHint>();
 
 	for (const item of list) {
-		const parsed = ListEntrySchema.safeParse(item);
+		const parsed = EntrySchema.safeParse(item);
 
 		if (!parsed.success) {
 			continue;
@@ -93,11 +93,25 @@ export const parseTmdbHints = (list: Json): Map<number, TmdbHint> => {
 };
 
 /**
- * Downloads Fribb/anime-lists' merged list, minified. Its generator rebuilds
- * it about weekly from anime-offline-database, which links AniList to AniDB,
- * and the Anime-Lists project, which links AniDB to TMDB.
+ * Brings the stored hints in line with the current list: new and changed
+ * hints are written, and hints the list no longer has are removed.
+ *
+ * @returns The AniList IDs whose hint changed, removed ones included.
+ * @throws {UpstreamUnavailableError} when the list cannot be downloaded
+ *   or read, or holds far fewer hints than are stored; the stored hints are
+ *   then kept as they are.
  */
-const downloadHints = async () => {
+export const syncTmdbHints = async (): Promise<number[]> => {
+	/**
+	 * A list with fewer hints than this share of those stored is taken for a
+	 * broken upstream rather than titles removed, and is not applied. The list
+	 * only grows in practice, so a real shrink this large never happens.
+	 */
+	const minimumKeptShare = 0.8;
+
+	// Fribb/anime-lists' merged list, minified. Its generator rebuilds it about
+	// weekly from anime-offline-database, which links AniList to AniDB, and the
+	// Anime-Lists project, which links AniDB to TMDB.
 	const response = await attempt(
 		fetch("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", {
 			signal: AbortSignal.timeout(60_000),
@@ -132,7 +146,7 @@ const downloadHints = async () => {
 		});
 	}
 
-	const hints = attempt(() => parseTmdbHints(z.json().parse(list.data)), TypeError);
+	const hints = attempt(() => parseFribb(z.json().parse(list.data)), TypeError);
 
 	if (hints.error) {
 		throw new UpstreamUnavailableError("The Fribb/anime-lists list is malformed", {
@@ -141,33 +155,7 @@ const downloadHints = async () => {
 		});
 	}
 
-	return hints.data;
-};
-
-const sameHint = (left: TmdbHint | undefined, right: TmdbHint) =>
-	left !== undefined &&
-	left.showId === right.showId &&
-	left.movieIds.length === right.movieIds.length &&
-	left.movieIds.every((id, index) => id === right.movieIds[index]);
-
-/**
- * Brings the stored hints in line with the current list: new and changed
- * hints are written, and hints the list no longer has are removed.
- *
- * @returns The AniList IDs whose hint changed, removed ones included.
- * @throws {UpstreamUnavailableError} when the list cannot be downloaded
- *   or read, or holds far fewer hints than are stored; the stored hints are
- *   then kept as they are.
- */
-export const syncTmdbHints = async (): Promise<number[]> => {
-	/**
-	 * A list with fewer hints than this share of those stored is taken for a
-	 * broken upstream rather than titles removed, and is not applied. The list
-	 * only grows in practice, so a real shrink this large never happens.
-	 */
-	const minimumKeptShare = 0.8;
-
-	const fetched = await downloadHints();
+	const fetched = hints.data;
 	const storedRows = await db.select().from(tmdbHint);
 	const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));
 
@@ -180,9 +168,17 @@ export const syncTmdbHints = async (): Promise<number[]> => {
 		);
 	}
 
-	const changed = [...fetched].filter(
-		([anilistId, hint]) => !sameHint(stored.get(anilistId), hint),
-	);
+	const changed = [...fetched].filter(([anilistId, hint]) => {
+		const known = stored.get(anilistId);
+
+		const same =
+			known !== undefined &&
+			known.showId === hint.showId &&
+			known.movieIds.length === hint.movieIds.length &&
+			known.movieIds.every((id, index) => id === hint.movieIds[index]);
+
+		return !same;
+	});
 
 	const removed = [...stored.keys()].filter((anilistId) => !fetched.has(anilistId));
 

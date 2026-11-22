@@ -1,5 +1,6 @@
 import { day } from "@sora/shared";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import { anilist } from "../anilist/client";
 import { TagsDocument } from "../anilist/graphql.generated";
@@ -8,6 +9,7 @@ import { formatAllowed, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { animeSearch, animeSearchTag } from "../database/schema/catalog";
 import type { Tag } from "../models/series";
+import { Category } from "./category";
 import { carriedByAniKoto } from "./episodes";
 
 /** The index entries a client can browse to: not adult, not excluded, and carried by AniKoto. */
@@ -17,51 +19,6 @@ const browsable = and(
 	sql`${animeSearch.format} is distinct from 'MUSIC'`,
 	carriedByAniKoto,
 );
-
-/**
- * Where AniList's tag category, such as `Theme-Fantasy` or
- * `Cast-Main Cast`, puts a tag in browsing; `null` for tags not offered,
- * such as `Technical` ones like CGI.
- */
-const placeOf = (category: string): Pick<Tag, "group" | "section"> | null => {
-	if (category === "Demographic") {
-		return {
-			group: "demographic",
-			section: "Demographic",
-		};
-	}
-
-	const [kind = "", ...rest] = category.split("-");
-	const path = rest.join("-");
-
-	const groups = new Map<string, "cast" | "setting" | "theme">([
-		["Cast", "cast"],
-		["Setting", "setting"],
-		["Theme", "theme"],
-	]);
-
-	const group = groups.get(kind);
-
-	if (!group || !path) {
-		return null;
-	}
-
-	// The last part names the most specific heading: `Game-Sport` is Sport.
-	// Sci-Fi is one name with a hyphen in it.
-	const sciFi = "Sci-Fi";
-	let section = path.split("-").at(-1) ?? path;
-
-	if (path === sciFi) {
-		section = sciFi;
-	} else if (path.startsWith(`${sciFi}-`)) {
-		section = path.slice(sciFi.length + 1);
-	}
-
-	return {
-		group,
-		section,
-	};
-};
 
 /**
  * Every tag a client can browse by, such as Isekai or Seinen, grouped as
@@ -96,18 +53,21 @@ export const listTags = async (): Promise<Tag[]> => {
 
 	return (MediaTagCollection ?? [])
 		.flatMap((tag): Tag[] => {
-			const place = tag?.category ? placeOf(tag.category) : null;
+			const { place } = new Category(tag?.category);
+			const shown = tag && place && tag.isAdult !== true && titles.has(tag.name);
 
-			return tag && place && tag.isAdult !== true && titles.has(tag.name)
-				? [
-						{
-							description: tag.description?.trim() || null,
-							name: tag.name,
-							titles: titles.get(tag.name) ?? 0,
-							...place,
-						},
-					]
-				: [];
+			if (!shown) {
+				return [];
+			}
+
+			return [
+				{
+					description: tag.description?.trim() || null,
+					name: tag.name,
+					titles: titles.get(tag.name) ?? 0,
+					...place,
+				},
+			];
 		})
 		.toSorted(
 			(left, right) =>
@@ -126,6 +86,11 @@ export const listStudios = async (query?: string): Promise<string[]> => {
 	const studioLimit = 30;
 
 	const studio = sql<string>`studio`;
+	let named: SQL | undefined;
+
+	if (query) {
+		named = sql`${studio} ilike ${`%${query.replaceAll(/[\\%_]/gu, (character) => `\\${character}`)}%`}`;
+	}
 
 	const rows = await db
 		.select({
@@ -134,14 +99,7 @@ export const listStudios = async (query?: string): Promise<string[]> => {
 		.from(
 			sql`${animeSearch} cross join jsonb_array_elements_text(${animeSearch.studios}) as studio`,
 		)
-		.where(
-			and(
-				browsable,
-				query
-					? sql`${studio} ilike ${`%${query.replaceAll(/[\\%_]/gu, (character) => `\\${character}`)}%`}`
-					: undefined,
-			),
-		)
+		.where(and(browsable, named))
 		.groupBy(studio)
 		.orderBy(desc(sql`count(*)`), asc(studio))
 		.limit(studioLimit);
