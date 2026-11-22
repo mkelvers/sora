@@ -48,13 +48,7 @@ export interface AniListRequestOptions {
 	maxAgeMs: number;
 }
 
-/**
- * Validates the GraphQL envelope only.
- *
- * The contents of `data` are typed by codegen from AniList's schema, which is
- * the runtime contract for a GraphQL response. Re-validating every field here
- * would duplicate that schema by hand.
- */
+/** The transport envelope; result fields are checked with each operation's schema. */
 const EnvelopeSchema = z.object({
 	data: z.record(z.string(), z.unknown()).nullable().optional(),
 	errors: z
@@ -105,6 +99,8 @@ export interface MediaByIdOperation<
 	document: TypedDocumentString<TResult, TVariables>;
 	/** How many pages of 50 IDs one request holds. */
 	pages: number;
+	/** Checks the selected fields before the response is cached or handed to callers. */
+	schema: z.ZodType<NoInfer<TResult>>;
 	/** The variables for IDs split into at most `pages` pages, the first never empty. */
 	variables: (pages: readonly number[][]) => NoInfer<TVariables>;
 	/** Every media a response holds, from all its pages. */
@@ -446,7 +442,11 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 	};
 
-	const execute = async <TVariables>(query: string, variables: TVariables) => {
+	const execute = async <TVariables, TResult>(
+		query: string,
+		variables: TVariables,
+		schema: z.ZodType<TResult>,
+	) => {
 		const response = await attempt(
 			fetch(endpoint, {
 				body: JSON.stringify({
@@ -513,7 +513,19 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		const notFoundOnly = body.data.errors?.every((error) => error.status === 404) ?? false;
 
 		if (body.data.data && (response.data.ok || notFoundOnly)) {
-			return body.data.data;
+			const parsed = schema.safeParse(body.data.data);
+
+			if (!parsed.success) {
+				throw new UpstreamUnavailableError(
+					"AniList returned data that does not match its operation",
+					{
+						cause: parsed.error,
+						retryAfterMs: null,
+					},
+				);
+			}
+
+			return parsed.data;
 		}
 
 		throw new UpstreamUnavailableError(
@@ -524,8 +536,13 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		);
 	};
 
-	const fetchAndStore = async <TVariables>(key: string, query: string, variables: TVariables) => {
-		const data = await rateLimited(key, () => execute(query, variables));
+	const fetchAndStore = async <TVariables>(
+		key: string,
+		query: string,
+		variables: TVariables,
+		schema: z.ZodType,
+	) => {
+		const data = await rateLimited(key, () => execute(query, variables, schema));
 
 		const values = {
 			data,
@@ -577,7 +594,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 
 		const { data, error } = await attempt(
-			inFlight.run(key, () => fetchAndStore(key, query, variables)),
+			inFlight.run(key, () => fetchAndStore(key, query, variables, schema)),
 			UpstreamUnavailableError,
 		);
 
@@ -589,8 +606,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 			throw error;
 		}
 
-		// SAFETY: stored by fetchAndStore from a response typed as TResult.
-		return data as TResult;
+		return schema.parse(data);
 	};
 
 	/**
@@ -661,7 +677,9 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				(_, page) => ids.slice(page * mediaPageSize, (page + 1) * mediaPageSize),
 			);
 
-			const { data, error } = await attempt(execute(query, operation.variables(pages)));
+			const { data, error } = await attempt(
+				execute(query, operation.variables(pages), operation.schema),
+			);
 
 			if (error) {
 				const isRateLimited =

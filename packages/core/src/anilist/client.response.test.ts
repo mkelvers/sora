@@ -89,3 +89,20 @@ test("rejects a malformed stale result when the upstream request fails", async (
 		UpstreamUnavailableError,
 	);
 });
+
+test("rejects malformed live results before saving them", async () => {
+	const save = mock(() => Promise.resolve());
+
+	const { anilist } = createAniListClient({
+		fetch: () => Promise.resolve(Response.json({ data: { Media: { id: "invalid" } } })),
+		store: {
+			find: async () => {},
+			save,
+		},
+	});
+
+	await expect(anilist(document, { id: 123 }, schema, { maxAgeMs: 0 })).rejects.toBeInstanceOf(
+		UpstreamUnavailableError,
+	);
+	expect(save).not.toHaveBeenCalled();
+});

@@ -4,7 +4,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { anilist, loadMediaById } from "../../anilist/client";
 import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
 import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
-import { zLatestAiringQuery } from "../../anilist/validation.generated";
+import { zAnimeDetailsQuery, zLatestAiringQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema/catalog";
 import { AnimeNotFoundError } from "../../errors";
@@ -97,6 +97,7 @@ const loadAnimeDetails = loadMediaById({
 	media: ({ page0, page1, page2, page3 }) =>
 		[page0, page1, page2, page3].flatMap((page) => page?.media ?? []),
 	pages: 4,
+	schema: zAnimeDetailsQuery,
 	variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = []]) => ({
 		ids0,
 		ids1,

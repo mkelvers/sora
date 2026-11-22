@@ -3,6 +3,7 @@ import { hour } from "@sora/shared";
 import { loadMediaById } from "../anilist/client";
 import { FranchiseEntriesDocument } from "../anilist/graphql.generated";
 import type { FranchiseEntryFragment, MediaRelation } from "../anilist/graphql.generated";
+import { zFranchiseEntriesQuery } from "../anilist/validation.generated";
 import { fuzzyDate } from "../catalog/models/text";
 import type { MatchSubject } from "./matching";
 
@@ -55,6 +56,7 @@ const loadFranchiseEntries = loadMediaById({
 	media: ({ page0, page1, page2, page3, page4 }) =>
 		[page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? []),
 	pages: 5,
+	schema: zFranchiseEntriesQuery,
 	variables: ([ids0 = [], ids1 = [], ids2 = [], ids3 = [], ids4 = []]) => ({
 		ids0,
 		ids1,

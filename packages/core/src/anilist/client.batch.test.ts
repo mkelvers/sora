@@ -138,6 +138,10 @@ const loader = (pages: number) =>
 		document,
 		media: (result) => Object.values(result).flatMap((page) => page?.media ?? []),
 		pages,
+		schema: z.record(
+			z.string(),
+			z.object({ media: z.array(z.object({ id: z.number() })) }).optional(),
+		),
 		variables: (split) =>
 			Object.fromEntries(
 				Array.from(
