@@ -74,7 +74,11 @@ const storeCall = async (call: ProviderCall) => {
 const errorMessage = (error: Error) => {
 	const { message } = error;
 
-	return message.length > maxErrorLength ? `${message.slice(0, maxErrorLength - 1)}…` : message;
+	if (message.length > maxErrorLength) {
+		return `${message.slice(0, maxErrorLength - 1)}…`;
+	}
+
+	return message;
 };
 
 /**
