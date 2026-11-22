@@ -22,7 +22,11 @@
 		const started = item.position_seconds > 0;
 
 		if (!where) {
-			return started ? "Continue Watching" : "Up Next";
+			if (started) {
+				return "Continue Watching";
+			}
+
+			return "Up Next";
 		}
 
 		return started ? `Continue with ${where}` : `Up next with ${where}`;
