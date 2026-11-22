@@ -108,6 +108,12 @@ export const moveMenuFocus = (event: KeyboardEvent & { currentTarget: HTMLElemen
 	}
 
 	event.preventDefault();
-	const index = items.findIndex((item) => item === document.activeElement);
+	const active = document.activeElement;
+	let index = -1;
+
+	if (active instanceof HTMLElement) {
+		index = items.indexOf(active);
+	}
+
 	items[step(index, items.length)]?.focus();
 };
