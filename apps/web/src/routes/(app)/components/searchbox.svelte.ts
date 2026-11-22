@@ -173,7 +173,9 @@ export class Search {
 			target instanceof HTMLElement &&
 			(target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
-		if (event.key !== "/" || modified || typing) {
+		const ignored = event.key !== "/" || modified || typing;
+
+		if (ignored) {
 			return;
 		}
 
