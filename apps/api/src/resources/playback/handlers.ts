@@ -4,17 +4,13 @@ import { getAdjacentEpisodes } from "@sora/core/series";
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { playbackRoute } from "./contract";
+import { contract } from "./contract";
 
-/** An episode's playback URL, relative to the API's origin. */
-const playbackPath = (seriesId: string, episode: number) =>
-	`/v1/series/${seriesId}/episodes/${episode}/playback`;
-
-/** The handlers for {@link playbackRoute}. */
-export const playbackRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(playbackRoute.getPlayback, async (c) => {
+	.openapi(contract.getPlayback, async (c) => {
 		const { series_id, episode } = c.req.valid("param");
 		// Absolute, so players on any origin can fetch it.
 		const streamBaseUrl = new URL("/v1/streams", c.req.url);
@@ -42,14 +38,29 @@ export const playbackRoutes = new OpenAPIHono<V1Env>({
 		// Stream URLs expire; a cached playback would hand out dead ones.
 		c.header("Cache-Control", "no-store");
 
+		// An episode's playback URL, relative to the API's origin.
+		const path = (number: number) => `/v1/series/${series_id}/episodes/${number}/playback`;
+
+		let next: string | null = null;
+
+		if (adjacent.next !== null) {
+			next = path(adjacent.next);
+		}
+
+		let previous: string | null = null;
+
+		if (adjacent.previous !== null) {
+			previous = path(adjacent.previous);
+		}
+
 		return c.json(
 			{
 				meta: {
 					episode,
 					expires_at: playback.expiresAt,
-					next: adjacent.next === null ? null : playbackPath(series_id, adjacent.next),
+					next,
 					next_episode: adjacent.next,
-					previous: adjacent.previous === null ? null : playbackPath(series_id, adjacent.previous),
+					previous,
 					previous_episode: adjacent.previous,
 					series_id,
 				},
@@ -59,7 +70,7 @@ export const playbackRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(playbackRoute.getStream, (c) =>
+	.openapi(contract.getStream, (c) =>
 		proxyStream(c.req.valid("param").token, {
 			accountId: c.get("accountId"),
 			range: c.req.header("range") ?? null,

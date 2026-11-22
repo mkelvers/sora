@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { Hono } from "hono";
 
-import { nowWatchingRoutes } from "./handlers";
+import { handlers } from "./handlers";
 
 const environment = {
 	NOW_WATCHING_PROFILE_ID: "owner",
@@ -16,7 +16,7 @@ test("missing and wrong tokens return the same 401 without querying progress", a
 
 	const app = new Hono().route(
 		"/v1",
-		nowWatchingRoutes(() => {
+		handlers(() => {
 			reads += 1;
 
 			return Promise.resolve([]);
@@ -36,7 +36,7 @@ test("an unset or empty token returns 404 even with authorization", async () => 
 		[undefined, ""].map(async (token) => {
 			const app = new Hono().route(
 				"/v1",
-				nowWatchingRoutes(
+				handlers(
 					() => {
 						throw new Error("Must not query progress");
 					},
@@ -53,7 +53,7 @@ test("an unset or empty token returns 404 even with authorization", async () => 
 test("returns only titles for the configured profile without a session", async () => {
 	const app = new Hono().route(
 		"/v1",
-		nowWatchingRoutes((profile) => {
+		handlers((profile) => {
 			expect(profile).toBe("owner");
 
 			return Promise.resolve(["Newest", "Second", "Third"]);
@@ -70,7 +70,7 @@ test("returns only titles for the configured profile without a session", async (
 });
 
 test("applies the existing rate limiter to authorized portfolio requests", async () => {
-	const app = nowWatchingRoutes(() => Promise.resolve([]), environment);
+	const app = handlers(() => Promise.resolve([]), environment);
 
 	const responses = await Promise.all(
 		Array.from({ length: 61 }, () =>
@@ -91,9 +91,9 @@ test("the mounted v1 endpoint bypasses session authentication", () => {
 			process.execPath,
 			"-e",
 			`
-      const { v1Routes } = await import("../../v1.ts");
+      const { v1 } = await import("../../v1.ts");
       const { Hono } = await import("hono");
-      const app = new Hono().route("/v1", v1Routes);
+      const app = new Hono().route("/v1", v1);
       const response = await app.request("/v1/public/now-watching", {
         headers: { Authorization: "Bearer mounted-test-secret" },
       });

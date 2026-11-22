@@ -5,7 +5,7 @@
  */
 import type { z } from "@hono/zod-openapi";
 
-import type { PlaybackMetaSchema } from "./openapi/schemas";
+import type { PlaybackMeta as Meta } from "./openapi/schemas";
 
 export type {
 	AnimeSeason,
@@ -54,4 +54,4 @@ export type {
 
 export type { Profile, ProfileAvatar } from "@sora/core/models/profile";
 
-export type PlaybackMeta = z.infer<typeof PlaybackMetaSchema>;
+export type PlaybackMeta = z.infer<typeof Meta>;

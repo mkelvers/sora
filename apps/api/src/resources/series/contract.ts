@@ -18,7 +18,7 @@ import {
 
 import {
 	CountMetaSchema,
-	envelopeOf,
+	envelope,
 	OffsetMetaSchema,
 	PageMetaSchema,
 } from "../../openapi/envelope";
@@ -27,28 +27,38 @@ import {
 	problem,
 	SeriesIdParam,
 	SeriesParams,
-	EmptyMetaSchema,
+	EmptyMeta,
 	EpisodeParams,
 } from "../../openapi/schemas";
 
 const browse = BrowseQuerySchema.shape;
 
 /** A comma-separated query value, such as `genres=Action,Comedy`, as a list. */
-const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(list: TList, example: string) =>
-	z
-		.string()
-		.transform((value) =>
-			value
-				.split(",")
-				.map((part) => part.trim())
-				.filter((part) => part.length > 0),
-		)
-		.pipe(list)
-		.optional()
-		.openapi({
-			example,
-			type: "string",
-		});
+class CommaSeparated<TList extends z.ZodType<unknown, string[]>> {
+	readonly #list: TList;
+
+	constructor(list: TList) {
+		this.#list = list;
+	}
+
+	/** The query parameter, documented with `example`. */
+	parameter(example: string) {
+		return z
+			.string()
+			.transform((value) =>
+				value
+					.split(",")
+					.map((part) => part.trim())
+					.filter((part) => part.length > 0),
+			)
+			.pipe(this.#list)
+			.optional()
+			.openapi({
+				example,
+				type: "string",
+			});
+	}
+}
 
 /**
  * The core's browse filters as query parameters in snake_case, without the
@@ -71,10 +81,10 @@ const BrowseParams = BrowseQuerySchema.omit({
 })
 	.strict()
 	.extend({
-		countries: commaSeparated(browse.countries.unwrap(), "JP,KR"),
-		excluded_tags: commaSeparated(browse.excludedTags.unwrap(), "Harem"),
-		format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
-		genres: commaSeparated(browse.genres.unwrap(), "Action,Fantasy"),
+		countries: new CommaSeparated(browse.countries.unwrap()).parameter("JP,KR"),
+		excluded_tags: new CommaSeparated(browse.excludedTags.unwrap()).parameter("Harem"),
+		format: new CommaSeparated(browse.format.unwrap()).parameter("TV,MOVIE"),
+		genres: new CommaSeparated(browse.genres.unwrap()).parameter("Action,Fantasy"),
 		hide_mature: z
 			.enum(["true", "false"])
 			.transform((value) => value === "true")
@@ -90,7 +100,7 @@ const BrowseParams = BrowseQuerySchema.omit({
 		page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
 		per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
 		season_year: z.coerce.number().pipe(browse.seasonYear.unwrap()).optional(),
-		sources: commaSeparated(browse.sources.unwrap(), "MANGA,LIGHT_NOVEL"),
+		sources: new CommaSeparated(browse.sources.unwrap()).parameter("MANGA,LIGHT_NOVEL"),
 		studios: z
 			.string()
 			// A comma followed by a space belongs to a name, as in "Yamamura Animation, Inc.".
@@ -108,24 +118,16 @@ const BrowseParams = BrowseQuerySchema.omit({
 				example: "MAPPA,WIT STUDIO",
 				type: "string",
 			}),
-		tags: commaSeparated(browse.tags.unwrap(), "Isekai,Female Protagonist"),
+		tags: new CommaSeparated(browse.tags.unwrap()).parameter("Isekai,Female Protagonist"),
 		year_from: z.coerce.number().pipe(browse.yearFrom.unwrap()).optional(),
 		year_to: z.coerce.number().pipe(browse.yearTo.unwrap()).optional(),
 	});
 
-/** {@link BrowseParams} with the search text, which is required. */
-const SearchParams = BrowseParams.extend({
-	q: browse.search.unwrap().meta({
-		description: "The text to search titles for.",
-		example: "k-on",
-	}),
-});
-
 /** A page of title cards. */
-const SeriesPageSchema = envelopeOf(z.array(SeriesCardSchema), PageMetaSchema);
+const CardPage = envelope(z.array(SeriesCardSchema), PageMetaSchema);
 
 /** Titles and the catalog: browsing, searching, a title's page, images, episodes, and the schedule. */
-export const seriesRoute = {
+export const contract = {
 	browseSeries: createRoute({
 		description:
 			"Filters and sorts the catalog; `searchSeries` searches it by text. One card per title: a show appears once, not once per season. A page can hold fewer cards than `per_page` when several AniList entries belong to one title, and titles not prepared yet may be missing while they are prepared in the background.",
@@ -136,7 +138,7 @@ export const seriesRoute = {
 			query: BrowseParams,
 		},
 		responses: {
-			200: json(SeriesPageSchema, "A page of titles."),
+			200: json(CardPage, "A page of titles."),
 			422: problem("The query is invalid."),
 			503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
 		},
@@ -193,7 +195,7 @@ export const seriesRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(CalendarSchema, EmptyMetaSchema), "The week."),
+			200: json(envelope(CalendarSchema, EmptyMeta), "The week."),
 			422: problem("The time zone is unknown."),
 		},
 		summary: "Release calendar",
@@ -207,10 +209,7 @@ export const seriesRoute = {
 			params: EpisodeParams,
 		},
 		responses: {
-			200: json(
-				envelopeOf(EpisodeSchema, EmptyMetaSchema),
-				"The episode, as `listEpisodes` lists it.",
-			),
+			200: json(envelope(EpisodeSchema, EmptyMeta), "The episode, as `listEpisodes` lists it."),
 			404: problem("No such title, or it does not list the episode."),
 		},
 		summary: "Get one of a series' episodes",
@@ -238,7 +237,7 @@ export const seriesRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(
+				envelope(
 					z.array(ScheduledEpisodeSchema),
 					CountMetaSchema.extend({
 						from: z.string(),
@@ -279,14 +278,14 @@ export const seriesRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(
+				envelope(
 					SeriesSchema.extend({
 						episodes: z.array(EpisodeSchema).optional().openapi({
 							description:
 								"The title's episodes, numbered from 1; present only with `episodes=true`.",
 						}),
 					}),
-					EmptyMetaSchema,
+					EmptyMeta,
 				),
 				"The title.",
 			),
@@ -315,7 +314,7 @@ export const seriesRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(
+				envelope(
 					z.array(EpisodeSchema),
 					OffsetMetaSchema.extend({
 						series_id: z.string(),
@@ -334,7 +333,7 @@ export const seriesRoute = {
 		path: "/genres",
 		responses: {
 			200: json(
-				envelopeOf(z.array(z.string()), CountMetaSchema),
+				envelope(z.array(z.string()), CountMetaSchema),
 				"Genre names accepted by `browseSeries`.",
 			),
 		},
@@ -353,7 +352,7 @@ export const seriesRoute = {
 			}),
 			query: z
 				.object({
-					language: commaSeparated(
+					language: new CommaSeparated(
 						z.array(z.string().regex(/^(?:[a-z]{2}|none)$/u)).transform((codes) =>
 							codes.map((code) => {
 								if (code === "none") {
@@ -363,23 +362,24 @@ export const seriesRoute = {
 								return code;
 							}),
 						),
-						"en,none",
-					).openapi({
-						description:
-							"Only these ISO 639-1 languages, `none` meaning textless; every language when omitted.",
-					}),
+					)
+						.parameter("en,none")
+						.openapi({
+							description:
+								"Only these ISO 639-1 languages, `none` meaning textless; every language when omitted.",
+						}),
 					sort: z.enum(["votes", "quality"]).optional().openapi({
 						description:
 							"`votes`: TMDB users' rating, weighted by how many voted, then size (the default). `quality`: the largest original first, then votes.",
 					}),
-					type: commaSeparated(z.array(ImageTypeSchema), "backdrop,poster").openapi({
+					type: new CommaSeparated(z.array(ImageTypeSchema)).parameter("backdrop,poster").openapi({
 						description: "Only these types; every type when omitted.",
 					}),
 				})
 				.strict(),
 		},
 		responses: {
-			200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			422: problem("The query is invalid."),
 			503: problem("TMDB is unavailable; retry after `Retry-After`."),
@@ -397,7 +397,7 @@ export const seriesRoute = {
 			query: z
 				.object({
 					audio: browse.audio,
-					format: commaSeparated(browse.format.unwrap(), "TV,MOVIE"),
+					format: new CommaSeparated(browse.format.unwrap()).parameter("TV,MOVIE"),
 					page: z.coerce.number().pipe(browse.page.unwrap()).optional(),
 					per_page: z.coerce.number().pipe(browse.perPage.unwrap()).optional(),
 				})
@@ -405,7 +405,7 @@ export const seriesRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(z.array(ReleaseSchema), PageMetaSchema),
+				envelope(z.array(ReleaseSchema), PageMetaSchema),
 				"One page of each title's latest episode, the latest first.",
 			),
 		},
@@ -420,7 +420,7 @@ export const seriesRoute = {
 		path: "/seasons",
 		responses: {
 			200: json(
-				envelopeOf(
+				envelope(
 					z.array(AnimeSeasonSchema),
 					CountMetaSchema.extend({
 						current: AnimeSeasonSchema.meta({
@@ -446,7 +446,7 @@ export const seriesRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(SeriesCardSchema), CountMetaSchema), "The titles."),
 			404: problem("No such title."),
 		},
 		summary: "Titles like a series",
@@ -469,7 +469,7 @@ export const seriesRoute = {
 				.strict(),
 		},
 		responses: {
-			200: json(envelopeOf(z.array(z.string()), CountMetaSchema), "Studio names."),
+			200: json(envelope(z.array(z.string()), CountMetaSchema), "Studio names."),
 			422: problem("The query is invalid."),
 		},
 		summary: "List studios",
@@ -482,7 +482,7 @@ export const seriesRoute = {
 		operationId: "listTags",
 		path: "/tags",
 		responses: {
-			200: json(envelopeOf(z.array(TagSchema), CountMetaSchema), "The tags."),
+			200: json(envelope(z.array(TagSchema), CountMetaSchema), "The tags."),
 		},
 		summary: "List tags",
 		tags: ["Series"],
@@ -494,7 +494,7 @@ export const seriesRoute = {
 		operationId: "listUpcoming",
 		path: "/upcoming",
 		responses: {
-			200: json(envelopeOf(z.array(UpcomingSeriesSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(UpcomingSeriesSchema), CountMetaSchema), "The titles."),
 		},
 		summary: "Titles with something starting soon",
 		tags: ["Series"],
@@ -511,7 +511,7 @@ export const seriesRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			503: problem("TMDB is unavailable; retry after `Retry-After`."),
 		},
@@ -525,10 +525,16 @@ export const seriesRoute = {
 		operationId: "searchSeries",
 		path: "/search",
 		request: {
-			query: SearchParams,
+			// The browse filters with the search text, which is required.
+			query: BrowseParams.extend({
+				q: browse.search.unwrap().meta({
+					description: "The text to search titles for.",
+					example: "k-on",
+				}),
+			}),
 		},
 		responses: {
-			200: json(SeriesPageSchema, "A page of titles."),
+			200: json(CardPage, "A page of titles."),
 			422: problem("The query is invalid or `q` is missing."),
 			503: problem("The catalog upstream is unavailable; retry after `Retry-After`."),
 		},
@@ -555,7 +561,7 @@ export const seriesRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(SeriesSchema, EmptyMetaSchema), "The title, with its new artwork."),
+			200: json(envelope(SeriesSchema, EmptyMeta), "The title, with its new artwork."),
 			404: problem("No such title."),
 			422: problem("The body is invalid."),
 		},
@@ -582,7 +588,7 @@ export const seriesRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
+			200: json(envelope(z.array(SeriesImageSchema), CountMetaSchema), "The images, best first."),
 			404: problem("No such title."),
 			422: problem("The URL is not one of the title's backdrops."),
 		},

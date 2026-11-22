@@ -45,7 +45,12 @@ export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
 			}
 		}
 
-		const counted = key ? await key(c) : c.get("accountId");
+		let counted = c.get("accountId");
+
+		if (key) {
+			counted = await key(c);
+		}
+
 		let window = windows.get(counted);
 
 		if (!window || window.resetAt <= now) {

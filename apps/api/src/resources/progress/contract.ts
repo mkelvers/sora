@@ -7,13 +7,13 @@ import {
 } from "@sora/core/models/library";
 import { RecommendationRowSchema } from "@sora/core/models/series";
 
-import { CountMetaSchema, envelopeOf } from "../../openapi/envelope";
+import { CountMetaSchema, envelope } from "../../openapi/envelope";
 import {
 	EpisodeNumberParam,
 	json,
 	problem,
 	SeriesIdParam,
-	EmptyMetaSchema,
+	EmptyMeta,
 	signedIn,
 	ProfileParams,
 } from "../../openapi/schemas";
@@ -25,7 +25,7 @@ const ProfileEpisodeParams = ProfileParams.extend({
 });
 
 /** A profile's progress, watched marks, rewatches, Continue Watching, and recommendations. */
-export const progressRoute = {
+export const contract = {
 	dismissContinueWatching: createRoute({
 		description:
 			"Takes the title out of `listContinueWatching`. The profile's progress in it stays, and so does its place on the watchlist; playing an episode of it brings it back.",
@@ -58,7 +58,7 @@ export const progressRoute = {
 			params: ProfileEpisodeParams,
 		},
 		responses: {
-			200: json(envelopeOf(ProgressSchema.nullable(), EmptyMetaSchema), "The progress."),
+			200: json(envelope(ProgressSchema.nullable(), EmptyMeta), "The progress."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -78,7 +78,7 @@ export const progressRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(SeriesProgressSchema, EmptyMetaSchema), "The progress."),
+			200: json(envelope(SeriesProgressSchema, EmptyMeta), "The progress."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile, or the series does not exist."),
 		},
@@ -96,7 +96,7 @@ export const progressRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(ContinueWatchingSchema), CountMetaSchema), "The titles."),
+			200: json(envelope(z.array(ContinueWatchingSchema), CountMetaSchema), "The titles."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -114,7 +114,7 @@ export const progressRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(RecommendationRowSchema), CountMetaSchema), "The rows."),
+			200: json(envelope(z.array(RecommendationRowSchema), CountMetaSchema), "The rows."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -225,7 +225,7 @@ export const progressRoute = {
 		},
 		responses: {
 			200: json(
-				envelopeOf(ProgressSchema.nullable(), EmptyMetaSchema),
+				envelope(ProgressSchema.nullable(), EmptyMeta),
 				"The progress as it now stands; null when the episode was never played past its start.",
 			),
 			401: problem("Not signed in."),

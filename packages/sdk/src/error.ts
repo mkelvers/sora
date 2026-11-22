@@ -1,21 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import { ProblemSchema } from "@sora/api/schemas";
+import { ProblemBody } from "@sora/api/schemas";
 import type { Problem } from "@sora/api/schemas";
 import { attempt, parseRetryAfter, second } from "@sora/shared";
-
-/**
- * What a failed response may carry: the API's problem, or Better Auth's
- * `{ message, code }` from the `/v1/auth` endpoints.
- */
-const FailureBodySchema = ProblemSchema.pick({
-	code: true,
-	detail: true,
-	errors: true,
-})
-	.partial()
-	.extend({
-		message: z.string().optional(),
-	});
 
 /**
  * A request the API answered with an error.
@@ -33,6 +19,20 @@ export class SoraError extends Error {
 	readonly errors: NonNullable<Problem["errors"]>;
 	/** How long the API asked to wait before retrying, in seconds, when it said. */
 	readonly retryAfterSeconds: number | null;
+
+	/**
+	 * What a failed response may carry: the API's problem, or Better Auth's
+	 * `{ message, code }` from the `/v1/auth` endpoints.
+	 */
+	static readonly #failure = ProblemBody.pick({
+		code: true,
+		detail: true,
+		errors: true,
+	})
+		.partial()
+		.extend({
+			message: z.string().optional(),
+		});
 
 	constructor(
 		message: string,
@@ -57,9 +57,14 @@ export class SoraError extends Error {
 	): Promise<SoraError> {
 		// A proxy can return HTML or unrelated JSON; only use fields we recognize.
 		const body = await attempt(response.json());
-		const parsed = FailureBodySchema.safeParse(body.data);
-		const problem = parsed.success ? parsed.data : null;
+		const problem = SoraError.#failure.safeParse(body.data).data;
 		const wait = parseRetryAfter(response.headers.get("Retry-After"));
+
+		let retryAfterSeconds: number | null = null;
+
+		if (wait !== null) {
+			retryAfterSeconds = Math.ceil(wait / second);
+		}
 
 		return new SoraError(
 			problem?.detail ??
@@ -68,7 +73,7 @@ export class SoraError extends Error {
 			{
 				code: problem?.code ?? "HTTP_ERROR",
 				errors: problem?.errors,
-				retryAfterSeconds: wait === null ? null : Math.ceil(wait / second),
+				retryAfterSeconds,
 				status: response.status,
 			},
 		);

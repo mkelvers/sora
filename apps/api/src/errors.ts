@@ -54,7 +54,7 @@ export const sendProblem = (
  * The app's error handler. Core errors map through {@link statusByCode};
  * anything else is a defect, logged and answered with a generic 500.
  */
-export const onError = (error: Error, c: Context) => {
+export const onFailure = (error: Error, c: Context) => {
 	/** The HTTP status for each core failure. Every code must be listed. */
 	const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
 		ANIME_NOT_FOUND: 404,
@@ -78,7 +78,12 @@ export const onError = (error: Error, c: Context) => {
 		console.warn(`${c.req.method} ${c.req.path}: ${error.message}`, error.attempts);
 	}
 
-	const status = error instanceof StreamUpstreamError ? 502 : statusByCode[error.code];
+	let status = statusByCode[error.code];
+
+	if (error instanceof StreamUpstreamError) {
+		status = 502;
+	}
+
 	const response = sendProblem(c, status, error.code, error.message);
 
 	if (error instanceof UpstreamUnavailableError && error.retryAfterMs !== null) {

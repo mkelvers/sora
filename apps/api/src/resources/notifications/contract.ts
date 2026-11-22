@@ -1,18 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationSchema } from "@sora/core/models/library";
 
-import { envelopeOf } from "../../openapi/envelope";
+import { envelope } from "../../openapi/envelope";
 import {
 	json,
-	NotificationsMetaSchema,
-	NotificationsReadSchema,
+	NotificationsMeta,
+	NotificationsRead,
 	problem,
 	signedIn,
 	ProfileParams,
 } from "../../openapi/schemas";
 
 /** A profile's notifications. */
-export const notificationRoute = {
+export const contract = {
 	dismissNotification: createRoute({
 		description: "Takes the notification out of the profile's notifications for good.",
 		method: "delete",
@@ -59,10 +59,7 @@ export const notificationRoute = {
 			}),
 		},
 		responses: {
-			200: json(
-				envelopeOf(z.array(NotificationSchema), NotificationsMetaSchema),
-				"The notifications.",
-			),
+			200: json(envelope(z.array(NotificationSchema), NotificationsMeta), "The notifications."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -80,7 +77,7 @@ export const notificationRoute = {
 			body: {
 				content: {
 					"application/json": {
-						schema: NotificationsReadSchema,
+						schema: NotificationsRead,
 					},
 				},
 				required: true,

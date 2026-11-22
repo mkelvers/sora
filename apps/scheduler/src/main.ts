@@ -8,8 +8,8 @@
 import { db } from "@sora/core/database";
 import { startScheduler } from "@sora/core/scheduler";
 
-const runner = await startScheduler();
+const { promise } = await startScheduler();
 
-await runner.promise;
+await promise;
 
 await db.$client.close();

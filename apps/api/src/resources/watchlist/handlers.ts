@@ -12,13 +12,13 @@ import {
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { watchlistRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The handlers for {@link watchlistRoute}. */
-export const watchlistRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(watchlistRoute.listWatchlist, async (c) => {
+	.openapi(contract.listWatchlist, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const entries = await getWatchlist(profile.id);
 
@@ -33,7 +33,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(watchlistRoute.listWatchlistStatuses, async (c) => {
+	.openapi(contract.listWatchlistStatuses, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const entries = await getWatchlistStatuses(profile.id);
 
@@ -48,7 +48,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(watchlistRoute.getRating, async (c) => {
+	.openapi(contract.getRating, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 
@@ -61,7 +61,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(watchlistRoute.setRating, async (c) => {
+	.openapi(contract.setRating, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await setRating(profile.id, series_id, c.req.valid("json").rating);
@@ -69,7 +69,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(watchlistRoute.removeRating, async (c) => {
+	.openapi(contract.removeRating, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await removeRating(profile.id, series_id);
@@ -77,7 +77,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(watchlistRoute.setWatchlistStatus, async (c) => {
+	.openapi(contract.setWatchlistStatus, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await setWatchlistStatus(profile.id, series_id, c.req.valid("json").status);
@@ -85,7 +85,7 @@ export const watchlistRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(watchlistRoute.removeFromWatchlist, async (c) => {
+	.openapi(contract.removeFromWatchlist, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await removeFromWatchlist(profile.id, series_id);

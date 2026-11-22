@@ -15,13 +15,13 @@ import {
 
 import { onInvalidRequest } from "../../errors";
 import type { V1Env } from "../../errors";
-import { progressRoute } from "./contract";
+import { contract } from "./contract";
 
-/** The handlers for {@link progressRoute}. */
-export const progressRoutes = new OpenAPIHono<V1Env>({
+/** The handlers for {@link contract}. */
+export const handlers = new OpenAPIHono<V1Env>({
 	defaultHook: onInvalidRequest,
 })
-	.openapi(progressRoute.getProgress, async (c) => {
+	.openapi(contract.getProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 
@@ -39,7 +39,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(progressRoute.saveProgress, async (c) => {
+	.openapi(contract.saveProgress, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 
@@ -61,7 +61,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(progressRoute.getSeriesProgress, async (c) => {
+	.openapi(contract.getSeriesProgress, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		const progress = await getSeriesProgress(profile.id, series_id);
@@ -75,7 +75,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(progressRoute.removeProgress, async (c) => {
+	.openapi(contract.removeProgress, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await removeProgress(profile.id, series_id);
@@ -83,7 +83,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(progressRoute.markSeriesWatched, async (c) => {
+	.openapi(contract.markSeriesWatched, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markWatched(profile.id, series_id);
@@ -91,7 +91,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(progressRoute.markEpisodeWatched, async (c) => {
+	.openapi(contract.markEpisodeWatched, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markWatched(profile.id, series_id, episode);
@@ -99,7 +99,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(progressRoute.markEpisodeUnwatched, async (c) => {
+	.openapi(contract.markEpisodeUnwatched, async (c) => {
 		const { profile_id, series_id, episode } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await markUnwatched(profile.id, {
@@ -110,7 +110,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(progressRoute.startRewatch, async (c) => {
+	.openapi(contract.startRewatch, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await startRewatch(profile.id, series_id);
@@ -118,7 +118,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		return c.body(null, 204);
 	})
 
-	.openapi(progressRoute.listContinueWatching, async (c) => {
+	.openapi(contract.listContinueWatching, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const shows = await getContinueWatching(profile.id);
 
@@ -133,7 +133,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(progressRoute.listRecommendations, async (c) => {
+	.openapi(contract.listRecommendations, async (c) => {
 		const profile = await getProfile(c.get("accountId"), c.req.valid("param").profile_id);
 		const rows = await getRecommendations(profile.id);
 
@@ -148,7 +148,7 @@ export const progressRoutes = new OpenAPIHono<V1Env>({
 		);
 	})
 
-	.openapi(progressRoute.dismissContinueWatching, async (c) => {
+	.openapi(contract.dismissContinueWatching, async (c) => {
 		const { profile_id, series_id } = c.req.valid("param");
 		const profile = await getProfile(c.get("accountId"), profile_id);
 		await dismissContinueWatching(profile.id, series_id);

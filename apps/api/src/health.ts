@@ -5,19 +5,6 @@ import { getFailingJobs } from "@sora/core/scheduler/failures";
 import { attempt } from "@sora/shared";
 import { Hono } from "hono";
 
-/** Reads one part of the signed-in report, or `null` with a warning when it cannot be read. */
-const read = async <TData>(what: string, load: () => Promise<TData>) => {
-	const { data, error } = await attempt(load());
-
-	if (error) {
-		console.warn(`Could not read ${what}: ${error.message}`);
-
-		return null;
-	}
-
-	return data;
-};
-
 /**
  * `/health`: always `200` with `status: "ok"` while the process serves
  * requests, so load balancers keep it in rotation. Requests from a signed-in
@@ -38,7 +25,7 @@ const read = async <TData>(what: string, load: () => Promise<TData>) => {
  * in `provider_calls`, graphile-worker's `jobs` view and the scheduler's
  * warnings.
  */
-export const healthRoutes = ({
+export const health = ({
 	failingJobs = getFailingJobs,
 	providers = getProviderHealth,
 	signedIn = () => Promise.resolve(false),
@@ -57,14 +44,20 @@ export const healthRoutes = ({
 			});
 		}
 
-		const [health, jobs] = await Promise.all([
-			read("provider health", providers),
-			read("failing scheduler jobs", failingJobs),
-		]);
+		const [states, jobs] = await Promise.all([attempt(providers()), attempt(failingJobs())]);
+
+		// Each part that cannot be read is reported as `null`, with a warning.
+		if (states.error) {
+			console.warn(`Could not read provider health: ${states.error.message}`);
+		}
+
+		if (jobs.error) {
+			console.warn(`Could not read failing scheduler jobs: ${jobs.error.message}`);
+		}
 
 		return c.json({
-			failing_jobs: jobs,
-			providers: health?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,
+			failing_jobs: jobs.data,
+			providers: states.data?.map(({ last_error: _lastError, ...provider }) => provider) ?? null,
 			status: "ok",
 		});
 	});

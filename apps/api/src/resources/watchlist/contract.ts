@@ -6,18 +6,18 @@ import {
 	WatchlistStatusSchema,
 } from "@sora/core/models/library";
 
-import { CountMetaSchema, envelopeOf } from "../../openapi/envelope";
+import { CountMetaSchema, envelope } from "../../openapi/envelope";
 import {
 	json,
 	problem,
 	SeriesIdParam,
-	EmptyMetaSchema,
+	EmptyMeta,
 	signedIn,
 	ProfileParams,
 } from "../../openapi/schemas";
 
 /** A profile's watchlist and ratings. */
-export const watchlistRoute = {
+export const contract = {
 	getRating: createRoute({
 		description: "The stars the profile gave the title, or null when it has not rated it.",
 		method: "get",
@@ -29,7 +29,7 @@ export const watchlistRoute = {
 			}),
 		},
 		responses: {
-			200: json(envelopeOf(RatingSchema, EmptyMetaSchema), "The rating."),
+			200: json(envelope(RatingSchema, EmptyMeta), "The rating."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -47,7 +47,7 @@ export const watchlistRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(WatchlistEntrySchema), CountMetaSchema), "The watchlist."),
+			200: json(envelope(z.array(WatchlistEntrySchema), CountMetaSchema), "The watchlist."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},
@@ -65,7 +65,7 @@ export const watchlistRoute = {
 			params: ProfileParams,
 		},
 		responses: {
-			200: json(envelopeOf(z.array(WatchlistStatusEntrySchema), CountMetaSchema), "The statuses."),
+			200: json(envelope(z.array(WatchlistStatusEntrySchema), CountMetaSchema), "The statuses."),
 			401: problem("Not signed in."),
 			404: problem("The account has no such profile."),
 		},

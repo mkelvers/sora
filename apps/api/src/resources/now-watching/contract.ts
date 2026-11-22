@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { json, problem } from "../../openapi/schemas";
 
 /** What the portfolio shows the profile is watching. */
-export const nowWatchingRoute = {
+export const contract = {
 	getNowWatching: createRoute({
 		description:
 			"Up to three recently watched, unfinished titles from the configured portfolio profile. Unlike session routes, returns only titles.",

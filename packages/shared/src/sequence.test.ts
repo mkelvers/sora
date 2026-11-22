@@ -55,7 +55,11 @@ describe("firstInSequence", () => {
 		const found = await firstInSequence([1, 2, 3, 4], (item) => {
 			seen.push(item);
 
-			return Promise.resolve(item === 2 ? "two" : undefined);
+			if (item === 2) {
+				return Promise.resolve("two");
+			}
+
+			return Promise.resolve(undefined);
 		});
 
 		expect(found).toBe("two");

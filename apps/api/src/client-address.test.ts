@@ -7,33 +7,39 @@ import { clientAddress } from "./client-address";
 /** The key the web app proves itself with, from the environment the tests run in. */
 const webClientKey = process.env.WEB_CLIENT_KEY ?? "";
 
-/** What Bun's server tells `getConnInfo` about the connection, which a test has no server to ask. */
-const connection = {
-	server: {
-		requestIP: () => ({
-			address: "203.0.113.9",
-			family: "IPv4",
-			port: 40_000,
-		}),
-	},
-};
+/** Routes behind `clientAddress` that answer with the address they forward. */
+class Server {
+	readonly #routes = new Hono()
+		.use(clientAddress)
+		.get("/", (c) => c.text(c.req.raw.headers.get("X-Forwarded-For") ?? ""));
 
-const routes = new Hono()
-	.use(clientAddress)
-	.get("/", (c) => c.text(c.req.raw.headers.get("X-Forwarded-For") ?? ""));
-
-const ask = (headers: Record<string, string>) =>
-	routes.request(
-		"/",
-		{
-			headers,
+	/** What Bun's server tells `getConnInfo` about the connection, which a test has no server to ask. */
+	readonly #connection = {
+		server: {
+			requestIP: () => ({
+				address: "203.0.113.9",
+				family: "IPv4",
+				port: 40_000,
+			}),
 		},
-		connection,
-	);
+	};
+
+	ask(headers: Record<string, string>) {
+		return this.#routes.request(
+			"/",
+			{
+				headers,
+			},
+			this.#connection,
+		);
+	}
+}
+
+const server = new Server();
 
 describe("clientAddress", () => {
 	test("replaces an address claimed by a client without the key", async () => {
-		const response = await ask({
+		const response = await server.ask({
 			"X-Forwarded-For": "198.51.100.7",
 		});
 
@@ -41,7 +47,7 @@ describe("clientAddress", () => {
 	});
 
 	test("replaces a claim made with the wrong key", async () => {
-		const response = await ask({
+		const response = await server.ask({
 			"X-Forwarded-For": "198.51.100.7",
 			"X-Sora-Client-Key": "guess",
 		});
@@ -50,7 +56,7 @@ describe("clientAddress", () => {
 	});
 
 	test("keeps the address the web app reports", async () => {
-		const response = await ask({
+		const response = await server.ask({
 			"X-Forwarded-For": "198.51.100.7",
 			"X-Sora-Client-Key": webClientKey,
 		});
@@ -59,7 +65,7 @@ describe("clientAddress", () => {
 	});
 
 	test("preserves a chain the web app reports", async () => {
-		const response = await ask({
+		const response = await server.ask({
 			"X-Forwarded-For": "198.51.100.7, 10.0.0.2",
 			"X-Sora-Client-Key": webClientKey,
 		});
