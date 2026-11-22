@@ -137,7 +137,11 @@ export const deviceKind = (userAgent: string | null): DeviceKind => {
 	}
 
 	if (system === "Android") {
-		return /\bMobile\b/u.test(text) ? "phone" : "tablet";
+		if (/\bMobile\b/u.test(text)) {
+			return "phone";
+		}
+
+		return "tablet";
 	}
 
 	return system ? "computer" : "unknown";
