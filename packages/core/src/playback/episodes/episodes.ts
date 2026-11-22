@@ -134,7 +134,11 @@ export const withoutStrayEpisodes = <TUnit extends { number: number }>(
 			unit.number > total && unit.number - (units[index - 1]?.number ?? 0) > strayGap,
 	);
 
-	return stray === -1 ? [...units] : units.slice(0, stray);
+	if (stray === -1) {
+		return [...units];
+	}
+
+	return units.slice(0, stray);
 };
 
 /**
