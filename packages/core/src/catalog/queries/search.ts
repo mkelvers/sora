@@ -230,7 +230,13 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		source: media.source,
 		startDate: start?.year
 			? [start.year, start.month, start.month ? start.day : null]
-					.flatMap((part) => (part ? [String(part).padStart(2, "0")] : []))
+					.flatMap((part) => {
+						if (part) {
+							return [String(part).padStart(2, "0")];
+						}
+
+						return [];
+					})
 					.join("-")
 			: null,
 		status: media.status,
