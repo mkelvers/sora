@@ -117,8 +117,9 @@ export const limitPasswordSignIn = createAuthMiddleware(async (endpoint) => {
 		return;
 	}
 
-	const address = getIP(endpoint.request, endpoint.context.options) ?? "unknown";
-	countAttempt(`address:${address}`, 5);
+	// Requests whose address cannot be read share one budget.
+	const address = getIP(endpoint.request, endpoint.context.options);
+	countAttempt(`address:${address ?? "*"}`, 5);
 
 	const parsed = (byUsername ? UsernameBody : EmailBody).safeParse(endpoint.body);
 

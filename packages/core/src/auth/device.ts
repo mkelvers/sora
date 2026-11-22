@@ -36,7 +36,15 @@ export const describeDevice = (userAgent: string | null): string => {
 		return `${browser} on ${system}`;
 	}
 
-	return browser ?? system ?? "Unknown device";
+	if (browser) {
+		return browser;
+	}
+
+	if (system) {
+		return system;
+	}
+
+	return "Unknown device";
 };
 
 /** Where each browser writes its version, as a major version. */

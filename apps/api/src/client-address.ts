@@ -18,7 +18,11 @@ export const clientAddress = createMiddleware<V1Env>(async (c, proceed) => {
 	if (!isWebClientKey(c.req.header("X-Sora-Client-Key"))) {
 		const { data: address } = attempt(() => getConnInfo(c).remote.address, TypeError);
 		const headers = new Headers(c.req.raw.headers);
-		headers.set("X-Forwarded-For", address ?? "unknown");
+		headers.delete("X-Forwarded-For");
+
+		if (address) {
+			headers.set("X-Forwarded-For", address);
+		}
 		c.req.raw = new Request(c.req.raw, {
 			headers,
 		});

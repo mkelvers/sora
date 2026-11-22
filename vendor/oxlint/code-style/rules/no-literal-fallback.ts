@@ -1,13 +1,18 @@
 import { defineRule } from "@oxlint/plugins";
 
-/** §8 Missing data isn't hidden behind placeholder text such as `title ?? "Unknown"`. */
+/**
+ * §8 Missing data isn't hidden behind placeholder text such as
+ * `title ?? "Unknown"`. Only text that says something is missing counts:
+ * defaults such as `sort ?? "trending"` are fine.
+ */
 export const noLiteralFallback = defineRule({
 	create: (context) => ({
 		LogicalExpression: (node) => {
 			const { right } = node;
 
 			const placeholder =
-				right.type === "Literal" && /^(?<quote>["']).+\k<quote>$/u.test(right.raw ?? "");
+				right.type === "Literal" &&
+				/^(?<quote>["'])(?:unknown|untitled|unnamed|n\/a|no |missing)/iu.test(right.raw ?? "");
 
 			if (node.operator === "??" && placeholder) {
 				context.report({
