@@ -33,7 +33,11 @@
 			return `${rest}m`;
 		}
 
-		return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+		if (rest === 0) {
+			return `${hours}h`;
+		}
+
+		return `${hours}h ${rest}m`;
 	};
 
 	const id = $props.id();
