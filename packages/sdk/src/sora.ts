@@ -292,31 +292,7 @@ export class SoraClient {
 			return;
 		}
 
-		const json = await attempt(response.json());
-		let parsed: ReturnType<typeof schema.safeParse> | null = null;
-
-		if (!json.error) {
-			parsed = schema.safeParse(json.data);
-		}
-
-		if (!parsed?.success) {
-			let detail = "";
-
-			if (parsed) {
-				detail = `: ${parsed.error.message}`;
-			}
-
-			throw new SoraError(
-				`The API's answer to ${route.method.toUpperCase()} ${route.path} does not match its contract${detail}`,
-				{
-					code: "INVALID_RESPONSE",
-					retryAfterSeconds: null,
-					status: response.status,
-				},
-			);
-		}
-
-		return parsed.data;
+		return await SoraClient.#body(response, schema, `${route.method.toUpperCase()} ${route.path}`);
 	}
 
 	/**
@@ -328,16 +304,18 @@ export class SoraClient {
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
 		const response = await this.#auth("sign-in/username", credentials, options);
 
-		const signedIn = z
-			.object({
+		const signedIn = await SoraClient.#body(
+			response,
+			z.object({
 				token: z.string(),
 				user: z.object({
 					id: z.string(),
 					name: z.string(),
 					username: z.string(),
 				}),
-			})
-			.parse(await response.json());
+			}),
+			"POST /auth/sign-in/username",
+		);
 
 		return {
 			account: {
@@ -383,6 +361,35 @@ export class SoraClient {
 	/** Ends the session this client's token belongs to. */
 	async signOut(options?: RequestOptions): Promise<void> {
 		await this.#auth("sign-out", {}, options);
+	}
+
+	static async #body<TData>(
+		response: Response,
+		schema: z.ZodType<TData>,
+		request: string,
+	): Promise<TData> {
+		const json = await attempt(response.json());
+		let parsed: ReturnType<typeof schema.safeParse> | null = null;
+
+		if (!json.error) {
+			parsed = schema.safeParse(json.data);
+		}
+
+		if (!parsed?.success) {
+			let detail = "";
+
+			if (parsed) {
+				detail = `: ${parsed.error.message}`;
+			}
+
+			throw new SoraError(`The API's answer to ${request} does not match its contract${detail}`, {
+				code: "INVALID_RESPONSE",
+				retryAfterSeconds: null,
+				status: response.status,
+			});
+		}
+
+		return parsed.data;
 	}
 
 	/**

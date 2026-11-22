@@ -194,6 +194,32 @@ describe("SoraClient.request", () => {
 		expect(error?.message).toBe("Invalid username or password");
 	});
 
+	test("reports malformed sign-in results through the SDK error contract", async () => {
+		const { sora } = clientAnswering(() =>
+			Response.json({
+				token: 123,
+				user: {
+					id: "P1",
+					name: "Viewer",
+					username: "viewer",
+				},
+			}),
+		);
+
+		const { error } = await attempt(
+			sora.signIn({
+				password: "password",
+				username: "viewer",
+			}),
+		);
+
+		expect(error).toBeInstanceOf(SoraError);
+		expect(error).toMatchObject({
+			code: "INVALID_RESPONSE",
+			status: 200,
+		});
+	});
+
 	test("changes the password, ends other sessions, and returns the new token", async () => {
 		const { sora, requests } = clientAnswering(() => Response.json({ token: "new-token" }));
 
