@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { attempt, parseRetryAfter } from "@sora/shared";
 import type { Json } from "@sora/shared";
 import { eq } from "drizzle-orm";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { config } from "../config";
 import { db } from "../database/client";
@@ -168,8 +168,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			);
 		}
 
-		// SAFETY: a parsed JSON body is JSON; callers validate its structure with their schema.
-		const body = await attempt(response.data.json() as Promise<Json>);
+		const body = await attempt(response.data.json());
 
 		if (body.error) {
 			throw new UpstreamUnavailableError(
@@ -181,7 +180,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			);
 		}
 
-		return body.data;
+		return z.json().parse(body.data);
 	};
 
 	/** Fetches one resource and stores it unless told not to. A 404 is returned as `null` and not stored. */
