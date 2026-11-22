@@ -542,7 +542,11 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 				return [[from, to] as const];
 			}
 
-			return relation === "PREQUEL" ? [[to, from] as const] : [];
+			if (relation === "PREQUEL") {
+				return [[to, from] as const];
+			}
+
+			return [];
 		}),
 		{
 			alternatives: relations
