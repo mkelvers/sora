@@ -14,10 +14,11 @@ export const GET: RequestHandler = async ({ params, request, locals, cookies }) 
 	const site = request.headers.get("sec-fetch-site");
 	const destination = request.headers.get("sec-fetch-dest");
 
-	if (
+	const foreign =
 		(site !== null && site !== "same-origin") ||
-		(destination !== null && !["video", "audio", "track", "empty"].includes(destination))
-	) {
+		(destination !== null && !["video", "audio", "track", "empty"].includes(destination));
+
+	if (foreign) {
 		error(403, "Not available");
 	}
 
