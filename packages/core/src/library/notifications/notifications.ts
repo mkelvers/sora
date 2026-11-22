@@ -299,9 +299,11 @@ const notificationMessage = (
 		const announced = movie ? "A new film has been announced." : "A new season has been announced.";
 		const starts = startsWhen(title.startDate);
 
-		return starts
-			? `${announced} It is set to start ${starts}.`
-			: `${announced} No start date has been set yet.`;
+		if (starts) {
+			return `${announced} It is set to start ${starts}.`;
+		}
+
+		return `${announced} No start date has been set yet.`;
 	}
 
 	const first = group.first_episode ?? 1;
