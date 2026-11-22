@@ -75,15 +75,17 @@ const useProviders = (list: FakeProvider[]): VersionDependencies => ({
 				list.flatMap((candidate) => {
 					const units = candidate.units(anilistId);
 
-					return units
-						? [
-								{
-									anilistId,
-									provider: candidate.id,
-									units,
-								},
-							]
-						: [];
+					if (units) {
+						return [
+							{
+								anilistId,
+								provider: candidate.id,
+								units,
+							},
+						];
+					}
+
+					return [];
 				}),
 			),
 		),
