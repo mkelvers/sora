@@ -139,7 +139,13 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 					// Titles are joined with commas; the whole string is kept too, for
 					// titles that contain one.
 					...(series.titles?.split(/[,;] /u) ?? []),
-				].flatMap((title) => (title?.trim() ? [title.trim()] : [])),
+				].flatMap((title) => {
+					if (title?.trim()) {
+						return [title.trim()];
+					}
+
+					return [];
+				}),
 			),
 		],
 		updatedAt: new Date(`${series.updated_at.replace(" ", "T")}Z`),
