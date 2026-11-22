@@ -37,13 +37,15 @@ export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadc
 
 	const latest = Page?.airingSchedules?.[0];
 
-	return latest
-		? {
-				airingAt: fromUnixSeconds(latest.airingAt),
-				anilistId,
-				episode: latest.episode,
-			}
-		: null;
+	if (latest) {
+		return {
+			airingAt: fromUnixSeconds(latest.airingAt),
+			anilistId,
+			episode: latest.episode,
+		};
+	}
+
+	return null;
 };
 
 /** Japan Standard Time, which AniList's dates are in, is UTC+9. */
