@@ -103,29 +103,6 @@ const ChangedImageSchema = z.object({
 	}),
 });
 
-const ShowFields = {
-	backdrop_path: OptionalText,
-	first_air_date: OptionalText,
-	id: z.number().int(),
-	name: z.string(),
-	original_name: z.string(),
-	overview: OptionalText,
-	poster_path: OptionalText,
-	seasons: z.array(
-		z.object({
-			episode_count: z
-				.number()
-				.int()
-				.nullish()
-				.transform((value) => value ?? 0),
-			name: OptionalText,
-			overview: OptionalText,
-			poster_path: OptionalText,
-			season_number: z.number().int(),
-		}),
-	),
-};
-
 const MovieSchema = z.object({
 	backdrop_path: OptionalText,
 	belongs_to_collection: z
@@ -323,15 +300,38 @@ export const searchMovies = async (query: string): Promise<TmdbMovieResult[]> =>
 };
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
-const showPageSchema = (seasons: readonly number[]) =>
-	// SAFETY: Object.fromEntries loses the keys it builds; each is a `season/N` holding SeasonSchema.
-	z.object({
-		...ShowFields,
-		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),
-	}) as z.ZodObject<
-		typeof ShowFields &
-			Record<`season/${number}`, z.ZodOptional<z.ZodNullable<typeof SeasonSchema>>>
-	>;
+const showPageSchema = (seasons: readonly number[]) => {
+	const appended: Record<`season/${number}`, ReturnType<typeof SeasonSchema.nullish>> = {};
+
+	for (const season of seasons) {
+		appended[`season/${season}`] = SeasonSchema.nullish();
+	}
+
+	return z
+		.object({
+			backdrop_path: OptionalText,
+			first_air_date: OptionalText,
+			id: z.number().int(),
+			name: z.string(),
+			original_name: z.string(),
+			overview: OptionalText,
+			poster_path: OptionalText,
+			seasons: z.array(
+				z.object({
+					episode_count: z
+						.number()
+						.int()
+						.nullish()
+						.transform((value) => value ?? 0),
+					name: OptionalText,
+					overview: OptionalText,
+					poster_path: OptionalText,
+					season_number: z.number().int(),
+				}),
+			),
+		})
+		.extend(appended);
+};
 
 /**
  * The episodes a show counts for `seasonNumber` past those its appended
