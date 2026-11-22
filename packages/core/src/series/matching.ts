@@ -677,7 +677,11 @@ const dayOffset = (left: string | null, right: string | null) => {
 	const leftDay = dayNumber(left);
 	const rightDay = dayNumber(right);
 
-	return leftDay !== null && rightDay !== null ? Math.abs(leftDay - rightDay) : null;
+	if (leftDay !== null && rightDay !== null) {
+		return Math.abs(leftDay - rightDay);
+	}
+
+	return null;
 };
 
 /**
