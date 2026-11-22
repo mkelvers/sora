@@ -278,7 +278,11 @@ export const fillerOf = (listings: readonly ListedUnit[]): boolean | null => {
 		return [unit.isFiller];
 	});
 
-	return flags.length === 0 ? null : flags.includes(true);
+	if (flags.length === 0) {
+		return null;
+	}
+
+	return flags.includes(true);
 };
 
 /** What the providers say about one AniList episode. */
