@@ -79,7 +79,6 @@ const offsetBucketSeconds = 0.5;
 
 /** A cue votes for an offset when its best phrase scores at least this well. */
 const voteScore = 0.5;
-const switchPenalty = 4;
 
 /** Fewer matched cues than this and the dub's speech is not the sub's script. */
 const minimumAnchors = 12;
@@ -329,7 +328,7 @@ const voteOffsets = (
 		offsets.map((offset) => cueVotes.some((vote) => Math.abs(vote - offset) <= 1)),
 	);
 
-	const path = bestPath(matches, switchPenalty);
+	const path = bestPath(matches, 4);
 
 	if (path.filter((choice, index) => matches[index]?.[choice]).length < minimumVotes) {
 		return null;
