@@ -584,7 +584,11 @@ const startScore = (offset: number | null, isContinuation: boolean) => {
 		return 50;
 	}
 
-	return distance <= startWindowDays ? 30 : 0;
+	if (distance <= startWindowDays) {
+		return 30;
+	}
+
+	return 0;
 };
 
 const endScore = (end: number | null, lastAirDay: number | null) => {
