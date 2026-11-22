@@ -300,10 +300,14 @@ export class SoraClient {
 		}
 
 		if (!parsed?.success) {
+			let detail = "";
+
+			if (parsed) {
+				detail = `: ${parsed.error.message}`;
+			}
+
 			throw new SoraError(
-				`The API's answer to ${route.method.toUpperCase()} ${route.path} does not match its contract${
-					parsed ? `: ${parsed.error.message}` : ""
-				}`,
+				`The API's answer to ${route.method.toUpperCase()} ${route.path} does not match its contract${detail}`,
 				{
 					code: "INVALID_RESPONSE",
 					retryAfterSeconds: null,
