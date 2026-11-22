@@ -423,12 +423,14 @@ const contentRating = (sources: AboutSources) => {
 		]),
 	].toSorted((left, right) => left.localeCompare(right));
 
-	return age || descriptors.length > 0
-		? {
-				age,
-				descriptors,
-			}
-		: null;
+	if (age || descriptors.length > 0) {
+		return {
+			age,
+			descriptors,
+		};
+	}
+
+	return null;
 };
 
 /** Roles AniList credits a title's creator with. */
