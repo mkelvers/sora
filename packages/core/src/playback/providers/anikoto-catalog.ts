@@ -48,7 +48,11 @@ const OptionalIdSchema = z
 	.transform((value) => {
 		const id = Number(value);
 
-		return Number.isSafeInteger(id) && id > 0 ? id : null;
+		if (Number.isSafeInteger(id) && id > 0) {
+			return id;
+		}
+
+		return null;
 	});
 
 /** MyAnimeList's age ratings, which AniKoto copies; see `anikotoSeries.rating`. */
