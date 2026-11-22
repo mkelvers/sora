@@ -268,7 +268,13 @@ const voteOffsets = (
 	const phrases = phrasesOf(words);
 
 	const phraseTokens = phrases.map((phrase) =>
-		spoken.slice(phrase.first, phrase.last + 1).flatMap((token) => (token ? [token] : [])),
+		spoken.slice(phrase.first, phrase.last + 1).flatMap((token) => {
+			if (token) {
+				return [token];
+			}
+
+			return [];
+		}),
 	);
 
 	const votes = cues.map((cue, index) => {
