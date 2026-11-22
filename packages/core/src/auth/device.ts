@@ -107,7 +107,11 @@ export const presentAddress = (address: string | null): string | null => {
 	const { data: url } = attempt(() => new URL(`http://[${address}]`), TypeError);
 	const written = url?.hostname.slice(1, -1) ?? address;
 
-	return written === "::" ? null : written;
+	if (written === "::") {
+		return null;
+	}
+
+	return written;
 };
 
 export type DeviceKind = "computer" | "phone" | "tablet" | "tv" | "unknown";
