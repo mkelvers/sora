@@ -4,7 +4,6 @@ import { WatchlistStatusSchema } from "./library";
 
 /** The most titles or episodes one file may hold, so no request is unbounded. */
 const maxWatchlist = 20_000;
-const maxHistory = 200_000;
 
 export const LibraryExportSchema = z
 	.object({
@@ -24,7 +23,7 @@ export const LibraryExportSchema = z
 					watched_at: z.string(),
 				}),
 			)
-			.max(maxHistory)
+			.max(200_000)
 			.meta({
 				description: "Every episode the profile played, by AniList entry.",
 			}),
