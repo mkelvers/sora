@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { attempt } from "@sora/shared";
+import { Logger } from "graphile-worker";
 import type { JobHelpers, Task } from "graphile-worker";
 import { z } from "zod";
 
@@ -8,12 +9,6 @@ import { lookUpEpisodes } from "./jobs/episodes";
 import { InvalidPayloadError, failInvalidPayloads, parsePayload } from "./payload";
 
 const task = "test-task";
-
-/** The part of {@link JobHelpers} that `failInvalidPayloads` reads. */
-type Running = Pick<JobHelpers, "query"> & {
-	job: Pick<JobHelpers["job"], "id" | "locked_by">;
-	logger: Pick<JobHelpers["logger"], "warn">;
-};
 
 /** Helpers for a running job, recording the SQL it sends. */
 const runningJob = () => {
@@ -29,19 +24,39 @@ const runningJob = () => {
 		}),
 	);
 
-	const running: Running = {
-		job: {
-			id: "42",
-			locked_by: "worker-1",
-		},
-		logger: {
-			warn: mock(),
-		},
-		query,
-	};
+	const now = new Date(0);
 
-	// SAFETY: failInvalidPayloads reads only the members `Running` has.
-	const helpers = running as JobHelpers;
+	const helpers: JobHelpers = {
+		abortPromise: Promise.withResolvers<never>().promise,
+		abortSignal: new AbortController().signal,
+		addJob: () => Promise.reject(new Error("The payload test must not enqueue a job")),
+		addJobs: () => Promise.reject(new Error("The payload test must not enqueue jobs")),
+		getQueueName: () => null,
+		job: {
+			attempts: 1,
+			created_at: now,
+			flags: null,
+			id: "42",
+			is_available: false,
+			job_queue_id: null,
+			key: null,
+			last_error: null,
+			locked_at: now,
+			locked_by: "worker-1",
+			max_attempts: 25,
+			payload: {},
+			priority: 0,
+			revision: 0,
+			run_at: now,
+			task_id: 1,
+			task_identifier: task,
+			updated_at: now,
+		},
+		logger: new Logger(() => mock()),
+		query,
+		withPgClient: () =>
+			Promise.reject(new Error("The payload test must not acquire a database client")),
+	};
 
 	return {
 		helpers,
