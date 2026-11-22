@@ -213,16 +213,18 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 
 		return [];
 	}),
-	relations: present(media.relations?.edges).flatMap((edge) =>
-		edge.relationType && edge.node?.type === "ANIME"
-			? [
-					{
-						anime: toAnimeCard(edge.node),
-						type: edge.relationType,
-					},
-				]
-			: [],
-	),
+	relations: present(media.relations?.edges).flatMap((edge) => {
+		if (edge.relationType && edge.node?.type === "ANIME") {
+			return [
+				{
+					anime: toAnimeCard(edge.node),
+					type: edge.relationType,
+				},
+			];
+		}
+
+		return [];
+	}),
 	source: media.source,
 	staff: present(media.staff?.edges).flatMap((edge) => {
 		const name = edge.node?.name?.full?.trim();
