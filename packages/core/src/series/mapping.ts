@@ -70,9 +70,11 @@ const freshMapping = async (entry: FranchiseEntry) => {
 		.where(eq(tmdbMapping.anilistId, entry.id))
 		.limit(1);
 
-	return stored && stored.resolvedAt.getTime() + mappingLifetimeMs(entry, stored) > Date.now()
-		? stored
-		: null;
+	if (stored && stored.resolvedAt.getTime() + mappingLifetimeMs(entry, stored) > Date.now()) {
+		return stored;
+	}
+
+	return null;
 };
 
 /** A prequel or parent together with where it mapped. */
