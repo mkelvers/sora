@@ -932,9 +932,11 @@ export const searchAnime = async (
 		(candidate) => textScore(normalized, candidate) >= minimumMatch,
 	);
 
-	return filters.sort
-		? [...matches].toSorted(sortOrders[filters.sort])
-		: rankCandidates(query, matches);
+	if (filters.sort) {
+		return [...matches].toSorted(sortOrders[filters.sort]);
+	}
+
+	return rankCandidates(query, matches);
 };
 
 /** How {@link browseIndex} orders each `sort`, the entry's ID last so pages stay put. */
