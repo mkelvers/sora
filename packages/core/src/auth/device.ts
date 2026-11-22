@@ -96,7 +96,9 @@ export const deviceDetails = (userAgent: string | null) => {
  * `unknown`.
  */
 export const presentAddress = (address: string | null): string | null => {
-	if (address === null || address === "" || address === "unknown") {
+	const absent = address === null || address === "" || address === "unknown";
+
+	if (absent) {
 		return null;
 	}
 
