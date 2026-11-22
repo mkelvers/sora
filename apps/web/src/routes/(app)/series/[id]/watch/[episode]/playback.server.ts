@@ -71,7 +71,9 @@ export const resolveWatchPlayback = async (
 			};
 		}
 
-		if (status === 429 || (status >= 500 && status < 600)) {
+		const temporary = status === 429 || (status >= 500 && status < 600);
+
+		if (temporary) {
 			return {
 				...links,
 				retryAt: Number.isSafeInteger(retryAt) ? retryAt : null,
