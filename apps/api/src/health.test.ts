@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { FailingJobs } from "@sora/core/models/scheduler";
 import type { ProviderHealth } from "@sora/core/playback";
+import { z } from "zod";
 
 import { healthRoutes } from "./health";
 
@@ -36,12 +37,13 @@ const probe = async (routes: ReturnType<typeof healthRoutes>) => {
 	const response = await routes.request("/");
 
 	return {
-		// SAFETY: the health route's own answer.
-		body: (await response.json()) as {
-			status: string;
-			failing_jobs?: unknown[] | null;
-			providers?: unknown[] | null;
-		},
+		body: z
+			.object({
+				failing_jobs: z.array(z.json()).nullish(),
+				providers: z.array(z.json()).nullish(),
+				status: z.literal("ok"),
+			})
+			.parse(await response.json()),
 		status: response.status,
 	};
 };
