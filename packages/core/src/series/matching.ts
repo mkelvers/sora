@@ -1350,7 +1350,13 @@ const combinedParts = (groups: readonly TmdbEpisodeGroup[], index: number, wante
 
 		const nextPart = /^(?<title>.*) part (?<part>\d+)$/u.exec(normalizeTitle(next.name));
 
-		if (!nextPart || nextPart[1] !== part[1] || Number(nextPart[2]) !== Number(part[2]) + 1) {
+		if (!nextPart) {
+			break;
+		}
+
+		const following = nextPart[1] === part[1] && Number(nextPart[2]) === Number(part[2]) + 1;
+
+		if (!following) {
 			break;
 		}
 
