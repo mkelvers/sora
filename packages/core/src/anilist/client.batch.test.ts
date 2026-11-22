@@ -199,7 +199,7 @@ test("splits a request over pages of 50, and fills a request before starting ano
 	expect(
 		// SAFETY: each page's IDs are a number array.
 		sent.map((variables) => [
-			(variables.ids0 as number[]).length,
+			z.array(z.number()).parse(variables.ids0).length,
 			(variables.ids1 as number[]).length,
 			variables.with1,
 		]),
