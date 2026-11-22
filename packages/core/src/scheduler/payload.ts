@@ -53,9 +53,13 @@ const withCauses = (error: Error): Error => {
 
 	const described = new Error(
 		chain
-			.map((link, index) =>
-				index === 0 ? link.message : `Caused by ${link.name}: ${link.message}`,
-			)
+			.map((link, index) => {
+				if (index === 0) {
+					return link.message;
+				}
+
+				return `Caused by ${link.name}: ${link.message}`;
+			})
 			.join("\n"),
 		{
 			cause: error,
