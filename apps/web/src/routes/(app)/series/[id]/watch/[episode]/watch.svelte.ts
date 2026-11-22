@@ -25,7 +25,7 @@ interface Quality {
 const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;
-const backBufferSeconds = 30;
+
 const megabyte = 1000 * 1000;
 const bufferMegabytesPerGigabyte = 25;
 const maximumBufferMegabytes = 200;
@@ -320,7 +320,7 @@ export class Player {
 			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
 			hls = new Hls({
 				abrEwmaDefaultEstimate: startBandwidthBitsPerSecond,
-				backBufferLength: backBufferSeconds,
+				backBufferLength: 30,
 				fragLoadPolicy: {
 					default: {
 						errorRetry: {
