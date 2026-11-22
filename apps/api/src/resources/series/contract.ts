@@ -354,9 +354,15 @@ export const seriesRoute = {
 			query: z
 				.object({
 					language: commaSeparated(
-						z
-							.array(z.string().regex(/^(?:[a-z]{2}|none)$/u))
-							.transform((codes) => codes.map((code) => (code === "none" ? null : code))),
+						z.array(z.string().regex(/^(?:[a-z]{2}|none)$/u)).transform((codes) =>
+							codes.map((code) => {
+								if (code === "none") {
+									return null;
+								}
+
+								return code;
+							}),
+						),
 						"en,none",
 					).openapi({
 						description:
