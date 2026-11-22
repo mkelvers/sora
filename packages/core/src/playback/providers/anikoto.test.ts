@@ -436,7 +436,13 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("keeps the API's languages when the episode list cannot be read", async () => {
 		const { provider } = providerServing({
-			"/series/6752": seriesResponseOf([1, 4], (number) => (number < 4 ? ["sub"] : ["sub", "dub"])),
+			"/series/6752": seriesResponseOf([1, 4], (number) => {
+				if (number < 4) {
+					return ["sub"];
+				}
+
+				return ["sub", "dub"];
+			}),
 		});
 
 		const units = await provider.listEpisodes("6752");
