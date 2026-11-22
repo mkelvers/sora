@@ -1,4 +1,4 @@
-import { defined } from "@sora/shared";
+import { attempt, defined } from "@sora/shared";
 
 import { shiftTime } from "../streams/align";
 import type { TimelineShift } from "../streams/align";
@@ -13,6 +13,97 @@ const lineEdgeSpace = /^[ \t\u00A0]+|[ \t\u00A0]+$/gmu;
 
 /** A cue block's timing line, through its line break, and the text after it. */
 const cueText = /^(?<head>[^\n]*-->[^\n]*\n)(?<text>[\s\S]*)$/mu;
+
+/**
+ * The legacy code pages providers have decoded UTF-8 subtitles with, turning
+ * "—" into "вЂ”" or "â€”".
+ */
+const codePages = ["windows-1251", "windows-1252"] as const;
+
+const letter = /\p{L}/u;
+
+const utf8 = new TextDecoder("utf-8", {
+	fatal: true,
+});
+
+/** How a code page reads UTF-8. */
+interface Misreading {
+	/** A UTF-8 sequence as the code page reads it: a lead byte and its continuation bytes. */
+	sequence: RegExp;
+	/** Any letter the code page reads from a byte outside ASCII, such as Cyrillic in Windows-1251. */
+	letter: RegExp;
+	/** The byte behind each character the code page reads from outside ASCII. */
+	bytes: Map<string, number>;
+}
+
+/**
+ * Each code page's reading of UTF-8, derived from the decoder itself, so no
+ * character is listed by hand.
+ */
+const misreadings = codePages.map((codePage): Misreading => {
+	const decoder = new TextDecoder(codePage);
+	const characters = (from: number, to: number) => {
+		const range = Uint8Array.from({ length: to - from + 1 }, (_, offset) => from + offset);
+		return decoder.decode(range);
+	};
+	const bytes = new Map<string, number>();
+	for (const byte of Uint8Array.from({ length: 128 }, (_, offset) => 0x80 + offset)) {
+		bytes.set(decoder.decode(Uint8Array.of(byte)), byte);
+	}
+
+	const continuation = `[${characters(0x80, 0xbf)}]`;
+	const twoBytes = `[${characters(0xc2, 0xdf)}]${continuation}`;
+	const threeBytes = `[${characters(0xe0, 0xef)}]${continuation}{2}`;
+	const fourBytes = `[${characters(0xf0, 0xf4)}]${continuation}{3}`;
+	return {
+		bytes,
+		letter: new RegExp(
+			`[${[...characters(0x80, 0xff)].filter((character) => letter.test(character)).join("")}]`,
+			"u",
+		),
+		sequence: new RegExp(`${twoBytes}|${threeBytes}|${fourBytes}`, "gu"),
+	};
+});
+
+/** The text a sequence {@link Misreading.sequence} matched stands for, or `null` when its bytes are not UTF-8. */
+const decode = (misread: string, { bytes }: Misreading) => {
+	const encoded = Uint8Array.from(misread, (character) => defined(bytes.get(character)));
+	const { data, error } = attempt(() => utf8.decode(encoded), TypeError);
+	if (error) {
+		return null;
+	}
+	return data;
+};
+
+/**
+ * A subtitle file with its text restored when a provider decoded the UTF-8
+ * file with a legacy code page, as on some of MegaPlay's tracks.
+ *
+ * A file counts as misread only when every letter the code page reads from
+ * outside ASCII belongs to a sequence that decodes as UTF-8. Text truly
+ * written in the code page's languages, such as Russian, has letters outside
+ * any such sequence, and is left as it is, even where a few of its characters
+ * happen to look like one. Punctuation outside a sequence does not count,
+ * since a misread file can also hold some written correctly.
+ */
+const repair = (content: string) => {
+	for (const misreading of misreadings) {
+		const leftover = content.replaceAll(misreading.sequence, (misread) => {
+			if (decode(misread, misreading) === null) {
+				return misread;
+			}
+			return "";
+		});
+		const misread = leftover !== content && !misreading.letter.test(leftover);
+		if (misread) {
+			return content.replaceAll(
+				misreading.sequence,
+				(sequence) => decode(sequence, misreading) ?? sequence,
+			);
+		}
+	}
+	return content;
+};
 
 /**
  * Cue text with what ASS conversions leave behind turned into plain text:
@@ -117,6 +208,8 @@ const repeatsDialogue = (
  *
  * - Providers convert ASS subtitles to WebVTT without translating them, and
  *   players show them as written. Cues left with no text are dropped.
+ * - A file a provider decoded with the wrong code page is restored; see
+ *   {@link repair}.
  * - A cue with the same timing, settings, and text as an earlier one is
  *   dropped: ASS draws a sign as stacked layers, such as a shadow under its
  *   text, which become copies of one cue. One shown again right as it ends,
@@ -130,7 +223,7 @@ export const cleanWebVtt = (content: string) => {
 	const seen = new Set<string>();
 	const shown = new Map<string, CleanBlock>();
 	const blocks: CleanBlock[] = [];
-	for (const block of splitBlocks(content)) {
+	for (const block of splitBlocks(repair(content))) {
 		const timing = readTiming(block);
 		if (!timing) {
 			blocks.push({

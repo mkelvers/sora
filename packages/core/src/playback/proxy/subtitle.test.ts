@@ -153,6 +153,108 @@ Werewolves
 Wait ! Please`);
 	});
 
+	test("restores a file decoded as Windows-1251", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+NoвЂ” ItвЂ™s в™Є fine рџ\u0098Љ
+
+2
+00:00:04.000 --> 00:00:05.000
+<b>вЂ” Tempest Star Wolf вЂ”</b>`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+No— It’s ♪ fine 😊
+
+2
+00:00:04.000 --> 00:00:05.000 line:0
+<b>— Tempest Star Wolf —</b>`);
+	});
+
+	test("restores a misread file that also has correct punctuation", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Then we'll just beвЂ”
+
+2
+00:00:04.000 --> 00:00:05.000
+Shizu, that one's still”`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Then we'll just be—
+
+2
+00:00:04.000 --> 00:00:05.000
+Shizu, that one's still”`);
+	});
+
+	test("restores a file decoded as Windows-1252, letters included", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Waitâ€¦ â€œHereâ€\u009D Â© 2026
+
+2
+00:00:04.000 --> 00:00:05.000
+PokÃ©mon cafÃ©`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Wait… “Here” © 2026
+
+2
+00:00:04.000 --> 00:00:05.000
+Pokémon café`);
+	});
+
+	test("leaves Russian text whose characters look like a misreading alone", () => {
+		const text = `WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Пусть «В» сейчас же
+
+2
+00:00:04.000 --> 00:00:05.000
+О…
+
+3
+00:00:06.000 --> 00:00:07.000
+Лёгкая, но прочная…
+
+4
+00:00:08.000 --> 00:00:09.000
+Защищать учеников\u00A0— мой долг.`;
+
+		expect(cleanWebVtt(text)).toBe(text);
+	});
+
+	test("restores misread letters next to Russian text, keeping the Russian", () => {
+		expect(
+			cleanWebVtt(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Привет, «друг» and PokÃ©mon`),
+		).toBe(`WEBVTT
+
+1
+00:00:01.000 --> 00:00:03.000
+Привет, «друг» and Pokémon`);
+	});
+
 	test("drops cues left with no text", () => {
 		expect(
 			cleanWebVtt(`WEBVTT
