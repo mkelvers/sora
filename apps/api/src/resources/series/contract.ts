@@ -31,7 +31,7 @@ import {
 	EpisodeParams,
 } from "../../openapi/schemas";
 
-const { shape: browse } = BrowseQuerySchema;
+const browse = BrowseQuerySchema.shape;
 
 /** A comma-separated query value, such as `genres=Action,Comedy`, as a list. */
 const commaSeparated = <TList extends z.ZodType<unknown, string[]>>(list: TList, example: string) =>
