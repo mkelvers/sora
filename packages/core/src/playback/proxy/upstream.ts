@@ -1,4 +1,3 @@
-import type { LookupAddress, lookup } from "node:dns";
 import { lookup as lookupAddresses } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
@@ -120,7 +119,7 @@ const assertPublicHttpUrl = (value: string) => {
 const respondToLookup = async (
 	host: string,
 	options: { all?: boolean },
-	respond: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
+	respond: Parameters<NonNullable<http.RequestOptions["lookup"]>>[2],
 ) => {
 	const { data: addresses, error } = await attempt(
 		lookupAddresses(host, {
@@ -130,13 +129,13 @@ const respondToLookup = async (
 	);
 
 	if (error) {
-		respond(error);
+		respond(error, []);
 
 		return;
 	}
 
 	if (addresses.some(({ address }) => isPrivateAddress(address))) {
-		respond(new InvalidStreamTokenError("Stream target is not a public host"));
+		respond(new InvalidStreamTokenError("Stream target is not a public host"), []);
 
 		return;
 	}
@@ -149,15 +148,6 @@ const respondToLookup = async (
 
 	respond(null, defined(addresses[0]).address, defined(addresses[0]).family);
 };
-
-// SAFETY: this implements the callback form of `lookup`, the only one the HTTP agent calls.
-const publicLookup = ((
-	host: string,
-	options: { all?: boolean },
-	respond: (error: Error | null, address?: string | LookupAddress[], family?: number) => void,
-) => {
-	attempt(respondToLookup(host, options, respond));
-}) as typeof lookup;
 
 /**
  * Makes one request without following redirects, like `fetch(url, { redirect:
@@ -182,7 +172,9 @@ const requestPublicHost = (
 				"User-Agent": `Bun/${Bun.version}`,
 				...outgoing,
 			},
-			lookup: publicLookup,
+			lookup: (host, options, respond) => {
+				attempt(respondToLookup(host, options, respond));
+			},
 			signal,
 		},
 		(incoming) => {
