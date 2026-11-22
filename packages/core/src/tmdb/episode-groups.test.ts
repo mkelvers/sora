@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 
+import type { Json } from "@sora/shared";
+
 import { createTmdbClient } from "./client";
 import { getShowEpisodeGroups } from "./resources";
 
@@ -15,7 +17,7 @@ const episode = {
 	still_path: null,
 };
 
-const responses: Record<string, unknown> = {
+const responses: Record<string, Json> = {
 	"/tv/1/episode_groups": { results: [] },
 	"/tv/45790/episode_groups": {
 		results: [

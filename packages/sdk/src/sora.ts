@@ -141,12 +141,28 @@ export interface SoraClientOptions {
 	headers?: Record<string, string>;
 }
 
+/** A query value: a list is comma-separated, and a null in one is how the API spells "none". */
+type QueryValue =
+	| string
+	| number
+	| boolean
+	| null
+	| undefined
+	| readonly (string | number | null)[];
+
+/** What a route takes: path parameters, query and body, each when the route has them. */
+interface RouteInput {
+	body?: unknown;
+	params?: Record<string, string | number>;
+	query?: Record<string, QueryValue>;
+}
+
 /** The URL of a route: its path with the parameters filled in, and the query that has a value. */
 const routeUrl = (
 	baseUrl: string,
 	path: string,
-	params: Record<string, unknown> | undefined,
-	query: Record<string, unknown> | undefined,
+	params: RouteInput["params"],
+	query: RouteInput["query"],
 ) => {
 	const url = new URL(
 		`${baseUrl}/v1${path.replaceAll(/\{(?<name>\w+)\}/gu, (_, name: string) =>
@@ -229,11 +245,7 @@ export class SoraClient {
 		route: TRoute,
 		...[input, options]: Args<TRoute>
 	): Promise<RequestBody<TRoute>> {
-		const { params, query, body } = (input ?? {}) as {
-			params?: Record<string, unknown>;
-			query?: Record<string, unknown>;
-			body?: unknown;
-		};
+		const { params, query, body } = (input ?? {}) as RouteInput;
 
 		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
 

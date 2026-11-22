@@ -9,7 +9,9 @@ export interface ColumnName {
 }
 
 /** Every column the tables among `modules`' exports define. */
-export const definedColumns = (modules: Record<string, unknown>[]): ColumnName[] =>
+export const definedColumns = <TModule extends Record<string, unknown>>(
+	modules: TModule[],
+): ColumnName[] =>
 	modules.flatMap((module) =>
 		Object.values(module).flatMap((value) => {
 			if (!is(value, PgTable)) {

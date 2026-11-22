@@ -44,12 +44,10 @@ export interface TmdbRequestOptions {
 	store?: boolean;
 }
 
-type Params = Record<string, unknown>;
-
 /** A path template with each `{name}` filled by the type of that path parameter. */
 type Filled<
 	Template extends string,
-	Path extends Params,
+	Path extends Record<string, unknown>,
 > = Template extends `${infer Head}{${infer Name}}${infer Tail}`
 	? `${Head}${Path[Name] extends number ? number : string}${Filled<Tail, Path>}`
 	: Template;
@@ -237,7 +235,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 	): Promise<z.infer<TSchema> | null> => {
 		const url = new URL(`${endpoint}${path}`);
 
-		for (const [name, value] of Object.entries(query as Params).toSorted(([left], [right]) =>
+		for (const [name, value] of Object.entries(query).toSorted(([left], [right]) =>
 			left.localeCompare(right),
 		)) {
 			if (value !== undefined) {

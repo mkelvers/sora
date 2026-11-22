@@ -1,4 +1,5 @@
 import { inSequence } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { consoleLogFactory, Logger } from "graphile-worker";
 import type { Runner } from "graphile-worker";
 
@@ -17,7 +18,7 @@ const logger = new Logger(consoleLogFactory).scope({
  * catalogues read whole, and the release timetable. Full syncs, so a sync cut
  * short by a restart starts over instead of only catching up on changes.
  */
-const firstJobs: [task: string, payload: Record<string, unknown> | null][] = [
+const firstJobs: [task: string, payload: Record<string, Json> | null][] = [
 	[
 		syncSearchIndexTask,
 		{
