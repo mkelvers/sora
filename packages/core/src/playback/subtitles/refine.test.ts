@@ -153,14 +153,16 @@ describe("refineCues", () => {
 		const cues = script(30);
 		const words = speech(cues, 2);
 
-		const reworded = cues.map((cue, line) =>
-			line === 10
-				? {
-						...cue,
-						text: "qqa qqb qqc",
-					}
-				: cue,
-		);
+		const reworded = cues.map((cue, line) => {
+			if (line === 10) {
+				return {
+					...cue,
+					text: "qqa qqb qqc",
+				};
+			}
+
+			return cue;
+		});
 
 		const refinement = refineCues(reworded, words, null);
 
