@@ -92,7 +92,10 @@ export const groupNotifications = (
 				kind = "premiere";
 			}
 
-			if (dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched))) {
+			const settled =
+				dismissed.has(id) || (!first.dubbed && group.some((episode) => episode.watched));
+
+			if (settled) {
 				return [];
 			}
 
