@@ -317,9 +317,11 @@ const notificationMessage = (
 			return "The English dub is now available. You can choose the dubbed version when you start the film.";
 		}
 
-		return count === 1
-			? `The English dub of episode ${last}${episodeTitle} is now available. You can switch to English audio in the player for this episode.`
-			: `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
+		if (count === 1) {
+			return `The English dub of episode ${last}${episodeTitle} is now available. You can switch to English audio in the player for this episode.`;
+		}
+
+		return `English dubs are now available for episodes ${range}. You can choose English audio in the player for all ${count} episodes.`;
 	}
 
 	if (group.kind === "premiere") {
