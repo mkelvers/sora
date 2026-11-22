@@ -113,7 +113,9 @@ const unresolvedEmail = (email: string) => {
 export const limitPasswordSignIn = createAuthMiddleware(async (endpoint) => {
 	const byUsername = endpoint.path === "/sign-in/username";
 
-	if (!endpoint.request || (!byUsername && endpoint.path !== "/sign-in/email")) {
+	const signIn = byUsername || endpoint.path === "/sign-in/email";
+
+	if (!endpoint.request || !signIn) {
 		return;
 	}
 
