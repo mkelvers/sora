@@ -91,7 +91,13 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 	return {
 		hasNextPage: Page?.pageInfo?.hasNextPage === true,
 		isPreparing: false,
-		items: (Page?.media ?? []).flatMap((media) => (media ? [toAnimeCard(media)] : [])),
+		items: (Page?.media ?? []).flatMap((media) => {
+			if (media) {
+				return [toAnimeCard(media)];
+			}
+
+			return [];
+		}),
 		page: input.page,
 		perPage: input.perPage,
 	};
