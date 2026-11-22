@@ -217,7 +217,11 @@ export const getAniKotoEpisodeCount = async (anilistId: number): Promise<number 
 		.flatMap((entry) => entry.units.map((unit) => unit.number))
 		.filter((number) => Number.isInteger(number) && number > 0);
 
-	return numbers.length > 0 ? Math.max(...numbers) : null;
+	if (numbers.length > 0) {
+		return Math.max(...numbers);
+	}
+
+	return null;
 };
 
 /**
