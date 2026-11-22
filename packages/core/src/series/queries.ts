@@ -398,7 +398,9 @@ export const franchiseIds = async (
 			const acrossSpinOff = spinOffs.has(`${edge.from}>${edge.to}`);
 
 			for (const id of [edge.from, edge.to]) {
-				if (!reached.has(id) && (continues || around < franchiseLimit)) {
+				const reachable = !reached.has(id) && (continues || around < franchiseLimit);
+
+				if (reachable) {
 					reached.add(id);
 
 					if (!continues) {
