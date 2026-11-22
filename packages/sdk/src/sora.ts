@@ -1,4 +1,4 @@
-import type { z } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 import { attempt } from "@sora/shared";
 
 import { SoraError } from "./error";
@@ -305,11 +305,16 @@ export class SoraClient {
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
 		const response = await this.#auth("sign-in/username", credentials, options);
 
-		// SAFETY: Better Auth's sign-in answer; it is outside the API contract.
-		const signedIn = (await response.json()) as {
-			token: string;
-			user: Session["account"];
-		};
+		const signedIn = z
+			.object({
+				token: z.string(),
+				user: z.object({
+					id: z.string(),
+					name: z.string(),
+					username: z.string(),
+				}),
+			})
+			.parse(await response.json());
 
 		return {
 			account: {
