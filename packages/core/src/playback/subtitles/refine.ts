@@ -457,7 +457,9 @@ const candidatesFor = (
 		}
 	}
 
-	return found.toSorted((a, b) => b.score - a.score).slice(0, 8);
+	const candidatesPerCue = 8;
+
+	return found.toSorted((a, b) => b.score - a.score).slice(0, candidatesPerCue);
 };
 
 /** The offset from the sub's timeline to the dub's at each cue, from `shifts`. */
