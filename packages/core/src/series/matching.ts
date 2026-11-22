@@ -1168,7 +1168,11 @@ const runFrom = (context: RunContext, index: number, isContinuation: boolean) =>
 		isRegular &&
 		!runtimesAgree(medianRuntime(picked), subject.durationMinutes, regularRuntimeTolerance);
 
-	if (!first || !last || isWrongLength) {
+	if (!first || !last) {
+		return null;
+	}
+
+	if (isWrongLength) {
 		return null;
 	}
 
