@@ -192,7 +192,11 @@ export const subtitleLanguage = (label: string) => {
 	const language = labelToBcp47(regional[1]);
 	const region = regionSubtags.get(regional[2].trim().toLowerCase());
 
-	return region ? `${language}-${region}` : language;
+	if (region) {
+		return `${language}-${region}`;
+	}
+
+	return language;
 };
 
 /**
