@@ -32,8 +32,13 @@
 
 	const rating = $derived(Math.round((series.score ?? 0) / 2) / 10);
 
-	const seasonNumber = (part: FranchisePart) =>
-		NUMBERED_SEASON.test(part.title) ? ` ${part.title.replace(NUMBERED_SEASON, "S")}` : "";
+	const seasonNumber = (part: FranchisePart) => {
+		if (NUMBERED_SEASON.test(part.title)) {
+			return ` ${part.title.replace(NUMBERED_SEASON, "S")}`;
+		}
+
+		return "";
+	};
 
 	const laterLabel = (part: FranchisePart, started: number | undefined) => {
 		const movie = part.format === "MOVIE";
