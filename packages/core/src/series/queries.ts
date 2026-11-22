@@ -669,14 +669,16 @@ const overdueEpisode = async (
 				? expectedRelease(episode.airedAt, scheduledAt.get(episode.number) ?? null, now)
 				: null;
 
-			return expected
-				? [
-						{
-							expected,
-							number: episode.number,
-						},
-					]
-				: [];
+			if (expected) {
+				return [
+					{
+						expected,
+						number: episode.number,
+					},
+				];
+			}
+
+			return [];
 		})
 		.toSorted((left, right) => left.expected.getTime() - right.expected.getTime());
 
