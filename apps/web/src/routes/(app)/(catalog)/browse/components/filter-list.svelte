@@ -16,8 +16,6 @@
 		onchange: (next: BrowseFilters) => void;
 	} = $props();
 
-	const popularTags = 30;
-
 	let allTags = $state(false);
 
 	const groups = $derived(
@@ -33,7 +31,7 @@
 			tags
 				.filter((tag) => tag.group === "demographic" || tag.group === "theme")
 				.toSorted((left, right) => right.titles - left.titles)
-				.slice(0, popularTags)
+				.slice(0, 30)
 				.map((tag) => tag.name),
 		),
 	);
