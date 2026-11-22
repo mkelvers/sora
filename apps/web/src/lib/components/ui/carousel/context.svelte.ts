@@ -105,7 +105,13 @@ export class CarouselState {
 				resume();
 			};
 
-			const visibility = () => (document.hidden ? pause() : resume());
+			const visibility = () => {
+				if (document.hidden) {
+					return pause();
+				}
+
+				return resume();
+			};
 
 			const root = api.rootNode().closest("section");
 
