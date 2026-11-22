@@ -437,11 +437,12 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		const remaining = Number(response.headers.get("x-ratelimit-remaining"));
 
-		if (
+		const reported =
 			response.headers.has("x-ratelimit-remaining") &&
 			Number.isInteger(remaining) &&
-			remaining >= 0
-		) {
+			remaining >= 0;
+
+		if (reported) {
 			budget = followBudget(budget, remaining, Date.now());
 		}
 	};
