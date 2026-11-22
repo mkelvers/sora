@@ -382,11 +382,11 @@ const specialsOf = (seasons: readonly FranchiseTitle[], links: readonly SequelLi
 	const seasonOf = new Map<number, FranchiseTitle>();
 
 	for (const title of seasons) {
-		if (
-			title.format === null ||
-			!specialFormats.has(title.format) ||
-			title.episodeCount > specialEpisodeLimit
-		) {
+		if (title.format === null || !specialFormats.has(title.format)) {
+			continue;
+		}
+
+		if (title.episodeCount > specialEpisodeLimit) {
 			continue;
 		}
 
