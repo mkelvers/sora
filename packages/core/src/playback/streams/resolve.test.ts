@@ -187,7 +187,13 @@ const dependencies: PlaybackDependencies = {
 	getSkipDetections: (keys) =>
 		Promise.resolve(
 			new Map(
-				keys.flatMap((key) => (detections.has(key) ? [[key, defined(detections.get(key))]] : [])),
+				keys.flatMap((key) => {
+					if (detections.has(key)) {
+						return [[key, defined(detections.get(key))]];
+					}
+
+					return [];
+				}),
 			),
 		),
 	locateEpisode: (seriesId) =>
