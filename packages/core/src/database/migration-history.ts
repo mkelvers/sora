@@ -73,6 +73,10 @@ export const skippedMigrations = (
 			return [];
 		}
 
-		return applied === hash ? [] : [`${tag} was applied as a different version of its file`];
+		if (applied === hash) {
+			return [];
+		}
+
+		return [`${tag} was applied as a different version of its file`];
 	});
 };
