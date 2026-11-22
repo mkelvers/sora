@@ -823,11 +823,12 @@ const placeByTitle = (
 	const track = regular.filter((episode) => episode.season_number === firstSeason);
 	const offset = dayOffset(subject.startDate, track[0]?.air_date ?? null);
 
-	if (
+	const followsPrequel =
 		candidate.prequel &&
 		indexOfRef(track, candidate.prequel.last) !== -1 &&
-		!airsLate(regular, candidate.prequel.first, dayNumber(subject.startDate))
-	) {
+		!airsLate(regular, candidate.prequel.first, dayNumber(subject.startDate));
+
+	if (followsPrequel) {
 		return null;
 	}
 
