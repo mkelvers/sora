@@ -39,7 +39,7 @@ if (!input.success || rest.length > 0) {
 	process.exit(1);
 }
 
-if (!isPasswordFromStdin && (!process.stdin.isTTY || !process.stdout.isTTY)) {
+if (!isPasswordFromStdin && ![process.stdin, process.stdout].every((stream) => stream.isTTY)) {
 	console.error(
 		`Run this command in an interactive terminal to enter a hidden password, or pass ${passwordStdinFlag}.`,
 	);
