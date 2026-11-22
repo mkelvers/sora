@@ -66,7 +66,11 @@ const readPasswordFromStdin = async () => {
 	const first = await reader[Symbol.asyncIterator]().next();
 	reader.close();
 
-	return first.done === true ? null : first.value;
+	if (first.done === true) {
+		return null;
+	}
+
+	return first.value;
 };
 
 /** Asks for the password in the terminal without echoing it, or `null` when cancelled. */
