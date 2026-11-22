@@ -108,7 +108,10 @@ export const classifySubtitle = (content: string): SubtitleKind | null => {
 		return "captions";
 	}
 
-	if (stats.soundShare === 0 && stats.cues <= signsMaximumCues && rate <= signsMaximumRate) {
+	const silent =
+		stats.soundShare === 0 && stats.cues <= signsMaximumCues && rate <= signsMaximumRate;
+
+	if (silent) {
 		return "signs";
 	}
 
