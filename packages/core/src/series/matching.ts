@@ -875,13 +875,14 @@ const placeRunWithinBroadcast = (
 	const start = dayNumber(subject.startDate);
 	const end = dayNumber(subject.endDate);
 
-	if (
+	const unmatchable =
 		!isSeriesFormat(subject.format) ||
 		subject.episodes === null ||
 		start === null ||
 		end === null ||
-		nameSimilarity < 0.9
-	) {
+		nameSimilarity < 0.9;
+
+	if (unmatchable) {
 		return null;
 	}
 
