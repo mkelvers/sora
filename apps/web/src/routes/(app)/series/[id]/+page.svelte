@@ -51,9 +51,11 @@
 			return "Movie";
 		}
 
-		return current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")
-			? "Season"
-			: "Title";
+		if (current?.role === "season" && ["TV", "TV_SHORT", "ONA"].includes(series.format ?? "")) {
+			return "Season";
+		}
+
+		return "Title";
 	});
 
 	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
