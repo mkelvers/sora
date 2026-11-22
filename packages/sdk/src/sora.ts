@@ -141,21 +141,26 @@ export interface SoraClientOptions {
 	headers?: Record<string, string>;
 }
 
-/** A query value: a list is comma-separated, and a null in one is how the API spells "none". */
-type QueryValue =
-	| string
-	| number
-	| boolean
-	| null
-	| undefined
-	| readonly (string | number | null)[];
+/** The URL parameters, query values, and JSON body accepted by the transport. */
+const InputSchema = z.object({
+	body: z.unknown().optional(),
+	params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+	query: z
+		.record(
+			z.string(),
+			z.union([
+				z.string(),
+				z.number(),
+				z.boolean(),
+				z.null(),
+				z.undefined(),
+				z.array(z.union([z.string(), z.number(), z.null()])),
+			]),
+		)
+		.optional(),
+});
 
-/** What a route takes: path parameters, query and body, each when the route has them. */
-interface RouteInput {
-	body?: unknown;
-	params?: Record<string, string | number>;
-	query?: Record<string, QueryValue>;
-}
+type RouteInput = z.output<typeof InputSchema>;
 
 /** The URL of a route: its path with the parameters filled in, and the query that has a value. */
 const routeUrl = (
@@ -247,8 +252,7 @@ export class SoraClient {
 		route: TRoute,
 		...[input, options]: Args<TRoute>
 	): Promise<RequestBody<TRoute>> {
-		// SAFETY: every route's input is a RouteInput; Args<TRoute> narrows it per route.
-		const { params, query, body } = (input ?? {}) as RouteInput;
+		const { params, query, body } = InputSchema.parse(input ?? {});
 
 		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
 
