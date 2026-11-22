@@ -30,7 +30,11 @@ describe("inSequence", () => {
 		const run = inSequence([1, 2, 3], (item) => {
 			seen.push(item);
 
-			return item === 2 ? Promise.reject(new RangeError("two")) : Promise.resolve(item);
+			if (item === 2) {
+				return Promise.reject(new RangeError("two"));
+			}
+
+			return Promise.resolve(item);
 		});
 
 		await expect(run).rejects.toThrow("two");
