@@ -809,7 +809,11 @@ const placeCompiledShorts = (subject: MatchSubject, candidate: ShowCandidate): P
 const yearOf = (date: string | null) => {
 	const match = date ? /^(?<year>\d{4})/u.exec(date) : null;
 
-	return match ? Number(match[1]) : null;
+	if (match) {
+		return Number(match[1]);
+	}
+
+	return null;
 };
 
 /** Whether the entry's primary titles and the show's names agree, numbers included. */
