@@ -79,8 +79,13 @@ export const isInLocale = (tag: string, locale: string) =>
 const groupOf = (tag: string) => renditionGroupPattern.exec(tag)?.groups?.group ?? "";
 
 /** `tag` with the attribute `pattern` matches set to `value`, added when missing. */
-const withAttribute = (tag: string, pattern: RegExp, name: string, value: string) =>
-	pattern.test(tag) ? tag.replace(pattern, `$<lead>${name}=${value}`) : `${tag},${name}=${value}`;
+const withAttribute = (tag: string, pattern: RegExp, name: string, value: string) => {
+	if (pattern.test(tag)) {
+		return tag.replace(pattern, `$<lead>${name}=${value}`);
+	}
+
+	return `${tag},${name}=${value}`;
+};
 
 /**
  * The `LANGUAGE` of each audio rendition a master playlist lists, in order.
