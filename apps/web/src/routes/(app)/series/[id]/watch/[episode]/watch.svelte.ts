@@ -27,7 +27,7 @@ const preferences = new Preferences("player");
 const forwardBufferSeconds = 120;
 
 const megabyte = 1000 * 1000;
-const bufferMegabytesPerGigabyte = 25;
+
 const maximumBufferMegabytes = 200;
 const firstByteTimeoutMs = 30_000;
 const startBandwidthBitsPerSecond = 10_000_000;
@@ -338,8 +338,7 @@ export class Player {
 					},
 				},
 				maxBufferLength: forwardBufferSeconds,
-				maxBufferSize:
-					Math.min(memory * bufferMegabytesPerGigabyte, maximumBufferMegabytes) * megabyte,
+				maxBufferSize: Math.min(memory * 25, maximumBufferMegabytes) * megabyte,
 				maxMaxBufferLength: forwardBufferSeconds,
 				startPosition: start,
 			});
