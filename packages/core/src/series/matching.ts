@@ -563,7 +563,11 @@ const medianRuntime = (episodes: readonly TmdbEpisode[]) => {
 
 const startScore = (offset: number | null, isContinuation: boolean) => {
 	if (offset === null) {
-		return isContinuation ? 60 : 0;
+		if (isContinuation) {
+			return 60;
+		}
+
+		return 0;
 	}
 
 	const distance = Math.abs(offset);
