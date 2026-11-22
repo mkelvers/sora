@@ -24,8 +24,12 @@ const { text_embeds: embeds } = await text(
 );
 
 const [, width = 0] = embeds.dims;
-// SAFETY: the text model returns float32 embeddings.
-const values = [...(embeds.data as Float32Array)];
+
+if (!(embeds.data instanceof Float32Array)) {
+	throw new TypeError("The text model did not return float32 embeddings");
+}
+
+const values = [...embeds.data];
 
 const embeddings = prompts.map((_prompt, index) =>
 	unitLength(values.slice(index * width, (index + 1) * width)).map((value) =>
