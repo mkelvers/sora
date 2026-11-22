@@ -160,7 +160,11 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 export const parseCatalogSeries = (item: Json): typeof anikotoSeries.$inferInsert | null => {
 	const parsed = CatalogSeriesSchema.safeParse(item);
 
-	return parsed.success ? toRow(parsed.data) : null;
+	if (parsed.success) {
+		return toRow(parsed.data);
+	}
+
+	return null;
 };
 
 /** The ID AniKoto's mappings are stored under in `provider_mapping`. */
