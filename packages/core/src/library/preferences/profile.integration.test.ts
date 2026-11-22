@@ -48,12 +48,12 @@ describe("profile preferences", () => {
 		expect(await getProfilePreferences(profile)).toEqual(changed);
 	});
 
-	test("rejects an update that is not valid", async () => {
+	test("rejects invalid input in both the type contract and runtime schema", async () => {
 		await expect(
-			// SAFETY: an input the types reject on purpose.
 			updateProfilePreferences(profile, {
+				// @ts-expect-error the type contract must reject this non-boolean input
 				hide_spoilers: "yes",
-			} as never),
+			}),
 		).rejects.toBeInstanceOf(InvalidInputError);
 	});
 });
