@@ -65,9 +65,13 @@ const roleOf = (
 	}
 
 	// How the main story lists the title, and how the title lists the main story.
-	const listed = relations.flatMap(({ from, to, type }) =>
-		to === title.anilistId && main.has(from) ? [type] : [],
-	);
+	const listed = relations.flatMap(({ from, to, type }) => {
+		if (to === title.anilistId && main.has(from)) {
+			return [type];
+		}
+
+		return [];
+	});
 
 	const lists = relations.flatMap(({ from, to, type }) =>
 		from === title.anilistId && main.has(to) ? [type === "PARENT" ? "SIDE_STORY" : type] : [],
