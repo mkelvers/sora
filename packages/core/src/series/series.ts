@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 import type { MediaRelation } from "../anilist/graphql.generated";
 import { toAnimeCard } from "../catalog/models/anime";
@@ -88,13 +89,11 @@ export interface SeriesLayout {
 	mayGainEpisodes: boolean;
 }
 
-/** A series key's kind and TMDB (or AniList) ID. */
-export const parseKey = (key: SeriesKey) => {
-	// SAFETY: a SeriesKey is `kind:id`.
-	const [kind, id] = key.split(":") as ["tv" | "movie" | "anilist", string];
-
-	return [kind, Number(id)] as const;
-};
+/** Parses a persisted series key, rejecting unknown kinds and invalid IDs. */
+export const parseKey = (key: string) =>
+	z
+		.tuple([z.enum(["tv", "movie", "anilist"]), z.coerce.number().int().positive()])
+		.parse(key.split(":"));
 
 /**
  * How many episodes a series lists: AniKoto's playable count, else AniList's

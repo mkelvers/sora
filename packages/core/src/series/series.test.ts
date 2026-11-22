@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { layoutEpisodes } from "./series";
+import { layoutEpisodes, parseKey } from "./series";
 
 const finished = {
 	durationMinutes: 24,
@@ -169,4 +169,14 @@ describe("layoutEpisodes", () => {
 			title: null,
 		});
 	});
+});
+
+test("parses stored series keys and rejects malformed kinds and identifiers", () => {
+	expect(parseKey("tv:123")).toEqual(["tv", 123]);
+	expect(parseKey("movie:456")).toEqual(["movie", 456]);
+	expect(parseKey("anilist:789")).toEqual(["anilist", 789]);
+
+	for (const key of ["other:123", "tv", "tv:", "tv:0", "tv:-1", "tv:1.5", "tv:abc", "tv:1:2"]) {
+		expect(() => parseKey(key)).toThrow();
+	}
 });
