@@ -9,38 +9,12 @@ import { readSubtitle } from "../proxy/proxy";
 import { mirrorsFor } from "../proxy/upstream";
 import { resolveStreams, timelineShifts } from "../streams/resolve";
 import { subtitleKinds } from "../streams/subtitle-kinds";
-import { extractAudio, SubtitleRefinementError } from "./audio";
+import { extract, SubtitleRefinementError } from "./audio";
 import { refineCues } from "./refine";
 import type { Refinement } from "./refine";
 import { transcribe } from "./speech";
 import { refinementKey } from "./store";
 import { readCues } from "./vtt";
-
-/** The cues of the sub's English dialogue track, or none when it has no such track. */
-const englishDialogue = async (
-	videos: NonNullable<Awaited<ReturnType<typeof resolveStreams>>["sub"]>,
-) => {
-	const kinds = await subtitleKinds(videos);
-
-	const tracks = videos
-		.flatMap((video) =>
-			video.subtitles
-				.filter((track) => isServedSubtitle(track) && track.format === "vtt")
-				.map((track) => ({
-					track,
-					video,
-				})),
-		)
-		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
-
-	const cues = await firstInSequence(tracks, async ({ track, video }) => {
-		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
-
-		return content ? readCues(content) : undefined;
-	});
-
-	return cues ?? [];
-};
 
 /**
  * Listens to an episode's dub and finds when each line of the sub's English
@@ -77,7 +51,31 @@ export const listenToDub = async (
 		throw new SubtitleRefinementError("The streams changed since the request");
 	}
 
-	const cues = await englishDialogue(sub);
+	const kinds = await subtitleKinds(sub);
+
+	const tracks = sub
+		.flatMap((video) =>
+			video.subtitles
+				.filter((track) => isServedSubtitle(track) && track.format === "vtt")
+				.map((track) => ({
+					track,
+					video,
+				})),
+		)
+		.filter(({ track }) => (kinds.get(track.url) ?? "dialogue") === "dialogue");
+
+	/** The cues of the sub's English dialogue track, or none when it has no such track. */
+	const dialogue = await firstInSequence(tracks, async ({ track, video }) => {
+		const content = await readSubtitle(track.url, video.headers, mirrorsFor(track.url, video.url));
+
+		if (!content) {
+			return;
+		}
+
+		return readCues(content);
+	});
+
+	const cues = dialogue ?? [];
 
 	if (cues.length < minimumCues) {
 		return null;
@@ -88,7 +86,7 @@ export const listenToDub = async (
 
 	try {
 		const audio = path.join(directory, "audio.wav");
-		await extractAudio(dubVideo.url, dubVideo.headers, audio);
+		await extract(dubVideo.url, dubVideo.headers, audio);
 
 		return refineCues(cues, await transcribe(audio), picture);
 	} finally {
