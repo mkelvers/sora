@@ -178,8 +178,11 @@ export const themeSongsFor = async (anime: Anime, episode: number) => {
 	const sequel =
 		sequels.find(({ anime: next }) => next.format === "TV" || next.format === "ONA") ?? sequels[0];
 
-	if (anime.episodes && episode > anime.episodes && sequel) {
-		return songsForEpisode(await fetchThemeSongs(sequel.anime.id), episode - anime.episodes);
+	// An unknown episode count never ends the season early.
+	const lastEpisode = anime.episodes || Number.POSITIVE_INFINITY;
+
+	if (sequel && episode > lastEpisode) {
+		return songsForEpisode(await fetchThemeSongs(sequel.anime.id), episode - lastEpisode);
 	}
 
 	return songsForEpisode(await fetchThemeSongs(anime.id), episode);
