@@ -336,7 +336,11 @@ const airsLate = (track: readonly TmdbEpisode[], first: TmdbEpisodeRef, start: n
 const indexAfter = (track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) => {
 	const index = indexOfRef(track, ref);
 
-	return index === -1 ? null : index + 1;
+	if (index === -1) {
+		return null;
+	}
+
+	return index + 1;
 };
 
 /** Whether both days are known and at most `days` apart. */
