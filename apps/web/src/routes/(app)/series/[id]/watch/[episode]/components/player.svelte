@@ -305,7 +305,9 @@
 	});
 
 	$effect(() => {
-		if (!preferences.auto_skip || !segment || skipped.has(segment.start)) {
+		const stay = !preferences.auto_skip || !segment || skipped.has(segment.start);
+
+		if (stay) {
 			return;
 		}
 
