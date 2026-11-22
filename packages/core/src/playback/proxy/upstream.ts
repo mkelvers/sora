@@ -278,7 +278,9 @@ const fetchFollowingRedirects = async (
 
 	const location = data.headers.get("Location");
 
-	if (data.status >= 300 && data.status < 400 && location) {
+	const redirected = data.status >= 300 && data.status < 400 && location;
+
+	if (redirected) {
 		// Each hop is re-checked, so a redirect cannot reach a private address.
 		return await fetchFollowingRedirects(
 			new URL(location, url).toString(),
