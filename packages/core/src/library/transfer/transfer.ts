@@ -23,7 +23,7 @@ import { scheduleSeriesStore } from "../../scheduler/queue";
 import { episodeReleasedAt } from "../../series/episodes";
 import { storedSeriesIds } from "../../series/store";
 import { readAniListAccount, readMyAnimeListAccount } from "./oauth";
-import { fromMyAnimeList, parseMyAnimeListExport, readAniListUser } from "./sources";
+import { fromMal, parseMyAnimeListExport, readAniListUser } from "./sources";
 import type { ListEntry, MalEntry } from "./sources";
 
 /** Rows written by one statement, so none outgrows the database's parameter limit. */
@@ -300,7 +300,7 @@ const applyAdditions = async (
  */
 const notAfter = (date: Date | null, now: Date) => (date && date < now ? date : now);
 
-const fromList = (entries: readonly ListEntry[], now: Date): Addition[] =>
+const toAdditions = (entries: readonly ListEntry[], now: Date): Addition[] =>
 	entries.map((entry) => ({
 		addedAt: notAfter(entry.addedAt, now),
 		anilistId: entry.anilistId,
@@ -351,13 +351,13 @@ const fromFile = (file: LibraryExport): Addition[] => {
 };
 
 /** Adds MyAnimeList titles, and reports those Sora has no AniList entry for. */
-const applyMyAnimeList = async (
+const applyMal = async (
 	userId: string,
 	entries: readonly MalEntry[],
 	now: Date,
 ): Promise<LibraryImportReport> => {
-	const { matched, unmatched } = await fromMyAnimeList(entries);
-	const report = await applyAdditions(userId, fromList(matched, now), now);
+	const { matched, unmatched } = await fromMal(entries);
+	const report = await applyAdditions(userId, toAdditions(matched, now), now);
 
 	return {
 		...report,
@@ -424,24 +424,28 @@ export const importLibrary = async (
 	}
 
 	if (data.source === "anilist") {
-		return await applyAdditions(userId, fromList(await readAniListUser(data.username), now), now);
+		return await applyAdditions(
+			userId,
+			toAdditions(await readAniListUser(data.username), now),
+			now,
+		);
 	}
 
 	if (data.source === "anilist_account") {
 		const { account, entries } = await readAniListAccount(data.authorization);
 		await rememberConnection(userId, data.source, account);
 
-		return await applyAdditions(userId, fromList(entries, now), now);
+		return await applyAdditions(userId, toAdditions(entries, now), now);
 	}
 
 	if (data.source === "myanimelist_account") {
 		const { account, entries } = await readMyAnimeListAccount(data.authorization);
 		await rememberConnection(userId, data.source, account);
 
-		return await applyMyAnimeList(userId, entries, now);
+		return await applyMal(userId, entries, now);
 	}
 
-	return await applyMyAnimeList(userId, parseMyAnimeListExport(data.xml), now);
+	return await applyMal(userId, parseMyAnimeListExport(data.xml), now);
 };
 
 /** The accounts a profile connected to import from. */

@@ -261,7 +261,7 @@ export const parseMyAnimeListExport = (xml: string): MalEntry[] => {
  * with each title Sora already holds. `unmatched` are the titles Sora holds
  * no MyAnimeList ID for, which it cannot import until it has them.
  */
-export const fromMyAnimeList = async (
+export const fromMal = async (
 	entries: readonly MalEntry[],
 ): Promise<{
 	matched: ListEntry[];

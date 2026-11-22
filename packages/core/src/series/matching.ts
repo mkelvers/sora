@@ -320,7 +320,7 @@ const indexOfRef = (track: readonly TmdbEpisode[], ref: TmdbEpisodeRef) =>
  * Yuna is a Hero's Washio Sumi chapter, can air a season after the entry it
  * precedes; it then occupies nothing before that entry.
  */
-const airsLater = (track: readonly TmdbEpisode[], first: TmdbEpisodeRef, start: number | null) => {
+const airsLate = (track: readonly TmdbEpisode[], first: TmdbEpisodeRef, start: number | null) => {
 	const airDay = dayNumber(track[indexOfRef(track, first)]?.air_date ?? null);
 
 	return airDay !== null && start !== null && airDay - start > startWindowDays;
@@ -617,9 +617,9 @@ const leadingEpisode = (
 	subject: MatchSubject,
 	startOffset: number | null,
 ): { special: TmdbEpisode | null } | null => {
-	const startsLater = startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays;
+	const startsLate = startOffset !== null && startOffset >= 5 && startOffset <= startWindowDays;
 
-	if (!startsLater) {
+	if (!startsLate) {
 		return null;
 	}
 
@@ -818,7 +818,7 @@ const placeByTitle = (
 	if (
 		candidate.prequel &&
 		indexOfRef(track, candidate.prequel.last) !== -1 &&
-		!airsLater(regular, candidate.prequel.first, dayNumber(subject.startDate))
+		!airsLate(regular, candidate.prequel.first, dayNumber(subject.startDate))
 	) {
 		return null;
 	}
@@ -955,7 +955,7 @@ const placeDelayedStreamingRun = (
 
 	const delay = firstDay - start;
 
-	if (delay <= startWindowDays || delay > 120 || airsLater(track, candidate.prequel.first, start)) {
+	if (delay <= startWindowDays || delay > 120 || airsLate(track, candidate.prequel.first, start)) {
 		return null;
 	}
 
@@ -1252,7 +1252,7 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 		const isRegular = track[0] !== undefined && track[0].season_number > 0;
 
 		const continuation =
-			isRegular && candidate.prequel && !airsLater(track, candidate.prequel.first, start)
+			isRegular && candidate.prequel && !airsLate(track, candidate.prequel.first, start)
 				? indexAfter(track, candidate.prequel.last)
 				: null;
 

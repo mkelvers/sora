@@ -39,7 +39,7 @@ interface ListedEpisode {
  * @returns Each listed episode's languages and filler flag, by number.
  * @throws {Error} when the list cannot be read or lists no episodes.
  */
-const fetchAniKotoEpisodeList = async (
+const fetchEpisodes = async (
 	http: HttpClient,
 	mediaId: string,
 ): Promise<Map<number, ListedEpisode>> => {
@@ -130,7 +130,7 @@ export class AniKotoStreamProvider implements StreamProvider {
 	async listEpisodes(mediaId: string): Promise<ProviderEpisode[]> {
 		const [units, { data, error }] = await Promise.all([
 			this.sdk.fetchContentUnits(`${this.id}:${mediaId}`),
-			attempt(fetchAniKotoEpisodeList(this.http, mediaId)),
+			attempt(fetchEpisodes(this.http, mediaId)),
 		]);
 
 		if (error) {

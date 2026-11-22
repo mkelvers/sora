@@ -110,21 +110,21 @@ const unresolvedEmail = (email: string) => {
  * buckets, new keys wait for a window to expire. A fleet-wide budget needs
  * shared atomic counters and expiry.
  */
-export const limitPasswordSignIn = createAuthMiddleware(async (ctx) => {
-	const byUsername = ctx.path === "/sign-in/username";
+export const limitPasswordSignIn = createAuthMiddleware(async (endpoint) => {
+	const byUsername = endpoint.path === "/sign-in/username";
 
-	if (!ctx.request || (!byUsername && ctx.path !== "/sign-in/email")) {
+	if (!endpoint.request || (!byUsername && endpoint.path !== "/sign-in/email")) {
 		return;
 	}
 
-	const address = getIP(ctx.request, ctx.context.options) ?? "unknown";
+	const address = getIP(endpoint.request, endpoint.context.options) ?? "unknown";
 	countAttempt(`address:${address}`, 5);
 
-	const parsed = (byUsername ? UsernameBody : EmailBody).safeParse(ctx.body);
+	const parsed = (byUsername ? UsernameBody : EmailBody).safeParse(endpoint.body);
 
 	if (
 		!parsed.success ||
-		parsed.data.password.length > ctx.context.password.config.maxPasswordLength
+		parsed.data.password.length > endpoint.context.password.config.maxPasswordLength
 	) {
 		return;
 	}

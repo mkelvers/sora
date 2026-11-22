@@ -16,13 +16,13 @@ type AccountSource = "anilist_account" | "myanimelist_account";
 
 const requestTimeoutMs = 15_000;
 
-const aniList = {
+const anilist = {
 	api: "https://graphql.anilist.co",
 	authorize: "https://anilist.co/api/v2/oauth/authorize",
 	token: "https://anilist.co/api/v2/oauth/token",
 };
 
-const myAnimeList = {
+const mal = {
 	authorize: "https://myanimelist.net/v1/oauth2/authorize",
 	list: "https://api.myanimelist.net/v2/users/@me/animelist?fields=list_status&limit=1000&nsfw=true",
 	token: "https://myanimelist.net/v1/oauth2/token",
@@ -69,7 +69,7 @@ export const authorizationUrl = (
 			throw notSetUp();
 		}
 
-		const url = new URL(aniList.authorize);
+		const url = new URL(anilist.authorize);
 		url.searchParams.set("client_id", clients.aniListOAuth.clientId);
 		url.searchParams.set("redirect_uri", options.redirectUri);
 		url.searchParams.set("response_type", "code");
@@ -82,7 +82,7 @@ export const authorizationUrl = (
 		throw notSetUp();
 	}
 
-	const url = new URL(myAnimeList.authorize);
+	const url = new URL(mal.authorize);
 	url.searchParams.set("response_type", "code");
 	url.searchParams.set("client_id", clients.myAnimeListOAuth.clientId);
 	url.searchParams.set("redirect_uri", options.redirectUri);
@@ -94,7 +94,7 @@ export const authorizationUrl = (
 };
 
 /** A connected account's list, and the name it goes by on the site. */
-export interface AccountList<Entry> {
+export interface AccountEntries<Entry> {
 	account: string;
 	entries: Entry[];
 }
@@ -168,13 +168,13 @@ export const readAniListAccount = async (
 	authorization: Authorization,
 	fetcher: Fetcher = fetch,
 	clients: Clients = config,
-): Promise<AccountList<ListEntry>> => {
+): Promise<AccountEntries<ListEntry>> => {
 	if (!clients.aniListOAuth) {
 		throw notSetUp();
 	}
 
 	const token = await accessToken(
-		await send(fetcher, aniList.token, {
+		await send(fetcher, anilist.token, {
 			body: JSON.stringify({
 				client_id: clients.aniListOAuth.clientId,
 				client_secret: clients.aniListOAuth.clientSecret,
@@ -194,7 +194,7 @@ export const readAniListAccount = async (
 		document: TypedDocumentString<TResult, TVariables>,
 		variables: TVariables,
 	) => {
-		const response = await send(fetcher, aniList.api, {
+		const response = await send(fetcher, anilist.api, {
 			body: JSON.stringify({
 				query: document.toString(),
 				variables,
@@ -264,7 +264,7 @@ const MalPageSchema = z.object({
 
 /**
  * A MyAnimeList user's whole anime list with their permission. The
- * titles come with MyAnimeList IDs; see `fromMyAnimeList` for Sora's.
+ * titles come with MyAnimeList IDs; see `fromMal` for Sora's.
  *
  * @throws {InvalidInputError} when the code is expired or refused, or the account is not set up.
  * @throws {UpstreamUnavailableError} when MyAnimeList cannot be reached.
@@ -273,7 +273,7 @@ export const readMyAnimeListAccount = async (
 	authorization: Authorization,
 	fetcher: Fetcher = fetch,
 	clients: Clients = config,
-): Promise<AccountList<MalEntry>> => {
+): Promise<AccountEntries<MalEntry>> => {
 	if (!clients.myAnimeListOAuth) {
 		throw notSetUp();
 	}
@@ -291,7 +291,7 @@ export const readMyAnimeListAccount = async (
 	}
 
 	const token = await accessToken(
-		await send(fetcher, myAnimeList.token, {
+		await send(fetcher, mal.token, {
 			body,
 			headers: {
 				Accept: "application/json",
@@ -306,7 +306,7 @@ export const readMyAnimeListAccount = async (
 		Authorization: `Bearer ${token}`,
 	};
 
-	const me = await send(fetcher, myAnimeList.user, {
+	const me = await send(fetcher, mal.user, {
 		headers,
 	});
 
@@ -386,7 +386,7 @@ export const readMyAnimeListAccount = async (
 		}
 	};
 
-	await readPage(myAnimeList.list, 0);
+	await readPage(mal.list, 0);
 
 	return {
 		account: user.data.name,

@@ -68,10 +68,10 @@ export const getNowWatching = async (profileId: string): Promise<string[]> => {
 		getContinueWatching(profileId),
 	]);
 
-	const onList = new Set(continueWatching.map((entry) => entry.series.id));
+	const watching = new Set(continueWatching.map((entry) => entry.series.id));
 
 	return rows
-		.filter((row) => onList.has(row.id))
+		.filter((row) => watching.has(row.id))
 		.slice(0, 3)
 		.map((row) => row.title);
 };

@@ -206,7 +206,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 	};
 };
 
-const genreList = (genres: readonly string[]) =>
+const genreArray = (genres: readonly string[]) =>
 	sql`array[${sql.join(
 		genres.map((genre) => sql`${genre}`),
 		sql`, `,
@@ -229,7 +229,7 @@ interface Filter {
  */
 const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 	const shared = filter.genres
-		? sql<number>`(select count(*) from jsonb_array_elements_text(${animeSearch.genres}) as genre where genre = any(${genreList(filter.genres)}))`
+		? sql<number>`(select count(*) from jsonb_array_elements_text(${animeSearch.genres}) as genre where genre = any(${genreArray(filter.genres)}))`
 		: sql<number>`0`;
 
 	const rows = await db

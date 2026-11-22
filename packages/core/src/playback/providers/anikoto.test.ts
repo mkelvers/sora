@@ -273,7 +273,7 @@ interface ListedLink {
 }
 
 /** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
-const episodeList = (links: Record<number, ListedLink | string>) => {
+const listing = (links: Record<number, ListedLink | string>) => {
 	const items = Object.entries(links).map(([number, link]) => {
 		const {
 			className = "",
@@ -297,7 +297,7 @@ const episodeList = (links: Record<number, ListedLink | string>) => {
 describe("AniKotoStreamProvider.listEpisodes", () => {
 	test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+			"/ajax/episode/list/1498": listing({
 				56: "  ",
 				57: " filler ",
 				58: "active filler",
@@ -340,7 +340,7 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 
 	test("leaves filler unknown rather than false when the episode list has no episodes", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({}),
+			"/ajax/episode/list/1498": listing({}),
 			"/series/1498": seriesResponse,
 		});
 
@@ -353,7 +353,7 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 describe("AniKotoStreamProvider.listEpisodes languages", () => {
 	test("adds dubs the API leaves out, as in Banished from the Hero's Party episodes 1–3", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/6752": episodeList({
+			"/ajax/episode/list/6752": listing({
 				1: {
 					className: "active",
 					dub: "1",
@@ -385,7 +385,7 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("lists no dub when neither the API nor the episode list has one", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+			"/ajax/episode/list/1498": listing({
 				56: {},
 				57: {},
 				58: {},
@@ -400,7 +400,7 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("keeps a language the API has an embed for when the episode list does not flag it", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					dub: "0",
 				},
@@ -415,7 +415,7 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("lists a dub-only episode without a sub", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					dub: "1",
 					sub: "0",
@@ -444,7 +444,7 @@ describe("AniKotoStreamProvider.listEpisodes languages", () => {
 
 	test("keeps the API's languages, and leaves filler unknown, for an episode the list leaves out", async () => {
 		const { provider } = providerServing({
-			"/ajax/episode/list/1498": episodeList({
+			"/ajax/episode/list/1498": listing({
 				56: {
 					className: "filler",
 					dub: "1",
