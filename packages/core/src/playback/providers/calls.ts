@@ -1,12 +1,20 @@
 import { attempt, day, hour } from "@sora/shared";
 import { lt, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../../database/client";
 import { providerCalls } from "../../database/schema/playback";
 import type { StreamProvider } from "./provider";
 
 /** A {@link StreamProvider} method, as `provider_calls` names it. */
-export type ProviderOperation = "find_media" | "list_episodes" | "resolve_stream" | "sync_catalog";
+export const OperationSchema = z.enum([
+	"find_media",
+	"list_episodes",
+	"resolve_stream",
+	"sync_catalog",
+]);
+
+export type ProviderOperation = z.infer<typeof OperationSchema>;
 
 /**
  * How a call went: it returned something, returned nothing (no match, no

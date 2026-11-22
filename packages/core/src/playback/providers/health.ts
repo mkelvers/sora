@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { providerCalls } from "../../database/schema/playback";
+import { OperationSchema } from "./calls";
 import type { ProviderOperation } from "./calls";
 import { streamProviders } from "./registry";
 
@@ -135,8 +136,7 @@ export const summarizeHealth = (
 						empty: row.empty,
 						failed: row.failed,
 						ok: row.ok,
-						// SAFETY: calls are only recorded under a ProviderOperation.
-						operation: row.operation as ProviderOperation,
+						operation: OperationSchema.parse(row.operation),
 					};
 				})
 				.toArray()
