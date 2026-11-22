@@ -302,5 +302,9 @@ export const isEpisodeAwaited = (
 export const expectedRelease = (airedAt: Date, scheduledAt: Date | null, now = new Date()) => {
 	const expected = scheduledAt && scheduledAt > airedAt ? scheduledAt : airedAt;
 
-	return now.getTime() < expected.getTime() + releaseGraceMs ? expected : null;
+	if (now.getTime() < expected.getTime() + releaseGraceMs) {
+		return expected;
+	}
+
+	return null;
 };
