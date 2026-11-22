@@ -5,7 +5,8 @@
  * Every route is versioned under `/v1`, whose OpenAPI document is served at
  * `/v1/openapi.json` for signed-in accounts; `/health` is for load balancers
  * and tells signed-in accounts how each stream provider has been doing and
- * which scheduler tasks have failing jobs. Errors are RFC 9457 problems.
+ * which scheduler tasks have failing jobs. The container uses `/live` to check
+ * HTTP. Release checks use `/ready`. Errors are RFC 9457 problems.
  *
  * It listens on `HOST` (default `127.0.0.1`, so only this machine reaches
  * it); set `HOST=0.0.0.0` to serve other machines, such as in a container.
@@ -14,7 +15,7 @@
  * Several instances may run at once. It stops cleanly on SIGINT and SIGTERM.
  */
 import { auth } from "@sora/core/auth";
-import { closeDatabase } from "@sora/core/database";
+import { closeDatabase, databaseReady } from "@sora/core/database";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
@@ -33,6 +34,14 @@ const app = new Hono()
 			crossOriginResourcePolicy: false,
 		}),
 	)
+	.get("/live", (c) => c.json({ status: "ok" }))
+	.get("/ready", async (c) => {
+		c.header("Cache-Control", "no-store");
+		if (!(await databaseReady())) {
+			return c.json({ status: "unavailable" }, 503);
+		}
+		return c.json({ api_versions: [1], status: "ready" });
+	})
 	.route("/v1", v1Routes)
 	.route(
 		"/health",

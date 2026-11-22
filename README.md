@@ -64,9 +64,26 @@ bun run --cwd packages/core test:integration
 
 Pass a repository-relative test path after `test:integration` to run a single suite. This command replaces the individual `SORA_*_INTEGRATION` flags. It creates an empty `sora_test_*` database, applies migrations, and drops that database when the tests finish.
 
-Name new core database test files `*.integration.test.ts` and wrap their SQL tests in `describe.skipIf(!databaseTestsEnabled())` using the helper in `packages/core/test/integration.ts`.
+Name new database test files `*.integration.test.ts` and wrap their SQL tests in `describe.skipIf(!databaseTestsEnabled())` using the helper in `packages/core/test/integration.ts`.
 
 To use a different local PostgreSQL server, set `SORA_TEST_ADMIN_URL` to its `postgresql://` connection URL for the `postgres` maintenance database, without URL options. The role needs `CREATEDB`. An uncatchable stop such as `SIGKILL` can leave the database behind. The runner prints the database name on creation so you can identify it before dropping it.
+
+## Deployment health
+
+Both Docker images probe their own `GET /live` with a three-second HTTP deadline. Docker exposes one health status per container, which Swarm can use to replace tasks. Keep healthcheck overrides on `/live` so temporary API or PostgreSQL outages do not trigger replica replacement. The API's existing `GET /health` still provides the signed-in provider and scheduler report.
+
+For readiness, the API checks PostgreSQL through its request pool with a one-second deadline. The API image also checks migration history and required columns at startup. Web gives its runtime `SORA_API_URL` two seconds to return HTTP 200 from `/ready` with `{"status":"ready","api_versions":[1]}`. Both readiness endpoints return 503 on failure.
+
+Check each candidate service before promoting it or marking its rollout complete. On the first rollout, pass the API check before deploying the web build that requires it.
+
+```sh
+bun run release:check api <candidate-api-base-url>
+bun run release:check web <candidate-web-base-url>
+```
+
+Run these from the candidate checkout with its dependencies installed. The API check allows two seconds and the web check allows three. Treat any nonzero exit as a failed gate. Check the candidate directly if a shared URL can still route to an older replica. The repo supplies the probes and the release command. The deploy operator or external automation must invoke the command. The image healthcheck alone confirms liveness.
+
+Keep version 1 in `api_versions` while the API supports version 1 web builds, even across releases. For a breaking change, deploy API support for both versions before switching web to the new version. Keep both until older web builds are out of service and the rollback window has closed. For the first rollout, roll web back before rolling the API back past the addition of `/ready`. No database migration or new environment variable is needed for these probes.
 
 ## Portfolio endpoint
 
