@@ -190,9 +190,13 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 	const romaji = media.title?.romaji ?? null;
 	const native = media.title?.native ?? null;
 
-	const synonyms = (media.synonyms ?? []).flatMap((synonym) =>
-		synonym?.trim() ? [synonym.trim()] : [],
-	);
+	const synonyms = (media.synonyms ?? []).flatMap((synonym) => {
+		if (synonym?.trim()) {
+			return [synonym.trim()];
+		}
+
+		return [];
+	});
 
 	const start = media.startDate;
 
