@@ -147,8 +147,6 @@ export const db = drizzle({
 	},
 });
 
-const schemaModules = [auth, catalog, library, playback, scheduler, series];
-
 /** The advisory lock replicas hold, one at a time, while they migrate. */
 export const migrationLockKey = 7_302_024_001;
 
@@ -167,6 +165,8 @@ export const migrationLockKey = 7_302_024_001;
  * database.
  */
 export const migrateDatabase = async () => {
+	const schemaModules = [auth, catalog, library, playback, scheduler, series];
+
 	const lock = await db.$client.reserve();
 
 	const migrated = await attempt(

@@ -31,8 +31,6 @@ const EmailBody = PasswordBody.extend({ email: z.email() }).transform(({ email, 
 
 const soraEmailSuffix = "@sora.invalid";
 
-const maxBuckets = 10_000;
-
 const windows = new Map<
 	string,
 	{
@@ -58,6 +56,8 @@ const rejectUntil = (expiresAt: number, now: number): never => {
 };
 
 const countAttempt = (key: string, limit: number) => {
+	const maxBuckets = 10_000;
+
 	const now = performance.now();
 	// All windows have the same duration, so insertion order is expiry order.
 	let oldest = windows.entries().next().value;

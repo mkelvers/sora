@@ -85,9 +85,6 @@ const AnimeSchema = z.object({
 		.nullish(),
 });
 
-/** How long a show that links no AniList entry waits before it is looked up again. */
-const unlinkedShowLifetimeMs = 7 * day;
-
 /** One episode in AnimeSchedule's timetable. */
 export interface TimetableRelease {
 	/** The show's path on AnimeSchedule; see {@link resolveAnimeScheduleShows}. */
@@ -156,9 +153,6 @@ export const fetchTimetable = async (
 		});
 };
 
-/** The weeks {@link syncTimetables} keeps, counted from this week. */
-const syncedWeeks = [-1, 0, 1];
-
 /** The ISO week `date` falls in, in UTC: weeks start on Monday, and week 1 holds the year's first Thursday. */
 export const isoWeek = (date: Date) => {
 	const thursday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -185,6 +179,9 @@ const resolveAnimeScheduleShows = async (
 	http: HttpClient,
 	routes: readonly string[],
 ): Promise<Map<string, number | null>> => {
+	/** How long a show that links no AniList entry waits before it is looked up again. */
+	const unlinkedShowLifetimeMs = 7 * day;
+
 	const unique = [...new Set(routes)];
 
 	if (unique.length === 0) {
@@ -271,6 +268,9 @@ const resolveAnimeScheduleShows = async (
  * @throws {Error} when AnimeSchedule cannot be read; weeks read before then stay stored.
  */
 export const syncTimetables = async (http: HttpClient, now = new Date()): Promise<number[]> => {
+	/** The weeks {@link syncTimetables} keeps, counted from this week. */
+	const syncedWeeks = [-1, 0, 1];
+
 	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
 	const anilistIds = new Set<number>();

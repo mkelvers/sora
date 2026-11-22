@@ -13,31 +13,12 @@ import { UpstreamUnavailableError } from "../errors";
 import { InFlight } from "../in-flight";
 import type { TypedDocumentString } from "./graphql.generated";
 
-const endpoint = "https://graphql.anilist.co";
-
-/**
- * Minimum spacing between requests a viewer is waiting on. They may use the
- * {@link viewerReserve} without waiting for a new window, but AniList also
- * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
- * with most of the minute's budget still left.
- */
-const viewerSpacingMs = 1000;
-
-/**
- * Requests of each minute's budget kept for requests a viewer is waiting
- * on: background requests wait rather than spend them. A search that finds
- * a title not stored yet needs about three, for a few titles at once.
- */
-const viewerReserve = 10;
-
 /**
  * The most urgent priority of background work. Requests at a more urgent
  * priority, or made outside any, are made for a viewer who is waiting on
  * them; see {@link aniListPriority}.
  */
 export const viewerWaitingPriority = -2;
-
-const requestTimeoutMs = 10_000;
 
 /** Freshness policy for one AniList request. */
 export interface AniListRequestOptions {
@@ -123,13 +104,6 @@ interface MediaBatch<TMedia> {
 }
 
 const mediaPageSize = 50;
-
-/**
- * How many AniList 429s one batch waits out before failing its callers.
- * Walking franchises needs bursts of requests and AniList often runs at its
- * degraded limit of 30 per minute, but a 429 only pauses the queue.
- */
-const mediaBatchRetries = 3;
 
 /** What the client sends AniList's requests with; the global `fetch` fits. */
 export type Fetch = (input: string, init: RequestInit) => Promise<Response>;
@@ -229,6 +203,21 @@ export interface LimiterState {
  * counts other processes on the same IP.
  */
 export const waitToSend = (priority: number, now: number, state: LimiterState) => {
+	/**
+	 * Requests of each minute's budget kept for requests a viewer is waiting
+	 * on: background requests wait rather than spend them. A search that finds
+	 * a title not stored yet needs about three, for a few titles at once.
+	 */
+	const viewerReserve = 10;
+
+	/**
+	 * Minimum spacing between requests a viewer is waiting on. They may use the
+	 * {@link viewerReserve} without waiting for a new window, but AniList also
+	 * limits bursts: 300 ms and 700 ms apart ran into it within ten requests,
+	 * with most of the minute's budget still left.
+	 */
+	const viewerSpacingMs = 1000;
+
 	const isViewerWaiting = priority <= viewerWaitingPriority;
 	// Background requests spread the per-minute limit evenly, with a margin for jitter.
 	const spacing = isViewerWaiting ? viewerSpacingMs : Math.ceil(minuteMs / state.limit) + 100;
@@ -285,6 +274,17 @@ const retryAfter = (response: Response) => {
  * applies is per IP.
  */
 export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
+	/**
+	 * How many AniList 429s one batch waits out before failing its callers.
+	 * Walking franchises needs bursts of requests and AniList often runs at its
+	 * degraded limit of 30 per minute, but a 429 only pauses the queue.
+	 */
+	const mediaBatchRetries = 3;
+
+	const requestTimeoutMs = 10_000;
+
+	const endpoint = "https://graphql.anilist.co";
+
 	/**
 	 * Requests per minute AniList allows this IP: 90, or 30 when degraded.
 	 * Starts at the normal limit and follows the one AniList reports on every

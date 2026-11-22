@@ -48,9 +48,6 @@ export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadc
 	return null;
 };
 
-/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
-const japanOffsetMs = 9 * hour;
-
 /**
  * Marks an anime finished once its final episode has aired.
  *
@@ -63,6 +60,9 @@ const japanOffsetMs = 9 * hour;
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 const settleStatus = async (media: AnimeDetailsFragment): Promise<AnimeDetailsFragment> => {
+	/** Japan Standard Time, which AniList's dates are in, is UTC+9. */
+	const japanOffsetMs = 9 * hour;
+
 	if (media.status !== "RELEASING" || media.nextAiringEpisode) {
 		return media;
 	}
@@ -135,13 +135,6 @@ const storedAnimeValues = (media: AnimeDetailsFragment) => ({
 });
 
 /**
- * Finales often reach providers a day or more after they air, while AniList
- * marks the anime finished right away. An anime that finished within this
- * window is still tracked until its last episode is released.
- */
-const recentlyFinishedMs = 14 * day;
-
-/**
  * Whether the airing scheduler needs to follow an anime: it is still airing,
  * or finished so recently that providers may not carry every episode yet.
  */
@@ -149,6 +142,13 @@ export const mayGainEpisodes = (
 	media: Pick<AnimeDetailsFragment, "status" | "endDate">,
 	now: Date,
 ) => {
+	/**
+	 * Finales often reach providers a day or more after they air, while AniList
+	 * marks the anime finished right away. An anime that finished within this
+	 * window is still tracked until its last episode is released.
+	 */
+	const recentlyFinishedMs = 14 * day;
+
 	switch (media.status) {
 		case "RELEASING":
 		case "NOT_YET_RELEASED":
@@ -240,12 +240,6 @@ export const refreshAnime = async (anilistId: number): Promise<Anime> => {
 };
 
 /**
- * How many stale anime {@link refreshStaleAnime} fetches in one run: five
- * AniList requests of {@link loadAnimeDetails}, which hold 200 each.
- */
-const staleBatch = 1000;
-
-/**
  * Fetches again the stored anime whose copy predates the fields the details
  * fragment asks for now, so a field added to it reaches every stored anime,
  * finished ones included, which nothing else fetches again. Each 200 share
@@ -257,6 +251,12 @@ const staleBatch = 1000;
  * @throws {UpstreamUnavailableError} when AniList cannot be reached.
  */
 export const refreshStaleAnime = async () => {
+	/**
+	 * How many stale anime {@link refreshStaleAnime} fetches in one run: five
+	 * AniList requests of {@link loadAnimeDetails}, which hold 200 each.
+	 */
+	const staleBatch = 1000;
+
 	const stale = await db
 		.select({
 			anilistId: animeTable.anilistId,

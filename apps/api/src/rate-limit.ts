@@ -5,9 +5,6 @@ import { createMiddleware } from "hono/factory";
 import { sendProblem } from "./errors";
 import type { V1Env } from "./errors";
 
-/** The most counters one limiter keeps before it sweeps the expired ones. */
-const sweepAbove = 10_000;
-
 interface RateLimitOptions {
 	/** How many requests one key may make in a window. */
 	limit: number;
@@ -26,6 +23,9 @@ interface RateLimitOptions {
  * `Retry-After` says how many seconds remain in the window.
  */
 export const rateLimit = ({ limit, windowMs, key }: RateLimitOptions) => {
+	/** The most counters one limiter keeps before it sweeps the expired ones. */
+	const sweepAbove = 10_000;
+
 	const windows = new Map<
 		string,
 		{

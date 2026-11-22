@@ -28,14 +28,14 @@ const returnsToPopup = (url: URL) =>
 	(url.searchParams.has("code") || url.searchParams.has("error")) &&
 	startedInPopup(url.search);
 
-const openPaths = ["/api", "/login", "/logout", "/profiles"];
-
 /**
  * Where a page request without a signed-in profile goes. Pages that reset
  * their layout, like the player, skip the app layout's redirect, so the hook
  * has to send everyone there itself instead of letting their queries fail.
  */
 const redirectionFor = (event: RequestEvent) => {
+	const openPaths = ["/api", "/login", "/logout", "/profiles"];
+
 	const isPage =
 		event.request.method === "GET" &&
 		!event.isDataRequest &&

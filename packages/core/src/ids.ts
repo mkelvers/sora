@@ -12,11 +12,11 @@ const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /** 9 base-36 characters: about 46 bits, far beyond any catalogue's size. */
 const idLength = 9;
 
-/** Bytes at or above this would bias the modulo towards the first characters. */
-const unbiasedByteLimit = 256 - (256 % alphabet.length);
-
 /** Creates a new ID, such as `GYZJ43JMR`. */
 export const newId = () => {
+	/** Bytes at or above this would bias the modulo towards the first characters. */
+	const unbiasedByteLimit = 256 - (256 % alphabet.length);
+
 	let id = "";
 
 	while (id.length < idLength) {

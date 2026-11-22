@@ -13,9 +13,6 @@ export interface AiringBroadcast {
 	airingAt: string;
 }
 
-/** Entries {@link fetchEpisodeAirings} asks AniList about per request. */
-const airingsBatchSize = 50;
-
 /**
  * When each scheduled episode of the given AniList entries airs or aired, as
  * AniList's airing schedule records it: the moment of broadcast, which a
@@ -33,6 +30,9 @@ const airingsBatchSize = 50;
 export const fetchEpisodeAirings = async (
 	anilistIds: readonly number[],
 ): Promise<Map<string, Date>> => {
+	/** Entries {@link fetchEpisodeAirings} asks AniList about per request. */
+	const airingsBatchSize = 50;
+
 	const ids = [...new Set(anilistIds)];
 	const airings = new Map<string, Date>();
 

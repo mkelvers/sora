@@ -18,29 +18,6 @@ import {
 } from "../visibility";
 import type { BrowseQuery } from "./browse-query";
 
-/**
- * An incremental sync re-reads entries changed this long before the newest
- * one stored, so an entry AniList changed while a sync was paging is not
- * skipped.
- */
-const syncOverlapMs = day;
-
-/**
- * Times a sync waits out AniList's rate limit on one page before giving up.
- * A full sync makes hundreds of requests, so it runs into the limit whenever
- * anything else on the host uses AniList meanwhile.
- */
-const pageAttempts = 5;
-
-/** Candidates read from the index per search, before ranking. */
-const candidateLimit = 300;
-
-/**
- * How similar a title's words must be to the query for the index to offer
- * the entry at all, from 0 to 1. Low enough for a typo in a long title.
- */
-const candidateThreshold = 0.45;
-
 type IndexedMedia = NonNullable<
 	NonNullable<NonNullable<SearchIndexPageQuery["Page"]>["media"]>[number]
 >;
@@ -55,6 +32,13 @@ const fetchIndexPage = async (
 	popularityBelow: number | undefined,
 	tries = 1,
 ): Promise<SearchIndexPageQuery> => {
+	/**
+	 * Times a sync waits out AniList's rate limit on one page before giving up.
+	 * A full sync makes hundreds of requests, so it runs into the limit whenever
+	 * anything else on the host uses AniList meanwhile.
+	 */
+	const pageAttempts = 5;
+
 	const { data, error } = await attempt(
 		anilist(
 			SearchIndexPageDocument,
@@ -378,6 +362,13 @@ const markFullSync = async () => {
  *   stored before the failure are kept, and a retry resumes from the stored pages.
  */
 export const syncSearchIndex = async (options: { full: boolean }) => {
+	/**
+	 * An incremental sync re-reads entries changed this long before the newest
+	 * one stored, so an entry AniList changed while a sync was paging is not
+	 * skipped.
+	 */
+	const syncOverlapMs = day;
+
 	const [
 		{ newest } = {
 			newest: null,
@@ -627,9 +618,6 @@ const indexConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage
 	return conditions;
 };
 
-/** The fewest characters the trigram index can find a query by. */
-const trigramLength = 3;
-
 /**
  * Matches a normalized query shorter than {@link trigramLength} as a whole
  * word of the search text, or as two words run together, which covers every
@@ -819,12 +807,6 @@ export const textScore = (query: string, candidate: SearchCandidate) => {
 	);
 };
 
-/**
- * The least {@link textScore} a result must reach: a typo in a title passes,
- * a title that merely shares some letters with the query does not.
- */
-const minimumMatch = 0.5;
-
 type IndexedRow = typeof animeSearch.$inferSelect;
 
 const sortOrders: Record<
@@ -897,6 +879,24 @@ export const searchAnime = async (
 	query: string,
 	filters: Omit<BrowseQuery, "search" | "page" | "perPage"> = {},
 ) => {
+	/**
+	 * The least {@link textScore} a result must reach: a typo in a title passes,
+	 * a title that merely shares some letters with the query does not.
+	 */
+	const minimumMatch = 0.5;
+
+	/** The fewest characters the trigram index can find a query by. */
+	const trigramLength = 3;
+
+	/**
+	 * How similar a title's words must be to the query for the index to offer
+	 * the entry at all, from 0 to 1. Low enough for a typo in a long title.
+	 */
+	const candidateThreshold = 0.45;
+
+	/** Candidates read from the index per search, before ranking. */
+	const candidateLimit = 300;
+
 	const normalized = normalizeTitle(query);
 
 	if (normalized.length === 0) {

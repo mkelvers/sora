@@ -26,8 +26,6 @@ const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;
 
-const megabyte = 1000 * 1000;
-
 const loadHls = () => attempt(import("hls.js"));
 
 if (browser) {
@@ -301,6 +299,8 @@ export class Player {
 		};
 
 	#hls(video: HTMLVideoElement, url: string, start: number) {
+		const megabyte = 1000 * 1000;
+
 		let hls: Hls | undefined;
 		let detached = false;
 

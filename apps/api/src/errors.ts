@@ -10,19 +10,6 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import type { Problem } from "./openapi/schemas";
 
-/** The HTTP status for each core failure. Every code must be listed. */
-const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
-	ANIME_NOT_FOUND: 404,
-	EPISODE_NOT_FOUND: 404,
-	INVALID_INPUT: 422,
-	INVALID_STREAM_TOKEN: 403,
-	LAST_PROFILE: 409,
-	PLAYBACK_UNAVAILABLE: 502,
-	PROFILE_NOT_FOUND: 404,
-	SERIES_NOT_FOUND: 404,
-	UPSTREAM_UNAVAILABLE: 503,
-};
-
 /** What `/v1` middleware puts on the context for handlers. */
 export interface V1Env {
 	Variables: {
@@ -68,6 +55,19 @@ export const sendProblem = (
  * anything else is a defect, logged and answered with a generic 500.
  */
 export const onError = (error: Error, c: Context) => {
+	/** The HTTP status for each core failure. Every code must be listed. */
+	const statusByCode: Record<CoreErrorCode, ContentfulStatusCode> = {
+		ANIME_NOT_FOUND: 404,
+		EPISODE_NOT_FOUND: 404,
+		INVALID_INPUT: 422,
+		INVALID_STREAM_TOKEN: 403,
+		LAST_PROFILE: 409,
+		PLAYBACK_UNAVAILABLE: 502,
+		PROFILE_NOT_FOUND: 404,
+		SERIES_NOT_FOUND: 404,
+		UPSTREAM_UNAVAILABLE: 503,
+	};
+
 	if (!(error instanceof CoreError)) {
 		console.error(`${c.req.method} ${c.req.path} failed`, error);
 
