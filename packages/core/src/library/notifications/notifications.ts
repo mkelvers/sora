@@ -250,7 +250,9 @@ const followedSeries = async (
 		for (const id of reached) {
 			const earlier = followedFrom.get(id);
 
-			if (!excluded.has(id) && (!earlier || addedAt < earlier)) {
+			const earliest = !excluded.has(id) && (!earlier || addedAt < earlier);
+
+			if (earliest) {
 				followedFrom.set(id, addedAt);
 			}
 		}
