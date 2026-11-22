@@ -804,15 +804,17 @@ const settleSkipSegments = async (
 	const versions = results.flatMap(({ version, videos }) => {
 		const video = videos?.find((candidate) => candidate.format === "hls");
 
-		return version && video
-			? [
-					{
-						key: skipDetectionKey(video.url),
-						version,
-						video,
-					},
-				]
-			: [];
+		if (version && video) {
+			return [
+				{
+					key: skipDetectionKey(video.url),
+					version,
+					video,
+				},
+			];
+		}
+
+		return [];
 	});
 
 	// Skip segments only add to playback, so nothing here may fail or hold it:
