@@ -50,14 +50,16 @@
 
 			const studio = studios.current?.find(same);
 
-			return studio
-				? {
-						filters: {
-							studios: [studio],
-						},
-						name: studio,
-					}
-				: undefined;
+			if (studio) {
+				return {
+					filters: {
+						studios: [studio],
+					},
+					name: studio,
+				};
+			}
+
+			return undefined;
 		},
 	);
 </script>
