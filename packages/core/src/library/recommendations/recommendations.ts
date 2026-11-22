@@ -162,7 +162,9 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 			weights.set(genre, (weights.get(genre) ?? 0) + signal.weight);
 		}
 
-		if (signal.weight > 0 && genres.length > 0 && !likedKeys.has(row.key)) {
+		const enjoyed = signal.weight > 0 && genres.length > 0;
+
+		if (enjoyed && !likedKeys.has(row.key)) {
 			likedKeys.add(row.key);
 			liked.push({
 				genres,
