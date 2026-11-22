@@ -804,13 +804,15 @@ export const textScore = (query: string, candidate: SearchCandidate) => {
 	// name "Oreimo 2 (ONA)".
 	return Math.max(
 		0,
-		...titles.flatMap(({ title, weight }) =>
-			title
-				? [title, title.replace(disambiguator, "")].map(
-						(spelling) => weight * titleScore(query, normalizeTitle(spelling)),
-					)
-				: [],
-		),
+		...titles.flatMap(({ title, weight }) => {
+			if (title) {
+				return [title, title.replace(disambiguator, "")].map(
+					(spelling) => weight * titleScore(query, normalizeTitle(spelling)),
+				);
+			}
+
+			return [];
+		}),
 	);
 };
 
