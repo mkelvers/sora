@@ -99,9 +99,11 @@ const nextScheduledCheck = (state: AiringState, now: Date): Date => {
 	const premiereDay = state.status === "NOT_YET_RELEASED" ? japanDay(state.startDate) : null;
 
 	if (premiereDay && now < premiereDay.end) {
-		return now < premiereDay.start
-			? premiereDay.start
-			: new Date(now.getTime() + premiereDayCheckIntervalMs);
+		if (now < premiereDay.start) {
+			return premiereDay.start;
+		}
+
+		return new Date(now.getTime() + premiereDayCheckIntervalMs);
 	}
 
 	return new Date(
