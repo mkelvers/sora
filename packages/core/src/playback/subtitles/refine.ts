@@ -74,7 +74,7 @@ const searchSeconds = 3.5;
 
 /** Matching offsets need this many cues behind them. */
 const minimumVotes = 4;
-const maximumOffsets = 16;
+
 const offsetBucketSeconds = 0.5;
 
 /** A cue votes for an offset when its best phrase scores at least this well. */
@@ -305,7 +305,7 @@ const voteOffsets = (
 		.filter(([, count]) => count >= minimumVotes)
 		.toArray()
 		.toSorted((a, b) => b[1] - a[1])) {
-		if (picked.length === maximumOffsets) {
+		if (picked.length === 16) {
 			break;
 		}
 
