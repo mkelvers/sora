@@ -33,10 +33,39 @@ export type Attempt<TData, TError extends Error = Error> =
 			error: TError;
 	  };
 
-const settle = <TData>(
+/**
+ * Settles a promise into an {@link Attempt} instead of rejecting.
+ *
+ * Name the error classes the caller handles and `error` is typed as them;
+ * any other error still rejects. Name none and every error is handed back,
+ * a thrown non-`Error` wrapped in one with the value as its `cause`.
+ *
+ * @example
+ * ```ts
+ * const { data, error } = await attempt(getAnime(id), AnimeNotFoundError);
+ * if (error) {
+ *   return null;
+ * }
+ * ```
+ */
+export function attempt<TData, TExpected extends ErrorClass[] = []>(
+	work: PromiseLike<TData>,
+	...expected: TExpected
+): Promise<Attempt<TData, Caught<TExpected>>>;
+/**
+ * Calls synchronous `work`, such as `JSON.parse`, and returns its result as an
+ * {@link Attempt} instead of throwing, as the promise form does. Asynchronous
+ * work is passed as its promise instead.
+ */
+export function attempt<TData, TExpected extends ErrorClass[] = []>(
+	work: () => TData extends PromiseLike<unknown> ? never : TData,
+	...expected: TExpected
+): Attempt<TData, Caught<TExpected>>;
+
+export function attempt<TData>(
 	work: PromiseLike<TData> | (() => TData),
 	...expected: ErrorClass[]
-): Attempt<TData> | Promise<Attempt<TData>> => {
+): Attempt<TData> | Promise<Attempt<TData>> {
 	const failed = (cause: unknown) => {
 		const error =
 			cause instanceof Error
@@ -69,41 +98,7 @@ const settle = <TData>(
 	} catch (error) {
 		return failed(error);
 	}
-};
-
-interface Settle {
-	/**
-	 * Settles a promise into an {@link Attempt} instead of rejecting.
-	 *
-	 * Name the error classes the caller handles and `error` is typed as them;
-	 * any other error still rejects. Name none and every error is handed back,
-	 * a thrown non-`Error` wrapped in one with the value as its `cause`.
-	 *
-	 * @example
-	 * ```ts
-	 * const { data, error } = await attempt(getAnime(id), AnimeNotFoundError);
-	 * if (error) {
-	 *   return null;
-	 * }
-	 * ```
-	 */
-	<TData, TExpected extends ErrorClass[] = []>(
-		work: PromiseLike<TData>,
-		...expected: TExpected
-	): Promise<Attempt<TData, Caught<TExpected>>>;
-	/**
-	 * Calls synchronous `work`, such as `JSON.parse`, and returns its result as an
-	 * {@link Attempt} instead of throwing, as the promise form does. Asynchronous
-	 * work is passed as its promise instead.
-	 */
-	<TData, TExpected extends ErrorClass[] = []>(
-		work: () => TData extends PromiseLike<unknown> ? never : TData,
-		...expected: TExpected
-	): Attempt<TData, Caught<TExpected>>;
 }
-
-// SAFETY: `settle` implements both of Settle's overloads.
-export const attempt = settle as Settle;
 
 /**
  * The value, narrowed to exclude `null` and `undefined`, or an error when it
