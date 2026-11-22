@@ -85,14 +85,16 @@ export const syncDubSchedule: Task = async (_payload, helpers) => {
 				),
 		);
 
-		return isCarried
-			? []
-			: [
-					{
-						anilistId,
-						release,
-					},
-				];
+		if (isCarried) {
+			return [];
+		}
+
+		return [
+			{
+				anilistId,
+				release,
+			},
+		];
 	});
 
 	await inSequence(uncarried, ({ anilistId, release }) =>
