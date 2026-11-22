@@ -251,7 +251,11 @@ const requestWaitingOutThrottle = async (
 		}),
 	);
 
-	return waited.error ? data : await requestWaitingOutThrottle(url, headers, endsAt, deadline);
+	if (waited.error) {
+		return data;
+	}
+
+	return await requestWaitingOutThrottle(url, headers, endsAt, deadline);
 };
 
 const fetchFollowingRedirects = async (
