@@ -93,7 +93,11 @@ export class Player {
 	loaded = $derived.by(() => {
 		const range = this.buffered.find((span) => span.start <= this.time && this.time <= span.end);
 
-		return range && this.duration > 0 ? range.end / this.duration : 0;
+		if (range && this.duration > 0) {
+			return range.end / this.duration;
+		}
+
+		return 0;
 	});
 	buffering = $derived(
 		this.readyState < 3 &&
