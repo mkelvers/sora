@@ -72,11 +72,13 @@ export const probeVideos = (
 
 			const loads = await dependencies.canFetchStream(video.url, video.headers, [], signal);
 
-			return loads
-				? {
-						audioLanguages: [],
-					}
-				: null;
+			if (loads) {
+				return {
+					audioLanguages: [],
+				};
+			}
+
+			return null;
 		}),
 	);
 
