@@ -27,14 +27,12 @@
 		onpreferences: (changes: PlaybackPreferencesUpdate) => void;
 	} = $props();
 
-	const highHeight = 720;
-
 	const qualityLabel = (height: number) => {
 		if (height >= 2160) {
 			return `${height}p 4K`;
 		}
 
-		if (height >= highHeight) {
+		if (height >= 720) {
 			return `${height}p HD`;
 		}
 
