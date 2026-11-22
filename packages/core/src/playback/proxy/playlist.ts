@@ -120,12 +120,13 @@ export const withDefaultAudio = (content: string, locale: string) => {
 		const tag = line.trim();
 		const language = renditionLanguagePattern.exec(tag)?.groups?.language;
 
-		if (
+		const wanted =
 			audioRenditionPattern.test(tag) &&
 			language &&
 			isInLocale(language, locale) &&
-			!chosen.has(groupOf(tag))
-		) {
+			!chosen.has(groupOf(tag));
+
+		if (wanted) {
 			chosen.set(groupOf(tag), index);
 		}
 	}
