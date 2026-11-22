@@ -7,7 +7,13 @@ const transportStream = Uint8Array.from(
 	{
 		length: 188 * 3,
 	},
-	(_, index) => (index % 188 === 0 ? 0x47 : 0x00),
+	(_, index) => {
+		if (index % 188 === 0) {
+			return 0x47;
+		}
+
+		return 0x00;
+	},
 );
 
 describe("disguised segments", () => {
