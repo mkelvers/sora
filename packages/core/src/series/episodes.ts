@@ -240,10 +240,13 @@ export const isEpisodeAvailable = (
 	episode: EpisodeListingRow,
 	onAniKoto: AniKotoEpisodes,
 	now = new Date(),
-) =>
-	onAniKoto.lookedUp.has(title.anilistId)
-		? onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number))
-		: isEpisodeReleased(title, episode, now);
+) => {
+	if (onAniKoto.lookedUp.has(title.anilistId)) {
+		return onAniKoto.carried.has(anilistEpisodeKey(title.anilistId, episode.number));
+	}
+
+	return isEpisodeReleased(title, episode, now);
+};
 
 /**
  * How long after an episode is expected it is still waited for. AniKoto has
