@@ -655,11 +655,13 @@ const leadingEpisode = (
 		};
 	}
 
-	return subject.episodes !== null && picked.length === subject.episodes - 1
-		? {
-				special: null,
-			}
-		: null;
+	if (subject.episodes !== null && picked.length === subject.episodes - 1) {
+		return {
+			special: null,
+		};
+	}
+
+	return null;
 };
 
 /** One AniList episode per TMDB episode of a run, numbered from `first`. */
