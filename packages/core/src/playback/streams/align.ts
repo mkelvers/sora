@@ -42,7 +42,11 @@ const nearest = (sorted: number[], time: number) => {
 	const before = sorted[low - 1] ?? -Infinity;
 	const after = sorted[low] ?? Infinity;
 
-	return time - before <= after - time ? before : after;
+	if (time - before <= after - time) {
+		return before;
+	}
+
+	return after;
 };
 
 /** Offsets many boundary pairs agree on, most agreed first, each refined to the mean of its pairs. */
