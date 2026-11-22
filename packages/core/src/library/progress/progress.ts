@@ -84,7 +84,11 @@ export const getProgress = async (
 		)
 		.limit(1);
 
-	return row ? toProgress(row) : null;
+	if (row) {
+		return toProgress(row);
+	}
+
+	return null;
 };
 
 const deleteRewatchProgress = async (userId: string, seriesId: string) => {
