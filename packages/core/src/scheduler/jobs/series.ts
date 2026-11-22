@@ -551,11 +551,12 @@ const refreshShow = async (
 		row.is_unlisted && show && mapping && continuesPastLinks(show, mappedEpisodes(mapping));
 
 	// A show TMDB no longer has needs its series matched anew.
-	if (
+	const stale =
 		!show ||
 		isMatchStale ||
-		(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)))
-	) {
+		(row.is_unlisted && (!before || episodeKeys(before) !== episodeKeys(show)));
+
+	if (stale) {
 		if (isMatchStale) {
 			await expireMapping(row.anilist_id);
 		}
