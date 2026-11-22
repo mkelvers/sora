@@ -81,19 +81,21 @@ export const exportLibrary = async (userId: string, now = new Date()): Promise<L
 			watched_at: row.watchedAt.toISOString(),
 		})),
 		version: 1,
-		watchlist: watchlist.flatMap((row) =>
-			row.status && row.addedAt
-				? [
-						{
-							added_at: row.addedAt.toISOString(),
-							anilist_id: row.anilistId,
-							changed_at: (row.changedAt ?? row.addedAt).toISOString(),
-							status: row.status,
-							title: row.title,
-						},
-					]
-				: [],
-		),
+		watchlist: watchlist.flatMap((row) => {
+			if (row.status && row.addedAt) {
+				return [
+					{
+						added_at: row.addedAt.toISOString(),
+						anilist_id: row.anilistId,
+						changed_at: (row.changedAt ?? row.addedAt).toISOString(),
+						status: row.status,
+						title: row.title,
+					},
+				];
+			}
+
+			return [];
+		}),
 	};
 };
 
