@@ -146,7 +146,11 @@ const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
 		return named;
 	}
 
-	return title.format && seasonFormats.has(title.format) ? "Season 1" : title.title;
+	if (title.format && seasonFormats.has(title.format)) {
+		return "Season 1";
+	}
+
+	return title.title;
 };
 
 type SequelLink = readonly [number, number];
