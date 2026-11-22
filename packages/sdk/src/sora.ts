@@ -296,8 +296,7 @@ export class SoraClient {
 			);
 		}
 
-		// SAFETY: `schema` is the contract's schema for this route and status.
-		return parsed.data as RequestBody<TRoute>;
+		return parsed.data;
 	}
 
 	/**
