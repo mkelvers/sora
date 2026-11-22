@@ -113,7 +113,9 @@ export const returnedFrom = (search: string): Returned | null => {
 
 	const state = params.get("state");
 
-	if (!code || (state !== null && state !== pending.state)) {
+	const rejected = !code || (state !== null && state !== pending.state);
+
+	if (rejected) {
 		return { kind: "unknown" };
 	}
 
