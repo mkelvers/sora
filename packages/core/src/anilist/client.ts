@@ -778,7 +778,11 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				unique.flatMap((id, index) => {
 					const media = loaded[index];
 
-					return media ? [[id, media] as const] : [];
+					if (media) {
+						return [[id, media] as const];
+					}
+
+					return [];
 				}),
 			);
 		};
