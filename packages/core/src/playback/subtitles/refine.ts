@@ -82,7 +82,6 @@ const voteScore = 0.5;
 
 /** Fewer matched cues than this and the dub's speech is not the sub's script. */
 const minimumAnchors = 12;
-const minimumAnchorShare = 0.1;
 
 /** Cues that follow a matched cue and may be matched without a word of it in between. */
 const lookback = 6;
@@ -774,10 +773,7 @@ export const refineCues = (
 
 	const picked = pickAnchors(cues, cueTokens, words, spoken, voted);
 
-	if (
-		picked.length < minimumAnchors ||
-		picked.length < minimumAnchorShare * speakingCues(cueTokens)
-	) {
+	if (picked.length < minimumAnchors || picked.length < 0.1 * speakingCues(cueTokens)) {
 		return null;
 	}
 
