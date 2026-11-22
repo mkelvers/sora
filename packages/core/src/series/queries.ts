@@ -1490,16 +1490,18 @@ export const getLatestReleases = async (
 		items: shown.flatMap(({ seriesId, episode, releasedAt }) => {
 			const card = cards.get(seriesId);
 
-			return card
-				? [
-						{
-							episode,
-							released_at: releasedAt,
-							series: card,
-							...releaseAge(releasedAt, now.getTime()),
-						},
-					]
-				: [];
+			if (card) {
+				return [
+					{
+						episode,
+						released_at: releasedAt,
+						series: card,
+						...releaseAge(releasedAt, now.getTime()),
+					},
+				];
+			}
+
+			return [];
 		}),
 		page,
 		perPage,
