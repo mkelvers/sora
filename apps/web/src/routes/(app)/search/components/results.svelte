@@ -4,7 +4,7 @@
 	import { mascots } from "$lib/mascots";
 	import { onVisible } from "$lib/utils";
 	import Poster from "$routes/(app)/components/poster.svelte";
-	import { searchSeries } from "$routes/(app)/search/search.remote";
+	import { getResults } from "$routes/(app)/search/search.remote";
 
 	let {
 		q,
@@ -19,7 +19,7 @@
 	} = $props();
 
 	const search = $derived(
-		searchSeries({
+		getResults({
 			page,
 			perPage: 24,
 			q,

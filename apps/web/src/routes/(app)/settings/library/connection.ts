@@ -24,34 +24,18 @@ export const handoverKey = "sora:import-return";
 
 const storageKey = "sora:import-connection";
 
-const random = (bytes: number) =>
-	[...crypto.getRandomValues(new Uint8Array(bytes))]
-		.map((byte) => byte.toString(16).padStart(2, "0"))
-		.join("");
+/** Random bytes, for a secret this browser alone knows. */
+class Secret {
+	readonly #bytes: Uint8Array;
 
-const read = (): Pending | null => {
-	if (!browser) {
-		return null;
+	constructor(length: number) {
+		this.#bytes = crypto.getRandomValues(new Uint8Array(length));
 	}
 
-	const { data } = attempt(
-		() => JSON.parse(sessionStorage.getItem(storageKey) ?? "null"),
-		DOMException,
-		SyntaxError,
-	);
-
-	const parsed = PendingSchema.nullable().safeParse(data);
-
-	if (!parsed.success) {
-		return null;
+	get hex() {
+		return [...this.#bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 	}
-
-	return parsed.data;
-};
-
-const forget = () => {
-	attempt(() => sessionStorage.removeItem(storageKey), DOMException);
-};
+}
 
 /**
  * Starts connecting an account: makes the secrets this browser alone knows
@@ -60,10 +44,16 @@ const forget = () => {
  * `inPopup` is remembered in the `state` the site sends back.
  */
 export const begin = (source: AccountSource, inPopup: boolean) => {
+	let prefix = "";
+
+	if (inPopup) {
+		prefix = popupStatePrefix;
+	}
+
 	const pending: Pending = {
 		source,
-		state: `${inPopup ? popupStatePrefix : ""}${random(16)}`,
-		verifier: random(32),
+		state: `${prefix}${new Secret(16).hex}`,
+		verifier: new Secret(32).hex,
 	};
 
 	attempt(() => sessionStorage.setItem(storageKey, JSON.stringify(pending)), DOMException);
@@ -100,8 +90,23 @@ export const returnedFrom = (search: string): Returned | null => {
 		return null;
 	}
 
-	const pending = read();
-	forget();
+	let pending: Pending | null = null;
+
+	if (browser) {
+		const { data } = attempt(
+			() => JSON.parse(sessionStorage.getItem(storageKey) ?? "null"),
+			DOMException,
+			SyntaxError,
+		);
+
+		const parsed = PendingSchema.nullable().safeParse(data);
+
+		if (parsed.success) {
+			pending = parsed.data;
+		}
+	}
+
+	attempt(() => sessionStorage.removeItem(storageKey), DOMException);
 
 	if (!pending) {
 		return { kind: "unknown" };

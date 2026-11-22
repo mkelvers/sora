@@ -9,7 +9,7 @@
 	import Tooltip from "$lib/components/ui/tooltip.svelte";
 	import { mobileBackdrop } from "$lib/mobile-backdrop";
 	import { audioLabel, cn, tmdbImage, tmdbSrcset } from "$lib/utils";
-	import { setBrowse } from "$routes/(app)/(catalog)/browse/browse.svelte";
+	import { filterBy } from "$routes/(app)/(catalog)/browse/browse.svelte";
 	import { getLibrary } from "$routes/(app)/library.svelte";
 	import type { FeaturedCard } from "@sora/sdk";
 	import Fade from "embla-carousel-fade";
@@ -125,7 +125,7 @@
 										<a
 											href="/browse"
 											onclick={() =>
-												setBrowse({
+												filterBy({
 													genres: [genre],
 												})}
 											class="pointer-events-auto transition-colors comma-separated hover:text-foreground"

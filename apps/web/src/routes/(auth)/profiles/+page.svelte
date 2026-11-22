@@ -6,18 +6,18 @@
 	import { PencilSimpleIcon, PlusIcon } from "phosphor-svelte";
 
 	import type { PageProps } from "./$types";
-	import { profilesPage } from "./profiles.svelte";
+	import { picker } from "./profiles.svelte";
 
 	let { data }: PageProps = $props();
 </script>
 
 <svelte:head>
-	<title>{profilesPage.managing ? "Manage Profiles" : "Who's Watching?"} - Sora</title>
+	<title>{picker.managing ? "Manage Profiles" : "Who's Watching?"} - Sora</title>
 </svelte:head>
 
 <div class="flex w-full max-w-5xl flex-col items-center gap-12">
 	<h1 class="text-center text-3xl font-bold">
-		{#if profilesPage.managing}
+		{#if picker.managing}
 			Manage Profiles
 		{:else}
 			Who's watching?
@@ -28,7 +28,7 @@
 		<ul class="flex flex-wrap justify-center gap-x-8 gap-y-10">
 			{#each data.profiles as profile (profile.id)}
 				<li>
-					{#if profilesPage.managing}
+					{#if picker.managing}
 						<a
 							class="group flex w-32 flex-col items-center gap-3 sm:w-36"
 							href="/profiles/{profile.id}{page.url.search}"
@@ -71,7 +71,7 @@
 				</li>
 			{/each}
 
-			{#if !profilesPage.managing}
+			{#if !picker.managing}
 				<li>
 					<a
 						class="group flex w-32 flex-col items-center gap-3 sm:w-36"
@@ -90,12 +90,10 @@
 	</form>
 
 	<div class="flex flex-wrap items-center justify-center gap-3">
-		{#if profilesPage.managing}
-			<Button variant="primary" onclick={() => (profilesPage.managing = false)}>Done</Button>
+		{#if picker.managing}
+			<Button variant="primary" onclick={() => (picker.managing = false)}>Done</Button>
 		{:else}
-			<Button variant="secondary" onclick={() => (profilesPage.managing = true)}>
-				Manage Profiles
-			</Button>
+			<Button variant="secondary" onclick={() => (picker.managing = true)}>Manage Profiles</Button>
 		{/if}
 	</div>
 </div>

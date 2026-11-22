@@ -1,17 +1,13 @@
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
-import {
-	getNotifications,
-	getUnreadNotifications,
-} from "$routes/(app)/notifications/notifications.remote";
-import { getWatchlist, getWatchlistStatuses } from "$routes/(app)/watchlist/watchlist.remote";
+import { getLatest, getUnread } from "$routes/(app)/notifications/notifications.remote";
+import { getEntries, getStatuses } from "$routes/(app)/watchlist/watchlist.remote";
 
 export const refreshStatus = () =>
 	Promise.all([
-		getWatchlist().refresh(),
-		getWatchlistStatuses().refresh(),
-		getNotifications().refresh(),
-		getUnreadNotifications().refresh(),
+		getEntries().refresh(),
+		getStatuses().refresh(),
+		getLatest().refresh(),
+		getUnread().refresh(),
 	]);
 
-export const refreshTracking = () =>
-	Promise.all([getContinueWatching().refresh(), refreshStatus()]);
+export const refreshLibrary = () => Promise.all([getContinueWatching().refresh(), refreshStatus()]);

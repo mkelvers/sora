@@ -18,23 +18,17 @@
 	import Episodes, { pageSize } from "./components/episodes.svelte";
 	import Hero from "./components/hero.svelte";
 	import Related from "./components/related.svelte";
-	import {
-		getEpisodes,
-		getSimilarSeries,
-		getSeries,
-		getSeriesProgress,
-		markSeries,
-	} from "./series.remote";
+	import { getEpisodes, getSimilar, getDetails, getTitleProgress, markAll } from "./series.remote";
 
 	let { params }: PageProps = $props();
 
 	const extraEvery = 2;
 
-	const series = $derived(await getSeries(params.id));
+	const series = $derived(await getDetails(params.id));
 
 	const [progress] = $derived(
 		await Promise.all([
-			getSeriesProgress(params.id),
+			getTitleProgress(params.id),
 			getEpisodes({
 				backdrop: series.backdrop_url,
 				id: params.id,
@@ -63,7 +57,7 @@
 	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
-	const similar = $derived(getSimilarSeries(params.id));
+	const similar = $derived(getSimilar(params.id));
 
 	const alike = $derived.by(() => {
 		if (!similar.current) {
@@ -105,7 +99,7 @@
 
 	const mark = () => {
 		options = false;
-		markSeries({
+		markAll({
 			seriesId: series.id,
 			watched: !progress.finished,
 		});

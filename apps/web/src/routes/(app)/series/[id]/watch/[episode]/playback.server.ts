@@ -23,13 +23,11 @@ type WatchPlayback = EpisodeLinks &
 		| { status: "failed" }
 	);
 
-const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
-
 /**
  * Resolves fresh streams or a display-safe failure. The catalog supplies
  * episode links when playback can't return its own.
  */
-export const resolveWatchPlayback = async (
+export const resolveEpisode = async (
 	sora: SoraClient,
 	{
 		seriesId,
@@ -51,7 +49,15 @@ export const resolveWatchPlayback = async (
 
 	if (playback.error) {
 		const { code, status, retryAfterSeconds } = playback.error;
-		const retryAt = retryAfterSeconds === null ? null : Date.now() + retryAfterSeconds * second;
+		let retryAt: number | null = null;
+
+		if (retryAfterSeconds !== null) {
+			retryAt = Date.now() + retryAfterSeconds * second;
+		}
+
+		if (!Number.isSafeInteger(retryAt)) {
+			retryAt = null;
+		}
 
 		const { data: episodes } = await attempt(
 			sora.request(route.listEpisodes, { params: { series_id: seriesId } }),
@@ -76,7 +82,7 @@ export const resolveWatchPlayback = async (
 		if (temporary) {
 			return {
 				...links,
-				retryAt: Number.isSafeInteger(retryAt) ? retryAt : null,
+				retryAt,
 				status: "temporary",
 			};
 		}
@@ -110,11 +116,11 @@ export const resolveWatchPlayback = async (
 				...media,
 				sources: media.sources.map((source) => ({
 					...source,
-					url: proxied(source.url),
+					url: `/api/stream/${new URL(source.url).pathname.split("/").pop()}`,
 				})),
 				subtitles: media.subtitles.map((track) => ({
 					...track,
-					url: proxied(track.url),
+					url: `/api/stream/${new URL(track.url).pathname.split("/").pop()}`,
 				})),
 			}),
 		),

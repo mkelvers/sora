@@ -4,7 +4,6 @@ import { Preferences } from "$lib/preferences";
 import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import type Hls from "hls.js";
-import type { Level } from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
@@ -26,39 +25,15 @@ const preferences = new Preferences("player");
 
 const forwardBufferSeconds = 120;
 
-const loadHls = () => attempt(import("hls.js"));
-
 if (browser) {
-	loadHls();
+	attempt(import("hls.js"));
 }
 
-const subscribeFullscreen = createSubscriber((update) => {
-	on(document, "fullscreenchange", update);
-});
-
-const qualitiesOf = (levels: Level[]) => {
-	const best = new Map<number, number>();
-
-	for (const [index, level] of levels.entries()) {
-		if (level.height > 0) {
-			best.set(level.height, index);
-		}
-	}
-
-	return [...best]
-		.map(([height, level]): Quality => ({
-			height,
-			level,
-		}))
-		.toSorted((left, right) => right.height - left.height);
-};
-
-const playDirect = (video: HTMLVideoElement, url: string, start: number) => {
-	video.src = url;
-	video.currentTime = start;
-};
-
 export class Player {
+	static readonly #fullscreen = createSubscriber((update) => {
+		on(document, "fullscreenchange", update);
+	});
+
 	root?: HTMLElement;
 	paused = $state(false);
 	time = $state(0);
@@ -83,7 +58,13 @@ export class Player {
 		return this.qualities.find((candidate) => candidate.height <= quality) ?? this.qualities.at(-1);
 	});
 
-	played = $derived(this.duration > 0 ? this.time / this.duration : 0);
+	played = $derived.by(() => {
+		if (this.duration > 0) {
+			return this.time / this.duration;
+		}
+
+		return 0;
+	});
 	loaded = $derived.by(() => {
 		const range = this.buffered.find((span) => span.start <= this.time && this.time <= span.end);
 
@@ -148,7 +129,7 @@ export class Player {
 	};
 
 	get fullscreen() {
-		subscribeFullscreen();
+		Player.#fullscreen();
 
 		return this.root !== undefined && document.fullscreenElement === this.root;
 	}
@@ -196,10 +177,14 @@ export class Player {
 	};
 
 	onkeydown = (event: KeyboardEvent) => {
-		const target = event.target instanceof Element ? event.target : null;
+		const { target } = event;
 
 		const ignored =
-			!target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey;
+			!(target instanceof Element) ||
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey;
 
 		if (ignored) {
 			return;
@@ -207,7 +192,7 @@ export class Player {
 
 		const inPlayer = target === document.body || this.root?.contains(target);
 
-		const inFieldOrMenu = target.closest(
+		const captured = target.closest(
 			'textarea, [contenteditable], input:not([type="range"]), :popover-open',
 		);
 
@@ -215,7 +200,7 @@ export class Player {
 			target.matches(":focus-visible") &&
 			(target.matches('input[type="range"]') || (event.key === " " && target.closest("button, a")));
 
-		const foreign = !inPlayer || inFieldOrMenu || controlOwnsKey;
+		const foreign = !inPlayer || captured || controlOwnsKey;
 
 		if (foreign) {
 			return;
@@ -224,22 +209,34 @@ export class Player {
 		const toggle = () => (this.paused = !this.paused);
 		const { next, previous } = this.#episodes();
 
-		const action =
-			{
+		const actions = new Map<string, () => void>(
+			Object.entries({
 				" ": toggle,
 				ArrowDown: () => this.nudgeVolume(-0.1),
 				ArrowLeft: () => (this.time -= 10),
 				ArrowRight: () => (this.time += 10),
 				ArrowUp: () => this.nudgeVolume(0.1),
-				N: next ? () => goto(next) : undefined,
-				P: previous ? () => goto(previous) : undefined,
 				f: this.toggleFullscreen,
 				j: () => (this.time -= 10),
 				k: toggle,
 				l: () => (this.time += 10),
 				m: () => (this.muted = !this.muted),
-			}[event.key] ??
-			(/^[0-9]$/u.test(event.key) ? () => this.seekTo(Number(event.key) / 10) : undefined);
+			}),
+		);
+
+		if (next) {
+			actions.set("N", () => goto(next));
+		}
+
+		if (previous) {
+			actions.set("P", () => goto(previous));
+		}
+
+		let action = actions.get(event.key);
+
+		if (!action && /^[0-9]$/u.test(event.key)) {
+			action = () => this.seekTo(Number(event.key) / 10);
+		}
 
 		if (action) {
 			event.preventDefault();
@@ -287,7 +284,8 @@ export class Player {
 			if (source.format === "hls") {
 				stop = this.#hls(video, source.url, start);
 			} else {
-				playDirect(video, source.url, start);
+				video.src = source.url;
+				video.currentTime = start;
 			}
 
 			return () => {
@@ -305,20 +303,26 @@ export class Player {
 		let detached = false;
 
 		void (async () => {
-			const loaded = await loadHls();
+			const loaded = await attempt(import("hls.js"));
 
 			if (detached) {
 				return;
 			}
 
 			if (loaded.error || !loaded.data.default.isSupported()) {
-				playDirect(video, url, start);
+				video.src = url;
+				video.currentTime = start;
 
 				return;
 			}
 
 			const Hls = loaded.data.default;
-			const memory = "deviceMemory" in navigator ? Number(navigator.deviceMemory) : 4;
+			let memory = 4;
+
+			if ("deviceMemory" in navigator) {
+				memory = Number(navigator.deviceMemory);
+			}
+
 			hls = new Hls({
 				abrEwmaDefaultEstimate: 10_000_000,
 				backBufferLength: 30,
@@ -346,8 +350,20 @@ export class Player {
 			this.#instance = hls;
 
 			hls.on(Hls.Events.MANIFEST_PARSED, () => {
-				const levels = hls?.levels ?? [];
-				this.qualities = qualitiesOf(levels);
+				const best = new Map<number, number>();
+
+				for (const [index, level] of (hls?.levels ?? []).entries()) {
+					if (level.height > 0) {
+						best.set(level.height, index);
+					}
+				}
+
+				this.qualities = [...best]
+					.map(([height, level]): Quality => ({
+						height,
+						level,
+					}))
+					.toSorted((left, right) => right.height - left.height);
 
 				if (hls && this.chosen) {
 					hls.nextLevel = this.chosen.level;

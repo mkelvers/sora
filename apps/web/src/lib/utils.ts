@@ -26,7 +26,13 @@ export const audioLabel = (audio: SeriesCard["audio"] | null | undefined) => {
 	return "";
 };
 
-export const episodes = (count: number) => `${count} ${count === 1 ? "Episode" : "Episodes"}`;
+export const episodes = (count: number) => {
+	if (count === 1) {
+		return `${count} Episode`;
+	}
+
+	return `${count} Episodes`;
+};
 
 export const pollWhileVisible = (refresh: () => void, intervalMs = 30_000) => {
 	const check = () => {
@@ -92,17 +98,15 @@ export const tmdbSrcset = (url: string, sizes: Partial<Record<TmdbSize, number>>
 		.join(", ");
 };
 
-const menuKeys = new Map<string, (index: number, count: number) => number>(
-	Object.entries({
-		ArrowDown: (index, count) => (index + 1) % count,
-		ArrowUp: (index, count) => (index - 1 + count) % count,
-		End: (_, count) => count - 1,
-		Home: () => 0,
-	}),
-);
-
 export const moveMenuFocus = (event: KeyboardEvent & { currentTarget: HTMLElement }) => {
-	const step = menuKeys.get(event.key);
+	const step = new Map<string, (index: number, count: number) => number>(
+		Object.entries({
+			ArrowDown: (index, count) => (index + 1) % count,
+			ArrowUp: (index, count) => (index - 1 + count) % count,
+			End: (_, count) => count - 1,
+			Home: () => 0,
+		}),
+	).get(event.key);
 
 	const items = [
 		...event.currentTarget.querySelectorAll<HTMLElement>(

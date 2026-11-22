@@ -8,40 +8,44 @@ const address = {
 	seriesId: "series",
 };
 
-const snapshot = (position: number, finished = false, leaving = false) => ({
-	duration_seconds: 120,
-	finished,
-	leaving,
-	position_seconds: position,
-});
-
 type Save = ConstructorParameters<typeof ProgressReports>[0];
 
 type Settled = ConstructorParameters<typeof ProgressReports>[1];
 
-const deferredReports = () => {
-	const writes: {
+/** Progress reports whose saves wait until a test finishes them. */
+class Deferred {
+	readonly writes: {
 		payload: Parameters<Save>[0];
 		deferred: PromiseWithResolvers<undefined>;
 	}[] = [];
 
-	const settlements: Parameters<Settled>[] = [];
+	readonly settlements: Parameters<Settled>[] = [];
 
-	const reports = new ProgressReports(
+	readonly reports = new ProgressReports(
 		(payload) => {
 			const deferred = Promise.withResolvers<undefined>();
-			writes.push({
+			this.writes.push({
 				deferred,
 				payload,
 			});
 
 			return deferred.promise;
 		},
-		(...settlement) => settlements.push(settlement),
+		(...settlement) => this.settlements.push(settlement),
 	);
 
-	const finishWrite = async (index: number, failed = false) => {
-		const { deferred } = writes[index];
+	/** Reports a snapshot of a 120-second episode at `position`. */
+	report = (target: typeof address, position: number, finished = false, leaving = false) => {
+		this.reports.enqueue(target, {
+			duration_seconds: 120,
+			finished,
+			leaving,
+			position_seconds: position,
+		});
+	};
+
+	finishWrite = async (index: number, failed = false) => {
+		const { deferred } = this.writes[index];
 
 		if (failed) {
 			deferred.reject(new Error("Save failed"));
@@ -51,21 +55,14 @@ const deferredReports = () => {
 
 		await Promise.resolve();
 	};
-
-	return {
-		finishWrite,
-		reports,
-		settlements,
-		writes,
-	};
-};
+}
 
 test("waits for the in-flight save and coalesces waiting reports to the latest position", async () => {
-	const { finishWrite, reports, writes } = deferredReports();
+	const { finishWrite, report, writes } = new Deferred();
 
-	reports.enqueue(address, snapshot(80));
-	reports.enqueue(address, snapshot(90));
-	reports.enqueue(address, snapshot(30));
+	report(address, 80);
+	report(address, 90);
+	report(address, 30);
 
 	expect(writes.map(({ payload }) => payload.position_seconds)).toEqual([80]);
 	await finishWrite(0);
@@ -74,22 +71,25 @@ test("waits for the in-flight save and coalesces waiting reports to the latest p
 });
 
 test("keeps completion and exit when later reports replace the pending position", async () => {
-	const { finishWrite, reports, writes } = deferredReports();
+	const { finishWrite, report, writes } = new Deferred();
 
-	reports.enqueue(address, snapshot(80));
-	reports.enqueue(address, snapshot(120, true));
-	reports.enqueue(address, snapshot(95, false, true));
+	report(address, 80);
+	report(address, 120, true);
+	report(address, 95, false, true);
 
 	await finishWrite(0);
 	expect(writes[1].payload).toEqual({
 		...address,
-		...snapshot(95, true, true),
+		duration_seconds: 120,
+		finished: true,
+		leaving: true,
+		position_seconds: 95,
 	});
 	await finishWrite(1);
 });
 
 test("sends departed episodes and profiles in order with their original flags", async () => {
-	const { finishWrite, reports, settlements, writes } = deferredReports();
+	const { finishWrite, report, settlements, writes } = new Deferred();
 
 	const nextEpisode = {
 		...address,
@@ -103,49 +103,64 @@ test("sends departed episodes and profiles in order with their original flags", 
 
 	const revisited = { ...address };
 
-	reports.enqueue(address, snapshot(80, true));
-	reports.enqueue(address, snapshot(90, false, true));
-	reports.enqueue(nextEpisode, snapshot(20, false, true));
-	reports.enqueue(nextProfile, snapshot(25));
-	reports.enqueue(nextProfile, snapshot(35));
-	reports.enqueue(revisited, snapshot(15));
+	report(address, 80, true);
+	report(address, 90, false, true);
+	report(nextEpisode, 20, false, true);
+	report(nextProfile, 25);
+	report(nextProfile, 35);
+	report(revisited, 15);
 
 	await finishWrite(0, true);
 	expect(settlements[0]).toEqual([address, true]);
 	expect(writes[1].payload).toEqual({
 		...address,
-		...snapshot(90, true, true),
+		duration_seconds: 120,
+		finished: true,
+		leaving: true,
+		position_seconds: 90,
 	});
 	await finishWrite(1, true);
 	expect(writes[2].payload).toEqual({
 		...nextEpisode,
-		...snapshot(20, false, true),
+		duration_seconds: 120,
+		finished: false,
+		leaving: true,
+		position_seconds: 20,
 	});
 	await finishWrite(2);
 	expect(writes[3].payload).toEqual({
 		...nextProfile,
-		...snapshot(35),
+		duration_seconds: 120,
+		finished: false,
+		leaving: false,
+		position_seconds: 35,
 	});
 	await finishWrite(3);
 	expect(writes[4].payload).toEqual({
 		...revisited,
-		...snapshot(15),
+		duration_seconds: 120,
+		finished: false,
+		leaving: false,
+		position_seconds: 15,
 	});
 	await finishWrite(4);
 });
 
 test("retains failed completion for the next report without retrying on its own", async () => {
-	const { finishWrite, reports, settlements, writes } = deferredReports();
+	const { finishWrite, report, settlements, writes } = new Deferred();
 
-	reports.enqueue(address, snapshot(120, true));
+	report(address, 120, true);
 	await finishWrite(0, true);
 	expect(writes).toHaveLength(1);
 	expect(settlements).toEqual([[address, true]]);
 
-	reports.enqueue(address, snapshot(90, false, true));
+	report(address, 90, false, true);
 	expect(writes[1].payload).toEqual({
 		...address,
-		...snapshot(90, true, true),
+		duration_seconds: 120,
+		finished: true,
+		leaving: true,
+		position_seconds: 90,
 	});
 	await finishWrite(1);
 	expect(settlements).toEqual([

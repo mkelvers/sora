@@ -1,13 +1,13 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
-import { refreshStatus, refreshTracking } from "$routes/(app)/tracking.server";
+import { getTitleProgress } from "$routes/(app)/series/[id]/series.remote";
+import { refreshStatus, refreshLibrary } from "$routes/(app)/tracking.server";
 import { route, SoraError } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
-import { resolveWatchPlayback } from "./playback.server";
+import { resolveEpisode } from "./playback.server";
 
 const EpisodeAddress = z.object({
 	episode: z.coerce.number().int().positive(),
@@ -49,7 +49,7 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 });
 
 export const getPlayback = query(EpisodeAddress, (address) =>
-	resolveWatchPlayback(remoteViewer().sora, address),
+	resolveEpisode(remoteViewer().sora, address),
 );
 
 export const getPlaybackPreferences = query(async () => {
@@ -106,7 +106,7 @@ export const saveProgress = command(
 		});
 
 		if (leaving) {
-			await Promise.all([getSeriesProgress(seriesId).refresh(), refreshTracking()]);
+			await Promise.all([getTitleProgress(seriesId).refresh(), refreshLibrary()]);
 		} else if (progress.finished) {
 			await refreshStatus();
 		}

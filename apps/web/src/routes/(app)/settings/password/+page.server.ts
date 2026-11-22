@@ -7,21 +7,6 @@ import { z } from "zod";
 
 import type { Actions } from "./$types";
 
-const Passwords = z
-	.object({
-		confirmPassword: z.string(),
-		currentPassword: z.string().min(1, "Enter your current password."),
-		newPassword: z.string().min(8, "Use at least 8 characters."),
-	})
-	.refine((passwords) => passwords.newPassword === passwords.confirmPassword, {
-		message: "The passwords don't match.",
-		path: ["confirmPassword"],
-	})
-	.refine((passwords) => passwords.newPassword !== passwords.currentPassword, {
-		message: "Choose a password you aren't using now.",
-		path: ["newPassword"],
-	});
-
 export const actions: Actions = {
 	default: async ({ request, locals, cookies, url, getClientAddress }) => {
 		if (!locals.viewer) {
@@ -30,11 +15,25 @@ export const actions: Actions = {
 
 		const form = await request.formData();
 
-		const passwords = Passwords.safeParse({
-			confirmPassword: form.get("confirmPassword") ?? "",
-			currentPassword: form.get("currentPassword") ?? "",
-			newPassword: form.get("newPassword") ?? "",
-		});
+		const passwords = z
+			.object({
+				confirmPassword: z.string(),
+				currentPassword: z.string().min(1, "Enter your current password."),
+				newPassword: z.string().min(8, "Use at least 8 characters."),
+			})
+			.refine((entered) => entered.newPassword === entered.confirmPassword, {
+				message: "The passwords don't match.",
+				path: ["confirmPassword"],
+			})
+			.refine((entered) => entered.newPassword !== entered.currentPassword, {
+				message: "Choose a password you aren't using now.",
+				path: ["newPassword"],
+			})
+			.safeParse({
+				confirmPassword: form.get("confirmPassword") ?? "",
+				currentPassword: form.get("currentPassword") ?? "",
+				newPassword: form.get("newPassword") ?? "",
+			});
 
 		if (!passwords.success) {
 			const { fieldErrors } = z.flattenError(passwords.error);

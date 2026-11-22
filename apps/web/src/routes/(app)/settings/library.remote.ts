@@ -1,8 +1,8 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
 import { getContinueWatching } from "$routes/(app)/(home)/home.remote";
-import { getUnreadNotifications } from "$routes/(app)/notifications/notifications.remote";
-import { getWatchlist, getWatchlistStatuses } from "$routes/(app)/watchlist/watchlist.remote";
+import { getUnread } from "$routes/(app)/notifications/notifications.remote";
+import { getEntries, getStatuses } from "$routes/(app)/watchlist/watchlist.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
@@ -16,7 +16,7 @@ export const getImportConnections = query(async () => {
 	});
 });
 
-export const importLibrary = command(
+export const runImport = command(
 	route.importLibrary.request.body.content["application/json"].schema,
 	async (input) => {
 		const { sora, profile } = remoteViewer();
@@ -29,10 +29,10 @@ export const importLibrary = command(
 		});
 
 		await Promise.all([
-			getWatchlist().refresh(),
-			getWatchlistStatuses().refresh(),
+			getEntries().refresh(),
+			getStatuses().refresh(),
 			getContinueWatching().refresh(),
-			getUnreadNotifications().refresh(),
+			getUnread().refresh(),
 			getImportConnections().refresh(),
 		]);
 
@@ -66,10 +66,10 @@ export const undoImport = command(z.string(), async (importId) => {
 	});
 
 	await Promise.all([
-		getWatchlist().refresh(),
-		getWatchlistStatuses().refresh(),
+		getEntries().refresh(),
+		getStatuses().refresh(),
 		getContinueWatching().refresh(),
-		getUnreadNotifications().refresh(),
+		getUnread().refresh(),
 	]);
 
 	return undone;

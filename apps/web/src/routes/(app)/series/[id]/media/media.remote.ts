@@ -1,6 +1,6 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import { getSeries } from "$routes/(app)/series/[id]/series.remote";
+import { getDetails } from "$routes/(app)/series/[id]/series.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
@@ -38,7 +38,7 @@ export const upscaleBackdrop = command(
 				},
 			}),
 		);
-		await getSeries(seriesId).refresh();
+		await getDetails(seriesId).refresh();
 	},
 );
 
@@ -49,7 +49,7 @@ export const setArtwork = command(
 		url: z.union([z.url(), z.string().startsWith("/api/backdrops/"), z.literal(false)]),
 	}),
 	async ({ seriesId, type, url }) => {
-		getSeries(seriesId).set(
+		getDetails(seriesId).set(
 			await remoteViewer().sora.request(route.updateArtwork, {
 				body: {
 					[`${type}_url`]: url,
@@ -70,7 +70,7 @@ export const setLogoPlacement = command(
 		y: z.number().min(-1).max(1),
 	}),
 	async ({ seriesId, scale, x, y }) => {
-		getSeries(seriesId).set(
+		getDetails(seriesId).set(
 			await remoteViewer().sora.request(route.updateArtwork, {
 				body: {
 					logo_offset_x: x,

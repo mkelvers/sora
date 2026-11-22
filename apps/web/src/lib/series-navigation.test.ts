@@ -54,10 +54,18 @@ describe("story playback navigation", () => {
 	test("does not skip unavailable story entries", () => {
 		const upcoming = {
 			...series,
-			seasons: series.seasons.map((part) => ({
-				...part,
-				episode_count: part.series_id === "season-2" ? 0 : 26,
-			})),
+			seasons: series.seasons.map((part) => {
+				let episodeCount = 26;
+
+				if (part.series_id === "season-2") {
+					episodeCount = 0;
+				}
+
+				return {
+					...part,
+					episode_count: episodeCount,
+				};
+			}),
 		};
 
 		expect(nextEpisodeAddress(upcoming, 26, null)).toBeUndefined();

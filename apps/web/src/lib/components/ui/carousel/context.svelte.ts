@@ -52,7 +52,13 @@ export class CarouselState {
 				api.scrollTo(0, true);
 			}
 
-			this.pages = this.scrollable ? api.scrollSnapList().length : 0;
+			let pages = 0;
+
+			if (this.scrollable) {
+				pages = api.scrollSnapList().length;
+			}
+
+			this.pages = pages;
 			sync();
 		};
 

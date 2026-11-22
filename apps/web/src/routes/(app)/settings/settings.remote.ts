@@ -1,9 +1,6 @@
 import { command, query } from "$app/server";
 import { remoteViewer } from "$lib/server/sora";
-import {
-	getNotifications,
-	getUnreadNotifications,
-} from "$routes/(app)/notifications/notifications.remote";
+import { getLatest, getUnread } from "$routes/(app)/notifications/notifications.remote";
 import { route } from "@sora/sdk";
 import { z } from "zod";
 
@@ -39,6 +36,6 @@ export const saveProfilePreferences = command(
 				},
 			}),
 		);
-		await Promise.all([getNotifications().refresh(), getUnreadNotifications().refresh()]);
+		await Promise.all([getLatest().refresh(), getUnread().refresh()]);
 	},
 );

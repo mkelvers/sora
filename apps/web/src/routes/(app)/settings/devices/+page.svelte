@@ -16,7 +16,7 @@
 		TelevisionSimpleIcon,
 	} from "phosphor-svelte";
 
-	import { getDevices, signOutDevice, signOutOtherDevices } from "../devices.remote";
+	import { getSignIns, revoke, revokeOthers } from "../devices.remote";
 
 	const icons = {
 		computer: DesktopIcon,
@@ -28,7 +28,7 @@
 
 	const shownAtFirst = 5;
 
-	const devices = $derived(await getDevices());
+	const devices = $derived(await getSignIns());
 
 	let message = $state("");
 	let busy = $state<string | null>(null);
@@ -105,7 +105,7 @@
 
 	const signOut = async (device: SignedInDevice) => {
 		busy = device.id;
-		await signOutDevice(device.id);
+		await revoke(device.id);
 		message = `${nameOf(device)} signed out.`;
 		busy = null;
 	};
@@ -113,14 +113,14 @@
 	const signOutEverywhere = async () => {
 		choosing = false;
 		busy = "everywhere";
-		await signOutOtherDevices();
+		await revokeOthers();
 		logoutForm?.requestSubmit();
 	};
 
 	const signOutOthers = async () => {
 		choosing = false;
 		busy = "others";
-		await signOutOtherDevices();
+		await revokeOthers();
 		message = "Every other device signed out.";
 		showAll = false;
 		busy = null;

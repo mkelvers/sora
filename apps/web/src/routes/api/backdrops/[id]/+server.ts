@@ -23,8 +23,12 @@ export const GET: RequestHandler = async ({ params, cookies, locals }) => {
 		error(502, "Not available");
 	}
 
+	if (upstream.status === 404) {
+		error(404, "Not available");
+	}
+
 	if (!upstream.ok) {
-		error(upstream.status === 404 ? 404 : 502, "Not available");
+		error(502, "Not available");
 	}
 
 	return new Response(upstream.body, {

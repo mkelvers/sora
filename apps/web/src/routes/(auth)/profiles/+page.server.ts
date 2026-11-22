@@ -32,6 +32,12 @@ export const actions: Actions = {
 
 		const target = new URL(url.searchParams.get("redirect") ?? "/", url.origin);
 		const path = target.pathname + target.search;
-		redirect(303, target.origin === url.origin && !path.startsWith("//") ? path : "/");
+		const local = target.origin === url.origin && !path.startsWith("//");
+
+		if (local) {
+			redirect(303, path);
+		}
+
+		redirect(303, "/");
 	},
 };

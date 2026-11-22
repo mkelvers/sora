@@ -2,12 +2,12 @@
 	import { onDestroy } from "svelte";
 
 	import type { LayoutProps } from "./$types";
-	import { profilesPage } from "./profiles.svelte";
+	import { picker } from "./profiles.svelte";
 
 	let { children }: LayoutProps = $props();
 
 	onDestroy(() => {
-		profilesPage.managing = false;
+		picker.managing = false;
 	});
 </script>
 
