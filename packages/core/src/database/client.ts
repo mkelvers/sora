@@ -124,8 +124,6 @@ class Connection {
 		if (key === "close") {
 			return this.#pool.close.bind(this.#pool);
 		}
-
-		return;
 	}
 }
 
