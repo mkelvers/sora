@@ -778,11 +778,12 @@ export const titleScore = (query: string, title: string) => {
 		return 0.9 + 0.03 * closeness;
 	}
 
-	if (
+	const acronym =
 		titleWords.length >= 2 &&
 		!query.includes(" ") &&
-		titleWords.map((word) => word[0]).join("") === query
-	) {
+		titleWords.map((word) => word[0]).join("") === query;
+
+	if (acronym) {
 		return 0.85;
 	}
 
