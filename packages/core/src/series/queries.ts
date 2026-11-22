@@ -1129,11 +1129,13 @@ const seriesIdsFor = async (
 		place >= window.pageStart && place < window.pageStart + window.perPage;
 
 	await Promise.all(
-		missing.map(({ anilistId, place }) =>
-			isWaitedOn(place)
-				? scheduleSeriesStore(anilistId, "waiting", place - window.pageStart)
-				: scheduleSeriesStore(anilistId, "current"),
-		),
+		missing.map(({ anilistId, place }) => {
+			if (isWaitedOn(place)) {
+				return scheduleSeriesStore(anilistId, "waiting", place - window.pageStart);
+			}
+
+			return scheduleSeriesStore(anilistId, "current");
+		}),
 	);
 
 	return {
