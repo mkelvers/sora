@@ -107,10 +107,14 @@ const roleOf = (
 	// main story's own listing decides between the two when it has one.
 	const decisive = listed.length > 0 ? listed : lists;
 
-	return !decisive.some((type) => sideStoryRelations.has(type)) &&
+	if (
+		!decisive.some((type) => sideStoryRelations.has(type)) &&
 		touching.some((type) => spinOffRelations.has(type))
-		? "spin_off"
-		: "extra";
+	) {
+		return "spin_off";
+	}
+
+	return "extra";
 };
 
 /**
