@@ -152,16 +152,18 @@ export const planNextCheck = (
 			: null;
 
 	if (state.status === "FINISHED" || state.status === "CANCELLED") {
-		return retryAt
-			? {
-					attempt,
-					awaitedEpisode,
-					done: false,
-					runAt: retryAt,
-				}
-			: {
-					done: true,
-				};
+		if (retryAt) {
+			return {
+				attempt,
+				awaitedEpisode,
+				done: false,
+				runAt: retryAt,
+			};
+		}
+
+		return {
+			done: true,
+		};
 	}
 
 	const scheduledAt = nextScheduledCheck(state, now);
