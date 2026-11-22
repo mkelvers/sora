@@ -20,5 +20,9 @@ export const editedSearchHref = (
 		return;
 	}
 
-	return term ? `/search?q=${encodeURIComponent(term)}` : "/search";
+	if (term) {
+		return `/search?q=${encodeURIComponent(term)}`;
+	}
+
+	return "/search";
 };
