@@ -430,7 +430,9 @@ export const getNotifications = async (
 	for (const entry of watched) {
 		const savedAt = followed.get(entry.anilistId);
 
-		if (!excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt)) {
+		const firstWatch = !excluded.has(entry.anilistId) && (!savedAt || entry.watchedAt < savedAt);
+
+		if (firstWatch) {
 			followed.set(entry.anilistId, entry.watchedAt);
 		}
 	}
