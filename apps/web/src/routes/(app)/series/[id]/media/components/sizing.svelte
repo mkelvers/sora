@@ -69,7 +69,11 @@
 
 	const cursor = $derived.by(() => {
 		if (activeHandle === "logo") {
-			return drag ? "cursor-grabbing" : "cursor-grab";
+			if (drag) {
+				return "cursor-grabbing";
+			}
+
+			return "cursor-grab";
 		}
 
 		if (!activeHandle) {
