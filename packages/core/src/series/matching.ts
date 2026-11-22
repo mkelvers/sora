@@ -711,7 +711,7 @@ const compiledSeasonRun = (
 	const startOffset = dayOffset(subject.startDate, first?.air_date ?? null);
 	const endOffset = dayOffset(subject.endDate, last?.air_date ?? null);
 
-	if (
+	const mismatched =
 		!first ||
 		!last ||
 		run.length !== playbackEpisodes ||
@@ -720,8 +720,9 @@ const compiledSeasonRun = (
 		startOffset === null ||
 		startOffset > startWindowDays ||
 		endOffset === null ||
-		endOffset > startWindowDays
-	) {
+		endOffset > startWindowDays;
+
+	if (mismatched) {
 		return null;
 	}
 
