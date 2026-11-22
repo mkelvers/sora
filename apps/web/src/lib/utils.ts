@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 import type { ClassValue } from "clsx";
 import type { Attachment } from "svelte/attachments";
 import { twMerge } from "tailwind-merge";
+import { z } from "zod";
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
@@ -60,17 +61,20 @@ export const onVisible =
 
 const tmdbBucket = /^(?<prefix>https:\/\/image\.tmdb\.org\/t\/p\/)[^/]+\//u;
 
-export type TmdbSize =
-	| "w45"
-	| "w92"
-	| "w154"
-	| "w185"
-	| "w300"
-	| "w342"
-	| "w500"
-	| "w780"
-	| "w1280"
-	| "original";
+const SizeSchema = z.enum([
+	"w45",
+	"w92",
+	"w154",
+	"w185",
+	"w300",
+	"w342",
+	"w500",
+	"w780",
+	"w1280",
+	"original",
+]);
+
+export type TmdbSize = z.infer<typeof SizeSchema>;
 
 export const tmdbImage = (url: string, size: TmdbSize) => url.replace(tmdbBucket, `$1${size}/`);
 
@@ -79,9 +83,8 @@ export const tmdbSrcset = (url: string, sizes: Partial<Record<TmdbSize, number>>
 		return;
 	}
 
-	// SAFETY: the keys of `sizes` are TmdbSizes; Object.entries only widens them to string.
 	return Object.entries(sizes)
-		.map(([size, width]) => `${tmdbImage(url, size as TmdbSize)} ${width}w`)
+		.map(([size, width]) => `${tmdbImage(url, SizeSchema.parse(size))} ${width}w`)
 		.join(", ");
 };
 
