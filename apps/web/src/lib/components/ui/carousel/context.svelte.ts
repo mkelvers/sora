@@ -88,7 +88,9 @@ export class CarouselState {
 			};
 
 			const resume = () => {
-				if (timer !== undefined || document.hidden || this.stopped) {
+				const paused = timer !== undefined || document.hidden || this.stopped;
+
+				if (paused) {
 					return;
 				}
 
