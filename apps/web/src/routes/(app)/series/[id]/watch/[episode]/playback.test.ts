@@ -175,7 +175,11 @@ test("resolves fresh media and uses playback metadata on retry", async () => {
 	const sora = fixture(() => {
 		requests += 1;
 
-		return requests === 1 ? problem(503, "UPSTREAM_UNAVAILABLE") : resolved([media]);
+		if (requests === 1) {
+			return problem(503, "UPSTREAM_UNAVAILABLE");
+		}
+
+		return resolved([media]);
 	});
 
 	const first = await resolveWatchPlayback(sora, address);
