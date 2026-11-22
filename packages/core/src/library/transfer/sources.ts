@@ -21,6 +21,12 @@ export interface ListEntry {
 }
 
 /** The dates a list keeps for one title; any of them can be missing. */
+/** When Sora keeps a title as added and as last changed. */
+interface KeptDates {
+	addedAt: Date | null;
+	changedAt: Date | null;
+}
+
 interface ListDates {
 	created?: Date | null;
 	started?: Date | null;
@@ -34,12 +40,7 @@ interface ListDates {
  * else when it was last updated. It last changed at the latest of them.
  * `null` for both when the list has no date at all.
  */
-export const listDates = (
-	dates: ListDates,
-): {
-	addedAt: Date | null;
-	changedAt: Date | null;
-} => {
+export const listDates = (dates: ListDates): KeptDates => {
 	const known = [dates.created, dates.started, dates.finished, dates.updated].filter(
 		(date): date is Date => date instanceof Date && !Number.isNaN(date.getTime()),
 	);
@@ -84,31 +85,35 @@ export const fromTimestamp = (text: string | null | undefined): Date | null => {
  * AniList's list statuses as Sora's four. Paused and rewatching are still
  * in progress; Sora has no status between watching and dropped.
  */
-const aniListStatuses: Record<string, WatchlistStatus> = {
-	COMPLETED: "completed",
-	CURRENT: "watching",
-	DROPPED: "dropped",
-	PAUSED: "watching",
-	PLANNING: "plan_to_watch",
-	REPEATING: "watching",
-};
+const aniListStatuses = new Map<string, WatchlistStatus>(
+	Object.entries({
+		COMPLETED: "completed",
+		CURRENT: "watching",
+		DROPPED: "dropped",
+		PAUSED: "watching",
+		PLANNING: "plan_to_watch",
+		REPEATING: "watching",
+	}),
+);
 
 /** MyAnimeList's statuses, spelled out or as its numbers. */
-const malStatuses: Record<string, WatchlistStatus> = {
-	"1": "watching",
-	"2": "completed",
-	"3": "watching",
-	"4": "dropped",
-	"6": "plan_to_watch",
-	completed: "completed",
-	dropped: "dropped",
-	"on hold": "watching",
-	"on-hold": "watching",
-	on_hold: "watching",
-	"plan to watch": "plan_to_watch",
-	plan_to_watch: "plan_to_watch",
-	watching: "watching",
-};
+const malStatuses = new Map<string, WatchlistStatus>(
+	Object.entries({
+		"1": "watching",
+		"2": "completed",
+		"3": "watching",
+		"4": "dropped",
+		"6": "plan_to_watch",
+		completed: "completed",
+		dropped: "dropped",
+		"on hold": "watching",
+		"on-hold": "watching",
+		on_hold: "watching",
+		"plan to watch": "plan_to_watch",
+		plan_to_watch: "plan_to_watch",
+		watching: "watching",
+	}),
+);
 
 /** The entries of an AniList list collection, leaving out any with a status Sora has no equivalent for. */
 export const aniListEntries = (
@@ -118,7 +123,7 @@ export const aniListEntries = (
 
 	for (const list of collection?.lists ?? []) {
 		for (const entry of list?.entries ?? []) {
-			const status = entry?.status ? aniListStatuses[entry.status] : undefined;
+			const status = entry?.status ? aniListStatuses.get(entry.status) : undefined;
 
 			if (entry?.media && status) {
 				entries.push({
@@ -205,7 +210,7 @@ export const toMalEntry = (entry: {
 	/** An ISO 8601 time, which only MyAnimeList's API gives. */
 	updated?: string | null;
 }): MalEntry | null => {
-	const status = malStatuses[entry.status.trim().toLowerCase()];
+	const status = malStatuses.get(entry.status.trim().toLowerCase());
 
 	return status
 		? {

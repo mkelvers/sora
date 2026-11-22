@@ -7,9 +7,11 @@ import { fetchTimetable, isoWeek } from "./timetable";
 
 /** What AnimeSchedule answers every request with. */
 /** What the fake AnimeSchedule API answers with. */
-const fake: {
+interface FakeSchedule {
 	timetable: unknown[];
-} = {
+}
+
+const fake: FakeSchedule = {
 	timetable: [],
 };
 

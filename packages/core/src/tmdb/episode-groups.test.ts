@@ -17,45 +17,47 @@ const episode = {
 	still_path: null,
 };
 
-const responses: Record<string, Json> = {
-	"/tv/1/episode_groups": { results: [] },
-	"/tv/45790/episode_groups": {
-		results: [
-			{
-				id: "anime-parts",
-				type: 1,
-			},
-		],
-	},
-	"/tv/episode_group/anime-parts": {
-		groups: [
-			{
-				episodes: [
-					{
-						...episode,
-						episode_number: 25,
-						id: 3,
-					},
-				],
-				name: "Part 3",
-				order: 3,
-			},
-			{
-				episodes: [
-					{
-						...episode,
-						episode_number: 14,
-						id: 2,
-						order: 1,
-					},
-					episode,
-				],
-				name: "Part 2",
-				order: 2,
-			},
-		],
-	},
-};
+const responses = new Map(
+	Object.entries<Json>({
+		"/tv/1/episode_groups": { results: [] },
+		"/tv/45790/episode_groups": {
+			results: [
+				{
+					id: "anime-parts",
+					type: 1,
+				},
+			],
+		},
+		"/tv/episode_group/anime-parts": {
+			groups: [
+				{
+					episodes: [
+						{
+							...episode,
+							episode_number: 25,
+							id: 3,
+						},
+					],
+					name: "Part 3",
+					order: 3,
+				},
+				{
+					episodes: [
+						{
+							...episode,
+							episode_number: 14,
+							id: 2,
+							order: 1,
+						},
+						episode,
+					],
+					name: "Part 2",
+					order: 2,
+				},
+			],
+		},
+	}),
+);
 
 /** The paths TMDB was asked for, in order. */
 const requests: string[] = [];
@@ -65,7 +67,7 @@ const { tmdb } = createTmdbClient({
 		const path = url.pathname.replace("/3", "");
 		requests.push(path);
 
-		return Promise.resolve(Response.json(responses[path]));
+		return Promise.resolve(Response.json(responses.get(path)));
 	},
 	store: {
 		find: async () => {},

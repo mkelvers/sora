@@ -84,15 +84,17 @@ export const tmdbSrcset = (url: string, sizes: Partial<Record<TmdbSize, number>>
 		.join(", ");
 };
 
-const menuKeys: Record<string, (index: number, count: number) => number> = {
-	ArrowDown: (index, count) => (index + 1) % count,
-	ArrowUp: (index, count) => (index - 1 + count) % count,
-	End: (_, count) => count - 1,
-	Home: () => 0,
-};
+const menuKeys = new Map<string, (index: number, count: number) => number>(
+	Object.entries({
+		ArrowDown: (index, count) => (index + 1) % count,
+		ArrowUp: (index, count) => (index - 1 + count) % count,
+		End: (_, count) => count - 1,
+		Home: () => 0,
+	}),
+);
 
 export const moveMenuFocus = (event: KeyboardEvent & { currentTarget: HTMLElement }) => {
-	const step = menuKeys[event.key];
+	const step = menuKeys.get(event.key);
 
 	const items = [
 		...event.currentTarget.querySelectorAll<HTMLElement>(

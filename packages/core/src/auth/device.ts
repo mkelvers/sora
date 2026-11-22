@@ -40,20 +40,24 @@ export const describeDevice = (userAgent: string | null): string => {
 };
 
 /** Where each browser writes its version, as a major version. */
-const browserVersions: Readonly<Record<string, RegExp>> = {
-	Chrome: /\b(?:CriOS|Chrome)\/(?<version>\d+)/u,
-	Edge: /\bEdg(?:e|A|iOS)?\/(?<version>\d+)/u,
-	Firefox: /\b(?:Firefox|FxiOS)\/(?<version>\d+)/u,
-	Opera: /\bOPR\/(?<version>\d+)/u,
-	Safari: /\bVersion\/(?<version>\d+(?:\.\d+)?)/u,
-};
+const browserVersions = new Map<string, RegExp>(
+	Object.entries({
+		Chrome: /\b(?:CriOS|Chrome)\/(?<version>\d+)/u,
+		Edge: /\bEdg(?:e|A|iOS)?\/(?<version>\d+)/u,
+		Firefox: /\b(?:Firefox|FxiOS)\/(?<version>\d+)/u,
+		Opera: /\bOPR\/(?<version>\d+)/u,
+		Safari: /\bVersion\/(?<version>\d+(?:\.\d+)?)/u,
+	}),
+);
 
 /** Systems whose `User-Agent` tells the real version. macOS and Windows freeze theirs, so they are left out. */
-const systemVersions: Readonly<Record<string, RegExp>> = {
-	Android: /\bAndroid (?<version>\d+(?:\.\d+)?)/u,
-	iPad: /\bCPU OS (?<version>\d+(?:_\d+)?)/u,
-	iPhone: /\bCPU iPhone OS (?<version>\d+(?:_\d+)?)/u,
-};
+const systemVersions = new Map<string, RegExp>(
+	Object.entries({
+		Android: /\bAndroid (?<version>\d+(?:\.\d+)?)/u,
+		iPad: /\bCPU OS (?<version>\d+(?:_\d+)?)/u,
+		iPhone: /\bCPU iPhone OS (?<version>\d+(?:_\d+)?)/u,
+	}),
+);
 
 /** The browser and system a `User-Agent` names, each with a version when it can be trusted. */
 export const deviceDetails = (userAgent: string | null) => {
@@ -62,10 +66,12 @@ export const deviceDetails = (userAgent: string | null) => {
 	const system = systems.find(([pattern]) => pattern.test(text))?.[1] ?? null;
 
 	const browserVersion = browser
-		? browserVersions[browser]?.exec(text)?.groups?.version
+		? browserVersions.get(browser)?.exec(text)?.groups?.version
 		: undefined;
 
-	const systemVersion = system ? systemVersions[system]?.exec(text)?.groups?.version : undefined;
+	const systemVersion = system
+		? systemVersions.get(system)?.exec(text)?.groups?.version
+		: undefined;
 
 	return {
 		browser,

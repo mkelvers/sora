@@ -198,13 +198,15 @@ const numberWords = new Map<string, number>(
 /** Canonical numerals only, so "iiii" and "vx" stay words. */
 const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
 
-const romanValues: Record<string, number> = {
-	c: 100,
-	i: 1,
-	l: 50,
-	v: 5,
-	x: 10,
-};
+const romanValues = new Map<string, number>(
+	Object.entries({
+		c: 100,
+		i: 1,
+		l: 50,
+		v: 5,
+		x: 10,
+	}),
+);
 
 /**
  * The value of a roman numeral from 2 to 399, or `null`. A lone "I", "V",
@@ -216,7 +218,7 @@ const romanValue = (word: string) => {
 		return null;
 	}
 
-	const values = Array.from(word, (letter) => romanValues[letter] ?? 0);
+	const values = Array.from(word, (letter) => romanValues.get(letter) ?? 0);
 
 	return values.reduce(
 		(total, value, index) => total + (value < (values[index + 1] ?? 0) ? -value : value),

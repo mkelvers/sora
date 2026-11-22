@@ -27,11 +27,13 @@ interface FakeProvider {
 }
 
 /** What the fakes were asked: lookups queued, their priorities, and requests to AniKoto. */
-const fake: {
+interface FakeRequests {
 	asks: number;
 	queuedLookups: number[];
 	queuedPriorities: string[];
-} = {
+}
+
+const fake: FakeRequests = {
 	asks: 0,
 	queuedLookups: [],
 	queuedPriorities: [],

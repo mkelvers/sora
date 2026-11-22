@@ -96,17 +96,19 @@ const CatalogPageSchema = z.object({
 });
 
 /** AniKoto's series types, as AniList formats. */
-const formats: Record<string, AnimeFormat> = {
-	movie: "MOVIE",
-	music: "MUSIC",
-	ona: "ONA",
-	ova: "OVA",
-	special: "SPECIAL",
-	tv: "TV",
-	"tv short": "TV_SHORT",
-	"tv special": "SPECIAL",
-	tv_short: "TV_SHORT",
-};
+const formats = new Map<string, AnimeFormat>(
+	Object.entries({
+		movie: "MOVIE",
+		music: "MUSIC",
+		ona: "ONA",
+		ova: "OVA",
+		special: "SPECIAL",
+		tv: "TV",
+		"tv short": "TV_SHORT",
+		"tv special": "SPECIAL",
+		tv_short: "TV_SHORT",
+	}),
+);
 
 /** Formats one site may list as another: a TV short as TV, a web series as TV or OVA. */
 const episodicFormats = new Set<string>(["TV", "TV_SHORT", "ONA"]);
@@ -119,7 +121,7 @@ const toRow = (series: z.infer<typeof CatalogSeriesSchema>): typeof anikotoSerie
 		anikotoId: series.id,
 		anilistId: series.ani_id,
 		episodes: series.episodes,
-		format: type ? (formats[type] ?? null) : null,
+		format: type ? (formats.get(type) ?? null) : null,
 		malId: series.mal_id,
 		rating: series.rating,
 		title: series.title,

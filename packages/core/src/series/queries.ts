@@ -124,10 +124,12 @@ const formatNames: Record<AnimeFormat, string> = {
 	TV_SHORT: "Short",
 };
 
-const statusNames: Partial<Record<string, string>> = {
-	NOT_YET_RELEASED: "Upcoming",
-	RELEASING: "Airing",
-};
+const statusNames = new Map<string, string>(
+	Object.entries({
+		NOT_YET_RELEASED: "Upcoming",
+		RELEASING: "Airing",
+	}),
+);
 
 /** The artwork a card shows: the chosen image or the laid-out one, and where the logo sits. */
 const artworkOf = (row: SeriesRow, title: typeof titleArtwork.$inferSelect | undefined) => ({
@@ -141,7 +143,11 @@ const artworkOf = (row: SeriesRow, title: typeof titleArtwork.$inferSelect | und
 
 /** A card's line of year, format, and status. */
 const detailsLineOf = (row: SeriesRow, format: AnimeFormat | null | undefined) =>
-	[row.startDate?.slice(0, 4), format && formatNames[format], row.status && statusNames[row.status]]
+	[
+		row.startDate?.slice(0, 4),
+		format && formatNames[format],
+		row.status && statusNames.get(row.status),
+	]
 		.filter(Boolean)
 		.join(" · ");
 

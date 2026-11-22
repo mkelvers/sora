@@ -7,21 +7,23 @@
  * `asHtml: false`, label their parts (`OVA 1:`), and often end with
  * `(Source: Crunchyroll)` or a note on how the release was sold.
  */
-const namedEntities: Record<string, string> = {
-	amp: "&",
-	apos: "'",
-	gt: ">",
-	hellip: "…",
-	ldquo: "“",
-	lsquo: "‘",
-	lt: "<",
-	mdash: "—",
-	nbsp: " ",
-	ndash: "–",
-	quot: '"',
-	rdquo: "”",
-	rsquo: "’",
-};
+const namedEntities = new Map<string, string>(
+	Object.entries({
+		amp: "&",
+		apos: "'",
+		gt: ">",
+		hellip: "…",
+		ldquo: "“",
+		lsquo: "‘",
+		lt: "<",
+		mdash: "—",
+		nbsp: " ",
+		ndash: "–",
+		quot: '"',
+		rdquo: "”",
+		rsquo: "’",
+	}),
+);
 
 const decodeEntity = (entity: string, body: string) => {
 	if (body.startsWith("#x") || body.startsWith("#X")) {
@@ -32,7 +34,7 @@ const decodeEntity = (entity: string, body: string) => {
 		return String.fromCodePoint(Math.trunc(Number(body.slice(1))));
 	}
 
-	return namedEntities[body.toLowerCase()] ?? entity;
+	return namedEntities.get(body.toLowerCase()) ?? entity;
 };
 
 export const plainText = (value: string) =>

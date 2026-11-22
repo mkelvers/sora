@@ -57,9 +57,11 @@ const resolved: string[] = [];
 
 /** The versions the stored episode lists offer, for `getEpisodeVersions`. */
 /** The versions the fake providers offer. */
-const fake: {
+interface FakeProviders {
 	offered: EpisodeVersion[];
-} = {
+}
+
+const fake: FakeProviders = {
 	offered: [],
 };
 

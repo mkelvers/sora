@@ -229,22 +229,26 @@
 		}
 	};
 
-	const moves: Record<string, [number, number]> = {
-		ArrowDown: [0, 1],
-		ArrowLeft: [-1, 0],
-		ArrowRight: [1, 0],
-		ArrowUp: [0, -1],
-	};
+	const moves = new Map<string, [number, number]>(
+		Object.entries({
+			ArrowDown: [0, 1],
+			ArrowLeft: [-1, 0],
+			ArrowRight: [1, 0],
+			ArrowUp: [0, -1],
+		}),
+	);
 
-	const zooms: Record<string, number> = {
-		"+": 1,
-		"-": -1,
-		"=": 1,
-	};
+	const zooms = new Map<string, number>(
+		Object.entries({
+			"+": 1,
+			"-": -1,
+			"=": 1,
+		}),
+	);
 
 	const nudge = (event: KeyboardEvent) => {
-		const direction = moves[event.key];
-		const zoom = zooms[event.key];
+		const direction = moves.get(event.key);
+		const zoom = zooms.get(event.key);
 
 		if (!direction && !zoom) {
 			return;
@@ -256,7 +260,9 @@
 			const step = event.shiftKey ? 0.02 : 0.005;
 			x = unit(x + direction[0] * step);
 			y = unit(y + direction[1] * step);
-		} else {
+		}
+
+		if (zoom) {
 			scale = zoomed(scale + zoom * 0.05);
 		}
 	};
@@ -302,7 +308,7 @@
 				style:height="{box.height}px"
 				onkeydown={nudge}
 				onkeyup={(event) => {
-					if (event.key in moves || event.key in zooms) {
+					if (moves.has(event.key) || zooms.has(event.key)) {
 						save();
 					}
 				}}

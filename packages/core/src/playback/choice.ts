@@ -8,6 +8,12 @@ const fallbacks = {
 	sub: ["sub", "raw", "dub"],
 } as const;
 
+/** The version to play and its subtitle track, either missing when there is none. */
+export interface PlaybackChoice<TMedia extends Pick<PlaybackMedia, "audio" | "subtitles">> {
+	media: TMedia | undefined;
+	subtitle: TMedia["subtitles"][number] | undefined;
+}
+
 /**
  * What a player shows of an episode for a profile's playback preferences:
  * the version in its preferred audio, else the next best (a dub falls back to
@@ -24,10 +30,7 @@ const fallbacks = {
 export const choosePlayback = <TMedia extends Pick<PlaybackMedia, "audio" | "subtitles">>(
 	media: readonly TMedia[],
 	preferences: Pick<PlaybackPreferences, "audio" | "subtitles">,
-): {
-	media: TMedia | undefined;
-	subtitle: TMedia["subtitles"][number] | undefined;
-} => {
+): PlaybackChoice<TMedia> => {
 	const version =
 		(preferences.audio &&
 			fallbacks[preferences.audio]

@@ -39,12 +39,13 @@ interface Call {
 }
 
 /** A fetcher that answers each call in turn and records what it was sent. */
-const answering = (
-	...responses: Response[]
-): {
+/** A fake fetcher answering with `responses` in turn, and the calls it got. */
+interface Answering {
 	calls: Call[];
 	fetcher: Fetcher;
-} => {
+}
+
+const answering = (...responses: Response[]): Answering => {
 	const calls: Call[] = [];
 
 	return {

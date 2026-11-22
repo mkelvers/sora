@@ -1,6 +1,7 @@
 import { Avatar, Style } from "@dicebear/core";
 import crittersDefinition from "@dicebear/styles/critters.json";
 import sproutsDefinition from "@dicebear/styles/sprouts.json";
+import { defined } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 
 import type { RequestHandler } from "./$types";
@@ -8,20 +9,22 @@ import type { RequestHandler } from "./$types";
 const sprouts = new Style(sproutsDefinition);
 const critters = new Style(crittersDefinition);
 
-const tops: Record<string, number> = {
-	ball: 25.5,
-	buds: 28.5,
-	bush: 25,
-	cactus: 24,
-	flower: 11,
-	grass: 36,
-	palm: 19.5,
-	seedling: 12,
-	sprout: 26,
-	succulent: 34,
-	tall: 14,
-	tulip: 21,
-};
+const tops = new Map<string, number>(
+	Object.entries({
+		ball: 25.5,
+		buds: 28.5,
+		bush: 25,
+		cactus: 24,
+		flower: 11,
+		grass: 36,
+		palm: 19.5,
+		seedling: 12,
+		sprout: 26,
+		succulent: 34,
+		tall: 14,
+		tulip: 21,
+	}),
+);
 
 const draw = (style: string, seed: string) => {
 	const options = {
@@ -37,7 +40,7 @@ const draw = (style: string, seed: string) => {
 	}
 
 	const variant = new Avatar(sprouts, options).toJSON().options.plantVariant;
-	const top = tops[String(variant)] ?? tops.flower;
+	const top = tops.get(String(variant)) ?? defined(tops.get("flower"));
 
 	return new Avatar(sprouts, {
 		...options,

@@ -33,19 +33,21 @@ export interface AboutSources {
 }
 
 /** The original language of anime from each country AniList files anime under. */
-const originalLanguages: Record<string, string> = {
-	CN: "zh",
-	JP: "ja",
-	KR: "ko",
-	TW: "zh",
-};
+const originalLanguages = new Map<string, string>(
+	Object.entries({
+		CN: "zh",
+		JP: "ja",
+		KR: "ko",
+		TW: "zh",
+	}),
+);
 
 /**
  * The languages its audio is in: the original's, for a sub or raw, then
  * English, for a dub, which providers only carry in English.
  */
 const audioLanguages = (anime: Anime, audio: readonly ContentLanguage[]) => {
-	const original = originalLanguages[anime.countryOfOrigin ?? "JP"] ?? "ja";
+	const original = originalLanguages.get(anime.countryOfOrigin ?? "JP") ?? "ja";
 
 	const tags = [
 		...(audio.includes("sub") || audio.includes("raw") ? [original] : []),
@@ -233,136 +235,146 @@ const ageRatings: Record<
 };
 
 /** Ages each US certification TMDB lists is for, when MyAnimeList's rating is missing. */
-const certificationAges: Record<string, string> = {
-	G: "All ages",
-	"NC-17": "18+",
-	PG: "10+",
-	"PG-13": "13+",
-	R: "17+",
-	"TV-14": "14+",
-	"TV-G": "All ages",
-	"TV-MA": "17+",
-	"TV-PG": "10+",
-	"TV-Y": "All ages",
-	"TV-Y7": "7+",
-};
+const certificationAges = new Map<string, string>(
+	Object.entries({
+		G: "All ages",
+		"NC-17": "18+",
+		PG: "10+",
+		"PG-13": "13+",
+		R: "17+",
+		"TV-14": "14+",
+		"TV-G": "All ages",
+		"TV-MA": "17+",
+		"TV-PG": "10+",
+		"TV-Y": "All ages",
+		"TV-Y7": "7+",
+	}),
+);
 
 /** AniList tags that warn of something, and the warnings. */
-const advisoryTags: Record<string, string[]> = {
-	Assassins: ["Violence"],
-	"Battle Royale": ["Violence"],
-	"Body Horror": ["Gore"],
-	Cannibalism: ["Gore"],
-	"Cosmic Horror": ["Fear"],
-	"Death Game": ["Violence"],
-	Drugs: ["Drug use"],
-	Gambling: ["Gambling"],
-	Gore: ["Gore", "Violence"],
-	Guns: ["Violence"],
-	"Martial Arts": ["Violence"],
-	Nudity: ["Nudity"],
-	Rape: ["Sexual violence"],
-	Suicide: ["Suicide"],
-	Swordplay: ["Violence"],
-	Terrorism: ["Violence"],
-	Torture: ["Torture", "Violence"],
-	War: ["Violence"],
-};
+const advisoryTags = new Map<string, string[]>(
+	Object.entries({
+		Assassins: ["Violence"],
+		"Battle Royale": ["Violence"],
+		"Body Horror": ["Gore"],
+		Cannibalism: ["Gore"],
+		"Cosmic Horror": ["Fear"],
+		"Death Game": ["Violence"],
+		Drugs: ["Drug use"],
+		Gambling: ["Gambling"],
+		Gore: ["Gore", "Violence"],
+		Guns: ["Violence"],
+		"Martial Arts": ["Violence"],
+		Nudity: ["Nudity"],
+		Rape: ["Sexual violence"],
+		Suicide: ["Suicide"],
+		Swordplay: ["Violence"],
+		Terrorism: ["Violence"],
+		Torture: ["Torture", "Violence"],
+		War: ["Violence"],
+	}),
+);
 
 /** How strongly a tag must apply, 0–100, to warn of it; below, it only comes up. */
 const advisoryRank = 50;
 
 /** AniList genres that warn of something, and the warnings. */
-const advisoryGenres: Record<string, string[]> = {
-	Ecchi: ["Sexual content"],
-	Horror: ["Fear"],
-};
+const advisoryGenres = new Map<string, string[]>(
+	Object.entries({
+		Ecchi: ["Sexual content"],
+		Horror: ["Fear"],
+	}),
+);
 
 /** TMDB keywords that warn of something, lowercased, and the warnings. */
-const advisoryKeywords: Record<string, string[]> = {
-	alcohol: ["Alcohol"],
-	alcoholism: ["Alcohol"],
-	assassin: ["Violence"],
-	assassination: ["Violence"],
-	battle: ["Violence"],
-	blood: ["Gore"],
-	bloodshed: ["Gore", "Violence"],
-	"body horror": ["Gore"],
-	brutality: ["Violence"],
-	cannibalism: ["Gore"],
-	cigarette: ["Smoking"],
-	combat: ["Violence"],
-	cursing: ["Profanity"],
-	decapitation: ["Gore"],
-	dismemberment: ["Gore"],
-	drinking: ["Alcohol"],
-	"drug abuse": ["Drug use"],
-	"drug addiction": ["Drug use"],
-	"drug dealer": ["Drug use"],
-	"drug use": ["Drug use"],
-	drugs: ["Drug use"],
-	drunk: ["Alcohol"],
-	drunkenness: ["Alcohol"],
-	ecchi: ["Sexual content"],
-	erotic: ["Sexual content"],
-	"fan service": ["Sexual content"],
-	fanservice: ["Sexual content"],
-	fight: ["Violence"],
-	fighting: ["Violence"],
-	"foul language": ["Profanity"],
-	gambling: ["Gambling"],
-	gore: ["Gore", "Violence"],
-	gunfight: ["Violence"],
-	horror: ["Fear"],
-	killing: ["Violence"],
-	"martial arts": ["Violence"],
-	massacre: ["Violence"],
-	murder: ["Violence"],
-	mutilation: ["Gore"],
-	naked: ["Nudity"],
-	nudity: ["Nudity"],
-	profanity: ["Profanity"],
-	rape: ["Sexual violence"],
-	"self harm": ["Self-harm"],
-	"serial killer": ["Violence"],
-	sex: ["Sexual content"],
-	"sexual abuse": ["Sexual violence"],
-	"sexual assault": ["Sexual violence"],
-	"sexual content": ["Sexual content"],
-	"sexual violence": ["Sexual violence"],
-	shootout: ["Violence"],
-	slaughter: ["Violence"],
-	smoking: ["Smoking"],
-	splatter: ["Gore"],
-	suicide: ["Suicide"],
-	"suicide attempt": ["Suicide"],
-	swearing: ["Profanity"],
-	"sword fight": ["Violence"],
-	swordplay: ["Violence"],
-	tobacco: ["Smoking"],
-	topless: ["Nudity"],
-	torture: ["Torture", "Violence"],
-	violence: ["Violence"],
-	war: ["Violence"],
-};
+const advisoryKeywords = new Map<string, string[]>(
+	Object.entries({
+		alcohol: ["Alcohol"],
+		alcoholism: ["Alcohol"],
+		assassin: ["Violence"],
+		assassination: ["Violence"],
+		battle: ["Violence"],
+		blood: ["Gore"],
+		bloodshed: ["Gore", "Violence"],
+		"body horror": ["Gore"],
+		brutality: ["Violence"],
+		cannibalism: ["Gore"],
+		cigarette: ["Smoking"],
+		combat: ["Violence"],
+		cursing: ["Profanity"],
+		decapitation: ["Gore"],
+		dismemberment: ["Gore"],
+		drinking: ["Alcohol"],
+		"drug abuse": ["Drug use"],
+		"drug addiction": ["Drug use"],
+		"drug dealer": ["Drug use"],
+		"drug use": ["Drug use"],
+		drugs: ["Drug use"],
+		drunk: ["Alcohol"],
+		drunkenness: ["Alcohol"],
+		ecchi: ["Sexual content"],
+		erotic: ["Sexual content"],
+		"fan service": ["Sexual content"],
+		fanservice: ["Sexual content"],
+		fight: ["Violence"],
+		fighting: ["Violence"],
+		"foul language": ["Profanity"],
+		gambling: ["Gambling"],
+		gore: ["Gore", "Violence"],
+		gunfight: ["Violence"],
+		horror: ["Fear"],
+		killing: ["Violence"],
+		"martial arts": ["Violence"],
+		massacre: ["Violence"],
+		murder: ["Violence"],
+		mutilation: ["Gore"],
+		naked: ["Nudity"],
+		nudity: ["Nudity"],
+		profanity: ["Profanity"],
+		rape: ["Sexual violence"],
+		"self harm": ["Self-harm"],
+		"serial killer": ["Violence"],
+		sex: ["Sexual content"],
+		"sexual abuse": ["Sexual violence"],
+		"sexual assault": ["Sexual violence"],
+		"sexual content": ["Sexual content"],
+		"sexual violence": ["Sexual violence"],
+		shootout: ["Violence"],
+		slaughter: ["Violence"],
+		smoking: ["Smoking"],
+		splatter: ["Gore"],
+		suicide: ["Suicide"],
+		"suicide attempt": ["Suicide"],
+		swearing: ["Profanity"],
+		"sword fight": ["Violence"],
+		swordplay: ["Violence"],
+		tobacco: ["Smoking"],
+		topless: ["Nudity"],
+		torture: ["Torture", "Violence"],
+		violence: ["Violence"],
+		war: ["Violence"],
+	}),
+);
 
 /**
  * What ratings' descriptors on TMDB warn of, lowercased; a descriptor may
  * name two, as in `Violence / Horror`.
  */
-const advisoryDescriptors: Record<string, string[]> = {
-	"drug use": ["Drug use"],
-	drugs: ["Drug use"],
-	fear: ["Fear"],
-	horror: ["Fear"],
-	injury: ["Violence"],
-	language: ["Profanity"],
-	nudity: ["Nudity"],
-	sex: ["Sexual content"],
-	sexuality: ["Sexual content"],
-	threat: ["Fear"],
-	violence: ["Violence"],
-};
+const advisoryDescriptors = new Map<string, string[]>(
+	Object.entries({
+		"drug use": ["Drug use"],
+		drugs: ["Drug use"],
+		fear: ["Fear"],
+		horror: ["Fear"],
+		injury: ["Violence"],
+		language: ["Profanity"],
+		nudity: ["Nudity"],
+		sex: ["Sexual content"],
+		sexuality: ["Sexual content"],
+		threat: ["Fear"],
+		violence: ["Violence"],
+	}),
+);
 
 const descriptorParts = /\s*\/\s*/u;
 
@@ -377,7 +389,7 @@ const contentRating = (sources: AboutSources) => {
 
 	const age =
 		rated?.age ??
-		(sources.certification ? (certificationAges[sources.certification] ?? null) : null);
+		(sources.certification ? (certificationAges.get(sources.certification) ?? null) : null);
 
 	const descriptors = [
 		...new Set([
@@ -385,15 +397,15 @@ const contentRating = (sources: AboutSources) => {
 			...sources.descriptors.flatMap((descriptor) =>
 				descriptor
 					.split(descriptorParts)
-					.flatMap((part) => advisoryDescriptors[part.trim().toLowerCase()] ?? []),
+					.flatMap((part) => advisoryDescriptors.get(part.trim().toLowerCase()) ?? []),
 			),
 			...sources.keywords.flatMap(
-				(keyword) => advisoryKeywords[keyword.trim().toLowerCase()] ?? [],
+				(keyword) => advisoryKeywords.get(keyword.trim().toLowerCase()) ?? [],
 			),
 			...sources.anime.tags.flatMap((tag) =>
-				!tag.spoiler && (tag.rank ?? 0) >= advisoryRank ? (advisoryTags[tag.name] ?? []) : [],
+				!tag.spoiler && (tag.rank ?? 0) >= advisoryRank ? (advisoryTags.get(tag.name) ?? []) : [],
 			),
-			...sources.anime.genres.flatMap((genre) => advisoryGenres[genre] ?? []),
+			...sources.anime.genres.flatMap((genre) => advisoryGenres.get(genre) ?? []),
 		]),
 	].toSorted((left, right) => left.localeCompare(right));
 

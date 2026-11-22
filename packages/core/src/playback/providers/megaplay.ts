@@ -155,15 +155,17 @@ const skipSegments = ({ intro, outro }: MegaPlaySources): SkipSegment[] => {
 };
 
 /** BCP 47 region subtags for the regions MegaPlay names in subtitle labels. */
-const regionSubtags: Record<string, string> = {
-	brazil: "BR",
-	"latin america": "419",
-	mexico: "MX",
-	portugal: "PT",
-	simplified: "Hans",
-	spain: "ES",
-	traditional: "Hant",
-};
+const regionSubtags = new Map<string, string>(
+	Object.entries({
+		brazil: "BR",
+		"latin america": "419",
+		mexico: "MX",
+		portugal: "PT",
+		simplified: "Hans",
+		spain: "ES",
+		traditional: "Hant",
+	}),
+);
 
 /**
  * The BCP 47 tag for a MegaPlay subtitle label.
@@ -188,7 +190,7 @@ export const subtitleLanguage = (label: string) => {
 	}
 
 	const language = labelToBcp47(regional[1]);
-	const region = regionSubtags[regional[2].trim().toLowerCase()];
+	const region = regionSubtags.get(regional[2].trim().toLowerCase());
 
 	return region ? `${language}-${region}` : language;
 };

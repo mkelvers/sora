@@ -193,11 +193,13 @@
 
 	const progressError = "Your progress couldn’t be saved.";
 
-	let session: {
+	interface Session {
 		address: ProgressAddress;
 		ending?: number;
 		lastSnapshot?: ProgressSnapshot;
-	} = untrack(() => ({
+	}
+
+	let session: Session = untrack(() => ({
 		address,
 		ending,
 	}));

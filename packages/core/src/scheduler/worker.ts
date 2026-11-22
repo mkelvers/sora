@@ -71,10 +71,10 @@ export interface Scheduler {
 }
 
 /** Tasks for work a viewer is waiting on; see {@link storeSeriesNowTask}. */
-const waitedOnTasks: Record<string, Task> = {
+const waitedOnTasks = {
 	[storeSeriesNowTask]: storeSeriesJob,
 	[lookUpEpisodesNowTask]: lookUpEpisodes,
-};
+} satisfies Record<string, Task>;
 
 /** Runs each task with its AniList requests queued at its job's priority; see {@link aniListPriority}. */
 const prioritized = (tasks: Record<string, Task>, pools: PoolWatch): Record<string, Task> =>

@@ -47,7 +47,7 @@ describe("attempt", () => {
 	});
 
 	test("wraps a thrown value that is not an Error", async () => {
-		const thrown: unknown = "nope";
+		const thrown = "nope";
 		const { error } = await attempt(Promise.reject(thrown));
 		expect(error?.message).toBe("nope");
 		expect(error?.cause).toBe("nope");
