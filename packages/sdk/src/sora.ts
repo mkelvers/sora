@@ -228,11 +228,11 @@ export class SoraClient {
 	): Promise<RequestResults<TRoute>> {
 		const body = await this.requestWithMeta(route, ...([input, options] as Args<TRoute>));
 
-		return (
-			body !== undefined && body !== null && typeof body === "object" && "results" in body
-				? body.results
-				: body
-		) as RequestResults<TRoute>;
+		if (body instanceof Object && "results" in body) {
+			return body.results as RequestResults<TRoute>;
+		}
+
+		return body as RequestResults<TRoute>;
 	}
 
 	/**

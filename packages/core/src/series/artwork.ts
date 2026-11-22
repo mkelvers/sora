@@ -58,15 +58,17 @@ const toOverride = (change: string | false | null | undefined, type: ImageType) 
  * and that no poster or logo is one.
  */
 const requireOwnUpscales = async (key: string, changes: ArtworkChanges) => {
-	if (
-		[changes.poster_url, changes.logo_url].some(
-			(url) => typeof url === "string" && upscaleIdOf(url) !== null,
-		)
-	) {
+	if ([changes.poster_url, changes.logo_url].some((url) => url && upscaleIdOf(url) !== null)) {
 		throw new InvalidInputError("Only a backdrop can be an upscaled one");
 	}
 
-	const id = typeof changes.backdrop_url === "string" ? upscaleIdOf(changes.backdrop_url) : null;
+	const backdrop = changes.backdrop_url;
+
+	if (!backdrop) {
+		return;
+	}
+
+	const id = upscaleIdOf(backdrop);
 
 	if (id === null) {
 		return;

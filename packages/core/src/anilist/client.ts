@@ -173,7 +173,7 @@ export interface Budget {
 }
 
 const sortedKeys = (_key: string, value: unknown) => {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+	if (!(value instanceof Object) || Array.isArray(value)) {
 		return value;
 	}
 

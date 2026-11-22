@@ -1,5 +1,6 @@
 import { hour } from "@sora/shared";
 import { and, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
@@ -168,7 +169,7 @@ export const loadAniKotoEpisodes = async (
 		db
 			.select({
 				anilistId: providerEpisodes.anilistId,
-				numbers: sql<unknown>`jsonb_path_query_array(${providerEpisodes.units}, '$[*].number')`,
+				numbers: sql<unknown>`jsonb_path_query_array(${providerEpisodes.units}, '$[*].number ? (@.type() == "number")')`,
 			})
 			.from(providerEpisodes)
 			.where(
@@ -195,9 +196,10 @@ export const loadAniKotoEpisodes = async (
 	return {
 		carried: new Set(
 			listed.flatMap((entry) =>
-				(Array.isArray(entry.numbers) ? entry.numbers : []).flatMap((number: unknown) =>
-					typeof number === "number" ? [anilistEpisodeKey(entry.anilistId, number)] : [],
-				),
+				z
+					.array(z.number())
+					.parse(entry.numbers)
+					.map((number) => anilistEpisodeKey(entry.anilistId, number)),
 			),
 		),
 		lookedUp: new Set([...listed, ...unmatched].map((entry) => entry.anilistId)),

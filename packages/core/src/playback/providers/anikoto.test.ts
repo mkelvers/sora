@@ -273,17 +273,9 @@ interface ListedLink {
 }
 
 /** AniKoto's episode list, as its watch page loads it, with a link per episode number. */
-const listing = (links: Record<number, ListedLink | string>) => {
+const listing = (links: Record<number, ListedLink>) => {
 	const items = Object.entries(links).map(([number, link]) => {
-		const {
-			className = "",
-			sub = "1",
-			dub = "0",
-		} = typeof link === "string"
-			? {
-					className: link,
-				}
-			: link;
+		const { className = "", sub = "1", dub = "0" } = link;
 
 		return `<li title="Episode ${number}"><a href="#" data-id="1" data-num="${number}" data-slug="${number}" data-mal="44037" data-timestamp="1729246208" data-sub="${sub}" data-dub="${dub}" data-ids="SmV3" class="${className}" >${number}</a></li>`;
 	});
@@ -298,9 +290,15 @@ describe("AniKotoStreamProvider.listEpisodes", () => {
 	test("marks the episodes AniKoto's episode list tags as filler, as in Naruto: Shippuden", async () => {
 		const { provider } = providerServing({
 			"/ajax/episode/list/1498": listing({
-				56: "  ",
-				57: " filler ",
-				58: "active filler",
+				56: {
+					className: "  ",
+				},
+				57: {
+					className: " filler ",
+				},
+				58: {
+					className: "active filler",
+				},
 			}),
 			"/series/1498": seriesResponse,
 		});

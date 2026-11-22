@@ -21,7 +21,9 @@ const signIn = (
 	routes.request(`http://localhost/v1/auth/sign-in/${path}`, {
 		body: credentials,
 		headers: {
-			...(typeof credentials === "string" && { "Content-Type": "application/json" }),
+			...(!(credentials instanceof URLSearchParams) && {
+				"Content-Type": "application/json",
+			}),
 			"X-Forwarded-For": address,
 			"X-Sora-Client-Key": process.env.WEB_CLIENT_KEY ?? "",
 		},

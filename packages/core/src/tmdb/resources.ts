@@ -409,8 +409,13 @@ const readChangeLog = (changes: z.infer<typeof EpisodeChangesSchema>["changes"])
 
 	const text = (key: string) => {
 		const value = edits(key).findLast((edit) => edit.iso_639_1 === "en")?.value;
+		const parsed = z.string().min(1).safeParse(value);
 
-		return typeof value === "string" && value !== "" ? value : null;
+		if (!parsed.success) {
+			return null;
+		}
+
+		return parsed.data;
 	};
 
 	// A runtime is filed under the language of whoever wrote it.
@@ -489,7 +494,7 @@ export const withEdits = async (
 		...episode,
 		name: (isUnnamed ? text("name") : null) ?? episode.name,
 		overview: episode.overview ?? text("overview"),
-		runtime: episode.runtime ?? (typeof runtime === "number" && runtime > 0 ? runtime : null),
+		runtime: episode.runtime ?? z.number().positive().nullable().catch(null).parse(runtime),
 		still_path: episode.still_path ?? [...stills].at(0) ?? null,
 	};
 };
