@@ -1611,14 +1611,16 @@ export const placeAfterInCollection = (
 		return null;
 	}
 
-	return datesAgree(subject.startDate, next.release_date, titleOnlyReleaseWindowDays)
-		? {
-				mediaType: "movie",
-				method: "continuation",
-				score: minimumShowScore,
-				tmdbId: next.id,
-			}
-		: null;
+	if (datesAgree(subject.startDate, next.release_date, titleOnlyReleaseWindowDays)) {
+		return {
+			mediaType: "movie",
+			method: "continuation",
+			score: minimumShowScore,
+			tmdbId: next.id,
+		};
+	}
+
+	return null;
 };
 
 /**
