@@ -101,7 +101,9 @@ const assertPublicHttpUrl = (value: string) => {
 
 	const host = url.hostname.replaceAll(/^\[|\]$/gu, "").toLowerCase();
 
-	if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
+	const local = host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal");
+
+	if (local) {
 		throw new InvalidStreamTokenError("Stream target is not a public host");
 	}
 
