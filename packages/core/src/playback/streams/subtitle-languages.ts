@@ -42,14 +42,16 @@ interface ResolvedVersion {
  */
 export const subtitleLanguagesOf = (results: readonly ResolvedVersion[]) => [
 	...new Set(
-		results.flatMap(({ version, videos }) =>
-			version
-				? [
-						...(version.hardsub ? ["en"] : []),
-						...(videos ?? []).flatMap((video) => video.subtitles.map((track) => track.language)),
-					]
-				: [],
-		),
+		results.flatMap(({ version, videos }) => {
+			if (version) {
+				return [
+					...(version.hardsub ? ["en"] : []),
+					...(videos ?? []).flatMap((video) => video.subtitles.map((track) => track.language)),
+				];
+			}
+
+			return [];
+		}),
 	),
 ];
 
