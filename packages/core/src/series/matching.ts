@@ -1064,13 +1064,15 @@ const placeSpecialsByEnd = (subject: MatchSubject, candidate: ShowCandidate): Pl
 	const start = dayNumber(subject.startDate);
 	const end = dayNumber(subject.endDate);
 
-	if (
-		!candidate.isFranchiseShow ||
-		subject.episodes === null ||
-		subject.episodes < 2 ||
-		start === null ||
-		end === null
-	) {
+	if (!candidate.isFranchiseShow || subject.episodes === null) {
+		return null;
+	}
+
+	if (subject.episodes < 2) {
+		return null;
+	}
+
+	if (start === null || end === null) {
 		return null;
 	}
 
