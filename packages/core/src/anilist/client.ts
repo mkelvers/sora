@@ -272,7 +272,11 @@ export const followBudget = (previous: Budget | null, remaining: number, now: nu
 const retryAfter = (response: Response) => {
 	const wait = parseRetryAfter(response.headers.get("Retry-After"));
 
-	return wait === null ? null : Math.max(wait, second);
+	if (wait === null) {
+		return null;
+	}
+
+	return Math.max(wait, second);
 };
 
 /**
