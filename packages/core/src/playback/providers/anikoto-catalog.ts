@@ -516,7 +516,9 @@ export const bestIdMatch = <TCandidate extends StoredSeries>(
 	for (const candidate of candidates) {
 		const score = idMatchScore(anime, candidate);
 
-		if (score !== null && (best === null || score > best.score)) {
+		const better = score !== null && (best === null || score > best.score);
+
+		if (better) {
 			best = {
 				candidate,
 				score,
