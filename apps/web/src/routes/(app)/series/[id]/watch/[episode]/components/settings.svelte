@@ -65,11 +65,17 @@
 							label: version.label,
 							value: version.audio,
 						})),
-						select: (value: string) =>
+						select: (value: string) => {
+							const version = media.find((candidate) => candidate.audio === value);
+
+							if (!version) {
+								throw new Error("The selected audio is not available");
+							}
+
 							onpreferences({
-								// SAFETY: every option's value is a version's audio.
-								audio: value as WatchMedia["audio"],
-							}),
+								audio: version.audio,
+							});
+						},
 						value: selected?.audio ?? "",
 					},
 				]
