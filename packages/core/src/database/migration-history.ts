@@ -17,20 +17,18 @@ export interface RecordedMigration {
 	hash: string;
 }
 
-const JournalSchema = z.object({
-	entries: z.array(
-		z.object({
-			tag: z.string(),
-			when: z.number(),
-		}),
-	),
-});
-
 /** The migrations in `folder`, in the order drizzle applies them. */
 export const readMigrationHistory = (folder: string): MigrationFile[] => {
-	const journal = JournalSchema.parse(
-		JSON.parse(readFileSync(path.join(folder, "meta/_journal.json"), "utf-8")),
-	);
+	const journal = z
+		.object({
+			entries: z.array(
+				z.object({
+					tag: z.string(),
+					when: z.number(),
+				}),
+			),
+		})
+		.parse(JSON.parse(readFileSync(path.join(folder, "meta/_journal.json"), "utf-8")));
 
 	const tags = new Map(journal.entries.map(({ tag, when }) => [when, tag]));
 
