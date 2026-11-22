@@ -12,7 +12,7 @@ import {
 import { series, seriesEpisode } from "../../database/schema/series";
 import { InvalidInputError } from "../../errors";
 import type { WatchlistStatus } from "../../models/library";
-import { LibraryImportSchema } from "../../models/transfer";
+import { ImportConnectionSchema, LibraryImportSchema } from "../../models/transfer";
 import type {
 	ImportConnection,
 	ImportUndo,
@@ -453,12 +453,13 @@ export const importLibrary = async (
 export const listImportConnections = async (userId: string): Promise<ImportConnection[]> => {
 	const rows = await db.select().from(importConnection).where(eq(importConnection.userId, userId));
 
-	return rows.map((row) => ({
-		account_name: row.accountName,
-		connected_at: row.connectedAt.toISOString(),
-		// SAFETY: connections are only stored for an AccountSource.
-		source: row.source as AccountSource,
-	}));
+	return rows.map((row) =>
+		ImportConnectionSchema.parse({
+			account_name: row.accountName,
+			connected_at: row.connectedAt.toISOString(),
+			source: row.source,
+		}),
+	);
 };
 
 /** Forgets a connected account. What it imported stays; one never connected is left alone. */
