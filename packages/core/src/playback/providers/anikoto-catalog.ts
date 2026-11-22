@@ -651,7 +651,11 @@ const lookUpSeries = async (http: HttpClient, anime: Anime) => {
 		const response = await http.get(`${apiUrl}/series/${id}`);
 		const parsed = SeriesResponseSchema.safeParse(await response.json());
 
-		return parsed.success ? parseCatalogSeries(parsed.data.data.anime) : null;
+		if (parsed.success) {
+			return parseCatalogSeries(parsed.data.data.anime);
+		}
+
+		return null;
 	});
 
 	await upsert(fetched.flatMap((row) => (row ? [row] : [])));
