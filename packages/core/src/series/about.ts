@@ -506,7 +506,11 @@ const creditLine = (anime: Anime) => {
 		Boolean,
 	);
 
-	return parties.length > 0 ? `© ${parties.join("/")}` : null;
+	if (parties.length > 0) {
+		return `© ${parties.join("/")}`;
+	}
+
+	return null;
 };
 
 /**
