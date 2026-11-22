@@ -111,8 +111,13 @@ export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 };
 
 /** The artwork readers see: the chosen image, none when that was chosen, else the laid-out one. */
-const effectiveArtwork = (override: string | null, laidOut: string | null) =>
-	override === noArtwork ? null : (override ?? laidOut);
+const effectiveArtwork = (override: string | null, laidOut: string | null) => {
+	if (override === noArtwork) {
+		return null;
+	}
+
+	return override ?? laidOut;
+};
 
 const formatNames: Record<AnimeFormat, string> = {
 	MOVIE: "Movie",
