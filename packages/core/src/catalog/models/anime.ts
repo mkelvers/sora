@@ -229,14 +229,16 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	staff: present(media.staff?.edges).flatMap((edge) => {
 		const name = edge.node?.name?.full?.trim();
 
-		return edge.role && name
-			? [
-					{
-						name,
-						role: edge.role,
-					},
-				]
-			: [];
+		if (edge.role && name) {
+			return [
+				{
+					name,
+					role: edge.role,
+				},
+			];
+		}
+
+		return [];
 	}),
 	startDate: media.startDate ? fuzzyDate(media.startDate) : null,
 	studios: companies(media, true),
