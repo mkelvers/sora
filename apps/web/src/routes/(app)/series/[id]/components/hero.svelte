@@ -144,9 +144,11 @@
 			return `Series premiere starts ${day}`;
 		}
 
-		return aired
-			? `Next episode aired ${day} at ${time}, available soon`
-			: `Next episode airs ${day} at ${time}`;
+		if (aired) {
+			return `Next episode aired ${day} at ${time}, available soon`;
+		}
+
+		return `Next episode airs ${day} at ${time}`;
 	});
 
 	const rewatch = async (event: MouseEvent) => {
