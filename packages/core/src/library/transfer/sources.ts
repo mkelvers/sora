@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { anilist } from "../../anilist/client";
 import { UserAnimeListDocument } from "../../anilist/graphql.generated";
 import type { UserAnimeListQuery } from "../../anilist/graphql.generated";
+import { zUserAnimeListQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { InvalidInputError } from "../../errors";
 import type { WatchlistStatus } from "../../models/library";
@@ -162,6 +163,7 @@ export const readAniListUser = async (username: string): Promise<ListEntry[]> =>
 		{
 			userName: username,
 		},
+		zUserAnimeListQuery,
 		{
 			maxAgeMs: 0,
 		},

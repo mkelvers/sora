@@ -223,6 +223,7 @@ test("sends a batch a viewer joins ahead of background work queued before it", a
 			{
 				id: 21,
 			},
+			z.unknown(),
 			{
 				maxAgeMs: 0,
 			},

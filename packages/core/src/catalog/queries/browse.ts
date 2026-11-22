@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { anilist } from "../../anilist/client";
 import { BrowseAnimeDocument, GenresDocument } from "../../anilist/graphql.generated";
 import type { MediaSort } from "../../anilist/graphql.generated";
+import { zBrowseAnimeQuery, zGenresQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
 import { InvalidInputError } from "../../errors";
@@ -80,6 +81,7 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 			sort,
 			status: input.status,
 		},
+		zBrowseAnimeQuery,
 		{
 			// Searches are rarely repeated exactly; lists like "trending" are shared.
 			maxAgeMs: input.search ? 10 * minute : hour,
@@ -97,13 +99,9 @@ export const browseAnime = async (query: BrowseQuery): Promise<Page<AnimeCard>> 
 
 /** Lists the genre names accepted by {@link browseAnime}. */
 export const getGenres = async (): Promise<string[]> => {
-	const { GenreCollection } = await anilist(
-		GenresDocument,
-		{},
-		{
-			maxAgeMs: 7 * day,
-		},
-	);
+	const { GenreCollection } = await anilist(GenresDocument, {}, zGenresQuery, {
+		maxAgeMs: 7 * day,
+	});
 
 	// "Hentai" is only reachable through adult media, which is never served.
 	return (GenreCollection ?? []).filter(

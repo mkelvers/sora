@@ -4,6 +4,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { anilist, loadMediaById } from "../../anilist/client";
 import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
 import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
+import { zLatestAiringQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { anime as animeTable } from "../../database/schema/catalog";
 import { AnimeNotFoundError } from "../../errors";
@@ -28,6 +29,7 @@ export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadc
 		{
 			id: anilistId,
 		},
+		zLatestAiringQuery,
 		{
 			maxAgeMs: 0,
 		},

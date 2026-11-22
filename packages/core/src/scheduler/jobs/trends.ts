@@ -4,6 +4,7 @@ import type { Task } from "graphile-worker";
 
 import { anilist } from "../../anilist/client";
 import { MediaTrendsDocument } from "../../anilist/graphql.generated";
+import { zMediaTrendsQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { animeSearch, animeTrend } from "../../database/schema/catalog";
 import { isFeaturedEntry } from "../../library/featured/featured";
@@ -30,6 +31,7 @@ const fetchTrends = async (ids: readonly number[], after: number, now: number) =
 				ids: [...ids],
 				page,
 			},
+			zMediaTrendsQuery,
 			{
 				maxAgeMs: hour,
 			},

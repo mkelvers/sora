@@ -2,6 +2,7 @@ import { hour, inSequence, chunked } from "@sora/shared";
 
 import { anilist } from "../../anilist/client";
 import { EpisodeAiringsDocument } from "../../anilist/graphql.generated";
+import { zEpisodeAiringsQuery } from "../../anilist/validation.generated";
 import { anilistEpisodeKey } from "../../series/episodes";
 
 /** One AniList episode broadcast. */
@@ -42,6 +43,7 @@ export const fetchEpisodeAirings = async (
 				ids: batch,
 				page,
 			},
+			zEpisodeAiringsQuery,
 			{
 				maxAgeMs: hour,
 			},

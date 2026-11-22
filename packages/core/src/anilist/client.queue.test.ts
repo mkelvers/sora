@@ -58,6 +58,7 @@ const fetchMedia = (id: number) =>
 		{
 			id,
 		},
+		z.unknown(),
 		{
 			maxAgeMs: 0,
 		},

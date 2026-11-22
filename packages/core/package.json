@@ -44,6 +44,7 @@
 		"@graphql-codegen/cli": "^7.4.2",
 		"@graphql-codegen/typed-document-node": "^7.1.0",
 		"@graphql-codegen/typescript-operations": "^6.1.7",
+		"@nxgt/graphql-codegen-zod": "^0.4.1",
 		"@types/bun": "^1.4.2",
 		"drizzle-kit": "^0.31.11",
 		"graphql": "^17.0.2"

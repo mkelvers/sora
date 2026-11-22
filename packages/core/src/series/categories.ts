@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { anilist } from "../anilist/client";
 import { TagsDocument } from "../anilist/graphql.generated";
+import { zTagsQuery } from "../anilist/validation.generated";
 import { catalogFormatAllowed, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { animeSearch, animeSearchTag } from "../database/schema/catalog";
@@ -73,13 +74,9 @@ const placeOf = (category: string): Pick<Tag, "group" | "section"> | null => {
  */
 export const listTags = async (): Promise<Tag[]> => {
 	const [{ MediaTagCollection }, carried] = await Promise.all([
-		anilist(
-			TagsDocument,
-			{},
-			{
-				maxAgeMs: 7 * day,
-			},
-		),
+		anilist(TagsDocument, {}, zTagsQuery, {
+			maxAgeMs: 7 * day,
+		}),
 		db
 			.select({
 				tag: animeSearchTag.tag,

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { anilist } from "../../anilist/client";
 import { NewEntriesDocument } from "../../anilist/graphql.generated";
+import { zNewEntriesQuery } from "../../anilist/validation.generated";
 import { fuzzyDate } from "../../catalog/models/text";
 import { config } from "../../config";
 import { db } from "../../database/client";
@@ -111,6 +112,7 @@ export const discoverSeriesEntries: Task = async (_payload, helpers) => {
 				page,
 				perPage: entriesPerPage,
 			},
+			zNewEntriesQuery,
 			{
 				maxAgeMs: hour,
 			},

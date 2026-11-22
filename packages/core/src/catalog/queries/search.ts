@@ -5,6 +5,7 @@ import type { SQL } from "drizzle-orm";
 import { anilist } from "../../anilist/client";
 import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
 import type { MediaSort, MediaSource, SearchIndexPageQuery } from "../../anilist/graphql.generated";
+import { zSearchIndexPageQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
 import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
 import { UpstreamUnavailableError } from "../../errors";
@@ -62,6 +63,7 @@ const fetchIndexPage = async (
 				popularityBelow,
 				sort,
 			},
+			zSearchIndexPageQuery,
 			{
 				// Long enough for a failed sync to resume where it stopped.
 				maxAgeMs: hour,

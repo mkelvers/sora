@@ -550,12 +550,13 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 	 *
 	 * @example
 	 * ```ts
-	 * const { Page } = await anilist(AnimeCardsDocument, { ids: [21, 20], perPage: 2 }, { maxAgeMs: HOUR });
+	 * const { Page } = await anilist(AnimeCardsDocument, { ids: [21, 20], perPage: 2 }, zAnimeCardsQuery, { maxAgeMs: HOUR });
 	 * ```
 	 */
 	const anilist = async <TResult, TVariables>(
 		document: TypedDocumentString<TResult, TVariables>,
 		variables: NoInfer<TVariables>,
+		schema: z.ZodType<NoInfer<TResult>>,
 		options: AniListRequestOptions,
 	): Promise<TResult> => {
 		const query = document.toString();
@@ -563,9 +564,11 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		const stored = await store.find(key);
 
-		if (stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-			// SAFETY: stored by this function from a response typed as TResult.
-			return stored.data as TResult;
+		const valid = stored && schema.safeParse(stored.data);
+		const fresh = stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now();
+
+		if (fresh && valid?.success) {
+			return valid.data;
 		}
 
 		if (inFlight.has(key)) {
