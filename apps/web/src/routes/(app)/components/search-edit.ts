@@ -12,11 +12,12 @@ export const editedSearchHref = (
 	current: SearchLocation,
 	pending: SearchLocation = current,
 ) => {
-	if (
+	const unchanged =
 		current.pathname !== "/search" ||
 		pending.pathname !== "/search" ||
-		term === (pending.searchParams.get("q") ?? "")
-	) {
+		term === (pending.searchParams.get("q") ?? "");
+
+	if (unchanged) {
 		return;
 	}
 
