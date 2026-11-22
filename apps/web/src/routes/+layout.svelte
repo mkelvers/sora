@@ -11,7 +11,10 @@
 		const samePage = navigation.from?.url.pathname === navigation.to?.url.pathname;
 		const historyStep = navigation.type === "popstate";
 
-		if (!document.startViewTransition || prefersReducedMotion.current || samePage || historyStep) {
+		const instant =
+			!document.startViewTransition || prefersReducedMotion.current || samePage || historyStep;
+
+		if (instant) {
 			return;
 		}
 
