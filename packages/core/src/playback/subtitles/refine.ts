@@ -198,7 +198,11 @@ const typoAllowance = (length: number) => {
 		return 2;
 	}
 
-	return length >= 5 ? 1 : 0;
+	if (length >= 5) {
+		return 1;
+	}
+
+	return 0;
 };
 
 /** Whether two stems are one word, allowing for a mishearing in a long one. */
