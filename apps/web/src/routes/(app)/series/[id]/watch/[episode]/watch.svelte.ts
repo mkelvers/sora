@@ -390,8 +390,9 @@ export class Player {
 			track.mode = "hidden";
 
 			const update = () => {
-				// SAFETY: a subtitles track holds VTTCues.
-				this.cues = [...(track.activeCues ?? [])] as VTTCue[];
+				this.cues = [...(track.activeCues ?? [])].filter(
+					(cue): cue is VTTCue => cue instanceof VTTCue,
+				);
 			};
 
 			track.addEventListener("cuechange", update);
