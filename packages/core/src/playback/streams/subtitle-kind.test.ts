@@ -65,7 +65,15 @@ describe("classifySubtitle", () => {
 	test("does not guess for what sits between the kinds", () => {
 		expect(classifySubtitle(every(20, 75, (index) => `Lyric ${index}`))).toBeNull();
 		expect(
-			classifySubtitle(every(4, 360, (index) => (index % 25 === 0 ? "[laughs]" : "Line"))),
+			classifySubtitle(
+				every(4, 360, (index) => {
+					if (index % 25 === 0) {
+						return "[laughs]";
+					}
+
+					return "Line";
+				}),
+			),
 		).toBeNull();
 	});
 
