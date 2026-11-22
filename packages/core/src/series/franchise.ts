@@ -228,13 +228,14 @@ const joinAcrossGaps = (
 	const joined = componentOf(links, selected.anilistId);
 
 	for (const title of byRelease) {
-		if (
+		const separate =
 			joined.has(title.anilistId) ||
 			apart.has(title.anilistId) ||
 			!links.some(([left, right]) => left === title.anilistId || right === title.anilistId) ||
 			!isSeriesTitle(title) ||
-			withoutPrefix(plain(title.title), base) === null
-		) {
+			withoutPrefix(plain(title.title), base) === null;
+
+		if (separate) {
 			continue;
 		}
 
