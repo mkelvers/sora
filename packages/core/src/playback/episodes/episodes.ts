@@ -369,15 +369,17 @@ export const getStoredUnits = async (
 		...listed.flatMap((row) => {
 			const units = ProviderUnitsSchema.safeParse(row.units);
 
-			return units.success
-				? [
-						{
-							anilistId: row.anilistId,
-							provider: row.provider,
-							units: units.data,
-						},
-					]
-				: [];
+			if (units.success) {
+				return [
+					{
+						anilistId: row.anilistId,
+						provider: row.provider,
+						units: units.data,
+					},
+				];
+			}
+
+			return [];
 		}),
 		...unmatched.map((row) => ({
 			...row,
