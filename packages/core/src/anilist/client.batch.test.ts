@@ -71,22 +71,24 @@ const respond = (_input: string, init: RequestInit) => {
 	}
 
 	const data = Object.fromEntries(
-		Object.entries(variables).flatMap(([name, ids]) =>
-			Array.isArray(ids)
-				? [
-						[
-							name.replace("ids", "page"),
-							{
-								media: ids
-									.filter((id) => !unknown.has(id))
-									.map((id) => ({
-										id,
-									})),
-							},
-						],
-					]
-				: [],
-		),
+		Object.entries(variables).flatMap(([name, ids]) => {
+			if (Array.isArray(ids)) {
+				return [
+					[
+						name.replace("ids", "page"),
+						{
+							media: ids
+								.filter((id) => !unknown.has(id))
+								.map((id) => ({
+									id,
+								})),
+						},
+					],
+				];
+			}
+
+			return [];
+		}),
 	);
 
 	return Promise.resolve(
