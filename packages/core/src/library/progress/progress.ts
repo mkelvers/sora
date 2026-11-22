@@ -351,17 +351,19 @@ const nextEpisodes = async (
 		}),
 	);
 
-	const found = candidates.flatMap(({ seriesId, rewatch, episode }) =>
-		episode === null
-			? []
-			: [
-					{
-						episode,
-						rewatch,
-						seriesId,
-					},
-				],
-	);
+	const found = candidates.flatMap(({ seriesId, rewatch, episode }) => {
+		if (episode === null) {
+			return [];
+		}
+
+		return [
+			{
+				episode,
+				rewatch,
+				seriesId,
+			},
+		];
+	});
 
 	if (found.length === 0) {
 		return new Map();
