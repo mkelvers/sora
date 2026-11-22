@@ -96,7 +96,11 @@
 			return "Movie";
 		}
 
-		return part.episode_count ? episodes(part.episode_count) : "Coming soon";
+		if (part.episode_count) {
+			return episodes(part.episode_count);
+		}
+
+		return "Coming soon";
 	};
 
 	const mark = () => {
