@@ -87,15 +87,17 @@ export class Library {
 			getWatchlistStatuses().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series_id !== series.id);
 
-				return status
-					? [
-							{
-								series_id: series.id,
-								status,
-							},
-							...rest,
-						]
-					: rest;
+				if (status) {
+					return [
+						{
+							series_id: series.id,
+							status,
+						},
+						...rest,
+					];
+				}
+
+				return rest;
 			}),
 			getWatchlist().withOverride((current) => {
 				const rest = current.filter((entry) => entry.series.id !== series.id);
