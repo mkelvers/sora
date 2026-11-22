@@ -1,4 +1,4 @@
-import { attempt, day, defined } from "@sora/shared";
+import { attempt, day } from "@sora/shared";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "../database/client";
@@ -9,6 +9,7 @@ import type { Calendar, ScheduledEpisode } from "../models/series";
 import { anilistEpisodeKey } from "./episodes";
 import { toSeriesCards } from "./queries";
 import { storedSeriesIds } from "./store";
+import { TitleSlot } from "./title-slot";
 
 /**
  * How far past the window {@link getAiringSchedule} looks for an episode's
@@ -44,11 +45,11 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 	const shortEpisodeMinutes = 15;
 
 	/** The longest window {@link getAiringSchedule} accepts. */
-	const maximumScheduleWindowMs = 14 * day;
+	const maximumWindowMs = 14 * day;
 
 	const windowMs = until.getTime() - from.getTime();
 
-	if (!(windowMs > 0 && windowMs <= maximumScheduleWindowMs)) {
+	if (!(windowMs > 0 && windowMs <= maximumWindowMs)) {
 		throw new InvalidInputError("The schedule window must be between 0 and 14 days long");
 	}
 
@@ -91,7 +92,12 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 			continue;
 		}
 
-		const airType = release.airType === "dub" ? "dub" : "sub";
+		let airType: "sub" | "dub" = "sub";
+
+		if (release.airType === "dub") {
+			airType = "dub";
+		}
+
 		const key = `${anilistEpisodeKey(release.anilistId, release.episode)}:${airType}`;
 		const fromSubStream = release.airType === "sub";
 
@@ -110,21 +116,26 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 		.filter((broadcast) => broadcast.airsAt >= from && broadcast.airsAt < until)
 		.toSorted((left, right) => left.airsAt.getTime() - right.airsAt.getTime());
 
-	const seriesIds = await storedSeriesIds(broadcasts.map((broadcast) => broadcast.anilistId));
+	const storedIds = await storedSeriesIds(broadcasts.map((broadcast) => broadcast.anilistId));
+	let rows: (typeof series.$inferSelect)[] = [];
 
-	const rows =
-		seriesIds.size > 0
-			? await db
-					.select()
-					.from(series)
-					.where(inArray(series.id, [...seriesIds.values()]))
-			: [];
+	if (storedIds.size > 0) {
+		rows = await db
+			.select()
+			.from(series)
+			.where(inArray(series.id, [...storedIds.values()]));
+	}
 
 	const cards = await toSeriesCards(rows);
 
 	return broadcasts.flatMap((broadcast) => {
-		const seriesId = seriesIds.get(broadcast.anilistId);
-		const card = seriesId ? cards.get(seriesId) : undefined;
+		const id = storedIds.get(broadcast.anilistId);
+
+		if (!id) {
+			return [];
+		}
+
+		const card = cards.get(id);
 
 		if (card) {
 			return [
@@ -139,57 +150,6 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 
 		return [];
 	});
-};
-
-/**
- * One title's episodes at one time as calendar entries: one for its subbed
- * and one for its dubbed episodes, or a single one when they are the same.
- */
-const calendarReleases = (versions: ScheduledEpisode[]) => {
-	const audioByEpisodes = new Map<string, ("sub" | "dub")[]>();
-
-	for (const airType of ["sub", "dub"] as const) {
-		const numbers = versions
-			.values()
-			.filter((version) => version.air_type === airType)
-			.map((version) => version.episode)
-			.toArray()
-			.toSorted((left, right) => left - right);
-
-		if (!numbers.length) {
-			continue;
-		}
-
-		const runs: [number, number][] = [];
-
-		for (const number of numbers) {
-			const run = runs.at(-1);
-
-			if (run?.[1] === number - 1) {
-				run[1] = number;
-			} else {
-				runs.push([number, number]);
-			}
-		}
-
-		const episodes = `${numbers.length === 1 ? "Episode" : "Episodes"} ${runs
-			.map(([first, last]) => {
-				if (first === last) {
-					return first;
-				}
-
-				return `${first}–${last}`;
-			})
-			.join(", ")}`;
-
-		audioByEpisodes.set(episodes, [...(audioByEpisodes.get(episodes) ?? []), airType]);
-	}
-
-	return [...audioByEpisodes].map(([episodes, audio]) => ({
-		audio,
-		episodes,
-		series: defined(versions[0]).series,
-	}));
 };
 
 /**
@@ -231,6 +191,11 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 		days: Array.from({ length: 7 }, (_, index) => {
 			const date = monday.add({ days: index });
 			const isToday = date.equals(today.data);
+			let shortName = date.toLocaleString("en", { weekday: "short" });
+
+			if (isToday) {
+				shortName = "Today";
+			}
 
 			const airing = episodes.filter((episode) =>
 				Temporal.Instant.from(episode.airing_at)
@@ -255,7 +220,7 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 				}),
 				name: date.toLocaleString("en", { weekday: "long" }),
 				number: date.day,
-				short_name: isToday ? "Today" : date.toLocaleString("en", { weekday: "short" }),
+				short_name: shortName,
 				slots: slots.map(([at, group], position) => {
 					const aired = Date.parse(at) <= now;
 					const previous = slots[position - 1];
@@ -265,7 +230,7 @@ export const getCalendar = async (timeZone: string, weeks: number): Promise<Cale
 						airing_at: at,
 						next: isToday && !aired && (!previous || Date.parse(previous[0]) <= now),
 						releases: [...Map.groupBy(group, (episode) => episode.series.id).values()].flatMap(
-							calendarReleases,
+							(versions) => new TitleSlot(versions).releases,
 						),
 						time: clock(Date.parse(at)),
 					};

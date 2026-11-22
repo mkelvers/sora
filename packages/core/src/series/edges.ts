@@ -18,31 +18,25 @@ export interface ImageEdges {
 	right: string;
 }
 
-/** Columns averaged at each edge, of the image scaled to {@link measuredWidth}. */
-const edgeColumns = 2;
-
-/** The width images are measured at; TMDB serves this size directly. */
-const measuredWidth = 92;
-
 /**
  * Joins a series to its {@link titleArtwork} row. Qualified by hand: Drizzle
  * leaves columns bare in a single-table select, where `series.key` would bind
  * to the subquery's own `key`.
  */
-const artworkOfSeries = sql`${titleArtwork}.${sql.identifier(titleArtwork.key.name)} = ${series}.${sql.identifier(series.key.name)}`;
+const artworkJoin = sql`${titleArtwork}.${sql.identifier(titleArtwork.key.name)} = ${series}.${sql.identifier(series.key.name)}`;
 
 /**
  * The series' backdrop as readers see it: the one chosen for its TMDB title
  * (see `titleArtwork`), none when that was chosen, else the laid-out one.
  */
 export const effectiveBackdrop = sql<string | null>`nullif(coalesce(
-    (select ${titleArtwork.backdropUrlOverride} from ${titleArtwork} where ${artworkOfSeries}),
+    (select ${titleArtwork.backdropUrlOverride} from ${titleArtwork} where ${artworkJoin}),
     ${series.backdropUrl}
   ), ${noArtwork})`;
 
 /** The series' logo as readers see it; see {@link effectiveBackdrop}. */
 export const effectiveLogo = sql<string | null>`nullif(coalesce(
-    (select ${titleArtwork.logoUrlOverride} from ${titleArtwork} where ${artworkOfSeries}),
+    (select ${titleArtwork.logoUrlOverride} from ${titleArtwork} where ${artworkJoin}),
     ${series.logoUrl}
   ), ${noArtwork})`;
 
@@ -55,74 +49,96 @@ export const effectiveStill = sql<
 	string | null
 >`case when ${series.kind} = 'movie' then coalesce(${effectiveBackdrop}, ${seriesEpisode.stillUrl}) else coalesce(${seriesEpisode.stillUrl}, ${effectiveBackdrop}) end`;
 
-/** An image's bytes: an upscaled backdrop's from the database, any other from its host at {@link measuredWidth}. */
-const imageBytes = async (url: string): Promise<Uint8Array> => {
-	const upscaleId = upscaleIdOf(url);
+/** An image, by its URL, whose edges are measured. */
+class Picture {
+	/** Columns averaged at each edge, of the image scaled to {@link Picture.#width}. */
+	static readonly #columns = 2;
 
-	if (upscaleId) {
-		const stored = await getUpscaledBackdrop(upscaleId);
+	/** The width images are measured at; TMDB serves this size directly. */
+	static readonly #width = 92;
 
-		if (!stored) {
-			throw new Error(`${url} is not stored`);
-		}
+	readonly #url: string;
 
-		return stored;
+	constructor(url: string) {
+		this.#url = url;
 	}
 
-	const small = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${measuredWidth}`);
+	/** The image's average colour down its left and right edges. */
+	async edges(): Promise<ImageEdges> {
+		const columns = Picture.#columns;
 
-	const response = await fetch(small, {
-		signal: AbortSignal.timeout(10_000),
-	});
+		const { data, info } = await sharp(await this.#bytes())
+			.resize({
+				width: Picture.#width,
+				withoutEnlargement: true,
+			})
+			.removeAlpha()
+			.raw()
+			.toBuffer({
+				resolveWithObject: true,
+			});
 
-	if (!response.ok) {
-		throw new Error(`${small} answered ${response.status}`);
-	}
+		const average = (from: number) => {
+			const sum = [0, 0, 0];
 
-	return new Uint8Array(await response.arrayBuffer());
-};
+			for (let y = 0; y < info.height; y += 1) {
+				for (let x = from; x < from + columns; x += 1) {
+					const offset = (y * info.width + x) * info.channels;
 
-const measureEdges = async (url: string): Promise<ImageEdges> => {
-	const { data, info } = await sharp(await imageBytes(url))
-		.resize({
-			width: measuredWidth,
-			withoutEnlargement: true,
-		})
-		.removeAlpha()
-		.raw()
-		.toBuffer({
-			resolveWithObject: true,
-		});
-
-	const average = (from: number) => {
-		const sum = [0, 0, 0];
-
-		for (let y = 0; y < info.height; y += 1) {
-			for (let x = from; x < from + edgeColumns; x += 1) {
-				const offset = (y * info.width + x) * info.channels;
-
-				for (let channel = 0; channel < 3; channel += 1) {
-					sum[channel] = (sum[channel] ?? 0) + (data[offset + channel] ?? 0);
+					for (let channel = 0; channel < 3; channel += 1) {
+						sum[channel] = (sum[channel] ?? 0) + (data[offset + channel] ?? 0);
+					}
 				}
 			}
+
+			const pixels = info.height * columns;
+
+			return `#${sum
+				.map((total) =>
+					Math.round(total / pixels)
+						.toString(16)
+						.padStart(2, "0"),
+				)
+				.join("")}`;
+		};
+
+		return {
+			left: average(0),
+			right: average(info.width - columns),
+		};
+	}
+
+	/** The image's bytes: an upscaled backdrop's from the database, any other from its host at {@link Picture.#width}. */
+	async #bytes(): Promise<Uint8Array> {
+		const url = this.#url;
+		const upscaleId = upscaleIdOf(url);
+
+		if (upscaleId) {
+			const stored = await getUpscaledBackdrop(upscaleId);
+
+			if (!stored) {
+				throw new Error(`${url} is not stored`);
+			}
+
+			return stored;
 		}
 
-		const pixels = info.height * edgeColumns;
+		const small = url.replace(
+			/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u,
+			`$1w${Picture.#width}`,
+		);
 
-		return `#${sum
-			.map((total) =>
-				Math.round(total / pixels)
-					.toString(16)
-					.padStart(2, "0"),
-			)
-			.join("")}`;
-	};
+		const response = await fetch(small, {
+			signal: AbortSignal.timeout(10_000),
+		});
 
-	return {
-		left: average(0),
-		right: average(info.width - edgeColumns),
-	};
-};
+		if (!response.ok) {
+			throw new Error(`${small} answered ${response.status}`);
+		}
+
+		return new Uint8Array(await response.arrayBuffer());
+	}
+}
 
 /**
  * Measures the average colour down an image's left and right edges and
@@ -145,7 +161,7 @@ export const storeImageEdges = async (url: string): Promise<boolean> => {
 		return true;
 	}
 
-	const { data, error } = await attempt(measureEdges(url));
+	const { data, error } = await attempt(new Picture(url).edges());
 
 	if (error) {
 		console.warn(`Could not measure the edges of ${url}: ${error.message}`);
@@ -168,13 +184,13 @@ export const storeImageEdges = async (url: string): Promise<boolean> => {
  * Measures the edges of a series' backdrop as readers see it, unless they
  * are stored already. See {@link storeImageEdges}.
  */
-export const storeBackdropEdges = async (seriesId: string): Promise<boolean> => {
+export const measureBackdrop = async (id: string): Promise<boolean> => {
 	const [row] = await db
 		.select({
 			url: effectiveBackdrop,
 		})
 		.from(series)
-		.where(eq(series.id, seriesId))
+		.where(eq(series.id, id))
 		.limit(1);
 
 	if (row?.url) {
@@ -201,7 +217,14 @@ export const storeMissingBackdropEdges = async (): Promise<{
 		.leftJoin(imageEdge, eq(imageEdge.url, effectiveBackdrop))
 		.where(isNull(imageEdge.url));
 
-	const urls = rows.flatMap(({ url }) => (url ? [url] : []));
+	const urls = rows.flatMap(({ url }) => {
+		if (url) {
+			return [url];
+		}
+
+		return [];
+	});
+
 	const results = await inSequence(urls, (url) => storeImageEdges(url));
 	const stored = results.filter(Boolean).length;
 

@@ -35,88 +35,113 @@ export interface RoleRelation {
  */
 export type FranchiseRole = "season" | "extra" | "spin_off" | "recap" | "alternative" | "noise";
 
-/** Anything but a direct sequel or prequel needs one of these to count as worth watching. */
-const worthwhileScore = 60;
+/** The titles on a franchise's main story path, and how AniList relates the franchise's titles. */
+class MainPath {
+	/** Anything but a direct sequel or prequel needs one of these to count as worth watching. */
+	static readonly #worthwhileScore = 60;
 
-const continuationRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
-const sideStoryRelations = new Set<MediaRelation>(["SIDE_STORY", "PARENT"]);
-const spinOffRelations = new Set<MediaRelation>(["SPIN_OFF", "CHARACTER"]);
-const recapRelations = new Set<MediaRelation>(["SUMMARY", "COMPILATION"]);
+	static readonly #continuationRelations = new Set<MediaRelation>(["SEQUEL", "PREQUEL"]);
+	static readonly #sideStoryRelations = new Set<MediaRelation>(["SIDE_STORY", "PARENT"]);
+	static readonly #spinOffRelations = new Set<MediaRelation>(["SPIN_OFF", "CHARACTER"]);
+	static readonly #recapRelations = new Set<MediaRelation>(["SUMMARY", "COMPILATION"]);
 
-const roleOf = (
-	title: RoleTitle,
-	relations: readonly RoleRelation[],
-	main: ReadonlySet<number>,
-): FranchiseRole => {
-	const worthwhilePopularity = 2000;
+	readonly #relations: readonly RoleRelation[];
+	readonly #main: ReadonlySet<number>;
 
-	/** Total runtime, in minutes, under which an unconnected title is a clip. */
-	const minimumRuntimeMinutes = 5;
-
-	if (title.format === "MUSIC") {
-		return "noise";
+	constructor(relations: readonly RoleRelation[], main: ReadonlySet<number>) {
+		this.#relations = relations;
+		this.#main = main;
 	}
 
-	if (relations.some(({ to, type }) => to === title.anilistId && recapRelations.has(type))) {
-		return "recap";
-	}
+	/** The role of `title`; see {@link classify}. */
+	role(title: RoleTitle): FranchiseRole {
+		const worthwhilePopularity = 2000;
 
-	if (main.has(title.anilistId)) {
-		return "season";
-	}
+		/** Total runtime, in minutes, under which an unconnected title is a clip. */
+		const minimumRuntimeMinutes = 5;
 
-	// How the main story lists the title, and how the title lists the main story.
-	const listed = relations.flatMap(({ from, to, type }) => {
-		if (to === title.anilistId && main.has(from)) {
+		const relations = this.#relations;
+		const main = this.#main;
+
+		if (title.format === "MUSIC") {
+			return "noise";
+		}
+
+		if (
+			relations.some(({ to, type }) => to === title.anilistId && MainPath.#recapRelations.has(type))
+		) {
+			return "recap";
+		}
+
+		if (main.has(title.anilistId)) {
+			return "season";
+		}
+
+		// How the main story lists the title, and how the title lists the main story.
+		const listed = relations.flatMap(({ from, to, type }) => {
+			if (to === title.anilistId && main.has(from)) {
+				return [type];
+			}
+
+			return [];
+		});
+
+		const lists = relations.flatMap(({ from, to, type }): MediaRelation[] => {
+			if (from !== title.anilistId || !main.has(to)) {
+				return [];
+			}
+
+			if (type === "PARENT") {
+				return ["SIDE_STORY"];
+			}
+
 			return [type];
+		});
+
+		const touching = [...listed, ...lists];
+
+		if (touching.includes("ALTERNATIVE")) {
+			return "alternative";
 		}
 
-		return [];
-	});
-
-	const lists = relations.flatMap(({ from, to, type }) => {
-		if (from === title.anilistId && main.has(to)) {
-			return [type === "PARENT" ? "SIDE_STORY" : type];
+		if (touching.some((type) => MainPath.#continuationRelations.has(type))) {
+			return "extra";
 		}
 
-		return [];
-	});
+		let runtime: number | null = null;
 
-	const touching = [...listed, ...lists];
+		if (title.durationMinutes !== null) {
+			runtime = title.durationMinutes * Math.max(title.episodeCount, 1);
+		}
 
-	if (touching.includes("ALTERNATIVE")) {
-		return "alternative";
-	}
+		const isClip = runtime !== null && runtime < minimumRuntimeMinutes;
 
-	if (touching.some((type) => continuationRelations.has(type))) {
+		const isWorthwhile =
+			(title.score ?? 0) >= MainPath.#worthwhileScore ||
+			(title.popularity ?? 0) >= worthwhilePopularity;
+
+		if (isClip || !isWorthwhile) {
+			return "noise";
+		}
+
+		// A spin-off lists its original as `PARENT`, as a side story does, so the
+		// main story's own listing decides between the two when it has one.
+		let decisive = lists;
+
+		if (listed.length > 0) {
+			decisive = listed;
+		}
+
+		if (
+			!decisive.some((type) => MainPath.#sideStoryRelations.has(type)) &&
+			touching.some((type) => MainPath.#spinOffRelations.has(type))
+		) {
+			return "spin_off";
+		}
+
 		return "extra";
 	}
-
-	const runtime =
-		title.durationMinutes === null ? null : title.durationMinutes * Math.max(title.episodeCount, 1);
-
-	const isClip = runtime !== null && runtime < minimumRuntimeMinutes;
-
-	const isWorthwhile =
-		(title.score ?? 0) >= worthwhileScore || (title.popularity ?? 0) >= worthwhilePopularity;
-
-	if (isClip || !isWorthwhile) {
-		return "noise";
-	}
-
-	// A spin-off lists its original as `PARENT`, as a side story does, so the
-	// main story's own listing decides between the two when it has one.
-	const decisive = listed.length > 0 ? listed : lists;
-
-	if (
-		!decisive.some((type) => sideStoryRelations.has(type)) &&
-		touching.some((type) => spinOffRelations.has(type))
-	) {
-		return "spin_off";
-	}
-
-	return "extra";
-};
+}
 
 /**
  * Gives every title exactly one {@link FranchiseRole}.
@@ -136,15 +161,16 @@ const roleOf = (
  *    world or characters, and otherwise an `extra`. How the main story lists
  *    the title decides this over how the title lists the main story.
  */
-export const franchiseRoles = (
+export const classify = (
 	titles: readonly RoleTitle[],
 	relations: readonly RoleRelation[],
 	main: ReadonlySet<number>,
 ): Map<number, FranchiseRole> => {
 	const roles = new Map<number, FranchiseRole>();
+	const path = new MainPath(relations, main);
 
 	for (const title of titles) {
-		roles.set(title.anilistId, roleOf(title, relations, main));
+		roles.set(title.anilistId, path.role(title));
 	}
 
 	return roles;

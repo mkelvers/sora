@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { franchiseRoles } from "./roles";
+import { classify } from "./roles";
 import type { RoleRelation, RoleTitle } from "./roles";
 
 /** A title of a franchise, with `overrides` changed from an ordinary one-episode TV title. */
@@ -28,13 +28,13 @@ class Fixture {
 	}
 }
 
-describe("franchiseRoles", () => {
+describe("classify", () => {
 	const indigo = new Fixture(1, "TV", { episodeCount: 82 }).title;
 	const johto = new Fixture(2, "TV", { episodeCount: 52 }).title;
 	const main = new Set([1, 2]);
 
 	test("keeps the main path as seasons", () => {
-		const roles = franchiseRoles([indigo, johto], [], main);
+		const roles = classify([indigo, johto], [], main);
 		expect(roles.get(1)).toBe("season");
 		expect(roles.get(2)).toBe("season");
 	});
@@ -47,7 +47,7 @@ describe("franchiseRoles", () => {
 			score: 62,
 		}).title;
 
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, film, special],
 			[
 				{
@@ -79,7 +79,7 @@ describe("franchiseRoles", () => {
 			score: 56,
 		}).title;
 
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, sequel, promo],
 			[
 				{
@@ -103,7 +103,7 @@ describe("franchiseRoles", () => {
 	test("separates spin-offs and character crossovers", () => {
 		const spinOff = new Fixture(20, "TV", { episodeCount: 12 }).title;
 
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, spinOff],
 			[
 				{
@@ -121,7 +121,7 @@ describe("franchiseRoles", () => {
 	test("hides recaps and compilations, whatever their other links", () => {
 		const recap = new Fixture(30, "SPECIAL").title;
 
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, recap],
 			[
 				{
@@ -144,7 +144,7 @@ describe("franchiseRoles", () => {
 	test("sets another adaptation of the main story apart", () => {
 		const remake = new Fixture(40, "MOVIE", { durationMinutes: 97 }).title;
 
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, remake],
 			[
 				{
@@ -160,7 +160,7 @@ describe("franchiseRoles", () => {
 	});
 
 	test("drops music and clips that nothing connects", () => {
-		const roles = franchiseRoles(
+		const roles = classify(
 			[
 				indigo,
 				new Fixture(50, "MUSIC", { popularity: 90_000 }).title,
@@ -191,13 +191,13 @@ describe("franchiseRoles", () => {
 			score: 41,
 		}).title;
 
-		const roles = franchiseRoles([indigo, fun, forgotten], [], main);
+		const roles = classify([indigo, fun, forgotten], [], main);
 		expect(roles.get(60)).toBe("extra");
 		expect(roles.get(61)).toBe("noise");
 	});
 
 	test("does not hold an unknown runtime against a title", () => {
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, new Fixture(70, "OVA", { durationMinutes: null }).title],
 			[],
 			main,
@@ -215,12 +215,12 @@ describe("franchiseRoles", () => {
 			},
 		];
 
-		const roles = franchiseRoles([johto, new Fixture(80, "MOVIE").title], relations, main);
+		const roles = classify([johto, new Fixture(80, "MOVIE").title], relations, main);
 		expect(roles.get(80)).toBe("extra");
 	});
 
 	test("keeps a spin-off that lists its original as its parent", () => {
-		const roles = franchiseRoles(
+		const roles = classify(
 			[indigo, new Fixture(90, "TV", { episodeCount: 13 }).title],
 			[
 				{

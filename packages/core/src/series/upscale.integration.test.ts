@@ -6,7 +6,7 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import { watchPools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
-import { requestBackdropUpscale, upscaleBackdrop, upscalesOf } from "./upscale";
+import { requestBackdropUpscale, upscaleBackdrop, statusesOf } from "./upscale";
 
 describe("backdrop upscale queue", () => {
 	/** The series key the fixtures use; queries are scoped to it, so the development database's own upscales stay out. */
@@ -58,7 +58,7 @@ describe("backdrop upscale queue", () => {
 	const request = () => requestBackdropUpscale(id, sourceUrl);
 
 	const status = async () => {
-		const upscales = await upscalesOf(key);
+		const upscales = await statusesOf(key);
 
 		return upscales.get(sourceUrl)?.status;
 	};
@@ -164,7 +164,7 @@ describe("backdrop upscale queue", () => {
 
 		await Promise.all([request(), request(), request(), request()]);
 		expect(await status()).toBe("pending");
-		const upscales = await upscalesOf(key);
+		const upscales = await statusesOf(key);
 		expect(upscales.get(sourceUrl)?.id).toBe(orphan?.id);
 		expect(await jobs()).toMatchObject([
 			{

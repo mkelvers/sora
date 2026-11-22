@@ -57,7 +57,7 @@ import {
 } from "./episodes";
 import type { EpisodeListingRow } from "./episodes";
 import { franchiseParts, isNamedAfter } from "./franchise";
-import { franchiseRoles } from "./roles";
+import { classify } from "./roles";
 import { storedSeriesIds } from "./store";
 
 type SeriesRow = typeof series.$inferSelect;
@@ -572,7 +572,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 	const anilistIdOf = new Map(titles.map((title) => [title.id, title.anilistId]));
 	const ratingOf = new Map(ratings.map((rating) => [rating.anilistId, rating]));
 
-	const roles = franchiseRoles(
+	const roles = classify(
 		parts.flatMap((part) => {
 			const anilistId = defined(anilistIdOf.get(part.series_id));
 

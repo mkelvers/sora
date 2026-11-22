@@ -12,7 +12,7 @@ import {
 	scheduleSeriesStore,
 	startTrackingAiring,
 } from "../scheduler/queue";
-import { storeBackdropEdges } from "./edges";
+import { measureBackdrop } from "./edges";
 import { anilistEpisodeKey, carriedByAniKoto } from "./episodes";
 import { buildSeries } from "./series";
 
@@ -33,37 +33,6 @@ export const storedSeriesIds = async (
 		.where(inArray(series.anilistId, [...new Set(anilistIds)]));
 
 	return new Map(rows.map((row) => [row.anilistId, row.id]));
-};
-
-/**
- * The entries among `anilistIds` that are not stored yet and are worth
- * storing as titles of a franchise: those AniKoto carries, which can be
- * watched, and those airing or yet to come out, which will be. Storing every
- * related entry would follow AniList's relations through specials and
- * extras nothing streams.
- */
-const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<number[]> => {
-	if (anilistIds.length === 0) {
-		return [];
-	}
-
-	const stored = await storedSeriesIds(anilistIds);
-
-	const rows = await db
-		.select({
-			anilistId: animeSearch.anilistId,
-		})
-		.from(animeSearch)
-		.where(
-			and(
-				inArray(animeSearch.anilistId, [...new Set(anilistIds)]),
-				not(animeSearch.isAdult),
-				sql`${animeSearch.format} is distinct from 'MUSIC'`,
-				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
-			),
-		);
-
-	return rows.map((row) => row.anilistId).filter((anilistId) => !stored.has(anilistId));
 };
 
 /**
@@ -94,19 +63,27 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 	 * Stores run from requests and scheduler jobs at once, and two of one entry
 	 * must not replace its episodes at the same time.
 	 */
-	const storeLockKey = 0x5e_71_e5;
+	const lockKey = 0x5e_71_e5;
 
 	const built = await buildSeries(anilistId);
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);
 
-	const airings =
-		built.useAniListAirings && (!isStored || built.mayGainEpisodes)
-			? await fetchEpisodeAirings([anilistId])
-			: new Map<string, Date>();
+	const readsAirings = built.useAniListAirings && (!isStored || built.mayGainEpisodes);
+	let airings = new Map<string, Date>();
 
-	const seriesId = await db.transaction(async (tx) => {
-		await tx.execute(sql`select pg_advisory_xact_lock(${storeLockKey}, ${anilistId})`);
+	if (readsAirings) {
+		airings = await fetchEpisodeAirings([anilistId]);
+	}
+
+	const storedId = await db.transaction(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(${lockKey}, ${anilistId})`);
+
+		let nextAiringAt: Date | null = null;
+
+		if (built.nextAiring) {
+			nextAiringAt = new Date(built.nextAiring.airingAt);
+		}
 
 		const values = {
 			backdropUrl: built.backdropUrl,
@@ -114,7 +91,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 			kind: built.kind,
 			laidOutAt: new Date(),
 			logoUrl: built.logoUrl,
-			nextEpisodeAiringAt: built.nextAiring ? new Date(built.nextAiring.airingAt) : null,
+			nextEpisodeAiringAt: nextAiringAt,
 			nextEpisodeNumber: built.nextAiring?.episode ?? null,
 			overview: built.overview,
 			posterUrl: built.posterUrl,
@@ -151,22 +128,35 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 		const airedBefore = new Map(earlierEpisodes.map((row) => [row.number, row.airedAt]));
 		await tx.delete(seriesEpisode).where(eq(seriesEpisode.seriesId, id));
 
-		const episodes = built.episodes.map((episode) => ({
-			airDate: episode.airDate,
-			airedAt: built.useAniListAirings
-				? (airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
+		const episodes = built.episodes.map((episode) => {
+			let airedAt: Date | null = null;
+
+			if (built.useAniListAirings) {
+				airedAt =
+					airings.get(anilistEpisodeKey(anilistId, episode.number)) ??
 					airedBefore.get(episode.number) ??
-					null)
-				: null,
-			number: episode.number,
-			overview: episode.overview,
-			runtimeMinutes: episode.runtimeMinutes === null ? null : Math.round(episode.runtimeMinutes),
-			seriesId: id,
-			stillUrl: episode.stillUrl,
-			title: episode.title,
-			tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
-			tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
-		}));
+					null;
+			}
+
+			let runtimeMinutes: number | null = null;
+
+			if (episode.runtimeMinutes !== null) {
+				runtimeMinutes = Math.round(episode.runtimeMinutes);
+			}
+
+			return {
+				airDate: episode.airDate,
+				airedAt,
+				number: episode.number,
+				overview: episode.overview,
+				runtimeMinutes,
+				seriesId: id,
+				stillUrl: episode.stillUrl,
+				title: episode.title,
+				tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
+				tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
+			};
+		});
 
 		await inSequence(chunked(episodes, episodeInsertBatch), async (batch) => {
 			await tx.insert(seriesEpisode).values(batch);
@@ -190,7 +180,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 		return id;
 	});
 
-	await storeBackdropEdges(seriesId);
+	await measureBackdrop(storedId);
 
 	// Readers take the series' details from its anime, so it must be stored.
 	await getAnime(anilistId);
@@ -202,8 +192,36 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 	// Episode listings read providers' episode lists from the database only.
 	await scheduleEpisodeLookups([anilistId], "backfill");
 
-	const relatedIds = await relatedWorthStoring(built.related.map((related) => related.anilistId));
-	await inSequence(relatedIds, (id) => scheduleSeriesStore(id, "backfill"));
+	// The related entries that are not stored yet and are worth storing as
+	// titles of the franchise: those AniKoto carries, which can be watched,
+	// and those airing or yet to come out, which will be. Storing every
+	// related entry would follow AniList's relations through specials and
+	// extras nothing streams.
+	const relatedIds = built.related.map((related) => related.anilistId);
 
-	return seriesId;
+	if (relatedIds.length === 0) {
+		return storedId;
+	}
+
+	const known = await storedSeriesIds(relatedIds);
+
+	const rows = await db
+		.select({
+			anilistId: animeSearch.anilistId,
+		})
+		.from(animeSearch)
+		.where(
+			and(
+				inArray(animeSearch.anilistId, [...new Set(relatedIds)]),
+				not(animeSearch.isAdult),
+				sql`${animeSearch.format} is distinct from 'MUSIC'`,
+				or(inArray(animeSearch.status, ["RELEASING", "NOT_YET_RELEASED"]), carriedByAniKoto),
+			),
+		);
+
+	const worthStoring = rows.map((row) => row.anilistId).filter((related) => !known.has(related));
+
+	await inSequence(worthStoring, (id) => scheduleSeriesStore(id, "backfill"));
+
+	return storedId;
 };
