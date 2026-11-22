@@ -209,7 +209,13 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 		episodes: media.episodes,
 		format: media.format,
 		...originOf(media),
-		genres: (media.genres ?? []).flatMap((genre) => (genre ? [genre] : [])),
+		genres: (media.genres ?? []).flatMap((genre) => {
+			if (genre) {
+				return [genre];
+			}
+
+			return [];
+		}),
 		isAdult: media.isAdult === true,
 		native,
 		popularity: media.popularity ?? 0,
