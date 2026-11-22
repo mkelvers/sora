@@ -95,8 +95,13 @@
 			["IP address", entry.ip_address],
 		].filter((fact): fact is [string, string] => fact[1] !== null);
 
-	const nameOf = (entry: SignedInDevice) =>
-		entry.kind === "unknown" ? `Signed in ${day(entry.signed_in_at)}` : entry.device;
+	const nameOf = (entry: SignedInDevice) => {
+		if (entry.kind === "unknown") {
+			return `Signed in ${day(entry.signed_in_at)}`;
+		}
+
+		return entry.device;
+	};
 
 	const signOut = async (device: SignedInDevice) => {
 		busy = device.id;
