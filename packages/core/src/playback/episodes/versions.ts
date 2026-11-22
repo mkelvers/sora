@@ -225,7 +225,13 @@ const readAnimeListings = async (
 	const byId = new Map(ids.map((anilistId) => [anilistId, listingsOf(anilistId, stored, sources)]));
 
 	await dependencies.scheduleEpisodeLookups(
-		[...byId].flatMap(([anilistId, listed]) => (listed.pending ? [anilistId] : [])),
+		[...byId].flatMap(([anilistId, listed]) => {
+			if (listed.pending) {
+				return [anilistId];
+			}
+
+			return [];
+		}),
 		options.priority ?? "waiting",
 	);
 
