@@ -305,7 +305,13 @@ const applyAdditions = async (
  * A date a list gave, no later than `now`: a clock set wrong on the other
  * side must not put a title ahead of everything the person does next.
  */
-const notAfter = (date: Date | null, now: Date) => (date && date < now ? date : now);
+const notAfter = (date: Date | null, now: Date) => {
+	if (date && date < now) {
+		return date;
+	}
+
+	return now;
+};
 
 const toAdditions = (entries: readonly ListEntry[], now: Date): Addition[] =>
 	entries.map((entry) => ({
