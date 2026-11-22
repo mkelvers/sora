@@ -1,5 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 
+import { z } from "zod";
+
 import { aniListPriority, createAniListClient } from "./client";
 import { TypedDocumentString } from "./graphql.generated";
 
@@ -18,10 +20,11 @@ const fake = {
 };
 
 const respond = (_input: string, init: RequestInit) => {
-	// SAFETY: the client under test sends this body.
-	const { variables } = JSON.parse(String(init.body)) as {
-		variables: Pages;
-	};
+	const { variables } = z
+		.object({
+			variables: z.record(z.string(), z.union([z.array(z.number()), z.number(), z.boolean()])),
+		})
+		.parse(JSON.parse(String(init.body)));
 
 	sent.push(variables);
 
