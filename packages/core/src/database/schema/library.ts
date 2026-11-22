@@ -15,7 +15,7 @@ import { series } from "./series";
 
 /**
  * A title featured on one user's home page for one rotation (see
- * `rotationOf`), in `position` order. Kept for the rotation before as well,
+ * `numberOf`), in `position` order. Kept for the rotation before as well,
  * so the next never features the same titles again.
  */
 export const featuredPick = pgTable(
