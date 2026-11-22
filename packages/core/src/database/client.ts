@@ -71,19 +71,36 @@ class Connection {
 		return this.#held ?? this.#pool;
 	}
 
-	#member(key: PropertyKey): unknown {
+	/**
+	 * The client members drizzle and the migrator use. Queries go to the held
+	 * transaction, where `begin` opens a savepoint; the pool itself is only
+	 * reserved and closed. Any other member is undefined, so a new caller
+	 * fails loudly instead of bypassing the held transaction.
+	 */
+	#member(key: string | symbol) {
+		const current = this.#current();
+
 		if (key === "begin" && this.#held) {
 			return this.#held.savepoint.bind(this.#held);
 		}
 
-		const current = this.#current();
-		const member: unknown = Reflect.get(current, key);
-
-		if (typeof member !== "function") {
-			return member;
+		if (key === "begin") {
+			return current.begin.bind(current);
 		}
 
-		return member.bind(current);
+		if (key === "unsafe") {
+			return current.unsafe.bind(current);
+		}
+
+		if (key === "reserve") {
+			return this.#pool.reserve.bind(this.#pool);
+		}
+
+		if (key === "close") {
+			return this.#pool.close.bind(this.#pool);
+		}
+
+		return undefined;
 	}
 }
 
