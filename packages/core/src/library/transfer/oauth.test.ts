@@ -150,9 +150,11 @@ describe("readAniListAccount", () => {
 					{
 						entries: [
 							{
+								completedAt: null,
 								createdAt: 1_617_970_746,
 								media: { id: 1 },
 								progress: 4,
+								startedAt: null,
 								status: "CURRENT",
 								updatedAt: 1_622_412_501,
 							},
@@ -174,9 +176,11 @@ describe("readAniListAccount", () => {
 								updatedAt: 0,
 							},
 							{
+								completedAt: null,
 								createdAt: 0,
 								media: { id: 3 },
 								progress: 0,
+								startedAt: null,
 								status: "PLANNING",
 								updatedAt: 0,
 							},
@@ -234,6 +238,17 @@ describe("readAniListAccount", () => {
 		});
 		expect(new Headers(calls[1]?.init?.headers).get("Authorization")).toBe("Bearer tok");
 		expect(JSON.parse(String(calls[2]?.init?.body)).variables).toEqual({ userName: "someone" });
+	});
+
+	test("rejects account responses whose selected fields have the wrong types", async () => {
+		const { fetcher } = answering(
+			json({ access_token: "tok" }),
+			json({ data: { Viewer: { name: 123 } } }),
+		);
+
+		await expect(readAniListAccount(authorization, fetcher, clients)).rejects.toBeInstanceOf(
+			UpstreamUnavailableError,
+		);
 	});
 
 	test("says the connection expired when AniList refuses the code", async () => {

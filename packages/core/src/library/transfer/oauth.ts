@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { UserAnimeListDocument, ViewerNameDocument } from "../../anilist/graphql.generated";
 import type { TypedDocumentString } from "../../anilist/graphql.generated";
+import { zUserAnimeListQuery, zViewerNameQuery } from "../../anilist/validation.generated";
 import { config } from "../../config";
 import { InvalidInputError, UpstreamUnavailableError } from "../../errors";
 import type { ImportAuthorization, ImportOptions } from "../../models/transfer";
@@ -193,6 +194,7 @@ export const readAniListAccount = async (
 	const query = async <TResult, TVariables>(
 		document: TypedDocumentString<TResult, TVariables>,
 		variables: TVariables,
+		schema: z.ZodType<NoInfer<TResult>>,
 	) => {
 		const response = await send(fetcher, anilist.api, {
 			body: JSON.stringify({
@@ -213,20 +215,41 @@ export const readAniListAccount = async (
 			});
 		}
 
-		// SAFETY: the response answers the document typed with TResult.
-		return ((await response.json()) as { data?: TResult }).data;
+		const json = await attempt(response.json());
+
+		if (json.error) {
+			throw new UpstreamUnavailableError("AniList returned a response that is not JSON", {
+				cause: json.error,
+				retryAfterMs: null,
+			});
+		}
+
+		const parsed = z.object({ data: schema.optional() }).safeParse(json.data);
+
+		if (!parsed.success) {
+			throw new UpstreamUnavailableError("AniList returned an invalid account response", {
+				cause: parsed.error,
+				retryAfterMs: null,
+			});
+		}
+
+		return parsed.data.data;
 	};
 
-	const viewer = await query(ViewerNameDocument, {});
+	const viewer = await query(ViewerNameDocument, {}, zViewerNameQuery);
 	const name = viewer?.Viewer?.name;
 
 	if (!name) {
 		throw expired();
 	}
 
-	const list = await query(UserAnimeListDocument, {
-		userName: name,
-	});
+	const list = await query(
+		UserAnimeListDocument,
+		{
+			userName: name,
+		},
+		zUserAnimeListQuery,
+	);
 
 	return {
 		account: name,
