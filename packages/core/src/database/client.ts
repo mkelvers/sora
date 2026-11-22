@@ -36,7 +36,7 @@ class Connection {
 	 * Opens a transaction that every query joins, or a savepoint when one is
 	 * already open, and returns the function that rolls it back. For tests.
 	 */
-	async rollBackLater(): Promise<() => Promise<void>> {
+	async isolate(): Promise<() => Promise<void>> {
 		const outer = this.#held;
 		const opened = Promise.withResolvers<undefined>();
 		const finished = Promise.withResolvers<undefined>();

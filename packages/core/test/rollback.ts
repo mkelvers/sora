@@ -5,21 +5,21 @@ import { connection } from "../src/database/client";
 // Database tests run on the development database and leave nothing in it:
 // each file runs inside one transaction and each test inside a savepoint,
 // and both are rolled back.
-let rollBackFile: () => Promise<void>;
-let rollBackTest: () => Promise<void>;
+let rollbackFile: () => Promise<void>;
+let rollbackTest: () => Promise<void>;
 
 beforeAll(async () => {
-	rollBackFile = await connection.rollBackLater();
+	rollbackFile = await connection.isolate();
 });
 
 beforeEach(async () => {
-	rollBackTest = await connection.rollBackLater();
+	rollbackTest = await connection.isolate();
 });
 
 afterEach(async () => {
-	await rollBackTest();
+	await rollbackTest();
 });
 
 afterAll(async () => {
-	await rollBackFile();
+	await rollbackFile();
 });
