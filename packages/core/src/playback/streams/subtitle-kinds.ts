@@ -17,6 +17,7 @@ const knownLimit = 5000;
  */
 export const subtitleKinds = async (videos: ProviderVideo[]) => {
 	const kinds = new Map<string, SubtitleKind | null>();
+
 	const tracks = new Map<
 		string,
 		{

@@ -8,6 +8,7 @@ const environment = {
 	NOW_WATCHING_PROFILE_ID: "owner",
 	PORTFOLIO_TOKEN: "portfolio-test-secret",
 };
+
 const path = "/v1/public/now-watching";
 
 test("missing and wrong tokens return the same 401 without querying progress", async () => {

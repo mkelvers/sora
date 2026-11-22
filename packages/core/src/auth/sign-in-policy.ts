@@ -32,6 +32,7 @@ const EmailBody = PasswordBody.extend({ email: z.email() }).transform(({ email, 
 const soraEmailSuffix = "@sora.invalid";
 
 const maxBuckets = 10_000;
+
 const windows = new Map<
 	string,
 	{

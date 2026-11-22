@@ -1233,6 +1233,7 @@ export const placeInShow = (source: MatchSubject, candidate: ShowCandidate): Pla
 		...source,
 		episodes: source.playbackEpisodes ?? source.episodes,
 	};
+
 	const start = dayNumber(subject.startDate);
 	const end = dayNumber(subject.endDate);
 

@@ -152,6 +152,7 @@ describe("refineCues", () => {
 	test("places a cue by when it is said when the dub words it differently", () => {
 		const cues = script(30);
 		const words = speech(cues, 2);
+
 		const reworded = cues.map((cue, line) =>
 			line === 10
 				? {
@@ -160,6 +161,7 @@ describe("refineCues", () => {
 					}
 				: cue,
 		);
+
 		const refinement = refineCues(reworded, words, null);
 
 		const anchor = defined(refinement).anchors.find((candidate) => candidate.start === 50);

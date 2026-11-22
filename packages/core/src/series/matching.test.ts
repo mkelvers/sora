@@ -294,11 +294,13 @@ describe("placeInShow", () => {
 
 	test("title fallback rejects mismatched runtimes and already-aired upcoming seasons", () => {
 		const candidate = show(weekly(1, "2022-01-13", 11));
+
 		const entry = subject({
 			episodes: 11,
 			format: "ONA",
 			startDate: "2021-09-16",
 		});
+
 		expect(
 			placeInShow(
 				{

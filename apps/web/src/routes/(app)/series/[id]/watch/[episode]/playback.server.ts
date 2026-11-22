@@ -84,10 +84,12 @@ export const resolveWatchPlayback = async (
 	}
 
 	const { results, meta } = playback.data;
+
 	const links = {
 		next: meta.next_episode,
 		previous: meta.previous_episode,
 	};
+
 	const playable = results.filter((media) => media.sources.length > 0);
 
 	if (playable.length === 0) {

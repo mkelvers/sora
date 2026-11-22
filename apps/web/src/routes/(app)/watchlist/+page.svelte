@@ -27,6 +27,7 @@
 		},
 		...statuses,
 	] as const;
+
 	const selected = $derived(options.find((option) => option.value === status));
 
 	const matching = $derived(

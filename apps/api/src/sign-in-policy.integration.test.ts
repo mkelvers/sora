@@ -154,6 +154,7 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 	test("rejects new address buckets at capacity and admits them after expiry", async () => {
 		clock.mockReturnValue(4 * minute);
 		using lookup = spyOn(db.query.authUser, "findFirst");
+
 		const malformed = JSON.stringify({
 			password: 1,
 			username,

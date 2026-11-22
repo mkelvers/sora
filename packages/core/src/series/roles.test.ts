@@ -31,6 +31,7 @@ describe("franchiseRoles", () => {
 
 	test("lists side-story films and specials as extras when they are worth watching", () => {
 		const film = title(10, "MOVIE", { durationMinutes: 75 });
+
 		const special = title(11, "SPECIAL", {
 			popularity: 100,
 			score: 62,
@@ -62,6 +63,7 @@ describe("franchiseRoles", () => {
 			popularity: 300,
 			score: 45,
 		});
+
 		const promo = title(13, "SPECIAL", {
 			popularity: 1800,
 			score: 56,
@@ -90,6 +92,7 @@ describe("franchiseRoles", () => {
 
 	test("separates spin-offs and character crossovers", () => {
 		const spinOff = title(20, "TV", { episodeCount: 12 });
+
 		const roles = franchiseRoles(
 			[indigo, spinOff],
 			[
@@ -101,6 +104,7 @@ describe("franchiseRoles", () => {
 			],
 			main,
 		);
+
 		expect(roles.get(20)).toBe("spin_off");
 	});
 
@@ -195,6 +199,7 @@ describe("franchiseRoles", () => {
 				type: "SEQUEL",
 			},
 		];
+
 		const roles = franchiseRoles([johto, title(80, "MOVIE")], relations, main);
 		expect(roles.get(80)).toBe("extra");
 	});

@@ -172,6 +172,7 @@ describe.skipIf(!databaseTestsEnabled())("backdrop upscale queue", () => {
 				sourceUrl,
 			})
 			.returning();
+
 		expect(await status()).toBe("failed");
 		expect(await jobs()).toEqual([]);
 

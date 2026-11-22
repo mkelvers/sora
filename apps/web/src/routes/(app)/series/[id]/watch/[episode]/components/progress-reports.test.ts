@@ -90,14 +90,17 @@ test("keeps completion and exit when later reports replace the pending position"
 
 test("sends departed episodes and profiles in order with their original flags", async () => {
 	const { finishWrite, reports, settlements, writes } = deferredReports();
+
 	const nextEpisode = {
 		...address,
 		episode: 2,
 	};
+
 	const nextProfile = {
 		...nextEpisode,
 		profileId: "profile-b",
 	};
+
 	const revisited = { ...address };
 
 	reports.enqueue(address, snapshot(80, true));
