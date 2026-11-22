@@ -526,7 +526,11 @@ const aboutSynopsis = (sources: AboutSources) => {
 		return overview;
 	}
 
-	return overview && overview.length > blurb.length ? overview : blurb;
+	if (overview && overview.length > blurb.length) {
+		return overview;
+	}
+
+	return blurb;
 };
 
 /** A title's about section, worded for display; see `SeriesSchema`. */
