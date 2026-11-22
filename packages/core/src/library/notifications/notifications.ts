@@ -594,18 +594,20 @@ export const getNotifications = async (
 		items: groups.flatMap(({ seriesId, ...group }): Notification[] => {
 			const card = cards.get(seriesId);
 
-			return card
-				? [
-						{
-							...group,
-							message: notificationMessage(group, {
-								movie: card.format === "MOVIE",
-								startDate: startDates.get(seriesId) ?? null,
-							}),
-							series: card,
-						},
-					]
-				: [];
+			if (card) {
+				return [
+					{
+						...group,
+						message: notificationMessage(group, {
+							movie: card.format === "MOVIE",
+							startDate: startDates.get(seriesId) ?? null,
+						}),
+						series: card,
+					},
+				];
+			}
+
+			return [];
 		}),
 		unread: all.filter((group) => group.unread).length,
 	};
