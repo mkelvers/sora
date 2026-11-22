@@ -198,7 +198,7 @@ const requestPublicHost = (
 			const status = incoming.statusCode ?? 502;
 			const empty = status === 204 || status === 205 || status === 304;
 			resolve(
-				new Response(empty ? null : (Readable.toWeb(incoming) as unknown as ReadableStream), {
+				new Response(empty ? null : Readable.toWeb(incoming), {
 					headers: received,
 					status,
 					statusText: incoming.statusMessage,

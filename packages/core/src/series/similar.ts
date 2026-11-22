@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, not, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import type { MediaFormat } from "../anilist/graphql.generated";
 import { catalogSeriesAllowed } from "../catalog/visibility";
@@ -49,17 +50,24 @@ export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> 
 	const own = [row.anilistId, ...ids.filter((id) => !crossovers.has(id) && !apart.has(id))];
 	const franchise = [row.anilistId, ...ids];
 
-	const recommended = (await db.execute(sql`
+	const rows = await db.execute(sql`
 		select (recommendation.node->'mediaRecommendation'->>'id')::int as "anilistId",
 			(recommendation.position - 1)::int as rank
 		from ${anime},
 			jsonb_array_elements(${anime.media}->'recommendations'->'nodes')
 				with ordinality as recommendation(node, position)
 		where ${anime.anilistId} in ${own}
-	`)) as unknown as {
-		anilistId: number;
-		rank: number;
-	}[];
+			and recommendation.node->'mediaRecommendation'->>'id' is not null
+	`);
+
+	const recommended = z
+		.array(
+			z.object({
+				anilistId: z.number(),
+				rank: z.number(),
+			}),
+		)
+		.parse([...rows]);
 
 	const scoreOf = new Map<number, number>();
 

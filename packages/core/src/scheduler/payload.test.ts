@@ -9,17 +9,27 @@ import { InvalidPayloadError, failInvalidPayloads, parsePayload } from "./payloa
 
 const task = "test-task";
 
+/** The part of {@link JobHelpers} that `failInvalidPayloads` reads. */
+type Running = Pick<JobHelpers, "query"> & {
+	job: Pick<JobHelpers["job"], "id" | "locked_by">;
+	logger: Pick<JobHelpers["logger"], "warn">;
+};
+
 /** Helpers for a running job, recording the SQL it sends. */
 const runningJob = () => {
 	const query = mock((text: string, values: unknown[]) =>
 		Promise.resolve({
+			command: "UPDATE",
+			fields: [],
+			oid: 0,
+			rowCount: 0,
 			rows: [],
 			text,
 			values,
 		}),
 	);
 
-	const helpers = {
+	const running: Running = {
 		job: {
 			id: "42",
 			locked_by: "worker-1",
@@ -28,7 +38,10 @@ const runningJob = () => {
 			warn: mock(),
 		},
 		query,
-	} as unknown as JobHelpers;
+	};
+
+	// SAFETY: failInvalidPayloads reads only the members `Running` has.
+	const helpers = running as JobHelpers;
 
 	return {
 		helpers,

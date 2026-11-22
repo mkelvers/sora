@@ -417,16 +417,18 @@ const episodeKeys = (show: TmdbShow) =>
 		.join(",");
 
 /** A stored series with an episode TMDB is behind on, and how long ago each lack began. */
-interface BehindSeries extends Record<string, unknown> {
-	series_id: string;
-	key: string;
-	anilist_id: number;
-	is_unlisted: boolean;
-	unlisted_for_ms: number | null;
-	lacks_details: boolean;
-	lacking_for_ms: number | null;
-	laid_out_for_ms: number;
-}
+const BehindSeriesSchema = z.object({
+	anilist_id: z.number(),
+	is_unlisted: z.boolean(),
+	key: z.string(),
+	lacking_for_ms: z.number().nullable(),
+	lacks_details: z.boolean(),
+	laid_out_for_ms: z.number(),
+	series_id: z.string(),
+	unlisted_for_ms: z.number().nullable(),
+});
+
+type BehindSeries = z.infer<typeof BehindSeriesSchema>;
 
 /** What asking TMDB about one series came to. */
 interface Outcome {
@@ -646,7 +648,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
     and (${isUnnamed} or ${seriesEpisode.overview} is null or ${seriesEpisode.stillUrl} is null)
   )`;
 
-	const behind = await db.execute<BehindSeries>(sql`
+	const rows = await db.execute(sql`
     select
       ${series.id} as series_id,
       ${series.key} as key,
@@ -662,6 +664,8 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
       and ${onAniKoto}
     group by ${series.id}
   `);
+
+	const behind = z.array(BehindSeriesSchema).parse([...rows]);
 
 	const showIds = new Map(
 		behind.flatMap(({ series_id, key }) => {
@@ -688,7 +692,7 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 
 	const fetchedAt = new Map(fetchedRows.map(({ path, at }) => [path, at.getTime()] as const));
 
-	const outcomes = await inSequence(behind as unknown as BehindSeries[], async (row) => {
+	const outcomes = await inSequence(behind, async (row) => {
 		const showId = showIds.get(row.series_id);
 
 		return showId === undefined

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import http from "node:http";
 
 import { InvalidStreamTokenError } from "../../errors";
@@ -39,7 +39,7 @@ let server: ReturnType<typeof Bun.serve> | undefined;
 afterEach(async () => {
 	await server?.stop(true);
 	server = undefined;
-	(http.request as unknown as { mockRestore?: () => void }).mockRestore?.();
+	mock.restore();
 });
 
 /**
@@ -84,7 +84,7 @@ const throttlingHost = (
 				lookup: undefined,
 			},
 			onResponse,
-		)) as unknown as typeof http.request);
+		)) as typeof http.request);
 
 	return {
 		requests: () => requests,
