@@ -126,16 +126,18 @@ export const getAiringSchedule = async (from: Date, until: Date): Promise<Schedu
 		const seriesId = seriesIds.get(broadcast.anilistId);
 		const card = seriesId ? cards.get(seriesId) : undefined;
 
-		return card
-			? [
-					{
-						air_type: broadcast.airType,
-						airing_at: broadcast.airsAt.toISOString(),
-						episode: broadcast.episode,
-						series: card,
-					},
-				]
-			: [];
+		if (card) {
+			return [
+				{
+					air_type: broadcast.airType,
+					airing_at: broadcast.airsAt.toISOString(),
+					episode: broadcast.episode,
+					series: card,
+				},
+			];
+		}
+
+		return [];
 	});
 };
 
