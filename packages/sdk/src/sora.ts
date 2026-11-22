@@ -346,10 +346,11 @@ export class SoraClient {
 			options,
 		);
 
-		// SAFETY: Better Auth's change-password answer; it is outside the API contract.
-		const changed = (await response.json()) as {
-			token: string;
-		};
+		const changed = z
+			.object({
+				token: z.string(),
+			})
+			.parse(await response.json());
 
 		return {
 			token: changed.token,
