@@ -7,6 +7,7 @@ import { config } from "../config";
 import { db } from "../database/client";
 import { animeScheduleRelease, animeScheduleShow } from "../database/schema/playback";
 import type { AirType } from "../database/schema/playback";
+import { Entry } from "./entry";
 
 const api = "https://animeschedule.net/api/v3";
 
@@ -15,79 +16,9 @@ const headers = {
 	Authorization: `Bearer ${config.animeScheduleApiKey}`,
 };
 
-/** One release in AnimeSchedule's timetable, as far as it is read. */
-const TimetableEntrySchema = z.object({
-	airType: z.enum(["raw", "sub", "dub"]),
-	airingStatus: z.string(),
-	/** When the hold starts and ends; `0001-01-01T00:00:00Z` when not known. */
-	delayedFrom: z.iso
-		.datetime({
-			offset: true,
-		})
-		.optional(),
-	/** Set, as `Delayed` or `Break`, while the episode is held back; see {@link isHeldBack}. */
-	delayedText: z.string().optional(),
-	delayedUntil: z.iso
-		.datetime({
-			offset: true,
-		})
-		.optional(),
-	/** Whether the show is a Chinese animation, which AnimeSchedule files apart from anime. */
-	donghua: z.boolean().optional(),
-	episodeDate: z.iso.datetime({
-		offset: true,
-	}),
-	episodeNumber: z.number().int().positive(),
-	/** The length of an episode in minutes; absent or 0 when not known. */
-	lengthMin: z.number().int().nonnegative().nullish(),
-	route: z.string().min(1),
-	/** How many episodes before `episodeNumber` come out with it, as in a double-episode premiere. */
-	subtractedEpisodeNumber: z.number().int().nonnegative().optional(),
-});
-
-/** A date AnimeSchedule sends for one it does not know. */
-const unknownDate = "0001-01-01T00:00:00Z";
-
-/**
- * Whether an entry is held back rather than coming out when listed. The
- * timetable keeps a delayed episode in each week until it airs, marked
- * `delayed-air` in the week it was due and only by `delayedText` in the
- * weeks between, so a listed time within the hold is not when it airs.
- */
-const isHeldBack = (entry: z.infer<typeof TimetableEntrySchema>) => {
-	if (entry.airingStatus === "delayed-air") {
-		return true;
-	}
-
-	if (!entry.delayedText) {
-		return false;
-	}
-
-	const airsAt = Date.parse(entry.episodeDate);
-
-	const from =
-		entry.delayedFrom && entry.delayedFrom !== unknownDate ? Date.parse(entry.delayedFrom) : null;
-
-	const until =
-		entry.delayedUntil && entry.delayedUntil !== unknownDate
-			? Date.parse(entry.delayedUntil)
-			: null;
-
-	return (from === null || airsAt >= from) && (until === null || airsAt < until);
-};
-
-/** One show, as far as it is read: its links elsewhere, such as `anilist.co/anime/195600/…`. */
-const AnimeSchema = z.object({
-	websites: z
-		.object({
-			aniList: z.string().nullish(),
-		})
-		.nullish(),
-});
-
 /** One episode in AnimeSchedule's timetable. */
 export interface TimetableRelease {
-	/** The show's path on AnimeSchedule; see {@link resolveAnimeScheduleShows}. */
+	/** The show's path on AnimeSchedule; see {@link Shows}. */
 	route: string;
 	airType: AirType;
 	/** The episode, numbered as the AniList entry numbers it. */
@@ -105,12 +36,12 @@ export interface TimetableRelease {
  * double-episode premiere, is listed as each of them.
  *
  * A delayed episode is left out until the week it airs; see
- * {@link isHeldBack}. An entry that does not match
- * {@link TimetableEntrySchema} is left out rather than failing the rest.
+ * {@link Entry.heldBack}. An entry that does not match {@link Entry.schema}
+ * is left out rather than failing the rest.
  *
  * @throws {Error} when AnimeSchedule cannot be read.
  */
-export const fetchTimetable = async (
+export const fetchWeek = async (
 	http: HttpClient,
 	week: {
 		year: number;
@@ -128,9 +59,9 @@ export const fetchTimetable = async (
 		.array(z.unknown())
 		.parse(await response.json())
 		.flatMap((item) => {
-			const entry = TimetableEntrySchema.safeParse(item);
+			const entry = Entry.schema.safeParse(item);
 
-			if (!entry.success || isHeldBack(entry.data)) {
+			if (!entry.success || new Entry(entry.data).heldBack) {
 				return [];
 			}
 
@@ -165,102 +96,124 @@ export const isoWeek = (date: Date) => {
 	};
 };
 
-/**
- * The AniList entry of each AnimeSchedule show, as the show links it, or
- * `null` when it links none.
- *
- * Stored links are reused; a show not stored yet is looked up once, a
- * request each, since the API matches several AniList IDs only when one
- * show has them all. One linking nothing is looked up again after
- * {@link unlinkedShowLifetimeMs}, and one that cannot be looked up is left
- * out.
- */
-const resolveAnimeScheduleShows = async (
-	http: HttpClient,
-	routes: readonly string[],
-): Promise<Map<string, number | null>> => {
-	/** How long a show that links no AniList entry waits before it is looked up again. */
-	const unlinkedShowLifetimeMs = 7 * day;
+/** AnimeSchedule shows, by their routes. */
+class Shows {
+	readonly #http: HttpClient;
+	readonly #routes: string[];
 
-	const unique = [...new Set(routes)];
-
-	if (unique.length === 0) {
-		return new Map();
+	constructor(http: HttpClient, routes: readonly string[]) {
+		this.#http = http;
+		this.#routes = [...new Set(routes)];
 	}
 
-	const stored = await db
-		.select()
-		.from(animeScheduleShow)
-		.where(inArray(animeScheduleShow.route, unique));
+	/**
+	 * The AniList entry of each show, as the show links it, or `null` when it
+	 * links none.
+	 *
+	 * Stored links are reused; a show not stored yet is looked up once, a
+	 * request each, since the API matches several AniList IDs only when one
+	 * show has them all. One linking nothing is looked up again after a week,
+	 * and one that cannot be looked up is left out.
+	 */
+	async links(): Promise<Map<string, number | null>> {
+		/** How long a show that links no AniList entry waits before it is looked up again. */
+		const unlinkedLifetimeMs = 7 * day;
 
-	const resolved = new Map(
-		stored.flatMap((show) => {
-			if (
-				show.anilistId !== null ||
-				show.resolvedAt.getTime() + unlinkedShowLifetimeMs > Date.now()
-			) {
-				return [[show.route, show.anilistId] as const];
-			}
-
-			return [];
-		}),
-	);
-
-	await inSequence(
-		unique.filter((candidate) => !resolved.has(candidate)),
-		async (route) => {
-			const response = await attempt(
-				http.get(`${api}/anime/${encodeURIComponent(route)}`, {
-					headers,
-				}),
-			);
-
-			if (response.error) {
-				console.warn(`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`);
-
-				return;
-			}
-
-			const body = await attempt(response.data.json());
-			const show = AnimeSchema.safeParse(body.data);
-
-			if (!show.success) {
-				console.warn(`AnimeSchedule show ${route} could not be read`);
-
-				return;
-			}
-
-			const link = show.data.websites?.aniList;
-			const id = link ? /anilist\.co\/anime\/(?<id>\d+)/u.exec(link)?.[1] : undefined;
-			const anilistId = id ? Number(id) : null;
-
-			const values = {
-				anilistId,
-				resolvedAt: new Date(),
-			};
-
-			await db
-				.insert(animeScheduleShow)
-				.values({
-					route,
-					...values,
+		/** One show, as far as it is read: its links elsewhere, such as `anilist.co/anime/195600/…`. */
+		const AnimeSchema = z.object({
+			websites: z
+				.object({
+					aniList: z.string().nullish(),
 				})
-				.onConflictDoUpdate({
-					set: values,
-					target: animeScheduleShow.route,
-				});
-			resolved.set(route, anilistId);
-		},
-	);
+				.nullish(),
+		});
 
-	return resolved;
-};
+		const unique = this.#routes;
+
+		if (unique.length === 0) {
+			return new Map();
+		}
+
+		const stored = await db
+			.select()
+			.from(animeScheduleShow)
+			.where(inArray(animeScheduleShow.route, unique));
+
+		const resolved = new Map(
+			stored.flatMap((show) => {
+				if (
+					show.anilistId !== null ||
+					show.resolvedAt.getTime() + unlinkedLifetimeMs > Date.now()
+				) {
+					return [[show.route, show.anilistId] as const];
+				}
+
+				return [];
+			}),
+		);
+
+		await inSequence(
+			unique.filter((candidate) => !resolved.has(candidate)),
+			async (route) => {
+				const response = await attempt(
+					this.#http.get(`${api}/anime/${encodeURIComponent(route)}`, {
+						headers,
+					}),
+				);
+
+				if (response.error) {
+					console.warn(
+						`AnimeSchedule show ${route} could not be fetched: ${response.error.message}`,
+					);
+
+					return;
+				}
+
+				const body = await attempt(response.data.json());
+				const show = AnimeSchema.safeParse(body.data);
+
+				if (!show.success) {
+					console.warn(`AnimeSchedule show ${route} could not be read`);
+
+					return;
+				}
+
+				const link = show.data.websites?.aniList;
+				const id = link && /anilist\.co\/anime\/(?<id>\d+)/u.exec(link)?.[1];
+				let anilistId: number | null = null;
+
+				if (id) {
+					anilistId = Number(id);
+				}
+
+				const values = {
+					anilistId,
+					resolvedAt: new Date(),
+				};
+
+				await db
+					.insert(animeScheduleShow)
+					.values({
+						route,
+						...values,
+					})
+					.onConflictDoUpdate({
+						set: values,
+						target: animeScheduleShow.route,
+					});
+				resolved.set(route, anilistId);
+			},
+		);
+
+		return resolved;
+	}
+}
 
 /**
  * Stores AnimeSchedule's timetable from last week to next week in
  * {@link animeScheduleRelease}, replacing what each week held, and links
  * shows it has not seen before to their AniList entries; see
- * {@link resolveAnimeScheduleShows}.
+ * {@link Shows.links}.
  *
  * Asks AnimeSchedule's API three times, plus once for each new show.
  *
@@ -278,7 +231,7 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 	await inSequence(syncedWeeks, async (offset) => {
 		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
 		const nextMonday = new Date(monday.getTime() + 7 * day);
-		const timetable = await fetchTimetable(http, isoWeek(monday));
+		const timetable = await fetchWeek(http, isoWeek(monday));
 
 		const releases = [
 			...new Map(
@@ -289,10 +242,10 @@ export const syncTimetables = async (http: HttpClient, now = new Date()): Promis
 			).values(),
 		];
 
-		const shows = await resolveAnimeScheduleShows(
+		const shows = await new Shows(
 			http,
 			releases.map((release) => release.route),
-		);
+		).links();
 
 		await db.transaction(async (tx) => {
 			await tx

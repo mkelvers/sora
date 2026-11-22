@@ -3,7 +3,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { SQL } from "bun";
 
 import { config } from "../config";
-import { migrateDatabase, migrationLockKey } from "./client";
+import { migrate, migrationLockKey } from "./client";
 
 describe("database migrations", () => {
 	const other = new SQL(config.databaseUrl);
@@ -19,7 +19,7 @@ describe("database migrations", () => {
 		let finished = false;
 
 		const migrating = (async () => {
-			await migrateDatabase();
+			await migrate();
 			finished = true;
 		})();
 
@@ -33,6 +33,6 @@ describe("database migrations", () => {
 	});
 
 	test("migrating twice at once leaves the database migrated", async () => {
-		await Promise.all([migrateDatabase(), migrateDatabase()]);
+		await Promise.all([migrate(), migrate()]);
 	});
 });

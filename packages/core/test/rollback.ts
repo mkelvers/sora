@@ -5,20 +5,25 @@ import { connection } from "../src/database/client";
 // Database tests run on the development database and leave nothing in it:
 // each file runs inside one transaction and each test inside a savepoint,
 // and both are rolled back, innermost first.
-const rollbacks: (() => Promise<void>)[] = [];
+/** The open savepoints of the running file and test, innermost last. */
+class Savepoints {
+	readonly #rollbacks: (() => Promise<void>)[] = [];
 
-const open = async () => {
-	rollbacks.push(await connection.isolate());
-};
+	async open() {
+		this.#rollbacks.push(await connection.isolate());
+	}
 
-const close = async () => {
-	await rollbacks.pop()?.();
-};
+	async close() {
+		await this.#rollbacks.pop()?.();
+	}
+}
 
-beforeAll(open);
+const savepoints = new Savepoints();
 
-beforeEach(open);
+beforeAll(() => savepoints.open());
 
-afterEach(close);
+beforeEach(() => savepoints.open());
 
-afterAll(close);
+afterEach(() => savepoints.close());
+
+afterAll(() => savepoints.close());

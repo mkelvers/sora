@@ -2,7 +2,7 @@ import { attempt } from "@sora/shared";
 import { SQL } from "bun";
 import type { TransactionSQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
-import { migrate } from "drizzle-orm/bun-sql/migrator";
+import { migrate as applyMigrations } from "drizzle-orm/bun-sql/migrator";
 import { runMigrations } from "graphile-worker";
 
 import { config } from "../config";
@@ -164,7 +164,7 @@ export const migrationLockKey = 7_302_024_001;
  * {@link missingSchema}), naming each one; AGENTS.md says how to repair the
  * database.
  */
-export const migrateDatabase = async () => {
+export const migrate = async () => {
 	const schemaModules = [auth, catalog, library, playback, scheduler, series];
 
 	const lock = await db.$client.reserve();
@@ -178,16 +178,21 @@ export const migrateDatabase = async () => {
         select to_regclass('drizzle.__drizzle_migrations') is not null as exists
       `;
 
-			const recorded = exists
-				? await lock<
-						{
-							created_at: string;
-							hash: string;
-						}[]
-					>`
+			let recorded: {
+				created_at: string;
+				hash: string;
+			}[] = [];
+
+			if (exists) {
+				recorded = await lock<
+					{
+						created_at: string;
+						hash: string;
+					}[]
+				>`
             select created_at, hash from drizzle.__drizzle_migrations
-          `
-				: [];
+          `;
+			}
 
 			const files = readMigrationHistory(migrationsFolder);
 
@@ -205,7 +210,7 @@ export const migrateDatabase = async () => {
 				);
 			}
 
-			await migrate(db, {
+			await applyMigrations(db, {
 				migrationsFolder,
 			});
 			// The catalog enqueues scheduler jobs with SQL, so graphile-worker's schema
