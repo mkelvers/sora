@@ -52,12 +52,9 @@ export class SoraError extends Error {
 	}
 
 	/** Builds the error for a failed response, reading its problem or Better Auth body when it has one. */
-	static async from(response: {
-		status: number;
-		statusText: string;
-		headers: Headers;
-		json: () => Promise<unknown>;
-	}): Promise<SoraError> {
+	static async from(
+		response: Pick<Response, "headers" | "json" | "status" | "statusText">,
+	): Promise<SoraError> {
 		// A proxy can return HTML or unrelated JSON; only use fields we recognize.
 		const body = await attempt(response.json());
 		const parsed = FailureBodySchema.safeParse(body.data);

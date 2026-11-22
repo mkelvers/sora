@@ -1,3 +1,14 @@
+/** A value as `JSON.parse` returns it. */
+export type Json =
+	| string
+	| number
+	| boolean
+	| null
+	| Json[]
+	| {
+			[key: string]: Json;
+	  };
+
 /** An error class, such as `RangeError` or `AnimeNotFoundError`. */
 type ErrorClass = abstract new (...args: never[]) => Error;
 

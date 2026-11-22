@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { attempt, parseRetryAfter } from "@sora/shared";
+import type { Json } from "@sora/shared";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 
@@ -122,7 +123,7 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 		}
 	};
 
-	const execute = async (url: URL, tries = 0): Promise<unknown> => {
+	const execute = async (url: URL, tries = 0): Promise<Json> => {
 		await nextSlot();
 
 		const response = await attempt(
@@ -169,7 +170,8 @@ export const createTmdbClient = ({ fetch, store }: TmdbDependencies) => {
 			);
 		}
 
-		const body = await attempt(response.data.json());
+		// SAFETY: a parsed JSON body is JSON; callers validate its structure with their schema.
+		const body = await attempt(response.data.json() as Promise<Json>);
 
 		if (body.error) {
 			throw new UpstreamUnavailableError(

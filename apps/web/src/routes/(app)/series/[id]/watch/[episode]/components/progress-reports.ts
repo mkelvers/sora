@@ -27,7 +27,7 @@ export class ProgressReports {
 		address: ProgressAddress;
 		report: Report;
 	}[] = [];
-	readonly #save: (input: ProgressAddress & Report) => Promise<unknown>;
+	readonly #save: (input: ProgressAddress & Report) => Promise<void>;
 	readonly #settled: (address: ProgressAddress, failed: boolean) => void;
 	#failed?: {
 		address: ProgressAddress;
@@ -36,7 +36,7 @@ export class ProgressReports {
 	#saving = false;
 
 	constructor(
-		save: (input: ProgressAddress & Report) => Promise<unknown>,
+		save: (input: ProgressAddress & Report) => Promise<void>,
 		settled: (address: ProgressAddress, failed: boolean) => void,
 	) {
 		this.#save = save;

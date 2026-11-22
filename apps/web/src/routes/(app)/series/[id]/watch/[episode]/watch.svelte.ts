@@ -8,6 +8,7 @@ import type { Level } from "hls.js";
 import type { Attachment } from "svelte/attachments";
 import { on } from "svelte/events";
 import { createSubscriber } from "svelte/reactivity";
+import { z } from "zod";
 
 type Source = PlaybackMedia["sources"][number];
 
@@ -124,11 +125,9 @@ export class Player {
 		this.time = start;
 		this.#resume = start;
 
-		const volume = preferences.get("volume");
-		const speed = preferences.get("speed");
-		this.volume = typeof volume === "number" && volume >= 0 && volume <= 1 ? volume : 1;
-		this.muted = preferences.get("muted") === true;
-		this.speed = typeof speed === "number" && speed > 0 ? speed : 1;
+		this.volume = preferences.get("volume", z.number().min(0).max(1)) ?? 1;
+		this.muted = preferences.get("muted", z.boolean()) ?? false;
+		this.speed = preferences.get("speed", z.number().positive()) ?? 1;
 		this.quality = quality;
 	}
 
