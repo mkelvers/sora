@@ -220,7 +220,9 @@
 	const onReturn = (event: StorageEvent) => {
 		const waiting = busy === "connect" && connecting !== null;
 
-		if (event.key !== handoverKey || !event.newValue || !waiting) {
+		const irrelevant = event.key !== handoverKey || !event.newValue || !waiting;
+
+		if (irrelevant) {
 			return;
 		}
 
