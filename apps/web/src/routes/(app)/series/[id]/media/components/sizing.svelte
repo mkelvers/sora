@@ -80,7 +80,11 @@
 			return;
 		}
 
-		return activeHandle.x === activeHandle.y ? "cursor-nwse-resize" : "cursor-nesw-resize";
+		if (activeHandle.x === activeHandle.y) {
+			return "cursor-nwse-resize";
+		}
+
+		return "cursor-nesw-resize";
 	});
 
 	const elements = () => ({
