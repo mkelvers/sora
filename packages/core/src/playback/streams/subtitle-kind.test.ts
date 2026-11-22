@@ -30,9 +30,13 @@ const every = (seconds: number, count: number, text: (index: number) => string) 
 const dialogue = every(4, 360, (index) => `Line ${index}`);
 const signs = every(90, 14, (index) => `<b>Title ${index}</b>`);
 
-const captions = every(4, 360, (index) =>
-	index % 6 === 0 ? `<b>[door ${index}]</b>` : `Line ${index}`,
-);
+const captions = every(4, 360, (index) => {
+	if (index % 6 === 0) {
+		return `<b>[door ${index}]</b>`;
+	}
+
+	return `Line ${index}`;
+});
 
 describe("classifySubtitle", () => {
 	test("recognizes steady speech as dialogue", () => {
