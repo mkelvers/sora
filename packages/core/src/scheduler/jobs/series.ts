@@ -709,9 +709,11 @@ export const refreshEpisodeListings: Task = async (_payload, helpers) => {
 	const outcomes = await inSequence(behind, async (row) => {
 		const showId = showIds.get(row.series_id);
 
-		return showId === undefined
-			? await relayoutUnshown(row)
-			: await refreshShow(row, showId, fetchedAt, helpers.logger);
+		if (showId === undefined) {
+			return await relayoutUnshown(row);
+		}
+
+		return await refreshShow(row, showId, fetchedAt, helpers.logger);
 	});
 
 	let fetched = 0;
