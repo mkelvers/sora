@@ -21,7 +21,7 @@
 		Progress,
 		Series,
 	} from "@sora/sdk";
-	import { attempt } from "@sora/shared";
+	import { attempt, second } from "@sora/shared";
 	import { CaretLeftIcon, CircleNotchIcon } from "phosphor-svelte";
 	import { onDestroy, untrack } from "svelte";
 
@@ -31,17 +31,18 @@
 	let {
 		series,
 		episode,
-		playback,
+		playbackQuery,
 		preferences,
 		progress,
 	}: {
 		series: Series;
 		episode: Episode;
-		playback?: Awaited<ReturnType<typeof getPlayback>>;
+		playbackQuery?: ReturnType<typeof getPlayback>;
 		preferences: PlaybackPreferences;
 		progress?: Progress | null;
 	} = $props();
 
+	const playback = $derived(playbackQuery?.current);
 	const cueTags = new Set(["b", "i", "u", "ruby", "rt"]);
 	const key = $derived(`${series.id}/${episode.number}`);
 	const title = $derived(episode.title ?? `Episode ${episode.number}`);
@@ -57,9 +58,7 @@
 		playback?.previous ? `/series/${series.id}/watch/${playback.previous}` : undefined,
 	);
 	const nextAddress = $derived(
-		playback && playback.media.length > 0
-			? nextEpisodeAddress(series, episode.number, playback.next)
-			: undefined,
+		playback ? nextEpisodeAddress(series, episode.number, playback.next) : undefined,
 	);
 	const next = $derived(
 		nextAddress ? `/series/${nextAddress.seriesId}/watch/${nextAddress.episode}` : undefined,
@@ -110,10 +109,63 @@
 		}
 	});
 
-	const chosen = $derived(choosePlayback(playback?.media ?? [], preferences));
+	const media = $derived(playback?.status === "ready" ? playback.media : []);
+	const chosen = $derived(choosePlayback(media, preferences));
 	const selected = $derived(chosen.media);
 	const subtitle = $derived(chosen.subtitle?.url);
-	const loading = $derived(!playback || (selected !== undefined && player.buffering));
+	const playbackMessage = $derived.by(() => {
+		if (selected) {
+			return;
+		}
+		if (playbackQuery?.error || playback?.status === "failed") {
+			return "Playback couldn’t be loaded.";
+		}
+		if (playback?.status === "unavailable") {
+			return "This episode is unavailable to watch.";
+		}
+		if (playback?.status === "temporary") {
+			return "Playback is temporarily unavailable.";
+		}
+	});
+	const canRetry = $derived(!!playbackQuery?.error || playback?.status !== "unavailable");
+	const retryAt = $derived(
+		!playbackQuery?.error && playback?.status === "temporary" ? playback.retryAt : null,
+	);
+	const retrying = $derived(!!playbackMessage && playbackQuery?.loading === true);
+	const loading = $derived(
+		selected ? player.buffering : (playbackQuery?.loading ?? true) && !retrying,
+	);
+
+	let now = $state(Date.now());
+	const retryDelayId = $props.id();
+	const retryWait = $derived(
+		retryAt === null ? 0 : Math.max(0, Math.ceil((retryAt - now) / second)),
+	);
+
+	$effect(() => {
+		const deadline = retryAt;
+		now = Date.now();
+		if (deadline === null || deadline <= Date.now()) {
+			return;
+		}
+
+		const interval = setInterval(() => {
+			const time = Date.now();
+			now = time;
+			if (time >= deadline) {
+				clearInterval(interval);
+			}
+		}, second);
+		return () => clearInterval(interval);
+	});
+
+	const retryPlayback = async () => {
+		if (!playbackQuery || playbackQuery.loading || (retryAt !== null && Date.now() < retryAt)) {
+			return;
+		}
+
+		await attempt(playbackQuery.refresh());
+	};
 
 	const segment = $derived(
 		selected?.skip_segments.find((skip) => player.time >= skip.start && player.time < skip.end),
@@ -200,7 +252,14 @@
 
 <StatusBanner message={failure} tone="error" ondismiss={() => (failure = "")} />
 
-<svelte:window onkeydown={player.onkeydown} onpointermove={player.wake} />
+<svelte:window
+	onkeydown={(event) => {
+		if (selected || event.key === "N" || event.key === "P") {
+			player.onkeydown(event);
+		}
+	}}
+	onpointermove={player.wake}
+/>
 <svelte:document
 	onvisibilitychange={() => {
 		if (document.hidden) {
@@ -214,9 +273,8 @@
 	tabindex="-1"
 	class={[
 		"grid h-dvh grid-cols-1 grid-rows-1 overflow-hidden bg-black text-white outline-none *:[grid-area:1/1]",
-		player.idle && !player.paused && "idle cursor-none",
+		selected && player.idle && !player.paused && "idle cursor-none",
 	]}
-	aria-busy={loading}
 	bind:this={player.root}
 	{@attach (node) => node.focus({ preventScroll: true })}
 >
@@ -228,7 +286,8 @@
 		bind:muted={player.muted}
 		bind:playbackRate={player.speed}
 		bind:readyState={player.readyState}
-		class="size-full object-cover"
+		class={["size-full object-cover", !selected && "pointer-events-none"]}
+		aria-busy={loading}
 		crossorigin="anonymous"
 		autoplay
 		playsinline
@@ -252,7 +311,7 @@
 			});
 		}}
 		{@attach player.stream(selected?.sources[0])}
-		{@attach player.playback}
+		{@attach selected ? player.playback : undefined}
 	>
 		{#each selected?.subtitles ?? [] as track (track.url)}
 			<track
@@ -273,6 +332,48 @@
 			aria-hidden="true"
 		/>
 	{/if}
+
+	<div class="pointer-events-none z-1 mx-4 place-self-center text-center">
+		<p role="status" class={playbackMessage ? "text-lg font-semibold" : "sr-only"}>
+			{#if retrying}
+				Retrying playback…
+			{:else if playbackMessage}
+				{playbackMessage}
+			{:else if loading}
+				Loading playback…
+			{/if}
+		</p>
+		{#if playbackMessage}
+			{#if retryWait > 0}
+				<p id={retryDelayId} class="mt-2 text-sm text-foreground/80">
+					Try again in {retryWait}
+					{retryWait === 1 ? "second" : "seconds"}.
+				</p>
+			{/if}
+			{#if canRetry}
+				<Button
+					variant="primary"
+					class="pointer-events-auto mt-4"
+					aria-disabled={retrying || retryWait > 0}
+					aria-describedby={retryWait > 0 ? retryDelayId : undefined}
+					onclick={retryPlayback}
+				>
+					Retry playback
+				</Button>
+			{/if}
+			<nav aria-label="Episode navigation" class="mt-3 flex flex-wrap justify-center gap-x-4">
+				{#if previous}
+					<Button href={previous} variant="plain" class="pointer-events-auto">
+						Previous episode
+					</Button>
+				{/if}
+				<Button href={back} variant="plain" class="pointer-events-auto">Back to series</Button>
+				{#if next}
+					<Button href={next} variant="plain" class="pointer-events-auto">Next episode</Button>
+				{/if}
+			</nav>
+		{/if}
+	</div>
 
 	{#if segment}
 		<div
@@ -319,18 +420,13 @@
 		</h1>
 	</header>
 
-	<footer
-		class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
-	>
-		<Controls {player} {previous} {next}>
-			<Settings
-				media={playback?.media ?? []}
-				{selected}
-				{subtitle}
-				{preferences}
-				{player}
-				onpreferences={remember}
-			/>
-		</Controls>
-	</footer>
+	{#if selected}
+		<footer
+			class="flex flex-col gap-3 self-end bg-linear-to-b from-transparent to-black/80 px-4 pt-12 pb-4 transition-opacity duration-200 in-[.idle:not(:has(:popover-open))]:pointer-events-none in-[.idle:not(:has(:popover-open))]:opacity-0"
+		>
+			<Controls {player} {previous} {next}>
+				<Settings {media} {selected} {subtitle} {preferences} {player} onpreferences={remember} />
+			</Controls>
+		</footer>
+	{/if}
 </section>

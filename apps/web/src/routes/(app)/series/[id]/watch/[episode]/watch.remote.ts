@@ -3,12 +3,11 @@ import { remoteViewer } from "$lib/server/sora";
 import { getSeriesProgress } from "$routes/(app)/series/[id]/series.remote";
 import { refreshStatus, refreshTracking } from "$routes/(app)/tracking.server";
 import { route, SoraError } from "@sora/sdk";
-import type { PlaybackMedia } from "@sora/sdk";
 import { attempt } from "@sora/shared";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
-export type WatchMedia = Omit<PlaybackMedia, "provider" | "locale" | "hardsub">;
+import { resolveWatchPlayback } from "./playback.server";
 
 const EpisodeAddress = z.object({
 	episode: z.coerce.number().int().positive(),
@@ -46,44 +45,9 @@ export const getEpisode = query(EpisodeAddress, async ({ seriesId, episode }) =>
 	};
 });
 
-const proxied = (url: string) => `/api/stream/${new URL(url).pathname.split("/").pop()}`;
-
-export const getPlayback = query(EpisodeAddress, async ({ seriesId, episode }) => {
-	const playback = await attempt(
-		remoteViewer().sora.requestWithMeta(route.getPlayback, {
-			params: {
-				episode,
-				series_id: seriesId,
-			},
-		}),
-		SoraError,
-	);
-	if (playback.error) {
-		return {
-			media: [],
-			next: null,
-			previous: null,
-		};
-	}
-
-	const { results, meta } = playback.data;
-
-	return {
-		media: results.map(({ provider: _provider, locale: _locale, hardsub: _hardsub, ...media }) => ({
-			...media,
-			sources: media.sources.map((source) => ({
-				...source,
-				url: proxied(source.url),
-			})),
-			subtitles: media.subtitles.map((track) => ({
-				...track,
-				url: proxied(track.url),
-			})),
-		})),
-		next: meta.next_episode,
-		previous: meta.previous_episode,
-	};
-});
+export const getPlayback = query(EpisodeAddress, (address) =>
+	resolveWatchPlayback(remoteViewer().sora, address),
+);
 
 export const getPlaybackPreferences = query(async () => {
 	const { sora, profile } = remoteViewer();
