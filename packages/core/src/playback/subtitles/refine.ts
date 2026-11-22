@@ -86,7 +86,6 @@ const minimumAnchors = 12;
 /** Cues that follow a matched cue and may be matched without a word of it in between. */
 const lookback = 6;
 
-const minimumDice = 0.3;
 const minimumScore = 0.15;
 const timePenalty = 0.3;
 
@@ -428,7 +427,7 @@ const candidatesFor = (
 
 			const similarity = dice(tokens, run);
 
-			if (similarity < minimumDice) {
+			if (similarity < 0.3) {
 				continue;
 			}
 
