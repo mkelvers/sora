@@ -206,9 +206,13 @@ export const toAnime = (media: AnimeDetailsFragment): Anime => ({
 	description: (media.description && synopsis(media.description)) || null,
 	endDate: media.endDate ? fuzzyDate(media.endDate) : null,
 	producers: companies(media, false),
-	recommendations: present(media.recommendations?.nodes).flatMap((node) =>
-		node.mediaRecommendation?.type === "ANIME" ? [toAnimeCard(node.mediaRecommendation)] : [],
-	),
+	recommendations: present(media.recommendations?.nodes).flatMap((node) => {
+		if (node.mediaRecommendation?.type === "ANIME") {
+			return [toAnimeCard(node.mediaRecommendation)];
+		}
+
+		return [];
+	}),
 	relations: present(media.relations?.edges).flatMap((edge) =>
 		edge.relationType && edge.node?.type === "ANIME"
 			? [
