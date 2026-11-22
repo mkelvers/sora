@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { Anime } from "../catalog/models/anime";
 import { anime } from "../catalog/models/anime.fixture";
-import { aboutSeries } from "./about";
+import { About } from "./about";
 import type { AboutSources } from "./about";
 
 /** What an about section is made from: Attack on Titan's, with `fields` changed. */
@@ -14,7 +14,7 @@ class Sources {
 	}
 
 	get about() {
-		return aboutSeries({
+		return new About({
 			ageRating: null,
 			audio: [],
 			awardReach: new Map(),
@@ -30,11 +30,11 @@ class Sources {
 				...anime(16_498),
 				...this.#fields.anime,
 			},
-		});
+		}).section;
 	}
 }
 
-describe("aboutSeries", () => {
+describe("About", () => {
 	test("names the original language for a sub and English for a dub", () => {
 		expect(new Sources({ audio: ["dub", "sub"] }).about.audio_languages).toEqual([
 			"Japanese",

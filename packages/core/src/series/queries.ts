@@ -43,7 +43,7 @@ import type {
 } from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { requestSubtitleProbe, scheduleSeriesStore } from "../scheduler/queue";
-import { aboutSeries } from "./about";
+import { About } from "./about";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
@@ -854,12 +854,12 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 
 	return {
 		...card,
-		...aboutSeries({
+		...new About({
 			...about,
 			anime,
 			audio: card.audio,
 			overview: card.overview,
-		}),
+		}).section,
 		backdrop_edges: found.edges,
 		genres: anime.genres,
 		// An aired episode still to come out is next until it is listed, ahead of
