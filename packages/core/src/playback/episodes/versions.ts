@@ -270,7 +270,13 @@ export const getEpisodeVersions = async (
  * does, `false` if those that say all say not, and `null` when none says.
  */
 export const fillerOf = (listings: readonly ListedUnit[]): boolean | null => {
-	const flags = listings.flatMap(({ unit }) => (unit.isFiller === null ? [] : [unit.isFiller]));
+	const flags = listings.flatMap(({ unit }) => {
+		if (unit.isFiller === null) {
+			return [];
+		}
+
+		return [unit.isFiller];
+	});
 
 	return flags.length === 0 ? null : flags.includes(true);
 };
