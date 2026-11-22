@@ -1,14 +1,17 @@
 import { browser } from "$app/env";
 import { attempt } from "@sora/shared";
-
-export type AccountSource = "anilist_account" | "myanimelist_account";
+import { z } from "zod";
 
 /** What the browser remembers while the person is away agreeing on the other site. */
-interface Pending {
-	source: AccountSource;
-	state: string;
-	verifier: string;
-}
+const PendingSchema = z.object({
+	source: z.enum(["anilist_account", "myanimelist_account"]),
+	state: z.string(),
+	verifier: z.string(),
+});
+
+type Pending = z.infer<typeof PendingSchema>;
+
+export type AccountSource = Pending["source"];
 
 /** Marks a connection started in a popup, so the page the site sends the popup back to knows to hand over and close. */
 const popupStatePrefix = "popup-";
@@ -32,13 +35,18 @@ const read = (): Pending | null => {
 	}
 
 	const { data } = attempt(
-		// SAFETY: only this module writes the key, and always a Pending.
-		() => JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Pending | null,
+		() => JSON.parse(sessionStorage.getItem(storageKey) ?? "null"),
 		DOMException,
 		SyntaxError,
 	);
 
-	return data;
+	const parsed = PendingSchema.nullable().safeParse(data);
+
+	if (!parsed.success) {
+		return null;
+	}
+
+	return parsed.data;
 };
 
 const forget = () => {
