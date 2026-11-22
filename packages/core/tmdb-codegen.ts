@@ -81,10 +81,13 @@ const operations = Object.entries(spec.paths)
 	.map(([path, item]) => {
 		const parameters = item.get?.parameters ?? [];
 
-		const block = (location: Parameter["in"]) =>
-			members(parameters, location).length === 0
-				? "{}"
-				: `{\n${members(parameters, location).join("\n")}\n}`;
+		const block = (location: Parameter["in"]) => {
+			if (members(parameters, location).length === 0) {
+				return "{}";
+			}
+
+			return `{\n${members(parameters, location).join("\n")}\n}`;
+		};
 
 		return `${JSON.stringify(path.replace(/^\/3/u, ""))}: { path: ${block("path")}; query: ${block("query")} };`;
 	});
