@@ -412,9 +412,13 @@ const contentRating = (sources: AboutSources) => {
 			...sources.keywords.flatMap(
 				(keyword) => advisoryKeywords.get(keyword.trim().toLowerCase()) ?? [],
 			),
-			...sources.anime.tags.flatMap((tag) =>
-				!tag.spoiler && (tag.rank ?? 0) >= advisoryRank ? (advisoryTags.get(tag.name) ?? []) : [],
-			),
+			...sources.anime.tags.flatMap((tag) => {
+				if (!tag.spoiler && (tag.rank ?? 0) >= advisoryRank) {
+					return advisoryTags.get(tag.name) ?? [];
+				}
+
+				return [];
+			}),
 			...sources.anime.genres.flatMap((genre) => advisoryGenres.get(genre) ?? []),
 		]),
 	].toSorted((left, right) => left.localeCompare(right));
