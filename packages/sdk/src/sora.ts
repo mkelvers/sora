@@ -238,8 +238,7 @@ export class SoraClient {
 			return body.results;
 		}
 
-		// SAFETY: a route without the envelope answers with its results as they are.
-		return body as RequestResults<TRoute>;
+		return body;
 	}
 
 	/**
