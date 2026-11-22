@@ -5,17 +5,19 @@ import { db } from "../../database/client";
 import { seriesSubtitles } from "../../database/schema/playback";
 import type { ProviderVideo } from "../providers/provider";
 
-const languageNames = new Intl.DisplayNames(["en"], {
-	type: "language",
-});
+const languageNames = {
+	dialect: new Intl.DisplayNames(["en"], { type: "language" }),
+	standard: new Intl.DisplayNames(["en"], { languageDisplay: "standard", type: "language" }),
+};
 
 /**
  * A language's English name, such as `Brazilian Portuguese` for `pt-BR`, in
  * place of labels providers spell as `Portuguese (- Portuguese(Brazil))`;
  * `null` for a tag that names no language.
+ * The standard form puts the language first, as in `Portuguese (Brazil)`.
  */
-export const languageName = (tag: string) => {
-	const { data, error } = attempt(() => languageNames.of(tag), RangeError);
+export const languageName = (tag: string, form: keyof typeof languageNames = "dialect") => {
+	const { data, error } = attempt(() => languageNames[form].of(tag), RangeError);
 	if (error) {
 		return null;
 	}

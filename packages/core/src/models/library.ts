@@ -11,10 +11,13 @@ export const SubtitleChoiceSchema = z
 			description: "BCP 47 language tag of the track.",
 			example: "en",
 		}),
+		variant: z.string().min(1).max(80).optional().meta({
+			description: "The selected track variant, when the player can identify it.",
+		}),
 	})
 	.meta({
 		description:
-			"A subtitle track to pick again: the first with this language and kind, else the first with this language.",
+			"A subtitle track to pick again, preferring its variant, language, and kind when available.",
 		id: "SubtitleChoice",
 	});
 

@@ -82,6 +82,34 @@ describe("choosePlayback", () => {
 		).toBe("de-dialogue");
 	});
 
+	test("keeps the selected variant when a language has multiple dialogue tracks", () => {
+		const first = { ...track("es", "dialogue"), variant: "first" };
+		const alternate = { ...first, url: "alternate-url", variant: "alternate" };
+		const media = { ...sub, subtitles: [first, alternate] };
+		const preferences = {
+			audio: "sub",
+			subtitles: { sub: { kind: "dialogue", language: "es", variant: "alternate" } },
+		} as const;
+
+		expect(choosePlayback([media], preferences).subtitle).toBe(alternate);
+		const refreshed = { ...alternate, url: "refreshed-url" };
+		expect(
+			choosePlayback([{ ...media, subtitles: [refreshed, first] }], preferences).subtitle,
+		).toBe(refreshed);
+		expect(choosePlayback([{ ...media, subtitles: [first] }], preferences).subtitle).toBe(first);
+	});
+
+	test("falls back to another region of the preferred language before using the default", () => {
+		const spanish = track("es-419", "dialogue");
+		const media = { ...sub, subtitles: [...sub.subtitles, spanish] };
+		expect(
+			choosePlayback([media], {
+				audio: "sub",
+				subtitles: { sub: { kind: "dialogue", language: "es-ES" } },
+			}).subtitle,
+		).toBe(spanish);
+	});
+
 	test("shows no track when subtitles are off or the version is raw", () => {
 		expect(
 			choosePlayback([sub], {
