@@ -249,22 +249,24 @@ const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
 
 const toTagRows = (media: IndexedMedia): (typeof animeSearchTag.$inferInsert)[] => [
 	...new Map(
-		(media.tags ?? []).flatMap((tag) =>
-			tag
-				? [
-						[
-							tag.name,
-							{
-								adult: tag.isAdult === true,
-								anilistId: media.id,
-								rank: tag.rank ?? 0,
-								spoiler: tag.isMediaSpoiler === true,
-								tag: tag.name,
-							},
-						] as const,
-					]
-				: [],
-		),
+		(media.tags ?? []).flatMap((tag) => {
+			if (tag) {
+				return [
+					[
+						tag.name,
+						{
+							adult: tag.isAdult === true,
+							anilistId: media.id,
+							rank: tag.rank ?? 0,
+							spoiler: tag.isMediaSpoiler === true,
+							tag: tag.name,
+						},
+					] as const,
+				];
+			}
+
+			return [];
+		}),
 	).values(),
 ];
 
