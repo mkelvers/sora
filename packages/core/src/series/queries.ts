@@ -1232,8 +1232,13 @@ export const browseSeries = async (
 
 	const { search, page, perPage, audio, ...filters } = parsed.data;
 
-	const heard = (cards: SeriesCard[]) =>
-		audio ? cards.filter((card) => card.audio.includes(audio)) : cards;
+	const heard = (cards: SeriesCard[]) => {
+		if (audio) {
+			return cards.filter((card) => card.audio.includes(audio));
+		}
+
+		return cards;
+	};
 
 	if (await searchIndex.complete()) {
 		// One entry more than the page holds tells whether another page follows.
