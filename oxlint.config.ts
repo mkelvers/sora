@@ -49,7 +49,6 @@ export default defineConfig({
 		"anti-slop/no-unsafe-dictionary-type": "error",
 		"anti-slop/no-widen-then-assert": "error",
 		"anti-slop/require-readable-spacing": "error",
-		"anti-slop/require-safety-comment-for-type-assertion": "error",
 		"code-style/expand-objects": "error",
 		"code-style/name-context": "error",
 		"code-style/name-length": "error",
@@ -69,5 +68,6 @@ export default defineConfig({
 				ignoreRestSiblings: true,
 			},
 		],
+		"typescript/consistent-type-assertions": ["error", { assertionStyle: "never" }],
 	},
 });
