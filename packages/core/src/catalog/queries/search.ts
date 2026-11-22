@@ -174,7 +174,15 @@ const originOf = (media: IndexedMedia) => {
 };
 
 const studioNames = (media: IndexedMedia) => [
-	...new Set((media.studios?.nodes ?? []).flatMap((studio) => (studio ? [studio.name] : []))),
+	...new Set(
+		(media.studios?.nodes ?? []).flatMap((studio) => {
+			if (studio) {
+				return [studio.name];
+			}
+
+			return [];
+		}),
+	),
 ];
 
 const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
