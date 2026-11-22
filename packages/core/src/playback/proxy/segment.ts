@@ -36,11 +36,12 @@ export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
 	}
 
 	for (let offset = 0; offset + 2 * tsPacketSize < bytes.length; offset += 1) {
-		if (
+		const synced =
 			bytes[offset] === tsSyncByte &&
 			bytes[offset + tsPacketSize] === tsSyncByte &&
-			bytes[offset + 2 * tsPacketSize] === tsSyncByte
-		) {
+			bytes[offset + 2 * tsPacketSize] === tsSyncByte;
+
+		if (synced) {
 			return bytes.subarray(offset);
 		}
 	}
