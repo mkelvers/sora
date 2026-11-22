@@ -34,7 +34,9 @@ export const statusAfterPlayback = (
 		return current;
 	}
 
-	if (playback.finished && playback.isFinale && playback.playedThrough) {
+	const watchedToEnd = playback.finished && playback.isFinale && playback.playedThrough;
+
+	if (watchedToEnd) {
 		return "completed";
 	}
 
