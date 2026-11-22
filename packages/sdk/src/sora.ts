@@ -273,7 +273,20 @@ export class SoraClient {
 			throw await SoraError.from(response);
 		}
 
-		const schema = route.responses[response.status]?.content?.["application/json"]?.schema;
+		const definition = route.responses[response.status];
+
+		if (!definition) {
+			throw new SoraError(
+				`The API answered ${response.status}, which ${route.method.toUpperCase()} ${route.path} does not declare`,
+				{
+					code: "INVALID_RESPONSE",
+					retryAfterSeconds: null,
+					status: response.status,
+				},
+			);
+		}
+
+		const schema = definition.content?.["application/json"]?.schema;
 
 		if (!schema) {
 			return;

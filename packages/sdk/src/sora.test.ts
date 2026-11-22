@@ -241,6 +241,14 @@ describe("SoraClient.request", () => {
 		expect(error?.retryAfterSeconds).toBe(30);
 	});
 
+	test("rejects a successful status absent from the route contract", async () => {
+		const { sora } = clientAnswering(() => new Response(null, { status: 201 }));
+		const { error } = await attempt(sora.request(route.listGenres), SoraError);
+
+		expect(error?.code).toBe("INVALID_RESPONSE");
+		expect(error?.status).toBe(201);
+	});
+
 	test("throws when a response does not match the contract", async () => {
 		const { sora } = clientAnswering(() =>
 			Response.json({
