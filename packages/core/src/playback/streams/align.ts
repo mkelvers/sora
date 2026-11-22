@@ -83,7 +83,11 @@ const candidateOffsets = (source: number[], target: number[]) => {
 			.filter((offset) => Math.abs(offset - rough) <= tolerance)
 			.toArray();
 
-		return pairs.length > 0 ? [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length] : [];
+		if (pairs.length > 0) {
+			return [pairs.reduce((sum, offset) => sum + offset, 0) / pairs.length];
+		}
+
+		return [];
 	});
 };
 
