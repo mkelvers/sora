@@ -231,11 +231,13 @@ export const withChosenStills = async (
 	return episodes.map((episode) => {
 		const key = `${episode.season_number}:${episode.episode_number}`;
 
-		return paths.has(key)
-			? {
-					...episode,
-					still_path: paths.get(key) ?? null,
-				}
-			: episode;
+		if (paths.has(key)) {
+			return {
+				...episode,
+				still_path: paths.get(key) ?? null,
+			};
+		}
+
+		return episode;
 	});
 };
