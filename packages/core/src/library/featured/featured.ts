@@ -202,7 +202,13 @@ const lastAirings = async (seriesIds: readonly string[], now: Date) => {
 		.groupBy(seriesEpisode.seriesId);
 
 	return new Map(
-		rows.flatMap((row) => (row.lastAiredAt ? [[row.seriesId, row.lastAiredAt] as const] : [])),
+		rows.flatMap((row) => {
+			if (row.lastAiredAt) {
+				return [[row.seriesId, row.lastAiredAt] as const];
+			}
+
+			return [];
+		}),
 	);
 };
 
