@@ -706,8 +706,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 			const found = new Map<number, TMedia>();
 
-			// SAFETY: the envelope was validated, and the response answers the document typed with TResult.
-			for (const media of operation.media(data as TResult)) {
+			for (const media of operation.media(data)) {
 				if (media) {
 					found.set(media.id, media);
 				}
