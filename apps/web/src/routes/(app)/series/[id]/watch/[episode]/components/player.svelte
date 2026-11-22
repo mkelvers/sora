@@ -226,7 +226,10 @@
 	const report = (ended = false, leaving = false) => {
 		const { duration, time } = player;
 
-		if (Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0) {
+		const measurable =
+			Number.isFinite(duration) && duration >= 1 && Number.isFinite(time) && time >= 0;
+
+		if (measurable) {
 			session.lastSnapshot =
 				time > 0 || ended
 					? {
