@@ -147,7 +147,7 @@ class MainPath {
  * Gives every title exactly one {@link FranchiseRole}.
  *
  * `main` holds the AniList IDs already on the main story path (the seasons
- * {@link franchiseParts} lists). Everything else is decided by how AniList
+ * {@link Franchise} lists). Everything else is decided by how AniList
  * relates it to them, then by format and runtime:
  *
  * 1. Music, and titles marked as another title's summary, are never listed.

@@ -56,7 +56,7 @@ import {
 	releasedBetween,
 } from "./episodes";
 import type { EpisodeListingRow } from "./episodes";
-import { franchiseParts, isNamedAfter } from "./franchise";
+import { Franchise, isNamedAfter } from "./franchise";
 import { classify } from "./roles";
 import { storedSeriesIds } from "./store";
 
@@ -456,7 +456,7 @@ export const franchiseIds = async (
 
 /**
  * The stored titles of a series' franchise (see {@link franchiseIds}), this
- * one included, as {@link franchiseParts} lists them: those with an episode
+ * one included, as {@link Franchise} lists them: those with an episode
  * to watch, and the seasons announced but yet to come out, which the page
  * shows as coming soon. Other titles yet to come out, those still queued for
  * storing, and music videos, are left out, though the series itself is always
@@ -524,7 +524,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 		);
 	};
 
-	const parts = franchiseParts(
+	const { parts } = new Franchise(
 		titles.map((title) => {
 			const card = cards.get(title.id);
 

@@ -1,9 +1,8 @@
-import { defined } from "@sora/shared";
-
 import type { AnimeFormat } from "../catalog/models/anime";
 import type { FranchisePart } from "../models/series";
+import { Name } from "./name";
 
-/** What {@link franchiseParts} needs to know about each title. */
+/** What {@link Franchise} needs to know about each title. */
 export interface FranchiseTitle {
 	seriesId: string;
 	anilistId: number;
@@ -13,12 +12,6 @@ export interface FranchiseTitle {
 	startDate: string | null;
 	episodeCount: number;
 }
-
-/** Formats that can establish the default TV/web adaptation. */
-const seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
-
-/** Formats of a short sequel that is watched as part of the season before it. */
-const specialFormats = new Set<AnimeFormat>(["SPECIAL", "OVA"]);
 
 /** Relationships used to keep adaptations and recaps out of the viewing path. */
 export interface FranchiseOptions {
@@ -46,380 +39,14 @@ export interface FranchiseOptions {
 	unlisted?: readonly number[];
 }
 
-const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
-
-/**
- * `title` after `prefix`, matching letters and digits case-insensitively and
- * skipping everything else, with the punctuation and spaces it then starts
- * with removed; `null` when `title` does not start with `prefix`.
- */
-const withoutPrefix = (title: string, prefix: string) => {
-	const wanted = [...prefix.toLowerCase()].filter(isWordCharacter);
-	const characters = [...title];
-	let index = 0;
-
-	for (const expected of wanted) {
-		while (index < characters.length && !isWordCharacter(defined(characters[index]))) {
-			index += 1;
-		}
-
-		if (characters[index]?.toLowerCase() !== expected) {
-			return null;
-		}
-
-		index += 1;
-	}
-
-	if (index < characters.length && isWordCharacter(defined(characters[index]))) {
-		return null;
-	}
-
-	return characters
-		.slice(index)
-		.join("")
-		.replace(/^[^\p{L}\p{N}]+/u, "");
-};
-
-const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
-
-/** A release qualifier a title ends with, such as `(TV)` or `(Web)`. */
-const qualifier = /\s*\((?:TV|Web|ONA)\)$/iu;
-
-/**
- * The name a story's seasons share: the first title without the qualifiers
- * and numbering it ends with, so The Seven Deadly Sins: Grudge of Edinburgh
- * Part 2 is `Part 2` after Part 1.
- */
-const storyName = (title: string) => {
-	/** Numbering a title ends with, such as `Part 1`, `Season 1`, or `1st Season`. */
-	const numbering = /[\s:-]+(?:Season\s+\d+|\d+(?:st|nd|rd|th)\s+Season|Part\s+\d+)$/iu;
-
-	let name = title;
-
-	for (let previous = ""; previous !== name;) {
-		previous = name;
-		name = name.replace(qualifier, "").replace(numbering, "");
-	}
-
-	return name;
-};
+type SequelLink = readonly [number, number];
 
 /** Whether `title` is named after `original`, such as Yu-Gi-Oh! Zexal after Yu-Gi-Oh!. */
 export const isNamedAfter = (title: string, original: string) =>
-	withoutPrefix(plain(title), plain(original)) !== null;
-
-const shortTitle = (title: FranchiseTitle, base: string, isSeason: boolean) => {
-	const full = title.title.replace(qualifier, "");
-
-	// Keep the title's own numbering, including untranslated sequel names.
-	const numbered = isSeason
-		? full.match(
-				/\b(?:Season\s+(?<season>\d+)|(?<ordinal>\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(?<part>\d+))?$/iu,
-			)
-		: null;
-
-	if (numbered) {
-		return `Season ${numbered[1] ?? numbered[2]}${numbered[3] ? ` Part ${numbered[3]}` : ""}`;
-	}
-
-	const rest = withoutPrefix(full, base);
-
-	if (rest === null) {
-		return title.title;
-	}
-
-	const named = rest
-		.replace(/^the movie\b[\s:.-]*/iu, "")
-		.replace(/[\s~-]+$/u, "")
-		// A name wrapped in brackets loses its opening one with the prefix.
-		.replace(/^(?<name>[^(]*)\)$/u, "$<name>");
-
-	// A year, or a crossover such as I, Tsushima x Nameless Mouse, is no name on its own.
-	if (/^\d{4}\)?$/u.test(named) || /^[x×]\s/iu.test(named)) {
-		return title.title;
-	}
-
-	if (named) {
-		return named;
-	}
-
-	if (title.format && seasonFormats.has(title.format)) {
-		return "Season 1";
-	}
-
-	return title.title;
-};
-
-type SequelLink = readonly [number, number];
-
-const isSeriesTitle = (title: FranchiseTitle) =>
-	title.format !== null && seasonFormats.has(title.format);
-
-const byReleaseDate = (titles: readonly FranchiseTitle[]) =>
-	[...new Map(titles.map((title) => [title.anilistId, title])).values()].toSorted((left, right) =>
-		(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
-	);
+	new Name(new Name(title).plain).without(new Name(original).plain) !== null;
 
 /**
- * The title the franchise starts with: the first series, or failing that the
- * first title, that is not a crossover. A crossover still starts it when that
- * opening title is named after it, as Yu-Gi-Oh! Zexal is after Yu-Gi-Oh!.
- */
-const startOf = (
-	byRelease: readonly FranchiseTitle[],
-	crossovers: readonly number[] | undefined,
-) => {
-	const own = byRelease.filter((title) => !crossovers?.includes(title.anilistId));
-	const starters = own.length > 0 ? own : byRelease;
-	const opening = starters.find(isSeriesTitle) ?? starters[0];
-
-	return (
-		(opening &&
-			byRelease.find(
-				(title) =>
-					title !== opening &&
-					(isSeriesTitle(title) || !isSeriesTitle(opening)) &&
-					crossovers?.includes(title.anilistId) &&
-					isNamedAfter(opening.title, title.title),
-			)) ??
-		opening
-	);
-};
-
-/** Every title joined to `id` by sequel links, in either direction. */
-const componentOf = (links: readonly SequelLink[], id: number) => {
-	const ids = new Set([id]);
-
-	for (let frontier = [id]; frontier.length > 0;) {
-		const next = new Set<number>();
-
-		for (const [left, right] of links) {
-			if (frontier.includes(left) && !ids.has(right)) {
-				next.add(right);
-			}
-
-			if (frontier.includes(right) && !ids.has(left)) {
-				next.add(left);
-			}
-		}
-
-		frontier = [...next];
-
-		for (const member of frontier) {
-			ids.add(member);
-		}
-	}
-
-	return ids;
-};
-
-/**
- * AniList often leaves a gap between eras of one show. A series named after
- * the franchise whose own seasons are linked joins the story after the latest
- * earlier one, by a link added to `links`; a lone spin-off, an alternative
- * adaptation, or a recap never does.
- */
-const joinAcrossGaps = (
-	byRelease: readonly FranchiseTitle[],
-	links: SequelLink[],
-	selected: FranchiseTitle,
-	apart: ReadonlySet<number>,
-) => {
-	const base = plain(selected.title);
-	const joined = componentOf(links, selected.anilistId);
-
-	for (const title of byRelease) {
-		const separate =
-			joined.has(title.anilistId) ||
-			apart.has(title.anilistId) ||
-			!links.some(([left, right]) => left === title.anilistId || right === title.anilistId) ||
-			!isSeriesTitle(title) ||
-			withoutPrefix(plain(title.title), base) === null;
-
-		if (separate) {
-			continue;
-		}
-
-		const before = byRelease.findLast(
-			(earlier) =>
-				joined.has(earlier.anilistId) &&
-				isSeriesTitle(earlier) &&
-				(earlier.startDate ?? "9999") < (title.startDate ?? "9999"),
-		);
-
-		if (before) {
-			links.push([before.anilistId, title.anilistId]);
-
-			for (const id of componentOf(links, title.anilistId)) {
-				joined.add(id);
-			}
-		}
-	}
-};
-
-/**
- * The titles left out of the story: summaries, and the side of each pair of
- * alternatives that is not the story's. Of a pair inside the story, the one
- * that is not the same kind of title as the other is left out.
- */
-const omittedFrom = (
-	byRelease: readonly FranchiseTitle[],
-	links: readonly SequelLink[],
-	continuity: ReadonlySet<number>,
-	options: FranchiseOptions,
-) => {
-	const omitted = new Set(options.summaries);
-
-	for (const [left, right] of options.alternatives ?? []) {
-		const leftTitle = byRelease.find((title) => title.anilistId === left);
-		const rightTitle = byRelease.find((title) => title.anilistId === right);
-
-		const differing =
-			leftTitle && rightTitle && isSeriesTitle(leftTitle) !== isSeriesTitle(rightTitle);
-
-		if (continuity.has(left) && !continuity.has(right)) {
-			for (const id of componentOf(links, right)) {
-				omitted.add(id);
-			}
-		} else if (continuity.has(right) && !continuity.has(left)) {
-			for (const id of componentOf(links, left)) {
-				omitted.add(id);
-			}
-		} else if (continuity.has(left) && differing) {
-			omitted.add(isSeriesTitle(leftTitle) ? right : left);
-		}
-	}
-
-	return omitted;
-};
-
-/** The titles reached from the start by following sequel links forward only. */
-const forwardFrom = (selected: FranchiseTitle | undefined, links: readonly SequelLink[]) => {
-	const forward = new Set(selected ? [selected.anilistId] : []);
-
-	for (let changed = true; changed;) {
-		changed = false;
-
-		for (const [from, to] of links) {
-			if (forward.has(from) && !forward.has(to)) {
-				forward.add(to);
-				changed = true;
-			}
-		}
-	}
-
-	return forward;
-};
-
-/** The titles the start is a prequel of, however far back, which tell a story it grew out of. */
-const originsOf = (selected: FranchiseTitle | undefined, links: readonly SequelLink[]) => {
-	const origins = new Set<number>();
-
-	for (let frontier = selected ? [selected.anilistId] : []; frontier.length > 0;) {
-		const before = links.flatMap(([from, to]) => (frontier.includes(to) ? [from] : []));
-		frontier = before.filter((id) => !origins.has(id));
-
-		for (const id of frontier) {
-			origins.add(id);
-		}
-	}
-
-	return origins;
-};
-
-/**
- * `candidates` with each after the titles it is a sequel of, in the order
- * given otherwise. Malformed cyclic metadata can still be browsed, but is
- * reported as `cyclic` so it is never auto-continued.
- */
-const inStoryOrder = (candidates: readonly FranchiseTitle[], links: readonly SequelLink[]) => {
-	const seasons: FranchiseTitle[] = [];
-	const pending = [...candidates];
-	let cyclic = false;
-
-	while (pending.length) {
-		const ready = pending.findIndex(
-			(title) =>
-				!links.some(
-					([from, to]) => to === title.anilistId && pending.some((part) => part.anilistId === from),
-				),
-		);
-
-		if (ready === -1) {
-			cyclic = true;
-		}
-
-		seasons.push(...pending.splice(ready === -1 ? 0 : ready, 1));
-	}
-
-	return {
-		cyclic,
-		seasons,
-	};
-};
-
-/**
- * The stories AniList calls spin-offs: each spin-off with the titles its
- * sequel links join it to. A spin-off whose sequels lead back to its original
- * is part of the original's story, not one of its own.
- */
-const spinOffStories = (
-	sequels: readonly SequelLink[],
-	spinOffs: readonly (readonly [number, number])[],
-) =>
-	spinOffs.flatMap(([original, spinOff]) => {
-		const story = componentOf(sequels, spinOff);
-
-		if (story.has(original)) {
-			return [];
-		}
-
-		return [story];
-	});
-
-/**
- * The season each short special on the story path belongs to, by AniList ID:
- * a special or OVA of at most {@link specialEpisodeLimit} episodes whose only
- * prequel on the path is a series season, or another such special. The finale
- * specials My Hero Academia More and I am a hero too belong to its final season.
- */
-const specialsOf = (seasons: readonly FranchiseTitle[], links: readonly SequelLink[]) => {
-	/** The most episodes a special that belongs to the season before it has. */
-	const specialEpisodeLimit = 2;
-
-	const seasonOf = new Map<number, FranchiseTitle>();
-
-	for (const title of seasons) {
-		if (title.format === null || !specialFormats.has(title.format)) {
-			continue;
-		}
-
-		if (title.episodeCount > specialEpisodeLimit) {
-			continue;
-		}
-
-		const prequels = seasons.filter((season) =>
-			links.some(([from, to]) => from === season.anilistId && to === title.anilistId),
-		);
-
-		const [prequel] = prequels;
-
-		if (prequels.length !== 1 || !prequel) {
-			continue;
-		}
-
-		const season = isSeriesTitle(prequel) ? prequel : seasonOf.get(prequel.anilistId);
-
-		if (season) {
-			seasonOf.set(title.anilistId, season);
-		}
-	}
-
-	return seasonOf;
-};
-
-/**
- * Lists the default adaptation's story entries, then its other related stories.
+ * The titles of a franchise as parts: lists the default adaptation's story entries, then its other related stories.
  * Sequel pairs must point from prequel to sequel. Story entries follow these
  * relationships, with release dates breaking ties; films and specials that
  * continue the story belong alongside TV seasons. An optional non-TV prequel
@@ -433,137 +60,549 @@ const specialsOf = (seasons: readonly FranchiseTitle[], links: readonly SequelLi
  *
  * A spin-off and its sequels are a story of their own (see
  * `FranchiseOptions.spinOffs`). A short special that continues a season is
- * that season's `special` (see {@link specialsOf}), not a season of its own;
+ * that season's `special` (see `Franchise.#specials`), not a season of its own;
  * `next_series_id` still leads from the season into it.
  */
-export const franchiseParts = (
-	titles: readonly FranchiseTitle[],
-	sequels: readonly SequelLink[],
-	options: FranchiseOptions = {},
-): Omit<FranchisePart, "card">[] => {
-	const byRelease = byReleaseDate(titles);
-	const stories = spinOffStories(sequels, options.spinOffs ?? []);
+export class Franchise {
+	/** Formats that can establish the default TV/web adaptation. */
+	static readonly #seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
 
-	// A spin-off's own page lists the spin-off's seasons, not its original's.
-	const ownStory = stories.find(
-		(story) => options.currentId !== undefined && story.has(options.currentId),
-	);
+	/** Formats of a short sequel that is watched as part of the season before it. */
+	static readonly #specialFormats = new Set<AnimeFormat>(["SPECIAL", "OVA"]);
 
-	const selected = startOf(
-		byRelease.filter(
-			(title) =>
-				!options.unlisted?.includes(title.anilistId) &&
-				(ownStory ? ownStory.has(title.anilistId) : !options.apart?.includes(title.anilistId)),
-		),
-		options.crossovers,
-	);
+	readonly #sequels: readonly SequelLink[];
+	readonly #options: FranchiseOptions;
+	readonly #byRelease: FranchiseTitle[];
+	readonly #links: SequelLink[];
+	readonly #selected: FranchiseTitle | undefined;
 
-	const current = byRelease.find((title) => title.anilistId === options.currentId);
-	const base = plain(selected?.title ?? "");
-	const links = [...sequels];
+	/** @param sequels - Pairs pointing from prequel to sequel. */
+	constructor(
+		titles: readonly FranchiseTitle[],
+		sequels: readonly SequelLink[],
+		options: FranchiseOptions = {},
+	) {
+		this.#sequels = sequels;
+		this.#options = options;
 
-	if (sequels.length > 0 && selected) {
-		joinAcrossGaps(
-			byRelease,
-			links,
-			selected,
-			new Set([
-				...(options.alternatives ?? []).flat(),
-				...(options.summaries ?? []),
-				...stories.filter((story) => !story.has(selected.anilistId)).flatMap((story) => [...story]),
-			]),
+		this.#byRelease = [
+			...new Map(titles.map((title) => [title.anilistId, title])).values(),
+		].toSorted((left, right) =>
+			(left.startDate ?? "9999").localeCompare(right.startDate ?? "9999"),
 		);
+
+		const stories = this.#spinOffStories;
+
+		// A spin-off's own page lists the spin-off's seasons, not its original's.
+		const ownStory = stories.find(
+			(story) => options.currentId !== undefined && story.has(options.currentId),
+		);
+
+		this.#selected = this.#startOf(
+			this.#byRelease.filter((title) => {
+				if (options.unlisted?.includes(title.anilistId)) {
+					return false;
+				}
+
+				if (ownStory) {
+					return ownStory.has(title.anilistId);
+				}
+
+				return !options.apart?.includes(title.anilistId);
+			}),
+		);
+
+		this.#links = [...sequels];
+		const selected = this.#selected;
+
+		if (sequels.length > 0 && selected) {
+			this.#joinAcrossGaps(
+				selected,
+				new Set([
+					...(options.alternatives ?? []).flat(),
+					...(options.summaries ?? []),
+					...stories
+						.filter((story) => !story.has(selected.anilistId))
+						.flatMap((story) => [...story]),
+				]),
+			);
+		}
 	}
 
-	const continuity = selected ? componentOf(links, selected.anilistId) : new Set<number>();
-	const omitted = omittedFrom(byRelease, links, continuity, options);
+	static #isSeason(title: FranchiseTitle) {
+		return title.format !== null && Franchise.#seasonFormats.has(title.format);
+	}
 
-	// Only forward continuations pull non-TV entries into the season picker.
-	const forward = forwardFrom(selected, links);
-	// A title released after the show it is a prequel of tells a story the show
-	// grew out of; it is an extra, never a season ahead of the show.
-	const lateOrigins = originsOf(selected, links);
-	const selectedStart = selected?.startDate ?? "9999";
+	/** Every title joined to `id` by `links`, in either direction. */
+	static #component(links: readonly SequelLink[], id: number) {
+		const ids = new Set([id]);
 
-	const isLateOrigin = (title: FranchiseTitle) =>
-		lateOrigins.has(title.anilistId) && (title.startDate ?? "9999") > selectedStart;
+		for (let frontier = [id]; frontier.length > 0;) {
+			const next = new Set<number>();
 
-	const candidates = byRelease.filter(
-		(title) =>
-			!omitted.has(title.anilistId) &&
-			!isLateOrigin(title) &&
-			(links.length > 0
-				? continuity.has(title.anilistId) &&
-					(isSeriesTitle(title) ||
-						(selected && !isSeriesTitle(selected)) ||
-						forward.has(title.anilistId))
-				: isSeriesTitle(title) && withoutPrefix(title.title, base) !== null),
-	);
-
-	const { cyclic, seasons } = inStoryOrder(candidates, links);
-
-	const others = byRelease.filter(
-		(title) => !seasons.includes(title) && !omitted.has(title.anilistId),
-	);
-
-	const unlisted = new Set(options.unlisted);
-
-	const followers = (id: number, seen: Set<number>): number[] =>
-		sequels
-			.filter(([from, to]) => from === id && !omitted.has(to))
-			.flatMap(([, to]) => {
-				if (!unlisted.has(to)) {
-					return [to];
+			for (const [left, right] of links) {
+				if (frontier.includes(left) && !ids.has(right)) {
+					next.add(right);
 				}
 
-				if (seen.has(to)) {
-					return [];
+				if (frontier.includes(right) && !ids.has(left)) {
+					next.add(left);
 				}
-
-				seen.add(to);
-
-				return followers(to, seen);
-			});
-
-	const listed = seasons.filter((title) => !unlisted.has(title.anilistId));
-	const seasonOfSpecial = specialsOf(listed, links);
-
-	return [...seasons, ...others, ...(current && omitted.has(current.anilistId) ? [current] : [])]
-		.values()
-		.filter((title) => !unlisted.has(title.anilistId))
-		.map((title) => {
-			const following = new Set(followers(title.anilistId, new Set()));
-			const successors = listed.filter((part) => following.has(part.anilistId));
-			const successor = successors.length === 1 ? successors[0] : undefined;
-
-			const next =
-				successor &&
-				seasons.indexOf(successor) > seasons.indexOf(title) &&
-				successor.episodeCount > 0
-					? successor.seriesId
-					: null;
-
-			const season = seasonOfSpecial.get(title.anilistId);
-			let role: "alternative" | "extra" | "season" | "special" = "extra";
-
-			if (season) {
-				role = "special";
-			} else if (seasons.includes(title)) {
-				role = "season";
-			} else if (omitted.has(title.anilistId)) {
-				role = "alternative";
 			}
 
-			return {
-				episode_count: title.episodeCount,
-				format: title.format,
-				next_series_id:
-					!cyclic && seasons.includes(title) && following.size === successors.length ? next : null,
-				role,
-				season_id: season?.seriesId ?? null,
-				series_id: title.seriesId,
-				title: shortTitle(title, storyName(selected?.title ?? ""), seasons.includes(title)),
-			};
-		})
-		.toArray();
-};
+			frontier = [...next];
+
+			for (const member of frontier) {
+				ids.add(member);
+			}
+		}
+
+		return ids;
+	}
+
+	/** The title a part is listed as, named after the story `base` when it is one of its seasons. */
+	static #shortTitle(title: FranchiseTitle, base: string, isSeason: boolean) {
+		const full = title.title.replace(Name.qualifier, "");
+
+		// Keep the title's own numbering, including untranslated sequel names.
+		let numbered: RegExpMatchArray | null = null;
+
+		if (isSeason) {
+			numbered = full.match(
+				/\b(?:Season\s+(?<season>\d+)|(?<ordinal>\d+)(?:st|nd|rd|th)\s+Season)(?:\s+Part\s+(?<part>\d+))?$/iu,
+			);
+		}
+
+		if (numbered) {
+			let part = "";
+
+			if (numbered[3]) {
+				part = ` Part ${numbered[3]}`;
+			}
+
+			return `Season ${numbered[1] ?? numbered[2]}${part}`;
+		}
+
+		const rest = new Name(full).without(base);
+
+		if (rest === null) {
+			return title.title;
+		}
+
+		const named = rest
+			.replace(/^the movie\b[\s:.-]*/iu, "")
+			.replace(/[\s~-]+$/u, "")
+			// A name wrapped in brackets loses its opening one with the prefix.
+			.replace(/^(?<name>[^(]*)\)$/u, "$<name>");
+
+		// A year, or a crossover such as I, Tsushima x Nameless Mouse, is no name on its own.
+		if (/^\d{4}\)?$/u.test(named) || /^[x×]\s/iu.test(named)) {
+			return title.title;
+		}
+
+		if (named) {
+			return named;
+		}
+
+		if (title.format && Franchise.#seasonFormats.has(title.format)) {
+			return "Season 1";
+		}
+
+		return title.title;
+	}
+
+	/** The parts, the story's seasons first. */
+	get parts(): Omit<FranchisePart, "card">[] {
+		const options = this.#options;
+		const byRelease = this.#byRelease;
+		const links = this.#links;
+		const selected = this.#selected;
+		const current = byRelease.find((title) => title.anilistId === options.currentId);
+		const base = new Name(selected?.title ?? "").plain;
+		let continuity = new Set<number>();
+
+		if (selected) {
+			continuity = Franchise.#component(links, selected.anilistId);
+		}
+
+		const omitted = this.#omitted(continuity);
+
+		// Only forward continuations pull non-TV entries into the season picker.
+		const forward = this.#forward;
+		// A title released after the show it is a prequel of tells a story the show
+		// grew out of; it is an extra, never a season ahead of the show.
+		const lateOrigins = this.#origins;
+		const selectedStart = selected?.startDate ?? "9999";
+
+		const candidates = byRelease.filter((title) => {
+			const isLateOrigin =
+				lateOrigins.has(title.anilistId) && (title.startDate ?? "9999") > selectedStart;
+
+			if (omitted.has(title.anilistId) || isLateOrigin) {
+				return false;
+			}
+
+			if (links.length === 0) {
+				return Franchise.#isSeason(title) && new Name(title.title).without(base) !== null;
+			}
+
+			const continues =
+				Franchise.#isSeason(title) ||
+				(selected && !Franchise.#isSeason(selected)) ||
+				forward.has(title.anilistId);
+
+			return continuity.has(title.anilistId) && continues;
+		});
+
+		const { cyclic, seasons } = this.#inStoryOrder(candidates);
+
+		const others = byRelease.filter(
+			(title) => !seasons.includes(title) && !omitted.has(title.anilistId),
+		);
+
+		const unlisted = new Set(options.unlisted);
+
+		const followers = (id: number, seen: Set<number>): number[] =>
+			this.#sequels
+				.filter(([from, to]) => from === id && !omitted.has(to))
+				.flatMap(([, to]) => {
+					if (!unlisted.has(to)) {
+						return [to];
+					}
+
+					if (seen.has(to)) {
+						return [];
+					}
+
+					seen.add(to);
+
+					return followers(to, seen);
+				});
+
+		const listed = seasons.filter((title) => !unlisted.has(title.anilistId));
+		const seasonOfSpecial = this.#specials(listed);
+		const storyName = new Name(selected?.title ?? "").story;
+		const shown = [...seasons, ...others];
+
+		if (current && omitted.has(current.anilistId)) {
+			shown.push(current);
+		}
+
+		return shown
+			.values()
+			.filter((title) => !unlisted.has(title.anilistId))
+			.map((title) => {
+				const following = new Set(followers(title.anilistId, new Set()));
+				const successors = listed.filter((part) => following.has(part.anilistId));
+				let successor: FranchiseTitle | undefined;
+
+				if (successors.length === 1) {
+					[successor] = successors;
+				}
+
+				let next: string | null = null;
+
+				const leads =
+					successor &&
+					seasons.indexOf(successor) > seasons.indexOf(title) &&
+					successor.episodeCount > 0;
+
+				if (successor && leads) {
+					next = successor.seriesId;
+				}
+
+				const season = seasonOfSpecial.get(title.anilistId);
+				let role: "alternative" | "extra" | "season" | "special" = "extra";
+
+				if (season) {
+					role = "special";
+				} else if (seasons.includes(title)) {
+					role = "season";
+				} else if (omitted.has(title.anilistId)) {
+					role = "alternative";
+				}
+
+				const continues =
+					!cyclic && seasons.includes(title) && following.size === successors.length;
+
+				let nextId: string | null = null;
+
+				if (continues) {
+					nextId = next;
+				}
+
+				return {
+					episode_count: title.episodeCount,
+					format: title.format,
+					next_series_id: nextId,
+					role,
+					season_id: season?.seriesId ?? null,
+					series_id: title.seriesId,
+					title: Franchise.#shortTitle(title, storyName, seasons.includes(title)),
+				};
+			})
+			.toArray();
+	}
+
+	/**
+	 * The stories AniList calls spin-offs: each spin-off with the titles its
+	 * sequel links join it to. A spin-off whose sequels lead back to its original
+	 * is part of the original's story, not one of its own.
+	 */
+	get #spinOffStories() {
+		return (this.#options.spinOffs ?? []).flatMap(([original, spinOff]) => {
+			const story = Franchise.#component(this.#sequels, spinOff);
+
+			if (story.has(original)) {
+				return [];
+			}
+
+			return [story];
+		});
+	}
+
+	/**
+	 * The title the franchise starts with among `byRelease`: the first series,
+	 * or failing that the first title, that is not a crossover. A crossover
+	 * still starts it when that opening title is named after it, as Yu-Gi-Oh!
+	 * Zexal is after Yu-Gi-Oh!.
+	 */
+	#startOf(byRelease: readonly FranchiseTitle[]) {
+		const { crossovers } = this.#options;
+		const own = byRelease.filter((title) => !crossovers?.includes(title.anilistId));
+		let starters = byRelease;
+
+		if (own.length > 0) {
+			starters = own;
+		}
+
+		const opening = starters.find((title) => Franchise.#isSeason(title)) ?? starters[0];
+
+		if (!opening) {
+			return opening;
+		}
+
+		const namedAfter = byRelease.find(
+			(title) =>
+				title !== opening &&
+				(Franchise.#isSeason(title) || !Franchise.#isSeason(opening)) &&
+				crossovers?.includes(title.anilistId) &&
+				isNamedAfter(opening.title, title.title),
+		);
+
+		return namedAfter ?? opening;
+	}
+
+	/**
+	 * AniList often leaves a gap between eras of one show. A series named after
+	 * the franchise whose own seasons are linked joins the story after the latest
+	 * earlier one, by a link added to the links; a lone spin-off, an alternative
+	 * adaptation, or a recap never does.
+	 */
+	#joinAcrossGaps(selected: FranchiseTitle, apart: ReadonlySet<number>) {
+		const byRelease = this.#byRelease;
+		const links = this.#links;
+		const base = new Name(selected.title).plain;
+		const joined = Franchise.#component(links, selected.anilistId);
+
+		for (const title of byRelease) {
+			const separate =
+				joined.has(title.anilistId) ||
+				apart.has(title.anilistId) ||
+				!links.some(([left, right]) => left === title.anilistId || right === title.anilistId) ||
+				!Franchise.#isSeason(title) ||
+				new Name(new Name(title.title).plain).without(base) === null;
+
+			if (separate) {
+				continue;
+			}
+
+			const before = byRelease.findLast(
+				(earlier) =>
+					joined.has(earlier.anilistId) &&
+					Franchise.#isSeason(earlier) &&
+					(earlier.startDate ?? "9999") < (title.startDate ?? "9999"),
+			);
+
+			if (before) {
+				links.push([before.anilistId, title.anilistId]);
+
+				for (const id of Franchise.#component(links, title.anilistId)) {
+					joined.add(id);
+				}
+			}
+		}
+	}
+
+	/**
+	 * The titles left out of the story: summaries, and the side of each pair of
+	 * alternatives that is not the story's. Of a pair inside the story, the one
+	 * that is not the same kind of title as the other is left out.
+	 */
+	#omitted(continuity: ReadonlySet<number>) {
+		const options = this.#options;
+		const omitted = new Set(options.summaries);
+
+		for (const [left, right] of options.alternatives ?? []) {
+			const leftTitle = this.#byRelease.find((title) => title.anilistId === left);
+			const rightTitle = this.#byRelease.find((title) => title.anilistId === right);
+
+			const differing =
+				leftTitle &&
+				rightTitle &&
+				Franchise.#isSeason(leftTitle) !== Franchise.#isSeason(rightTitle);
+
+			if (continuity.has(left) && !continuity.has(right)) {
+				for (const id of Franchise.#component(this.#links, right)) {
+					omitted.add(id);
+				}
+			} else if (continuity.has(right) && !continuity.has(left)) {
+				for (const id of Franchise.#component(this.#links, left)) {
+					omitted.add(id);
+				}
+			} else if (continuity.has(left) && differing) {
+				let other = left;
+
+				if (Franchise.#isSeason(leftTitle)) {
+					other = right;
+				}
+
+				omitted.add(other);
+			}
+		}
+
+		return omitted;
+	}
+
+	/** The titles reached from the start by following sequel links forward only. */
+	get #forward() {
+		const forward = new Set<number>();
+
+		if (this.#selected) {
+			forward.add(this.#selected.anilistId);
+		}
+
+		for (let changed = true; changed;) {
+			changed = false;
+
+			for (const [from, to] of this.#links) {
+				if (forward.has(from) && !forward.has(to)) {
+					forward.add(to);
+					changed = true;
+				}
+			}
+		}
+
+		return forward;
+	}
+
+	/** The titles the start is a prequel of, however far back, which tell a story it grew out of. */
+	get #origins() {
+		const origins = new Set<number>();
+		let frontier: number[] = [];
+
+		if (this.#selected) {
+			frontier = [this.#selected.anilistId];
+		}
+
+		while (frontier.length > 0) {
+			const reached = frontier;
+
+			const before = this.#links.flatMap(([from, to]) => {
+				if (reached.includes(to)) {
+					return [from];
+				}
+
+				return [];
+			});
+
+			frontier = before.filter((id) => !origins.has(id));
+
+			for (const id of frontier) {
+				origins.add(id);
+			}
+		}
+
+		return origins;
+	}
+
+	/**
+	 * `candidates` with each after the titles it is a sequel of, in the order
+	 * given otherwise. Malformed cyclic metadata can still be browsed, but is
+	 * reported as `cyclic` so it is never auto-continued.
+	 */
+	#inStoryOrder(candidates: readonly FranchiseTitle[]) {
+		const seasons: FranchiseTitle[] = [];
+		const pending = [...candidates];
+		let cyclic = false;
+
+		while (pending.length) {
+			const ready = pending.findIndex(
+				(title) =>
+					!this.#links.some(
+						([from, to]) =>
+							to === title.anilistId && pending.some((part) => part.anilistId === from),
+					),
+			);
+
+			let taken = ready;
+
+			if (ready === -1) {
+				cyclic = true;
+				taken = 0;
+			}
+
+			seasons.push(...pending.splice(taken, 1));
+		}
+
+		return {
+			cyclic,
+			seasons,
+		};
+	}
+
+	/**
+	 * The season each short special on the story path belongs to, by AniList ID:
+	 * a special or OVA of at most two episodes whose only prequel on the path is
+	 * a series season, or another such special. The finale specials My Hero
+	 * Academia More and I am a hero too belong to its final season.
+	 */
+	#specials(seasons: readonly FranchiseTitle[]) {
+		/** The most episodes a special that belongs to the season before it has. */
+		const specialEpisodeLimit = 2;
+
+		const seasonOf = new Map<number, FranchiseTitle>();
+
+		for (const title of seasons) {
+			if (title.format === null || !Franchise.#specialFormats.has(title.format)) {
+				continue;
+			}
+
+			if (title.episodeCount > specialEpisodeLimit) {
+				continue;
+			}
+
+			const prequels = seasons.filter((season) =>
+				this.#links.some(([from, to]) => from === season.anilistId && to === title.anilistId),
+			);
+
+			const [prequel] = prequels;
+
+			if (prequels.length !== 1 || !prequel) {
+				continue;
+			}
+
+			let season = seasonOf.get(prequel.anilistId);
+
+			if (Franchise.#isSeason(prequel)) {
+				season = prequel;
+			}
+
+			if (season) {
+				seasonOf.set(title.anilistId, season);
+			}
+		}
+
+		return seasonOf;
+	}
+}
