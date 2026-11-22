@@ -206,12 +206,14 @@ const dependencies: PlaybackDependencies = {
 	readPlaylist: (url) => {
 		read.push(url);
 
-		return url.includes(".unreachable.")
-			? Promise.reject(new StreamUpstreamError("Upstream could not be reached", null))
-			: Promise.resolve({
-					content: masterPlaylist(audioLanguages.get(url) ?? []),
-					url,
-				});
+		if (url.includes(".unreachable.")) {
+			return Promise.reject(new StreamUpstreamError("Upstream could not be reached", null));
+		}
+
+		return Promise.resolve({
+			content: masterPlaylist(audioLanguages.get(url) ?? []),
+			url,
+		});
 	},
 	recordSubtitleLanguages: async () => {},
 	requestRefinement: async () => {},
