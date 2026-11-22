@@ -23,10 +23,13 @@
 		}),
 	);
 
-	const progress = $derived(getTitleProgress(part.series_id));
-
 	const played = $derived(
-		new Map((progress.current?.episodes ?? []).map((entry) => [entry.episode, entry])),
+		new Map(
+			(getTitleProgress(part.series_id).current?.episodes ?? []).map((entry) => [
+				entry.episode,
+				entry,
+			]),
+		),
 	);
 </script>
 

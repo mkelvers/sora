@@ -52,9 +52,30 @@
 		return "Title";
 	});
 
-	const position = $derived(current?.role === "season" ? series.seasons.indexOf(current) : -1);
-	const previous = $derived(position > 0 ? series.seasons[position - 1] : undefined);
-	const next = $derived(position === -1 ? undefined : series.seasons[position + 1]);
+	const position = $derived.by(() => {
+		if (current?.role === "season") {
+			return series.seasons.indexOf(current);
+		}
+
+		return -1;
+	});
+
+	const previous = $derived.by(() => {
+		if (position <= 0) {
+			return;
+		}
+
+		return series.seasons[position - 1];
+	});
+
+	const next = $derived.by(() => {
+		if (position === -1) {
+			return;
+		}
+
+		return series.seasons[position + 1];
+	});
+
 	const paging = $derived(position !== -1 && series.seasons.length > 1);
 
 	const similar = $derived(getSimilar(params.id));
@@ -72,7 +93,11 @@
 
 		for (const [index, card] of similar.current.entries()) {
 			cards.push(card);
-			const extra = index % extraEvery === extraEvery - 1 ? extras.shift() : undefined;
+			let extra: (typeof extras)[number] | undefined;
+
+			if (index % extraEvery === extraEvery - 1) {
+				extra = extras.shift();
+			}
 
 			if (extra) {
 				cards.push(extra);

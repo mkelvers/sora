@@ -141,13 +141,27 @@
 	};
 
 	const hit = (event: PointerEvent, logo: DOMRect): Handle | undefined => {
-		const reach = event.pointerType === "touch" ? 24 : 10;
+		let reach = 10;
 
-		const corner = corners.find(
-			(candidate) =>
-				Math.abs(event.clientX - (candidate.x < 0 ? logo.left : logo.right)) <= reach &&
-				Math.abs(event.clientY - (candidate.y < 0 ? logo.top : logo.bottom)) <= reach,
-		);
+		if (event.pointerType === "touch") {
+			reach = 24;
+		}
+
+		const corner = corners.find((candidate) => {
+			let edgeX = logo.right;
+
+			if (candidate.x < 0) {
+				edgeX = logo.left;
+			}
+
+			let edgeY = logo.bottom;
+
+			if (candidate.y < 0) {
+				edgeY = logo.top;
+			}
+
+			return Math.abs(event.clientX - edgeX) <= reach && Math.abs(event.clientY - edgeY) <= reach;
+		});
 
 		const inside =
 			event.clientX >= logo.left &&
@@ -155,7 +169,13 @@
 			event.clientY >= logo.top &&
 			event.clientY <= logo.bottom;
 
-		return corner ?? (inside ? "logo" : undefined);
+		if (corner) {
+			return corner;
+		}
+
+		if (inside) {
+			return "logo";
+		}
 	};
 
 	const start = (event: PointerEvent) => {
@@ -215,8 +235,17 @@
 			return;
 		}
 
-		const anchorX = handle.x > 0 ? logo.left : logo.right;
-		const anchorY = handle.y > 0 ? logo.top : logo.bottom;
+		let anchorX = logo.right;
+
+		if (handle.x > 0) {
+			anchorX = logo.left;
+		}
+
+		let anchorY = logo.bottom;
+
+		if (handle.y > 0) {
+			anchorY = logo.top;
+		}
 
 		const along =
 			((event.clientX - anchorX) * handle.x * logo.width +
@@ -226,8 +255,20 @@
 		scale = zoomed(drag.scale * along);
 
 		const factor = scale / drag.scale;
-		x = unit(drag.x + (handle.x < 0 ? logo.width * (1 - factor) : 0) / hero.width);
-		y = unit(drag.y + (handle.y > 0 ? logo.height * (factor - 1) : 0) / hero.width);
+		let shiftX = 0;
+
+		if (handle.x < 0) {
+			shiftX = logo.width * (1 - factor);
+		}
+
+		let shiftY = 0;
+
+		if (handle.y > 0) {
+			shiftY = logo.height * (factor - 1);
+		}
+
+		x = unit(drag.x + shiftX / hero.width);
+		y = unit(drag.y + shiftY / hero.width);
 	};
 
 	const end = () => {
@@ -265,7 +306,12 @@
 		event.preventDefault();
 
 		if (direction) {
-			const step = event.shiftKey ? 0.02 : 0.005;
+			let step = 0.005;
+
+			if (event.shiftKey) {
+				step = 0.02;
+			}
+
 			x = unit(x + direction[0] * step);
 			y = unit(y + direction[1] * step);
 		}

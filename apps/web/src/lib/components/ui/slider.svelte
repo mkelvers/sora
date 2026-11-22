@@ -18,7 +18,17 @@
 		buffered?: number;
 	} = $props();
 
-	const ratio = $derived(fill ?? (max > min ? (value - min) / (max - min) : 0));
+	const ratio = $derived.by(() => {
+		if (fill !== undefined) {
+			return fill;
+		}
+
+		if (max > min) {
+			return (value - min) / (max - min);
+		}
+
+		return 0;
+	});
 </script>
 
 <input

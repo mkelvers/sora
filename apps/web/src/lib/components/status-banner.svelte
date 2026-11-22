@@ -20,15 +20,18 @@
 		ondismiss?: () => void;
 	} = $props();
 
-	const lingerMs = 4000;
-	const lingerWithActionMs = 10_000;
-
 	$effect(() => {
 		if (!message || tone === "error") {
 			return;
 		}
 
-		const timeout = setTimeout(() => ondismiss?.(), action ? lingerWithActionMs : lingerMs);
+		let linger = 4000;
+
+		if (action) {
+			linger = 10_000;
+		}
+
+		const timeout = setTimeout(() => ondismiss?.(), linger);
 
 		return () => clearTimeout(timeout);
 	});

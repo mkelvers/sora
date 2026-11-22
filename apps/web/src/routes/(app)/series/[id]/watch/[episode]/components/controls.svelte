@@ -53,7 +53,12 @@
 	const pad = (value: number) => String(value).padStart(2, "0");
 
 	const clock = (seconds: number) => {
-		const total = Math.floor(Number.isFinite(seconds) ? Math.max(0, seconds) : 0);
+		let total = 0;
+
+		if (Number.isFinite(seconds)) {
+			total = Math.floor(Math.max(0, seconds));
+		}
+
 		const hours = Math.floor(total / 3600);
 
 		if (hours) {

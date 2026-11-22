@@ -79,17 +79,29 @@
 	const current = (href: string) => {
 		const { pathname } = page.url;
 
-		return pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined;
+		const here = pathname === href || pathname.startsWith(`${href}/`);
+
+		if (!here) {
+			return;
+		}
+
+		return "page";
 	};
 
-	const browsing = (genre: string) =>
-		page.url.pathname === "/browse" &&
-		browse.genres.length === 1 &&
-		browse.genres[0] === genre &&
-		browse.tags.length === 0 &&
-		browse.studios.length === 0
-			? "page"
-			: undefined;
+	const browsing = (genre: string) => {
+		const only =
+			page.url.pathname === "/browse" &&
+			browse.genres.length === 1 &&
+			browse.genres[0] === genre &&
+			browse.tags.length === 0 &&
+			browse.studios.length === 0;
+
+		if (!only) {
+			return;
+		}
+
+		return "page";
+	};
 
 	$effect(() => {
 		if (page.url.pathname === "/notifications") {

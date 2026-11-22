@@ -27,7 +27,14 @@
 	] as const;
 
 	let view = $state<(typeof views)[number]["value"]>("new");
-	const shown = $derived(view === "new" ? unread : read);
+
+	const shown = $derived.by(() => {
+		if (view === "new") {
+			return unread;
+		}
+
+		return read;
+	});
 
 	$effect(() => pollWhileVisible(() => notifications.refresh()));
 

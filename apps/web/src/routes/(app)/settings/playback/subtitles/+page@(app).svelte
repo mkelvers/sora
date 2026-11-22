@@ -145,8 +145,13 @@
 			),
 		);
 
-		saved = error ? "" : "Subtitle appearance saved.";
-		failure = error ? "Your subtitle appearance couldn’t be saved." : "";
+		if (error) {
+			saved = "";
+			failure = "Your subtitle appearance couldn’t be saved.";
+		} else {
+			saved = "Subtitle appearance saved.";
+			failure = "";
+		}
 	};
 
 	const reset = async () => {
@@ -159,8 +164,14 @@
 		);
 
 		resetting = false;
-		saved = error ? "" : "Subtitle appearance reset.";
-		failure = error ? "Your subtitle appearance couldn’t be reset." : "";
+
+		if (error) {
+			saved = "";
+			failure = "Your subtitle appearance couldn’t be reset.";
+		} else {
+			saved = "Subtitle appearance reset.";
+			failure = "";
+		}
 	};
 </script>
 

@@ -16,7 +16,12 @@
 	} = $props();
 
 	const releasedAt = $derived.by(() => {
-		const verb = item.kind === "announced" ? "Announced" : "Released";
+		let verb = "Released";
+
+		if (item.kind === "announced") {
+			verb = "Announced";
+		}
+
 		const released = new Date(item.released_at);
 
 		const time = new Intl.DateTimeFormat(undefined, {
