@@ -15,21 +15,73 @@ import * as playback from "./schema/playback";
 import * as scheduler from "./schema/scheduler";
 import * as series from "./schema/series";
 
-const pool = new SQL(config.databaseUrl);
+/**
+ * The connection pool behind {@link db}. While a test holds a transaction
+ * open, every query joins it, and a transaction the code opens itself
+ * becomes a savepoint, so nothing the test writes is committed.
+ */
+class Connection {
+	static readonly #rollback = new Error("Rolled back on purpose.");
 
-/** The transaction every query joins while a test holds one open; see {@link rollBackLater}. */
-let held: TransactionSQL | undefined;
+	readonly #pool = new SQL(config.databaseUrl);
+	#held: TransactionSQL | undefined;
 
-// Sends queries to the held transaction, where a transaction the code opens
-// itself becomes a savepoint, so a test's writes never commit.
-const client = new Proxy(pool, {
-	apply: (_target, _self, args: Parameters<SQL>) => (held ?? pool)(...args),
-	get: (_target, key) => {
-		const target = held ?? pool;
-		const value = key === "begin" && held ? held.savepoint : Reflect.get(target, key);
-		return typeof value === "function" ? value.bind(target) : value;
-	},
-});
+	/** The SQL client every query goes through. */
+	readonly client = new Proxy(this.#pool, {
+		apply: (_target, _self, args: Parameters<SQL>) => this.#current()(...args),
+		get: (_target, key) => this.#member(key),
+	});
+
+	/**
+	 * Opens a transaction that every query joins, or a savepoint when one is
+	 * already open, and returns the function that rolls it back. For tests.
+	 */
+	async rollBackLater(): Promise<() => Promise<void>> {
+		const outer = this.#held;
+		const opened = Promise.withResolvers<undefined>();
+		const finished = Promise.withResolvers<undefined>();
+		const done = attempt(
+			this.client.begin(async (transaction) => {
+				this.#held = transaction;
+				opened.resolve(undefined);
+				await finished.promise;
+				throw Connection.#rollback;
+			}),
+		);
+		const failed = await Promise.race([opened.promise, done]);
+		if (failed) {
+			throw failed.error;
+		}
+
+		return async () => {
+			finished.resolve(undefined);
+			const { error } = await done;
+			this.#held = outer;
+			if (error !== Connection.#rollback) {
+				throw error;
+			}
+		};
+	}
+
+	#current(): SQL {
+		return this.#held ?? this.#pool;
+	}
+
+	#member(key: PropertyKey): unknown {
+		if (key === "begin" && this.#held) {
+			return this.#held.savepoint.bind(this.#held);
+		}
+
+		const current = this.#current();
+		const member: unknown = Reflect.get(current, key);
+		if (typeof member !== "function") {
+			return member;
+		}
+		return member.bind(current);
+	}
+}
+
+export const connection = new Connection();
 
 /**
  * The process-wide database connection.
@@ -38,7 +90,7 @@ const client = new Proxy(pool, {
  * parameters or constructors.
  */
 export const db = drizzle({
-	client,
+	client: connection.client,
 	schema: {
 		...auth,
 		...catalog,
@@ -48,39 +100,6 @@ export const db = drizzle({
 		...series,
 	},
 });
-
-const rollback = new Error("Rolled back on purpose.");
-
-/**
- * Opens a transaction that every query joins, or a savepoint when one is
- * already open, and returns the function that rolls it back. Tests use it so
- * nothing they write is ever committed.
- */
-export const rollBackLater = async (): Promise<() => Promise<void>> => {
-	const outer = held;
-	const opened = Promise.withResolvers<undefined>();
-	const finished = Promise.withResolvers<undefined>();
-	const done = attempt(
-		client.begin(async (transaction) => {
-			held = transaction;
-			opened.resolve(undefined);
-			await finished.promise;
-			throw rollback;
-		}),
-	);
-	const failed = await Promise.race([opened.promise, done]);
-	if (failed) {
-		throw failed.error;
-	}
-	return async () => {
-		finished.resolve(undefined);
-		const { error } = await done;
-		held = outer;
-		if (error !== rollback) {
-			throw error;
-		}
-	};
-};
 
 const readinessTimeoutMs = 1000;
 let readiness: Promise<boolean> | undefined;

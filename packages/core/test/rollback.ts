@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach } from "bun:test";
 
-import { rollBackLater } from "../src/database/client";
+import { connection } from "../src/database/client";
 
 // Database tests run on the development database and leave nothing in it:
 // each file runs inside one transaction and each test inside a savepoint,
@@ -9,11 +9,11 @@ let rollBackFile: () => Promise<void>;
 let rollBackTest: () => Promise<void>;
 
 beforeAll(async () => {
-	rollBackFile = await rollBackLater();
+	rollBackFile = await connection.rollBackLater();
 });
 
 beforeEach(async () => {
-	rollBackTest = await rollBackLater();
+	rollBackTest = await connection.rollBackLater();
 });
 
 afterEach(async () => {
