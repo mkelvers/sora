@@ -714,13 +714,15 @@ const continuedSeries = async (anime: Anime, depth: number): Promise<AniKotoMatc
 
 	// The whole part must be there: a sequel AniKoto has not added yet must
 	// not start at a recap AniKoto appended to the prequel.
-	return stored?.episodes && stored.episodes >= episodeOffset + (anime.episodes ?? 1)
-		? {
-				...series,
-				episodeOffset,
-				method: "continuation",
-			}
-		: null;
+	if (stored?.episodes && stored.episodes >= episodeOffset + (anime.episodes ?? 1)) {
+		return {
+			...series,
+			episodeOffset,
+			method: "continuation",
+		};
+	}
+
+	return null;
 };
 
 /**
