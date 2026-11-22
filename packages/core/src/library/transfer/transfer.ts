@@ -32,7 +32,6 @@ const batchSize = 1000;
 
 /** The titles listed in a report, and the most a single import asks the scheduler to add. */
 const reportedTitles = 50;
-const queuedTitles = 100;
 
 /**
  * A profile's watchlist and history as a file, by AniList ID so another
@@ -283,9 +282,7 @@ const applyAdditions = async (
 	});
 
 	await Promise.all(
-		missing
-			.slice(0, queuedTitles)
-			.map((addition) => scheduleSeriesStore(addition.anilistId, "backfill")),
+		missing.slice(0, 100).map((addition) => scheduleSeriesStore(addition.anilistId, "backfill")),
 	);
 
 	return {
