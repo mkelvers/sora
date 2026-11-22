@@ -150,6 +150,7 @@ const respondToLookup = async (
 	respond(null, defined(addresses[0]).address, defined(addresses[0]).family);
 };
 
+// SAFETY: this implements the callback form of `lookup`, the only one the HTTP agent calls.
 const publicLookup = ((
 	host: string,
 	options: { all?: boolean },

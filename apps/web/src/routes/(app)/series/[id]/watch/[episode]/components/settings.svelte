@@ -67,6 +67,7 @@
 						})),
 						select: (value: string) =>
 							onpreferences({
+								// SAFETY: every option's value is a version's audio.
 								audio: value as WatchMedia["audio"],
 							}),
 						value: selected?.audio ?? "",

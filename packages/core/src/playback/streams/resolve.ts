@@ -360,10 +360,12 @@ const resolveVersion = async (
 			reason: `${language}${locale ? ` (${locale})` : ""}: ${reason}`,
 		});
 
-	let hardsubbed = null as {
-		version: PlaybackMedia;
-		videos: ProviderVideo[];
-	} | null;
+	let hardsubbed:
+		| {
+				version: PlaybackMedia;
+				videos: ProviderVideo[];
+		  }
+		| undefined;
 
 	// Providers are asked for their episode lists at once; the lists are
 	// kept in priority order.

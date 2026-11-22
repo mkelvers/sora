@@ -90,6 +90,7 @@ export interface SeriesLayout {
 
 /** A series key's kind and TMDB (or AniList) ID. */
 export const parseKey = (key: SeriesKey) => {
+	// SAFETY: a SeriesKey is `kind:id`.
 	const [kind, id] = key.split(":") as ["tv" | "movie" | "anilist", string];
 
 	return [kind, Number(id)] as const;

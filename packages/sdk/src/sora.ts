@@ -226,12 +226,15 @@ export class SoraClient {
 		route: TRoute,
 		...[input, options]: Args<TRoute>
 	): Promise<RequestResults<TRoute>> {
+		// SAFETY: the rest parameter is exactly Args<TRoute>; TypeScript loses it through the spread.
 		const body = await this.requestWithMeta(route, ...([input, options] as Args<TRoute>));
 
 		if (body instanceof Object && "results" in body) {
+			// SAFETY: a body with `results` is the route's envelope.
 			return body.results as RequestResults<TRoute>;
 		}
 
+		// SAFETY: a route without the envelope answers with its results as they are.
 		return body as RequestResults<TRoute>;
 	}
 
@@ -245,6 +248,7 @@ export class SoraClient {
 		route: TRoute,
 		...[input, options]: Args<TRoute>
 	): Promise<RequestBody<TRoute>> {
+		// SAFETY: every route's input is a RouteInput; Args<TRoute> narrows it per route.
 		const { params, query, body } = (input ?? {}) as RouteInput;
 
 		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
@@ -269,6 +273,7 @@ export class SoraClient {
 		const schema = route.responses[response.status]?.content?.["application/json"]?.schema;
 
 		if (!schema) {
+			// SAFETY: a status the contract documents without a body answers with none.
 			return undefined as RequestBody<TRoute>;
 		}
 
@@ -288,6 +293,7 @@ export class SoraClient {
 			);
 		}
 
+		// SAFETY: `schema` is the contract's schema for this route and status.
 		return parsed.data as RequestBody<TRoute>;
 	}
 
@@ -300,6 +306,7 @@ export class SoraClient {
 	async signIn(credentials: SignIn, options?: RequestOptions): Promise<Session> {
 		const response = await this.#auth("sign-in/username", credentials, options);
 
+		// SAFETY: Better Auth's sign-in answer; it is outside the API contract.
 		const signedIn = (await response.json()) as {
 			token: string;
 			user: Session["account"];
@@ -335,6 +342,7 @@ export class SoraClient {
 			options,
 		);
 
+		// SAFETY: Better Auth's change-password answer; it is outside the API contract.
 		const changed = (await response.json()) as {
 			token: string;
 		};

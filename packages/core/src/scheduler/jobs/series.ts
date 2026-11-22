@@ -243,6 +243,7 @@ const copyEpisodeDetails = async (seriesId: string, episodes: readonly TmdbEpiso
 
 		if (
 			Object.entries(details).every(
+				// SAFETY: the names of `details` are fields of the stored episode.
 				([name, value]) => episode[name as keyof typeof details] === value,
 			)
 		) {

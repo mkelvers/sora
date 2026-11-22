@@ -51,6 +51,7 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 
 		return {
 			data: null,
+			// SAFETY: `error` is an Error, and an instance of an expected class when any are named (checked above).
 			error: error as Caught<TExpected>,
 		};
 	};
@@ -102,6 +103,7 @@ interface Settle {
 	): Attempt<TData, Caught<TExpected>>;
 }
 
+// SAFETY: `settle` implements both of Settle's overloads.
 export const attempt = settle as Settle;
 
 /**

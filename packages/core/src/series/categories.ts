@@ -36,13 +36,13 @@ const placeOf = (category: string): Pick<Tag, "group" | "section"> | null => {
 	const [kind = "", ...rest] = category.split("-");
 	const path = rest.join("-");
 
-	const groups = {
-		Cast: "cast",
-		Setting: "setting",
-		Theme: "theme",
-	} as const;
+	const groups = new Map<string, "cast" | "setting" | "theme">([
+		["Cast", "cast"],
+		["Setting", "setting"],
+		["Theme", "theme"],
+	]);
 
-	const group = groups[kind as keyof typeof groups];
+	const group = groups.get(kind);
 
 	if (!group || !path) {
 		return null;

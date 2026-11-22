@@ -32,6 +32,7 @@ if (!response.ok) {
 	throw new Error(`TMDB spec returned ${response.status}`);
 }
 
+// SAFETY: TMDB's OpenAPI document; Spec covers only the parts the generator reads.
 const spec = (await response.json()) as Spec;
 
 const typeOf = (parameter: Parameter) => {

@@ -43,13 +43,13 @@ const tasteWeight = {
  * the title said: five stars is the strongest like, three is mild, and one or
  * two stars count against its genres and keep it from being a favourite.
  */
-const ratingWeight = {
-	1: -2,
-	2: -1,
-	3: 1,
-	4: 3,
-	5: 4,
-} as const;
+const ratingWeight = new Map([
+	[1, -2],
+	[2, -1],
+	[3, 1],
+	[4, 3],
+	[5, 4],
+]);
 
 interface Taste {
 	/** Every title key the profile has played or listed, which is never recommended. */
@@ -120,7 +120,7 @@ const tasteOf = async (userId: string): Promise<Taste> => {
 		const known = signals.get(row.seriesId);
 		signals.set(row.seriesId, {
 			at: Math.max(known?.at ?? 0, row.at.getTime()),
-			weight: ratingWeight[row.rating as keyof typeof ratingWeight] ?? 0,
+			weight: ratingWeight.get(row.rating) ?? 0,
 		});
 	}
 

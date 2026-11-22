@@ -357,6 +357,7 @@ export const storeTitleFacts = async () => {
 
 	const fetched = new Map<string, TmdbFacts>();
 	await inParallel(due, tmdbConcurrency, async ({ key }) => {
+		// SAFETY: series keys are only stored as SeriesKeys.
 		const { data, error } = await attempt(fetchTmdbFacts(key as SeriesKey));
 
 		if (error) {

@@ -32,6 +32,7 @@ const read = (): Pending | null => {
 	}
 
 	const { data } = attempt(
+		// SAFETY: only this module writes the key, and always a Pending.
 		() => JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as Pending | null,
 		DOMException,
 		SyntaxError,

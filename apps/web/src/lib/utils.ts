@@ -79,6 +79,7 @@ export const tmdbSrcset = (url: string, sizes: Partial<Record<TmdbSize, number>>
 		return;
 	}
 
+	// SAFETY: the keys of `sizes` are TmdbSizes; Object.entries only widens them to string.
 	return Object.entries(sizes)
 		.map(([size, width]) => `${tmdbImage(url, size as TmdbSize)} ${width}w`)
 		.join(", ");
@@ -107,6 +108,6 @@ export const moveMenuFocus = (event: KeyboardEvent & { currentTarget: HTMLElemen
 	}
 
 	event.preventDefault();
-	const index = items.indexOf(document.activeElement as HTMLElement);
+	const index = items.findIndex((item) => item === document.activeElement);
 	items[step(index, items.length)]?.focus();
 };

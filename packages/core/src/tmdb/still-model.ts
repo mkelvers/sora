@@ -74,6 +74,7 @@ export const loadStillModel = async (cacheDir: string | null) => {
 			await processor(await RawImage.fromBlob(new Blob([new Uint8Array(image)]))),
 		);
 
+		// SAFETY: the vision model returns float32 embeddings.
 		const embedded = unitLength([...(embeds.data as Float32Array)]);
 		const logits = labelEmbeddings.embeddings.map((label) => logitScale * dot(label, embedded));
 		const highest = Math.max(...logits);

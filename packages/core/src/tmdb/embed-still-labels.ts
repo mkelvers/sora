@@ -24,6 +24,7 @@ const { text_embeds: embeds } = await text(
 );
 
 const [, width = 0] = embeds.dims;
+// SAFETY: the text model returns float32 embeddings.
 const values = [...(embeds.data as Float32Array)];
 
 const embeddings = prompts.map((_prompt, index) =>

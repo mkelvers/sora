@@ -383,6 +383,7 @@ export const listSeriesImages = async (
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
 
+	// SAFETY: series keys are only stored as SeriesKeys.
 	const images = row.imagesFetchedAt
 		? await storedImagesOf(row.key)
 		: await storeImages(row.key as SeriesKey, day);
@@ -404,5 +405,6 @@ export const refreshSeriesImages = async (
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
 
+	// SAFETY: series keys are only stored as SeriesKeys.
 	return await applyQuery(row.key, await storeImages(row.key as SeriesKey, 0), query);
 };

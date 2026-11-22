@@ -110,7 +110,9 @@ export class CarouselState {
 			const root = api.rootNode().closest("section");
 
 			const leave = (event: FocusEvent) => {
-				if (!root?.contains(event.relatedTarget as Node | null)) {
+				const inside = event.relatedTarget instanceof Node && root?.contains(event.relatedTarget);
+
+				if (!inside) {
 					resume();
 				}
 			};

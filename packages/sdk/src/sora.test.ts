@@ -11,6 +11,7 @@ const clientAnswering = (answer: () => Response, options: { baseUrl?: string } =
 	const sora = new SoraClient({
 		baseUrl: options.baseUrl ?? "https://sora.test",
 		fetch: (input, init) => {
+			// SAFETY: the client under test always fetches with a URL string.
 			requests.push(new Request(input as string, init));
 
 			return Promise.resolve(answer());

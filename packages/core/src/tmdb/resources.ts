@@ -324,6 +324,7 @@ export const searchMovies = async (query: string): Promise<TmdbMovieResult[]> =>
 
 /** A show's details plus the appended `season/N` objects for the requested seasons. */
 const showPageSchema = (seasons: readonly number[]) =>
+	// SAFETY: Object.fromEntries loses the keys it builds; each is a `season/N` holding SeasonSchema.
 	z.object({
 		...ShowFields,
 		...Object.fromEntries(seasons.map((season) => [`season/${season}`, SeasonSchema.nullish()])),

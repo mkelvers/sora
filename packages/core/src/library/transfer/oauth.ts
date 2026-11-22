@@ -213,6 +213,7 @@ export const readAniListAccount = async (
 			});
 		}
 
+		// SAFETY: the response answers the document typed with TResult.
 		return ((await response.json()) as { data?: TResult }).data;
 	};
 

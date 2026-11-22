@@ -18,6 +18,7 @@ const fake = {
 };
 
 const respond = (_input: string, init: RequestInit) => {
+	// SAFETY: the client under test sends this body.
 	const { variables } = JSON.parse(String(init.body)) as {
 		variables: Pages;
 	};
@@ -193,6 +194,7 @@ test("splits a request over pages of 50, and fills a request before starting ano
 
 	expect(loaded.size).toBe(130);
 	expect(
+		// SAFETY: each page's IDs are a number array.
 		sent.map((variables) => [
 			(variables.ids0 as number[]).length,
 			(variables.ids1 as number[]).length,

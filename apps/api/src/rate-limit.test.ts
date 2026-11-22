@@ -42,7 +42,9 @@ describe("rateLimit", () => {
 
 		expect(limited.status).toBe(429);
 		expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);
-		expect(((await limited.json()) as { code: string }).code).toBe("TOO_MANY_REQUESTS");
+		expect(await limited.json()).toMatchObject({
+			code: "TOO_MANY_REQUESTS",
+		});
 		expect(await statusOf(routes, "b")).toBe(200);
 	});
 

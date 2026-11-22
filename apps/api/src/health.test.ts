@@ -36,6 +36,7 @@ const probe = async (routes: ReturnType<typeof healthRoutes>) => {
 	const response = await routes.request("/");
 
 	return {
+		// SAFETY: the health route's own answer.
 		body: (await response.json()) as {
 			status: string;
 			failing_jobs?: unknown[] | null;

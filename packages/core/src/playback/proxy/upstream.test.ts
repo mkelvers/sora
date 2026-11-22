@@ -80,6 +80,7 @@ const throttlingHost = (
 		port: 0,
 	});
 	const local = fake.server.url;
+	// SAFETY: the stand-in implements the (url, options, callback) form the code under test calls.
 	spyOn(http, "request").mockImplementation(((
 		url: URL,
 		options: http.RequestOptions,
@@ -149,7 +150,9 @@ describe("a host that rate-limits", () => {
 		const started = Date.now();
 		const failure = await fetchUpstream(playlist, null).catch((error: Error) => error);
 		expect(failure).toBeInstanceOf(StreamUpstreamError);
-		expect((failure as StreamUpstreamError).status).toBe(429);
+		expect(failure).toMatchObject({
+			status: 429,
+		});
 		expect(Date.now() - started).toBeLessThan(1000);
 		expect(host.requests()).toBe(1);
 	});
@@ -168,7 +171,9 @@ describe("a host that rate-limits", () => {
 			(error: Error) => error,
 		);
 
-		expect((failure as StreamUpstreamError).status).toBe(429);
+		expect(failure).toMatchObject({
+			status: 429,
+		});
 		expect(Date.now() - started).toBeLessThan(1500);
 	});
 

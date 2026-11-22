@@ -135,6 +135,7 @@ export const summarizeHealth = (
 						empty: row.empty,
 						failed: row.failed,
 						ok: row.ok,
+						// SAFETY: calls are only recorded under a ProviderOperation.
 						operation: row.operation as ProviderOperation,
 					};
 				})

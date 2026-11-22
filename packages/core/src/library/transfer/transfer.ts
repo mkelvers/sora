@@ -1,5 +1,6 @@
 import { inSequence } from "@sora/shared";
 import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "../../database/client";
 import {
@@ -455,6 +456,7 @@ export const listImportConnections = async (userId: string): Promise<ImportConne
 	return rows.map((row) => ({
 		account_name: row.accountName,
 		connected_at: row.connectedAt.toISOString(),
+		// SAFETY: connections are only stored for an AccountSource.
 		source: row.source as AccountSource,
 	}));
 };
@@ -488,8 +490,8 @@ export const undoImport = async (userId: string, importId: string): Promise<Impo
 			return;
 		}
 
-		const seriesIds = record.seriesIds as string[];
-		const episodes = record.episodes as [string, number, boolean][];
+		const seriesIds = z.array(z.string()).parse(record.seriesIds);
+		const episodes = z.array(z.tuple([z.string(), z.number(), z.boolean()])).parse(record.episodes);
 		await inSequence(chunks(episodes), async (batch) => {
 			const rows = JSON.stringify(
 				batch.map(([seriesId, episode, rewatch]) => ({

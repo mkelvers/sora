@@ -153,7 +153,7 @@ export class Search {
 	};
 
 	leave = (event: FocusEvent) => {
-		if (this.form?.contains(event.relatedTarget as Node | null)) {
+		if (event.relatedTarget instanceof Node && this.form?.contains(event.relatedTarget)) {
 			return;
 		}
 
@@ -166,16 +166,14 @@ export class Search {
 	};
 
 	shortcut = (event: KeyboardEvent) => {
-		const target = event.target as HTMLElement;
+		const { target } = event;
+		const modified = event.metaKey || event.ctrlKey || event.altKey;
 
-		if (
-			event.key !== "/" ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.altKey ||
-			target.isContentEditable ||
-			["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-		) {
+		const typing =
+			target instanceof HTMLElement &&
+			(target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+		if (event.key !== "/" || modified || typing) {
 			return;
 		}
 

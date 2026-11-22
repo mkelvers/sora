@@ -539,7 +539,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		await store.save(key, values);
 
-		// The envelope was validated; the payload shape is guaranteed by the schema.
+		// SAFETY: the envelope was validated, and the response answers the document typed with TResult.
 		return data as TResult;
 	};
 
@@ -569,7 +569,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		const stored = await store.find(key);
 
 		if (stored && stored.fetchedAt.getTime() + options.maxAgeMs > Date.now()) {
-			// Stored by this function from a response typed as TResult.
+			// SAFETY: stored by this function from a response typed as TResult.
 			return stored.data as TResult;
 		}
 
@@ -585,13 +585,14 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		if (error) {
 			if (stored) {
+				// SAFETY: the response answers the document typed with TResult.
 				return stored.data as TResult;
 			}
 
 			throw error;
 		}
 
-		// Stored by fetchAndStore from a response typed as TResult.
+		// SAFETY: stored by fetchAndStore from a response typed as TResult.
 		return data as TResult;
 	};
 
@@ -688,9 +689,9 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 				return;
 			}
 
-			// The envelope was validated; the payload shape is guaranteed by the schema.
 			const found = new Map<number, TMedia>();
 
+			// SAFETY: the envelope was validated, and the response answers the document typed with TResult.
 			for (const media of operation.media(data as TResult)) {
 				if (media) {
 					found.set(media.id, media);

@@ -10,6 +10,7 @@ const sent: number[] = [];
 const sentAt: number[] = [];
 
 const respond = (_input: string, init: RequestInit) => {
+	// SAFETY: the client under test sends this body.
 	sent.push(
 		(
 			JSON.parse(String(init.body)) as {

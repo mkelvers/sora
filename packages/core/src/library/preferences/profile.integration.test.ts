@@ -50,6 +50,7 @@ describe("profile preferences", () => {
 
 	test("rejects an update that is not valid", async () => {
 		await expect(
+			// SAFETY: an input the types reject on purpose.
 			updateProfilePreferences(profile, {
 				hide_spoilers: "yes",
 			} as never),
