@@ -248,10 +248,11 @@ export class SoraClient {
 	 *
 	 * @throws {SoraError} as {@link SoraClient.request} does.
 	 */
-	async requestWithMeta<TRoute extends Route>(
+	requestWithMeta<TRoute extends Route>(
 		route: TRoute,
-		...[input, options]: Args<TRoute>
-	): Promise<RequestBody<TRoute>> {
+		...args: Args<TRoute>
+	): Promise<RequestBody<TRoute>>;
+	async requestWithMeta<TRoute extends Route>(route: TRoute, ...[input, options]: Args<TRoute>) {
 		const { params, query, body } = InputSchema.parse(input ?? {});
 
 		const url = routeUrl(this.#options.baseUrl, route.path, params, query);
@@ -276,8 +277,7 @@ export class SoraClient {
 		const schema = route.responses[response.status]?.content?.["application/json"]?.schema;
 
 		if (!schema) {
-			// SAFETY: a status the contract documents without a body answers with none.
-			return undefined as RequestBody<TRoute>;
+			return;
 		}
 
 		const json = await attempt(response.json());
