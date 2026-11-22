@@ -53,6 +53,23 @@ cd packages/core
 bun run auth:create-account yourname
 ```
 
+## Deployment health
+
+Both Docker images probe their own `GET /live` with a three-second HTTP deadline. Docker exposes one health status per container, which Swarm can use to replace tasks. Keep healthcheck overrides on `/live` so temporary API or PostgreSQL outages do not trigger replica replacement. The API's existing `GET /health` still provides the signed-in provider and scheduler report.
+
+For readiness, the API checks PostgreSQL through its request pool with a one-second deadline. The API image also checks migration history and required columns at startup. Web gives its runtime `SORA_API_URL` two seconds to return HTTP 200 from `/ready` with `{"status":"ready","api_versions":[1]}`. Both readiness endpoints return 503 on failure.
+
+Check each candidate service before promoting it or marking its rollout complete. On the first rollout, pass the API check before deploying the web build that requires it.
+
+```sh
+bun run release:check api <candidate-api-base-url>
+bun run release:check web <candidate-web-base-url>
+```
+
+Run these from the candidate checkout with its dependencies installed. The API check allows two seconds and the web check allows three. Treat any nonzero exit as a failed gate. Check the candidate directly if a shared URL can still route to an older replica. The repo supplies the probes and the release command. The deploy operator or external automation must invoke the command. The image healthcheck alone confirms liveness.
+
+Keep version 1 in `api_versions` while the API supports version 1 web builds, even across releases. For a breaking change, deploy API support for both versions before switching web to the new version. Keep both until older web builds are out of service and the rollback window has closed. For the first rollout, roll web back before rolling the API back past the addition of `/ready`. No database migration or new environment variable is needed for these probes.
+
 ## Portfolio endpoint
 
 The optional portfolio endpoint `GET /v1/public/now-watching` requires `Authorization: Bearer <PORTFOLIO_TOKEN>`. Set `PORTFOLIO_TOKEN` and `NOW_WATCHING_PROFILE_ID` on the API container, as documented in `packages/core/.env.example`. Without the token it returns 404; without a profile it returns an empty list. It publishes only up to three display titles from unfinished viewing activity within 30 days, including active rewatches. Keep the token private and rotate it on both servers together.

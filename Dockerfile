@@ -58,7 +58,7 @@ COPY apps/api apps/api
 ENV HOST=0.0.0.0 PORT=3000
 USER bun
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/health'); process.exit(r.ok ? 0 : 1)"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/live', { redirect: 'manual', signal: AbortSignal.timeout(3000) }); process.exit(r.status === 200 ? 0 : 1)"
 CMD ["sh", "-c", "bun packages/core/src/database/migrate.ts && exec bun apps/api/src/main.ts"]
 
 # Reads episode stills for title cards and text, so none is shown with them.
@@ -133,6 +133,6 @@ USER bun
 # Room for a library import: a long history is a few megabytes of JSON.
 ENV HOST=0.0.0.0 PORT=3000 BODY_SIZE_LIMIT=25M
 EXPOSE 3000
-# A static file, so the check passes whether or not the API is up.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/robots.txt'); process.exit(r.ok ? 0 : 1)"
+# Keep Swarm's health status independent of temporary API and database outages.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD bun -e "const r = await fetch('http://127.0.0.1:3000/live', { redirect: 'manual', signal: AbortSignal.timeout(3000) }); process.exit(r.status === 200 ? 0 : 1)"
 CMD ["bun", "build/index.js"]

@@ -155,8 +155,13 @@ const withViewer: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = (input) =>
-	returnsToPopup(input.event.url) ? handover() : withViewer(input);
+export const handle: Handle = (input) => {
+	const routeId = input.event.route.id;
+	if (routeId === "/live" || routeId === "/ready") {
+		return input.resolve(input.event);
+	}
+	return returnsToPopup(input.event.url) ? handover() : withViewer(input);
+};
 
 export const handleError: HandleServerError = ({ error: thrown }) => {
 	if (thrown instanceof SoraError) {
