@@ -1,38 +1,17 @@
 import { attempt } from "@sora/shared";
 
-import { isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
+import { Download } from "./download";
+import type { Segment } from "./download";
 import type { StreamTarget } from "./token";
-import { fetchUpstreamBytes, StreamUpstreamError } from "./upstream";
+import { StreamUpstreamError } from "./upstream-error";
 
 /** Segments kept in memory, oldest dropped first. */
 const cacheBudgetBytes = 256 * 1024 * 1024;
-
-/** A segment ready to send, with any disguise already removed. */
-interface Segment {
-	bytes: Uint8Array<ArrayBuffer>;
-	contentType: string | null;
-}
 
 interface Position {
 	targets: StreamTarget[];
 	index: number;
 }
-
-const download = async (target: StreamTarget): Promise<Segment> => {
-	const { bytes: body, headers } = await fetchUpstreamBytes(target);
-	const disguised = isDisguisedSegment(body);
-	const contentType = headers.get("Content-Type");
-
-	return {
-		bytes: disguised ? unwrapDisguisedSegment(body) : body,
-		// Strict players (AVPlayer, ExoPlayer) reject the image type disguised
-		// segments arrive with, so restore the real one.
-		contentType:
-			disguised || (contentType && /^(?:image|text)\//iu.test(contentType))
-				? "video/mp2t"
-				: contentType,
-	};
-};
 
 /**
  * Segments fetched ahead of the player and kept in memory within
@@ -124,7 +103,7 @@ class Readahead {
 			return cached;
 		}
 
-		const pending = download(target);
+		const pending = new Download(target).segment();
 		this.#segments.set(target.url, pending);
 		attempt(this.#track(target, pending));
 

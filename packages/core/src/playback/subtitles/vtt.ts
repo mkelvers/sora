@@ -28,12 +28,14 @@ export const parseTimestamp = (value: string) => {
 	);
 };
 
-const pad = (value: number, length = 2) => String(value).padStart(length, "0");
-
 export const formatTimestamp = (seconds: number) => {
 	const milliseconds = Math.round(seconds * 1000);
+	const hours = String(Math.floor(milliseconds / 3_600_000)).padStart(2, "0");
+	const minutes = String(Math.floor(milliseconds / 60_000) % 60).padStart(2, "0");
+	const wholeSeconds = String(Math.floor(milliseconds / 1000) % 60).padStart(2, "0");
+	const fraction = String(milliseconds % 1000).padStart(3, "0");
 
-	return `${pad(Math.floor(milliseconds / 3_600_000))}:${pad(Math.floor(milliseconds / 60_000) % 60)}:${pad(Math.floor(milliseconds / 1000) % 60)}.${pad(milliseconds % 1000, 3)}`;
+	return `${hours}:${minutes}:${wholeSeconds}.${fraction}`;
 };
 
 /** The blocks of a WebVTT file, separated by blank lines. */

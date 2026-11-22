@@ -26,7 +26,8 @@ import {
 	warmStream,
 } from "../proxy/proxy";
 import type { Playlist, PlaylistReader } from "../proxy/proxy";
-import { mirrorsFor, StreamUpstreamError } from "../proxy/upstream";
+import { mirrorsFor } from "../proxy/upstream";
+import { StreamUpstreamError } from "../proxy/upstream-error";
 import { getSkipDetections, isSkipDetectionDue, skipDetectionKey } from "../skips/store";
 import type { SkipDetection, StoredSkipDetection } from "../skips/store";
 import { getRefinement, isRefinementDue, refinementKey } from "../subtitles/store";

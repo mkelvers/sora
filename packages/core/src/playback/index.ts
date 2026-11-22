@@ -9,7 +9,7 @@ export { isWebClientKey } from "./proxy/client-key";
 
 export { proxyStream } from "./proxy/proxy";
 
-export { StreamUpstreamError } from "./proxy/upstream";
+export { StreamUpstreamError } from "./proxy/upstream-error";
 
 export {
 	PlaybackRequestSchema,

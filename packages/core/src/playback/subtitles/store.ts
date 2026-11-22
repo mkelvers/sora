@@ -7,9 +7,6 @@ import { db } from "../../database/client";
 import { subtitleRefinement } from "../../database/schema/playback";
 import type { Refinement } from "./refine";
 
-/** How long after a failed attempt dub and sub are listened to again. */
-const retryAfterMs = 7 * day;
-
 /**
  * What identifies one dub and the sub its subtitles come from. Stream URLs
  * expire and hosts rotate, but a stream's path stays the same.
@@ -32,22 +29,31 @@ export const getRefinement = async (key: string) => {
 		return null;
 	}
 
+	/** `null` when the speech did not match the sub's script. */
+	let refinement: Refinement | null = null;
+
+	if (row.shifts && row.anchors) {
+		refinement = {
+			anchors: row.anchors,
+			shifts: row.shifts,
+		};
+	}
+
 	return {
 		attemptedAt: row.attemptedAt,
-		/** `null` when the speech did not match the sub's script. */
-		refinement:
-			row.shifts && row.anchors
-				? {
-						anchors: row.anchors,
-						shifts: row.shifts,
-					}
-				: null,
+		refinement,
 	};
 };
 
 /** Whether a pair has not been listened to, or failed long enough ago to try again. */
-export const isRefinementDue = (stored: Awaited<ReturnType<typeof getRefinement>>) =>
-	!stored || (!stored.refinement && Date.now() - stored.attemptedAt.getTime() >= retryAfterMs);
+export const isRefinementDue = (stored: Awaited<ReturnType<typeof getRefinement>>) => {
+	/** How long after a failed attempt dub and sub are listened to again. */
+	const retryAfterMs = 7 * day;
+
+	return (
+		!stored || (!stored.refinement && Date.now() - stored.attemptedAt.getTime() >= retryAfterMs)
+	);
+};
 
 /** Stores what listening found for a pair; `null` records that the speech did not match. */
 export const saveRefinement = async (key: string, refinement: Refinement | null) => {

@@ -8,8 +8,8 @@ import type { SkipSegment } from "../../models/playback";
 import type { ContentLanguage } from "../../models/series";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderStream, StreamProvider } from "../providers/provider";
-import { masterPlaylist } from "../proxy/playlist.fixture";
-import { StreamUpstreamError } from "../proxy/upstream";
+import { master } from "../proxy/playlist.fixture";
+import { StreamUpstreamError } from "../proxy/upstream-error";
 import { skipDetectionKey } from "../skips/store";
 import type { StoredSkipDetection } from "../skips/store";
 import type { getRefinement } from "../subtitles/store";
@@ -211,7 +211,7 @@ const dependencies: PlaybackDependencies = {
 		}
 
 		return Promise.resolve({
-			content: masterPlaylist(audioLanguages.get(url) ?? []),
+			content: master(audioLanguages.get(url) ?? []),
 			url,
 		});
 	},
@@ -973,7 +973,7 @@ describe("resolvePlayback", () => {
 				}
 
 				return Promise.resolve({
-					content: masterPlaylist([]),
+					content: master([]),
 					url,
 				});
 			},

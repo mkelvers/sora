@@ -1,10 +1,11 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 import { attempt } from "@sora/shared";
 import { z } from "zod";
 
 import { InvalidStreamTokenError } from "../../errors";
 import type { TimelineShift } from "../streams/align";
+import { Secret } from "./secret";
 
 /**
  * What the proxy should expect behind a token.
@@ -55,9 +56,6 @@ const StreamTargetSchema = z.object({
 	}),
 });
 
-const keyFrom = (secret: string) =>
-	createHash("sha256").update(`sora stream token\0${secret}`).digest();
-
 /**
  * Encodes a target as an opaque, URL-safe token, encrypted and authenticated
  * with a key made from `secret`.
@@ -69,7 +67,7 @@ const keyFrom = (secret: string) =>
  */
 export const signStreamTarget = (target: StreamTarget, secret: string) => {
 	const initializationVector = randomBytes(12);
-	const cipher = createCipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
+	const cipher = createCipheriv("aes-256-gcm", new Secret(secret).key, initializationVector);
 
 	const sealed = Buffer.concat([
 		cipher.update(
@@ -101,11 +99,7 @@ const tagLength = 16;
  * @throws {InvalidStreamTokenError} when the token is malformed, was
  *   not made with `secret`, or has expired.
  */
-export const verifyStreamToken = (
-	token: string,
-	secret: string,
-	now = new Date(),
-): StreamTarget => {
+export const verify = (token: string, secret: string, now = new Date()): StreamTarget => {
 	const [encodedVector, encodedSealed, ...rest] = token.split(".");
 
 	const malformed = !encodedVector || !encodedSealed || rest.length > 0;
@@ -122,7 +116,7 @@ export const verifyStreamToken = (
 	}
 
 	const { data: json, error: unsealError } = attempt(() => {
-		const decipher = createDecipheriv("aes-256-gcm", keyFrom(secret), initializationVector);
+		const decipher = createDecipheriv("aes-256-gcm", new Secret(secret).key, initializationVector);
 		decipher.setAuthTag(sealed.subarray(sealed.length - tagLength));
 
 		return Buffer.concat([

@@ -1,293 +1,18 @@
-import { lookup as lookupAddresses } from "node:dns/promises";
-import http from "node:http";
-import https from "node:https";
-import { isIP } from "node:net";
-import { Readable } from "node:stream";
-import { setTimeout as sleep } from "node:timers/promises";
-
-import { attempt, second, defined, firstInSequence, parseRetryAfter } from "@sora/shared";
+import { attempt, defined, firstInSequence, second } from "@sora/shared";
 import type { Attempt } from "@sora/shared";
 
-import { CoreError, InvalidStreamTokenError } from "../../errors";
-import { isBareImage } from "./segment";
-import type { StreamTarget, StreamTargetKind } from "./token";
+import { Hops } from "./hops";
+import type { Upstream, UpstreamBytes } from "./hops";
+import type { StreamTarget } from "./token";
+import { StreamUpstreamError } from "./upstream-error";
 
-const upstreamTimeoutMs = 15 * second;
+const defaultTimeoutMs = 15 * second;
 
 /** Segments arrive at about the stream's bitrate from a cold host, so they get longer. */
 const segmentTimeoutMs = 45 * second;
 
 /** How long a host may go without answering before the next candidate also starts. */
 const hedgeDelayMs = 1.5 * second;
-
-/** The proxied upstream could not be fetched. Retryable. */
-export class StreamUpstreamError extends CoreError {
-	readonly status: number | null;
-
-	constructor(message: string, status: number | null, options?: ErrorOptions) {
-		super("UPSTREAM_UNAVAILABLE", message, options);
-		this.name = "StreamUpstreamError";
-		this.status = status;
-	}
-}
-
-/** A successful upstream response. */
-export interface Upstream {
-	response: Response;
-	/** Final URL after redirects, used to resolve relative playlist URIs. */
-	url: string;
-}
-
-/** Whether an IP address is loopback, private, link-local, reserved, or multicast. */
-const isPrivateAddress = (address: string) => {
-	const version = isIP(address);
-
-	if (version === 4) {
-		return /^(?:0|10|127|169\.254|172\.(?:1[6-9]|2\d|3[01])|192\.168|192\.0\.0|198\.1[89]|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])|22[4-9]|2[3-5]\d)\./u.test(
-			address,
-		);
-	}
-
-	return version === 6 && /^(?:::1?$|f[cd]|fe[89ab]|ff|::ffff:)/iu.test(address);
-};
-
-/**
- * Rejects URLs the proxy must never fetch: non-HTTP schemes, loopback, and
- * private or link-local IP literals. Hostnames are vetted when the
- * connection is made; see {@link requestPublicHost}.
- *
- * Tokens are signed, but playlist URIs come from third-party servers, so a
- * hostile playlist could otherwise point the proxy at internal services.
- *
- * @throws {InvalidStreamTokenError} for a URL that is not public.
- */
-const assertPublicHttpUrl = (value: string) => {
-	const url = new URL(value);
-
-	if (url.protocol !== "https:" && url.protocol !== "http:") {
-		throw new InvalidStreamTokenError("Stream target must use HTTP");
-	}
-
-	const host = url.hostname.replaceAll(/^\[|\]$/gu, "").toLowerCase();
-
-	const local = host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal");
-
-	if (local) {
-		throw new InvalidStreamTokenError("Stream target is not a public host");
-	}
-
-	if (isIP(host) && isPrivateAddress(host)) {
-		throw new InvalidStreamTokenError("Stream target is not a public host");
-	}
-};
-
-/**
- * Resolves a hostname for a connection, refusing when any of its addresses
- * is not public. The connection uses these very addresses, so a server that
- * answers a name with a public address first and a private one next (DNS
- * rebinding) cannot steer it.
- */
-const respondToLookup = async (
-	host: string,
-	options: { all?: boolean },
-	respond: Parameters<NonNullable<http.RequestOptions["lookup"]>>[2],
-) => {
-	const { data: addresses, error } = await attempt(
-		lookupAddresses(host, {
-			...options,
-			all: true,
-		}),
-	);
-
-	if (error) {
-		respond(error, []);
-
-		return;
-	}
-
-	if (addresses.some(({ address }) => isPrivateAddress(address))) {
-		respond(new InvalidStreamTokenError("Stream target is not a public host"), []);
-
-		return;
-	}
-
-	if (options.all) {
-		respond(null, addresses);
-
-		return;
-	}
-
-	respond(null, defined(addresses[0]).address, defined(addresses[0]).family);
-};
-
-/**
- * Makes one request without following redirects, like `fetch(url, { redirect:
- * "manual" })`, but connecting only to public addresses.
- */
-const requestPublicHost = (
-	url: string,
-	headers: Headers,
-	signal: AbortSignal,
-): Promise<Response> => {
-	const { promise, resolve, reject } = Promise.withResolvers<Response>();
-	const target = new URL(url);
-	const outgoing = Object.fromEntries(headers);
-	const send = target.protocol === "https:" ? https.request : http.request;
-
-	const request = send(
-		target,
-		{
-			headers: {
-				Accept: "*/*",
-				"Accept-Encoding": "identity",
-				"User-Agent": `Bun/${Bun.version}`,
-				...outgoing,
-			},
-			lookup: (host, options, respond) => {
-				attempt(respondToLookup(host, options, respond));
-			},
-			signal,
-		},
-		(incoming) => {
-			const received = new Headers();
-
-			for (const [name, value] of Object.entries(incoming.headers)) {
-				for (const each of Array.isArray(value) ? value : [value]) {
-					if (each !== undefined) {
-						received.append(name, each);
-					}
-				}
-			}
-
-			const status = incoming.statusCode ?? 502;
-			const empty = status === 204 || status === 205 || status === 304;
-			resolve(
-				new Response(empty ? null : Readable.toWeb(incoming), {
-					headers: received,
-					status,
-					statusText: incoming.statusMessage,
-				}),
-			);
-		},
-	);
-
-	request.on("error", reject);
-	request.end();
-
-	return promise;
-};
-
-/**
- * Makes one request, and when the host answers 429, asks again once its
- * `Retry-After` has passed. A host that throttles a burst is up, and taking it
- * for down sent playback to a provider without skip segments, or to none.
- *
- * The 429 is returned as it is when the wait would be longer than
- * {@link maximumThrottleWaitMs}, or would outlast `endsAt` or `deadline`.
- */
-const requestWaitingOutThrottle = async (
-	url: string,
-	headers: Headers,
-	endsAt: number,
-	deadline: AbortSignal,
-): Promise<Response> => {
-	/** The shortest wait before asking a host that answered 429 again, so `Retry-After: 0` is not a busy loop. */
-	const minimumThrottleWaitMs = 0.5 * second;
-
-	/**
-	 * The longest a host's `Retry-After` is waited out before its 429 counts as a
-	 * failure. Stream hosts behind Cloudflare answer bursts with 429 and
-	 * `Retry-After: 2`, and serve again within seconds.
-	 */
-	const maximumThrottleWaitMs = 5 * second;
-
-	const { data, error } = await attempt(requestPublicHost(url, headers, deadline));
-
-	if (error) {
-		throw new StreamUpstreamError(`Upstream ${new URL(url).host} could not be reached`, null, {
-			cause: error,
-		});
-	}
-
-	if (data.status !== 429) {
-		return data;
-	}
-
-	const wait = Math.max(
-		parseRetryAfter(data.headers.get("Retry-After")) ?? 0,
-		minimumThrottleWaitMs,
-	);
-
-	if (wait > maximumThrottleWaitMs || Date.now() + wait >= endsAt) {
-		return data;
-	}
-
-	await data.body?.cancel();
-
-	const waited = await attempt(
-		sleep(wait, undefined, {
-			signal: deadline,
-		}),
-	);
-
-	if (waited.error) {
-		return data;
-	}
-
-	return await requestWaitingOutThrottle(url, headers, endsAt, deadline);
-};
-
-const fetchFollowingRedirects = async (
-	url: string,
-	headers: Headers,
-	timeoutMs: number,
-	signal?: AbortSignal,
-	redirects = 0,
-): Promise<Upstream> => {
-	const maximumRedirects = 5;
-
-	if (redirects > maximumRedirects) {
-		throw new StreamUpstreamError("Upstream stream redirected too many times", null);
-	}
-
-	assertPublicHttpUrl(url);
-
-	const data = await requestWaitingOutThrottle(
-		url,
-		headers,
-		Date.now() + timeoutMs,
-		signal
-			? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-			: AbortSignal.timeout(timeoutMs),
-	);
-
-	const location = data.headers.get("Location");
-
-	const redirected = data.status >= 300 && data.status < 400 && location;
-
-	if (redirected) {
-		// Each hop is re-checked, so a redirect cannot reach a private address.
-		return await fetchFollowingRedirects(
-			new URL(location, url).toString(),
-			headers,
-			timeoutMs,
-			signal,
-			redirects + 1,
-		);
-	}
-
-	if (!data.ok) {
-		throw new StreamUpstreamError(
-			`Upstream ${new URL(url).host} returned ${data.status}`,
-			data.status,
-		);
-	}
-
-	return {
-		response: data,
-		url,
-	};
-};
 
 /**
  * Fetches a target, falling back to its mirrors in order when the primary
@@ -296,7 +21,7 @@ const fetchFollowingRedirects = async (
  * @throws {StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
  */
-export const fetchUpstream = async (
+export const fetchTarget = async (
 	target: StreamTarget,
 	range: string | null,
 	signal?: AbortSignal,
@@ -307,24 +32,27 @@ export const fetchUpstream = async (
 		headers.set("Range", range);
 	}
 
-	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
+	let timeoutMs = defaultTimeoutMs;
 
-	const primary = await attempt(
-		fetchFollowingRedirects(target.url, headers, timeoutMs, signal),
-		StreamUpstreamError,
-	);
+	if (target.kind === "segment") {
+		timeoutMs = segmentTimeoutMs;
+	}
+
+	const hops = new Hops(headers, timeoutMs, signal);
+	const primary = await attempt(hops.follow(target.url), StreamUpstreamError);
 
 	if (!primary.error) {
 		return primary.data;
 	}
 
 	const fallback = await firstInSequence(target.mirrors, async (mirror) => {
-		const result = await attempt(
-			fetchFollowingRedirects(mirror, headers, timeoutMs, signal),
-			StreamUpstreamError,
-		);
+		const result = await attempt(hops.follow(mirror), StreamUpstreamError);
 
-		return result.error ? undefined : result.data;
+		if (result.error) {
+			return;
+		}
+
+		return result.data;
 	});
 
 	if (fallback) {
@@ -333,114 +61,6 @@ export const fetchUpstream = async (
 
 	// The primary host's failure is the one worth reporting.
 	throw primary.error;
-};
-
-/** A whole upstream body, read before any candidate host is trusted. */
-export interface UpstreamBytes {
-	bytes: Uint8Array<ArrayBuffer>;
-	headers: Headers;
-	/** Final URL after redirects, used to resolve relative playlist URIs. */
-	url: string;
-}
-
-/**
- * Reads a response's whole body, giving up as soon as it passes `maximumBytes`.
- * `received` is called each time bytes arrive.
- *
- * @throws {StreamUpstreamError} when the body is larger than `maximumBytes`.
- */
-export const readBounded = async (
-	response: Response,
-	maximumBytes: number,
-	received?: () => void,
-) => {
-	if (Number(response.headers.get("Content-Length")) > maximumBytes) {
-		await response.body?.cancel();
-		throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
-	}
-
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-
-	// Leaving the loop early, as by the throw below, cancels the stream.
-	for await (const chunk of response.body ?? []) {
-		total += chunk.byteLength;
-
-		if (total > maximumBytes) {
-			throw new StreamUpstreamError(`Upstream body is larger than ${maximumBytes} bytes`, null);
-		}
-
-		chunks.push(chunk);
-		received?.();
-	}
-
-	const bytes = new Uint8Array(total);
-	let offset = 0;
-
-	for (const chunk of chunks) {
-		bytes.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-
-	return bytes;
-};
-
-const readCandidate = async (
-	url: string,
-	kind: StreamTargetKind,
-	headers: Headers,
-	timeoutMs: number,
-	signal: AbortSignal,
-	answered: () => void,
-): Promise<UpstreamBytes> => {
-	/**
-	 * The most a body read in full may hold, by what it is. A host that sends
-	 * more is not serving that, and reading on would fill memory until the
-	 * timeout. A file is streamed, never read in full, so it has no limit.
-	 */
-	const maximumBodyBytes: Record<StreamTargetKind, number> = {
-		file: Number.POSITIVE_INFINITY,
-		key: 64 * 1024,
-		playlist: 4 * 1024 * 1024,
-		segment: 32 * 1024 * 1024,
-		subtitle: 4 * 1024 * 1024,
-	};
-
-	const upstream = await fetchFollowingRedirects(url, headers, timeoutMs, signal);
-	answered();
-
-	const body = await attempt(readBounded(upstream.response, maximumBodyBytes[kind], answered));
-
-	if (body.error) {
-		if (body.error instanceof StreamUpstreamError) {
-			throw body.error;
-		}
-
-		throw new StreamUpstreamError(`Upstream ${new URL(url).host} stopped sending`, null, {
-			cause: body.error,
-		});
-	}
-
-	const bytes = body.data;
-
-	// Stalling hosts sometimes close the connection instead, which reads as an empty body.
-	if (bytes.byteLength === 0) {
-		throw new StreamUpstreamError(`Upstream ${new URL(url).host} sent nothing`, null);
-	}
-
-	// Blocked hosts answer with an image of their own, often through a redirect.
-	if (kind === "segment" && isBareImage(bytes)) {
-		throw new StreamUpstreamError(
-			`Upstream ${new URL(url).host} sent an image, not a segment`,
-			null,
-		);
-	}
-
-	return {
-		bytes,
-		headers: upstream.response.headers,
-		url: upstream.url,
-	};
 };
 
 /**
@@ -456,7 +76,7 @@ const readCandidate = async (
  * @throws {StreamUpstreamError} with the primary host's failure when
  *   every candidate fails.
  */
-export const fetchUpstreamBytes = async (
+export const readTarget = async (
 	target: StreamTarget,
 	signal?: AbortSignal,
 ): Promise<UpstreamBytes> => {
@@ -469,10 +89,23 @@ export const fetchUpstreamBytes = async (
 
 	const candidates = [target.url, ...target.mirrors];
 	const headers = new Headers(target.headers);
-	const timeoutMs = target.kind === "segment" ? segmentTimeoutMs : upstreamTimeoutMs;
-	const bodyHedgeMs = target.kind === "segment" ? segmentStallMs : hedgeDelayMs;
+	let timeoutMs = defaultTimeoutMs;
+	let bodyHedgeMs = hedgeDelayMs;
+
+	if (target.kind === "segment") {
+		timeoutMs = segmentTimeoutMs;
+		bodyHedgeMs = segmentStallMs;
+	}
+
 	const losers = new AbortController();
-	const cancelled = AbortSignal.any(signal ? [signal, losers.signal] : [losers.signal]);
+	const watched = [losers.signal];
+
+	if (signal) {
+		watched.unshift(signal);
+	}
+
+	const cancelled = AbortSignal.any(watched);
+	const hops = new Hops(headers, timeoutMs, cancelled);
 
 	const { promise, resolve, reject } = Promise.withResolvers<UpstreamBytes>();
 	let launched = 0;
@@ -539,10 +172,7 @@ export const fetchUpstreamBytes = async (
 			}
 		};
 
-		void settle(
-			attempt(readCandidate(candidate, target.kind, headers, timeoutMs, cancelled, answered)),
-			launch,
-		);
+		void settle(attempt(hops.read(candidate, target.kind, answered)), launch);
 	};
 
 	launch();
