@@ -575,9 +575,11 @@ export const getShow = async (
 		const details = first ?? page;
 		const lastSeason = Math.max(...page.seasons.map((season) => season.season_number));
 
-		return lastSeason < firstSeason + seasonsPerRequest
-			? details
-			: await readSeasons(firstSeason + seasonsPerRequest, details);
+		if (lastSeason < firstSeason + seasonsPerRequest) {
+			return details;
+		}
+
+		return await readSeasons(firstSeason + seasonsPerRequest, details);
 	};
 
 	const details = await readSeasons(0, null);
