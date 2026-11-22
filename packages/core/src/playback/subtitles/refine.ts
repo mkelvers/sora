@@ -640,7 +640,9 @@ const tidy = (cues: Cue[], placed: Placed[]) => {
 		const previous = anchors.at(-1);
 		const together = before && defined(cues[next.cue]).start < defined(cues[before.cue]).end - 0.05;
 
-		if (previous && !together && next.movedStart < previous.movedEnd) {
+		const overlapping = previous && !together && next.movedStart < previous.movedEnd;
+
+		if (overlapping) {
 			previous.movedEnd = Math.max(previous.movedStart + 0.3, next.movedStart - 0.02);
 		}
 
