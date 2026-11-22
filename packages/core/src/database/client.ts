@@ -101,32 +101,6 @@ export const db = drizzle({
 	},
 });
 
-const readinessTimeoutMs = 1000;
-let readiness: Promise<boolean> | undefined;
-
-/**
- * Checks PostgreSQL through the pool used by API requests. Keep at most one
- * probe queued or running, even after the deadline, until the query settles.
- */
-export const databaseReady = (): Promise<boolean> => {
-	if (readiness) {
-		return readiness;
-	}
-
-	const timeout = Promise.withResolvers<boolean>();
-	const timer = setTimeout(timeout.resolve, readinessTimeoutMs, false);
-	const query = db.$client`select 1`.then(
-		() => true,
-		() => false,
-	);
-	readiness = Promise.race([query, timeout.promise]);
-	void query.finally(() => {
-		clearTimeout(timer);
-		readiness = undefined;
-	});
-	return readiness;
-};
-
 const schemaModules = [auth, catalog, library, playback, scheduler, series];
 
 /** The advisory lock replicas hold, one at a time, while they migrate. */

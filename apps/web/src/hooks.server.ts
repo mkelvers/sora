@@ -157,7 +157,7 @@ const withViewer: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = (input) => {
 	const routeId = input.event.route.id;
-	if (routeId === "/live" || routeId === "/ready") {
+	if (routeId === "/live") {
 		return input.resolve(input.event);
 	}
 	return returnsToPopup(input.event.url) ? handover() : withViewer(input);
