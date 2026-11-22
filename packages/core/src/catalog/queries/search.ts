@@ -115,7 +115,15 @@ const disambiguator = /\s*\((?:\d{4}|TV|OVA|ONA|Movie)\)\s*$/iu;
  */
 export const searchText = (titles: readonly (string | null)[]) => {
 	const normalized = [
-		...new Set(titles.flatMap((title) => (title ? [normalizeTitle(title)] : []))),
+		...new Set(
+			titles.flatMap((title) => {
+				if (title) {
+					return [normalizeTitle(title)];
+				}
+
+				return [];
+			}),
+		),
 	].filter((title) => title.length > 0);
 
 	const initials = titles.flatMap((title) =>
