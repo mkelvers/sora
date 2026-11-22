@@ -1,3 +1,5 @@
+import { attempt } from "@sora/shared";
+
 /** The episode and profile captured when a playback session starts. */
 export interface ProgressAddress {
 	readonly episode: number;
@@ -63,33 +65,33 @@ export class ProgressReports {
 	}
 
 	async #drain() {
-		this.#saving = true;
+		const next = this.#pending.shift();
 
-		for (let next = this.#pending.shift(); next; next = this.#pending.shift()) {
-			const { address, report } = next;
-			const retry = this.#failed?.address === address ? this.#failed.report : undefined;
-			const merged = mergeReports(report, retry);
-			let failed = false;
+		if (!next) {
+			this.#saving = false;
 
-			try {
-				// oxlint-disable-next-line no-await-in-loop -- Wait for the older write before sending the next.
-				await this.#save({
-					...address,
-					...merged,
-				});
-			} catch {
-				failed = true;
-			}
-
-			this.#failed = failed
-				? {
-						address,
-						report: merged,
-					}
-				: undefined;
-			this.#settled(address, failed);
+			return;
 		}
 
-		this.#saving = false;
+		this.#saving = true;
+		const { address, report } = next;
+		const retry = this.#failed?.address === address ? this.#failed.report : undefined;
+		const merged = mergeReports(report, retry);
+
+		const { error } = await attempt(
+			this.#save({
+				...address,
+				...merged,
+			}),
+		);
+
+		this.#failed = error
+			? {
+					address,
+					report: merged,
+				}
+			: undefined;
+		this.#settled(address, error !== null);
+		await this.#drain();
 	}
 }

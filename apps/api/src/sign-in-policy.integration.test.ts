@@ -135,9 +135,15 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 	test("shares the account ceiling across case, identifier, address and encoding", async () => {
 		clock.mockReturnValue(2 * minute);
 
-		for (let index = 1; index <= 59; index += 1) {
-			// oxlint-disable-next-line no-await-in-loop -- Keep one password hash in flight.
-			expect(await statusOf(signInUsername(`192.0.2.${index}`))).toBe(200);
+		// The generator resumes only after each status is read, so one password hash is in flight.
+		const signIns = async function* signIns() {
+			for (let index = 1; index <= 59; index += 1) {
+				yield statusOf(signInUsername(`192.0.2.${index}`));
+			}
+		};
+
+		for await (const status of signIns()) {
+			expect(status).toBe(200);
 		}
 
 		expect(await statusOf(signInEmail("192.0.2.60"))).toBe(200);
@@ -160,10 +166,17 @@ describe.skipIf(!databaseTestsEnabled())("password sign-in policy", () => {
 			username,
 		});
 
-		for (let index = 0; index < 10_000; index += 1) {
-			const address = `198.18.${Math.floor(index / 256)}.${index % 256}`;
-			// oxlint-disable-next-line no-await-in-loop -- Fill the buckets without a concurrency burst.
-			expect(await statusOf(signIn("username", address, malformed))).toBe(400);
+		// The generator resumes only after each status is read, so the buckets fill without a burst.
+		const fills = async function* fills() {
+			for (let index = 0; index < 10_000; index += 1) {
+				yield statusOf(
+					signIn("username", `198.18.${Math.floor(index / 256)}.${index % 256}`, malformed),
+				);
+			}
+		};
+
+		for await (const status of fills()) {
+			expect(status).toBe(400);
 		}
 
 		const limited = await signInUsername("203.0.113.20");
