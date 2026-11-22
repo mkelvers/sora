@@ -226,9 +226,11 @@ const overviewOf = (
 const releaseOrder = (entry: FranchiseEntry) => {
 	const date = entry.startDate;
 
-	return date?.year
-		? date.year * 10_000 + (date.month ?? 0) * 100 + (date.day ?? 0)
-		: Number.MAX_SAFE_INTEGER;
+	if (date?.year) {
+		return date.year * 10_000 + (date.month ?? 0) * 100 + (date.day ?? 0);
+	}
+
+	return Number.MAX_SAFE_INTEGER;
 };
 
 /** The release a franchise starts with: the earliest prequel of the earliest prequel, and so on. */
