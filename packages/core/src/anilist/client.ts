@@ -524,11 +524,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		);
 	};
 
-	const fetchAndStore = async <TResult, TVariables>(
-		key: string,
-		query: string,
-		variables: TVariables,
-	) => {
+	const fetchAndStore = async <TVariables>(key: string, query: string, variables: TVariables) => {
 		const data = await rateLimited(key, () => execute(query, variables));
 
 		const values = {
@@ -539,8 +535,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 
 		await store.save(key, values);
 
-		// SAFETY: the envelope was validated, and the response answers the document typed with TResult.
-		return data as TResult;
+		return data;
 	};
 
 	/**
@@ -579,7 +574,7 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		}
 
 		const { data, error } = await attempt(
-			inFlight.run(key, () => fetchAndStore<TResult, TVariables>(key, query, variables)),
+			inFlight.run(key, () => fetchAndStore(key, query, variables)),
 			UpstreamUnavailableError,
 		);
 
