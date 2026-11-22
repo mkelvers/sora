@@ -2,10 +2,10 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { MediaRelation } from "../anilist/graphql.generated";
-import { toAnimeCard } from "../catalog/models/anime";
+import { toCard } from "../catalog/models/anime";
 import type { AnimeCard, AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate, placeholder, synopsis } from "../catalog/models/text";
-import { getAnime, getStoredAnimeCards, mayGainEpisodes } from "../catalog/queries/anime";
+import { getAnime, getStoredCards, mayGainEpisodes } from "../catalog/queries/anime";
 import { db } from "../database/client";
 import { series } from "../database/schema/series";
 import { AnimeNotFoundError } from "../errors";
@@ -383,10 +383,10 @@ export const buildSeries = async (anilistId: number): Promise<SeriesLayout> => {
 	}
 
 	const mapping = await resolveMapping(entry);
-	const storedCards = await getStoredAnimeCards([anilistId]);
+	const storedCards = await getStoredCards([anilistId]);
 
 	const card = {
-		...(storedCards.get(anilistId) ?? toAnimeCard(entry)),
+		...(storedCards.get(anilistId) ?? toCard(entry)),
 		playbackEpisodes: await getAniKotoEpisodeCount(anilistId),
 	};
 

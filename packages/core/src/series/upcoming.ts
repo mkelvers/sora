@@ -3,7 +3,7 @@ import { and, eq, inArray, not, sql } from "drizzle-orm";
 
 import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
 import { fuzzyDate } from "../catalog/models/text";
-import { catalogFormatAllowed, catalogSeriesAllowed } from "../catalog/visibility";
+import { formatAllowed, catalogSeriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
@@ -59,7 +59,7 @@ const earliestReleased = async (anilistId: number) => {
 						and(
 							inArray(series.anilistId, franchise),
 							inArray(series.status, released),
-							catalogFormatAllowed(animeSearch.format),
+							formatAllowed(animeSearch.format),
 							catalogSeriesAllowed,
 						),
 					)

@@ -7,43 +7,43 @@
  * `asHtml: false`, label their parts (`OVA 1:`), and often end with
  * `(Source: Crunchyroll)` or a note on how the release was sold.
  */
-const namedEntities = new Map<string, string>(
-	Object.entries({
-		amp: "&",
-		apos: "'",
-		gt: ">",
-		hellip: "…",
-		ldquo: "“",
-		lsquo: "‘",
-		lt: "<",
-		mdash: "—",
-		nbsp: " ",
-		ndash: "–",
-		quot: '"',
-		rdquo: "”",
-		rsquo: "’",
-	}),
-);
+export const plain = (value: string) => {
+	const namedEntities = new Map<string, string>(
+		Object.entries({
+			amp: "&",
+			apos: "'",
+			gt: ">",
+			hellip: "…",
+			ldquo: "“",
+			lsquo: "‘",
+			lt: "<",
+			mdash: "—",
+			nbsp: " ",
+			ndash: "–",
+			quot: '"',
+			rdquo: "”",
+			rsquo: "’",
+		}),
+	);
 
-const decodeEntity = (entity: string, body: string) => {
-	if (body.startsWith("#x") || body.startsWith("#X")) {
-		return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
-	}
+	const decode = (entity: string, body: string) => {
+		if (body.startsWith("#x") || body.startsWith("#X")) {
+			return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
+		}
 
-	if (body.startsWith("#")) {
-		return String.fromCodePoint(Math.trunc(Number(body.slice(1))));
-	}
+		if (body.startsWith("#")) {
+			return String.fromCodePoint(Math.trunc(Number(body.slice(1))));
+		}
 
-	return namedEntities.get(body.toLowerCase()) ?? entity;
-};
+		return namedEntities.get(body.toLowerCase()) ?? entity;
+	};
 
-export const plainText = (value: string) =>
-	value
+	return value
 		.replaceAll(/<br\s*\/?>/giu, "\n")
 		.replaceAll(/<[^>]+>/gu, "")
 		.replaceAll(
 			/&(?<entity>#\d+|#x[\da-f]+|amp|lt|gt|quot|apos|nbsp|mdash|ndash|hellip|rsquo|lsquo|rdquo|ldquo);/giu,
-			decodeEntity,
+			decode,
 		)
 		.replace(/\s*[([]\s*(?:source|written by)\s*:[\s\S]*$/iu, "")
 		.replace(/^\s*note\s*:[^\n]*/iu, "")
@@ -52,32 +52,13 @@ export const plainText = (value: string) =>
 		.replaceAll(/[ \t]+\n/gu, "\n")
 		.replaceAll(/\n{3,}/gu, "\n\n")
 		.trim();
-
-/** The longest a {@link synopsis} runs unless told otherwise, in characters. */
-const synopsisLength = 320;
+};
 
 /**
  * The longest a synopsis for an about section runs, in characters: about 90
  * words, the most a one-paragraph synopsis holds before it reads as a summary.
  */
 export const aboutLength = 560;
-
-/** Splits text into sentences, keeping an initial such as `J. Smith` in its sentence. */
-const sentences = (text: string) => {
-	const found: string[] = [];
-
-	for (const part of text.replaceAll(/\s+/gu, " ").split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/u)) {
-		const previous = found.at(-1);
-
-		if (previous && /\b[A-Z]\.$/u.test(previous)) {
-			found[found.length - 1] = `${previous} ${part}`;
-		} else {
-			found.push(part);
-		}
-	}
-
-	return found;
-};
 
 /**
  * A sentence that only names the release or how it relates to another, such
@@ -88,21 +69,45 @@ export const placeholder =
 
 /**
  * A synopsis cut down to its premise: AniList's or TMDB's text as
- * {@link plainText}, in one paragraph, with as many of its opening sentences
- * as fit in `length` characters, {@link synopsisLength} unless told otherwise. The opening sets up the story; what follows is
+ * {@link plain}, in one paragraph, with as many of its opening sentences
+ * as fit in `length` characters, 320 unless told otherwise. The opening sets up the story; what follows is
  * mostly cast lists and subplots. A first sentence too long on its own is
  * cut at a word. A sentence that only names the release is left out
  * when the text has more to say.
  */
-export const synopsis = (value: string, length = synopsisLength) => {
-	const all = sentences(plainText(value));
+export const synopsis = (value: string, length = 320) => {
+	const all: string[] = [];
+
+	for (const part of plain(value)
+		.replaceAll(/\s+/gu, " ")
+		.split(/(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[A-Z])/u)) {
+		const previous = all.at(-1);
+
+		if (previous && /\b[A-Z]\.$/u.test(previous)) {
+			all[all.length - 1] = `${previous} ${part}`;
+		} else {
+			all.push(part);
+		}
+	}
+
 	const story = all.filter((sentence) => !placeholder.test(sentence));
-	const [first = "", ...rest] = story.length > 0 ? story : all;
+	let kept = all;
+
+	if (story.length > 0) {
+		kept = story;
+	}
+
+	const [first = "", ...rest] = kept;
 
 	if (first.length > length) {
+		let cut = length - 1;
 		const word = first.lastIndexOf(" ", length - 1);
 
-		return `${first.slice(0, word > 0 ? word : length - 1).trimEnd()}…`;
+		if (word > 0) {
+			cut = word;
+		}
+
+		return `${first.slice(0, cut).trimEnd()}…`;
 	}
 
 	let summary = first;

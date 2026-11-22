@@ -4,7 +4,7 @@ import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { anilist } from "../anilist/client";
 import { TagsDocument } from "../anilist/graphql.generated";
 import { zTagsQuery } from "../anilist/validation.generated";
-import { catalogFormatAllowed, tagMinimumRank } from "../catalog/visibility";
+import { formatAllowed, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { animeSearch, animeSearchTag } from "../database/schema/catalog";
 import type { Tag } from "../models/series";
@@ -13,7 +13,7 @@ import { carriedByAniKoto } from "./episodes";
 /** The index entries a client can browse to: not adult, not excluded, and carried by AniKoto. */
 const browsable = and(
 	eq(animeSearch.isAdult, false),
-	catalogFormatAllowed(animeSearch.format),
+	formatAllowed(animeSearch.format),
 	sql`${animeSearch.format} is distinct from 'MUSIC'`,
 	carriedByAniKoto,
 );

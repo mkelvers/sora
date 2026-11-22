@@ -1,348 +1,14 @@
-import { attempt, day, hour, minute, defined } from "@sora/shared";
-import { and, asc, desc, eq, gte, inArray, lte, max, notInArray, or, sql } from "drizzle-orm";
+import { day } from "@sora/shared";
+import { and, asc, desc, eq, max, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
-import { anilist } from "../../anilist/client";
-import { SearchIndexPageDocument } from "../../anilist/graphql.generated";
-import type { MediaSort, MediaSource, SearchIndexPageQuery } from "../../anilist/graphql.generated";
-import { zSearchIndexPageQuery } from "../../anilist/validation.generated";
 import { db } from "../../database/client";
-import { animeSearch, animeSearchTag, catalogSync } from "../../database/schema/catalog";
-import { UpstreamUnavailableError } from "../../errors";
-import {
-	catalogFormatAllowed,
-	matureGenres,
-	matureTagRank,
-	matureTags,
-	tagMinimumRank,
-} from "../visibility";
+import { animeSearch, catalogSync } from "../../database/schema/catalog";
 import type { BrowseQuery } from "./browse-query";
-
-type IndexedMedia = NonNullable<
-	NonNullable<NonNullable<SearchIndexPageQuery["Page"]>["media"]>[number]
->;
-
-/** AniList serves at most this many pages of 50 for one filter. */
-const pagesPerWindow = 100;
-
-/** One page of the catalogue, waiting out AniList's rate limit when it is hit. */
-const fetchIndexPage = async (
-	page: number,
-	sort: MediaSort[],
-	popularityBelow: number | undefined,
-	tries = 1,
-): Promise<SearchIndexPageQuery> => {
-	/**
-	 * Times a sync waits out AniList's rate limit on one page before giving up.
-	 * A full sync makes hundreds of requests, so it runs into the limit whenever
-	 * anything else on the host uses AniList meanwhile.
-	 */
-	const pageAttempts = 5;
-
-	const { data, error } = await attempt(
-		anilist(
-			SearchIndexPageDocument,
-			{
-				page,
-				popularityBelow,
-				sort,
-			},
-			zSearchIndexPageQuery,
-			{
-				// Long enough for a failed sync to resume where it stopped.
-				maxAgeMs: hour,
-			},
-		),
-		UpstreamUnavailableError,
-	);
-
-	if (!error) {
-		return data;
-	}
-
-	if (tries >= pageAttempts) {
-		throw error;
-	}
-
-	await Bun.sleep(error.retryAfterMs ?? minute);
-
-	return await fetchIndexPage(page, sort, popularityBelow, tries + 1);
-};
-
-/**
- * A title or query reduced for comparison: lowercase letters and digits, with
- * accents, punctuation, and spacing removed or collapsed, so "Re:ZERO",
- * "re zero", and "Re Zero" compare equal.
- */
-export const normalizeTitle = (title: string) =>
-	title
-		.normalize("NFKD")
-		.replaceAll(/\p{M}/gu, "")
-		.toLowerCase()
-		.replaceAll(/[×✕]/gu, " x ")
-		.replaceAll(/[^\p{L}\p{N}]+/gu, " ")
-		.trim();
-
-/**
- * The year or format AniList puts in parentheses after a title to tell a
- * remake from the original, as in "Hunter x Hunter (2011)" or "JoJo's
- * Bizarre Adventure (TV)". Nobody types it, so it does not count against a
- * match.
- */
-const disambiguator = /\s*\((?:\d{4}|TV|OVA|ONA|Movie)\)\s*$/iu;
-
-/**
- * The text the index matches queries against: every title in
- * {@link normalizeTitle}'s form, followed by the initials of each title of
- * two or more words, both with and without a {@link disambiguator}, which
- * {@link textScore} ignores: "ONE PIECE (Movie)" is found by `op` too.
- */
-export const searchText = (titles: readonly (string | null)[]) => {
-	const normalized = [
-		...new Set(
-			titles.flatMap((title) => {
-				if (title) {
-					return [normalizeTitle(title)];
-				}
-
-				return [];
-			}),
-		),
-	].filter((title) => title.length > 0);
-
-	const initials = titles.flatMap((title) =>
-		(title ? [title, title.replace(disambiguator, "")] : []).flatMap((spelling) => {
-			const words = normalizeTitle(spelling).split(" ");
-
-			if (words.length >= 2) {
-				return [words.map((word) => word[0]).join("")];
-			}
-
-			return [];
-		}),
-	);
-
-	return [...normalized, ...new Set(initials)].join(" | ");
-};
-
-/** How many scores AniList's ten buckets (10 to 100, ascending) put on each star: two buckets to a star. */
-const starsOf = (
-	distribution: readonly ({ amount: number | null } | null)[] | null | undefined,
-) => {
-	if (!distribution || distribution.length !== 10) {
-		return null;
-	}
-
-	return Array.from(
-		{ length: 5 },
-		(_, star) => (distribution[star * 2]?.amount ?? 0) + (distribution[star * 2 + 1]?.amount ?? 0),
-	);
-};
-
-/** Sources that name no earlier work for a story to come from. */
-const ownSources = new Set<MediaSource | null | undefined>([null, undefined, "ORIGINAL", "OTHER"]);
-
-/**
- * Where an entry's story comes from: the country of the work it adapts and
- * what that work adapts in turn, as AniList relates them. The anime of a
- * Korean comic of a web novel is made in Japan from a manga, but its story
- * is Korean and began as a web novel.
- */
-const originOf = (media: IndexedMedia) => {
-	const adapted = media.relations?.edges?.find((edge) => edge?.relationType === "SOURCE")?.node;
-
-	return {
-		originCountry: adapted?.countryOfOrigin ?? media.countryOfOrigin,
-		originSource: ownSources.has(adapted?.source) ? null : (adapted?.source ?? null),
-	};
-};
-
-const studioNames = (media: IndexedMedia) => [
-	...new Set(
-		(media.studios?.nodes ?? []).flatMap((studio) => {
-			if (studio) {
-				return [studio.name];
-			}
-
-			return [];
-		}),
-	),
-];
-
-const toRow = (media: IndexedMedia): typeof animeSearch.$inferInsert => {
-	const english = media.title?.english ?? null;
-	const romaji = media.title?.romaji ?? null;
-	const native = media.title?.native ?? null;
-
-	const synonyms = (media.synonyms ?? []).flatMap((synonym) => {
-		if (synonym?.trim()) {
-			return [synonym.trim()];
-		}
-
-		return [];
-	});
-
-	const start = media.startDate;
-
-	return {
-		anilistId: media.id,
-		averageScore: media.averageScore,
-		country: media.countryOfOrigin,
-		duration: media.duration,
-		english,
-		episodes: media.episodes,
-		format: media.format,
-		...originOf(media),
-		genres: (media.genres ?? []).flatMap((genre) => {
-			if (genre) {
-				return [genre];
-			}
-
-			return [];
-		}),
-		isAdult: media.isAdult === true,
-		native,
-		popularity: media.popularity ?? 0,
-		romaji,
-		scoreCount:
-			media.stats?.scoreDistribution?.reduce((total, bucket) => total + (bucket?.amount ?? 0), 0) ??
-			null,
-		scoreStars: starsOf(media.stats?.scoreDistribution),
-		searchText: searchText([english, romaji, native, ...synonyms]),
-		season: media.season,
-		seasonYear: media.seasonYear,
-		source: media.source,
-		startDate: start?.year
-			? [start.year, start.month, start.month ? start.day : null]
-					.flatMap((part) => {
-						if (part) {
-							return [String(part).padStart(2, "0")];
-						}
-
-						return [];
-					})
-					.join("-")
-			: null,
-		status: media.status,
-		studios: studioNames(media),
-		synonyms,
-		trending: media.trending ?? 0,
-		updatedAt: new Date((media.updatedAt ?? 0) * 1000),
-	};
-};
-
-const toTagRows = (media: IndexedMedia): (typeof animeSearchTag.$inferInsert)[] => [
-	...new Map(
-		(media.tags ?? []).flatMap((tag) => {
-			if (tag) {
-				return [
-					[
-						tag.name,
-						{
-							adult: tag.isAdult === true,
-							anilistId: media.id,
-							rank: tag.rank ?? 0,
-							spoiler: tag.isMediaSpoiler === true,
-							tag: tag.name,
-						},
-					] as const,
-				];
-			}
-
-			return [];
-		}),
-	).values(),
-];
-
-/**
- * Stores the tags of the given entries, removing those AniList no longer
- * lists for them and rewriting a stored one only when it changed.
- */
-const storeTags = async (anilistIds: number[], rows: (typeof animeSearchTag.$inferInsert)[]) => {
-	if (anilistIds.length === 0) {
-		return;
-	}
-
-	const kept = rows.map((row) => `${row.anilistId}:${row.tag}`);
-	await db.transaction(async (tx) => {
-		await tx
-			.delete(animeSearchTag)
-			.where(
-				and(
-					inArray(animeSearchTag.anilistId, anilistIds),
-					kept.length > 0
-						? notInArray(sql`${animeSearchTag.anilistId} || ':' || ${animeSearchTag.tag}`, kept)
-						: undefined,
-				),
-			);
-
-		if (rows.length === 0) {
-			return;
-		}
-
-		await tx
-			.insert(animeSearchTag)
-			.values(rows)
-			.onConflictDoUpdate({
-				set: {
-					adult: sql`excluded.adult`,
-					rank: sql`excluded.rank`,
-					spoiler: sql`excluded.spoiler`,
-				},
-				setWhere: sql`(${animeSearchTag.rank}, ${animeSearchTag.spoiler}, ${animeSearchTag.adult}) is distinct from (excluded.rank, excluded.spoiler, excluded.adult)`,
-				target: [animeSearchTag.anilistId, animeSearchTag.tag],
-			});
-	});
-};
-
-const toSnakeCase = (name: string) =>
-	name.replaceAll(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`);
-
-/**
- * Stores index rows, rewriting a stored row only when something in it
- * changed: a sync reads thousands of unchanged entries, and each rewrite
- * leaves a dead row and new trigram index entries behind.
- */
-const upsert = async (rows: (typeof animeSearch.$inferInsert)[]) => {
-	if (rows.length === 0) {
-		return 0;
-	}
-
-	const keys = Object.keys(rows[0] ?? {}).filter((key) => key !== "anilistId");
-	const columns = keys.map(toSnakeCase);
-	await db
-		.insert(animeSearch)
-		.values(rows)
-		.onConflictDoUpdate({
-			set: Object.fromEntries(keys.map((key) => [key, sql.raw(`excluded.${toSnakeCase(key)}`)])),
-			setWhere: sql.raw(
-				`(${columns.map((column) => `anime_search.${column}`).join(", ")}) is distinct from (${columns.map((column) => `excluded.${column}`).join(", ")})`,
-			),
-			target: animeSearch.anilistId,
-		});
-
-	return rows.length;
-};
-
-/** The search index's row in `catalog_sync`. */
-const catalogName = "anime_search";
-
-const markFullSync = async () => {
-	const values = {
-		fullSyncAt: new Date(),
-	};
-
-	await db
-		.insert(catalogSync)
-		.values({
-			catalog: catalogName,
-			...values,
-		})
-		.onConflictDoUpdate({
-			set: values,
-			target: catalogSync.catalog,
-		});
-};
+import { Filters } from "./filters";
+import { catalogName, Sync } from "./sync";
+import { disambiguator, normalize } from "./titles";
+import { Word } from "./word";
 
 /**
  * Brings the search index up to date with AniList.
@@ -380,85 +46,15 @@ export const syncSearchIndex = async (options: { full: boolean }) => {
 		.from(animeSearch);
 
 	const full = options.full || newest === null;
-	const cutoff = newest === null ? null : new Date(newest.getTime() - syncOverlapMs);
-	const sort: MediaSort[] = full ? ["POPULARITY_DESC", "ID"] : ["UPDATED_AT_DESC"];
+	let cutoff: Date | null = null;
 
-	let pages = 0;
-	let stored = 0;
+	if (newest !== null) {
+		cutoff = new Date(newest.getTime() - syncOverlapMs);
+	}
 
-	const readWindow = async (
-		popularityBelow: number | undefined,
-	): Promise<{
-		pages: number;
-		stored: number;
-	}> => {
-		let leastPopular: number | undefined;
+	const sync = new Sync(full, cutoff);
 
-		const readPage = async (
-			page: number,
-		): Promise<{
-			pages: number;
-			stored: number;
-		} | null> => {
-			const { Page } = await fetchIndexPage(page, sort, popularityBelow);
-			pages += 1;
-
-			const media = (Page?.media ?? []).flatMap((entry) => (entry ? [entry] : []));
-			const rows = media.map(toRow);
-			stored += await upsert(rows);
-			await storeTags(
-				rows.map((row) => row.anilistId),
-				media.flatMap(toTagRows),
-			);
-			leastPopular = rows.at(-1)?.popularity ?? leastPopular;
-
-			const isCaughtUp = !full && cutoff !== null && rows.every((row) => row.updatedAt < cutoff);
-
-			if (Page?.pageInfo?.hasNextPage !== true || isCaughtUp) {
-				if (full && !isCaughtUp) {
-					await markFullSync();
-				}
-
-				return {
-					pages,
-					stored,
-				};
-			}
-
-			if (page >= pagesPerWindow) {
-				return null;
-			}
-
-			return await readPage(page + 1);
-		};
-
-		const finished = await readPage(1);
-
-		if (finished) {
-			return finished;
-		}
-
-		// An incremental sync that has not caught up after a whole window has
-		// fallen too far behind; the weekly full sync covers the rest.
-		if (!full) {
-			return {
-				pages,
-				stored,
-			};
-		}
-
-		const nextBelow = (leastPopular ?? 0) + 1;
-
-		if (popularityBelow !== undefined && nextBelow >= popularityBelow) {
-			throw new Error(
-				`More than ${pagesPerWindow * 50} anime share popularity ${leastPopular}; the search index cannot page past them`,
-			);
-		}
-
-		return await readWindow(nextBelow);
-	};
-
-	return await readWindow(undefined);
+	return await sync.window(undefined);
 };
 
 /** Whether the search index is complete; once it is, it is only ever brought up to date, never emptied. */
@@ -495,129 +91,6 @@ export type SearchCandidate = Pick<
 	"anilistId" | "english" | "romaji" | "native" | "synonyms" | "popularity"
 >;
 
-/** The conditions of the tag filters: those a title must carry, those it must not, and mature content. */
-const tagConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
-	const conditions: SQL[] = [];
-
-	for (const tag of filters.tags ?? []) {
-		conditions.push(
-			sql`exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.tag} = ${tag} and ${animeSearchTag.rank} >= ${tagMinimumRank} and not ${animeSearchTag.spoiler})`,
-		);
-	}
-
-	if (filters.excludedTags?.length) {
-		conditions.push(
-			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${inArray(animeSearchTag.tag, filters.excludedTags)} and ${animeSearchTag.rank} >= ${tagMinimumRank})`,
-		);
-	}
-
-	if (filters.hideMature) {
-		conditions.push(
-			...matureGenres.map(
-				(genre) => sql`not ${animeSearch.genres} @> ${JSON.stringify([genre])}::text::jsonb`,
-			),
-			sql`not exists (select 1 from ${animeSearchTag} where ${animeSearchTag.anilistId} = ${animeSearch.anilistId} and ${animeSearchTag.rank} >= ${matureTagRank} and (${animeSearchTag.adult} or ${inArray(animeSearchTag.tag, [...matureTags])}))`,
-		);
-	}
-
-	return conditions;
-};
-
-/** The conditions of the filters on how a title was made and released. */
-const releaseConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
-	const conditions: SQL[] = [];
-
-	if (filters.studios?.length) {
-		conditions.push(
-			or(
-				...filters.studios.map(
-					(studio) => sql`${animeSearch.studios} @> ${JSON.stringify([studio])}::text::jsonb`,
-				),
-			) ?? sql`false`,
-		);
-	}
-
-	if (filters.sources?.length) {
-		conditions.push(
-			or(
-				inArray(animeSearch.source, filters.sources),
-				inArray(animeSearch.originSource, filters.sources),
-			) ?? sql`false`,
-		);
-	}
-
-	if (filters.countries?.length) {
-		conditions.push(
-			or(
-				inArray(animeSearch.country, filters.countries),
-				inArray(animeSearch.originCountry, filters.countries),
-			) ?? sql`false`,
-		);
-	}
-
-	const released = sql`coalesce(${animeSearch.seasonYear}, left(${animeSearch.startDate}, 4)::integer)`;
-
-	if (filters.yearFrom) {
-		conditions.push(sql`${released} >= ${filters.yearFrom}`);
-	}
-
-	if (filters.yearTo) {
-		conditions.push(sql`${released} <= ${filters.yearTo}`);
-	}
-
-	if (filters.minEpisodes) {
-		conditions.push(gte(animeSearch.episodes, filters.minEpisodes));
-	}
-
-	if (filters.maxEpisodes) {
-		conditions.push(lte(animeSearch.episodes, filters.maxEpisodes));
-	}
-
-	if (filters.minScore !== undefined) {
-		conditions.push(gte(animeSearch.averageScore, filters.minScore));
-	}
-
-	return conditions;
-};
-
-/**
- * The index rows the browse filters allow. Adult and short TV entries are
- * excluded. Music videos are returned only when `format` asks for them.
- */
-const indexConditions = (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
-	const conditions: SQL[] = [
-		eq(animeSearch.isAdult, false),
-		catalogFormatAllowed(animeSearch.format),
-	];
-
-	if (filters.format) {
-		conditions.push(inArray(animeSearch.format, filters.format));
-	} else {
-		// Music videos are not titles to watch; they are found only when asked for.
-		conditions.push(sql`${animeSearch.format} is distinct from 'MUSIC'`);
-	}
-
-	if (filters.status) {
-		conditions.push(eq(animeSearch.status, filters.status));
-	}
-
-	if (filters.season) {
-		conditions.push(eq(animeSearch.season, filters.season));
-	}
-
-	if (filters.seasonYear) {
-		conditions.push(eq(animeSearch.seasonYear, filters.seasonYear));
-	}
-
-	if (filters.genres?.length) {
-		conditions.push(sql`${animeSearch.genres} @> ${JSON.stringify(filters.genres)}::text::jsonb`);
-	}
-
-	conditions.push(...tagConditions(filters), ...releaseConditions(filters));
-
-	return conditions;
-};
-
 /**
  * Matches a normalized query shorter than {@link trigramLength} as a whole
  * word of the search text, or as two words run together, which covers every
@@ -641,104 +114,6 @@ export const shortQueryPattern = (query: string) => {
 	];
 
 	return `(^| )(${spellings.join("|")})( |$)`;
-};
-
-/**
- * The fewest letters inserted, removed, replaced, or swapped with their
- * neighbour that turn one word into the other.
- */
-const editDistance = (left: string, right: string) => {
-	const a = [...left];
-	const b = [...right];
-
-	const rows = Array.from(
-		{
-			length: a.length + 1,
-		},
-		(_, i) =>
-			Array.from(
-				{
-					length: b.length + 1,
-				},
-				(_cell, j) => {
-					if (i === 0 || j === 0) {
-						return Math.max(i, j);
-					}
-
-					return 0;
-				},
-			),
-	);
-
-	for (let i = 1; i <= a.length; i += 1) {
-		for (let j = 1; j <= b.length; j += 1) {
-			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-
-			let best = Math.min(
-				defined(defined(rows[i - 1])[j]) + 1,
-				defined(defined(rows[i])[j - 1]) + 1,
-				defined(defined(rows[i - 1])[j - 1]) + cost,
-			);
-
-			const transposed = i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1];
-
-			if (transposed) {
-				best = Math.min(best, defined(defined(rows[i - 2])[j - 2]) + 1);
-			}
-
-			defined(rows[i])[j] = best;
-		}
-	}
-
-	return defined(defined(rows[a.length])[b.length]);
-};
-
-/**
- * How many letters of a query word may be wrong: none in a short word, where
- * one letter makes another word, one in a word of five letters or more, and
- * two in one of nine or more.
- */
-const allowedTypos = (word: string) => {
-	if (word.length >= 9) {
-		return 2;
-	}
-
-	if (word.length >= 5) {
-		return 1;
-	}
-
-	return 0;
-};
-
-/**
- * How closely a query resembles a title as a mistyped version of it, from 0
- * to 1: every query word must be a title word with at most
- * {@link allowedTypos} letters wrong, or it is 0. Two words run together
- * count as one, so "rezero" resembles "re zero".
- *
- * Whole words are compared, not letter pairs across the title, so a word
- * that merely shares letters with the query does not match: "frieren" is
- * three edits from "friend", and finds no title about friends.
- */
-const resemblance = (queryWords: readonly string[], titleWords: readonly string[]) => {
-	const titleTokens = [
-		...titleWords,
-		...titleWords.slice(1).map((word, index) => `${titleWords[index]}${word}`),
-	];
-
-	let total = 0;
-
-	for (const queryWord of queryWords) {
-		const typos = Math.min(...titleTokens.map((token) => editDistance(queryWord, token)));
-
-		if (typos > allowedTypos(queryWord)) {
-			return 0;
-		}
-
-		total += 1 - typos / queryWord.length;
-	}
-
-	return total / queryWords.length;
 };
 
 /** How well one normalized title matches a normalized query, from 0 to 1. */
@@ -775,7 +150,32 @@ export const titleScore = (query: string, title: string) => {
 		return 0.85;
 	}
 
-	return 0.8 * resemblance(queryWords, titleWords);
+	// How closely the query resembles the title as a mistyped version of it,
+	// from 0 to 1: every query word must be a title word with at most its
+	// tolerance of letters wrong, or it is 0. Two words run together count as
+	// one, so "rezero" resembles "re zero". Whole words are compared, not
+	// letter pairs across the title, so a word that merely shares letters with
+	// the query does not match: "frieren" is three edits from "friend", and
+	// finds no title about friends.
+	const titleTokens = [
+		...titleWords,
+		...titleWords.slice(1).map((word, index) => `${titleWords[index]}${word}`),
+	];
+
+	let total = 0;
+
+	for (const queryWord of queryWords) {
+		const word = new Word(queryWord);
+		const typos = Math.min(...titleTokens.map((token) => word.distance(token)));
+
+		if (typos > word.tolerance) {
+			return 0;
+		}
+
+		total += 1 - typos / queryWord.length;
+	}
+
+	return 0.8 * (total / queryWords.length);
 };
 
 /** How well the best of an entry's titles matches a normalized query, from 0 to 1. */
@@ -798,29 +198,13 @@ export const textScore = (query: string, candidate: SearchCandidate) => {
 		...titles.flatMap(({ title, weight }) => {
 			if (title) {
 				return [title, title.replace(disambiguator, "")].map(
-					(spelling) => weight * titleScore(query, normalizeTitle(spelling)),
+					(spelling) => weight * titleScore(query, normalize(spelling)),
 				);
 			}
 
 			return [];
 		}),
 	);
-};
-
-type IndexedRow = typeof animeSearch.$inferSelect;
-
-const sortOrders: Record<
-	NonNullable<BrowseQuery["sort"]>,
-	(left: IndexedRow, right: IndexedRow) => number
-> = {
-	newest: (left, right) =>
-		(right.startDate ?? "").localeCompare(left.startDate ?? "") ||
-		right.popularity - left.popularity,
-	popular: (left, right) => right.popularity - left.popularity,
-	score: (left, right) =>
-		(right.averageScore ?? -1) - (left.averageScore ?? -1) || right.popularity - left.popularity,
-	title: (left, right) => (left.romaji ?? "").localeCompare(right.romaji ?? ""),
-	trending: (left, right) => right.trending - left.trending || right.popularity - left.popularity,
 };
 
 /**
@@ -851,7 +235,7 @@ export const rankCandidates = <TCandidate extends SearchCandidate>(
 	query: string,
 	candidates: readonly TCandidate[],
 ) => {
-	const normalized = normalizeTitle(query);
+	const normalized = normalize(query);
 
 	return candidates
 		.map((candidate) => ({
@@ -875,7 +259,7 @@ export const rankCandidates = <TCandidate extends SearchCandidate>(
  * {@link shortQueryPattern}. Those whose titles match well enough are ranked
  * by {@link rankCandidates}, or ordered by `sort` when one is given.
  */
-export const searchAnime = async (
+export const findAnime = async (
 	query: string,
 	filters: Omit<BrowseQuery, "search" | "page" | "perPage"> = {},
 ) => {
@@ -897,15 +281,35 @@ export const searchAnime = async (
 	/** Candidates read from the index per search, before ranking. */
 	const candidateLimit = 300;
 
-	const normalized = normalizeTitle(query);
+	/** How each `sort` orders the matches. */
+	const sortOrders: Record<
+		NonNullable<BrowseQuery["sort"]>,
+		(left: typeof animeSearch.$inferSelect, right: typeof animeSearch.$inferSelect) => number
+	> = {
+		newest: (left, right) =>
+			(right.startDate ?? "").localeCompare(left.startDate ?? "") ||
+			right.popularity - left.popularity,
+		popular: (left, right) => right.popularity - left.popularity,
+		score: (left, right) =>
+			(right.averageScore ?? -1) - (left.averageScore ?? -1) || right.popularity - left.popularity,
+		title: (left, right) => (left.romaji ?? "").localeCompare(right.romaji ?? ""),
+		trending: (left, right) => right.trending - left.trending || right.popularity - left.popularity,
+	};
+
+	const normalized = normalize(query);
 
 	if (normalized.length === 0) {
 		return [];
 	}
 
-	const conditions = indexConditions(filters);
+	const { conditions } = new Filters(filters);
 
 	const isShort = normalized.length < trigramLength;
+	let match = sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replaceAll(/[\\%_]/gu, (character) => `\\${character}`)}%`})`;
+
+	if (isShort) {
+		match = sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`;
+	}
 
 	const candidates = await db.transaction(async (tx) => {
 		await tx.execute(
@@ -915,14 +319,7 @@ export const searchAnime = async (
 		return tx
 			.select()
 			.from(animeSearch)
-			.where(
-				and(
-					...conditions,
-					isShort
-						? sql`${animeSearch.searchText} ~ ${shortQueryPattern(normalized)}`
-						: sql`(${animeSearch.searchText} %> ${normalized} or ${animeSearch.searchText} like ${`%${normalized.replaceAll(/[\\%_]/gu, (character) => `\\${character}`)}%`})`,
-				),
-			)
+			.where(and(...conditions, match))
 			.orderBy(
 				desc(sql`word_similarity(${normalized}, ${animeSearch.searchText})`),
 				desc(animeSearch.popularity),
@@ -942,18 +339,9 @@ export const searchAnime = async (
 	return rankCandidates(query, matches);
 };
 
-/** How {@link browseIndex} orders each `sort`, the entry's ID last so pages stay put. */
-const indexOrders: Record<NonNullable<BrowseQuery["sort"]>, SQL[]> = {
-	newest: [sql`${animeSearch.startDate} desc nulls last`, desc(animeSearch.popularity)],
-	popular: [desc(animeSearch.popularity)],
-	score: [sql`${animeSearch.averageScore} desc nulls last`, desc(animeSearch.popularity)],
-	title: [sql`${animeSearch.romaji} asc nulls last`],
-	trending: [desc(animeSearch.trending), desc(animeSearch.popularity)],
-};
-
 /**
  * Lists the first `limit` AniList entries of the index, ordered by `sort`
- * (trending when omitted) and filtered like {@link searchAnime}, and by
+ * (trending when omitted) and filtered like {@link findAnime}, and by
  * `where` when given. Reads only the database, so browsing never waits on
  * AniList or its rate limit.
  */
@@ -961,10 +349,20 @@ export const browseIndex = async (
 	filters: Omit<BrowseQuery, "search" | "page" | "perPage">,
 	limit: number,
 	where?: SQL,
-) =>
-	await db
+) => {
+	/** How each `sort` orders the entries, the entry's ID last so pages stay put. */
+	const orders: Record<NonNullable<BrowseQuery["sort"]>, SQL[]> = {
+		newest: [sql`${animeSearch.startDate} desc nulls last`, desc(animeSearch.popularity)],
+		popular: [desc(animeSearch.popularity)],
+		score: [sql`${animeSearch.averageScore} desc nulls last`, desc(animeSearch.popularity)],
+		title: [sql`${animeSearch.romaji} asc nulls last`],
+		trending: [desc(animeSearch.trending), desc(animeSearch.popularity)],
+	};
+
+	return await db
 		.select()
 		.from(animeSearch)
-		.where(and(...indexConditions(filters), where))
-		.orderBy(...indexOrders[filters.sort ?? "trending"], asc(animeSearch.anilistId))
+		.where(and(...new Filters(filters).conditions, where))
+		.orderBy(...orders[filters.sort ?? "trending"], asc(animeSearch.anilistId))
 		.limit(limit);
+};

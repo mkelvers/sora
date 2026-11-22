@@ -20,100 +20,133 @@ const ids = {
 	weakIsekai: base - 5,
 };
 
-const row = (
-	anilistId: number,
-	fields: Partial<typeof animeSearch.$inferInsert>,
-): typeof animeSearch.$inferInsert => ({
-	anilistId,
-	genres: [],
-	isAdult: false,
-	popularity: 1,
-	searchText: "browse filter fixture",
-	studios: [],
-	synonyms: [],
-	trending: 0,
-	updatedAt: new Date(),
-	...fields,
-});
+/** The fixture entries, found by browsing the search index. */
+class Entries {
+	readonly #ids: number[];
 
-const tag = (anilistId: number, name: string, rank: number, spoiler = false) => ({
-	adult: false,
-	anilistId,
-	rank,
-	spoiler,
-	tag: name,
-});
+	constructor(anilistIds: number[]) {
+		this.#ids = anilistIds;
+	}
 
-const found = async (filters: Omit<BrowseQuery, "search" | "page" | "perPage">) => {
-	const rows = await browseIndex(
-		{
-			sort: "title",
-			...filters,
-		},
-		50,
-		inArray(animeSearch.anilistId, Object.values(ids)),
-	);
+	/** The fixture entries `filters` finds, by AniList ID, highest first. */
+	async found(filters: Omit<BrowseQuery, "search" | "page" | "perPage">) {
+		const rows = await browseIndex(
+			{
+				sort: "title",
+				...filters,
+			},
+			50,
+			inArray(animeSearch.anilistId, this.#ids),
+		);
 
-	return rows.map((entry) => entry.anilistId).toSorted((left, right) => right - left);
-};
+		return rows.map((entry) => entry.anilistId).toSorted((left, right) => right - left);
+	}
+}
+
+const entries = new Entries(Object.values(ids));
 
 describe("browse filters", () => {
 	beforeAll(async () => {
-		await db.insert(animeSearch).values([
-			row(ids.isekai, {
-				country: "JP",
-				episodes: 12,
-				format: "TV",
-				source: "LIGHT_NOVEL",
-				startDate: "2019-04",
-				studios: ["MAPPA"],
-			}),
-			row(ids.ecchi, {
-				country: "KR",
-				episodes: 24,
-				format: "TV",
-				genres: ["Ecchi"],
-				seasonYear: 2011,
-				source: "MANGA",
-			}),
-			row(ids.harem, {
-				episodes: 30,
-				format: "TV",
-				seasonYear: 2020,
-			}),
-			row(ids.nudity, {
-				format: "TV",
-			}),
-			row(ids.spoiled, {
-				format: "TV",
-			}),
-			row(ids.weakIsekai, {
-				format: "TV",
-			}),
-			row(ids.adapted, {
-				country: "JP",
-				format: "ONA",
-				originCountry: "KR",
-				originSource: "WEB_NOVEL",
-				source: "MANGA",
-			}),
-		]);
-		await db
-			.insert(animeSearchTag)
-			.values([
-				tag(ids.isekai, "Isekai", 90),
-				tag(ids.isekai, "Gore", 20),
-				tag(ids.harem, "Isekai", 70),
-				tag(ids.harem, "Female Harem", 80),
-				tag(ids.nudity, "Nudity", 70),
-				tag(ids.spoiled, "Isekai", 95, true),
-				tag(ids.weakIsekai, "Isekai", 30),
-			]);
+		const rows: [number, Partial<typeof animeSearch.$inferInsert>][] = [
+			[
+				ids.isekai,
+				{
+					country: "JP",
+					episodes: 12,
+					format: "TV",
+					source: "LIGHT_NOVEL",
+					startDate: "2019-04",
+					studios: ["MAPPA"],
+				},
+			],
+			[
+				ids.ecchi,
+				{
+					country: "KR",
+					episodes: 24,
+					format: "TV",
+					genres: ["Ecchi"],
+					seasonYear: 2011,
+					source: "MANGA",
+				},
+			],
+			[
+				ids.harem,
+				{
+					episodes: 30,
+					format: "TV",
+					seasonYear: 2020,
+				},
+			],
+			[
+				ids.nudity,
+				{
+					format: "TV",
+				},
+			],
+			[
+				ids.spoiled,
+				{
+					format: "TV",
+				},
+			],
+			[
+				ids.weakIsekai,
+				{
+					format: "TV",
+				},
+			],
+			[
+				ids.adapted,
+				{
+					country: "JP",
+					format: "ONA",
+					originCountry: "KR",
+					originSource: "WEB_NOVEL",
+					source: "MANGA",
+				},
+			],
+		];
+
+		await db.insert(animeSearch).values(
+			rows.map(([anilistId, fields]): typeof animeSearch.$inferInsert => ({
+				anilistId,
+				genres: [],
+				isAdult: false,
+				popularity: 1,
+				searchText: "browse filter fixture",
+				studios: [],
+				synonyms: [],
+				trending: 0,
+				updatedAt: new Date(),
+				...fields,
+			})),
+		);
+
+		const tags: [number, string, number, boolean?][] = [
+			[ids.isekai, "Isekai", 90],
+			[ids.isekai, "Gore", 20],
+			[ids.harem, "Isekai", 70],
+			[ids.harem, "Female Harem", 80],
+			[ids.nudity, "Nudity", 70],
+			[ids.spoiled, "Isekai", 95, true],
+			[ids.weakIsekai, "Isekai", 30],
+		];
+
+		await db.insert(animeSearchTag).values(
+			tags.map(([anilistId, name, rank, spoiler = false]) => ({
+				adult: false,
+				anilistId,
+				rank,
+				spoiler,
+				tag: name,
+			})),
+		);
 	});
 
 	test("a tag finds entries it applies to strongly, never as a spoiler", async () => {
 		expect(
-			await found({
+			await entries.found({
 				tags: ["Isekai"],
 			}),
 		).toEqual([ids.isekai, ids.harem]);
@@ -121,7 +154,7 @@ describe("browse filters", () => {
 
 	test("an excluded tag leaves out entries it applies to", async () => {
 		expect(
-			await found({
+			await entries.found({
 				excludedTags: ["Female Harem"],
 				tags: ["Isekai"],
 			}),
@@ -129,7 +162,7 @@ describe("browse filters", () => {
 	});
 
 	test("hiding mature content leaves out ecchi and strong nudity, not a passing mention", async () => {
-		const shown = await found({
+		const shown = await entries.found({
 			hideMature: true,
 		});
 
@@ -140,17 +173,17 @@ describe("browse filters", () => {
 
 	test("studio, source, and country match the entry's own", async () => {
 		expect(
-			await found({
+			await entries.found({
 				studios: ["MAPPA"],
 			}),
 		).toEqual([ids.isekai]);
 		expect(
-			await found({
+			await entries.found({
 				sources: ["LIGHT_NOVEL"],
 			}),
 		).toEqual([ids.isekai]);
 		expect(
-			await found({
+			await entries.found({
 				countries: ["JP"],
 			}),
 		).toEqual([ids.isekai, ids.adapted]);
@@ -158,13 +191,13 @@ describe("browse filters", () => {
 
 	test("country and source also match where the story comes from", async () => {
 		expect(
-			await found({
+			await entries.found({
 				countries: ["KR"],
 				sources: ["WEB_NOVEL"],
 			}),
 		).toEqual([ids.adapted]);
 		expect(
-			await found({
+			await entries.found({
 				sources: ["MANGA"],
 			}),
 		).toEqual([ids.ecchi, ids.adapted]);
@@ -172,7 +205,7 @@ describe("browse filters", () => {
 
 	test("years read the start date when there is no season year", async () => {
 		expect(
-			await found({
+			await entries.found({
 				yearFrom: 2010,
 				yearTo: 2019,
 			}),
@@ -181,7 +214,7 @@ describe("browse filters", () => {
 
 	test("episode counts bound both ways", async () => {
 		expect(
-			await found({
+			await entries.found({
 				maxEpisodes: 26,
 				minEpisodes: 14,
 			}),
