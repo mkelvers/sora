@@ -517,7 +517,9 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		// That is a valid answer, not an outage, so it is returned as data.
 		const notFoundOnly = body.data.errors?.every((error) => error.status === 404) ?? false;
 
-		if (body.data.data && (response.data.ok || notFoundOnly)) {
+		const answered = body.data.data && (response.data.ok || notFoundOnly);
+
+		if (answered) {
 			const parsed = schema.safeParse(body.data.data);
 
 			if (!parsed.success) {
