@@ -32,9 +32,11 @@ export class Media {
 				(!this.languages.length || this.languages.includes(image.language ?? "none")),
 		);
 
-		return this.type === "logo"
-			? shown
-			: shown.toSorted((a, b) => b.width * b.height - a.width * a.height);
+		if (this.type === "logo") {
+			return shown;
+		}
+
+		return shown.toSorted((a, b) => b.width * b.height - a.width * a.height);
 	}
 
 	toggle(language: string) {
