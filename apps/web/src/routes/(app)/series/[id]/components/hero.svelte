@@ -137,7 +137,11 @@
 		});
 
 		if (series.next_episode.number === 1) {
-			return aired ? "Premiere available soon" : `Series premiere starts ${day}`;
+			if (aired) {
+				return "Premiere available soon";
+			}
+
+			return `Series premiere starts ${day}`;
 		}
 
 		return aired
