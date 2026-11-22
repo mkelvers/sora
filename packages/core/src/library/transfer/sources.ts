@@ -229,19 +229,21 @@ export const toMalEntry = (entry: {
 }): MalEntry | null => {
 	const status = malStatuses.get(entry.status.trim().toLowerCase());
 
-	return status
-		? {
-				...listDates({
-					finished: fromDayText(entry.finished),
-					started: fromDayText(entry.started),
-					updated: fromTimestamp(entry.updated),
-				}),
-				malId: entry.malId,
-				status,
-				through: status === "completed" ? null : entry.watched,
-				title: entry.title,
-			}
-		: null;
+	if (status) {
+		return {
+			...listDates({
+				finished: fromDayText(entry.finished),
+				started: fromDayText(entry.started),
+				updated: fromTimestamp(entry.updated),
+			}),
+			malId: entry.malId,
+			status,
+			through: status === "completed" ? null : entry.watched,
+			title: entry.title,
+		};
+	}
+
+	return null;
 };
 
 /**
