@@ -229,7 +229,7 @@ const seasonPostersOf = async (showId: number, maxAgeMs: number): Promise<Stored
 	return perSeason.flat();
 };
 
-const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> => {
+const fetchImages = async (key: string, maxAgeMs: number): Promise<StoredImage[]> => {
 	const [kind, id] = parseKey(key);
 
 	if (kind !== "tv" && kind !== "movie") {
@@ -259,7 +259,7 @@ const fetchImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImag
 };
 
 /** Fetches a title's images from TMDB, no older than `maxAgeMs`, and stores them in place of the old. */
-const storeImages = async (key: SeriesKey, maxAgeMs: number): Promise<StoredImage[]> => {
+const storeImages = async (key: string, maxAgeMs: number): Promise<StoredImage[]> => {
 	const images = await fetchImages(key, maxAgeMs);
 
 	await db.transaction(async (tx) => {
@@ -383,10 +383,9 @@ export const listSeriesImages = async (
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
 
-	// SAFETY: series keys are only stored as SeriesKeys.
 	const images = row.imagesFetchedAt
 		? await storedImagesOf(row.key)
-		: await storeImages(row.key as SeriesKey, day);
+		: await storeImages(row.key, day);
 
 	return await applyQuery(row.key, images, query);
 };
