@@ -1492,7 +1492,11 @@ export const placeInEpisodeGroups = (
 		}
 	}
 
-	return placements.size === 1 ? ([...placements.values()][0] ?? null) : null;
+	if (placements.size === 1) {
+		return [...placements.values()][0] ?? null;
+	}
+
+	return null;
 };
 
 /**
