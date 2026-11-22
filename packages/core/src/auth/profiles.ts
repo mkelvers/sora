@@ -1,6 +1,5 @@
 import { defined } from "@sora/shared";
 import { and, asc, count, eq } from "drizzle-orm";
-import type { z } from "zod";
 
 import { db } from "../database/client";
 import type { avatarStyle } from "../database/schema/auth";
@@ -18,6 +17,7 @@ import { InvalidInputError, LastProfileError, ProfileNotFoundError } from "../er
 import { newId } from "../ids";
 import { ProfileInputSchema } from "../models/profile";
 import type { Profile, ProfileInput } from "../models/profile";
+import { ProfileRow } from "./profile-row";
 
 export type AvatarStyle = (typeof avatarStyle.enumValues)[number];
 
@@ -33,17 +33,6 @@ const palette = [
 	"#3e63dd",
 ];
 
-const toProfile = (row: typeof profile.$inferSelect): Profile => ({
-	avatar: {
-		seed: row.avatarSeed,
-		style: row.avatarStyle,
-	},
-	color: row.color,
-	created_at: row.createdAt.toISOString(),
-	id: row.id,
-	name: row.name,
-});
-
 /** Lists an account's profiles, oldest first. */
 export const listProfiles = async (userId: string): Promise<Profile[]> => {
 	const rows = await db
@@ -52,7 +41,7 @@ export const listProfiles = async (userId: string): Promise<Profile[]> => {
 		.where(eq(profile.userId, userId))
 		.orderBy(asc(profile.createdAt), asc(profile.id));
 
-	return rows.map(toProfile);
+	return rows.map((row) => new ProfileRow(row).profile);
 };
 
 /**
@@ -60,33 +49,18 @@ export const listProfiles = async (userId: string): Promise<Profile[]> => {
  *
  * @throws {ProfileNotFoundError} when the account has no such profile.
  */
-export const getProfile = async (userId: string, profileId: string): Promise<Profile> => {
+export const getProfile = async (userId: string, id: string): Promise<Profile> => {
 	const [row] = await db
 		.select()
 		.from(profile)
-		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
+		.where(and(eq(profile.id, id), eq(profile.userId, userId)))
 		.limit(1);
 
 	if (!row) {
-		throw new ProfileNotFoundError(profileId);
+		throw new ProfileNotFoundError(id);
 	}
 
-	return toProfile(row);
-};
-
-const parse = <TSchema extends z.ZodType>(
-	schema: TSchema,
-	input: z.input<TSchema>,
-): z.output<TSchema> => {
-	const parsed = schema.safeParse(input);
-
-	if (!parsed.success) {
-		throw new InvalidInputError("Invalid profile", {
-			cause: parsed.error,
-		});
-	}
-
-	return parsed.data;
+	return new ProfileRow(row).profile;
 };
 
 /**
@@ -97,7 +71,15 @@ const parse = <TSchema extends z.ZodType>(
  * @throws {InvalidInputError} when the input fails {@link ProfileInputSchema}.
  */
 export const createProfile = async (userId: string, input: ProfileInput): Promise<Profile> => {
-	const { name, color, avatar } = parse(ProfileInputSchema, input);
+	const parsed = ProfileInputSchema.safeParse(input);
+
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid profile", {
+			cause: parsed.error,
+		});
+	}
+
+	const { name, color, avatar } = parsed.data;
 	const id = newId();
 
 	const [existing] = await db
@@ -119,7 +101,7 @@ export const createProfile = async (userId: string, input: ProfileInput): Promis
 		})
 		.returning();
 
-	return toProfile(defined(row));
+	return new ProfileRow(defined(row)).profile;
 };
 
 /**
@@ -130,10 +112,18 @@ export const createProfile = async (userId: string, input: ProfileInput): Promis
  */
 export const updateProfile = async (
 	userId: string,
-	profileId: string,
+	id: string,
 	input: Partial<ProfileInput>,
 ): Promise<Profile> => {
-	const { avatar, ...changes } = parse(ProfileInputSchema.partial(), input);
+	const parsed = ProfileInputSchema.partial().safeParse(input);
+
+	if (!parsed.success) {
+		throw new InvalidInputError("Invalid profile", {
+			cause: parsed.error,
+		});
+	}
+
+	const { avatar, ...changes } = parsed.data;
 
 	const [row] = await db
 		.update(profile)
@@ -144,14 +134,14 @@ export const updateProfile = async (
 				avatarStyle: avatar.style,
 			}),
 		})
-		.where(and(eq(profile.id, profileId), eq(profile.userId, userId)))
+		.where(and(eq(profile.id, id), eq(profile.userId, userId)))
 		.returning();
 
 	if (!row) {
-		throw new ProfileNotFoundError(profileId);
+		throw new ProfileNotFoundError(id);
 	}
 
-	return toProfile(row);
+	return new ProfileRow(row).profile;
 };
 
 /**
@@ -161,8 +151,8 @@ export const updateProfile = async (
  * @throws {ProfileNotFoundError} when the account has no such profile.
  * @throws {LastProfileError} when it is the account's only profile.
  */
-export const deleteProfile = async (userId: string, profileId: string) => {
-	await getProfile(userId, profileId);
+export const deleteProfile = async (userId: string, id: string) => {
+	await getProfile(userId, id);
 	await db.transaction(async (tx) => {
 		// Locks the account's profiles, so two deletions at once cannot remove the last two.
 		const profiles = await tx
@@ -174,16 +164,16 @@ export const deleteProfile = async (userId: string, profileId: string) => {
 			.for("update");
 
 		if (profiles.length <= 1) {
-			throw new LastProfileError(profileId);
+			throw new LastProfileError(id);
 		}
 
-		await tx.delete(episodeProgress).where(eq(episodeProgress.userId, profileId));
-		await tx.delete(seriesState).where(eq(seriesState.userId, profileId));
-		await tx.delete(notificationRead).where(eq(notificationRead.userId, profileId));
-		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, profileId));
-		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, profileId));
-		await tx.delete(profilePreference).where(eq(profilePreference.userId, profileId));
-		await tx.delete(featuredPick).where(eq(featuredPick.userId, profileId));
-		await tx.delete(profile).where(eq(profile.id, profileId));
+		await tx.delete(episodeProgress).where(eq(episodeProgress.userId, id));
+		await tx.delete(seriesState).where(eq(seriesState.userId, id));
+		await tx.delete(notificationRead).where(eq(notificationRead.userId, id));
+		await tx.delete(notificationDismissal).where(eq(notificationDismissal.userId, id));
+		await tx.delete(playbackPreference).where(eq(playbackPreference.userId, id));
+		await tx.delete(profilePreference).where(eq(profilePreference.userId, id));
+		await tx.delete(featuredPick).where(eq(featuredPick.userId, id));
+		await tx.delete(profile).where(eq(profile.id, id));
 	});
 };

@@ -7,7 +7,7 @@ import { config } from "../config";
 import { db } from "../database/client";
 import { authAccount, authSession, authUser, authVerification } from "../database/schema/auth";
 import { createProfile } from "./profiles";
-import { limitPasswordSignIn } from "./sign-in-policy";
+import { limitSignIn } from "./sign-in-policy";
 
 /**
  * Accounts and sessions, by username and password.
@@ -58,7 +58,7 @@ export const auth = betterAuth({
 		minPasswordLength: 8,
 	},
 	hooks: {
-		before: limitPasswordSignIn,
+		before: limitSignIn,
 	},
 	plugins: [bearer(), username()],
 	rateLimit: {
