@@ -307,12 +307,11 @@ const pickTitles = async ({
 	const newest = new Map<string, (typeof current)[number]>();
 
 	for (const entry of current) {
-		if (
-			entry.seriesId === null ||
-			entry.key === null ||
-			!entry.isDrawable ||
-			skipped.has(entry.key)
-		) {
+		if (entry.seriesId === null || entry.key === null) {
+			continue;
+		}
+
+		if (!entry.isDrawable || skipped.has(entry.key)) {
 			continue;
 		}
 
