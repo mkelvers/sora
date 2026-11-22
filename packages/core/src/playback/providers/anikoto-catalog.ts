@@ -316,7 +316,11 @@ export const syncAniKotoCatalog = async (
 			const row = parseCatalogSeries(item);
 			isEverySeriesRead &&= row !== null;
 
-			return row ? [row] : [];
+			if (row) {
+				return [row];
+			}
+
+			return [];
 		});
 
 		seen.push(...rows.map((row) => row.anikotoId));
