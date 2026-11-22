@@ -563,7 +563,12 @@ const baseShifts = (picture: TimelineShift[] | null, voted: TimelineShift[]) => 
 const showFor = (cue: Cue, index: number, words: SpokenWord[], first: number, last: number) => {
 	const movedStart = Math.max(0, defined(words[first]).start - lead);
 
-	const readable = Math.min(cue.end - cue.start, Math.max(1, cue.text.length / readingRate));
+	const minimumSeconds = 1;
+
+	const readable = Math.min(
+		cue.end - cue.start,
+		Math.max(minimumSeconds, cue.text.length / readingRate),
+	);
 
 	return {
 		cue: index,
