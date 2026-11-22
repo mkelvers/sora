@@ -65,7 +65,7 @@ const languageOrder: Record<ContentLanguage, number> = {
  * Only providers whose lists say truthfully which languages an episode has
  * count, and a unit that does not say is left out rather than guessed.
  */
-export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion[] => {
+export const offered = (listings: readonly ListedUnit[]): EpisodeVersion[] => {
 	const versions = new Map<string, EpisodeVersion>();
 
 	for (const { source, unit } of listings) {
@@ -74,9 +74,15 @@ export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion
 		}
 
 		for (const language of unit.languages ?? []) {
+			let locale: string | null = source.locale;
+
+			if (language === "raw") {
+				locale = null;
+			}
+
 			const version = {
 				language,
-				locale: language === "raw" ? null : source.locale,
+				locale,
 			};
 
 			versions.set(`${version.language}:${version.locale}`, version);
@@ -91,68 +97,12 @@ export const versionsOffered = (listings: readonly ListedUnit[]): EpisodeVersion
 };
 
 /**
- * The languages among `versions`, in the order {@link versionsOffered} sorts
+ * The languages among `versions`, in the order {@link offered} sorts
  * them, without their locales.
  */
 export const languagesOf = (versions: readonly EpisodeVersion[]): ContentLanguage[] => [
 	...new Set(versions.map((version) => version.language)),
 ];
-
-/** The providers whose lists say truthfully which languages the served locale has. */
-const listingSources = (providers: readonly StreamProvider[]) =>
-	providers.filter((source) => source.listsLanguages && source.locale === servedLocale);
-
-/**
- * First lookups in flight, keyed by AniList ID, so listings made while one
- * is running wait on it instead of starting another.
- */
-const lookupsInFlight = new InFlight<number, StoredUnits[]>();
-
-/**
- * Looks an anime up on `sources` at once and stores their lists. Leaves out
- * the providers that fail, and every provider when the anime cannot be
- * loaded.
- */
-const lookUpNow = (
-	anilistId: number,
-	sources: readonly StreamProvider[],
-	dependencies: VersionDependencies,
-): Promise<StoredUnits[]> =>
-	lookupsInFlight.run(anilistId, async () => {
-		const anime = await attempt(
-			dependencies.getAnime(anilistId),
-			AnimeNotFoundError,
-			UpstreamUnavailableError,
-		);
-
-		if (anime.error) {
-			return [];
-		}
-
-		const found = await Promise.all(
-			sources.map(async (provider) => {
-				const { data, error } = await attempt(dependencies.getProviderUnits(anime.data, provider));
-
-				if (error) {
-					console.warn(
-						`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
-					);
-
-					return [];
-				}
-
-				return [
-					{
-						anilistId,
-						provider: provider.id,
-						units: data,
-					},
-				];
-			}),
-		);
-
-		return found.flat();
-	});
 
 /** Episode lists stored for one anime. */
 interface AnimeListings {
@@ -161,82 +111,148 @@ interface AnimeListings {
 	pending: boolean;
 }
 
-/** One anime's episode lists among `stored`, from `sources`. */
-const listingsOf = (
-	anilistId: number,
-	stored: readonly StoredUnits[],
-	sources: readonly StreamProvider[],
-): AnimeListings => {
-	const found = sources.map((source) => ({
-		source,
-		units: stored.find((entry) => entry.anilistId === anilistId && entry.provider === source.id)
-			?.units,
-	}));
+/** The episode lists of anime, read and looked up through `dependencies`. */
+class Listings {
+	/**
+	 * First lookups in flight, keyed by AniList ID, so listings made while one
+	 * is running wait on it instead of starting another.
+	 */
+	static readonly #inFlight = new InFlight<number, StoredUnits[]>();
 
-	return {
-		listings: found.flatMap(({ source, units }) =>
-			(units ?? []).map((unit) => ({
-				source,
-				unit,
-			})),
-		),
-		pending: found.some(({ units }) => units === undefined),
-	};
-};
+	readonly #dependencies: VersionDependencies;
 
-/**
- * The episode lists of each anime from the providers that list languages
- * truthfully.
- *
- * With `lookUpUnknown`, an anime no provider has been looked up for yet is
- * looked up on the spot, once; its lists are stored, and later calls only
- * read them. Every provider still missing, such as one that failed, is left
- * to the scheduler at the caller's priority, with waiting viewers first.
- */
-const readAnimeListings = async (
-	anilistIds: readonly number[],
-	options: {
-		lookUpUnknown: boolean;
-		/** Card backfills run after listings a viewer is waiting on. */
-		priority?: "current" | "waiting";
-	},
-	dependencies: VersionDependencies,
-): Promise<Map<number, AnimeListings>> => {
-	const sources = listingSources(dependencies.providers);
-	const ids = [...new Set(anilistIds)];
-
-	const stored = await dependencies.getStoredUnits(
-		ids,
-		sources.map((source) => source.id),
-	);
-
-	if (options.lookUpUnknown) {
-		const neverLookedUp = ids.filter(
-			(anilistId) => !stored.some((entry) => entry.anilistId === anilistId),
-		);
-
-		for (const found of await Promise.all(
-			neverLookedUp.map((anilistId) => lookUpNow(anilistId, sources, dependencies)),
-		)) {
-			stored.push(...found);
-		}
+	constructor(dependencies: VersionDependencies) {
+		this.#dependencies = dependencies;
 	}
 
-	const byId = new Map(ids.map((anilistId) => [anilistId, listingsOf(anilistId, stored, sources)]));
+	/** The providers whose lists say truthfully which languages the served locale has. */
+	get sources() {
+		return this.#dependencies.providers.filter(
+			(source) => source.listsLanguages && source.locale === servedLocale,
+		);
+	}
 
-	await dependencies.scheduleEpisodeLookups(
-		[...byId].flatMap(([anilistId, listed]) => {
-			if (listed.pending) {
-				return [anilistId];
+	/**
+	 * The episode lists of each anime from the providers that list languages
+	 * truthfully.
+	 *
+	 * With `lookUpUnknown`, an anime no provider has been looked up for yet is
+	 * looked up on the spot, once; its lists are stored, and later calls only
+	 * read them. Every provider still missing, such as one that failed, is left
+	 * to the scheduler at the caller's priority, with waiting viewers first.
+	 */
+	async read(
+		anilistIds: readonly number[],
+		options: {
+			lookUpUnknown: boolean;
+			/** Card backfills run after listings a viewer is waiting on. */
+			priority?: "current" | "waiting";
+		},
+	): Promise<Map<number, AnimeListings>> {
+		const { sources } = this;
+		const dependencies = this.#dependencies;
+		const ids = [...new Set(anilistIds)];
+
+		const stored = await dependencies.getStoredUnits(
+			ids,
+			sources.map((source) => source.id),
+		);
+
+		if (options.lookUpUnknown) {
+			const neverLookedUp = ids.filter(
+				(anilistId) => !stored.some((entry) => entry.anilistId === anilistId),
+			);
+
+			for (const found of await Promise.all(
+				neverLookedUp.map((anilistId) => this.#lookUp(anilistId, sources)),
+			)) {
+				stored.push(...found);
+			}
+		}
+
+		const byId = new Map(
+			ids.map((anilistId): [number, AnimeListings] => {
+				const found = sources.map((source) => ({
+					source,
+					units: stored.find(
+						(entry) => entry.anilistId === anilistId && entry.provider === source.id,
+					)?.units,
+				}));
+
+				return [
+					anilistId,
+					{
+						listings: found.flatMap(({ source, units }) =>
+							(units ?? []).map((unit) => ({
+								source,
+								unit,
+							})),
+						),
+						pending: found.some(({ units }) => units === undefined),
+					},
+				];
+			}),
+		);
+
+		await dependencies.scheduleEpisodeLookups(
+			[...byId].flatMap(([anilistId, listed]) => {
+				if (listed.pending) {
+					return [anilistId];
+				}
+
+				return [];
+			}),
+			options.priority ?? "waiting",
+		);
+
+		return byId;
+	}
+
+	/**
+	 * Looks an anime up on `sources` at once and stores their lists. Leaves out
+	 * the providers that fail, and every provider when the anime cannot be
+	 * loaded.
+	 */
+	#lookUp(anilistId: number, sources: readonly StreamProvider[]): Promise<StoredUnits[]> {
+		return Listings.#inFlight.run(anilistId, async () => {
+			const anime = await attempt(
+				this.#dependencies.getAnime(anilistId),
+				AnimeNotFoundError,
+				UpstreamUnavailableError,
+			);
+
+			if (anime.error) {
+				return [];
 			}
 
-			return [];
-		}),
-		options.priority ?? "waiting",
-	);
+			const found = await Promise.all(
+				sources.map(async (provider) => {
+					const { data, error } = await attempt(
+						this.#dependencies.getProviderUnits(anime.data, provider),
+					);
 
-	return byId;
-};
+					if (error) {
+						console.warn(
+							`${provider.id} could not list the episodes of anime ${anilistId}: ${error.message}`,
+						);
+
+						return [];
+					}
+
+					return [
+						{
+							anilistId,
+							provider: provider.id,
+							units: data,
+						},
+					];
+				}),
+			);
+
+			return found.flat();
+		});
+	}
+}
 
 /**
  * Lists the versions of one AniList episode that providers offer, for
@@ -246,23 +262,17 @@ const readAnimeListings = async (
  * the episode, so an anime no provider has been looked up for yet is looked
  * up on the spot, once; after that the scheduler keeps its lists current.
  */
-export const getEpisodeVersions = async (
+export const watchable = async (
 	episode: Pick<LocatedEpisode, "anilistId" | "number">,
 	dependencies: VersionDependencies = live,
 ): Promise<EpisodeVersion[]> => {
-	const listings = await readAnimeListings(
-		[episode.anilistId],
-		{
-			lookUpUnknown: true,
-		},
-		dependencies,
-	);
+	const listings = await new Listings(dependencies).read([episode.anilistId], {
+		lookUpUnknown: true,
+	});
 
 	const listed = listings.get(episode.anilistId);
 
-	return versionsOffered(
-		listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? [],
-	);
+	return offered(listed?.listings.filter(({ unit }) => unit.number === episode.number) ?? []);
 };
 
 /**
@@ -313,24 +323,34 @@ export const findEpisodeListings = async (
 	}[],
 	dependencies: VersionDependencies = live,
 ): Promise<Map<string, EpisodeListing>> => {
-	const listingsById = await readAnimeListings(
+	const listingsById = await new Listings(dependencies).read(
 		episodes.map((episode) => episode.anilistId),
 		{
 			lookUpUnknown: false,
 		},
-		dependencies,
 	);
 
 	const found = new Map<string, EpisodeListing>();
 
 	for (const { anilistId, episode } of episodes) {
 		const listed = listingsById.get(anilistId);
-		const listings = listed ? listed.listings.filter(({ unit }) => unit.number === episode) : [];
-		const versions = versionsOffered(listings);
+		const listings = listed?.listings.filter(({ unit }) => unit.number === episode) ?? [];
+		const versions = offered(listings);
 		const isKnown = !!listed && !(versions.length === 0 && listed.pending);
-		found.set(anilistEpisodeKey(anilistId, episode), {
-			isFiller: isKnown ? fillerOf(listings) : null,
-			languages: isKnown ? languagesOf(versions) : null,
+		const key = anilistEpisodeKey(anilistId, episode);
+
+		if (!isKnown) {
+			found.set(key, {
+				isFiller: null,
+				languages: null,
+			});
+
+			continue;
+		}
+
+		found.set(key, {
+			isFiller: fillerOf(listings),
+			languages: languagesOf(versions),
 		});
 	}
 
@@ -350,7 +370,7 @@ export const findAnimeLanguages = async (
 	anilistIds: readonly number[],
 	dependencies: VersionDependencies = live,
 ): Promise<Map<number, ContentLanguage[]>> => {
-	const sources = listingSources(dependencies.providers);
+	const { sources } = new Listings(dependencies);
 	const ids = [...new Set(anilistIds)];
 
 	const stored = await dependencies.getStoredLanguages(
@@ -359,13 +379,13 @@ export const findAnimeLanguages = async (
 	);
 
 	const looked = new Map<number, Set<string>>();
-	const offered = new Map<number, Set<ContentLanguage>>();
+	const offering = new Map<number, Set<ContentLanguage>>();
 
 	for (const entry of stored) {
 		looked.set(entry.anilistId, (looked.get(entry.anilistId) ?? new Set()).add(entry.provider));
-		offered.set(
+		offering.set(
 			entry.anilistId,
-			new Set([...(offered.get(entry.anilistId) ?? []), ...entry.languages]),
+			new Set([...(offering.get(entry.anilistId) ?? []), ...entry.languages]),
 		);
 	}
 
@@ -377,7 +397,7 @@ export const findAnimeLanguages = async (
 	return new Map(
 		ids.map((anilistId) => [
 			anilistId,
-			[...(offered.get(anilistId) ?? [])].toSorted(
+			[...(offering.get(anilistId) ?? [])].toSorted(
 				(left, right) => languageOrder[left] - languageOrder[right],
 			),
 		]),

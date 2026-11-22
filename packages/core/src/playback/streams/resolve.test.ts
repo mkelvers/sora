@@ -82,7 +82,7 @@ const options = {
 
 /** The fake providers and stored lists resolving asks, and the dependencies that reach them. */
 class Fake {
-	/** The versions the stored episode lists offer, for `getEpisodeVersions`. */
+	/** The versions the stored episode lists offer, for `watchable`. */
 	offered: EpisodeVersion[] = [];
 
 	/** The providers resolving asks, filled in place by {@link Fake.use}. */
@@ -108,7 +108,6 @@ class Fake {
 			return token;
 		},
 		getAnime: (id) => Promise.resolve(anime(id)),
-		getEpisodeVersions: () => Promise.resolve(this.offered),
 		getProviderUnits: (_anime, provider) =>
 			Promise.resolve([
 				{
@@ -164,6 +163,7 @@ class Fake {
 				starts: timelines.get(url) ?? [],
 			}),
 		warmStream: () => Promise.resolve(),
+		watchable: () => Promise.resolve(this.offered),
 	};
 
 	/** Makes `list` the providers resolving asks. */

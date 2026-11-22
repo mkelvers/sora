@@ -13,7 +13,7 @@ import { requestRefinement, requestSkipDetection } from "../../scheduler/queue";
 import { locateEpisode } from "../../series/episodes";
 import { getProviderUnits } from "../episodes/episodes";
 import type { ProviderUnit } from "../episodes/episodes";
-import { getEpisodeVersions } from "../episodes/versions";
+import { watchable } from "../episodes/versions";
 import type { EpisodeVersion } from "../episodes/versions";
 import type { ProviderVideo, StreamProvider, StreamQuality } from "../providers/provider";
 import { isServedSubtitle, servedLocale, streamProviders } from "../providers/registry";
@@ -67,7 +67,7 @@ export interface PlaybackDependencies {
 	providers: readonly StreamProvider[];
 	locateEpisode: typeof locateEpisode;
 	getAnime: typeof getAnime;
-	getEpisodeVersions: typeof getEpisodeVersions;
+	watchable: typeof watchable;
 	getProviderUnits: typeof getProviderUnits;
 	createStreamToken: typeof createStreamToken;
 	streamTimeline: typeof streamTimeline;
@@ -85,7 +85,6 @@ const live: PlaybackDependencies = {
 	canFetchStream,
 	createStreamToken,
 	getAnime,
-	getEpisodeVersions,
 	getProviderUnits,
 	getRefinement,
 	getSkipDetections,
@@ -97,6 +96,7 @@ const live: PlaybackDependencies = {
 	requestSkipDetection,
 	streamTimeline,
 	warmStream,
+	watchable,
 };
 
 /** The URL of a stream token for `createStreamToken`'s arguments. */
@@ -274,7 +274,7 @@ class Resolution {
 
 		const [anime, offered] = await Promise.all([
 			dependencies.getAnime(located.anilistId),
-			dependencies.getEpisodeVersions(located),
+			dependencies.watchable(located),
 		]);
 
 		// Versions share each provider's episode list.
