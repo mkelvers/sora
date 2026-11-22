@@ -48,7 +48,9 @@ export const readTiming = (block: string) => {
 	const start = match && parseTimestamp(defined(match[1]));
 	const end = match && parseTimestamp(defined(match[2]));
 
-	if (!match || start === null || end === null) {
+	const malformed = !match || start === null || end === null;
+
+	if (malformed) {
 		return null;
 	}
 
