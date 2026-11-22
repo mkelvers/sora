@@ -7,9 +7,6 @@ import { UpstreamUnavailableError } from "../errors";
 import { getEpisodeStills, tmdbImageUrl } from "../tmdb/resources";
 import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
 
-/** How many stills of an episode are looked at, best ranked first, before the best ranked is taken. */
-const stillsLooked = 8;
-
 const loadStill = async (path: string): Promise<Buffer> => {
 	const url = defined(tmdbImageUrl(path, "w780"));
 
@@ -47,6 +44,9 @@ export const chooseStill = async (
 	episodeNumber: number,
 	defaultPath: string | null,
 ): Promise<string | null> => {
+	/** How many stills of an episode are looked at, best ranked first, before the best ranked is taken. */
+	const stillsLooked = 8;
+
 	const ranked = rankStills(
 		await getEpisodeStills(showId, seasonNumber, episodeNumber),
 		defaultPath,

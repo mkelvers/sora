@@ -19,18 +19,6 @@ import type { TitleAward } from "../database/schema/series";
 import { tmdb } from "../tmdb/client";
 import { parseKey } from "./series";
 
-/**
- * How long stored facts are kept before they are fetched again. Awards are
- * given once a year and ratings rarely change.
- */
-const factsLifetimeMs = 30 * day;
-
-/** Titles {@link storeTitleFacts} fetches facts for in one run. */
-const titlesPerRun = 500;
-
-/** TMDB requests at once; TMDB allows about 50 a second. */
-const tmdbConcurrency = 8;
-
 const ExternalIdsSchema = z
 	.object({
 		imdb_id: z.string().nullish(),
@@ -186,35 +174,6 @@ const fetchTmdbFacts = (key: string) => {
 	return fetchMovieFacts(id);
 };
 
-/** Titles asked of IMDb in one request. */
-const titlesPerImdbRequest = 25;
-
-/** How long IMDb requests wait after the one before. */
-const imdbSpacingMs = second;
-
-/** A 429 from IMDb is waited out and retried this many times. */
-const imdbRetries = 3;
-
-/**
- * IMDb's GraphQL API, which its own site reads. It is not offered to others
- * and has no documentation, so a change on IMDb's side shows here first as a
- * schema error; nothing else depends on it.
- */
-const imdbEndpoint = "https://caching.graphql.imdb.com/";
-
-/** It names the app, never whoever runs it. */
-const imdbHeaders = {
-	"User-Agent": "Sora/1.0 (self-hosted anime catalogue)",
-	"content-type": "application/json",
-	"x-imdb-client-name": "imdb-web-next",
-};
-
-/**
- * The most nominations IMDb returns for one title. Only long-running
- * Western shows have more, and an anime title rarely has more than a hundred.
- */
-const nominationsPerTitle = 250;
-
 const NominationsSchema = z.object({
 	awardNominations: z.object({
 		edges: z.array(
@@ -251,6 +210,32 @@ const ImdbResponseSchema = z.object({
  * @throws {Error} when IMDb fails or answers with errors alone.
  */
 const fetchNominations = async (ids: readonly string[]) => {
+	/**
+	 * The most nominations IMDb returns for one title. Only long-running
+	 * Western shows have more, and an anime title rarely has more than a hundred.
+	 */
+	const nominationsPerTitle = 250;
+
+	/** It names the app, never whoever runs it. */
+	const imdbHeaders = {
+		"User-Agent": "Sora/1.0 (self-hosted anime catalogue)",
+		"content-type": "application/json",
+		"x-imdb-client-name": "imdb-web-next",
+	};
+
+	/**
+	 * IMDb's GraphQL API, which its own site reads. It is not offered to others
+	 * and has no documentation, so a change on IMDb's side shows here first as a
+	 * schema error; nothing else depends on it.
+	 */
+	const imdbEndpoint = "https://caching.graphql.imdb.com/";
+
+	/** A 429 from IMDb is waited out and retried this many times. */
+	const imdbRetries = 3;
+
+	/** How long IMDb requests wait after the one before. */
+	const imdbSpacingMs = second;
+
 	const titles = ids
 		.map(
 			(id, index) =>
@@ -321,6 +306,9 @@ const awardName = (event: string) => event.trim().replace(awardCountry, "");
  * @throws {Error} when IMDb fails.
  */
 const fetchAwards = async (ids: readonly string[]) => {
+	/** Titles asked of IMDb in one request. */
+	const titlesPerImdbRequest = 25;
+
 	const groups = await inSequence(chunked(ids, titlesPerImdbRequest), fetchNominations);
 
 	return new Map(
@@ -351,6 +339,18 @@ const fetchAwards = async (ids: readonly string[]) => {
  * @throws {Error} when IMDb fails; nothing of the run is stored then.
  */
 export const storeTitleFacts = async () => {
+	/** TMDB requests at once; TMDB allows about 50 a second. */
+	const tmdbConcurrency = 8;
+
+	/** Titles {@link storeTitleFacts} fetches facts for in one run. */
+	const titlesPerRun = 500;
+
+	/**
+	 * How long stored facts are kept before they are fetched again. Awards are
+	 * given once a year and ratings rarely change.
+	 */
+	const factsLifetimeMs = 30 * day;
+
 	const due = await db
 		.selectDistinct({
 			fetchedAt: titleFacts.fetchedAt,

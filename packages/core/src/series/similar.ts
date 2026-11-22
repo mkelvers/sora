@@ -11,18 +11,6 @@ import type { SeriesCard } from "../models/series";
 import { franchiseIds, toSeriesCards } from "./queries";
 
 /**
- * The most titles recommended: a whole number of carousel slides at four
- * and seven posters a slide, the widths a laptop and a large screen show.
- */
-const similarLimit = 28;
-
-/** How many recommendations AniList gives each title (see `fragments.graphql`). */
-const perTitle = 12;
-
-/** Formats a recommendation is shown as: the show or film, not a special or OVA. */
-const shownFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
-
-/**
  * Titles like a series' franchise, the most recommended first, at most
  * {@link similarLimit}.
  *
@@ -40,6 +28,18 @@ const shownFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
  * @throws {SeriesNotFoundError} when the ID does not identify a series.
  */
 export const getSimilarSeries = async (seriesId: string): Promise<SeriesCard[]> => {
+	/** Formats a recommendation is shown as: the show or film, not a special or OVA. */
+	const shownFormats: MediaFormat[] = ["TV", "ONA", "MOVIE"];
+
+	/** How many recommendations AniList gives each title (see `fragments.graphql`). */
+	const perTitle = 12;
+
+	/**
+	 * The most titles recommended: a whole number of carousel slides at four
+	 * and seven posters a slide, the widths a laptop and a large screen show.
+	 */
+	const similarLimit = 28;
+
 	const [row] = await db.select().from(series).where(eq(series.id, seriesId)).limit(1);
 
 	if (!row) {

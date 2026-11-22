@@ -29,12 +29,6 @@ export const franchiseRelations = new Set<MediaRelation>([
 	"OTHER",
 ]);
 
-/** How long a loaded entry is reused, matching the catalog's card freshness. */
-const entryLifetimeMs = hour;
-
-/** Bounds {@link recentEntries}; the oldest entries are evicted first. */
-const recentEntryLimit = 5000;
-
 /**
  * Entries loaded recently by this process, by AniList ID.
  *
@@ -71,6 +65,9 @@ const loadFranchiseEntries = loadMediaById({
 });
 
 const remember = (id: number, entry: FranchiseEntry | null) => {
+	/** Bounds {@link recentEntries}; the oldest entries are evicted first. */
+	const recentEntryLimit = 5000;
+
 	recentEntries.delete(id);
 	recentEntries.set(id, {
 		entry,
@@ -135,6 +132,9 @@ export const loadEntries = async (
 	ids: Iterable<number>,
 	load: typeof loadFranchiseEntries = loadFranchiseEntries,
 ): Promise<Map<number, FranchiseEntry>> => {
+	/** How long a loaded entry is reused, matching the catalog's card freshness. */
+	const entryLifetimeMs = hour;
+
 	const wanted = [...new Set(ids)];
 
 	const missing = wanted.filter((id) => {

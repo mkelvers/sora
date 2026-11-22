@@ -10,9 +10,6 @@ import { animeSearch, animeSearchTag } from "../database/schema/catalog";
 import type { Tag } from "../models/series";
 import { carriedByAniKoto } from "./episodes";
 
-/** Studios {@link listStudios} lists at most. */
-const studioLimit = 30;
-
 /** The index entries a client can browse to: not adult, not excluded, and carried by AniKoto. */
 const browsable = and(
 	eq(animeSearch.isAdult, false),
@@ -125,6 +122,9 @@ export const listTags = async (): Promise<Tag[]> => {
  * first, by name; narrowed to names containing `query` when given.
  */
 export const listStudios = async (query?: string): Promise<string[]> => {
+	/** Studios {@link listStudios} lists at most. */
+	const studioLimit = 30;
+
 	const studio = sql<string>`studio`;
 
 	const rows = await db

@@ -1,21 +1,8 @@
 import sharp from "sharp";
 
-/** The width a picture is fetched at; TMDB serves this size directly. */
-const fetchedWidth = 1280;
-
 /** The size the picture is reduced to for measuring, keeping seams one column wide. */
 const gridWidth = 640;
 const gridHeight = 360;
-
-/** How much brighter or darker one side of a column must be than the other to count as a hard edge. */
-const edgeStep = 18;
-
-/**
- * The share of a column's rows that must be hard edges for the column to be
- * a seam between panels. Scenes and character art reach about 0.6 where a
- * building or a shoulder lines up with a column; panels reach 0.9.
- */
-const seamShare = 0.8;
 
 /**
  * Whether a TMDB image is a collage of panels, such as four characters side
@@ -26,6 +13,19 @@ const seamShare = 0.8;
  * @throws {Error} when the image cannot be fetched.
  */
 export const isCollage = async (url: string): Promise<boolean> => {
+	/**
+	 * The share of a column's rows that must be hard edges for the column to be
+	 * a seam between panels. Scenes and character art reach about 0.6 where a
+	 * building or a shoulder lines up with a column; panels reach 0.9.
+	 */
+	const seamShare = 0.8;
+
+	/** How much brighter or darker one side of a column must be than the other to count as a hard edge. */
+	const edgeStep = 18;
+
+	/** The width a picture is fetched at; TMDB serves this size directly. */
+	const fetchedWidth = 1280;
+
 	const sized = url.replace(/(?<prefix>\/image\.tmdb\.org\/t\/p\/)[^/]+/u, `$1w${fetchedWidth}`);
 
 	const response = await fetch(sized, {

@@ -20,9 +20,6 @@ const seasonFormats = new Set<AnimeFormat>(["TV", "TV_SHORT", "ONA"]);
 /** Formats of a short sequel that is watched as part of the season before it. */
 const specialFormats = new Set<AnimeFormat>(["SPECIAL", "OVA"]);
 
-/** The most episodes a special that belongs to the season before it has. */
-const specialEpisodeLimit = 2;
-
 /** Relationships used to keep adaptations and recaps out of the viewing path. */
 export interface FranchiseOptions {
 	/** Pairs of titles that adapt the same story. */
@@ -88,15 +85,15 @@ const plain = (name: string) => name.replace(/\s*\(TV\)$/iu, "");
 /** A release qualifier a title ends with, such as `(TV)` or `(Web)`. */
 const qualifier = /\s*\((?:TV|Web|ONA)\)$/iu;
 
-/** Numbering a title ends with, such as `Part 1`, `Season 1`, or `1st Season`. */
-const numbering = /[\s:-]+(?:Season\s+\d+|\d+(?:st|nd|rd|th)\s+Season|Part\s+\d+)$/iu;
-
 /**
  * The name a story's seasons share: the first title without the qualifiers
  * and numbering it ends with, so The Seven Deadly Sins: Grudge of Edinburgh
  * Part 2 is `Part 2` after Part 1.
  */
 const storyName = (title: string) => {
+	/** Numbering a title ends with, such as `Part 1`, `Season 1`, or `1st Season`. */
+	const numbering = /[\s:-]+(?:Season\s+\d+|\d+(?:st|nd|rd|th)\s+Season|Part\s+\d+)$/iu;
+
 	let name = title;
 
 	for (let previous = ""; previous !== name;) {
@@ -387,6 +384,9 @@ const spinOffStories = (
  * specials My Hero Academia More and I am a hero too belong to its final season.
  */
 const specialsOf = (seasons: readonly FranchiseTitle[], links: readonly SequelLink[]) => {
+	/** The most episodes a special that belongs to the season before it has. */
+	const specialEpisodeLimit = 2;
+
 	const seasonOf = new Map<number, FranchiseTitle>();
 
 	for (const title of seasons) {

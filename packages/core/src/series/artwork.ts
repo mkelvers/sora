@@ -42,14 +42,14 @@ const languageNames = new Intl.DisplayNames(["en"], {
 	type: "language",
 });
 
-/** The TMDB size an image is saved in once chosen: the largest one it is shown at. */
-const savedSizes = {
-	backdrop: "original",
-	logo: "w500",
-	poster: "w780",
-} as const;
-
 const toOverride = (change: string | false | null | undefined, type: ImageType) => {
+	/** The TMDB size an image is saved in once chosen: the largest one it is shown at. */
+	const savedSizes = {
+		backdrop: "original",
+		logo: "w500",
+		poster: "w780",
+	} as const;
+
 	if (change === false) {
 		return noArtwork;
 	}

@@ -210,40 +210,6 @@ const currentAward = (sources: AboutSources) => {
 	return null;
 };
 
-/** Ages each MyAnimeList rating is for, and what it warns of. */
-const ageRatings: Record<
-	AgeRating,
-	{
-		age: string;
-		descriptors: string[];
-	}
-> = {
-	G: {
-		age: "All ages",
-		descriptors: [],
-	},
-	PG: {
-		age: "7+",
-		descriptors: [],
-	},
-	"PG-13": {
-		age: "13+",
-		descriptors: [],
-	},
-	R: {
-		age: "17+",
-		descriptors: ["Profanity", "Violence"],
-	},
-	"R+": {
-		age: "17+",
-		descriptors: ["Nudity"],
-	},
-	Rx: {
-		age: "18+",
-		descriptors: ["Sexual content"],
-	},
-};
-
 /** Ages each US certification TMDB lists is for, when MyAnimeList's rating is missing. */
 const certificationAges = new Map<string, string>(
 	Object.entries({
@@ -284,9 +250,6 @@ const advisoryTags = new Map<string, string[]>(
 		War: ["Violence"],
 	}),
 );
-
-/** How strongly a tag must apply, 0–100, to warn of it; below, it only comes up. */
-const advisoryRank = 50;
 
 /** AniList genres that warn of something, and the warnings. */
 const advisoryGenres = new Map<string, string[]>(
@@ -386,8 +349,6 @@ const advisoryDescriptors = new Map<string, string[]>(
 	}),
 );
 
-const descriptorParts = /\s*\/\s*/u;
-
 /**
  * The age a title is for and what it warns of: MyAnimeList's rating, else
  * TMDB's US certification, and the warnings the rating stands for, plus
@@ -395,6 +356,45 @@ const descriptorParts = /\s*\/\s*/u;
  * tags that apply strongly, and of its genres. `null` when nothing is known.
  */
 const contentRating = (sources: AboutSources) => {
+	const descriptorParts = /\s*\/\s*/u;
+
+	/** How strongly a tag must apply, 0–100, to warn of it; below, it only comes up. */
+	const advisoryRank = 50;
+
+	/** Ages each MyAnimeList rating is for, and what it warns of. */
+	const ageRatings: Record<
+		AgeRating,
+		{
+			age: string;
+			descriptors: string[];
+		}
+	> = {
+		G: {
+			age: "All ages",
+			descriptors: [],
+		},
+		PG: {
+			age: "7+",
+			descriptors: [],
+		},
+		"PG-13": {
+			age: "13+",
+			descriptors: [],
+		},
+		R: {
+			age: "17+",
+			descriptors: ["Profanity", "Violence"],
+		},
+		"R+": {
+			age: "17+",
+			descriptors: ["Nudity"],
+		},
+		Rx: {
+			age: "18+",
+			descriptors: ["Sexual content"],
+		},
+	};
+
 	const rated = sources.ageRating ? ageRatings[sources.ageRating] : null;
 
 	const age =
@@ -432,9 +432,6 @@ const contentRating = (sources: AboutSources) => {
 
 	return null;
 };
-
-/** Roles AniList credits a title's creator with. */
-const creatorRole = /^Original (?:Creator|Story)\b/u;
 
 /**
  * Publishers of manga, light novels, and games that sit on the production
@@ -485,6 +482,9 @@ const publishers = new Set([
  * own notice, so the committee's name is the usual one, not a quoted one.
  */
 const creditLine = (anime: Anime) => {
+	/** Roles AniList credits a title's creator with. */
+	const creatorRole = /^Original (?:Creator|Story)\b/u;
+
 	const creators = [
 		...new Set(
 			anime.staff.filter((credit) => creatorRole.test(credit.role)).map((credit) => credit.name),

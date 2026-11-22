@@ -13,16 +13,6 @@ import { upscale } from "./realesrgan";
 import { upscaledBackdropUrl } from "./upscaled-backdrop";
 
 /**
- * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
- * shows it. A larger original is cleaned up at twice its size and then
- * brought back down to this, which is what removes its blur.
- */
-const maxUpscaledWidth = 3840;
-
-/** JPEG quality an upscaled backdrop is stored at. */
-const storedQuality = 92;
-
-/**
  * Where each upscale stands, by the original's URL. A pending row with no
  * live job is shown as failed so the viewer can retry it. Reading status
  * leaves the row alone and sees the row and queue in the same SQL snapshot.
@@ -203,6 +193,16 @@ const fail = async (id: string, failure: string) => {
  * throwing, so whoever asked sees it.
  */
 export const upscaleBackdrop = async (id: string) => {
+	/** JPEG quality an upscaled backdrop is stored at. */
+	const storedQuality = 92;
+
+	/**
+	 * The widest an upscaled backdrop is kept: 4K, which is as sharp as a screen
+	 * shows it. A larger original is cleaned up at twice its size and then
+	 * brought back down to this, which is what removes its blur.
+	 */
+	const maxUpscaledWidth = 3840;
+
 	const [row] = await db
 		.select({
 			key: titleBackdropUpscale.key,

@@ -7,13 +7,6 @@ import { db } from "../database/client";
 import { tmdbHint } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
 
-/**
- * A list with fewer hints than this share of those stored is taken for a
- * broken upstream rather than titles removed, and is not applied. The list
- * only grows in practice, so a real shrink this large never happens.
- */
-const minimumKeptShare = 0.8;
-
 /** Rows written per statement. */
 const writeBatchSize = 1000;
 
@@ -167,6 +160,13 @@ const sameHint = (left: TmdbHint | undefined, right: TmdbHint) =>
  *   then kept as they are.
  */
 export const syncTmdbHints = async (): Promise<number[]> => {
+	/**
+	 * A list with fewer hints than this share of those stored is taken for a
+	 * broken upstream rather than titles removed, and is not applied. The list
+	 * only grows in practice, so a real shrink this large never happens.
+	 */
+	const minimumKeptShare = 0.8;
+
 	const fetched = await downloadHints();
 	const storedRows = await db.select().from(tmdbHint);
 	const stored = new Map(storedRows.map(({ anilistId, ...hint }) => [anilistId, hint]));

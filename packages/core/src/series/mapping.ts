@@ -38,24 +38,21 @@ const EpisodeLinksSchema = z.array(
 	}),
 );
 
-/** A finished entry's mapping is reused for a month before being re-verified. */
-const finishedMappingLifetimeMs = 30 * day;
-
-/**
- * Airing entries gain episodes, and unmatched entries may appear on TMDB
- * later, so both are re-checked daily.
- */
-const volatileMappingLifetimeMs = day;
-
-/** How many searched shows are loaded in full per entry, best title matches first. */
-const searchedShowLimit = 4;
-
 /** Search results considered per query. */
 const resultsPerQuery = 5;
 
 const inFlight = new InFlight<number, TmdbMapping>();
 
 const mappingLifetimeMs = (entry: FranchiseEntry, stored: TmdbMapping) => {
+	/**
+	 * Airing entries gain episodes, and unmatched entries may appear on TMDB
+	 * later, so both are re-checked daily.
+	 */
+	const volatileMappingLifetimeMs = day;
+
+	/** A finished entry's mapping is reused for a month before being re-verified. */
+	const finishedMappingLifetimeMs = 30 * day;
+
 	if (stored.tmdbId !== null && entry.status === "FINISHED") {
 		return finishedMappingLifetimeMs;
 	}
@@ -241,6 +238,9 @@ const regularSeasonRun = (mapping: TmdbMapping): PrequelRun | null => {
 
 /** Finds TMDB shows by title, most similar to the subject first. */
 const searchedShowIds = async (subject: MatchSubject, queries: readonly string[]) => {
+	/** How many searched shows are loaded in full per entry, best title matches first. */
+	const searchedShowLimit = 4;
+
 	const results = new Map<number, number>();
 
 	for (const found of await Promise.all(queries.map((query) => searchShows(query)))) {

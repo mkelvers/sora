@@ -4,14 +4,8 @@ import path from "node:path";
 
 import { config } from "../config";
 
-/** The model that upscales: trained on anime and drawn art, which backdrops are. */
-const model = "realesr-animevideov3";
-
 /** How many times larger the picture gets. */
 export const upscaleFactor = 2;
-
-/** Upscaling runs on a processor when there is no graphics card, which takes minutes. */
-const timeoutMs = 20 * 60_000;
 
 /** Upscaling failed: the upscaler is not set up, or it exited with an error. */
 export class UpscaleError extends Error {
@@ -27,6 +21,12 @@ export class UpscaleError extends Error {
  * @throws {UpscaleError} when `REALESRGAN_BINARY` is not set or the upscaler fails.
  */
 export const upscale = async (picture: Uint8Array): Promise<Uint8Array> => {
+	/** Upscaling runs on a processor when there is no graphics card, which takes minutes. */
+	const timeoutMs = 20 * 60_000;
+
+	/** The model that upscales: trained on anime and drawn art, which backdrops are. */
+	const model = "realesr-animevideov3";
+
 	if (!config.realesrganBinary) {
 		throw new UpscaleError("REALESRGAN_BINARY is not set");
 	}

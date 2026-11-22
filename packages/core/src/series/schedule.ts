@@ -10,9 +10,6 @@ import { anilistEpisodeKey } from "./episodes";
 import { toSeriesCards } from "./queries";
 import { storedSeriesIds } from "./store";
 
-/** The longest window {@link getAiringSchedule} accepts. */
-const maximumScheduleWindowMs = 14 * day;
-
 /**
  * How far past the window {@link getAiringSchedule} looks for an episode's
  * other time, so an episode whose raw broadcast and subbed stream fall on
@@ -20,12 +17,6 @@ const maximumScheduleWindowMs = 14 * day;
  * broadcast by up to a few hours.
  */
 const pairingMarginMs = day;
-
-/**
- * Episodes shorter than this, in minutes, are not scheduled: AniList files
- * them as `TV_SHORT`, which the catalogue leaves out as well.
- */
-const shortEpisodeMinutes = 15;
 
 /**
  * Lists episodes coming out between `from` (inclusive) and `until`
@@ -46,6 +37,15 @@ const shortEpisodeMinutes = 15;
  * @throws {InvalidInputError} when the window is empty or longer than 14 days.
  */
 export const getAiringSchedule = async (from: Date, until: Date): Promise<ScheduledEpisode[]> => {
+	/**
+	 * Episodes shorter than this, in minutes, are not scheduled: AniList files
+	 * them as `TV_SHORT`, which the catalogue leaves out as well.
+	 */
+	const shortEpisodeMinutes = 15;
+
+	/** The longest window {@link getAiringSchedule} accepts. */
+	const maximumScheduleWindowMs = 14 * day;
+
 	const windowMs = until.getTime() - from.getTime();
 
 	if (!(windowMs > 0 && windowMs <= maximumScheduleWindowMs)) {

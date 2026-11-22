@@ -130,12 +130,6 @@ const regularRuntimeTolerance = 2.2;
  */
 const specialsRuntimeTolerance = 1.6;
 
-/** How far a special matched by name may air from AniList's start date. */
-const specialTitleWindowDays = 365;
-
-/** Shorter distinctive names, such as "OVA" or "Extra", are too generic to match specials by. */
-const minimumSpecialNameLength = 6;
-
 /**
  * A title-only film match may still differ this much in release date, which
  * covers festival premieres ahead of the theatrical run but not a bonus short
@@ -195,9 +189,6 @@ const numberWords = new Map<string, number>(
 	).flatMap(([number, ...words]) => words.map((word) => [word, number] as const)),
 );
 
-/** Canonical numerals only, so "iiii" and "vx" stay words. */
-const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
-
 const romanValues = new Map<string, number>(
 	Object.entries({
 		c: 100,
@@ -214,6 +205,9 @@ const romanValues = new Map<string, number>(
  * as a numeral. "D" and "M" are not read, so "mix" and "mild" stay words.
  */
 const romanValue = (word: string) => {
+	/** Canonical numerals only, so "iiii" and "vx" stay words. */
+	const romanNumeral = /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u;
+
 	if (word.length < 2 || !romanNumeral.test(word)) {
 		return null;
 	}
@@ -1041,6 +1035,12 @@ const placeDelayedStreamingRun = (
  * episodes follow it among the specials.
  */
 const placeSpecialByTitle = (subject: MatchSubject, candidate: ShowCandidate): Placement | null => {
+	/** Shorter distinctive names, such as "OVA" or "Extra", are too generic to match specials by. */
+	const minimumSpecialNameLength = 6;
+
+	/** How far a special matched by name may air from AniList's start date. */
+	const specialTitleWindowDays = 365;
+
 	if (!candidate.isFranchiseShow || isSeriesFormat(subject.format)) {
 		return null;
 	}

@@ -247,9 +247,6 @@ export const toSeriesCards = async (
 ): Promise<Map<string, SeriesCard>> =>
 	cardsFrom(rows, await listedEpisodeDatesOf(rows), includeHiddenIds);
 
-/** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
-const franchiseLimit = 60;
-
 const rank = (relation: string) => {
 	if (relation === "SEQUEL" || relation === "PREQUEL") {
 		return 0;
@@ -311,6 +308,9 @@ export const franchiseIds = async (
 	crossovers: Set<number>;
 	apart: Set<number>;
 }> => {
+	/** How many entries beyond the sequel chain {@link franchiseIds} reaches at most. */
+	const franchiseLimit = 60;
+
 	const reached = new Set([anilistId]);
 	const outsiders = new Set<number>();
 	/** Entries reached only across a spin-off, not followed through yet. */
@@ -716,9 +716,6 @@ const awardReachOf = async (awards: readonly TitleAward[]) => {
 	return new Map(rows.map((row) => [row.name, row.titles]));
 };
 
-/** How long after a probe found no subtitles a series is looked at again. */
-const subtitleProbeRetryMs = 7 * day;
-
 /**
  * What a title's about section is made of beyond its anime: MyAnimeList's
  * rating of the AniKoto series it streams from, its TMDB title's facts, and
@@ -727,6 +724,9 @@ const subtitleProbeRetryMs = 7 * day;
  * be looked at; the page shows them the next time it is read.
  */
 const aboutSourcesOf = async (row: SeriesRow, audio: readonly ContentLanguage[]) => {
+	/** How long after a probe found no subtitles a series is looked at again. */
+	const subtitleProbeRetryMs = 7 * day;
+
 	const [[rated], [facts], [subtitles]] = await Promise.all([
 		db
 			.select({
@@ -1324,9 +1324,6 @@ export const byStartDate = (rows: readonly SeriesRow[]) =>
 			left.anilistId - right.anilistId,
 	);
 
-/** How far back {@link getLatestReleases} looks. */
-const releaseWindowMs = 30 * day;
-
 /** Filters and paging for {@link getLatestReleases}. Validate untrusted input with this schema. */
 export const ReleasesQuerySchema = BrowseQuerySchema.pick({
 	audio: true,
@@ -1383,6 +1380,9 @@ export const getLatestReleases = async (
 	query: ReleasesQuery,
 	now = new Date(),
 ): Promise<Page<Release>> => {
+	/** How far back {@link getLatestReleases} looks. */
+	const releaseWindowMs = 30 * day;
+
 	const parsed = ReleasesQuerySchema.safeParse(query);
 
 	if (!parsed.success) {

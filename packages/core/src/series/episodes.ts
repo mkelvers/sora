@@ -249,14 +249,6 @@ export const isEpisodeAvailable = (
 };
 
 /**
- * How long after an episode is expected it is still waited for. AniKoto has
- * most subs within about an hour of when they are expected, and those of
- * long-running shows hours later; one it does not have by then stops
- * counting as coming.
- */
-const releaseGraceMs = 12 * hour;
-
-/**
  * Whether an episode has aired but is still to come out: AniList says it
  * aired, the series does not list it yet (see {@link isEpisodeAvailable}), and
  * it is the one AniKoto gets next, being the first or following an episode
@@ -300,6 +292,14 @@ export const isEpisodeAwaited = (
  *   not come out around when it was expected, and no longer counts as coming.
  */
 export const expectedRelease = (airedAt: Date, scheduledAt: Date | null, now = new Date()) => {
+	/**
+	 * How long after an episode is expected it is still waited for. AniKoto has
+	 * most subs within about an hour of when they are expected, and those of
+	 * long-running shows hours later; one it does not have by then stops
+	 * counting as coming.
+	 */
+	const releaseGraceMs = 12 * hour;
+
 	const expected = scheduledAt && scheduledAt > airedAt ? scheduledAt : airedAt;
 
 	if (now.getTime() < expected.getTime() + releaseGraceMs) {

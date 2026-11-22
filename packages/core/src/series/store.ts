@@ -16,16 +16,6 @@ import { storeBackdropEdges } from "./edges";
 import { anilistEpisodeKey, carriedByAniKoto } from "./episodes";
 import { buildSeries } from "./series";
 
-/**
- * Serializes writes of one entry's series, with the entry's AniList ID.
- * Stores run from requests and scheduler jobs at once, and two of one entry
- * must not replace its episodes at the same time.
- */
-const storeLockKey = 0x5e_71_e5;
-
-/** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
-const episodeInsertBatch = 1000;
-
 /** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
 export const storedSeriesIds = async (
 	anilistIds: readonly number[],
@@ -96,6 +86,16 @@ const relatedWorthStoring = async (anilistIds: readonly number[]): Promise<numbe
  * @throws {UpstreamUnavailableError} when AniList or TMDB fail.
  */
 export const storeSeries = async (anilistId: number): Promise<string> => {
+	/** Episode rows per insert, well under PostgreSQL's limit of 65,535 parameters. */
+	const episodeInsertBatch = 1000;
+
+	/**
+	 * Serializes writes of one entry's series, with the entry's AniList ID.
+	 * Stores run from requests and scheduler jobs at once, and two of one entry
+	 * must not replace its episodes at the same time.
+	 */
+	const storeLockKey = 0x5e_71_e5;
+
 	const built = await buildSeries(anilistId);
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);

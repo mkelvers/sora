@@ -11,15 +11,6 @@ import type { UpcomingSeries } from "../models/series";
 import { isNamedAfter } from "./franchise";
 import { byStartDate, franchiseIds, toSeriesCards } from "./queries";
 
-/** How far ahead a start counts as soon. */
-const soonMs = 30 * day;
-
-/** Titles listed of each kind: a row to take in at a glance, not a catalogue. */
-const upcomingLimit = 12;
-
-/** The statuses of a title that is out. */
-const released: MediaStatus[] = ["FINISHED", "RELEASING"];
-
 /** What a franchise starts with: a show or a film, rather than a special or an OVA. */
 const openingFormats = new Set<MediaFormat>(["TV", "MOVIE"]);
 
@@ -31,6 +22,9 @@ const openingFormats = new Set<MediaFormat>(["TV", "MOVIE"]);
  * @param startDate - `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, as `fuzzyDate` formats it.
  */
 export const startsSoon = (startDate: string | null, now: Date): startDate is string => {
+	/** How far ahead a start counts as soon. */
+	const soonMs = 30 * day;
+
 	if (startDate?.length !== 10) {
 		return false;
 	}
@@ -47,6 +41,9 @@ export const startsSoon = (startDate: string | null, now: Date): startDate is st
  * `null` when nothing of the franchise is out.
  */
 const earliestReleased = async (anilistId: number) => {
+	/** The statuses of a title that is out. */
+	const released: MediaStatus[] = ["FINISHED", "RELEASING"];
+
 	const { ids: franchise, crossovers, apart } = await franchiseIds(anilistId);
 
 	const rows =
@@ -110,6 +107,9 @@ const earliestReleased = async (anilistId: number) => {
  * scheduler stores this season's and the next's ahead of time.
  */
 export const getUpcomingSeries = async (now = new Date()): Promise<UpcomingSeries[]> => {
+	/** Titles listed of each kind: a row to take in at a glance, not a catalogue. */
+	const upcomingLimit = 12;
+
 	const unreleased = await db
 		.select({
 			popularity: animeSearch.popularity,
