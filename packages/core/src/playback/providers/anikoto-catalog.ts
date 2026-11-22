@@ -453,7 +453,13 @@ const formatAgreement = (format: AnimeFormat | null, candidate: string | null): 
 
 const animeTitles = (anime: Anime) =>
 	[anime.title.english, anime.title.romaji, anime.title.native, ...anime.synonyms].flatMap(
-		(title) => (title ? [title] : []),
+		(title) => {
+			if (title) {
+				return [title];
+			}
+
+			return [];
+		},
 	);
 
 type StoredSeries = typeof anikotoSeries.$inferSelect;
