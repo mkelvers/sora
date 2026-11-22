@@ -2,6 +2,7 @@ import { expect, mock, test } from "bun:test";
 
 import { z } from "zod";
 
+import { UpstreamUnavailableError } from "../errors";
 import { createAniListClient } from "./client";
 import { TypedDocumentString } from "./graphql.generated";
 
@@ -52,4 +53,39 @@ test("fetches again when a fresh cached result is malformed", async () => {
 	const result = await anilist(document, { id: 123 }, schema, { maxAgeMs: 60_000 });
 	expect(result).toEqual({ Media: { id: 123 } });
 	expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+test("uses a validated stale result when the upstream request fails", async () => {
+	const { anilist } = createAniListClient({
+		fetch: () => Promise.reject(new Error("upstream unavailable")),
+		store: {
+			find: () =>
+				Promise.resolve({
+					data: { Media: { id: 123 } },
+					fetchedAt: new Date(0),
+				}),
+			save: () => Promise.reject(new Error("A failed response must not be saved")),
+		},
+	});
+
+	const result = await anilist(document, { id: 123 }, schema, { maxAgeMs: 0 });
+	expect(result).toEqual({ Media: { id: 123 } });
+});
+
+test("rejects a malformed stale result when the upstream request fails", async () => {
+	const { anilist } = createAniListClient({
+		fetch: () => Promise.reject(new Error("upstream unavailable")),
+		store: {
+			find: () =>
+				Promise.resolve({
+					data: { Media: { id: "invalid" } },
+					fetchedAt: new Date(0),
+				}),
+			save: () => Promise.reject(new Error("A failed response must not be saved")),
+		},
+	});
+
+	await expect(anilist(document, { id: 123 }, schema, { maxAgeMs: 0 })).rejects.toBeInstanceOf(
+		UpstreamUnavailableError,
+	);
 });

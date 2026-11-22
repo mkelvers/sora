@@ -582,9 +582,8 @@ export const createAniListClient = ({ fetch, store }: AniListDependencies) => {
 		);
 
 		if (error) {
-			if (stored) {
-				// SAFETY: the response answers the document typed with TResult.
-				return stored.data as TResult;
+			if (valid?.success) {
+				return valid.data;
 			}
 
 			throw error;
