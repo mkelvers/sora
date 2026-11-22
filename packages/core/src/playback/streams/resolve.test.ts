@@ -165,7 +165,11 @@ const dependencies: PlaybackDependencies = {
 			? `token:${url}@${JSON.stringify(options.shifts)}${options.refinement ? `#${options.refinement}` : ""}`
 			: `token:${url}`;
 
-		return options?.audio ? `${token}~${options.audio}` : token;
+		if (options?.audio) {
+			return `${token}~${options.audio}`;
+		}
+
+		return token;
 	},
 	getAnime: (id) => Promise.resolve(anime(id)),
 	getEpisodeVersions: () => Promise.resolve(fake.offered),
