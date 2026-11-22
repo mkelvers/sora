@@ -137,7 +137,9 @@ const readAndRefresh = async (logger: Parameters<Task>[1]["logger"]) => {
 		const checked = checkedAt.get(anilistId);
 		const changed = updatedAt.get(anilistId);
 
-		if (checked && changed && checked >= changed) {
+		const current = checked && changed && checked >= changed;
+
+		if (current) {
 			return;
 		}
 
