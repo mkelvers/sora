@@ -8,7 +8,7 @@ const tsSyncByte = 0x47;
  * CDNs among them) prepend to MPEG-TS segments to disguise them as images.
  * Only the first bytes are needed.
  */
-export const isDisguisedSegment = (head: Uint8Array) => {
+export const isDisguised = (head: Uint8Array) => {
 	const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 	const png = pngSignature.every((byte, index) => head[index] === byte);
@@ -26,9 +26,7 @@ export const isDisguisedSegment = (head: Uint8Array) => {
  *
  * @returns the segment unchanged when no transport stream is found.
  */
-export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
-	bytes: Uint8Array<Backing>,
-) => {
+export const unwrapDisguised = <Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) => {
 	const end = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).indexOf(pngEnd);
 
 	if (end !== -1) {
@@ -55,8 +53,8 @@ export const unwrapDisguisedSegment = <Backing extends ArrayBufferLike>(
  * disguised transport stream.
  */
 export const isBareImage = <Backing extends ArrayBufferLike>(bytes: Uint8Array<Backing>) => {
-	if (isDisguisedSegment(bytes)) {
-		return unwrapDisguisedSegment(bytes)[0] !== tsSyncByte;
+	if (isDisguised(bytes)) {
+		return unwrapDisguised(bytes)[0] !== tsSyncByte;
 	}
 
 	const ascii = (start: number, end: number) => String.fromCodePoint(...bytes.subarray(start, end));

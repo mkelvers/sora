@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isBareImage, isDisguisedSegment, unwrapDisguisedSegment } from "./segment";
+import { isBareImage, isDisguised, unwrapDisguised } from "./segment";
 
 /** Three MPEG-TS packets, each starting with the sync byte. */
 const transportStream = Uint8Array.from(
@@ -25,8 +25,8 @@ describe("disguised segments", () => {
 
 		const disguised = Buffer.concat([png, transportStream]);
 
-		expect(isDisguisedSegment(disguised)).toBe(true);
-		expect(unwrapDisguisedSegment(disguised)).toEqual(transportStream);
+		expect(isDisguised(disguised)).toBe(true);
+		expect(unwrapDisguised(disguised)).toEqual(transportStream);
 	});
 
 	test("strip a prepended JPEG at the first run of TS packets", () => {
@@ -34,12 +34,12 @@ describe("disguised segments", () => {
 		const jpeg = Uint8Array.from([0xff, 0xd8, 0x47, 0x10, 0xff, 0xd9]);
 		const disguised = Buffer.concat([jpeg, transportStream]);
 
-		expect(isDisguisedSegment(disguised)).toBe(true);
-		expect(unwrapDisguisedSegment(disguised)).toEqual(transportStream);
+		expect(isDisguised(disguised)).toBe(true);
+		expect(unwrapDisguised(disguised)).toEqual(transportStream);
 	});
 
 	test("leave plain transport streams alone", () => {
-		expect(isDisguisedSegment(transportStream)).toBe(false);
+		expect(isDisguised(transportStream)).toBe(false);
 		expect(isBareImage(transportStream)).toBe(false);
 	});
 

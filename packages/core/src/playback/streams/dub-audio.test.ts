@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import type { ProviderUnit } from "../episodes/episodes";
 import type { ProviderVideo } from "../providers/provider";
-import { masterPlaylist } from "../proxy/playlist.fixture";
-import { StreamUpstreamError } from "../proxy/upstream";
+import { master } from "../proxy/playlist.fixture";
+import { StreamUpstreamError } from "../proxy/upstream-error";
 import { hasDubAudio, probeVideos, withConfirmedDubs } from "./dub-audio";
 
 const video = (url: string, format: ProviderVideo["format"] = "hls"): ProviderVideo => ({
@@ -38,7 +38,7 @@ const probing = (playlists: Record<string, string[] | null>, requested: string[]
 		}
 
 		return Promise.resolve({
-			content: masterPlaylist(languages),
+			content: master(languages),
 			url,
 		});
 	},

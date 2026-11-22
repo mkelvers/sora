@@ -6,7 +6,7 @@ import { servedLocale } from "../providers/registry";
 import { audioLanguages, isInLocale } from "../proxy/playlist";
 import { canFetchStream, readPlaylist } from "../proxy/proxy";
 import type { PlaylistReader } from "../proxy/proxy";
-import { StreamUpstreamError } from "../proxy/upstream";
+import { StreamUpstreamError } from "../proxy/upstream-error";
 
 /** How long a video's host has to answer before its provider is passed over. */
 const videoProbeTimeoutMs = 3 * second;

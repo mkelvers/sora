@@ -1,8 +1,8 @@
 import { attempt, second, defined, inSequence } from "@sora/shared";
 
-import { unwrapDisguisedSegment } from "../proxy/segment";
+import { unwrapDisguised } from "../proxy/segment";
 import type { StreamTarget } from "../proxy/token";
-import { fetchUpstreamBytes, mirrorsFor } from "../proxy/upstream";
+import { readTarget, mirrorsFor } from "../proxy/upstream";
 
 /** The audio or transcription tools could not do their part of refining subtitles. */
 export class SubtitleRefinementError extends Error {
@@ -30,7 +30,7 @@ const target = (
 });
 
 const readPlaylist = async (url: string, headers: Record<string, string>, parent?: string) => {
-	const upstream = await fetchUpstreamBytes(target(url, "playlist", headers, parent));
+	const upstream = await readTarget(target(url, "playlist", headers, parent));
 
 	return {
 		text: new TextDecoder().decode(upstream.bytes),
@@ -70,9 +70,9 @@ export const readWithRetries = async (
 	const attempts = 5;
 
 	try {
-		const upstream = await fetchUpstreamBytes(target(url, "segment", headers, playlistUrl));
+		const upstream = await readTarget(target(url, "segment", headers, playlistUrl));
 
-		return unwrapDisguisedSegment(upstream.bytes);
+		return unwrapDisguised(upstream.bytes);
 	} catch (error) {
 		if (tries === attempts) {
 			throw error;

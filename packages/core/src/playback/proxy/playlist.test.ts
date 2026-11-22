@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { audioLanguages, rewritePlaylist, withDefaultAudio } from "./playlist";
+import { audioLanguages, rewrite, withDefaultAudio } from "./playlist";
 
-const sign = (url: string, kind: string) => `<${kind}:${url}>`;
-
-describe("rewritePlaylist", () => {
+describe("rewrite", () => {
 	test("marks master playlist variants and renditions as playlists", () => {
 		const master = [
 			"#EXTM3U",
@@ -15,7 +13,13 @@ describe("rewritePlaylist", () => {
 			"https://other.example.com/720/index.m3u8",
 		].join("\n");
 
-		expect(rewritePlaylist(master, "https://cdn.example.com/show/master.m3u8", sign)).toBe(
+		expect(
+			rewrite(
+				master,
+				"https://cdn.example.com/show/master.m3u8",
+				(url, kind) => `<${kind}:${url}>`,
+			),
+		).toBe(
 			[
 				"#EXTM3U",
 				'#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="Japanese",URI="<playlist:https://cdn.example.com/show/audio/ja.m3u8>"',
@@ -39,7 +43,13 @@ describe("rewritePlaylist", () => {
 			"#EXT-X-ENDLIST",
 		].join("\r\n");
 
-		expect(rewritePlaylist(media, "https://cdn.example.com/show/1080/index.m3u8", sign)).toBe(
+		expect(
+			rewrite(
+				media,
+				"https://cdn.example.com/show/1080/index.m3u8",
+				(url, kind) => `<${kind}:${url}>`,
+			),
+		).toBe(
 			[
 				"#EXTM3U",
 				"#EXT-X-TARGETDURATION:6",
