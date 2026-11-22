@@ -75,7 +75,13 @@ export const acceptsTitleMatch = (anime: Anime, matchedTitle: string, providerEp
 		anime.title.romaji,
 		anime.title.native,
 		...anime.synonyms,
-	].flatMap((title) => (title ? [title] : []));
+	].flatMap((title) => {
+		if (title) {
+			return [title];
+		}
+
+		return [];
+	});
 
 	if (
 		bestSimilarity(titles, [matchedTitle], {
