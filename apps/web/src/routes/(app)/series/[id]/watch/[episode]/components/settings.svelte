@@ -35,7 +35,11 @@
 			return `${height}p 4K`;
 		}
 
-		return height >= highHeight ? `${height}p HD` : `${height}p`;
+		if (height >= highHeight) {
+			return `${height}p HD`;
+		}
+
+		return `${height}p`;
 	};
 
 	const pickSubtitle = (url: string) => {
