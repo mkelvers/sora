@@ -179,7 +179,11 @@ const fetchMovieFacts = async (movieId: number): Promise<TmdbFacts | null> => {
 const fetchTmdbFacts = (key: string) => {
 	const [kind, id] = parseKey(key);
 
-	return kind === "tv" ? fetchShowFacts(id) : fetchMovieFacts(id);
+	if (kind === "tv") {
+		return fetchShowFacts(id);
+	}
+
+	return fetchMovieFacts(id);
 };
 
 /** Titles asked of IMDb in one request. */
