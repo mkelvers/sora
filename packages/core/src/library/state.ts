@@ -7,7 +7,7 @@ import { seriesState } from "../database/schema/library";
  * Clears some of what a user decided about a series (see `seriesState`),
  * and deletes the row once nothing is left in it.
  */
-export const clearSeriesState = async (
+export const clearSeries = async (
 	userId: string,
 	seriesId: string,
 	cleared: {

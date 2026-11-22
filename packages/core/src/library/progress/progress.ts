@@ -15,7 +15,7 @@ import type {
 } from "../../models/library";
 import { locateEpisode } from "../../series/episodes";
 import { assertSeriesExists, getSeriesEpisodes, toSeriesCards } from "../../series/queries";
-import { clearSeriesState } from "../state";
+import { clearSeries } from "../state";
 import { Played } from "./played";
 import { Viewer } from "./viewer";
 
@@ -72,7 +72,7 @@ export const getProgress = async (
  * already finished stays as it was unless the user finishes it again.
  * During a rewatch this is the rewatch's progress, and the first viewing is
  * left as it was.
- * The series' watchlist status moves on as `updateWatchlistAfterPlayback`
+ * The series' watchlist status moves on as `followPlayback`
  * says, and finishing its last episode ends a rewatch of it.
  *
  * @throws {InvalidInputError} when the input fails {@link ProgressInputSchema}.
@@ -508,7 +508,7 @@ export const removeProgress = async (userId: string, seriesId: string) => {
 	await db
 		.delete(episodeProgress)
 		.where(and(eq(episodeProgress.userId, userId), eq(episodeProgress.seriesId, seriesId)));
-	await clearSeriesState(userId, seriesId, {
+	await clearSeries(userId, seriesId, {
 		dismissal: true,
 		rewatch: true,
 	});

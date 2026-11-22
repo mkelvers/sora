@@ -11,7 +11,7 @@ import {
 	getWatchlist,
 	getWatchlistStatuses,
 	setWatchlistStatus,
-	updateWatchlistAfterPlayback,
+	followPlayback,
 } from "./watchlist";
 
 describe("saved short titles", () => {
@@ -85,9 +85,9 @@ describe("saved short titles", () => {
 		}
 
 		const cards = await toSeriesCards([row]);
-		const cardsOfAnotherTitle = await toSeriesCards([row], ["another-title"]);
+		const otherCards = await toSeriesCards([row], ["another-title"]);
 		expect(cards.size).toBe(0);
-		expect(cardsOfAnotherTitle.size).toBe(0);
+		expect(otherCards.size).toBe(0);
 
 		const [entry] = await getWatchlist(profile);
 
@@ -121,7 +121,7 @@ describe("saved short titles", () => {
 			seriesId: id,
 		});
 		await setWatchlistStatus(profile, id, "watching");
-		await updateWatchlistAfterPlayback(profile, id, {
+		await followPlayback(profile, id, {
 			episode: 24,
 			finished: true,
 		});
@@ -135,7 +135,7 @@ describe("saved short titles", () => {
 			seriesId: id,
 		});
 		await setWatchlistStatus(profile, id, "watching");
-		await updateWatchlistAfterPlayback(profile, id, {
+		await followPlayback(profile, id, {
 			episode: 24,
 			finished: true,
 		});

@@ -4,8 +4,8 @@ import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import type { NextEpisode } from "../../models/library";
 import { getAdjacentEpisodes } from "../../series/queries";
-import { clearSeriesState } from "../state";
-import { updateWatchlistAfterPlayback } from "../watchlist/watchlist";
+import { clearSeries } from "../state";
+import { followPlayback } from "../watchlist/watchlist";
 import type { EpisodeAddress } from "./progress";
 
 /** One user, as their progress and rewatches see them. */
@@ -54,7 +54,7 @@ export class Viewer {
 		const userId = this.#userId;
 
 		await this.forgetRewatch(seriesId);
-		await clearSeriesState(userId, seriesId, {
+		await clearSeries(userId, seriesId, {
 			rewatch: true,
 		});
 	}
@@ -66,7 +66,7 @@ export class Viewer {
 	async after(address: EpisodeAddress, finished: boolean) {
 		const userId = this.#userId;
 
-		await updateWatchlistAfterPlayback(userId, address.seriesId, {
+		await followPlayback(userId, address.seriesId, {
 			episode: address.episode,
 			finished,
 		});

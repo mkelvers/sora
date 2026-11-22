@@ -1,29 +1,43 @@
 import { describe, expect, test } from "bun:test";
 
-import { fromDayText, listDates, parseMyAnimeListExport } from "./sources";
+import { fromDayText, listDates, parseMalExport } from "./sources";
 
-const entry = (fields: Record<string, string>) =>
-	`<anime>${Object.entries(fields)
-		.map(([name, value]) => `<${name}>${value}</${name}>`)
-		.join("")}</anime>`;
+/** One `<anime>` element of an export, with `fields` as its children. */
+class Anime {
+	readonly #fields: Record<string, string>;
 
-describe("parseMyAnimeListExport", () => {
+	constructor(fields: Record<string, string>) {
+		this.#fields = fields;
+	}
+
+	get xml(): string {
+		const children = Object.entries(this.#fields)
+			.map(([name, value]) => `<${name}>${value}</${name}>`)
+			.join("");
+
+		return `<anime>${children}</anime>`;
+	}
+}
+
+describe("parseMalExport", () => {
 	test("reads the id, title, status and progress of each title", () => {
-		const xml = `<?xml version="1.0"?><myanimelist><myinfo><user_export_type>1</user_export_type></myinfo>${entry(
-			{
+		const xml = `<?xml version="1.0"?><myanimelist><myinfo><user_export_type>1</user_export_type></myinfo>${
+			new Anime({
 				my_status: "Watching",
 				my_watched_episodes: "7",
 				series_animedb_id: "5114",
 				series_title: "<![CDATA[Fullmetal Alchemist: Brotherhood]]>",
-			},
-		)}${entry({
-			my_status: "Plan to Watch",
-			my_watched_episodes: "0",
-			series_animedb_id: "9253",
-			series_title: "Steins;Gate",
-		})}</myanimelist>`;
+			}).xml
+		}${
+			new Anime({
+				my_status: "Plan to Watch",
+				my_watched_episodes: "0",
+				series_animedb_id: "9253",
+				series_title: "Steins;Gate",
+			}).xml
+		}</myanimelist>`;
 
-		expect(parseMyAnimeListExport(xml)).toEqual([
+		expect(parseMalExport(xml)).toEqual([
 			{
 				addedAt: null,
 				changedAt: null,
@@ -44,13 +58,13 @@ describe("parseMyAnimeListExport", () => {
 	});
 
 	test("marks a completed title as watched through every episode", () => {
-		const [completed] = parseMyAnimeListExport(
-			entry({
+		const [completed] = parseMalExport(
+			new Anime({
 				my_status: "Completed",
 				my_watched_episodes: "12",
 				series_animedb_id: "1",
 				series_title: "A",
-			}),
+			}).xml,
 		);
 
 		expect(completed?.status).toBe("completed");
@@ -58,20 +72,20 @@ describe("parseMyAnimeListExport", () => {
 	});
 
 	test("counts on-hold as watching and reads numeric statuses", () => {
-		const statuses = parseMyAnimeListExport(
+		const statuses = parseMalExport(
 			[
-				entry({
+				new Anime({
 					my_status: "On-Hold",
 					my_watched_episodes: "3",
 					series_animedb_id: "1",
 					series_title: "A",
-				}),
-				entry({
+				}).xml,
+				new Anime({
 					my_status: "4",
 					my_watched_episodes: "1",
 					series_animedb_id: "2",
 					series_title: "B",
-				}),
+				}).xml,
 			].join(""),
 		).map((row) => row.status);
 
@@ -80,23 +94,23 @@ describe("parseMyAnimeListExport", () => {
 
 	test("leaves out a title without an id or with a status it does not know", () => {
 		const xml = [
-			entry({
+			new Anime({
 				my_status: "Watching",
 				series_title: "No id",
-			}),
-			entry({
+			}).xml,
+			new Anime({
 				my_status: "Mystery",
 				series_animedb_id: "7",
 				series_title: "Odd status",
-			}),
+			}).xml,
 		].join("");
 
-		expect(parseMyAnimeListExport(xml)).toEqual([]);
+		expect(parseMalExport(xml)).toEqual([]);
 	});
 
 	test("ignores a manga list", () => {
 		expect(
-			parseMyAnimeListExport(
+			parseMalExport(
 				"<myanimelist><manga><manga_mangadb_id>1</manga_mangadb_id></manga></myanimelist>",
 			),
 		).toEqual([]);
@@ -105,15 +119,15 @@ describe("parseMyAnimeListExport", () => {
 
 describe("MyAnimeList export dates", () => {
 	test("reads when a title was started and finished", () => {
-		const [watched] = parseMyAnimeListExport(
-			entry({
+		const [watched] = parseMalExport(
+			new Anime({
 				my_finish_date: "2020-03-09",
 				my_start_date: "2020-02-01",
 				my_status: "Completed",
 				my_watched_episodes: "12",
 				series_animedb_id: "1",
 				series_title: "A",
-			}),
+			}).xml,
 		);
 
 		expect(watched?.addedAt).toEqual(new Date("2020-02-01T00:00:00Z"));
@@ -121,15 +135,15 @@ describe("MyAnimeList export dates", () => {
 	});
 
 	test("treats MyAnimeList's all-zero date as no date", () => {
-		const [watched] = parseMyAnimeListExport(
-			entry({
+		const [watched] = parseMalExport(
+			new Anime({
 				my_finish_date: "0000-00-00",
 				my_start_date: "0000-00-00",
 				my_status: "Watching",
 				my_watched_episodes: "1",
 				series_animedb_id: "1",
 				series_title: "A",
-			}),
+			}).xml,
 		);
 
 		expect(watched?.addedAt).toBeNull();

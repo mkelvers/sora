@@ -131,7 +131,7 @@ export const watchlistStatus = pgEnum("watchlist_status", [
  * played of it, which {@link episodeProgress} holds: whether it is on their
  * watchlist and with what status, whether they are watching it again, and
  * whether they took it out of Continue Watching. A row left with none of
- * these is deleted; see `clearSeriesState`.
+ * these is deleted; see `clearSeries`.
  */
 export const seriesState = pgTable(
 	"series_state",
@@ -158,7 +158,7 @@ export const seriesState = pgTable(
 			}),
 		/**
 		 * The series' status on the watchlist; `null` when it is not on it. The
-		 * user sets it; playing an episode moves it on as `statusAfterPlayback`
+		 * user sets it; playing an episode moves it on as `afterPlayback`
 		 * says. Taking the series off the watchlist keeps the user's progress.
 		 */
 		status: watchlistStatus("status"),

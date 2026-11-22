@@ -7,26 +7,48 @@ import { db } from "../../database/client";
 import { anime } from "../../database/schema/catalog";
 import { seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
+import type { LibraryExport } from "../../models/transfer";
 import { exportLibrary, importLibrary, undoImport } from "./transfer";
 
-const datesOf = async (userId: string) => {
-	const rows = await db
-		.select({
-			addedAt: seriesState.addedAt,
-			changedAt: seriesState.statusChangedAt,
-			seriesId: seriesState.seriesId,
-		})
-		.from(seriesState)
-		.where(eq(seriesState.userId, userId));
+/** When a profile's titles were added and last changed, by series ID. */
+class Dates {
+	readonly #rows: Map<
+		string,
+		{
+			addedAt: Date | null;
+			changedAt: Date | null;
+		}
+	>;
 
-	return new Map(rows.map((row) => [row.seriesId, row]));
-};
+	constructor(
+		rows: Map<
+			string,
+			{
+				addedAt: Date | null;
+				changedAt: Date | null;
+			}
+		>,
+	) {
+		this.#rows = rows;
+	}
 
-const isoOf = (
-	dates: Awaited<ReturnType<typeof datesOf>>,
-	title: { seriesId: string } | undefined,
-	field: "addedAt" | "changedAt",
-) => dates.get(title?.seriesId ?? "")?.[field]?.toISOString();
+	static async of(userId: string): Promise<Dates> {
+		const rows = await db
+			.select({
+				addedAt: seriesState.addedAt,
+				changedAt: seriesState.statusChangedAt,
+				seriesId: seriesState.seriesId,
+			})
+			.from(seriesState)
+			.where(eq(seriesState.userId, userId));
+
+		return new Dates(new Map(rows.map((row) => [row.seriesId, row])));
+	}
+
+	iso(title: { seriesId: string } | undefined, field: "addedAt" | "changedAt") {
+		return this.#rows.get(title?.seriesId ?? "")?.[field]?.toISOString();
+	}
+}
 
 interface Title {
 	anilistId: number;
@@ -38,11 +60,11 @@ interface Title {
 describe("library import and export", () => {
 	const profile = `transfer-test-${crypto.randomUUID()}`;
 	const now = new Date();
-	const firstAniListId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
+	const firstAnilistId = 2_000_000_000 + Math.floor(Math.random() * 100_000_000);
 	const firstMalId = 900_000_000 + Math.floor(Math.random() * 90_000_000);
 
 	const titles: Title[] = [3, 4, 5].map((released, index) => ({
-		anilistId: firstAniListId + index,
+		anilistId: firstAnilistId + index,
 		malId: firstMalId + index,
 		released,
 		seriesId: `${profile}-${index}`,
@@ -115,41 +137,45 @@ describe("library import and export", () => {
 		);
 	});
 
-	const file = (history: boolean) => ({
-		document: {
-			exported_at: now.toISOString(),
-			format: "sora-library" as const,
-			history: history
-				? [
-						{
-							anilist_id: titles[0]?.anilistId ?? 0,
-							duration_seconds: 1400,
-							episode: 1,
-							finished: true,
-							position_seconds: 1400,
-							rewatch: false,
-							watched_at: now.toISOString(),
-						},
-					]
-				: [],
-			version: 1 as const,
-			watchlist: [
-				{
-					added_at: now.toISOString(),
-					anilist_id: titles[0]?.anilistId ?? 0,
-					status: "watching" as const,
-					title: "First",
-				},
-				{
-					added_at: now.toISOString(),
-					anilist_id: titles[1]?.anilistId ?? 0,
-					status: "plan_to_watch" as const,
-					title: "Second",
-				},
-			],
-		},
-		source: "sora" as const,
-	});
+	const file = (history: boolean) => {
+		const played: LibraryExport["history"] = [];
+
+		if (history) {
+			played.push({
+				anilist_id: titles[0]?.anilistId ?? 0,
+				duration_seconds: 1400,
+				episode: 1,
+				finished: true,
+				position_seconds: 1400,
+				rewatch: false,
+				watched_at: now.toISOString(),
+			});
+		}
+
+		return {
+			document: {
+				exported_at: now.toISOString(),
+				format: "sora-library" as const,
+				history: played,
+				version: 1 as const,
+				watchlist: [
+					{
+						added_at: now.toISOString(),
+						anilist_id: titles[0]?.anilistId ?? 0,
+						status: "watching" as const,
+						title: "First",
+					},
+					{
+						added_at: now.toISOString(),
+						anilist_id: titles[1]?.anilistId ?? 0,
+						status: "plan_to_watch" as const,
+						title: "Second",
+					},
+				],
+			},
+			source: "sora" as const,
+		};
+	};
 
 	test("adds a file's watchlist and history", async () => {
 		const report = await importLibrary(profile, file(true));
@@ -238,12 +264,12 @@ describe("library import and export", () => {
 			source: "myanimelist",
 			xml,
 		});
-		const byId = await datesOf(dated);
+		const byId = await Dates.of(dated);
 
-		expect(isoOf(byId, first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
-		expect(isoOf(byId, first, "changedAt")).toBe("2019-04-01T00:00:00.000Z");
-		expect(isoOf(byId, second, "addedAt")).toBe("2021-01-01T00:00:00.000Z");
-		const future = new Date(isoOf(byId, third, "addedAt") ?? 0).getTime();
+		expect(byId.iso(first, "addedAt")).toBe("2019-03-04T00:00:00.000Z");
+		expect(byId.iso(first, "changedAt")).toBe("2019-04-01T00:00:00.000Z");
+		expect(byId.iso(second, "addedAt")).toBe("2021-01-01T00:00:00.000Z");
+		const future = new Date(byId.iso(third, "addedAt") ?? 0).getTime();
 		expect(future).toBeGreaterThanOrEqual(before.getTime());
 		expect(future).toBeLessThanOrEqual(Date.now());
 	});

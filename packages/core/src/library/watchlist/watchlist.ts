@@ -5,8 +5,8 @@ import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series, seriesEpisode } from "../../database/schema/series";
 import type { WatchlistEntry, WatchlistStatus, WatchlistStatusEntry } from "../../models/library";
 import { assertSeriesExists, toSeriesCards } from "../../series/queries";
-import { clearSeriesState } from "../state";
-import { statusAfterPlayback } from "./status";
+import { clearSeries } from "../state";
+import { afterPlayback } from "./status";
 
 /** Lists a user's watchlist, the most recently changed first. */
 export const getWatchlist = async (userId: string): Promise<WatchlistEntry[]> => {
@@ -111,16 +111,16 @@ export const setWatchlistStatus = async (
 
 /** Takes a series off a user's watchlist. Their progress in it stays. */
 export const removeFromWatchlist = async (userId: string, seriesId: string) => {
-	await clearSeriesState(userId, seriesId, {
+	await clearSeries(userId, seriesId, {
 		watchlist: true,
 	});
 };
 
 /**
  * Moves a series' watchlist status on after the user played one of its
- * episodes, as {@link statusAfterPlayback} says. Called by `saveProgress`.
+ * episodes, as {@link afterPlayback} says. Called by `saveProgress`.
  */
-export const updateWatchlistAfterPlayback = async (
+export const followPlayback = async (
 	userId: string,
 	seriesId: string,
 	playback: {
@@ -174,7 +174,7 @@ export const updateWatchlistAfterPlayback = async (
 			),
 	]);
 
-	const next = statusAfterPlayback(current?.status ?? null, {
+	const next = afterPlayback(current?.status ?? null, {
 		finished: playback.finished,
 		isFinale:
 			title?.status === "FINISHED" && title.episodes !== null && playback.episode >= title.episodes,
