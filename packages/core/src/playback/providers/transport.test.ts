@@ -8,14 +8,16 @@ const server = Bun.serve({
 	fetch: (request) => {
 		const retryAfter = new URL(request.url).searchParams.get("retry_after");
 
-		return retryAfter === null
-			? new Response("ok")
-			: new Response("slow down", {
-					headers: {
-						"Retry-After": retryAfter,
-					},
-					status: 429,
-				});
+		if (retryAfter === null) {
+			return new Response("ok");
+		}
+
+		return new Response("slow down", {
+			headers: {
+				"Retry-After": retryAfter,
+			},
+			status: 429,
+		});
 	},
 	port: 0,
 });
