@@ -233,7 +233,11 @@ const numbersIn = (title: string) =>
 		.flatMap((word) => {
 			const written = numberWords.get(word) ?? romanValue(word);
 
-			return written === null ? (word.match(/\d+/gu) ?? []).map(Number) : [written];
+			if (written === null) {
+				return (word.match(/\d+/gu) ?? []).map(Number);
+			}
+
+			return [written];
 		})
 		.join(" ");
 
