@@ -33,10 +33,10 @@ export type Attempt<TData, TError extends Error = Error> =
 			error: TError;
 	  };
 
-const settle = <TData, TExpected extends ErrorClass[]>(
+const settle = <TData>(
 	work: PromiseLike<TData> | (() => TData),
-	...expected: TExpected
-): Attempt<TData, Caught<TExpected>> | Promise<Attempt<TData, Caught<TExpected>>> => {
+	...expected: ErrorClass[]
+): Attempt<TData> | Promise<Attempt<TData>> => {
 	const failed = (cause: unknown) => {
 		const error =
 			cause instanceof Error
@@ -51,8 +51,7 @@ const settle = <TData, TExpected extends ErrorClass[]>(
 
 		return {
 			data: null,
-			// SAFETY: `error` is an Error, and an instance of an expected class when any are named (checked above).
-			error: error as Caught<TExpected>,
+			error,
 		};
 	};
 
