@@ -217,7 +217,9 @@ export class Player {
 			target.matches(":focus-visible") &&
 			(target.matches('input[type="range"]') || (event.key === " " && target.closest("button, a")));
 
-		if (!inPlayer || inFieldOrMenu || controlOwnsKey) {
+		const foreign = !inPlayer || inFieldOrMenu || controlOwnsKey;
+
+		if (foreign) {
 			return;
 		}
 
