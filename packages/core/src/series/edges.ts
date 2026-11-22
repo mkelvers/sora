@@ -177,7 +177,11 @@ export const storeBackdropEdges = async (seriesId: string): Promise<boolean> => 
 		.where(eq(series.id, seriesId))
 		.limit(1);
 
-	return row?.url ? storeImageEdges(row.url) : false;
+	if (row?.url) {
+		return storeImageEdges(row.url);
+	}
+
+	return false;
 };
 
 /**
