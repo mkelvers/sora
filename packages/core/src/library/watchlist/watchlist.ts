@@ -58,16 +58,18 @@ export const getWatchlistStatuses = async (userId: string): Promise<WatchlistSta
 		.from(seriesState)
 		.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status)));
 
-	return rows.flatMap((row) =>
-		row.status
-			? [
-					{
-						series_id: row.seriesId,
-						status: row.status,
-					},
-				]
-			: [],
-	);
+	return rows.flatMap((row) => {
+		if (row.status) {
+			return [
+				{
+					series_id: row.seriesId,
+					status: row.status,
+				},
+			];
+		}
+
+		return [];
+	});
 };
 
 /**
