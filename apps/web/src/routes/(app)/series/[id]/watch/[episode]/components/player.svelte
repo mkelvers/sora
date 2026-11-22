@@ -180,7 +180,10 @@
 	});
 
 	const retryPlayback = async () => {
-		if (!playbackQuery || playbackQuery.loading || (retryAt !== null && Date.now() < retryAt)) {
+		const busy =
+			!playbackQuery || playbackQuery.loading || (retryAt !== null && Date.now() < retryAt);
+
+		if (busy) {
 			return;
 		}
 
