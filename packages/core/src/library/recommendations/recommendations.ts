@@ -276,14 +276,16 @@ const candidates = async (filter: Filter, excluded: ReadonlySet<string>) => {
 	return found.flatMap((row) => {
 		const card = cards.get(row.id);
 
-		return card && card.audio.length > 0
-			? [
-					{
-						card,
-						key: row.key,
-					},
-				]
-			: [];
+		if (card && card.audio.length > 0) {
+			return [
+				{
+					card,
+					key: row.key,
+				},
+			];
+		}
+
+		return [];
 	});
 };
 
