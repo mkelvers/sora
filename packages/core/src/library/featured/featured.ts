@@ -87,15 +87,18 @@ const hasCleanBackdrop = sql<boolean>`exists (
 const backfillPerPick = 20;
 
 /** The cards of stored series, keyed by series ID. */
-const cardsOf = async (seriesIds: readonly string[]) =>
-	seriesIds.length > 0
-		? toSeriesCards(
-				await db
-					.select()
-					.from(series)
-					.where(inArray(series.id, [...seriesIds])),
-			)
-		: new Map<string, SeriesCard>();
+const cardsOf = async (seriesIds: readonly string[]) => {
+	if (seriesIds.length > 0) {
+		return toSeriesCards(
+			await db
+				.select()
+				.from(series)
+				.where(inArray(series.id, [...seriesIds])),
+		);
+	}
+
+	return new Map<string, SeriesCard>();
+};
 
 /** Whether a title can lead the home page: it has a backdrop and logo to draw, and something streams it. */
 const isShowable = (card: SeriesCard | undefined) =>
