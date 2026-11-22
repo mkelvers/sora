@@ -16,7 +16,6 @@ import type { TmdbImage } from "../tmdb/resources";
 import { storeBackdropEdges } from "./edges";
 import { getSeries } from "./queries";
 import { parseKey } from "./series";
-import type { SeriesKey } from "./series";
 import { upscalesOf } from "./upscale";
 import { upscaleIdOf, upscaledBackdropUrl } from "./upscaled-backdrop";
 
@@ -404,6 +403,5 @@ export const refreshSeriesImages = async (
 ): Promise<SeriesImage[]> => {
 	const row = await imageStateOf(seriesId);
 
-	// SAFETY: series keys are only stored as SeriesKeys.
-	return await applyQuery(row.key, await storeImages(row.key as SeriesKey, 0), query);
+	return await applyQuery(row.key, await storeImages(row.key, 0), query);
 };
