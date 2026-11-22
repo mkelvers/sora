@@ -1053,7 +1053,11 @@ const placeSpecialByTitle = (subject: MatchSubject, candidate: ShowCandidate): P
 			const normalized = normalizeTitle(title);
 			const showName = showNames.find((name) => normalized.startsWith(`${name} `));
 
-			return showName ? [normalized.slice(showName.length + 1)] : [];
+			if (showName) {
+				return [normalized.slice(showName.length + 1)];
+			}
+
+			return [];
 		})
 		.filter((name) => name.length >= minimumSpecialNameLength);
 
