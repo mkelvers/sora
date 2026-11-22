@@ -785,7 +785,12 @@ export const refineCues = (
 
 	const picked = pickAnchors(cues, cueTokens, words, spoken, voted);
 
-	if (picked.length < minimumAnchors || picked.length < 0.1 * speakingCues(cueTokens)) {
+	const minimumAnchorShare = 0.1;
+
+	if (
+		picked.length < minimumAnchors ||
+		picked.length < minimumAnchorShare * speakingCues(cueTokens)
+	) {
 		return null;
 	}
 
