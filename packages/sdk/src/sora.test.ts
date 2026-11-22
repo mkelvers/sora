@@ -237,6 +237,23 @@ describe("SoraClient.request", () => {
 		});
 	});
 
+	test("reports malformed password-change results through the SDK error contract", async () => {
+		const { sora } = clientAnswering(() => Response.json({ token: 123 }));
+
+		const { error } = await attempt(
+			sora.changePassword({
+				currentPassword: "old-password",
+				newPassword: "new-password",
+			}),
+		);
+
+		expect(error).toBeInstanceOf(SoraError);
+		expect(error).toMatchObject({
+			code: "INVALID_RESPONSE",
+			status: 200,
+		});
+	});
+
 	test("keeps validation errors and the retry delay from a problem response", async () => {
 		const errors = [
 			{

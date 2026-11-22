@@ -347,11 +347,13 @@ export class SoraClient {
 			options,
 		);
 
-		const changed = z
-			.object({
+		const changed = await SoraClient.#body(
+			response,
+			z.object({
 				token: z.string(),
-			})
-			.parse(await response.json());
+			}),
+			"POST /auth/change-password",
+		);
 
 		return {
 			token: changed.token,
