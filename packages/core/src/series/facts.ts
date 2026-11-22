@@ -295,7 +295,11 @@ const fetchNominations = async (ids: readonly string[]) => {
 	return ids.flatMap((id, index) => {
 		const title = data[`t${index}`];
 
-		return title ? [[id, title] as const] : [];
+		if (title) {
+			return [[id, title] as const];
+		}
+
+		return [];
 	});
 };
 
