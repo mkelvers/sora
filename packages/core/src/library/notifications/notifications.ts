@@ -329,9 +329,11 @@ const notificationMessage = (
 			return "The film is now available to watch in Sora. Open its page to see the available audio versions and start watching.";
 		}
 
-		return count > 1
-			? `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`
-			: `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
+		if (count > 1) {
+			return `The season has started with ${count} episodes available to watch. Episodes ${range} are listed on the season's page.`;
+		}
+
+		return `The season has started. Episode 1${episodeTitle} is now available to watch, and you can open the season's page to see its episode list.`;
 	}
 
 	return count > 1
