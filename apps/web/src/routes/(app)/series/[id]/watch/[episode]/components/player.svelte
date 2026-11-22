@@ -63,7 +63,11 @@
 			return title;
 		}
 
-		return episode.title ? `${label} – ${episode.title}` : label;
+		if (episode.title) {
+			return `${label} – ${episode.title}`;
+		}
+
+		return label;
 	});
 
 	const back = $derived(`/series/${series.id}`);
