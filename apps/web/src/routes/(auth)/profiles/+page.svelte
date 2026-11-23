@@ -93,7 +93,7 @@
 		{#if picker.managing}
 			<Button variant="primary" onclick={() => (picker.managing = false)}>Done</Button>
 		{:else}
-			<Button variant="secondary" onclick={() => (picker.managing = true)}>Manage Profiles</Button>
+			<Button variant="primary" onclick={() => (picker.managing = true)}>Manage Profiles</Button>
 		{/if}
 	</div>
 </div>

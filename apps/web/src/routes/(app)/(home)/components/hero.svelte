@@ -161,7 +161,7 @@
 									{#snippet children(trigger)}
 										<Button
 											{...trigger}
-											variant="secondary"
+											variant="primary"
 											square
 											aria-label={listed ? "Remove from Watchlist" : "Add to Watchlist"}
 											aria-pressed={listed}

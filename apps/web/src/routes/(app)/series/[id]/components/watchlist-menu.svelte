@@ -24,7 +24,7 @@
 	{#snippet children(anchor)}
 		<Button
 			{...anchor}
-			variant="secondary"
+			variant="primary"
 			square
 			aria-label={status ? "Remove from Watchlist" : "Add to Watchlist"}
 			aria-pressed={!!status}
@@ -36,7 +36,7 @@
 </Tooltip>
 
 <Button
-	variant="secondary"
+	variant="primary"
 	square
 	class="sm:hidden"
 	aria-label={statusLabel ? `${statusLabel}, Change Watchlist Status` : "Change Watchlist Status"}
@@ -63,7 +63,7 @@
 			onfocusout={anchor.onblur}
 		>
 			<Dropdown
-				variant="secondary"
+				variant="primary"
 				square
 				alignment="left"
 				label={statusLabel ? `${statusLabel}, Change Watchlist Status` : "Change Watchlist Status"}

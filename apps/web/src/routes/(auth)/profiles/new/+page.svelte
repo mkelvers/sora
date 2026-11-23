@@ -48,6 +48,6 @@
 
 	<div class="mt-10 flex gap-3">
 		<Button type="submit" variant="primary" class="flex-1" loading={pending}>Add Profile</Button>
-		<Button href="/profiles{page.url.search}" variant="secondary" class="flex-1">Cancel</Button>
+		<Button href="/profiles{page.url.search}" variant="primary" class="flex-1">Cancel</Button>
 	</div>
 </form>

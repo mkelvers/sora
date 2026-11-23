@@ -4,6 +4,7 @@
 	import StatusBanner from "$lib/components/status-banner.svelte";
 	import Button from "$lib/components/ui/button.svelte";
 	import { nextEpisodeAddress } from "$lib/series-navigation";
+	import { tmdbImage } from "$lib/utils";
 	import {
 		getEpisode,
 		getPlayback,
@@ -71,6 +72,7 @@
 	});
 
 	const back = $derived(`/series/${series.id}`);
+	const still = $derived(episode.still_url ?? series.backdrop_url);
 
 	const previous = $derived.by(() => {
 		if (!playback?.previous) {
@@ -192,7 +194,6 @@
 	});
 
 	let now = $state(Date.now());
-	const retryDelayId = $props.id();
 
 	const retryWait = $derived.by(() => {
 		if (retryAt === null) {
@@ -200,6 +201,22 @@
 		}
 
 		return Math.max(0, Math.ceil((retryAt - now) / second));
+	});
+
+	const playbackHint = $derived.by(() => {
+		if (retryWait === 1) {
+			return "Try again in 1 second.";
+		}
+
+		if (retryWait > 1) {
+			return `Try again in ${retryWait} seconds.`;
+		}
+
+		if (!canRetry) {
+			return "Try another episode or come back later.";
+		}
+
+		return "Give it a moment and try again.";
 	});
 
 	$effect(() => {
@@ -493,47 +510,49 @@
 		/>
 	{/if}
 
-	<div class="pointer-events-none z-1 mx-4 place-self-center text-center">
-		<p role="status" class={playbackMessage ? "text-lg font-semibold" : "sr-only"}>
-			{#if retrying}
-				Retrying playback…
-			{:else if playbackMessage}
-				{playbackMessage}
-			{:else if loading}
-				Loading playback…
-			{/if}
-		</p>
-		{#if playbackMessage}
-			{#if retryWait > 0}
-				<p id={retryDelayId} class="mt-2 text-sm text-foreground/80">
-					Try again in {retryWait}
-					{retryWait === 1 ? "second" : "seconds"}.
-				</p>
-			{/if}
-			{#if canRetry}
-				<Button
-					variant="primary"
-					class="pointer-events-auto mt-4"
-					aria-disabled={retrying || retryWait > 0}
-					aria-describedby={retryWait > 0 ? retryDelayId : undefined}
-					onclick={retryPlayback}
-				>
-					Retry playback
-				</Button>
-			{/if}
-			<nav aria-label="Episode navigation" class="mt-3 flex flex-wrap justify-center gap-x-4">
-				{#if previous}
-					<Button href={previous} variant="plain" class="pointer-events-auto">
-						Previous episode
+	<p role="status" class="sr-only">
+		{#if retrying}
+			Retrying playback…
+		{:else if playbackMessage}
+			{playbackMessage}
+		{:else if loading}
+			Loading playback…
+		{/if}
+	</p>
+
+	{#if playbackMessage && still}
+		<img
+			src={tmdbImage(still, "w1280")}
+			alt=""
+			decoding="async"
+			class="pointer-events-none size-full object-cover opacity-30"
+		/>
+	{/if}
+
+	{#if playbackMessage}
+		<div class="z-1 mx-5 flex max-w-lg flex-col items-center place-self-center text-center">
+			<p class="text-2xl font-bold text-balance sm:text-3xl">
+				{retrying ? "Retrying playback…" : playbackMessage}
+			</p>
+			<p class="mt-2 text-muted">{playbackHint}</p>
+			<div class="mt-8 flex flex-wrap justify-center gap-3">
+				{#if canRetry}
+					<Button
+						variant="primary"
+						aria-disabled={retrying || retryWait > 0}
+						onclick={retryPlayback}
+					>
+						Try again
 					</Button>
 				{/if}
-				<Button href={back} variant="plain" class="pointer-events-auto">Back to series</Button>
 				{#if next}
-					<Button href={next} variant="plain" class="pointer-events-auto">Next episode</Button>
+					<Button href={next} variant="primary">Next episode</Button>
+				{:else if !canRetry}
+					<Button href={back} variant="primary">Back to series</Button>
 				{/if}
-			</nav>
-		{/if}
-	</div>
+			</div>
+		</div>
+	{/if}
 
 	{#if segment}
 		<div
@@ -541,7 +560,7 @@
 		>
 			<Button
 				variant="primary"
-				class="pointer-events-auto bg-white text-black shadow-lg shadow-black/50 transition-[background-color] duration-150 hover:bg-white/80 hover:brightness-100 motion-reduce:transition-none"
+				class="pointer-events-auto border-white bg-white text-black shadow-lg shadow-black/50 transition-[background-color] duration-150 hover:bg-white/80 hover:brightness-100 motion-reduce:transition-none"
 				onclick={() => (player.time = segment.end)}
 			>
 				{#if segment.kind === "opening"}

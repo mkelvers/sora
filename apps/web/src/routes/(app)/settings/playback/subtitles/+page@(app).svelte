@@ -277,7 +277,7 @@
 
 		<div class="mt-12 flex justify-center">
 			<Button
-				variant="secondary"
+				variant="primary"
 				loading={resetting}
 				disabled={resetting || !playback.subtitle_style_changed}
 				onclick={reset}
