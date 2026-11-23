@@ -4,8 +4,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../database/client";
 import { episodeStill, series, titleEpisode } from "../database/schema/series";
 import { UpstreamUnavailableError } from "../errors";
-import { getEpisodeStills, tmdbImageUrl } from "../tmdb/resources";
-import { hasBlackBars, rankStills, showsText } from "../tmdb/stills";
+import { getEpisodeStills, imageUrl } from "../tmdb/resources";
+import { hasBlackBars, bestFirst, showsText } from "../tmdb/stills";
 
 /** A still TMDB lists for an episode. */
 class Still {
@@ -17,7 +17,7 @@ class Still {
 
 	/** The still's image, 780 pixels wide. */
 	async load(): Promise<Buffer> {
-		const url = defined(tmdbImageUrl(this.#path, "w780"));
+		const url = defined(imageUrl(this.#path, "w780"));
 
 		const response = await fetch(url, {
 			signal: AbortSignal.timeout(10_000),
@@ -33,7 +33,7 @@ class Still {
 
 export const stills = {
 	/**
-	 * Chooses the still of a TMDB episode: the best ranked (see `rankStills`)
+	 * Chooses the still of a TMDB episode: the best ranked (see `bestFirst`)
 	 * of those TMDB lists for it that has no language, no black bars, and no
 	 * title card or text a model can read on it. A still with a language has a
 	 * logo or title over it more often than not, so it is not taken while
@@ -58,7 +58,7 @@ export const stills = {
 		/** How many stills of an episode are looked at, best ranked first, before the best ranked is taken. */
 		const limit = 8;
 
-		const ranked = rankStills(
+		const ranked = bestFirst(
 			await getEpisodeStills(showId, seasonNumber, episodeNumber),
 			defaultPath,
 		);
@@ -131,7 +131,7 @@ export const stills = {
 		await db
 			.update(titleEpisode)
 			.set({
-				stillUrl: tmdbImageUrl(path, "original"),
+				stillUrl: imageUrl(path, "original"),
 			})
 			.where(
 				and(

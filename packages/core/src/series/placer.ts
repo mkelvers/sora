@@ -4,7 +4,7 @@ import {
 	getCollectionParts,
 	getMovie,
 	getShow,
-	getShowEpisodeGroups,
+	getEpisodeGroups,
 	searchMovies,
 	searchShows,
 } from "../tmdb/resources";
@@ -13,10 +13,10 @@ import type { TmdbMapping } from "./mapping";
 import { mappedEpisodes } from "./mapping";
 import {
 	bestSimilarity,
-	placeAfterInCollection,
+	placeAfterPrequel,
 	placeAsMovie,
 	placeInShow,
-	placeInEpisodeGroups,
+	placeInGroups,
 } from "./matching";
 import type { MatchSubject, Placement, PrequelRun, ShowCandidate } from "./matching";
 
@@ -166,7 +166,7 @@ export class Placer {
 				return null;
 			}
 
-			return placeAfterInCollection(
+			return placeAfterPrequel(
 				this.#subject,
 				mapping.tmdbId,
 				await getCollectionParts(collectionId),
@@ -241,7 +241,7 @@ export class Placer {
 			[...candidates.keys()].map(async (showId) => {
 				const [show, episodeGroups] = await Promise.all([
 					getShow(showId),
-					getShowEpisodeGroups(showId),
+					getEpisodeGroups(showId),
 				]);
 
 				return {
@@ -263,7 +263,7 @@ export class Placer {
 			const { show, episodeGroups } = loaded;
 
 			const placement =
-				placeInEpisodeGroups(subject, show, episodeGroups) ??
+				placeInGroups(subject, show, episodeGroups) ??
 				placeInShow(subject, {
 					show,
 					...candidate,

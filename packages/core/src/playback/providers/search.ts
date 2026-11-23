@@ -6,7 +6,7 @@ import type { SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Anime, AnimeFormat } from "../../catalog/models/anime";
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { anikotoSeries } from "../../database/schema/playback";
 import { UnknownAnimeError } from "../../errors";
@@ -401,7 +401,7 @@ export class Search {
 		}
 
 		// A prequel AniList has since removed or marked adult.
-		const { data, error } = await attempt(getAnime(prequel.id), UnknownAnimeError);
+		const { data, error } = await attempt(catalog.anime(prequel.id), UnknownAnimeError);
 
 		if (error) {
 			return null;

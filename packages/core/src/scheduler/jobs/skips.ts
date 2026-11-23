@@ -2,7 +2,7 @@ import { attempt, sequence } from "@sora/shared";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { UnknownEpisodeError, PlaybackUnavailableError, UnknownSeriesError } from "../../errors";
 import { locateSongs, listenToSong } from "../../playback/skips/detect";
 import type { ListenedSong } from "../../playback/skips/detect";
@@ -102,7 +102,7 @@ export const detectSegments: Task = async (payload, helpers) => {
 	let songs: Awaited<ReturnType<typeof songsFor>> = [];
 
 	if (due.length > 0) {
-		songs = await songsFor(await getAnime(located.data.anilistId), located.data.number);
+		songs = await songsFor(await catalog.anime(located.data.anilistId), located.data.number);
 	}
 
 	const listened = await sequence.all(songs, async (song) => {

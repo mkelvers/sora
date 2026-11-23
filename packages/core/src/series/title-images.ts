@@ -5,7 +5,7 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleImage } from "../database/schema/series";
 import { UnknownSeriesError } from "../errors";
 import type { ImageType, SeriesImage } from "../models/series";
-import { getImages, getSeasonPosters, getShow, tmdbImageUrl } from "../tmdb/resources";
+import { getImages, getSeasonPosters, getShow, imageUrl } from "../tmdb/resources";
 import type { TmdbImage } from "../tmdb/resources";
 import type { SeriesImageQuery } from "./artwork";
 import { parseKey } from "./series";
@@ -59,7 +59,7 @@ export class TitleImages {
 			language: image.iso_639_1,
 			season_number: seasonNumber,
 			type,
-			url: defined(tmdbImageUrl(image.file_path, "original")),
+			url: defined(imageUrl(image.file_path, "original")),
 			vote_average: image.vote_average,
 			vote_count: image.vote_count,
 			width: image.width,

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { placeholder, synopsis } from "../catalog/models/text";
-import { getAnime } from "../catalog/queries/anime";
+import { catalog } from "../catalog/queries/anime";
 import { db } from "../database/client";
 import { series } from "../database/schema/series";
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
@@ -77,7 +77,7 @@ export class Overview {
 	async #anilist() {
 		const entry = this.#entry;
 		const show = this.#show;
-		const anime = await getAnime(entry.id);
+		const anime = await catalog.anime(entry.id);
 		const own = anime.description;
 
 		if (own && !placeholder.test(own)) {
@@ -104,7 +104,7 @@ export class Overview {
 				.where(eq(series.anilistId, first.id))
 				.limit(1);
 
-			const firstAnime = await getAnime(first.id);
+			const firstAnime = await catalog.anime(first.id);
 
 			firstDescription = firstAnime.description;
 		}

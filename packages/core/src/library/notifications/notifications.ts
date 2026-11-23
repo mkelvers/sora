@@ -1,7 +1,7 @@
 import { day, defined } from "@sora/shared";
 import { and, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
-import { catalogSeriesAllowed } from "../../catalog/visibility";
+import { seriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import {
 	episodeProgress,
@@ -252,9 +252,7 @@ export const notifications = {
 				})
 				.from(seriesState)
 				.innerJoin(series, eq(series.id, seriesState.seriesId))
-				.where(
-					and(eq(seriesState.userId, userId), isNotNull(seriesState.status), catalogSeriesAllowed),
-				),
+				.where(and(eq(seriesState.userId, userId), isNotNull(seriesState.status), seriesAllowed)),
 			db
 				.select({
 					anilistId: series.anilistId,
@@ -264,7 +262,7 @@ export const notifications = {
 				})
 				.from(episodeProgress)
 				.innerJoin(series, eq(series.id, episodeProgress.seriesId))
-				.where(and(eq(episodeProgress.userId, userId), catalogSeriesAllowed))
+				.where(and(eq(episodeProgress.userId, userId), seriesAllowed))
 				.groupBy(series.anilistId),
 		]);
 
@@ -301,7 +299,7 @@ export const notifications = {
 		const rows = await db
 			.select()
 			.from(series)
-			.where(and(inArray(series.anilistId, [...following.keys()]), catalogSeriesAllowed));
+			.where(and(inArray(series.anilistId, [...following.keys()]), seriesAllowed));
 
 		const seriesIds = rows.map((row) => row.id);
 		const cutoffs = new Map(rows.map((row) => [row.id, defined(following.get(row.anilistId))]));

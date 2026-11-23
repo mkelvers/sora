@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { providerEpisodes, providerMapping } from "../../database/schema/playback";
 import { series } from "../../database/schema/series";
@@ -63,7 +63,7 @@ class Looks {
 	 * @throws {Error} when AniKoto fails.
 	 */
 	static async refresh(anilistId: number): Promise<ProviderUnit[] | null> {
-		const { data, error } = await attempt(getAnime(anilistId), UnknownAnimeError);
+		const { data, error } = await attempt(catalog.anime(anilistId), UnknownAnimeError);
 
 		if (error) {
 			return null;

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Task } from "graphile-worker";
 import { z } from "zod";
 
-import { getAnime, refreshAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { db } from "../../database/client";
 import { UnknownAnimeError } from "../../errors";
 import { parseInput } from "../payload";
@@ -42,7 +42,7 @@ export const track: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const before = await attempt(getAnime(payload.anilistId), UnknownAnimeError);
+	const before = await attempt(catalog.anime(payload.anilistId), UnknownAnimeError);
 
 	if (before.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);
@@ -50,7 +50,7 @@ export const track: Task = async (rawPayload, helpers) => {
 		return;
 	}
 
-	const anime = await attempt(refreshAnime(payload.anilistId), UnknownAnimeError);
+	const anime = await attempt(catalog.refresh(payload.anilistId), UnknownAnimeError);
 
 	if (anime.error) {
 		helpers.logger.warn(`Anime ${payload.anilistId} is gone from AniList; no longer tracking it`);

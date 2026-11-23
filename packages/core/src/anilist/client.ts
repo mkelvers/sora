@@ -71,7 +71,7 @@ export interface MediaOperation<
 	media: (result: TResult) => Iterable<TMedia | null | undefined>;
 }
 
-/** IDs gathered into one request of a {@link loadMediaById} loader while it waits its turn. */
+/** IDs gathered into one request of a {@link loadMedia} loader while it waits its turn. */
 interface MediaBatch<TMedia> {
 	key: string;
 	priority: number;
@@ -623,7 +623,7 @@ export const connect = ({ fetch, store }: AniListDependencies) => {
 	 * @throws {UpstreamUnavailableError} from the returned function when
 	 *   AniList fails, or keeps answering with 429s.
 	 */
-	const loadMediaById = <
+	const loadMedia = <
 		TResult,
 		TVariables,
 		TMedia extends {
@@ -779,11 +779,11 @@ export const connect = ({ fetch, store }: AniListDependencies) => {
 
 	return {
 		anilist,
-		loadMediaById,
+		loadMedia,
 	};
 };
 
-export const { anilist, loadMediaById } = connect({
+export const { anilist, loadMedia } = connect({
 	fetch,
 	/** The responses AniList is asked for, kept in the database. */
 	store: {

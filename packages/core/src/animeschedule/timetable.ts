@@ -209,81 +209,83 @@ class Shows {
 	}
 }
 
-/**
- * Stores AnimeSchedule's timetable from last week to next week in
- * {@link animeScheduleRelease}, replacing what each week held, and links
- * shows it has not seen before to their AniList entries; see
- * {@link Shows.links}.
- *
- * Asks AnimeSchedule's API three times, plus once for each new show.
- *
- * @returns The AniList entries of the stored episodes.
- * @throws {Error} when AnimeSchedule cannot be read; weeks read before then stay stored.
- */
-export const syncTimetables = async (http: HttpClient, now = new Date()): Promise<number[]> => {
-	/** The weeks {@link syncTimetables} keeps, counted from this week. */
-	const syncedWeeks = [-1, 0, 1];
+export const timetables = {
+	/**
+	 * Stores AnimeSchedule's timetable from last week to next week in
+	 * {@link animeScheduleRelease}, replacing what each week held, and links
+	 * shows it has not seen before to their AniList entries; see
+	 * {@link Shows.links}.
+	 *
+	 * Asks AnimeSchedule's API three times, plus once for each new show.
+	 *
+	 * @returns The AniList entries of the stored episodes.
+	 * @throws {Error} when AnimeSchedule cannot be read; weeks read before then stay stored.
+	 */
+	async sync(http: HttpClient, now = new Date()): Promise<number[]> {
+		/** The weeks {@link timetables.sync} keeps, counted from this week. */
+		const syncedWeeks = [-1, 0, 1];
 
-	const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-	const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
-	const anilistIds = new Set<number>();
+		const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+		const thisMonday = new Date(midnight - ((now.getUTCDay() + 6) % 7) * day);
+		const anilistIds = new Set<number>();
 
-	await sequence.all(syncedWeeks, async (offset) => {
-		const monday = new Date(thisMonday.getTime() + offset * 7 * day);
-		const nextMonday = new Date(monday.getTime() + 7 * day);
-		const timetable = await fetchWeek(http, isoWeek(monday));
+		await sequence.all(syncedWeeks, async (offset) => {
+			const monday = new Date(thisMonday.getTime() + offset * 7 * day);
+			const nextMonday = new Date(monday.getTime() + 7 * day);
+			const timetable = await fetchWeek(http, isoWeek(monday));
 
-		const releases = [
-			...new Map(
-				timetable.map((release) => [
-					`${release.route}:${release.airType}:${release.episode}`,
-					release,
-				]),
-			).values(),
-		];
+			const releases = [
+				...new Map(
+					timetable.map((release) => [
+						`${release.route}:${release.airType}:${release.episode}`,
+						release,
+					]),
+				).values(),
+			];
 
-		const shows = await new Shows(
-			http,
-			releases.map((release) => release.route),
-		).links();
+			const shows = await new Shows(
+				http,
+				releases.map((release) => release.route),
+			).links();
 
-		await db.transaction(async (tx) => {
-			await tx
-				.delete(animeScheduleRelease)
-				.where(
-					and(
-						gte(animeScheduleRelease.airsAt, monday),
-						lt(animeScheduleRelease.airsAt, nextMonday),
-					),
-				);
-
-			if (releases.length > 0) {
+			await db.transaction(async (tx) => {
 				await tx
-					.insert(animeScheduleRelease)
-					.values(releases)
-					.onConflictDoUpdate({
-						set: {
-							airsAt: sql`excluded.airs_at`,
-							donghua: sql`excluded.donghua`,
-							lengthMinutes: sql`excluded.length_minutes`,
-						},
-						target: [
-							animeScheduleRelease.route,
-							animeScheduleRelease.airType,
-							animeScheduleRelease.episode,
-						],
-					});
+					.delete(animeScheduleRelease)
+					.where(
+						and(
+							gte(animeScheduleRelease.airsAt, monday),
+							lt(animeScheduleRelease.airsAt, nextMonday),
+						),
+					);
+
+				if (releases.length > 0) {
+					await tx
+						.insert(animeScheduleRelease)
+						.values(releases)
+						.onConflictDoUpdate({
+							set: {
+								airsAt: sql`excluded.airs_at`,
+								donghua: sql`excluded.donghua`,
+								lengthMinutes: sql`excluded.length_minutes`,
+							},
+							target: [
+								animeScheduleRelease.route,
+								animeScheduleRelease.airType,
+								animeScheduleRelease.episode,
+							],
+						});
+				}
+			});
+
+			for (const release of releases) {
+				const anilistId = shows.get(release.route);
+
+				if (anilistId) {
+					anilistIds.add(anilistId);
+				}
 			}
 		});
 
-		for (const release of releases) {
-			const anilistId = shows.get(release.route);
-
-			if (anilistId) {
-				anilistIds.add(anilistId);
-			}
-		}
-	});
-
-	return [...anilistIds];
+		return [...anilistIds];
+	},
 };

@@ -1,12 +1,12 @@
 import { defined, chunked, sequence } from "@sora/shared";
 import { and, eq, inArray, not, or, sql } from "drizzle-orm";
 
-import { getAnime } from "../catalog/queries/anime";
+import { catalog } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { series, titleEpisode, titleRelation } from "../database/schema/series";
-import { newId } from "../ids";
+import { ids } from "../ids";
 import {
 	scheduleEpisodeLookups,
 	scheduleSeriesStore,
@@ -103,7 +103,7 @@ export const store = {
 				.insert(series)
 				.values({
 					anilistId,
-					id: newId(),
+					id: ids.create(),
 					...values,
 				})
 				.onConflictDoUpdate({
@@ -182,7 +182,7 @@ export const store = {
 		await edges.measureBackdrop(storedId);
 
 		// Readers take the series' details from its anime, so it must be stored.
-		await getAnime(anilistId);
+		await catalog.anime(anilistId);
 
 		if (built.mayGainEpisodes) {
 			await startTrackingAiring(anilistId);

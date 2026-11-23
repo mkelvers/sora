@@ -4,9 +4,9 @@ import type { MediaRelation } from "../anilist/graphql.generated";
 import { toCard } from "../catalog/models/anime";
 import type { AnimeCard, AnimeStatus } from "../catalog/models/anime";
 import { fuzzyDate } from "../catalog/models/text";
-import { getStoredCards, mayGainEpisodes } from "../catalog/queries/anime";
+import { mayGainEpisodes, catalog } from "../catalog/queries/anime";
 import { UnknownAnimeError } from "../errors";
-import { getLogoPath, tmdbImageUrl } from "../tmdb/resources";
+import { getLogoPath, imageUrl } from "../tmdb/resources";
 import type { TmdbMovie, TmdbShow } from "../tmdb/resources";
 import { franchiseRelations, loadByIds } from "./entries";
 import { playableCount } from "./episodes";
@@ -186,7 +186,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 	}
 
 	const mapping = await new Mapper(entry).resolve();
-	const storedCards = await getStoredCards([anilistId]);
+	const storedCards = await catalog.cards([anilistId]);
 
 	const card = {
 		...(storedCards.get(anilistId) ?? toCard(entry)),
@@ -202,7 +202,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 
 	if (kind !== "anilist") {
 		shownKind = kind;
-		logoUrl = tmdbImageUrl(await getLogoPath(kind, tmdbId), "w500");
+		logoUrl = imageUrl(await getLogoPath(kind, tmdbId), "w500");
 	}
 
 	let startDate: string | null = null;
@@ -214,8 +214,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 	return {
 		anilistId,
 		backdropUrl:
-			tmdbImageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ??
-			card.bannerUrl,
+			imageUrl(show?.backdropPath ?? movie?.backdrop_path ?? null, "original") ?? card.bannerUrl,
 		episodes,
 		key,
 		kind: shownKind,
@@ -226,7 +225,7 @@ export const layOut = async (anilistId: number): Promise<SeriesLayout> => {
 			episode: card.nextEpisode.number,
 		},
 		overview: await new Overview(entry, links, show, movie, episodes.length).text(),
-		posterUrl: tmdbImageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
+		posterUrl: imageUrl(movie?.poster_path ?? null, "w780") ?? card.coverUrl,
 		related: (entry.relations?.edges ?? []).flatMap((edge) => {
 			const node = edge?.node;
 

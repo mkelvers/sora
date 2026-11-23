@@ -217,7 +217,7 @@ export const searchShows = async (query: string): Promise<TmdbShowResult[]> => {
  *
  * @param request - Fetches from TMDB; tests pass a client of their own.
  */
-export const getShowEpisodeGroups = async (
+export const getEpisodeGroups = async (
 	showId: number,
 	request: typeof tmdb = tmdb,
 ): Promise<TmdbEpisodeGroup[][]> => {
@@ -757,7 +757,7 @@ export const getSeasonPosters = async (
  *
  * @param size - A TMDB size bucket such as `w780` or `original`.
  */
-export const tmdbImageUrl = (
+export const imageUrl = (
 	path: string | null,
 	size: "w300" | "w500" | "w780" | "w1280" | "original",
 ) => {

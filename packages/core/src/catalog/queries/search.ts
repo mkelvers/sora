@@ -27,7 +27,7 @@ import { Word } from "./word";
  * @throws {UpstreamUnavailableError} when AniList fails; entries
  *   stored before the failure are kept, and a retry resumes from the stored pages.
  */
-export const syncSearchIndex = async (options: { full: boolean }) => {
+export const syncAnime = async (options: { full: boolean }) => {
 	/**
 	 * An incremental sync re-reads entries changed this long before the newest
 	 * one stored, so an entry AniList changed while a sync was paging is not
@@ -83,7 +83,7 @@ class SearchIndex {
 	}
 }
 
-export const searchIndex = new SearchIndex();
+export const animeIndex = new SearchIndex();
 
 /** An indexed entry, as a search ranks it. */
 export type SearchCandidate = Pick<

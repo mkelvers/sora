@@ -4,7 +4,7 @@ import { defined } from "@sora/shared";
 import sharp from "sharp";
 
 import type { TmdbImage } from "./resources";
-import { blackBars, hasBlackBars, rankStills } from "./stills";
+import { blackBars, hasBlackBars, bestFirst } from "./stills";
 
 const base: Omit<TmdbImage, "file_path"> = {
 	height: 1080,
@@ -71,7 +71,7 @@ const busy = new Busy();
 
 describe("rankStills", () => {
 	test("puts stills without a language before those with one, whatever the votes", () => {
-		const ranked = rankStills(
+		const ranked = bestFirst(
 			[
 				{
 					...base,
@@ -92,7 +92,7 @@ describe("rankStills", () => {
 	});
 
 	test("puts widescreen before other shapes, and large before small", () => {
-		const ranked = rankStills(
+		const ranked = bestFirst(
 			[
 				{
 					...base,
@@ -125,7 +125,7 @@ describe("rankStills", () => {
 	});
 
 	test("breaks a tie of votes with TMDB's own pick", () => {
-		const ranked = rankStills(
+		const ranked = bestFirst(
 			[
 				{
 					...base,

@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { MediaFormat, MediaStatus } from "../anilist/graphql.generated";
-import { formatAllowed, catalogSeriesAllowed } from "../catalog/visibility";
+import { formatAllowed, seriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
@@ -47,7 +47,7 @@ export class CatchUp {
 					inArray(series.anilistId, franchise),
 					inArray(series.status, released),
 					formatAllowed(animeSearch.format),
-					catalogSeriesAllowed,
+					seriesAllowed,
 				),
 			);
 

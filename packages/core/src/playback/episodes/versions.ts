@@ -1,6 +1,6 @@
 import { attempt } from "@sora/shared";
 
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { UnknownAnimeError, UpstreamUnavailableError } from "../../errors";
 import { InFlight } from "../../in-flight";
 import type { ContentLanguage } from "../../models/series";
@@ -15,7 +15,7 @@ import type { ProviderUnit, StoredUnits } from "./episodes";
 /** What listing versions reads, asks, and queues through; tests pass their own. */
 export interface VersionDependencies {
 	providers: readonly StreamProvider[];
-	getAnime: typeof getAnime;
+	getAnime: typeof catalog.anime;
 	getStoredLanguages: typeof getStoredLanguages;
 	getStoredUnits: typeof getStoredUnits;
 	getProviderUnits: typeof getProviderUnits;
@@ -23,7 +23,7 @@ export interface VersionDependencies {
 }
 
 const live: VersionDependencies = {
-	getAnime,
+	getAnime: catalog.anime,
 	getProviderUnits,
 	getStoredLanguages,
 	getStoredUnits,

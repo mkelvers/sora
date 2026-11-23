@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, not, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { MediaFormat } from "../anilist/graphql.generated";
-import { catalogSeriesAllowed } from "../catalog/visibility";
+import { seriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
@@ -132,7 +132,7 @@ export const similar = {
 					inArray(series.key, [...scoreOfKey.keys()]),
 					inArray(animeSearch.format, shownFormats),
 					eq(animeSearch.isAdult, false),
-					catalogSeriesAllowed,
+					seriesAllowed,
 				),
 			)
 			.orderBy(asc(series.startDate), asc(series.anilistId));

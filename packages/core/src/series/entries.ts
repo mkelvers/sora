@@ -1,6 +1,6 @@
 import { hour } from "@sora/shared";
 
-import { loadMediaById } from "../anilist/client";
+import { loadMedia } from "../anilist/client";
 import { FranchiseEntriesDocument } from "../anilist/graphql.generated";
 import type { FranchiseEntryFragment, MediaRelation } from "../anilist/graphql.generated";
 import { zFranchiseEntriesQuery } from "../anilist/validation.generated";
@@ -49,8 +49,8 @@ class Recent {
 		}
 	>();
 
-	/** Fetches entries from AniList, up to 250 to a request; see {@link loadMediaById}. */
-	readonly fetch = loadMediaById({
+	/** Fetches entries from AniList, up to 250 to a request; see {@link loadMedia}. */
+	readonly fetch = loadMedia({
 		document: FranchiseEntriesDocument,
 		media: ({ page0, page1, page2, page3, page4 }) =>
 			[page0, page1, page2, page3, page4].flatMap((page) => page?.media ?? []),
@@ -136,7 +136,7 @@ const recent = new Recent();
  *
  * IDs asked for while a request waits its turn share it, up to 250, so the
  * layouts of many titles at once, as a search starts, cost a request or two
- * rather than one each; see {@link loadMediaById}.
+ * rather than one each; see {@link loadMedia}.
  *
  * Unknown, adult, and music-video IDs are left out: music videos are not
  * watchable series, and adult media is never served.

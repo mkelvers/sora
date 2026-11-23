@@ -3,13 +3,13 @@ import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-or
 import type { z } from "zod";
 
 import { toFormat } from "../catalog/models/anime";
-import { getAnime } from "../catalog/queries/anime";
+import { catalog } from "../catalog/queries/anime";
 import { browse } from "../catalog/queries/browse";
 import type { Page } from "../catalog/queries/browse";
 import { BrowseQuerySchema } from "../catalog/queries/browse-query";
 import type { BrowseQuery } from "../catalog/queries/browse-query";
-import { browseIndex, searchIndex, findAnime } from "../catalog/queries/search";
-import { catalogSeriesAllowed, tagMinimumRank } from "../catalog/visibility";
+import { browseIndex, animeIndex, findAnime } from "../catalog/queries/search";
+import { seriesAllowed, tagMinimumRank } from "../catalog/visibility";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
 import {
@@ -668,7 +668,7 @@ export const titles = {
 			return ordered;
 		};
 
-		if (await searchIndex.complete()) {
+		if (await animeIndex.complete()) {
 			// One entry more than the page holds tells whether another page follows.
 			let found: (typeof animeSearch.$inferSelect)[] = [];
 
@@ -862,7 +862,7 @@ export const titles = {
 		const title = new Title(row);
 
 		const [anime, cards, franchise, overdue, [indexed]] = await Promise.all([
-			getAnime(row.anilistId),
+			catalog.anime(row.anilistId),
 			toCards([row], [row.id]),
 			title.franchise(),
 			title.overdue(),
@@ -961,7 +961,7 @@ export const titles = {
 			.from(series)
 			.where(
 				and(
-					catalogSeriesAllowed,
+					seriesAllowed,
 					inArray(
 						series.id,
 						db

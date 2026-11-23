@@ -1,7 +1,7 @@
 import { attempt, day, hour } from "@sora/shared";
 import { eq, inArray, sql } from "drizzle-orm";
 
-import { anilist, loadMediaById } from "../../anilist/client";
+import { anilist, loadMedia } from "../../anilist/client";
 import { AnimeDetailsDocument, LatestAiringDocument } from "../../anilist/graphql.generated";
 import type { AnimeDetailsFragment } from "../../anilist/graphql.generated";
 import { zAnimeDetailsQuery, zLatestAiringQuery } from "../../anilist/validation.generated";
@@ -52,11 +52,11 @@ export const fetchLatestAiring = async (anilistId: number): Promise<AiringBroadc
 class Details {
 	/**
 	 * Loads anime details by ID, up to 200 to a request shared by every caller
-	 * that asks while it waits its turn; see {@link loadMediaById}. Layouts and
+	 * that asks while it waits its turn; see {@link loadMedia}. Layouts and
 	 * airing checks each ask for one anime, so running at once they share a
 	 * request rather than spend one each.
 	 */
-	readonly #load = loadMediaById({
+	readonly #load = loadMedia({
 		document: AnimeDetailsDocument,
 		media: ({ page0, page1, page2, page3 }) =>
 			[page0, page1, page2, page3].flatMap((page) => page?.media ?? []),
@@ -173,156 +173,158 @@ export const mayGainEpisodes = (
 	}
 };
 
-/**
- * Loads the full details of one anime.
- *
- * The first request fetches the anime from AniList and stores it for good;
- * every later request is served from the database. An anime that is still
- * airing, or finished recently, is handed to the airing scheduler, which keeps
- * the stored copy current until its final episode is out.
- *
- * @throws {UnknownAnimeError} when the ID is unknown to AniList, or
- *   belongs to adult media, which the catalog never serves.
- * @throws {UpstreamUnavailableError} when the anime is not stored yet
- *   and AniList cannot be reached.
- */
-export const getAnime = async (anilistId: number): Promise<Anime> => {
-	const [stored] = await db
-		.select({
-			media: animeTable.media,
-		})
-		.from(animeTable)
-		.where(eq(animeTable.anilistId, anilistId))
-		.limit(1);
+export const catalog = {
+	/**
+	 * Loads the full details of one anime.
+	 *
+	 * The first request fetches the anime from AniList and stores it for good;
+	 * every later request is served from the database. An anime that is still
+	 * airing, or finished recently, is handed to the airing scheduler, which keeps
+	 * the stored copy current until its final episode is out.
+	 *
+	 * @throws {UnknownAnimeError} when the ID is unknown to AniList, or
+	 *   belongs to adult media, which the catalog never serves.
+	 * @throws {UpstreamUnavailableError} when the anime is not stored yet
+	 *   and AniList cannot be reached.
+	 */
+	async anime(anilistId: number): Promise<Anime> {
+		const [stored] = await db
+			.select({
+				media: animeTable.media,
+			})
+			.from(animeTable)
+			.where(eq(animeTable.anilistId, anilistId))
+			.limit(1);
 
-	if (stored) {
-		return toDetails(stored.media);
-	}
+		if (stored) {
+			return toDetails(stored.media);
+		}
 
-	const media = await details.fetch(anilistId);
-	await db
-		.insert(animeTable)
-		.values({
+		const media = await details.fetch(anilistId);
+		await db
+			.insert(animeTable)
+			.values({
+				anilistId: media.id,
+				media,
+				refreshedAt: new Date(),
+				status: media.status,
+			})
+			.onConflictDoNothing();
+
+		if (mayGainEpisodes(media, new Date())) {
+			await startTrackingAiring(anilistId);
+		}
+
+		return toDetails(media);
+	},
+
+	/**
+	 * Cards for the anime among `ids` that the catalog has stored, by AniList ID.
+	 * Anime that are not stored are left out; nothing is fetched.
+	 *
+	 * The airing scheduler keeps stored anime current, so these are fresher
+	 * than stored AniList responses for anime that are still airing.
+	 */
+	async cards(ids: readonly number[]): Promise<Map<number, AnimeCard>> {
+		if (ids.length === 0) {
+			return new Map();
+		}
+
+		const rows = await db
+			.select({
+				media: animeTable.media,
+			})
+			.from(animeTable)
+			.where(inArray(animeTable.anilistId, [...new Set(ids)]));
+
+		return new Map(rows.map((row) => [row.media.id, toCard(row.media)]));
+	},
+
+	/**
+	 * Fetches an anime from AniList again and overwrites the stored copy.
+	 *
+	 * Only the scheduler calls this: the airing scheduler, and
+	 * {@link catalog.refreshStale}. Nothing else updates a stored anime.
+	 *
+	 * @throws {UnknownAnimeError} when AniList no longer serves the anime.
+	 * @throws {UpstreamUnavailableError} when AniList cannot be reached.
+	 */
+	async refresh(anilistId: number): Promise<Anime> {
+		const media = await details.fetch(anilistId);
+
+		const values = {
 			anilistId: media.id,
 			media,
 			refreshedAt: new Date(),
 			status: media.status,
-		})
-		.onConflictDoNothing();
+		};
 
-	if (mayGainEpisodes(media, new Date())) {
-		await startTrackingAiring(anilistId);
-	}
-
-	return toDetails(media);
-};
-
-/**
- * Fetches an anime from AniList again and overwrites the stored copy.
- *
- * Only the scheduler calls this: the airing scheduler, and
- * {@link refreshStaleAnime}. Nothing else updates a stored anime.
- *
- * @throws {UnknownAnimeError} when AniList no longer serves the anime.
- * @throws {UpstreamUnavailableError} when AniList cannot be reached.
- */
-export const refreshAnime = async (anilistId: number): Promise<Anime> => {
-	const media = await details.fetch(anilistId);
-
-	const values = {
-		anilistId: media.id,
-		media,
-		refreshedAt: new Date(),
-		status: media.status,
-	};
-
-	await db
-		.insert(animeTable)
-		.values(values)
-		.onConflictDoUpdate({
-			set: {
-				media: values.media,
-				refreshedAt: values.refreshedAt,
-				status: values.status,
-			},
-			target: animeTable.anilistId,
-		});
-
-	return toDetails(media);
-};
-
-/**
- * Fetches again the stored anime whose copy predates the fields the details
- * fragment asks for now, so a field added to it reaches every stored anime,
- * finished ones included, which nothing else fetches again. Each 200 share
- * one AniList request. Returns how many were refreshed and how many are left.
- *
- * An anime AniList no longer serves keeps its stored copy, given the new
- * fields empty, so it is not asked for again.
- *
- * @throws {UpstreamUnavailableError} when AniList cannot be reached.
- */
-export const refreshStaleAnime = async () => {
-	/**
-	 * How many stale anime {@link refreshStaleAnime} fetches in one run: five
-	 * AniList requests of {@link Details}, which hold 200 each.
-	 */
-	const staleBatch = 1000;
-
-	const stale = await db
-		.select({
-			anilistId: animeTable.anilistId,
-		})
-		.from(animeTable)
-		// Studios as edges, each saying whether it made the anime, are the
-		// newest field the fragment asks for.
-		.where(sql`not (${animeTable.media} -> 'studios' ? 'edges')`)
-		.limit(staleBatch);
-
-	const gone: number[] = [];
-	await Promise.all(
-		stale.map(async ({ anilistId }) => {
-			const { error } = await attempt(refreshAnime(anilistId), UnknownAnimeError);
-
-			if (error) {
-				gone.push(anilistId);
-			}
-		}),
-	);
-
-	if (gone.length > 0) {
 		await db
-			.update(animeTable)
-			.set({
-				media: sql`${animeTable.media} || '{"staff":{"edges":[]},"studios":{"edges":[]}}'::jsonb`,
+			.insert(animeTable)
+			.values(values)
+			.onConflictDoUpdate({
+				set: {
+					media: values.media,
+					refreshedAt: values.refreshedAt,
+					status: values.status,
+				},
+				target: animeTable.anilistId,
+			});
+
+		return toDetails(media);
+	},
+
+	/**
+	 * Fetches again the stored anime whose copy predates the fields the details
+	 * fragment asks for now, so a field added to it reaches every stored anime,
+	 * finished ones included, which nothing else fetches again. Each 200 share
+	 * one AniList request. Returns how many were refreshed and how many are left.
+	 *
+	 * An anime AniList no longer serves keeps its stored copy, given the new
+	 * fields empty, so it is not asked for again.
+	 *
+	 * @throws {UpstreamUnavailableError} when AniList cannot be reached.
+	 */
+	async refreshStale() {
+		/**
+		 * How many stale anime {@link catalog.refreshStale} fetches in one run: five
+		 * AniList requests of {@link Details}, which hold 200 each.
+		 */
+		const staleBatch = 1000;
+
+		const stale = await db
+			.select({
+				anilistId: animeTable.anilistId,
 			})
-			.where(inArray(animeTable.anilistId, gone));
-	}
+			.from(animeTable)
+			// Studios as edges, each saying whether it made the anime, are the
+			// newest field the fragment asks for.
+			.where(sql`not (${animeTable.media} -> 'studios' ? 'edges')`)
+			.limit(staleBatch);
 
-	return {
-		refreshed: stale.length - gone.length,
-		skipped: gone.length,
-	};
-};
+		const gone: number[] = [];
+		await Promise.all(
+			stale.map(async ({ anilistId }) => {
+				const { error } = await attempt(catalog.refresh(anilistId), UnknownAnimeError);
 
-/**
- * Cards for the anime among `ids` that the catalog has stored, by AniList ID.
- * Anime that are not stored are left out; nothing is fetched.
- *
- * The airing scheduler keeps stored anime current, so these are fresher
- * than stored AniList responses for anime that are still airing.
- */
-export const getStoredCards = async (ids: readonly number[]): Promise<Map<number, AnimeCard>> => {
-	if (ids.length === 0) {
-		return new Map();
-	}
+				if (error) {
+					gone.push(anilistId);
+				}
+			}),
+		);
 
-	const rows = await db
-		.select({
-			media: animeTable.media,
-		})
-		.from(animeTable)
-		.where(inArray(animeTable.anilistId, [...new Set(ids)]));
+		if (gone.length > 0) {
+			await db
+				.update(animeTable)
+				.set({
+					media: sql`${animeTable.media} || '{"staff":{"edges":[]},"studios":{"edges":[]}}'::jsonb`,
+				})
+				.where(inArray(animeTable.anilistId, gone));
+		}
 
-	return new Map(rows.map((row) => [row.media.id, toCard(row.media)]));
+		return {
+			refreshed: stale.length - gone.length,
+			skipped: gone.length,
+		};
+	},
 };

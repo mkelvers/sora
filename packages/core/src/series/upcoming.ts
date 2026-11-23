@@ -2,7 +2,7 @@ import { day } from "@sora/shared";
 import { and, eq, not, sql } from "drizzle-orm";
 
 import { fuzzyDate } from "../catalog/models/text";
-import { catalogSeriesAllowed } from "../catalog/visibility";
+import { seriesAllowed } from "../catalog/visibility";
 import { db } from "../database/client";
 import { anime, animeSearch } from "../database/schema/catalog";
 import { series } from "../database/schema/series";
@@ -63,9 +63,7 @@ export const upcoming = {
 			.from(series)
 			.innerJoin(anime, eq(anime.anilistId, series.anilistId))
 			.innerJoin(animeSearch, eq(animeSearch.anilistId, series.anilistId))
-			.where(
-				and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult), catalogSeriesAllowed),
-			);
+			.where(and(eq(anime.status, "NOT_YET_RELEASED"), not(animeSearch.isAdult), seriesAllowed));
 
 		const listed = new Map<
 			string,

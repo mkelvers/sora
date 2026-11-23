@@ -3,7 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { titleEpisode } from "../../database/schema/series";
-import { tmdbImageUrl } from "../../tmdb/resources";
+import { imageUrl } from "../../tmdb/resources";
 import type { TmdbEpisode } from "../../tmdb/resources";
 
 /** The stored episodes of one series. */
@@ -54,7 +54,7 @@ export class StoredEpisodes {
 				overview: tmdbEpisode.overview,
 				// Without TMDB's runtime a layout falls back to AniList's, which is not at hand here.
 				runtimeMinutes: tmdbEpisode.runtime ?? episode.runtimeMinutes,
-				stillUrl: tmdbImageUrl(tmdbEpisode.still_path, "original"),
+				stillUrl: imageUrl(tmdbEpisode.still_path, "original"),
 				title: tmdbEpisode.name,
 			};
 

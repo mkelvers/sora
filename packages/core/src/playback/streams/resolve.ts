@@ -3,7 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { attempt, second, defined, sequence } from "@sora/shared";
 import { z } from "zod";
 
-import { getAnime } from "../../catalog/queries/anime";
+import { catalog } from "../../catalog/queries/anime";
 import { config } from "../../config";
 import { UnknownEpisodeError, InvalidInputError, PlaybackUnavailableError } from "../../errors";
 import type { ProviderAttempt } from "../../errors";
@@ -66,7 +66,7 @@ export type PlaybackRequest = z.input<typeof PlaybackRequestSchema>;
 export interface PlaybackDependencies {
 	providers: readonly StreamProvider[];
 	locateEpisode: typeof locate;
-	getAnime: typeof getAnime;
+	getAnime: typeof catalog.anime;
 	watchable: typeof watchable;
 	getProviderUnits: typeof getProviderUnits;
 	createStreamToken: typeof createStreamToken;
@@ -84,7 +84,7 @@ export interface PlaybackDependencies {
 const live: PlaybackDependencies = {
 	canFetchStream,
 	createStreamToken,
-	getAnime,
+	getAnime: catalog.anime,
 	getProviderUnits,
 	getRefinement,
 	getSkipDetections: loadDetections,

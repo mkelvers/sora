@@ -14,7 +14,7 @@ import {
 	seriesState,
 } from "../database/schema/library";
 import { InvalidInputError, LastProfileError, UnknownProfileError } from "../errors";
-import { newId } from "../ids";
+import { ids } from "../ids";
 import { ProfileInputSchema } from "../models/account";
 import type { Profile, ProfileInput } from "../models/account";
 import { ProfileRow } from "./profile-row";
@@ -51,7 +51,7 @@ export const profiles = {
 		}
 
 		const { name, color, avatar } = parsed.data;
-		const id = newId();
+		const id = ids.create();
 
 		const [existing] = await db
 			.select({

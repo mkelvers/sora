@@ -12,20 +12,22 @@ const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /** 9 base-36 characters: about 46 bits, far beyond any catalogue's size. */
 const size = 9;
 
-/** Creates a new ID, such as `GYZJ43JMR`. */
-export const newId = () => {
-	/** Bytes at or above this would bias the modulo towards the first characters. */
-	const unbiasedByteLimit = 256 - (256 % alphabet.length);
+export const ids = {
+	/** Creates a new ID, such as `GYZJ43JMR`. */
+	create() {
+		/** Bytes at or above this would bias the modulo towards the first characters. */
+		const unbiasedByteLimit = 256 - (256 % alphabet.length);
 
-	let id = "";
+		let id = "";
 
-	while (id.length < size) {
-		for (const byte of crypto.getRandomValues(new Uint8Array(size * 2))) {
-			if (byte < unbiasedByteLimit && id.length < size) {
-				id += alphabet[byte % alphabet.length];
+		while (id.length < size) {
+			for (const byte of crypto.getRandomValues(new Uint8Array(size * 2))) {
+				if (byte < unbiasedByteLimit && id.length < size) {
+					id += alphabet[byte % alphabet.length];
+				}
 			}
 		}
-	}
 
-	return id;
+		return id;
+	},
 };

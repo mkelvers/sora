@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
-import { catalogSeriesAllowed } from "../../catalog/visibility";
+import { seriesAllowed } from "../../catalog/visibility";
 import { db } from "../../database/client";
 import { episodeProgress, seriesState } from "../../database/schema/library";
 import { series } from "../../database/schema/series";
@@ -100,7 +100,7 @@ export const progress = {
 			.innerJoin(series, eq(series.id, latest.seriesId))
 			.where(
 				and(
-					catalogSeriesAllowed,
+					seriesAllowed,
 					or(isNull(latest.dismissedAt), lt(latest.dismissedAt, latest.watchedAt)),
 				),
 			)

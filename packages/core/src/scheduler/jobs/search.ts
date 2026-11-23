@@ -4,7 +4,7 @@ import type { Task } from "graphile-worker";
 import { z } from "zod";
 
 import { currentSeason, nextSeason } from "../../catalog/queries/browse";
-import { syncSearchIndex } from "../../catalog/queries/search";
+import { syncAnime } from "../../catalog/queries/search";
 import { config } from "../../config";
 import { db } from "../../database/client";
 import { animeSearch } from "../../database/schema/catalog";
@@ -40,7 +40,7 @@ export const syncIndex: Task = async (rawPayload, helpers) => {
 		rawPayload,
 	);
 
-	const { pages, stored } = await syncSearchIndex({
+	const { pages, stored } = await syncAnime({
 		full: payload?.full === true,
 	});
 
