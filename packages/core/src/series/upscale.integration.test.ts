@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
-import { watchPools } from "../scheduler/pools";
+import { pools } from "../scheduler/pools";
 import { upscaleBackdropTask } from "../scheduler/queue";
 import { requestBackdropUpscale, upscaleBackdrop, statusesOf } from "./upscale";
 
@@ -188,7 +188,7 @@ describe("backdrop upscale queue", () => {
 		expect(await status()).toBe("pending");
 
 		await claim(new Date(0));
-		await watchPools().stop();
+		await pools.watch().stop();
 		expect(await jobs()).toMatchObject([
 			{
 				attempts: 1,

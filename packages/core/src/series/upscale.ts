@@ -6,7 +6,7 @@ import { db } from "../database/client";
 import { series, titleArtwork, titleBackdropUpscale, titleImage } from "../database/schema/series";
 import type { UpscaleStatus } from "../database/schema/series";
 import { InvalidInputError, UnknownSeriesError } from "../errors";
-import { hasLiveUpscaleJob, requestUpscale } from "../scheduler/queue";
+import { hasLiveUpscale, requestUpscale } from "../scheduler/queue";
 import { isCollage } from "./collage";
 import { storeImageEdges } from "./edges";
 import { upscale } from "./realesrgan";
@@ -24,7 +24,7 @@ export const statusesOf = async (key: string) => {
 			id: titleBackdropUpscale.id,
 			sourceUrl: titleBackdropUpscale.sourceUrl,
 			status: sql<UpscaleStatus>`case
-				when ${titleBackdropUpscale.status} = 'pending' and not ${hasLiveUpscaleJob(titleBackdropUpscale.id)}
+				when ${titleBackdropUpscale.status} = 'pending' and not ${hasLiveUpscale(titleBackdropUpscale.id)}
 				then 'failed'
 				else ${titleBackdropUpscale.status}
 			end`,

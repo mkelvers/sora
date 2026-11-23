@@ -123,7 +123,7 @@ export const storeSeriesTask = "store-series";
  * {@link storeSeriesTask} for a series a viewer is waiting on. Its own task
  * name lets a pool of workers that runs nothing else pick it up at once,
  * rather than after a slot among long catalogue jobs frees up; see
- * {@link startScheduler}.
+ * {@link scheduler.start}.
  */
 export const storeNowTask = "store-series-now";
 
@@ -377,7 +377,7 @@ export interface UpscaleBackdropPayload {
 }
 
 /** A job can still finish if it has an attempt left or is running its last attempt. */
-export const hasLiveUpscaleJob = (id: string | SQLWrapper) => sql<boolean>`exists (
+export const hasLiveUpscale = (id: string | SQLWrapper) => sql<boolean>`exists (
     select 1 from graphile_worker.jobs
     where key = 'upscale-backdrop:' || ${id}::text
       and task_identifier = ${upscaleBackdropTask}
@@ -405,6 +405,6 @@ export const requestUpscale = async (
       max_attempts => 1,
       priority => 0
     )
-    where ${newAttempt}::boolean or not ${hasLiveUpscaleJob(payload.id)}
+    where ${newAttempt}::boolean or not ${hasLiveUpscale(payload.id)}
   `);
 };
