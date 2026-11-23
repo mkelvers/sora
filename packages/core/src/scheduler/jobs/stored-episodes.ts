@@ -3,6 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "../../database/client";
 import { episodeStill, titleEpisode } from "../../database/schema/series";
+import { episodeDetails } from "../../series/episode-details";
 import { imageUrl } from "../../tmdb/resources";
 import type { TmdbEpisode } from "../../tmdb/resources";
 
@@ -20,7 +21,6 @@ export class StoredEpisodes {
 	 */
 	async copy(showId: number, episodes: readonly TmdbEpisode[]): Promise<number> {
 		const seriesId = this.#seriesId;
-		const placeholderTitle = /^episode [0-9]+$/iu;
 
 		const tmdbEpisodes = new Map(
 			episodes.map((episode) => [`${episode.season_number}:${episode.episode_number}`, episode]),
@@ -59,13 +59,8 @@ export class StoredEpisodes {
 				return [];
 			}
 
-			const { name, still_path: stillPath } = tmdbEpisode;
-			let title: string | undefined;
+			const { still_path: stillPath } = tmdbEpisode;
 			let stillUrl: string | null | undefined;
-
-			if (name !== null && !placeholderTitle.test(name)) {
-				title = name;
-			}
 
 			if (episode.chosenEpisode !== null) {
 				// A stored null means the still was checked and rejected.
@@ -74,13 +69,13 @@ export class StoredEpisodes {
 				stillUrl = imageUrl(stillPath, "original");
 			}
 
-			const details = {
-				airDate: tmdbEpisode.air_date ?? undefined,
-				overview: tmdbEpisode.overview ?? undefined,
-				runtimeMinutes: tmdbEpisode.runtime ?? undefined,
+			const details = episodeDetails({
+				airDate: tmdbEpisode.air_date,
+				overview: tmdbEpisode.overview,
+				runtimeMinutes: tmdbEpisode.runtime,
 				stillUrl,
-				title,
-			};
+				title: tmdbEpisode.name,
+			});
 
 			const unchanged =
 				(details.airDate === undefined || episode.airDate === details.airDate) &&

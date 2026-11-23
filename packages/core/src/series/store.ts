@@ -5,16 +5,18 @@ import { catalog } from "../catalog/queries/anime";
 import { fetchEpisodeAirings } from "../catalog/queries/schedule";
 import { db } from "../database/client";
 import { animeSearch } from "../database/schema/catalog";
-import { series, titleEpisode, titleRelation } from "../database/schema/series";
+import { episodeStill, series, titleEpisode, titleRelation } from "../database/schema/series";
 import { ids } from "../ids";
 import {
 	scheduleEpisodeLookups,
 	scheduleSeriesStore,
 	startTrackingAiring,
 } from "../scheduler/queue";
+import { imageUrl } from "../tmdb/resources";
 import { edges } from "./edges";
+import { episodeDetails } from "./episode-details";
 import { anilistKey, aniKotoCarries } from "./episodes";
-import { layOut } from "./series";
+import { layOut, parseKey } from "./series";
 
 export const store = {
 	/** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
@@ -65,6 +67,7 @@ export const store = {
 		const lockKey = 0x5e_71_e5;
 
 		const built = await layOut(anilistId);
+		const [kind, tmdbId] = parseKey(built.key);
 		const storedIds = await store.ids([anilistId]);
 		const isStored = storedIds.has(anilistId);
 
@@ -77,6 +80,42 @@ export const store = {
 
 		const storedId = await db.transaction(async (tx) => {
 			await tx.execute(sql`select pg_advisory_xact_lock(${lockKey}, ${anilistId})`);
+
+			const earlierEpisodes = await tx
+				.select({
+					chosenEpisode: episodeStill.episodeNumber,
+					chosenPath: episodeStill.path,
+					episode: titleEpisode,
+					key: series.key,
+				})
+				.from(titleEpisode)
+				.innerJoin(series, eq(series.id, titleEpisode.seriesId))
+				.leftJoin(
+					episodeStill,
+					and(
+						eq(episodeStill.showId, tmdbId),
+						eq(episodeStill.seasonNumber, titleEpisode.tmdbSeasonNumber),
+						eq(episodeStill.episodeNumber, titleEpisode.tmdbEpisodeNumber),
+					),
+				)
+				.where(eq(series.anilistId, anilistId))
+				.for("update", { of: titleEpisode });
+
+			const airedBefore = new Map(
+				earlierEpisodes.map(({ episode }) => [episode.number, episode.airedAt]),
+			);
+
+			const matchedBefore = new Map<string, (typeof earlierEpisodes)[number]>();
+
+			for (const earlier of earlierEpisodes) {
+				const { tmdbSeasonNumber, tmdbEpisodeNumber } = earlier.episode;
+				const sameShow = kind === "tv" && earlier.key === built.key;
+				const matched = sameShow && tmdbSeasonNumber !== null && tmdbEpisodeNumber !== null;
+
+				if (matched) {
+					matchedBefore.set(`${tmdbSeasonNumber}:${tmdbEpisodeNumber}`, earlier);
+				}
+			}
 
 			let nextAiringAt: Date | null = null;
 
@@ -116,15 +155,6 @@ export const store = {
 
 			const { id } = defined(stored);
 
-			const earlierEpisodes = await tx
-				.select({
-					airedAt: titleEpisode.airedAt,
-					number: titleEpisode.number,
-				})
-				.from(titleEpisode)
-				.where(eq(titleEpisode.seriesId, id));
-
-			const airedBefore = new Map(earlierEpisodes.map((row) => [row.number, row.airedAt]));
 			await tx.delete(titleEpisode).where(eq(titleEpisode.seriesId, id));
 
 			const episodes = built.episodes.map((episode) => {
@@ -143,15 +173,41 @@ export const store = {
 					runtimeMinutes = Math.round(episode.runtimeMinutes);
 				}
 
-				return {
+				const incoming = {
 					airDate: episode.airDate,
-					airedAt,
-					number: episode.number,
 					overview: episode.overview,
 					runtimeMinutes,
-					seriesId: id,
 					stillUrl: episode.stillUrl,
 					title: episode.title,
+				};
+
+				let details: ReturnType<typeof episodeDetails> = incoming;
+
+				const earlier =
+					episode.tmdb &&
+					matchedBefore.get(`${episode.tmdb.seasonNumber}:${episode.tmdb.episodeNumber}`);
+
+				if (earlier) {
+					let stillUrl: string | null | undefined = episode.stillUrl ?? undefined;
+
+					if (earlier.chosenEpisode !== null) {
+						stillUrl = imageUrl(earlier.chosenPath, "original");
+					}
+
+					details = episodeDetails(
+						{
+							...incoming,
+							stillUrl,
+						},
+						earlier.episode,
+					);
+				}
+
+				return {
+					...details,
+					airedAt,
+					number: episode.number,
+					seriesId: id,
 					tmdbEpisodeNumber: episode.tmdb?.episodeNumber ?? null,
 					tmdbSeasonNumber: episode.tmdb?.seasonNumber ?? null,
 				};
