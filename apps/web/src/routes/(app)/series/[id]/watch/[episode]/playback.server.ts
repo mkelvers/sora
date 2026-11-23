@@ -45,20 +45,10 @@ export const resolveEpisode = async (
 			},
 		}),
 		SoraError,
+		TypeError,
 	);
 
 	if (playback.error) {
-		const { code, status, retryAfterSeconds } = playback.error;
-		let retryAt: number | null = null;
-
-		if (retryAfterSeconds !== null) {
-			retryAt = Date.now() + retryAfterSeconds * second;
-		}
-
-		if (!Number.isSafeInteger(retryAt)) {
-			retryAt = null;
-		}
-
 		const { data: episodes } = await attempt(
 			sora.request(route.listEpisodes, { params: { series_id: seriesId } }),
 		);
@@ -68,6 +58,15 @@ export const resolveEpisode = async (
 			previous: episodes?.findLast((candidate) => candidate.number < episode)?.number ?? null,
 		};
 
+		if (!(playback.error instanceof SoraError)) {
+			return {
+				...links,
+				retryAt: null,
+				status: "temporary",
+			};
+		}
+
+		const { code, status, retryAfterSeconds } = playback.error;
 		const missing = status === 404 && (code === "EPISODE_NOT_FOUND" || code === "SERIES_NOT_FOUND");
 
 		if (missing) {
@@ -80,6 +79,16 @@ export const resolveEpisode = async (
 		const temporary = status === 429 || (status >= 500 && status < 600);
 
 		if (temporary) {
+			let retryAt: number | null = null;
+
+			if (retryAfterSeconds !== null) {
+				const deadline = Date.now() + retryAfterSeconds * second;
+
+				if (Number.isSafeInteger(deadline)) {
+					retryAt = deadline;
+				}
+			}
+
 			return {
 				...links,
 				retryAt,

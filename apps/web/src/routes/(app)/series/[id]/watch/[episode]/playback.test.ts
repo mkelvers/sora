@@ -89,6 +89,14 @@ class Fixture {
 		return this;
 	}
 
+	dropConnection() {
+		this.#playback.push(() => {
+			throw new TypeError("fetch failed");
+		});
+
+		return this;
+	}
+
 	/** Has the episode list fail with a problem. */
 	failEpisodes(status: number, code: string) {
 		this.#episodes = () =>
@@ -159,6 +167,17 @@ test("keeps catalog episode links when no provider lists the episode", async () 
 		next: 7,
 		previous: 2,
 		status: "unavailable",
+	});
+});
+
+test("keeps catalog episode links when the playback connection drops", async () => {
+	const { sora } = new Fixture().dropConnection();
+
+	expect(await resolveEpisode(sora, address)).toEqual({
+		next: 7,
+		previous: 2,
+		retryAt: null,
+		status: "temporary",
 	});
 });
 
