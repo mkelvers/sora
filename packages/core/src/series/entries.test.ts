@@ -4,7 +4,7 @@ import type {
 	FranchiseEntryFragment,
 	FranchiseEntryWithNeighboursFragment,
 } from "../anilist/graphql.generated";
-import { loadEntries, toMatchSubject } from "./entries";
+import { loadByIds, toMatchSubject } from "./entries";
 
 /** An AniList entry that knows nothing but its ID. */
 class Entry {
@@ -72,9 +72,9 @@ test("asks AniList only for entries it has not loaded recently", async () => {
 		Promise.resolve(new Map([...ids].map((id) => [id, new Entry(id).loaded]))),
 	);
 
-	await loadEntries([100], load);
-	await loadEntries([100], load);
-	const loaded = await loadEntries([100, 101], load);
+	await loadByIds([100], load);
+	await loadByIds([100], load);
+	const loaded = await loadByIds([100, 101], load);
 
 	expect(load.mock.calls.map(([ids]) => [...ids])).toEqual([[100], [101]]);
 	expect([...loaded.keys()]).toEqual([100, 101]);
@@ -85,8 +85,8 @@ test("answers a later request for a neighbour from the one that brought it", asy
 		Promise.resolve(new Map([...ids].map((id) => [id, new Entry(id).loaded]))),
 	);
 
-	await loadEntries([1], load);
-	const neighbours = await loadEntries([2], load);
+	await loadByIds([1], load);
+	const neighbours = await loadByIds([2], load);
 
 	expect(load).toHaveBeenCalledTimes(1);
 	expect(neighbours.get(2)?.id).toBe(2);

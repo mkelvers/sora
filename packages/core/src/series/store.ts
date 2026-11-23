@@ -14,7 +14,7 @@ import {
 } from "../scheduler/queue";
 import { measureBackdrop } from "./edges";
 import { anilistEpisodeKey, carriedByAniKoto } from "./episodes";
-import { buildSeries } from "./series";
+import { layOut } from "./series";
 
 /** The Sora IDs of the stored series of the given AniList entries, by AniList ID. */
 export const storedSeriesIds = async (
@@ -65,7 +65,7 @@ export const storeSeries = async (anilistId: number): Promise<string> => {
 	 */
 	const lockKey = 0x5e_71_e5;
 
-	const built = await buildSeries(anilistId);
+	const built = await layOut(anilistId);
 	const storedIds = await storedSeriesIds([anilistId]);
 	const isStored = storedIds.has(anilistId);
 

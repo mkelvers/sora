@@ -43,20 +43,20 @@ import type {
 } from "../models/series";
 import { findAnimeLanguages, findEpisodeListings } from "../playback/episodes/versions";
 import { requestSubtitleProbe, scheduleSeriesStore } from "../scheduler/queue";
-import { aboutSeries } from "./about";
+import { About } from "./about";
 import { effectiveBackdrop, effectiveStill } from "./edges";
 import {
 	anilistEpisodeKey,
 	carriedByAniKoto,
 	expectedRelease,
-	isEpisodeAwaited,
+	isAwaited,
 	isEpisodeAvailable,
-	loadAniKotoEpisodes,
+	loadCarried,
 	releasedAtOf,
 	releasedBetween,
 } from "./episodes";
 import type { EpisodeListingRow } from "./episodes";
-import { franchiseParts, isNamedAfter } from "./franchise";
+import { Franchise, isNamedAfter } from "./franchise";
 import { classify } from "./roles";
 import { storedSeriesIds } from "./store";
 
@@ -66,7 +66,7 @@ type SeriesRow = typeof series.$inferSelect;
 const keepListed = <TRow extends EpisodeListingRow & { seriesId: string }>(
 	titles: readonly SeriesRow[],
 	rows: readonly TRow[],
-	onAniKoto: Awaited<ReturnType<typeof loadAniKotoEpisodes>>,
+	onAniKoto: Awaited<ReturnType<typeof loadCarried>>,
 ) => {
 	const now = new Date();
 	const bySeries = Map.groupBy(rows, (row) => row.seriesId);
@@ -104,7 +104,7 @@ export const listedEpisodeDatesOf = async (titles: readonly SeriesRow[]) => {
 				),
 			)
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
 	return keepListed(titles, rows, onAniKoto);
@@ -456,7 +456,7 @@ export const franchiseIds = async (
 
 /**
  * The stored titles of a series' franchise (see {@link franchiseIds}), this
- * one included, as {@link franchiseParts} lists them: those with an episode
+ * one included, as {@link Franchise} lists them: those with an episode
  * to watch, and the seasons announced but yet to come out, which the page
  * shows as coming soon. Other titles yet to come out, those still queued for
  * storing, and music videos, are left out, though the series itself is always
@@ -524,7 +524,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 		);
 	};
 
-	const parts = franchiseParts(
+	const { parts } = new Franchise(
 		titles.map((title) => {
 			const card = cards.get(title.id);
 
@@ -616,7 +616,7 @@ const franchiseOf = async (row: SeriesRow): Promise<FranchisePart[]> => {
 };
 
 /**
- * The first of a series' awaited episodes (see {@link isEpisodeAwaited})
+ * The first of a series' awaited episodes (see {@link isAwaited})
  * still expected to come out, with when it is expected (see
  * {@link expectedRelease}), or `null` when none is.
  */
@@ -630,10 +630,10 @@ const overdueEpisode = async (
 			.from(seriesEpisode)
 			.where(eq(seriesEpisode.seriesId, row.id))
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes([row.anilistId]),
+		loadCarried([row.anilistId]),
 	]);
 
-	const awaited = episodes.filter((episode) => isEpisodeAwaited(row, episode, onAniKoto, now));
+	const awaited = episodes.filter((episode) => isAwaited(row, episode, onAniKoto, now));
 
 	if (awaited.length === 0) {
 		return null;
@@ -854,12 +854,12 @@ export const getSeries = async (seriesId: string): Promise<Series> => {
 
 	return {
 		...card,
-		...aboutSeries({
+		...new About({
 			...about,
 			anime,
 			audio: card.audio,
 			overview: card.overview,
-		}),
+		}).section,
 		backdrop_edges: found.edges,
 		genres: anime.genres,
 		// An aired episode still to come out is next until it is listed, ahead of
@@ -964,7 +964,7 @@ export const listedEpisodesOf = async (titles: readonly SeriesRow[]) => {
 				),
 			)
 			.orderBy(asc(seriesEpisode.number)),
-		loadAniKotoEpisodes(titles.map((title) => title.anilistId)),
+		loadCarried(titles.map((title) => title.anilistId)),
 	]);
 
 	return keepListed(titles, rows, onAniKoto);
