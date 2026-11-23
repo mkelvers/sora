@@ -211,7 +211,7 @@ export const fitToVideo = (segments: SkipSegment[], duration: number | null) => 
 
 /**
  * A version's segments with what looking for its theme songs in its own
- * audio settled (see `detectSkipSegments`): a song found replaces the
+ * audio settled (see `locateSongs`): a song found replaces the
  * provider's segment of its kind, an opening song that plays only late in the
  * video leaves no opening, and a kind nothing was settled for keeps the
  * provider's segment.

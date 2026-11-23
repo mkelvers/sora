@@ -5,7 +5,7 @@ import { day } from "@sora/shared";
 import { isDue, videoKey } from "./store";
 import { unsettled } from "./store.fixture";
 
-describe("skipDetectionKey", () => {
+describe("videoKey", () => {
 	test("is the same whichever host serves the playlist", () => {
 		expect(videoKey("https://a.example/anime/1/sub/master.m3u8")).toBe(
 			videoKey("https://b.example/anime/1/sub/master.m3u8?token=2"),
@@ -19,7 +19,7 @@ describe("skipDetectionKey", () => {
 	});
 });
 
-describe("isSkipDetectionDue", () => {
+describe("isDue", () => {
 	test("is due for a video never looked at", () => {
 		expect(isDue(undefined)).toBe(true);
 	});

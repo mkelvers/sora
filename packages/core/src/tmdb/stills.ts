@@ -116,7 +116,7 @@ export const showsText = async (image: Buffer): Promise<boolean> => {
 };
 
 /**
- * Gives each episode the still stored for it by `chooseStill`, in place of
+ * Gives each episode the still stored for it by `stills.choose`, in place of
  * TMDB's own pick, and none when none was fit to show. An episode with
  * nothing stored keeps TMDB's pick until one is.
  */

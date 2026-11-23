@@ -18,7 +18,7 @@ export const syncScheduleTask = "sync-dub-schedule";
  * dub shows up within minutes of AniKoto carrying it. AniList has no dub
  * schedule.
  *
- * Runs daily on AnimeSchedule's timetable as `syncTimetables` stores it,
+ * Runs daily on AnimeSchedule's timetable as `timetables.sync` stores it,
  * without asking AnimeSchedule itself. Only dubs of stored series that
  * AniKoto does not carry yet are looked for.
  */

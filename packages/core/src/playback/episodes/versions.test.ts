@@ -358,7 +358,7 @@ describe("watchable", () => {
 	});
 });
 
-describe("findEpisodeListings", () => {
+describe("findListings", () => {
 	test("marks each episode filler or not, as the providers that say do", async () => {
 		const { dependencies } = new Providers([
 			provider("anikoto", "en", [unit(1, ["sub"], false), unit(2, ["sub"], true)]),

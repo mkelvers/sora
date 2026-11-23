@@ -42,7 +42,7 @@ export type Attempt<TData, TError extends Error = Error> =
  *
  * @example
  * ```ts
- * const { data, error } = await attempt(getAnime(id), UnknownAnimeError);
+ * const { data, error } = await attempt(catalog.anime(id), UnknownAnimeError);
  * if (error) {
  *   return null;
  * }

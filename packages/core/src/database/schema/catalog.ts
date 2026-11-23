@@ -79,7 +79,7 @@ export const anime = pgTable(
  * from the database rather than from AniList, which allows only 30 to 90
  * requests a minute for the whole server.
  *
- * The scheduler keeps it current; see `syncSearchIndex`.
+ * The scheduler keeps it current; see `syncAnime`.
  */
 export const animeSearch = pgTable(
 	"anime_search",

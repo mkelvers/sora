@@ -1,6 +1,6 @@
 import type { TmdbImage } from "./resources";
 
-/** How good a TMDB still is, before votes; see `rankStills`. */
+/** How good a TMDB still is, before votes; see `bestFirst`. */
 export class StillRank {
 	static readonly #widescreen = 16 / 9;
 

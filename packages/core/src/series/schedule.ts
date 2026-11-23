@@ -33,7 +33,7 @@ export const schedule = {
 	 * one, gives the time instead.
 	 *
 	 * Reads only the database, which the scheduler keeps from last week to next
-	 * week; see `syncTimetables`. Only stored titles are listed: the scheduler
+	 * week; see `timetables.sync`. Only stored titles are listed: the scheduler
 	 * queues the rest as it stores the timetable, and they appear once stored.
 	 *
 	 * @throws {InvalidInputError} when the window is empty or longer than 14 days.

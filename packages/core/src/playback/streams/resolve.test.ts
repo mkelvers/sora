@@ -297,7 +297,7 @@ beforeEach(() => {
 	refinements.clear();
 });
 
-describe("resolvePlayback", () => {
+describe("streams.resolve", () => {
 	test("serves English dub and sub together, never another locale", async () => {
 		fake.use([
 			{
@@ -1250,7 +1250,7 @@ describe("resolvePlayback", () => {
 	});
 });
 
-describe("resolvePlayback deadline", () => {
+describe("streams.resolve deadline", () => {
 	test("serves the versions that answered and gives up on the one that hangs", async () => {
 		fake.use([
 			{

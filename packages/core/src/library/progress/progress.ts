@@ -41,7 +41,7 @@ export const progress = {
 	 * A series is judged by the episode the user played last, the later one
 	 * when several were played at once, as marking a season watched does. While that
 	 * episode is unfinished, it is the one to play. Once it is finished, the
-	 * episode after it is (see `getAdjacentEpisodes`), from where the user left
+	 * episode after it is (see `titles.adjacentEpisodes`), from where the user left
 	 * it if they started it before; a series with no episode after it is left
 	 * out until one comes out, and so is a series whose every listed episode is
 	 * finished, unless the user is rewatching it. A series being rewatched is
@@ -386,7 +386,7 @@ export const progress = {
 	 * already finished stays as it was unless the user finishes it again.
 	 * During a rewatch this is the rewatch's progress, and the first viewing is
 	 * left as it was.
-	 * The series' watchlist status moves on as `followPlayback`
+	 * The series' watchlist status moves on as `watchlist.followPlayback`
 	 * says, and finishing its last episode ends a rewatch of it.
 	 *
 	 * @throws {InvalidInputError} when the input fails {@link ProgressInputSchema}.

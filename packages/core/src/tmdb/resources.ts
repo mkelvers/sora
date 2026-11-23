@@ -706,7 +706,7 @@ export const getImages = (
 /**
  * Loads every still TMDB lists for an episode, in every language, and
  * always from TMDB: the answer is a choice made once and stored (see
- * `chooseStill`), not one read again.
+ * `stills.choose`), not one read again.
  *
  * @returns The stills; empty when TMDB does not know the episode.
  */

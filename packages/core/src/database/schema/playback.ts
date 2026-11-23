@@ -121,7 +121,7 @@ export type AgeRating = "G" | "PG" | "PG-13" | "R" | "R+" | "Rx";
  * series by ID instead of by title. AniKoto records the AniList ID of about
  * half its series and the MyAnimeList ID of nearly all of them.
  *
- * The scheduler keeps it current; see `syncAniKotoCatalog`.
+ * The scheduler keeps it current; see `aniKotoCatalog.sync`.
  */
 export const anikotoSeries = pgTable(
 	"anikoto_series",
@@ -197,7 +197,7 @@ export const providerCalls = pgTable(
  * entry; such a show is looked up again after a week.
  *
  * The scheduler fills it in as shows appear in AnimeSchedule's timetable;
- * see `syncTimetables`.
+ * see `timetables.sync`.
  */
 export const animeScheduleShow = pgTable("anime_schedule_show", {
 	anilistId: integer("anilist_id"),
@@ -216,7 +216,7 @@ export type AirType = "raw" | "sub" | "dub";
  * numbers them; see {@link animeScheduleShow} for the entry.
  *
  * The scheduler keeps last week to next week as AnimeSchedule lists them,
- * leaving out delayed episodes; see `syncTimetables`. Earlier weeks stay as
+ * leaving out delayed episodes; see `timetables.sync`. Earlier weeks stay as
  * they were last listed.
  */
 export const animeScheduleRelease = pgTable(
@@ -242,7 +242,7 @@ export const animeScheduleRelease = pgTable(
 /**
  * How a sub's English subtitles move onto one dub's timeline so each cue
  * shows while the dub says it, found by matching the cues to the speech in
- * the dub's audio; see `refineCues`. Keyed by what identifies the pair of
+ * the dub's audio; see `retimeCues`. Keyed by what identifies the pair of
  * encodes, since stream URLs expire but their paths do not.
  *
  * A row with null `shifts` records that the dub's speech does not match
@@ -262,7 +262,7 @@ export const subtitleRefinement = pgTable("subtitle_refinement", {
 /**
  * Where an episode's theme songs play in one video, found by looking for the
  * anime's openings and endings in the video's own audio; see
- * `detectSkipSegments`. Playback puts these in place of the provider's skip
+ * `locateSongs`. Playback puts these in place of the provider's skip
  * segments.
  *
  * Kept as small as it can be: no audio or fingerprints are stored, only the
@@ -274,7 +274,7 @@ export const skipDetection = pgTable("skip_detection", {
 	checkedAt: timestamptz("checked_at").notNull(),
 	endingEnd: real("ending_end"),
 	endingStart: real("ending_start"),
-	/** A hash of the video's playlist path; see `skipDetectionKey`. */
+	/** A hash of the video's playlist path; see `videoKey`. */
 	key: text("key").primaryKey(),
 	/**
 	 * The opening song plays only late in the video, over the story or as its

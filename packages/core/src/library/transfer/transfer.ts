@@ -96,7 +96,7 @@ export const exportLibrary = async (userId: string, now = new Date()): Promise<L
  *
  * From another site a title is put on the watchlist with its status, and
  * the episodes up to the ones watched are marked watched, as
- * `markWatched` would. A completed title has every released episode marked.
+ * `progress.markWatched` would. A completed title has every released episode marked.
  *
  * @throws {InvalidInputError} when the import fails {@link LibraryImportSchema},
  *   or the AniList user is unknown or private.

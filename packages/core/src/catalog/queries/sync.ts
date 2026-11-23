@@ -15,7 +15,7 @@ import type { IndexedMedia } from "./indexed-entry";
 /** The search index's row in `catalog_sync`. */
 export const catalogName = "anime_search";
 
-/** One run bringing the search index up to date with AniList; see `syncSearchIndex`. */
+/** One run bringing the search index up to date with AniList; see `syncAnime`. */
 export class Sync {
 	/** AniList serves at most this many pages of 50 for one filter. */
 	static readonly #pagesPerWindow = 100;

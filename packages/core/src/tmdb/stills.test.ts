@@ -69,7 +69,7 @@ class Busy {
 
 const busy = new Busy();
 
-describe("rankStills", () => {
+describe("bestFirst", () => {
 	test("puts stills without a language before those with one, whatever the votes", () => {
 		const ranked = bestFirst(
 			[

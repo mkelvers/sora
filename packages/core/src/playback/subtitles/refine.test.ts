@@ -42,7 +42,7 @@ class Dub {
 	}
 }
 
-describe("refineCues", () => {
+describe("retimeCues", () => {
 	test("moves each cue to when its words are spoken, with a little lead and tail", () => {
 		const cues = script.slice(0, 30);
 		const refinement = retimeCues(cues, new Dub(cues).words(10.4), null);

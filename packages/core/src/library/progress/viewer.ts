@@ -16,7 +16,7 @@ export class Viewer {
 		this.#userId = userId;
 	}
 
-	/** Whether the user is rewatching a series; see `startRewatch`. */
+	/** Whether the user is rewatching a series; see `progress.rewatch`. */
 	async rewatching(seriesId: string): Promise<boolean> {
 		const userId = this.#userId;
 

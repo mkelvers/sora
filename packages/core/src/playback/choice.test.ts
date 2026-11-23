@@ -13,7 +13,7 @@ const dub = {
 	subtitles: [track("en", "dialogue", true)],
 };
 
-describe("choosePlayback", () => {
+describe("chooseVersion", () => {
 	test("plays the preferred audio with its default track", () => {
 		const chosen = chooseVersion([dub, sub], {
 			audio: "sub",

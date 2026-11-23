@@ -11,7 +11,7 @@ import { afterPlayback } from "./status";
 export const watchlist = {
 	/**
 	 * Moves a series' watchlist status on after the user played one of its
-	 * episodes, as {@link afterPlayback} says. Called by `saveProgress`.
+	 * episodes, as {@link afterPlayback} says. Called by `progress.save`.
 	 */
 	async followPlayback(
 		userId: string,

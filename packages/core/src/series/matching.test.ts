@@ -1035,7 +1035,7 @@ describe("placeAsMovie", () => {
 	});
 });
 
-describe("placeAfterInCollection", () => {
+describe("placeAfterPrequel", () => {
 	// Haikyu!! Final Arc Collection: the second film has no release date yet.
 	const parts = [
 		movie({
@@ -1179,7 +1179,7 @@ describe("continuesPastLinks", () => {
 	});
 });
 
-describe("placeInEpisodeGroups", () => {
+describe("placeInGroups", () => {
 	const first = weekly(5, "2022-01-08", 12).map((episode, order) => ({
 		...episode,
 		order,
